@@ -1,0 +1,40 @@
+# wear/woman/culturetunic_stride: the culturetunic in the side walk's PASS frames, keyed by the legs (motion rebuild 2026-10-21,
+# docs/MOTION_P2.md 7.3). The pass draws the hang's rest view under the torso's lifted run view: these views (the pass
+# keys walkB2 and walkD2 only, so idles, hurts, falls and postures are untouched) close the row between them and widen
+# the hang's back edge over the crossed legs' seat. GARB (motion rebuild). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment culturetunic
+layer hangFront
+anchor hip
+keys legs
+z 1
+
+view D key walkB2 origin 0 0
+|.
+
+view U key walkB2 origin 0 0
+|.
+
+view D key walkD2 origin 0 0
+|.
+
+view U key walkD2 origin 0 0
+|.
+
+
+view R key walkB2 origin 5 0
+|fiihhhhhhgf
+|58887777665
+
+view R key walkD2 origin 5 0
+|fiihhhhhhgf
+|58887777665
+
+view L key walkB2 origin 6 0
+|fihhhhhhggf.
+|588777766665
+
+view L key walkD2 origin 6 0
+|fihhhhhhggf.
+|588777766665

@@ -1,6 +1,8 @@
 # kin/youth/wear/kilt_hang: the pleated kilt to the knee: alternating lit and shadowed pleats, a lit hem; the pleats
 # fan on the side walk and in the run
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys: rest, wide, flare, kneel, lie.
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person
 body youth
 role garment kilt
@@ -64,13 +66,11 @@ view R key rest origin 5 0
 
 view R key wide origin 5 0
 |.58787665.
-|5878787665
 |59898987655
 
 view R key flare origin 6 0
 |..58787665.
-|.5878787665
-|598989898765
+|......598765
 
 view R key kneel origin 5 0
 |.58787665.
@@ -83,13 +83,11 @@ view L key rest origin 5 0
 
 view L key wide origin 6 0
 |..58787665.
-|.5878787665
 |59898987655
 
 view L key flare origin 6 0
 |..58787665..
-|.5878787665.
-|598989898765
+|598985......
 
 view L key kneel origin 6 0
 |..58787665.

@@ -26,6 +26,7 @@
 //   part <name>                  the part's id (default: its path under maps/ without ".pxm", e.g. "hair/adult/tousled")
 //   use <legend> [...]           characters from maps/legend/<legend>.legend (later ones override earlier ones)
 //   legend <char> <slot> <step>  a local legend entry (overrides the used legends): slot by name (Slot), step 0-4
+//   stamps <library> [...]       (MOTION_P2 8) the stamp libraries its views `put` from: maps/stamps/<library>.stamps
 //   body <set> [...]             the body sets it serves: man woman youth child adult (= man woman); default from the
 //                                path (".../man/...", ".../woman/...", "youth/", "child/"; else adult)
 //   role <category> <value>      what look value it serves (Role, by name; value: the resolver's vocabulary, below);
@@ -43,7 +44,10 @@
 //                                (DOLL, P2b) `tile` (a pattern tile: its view (D serves every facing) is repeated over the
 //                                garment parts' cloth1 pixels, `on-<slot>` another slot; each tile cell naming a slot recolours
 //                                the cloth pixel under it to that slot KEEPING the cloth's step (so the shading runs through),
-//                                outlines untouched; the tile rides the garment's anchor; '.' keeps the cloth)
+//                                outlines untouched; the tile rides the garment's anchor; '.' keeps the cloth),
+//                                (MOTION_P2 8) `boots-stamped` (every B or O region cell of its R and L walk/run views
+//                                must be written by a `put`: a hand-drawn boot pixel is an error naming the part, view and
+//                                cell; rpg_test --doll B12 checks the tag is in the pool)
 // Then one block per view:
 //   view <D|U|R|L> [key <k>] [origin <x> <y>] [layer <l>] [anchor <a>] [when <cond> [replace]] [stretch <row>]
 //     key      the key (default "rest"); legs and arms per pose key (idle, walkA..., run1-6, action and posture keys),
@@ -55,6 +59,13 @@
 //     replace  (DOLL, P2b) with `when`: drawn INSTEAD of the base view when the condition holds (a capped hair style
 //              under a hat, a kilt's bare knee): the first replacing view whose condition holds wins
 //     stretch  the leg drawing's stretch row: doubled for elves (rows on the far side of the origin move out by 1)
+//   put <stamp> <dx> <dy> [under] [cols <a>-<b>]
+//                                (MOTION_P2 8; R and L views only) places a stamp: its origin lands at (dx, dy) from the
+//                                view's origin cell (y down, like the clips' anchors: dy = -lift); the view's facing picks
+//                                the stamp's R or L entry; the default draws it over the view's own pixels, `under` only
+//                                into the view's clear cells (the far boot behind the near leg); `cols a-b` keeps only those
+//                                stamp columns (the toe tips under a long hem). Its regions land with its pixels. pxc expands
+//                                the puts into the cells before the craft checks: the pool never sees a stamp
 //   mark <name> <x> <y>          a named point in this view's grid (face, handR, handL, grip, tip, footL, footR, hip, top):
 //                                the compositor turns marks into RigAnchors, and `grip` / `gripL` into anchors for held
 //                                items and shields
@@ -68,7 +79,8 @@
 //                                removes ('.' else). Columns move away from (broad) or toward (slim) the origin's column
 // Rules the compiler enforces (pxc.mjs; errors fail the build's --check): every character in the legend, origins on base
 // views, one view per (facing, key, when), a `when` view has its base, a left view is never the plain mirror of its
-// right view (FX excepted). Craft warnings (errors with --strict, `draft` parts spared): orphan pixels (all eight
+// right view (FX excepted); every put's stamp exists for the view's facing and lands inside the grid; boots-stamped
+// parts hold no hand-drawn boot pixel. Craft warnings (errors with --strict, `draft` parts spared): orphan pixels (all eight
 // neighbours clear), the top-left light (each material's left half of its own pixels at least as light by step as its
 // right half), a key missing a facing, a part no role uses.
 //
@@ -76,6 +88,16 @@
 // (K ink, # lash, @ eye white, M mouth, L lip, Y blush, E iris, G glint; a-e hair, q-u skin, 5-9 cloth1, 1-4 cloth2,
 // m-p accent, f-j leather, v-z metal, N-P metal2 1-3, C B A the arc's edge, body and core); woman.legend adds the
 // woman's (v-y linen, A-D cloth3, R S accent 1 and 3).
+//
+// Stamp libraries (maps/stamps/*.stamps; MOTION_P2 4 and 8: the boot, one drawing in hand-drawn tilts): `use` and
+// `legend` lines (the library's own legend: a stamp reads the same in every part), then entries
+//   stamp <name> <R|L> origin <x> <y>   the key's ground pivot in its own grid (the heel or toe on the sole row)
+//   |<row> ...                           its pixels ('.' clear; no '-')
+//   regions / |<row> ...                 its region plane (B boot, O sole), landing with the pixels
+// Checks: one entry per (name, facing); every O cell Ink; an L entry never the plain mirror of its R entry; orphans and
+// lone-colour noise as on a map. `pxc --placements FILE` writes one JSON line per put (part, file, facing, key, when,
+// stamp, dx, dy, under, cols, line); `pxc --report` lists each entry and its uses; the incremental cache keys on the
+// libraries too.
 //
 // ======================================================================================== The clip format (.clip)
 // rpg/art/doll/clips/*.clip, line based ('#' comments):

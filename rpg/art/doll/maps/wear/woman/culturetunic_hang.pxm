@@ -1,6 +1,13 @@
 # wear/woman/culturetunic_hang: the culture tunic's two-row skirt to mid-thigh: the hips, the split skirt, the lit hem band (the
 # edge region); it parts at the side slits on the stride (wide), flares in the run, lies on the lap seated
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side flare views (the run) kick the skirt up to the run hem, a row
+# under the garment's lifted run views, so the legs show under it as limbs.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7): the side walk takes torso=run (the belt row lifted with the hem),
+# so the side `wide` views (contact, down) carry the torso rest's last row on top (no trouser band under the bodice) and
+# reach a pixel further back over her fuller walking hip; the pass frames' rows are <garment>_stride.pxm's (keyed by the
+# legs), so the rest and idle views (idles, hurts, falls, postures) are untouched. The run's flare is two rows (never a
+# one-row spur behind the hips).
 use person woman
 body woman
 role garment culturetunic
@@ -91,15 +98,15 @@ view R key rest origin 8 -1
 |...588777677665.
 |...599889887765.
 
-view R key wide origin 8 -1
-|....5887777665..
-|...58877.5776665
-|..599885.5988776
+view R key wide origin 6 0
+|..fihhhhhhgf..
+|..5887777665..
+|.5887755776665
+|59988555988776
 
-view R key flare origin 8 -1
-|....5887777665..
-|..59887767776665
-|...59985.5988765
+view R key flare origin 8 0
+|..58877767776665
+|.59988988887765.
 
 view R key kneel origin 8 -1
 |....5887777665..
@@ -133,15 +140,15 @@ view L key rest origin 8 -1
 |.588767777665...
 |.598898888665...
 
-view L key wide origin 8 -1
-|..5887777665....
-|5887775.776665..
-|998865.59887665.
+view L key wide origin 8 0
+|..fihhhhhhgf...
+|..588777766665.
+|588777557766665
+|998865559887665
 
-view L key flare origin 8 -1
-|..5887777665....
-|59988767777665..
-|59988.5899865...
+view L key flare origin 8 0
+|58877767776665..
+|.59988988887765.
 
 view L key kneel origin 8 -1
 |..5887777665....

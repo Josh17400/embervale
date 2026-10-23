@@ -31,7 +31,7 @@ timing model (frames by distance walked, swings by the family's pace), the swing
 | Ink #1E162A outer outline with Lit Ink on every person | coloured outlines: each material outlined in its own darkest step; the finishing pass lights the outline pixels that face the top-left to the next step. Ink only on the sole line. The Ink outline stays on v1 sheets and creatures until those are redrawn | 8 |
 | ramps from the creator hexes, spread 0.8-1.3 | A3's hue-shifted 5-step ramps: curated tables for skin and hair, a generator calibrated on A3 for every other colour | 6 |
 | dither at light-band edges on wide cloth | no dither on people: solid lit bands, clean folds, no single-pixel trims | 7 |
-| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet; after the owner's walk fix (2026-10-19) both bodies walk an 18 px cycle with chunky legs and flat boots; a RUN (36 px) above 54 px/s | 10 |
+| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet; after the owner's walk fix (2026-10-19) both bodies walk an 18 px cycle with chunky legs and flat boots; a RUN (36 px) above 54 px/s; side views since the owner's motion reference (2026-10-20): limbs, a scissor stride, one boot in five angled keys (docs/MOTION_P2.md) | 10 |
 | weapons rasterized procedurally at 16 angles | weapons are authored maps at 16 angles (drafted from P2a's rasterizer, then cleaned by hand) | 11 |
 | fighters hold the weapon in every clip | out of combat the blade rides sheathed (A3: the sword at the hip, the hand on the hilt); in hand while fighting (the owner confirms at the slice) | 11 |
 | fall: recoil, buckle, a painted topple | recoil, buckle, then the lying figure itself lifted for one frame; lying is the composed side view turned a quarter | 13 |
@@ -361,22 +361,51 @@ POSTURE (per posture in use). The clip list and its timing model are P2a's (anim
 | Fall | 3: recoil, buckle, topple | 0.10, 0.12, 0.12 s | the body gives way |
 | Lying | head west, head east | 60 s, fading the last 5 | the dead lie down |
 
-**The owner's walk fix (2026-10-19; binding, supersedes the stride notes below where they differ).** After three review
+**The owner's motion reference (2026-10-20; binding for the SIDE walk and run; supersedes the walk fix's boot and stance
+rules below, and anything else in this section that disagrees).** The owner circled the side run ("the feet are
+completely disconnected from the body"), then sent docs/ref/motion/owner_walk_ref.png, an 8-frame side walk in another art
+style: "Not the art style but the walking animation and how it works, this is what you need to shoot for. See how the feet
+art constantly flat but can be angled throughout the strides." docs/MOTION_P2.md holds the key poses (every frame, both
+facings, every body), the boot keys, the plants and the gates; these are its rules:
+- **Legs are limbs.** In every side walk and run frame both legs show, continuous from under the hem to the boot: the
+  trouser thigh, the knee at the boot top, the leather shin, the ankle on the boot. The hem rides a row up while walking and
+  running (the garments' `run` views); hangs open over the stride; long garments show the shoe tips.
+- **A scissor stride from one pelvis**, scaled to our 10-row leg: an inverted V at contact (each leg about 20 degrees from
+  vertical, 16 px heel to toe), the legs crossing at the passing pose, the planted leg carrying the body. The run lands flat
+  on a bent knee, kicks the trailing heel up, and flies with the leading knee up and the trailing foot pointed: never a
+  stiff inverted V.
+- **One boot, angled.** The foot is one hand-drawn boot with a clean straight Ink sole that tilts through the stride: toe up
+  at heel strike, flat while it carries the body, heel up behind, rolled onto the toe at push-off, toe down while it
+  swings. Five keys (flat, toe-up, heel-up, toe-off, hang), each a hand-drawn rotation of the idle's foot (the same size and
+  parts; never a shear, a squash or a tool rotation), drawn once as a stamp and placed in every frame. It pivots on the end
+  that touches the ground; a supporting foot sits on the ground row. Only the foot tilts, at a clean ankle: the shaft is
+  the shin. (The round the owner rejected on 2026-10-19, "the feet are getting rotated, joints look a little off", turned
+  whole boots and broke the joints.)
+- **Still binding:** chunky legs (90 % of the idle's visible leg area, the idle's hip width at most 1 px narrower, no leg
+  run under 3 px above the feet), clean knees and ankles, a hip bob of 1 px at most and no squat, the planted leg under the
+  hips, the down frame no wider than its contact, women drawn and judged in trousers, bare legs and skirts, the 18 / 36 px
+  cycles and 6 frames, registration. Elves show the leg drawing's top row: it is a finished seat row (walk and run keys use
+  no stretch row). Front and back walks are unchanged.
+Gated by `rpg_test --doll --gates` (B11 limbs and B12 boots, MOTION_P2 section 9) and the judge's trace of every frame.
+
+**The owner's walk fix (2026-10-19; binding, supersedes the stride notes below where they differ; its boot and stance
+rules are superseded for side views by the motion reference above).** After three review
 rounds the owner rejected the walk drawn from A3's leg drawings ("his legs all of a sudden get super skinny") and signed
 off a redrawn walk and run. The A3 idles and the swing keys stay pixel for pixel (0 px parity); **every walk and run frame,
 side, front and back, was redrawn** and is no longer A3's. The redrawn walk keeps A's chunky legs and the A3 silhouette:
 - every walk and run frame keeps 90 % or more of the idle's visible leg area and the idle's hip width (the hip row, the
   first visible leg row, at most 1 px narrower); no visible leg run under 3 px (no sliver of a leg);
-- boots are never drawn rotated: a flat sole, the idle's boot moved and lifted; clean knee and ankle joints, the bend at
-  the knee;
+- ~~boots are never drawn rotated: a flat sole, the idle's boot moved and lifted~~ (front and back views still; side views
+  since 2026-10-20: one boot in five hand-drawn angled keys, above); clean knee and ankle joints, the bend at the knee;
 - the hip bob at most 1 px (0 / +1 / 0; the hip row within 1 px of the contact frame's, no squat); the planted leg straight
-  under the hips; no splayed stance (a down frame no wider than its contact);
+  under the hips; no splay beyond MOTION_P2's key poses (a down frame no wider than its contact; the "compact stride" and
+  the 13 px stance caps are superseded by MOTION_P2's table);
 - **both bodies walk an 18 px cycle; the run is 36 px** (above 54 px/s, signed off); the frame table still comes from the
   plant anchors (section 24);
 - the woman's legs are drawn and gated in trousers and bare legs as well as under the skirt (her skirt keeps 90 % of the
   idle's area).
-These are gated by `rpg_test --doll --gates` (B11 leg mass: leg area, hip row, narrowest run, hip bob, stance; `--report`
-prints every frame), not by A3 parity. Every new leg set, garment and armour piece that shows legs passes the same checks.
+These are gated by `rpg_test --doll --gates` (B11 leg mass: leg area, hip row, narrowest run, hip bob, stance; side views
+since 2026-10-20 B11 limbs and B12 boots; `--report` prints every frame), not by A3 parity. Every new leg set, garment and armour piece that shows legs passes the same checks.
 
 **The walk fits A3's stride** (the study's measurements, kept as history; the cycle lengths above win). Measured on A3's side walks (docs/ref/style_a3, the soles' Ink spans): the man's planted
 foot travels 9 px from heel strike to toe-off (centre 18 > 15 > 9 on the near leg; 18.5 > 14 > 9 on the far leg), the
@@ -395,10 +424,11 @@ scurry. Above 54 px/s people run: 6 frames, the torso leaning 1 px forward in si
 (the owner's walk fix above; the first plan's 2 px bob is superseded), the legs keeping the idle's mass, arms bent and pumping, every hanging part lagging 2 px. The planted foot travels about 10 px in the two stance
 frames and the flight adds about 8 px a half-cycle, so the cycle is **about 36 px** (the drawings' anchors decide): at
 74 px/s, 2.06 cycles a second and 12.3 fps, close to the cadence of A3's approved walk GIF (2.6 cycles a second). Kids
-run with the Play posture's frames; elders never run.
+run with the Play posture's frames; elders never run. Its side poses (landing, push, flight) are MOTION_P2 5.3's.
 
 **Registration** (P2a, kept): at every frame change of a side walk or a run's stance frames, the planted foot lands within
-1 px of where it stood; within a held frame it slips one frame step or less; a walk starts on the pass frame; the body
+1 px of where it stood (since 2026-10-20 measured at its ground contact: the heel from heel strike to mid-stance, the toe
+from heel-off to toe-off; the clips' plant is the planted heel, MOTION_P2 5.4); within a held frame it slips one frame step or less; a walk starts on the pass frame; the body
 stays steady on screen (pivot changes on 2 or fewer of 119 frames on W, E and S).
 
 **Secondary motion** (A3): the cowlick stretches a pixel on the down frames and flattens on the up frames; the scarf tail
@@ -608,10 +638,14 @@ which also settles the two open looks: the run above 54 px/s, and sheathed weapo
 **The owner's rules (hard, from the owner's own reviews; every part that draws bodies, legs, clothing or poses obeys them):**
 - No skinny legs. Keep A's CHUNKY proportions: sturdy legs and boots, the A3 silhouette (the owner rejected skinny legs
   twice).
-- No walk or run frame under 90 % of the idle's leg area or narrower than the idle's hip width; no rotated boot (a flat
-  sole, the idle boot moved and lifted); no mushy knee or ankle (clean joints, the bend at the knee); no hip bob over 1 px
-  (0 / +1 / 0); no planted leg off the line under the hips; no splayed stance (a down frame no wider than contact).
-  `rpg_test --doll --gates` measures these.
+- No walk or run frame under 90 % of the idle's leg area or narrower than the idle's hip width; no distorted, sheared,
+  squashed or tool-rotated boot (side views: only MOTION_P2's five hand-drawn angled keys of the one boot, placed as
+  stamps; front and back views: the idle boot moved and lifted); no mushy knee or ankle (clean joints, the bend at the
+  knee); no hip bob over 1 px (0 / +1 / 0); no planted leg off the line under the hips; no splay beyond MOTION_P2's key
+  poses (a down frame no wider than contact). `rpg_test --doll --gates` measures these.
+- (The owner's motion reference, 2026-10-20.) No side walk or run frame with a leg hidden under a hem (long garments show
+  their shoe tips), a boot that floats or reads glued to a hem, a leg that is not continuous from the hip to the boot, a
+  planted foot that skates, or a flight that is a stiff inverted V of two straight legs.
 - No woman's body judged only in a dress: develop and judge women's legs and bodies in trousers and bare legs too (they
   wear trousers, armour, short garments). No clothing or armour shared between the bodies: each is fitted separately for
   men and for women.
@@ -766,7 +800,9 @@ artist draws by.
 - **Optional regions** (`when` overlays) carry ornaments, dials, sheaths, glints and build changes inside one part, drawn
   only when the look asks.
 - **Build masks**: torsos, hangs and pauldrons mark the columns broad adds and slim removes.
-- **The stretch row**: every leg drawing marks one row that doubles for elves (a straight run of both legs).
+- **The stretch row**: every leg drawing marks one row that doubles for elves (a straight run of both legs). (Side walk and
+  run keys mark none, since a doubled row would jag a diagonal limb: their top row is a finished seat row that elves show,
+  section 10.)
 - **Drafts**: `tools/doll/draft.mjs` writes a mirror-and-relight draft of a right view as a left view; P2a's rasterizer and
   effect painters write first drafts of weapons and arcs. A draft is a starting point; the committed map is hand-placed
   and hand-checked (the compiler flags a left view that equals the plain mirror of its right view).

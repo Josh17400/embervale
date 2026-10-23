@@ -326,7 +326,8 @@ EyePair eyesFor(uint32_t col) {
 const uint32_t kLeather[6][5] = {
     {0x2C1621, 0x5B3129, 0x8D5536, 0xBF8249, 0xE7B672},   // A3's brown
     {0x1E1018, 0x45261F, 0x6A3E2A, 0x94603A, 0xBE8A5A},   // dark brown
-    {0x3A2018, 0x7A4A2C, 0xB07A44, 0xD8A866, 0xF2D294},   // tan
+    {0x180D09, 0x7A4A2C, 0xB07A44, 0xD8A866, 0xF2D294},   // tan (MOTION_P2 14: its outline luma 16, with the black's: the
+                                                          // boot's edge parts from grass instead of melting into it)
     {0x2A1E22, 0x54403A, 0x7E6450, 0xA88A6C, 0xD0B892},   // grey-brown
     {0x141018, 0x2A2230, 0x443A48, 0x6A5E6C, 0x988C98},   // black
     {0x2E1018, 0x62261E, 0x96402C, 0xC2683E, 0xE8A066},   // red-brown
@@ -339,6 +340,8 @@ const uint32_t kTrim[4][5] = {
     {0x2E1A10, 0x6E3E1C, 0xA8682E, 0xD49A52, 0xF2CC8A},
 };
 void setHex(uint32_t dst[5], const uint32_t src[5]) { for (int i = 0; i < 5; i++) dst[i] = hex(src[i]); }
+
+constexpr double kTrouserFloor = 52.0;   // A3's trouser body #33304E (MOTION_P2 14)
 
 uint32_t mixHash(uint32_t h, uint32_t v) { h ^= v + 0x9E3779B9u + (h << 6) + (h >> 2); return h; }
 
@@ -427,6 +430,34 @@ DollRamps rampsOf(const HumanLook& L) {
   curatedHair(hairCol, R.c[(int)Slot::Hair]);
   rampA3(L.topColor, Material::Cloth, R.c[(int)Slot::Cloth1]);
   rampA3(L.bottomColor, Material::Cloth, R.c[(int)Slot::Cloth2]);
+  // MOTION_P2 14: the trouser-body floor. A trouser body (Cloth2 step 1, A3's leg char '2') darker than A3's own (#33304E,
+  // luma 52) reads as a shadow band on grass; its base is lifted (RGB scaled: HSV hue and saturation kept) to the smallest
+  // value whose generated step 1 reaches luma 52. Brighter picks are untouched; darker picks all land on the floor, so the
+  // mapping stays monotonic. Rig 2 only (appearance.h, rig 1 and A3's palettes never pass through here).
+  if (luma(R.c[(int)Slot::Cloth2][1]) < kTrouserFloor) {
+    const uint32_t b = (L.bottomColor & 0xFFFFFFu) ? L.bottomColor : rgba(1, 1, 1);   // black: a neutral grey lift
+    const int mx = std::max({chR(b), chG(b), chB(b)});
+    auto scaled = [&](double k) {
+      auto ch = [&](int v) { return (int)std::clamp(std::lround(v * k), 0L, 255L); };
+      return rgba(ch(chR(b)), ch(chG(b)), ch(chB(b)));
+    };
+    double lo = 1.0, hi = 255.0 / mx;
+    uint32_t g[5];
+    generateCached(scaled(hi), Material::Cloth, g);
+    if (luma(g[1]) >= kTrouserFloor) {
+      for (int it = 0; it < 24; it++) {
+        const double mid = (lo + hi) * 0.5;
+        generateCached(scaled(mid), Material::Cloth, g);
+        (luma(g[1]) >= kTrouserFloor ? hi : lo) = mid;
+      }
+    }
+    const uint32_t ownOutline = R.c[(int)Slot::Cloth2][0];   // the pick's own step 0, before the lift
+    generateCached(scaled(hi), Material::Cloth, R.c[(int)Slot::Cloth2]);
+    // the floor is a BODY floor: the outline keeps the pick's own step 0 (darker than the lifted ramp's), so the leg's
+    // silhouette ring stays as dark against grass as the pick drew it (STYLE_P2 8: the ring 40 luma or more from the
+    // ground). Still monotonic: a darker pick has a darker own outline.
+    if (luma(ownOutline) < luma(R.c[(int)Slot::Cloth2][0])) R.c[(int)Slot::Cloth2][0] = ownOutline;
+  }
   rampA3(L.tabardColor, Material::Cloth, R.c[(int)Slot::Accent]);
   rampA3(L.headColor ? L.headColor : L.topColor, Material::Cloth, R.c[(int)Slot::Head]);
   rampA3(L.cloakColor, Material::Cloth, R.c[(int)Slot::Cloak]);
@@ -439,6 +470,41 @@ DollRamps rampsOf(const HumanLook& L) {
     const uint32_t h = mixHash(mixHash(mixHash(0x1EA7u, L.skin), L.topColor), L.bottomColor);
     static const int pick[10] = {0, 0, 0, 1, 1, 2, 3, 4, 5, 2};
     setHex(R.c[(int)Slot::Leather], kLeather[pick[h % 10]]);
+  }
+  // (P2b motion prototype, 2026-10-21) the trousers part from the boots: a trouser body (Cloth2 step 2, the lit leg tone)
+  // within 28 luma of the boot's and within 40 degrees of its hue (brown trousers over brown boots, the default hero) reads
+  // as one dark column, so a walking leg loses its boot top; its base is lifted the floor's way (RGB scaled, hue and
+  // saturation kept) to the smallest value whose step 2 sits 28 luma over the boot's and whose step 1 keeps the floor.
+  // The outline keeps the pick's own step 0 (the silhouette ring as dark as drawn). Rig 2 only.
+  {
+    uint32_t* T = R.c[(int)Slot::Cloth2];
+    const uint32_t* B = R.c[(int)Slot::Leather];
+    const Lab lt = toLab(T[2]), lb = toLab(B[2]);
+    double dh = std::abs(std::atan2(lt.b, lt.a) - std::atan2(lb.b, lb.a)) * 57.29578;
+    if (dh > 180.0) dh = 360.0 - dh;
+    const double want = luma(B[2]) + 28.0;
+    if (luma(T[2]) < want && luma(T[2]) > luma(B[2]) - 28.0 && dh < 40.0) {
+      const uint32_t b = (L.bottomColor & 0xFFFFFFu) ? L.bottomColor : rgba(1, 1, 1);
+      const int mx = std::max({chR(b), chG(b), chB(b), 1});
+      auto scaled = [&](double k) {
+        auto ch = [&](int v) { return (int)std::clamp(std::lround(v * k), 0L, 255L); };
+        return rgba(ch(chR(b)), ch(chG(b)), ch(chB(b)));
+      };
+      auto good = [&](const uint32_t g[5]) { return luma(g[2]) >= want && luma(g[1]) >= kTrouserFloor; };
+      double lo = 1.0, hi = 255.0 / mx;
+      uint32_t g[5];
+      generateCached(scaled(hi), Material::Cloth, g);
+      if (good(g)) {
+        for (int it = 0; it < 24; it++) {
+          const double mid = (lo + hi) * 0.5;
+          generateCached(scaled(mid), Material::Cloth, g);
+          (good(g) ? hi : lo) = mid;
+        }
+        const uint32_t ownOutline = T[0];
+        generateCached(scaled(hi), Material::Cloth, T);
+        if (luma(ownOutline) < luma(T[0])) T[0] = ownOutline;
+      }
+    }
   }
   // trim: the nearest curated metal to the look's trim colour (brass by default)
   if (L.trimColor) {

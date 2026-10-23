@@ -1,6 +1,8 @@
 # kin/youth/wear/kaftan_hang: the kaftan's skirt to the ankles, open down the front: the linen inner garment between the
 # gilt-trimmed edges, the cloth folds either side, a lit hem; the shoe tips show under it
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys as robe_hang (rest, wide, flare, kneel, lie).
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person woman
 body youth
 role garment kaftan
@@ -117,7 +119,6 @@ view R key rest origin 5 0
 
 view R key wide origin 6 0
 |..5887766P..
-|..5887766P..
 |.58877766P..
 |.588777666P.
 |5887777666P5
@@ -126,7 +127,6 @@ view R key wide origin 6 0
 |.5555555555.
 
 view R key flare origin 7 0
-|...5887766P..
 |...5887766P..
 |..58877766P..
 |.588777666P5.
@@ -155,7 +155,6 @@ view L key rest origin 5 0
 
 view L key wide origin 6 0
 |..P8877665..
-|..P8877665..
 |..P88777665.
 |.P887776665.
 |5P8877776665
@@ -164,7 +163,6 @@ view L key wide origin 6 0
 |.5555555555.
 
 view L key flare origin 6 0
-|..P8877665...
 |..P8877665...
 |..P88777665..
 |.5P887776665.

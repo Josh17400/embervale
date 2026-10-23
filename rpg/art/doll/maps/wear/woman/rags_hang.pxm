@@ -1,6 +1,9 @@
 # wear/woman/rags_hang: the shift's torn skirt to the knee: worn folds, the hem in ragged teeth and tatters (each tooth its own
 # outline); her bare shins and feet below; it sways by whole rows, swings wide on the stride, streams back in the run
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): the run's flare tatters lift clear of the kicked shin and fly
+# back over the trailing thigh; the man's side `wide` views ride the pivot (his down frames drop the hip, the hem holds its
+# row; a `when elf` twin a row up).
 use person woman
 body woman
 role garment rags
@@ -129,11 +132,11 @@ view R key wide origin 8 -1
 |...55...55...55.
 
 view R key flare origin 8 -1
-|....5887776765..
-|..588777677665..
-|.587767776665...
-|.5985.598.565...
-|..55...5...5....
+|...55887776765
+|.5888777677665
+|5555.76776665.
+|.....598.565..
+|......5...5...
 
 view R key kneel origin 8 -1
 |....5887776765..
@@ -174,18 +177,18 @@ view L key rest origin 8 -1
 |..55...5...5....
 
 view L key wide origin 8 -1
-|..5887776765....
-|5887767776665...
-|.5887677766665..
-|5985.5985.5865..
-|.55...55...55...
+|..588777676665
+|58877677766665
+|.5887677766665
+|5985.5985.5865
+|.55...55...55.
 
-view L key flare origin 8 -1
-|..5887776765....
-|...588776777665.
-|....588767776665
-|....5895.598.565
-|.....55...5...5.
+view L key flare origin 6 -1
+|58877767665...
+|5887767776655.
+|.58776665.5555
+|..589.565.....
+|...5...5......
 
 view L key kneel origin 8 -1
 |..5887776765....

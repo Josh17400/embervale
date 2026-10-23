@@ -1,6 +1,13 @@
 # wear/man/apron_hang: the work apron's leather skirt from the belt to mid-thigh, a solid lit hem; it swings a row with
 # the step, the front leg pushes it forward in side views, it flaps out in the run, lies on the lap seated
 # GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side flare views (the run) kick the skirt up to the run hem, a row
+# under the garment's lifted run views, so the legs show under it as limbs.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7): the side walk takes torso=run (the torso's hem a row up), so the
+# side `wide` views (contact, down) carry the torso rest's last row on top (no trouser band between torso and skirt) and
+# ride the PIVOT (a `when elf` twin a row up): the man's down frames drop his hip a pixel and a hip-anchored hem would
+# cover the knees; on the pivot the hem holds its row, as the woman's held hip does. The pass frames' gap row and back
+# edge are <garment>_stride.pxm's (keyed by the legs), so the rest views (idle, hurt, falls, postures) are untouched.
 use person woman
 legend Z linen 4
 body man
@@ -41,11 +48,21 @@ view R key rest origin -2 -2
 |fihhf
 |fjiif
 
-view R key wide origin -2 -2
-|fihhf.
-|.fjiif
+view R key wide origin 5 9 anchor pivot
+|vxwwwwwfjhhf.
+|.......fihhf.
+|........fjiif
+build
+|.............
 
-view R key flare origin -2 -2
+view R key wide origin 5 10 anchor pivot when elf replace
+|vxwwwwwfjhhf.
+|.......fihhf.
+|........fjiif
+build
+|.............
+
+view R key flare origin -2 0
 |fihhhf.
 |.fjiiif
 
@@ -59,11 +76,21 @@ view L key rest origin 7 -2
 |fiihf
 |fjiif
 
-view L key wide origin 8 -2
-|.fiihf
-|fjiif.
+view L key wide origin 8 9 anchor pivot
+|.fjhhfwwwwwwv
+|.fiihf.......
+|fjiif........
+build
+|.............
 
-view L key flare origin 9 -2
+view L key wide origin 8 10 anchor pivot when elf replace
+|.fjhhfwwwwwwv
+|.fiihf.......
+|fjiif........
+build
+|.............
+
+view L key flare origin 9 0
 |.fiihhf
 |fjiiif.
 

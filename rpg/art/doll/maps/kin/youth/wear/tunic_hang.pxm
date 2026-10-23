@@ -1,6 +1,8 @@
 # kin/youth/wear/tunic_hang: the tunic's skirt: two rows to the lit hem over the trousers; it widens on the side walk's
 # contact and down frames (wide) and flares in the run; kneel (the fall's buckle) spreads it; lie (lying) drapes it
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's skirt starts from her narrower waist.
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person
 body youth
 role garment tunic
@@ -74,19 +76,15 @@ view R key rest origin 5 0 when girl replace
 |5986868765
 
 view R key wide origin 5 0
-|588777665.
-|59868868765
+|5986868765
 
 view R key wide origin 5 0 when girl replace
-|.58877665.
-|59868868765
+|5986868765
 
 view R key flare origin 5 0
-|588777665.
 |59868868765
 
 view R key flare origin 5 0 when girl replace
-|.58877665.
 |59868868765
 
 view R key kneel origin 5 0
@@ -101,20 +99,16 @@ view L key rest origin 5 0 when girl replace
 |.5887665..
 |5986868765
 
-view L key wide origin 6 0
-|..588777665
-|59868868765
+view L key wide origin 5 0
+|5986868765
 
-view L key wide origin 6 0 when girl replace
-|..58877665.
-|59868868765
+view L key wide origin 5 0 when girl replace
+|5986868765
 
 view L key flare origin 6 0
-|..588777665
 |59868868765
 
 view L key flare origin 6 0 when girl replace
-|..58877665.
 |59868868765
 
 view L key kneel origin 6 0

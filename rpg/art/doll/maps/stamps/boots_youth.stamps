@@ -1,0 +1,247 @@
+# rpg/art/doll/maps/stamps/boots_youth.stamps: the youth's boot, ONE drawing in five tilts (docs/MOTION_P2.md 4.2, 5.5; STYLE_P2
+# 10 "The owner's motion reference"). The youth's own foot (kin/youth/legs/std's side idle: the B rows F-2..F-1, 5 and 6 px of
+# leather over a 6 px Ink sole; the 4 px shaft above it is the shin, drawn by the leg), hand-placed at each tilt, never a
+# shear, a squash or a tool rotation: Y0 flat (the planted foot); Y1 toe-up 1:2 (heel strike: the sole stepping 2 / 2 / 2 up
+# to the toe, the toe cap a pixel above; 17 px); Y2 heel-up 1:2 (motion fix round 2, R2-06: the walk contact's trailing foot
+# up on its toe pad, the heel TWO rows up so it reads at 1x: the sole stepping 2 / 2 / 2, 18 px); Y3 toe-off (rolled onto
+# the toe, the sole stepping 1 / 2 / 2: the down frame's trailing foot, the run's kick, push and flight; 17 px); Y4 pointed
+# (fix round 2: Y2 rolled onto its toe tip, the sole 2 / 2 / 1 and the tip's outline below the last step: the walk pass's
+# swing foot, toe down a row off the ground, its single toe pixel clear of the planted toe; 18 px). Every key keeps the
+# square heel, the outline all round, the straight Ink sole, the lit pixel behind the heel outline. `n` near, `f` far (a
+# value darker, the same silhouette). origin = the key's ground pivot on its sole row (the heel of Y0 / Y1, the toe's last
+# Ink pixel of Y2 / Y3 / Y4). L entries: the R keys mirrored and re-lit for the top-left light (never the plain mirror).
+# Used by kin/youth/legs/std.pxm and tips.pxm (`# put` comments, expanded there pixel for pixel).
+use person
+# Y0 flat (the planted foot; the run's landing and the flight's leading foot, lifted), R view: origin = the heel
+stamp Y0n R origin 0 2
+|fihgf.
+|fihhgf
+|KKKKKK
+regions
+|BBBBB.
+|BBBBBB
+|OOOOOO
+stamp Y0f R origin 0 2
+|fhggf.
+|fhhggf
+|KKKKKK
+regions
+|BBBBB.
+|BBBBBB
+|OOOOOO
+# Y1 toe-up 1:2 (heel strike), R view: origin = the heel
+stamp Y1n R origin 0 4
+|....f.
+|...ihf
+|fihhKK
+|fhKK..
+|KK....
+regions
+|....B.
+|...BBB
+|BBBBOO
+|BBOO..
+|OO....
+stamp Y1f R origin 0 4
+|....f.
+|...hgf
+|fhggKK
+|fgKK..
+|KK....
+regions
+|....B.
+|...BBB
+|BBBBOO
+|BBOO..
+|OO....
+# Y2 heel-up 1:2 (heel off two rows, on the toe pad), R view: origin = the toe's last sole pixel
+stamp Y2n R origin 5 4
+|fh....
+|fihg..
+|KKhhgf
+|..KKgf
+|....KK
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OO
+stamp Y2f R origin 5 4
+|fh....
+|fhgg..
+|KKhggf
+|..KKgf
+|....KK
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OO
+# Y3 toe-off 1:2 (rolled onto the toe; toe down when lifted), R view: origin = the toe's last sole pixel
+stamp Y3n R origin 4 4
+|fh...
+|fihg.
+|Khhgf
+|.KKgf
+|...KK
+regions
+|BB...
+|BBBB.
+|OBBBB
+|.OOBB
+|...OO
+stamp Y3f R origin 4 4
+|fh...
+|fhgg.
+|Khggf
+|.KKgf
+|...KK
+regions
+|BB...
+|BBBB.
+|OBBBB
+|.OOBB
+|...OO
+# Y0 flat (the planted foot; the run's landing and the flight's leading foot, lifted), L view: origin = the heel
+stamp Y0n L origin 5 2
+|.fihgf
+|fihhgf
+|KKKKKK
+regions
+|.BBBBB
+|BBBBBB
+|OOOOOO
+stamp Y0f L origin 5 2
+|.fhggf
+|fhhggf
+|KKKKKK
+regions
+|.BBBBB
+|BBBBBB
+|OOOOOO
+# Y1 toe-up 1:2 (heel strike), L view: origin = the heel
+stamp Y1n L origin 5 4
+|.f....
+|fih...
+|KKihhf
+|..KKhf
+|....KK
+regions
+|.B....
+|BBB...
+|OOBBBB
+|..OOBB
+|....OO
+stamp Y1f L origin 5 4
+|.f....
+|fhg...
+|KKhggf
+|..KKgf
+|....KK
+regions
+|.B....
+|BBB...
+|OOBBBB
+|..OOBB
+|....OO
+# Y2 heel-up 1:2 (heel off two rows, on the toe pad), L view: origin = the toe's last sole pixel
+stamp Y2n L origin 0 4
+|....if
+|..ihgf
+|fhhgKK
+|fgKK..
+|KK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|OO....
+stamp Y2f L origin 0 4
+|....hf
+|..hggf
+|fhggKK
+|fgKK..
+|KK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|OO....
+# Y3 toe-off 1:2 (rolled onto the toe; toe down when lifted), L view: origin = the toe's last sole pixel
+stamp Y3n L origin 0 4
+|...if
+|.ihgf
+|fhhgK
+|fgKK.
+|KK...
+regions
+|...BB
+|.BBBB
+|BBBBO
+|BBOO.
+|OO...
+stamp Y3f L origin 0 4
+|...hf
+|.hggf
+|fhggK
+|fgKK.
+|KK...
+regions
+|...BB
+|.BBBB
+|BBBBO
+|BBOO.
+|OO...
+# Y4 pointed (the swing foot toe down, lifted: the walk pass), R/L: the heel-up foot rolled onto its toe tip
+stamp Y4n R origin 4 4
+|fh....
+|fihg..
+|KKhhgf
+|..KKgf
+|....Kf
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OB
+stamp Y4f R origin 4 4
+|fh....
+|fhgg..
+|KKhggf
+|..KKgf
+|....Kf
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OB
+stamp Y4n L origin 1 4
+|....if
+|..ihgf
+|fhhgKK
+|fgKK..
+|fK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|BO....
+stamp Y4f L origin 1 4
+|....hf
+|..hggf
+|fhggKK
+|fgKK..
+|fK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|BO....

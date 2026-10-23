@@ -1,0 +1,115 @@
+# wear/woman/coat_stride: the coat skirt's knee rows in side views, keyed by the legs (motion rebuild, 2026-10-21,
+# docs/MOTION_P2.md 7.3). coat_hang.pxm's side rest views stop above row F-6; these views put those rows back for every
+# standing leg key the side views draw with hang=rest (pixel for pixel, so idles, postures and swings compose as before),
+# and draw the pass keys (walkB2, walkD2) with the hem lifted, so both knees show as the legs cross. GARB (motion rebuild).
+# Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment coat
+layer hangFront
+anchor hip
+keys legs
+z 1
+
+view R key idle origin 6 -4
+|59888887765
+|.555555555.
+
+view R key guard origin 6 -4
+|59888887765
+|.555555555.
+
+view R key buckle origin 6 -4
+|59888887765
+|.555555555.
+
+view R key lunge origin 6 -4
+|59888887765
+|.555555555.
+
+view R key stance origin 6 -4
+|59888887765
+|.555555555.
+
+view L key idle origin 5 -4
+|59888887765
+|.555555555.
+
+view L key guard origin 5 -4
+|59888887765
+|.555555555.
+
+view L key buckle origin 5 -4
+|59888887765
+|.555555555.
+
+view L key lunge origin 5 -4
+|59888887765
+|.555555555.
+
+view L key stance origin 5 -4
+|59888887765
+|.555555555.
+
+view D key idle origin 0 0
+|.
+
+view U key idle origin 0 0
+|.
+
+view D key guard origin 0 0
+|.
+
+view U key guard origin 0 0
+|.
+
+view D key buckle origin 0 0
+|.
+
+view U key buckle origin 0 0
+|.
+
+view D key lunge origin 0 0
+|.
+
+view U key lunge origin 0 0
+|.
+
+view D key stance origin 0 0
+|.
+
+view U key stance origin 0 0
+|.
+
+
+view R key walkB2 origin 6 -1
+|.58887777P5
+|...........
+|59888887765
+
+view R key walkD2 origin 6 -1
+|.58887777P5
+|...........
+|59888887765
+
+view L key walkB2 origin 5 -1
+|5P777766665.
+|............
+|598888887765
+
+view L key walkD2 origin 5 -1
+|5P777766665.
+|............
+|598888887765
+
+view D key walkB2 origin 0 0
+|.
+
+view U key walkB2 origin 0 0
+|.
+
+view D key walkD2 origin 0 0
+|.
+
+view U key walkD2 origin 0 0
+|.

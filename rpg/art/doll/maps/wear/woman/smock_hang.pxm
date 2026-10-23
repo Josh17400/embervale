@@ -1,6 +1,11 @@
 # wear/woman/smock_hang: the smock's skirt to the knee: loose folds, a lit hem band (the edge region) and its outline row, the
 # rope belt's tail; it swings by whole rows (sway), widens on the stride and flares in the run
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): in side walk and run frames both knees and two shin rows show
+# under the skirt. `wide` (contact, down) lifts the lit hem to F-7 with the back skirt a row longer behind the legs; the
+# `flare` (run) flies the back panel out from the waist and sweeps the front over the leading thigh, clear of the kicked
+# shin and the flight's high knee; the side `rest` views stop above the knee rows, which <garment>_stride.pxm puts back for
+# every standing leg key (pixel for pixel) and lifts in the pass keys.
 use person woman
 body woman
 role garment smock
@@ -114,26 +119,22 @@ view R key idle origin 8 -1
 |..59988889887765
 |...5555555555555
 
-view R key rest origin 8 -1
-|....5887776765..
-|...588777677665.
-|..58887776776665
-|..59988889887765
-|...5555555555555
+view R key rest origin 6 -1
+|..5887776765..
+|.588777677665.
+|58887776776665
 
 view R key wide origin 8 -1
 |....5887776765..
 |..5888777677665.
-|.588877767776665
 |.599888898887765
-|..55555555555555
+|.5555...........
 
-view R key flare origin 8 -1
-|....5887776765..
-|..5888777677665.
-|558887776776665.
-|599888898887765.
-|.55555555555555.
+view R key flare origin 8 0
+|..5...........
+|.5887887776765
+|55555677767765
+|....5988765...
 
 view R key kneel origin 8 -1
 |....5887776765..
@@ -170,25 +171,21 @@ view L key idle origin 8 -1
 |5555555555555...
 
 view L key rest origin 8 -1
-|..5887776765....
-|.588777677665...
-|58887776776665..
-|59988889887765..
-|5555555555555...
+|..5887776765..
+|.588777677665.
+|58887776776665
 
 view L key wide origin 8 -1
-|..5887776765....
-|.5888777677665..
-|588877767776665.
-|599888898887765.
-|55555555555555..
+|..588777676665.
+|.58887776776665
+|599888898887765
+|...........5555
 
-view L key flare origin 8 -1
-|..5887776765....
-|.5888777677665..
-|.588877767766655
-|.599888898887765
-|..55555555555555
+view L key flare origin 7 0
+|............5..
+|58887776766665.
+|588877767766665
+|....5988855....
 
 view L key kneel origin 8 -1
 |..5887776765....

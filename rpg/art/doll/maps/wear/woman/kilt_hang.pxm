@@ -1,6 +1,13 @@
 # wear/woman/kilt_hang: the kilt: knife pleats (step-1 lines every other pixel), the lit hem band to the knee (the edge region), a
 # pleat apron that swings on the stride; her knees show bare below it
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side flare views (the run) kick the skirt up to the run hem, a row
+# under the garment's lifted run views, so the legs show under it as limbs.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7): the side walk takes torso=run (the belt row lifted with the hem),
+# so the side `wide` views (contact, down) carry the torso rest's last row on top (no trouser band under the bodice) and
+# reach a pixel further back over her fuller walking hip; the pass frames' rows are <garment>_stride.pxm's (keyed by the
+# legs), so the rest and idle views (idles, hurts, falls, postures) are untouched. The run's flare is two rows (never a
+# one-row spur behind the hips).
 use person woman
 body woman
 role garment kilt
@@ -91,15 +98,15 @@ view R key rest origin 8 -1
 |...588678676665.
 |...599899887765.
 
-view R key wide origin 8 -1
-|....5886786765..
-|...5886785676665
-|..5998995.598876
+view R key wide origin 6 0
+|..fihhhhhhgf..
+|..5886786765..
+|.5886785676665
+|59989955598876
 
-view R key flare origin 8 -1
-|....5886786765..
-|..58867867676665
-|...59985.5988765
+view R key flare origin 8 0
+|..58867867866665
+|.59989989887765.
 
 view R key kneel origin 8 -1
 |....5886786765..
@@ -133,15 +140,15 @@ view L key rest origin 8 -1
 |.588678676665...
 |.599899888765...
 
-view L key wide origin 8 -1
-|..5886786765....
-|5886785676665...
-|998995.5988765..
+view L key wide origin 8 0
+|..fihhhhhhgf..
+|..588678676665
+|58867856766665
+|99899555988765
 
-view L key flare origin 8 -1
-|..5886786765....
-|58867867676665..
-|59985.5988765...
+view L key flare origin 8 0
+|58867867866665..
+|.59989989887765.
 
 view L key kneel origin 8 -1
 |..5886786765....

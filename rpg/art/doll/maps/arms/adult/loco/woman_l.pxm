@@ -4,6 +4,9 @@
 # Her keys: idle; walk D/U down down1 up up1, R/L B F N; run runF runB; lap; L lie; fling (the fall's recoil); guard
 # (armR: the drawn weapon's ready guard, its `grip` mark where the man's is). A sleeve part on her arm channels draws them.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# PROTO6 i3 (2026-10-22): the run pump's back key pB swings 2 px further back (the elbow behind the back, the hand clear
+# of the hips; the woman's 1, for the robed scholar's RUN atlas), the far pF raises its fist to the chest (no stub at the
+# belt); loco.clip puts the extremes on the push and the flight.
 use person woman
 body woman
 role arms std
@@ -330,3 +333,116 @@ regions
 |.........HHHH
 |.........HHHH
 |..........HH.
+
+# (P2b motion proto6 i1 + i2, 2026-10-22) THE RUN'S PUMP, side views pF pB pN pM pK: her left forearm facing left
+# (mirrored, re-lit) and facing right as the far arm (darker).
+view L key pF origin 8 -1
+mark handL 3 1
+|......5876
+|qtsq.5876.
+|qtsqsrq5..
+|.qq.qtsq..
+regions
+|......UUUU
+|HHHH.UUUU.
+|HHHHFFFU..
+|.HH.FFFF..
+
+view L key pB origin 2 -1
+mark handL 9 6
+|5876......
+|..5876....
+|....5876..
+|.....qtsq.
+|.....qtsq.
+|......qtsq
+|......qtsq
+|......qsrq
+|.......qq.
+regions
+|UUUU......
+|..UUUU....
+|....UUUU..
+|.....FFFF.
+|.....FFFF.
+|......FFFF
+|......HHHH
+|......HHHH
+|.......HH.
+
+view L key pN origin 3 -4
+mark handL 3 2
+|.qtsq
+|qtsq.
+|qtsq.
+|qsrq.
+|.qq..
+regions
+|.FFFF
+|FFFF.
+|HHHH.
+|HHHH.
+|.HH..
+
+view R key pF origin 1 -3
+mark handL 5 1
+|.....qrrq
+|..qrrqrrq
+|qrrq.qqq.
+
+view R key pB origin 6 -4
+mark handL 0 3
+|......qrrq
+|....qrrq..
+|..qrrq....
+|.qrrq.....
+|qrrq......
+|.qq.......
+
+view R key pN origin 0 -4
+|.
+
+view L key pM origin 6 -4
+mark handL 3 2
+|....qtsq
+|...qtsq.
+|qtqtsq..
+|qsrq....
+|.qq.....
+regions
+|....FFFF
+|...FFFF.
+|HHHHFF..
+|HHHH....
+|.HH.....
+
+view L key pK origin 1 -4
+mark handL 5 2
+|qtsq..
+|.qtsq.
+|..qtsq
+|..qsrq
+|...qq.
+regions
+|FFFF..
+|.FFFF.
+|..HHHH
+|..HHHH
+|...HH.
+
+view R key pM origin 0 -4
+mark handL 4 2
+|qrrq....
+|.qrrq...
+|..qrqrrq
+|....qrrq
+|.....qq.
+
+view R key pK origin 3 -4
+mark handL 0 2
+|..qrrq
+|.qrrq.
+|qrrq..
+|qrrq..
+|.qq...
+

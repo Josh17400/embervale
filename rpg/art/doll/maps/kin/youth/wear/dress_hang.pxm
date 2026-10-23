@@ -4,6 +4,8 @@
 # swing a pixel with the walk, sway 4), wide (the side walk's contact and down: the hem opens front and back), flare
 # (the run), kneel (the fall's buckle: two rows shorter), lie (lying: the left view draped), sit and floor (postures).
 # The apron's columns line up with the bib (dress.pxm) in every facing; the back shows the apron's tie strings.
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person woman
 body youth
 role garment dress
@@ -100,7 +102,6 @@ view R key rest origin 5 0
 
 view R key wide origin 6 0
 |..5877BCDA..|
-|..5877BCCDA.|
 |.58776BCCCDA|
 |587677BCBCDA|
 |587677ADBDDA|
@@ -110,7 +111,6 @@ view R key wide origin 6 0
 
 view R key flare origin 7 0
 |...5877BCDA..|
-|...5877BCCDA.|
 |..58776BCCCDA|
 |.587767BCCCDA|
 |5887677ADBDDA|
@@ -138,7 +138,6 @@ view L key rest origin 6 0
 
 view L key wide origin 6 0
 |..ADCB7765..|
-|.ADCCB7765..|
 |ADCCCB77665.|
 |ADCBCB767665|
 |ADDBDA767665|
@@ -148,7 +147,6 @@ view L key wide origin 6 0
 
 view L key flare origin 6 0
 |..ADCB7765...|
-|.ADCCB7765...|
 |ADCCCB77665..|
 |ADCCCB777665.|
 |ADDBDA7776655|

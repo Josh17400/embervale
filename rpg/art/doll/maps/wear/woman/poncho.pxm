@@ -3,6 +3,12 @@
 # sides cover her forearms (the drape parts on the arm channels) so only the hands show; a knotted fringe hangs from the hem
 # (the hang) over her trousers
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side `run` views are the rest views with one bodice row dropped,
+# so the belt and the hem ride a row up while running (the shirt hitching up) and the legs show under it as limbs.
+# PROTO6 i3 (2026-10-22; the blind panel: the run read as an upright walk): each side `run` view has a `runl` twin that
+# the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
+# pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
+# hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
 use person woman
 body woman
 role garment poncho
@@ -77,8 +83,34 @@ view R key rest origin 6 -1
 |.58777777665.
 |.59888888775.
 
+view R key run origin 6 -1
+|......qrrqq..
+|..588888865..
+|.58888888665.
+|.mpppooonnnm.
+|.58877777665.
+|.58877777665.
+|.58777777665.
+|.59888888775.
+
+view R key runl origin 8 -1
+|........qrrqq..
+|....588888865..
+|...58888888665.
+|..mpppooonnnm..
+|..58877777665..
+|..58877777665..
+|.58777777665...
+|.59888888775...
+
 view R key rest origin 4 -2 when elder
 |-
+
+view R key run origin 4 -2 when elder
+|-
+
+view R key runl origin 6 -2 when elder
+|..-
 
 view R key swing origin 6 -1
 |......qrrqq..
@@ -105,8 +137,34 @@ view L key rest origin 7 -1
 |.58877777665.
 |.59888888775.
 
+view L key run origin 7 -1
+|..qqrrq......
+|..588888865..
+|.58888887665.
+|.mppppooonnm.
+|.58887777665.
+|.58887777665.
+|.58877777665.
+|.59888888775.
+
+view L key runl origin 7 -1
+|..qqrrq........
+|..588888865....
+|.58888887665...
+|..mppppooonnm..
+|..58887777665..
+|..58887777665..
+|...58877777665.
+|...59888888775.
+
 view L key rest origin -3 -2 when elder
 |-
+
+view L key run origin -3 -2 when elder
+|-
+
+view L key runl origin -3 -2 when elder
+|-..
 
 view L key swing origin 7 -1
 |..qqrrq......

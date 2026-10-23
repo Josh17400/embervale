@@ -3,6 +3,8 @@
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Sway keys: rest (front and back: the bottom rows swing a pixel
 # with the walk), wide (the side walk's contact and down: the hem opens front and back), flare (the run), kneel (the
 # fall's buckle: two rows shorter, bunched), lie (lying: the left view draped).
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person
 body youth
 role garment robe
@@ -129,7 +131,6 @@ view R key rest origin 5 0 when girl replace
 
 view R key wide origin 6 0
 |..58877665..
-|..58877665..
 |.588777665..
 |.5887776665.
 |588777766655
@@ -138,7 +139,6 @@ view R key wide origin 6 0
 |.5555555555.
 
 view R key flare origin 7 0
-|...58877665..
 |...58877665..
 |..588777665..
 |.58877776665.
@@ -177,7 +177,6 @@ view L key rest origin 5 0 when girl replace
 
 view L key wide origin 6 0
 |..58877665..
-|..58877665..
 |..588777665.
 |.5887776665.
 |588777766655
@@ -186,7 +185,6 @@ view L key wide origin 6 0
 |.5555555555.
 
 view L key flare origin 6 0
-|..58877665...
 |..58877665...
 |..588777665..
 |.58877776665.

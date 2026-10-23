@@ -1,6 +1,11 @@
 # wear/man/coat_hang: the knee coat's skirt: two panels parted over the trousers (the legs show in the opening), a solid
 # lit hem over its outline, a back vent; the front leg parts it in side views and the run kicks the tails out behind
 # GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): in side walk and run frames both knees and two shin rows show
+# under the skirt. `wide` (contact, down) lifts the lit hem to F-7 with the back skirt a row longer behind the legs; the
+# `flare` (run) flies the back panel out from the waist and sweeps the front over the leading thigh, clear of the kicked
+# shin and the flight's high knee; the side `rest` views stop above the knee rows, which <garment>_stride.pxm puts back for
+# every standing leg key (pixel for pixel) and lifts in the pass keys.
 use person
 body man
 role garment coat
@@ -62,25 +67,29 @@ view U key sit origin 0 0
 |.
 
 view R key rest origin 7 -2
-|.58877677779.
-|598888887779.
-|555555555555.
+|.58877677779
+|598888887779
 regions
-|...........E.
-|EEEEEEEEEEEE.
-|.............
+|...........E
+|EEEEEEEEEEEE
 build
-|...+x........
+|...+x.......
 
-view R key wide origin 8 -2
-|.58877677779..
-|59888888779...
-|55555555555...
+view R key wide origin 8 8 anchor pivot
+|.5887767777779
+|59888888777779
+|5555..........
 
-view R key flare origin 9 -2
-|.58877677779..
-|59888888779...
-|5555555555....
+view R key wide origin 8 9 anchor pivot when elf replace
+|.5887767777779
+|59888888777779
+|5555..........
+
+view R key flare origin 8 0
+|.55.......
+|5887......
+|5555567779
+|....559879
 
 view R key kneel origin 7 -2
 |598888887779.
@@ -91,26 +100,30 @@ view R key sit origin 6 0
 |59888888888895
 |.555555555555.
 
-view L key rest origin 7 -2
-|.988776776665.
-|.9988888877765
-|.5555555555555
+view L key rest origin 6 -2
+|988776776665.
+|9988888877765
 regions
-|.E............
-|.EEEEEEEEEEEEE
-|..............
+|E............
+|EEEEEEEEEEEEE
 build
-|.........x+...
+|........x+...
 
-view L key wide origin 7 -2
-|...98877677665..
-|....99888887765.
-|....55555555555.
+view L key wide origin 6 8 anchor pivot
+|9888877677665.
+|99988888887765
+|..........5555
 
-view L key flare origin 7 -2
-|....98877677665.
-|.....99888887765
-|......5555555555
+view L key wide origin 6 9 anchor pivot when elf replace
+|9888877677665.
+|99988888887765
+|..........5555
+
+view L key flare origin 2 0
+|.......55.
+|......7665
+|9877655555
+|998855....
 
 view L key kneel origin 7 -2
 |.9988888877765

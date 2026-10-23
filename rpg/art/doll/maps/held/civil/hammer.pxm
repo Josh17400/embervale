@@ -36,6 +36,18 @@ view D key rest origin -1 3
 |.QRQ.
 |..Q..
 
+# (MOTION_P2 7.5, fix r1) `kick`: the side run's contact frames name it for the scabbard; this part keeps its rest drawing
+view D key kick origin -1 3
+|vvvvv
+|vzyxv
+|vxxwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
 view D key lag origin -1 2
 |vvvvv
 |vzyxv
@@ -69,6 +81,17 @@ view U key rest origin 6 3
 |.QRQ.
 |..Q..
 
+view U key kick origin 6 3
+|vvvvv
+|vyyxv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
 view U key lag origin 6 2
 |vvvvv
 |vyyxv
@@ -92,6 +115,17 @@ view U key sit origin 7 4
 |..Q..
 
 view R key rest origin 6 3 layer back
+|vvv.
+|vyxv
+|vxwv
+|.QQ.
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view R key kick origin 6 3 layer back
 |vvv.
 |vyxv
 |vxwv
@@ -136,6 +170,18 @@ view L key rest origin 6 3
 |.QRQ.
 |..Q..
 
+view L key kick origin 6 3
+|vvvvv
+|vzyxv
+|vxxwv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
 view L key lag origin 5 2
 |vvvvv
 |vzyxv
@@ -163,6 +209,9 @@ view L key sit origin 4 4
 view D key rest origin 0 0 when prop-hammer replace
 |.
 
+view D key kick origin 0 0 when prop-hammer replace
+|.
+
 view D key lag origin 0 0 when prop-hammer replace
 |.
 
@@ -170,6 +219,9 @@ view D key sit origin 0 0 when prop-hammer replace
 |.
 
 view U key rest origin 0 0 when prop-hammer replace
+|.
+
+view U key kick origin 0 0 when prop-hammer replace
 |.
 
 view U key lag origin 0 0 when prop-hammer replace
@@ -181,6 +233,9 @@ view U key sit origin 0 0 when prop-hammer replace
 view R key rest origin 0 0 when prop-hammer replace
 |.
 
+view R key kick origin 0 0 when prop-hammer replace
+|.
+
 view R key lag origin 0 0 when prop-hammer replace
 |.
 
@@ -188,6 +243,9 @@ view R key sit origin 0 0 when prop-hammer replace
 |.
 
 view L key rest origin 0 0 when prop-hammer replace
+|.
+
+view L key kick origin 0 0 when prop-hammer replace
 |.
 
 view L key lag origin 0 0 when prop-hammer replace

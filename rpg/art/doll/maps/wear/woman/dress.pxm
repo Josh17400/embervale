@@ -1,6 +1,12 @@
 # wear/woman/dress: the woman's dress (A3): the bodice in cloth 1, the chemise's puff sleeves and neckline in linen, the apron bib in cloth 3
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
 # GARB-W (wave 2): the drawn key (the sword's facing-down frames) added as a copy of rest; A3's views unchanged.
+# The side run (leg pass round 2, 2026-10-20): the side `run` views (the side run frames take torso=run) are the rest
+# views unchanged: this garment covers the legs (or its hang carries the skirt).
+# PROTO6 i3 (2026-10-22; the blind panel: the run read as an upright walk): each side `run` view has a `runl` twin that
+# the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
+# pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
+# hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
 use person woman
 body woman
 role garment dress
@@ -61,8 +67,36 @@ view R key rest origin 6 -1
 |..5877776CDA.
 |.5877776CCDA.
 
+view R key run origin 6 -1
+|......qrrqq..
+|..58vyyxxv5..
+|..58vyxxwv5..
+|..58vxwwv75..
+|..58777776...
+|ABDBBCCCCC585
+|.A5877776CDA.
+|..5877776CDA.
+|.5877776CCDA.
+
+view R key runl origin 8 -1
+|........qrrqq..
+|....58vyyxxv5..
+|....58vyxxwv5..
+|...58vxwwv75...
+|...58777776....
+|.ABDBBCCCCC585.
+|.A5877776CDA...
+|..5877776CDA...
+|.5877776CCDA...
+
 view R key rest origin 4 -2 when elder
 |-
+
+view R key run origin 4 -2 when elder
+|-
+
+view R key runl origin 6 -2 when elder
+|..-
 
 view R key swing origin 6 -1
 |......qrrqq...
@@ -89,8 +123,36 @@ view L key rest origin 7 -1
 |.ADCCB77765..
 |.ADCCB777665.
 
+view L key run origin 7 -1
+|..qqrrq......
+|..5vyyxxv65..
+|.5vyxxwwv65..
+|..5xwwv7765..
+|...88777765..
+|585CCCBBBBDBA
+|.ADCCB77765A.
+|.ADCCB77765..
+|.ADCCB777665.
+
+view L key runl origin 7 -1
+|..qqrrq........
+|..5vyyxxv65....
+|.5vyxxwwv65....
+|...5xwwv7765...
+|....88777765...
+|.585CCCBBBBDBA.
+|...ADCCB77765A.
+|...ADCCB77765..
+|...ADCCB777665.
+
 view L key rest origin -3 -2 when elder
 |-
+
+view L key run origin -3 -2 when elder
+|-
+
+view L key runl origin -3 -2 when elder
+|-..
 
 view L key swing origin 8 -1
 |...qqrrq......

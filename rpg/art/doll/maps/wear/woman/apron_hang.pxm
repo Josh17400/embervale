@@ -1,6 +1,13 @@
 # wear/woman/apron_hang: the work apron's skirt: leather to the knee with a lit hem and its own outline row over the boots, the
 # shirt's hem at the hips beside it; from behind the shirt and the bow's tails; it swings forward on the stride
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side flare views (the run) kick the skirt up to the run hem, a row
+# under the garment's lifted run views, so the legs show under it as limbs.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7): the side walk takes torso=run (the belt row lifted with the hem),
+# so the side `wide` views (contact, down) carry the torso rest's last row on top (no trouser band under the bodice) and
+# reach a pixel further back over her fuller walking hip; the pass frames' rows are <garment>_stride.pxm's (keyed by the
+# legs), so the rest and idle views (idles, hurts, falls, postures) are untouched. The run's flare is two rows (never a
+# one-row spur behind the hips).
 use person woman
 body woman
 role garment apron
@@ -84,12 +91,13 @@ view R key rest origin 8 -1
 |...........fhhf.
 |...........fjif.
 
-view R key wide origin 8 -1
-|....5887766fhhf.
-|...........fhhhf
-|............fjif
+view R key wide origin 4 0
+|ggggggghgf..
+|5887766fhhf.
+|.......fhhhf
+|........fjif
 
-view R key flare origin 8 -1
+view R key flare origin 8 0
 |....5887766fhhhf
 |............fhhf
 |.............fif
@@ -123,12 +131,13 @@ view L key rest origin 8 -1
 |.fhhf...........
 |.fjif...........
 
-view L key wide origin 8 -1
-|.fhhf8877665....
-|fhhhf...........
-|fjif............
+view L key wide origin 8 0
+|..fhgggggggg..
+|.fhhf887766665
+|fhhhf.........
+|fjif..........
 
-view L key flare origin 8 -1
+view L key flare origin 8 0
 |fhhhf8877665....
 |fhhf............
 |fif.............

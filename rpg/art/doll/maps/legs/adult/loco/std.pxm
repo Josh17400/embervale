@@ -1,5 +1,263 @@
 # legs/adult/loco/std: the adult legs in trousers and boots, shared by the man and the woman (regions: T thigh, K knee, S shin, B boot, O sole)
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# THE RUN, PROTO6 i2 (2026-10-22; the blind panel on i1: the push frames still bunched both legs under the hips into one
+# dark mass with both knees bent, a crouch or shuffle, the swing boot lost between the legs). run2 / run5 (push) redrawn,
+# hand-placed; run1 / run4 (contact) and run3 / run6 (flight, the bake-off scissor) as i1:
+#   PUSH: the hips split: the support thigh starts at the hips' back half (u -3..0 under the hem) and runs as ONE
+#     straight diagonal (1 px a row, 6 px rows: full thickness across the bone) back to K3 on its toe, the toe at u -2
+#     where the landing K0's toe stood (no skating), the heel up; the swing thigh starts at the hips' front half
+#     (u +1..+6) and is driven forward to the knee at u +9, the shin hanging under it into K3 toe-down at +9, 1 row
+#     clear; a wedge of grass between the legs, near lit and far dark (the far leg whole, never under the near).
+#   Under the hem a push leg leaves the hem span along its bone (the check's HIPLINE reads 1 px a row there; the thighs
+#   still start inside the hips).
+# Superseded where it differs (PROTO6 i1):
+# THE RUN, PROTO6 i1 (2026-10-22; the blind panel on final i2: the push boot a flat brick at shin height over a back leg
+# folding down to a kneel, the thighs one dark mass; the contact leg a post, the folding boot a detached curl; the whole run
+# a brisk upright walk). run2 / run5 (push), run1 / run4 (contact), run3 / run6 (flight), hand-placed:
+#   PUSH: the support leg one straight diagonal from a hip under the body back to K2 on its toe (heel up behind, the toe
+#     where the landing toe was: no skating; tried with the body a pixel up, bob -1: it reads less crouched, but every
+#     hat or hood scholar's RUN atlas then passes B10's 64 KB, so bob stays 0 / 0 / -1);
+#     the swing knee driven forward (the thigh ~40 deg forward, the knee at the hem's front), the shin hanging down and
+#     back under it into K3 (the toe down, the heel up), 1 row up; the thighs apart by value (near lit, far dark);
+#   CONTACT: the landing leg flat at +1 under a bent knee (the thigh forward a pixel a row, the shin back: the knee 2 px
+#     proud); the other leg folding through behind it as one leg: the thigh down and a little back from the seat, the
+#     knee, a shin back-down into K3 1 row up whose heel cap the shin covers (no curl);
+#   FLIGHT (the scissor, kept): the lead as before; the trailing leg as final i2 a pixel forward (under the leaned coat),
+#     its shin now drawn over K3's heel cap (`put ... under`) so the boot no longer hooks up behind;
+#   every run leg inside the coat's hem span from the hem down 3 rows under the 2 px lean (loco.clip lean 2 / -2 on
+#     every side run frame, the coat tails following on hip 1 / -1).
+#   Where a shin enters a tilted boot it is drawn over the boot's top (the boot put `under`, as the idle's shin sits on
+#   its boot); the boot stays the library's whole drawing under it.
+# Superseded where it differs (FINAL i2):
+# THE RUN, FINAL i2 (2026-10-22; the panel on the scissor: the trailing shin a 2 px stick into the K9 shard, the boot
+# size jumping for one frame; the man's contact fold a hook-shaped lump behind the calf; the push boots stacked into one
+# brown cluster). run3 / run6 (flight), run1 / run4 (contact), run2 / run5 (push), hand-placed:
+#   FLIGHT: the lead as the scissor's; the TRAILING thigh straight down inside the coat for the hem's 3 rows, the knee
+#     back, a full-width shin running back into K3 (the library's toe-off key: heel up behind, toe down and forward, the
+#     foot that just pushed off), 2 rows up: a bent leg with a real boot, no shard (K9 no longer placed);
+#   CONTACT: the landing leg as the scissor's (lean 2 / -2); the other leg swings through UNDER the seat, the thigh
+#     inside the coat, the knee under the hip, a 2-row shin back into the same K3, 1 row up (no fold up behind the calf);
+#   PUSH: the carrying leg unchanged; the swing knee as before, its flat K0 a pixel further forward, so a clear gap of
+#     grass separates the two boots.
+# Superseded where it differs (PROTO5 SCISSOR):
+# THE RUN'S FLIGHT AND CONTACT, PROTO5 "SCISSOR" (2026-10-22; round 4's trailing leg folded under the seat read as
+# kneeling in mid air, the lead a long flat wedge, the contacts a walk contact; a 6-way eye bake-off picked the open
+# scissor). run3 / run6 (flight, run frames 2 and 5) and run1 / run4 (contact, frames 0 and 3), hand-placed:
+#   FLIGHT: both thighs straight down inside the coat for the hem's 3 rows; the LEAD knee driven forward over a hanging
+#     shin, a flat K0 boot 2 rows up; the TRAILING shin back and down at 45 deg into K9 (K0's 20 px drawing turned ~125
+#     deg by hand, toe pointed down and back, heel up, 2 rows up); a clear wedge of grass between the legs; body 1 px up;
+#   CONTACT: the landing leg flat under a proud knee (no squat, bob 0), the upper body 1 px forward (lean 2 / -2 on the
+#     side-run contact lines of loco.clip: head and torso together); the other leg folding through behind (round 3's);
+#   tried and dropped by eye: the lead boot 3 rows up (the knee sat on the boot, a lump again), the contact leg kept
+#     extended behind (reads as flight), a contact dip (bob range would exceed 1 px).
+# Superseded where it differs (PROTO4 i3):
+# (old) THE RUN'S FLIGHT, PROTO4 i3 (2026-10-22; the owner on round 3: the trailing leg sticks out behind the butt, a flat-slab
+# boot, the lead a post; "you see what I see, apply the fixes"; i2's tucked fold read as a dark knot). run3 / run6 (run
+# frames 2 and 5) only, hand-placed:
+#   TRAILING LEG FOLDED UNDER THE SEAT, OPENED TO READ: the thigh hangs straight down the front of the hips (clear of its
+#     own boot: every thigh row whole), the knee bent hard and lowest, the shin folded back up into the boot; the boot
+#     (K8: K0's 20 px drawing turned ~55 deg, heel up, toe down and back) whole behind the knee, inside the coat's back
+#     edge in every row from the hem to the knee; its sole 5 rows up;
+#   LEAD KNEE DRIVEN FORWARD: the thigh straight down inside the hips (the hem's 3 rows), the knee forward of it, the
+#     shin under the knee leaning forward to a flat boot 3 rows up (4 shortens the leg below the idle's 8 px - 1.5); the
+#     body 1 px up;
+#   the far leg WHOLE on its own part (hidden under the near leg where the near covers it, never narrower), and the near
+#     leg's hip fill never over the far tucked boot (the whole boot shows).
+# THE SIDE WALK AND RUN, PROTO3 i1 + i2 (2026-10-21; the owner on proto2 i3's video: "there are times when it looks like
+# the legs near the butt go past the hips, and the ankle at time looks to get super skinny and the foot gets super
+# skinny"; supersedes i3 below where it differs). Every walk and run leg redrawn whole (proto2 legkit6: the boot owns only
+# its own pixels) from its joints at the idle's 10 px, 5 px across the bone:
+#   THIGHS UNDER THE HIPS: no leg pixel past the coat's hem span (walk u -5..+5, run -4..+6 with its lean) from the seat
+#     to 3 rows under the hem; a reaching or trailing thigh angles out of the body only below that (the cut edge
+#     re-outlined), and the hip fill never reaches past the coat's back edge (the woman's left view stuck out 1 px);
+#   NO SKINNY ANKLE OR FOOT: every leg >= 4 px across the bone from hip to boot (sampled along thigh and shin), the shin
+#     whole down to its boot beside a lifted or tilted boot; the boot is always one of the library's 20 px keys, whole;
+#   RUN (36 px, plants 3:-5, -5:-9, -9:-15 as i3; bob 0 / 0 / -1: the body a pixel UP in flight instead of down at the
+#     landing, the same 1 px range). PROTO3 i2 (the blind panel on i1: flight squat and splayed, flat slab boots, the
+#     back foot a sliver, contact a walk stride) redrew the free legs with the library's rotated keys instead of the
+#     sheared TU / TD slabs: contact run1 / run4 lands flat at +3 under a bent knee, the other leg FOLDED up behind (thigh
+#     down under the hips, shin back, K2 toe-down boot 2 px up); push run2 / run5 the carrying leg angled back from the
+#     hip (driving, 11 deg), the swing knee driven forward and up with its flat boot hanging under it 2 px up; flight
+#     run3 / run6 BOTH boots 3 px up: the lead reaching heel first on a slightly bent knee (K1 toe-up), the trailing leg kicked
+#     back folded (thigh down, shin level behind, K2 toe-down, heel up). The near leg goes land, carry, kick back, fold,
+#     drive the knee, reach, land;
+#   WALK (18 px as i1): the same feet as i1 (contact heel-strike +3 / heel-off -2, pass flat 0 / toe-down -2 2 px up,
+#     reach toe-up +3 / flat -4), the hips moved under the body.
+#   Poses searched against the judge's .tmp/judge/proto2/check.py (HIPLINE, ANKLE, BOOT, FLIGHT, PUSH and the old gates;
+#   both near / far assignments, man and woman, R and L) and an across-the-bone thickness trace, chosen by eye at 8x / 3x.
+# THE SIDE RUN, PROTO2 i3 (2026-10-21; the blind panel on i2: the flight barely airborne, the pass a standing post with
+# the boots lumped, the front leg straight in flight, both contact boots planted; supersedes i2's run below; the walk is
+# i1's, unchanged). Still two parts (far under near), every leg from its joints at the idle's 10 px (thigh 4.5, shin 4,
+# foot 1.5; never stretched), 5 px across the bone, now drawn whole at any fold (proto2 legkit6.jleg6: the boot owns only
+# its own pixels, so a folded leg keeps its shin). A circular leg path, the knee bent in every front-leg frame:
+#   contact run1 / run4 (bob 1): the lead lands FLAT at +3 under a bent knee (thigh 39 degrees forward, shin upright); the
+#     other leg already off the ground and folding through (knee forward 28, shin back 51, its boot toe-down 1 px up
+#     under the body): no second planted foot;
+#   push run2 / run5 (bob 0): the carrying leg behind the hips (flat at -5, knee a little bent); the swing knee driven up
+#     in front (54 degrees) with the shin tucked back under it and its boot toe-up 2 px up at +2, clear of the carrying boot;
+#   flight run3 / run6 (bob 0): BOTH boots 2 px up: the swing knee still up while its shin reaches forward (55 / +12, toe
+#     up at +4: it lands at +3 next frame), the leg that pushed trailing behind with its knee bent (-23 / -54, toe down).
+#   Plants 3:-5, -5:-9, -9:-15 (holds 8 / 4 / 6 px, 36 px a cycle, STYLE_P2 10); the left views a pixel forward. Poses
+#   searched against the judge's .tmp/judge/proto2/check.py (every pose passes it in both near / far assignments, man and
+#   woman, R and L) and chosen by eye at 3x / 8x / 20x.
+# History, superseded where it differs by proto2 i3 above:
+# THE SIDE RUN, PROTO2 i2 (2026-10-21; the blind panel on i1: "a fast walk", no airborne frame, the front leg locked
+# straight in flight, the recover boots lumped; supersedes i1's run below; i1's walk is unchanged). Still two parts (far
+# under near), still every leg from its joints at the idle's 10 px, 5 px thick; the run legs are now drawn WHOLE so they
+# may fold: the capsule of thigh and shin, each pixel cloth (T), knee band (K) or leather (S) by the nearer bone, an
+# outline on every silhouette edge, light-left on an upright bone and light-top on a level one (proto2 legkit5.jleg5).
+#   Run (contact, pass, flight; bob 1 / 0 / 0; plants 4:-2, -2:-6, -6:-11, holds 6 / 4 / 5, 30 px a cycle): contact run1 /
+#   run4, the lead lands flat under a bent knee at +4 (thigh 39 degrees forward, shin upright), the trailing leg pushes off
+#   its toe behind (toe-down, toe at +1); pass run2 / run5, the carrying leg straight under the hips (flat at -2), the
+#   swing knee driven forward (56 degrees) with the shin folded back under it and its boot toe-down 2 px up at +3, clear
+#   in front of the carrying boot; flight run3 / run6, BOTH boots off the ground: the swing knee still up over a flat boot
+#   2 px up at +3 (where it lands), the leg that pushed trailing with its boot 1 px up at -6. No leg is ever held out
+#   straight in front; the push-off is the toe and the knee, never a longer leg. Poses checked frame by frame against the
+#   judge's .tmp/judge/proto2/check.py (its leg length counts the shin it can see above the boot, so a lifted boot costs
+#   leg length: the trailing boot lifts 1 px, the swing boot 2).
+# History, superseded where it differs by proto2 i2 above:
+# THE SIDE WALK AND RUN, PROTO2 i1 (2026-10-21; the owner's three fixes on prototype i3; supersedes i3 below where they differ).
+# TWO PARTS: this part is the NEAR leg (and its boot); legs/adult/loco/far (z -1, drawn first) is the FAR leg, a whole leg
+# on its own part, so the far leg is never drawn narrower than the near one: only the pixels the near leg covers hide it.
+# EVERY LEG FROM ITS JOINTS: hip, knee, ankle, with the idle's thigh 4.5 (hip -10 to knee -5.5), shin 4 (to the ankle
+# inside the boot, -1.5) and foot 1.5 = 10 px; the knee is solved for the hip and the foot (a pose the leg cannot reach
+# is refused, never stretched), and the leg is a 5 px thick bone at any angle, cut into the idle's rows (trouser, the knee
+# row, the boot shaft over the boot), every row 5 px or more, the far leg's rows at least the near leg's. No folded leg:
+# every shin runs down from the knee to the boot. The lead / carrying leg hangs from the forward hip (centre +2, the idle's
+# near hip), the trailing / swinging leg from the back hip (-1, the idle's far hip): the pelvis turns as the swing comes
+# through, whichever leg is near. The far leg takes the idle's far value (cloth 3 then 2, leather h then g, the first
+# visible pixel of each row lit), not one flat dark.
+#   Walk (contact, pass, reach; bob 1 / 0 / 0; plants 3:0, 0:-4, -4:-8, 22 px a cycle): contact walkA / walkC, the lead
+#   strikes its heel at +3 on a soft knee, the trailing leg on its ball at -8; pass walkA2 / walkC2, the carrying leg
+#   straight under the hips (flat at 0), the swing boot just off its toe behind it (toe-down, 2 px up at -8); reach
+#   walkB2 / walkD2, the carrying leg straight (flat at -4), the swing leg forward, toe up 1 px at +3.
+#   Run (contact, pass, flight; bob 1 / 0 / 0; plants 3:-1, -1:-6, -6:-12, holds 4 / 5 / 6, 30 px a cycle): contact run1 /
+#   run4, the lead lands flat on a bent knee at +3, the trailing leg reaches back, its boot 1 px up at -8; pass run2 / run5,
+#   the carrying leg straight under the hips (flat at -1), the swing boot kicked up behind it (toe-down, 2 px up at -8), clear
+#   of the carrying boot (the narrow frame); flight run3 / run6, both boots off: the leg that pushed lifts off where it stood
+#   (flat, 1 px up at -6), the swing leg reaches (toe-up, 1 px up at +4) to land at +3. Push-off is the boot leaving its
+#   spot and the knee, never a longer leg; the front leg is forward on two frames of three (reach, land), never held out.
+#   The seat row and the elf's extra row are elf-only overlays on far (hidden under every other body's hem).
+#   Generated by proto2's legkit4.py / joints.py (scratch) and checked by the judge's .tmp/judge/proto2/check.py.
+# History, superseded where it differs by proto2 i1 above:
+# THE SIDE WALK AND RUN, PROTOTYPE i3 (2026-10-21; docs/ref/motion/RESEARCH.md; supersedes i2 below where they differ).
+# The same method (per-row shear, 5 px rows, one boot stamp tilted by which pixels touch the ground), new phases:
+#   Walk (cycle 20, holds 3, 4, 3): contact walkA / walkC (bob 1), the front leg straight onto a heel strike at +4, the back
+#   leg on its ball (toe 0); PASS walkA2 / walkC2 (bob 1), the carrying leg over its flat boot at +1, the swing thigh
+#   under it and the shin trailing to a toe-down boot lifted 3 just BEHIND the carrying heel (the boots never overlap: no
+#   knot of boots, round i2's pass); REACH walkB2 / walkD2 (bob 0, the highest: Saint11's "up"), the carrying leg slanting
+#   back over its flat boot at -3, the swing leg forward over a toe-up boot lifted 1 at +3 (the owner reference's frame
+#   4): the swing toe moves +4, +12, +4 px a frame (lift-off, the whip past the carrying leg, the landing) instead of
+#   i2's 0, +6, +14 jump into the contact. No down frame (RESEARCH 5.2's eight-frame variant without the down).
+#   Run (cycle 30, the planted heel +3 > -1 > -7, holds 4, 6, 5): contact run1 / run4, the front leg landing flat at +3
+#   on a bent knee (the thigh forward, the shin upright), the trailing leg kicked back 45 degrees over a toe-down boot
+#   lifted 3; RECOVER run2 / run5, the carrying leg under the hips leaning a pixel into the run, the swing knee DRIVEN
+#   UP: a horizontal thigh 8-9 px long under the hem, the shin hanging under the knee over a toe-down boot lifted 3 at
+#   +3..+9, clear in front of the carrying shin (round i2's knee sat behind the carrying leg: it read as standing);
+#   flight run3 / run6 (bob -1), both boots off the ground: the trailing leg back over a blunt toe-down boot lifted 2
+#   (round i2's pointed K3 tail), the leading leg's toe-up boot lifted 3. The far leg one flat dark: cloth 2,2,2,
+#   leather g (boots_adult's far keys); the near leg lit. Every visible leg row 5 px; the far leg shows 2 px or more
+#   where it leaves the near leg. Elves' extra row (the one above the first visible row) is filled to the hip width in
+#   the right views as in the left.
+#   Generated by the prototype's legkit3.py (scratch) and checked at 12-16x and in motion.
+# History, superseded where it differs by prototype i3 above: prototype i2 (2026-10-21):
+# (i2) THE SIDE WALK AND RUN, PROTOTYPE i2 (2026-10-21; docs/ref/motion/RESEARCH.md, which supersedes MOTION_P2 5.x's joint
+# tables; the owner's docs/ref/motion/owner_walk_ref.png). Every side (R, L) walk and run leg is a column of rows moved per
+# row (a shear: never a rotated shape), 5 px a row (outline, 3 px of cloth or leather, outline; 6 at a proud or locked
+# knee): 4 trouser rows (the last the knee) over the 3-row boot shaft, the foot ONE boot from maps/stamps/boots_adult.stamps
+# (K0 flat, or split by `cols` into a 1-row tilt: heel strike HS, heel off HO, toe down TD when lifted; K3 pointed in the
+# run's flight). A lifted leg is shorter (fewer thigh rows), never squashed. THE VALUES CARRY THE LEGS: the near leg is lit
+# (cloth 4,3,3 / leather i,i,h), the far leg one flat dark (cloth 2,2,2 / leather h,g,g), drawn first, one outline where
+# they meet, so the contact frames 0 and 3 read as two different legs (round i1's 3,2,2 far leg read as the same leg).
+#   Walk (cycle 20, the planted heel +4 > +1 > -3 > -6, holds 3, 4, 3: RESEARCH 5.2's own rule, frames at 83 ms or slower at
+#   40 px/s, and the contact stride opens a 3 px gap between the feet): contact walkA / walkC, the front leg straight onto a
+#   heel strike at +4, the back leg bent at the boot top on its ball (toe -1); down walkA2 / walkC2 (bob 1), the front boot
+#   flat at +1 under a proud knee, the back leg trailing on its ball (toe -3); pass walkB2 / walkD2, the carrying leg upright
+#   over its flat boot at -3 (the knee locked a pixel proud), the swing leg's knee a pixel ahead of it and its shin trailing
+#   to a toe-down boot lifted 2 BEHIND the carrying ankle (the reference's frame 3), where it shows.
+#   Run (cycle 30, the planted heel +4 > 0 > -6, holds 4, 6, 5: the long hold on the knee drive): contact run1 / run4, the
+#   front leg landing flat at +4 on a bent knee, the trailing leg folded (knee bent at the boot top, toe-down boot lifted 2
+#   behind); recover run2 / run5, the carrying leg under the hips (the knee proud), the swing knee DRIVEN UP IN FRONT (the
+#   thigh forward, the shin hanging, its toe-down boot lifted 2 ahead of the carrying foot): never two upright legs side by
+#   side (round i1's recover read as standing); flight run3 / run6 (bob -1), both boots off the ground: the pushing leg
+#   45 degrees back on a pointed K3 lifted 2, the leading knee up over a toe-up boot lifted 3 that lands into the contact.
+#   Her `when woman replace` views: the same placements, her seat a pixel fuller. Hips (every view): the first visible row
+#   is filled out at the back to the idle's hip width (man R 8, L 10; woman R 9, L 11), the two rows under it tapering a
+#   pixel a row into the legs (a rounded seat: never a shelf over a slanting thigh, round i1's L flap), the seat row (the
+#   drawing's top row, under the hem; elves show it, their `when elf` overlay carrying the left view's fill) spanning the
+#   legs and the idle's hips. The left views: every span mirrored (x' = -x - 1) and shaded again from the left. Generated
+#   from per-row spans by the prototype's legkit2.py (the artist's authoring aid, scratch) and checked at 16x and in motion.
+#   B11's mass and joint checks (1-8) hold; its MOTION_P2 table checks (9 envelope, 10 stance, 12 feet, 13 shape) and B12's
+#   stamp-shape reading of the 1-row tilts are superseded for these keys.
+# History, superseded for the side walk and run by prototype i2 above: prototype i1 (2026-10-21):
+# (i1) THE SIDE WALK AND RUN, PROTOTYPE i1 (2026-10-21; docs/ref/motion/RESEARCH.md, which supersedes MOTION_P2 5.x's joint
+# tables; the owner's docs/ref/motion/owner_walk_ref.png: "the feet art constantly flat but can be angled throughout the
+# strides"). Every side (R, L) walk and run leg is a 5 px column of rows (outline, 3 px of cloth or leather, outline; 6 at a
+# bent knee) moved per row (a shear: never a rotated shape), 4 trouser rows (the last the knee) over the 3-row boot shaft,
+# the foot ONE boot from maps/stamps/boots_adult.stamps: K0 flat, or K0 split by `cols` into a 1-row tilt (heel strike:
+# the toe cols 4-6 a row up; heel off: the heel cols 0-2 a row up, the ball down; toe down when lifted: cols 0-3 a row
+# above cols 4-6), K1 toe-up and K3 pointed for the run's flight. The shaft and boot are one shape: a tilt is which foot
+# pixels touch the ground. The far leg is drawn first, a value darker (cloth 3,2,2 / leather h,h,g against the near leg's
+# 4,3,2 / i,i,h), one outline where the legs meet; its lifted boot shows. A lifted leg is shorter (fewer thigh rows).
+#   Walk (cycle 16; the planted heel +2 > 0 > -3 > -6, steps 2, 3, 3; loco.clip): contact walkA / walkC, the front leg
+#   sheared forward 2 onto a heel strike at +2, the back leg sheared back 2 on its ball (toe 0); down walkA2 / walkC2
+#   (bob 1), the front boot flat at 0, the back leg sheared back 4 on its ball with the toe where it stood (-2): both feet
+#   down, the widest frame (the reference's frame 2); pass walkB2 / walkD2, the carrying leg upright over its flat boot at
+#   -3, the swing leg through in front of it, the knee a pixel forward, its boot lifted toe down (toe +6, heel 2 rows up).
+#   The thighs' tops slide with the stride (near: 0, -1, -3, -4, -4, 0), never a square wave; the hip row stays 7-9 px.
+#   Run (cycle 30; the planted heel +4 > 0 > -5; holds 4, 5, 6: the long one airborne): contact run1 / run4, the front leg
+#   straight, sheared 4 onto a flat landing at +4, the trailing leg folding under (boot lifted 2, toe down, toe 0);
+#   recover run2 / run5, the carrying leg under the hips (a bent knee a pixel proud), the swing knee driven forward, its
+#   boot lifted 2 toe down ahead (toe +9); flight run3 / run6 (bob -1), both boots 2 rows clear: the pushing leg 45 degrees
+#   back on a pointed K3 (toe -2), the leading knee up over a toe-up K1 (heel +3). Never wider than 45 degrees.
+#   Her `when woman replace` views: the same placements, the back-most leg a pixel fuller on its two top rows. The left
+#   views: the right views' rows mirrored (x' = -x - 1) and re-shaded left-lit, the hips 2 px fuller at the back on the 3
+#   rows from the first visible one (A3's left idle: hip row 10 against the right view's 8), an elf's overlay carrying the
+#   same on the row above. Generated from per-row spans by the prototype's legkit.py (the artist's authoring aid, scratch)
+#   and checked at 8-16x and in motion. B11's and B12's MOTION_P2 table checks (feet keys, stance, pass shape, span
+#   envelope, stamp shapes) are superseded for these keys; B11's mass checks (area, hip row, leg runs) hold.
+# History, superseded for the side walk and run by prototype i1 above: the motion rebuild (2026-10-21, MOTION_P2):
+# THE SIDE WALK AND RUN, the motion rebuild (2026-10-21; docs/MOTION_P2.md, STYLE_P2 10 "The owner's motion reference";
+# the owner's docs/ref/motion/owner_walk_ref.png: "the feet art constantly flat but can be angled throughout the
+# strides"). Every side (R, L) walk and run key is two continuous limbs, hip > thigh > knee > shin > boot: the trouser
+# thigh from the seat, the knee on the last trouser row (a bent knee a corner 1-2 px out from the shin under it), the
+# leather shaft as the shin, the foot on it at a clean ankle. The foot is ONE boot in hand-drawn tilts of A3's idle foot
+# (maps/stamps/boots_adult.stamps, placed by `put`, which pxc expands; `tags boots-stamped` refuses a hand-drawn boot
+# pixel): K0 flat, K1 toe-up (runs 3,2,2; its top outline closed over the instep), K2 heel-off (runs 2,2,3: on its
+# ball), K3 toe-off 1:2 (the lifted and pointed foot); near and far tones; the L keys mirrored and re-lit. K4 (the 45
+# degree hang) is no longer placed: a 45 degree turn of the 20 px boot reads as a stick. A shin's last row covers at most
+# 1 px of its own tilted key (the heel top), the stamp's outline its back edge.
+#   Walk (cycle 18; plants = the planted heel 3:0, 0:-3, -3:-6): contact walkA / walkC, the front leg reaching into a
+#   toe-up K1 on its heel at +3 (the shin's front edge running into the top of the foot), the back leg leaning back onto
+#   a K2 on its ball at 0, the heel two rows up, the legs apart from F-6; down walkA2 / walkC2 (bob 1), the front K0
+#   planted at 0 under the hips, its knee a pixel proud, the trailing thigh down from the hip a pixel a row to the knee
+#   on F-6, the shin 2 px back from its corner onto a K3 rolled onto its toe at -3 (where it stood); pass walkB2 / walkD2
+#   (fix r3, the reference's frame 3), one straight leg over its K0 at -3 carrying the body, the other lifted BEHIND it:
+#   the thighs one run from the hip, the swing knee on F-7 behind the planted knee, its shin stepping back from the
+#   knee's corner (the back of the knee open at u -3, F-6), its K3 toe down at -5 lifted 1 with a column of daylight
+#   (u -4) between the two boots (walkD2's near swing drawn over the far planted thigh). Where the thighs meet, one
+#   outline (the near leg's) divides them, never two.
+#   Run (cycle 36; plants 3:-2, -2:-7, -7:-15; every visible trouser pixel the knee region): contact run1 / run4, a flat
+#   K0 landing at +3 under a bent knee, behind it the trailing leg in recovery: the thigh back to the knee on F-7, the
+#   shin straight down one row, the K3 pointed toe down at -3, 2 rows clear (the ankle about 80 degrees); push run2 /
+#   run5, the planted leg under the hips over its K0 at -2, the swing knee driven forward (6 px ahead of the planted
+#   shin) and its K3 toe down under it, 2 rows clear (toe +9); flight run3 / run6 (bob -1), both boots 2 rows clear, the
+#   leading knee up and its shin hanging over a K0 above the landing spot (+3), the trailing leg just pushed off: the
+#   thigh a pixel a row back to the knee on F-7, the shin 2 px back from its corner, the K3 pointed at its end (toe -4).
+#   Never a stiff inverted V.
+#   The hem rides a row up (the garments' side `run` views, loco.clip torso=run); the seat (the drawing's top row, under
+#   the hem; elves show it) spans the first visible row. Her `when woman replace` views: the same placements, her hips a
+#   pixel fuller at the back (not the pass's seat, which already reaches u -4: a leaning elder's hem bares none), her
+#   ankle a pixel in on the side that keeps the edge a 1 px staircase into the key under it (in front over a K0 or a
+#   K2; behind over a K1 heel, a taper; a row up on a trailing K3 leg; none on a lifted swing or kicked shin). The left
+#   views: the right views' rows mirrored (x' = -x - 1), every leg stretch re-lit for the top-left light (its outline
+#   pixels where the mirror puts them, its shading light-left again), the hips a pixel fuller at the back on the first
+#   two visible rows (A3's left idle: the L hip row 9-11 px), with a `when elf` overlay carrying an elf's seat a pixel
+#   past the base seat behind. Drawn with the fix-r3 authoring aid (every row hand-placed in the R man's views; the
+#   woman's and L views derived by those rules and checked at 8-16x).
+#   B11 limbs and B12 boots (rpg_test --doll --gates) and the harness's J2 trace (.tmp/judge/motion) measure them.
+# History, superseded for the side walk and run by the rebuild above (front and back keys, the idles, `stance`, `lunge`,
+# `buckle`, `sit`, `lie` and `guard` are unchanged):
 # The walk and run keys were redrawn 2026-10-19 for the owner, twice. Round 1 ("his legs all of a sudden get super
 # skinny"): every leg keeps the idle's mass in every frame, the seat a solid block under the hem, the back leg a value
 # darker, never thinner. Round 2 ("the feet are getting rotated, joints look a little off"): every boot is A3's idle
@@ -7,19 +265,53 @@
 # plant anchor); the legs are upright trouser blocks that bend at the knee (one step at the knee, the boot top under
 # it), no staircase legs; a compact stride. Side views: contact walkA / walkC, down walkA2 / walkC2 (bob 1: the planted
 # knee bent over its boot, the other boot lifted 1 behind), pass walkB2 / walkD2 (bob -1: the swing knee ahead, its boot
-# lifted 2 under it); the run's flight reaches the front leg and kicks the back shin up. The left views are the right
+# lifted 2 under it). The left views are the right
 # views' shapes mirrored, each run re-lit from the left, a pixel forward. Front and back: walkA / walkC a foot landing
 # (lifted 1), walkA2 / walkC2 both feet down, walkB / walkD the swing foot lifted 2. `when woman replace` views are
 # her own legs: the same feet (one walk table), her hips and upper thighs a pixel fuller, her boots fitted (the shaft a
 # pixel slimmer, the ankle in), so her legs taper bare too. The regions (T thigh, K knee, S shin, B boot, O sole) let a
 # look show bare legs. `stance` is A3's own side contact legs, kept pixel for pixel for the sword swing
 # (clips/actions/sword.clip). B11 (rpg_test --doll --gates) holds the mass.
+# The side run, round 4 (2026-10-20, the owner circled it: "the feet are completely disconnected from the body"):
+# the old keys set the back boot 3-4 px behind its thigh, joined to the hem by one trouser row. Round 5 (the leg pass)
+# joined every boot to a trouser stub, but under the F-9 hem the legs stayed a 2-3 row trouser block on two boots that
+# touched ("a short dark strip", "a torso sitting on a pair of boots"). Round 6 (the leg pass, round 2, 2026-10-20):
+# the hem rides a row up in the side run (every torso-keyed garment's side `run` view, the clip's torso=run; the
+# knee-length skirts' flare views kick up to the same hem, F-10, F-11 in flight), and every side run leg is redrawn
+# as a LIMB from the seat (one solid row under the hem, the elf's hip row above it) to its boot: three or four trouser
+# rows on the planted or trailing leg, two on a raised one, the two legs split by background from the first row under
+# the seat (gapLL 6-11), angled from the hip by one 1 px step a row, the trouser a pixel wider at the knee over a
+# planted boot. Every boot is A3's idle boot moved and lifted, never rotated; a compact stride: 13 px heel to toe at
+# contact, no heel more than 5 px behind the pivot. Contact run1 / run4: the planted leg reaching (its sole centred on
+# the plant anchor, +5), the trailing boot on its toe (lifted 1, its heel at -4), its thigh angled back from the seat.
+# Push run2 / run5: the planted leg straight under the hips (0); the swing leg passing, its knee through and its boot
+# lifted 2 in front, where it will land. Flight run3 / run6 (bob -1): the pushing leg trailing a 1 px step a row back
+# from the seat (lifted 1, its heel at -5), the leading knee up, its boot lifted 3 over the landing spot (it lands
+# straight down into the next contact). The keys come from the leg placements (trouser span per row, boot heel, lift)
+# in the right view; the left views mirror them a pixel forward (x' = -x - 1) with every string kept left-lit (re-lit
+# from the left); her `when woman replace` views are the same placements with her fuller back on the first visible
+# row and her ankle in. The seat's back corner sits a pixel in from the far hand where it hangs behind the hip (right
+# view, run3 / run4); in the left view the seat matches the idle's hips, and the push frames' passing thigh is a pixel
+# fuller in front, where the near fist hangs over it. Every visible run trouser pixel is the knee region (a kilt's bare
+# leg under the flared skirt).
+# Round 7 (the leg pass, round 3, 2026-10-20): in push and flight the second leg was still a boot glued under the hem
+# or hung on the planted leg (one row of its own). Now every boot has two or more rows of its own leg below the seat
+# and the two legs are apart by background in every row below the seat down to the boots (the push frames' feet meet
+# only where the planted toe tucks over the raised heel on F-2 / F-1). Push run2 / run5: the swing leg passes IN FRONT
+# of the planted one, its 5 px thigh angled forward from the seat (one 1 px step a row) to the knee, the boot (the
+# shin) straight under it, lifted 1, its heel at +3 (13 px heel to toe; +4 put the toe past the frame's edge and the
+# armed elf's RUN atlas over B10's 64 KB); the planted leg holds the idle's back edge for two rows under the seat, then
+# steps in at the knee. Flight run3 / run6: the leading boot lifted 2 (3 left it one row), its heel at +3, clear of the
+# trailing boot (15 px heel to toe), its thigh a 1 px step a row forward from the seat. Contact unchanged. Her fuller
+# back never sits past the run hem's back edge in the right view (-4).
 use person
 body adult
 role legs std
 layer legs
 anchor pivot
 keys legs
+stamps boots_adult
+tags boots-stamped
 
 view D key buckle origin 8 6
 |...1222112221..
@@ -692,143 +984,149 @@ regions
 |BBBBBB.......BBBBBBB
 |.OOOOO.......OOOOOOO
 
-view R key run1 origin 8 9
-|....122212221....
-|...1322114321....
-|fihgf....14321...
-|fhggf....14321...
-|fhggf.....fiihf..
-|fhhggf....fhhgf..
-|fhhgggf...fhhgf..
-|KKKKKKK...fhhhgf.
-|..........fihhggf
-|..........KKKKKKK
+view R key run1 origin 0 10
+put K0n 1 0
+|44331...
+|.14331..
+|.14331..
+|..44331.
+|..44331.
+|..fiihf.
+|.fiihf..
+|.fiihf..
+|........
+|........
+|........
 regions
-|....TTTTTTTTT....
-|...KKKKKTTTTT....
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|SSSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB...SSSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|TTTTT...
+|.TTTTT..
+|.TTTTT..
+|..TTTTT.
+|..KKKKK.
+|..SSSSS.
+|.SSSSS..
+|.SSSSS..
+|........
+|........
+|........
 
-view R key run2 origin 3 9
-|122221221....
-|.143213221...
-|.1432113221..
-|.14321fihgf..
-|fiihf.fhggf..
-|fhhgf.fhggf..
-|fhhgf.fhhggf.
-|fhhhgffhhgggf
-|fihhggfKKKKKK
-|KKKKKKK......
+view R key run2 origin 7 10
+put K3n -2 0 under
+|....1433.
+|...144331
+|..144331.
+|.144331..
+|fiihhf...
+|fihff....
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|TTTTTTTTT....
-|.TTTTTTTTT...
-|.TTTTTKKKKK..
-|.KKKKKSSSSS..
-|SSSSS.SSSSS..
-|SSSSS.SSSSS..
-|SSSSS.BBBBBB.
-|BBBBBBBBBBBBB
-|BBBBBBBOOOOOO
-|OOOOOOO......
+|....TTTT.
+|...TTTTTT
+|..TTTTTT.
+|.KKKKKK..
+|SSSSSS...
+|SSSSS....
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view R key run3 origin 7 10
-|...1222112221....
-|..14321..13221...
-|fiihf....13221...
-|fhhgf....13221...
-|fhhgf.....fihgf..
-|fhhhgf....fhggf..
-|fihhggf...fhggf..
-|KKKKKKK...fhhggf.
-|..........fhhgggf
-|..........KKKKKKK
+view R key run3 origin 8 10
+put K3n -3 -2 under
+|.....14331
+|.....14331
+|.....14333
+|..1114331.
+|.iihhfff..
+|..........
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTTT....
-|..KKKKK..TTTTT...
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|SSSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB...SSSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|.....TTTTT
+|.....TTTTT
+|.....TTTTT
+|..KKKKKKK.
+|.SSSSSSS..
+|..........
+|..........
+|..........
+|..........
 
-view R key run4 origin 8 9
-|....122212221....
-|...1432113221....
-|fiihf....13221...
-|fhhgf....13221...
-|fhhgf.....fihgf..
-|fhhhgf....fhggf..
-|fihhggf...fhggf..
-|KKKKKKK...fhhggf.
-|..........fhhgggf
-|..........KKKKKKK
+view R key run4 origin 7 10
+put K3n -2 -1 under
+|......14333
+|.....14331.
+|....14331..
+|....14333..
+|...fiihhh..
+|.iihhfff...
+|...........
+|...........
+|...........
+|...........
 regions
-|....TTTTTTTTT....
-|...KKKKKTTTTT....
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|SSSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB...SSSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|......TTTTT
+|.....TTTTT.
+|....TTTTT..
+|....KKKKK..
+|...SSSSSS..
+|.SSSSSSS...
+|...........
+|...........
+|...........
+|...........
 
-view R key run5 origin 3 9
-|12212221....
-|132214321...
-|1322114321..
-|13221fiihf..
-|fihgffhhgf..
-|fhggffhhgf..
-|fhggffhhhgf.
-|fhhggfihhggf
-|fhhggKKKKKKK
-|KKKKKKK.....
+view R key run5 origin -1 10
+put K3n 9 -1 under
+|444331...
+|1443331..
+|.1144331.
+|...144331
+|..ffihff.
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|TTTTTTTT....
-|TTTTTTTTT...
-|TTTTTKKKKK..
-|KKKKKSSSSS..
-|SSSSSSSSSS..
-|SSSSSSSSSS..
-|SSSSSBBBBBB.
-|BBBBBBBBBBBB
-|BBBBBOOOOOOO
-|OOOOOOO.....
+|TTTTTT...
+|TTTTTTT..
+|.TTTTTTT.
+|...KKKKKK
+|..SSSSSS.
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view R key run6 origin 7 10
-|...1222112221....
-|..13221..14321...
-|fihgf....14321...
-|fhggf....14321...
-|fhggf.....fiihf..
-|fhhggf....fhhgf..
-|fhhgggf...fhhgf..
-|KKKKKKK...fhhhgf.
-|..........fihhggf
-|..........KKKKKKK
+view R key run6 origin -1 10
+put K0n 4 -2
+|14331.....
+|144331....
+|.44331....
+|..143311..
+|...fiihf..
+|...fiihf..
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTTT....
-|..KKKKK..TTTTT...
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|SSSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB...SSSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|TTTTT.....
+|TTTTTT....
+|.TTTTT....
+|..KKKKKK..
+|...SSSSS..
+|...SSSSS..
+|..........
+|..........
+|..........
 
 view R key sit origin 5 10
 mark hip 5 3
@@ -856,143 +1154,161 @@ regions
 |........BBBBBBB
 |........OOOOOOO
 
-view R key walkA origin 6 9
-|..1222112221....
-|..1322114321....
-|.13221..14321...
-|.13221..14321...
-|fihgf....fiihf..
-|fhggf....fhhgf..
-|fhggf....fhhgf..
-|fhhggf...fhhhgf.
-|fhhgggf..fihhggf
-|KKKKKKK..KKKKKKK
+view R key walkA origin 0 10
+put K0n 3 0 cols 0-3
+put K0n 3 -1 cols 4-6
+|14331.....
+|144331....
+|144331....
+|.44331....
+|..1431....
+|...1ihff..
+|...fiihf..
+|...fiih...
+|..........
+|..........
+|..........
 regions
-|..TTTTTTTTTT....
-|..TTTTTTTTTT....
-|.TTTTT..TTTTT...
-|.KKKKK..KKKKK...
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|BBBBBB...BBBBBB.
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|TTTTT.....
+|TTTTTT....
+|TTTTTT....
+|.TTTTT....
+|..TTKK....
+|...KSSSS..
+|...SSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
-view R key walkA2 origin 6 9
-|..122212221..
-|..132214321..
-|..1322114321.
-|fihgf..14321.
-|fhggf.fiihf..
-|fhggf.fhhgf..
-|fhhggffhhgf..
-|fhhgggfhhhgf.
-|KKKKKKfihhggf
-|......KKKKKKK
+view R key walkA2 origin 0 10
+put K0n 0 0
+|44331..
+|44331..
+|44331..
+|44331..
+|44331..
+|iiihf..
+|iiihf..
+|fiihf..
+|.......
+|.......
+|.......
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTT..
-|..KKKKKTTTTT.
-|SSSSS..KKKKK.
-|SSSSS.SSSSS..
-|SSSSS.SSSSS..
-|BBBBBBSSSSS..
-|BBBBBBBBBBBB.
-|OOOOOOBBBBBBB
-|......OOOOOOO
+|TTTTT..
+|TTTTT..
+|TTTTT..
+|TTTTT..
+|KKKKK..
+|SSSSS..
+|SSSSS..
+|SSSSS..
+|.......
+|.......
+|.......
 
-view R key walkB2 origin 3 9
-|122221221...
-|.143213221..
-|.14321ihgf..
-|.14321hggf..
-|fiihffhggf..
-|fhhgffhhggf.
-|fhhgffhhgggf
-|fhhhgfKKKKKK
-|fihhggf.....
-|KKKKKKK.....
+view R key walkB2 origin 4 10
+put K0n -4 0
+|.14331.
+|.14331.
+|.14331.
+|.14333.
+|.14331.
+|fiihf..
+|fiihf..
+|fiihf..
+|.......
+|.......
+|.......
 regions
-|TTTTTTTTT...
-|.TTTTTKKKK..
-|.TTTTTSSSS..
-|.KKKKKSSSS..
-|SSSSSSSSSS..
-|SSSSSBBBBBB.
-|SSSSSBBBBBBB
-|BBBBBBOOOOOO
-|BBBBBBB.....
-|OOOOOOO.....
+|.TTTTT.
+|.TTTTT.
+|.TTTTT.
+|.TTTTT.
+|.KKKKT.
+|SSSSS..
+|SSSSS..
+|SSSSS..
+|.......
+|.......
+|.......
 
-view R key walkC origin 6 9
-|..1222112221....
-|..1432113221....
-|.14321..13221...
-|.14321..13221...
-|fiihf....fihgf..
-|fhhgf....fhggf..
-|fhhgf....fhggf..
-|fhhhgf...fhhggf.
-|fihhggf..fhhgggf
-|KKKKKKK..KKKKKKK
+view R key walkC origin 8 10
+put K0n -8 -1 cols 0-2
+put K0n -8 0 cols 3-6
+|.....14331
+|.....14331
+|....144331
+|....14333.
+|...f44331.
+|..fiii431.
+|.fiiiiif..
+|...hhhf...
+|..........
+|..........
+|..........
 regions
-|..TTTTTTTTTT....
-|..TTTTTTTTTT....
-|.TTTTT..TTTTT...
-|.KKKKK..KKKKK...
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|BBBBBB...BBBBBB.
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|.....TTTTT
+|.....TTTTT
+|....TTTTTT
+|....TTTTT.
+|...SKKTTT.
+|..SSSSKKT.
+|.SSSSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
-view R key walkC2 origin 6 9
-|..122212221..
-|..143213221..
-|..1432113221.
-|fiihf..13221.
-|fhhgf.fihgf..
-|fhhgf.fhggf..
-|fhhhgffhggf..
-|fihhggfhhggf.
-|KKKKKKKhhgggf
-|......KKKKKKK
+view R key walkC2 origin 8 10
+put K0n -8 -2 cols 0-3
+put K0n -8 -1 cols 4-6
+|...14333
+|...14333
+|...14333
+|...14333
+|..fii433
+|..fhiiih
+|....hhfh
+|........
+|........
+|........
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTT..
-|..KKKKKTTTTT.
-|SSSSS..KKKKK.
-|SSSSS.SSSSS..
-|SSSSS.SSSSS..
-|BBBBBBSSSSS..
-|BBBBBBBBBBBB.
-|OOOOOOOBBBBBB
-|......OOOOOOO
+|...TTTTT
+|...TTTTT
+|...TTTTT
+|...KKTTT
+|..SSSKKK
+|..SSSSSS
+|....SSSS
+|........
+|........
+|........
 
-view R key walkD2 origin 4 9
-|122212221...
-|.132214321..
-|.1322fiihf..
-|.1322fhhgf..
-|.fihgfhhgf..
-|.fhggfhhhgf.
-|.fhggfihhggf
-|.fhhgKKKKKKK
-|.fhhgggf....
-|.KKKKKKK....
+view R key walkD2 origin 0 10
+put K0n 3 -1 cols 0-3
+put K0n 3 -2 cols 4-6
+|144331....
+|144331....
+|.14331....
+|..4431....
+|...1ihff..
+|...fiihf..
+|...fiih...
+|..........
+|..........
+|..........
 regions
-|TTTTTTTTT...
-|.TTTTKKKKK..
-|.TTTTSSSSS..
-|.KKKKSSSSS..
-|.SSSSSSSSS..
-|.SSSSBBBBBB.
-|.SSSSBBBBBBB
-|.BBBBOOOOOOO
-|.BBBBBBB....
-|.OOOOOOO....
+|TTTTTT....
+|TTTTTT....
+|.TTTTT....
+|..TTKK....
+|...KSSSS..
+|...SSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
 view L key buckle origin 8 6
 |.....1222221...
@@ -1057,143 +1373,149 @@ regions
 |BBBBBBB.......BBBBBB
 |OOOOOOO.......OOOOO.
 
-view L key run1 origin 9 9
-|....122212221....
-|....1432113221...
-|...14321....fihgf
-|...14321....fhggf
-|..fiihf.....fhggf
-|..fhhgf....fhhggf
-|..fhhgf...fhhgggf
-|.fhhhgf...KKKKKKK
-|fihhggf..........
-|KKKKKKK..........
+view L key run1 origin 8 10
+put K0n -2 0
+|...14333
+|..14331.
+|..14331.
+|.14333..
+|.14333..
+|.fiihf..
+|..fiihf.
+|..fiihf.
+|........
+|........
+|........
 regions
-|....TTTTTTTTT....
-|....TTTTTKKKKK...
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSSS
-|..SSSSS....BBBBBB
-|..SSSSS...BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|...TTTTT
+|..TTTTT.
+|..TTTTT.
+|.TTTTT..
+|.KKKKK..
+|.SSSSS..
+|..SSSSS.
+|..SSSSS.
+|........
+|........
+|........
 
-view L key run2 origin 10 9
-|....122122221
-|...132214321.
-|..1322114321.
-|..fihgf14321.
-|..fhggf.fiihf
-|..fhggf.fhhgf
-|.fhhggf.fhhgf
-|fhhgggffhhhgf
-|KKKKKKfihhggf
-|......KKKKKKK
+view L key run2 origin 2 10
+put K3n 1 0 under
+|.4431....
+|144331...
+|.144331..
+|..144331.
+|...fiihhf
+|....ffihf
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|....TTTTTTTTT
-|...TTTTTTTTT.
-|..KKKKKTTTTT.
-|..SSSSSKKKKK.
-|..SSSSS.SSSSS
-|..SSSSS.SSSSS
-|.BBBBBB.SSSSS
-|BBBBBBBBBBBBB
-|OOOOOOBBBBBBB
-|......OOOOOOO
+|.TTTT....
+|TTTTTT...
+|.TTTTTT..
+|..KKKKKK.
+|...SSSSSS
+|....SSSSS
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view L key run3 origin 10 10
-|....1222112221...
-|...13221..14321..
-|...13221....fiihf
-|...13221....fhhgf
-|..fihgf.....fhhgf
-|..fhggf....fhhhgf
-|..fhggf...fihhggf
-|.fhhggf...KKKKKKK
-|fhhgggf..........
-|KKKKKKK..........
+view L key run3 origin 2 10
+put K3n 2 -2 under
+|14331.....
+|14331.....
+|44331.....
+|.1433111..
+|..fffiihh.
+|..........
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT...
-|...TTTTT..KKKKK..
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSSS
-|..SSSSS....BBBBBB
-|..SSSSS...BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|TTTTT.....
+|TTTTT.....
+|TTTTT.....
+|.KKKKKKK..
+|..SSSSSSS.
+|..........
+|..........
+|..........
+|..........
 
-view L key run4 origin 9 9
-|....122212221....
-|....1322114321...
-|...13221....fiihf
-|...13221....fhhgf
-|..fihgf.....fhhgf
-|..fhggf....fhhhgf
-|..fhggf...fihhggf
-|.fhhggf...KKKKKKK
-|fhhgggf..........
-|KKKKKKK..........
+view L key run4 origin 4 10
+put K3n 1 -1 under
+|44331......
+|.143321....
+|..14331....
+|..44331....
+|..iiihhf...
+|...fffiihh.
+|...........
+|...........
+|...........
+|...........
 regions
-|....TTTTTTTTT....
-|....TTTTTKKKKK...
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSSS
-|..SSSSS....BBBBBB
-|..SSSSS...BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|TTTTT......
+|.TTTTTT....
+|..TTTTT....
+|..KKKKK....
+|..SSSSSS...
+|...SSSSSSS.
+|...........
+|...........
+|...........
+|...........
 
-view L key run5 origin 9 9
-|....12221221
-|...143213221
-|..1432113221
-|..fiihf13221
-|..fhhgffihgf
-|..fhhgffhggf
-|.fhhhgffhggf
-|fihhggfhhggf
-|KKKKKKKhgggf
-|.....KKKKKKK
+view L key run5 origin 10 10
+put K3n -10 -1 under
+|...144333
+|..1443331
+|.1443311.
+|144331...
+|.ffihff..
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|....TTTTTTTT
-|...TTTTTTTTT
-|..KKKKKTTTTT
-|..SSSSSKKKKK
-|..SSSSSSSSSS
-|..SSSSSSSSSS
-|.BBBBBBSSSSS
-|BBBBBBBBBBBB
-|OOOOOOOBBBBB
-|.....OOOOOOO
+|...TTTTTT
+|..TTTTTTT
+|.TTTTTTT.
+|KKKKKK...
+|.SSSSSS..
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view L key run6 origin 10 10
-|....1222112221...
-|...14321..13221..
-|...14321....fihgf
-|...14321....fhggf
-|..fiihf.....fhggf
-|..fhhgf....fhhggf
-|..fhhgf...fhhgggf
-|.fhhhgf...KKKKKKK
-|fihhggf..........
-|KKKKKKK..........
+view L key run6 origin 11 10
+put K0n -5 -2
+|.....14331
+|....144331
+|....14333.
+|..114331..
+|..fiihf...
+|..fiihf...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT...
-|...TTTTT..KKKKK..
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSSS
-|..SSSSS....BBBBBB
-|..SSSSS...BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|.....TTTTT
+|....TTTTTT
+|....TTTTT.
+|..KKKKKK..
+|..SSSSS...
+|..SSSSS...
+|..........
+|..........
+|..........
 
 view L key sit origin 9 10
 mark hip 9 3
@@ -1221,143 +1543,161 @@ regions
 |BBBBBBB........
 |OOOOOOO........
 
-view L key walkA origin 10 9
-|....1222112221..
-|....1432113221..
-|...14321..13221.
-|...14321..13221.
-|..fiihf....fihgf
-|..fhhgf....fhggf
-|..fhhgf....fhggf
-|.fhhhgf...fhhggf
-|fihhggf..fhhgggf
-|KKKKKKK..KKKKKKK
+view L key walkA origin 10 10
+put K0n -4 0 cols 3-6
+put K0n -4 -1 cols 0-2
+|.....14331
+|....144331
+|....144331
+|....14333.
+|....1431..
+|..ffih1...
+|..fiihf...
+|...iihf...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT..
-|....TTTTTTTTTT..
-|...TTTTT..TTTTT.
-|...KKKKK..KKKKK.
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|.BBBBBB...BBBBBB
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|.....TTTTT
+|....TTTTTT
+|....TTTTTT
+|....TTTTT.
+|....KKTT..
+|..SSSSK...
+|..SSSSS...
+|...SSSS...
+|..........
+|..........
+|..........
 
-view L key walkA2 origin 7 9
-|..122212221..
-|..143213221..
-|.1432113221..
-|.14321..fihgf
-|..fiihf.fhggf
-|..fhhgf.fhggf
-|..fhhgffhhggf
-|.fhhhgfhhgggf
-|fihhggfKKKKKK
-|KKKKKKK......
+view L key walkA2 origin 7 10
+put K0n -1 0
+|..14333
+|..14333
+|..14333
+|..14333
+|..14333
+|..fiihh
+|..fiihh
+|..fiihf
+|.......
+|.......
+|.......
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTT..
-|.TTTTTKKKKK..
-|.KKKKK..SSSSS
-|..SSSSS.SSSSS
-|..SSSSS.SSSSS
-|..SSSSSBBBBBB
-|.BBBBBBBBBBBB
-|BBBBBBBOOOOOO
-|OOOOOOO......
+|..TTTTT
+|..TTTTT
+|..TTTTT
+|..TTTTT
+|..KKKKK
+|..SSSSS
+|..SSSSS
+|..SSSSS
+|.......
+|.......
+|.......
 
-view L key walkB2 origin 9 9
-|...122122221
-|..132214321.
-|..fihg14321.
-|..fhgg14321.
-|..fhggffiihf
-|.fhhggffhhgf
-|fhhgggffhhgf
-|KKKKKKfhhhgf
-|.....fihhggf
-|.....KKKKKKK
+view L key walkB2 origin 3 10
+put K0n 3 0
+|.14331.
+|.143321
+|.14331.
+|.44331.
+|.14331.
+|..fiihf
+|..fiihf
+|..fiihf
+|.......
+|.......
+|.......
 regions
-|...TTTTTTTTT
-|..KKKKTTTTT.
-|..SSSSTTTTT.
-|..SSSSKKKKK.
-|..SSSSSSSSSS
-|.BBBBBBSSSSS
-|BBBBBBBSSSSS
-|OOOOOOBBBBBB
-|.....BBBBBBB
-|.....OOOOOOO
+|.TTTTT.
+|.TTTTTT
+|.TTTTT.
+|.TTTTT.
+|.TKKKK.
+|..SSSSS
+|..SSSSS
+|..SSSSS
+|.......
+|.......
+|.......
 
-view L key walkC origin 10 9
-|....1222112221..
-|....1322114321..
-|...13221..14321.
-|...13221..14321.
-|..fihgf....fiihf
-|..fhggf....fhhgf
-|..fhggf....fhhgf
-|.fhhggf...fhhhgf
-|fhhgggf..fihhggf
-|KKKKKKK..KKKKKKK
+view L key walkC origin 2 10
+put K0n 7 -1 cols 4-6
+put K0n 7 0 cols 0-3
+|14331.....
+|14331.....
+|144331....
+|.44331....
+|.14433f...
+|.143iiif..
+|..fiiiiif.
+|...fhhh...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT..
-|....TTTTTTTTTT..
-|...TTTTT..TTTTT.
-|...KKKKK..KKKKK.
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|.BBBBBB...BBBBBB
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|TTTTT.....
+|TTTTT.....
+|TTTTTT....
+|.TTTTT....
+|.TTTKKS...
+|.TKKSSSS..
+|..SSSSSSS.
+|...SSSS...
+|..........
+|..........
+|..........
 
-view L key walkC2 origin 7 9
-|..122212221..
-|..132214321..
-|.1322114321..
-|.13221..fiihf
-|..fihgf.fhhgf
-|..fhggf.fhhgf
-|..fhggffhhhgf
-|.fhhggfihhggf
-|fhhgggKKKKKKK
-|KKKKKKK......
+view L key walkC2 origin 0 10
+put K0n 7 -2 cols 3-6
+put K0n 7 -1 cols 0-2
+|44331...
+|44331...
+|44331...
+|44331...
+|443iif..
+|iiiihf..
+|ifhh....
+|........
+|........
+|........
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTT..
-|.TTTTTKKKKK..
-|.KKKKK..SSSSS
-|..SSSSS.SSSSS
-|..SSSSS.SSSSS
-|..SSSSSBBBBBB
-|.BBBBBBBBBBBB
-|BBBBBBOOOOOOO
-|OOOOOOO......
+|TTTTT...
+|TTTTT...
+|TTTTT...
+|TTTKK...
+|KKKSSS..
+|SSSSSS..
+|SSSS....
+|........
+|........
+|........
 
-view L key walkD2 origin 8 9
-|...122212221
-|..143213221.
-|..fiihf3221.
-|..fhhgf3221.
-|..fhhgfihgf.
-|.fhhhgfhggf.
-|fihhggfhggf.
-|KKKKKKKhggf.
-|....fhhgggf.
-|....KKKKKKK.
+view L key walkD2 origin 10 10
+put K0n -4 -1 cols 3-6
+put K0n -4 -2 cols 0-2
+|....144331
+|....144331
+|....14331.
+|....1433..
+|..ffih1...
+|..fiihf...
+|...iihf...
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTT
-|..KKKKKTTTT.
-|..SSSSSTTTT.
-|..SSSSSKKKK.
-|..SSSSSSSSS.
-|.BBBBBBSSSS.
-|BBBBBBBSSSS.
-|OOOOOOOBBBB.
-|....BBBBBBB.
-|....OOOOOOO.
+|....TTTTTT
+|....TTTTTT
+|....TTTTT.
+|....KKTT..
+|..SSSSK...
+|..SSSSS...
+|...SSSS...
+|..........
+|..........
+|..........
 
 view L key lie origin 3 9
 |...13221
@@ -1520,281 +1860,317 @@ regions
 |BBBBBBBBBBBBBB
 |OOOOOOOOOOOOOO
 
-view R key walkA origin 6 9 when woman replace
-|.12222112221....
-|.13222114321....
-|.13221..14321...
-|.13221..14321...
-|fihgf....fiihf..
-|fhggf....fhhgf..
-|.fggf.....fhgf..
-|fhhggf...fhhhgf.
-|fhhgggf..fihhggf
-|KKKKKKK..KKKKKKK
+view R key walkA origin 0 10 when woman replace
+put K0n 3 0 cols 0-3
+put K0n 3 -1 cols 4-6
+|14331.....
+|144331....
+|144331....
+|.44331....
+|..1431....
+|...1ihff..
+|...fiihf..
+|...fiih...
+|..........
+|..........
+|..........
 regions
-|.TTTTTTTTTTT....
-|.TTTTTTTTTTT....
-|.TTTTT..TTTTT...
-|.KKKKK..KKKKK...
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|.SSSS.....SSSS..
-|BBBBBB...BBBBBB.
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|TTTTT.....
+|TTTTTT....
+|TTTTTT....
+|.TTTTT....
+|..TTKK....
+|...KSSSS..
+|...SSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
-view R key walkA2 origin 6 9 when woman replace
-|..122212221..
-|.1322214321..
-|.13222114321.
-|fihgf..14321.
-|fhggf.fiihf..
-|.fggf.fhhgf..
-|fhhggf.fhgf..
-|fhhgggfhhhgf.
-|KKKKKKfihhggf
-|......KKKKKKK
+view R key walkA2 origin 0 10 when woman replace
+put K0n 0 0
+|44331..
+|44331..
+|44331..
+|44331..
+|44331..
+|iiihf..
+|iiihf..
+|fiihf..
+|.......
+|.......
+|.......
 regions
-|..TTTTTTTTT..
-|.TTTTTTTTTT..
-|.KKKKKKTTTTT.
-|SSSSS..KKKKK.
-|SSSSS.SSSSS..
-|.SSSS.SSSSS..
-|BBBBBB.SSSS..
-|BBBBBBBBBBBB.
-|OOOOOOBBBBBBB
-|......OOOOOOO
+|TTTTT..
+|TTTTT..
+|TTTTT..
+|TTTTT..
+|KKKKK..
+|SSSSS..
+|SSSSS..
+|SSSSS..
+|.......
+|.......
+|.......
 
-view R key walkB2 origin 4 9 when woman replace
-|1222221221...
-|.1433213221..
-|..14321ihgf..
-|..14321hggf..
-|.fiihf.fggf..
-|.fhhgffhhggf.
-|..fhgffhhgggf
-|.fhhhgfKKKKKK
-|.fihhggf.....
-|.KKKKKKK.....
+view R key walkB2 origin 4 10 when woman replace
+put K0n -4 0
+|.14331.
+|.14331.
+|.14331.
+|.14333.
+|.14331.
+|fiihf..
+|fiihf..
+|fiihf..
+|.......
+|.......
+|.......
 regions
-|TTTTTTTTTT...
-|.TTTTTTKKKK..
-|..TTTTTSSSS..
-|..KKKKKSSSS..
-|.SSSSS.SSSS..
-|.SSSSSBBBBBB.
-|..SSSSBBBBBBB
-|.BBBBBBOOOOOO
-|.BBBBBBB.....
-|.OOOOOOO.....
+|.TTTTT.
+|.TTTTT.
+|.TTTTT.
+|.TTTTT.
+|.KKKKT.
+|SSSSS..
+|SSSSS..
+|SSSSS..
+|.......
+|.......
+|.......
 
-view R key walkC origin 6 9 when woman replace
-|.12222112221....
-|.14332113221....
-|.14321..13221...
-|.14321..13221...
-|fiihf....fihgf..
-|fhhgf....fhggf..
-|.fhgf.....fggf..
-|fhhhgf...fhhggf.
-|fihhggf..fhhgggf
-|KKKKKKK..KKKKKKK
+view R key walkC origin 8 10 when woman replace
+put K0n -8 -1 cols 0-2
+put K0n -8 0 cols 3-6
+|.....14331
+|.....14331
+|....144331
+|....14333.
+|...f44331.
+|..fiii431.
+|.fiiiiif..
+|...hhhf...
+|..........
+|..........
+|..........
 regions
-|.TTTTTTTTTTT....
-|.TTTTTTTTTTT....
-|.TTTTT..TTTTT...
-|.KKKKK..KKKKK...
-|SSSSS....SSSSS..
-|SSSSS....SSSSS..
-|.SSSS.....SSSS..
-|BBBBBB...BBBBBB.
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|.....TTTTT
+|.....TTTTT
+|....TTTTTT
+|....TTTTT.
+|...SKKTTT.
+|..SSSSKKT.
+|.SSSSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
-view R key walkC2 origin 6 9 when woman replace
-|..122212221..
-|.1433213221..
-|.14332113221.
-|fiihf..13221.
-|fhhgf.fihgf..
-|.fhgf.fhggf..
-|fhhhgf.fggf..
-|fihhggfhhggf.
-|KKKKKKKhhgggf
-|......KKKKKKK
+view R key walkC2 origin 8 10 when woman replace
+put K0n -8 -2 cols 0-3
+put K0n -8 -1 cols 4-6
+|...14333
+|...14333
+|...14333
+|...14333
+|..fii433
+|..fhiiih
+|....hhfh
+|........
+|........
+|........
 regions
-|..TTTTTTTTT..
-|.TTTTTTTTTT..
-|.KKKKKKTTTTT.
-|SSSSS..KKKKK.
-|SSSSS.SSSSS..
-|.SSSS.SSSSS..
-|BBBBBB.SSSS..
-|BBBBBBBBBBBB.
-|OOOOOOOBBBBBB
-|......OOOOOOO
+|...TTTTT
+|...TTTTT
+|...TTTTT
+|...KKTTT
+|..SSSKKK
+|..SSSSSS
+|....SSSS
+|........
+|........
+|........
 
-view R key walkD2 origin 5 9 when woman replace
-|1222212221...
-|.1322214321..
-|..1322fiihf..
-|..1322fhhgf..
-|..fihgffhgf..
-|..fhggfhhhgf.
-|...fggfihhggf
-|..fhhgKKKKKKK
-|..fhhgggf....
-|..KKKKKKK....
+view R key walkD2 origin 0 10 when woman replace
+put K0n 3 -1 cols 0-3
+put K0n 3 -2 cols 4-6
+|144331....
+|144331....
+|.14331....
+|..4431....
+|...1ihff..
+|...fiihf..
+|...fiih...
+|..........
+|..........
+|..........
 regions
-|TTTTTTTTTT...
-|.TTTTTKKKKK..
-|..TTTTSSSSS..
-|..KKKKSSSSS..
-|..SSSSSSSSS..
-|..SSSSBBBBBB.
-|...SSSBBBBBBB
-|..BBBBOOOOOOO
-|..BBBBBBB....
-|..OOOOOOO....
+|TTTTTT....
+|TTTTTT....
+|.TTTTT....
+|..TTKK....
+|...KSSSS..
+|...SSSSS..
+|...SSSS...
+|..........
+|..........
+|..........
 
-view L key walkA origin 10 9 when woman replace
-|....12221122221.
-|....14321132221.
-|...14321..13221.
-|...14321..13221.
-|..fiihf....fihgf
-|..fhhgf....fhggf
-|..fhhf.....fhgf.
-|.fhhhgf...fhhggf
-|fihhggf..fhhgggf
-|KKKKKKK..KKKKKKK
+view L key walkA origin 10 10 when woman replace
+put K0n -4 0 cols 3-6
+put K0n -4 -1 cols 0-2
+|.....14331
+|....144331
+|....144331
+|....14333.
+|....1431..
+|..ffih1...
+|..fiihf...
+|...iihf...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTTT.
-|....TTTTTTTTTTT.
-|...TTTTT..TTTTT.
-|...KKKKK..KKKKK.
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|..SSSS.....SSSS.
-|.BBBBBB...BBBBBB
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|.....TTTTT
+|....TTTTTT
+|....TTTTTT
+|....TTTTT.
+|....KKTT..
+|..SSSSK...
+|..SSSSS...
+|...SSSS...
+|..........
+|..........
+|..........
 
-view L key walkA2 origin 7 9 when woman replace
-|..122212221..
-|..1432132221.
-|.14321132221.
-|.14321..fihgf
-|..fiihf.fhggf
-|..fhhgf.fhgf.
-|..fhhf.fhhggf
-|.fhhhgfhhgggf
-|fihhggfKKKKKK
-|KKKKKKK......
+view L key walkA2 origin 7 10 when woman replace
+put K0n -1 0
+|..14333
+|..14333
+|..14333
+|..14333
+|..14333
+|..fiihh
+|..fiihh
+|..fiihf
+|.......
+|.......
+|.......
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTTT.
-|.TTTTTKKKKKK.
-|.KKKKK..SSSSS
-|..SSSSS.SSSSS
-|..SSSSS.SSSS.
-|..SSSS.BBBBBB
-|.BBBBBBBBBBBB
-|BBBBBBBOOOOOO
-|OOOOOOO......
+|..TTTTT
+|..TTTTT
+|..TTTTT
+|..TTTTT
+|..KKKKK
+|..SSSSS
+|..SSSSS
+|..SSSSS
+|.......
+|.......
+|.......
 
-view L key walkB2 origin 9 9 when woman replace
-|...1221222221
-|..1322143321.
-|..fihg14321..
-|..fhgg14321..
-|..fhgf.fiihf.
-|.fhhggffhhgf.
-|fhhgggffhhf..
-|KKKKKKfhhhgf.
-|.....fihhggf.
-|.....KKKKKKK.
+view L key walkB2 origin 3 10 when woman replace
+put K0n 3 0
+|.14331..
+|.1433221
+|.143321.
+|.44331..
+|.14331..
+|..fiihf.
+|..fiihf.
+|..fiihf.
+|........
+|........
+|........
 regions
-|...TTTTTTTTTT
-|..KKKKTTTTTT.
-|..SSSSTTTTT..
-|..SSSSKKKKK..
-|..SSSS.SSSSS.
-|.BBBBBBSSSSS.
-|BBBBBBBSSSS..
-|OOOOOOBBBBBB.
-|.....BBBBBBB.
-|.....OOOOOOO.
+|.TTTTT..
+|.TTTTTTT
+|.TTTTTT.
+|.TTTTT..
+|.TKKKK..
+|..SSSSS.
+|..SSSSS.
+|..SSSSS.
+|........
+|........
+|........
 
-view L key walkC origin 10 9 when woman replace
-|....12221122221.
-|....13221143321.
-|...13221..14321.
-|...13221..14321.
-|..fihgf....fiihf
-|..fhggf....fhhgf
-|..fhgf.....fhhf.
-|.fhhggf...fhhhgf
-|fhhgggf..fihhggf
-|KKKKKKK..KKKKKKK
+view L key walkC origin 2 10 when woman replace
+put K0n 7 -1 cols 4-6
+put K0n 7 0 cols 0-3
+|14331.....
+|14331.....
+|1443321...
+|.44331....
+|.14433f...
+|.143iiif..
+|..fiiiiif.
+|...fhhh...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTTT.
-|....TTTTTTTTTTT.
-|...TTTTT..TTTTT.
-|...KKKKK..KKKKK.
-|..SSSSS....SSSSS
-|..SSSSS....SSSSS
-|..SSSS.....SSSS.
-|.BBBBBB...BBBBBB
-|BBBBBBB..BBBBBBB
-|OOOOOOO..OOOOOOO
+|TTTTT.....
+|TTTTT.....
+|TTTTTTT...
+|.TTTTT....
+|.TTTKKS...
+|.TKKSSSS..
+|..SSSSSSS.
+|...SSSS...
+|..........
+|..........
+|..........
 
-view L key walkC2 origin 7 9 when woman replace
-|..122212221..
-|..1322143321.
-|.13221143321.
-|.13221..fiihf
-|..fihgf.fhhgf
-|..fhggf.fhhf.
-|..fhgf.fhhhgf
-|.fhhggfihhggf
-|fhhgggKKKKKKK
-|KKKKKKK......
+view L key walkC2 origin 0 10 when woman replace
+put K0n 7 -2 cols 3-6
+put K0n 7 -1 cols 0-2
+|44331...
+|44331...
+|44331...
+|44331...
+|443iif..
+|iiiihf..
+|ifhh....
+|........
+|........
+|........
 regions
-|..TTTTTTTTT..
-|..TTTTTTTTTT.
-|.TTTTTKKKKKK.
-|.KKKKK..SSSSS
-|..SSSSS.SSSSS
-|..SSSSS.SSSS.
-|..SSSS.BBBBBB
-|.BBBBBBBBBBBB
-|BBBBBBOOOOOOO
-|OOOOOOO......
+|TTTTT...
+|TTTTT...
+|TTTTT...
+|TTTKK...
+|KKKSSS..
+|SSSSSS..
+|SSSS....
+|........
+|........
+|........
 
-view L key walkD2 origin 8 9 when woman replace
-|...1222122221
-|..1432132221.
-|..fiihf3221..
-|..fhhgf3221..
-|..fhhffihgf..
-|.fhhhgfhggf..
-|fihhggfhgf...
-|KKKKKKKhggf..
-|....fhhgggf..
-|....KKKKKKK..
+view L key walkD2 origin 10 10 when woman replace
+put K0n -4 -1 cols 3-6
+put K0n -4 -2 cols 0-2
+|....144331
+|....144331
+|....14331.
+|....1433..
+|..ffih1...
+|..fiihf...
+|...iihf...
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTTT
-|..KKKKKTTTTT.
-|..SSSSSTTTT..
-|..SSSSSKKKK..
-|..SSSSSSSSS..
-|.BBBBBBSSSS..
-|BBBBBBBSSS...
-|OOOOOOOBBBB..
-|....BBBBBBB..
-|....OOOOOOO..
+|....TTTTTT
+|....TTTTTT
+|....TTTTT.
+|....KKTT..
+|..SSSSK...
+|..SSSSS...
+|...SSSS...
+|..........
+|..........
+|..........
 
 view D key walkA origin 7 9 when woman replace
 |.122221122221.
@@ -2072,281 +2448,293 @@ regions
 |.......BBBBBBB
 |.......OOOOOOO
 
-view R key run1 origin 8 9 when woman replace
-|....122212221....
-|..13222114321....
-|fihgf....14321...
-|fhggf....14321...
-|.fggf.....fiihf..
-|fhhggf....fhhgf..
-|fhhgggf....fhgf..
-|KKKKKKK...fhhhgf.
-|..........fihhggf
-|..........KKKKKKK
+view R key run1 origin 0 10 when woman replace
+put K0n 1 0
+|44331...
+|.14331..
+|.14331..
+|..44331.
+|..44331.
+|..fiihf.
+|.fiihf..
+|.fiihf..
+|........
+|........
+|........
 regions
-|....TTTTTTTTT....
-|..KKKKKKTTTTT....
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|.SSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB....SSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|TTTTT...
+|.TTTTT..
+|.TTTTT..
+|..TTTTT.
+|..KKKKK.
+|..SSSSS.
+|.SSSSS..
+|.SSSSS..
+|........
+|........
+|........
 
-view R key run2 origin 3 9 when woman replace
-|122221221....
-|1433213221...
-|.1432113221..
-|.14321fihgf..
-|fiihf.fhggf..
-|fhhgf..fggf..
-|.fhgf.fhhggf.
-|fhhhgffhhgggf
-|fihhggfKKKKKK
-|KKKKKKK......
+view R key run2 origin 7 10 when woman replace
+put K3n -2 0 under
+|....1433.
+|...144331
+|..144331.
+|.144331..
+|fiihhf...
+|fihff....
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|TTTTTTTTT....
-|TTTTTTTTTT...
-|.TTTTTKKKKK..
-|.KKKKKSSSSS..
-|SSSSS.SSSSS..
-|SSSSS..SSSS..
-|.SSSS.BBBBBB.
-|BBBBBBBBBBBBB
-|BBBBBBBOOOOOO
-|OOOOOOO......
+|....TTTT.
+|...TTTTTT
+|..TTTTTT.
+|.KKKKKK..
+|SSSSSS...
+|SSSSS....
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view R key run3 origin 7 10 when woman replace
-|...1222112221....
-|.143321..13221...
-|fiihf....13221...
-|fhhgf....13221...
-|.fhgf.....fihgf..
-|fhhhgf....fhggf..
-|fihhggf....fggf..
-|KKKKKKK...fhhggf.
-|..........fhhgggf
-|..........KKKKKKK
+view R key run3 origin 8 10 when woman replace
+put K3n -3 -2 under
+|.....14331
+|.....14331
+|.....14333
+|..1114331.
+|.iihhfff..
+|..........
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTTT....
-|.KKKKKK..TTTTT...
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|.SSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB....SSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|.....TTTTT
+|.....TTTTT
+|.....TTTTT
+|..KKKKKKK.
+|.SSSSSSS..
+|..........
+|..........
+|..........
+|..........
 
-view R key run4 origin 8 9 when woman replace
-|....122212221....
-|..14332113221....
-|fiihf....13221...
-|fhhgf....13221...
-|.fhgf.....fihgf..
-|fhhhgf....fhggf..
-|fihhggf....fggf..
-|KKKKKKK...fhhggf.
-|..........fhhgggf
-|..........KKKKKKK
+view R key run4 origin 7 10 when woman replace
+put K3n -2 -1 under
+|......14333
+|....124331.
+|....14331..
+|....14333..
+|...fiihhh..
+|.iihhfff...
+|...........
+|...........
+|...........
+|...........
 regions
-|....TTTTTTTTT....
-|..KKKKKKTTTTT....
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|.SSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB....SSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|......TTTTT
+|....TTTTTT.
+|....TTTTT..
+|....KKKKK..
+|...SSSSSS..
+|.SSSSSSS...
+|...........
+|...........
+|...........
+|...........
 
-view R key run5 origin 4 9 when woman replace
-|.12212221....
-|1322214321...
-|.1322114321..
-|.13221fiihf..
-|.fihgffhhgf..
-|.fhggf.fhgf..
-|..fggffhhhgf.
-|.fhhggfihhggf
-|.fhhggKKKKKKK
-|.KKKKKKK.....
+view R key run5 origin -1 10 when woman replace
+put K3n 9 -1 under
+|444331...
+|1443331..
+|.1144331.
+|...144331
+|..ffihff.
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|.TTTTTTTT....
-|TTTTTTTTTT...
-|.TTTTTKKKKK..
-|.KKKKKSSSSS..
-|.SSSSSSSSSS..
-|.SSSSS.SSSS..
-|..SSSSBBBBBB.
-|.BBBBBBBBBBBB
-|.BBBBBOOOOOOO
-|.OOOOOOO.....
+|TTTTTT...
+|TTTTTTT..
+|.TTTTTTT.
+|...KKKKKK
+|..SSSSSS.
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view R key run6 origin 7 10 when woman replace
-|...1222112221....
-|.132221..14321...
-|fihgf....14321...
-|fhggf....14321...
-|.fggf.....fiihf..
-|fhhggf....fhhgf..
-|fhhgggf....fhgf..
-|KKKKKKK...fhhhgf.
-|..........fihhggf
-|..........KKKKKKK
+view R key run6 origin -1 10 when woman replace
+put K0n 4 -2
+|14331.....
+|144331....
+|.44331....
+|..143311..
+|...fiihf..
+|...fiihf..
+|..........
+|..........
+|..........
 regions
-|...TTTTTTTTTT....
-|.KKKKKK..TTTTT...
-|SSSSS....TTTTT...
-|SSSSS....KKKKK...
-|.SSSS.....SSSSS..
-|BBBBBB....SSSSS..
-|BBBBBBB....SSSS..
-|OOOOOOO...BBBBBB.
-|..........BBBBBBB
-|..........OOOOOOO
+|TTTTT.....
+|TTTTTT....
+|.TTTTT....
+|..KKKKKK..
+|...SSSSS..
+|...SSSSS..
+|..........
+|..........
+|..........
 
-view L key run1 origin 9 9 when woman replace
-|....122212221....
-|....14321132221..
-|...14321....fihgf
-|...14321....fhggf
-|..fiihf.....fhgf.
-|..fhhgf....fhhggf
-|..fhhf....fhhgggf
-|.fhhhgf...KKKKKKK
-|fihhggf..........
-|KKKKKKK..........
+view L key run1 origin 8 10 when woman replace
+put K0n -2 0
+|...14333
+|..14331.
+|..14331.
+|.14333..
+|.14333..
+|.fiihf..
+|..fiihf.
+|..fiihf.
+|........
+|........
+|........
 regions
-|....TTTTTTTTT....
-|....TTTTTKKKKKK..
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSS.
-|..SSSSS....BBBBBB
-|..SSSS....BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|...TTTTT
+|..TTTTT.
+|..TTTTT.
+|.TTTTT..
+|.KKKKK..
+|.SSSSS..
+|..SSSSS.
+|..SSSSS.
+|........
+|........
+|........
 
-view L key run2 origin 10 9 when woman replace
-|....122122221
-|...1322143321
-|..1322114321.
-|..fihgf14321.
-|..fhggf.fiihf
-|..fhgf..fhhgf
-|.fhhggf.fhhf.
-|fhhgggffhhhgf
-|KKKKKKfihhggf
-|......KKKKKKK
+view L key run2 origin 2 10 when woman replace
+put K3n 1 0 under
+|.4431....
+|144331...
+|.144331..
+|..144331.
+|...fiihhf
+|....ffihf
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|....TTTTTTTTT
-|...TTTTTTTTTT
-|..KKKKKTTTTT.
-|..SSSSSKKKKK.
-|..SSSSS.SSSSS
-|..SSSS..SSSSS
-|.BBBBBB.SSSS.
-|BBBBBBBBBBBBB
-|OOOOOOBBBBBBB
-|......OOOOOOO
+|.TTTT....
+|TTTTTT...
+|.TTTTTT..
+|..KKKKKK.
+|...SSSSSS
+|....SSSSS
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view L key run3 origin 10 10 when woman replace
-|....1222112221...
-|...13221..143321.
-|...13221....fiihf
-|...13221....fhhgf
-|..fihgf.....fhhf.
-|..fhggf....fhhhgf
-|..fhgf....fihhggf
-|.fhhggf...KKKKKKK
-|fhhgggf..........
-|KKKKKKK..........
+view L key run3 origin 2 10 when woman replace
+put K3n 2 -2 under
+|14331.....
+|14331.....
+|44331.....
+|.1433111..
+|..fffiihh.
+|..........
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT...
-|...TTTTT..KKKKKK.
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSS.
-|..SSSSS....BBBBBB
-|..SSSS....BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|TTTTT.....
+|TTTTT.....
+|TTTTT.....
+|.KKKKKKK..
+|..SSSSSSS.
+|..........
+|..........
+|..........
+|..........
 
-view L key run4 origin 9 9 when woman replace
-|....122212221....
-|....13221143321..
-|...13221....fiihf
-|...13221....fhhgf
-|..fihgf.....fhhf.
-|..fhggf....fhhhgf
-|..fhgf....fihhggf
-|.fhhggf...KKKKKKK
-|fhhgggf..........
-|KKKKKKK..........
+view L key run4 origin 4 10 when woman replace
+put K3n 1 -1 under
+|44331......
+|.143321....
+|..14331....
+|..44331....
+|..iiihhf...
+|...fffiihh.
+|...........
+|...........
+|...........
+|...........
 regions
-|....TTTTTTTTT....
-|....TTTTTKKKKKK..
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSS.
-|..SSSSS....BBBBBB
-|..SSSS....BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|TTTTT......
+|.TTTTTT....
+|..TTTTT....
+|..KKKKK....
+|..SSSSSS...
+|...SSSSSSS.
+|...........
+|...........
+|...........
+|...........
 
-view L key run5 origin 9 9 when woman replace
-|....12221221.
-|...1432132221
-|..1432113221.
-|..fiihf13221.
-|..fhhgffihgf.
-|..fhhf.fhggf.
-|.fhhhgffhgf..
-|fihhggfhhggf.
-|KKKKKKKhgggf.
-|.....KKKKKKK.
+view L key run5 origin 10 10 when woman replace
+put K3n -10 -1 under
+|...144333
+|..1443331
+|.1443311.
+|144331...
+|.ffihff..
+|.........
+|.........
+|.........
+|.........
+|.........
 regions
-|....TTTTTTTT.
-|...TTTTTTTTTT
-|..KKKKKTTTTT.
-|..SSSSSKKKKK.
-|..SSSSSSSSSS.
-|..SSSS.SSSSS.
-|.BBBBBBSSSS..
-|BBBBBBBBBBBB.
-|OOOOOOOBBBBB.
-|.....OOOOOOO.
+|...TTTTTT
+|..TTTTTTT
+|.TTTTTTT.
+|KKKKKK...
+|.SSSSSS..
+|.........
+|.........
+|.........
+|.........
+|.........
 
-view L key run6 origin 10 10 when woman replace
-|....1222112221...
-|...14321..132221.
-|...14321....fihgf
-|...14321....fhggf
-|..fiihf.....fhgf.
-|..fhhgf....fhhggf
-|..fhhf....fhhgggf
-|.fhhhgf...KKKKKKK
-|fihhggf..........
-|KKKKKKK..........
+view L key run6 origin 11 10 when woman replace
+put K0n -5 -2
+|.....14331
+|....144331
+|....14333.
+|..114331..
+|..fiihf...
+|..fiihf...
+|..........
+|..........
+|..........
 regions
-|....TTTTTTTTTT...
-|...TTTTT..KKKKKK.
-|...TTTTT....SSSSS
-|...KKKKK....SSSSS
-|..SSSSS.....SSSS.
-|..SSSSS....BBBBBB
-|..SSSS....BBBBBBB
-|.BBBBBB...OOOOOOO
-|BBBBBBB..........
-|OOOOOOO..........
+|.....TTTTT
+|....TTTTTT
+|....TTTTT.
+|..KKKKKK..
+|..SSSSS...
+|..SSSSS...
+|..........
+|..........
+|..........
 
 view D key run1 origin 7 9 when woman replace
 |.122221122221.
@@ -2716,11 +3104,6 @@ regions
 |BBBBBBBBBBB..
 |OOOOOOOOOOO..
 
-
-# ---- the drawn-weapon LOCO (P2b production, FOLK-BODY): `guard`, the side views' ready stance while a weapon is out (the
-# front and back views stand on `drawn`, A3's swing stance). The walk's sturdy contact legs a pixel closer and a row
-# shorter (the knees give: the clip lowers the hips 1 px): upright trouser blocks, the near leg forward, flat boots on
-# the ground row, a 1 px gap at the knee and at the sole so the two legs read apart. The left view a pixel forward.
 view R key guard origin 6 8
 |..1222112221....
 |..1322114321....
@@ -2763,8 +3146,6 @@ regions
 |BBBBBBB.BBBBBBB.
 |OOOOOOO.OOOOOOO.
 
-# her guard and swing stance (P2b production, FOLK-BODY): her own legs (her hips a pixel fuller at the back, the ankle in),
-# so the trousered woman keeps her fit when the weapon comes out; `drawn` is her idle a row shorter (the knees give)
 view D key drawn origin 7 8 when woman replace
 |.122221122221.
 |..1432113321..
@@ -2848,4 +3229,3 @@ regions
 |.BBBBBB..BBBBBB.
 |BBBBBBB.BBBBBBB.
 |OOOOOOO.OOOOOOO.
-

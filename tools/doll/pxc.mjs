@@ -15,8 +15,13 @@
 //   node tools/doll/pxc.mjs --no-cpp        do not write the generated source (with --bin)
 //   node tools/doll/pxc.mjs --watch         compile again on every save under maps/ and clips/ (Ctrl+C ends it)
 //   node tools/doll/pxc.mjs --watch --gallery <doll_gallery exe> <outDir> [board ...]   and re-render the gallery each time
-//   node tools/doll/pxc.mjs --no-cache      parse every map (default: maps whose text and legends are unchanged since the
-//                                           last compile come from the cache in the system temp folder: incremental)
+//   node tools/doll/pxc.mjs --no-cache      parse every map (default: maps whose text, legends and stamp libraries are
+//                                           unchanged since the last compile come from the cache in the system temp folder)
+//   node tools/doll/pxc.mjs --placements F  also write F: one JSON line per `put` (part, facing, key, when, stamp, dx, dy,
+//                                           under, cols): the judge's boot tracer (works with --check)
+// Stamps (docs/MOTION_P2.md 8): maps/stamps/*.stamps hold hand-drawn keys (`stamp <name> <R|L> origin x y`, rows, regions);
+// a part names its libraries (`stamps boots_adult`) and a view places keys (`put <name> <dx> <dy> [under] [cols a-b]`),
+// expanded into the view's cells and regions before the craft checks (the pool format is unchanged).
 // Exit codes: 0 ok, 1 errors (or stale with --check), 2 bad arguments. A map with an error is LEFT OUT of the pool (named;
 // the rest is written, so one area's broken map never stops the others); a clip, legend or --strict error writes nothing.
 import fs from 'node:fs';
@@ -69,12 +74,12 @@ function defaultChannel(layer, side) {
 }
 const POOL_VERSION = 2;   // 2: views carry flags (replace), frames carry turn and at
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
-const CACHE_VERSION = 5;  // bump when a parse or a check changes (old cache entries are dropped)
+const CACHE_VERSION = 6;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts
 
 // ---------------------------------------------------------------------------------------------- arguments
 const args = process.argv.slice(2);
 const opt = { check: false, report: false, strict: false, root: null, bin: null, out: null, cpp: true, quiet: false, watch: false,
-  gallery: null, galleryDir: null, boards: [], cache: true };
+  gallery: null, galleryDir: null, boards: [], cache: true, placements: null };
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--check') opt.check = true;
@@ -87,11 +92,12 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--root' && i + 1 < args.length) opt.root = path.resolve(args[++i]);
   else if (a === '--bin' && i + 1 < args.length) opt.bin = path.resolve(args[++i]);
   else if (a === '--out' && i + 1 < args.length) opt.out = path.resolve(args[++i]);
+  else if (a === '--placements' && i + 1 < args.length) opt.placements = path.resolve(args[++i]);
   else if (a === '--gallery' && i + 2 < args.length) {
     opt.gallery = path.resolve(args[++i]); opt.galleryDir = path.resolve(args[++i]);
     while (i + 1 < args.length && !args[i + 1].startsWith('--')) opt.boards.push(args[++i]);
   }
-  else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 21).join('\n')); process.exit(0); }
+  else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 28).join('\n')); process.exit(0); }
   else { console.error(`pxc: unknown argument ${a}`); process.exit(2); }
 }
 if (opt.gallery && !opt.watch) { console.error('pxc: --gallery goes with --watch'); process.exit(2); }
@@ -151,6 +157,160 @@ function readLegends() {
   return { legends, sig: sha1(sig) };
 }
 
+// ---------------------------------------------------------------------------------------------- stamp libraries
+// maps/stamps/<library>.stamps (docs/MOTION_P2.md 8): `use <legend>` / `legend` lines, then entries
+//   stamp <name> <R|L> origin <x> <y>      the key's ground pivot in its own grid (y down)
+//   |rows                                  the pixels (the library's legend)
+//   regions / |rows                        the region plane (optional; lands with the pixels)
+// Library checks: one entry per name and facing; O (sole) cells are Ink; an L entry is never the plain mirror of its R
+// entry (repaint it for the top-left light); the craft checks (orphans, lone-colour noise) on each entry.
+const caret = (row, x) => `\n      |${row}|\n       ${' '.repeat(Math.max(0, x))}^`;
+function readStamps(legends) {
+  const libs = {};
+  let sig = '';
+  for (const f of walk(path.join(MAPS, 'stamps'), '.stamps')) {
+    const name = path.basename(f, '.stamps');
+    const text = fs.readFileSync(f, 'utf8');
+    sig += name + ':' + sha1(text) + ';';
+    const lib = { name, file: rel(f), uses: [], local: {}, entries: new Map() };
+    libs[name] = lib;
+    let cur = null, block = null;
+    lines(text).forEach((raw, i) => {
+      const where = `${rel(f)}:${i + 1}`;
+      const ln = raw.replace(/\s+$/, '');
+      if (ln.startsWith('|')) {
+        if (!cur) { err(where, 'a grid row before any stamp'); return; }
+        let row = ln.slice(1);
+        const bar = row.indexOf('|');
+        if (bar >= 0) row = row.slice(0, bar);
+        row = row.replace(/ /g, '.');
+        (block === 'regions' ? cur.regRows : cur.rows).push({ row, line: i + 1 });
+        return;
+      }
+      const t = ln.trim();
+      if (!t || isComment(t)) { block = null; return; }
+      const toks = t.split(/\s+/);
+      block = null;
+      if (toks[0] === 'use') { if (cur) err(where, 'use goes before the first stamp'); else lib.uses.push(...toks.slice(1)); }
+      else if (toks[0] === 'legend') parseLegendLine(where, toks, lib.local);
+      else if (toks[0] === 'stamp') {
+        const ox = parseInt(toks[4], 10), oy = parseInt(toks[5], 10);
+        if (toks.length !== 6 || !/^[A-Za-z0-9_]+$/.test(toks[1]) || (toks[2] !== 'R' && toks[2] !== 'L') || toks[3] !== 'origin' || Number.isNaN(ox) || Number.isNaN(oy)) {
+          err(where, 'stamp <name> <R|L> origin <x> <y>'); cur = null; return;
+        }
+        const id = `${toks[1]}/${toks[2]}`;
+        if (lib.entries.has(id)) err(where, `a second stamp ${toks[1]} ${toks[2]} in ${name}`);
+        cur = { lib: name, name: toks[1], facing: toks[2] === 'R' ? 2 : 3, ox, oy, rows: [], regRows: [], line: i + 1, uses: 0 };
+        lib.entries.set(id, cur);
+      } else if (toks[0] === 'regions') { if (!cur) err(where, 'regions before any stamp'); else block = 'regions'; }
+      else err(where, `unknown stamp directive ${toks[0]} (use, legend, stamp, regions)`);
+    });
+    const L = {};
+    for (const u of lib.uses) { if (!legends[u]) err(lib.file, `use: no legend maps/legend/${u}.legend`); else Object.assign(L, legends[u]); }
+    Object.assign(L, lib.local);
+    const INK = SLOTS.indexOf('ink');
+    for (const st of lib.entries.values()) {
+      const where = `${lib.file}:${st.line}`;
+      if (!st.rows.length) { err(where, `stamp ${st.name} ${FACINGS[st.facing]}: no grid rows`); continue; }
+      st.w = Math.max(...st.rows.map((r) => cpOf(r.row).length));
+      st.h = st.rows.length;
+      st.cells = new Uint8Array(st.w * st.h);
+      st.opaque = 0;
+      st.srcRows = st.rows.map((r) => r.row);
+      st.rows.forEach((r, y) => cpOf(r.row).forEach((ch, x) => {
+        if (ch === '.') return;
+        if (ch === '-') { err(`${lib.file}:${r.line}`, `stamp ${st.name}: '-' (erase) has no place in a stamp${caret(r.row, x)}`); return; }
+        const e = L[ch];
+        if (!e) { err(`${lib.file}:${r.line}`, `stamp ${st.name}: '${ch}' is not in the legend (${lib.uses.join(', ') || 'no use'})${caret(r.row, x)}`); return; }
+        st.cells[y * st.w + x] = 2 + e.slot * 5 + e.step;
+        st.opaque++;
+      }));
+      if (st.regRows.length) {
+        if (st.regRows.length !== st.h) err(where, `stamp ${st.name}: regions: ${st.regRows.length} rows for a ${st.h}-row grid`);
+        st.reg = new Uint8Array(st.w * st.h);
+        st.regRows.forEach((r, y) => cpOf(r.row).forEach((ch, x) => {
+          if (ch === '.' || y >= st.h || x >= st.w) return;
+          if (!REGIONS[ch]) err(`${lib.file}:${r.line}`, `stamp ${st.name}: regions: '${ch}' is no region (${Object.keys(REGIONS).join('')})`);
+          else st.reg[y * st.w + x] = REGIONS[ch];
+        }));
+        for (let k = 0; k < st.w * st.h; k++) {
+          if (st.reg[k] !== REGIONS.O) continue;
+          const c = st.cells[k];
+          if (c < 2 || Math.floor((c - 2) / 5) !== INK) {
+            const x = k % st.w, y = Math.floor(k / st.w);
+            err(`${lib.file}:${st.regRows[y].line}`, `stamp ${st.name} ${FACINGS[st.facing]}: sole (O) cell ${x},${y} is not Ink${caret(st.srcRows[y] || '', x)}`);
+          }
+        }
+      }
+      if (st.ox < 0 || st.oy < 0 || st.ox >= st.w || st.oy >= st.h) err(where, `stamp ${st.name}: origin ${st.ox} ${st.oy} lies outside its ${st.w}x${st.h} grid`);
+      // the craft checks, as on a part map (a stamp is a boot on its own: orphans and lone-colour noise)
+      const fakeP = { file: lib.file, layer: 'shoes', roles: [], tags: [], channel: 'rest' };
+      const fakeV = { facing: st.facing, when: '', w: st.w, h: st.h, cells: st.cells, opaque: st.opaque };
+      craftChecks(fakeP, fakeV, `${where} (stamp ${st.name} ${FACINGS[st.facing]})`);
+      st.checks = fakeV.checks;
+      delete st.rows; delete st.regRows;
+    }
+    // an L entry is painted, never the plain mirror of its R entry (STYLE_P2 9, 24)
+    for (const st of lib.entries.values()) {
+      if (st.facing !== 3 || !st.cells) continue;
+      const R = lib.entries.get(`${st.name}/R`);
+      if (!R || !R.cells || R.w !== st.w || R.h !== st.h) continue;
+      let same = st.opaque > 0;
+      for (let y = 0; y < st.h && same; y++) for (let x = 0; x < st.w && same; x++) if (st.cells[y * st.w + x] !== R.cells[y * st.w + (st.w - 1 - x)]) same = false;
+      if (same) err(`${lib.file}:${st.line}`, `stamp ${st.name} L is the plain mirror of stamp ${st.name} R: repaint it for the top-left light`);
+    }
+  }
+  return { libs, sig: sha1(sig) };
+}
+
+// a view's puts: each stamp lands with its origin at (dx, dy) from the view's pivot (its origin cell), the view's facing
+// picking the stamp's entry; `under` writes only the view's clear cells, the default writes over them; `cols a-b` keeps only
+// those stamp columns. The stamp's regions land with its pixels. Returns the mask of cells the puts wrote.
+function expandPuts(P, V, stamps, where) {
+  const mask = new Uint8Array(V.w * V.h);
+  if (!V.puts.length) return mask;
+  if (V.facing !== 2 && V.facing !== 3) { err(where, `put: only side views (R, L) place stamps (view ${FACINGS[V.facing]} key ${V.key})`); return mask; }
+  if (!P.stamps.length) { err(where, 'put: the part names no stamp library (stamps <library> before the first view)'); return mask; }
+  if (!V.origin) return mask;
+  const fc = FACINGS[V.facing];
+  for (const pt of V.puts) {
+    const pw = `${P.file}:${pt.line}`;
+    let st = null;
+    for (const ln of P.stamps) {
+      const lib = stamps.libs[ln];
+      if (!lib) continue;
+      st = lib.entries.get(`${pt.name}/${fc}`) || null;
+      if (st) break;
+    }
+    if (!st) {
+      const other = P.stamps.some((ln) => stamps.libs[ln] && stamps.libs[ln].entries.has(`${pt.name}/${fc === 'R' ? 'L' : 'R'}`));
+      err(pw, `put ${pt.name}: no stamp ${pt.name} ${fc} in ${P.stamps.join(', ')}${other ? ` (it has only the ${fc === 'R' ? 'L' : 'R'} entry)` : ''} (view ${fc} key ${V.key}${V.when ? ' when ' + V.when : ''})`);
+      continue;
+    }
+    if (!st.cells) continue;
+    if (pt.cols && pt.cols[1] >= st.w) { err(pw, `put ${pt.name} cols ${pt.cols[0]}-${pt.cols[1]}: the stamp is ${st.w} columns wide`); continue; }
+    const bx = V.origin[0] + pt.dx - st.ox, by = V.origin[1] + pt.dy - st.oy;
+    let outside = null;
+    for (let sy = 0; sy < st.h; sy++) for (let sx = 0; sx < st.w; sx++) {
+      const c = st.cells[sy * st.w + sx];
+      if (!c || (pt.cols && (sx < pt.cols[0] || sx > pt.cols[1]))) continue;
+      const vx = bx + sx, vy = by + sy;
+      if (vx < 0 || vy < 0 || vx >= V.w || vy >= V.h) { if (!outside) outside = [sx, sy, vx, vy]; continue; }
+      const k = vy * V.w + vx;
+      if (pt.under && V.cells[k] !== 0) continue;
+      V.cells[k] = c;
+      if (st.reg || V.reg) {
+        if (!V.reg) V.reg = new Uint8Array(V.w * V.h);
+        V.reg[k] = st.reg ? st.reg[sy * st.w + sx] : 0;
+      }
+      mask[k] = 1;
+    }
+    if (outside) err(pw, `put ${pt.name} ${pt.dx} ${pt.dy}: stamp cell ${outside[0]},${outside[1]} lands outside the view's ${V.w}x${V.h} grid at ${outside[2]},${outside[3]} (view ${fc} key ${V.key})`);
+  }
+  V.opaque = V.cells.reduce((n, c) => n + (c >= 2 ? 1 : 0), 0);
+  return mask;
+}
+
 // ---------------------------------------------------------------------------------------------- part maps
 function bodyMaskFromPath(r) {
   if (/\/man\//.test(r) || r.startsWith('wear/man')) return 1;
@@ -162,8 +322,8 @@ function bodyMaskFromPath(r) {
 function parsePart(file, text) {
   const r = rel(file);
   const name0 = path.relative(MAPS, file).split(path.sep).join('/').replace(/\.pxm$/, '');
-  const P = { file: r, name: name0, roles: [], tags: [], uses: [], local: {}, layer: null, anchor: null, channel: null, side: 0,
-    z: 0, sway: 0, bodyMask: 0, views: [] };
+  const P = { file: r, name: name0, roles: [], tags: [], uses: [], stamps: [], local: {}, layer: null, anchor: null, channel: null,
+    side: 0, z: 0, sway: 0, bodyMask: 0, views: [] };
   let view = null, block = null;   // block: 'grid' | 'regions' | 'build'
   const endBlock = () => { block = null; };
   lines(text).forEach((raw, i) => {
@@ -188,6 +348,26 @@ function parsePart(file, text) {
     switch (kw) {
       case 'part': P.name = toks[1] || P.name; break;
       case 'use': for (const u of toks.slice(1)) P.uses.push(u); break;
+      case 'stamps':
+        if (view) err(where, 'stamps <library ...> goes before the first view (like use)');
+        else if (toks.length < 2) err(where, 'stamps <library ...> (maps/stamps/<library>.stamps)');
+        else for (const u of toks.slice(1)) P.stamps.push(u);
+        break;
+      case 'put': {
+        if (!view) { err(where, 'put before any view'); break; }
+        const pt = { name: toks[1], dx: parseInt(toks[2], 10), dy: parseInt(toks[3], 10), under: false, cols: null, line: i + 1 };
+        let bad = toks.length < 4 || Number.isNaN(pt.dx) || Number.isNaN(pt.dy) || !/^[A-Za-z0-9_]+$/.test(pt.name || '');
+        for (let k = 4; k < toks.length && !bad; k++) {
+          if (toks[k] === 'under' && !pt.under) pt.under = true;
+          else if (toks[k] === 'cols' && !pt.cols) {
+            const m = /^(\d+)-(\d+)$/.exec(toks[++k] || '');
+            if (!m || +m[1] > +m[2]) bad = true; else pt.cols = [+m[1], +m[2]];
+          } else bad = true;
+        }
+        if (bad) err(where, 'put <stamp> <dx> <dy> [under] [cols <a>-<b>]');
+        else view.puts.push(pt);
+        break;
+      }
       case 'legend': parseLegendLine(where, toks, P.local); break;
       case 'role':
         if (toks.length !== 3 || ROLES.indexOf(toks[1]) < 0) err(where, `role <category> <value> (categories: ${ROLES.join(' ')})`);
@@ -205,7 +385,7 @@ function parsePart(file, text) {
       case 'sway': P.sway = parseInt(toks[1], 10) | 0; if (P.sway < 0 || P.sway > 40) err(where, 'sway 0..40'); break;
       case 'view': {
         view = { facing: -1, key: 'rest', when: '', replace: false, origin: null, layer: null, anchor: null, stretch: -1, rows: [], regions: [],
-          build: [], marks: [], line: i + 1 };
+          build: [], marks: [], puts: [], line: i + 1 };
         if (toks.length < 2 || FACINGS.indexOf(toks[1]) < 0 || toks[1].length !== 1) err(where, 'view <D|U|R|L> [key k] [origin x y] [layer l] [anchor a] [when c [replace]] [stretch row]');
         view.facing = FACINGS.indexOf(toks[1]);
         for (let k = 2; k < toks.length; k++) {
@@ -244,13 +424,15 @@ function parsePart(file, text) {
 
 // the grids through the legend, the regions, the build rows, and the per-map checks (everything that needs only the map
 // and the legends: the cache keeps the result)
-function buildPart(P, legends) {
+function buildPart(P, legends, stamps) {
   const L = {};
   for (const u of P.uses) {
     if (!legends[u]) err(P.file, `use: no legend maps/legend/${u}.legend`);
     else Object.assign(L, legends[u]);
   }
   Object.assign(L, P.local);
+  for (const n of P.stamps) if (!stamps.libs[n]) err(P.file, `stamps: no library maps/stamps/${n}.stamps`);
+  const stamped = P.tags.includes('boots-stamped');
   if (!P.roles.length) warn(P.file, 'no role: no look will ever use this part (a dead part)', P);
   const seen = new Set();
   for (const V of P.views) {
@@ -294,6 +476,23 @@ function buildPart(P, legends) {
       });
     }
     if (V.stretch >= h || V.stretch < -1) err(where, `stretch ${V.stretch}: no such row`);
+    // the puts (a `when` view without an origin stands on its base view's)
+    const saveOrigin = V.origin;
+    V.origin = V.origin || (V.when && (P.views.find((b) => !b.when && b.facing === V.facing && b.key === V.key) || {}).origin) || null;
+    const putMask = expandPuts(P, V, stamps, where);
+    V.origin = saveOrigin;
+    // boots-stamped: every boot (B) and sole (O) cell of a side walk/run view comes from a put, never drawn by hand
+    if (stamped && (V.facing === 2 || V.facing === 3) && /^(walk|run)/.test(V.key) && V.reg) {
+      let n = 0, first = -1;
+      for (let k = 0; k < w * h; k++) {
+        if ((V.reg[k] === REGIONS.B || V.reg[k] === REGIONS.O) && !putMask[k]) { n++; if (first < 0) first = k; }
+      }
+      if (n) {
+        const x = first % w, y = Math.floor(first / w);
+        const src = V.rows[y] ? V.rows[y] : { row: '', line: V.line };
+        err(`${P.file}:${src.line}`, `boots-stamped: part ${P.name} view ${FACINGS[V.facing]} key ${V.key}${V.when ? ' when ' + V.when : ''}: ${n} boot/sole cell(s) not written by a put (the first: ${x},${y}, region ${V.reg[first] === REGIONS.O ? 'O' : 'B'}); a boot is a stamp (put), never hand-drawn${caret(src.row, x)}`);
+      }
+    }
     craftChecks(P, V, where);
     delete V.rows; delete V.regions; delete V.build;
   }
@@ -701,6 +900,7 @@ function compile() {
   sink = global;
   loadCache();
   const { legends, sig: legendSig } = readLegends();
+  const stamps = readStamps(legends);
   const files = walk(MAPS, '.pxm');
   const parts = [], left = [];
   let parsed = 0;
@@ -709,14 +909,14 @@ function compile() {
     const r = rel(f);
     live.add(r);
     const text = fs.readFileSync(f, 'utf8');
-    const sig = sha1(legendSig + '\n' + text);
+    const sig = sha1(legendSig + '\n' + stamps.sig + '\n' + text);
     const hit = cache.files[r];
     let P, msgs;
     if (hit && hit.sig === sig) ({ P, msgs } = deserialize(hit.entry));
     else {
       sink = { errors: [], warnings: [] };
       P = parsePart(f, text);
-      buildPart(P, legends);
+      buildPart(P, legends, stamps);
       msgs = sink;
       sink = global;
       cache.files[r] = { sig, entry: serialize(P, msgs) };
@@ -742,7 +942,24 @@ function compile() {
   const src = cppSource(parts, clips, pk);
   for (const x of warnings) if (opt.strict && !x.draft) errors.push(`${x.where}: ${x.msg} (--strict)`);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  return { errors, warnings, parts, bodySets, clips, pk, src, ms, parsed, files: files.length, left, globalErrors: errors.length - mapErrors };
+  return { errors, warnings, parts, bodySets, clips, pk, src, ms, parsed, files: files.length, left, globalErrors: errors.length - mapErrors, stamps };
+}
+
+// every put of the compiled parts (the judge's boot tracer: --placements), one record each
+function placements(c) {
+  const out = [];
+  for (const P of c.parts) for (const V of P.views) for (const pt of V.puts || []) {
+    out.push({ part: P.name, file: P.file, facing: FACINGS[V.facing], key: V.key, when: V.when || '', stamp: pt.name, dx: pt.dx, dy: pt.dy,
+      under: !!pt.under, cols: pt.cols || null, line: pt.line });
+  }
+  return out;
+}
+function writePlacements(c) {
+  if (!opt.placements) return;
+  const recs = placements(c);
+  fs.mkdirSync(path.dirname(opt.placements), { recursive: true });
+  fs.writeFileSync(opt.placements, recs.map((r) => JSON.stringify(r)).join('\n') + (recs.length ? '\n' : ''));
+  if (!opt.quiet) console.log(`pxc: ${recs.length} placement(s) -> ${opt.placements}`);
 }
 
 function report(c) {
@@ -753,6 +970,24 @@ function report(c) {
     const orph = vs.reduce((s, v) => s + (v.checks ? v.checks.orphans : 0), 0);
     const noise = vs.reduce((s, v) => s + (v.checks ? v.checks.noise || 0 : 0), 0);
     console.log(`  ${P.name.padEnd(36)} ${String(vs.length).padStart(3)} views ${String(px).padStart(5)} px  orphans ${orph}  noise ${noise}  roles ${P.roles.map((r) => ROLES[r.cat] + ' ' + r.value).join(', ') || '-'}`);
+  }
+  // the stamp libraries and each entry's uses (puts in the compiled parts)
+  const uses = new Map();
+  for (const r of placements(c)) {
+    const P = c.parts.find((q) => q.name === r.part);
+    const lib = P.stamps.find((n) => c.stamps.libs[n] && c.stamps.libs[n].entries.has(`${r.stamp}/${r.facing}`));
+    const id = `${lib}/${r.stamp}/${r.facing}`;
+    if (!uses.has(id)) uses.set(id, new Set());
+    uses.get(id).add(r.part);
+    uses.set(id + '#n', (uses.get(id + '#n') || 0) + 1);
+  }
+  for (const lib of Object.values(c.stamps.libs)) {
+    console.log(`  stamps ${lib.name} (${lib.file}): ${lib.entries.size} entries`);
+    for (const st of lib.entries.values()) {
+      const id = `${lib.name}/${st.name}/${FACINGS[st.facing]}`;
+      const n = uses.get(id + '#n') || 0;
+      console.log(`    ${(st.name + ' ' + FACINGS[st.facing]).padEnd(8)} ${String(st.w || 0).padStart(2)}x${String(st.h || 0).padEnd(2)} origin ${st.ox},${st.oy}  ${String(st.opaque || 0).padStart(3)} px  orphans ${st.checks ? st.checks.orphans : 0}  noise ${st.checks ? st.checks.noise : 0}  uses ${String(n).padStart(3)}${n ? ' (' + [...uses.get(id)].join(', ') + ')' : ' (unused)'}`);
+    }
   }
   for (const x of c.warnings) console.log(`  warning ${x.where}: ${x.msg}${x.draft ? ' (draft)' : ''}`);
   const { pk } = c;
@@ -778,6 +1013,7 @@ function writeOutputs(c, binPath) {
 function once() {
   const c = compile();
   if (opt.report) report(c);
+  writePlacements(c);
   for (const e of c.errors) console.error(`error ${e}`);
   if (!opt.report && !opt.quiet && c.warnings.length) console.log(`pxc: ${c.warnings.length} craft warning(s) (--report lists them)`);
   if (c.errors.length && (c.globalErrors || opt.check)) { console.error(`pxc: ${c.errors.length} error(s); nothing written`); return 1; }

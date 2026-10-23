@@ -1,0 +1,236 @@
+# rpg/art/doll/maps/stamps/boots_child.stamps: the child's boot, ONE drawing in five tilts (docs/MOTION_P2.md 4.2, 5.5; STYLE_P2
+# 10). The child's own chunky foot (kin/child/legs/std's side idle: the B rows F-2..F-1, 5 and 6 px over a 6 px Ink sole; the
+# boot's top row above it is the shin), hand-placed at each tilt, never sheared, squashed or tool-rotated: C0 flat (the
+# planted foot), C1 toe-up 1:2 (heel strike: the sole stepping 2 / 2 / 2 up to the toe; 15 px), C2 heel-up 1:2 (motion fix
+# round 2, R2-06: the contact's trailing foot on its toe pad, the heel TWO rows up: the sole 2 / 2 / 2, 18 px), C3 toe-off
+# (rolled onto the toe, the sole 1 / 2 / 2: the down frame's trailing foot; 17 px), C4 pointed (fix round 2: C2 rolled onto
+# its toe tip, the sole 2 / 2 / 1: the walk pass's swing foot, toe down and lifted 2 in front of the planted shin; 18 px).
+# The square heel, the outline all round, the straight Ink sole. `n` near, `f` far (a value darker). origin = the ground
+# pivot on the sole row (the heel of C0 / C1, the toe's last Ink pixel of C2 / C3 / C4). L entries mirrored and re-lit,
+# never the plain mirror. Used by kin/child/legs/std.pxm and tips.pxm (`# put` comments, expanded there pixel for pixel).
+use person
+# C0 flat (the planted foot), R view: origin = the heel
+stamp C0n R origin 0 2
+|fihhf.
+|fihhgf
+|KKKKKK
+regions
+|BBBBB.
+|BBBBBB
+|OOOOOO
+stamp C0f R origin 0 2
+|fhhgf.
+|fhhggf
+|KKKKKK
+regions
+|BBBBB.
+|BBBBBB
+|OOOOOO
+# C1 toe-up 1:2 (heel strike), R view: origin = the heel
+stamp C1n R origin 0 3
+|...ihf
+|fihhKK
+|fhKK..
+|KK....
+regions
+|...BBB
+|BBBBOO
+|BBOO..
+|OO....
+stamp C1f R origin 0 3
+|...hgf
+|fhhgKK
+|fhKK..
+|KK....
+regions
+|...BBB
+|BBBBOO
+|BBOO..
+|OO....
+# C2 heel-up 1:2 (heel off two rows, on the toe pad), R view: origin = the toe's last sole pixel
+stamp C2n R origin 5 4
+|fh....
+|fihh..
+|KKhhgf
+|..KKhf
+|....KK
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OO
+stamp C2f R origin 5 4
+|fh....
+|fhhg..
+|KKhggf
+|..KKgf
+|....KK
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OO
+# C0 flat (the planted foot), L view: origin = the heel
+stamp C0n L origin 5 2
+|.fihhf
+|fihhgf
+|KKKKKK
+regions
+|.BBBBB
+|BBBBBB
+|OOOOOO
+stamp C0f L origin 5 2
+|.fhhgf
+|fhhggf
+|KKKKKK
+regions
+|.BBBBB
+|BBBBBB
+|OOOOOO
+# C1 toe-up 1:2 (heel strike), L view: origin = the heel
+stamp C1n L origin 5 3
+|fih...
+|KKihhf
+|..KKhf
+|....KK
+regions
+|BBB...
+|OOBBBB
+|..OOBB
+|....OO
+stamp C1f L origin 5 3
+|fhg...
+|KKhhgf
+|..KKhf
+|....KK
+regions
+|BBB...
+|OOBBBB
+|..OOBB
+|....OO
+# C2 heel-up 1:2 (heel off two rows, on the toe pad), L view: origin = the toe's last sole pixel
+stamp C2n L origin 0 4
+|....if
+|..ihhf
+|fhhgKK
+|fhKK..
+|KK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|OO....
+stamp C2f L origin 0 4
+|....hf
+|..hhgf
+|fhggKK
+|fgKK..
+|KK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|OO....
+# C3 toe-off 1:2 (rolled onto the toe; the walk's down frame trailing foot), R view: origin = the toe's last sole pixel
+stamp C3n R origin 4 4
+|fh...
+|fihh.
+|Khhgf
+|.KKhf
+|...KK
+regions
+|BB...
+|BBBB.
+|OBBBB
+|.OOBB
+|...OO
+stamp C3f R origin 4 4
+|fh...
+|fhhg.
+|Khggf
+|.KKgf
+|...KK
+regions
+|BB...
+|BBBB.
+|OBBBB
+|.OOBB
+|...OO
+# C3 toe-off 1:2, L view: origin = the toe's last sole pixel
+stamp C3n L origin 0 4
+|...if
+|.ihhf
+|fhhgK
+|fhKK.
+|KK...
+regions
+|...BB
+|.BBBB
+|BBBBO
+|BBOO.
+|OO...
+stamp C3f L origin 0 4
+|...hf
+|.hhgf
+|fhggK
+|fgKK.
+|KK...
+regions
+|...BB
+|.BBBB
+|BBBBO
+|BBOO.
+|OO...
+# C4 pointed (the swing foot toe down, lifted: the walk pass), R/L: the heel-up foot rolled onto its toe tip
+stamp C4n R origin 4 4
+|fh....
+|fihh..
+|KKhhgf
+|..KKhf
+|....Kf
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OB
+stamp C4f R origin 4 4
+|fh....
+|fhhg..
+|KKhggf
+|..KKgf
+|....Kf
+regions
+|BB....
+|BBBB..
+|OOBBBB
+|..OOBB
+|....OB
+stamp C4n L origin 1 4
+|....if
+|..ihhf
+|fhhgKK
+|fhKK..
+|fK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|BO....
+stamp C4f L origin 1 4
+|....hf
+|..hhgf
+|fhggKK
+|fgKK..
+|fK....
+regions
+|....BB
+|..BBBB
+|BBBBOO
+|BBOO..
+|BO....

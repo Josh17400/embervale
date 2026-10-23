@@ -1,5 +1,8 @@
 # wear/man/rags_hang: the rags' hem torn into tatters of uneven length; they swing with the step
 # GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): the run's flare tatters lift clear of the kicked shin and fly
+# back over the trailing thigh; the man's side `wide` views ride the pivot (his down frames drop the hip, the hem holds its
+# row; a `when elf` twin a row up).
 use person
 body man
 role garment rags
@@ -46,15 +49,20 @@ view R key rest origin 5 -2
 |5.565.6656.
 |..5...5.5..
 
-view R key wide origin 6 -2
+view R key wide origin 6 8 anchor pivot
+|.56767667665
+|5.5665.66565
+|..5...5..5.5
+
+view R key wide origin 6 9 anchor pivot when elf replace
 |.56767667665
 |5.5665.66565
 |..5...5..5.5
 
 view R key flare origin 7 -2
-|..56767667665
-|.565665.6656.
-|..5...5..5...
+|.556767667665
+|....5665.6656
+|......5..5...
 
 view R key kneel origin 5 -2
 |5.565.6656.
@@ -68,15 +76,20 @@ view L key rest origin 7 -2
 |.6565.6565.5
 |..5.5...5...
 
-view L key wide origin 8 -2
+view L key wide origin 8 8 anchor pivot
 |.567676676665
 |5656.65656.65
 |5.5..5...5...
 
-view L key flare origin 7 -2
-|5676766766655
-|.6565.6565.65
-|...5..5...5.5
+view L key wide origin 8 9 anchor pivot when elf replace
+|.567676676665
+|5656.65656.65
+|5.5..5...5...
+
+view L key flare origin 6 -2
+|567676676655.
+|.6565.656....
+|...5..5......
 
 view L key kneel origin 7 -2
 |.6565.6565.5

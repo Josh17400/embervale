@@ -36,6 +36,19 @@ view D key rest origin -1 3
 |..QRQ
 |...Q.
 
+# (MOTION_P2 7.5, fix r1) `kick`: the side run's contact frames name it for the scabbard; this part keeps its rest drawing
+view D key kick origin -1 3
+|vv...
+|vzvv.
+|vyxQ.
+|vxwQ.
+|vv.Q.
+|..QTQ
+|..QSQ
+|..QSQ
+|..QRQ
+|...Q.
+
 view D key lag origin -1 2
 |vv...
 |vzvv.
@@ -61,6 +74,18 @@ view D key sit origin -2 4
 |...Q.
 
 view U key rest origin 5 3
+|..vv
+|vvyv
+|Qxyv
+|Qwxv
+|Q.vv
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view U key kick origin 5 3
 |..vv
 |vvyv
 |Qxyv
@@ -106,6 +131,16 @@ view R key rest origin 6 3 layer back
 |QRQ
 |.Q.
 
+view R key kick origin 6 3 layer back
+|vv.
+|vyv
+|.QQ
+|QTQ
+|QSQ
+|QSQ
+|QRQ
+|.Q.
+
 view R key lag origin 7 2 layer back
 |vv.
 |vyv
@@ -127,6 +162,18 @@ view R key sit origin 8 4 layer back
 |.Q.
 
 view L key rest origin 6 3
+|.vvv..
+|vzyvQ.
+|vyxvQ.
+|vxwv..
+|.vv.Q.
+|...QTQ
+|...QSQ
+|...QSQ
+|...QRQ
+|....Q.
+
+view L key kick origin 6 3
 |.vvv..
 |vzyvQ.
 |vyxvQ.
@@ -165,6 +212,9 @@ view L key sit origin 4 4
 view D key rest origin 0 0 when prop-woodaxe replace
 |.
 
+view D key kick origin 0 0 when prop-woodaxe replace
+|.
+
 view D key lag origin 0 0 when prop-woodaxe replace
 |.
 
@@ -172,6 +222,9 @@ view D key sit origin 0 0 when prop-woodaxe replace
 |.
 
 view U key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view U key kick origin 0 0 when prop-woodaxe replace
 |.
 
 view U key lag origin 0 0 when prop-woodaxe replace
@@ -183,6 +236,9 @@ view U key sit origin 0 0 when prop-woodaxe replace
 view R key rest origin 0 0 when prop-woodaxe replace
 |.
 
+view R key kick origin 0 0 when prop-woodaxe replace
+|.
+
 view R key lag origin 0 0 when prop-woodaxe replace
 |.
 
@@ -190,6 +246,9 @@ view R key sit origin 0 0 when prop-woodaxe replace
 |.
 
 view L key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view L key kick origin 0 0 when prop-woodaxe replace
 |.
 
 view L key lag origin 0 0 when prop-woodaxe replace

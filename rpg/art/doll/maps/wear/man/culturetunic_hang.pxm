@@ -1,6 +1,15 @@
 # wear/man/culturetunic_hang: the culture tunic's skirt two rows past A3's hem, a little fuller, ending in a solid band of
 # the trim colour (the garment's edge); it swings with the step and splays over the striding legs
 # GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side flare views (the run) kick the skirt up to the run hem, a row
+# under the garment's lifted run views, so the legs show under it as limbs. Round 3: the flare is two rows deep (the
+# skirt's last body row over its lit hem, F-11 / F-10), its back edge stepping out a pixel a row from the belt, so it
+# reads as a skirt edge kicking back, never a one-row spur behind the hips.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7): the side walk takes torso=run (the torso's hem a row up), so the
+# side `wide` views (contact, down) carry the torso rest's last row on top (no trouser band between torso and skirt) and
+# ride the PIVOT (a `when elf` twin a row up): the man's down frames drop his hip a pixel and a hip-anchored hem would
+# cover the knees; on the pivot the hem holds its row, as the woman's held hip does. The pass frames' gap row and back
+# edge are <garment>_stride.pxm's (keyed by the legs), so the rest views (idle, hurt, falls, postures) are untouched.
 use person
 body man
 role garment culturetunic
@@ -60,16 +69,34 @@ regions
 build
 |..+x........
 
-view R key wide origin 7 -2
+view R key wide origin 7 9 anchor pivot
+|..59868868765.
 |.588677676665.
 |mppooooonnnnnm
 regions
 |..............
+|..............
 |EEEEEEEEEEEEEE
+build
+|..............
 
-view R key flare origin 8 -2
-|.5886776766665
-|mppoooonnnnnm.
+view R key wide origin 7 10 anchor pivot when elf replace
+|..59868868765.
+|.588677676665.
+|mppooooonnnnnm
+regions
+|..............
+|..............
+|EEEEEEEEEEEEEE
+build
+|..............
+
+view R key flare origin 6 1
+|.5888777776g5
+|mppoooonnnnnm
+regions
+|.............
+|EEEEEEEEEEEEE
 
 view R key kneel origin 6 -2
 |mppoooonnnnm
@@ -87,16 +114,34 @@ regions
 build
 |........x+..
 
-view L key wide origin 8 -2
+view L key wide origin 8 9 anchor pivot
+|.598688868765.
 |.598867767665.
 |mppooooonnnnnm
 regions
 |..............
+|..............
 |EEEEEEEEEEEEEE
+build
+|..............
 
-view L key flare origin 7 -2
-|5988677676665.
-|.mppoooonnnnnm
+view L key wide origin 8 10 anchor pivot when elf replace
+|.598688868765.
+|.598867767665.
+|mppooooonnnnnm
+regions
+|..............
+|..............
+|EEEEEEEEEEEEEE
+build
+|..............
+
+view L key flare origin 8 1
+|5g87777666665.
+|mppooooonnnnnm
+regions
+|..............
+|EEEEEEEEEEEEEE
 
 view L key kneel origin 7 -2
 |mppoooonnnnm

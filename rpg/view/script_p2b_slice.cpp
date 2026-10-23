@@ -4,7 +4,8 @@
 //   slicelook <preset|field=value ...>   the hero's look: presets a3 (A3's hero: tousled copper hair, the scarf, the
 //                                        sword at the hip), a3woman (the woman hero: wheat braid, the shirt and trousers,
 //                                        the sword); fields head nose brow marks hairfamily hairvar beard beardstyle neck
-//                                        garb age people build outfit cut headwear hood cloak cape bodyform helmform weapon, and the
+//                                        garb age people build outfit cut headwear hood cloak cape bodyform helmform weapon civil
+//                                        (1: a civil trade, its tool at rest: the elder with the stick, civil=1 weapon=9), and the
 //                                        colours skin hair top bottom accent eyes (hex RRGGBB)
 //   slicelineup variety|armour|elders|swaps|clear   a row of the slice's people on clear ground before the hero, facing
 //                                        the camera (ids from 930000; a new row replaces the last): variety = 12 people of
@@ -36,7 +37,7 @@ void plain(art::HumanLook& L) {
   L.jewellery = 0; L.amulet = false; L.facePaint = 0; L.cloak = 0; L.cape = false; L.headwear = 0; L.hood = false;
   L.shield = false; L.shieldStyle = 0; L.shieldForm = 0; L.helmet = false; L.helmStyle = 0; L.helmForm = 0; L.armorStyle = 0;
   L.bodyForm = 0; L.pauldron = 0; L.cut = 0; L.garb = 0; L.neck = 0; L.marks = 0; L.weapon = 0; L.pattern = 0; L.ring = false;
-  L.gloves = 0; L.boots = 0; L.skirt = 0; L.crest = 0; L.bladeForm = 0; L.polearmForm = 0; L.bowForm = 0;
+  L.gloves = 0; L.boots = 0; L.skirt = 0; L.crest = 0; L.bladeForm = 0; L.polearmForm = 0; L.bowForm = 0; L.civil = 0;
 }
 
 void a3Hero(art::HumanLook& L) {
@@ -80,6 +81,7 @@ bool setField(art::HumanLook& L, const std::string& k, const std::string& v) {
   else if (k == "bodyform") L.bodyForm = (uint8_t)n;
   else if (k == "helmform") { L.helmForm = (uint8_t)n; L.helmet = n != 0; }
   else if (k == "weapon") L.weapon = (uint8_t)n;
+  else if (k == "civil") L.civil = (uint8_t)(n != 0);   // (MOTION_P2 10) a civil trade: its tool at rest (the elder's stick)
   else if (k == "skin") L.skin = parseHex(v);
   else if (k == "hair") L.hairColor = parseHex(v);
   else if (k == "top") L.topColor = parseHex(v);

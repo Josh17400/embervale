@@ -1,5 +1,14 @@
 # armour/woman/mail: Mail on the woman: the hauberk cut to her torso (the waist a pixel in, the bust by one step-1 row), a skirt to the knee
 # The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side `run` views (the side run frames take torso=run) are the rest
+# views with the skirt's last rows swinging a pixel out behind, over the trailing thigh.
+# The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): the side `run` views (every side walk and run frame takes
+# torso=run) end the skirt at F-8 on its lit hem, so both knees and the shins show through the stride, the down frame's
+# dip and the flight's high knee; the back of the hem reaches over the walking hip. Idles and swings keep the knee skirt.
+# PROTO6 i3 (2026-10-22; the blind panel: the run read as an upright walk): each side `run` view has a `runl` twin that
+# the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
+# pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
+# hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
 use person
 body woman
 role armour mail
@@ -83,6 +92,32 @@ view R key rest origin 6 -1
 |.vyyyyywxwxwv
 |.vvvvvvvvvvvv
 
+view R key run origin 6 -1
+|......vrrvv..
+|..vxvxywxvv..
+|..vyvyxxwvv..
+|..vxvxywvwv..
+|..vyxyxxwx...
+|vxyxyxywxwvwv
+|.vvyxyxxwxwv.
+|..vxyxywxwxv.
+|..fihhhhhggf.
+|.vyxyxywxwxv.
+|vyyyyyywxwxwv
+
+view R key runl origin 8 -1
+|........vrrvv..
+|....vxvxywxvv..
+|....vyvyxxwvv..
+|...vxvxywvwv...
+|...vyxyxxwx....
+|.vxyxyxywxwvwv.
+|.vvyxyxxwxwv...
+|..vxyxywxwxv...
+|..fihhhhhggf...
+|.vyxyxywxwxv...
+|vyyyyyywxwxwv..
+
 view R key swing origin 6 -1
 |......vrrvv..
 |..vxvxywxvv..
@@ -127,6 +162,32 @@ view L key rest origin 8 -1
 |.vxyxyxxwxwxv.
 |vyyyyyywxwxwv.
 |vvvvvvvvvvvvv.
+
+view L key run origin 7 -1
+|..vvrrv.......
+|..vvxxwxvxv...
+|.vvxywxwvwv...
+|..vyxxvxwxv...
+|...xywxwxwv...
+|vyvyxxwxwxwxv.
+|.vyxywxwxwvv..
+|.vxyxxwxwxv...
+|.fihhhhhggf...
+|.vxyxxwxwxwwwv
+|vyyyyyywxwxwv.
+
+view L key runl origin 7 -1
+|..vvrrv.........
+|..vvxxwxvxv.....
+|.vvxywxwvwv.....
+|...vyxxvxwxv....
+|....xywxwxwv....
+|.vyvyxxwxwxwxv..
+|...vyxywxwxwvv..
+|...vxyxxwxwxv...
+|...fihhhhhggf...
+|...vxyxxwxwxwwwv
+|..vyyyyyywxwxwv.
 
 view L key swing origin 8 -1
 |...vvrrv......

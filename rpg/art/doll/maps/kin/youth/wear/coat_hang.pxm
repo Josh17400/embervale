@@ -1,6 +1,8 @@
 # kin/youth/wear/coat_hang: the coat's skirts to the knee, parted at the front (the trousers show between them), a lit
 # hem; a vent at the back; they open on the side walk and kick out behind in the run
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys: rest, wide, flare, kneel, lie.
+# Motion fix round 3 (R3-06): the side (R, L) wide and flare keys (the side walk and run) end a row higher than rest, so
+# the youth's thighs show under the hem (the tunic a lone hem row); the hang moves with the body on the down frames.
 use person
 body youth
 role garment coat
@@ -84,17 +86,11 @@ view R key rest origin 5 0
 
 view R key wide origin 6 0
 |..58877665..
-|.588777665..
-|.5887776665.
-|588777766655
-|598888877765
+|.5988887765.
 
 view R key flare origin 7 0
 |...58877665.
-|..588777665.
-|.5887776665.
-|58887776665.
-|59888887765.
+|.......57765
 
 view R key kneel origin 6 0
 |..58877665..
@@ -110,17 +106,11 @@ view L key rest origin 5 0
 
 view L key wide origin 6 0
 |..58877665..
-|..588777665.
-|.5887776665.
-|588777766655
-|598888877765
+|.5988887765.
 
 view L key flare origin 4 0
 |58877665...
-|588777665..
-|5887776665.
-|58887776665
-|59888887765
+|5985.......
 
 view L key kneel origin 6 0
 |..58877665..

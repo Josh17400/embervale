@@ -30,6 +30,14 @@ view D key rest origin 7 2
 |NOSRQ.
 |IIQQ..
 
+# (MOTION_P2 7.5, fix r1) `kick`: the side run's contact frames name it for the scabbard; this part keeps its rest drawing
+view D key kick origin 7 2
+|....QQ
+|..QQTQ
+|QQTSRQ
+|NOSRQ.
+|IIQQ..
+
 view D key lag origin 7 1
 |....QQ
 |..QQTQ
@@ -45,6 +53,13 @@ view D key sit origin 8 3
 |IIQQ..
 
 view U key rest origin -2 2
+|QQ....
+|QTQQ..
+|QTSRQQ
+|.QSROP
+|..QQII
+
+view U key kick origin -2 2
 |QQ....
 |QTQQ..
 |QTSRQQ
@@ -72,6 +87,13 @@ view R key rest origin 5 2
 |OSRQ.
 |IQQ..
 
+view R key kick origin 5 2
+|...QQ
+|..QTQ
+|QQTRQ
+|OSRQ.
+|IQQ..
+
 view R key lag origin 6 1
 |...QQ
 |..QTQ
@@ -87,6 +109,13 @@ view R key sit origin 7 3
 |IQQ..
 
 view L key rest origin -1 2 layer heldBack
+|QQ...
+|QTQ..
+|QTSQQ
+|.QTRO
+|..QQI
+
+view L key kick origin -1 2 layer heldBack
 |QQ...
 |QTQ..
 |QTSQQ
@@ -110,6 +139,9 @@ view L key sit origin -3 3 layer heldBack
 view D key rest origin 0 0 when prop-horn replace
 |.
 
+view D key kick origin 0 0 when prop-horn replace
+|.
+
 view D key lag origin 0 0 when prop-horn replace
 |.
 
@@ -117,6 +149,9 @@ view D key sit origin 0 0 when prop-horn replace
 |.
 
 view U key rest origin 0 0 when prop-horn replace
+|.
+
+view U key kick origin 0 0 when prop-horn replace
 |.
 
 view U key lag origin 0 0 when prop-horn replace
@@ -128,6 +163,9 @@ view U key sit origin 0 0 when prop-horn replace
 view R key rest origin 0 0 when prop-horn replace
 |.
 
+view R key kick origin 0 0 when prop-horn replace
+|.
+
 view R key lag origin 0 0 when prop-horn replace
 |.
 
@@ -135,6 +173,9 @@ view R key sit origin 0 0 when prop-horn replace
 |.
 
 view L key rest origin 0 0 when prop-horn replace
+|.
+
+view L key kick origin 0 0 when prop-horn replace
 |.
 
 view L key lag origin 0 0 when prop-horn replace

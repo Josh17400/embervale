@@ -2,6 +2,14 @@
 # smocking under it), the sleeves pushed up past the elbow in a lit roll (bare forearms), a twisted rope belt; it falls (the hang)
 # to the knee in loose folds over her trousers, the rope's tail hanging from the knot
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# The side run (leg pass round 2, 2026-10-20): the side `run` views (the side run frames take torso=run) are the rest
+# views unchanged: this garment covers the legs (or its hang carries the skirt).
+# The motion rebuild (2026-10-21): the side `run` views' last rows reach a pixel further back (the walking and running
+# legs' seat, the run's lean) so no sliver of leg shows behind the hem.
+# PROTO6 i3 (2026-10-22; the blind panel: the run read as an upright walk): each side `run` view has a `runl` twin that
+# the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
+# pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
+# hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
 use person woman
 body woman
 role garment smock
@@ -76,8 +84,36 @@ view R key rest origin 6 -1
 |..5877776665.
 |..fihihihhgf.
 
+view R key run origin 5 -1
+|.....qrrqq.
+|.588888865.
+|.5888978675
+|.5875998775
+|.5887777765
+|.5887776765
+|.5877776765
+|.5877776665
+|fiihihihhgf
+
+view R key runl origin 7 -1
+|.......qrrqq.
+|...588888865.
+|...5888978675
+|..5875998775.
+|..5887777765.
+|..5887776765.
+|.5877776765..
+|.5877776665..
+|fiihihihhgf..
+
 view R key rest origin 4 -2 when elder
 |-
+
+view R key run origin 4 -2 when elder
+|-
+
+view R key runl origin 6 -2 when elder
+|..-
 
 view R key swing origin 6 -1
 |......qrrqq..
@@ -104,8 +140,36 @@ view L key rest origin 7 -1
 |.5886677765..
 |.fihihihhgf..
 
+view L key run origin 6 -1
+|.qqrrq.....
+|.588888875.
+|58789888875
+|5899988775.
+|5887777665.
+|5887677665.
+|5887677765.
+|5886677765.
+|fihihihhggf
+
+view L key runl origin 6 -1
+|.qqrrq.......
+|.588888875...
+|58789888875..
+|.5899988775..
+|.5887777665..
+|.5887677665..
+|..5887677765.
+|..5886677765.
+|..fihihihhggf
+
 view L key rest origin -3 -2 when elder
 |-
+
+view L key run origin -3 -2 when elder
+|-
+
+view L key runl origin -3 -2 when elder
+|-..
 
 view L key swing origin 7 -1
 |..qqrrq......
