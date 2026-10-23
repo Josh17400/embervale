@@ -759,8 +759,15 @@ void splitPalette(const PX& px, PX& near, PX& far, std::set<int>& seat) {
 }
 
 // ---- the maps: boot stamps and the leg views' puts (check.py parse_stamps / parse_pxm)
-std::string g_maps = "rpg/art/doll/maps";       // check.py's MAPROOT (CHECK_MAPS / --maps)
-const std::string kRootMaps = "rpg/art/doll/maps";   // check.py's ROOT maps (the stamp library near_boot and --synth read)
+// (P2c fix) rooted at the source tree, never the working directory: run from a build folder (the clang tree's
+// build-native) a relative root read no stamps, and B11 / B12 / the synthetics judged every boot against nothing
+#ifdef EMB_SOURCE_DIR
+#define EMB_MAPS_ROOT EMB_SOURCE_DIR "/rpg/art/doll/maps"
+#else
+#define EMB_MAPS_ROOT "rpg/art/doll/maps"
+#endif
+std::string g_maps = EMB_MAPS_ROOT;              // check.py's MAPROOT (CHECK_MAPS / --maps)
+const std::string kRootMaps = EMB_MAPS_ROOT;     // check.py's ROOT maps (the stamp library near_boot and --synth read)
 struct Stamp { int ox = 0, oy = 0; std::vector<K> cellsV; std::set<K> cells; std::map<K, char> ch, rg; };
 using StampLib = std::map<std::pair<std::string, std::string>, Stamp>;   // (name, facing)
 std::map<std::string, StampLib> g_stamps;
@@ -789,7 +796,8 @@ const StampLib& parseStamps(const std::string& root, const std::string& lib) {
   if (it != g_stamps.end()) return it->second;
   StampLib out;
   std::vector<std::string> lines;
-  readLines(root + "/stamps/" + lib + ".stamps", lines);
+  // (P2c fix) a missing library is a failure, not an empty stamp set every boot check then misjudges
+  if (!readLines(root + "/stamps/" + lib + ".stamps", lines)) std::printf("FAIL: stamps %s/stamps/%s.stamps: cannot read\n", root.c_str(), lib.c_str());
   Stamp* cur = nullptr;
   bool gridOn = false;
   int cy = 0, ry = 0;

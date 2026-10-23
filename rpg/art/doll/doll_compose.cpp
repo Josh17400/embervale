@@ -31,7 +31,15 @@ uint64_t cutHash(const Cut& c) {
   for (size_t i = 0; i < c.c.px.size(); i += 3) { h ^= c.c.px[i]; h *= 1099511628211ull; }
   return h;
 }
-bool sameAnchors(const RigAnchors& a, const RigAnchors& b) { return std::memcmp(&a, &b, sizeof(RigAnchors)) == 0; }
+// member by member, never memcmp: RigAnchors has a padding byte after weaponBehind whose value is whatever the stack
+// held (MSVC's happened to match, clang's did not), so equal frames failed to share a cut and the atlas grew
+bool sameAnchors(const RigAnchors& a, const RigAnchors& b) {
+  return a.headX == b.headX && a.headY == b.headY && a.headW == b.headW && a.headH == b.headH && a.faceX == b.faceX &&
+         a.faceY == b.faceY && a.handRX == b.handRX && a.handRY == b.handRY && a.handLX == b.handLX && a.handLY == b.handLY &&
+         a.hipX == b.hipX && a.hipY == b.hipY && a.footLX == b.footLX && a.footRX == b.footRX && a.gripX == b.gripX &&
+         a.gripY == b.gripY && a.tipX == b.tipX && a.tipY == b.tipY && a.weaponBehind == b.weaponBehind && a.topY == b.topY;
+}
+static_assert(sizeof(RigAnchors) == 20 * sizeof(int16_t), "RigAnchors gained a field: compare it in sameAnchors");
 struct AtlasBuilder {
   struct Item { int facing; Clip clip; int variant; int src; };
   std::vector<Cut> cuts;
