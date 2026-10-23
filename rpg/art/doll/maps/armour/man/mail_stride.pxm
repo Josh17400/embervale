@@ -45,3 +45,189 @@ view L key walkD2 origin 8 -1
 |vyyyyyywxwxwxv
 build
 |..........+...
+
+# ---- (P2c SLICE-ARMOUR, ADD) every other legs key the loco, run, drawn and death clips take: empty (the panel is the walk's)
+
+view D key buckle origin 0 0
+|.
+
+view D key drawn origin 0 0
+|.
+
+view D key idle origin 0 0
+|.
+
+view D key run1 origin 0 0
+|.
+
+view D key run2 origin 0 0
+|.
+
+view D key run3 origin 0 0
+|.
+
+view D key run4 origin 0 0
+|.
+
+view D key run5 origin 0 0
+|.
+
+view D key run6 origin 0 0
+|.
+
+view D key walkA origin 0 0
+|.
+
+view D key walkA2 origin 0 0
+|.
+
+view D key walkB origin 0 0
+|.
+
+view D key walkC origin 0 0
+|.
+
+view D key walkC2 origin 0 0
+|.
+
+view D key walkD origin 0 0
+|.
+
+view U key buckle origin 0 0
+|.
+
+view U key drawn origin 0 0
+|.
+
+view U key idle origin 0 0
+|.
+
+view U key run1 origin 0 0
+|.
+
+view U key run2 origin 0 0
+|.
+
+view U key run3 origin 0 0
+|.
+
+view U key run4 origin 0 0
+|.
+
+view U key run5 origin 0 0
+|.
+
+view U key run6 origin 0 0
+|.
+
+view U key walkA origin 0 0
+|.
+
+view U key walkA2 origin 0 0
+|.
+
+view U key walkB origin 0 0
+|.
+
+view U key walkC origin 0 0
+|.
+
+view U key walkC2 origin 0 0
+|.
+
+view U key walkD origin 0 0
+|.
+
+view R key buckle origin 0 0
+|.
+
+view R key guard origin 0 0
+|.
+
+view R key idle origin 0 0
+|.
+
+view R key lunge origin 0 0
+|.
+
+view R key run1 origin 0 0
+|.
+
+view R key run2 origin 0 0
+|.
+
+view R key run3 origin 0 0
+|.
+
+view R key run4 origin 0 0
+|.
+
+view R key run5 origin 0 0
+|.
+
+view R key run6 origin 0 0
+|.
+
+view R key stance origin 0 0
+|.
+
+view R key walkA origin 0 0
+|.
+
+view R key walkA2 origin 0 0
+|.
+
+view R key walkC origin 0 0
+|.
+
+view R key walkC2 origin 0 0
+|.
+
+view L key buckle origin 0 0
+|.
+
+view L key guard origin 0 0
+|.
+
+view L key idle origin 0 0
+|.
+
+view L key lie origin 0 0
+|.
+
+view L key lunge origin 0 0
+|.
+
+view L key run1 origin 0 0
+|.
+
+view L key run2 origin 0 0
+|.
+
+view L key run3 origin 0 0
+|.
+
+view L key run4 origin 0 0
+|.
+
+view L key run5 origin 0 0
+|.
+
+view L key run6 origin 0 0
+|.
+
+view L key stance origin 0 0
+|.
+
+view L key walkA origin 0 0
+|.
+
+view L key walkA2 origin 0 0
+|.
+
+view L key walkC origin 0 0
+|.
+
+view L key walkC2 origin 0 0
+|.
+

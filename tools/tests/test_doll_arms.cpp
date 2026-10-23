@@ -1,0 +1,1009 @@
+// EMBERVALE tests: the P2c gear gates on the doll (SLICE-DOLL; docs/PLAN.md "## P2c" Gates C3-C6, docs/P2C_CONTRACTS.md
+// 7). They run inside `rpg_test --doll --gates` (lines C3 gear, C4 armour change, C5 families, C6 weapons) and alone:
+//
+//   rpg_test --doll-arms [--looks FILE] [--pool FILE] [--report] [--selftest]
+//
+// The looks are the slice's (tools/doll/slice_looks.txt; embedded below when no --looks is given): `tag who spec [gaits]`
+// read through the one looks-field parser (art::doll::applyLookSpec). Every check reads art::doll::probeFrame (the composed
+// frame with, per pixel, the part that wrote it and the region it was drawn with), so a failure names the look, part, clip,
+// facing and frame.
+//   C3 gear on every frame (LOCO, RUN, DRAWN, ACTION, DEATH):
+//     a no holes: nothing missing (dollMissing) and no enclosed hole inside a gear piece (a clear pocket every one of whose
+//       edge pixels is armour, a tabard, a helm, a shield or a pauldron; the bow's string gap exempt)
+//     b the helm on the head: anchored on the head; its pixels inside the head box +-1 column (the plume slot up to F-37);
+//       no hair above the helm in its own columns
+//     c the shield on the off arm: anchored on gripL, touching the gripping hand; behind the torso facing right, in front
+//       facing left and down; over no boot pixel and at most 1 column of a shin; in the run inside the figure's box + 1
+//     d the grips: a library weapon's grip mark inside the gripping fist (+-1), no weapon pixel over that fist's hand pixels,
+//       the right arm grips in every facing and the bow sits in the left; a two-handed weapon's off fist within 1.5 px of
+//       the haft line; a tip mark at the far end
+//     e lying keeps gear: the helm on the head, the shield within 4 px of the body, the weapon within 6 px of a hand
+//   C4 armour shows: the idle frame (facing down and right) changes 25 % (padded and leather 15 %) of its pixels against the
+//     same look without armour; plate changes the outline too
+//   C5 families (the sword against the spear): strike frames 25 % apart per facing; the spear's tip forward 8 px or more
+//     from the loaded frame to the impact with under 4 px of drift (side views); its left strike never the right's mirror;
+//     an effect on the impact frame
+//   C6 the library: every weapon map at its 16 angles (bows: carry and drop plus their aim views), a tip mark with a bright
+//     tip pixel on blades, the lit edge toward the top-left, no orphans, the grip origin on the haft, lengths +-1 px
+// Each gate has a selftest that feeds it synthetic defects: `--selftest` prints "<gate> selftest: ALL CAUGHT" or names
+// what slipped through.
+#include <algorithm>
+#include <cmath>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+#include "rpg/art.h"
+#include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_internal.h"
+#include "tools/tests/tests.h"
+
+using art::Clip;
+using art::HumanLook;
+using art::RigPart;
+using art::RigSheet;
+namespace doll = art::doll;
+namespace P = art::doll::pool;
+
+namespace dollarms {
+
+bool g_report = false;
+
+std::string fmt(const char* f, ...) {
+  char b[1024];
+  va_list a;
+  va_start(a, f);
+  std::vsnprintf(b, sizeof b, f, a);
+  va_end(a);
+  return b;
+}
+
+struct Line {
+  std::string id;
+  int checks = 0, fails = 0;
+  std::string first;
+  void ok() { checks++; }
+  void bad(const std::string& why) {
+    checks++;
+    if (!fails) first = why;
+    if (g_report || fails < 4) std::printf("  %s: %s\n", id.c_str(), why.c_str());
+    fails++;
+  }
+  void print() const {
+    std::printf("%s %-24s %4d checks, %4d failed%s%s\n", fails ? "FAIL:" : "ok   ", id.c_str(), checks, fails, fails ? "; first: " : "", first.c_str());
+  }
+};
+
+// ---------------------------------------------------------------- the looks
+const char* kSliceLooks =
+    "hero     man    -  walk,run,dwalk,drun,didle,hit1,fall,lying\n"
+    "guard    man    outfit=8,armorStyle=2,bodyForm=3,tabardColor=#A8322E,helmet=1,helmStyle=2,helmForm=1,shield=1,shieldStyle=3,shieldForm=2,"
+    "shieldDevice=#E8C25A,weapon=1,bladeForm=1,gloves=1,boots=1,pauldron=1,neck=0,head=1,hair=1,hairVar=1,hairColor=#4A3022,beard=1,beardStyle=0,"
+    "skin=#D9A07A,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying\n"
+    "knight   woman  outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
+    "weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying\n"
+    "archer   man    outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,topColor=#5E6A3A,"
+    "bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#6A4426,beard=1,beardStyle=1,skin=#B98060,palette=look  walk,run,dwalk,drun,didle,draw,hurt,fall,lying\n"
+    "knightm  man    outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
+    "weapon=0,neck=0,head=4,beard=1,beardStyle=2,palette=look  walk,run,hurt,fall,lying\n"
+    "archerw  woman  outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=0,gloves=1,boots=1,topColor=#5E6A3A,"
+    "bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418,palette=look  walk,run,hurt,fall,lying\n";
+
+uint32_t hexc(uint32_t rgb) { return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF); }
+HumanLook a3Hero() {
+  HumanLook L;
+  L.body = 0; L.hair = art::Hair::Short; L.hairVar = 2; L.neck = 1; L.weapon = 1; L.outfit = art::Outfit::Tunic;
+  L.skin = hexc(0xE9A077); L.hairColor = hexc(0xAA4A2C); L.topColor = hexc(0x28728C); L.bottomColor = hexc(0x4F4B6B); L.tabardColor = hexc(0xC83E38);
+  L.eyeColor = hexc(0x3A78B0);
+  return L;
+}
+HumanLook a3Woman() {
+  HumanLook L;
+  L.body = 1; L.hair = art::Hair::Braids; L.hairVar = 0; L.outfit = art::Outfit::Dress;
+  L.skin = hexc(0xEEAA86); L.hairColor = hexc(0xC79346); L.topColor = hexc(0x922F60); L.tabardColor = hexc(0x28728C);
+  L.eyeColor = hexc(0x3F8A5A);
+  return L;
+}
+
+struct Look { std::string tag; int who = 0; std::string spec; std::vector<std::string> gaits; };
+std::vector<Look> parseLooks(const std::string& text) {
+  std::vector<Look> v;
+  size_t a = 0;
+  while (a < text.size()) {
+    size_t b = text.find('\n', a);
+    if (b == std::string::npos) b = text.size();
+    const std::string line = text.substr(a, b - a);
+    a = b + 1;
+    if (line.empty() || line[0] == '#') continue;
+    char tag[128] = {}, who[16] = {}, spec[800] = {}, gaits[200] = {};
+    if (std::sscanf(line.c_str(), "%127s %15s %799s %199s", tag, who, spec, gaits) < 2) continue;
+    Look l;
+    l.tag = tag; l.who = !std::strcmp(who, "woman") ? 1 : 0; l.spec = std::strcmp(spec, "-") ? spec : "";
+    std::string g = gaits;
+    size_t c = 0;
+    while (c < g.size()) { size_t d = g.find(',', c); if (d == std::string::npos) d = g.size(); if (d > c) l.gaits.push_back(g.substr(c, d - c)); c = d + 1; }
+    v.push_back(l);
+  }
+  return v;
+}
+std::vector<Look> readLooks(const char* file) {
+  if (!file) return parseLooks(kSliceLooks);
+  FILE* f = std::fopen(file, "rb");
+  if (!f) { std::printf("FAIL: --looks %s: cannot read\n", file); return {}; }
+  std::string t;
+  char buf[4096];
+  size_t n;
+  while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) t.append(buf, n);
+  std::fclose(f);
+  return parseLooks(t);
+}
+struct Built { HumanLook L; doll::DollRecipe r; bool lookPal = false; };
+Built build(const Look& l) {
+  Built b;
+  b.L = l.who ? a3Woman() : a3Hero();
+  std::string bad;
+  bool bare = false;
+  doll::applyLookSpec(b.L, l.spec, &b.lookPal, &bare, &bad);
+  if (!bad.empty()) std::printf("  arms: %s: unknown field(s) %s\n", l.tag.c_str(), bad.c_str());
+  b.r = doll::resolve(b.L);
+  b.r.ramps = b.lookPal ? doll::rampsOf(b.L) : doll::a3Palette(b.L.body == 1 ? 1 : 0);
+  return b;
+}
+bool armoured(const HumanLook& L) {
+  return L.bodyForm || L.armorStyle || L.outfit == art::Outfit::Leather || L.outfit == art::Outfit::Chain || L.outfit == art::Outfit::Plate ||
+         L.outfit == art::Outfit::Guard || L.outfit == art::Outfit::Elven || L.outfit == art::Outfit::Ebony;
+}
+bool fighter(const HumanLook& L) { return L.weapon >= 1 && L.weapon <= 8 && !L.civil; }
+
+// ---------------------------------------------------------------- frame enumeration
+struct FrameId { RigPart part; int facing; Clip clip; int variant; int i; };
+const char* partName(RigPart p) {
+  switch (p) {
+    case RigPart::Loco: return "LOCO";
+    case RigPart::Run: return "RUN";
+    case RigPart::Drawn: return "DRAWN";
+    case RigPart::Action: return "ACTION";
+    case RigPart::Death: return "DEATH";
+    default: return "?";
+  }
+}
+std::string frameName(const std::string& tag, const FrameId& f) {
+  return fmt("%s %s %s v%d %c%d", tag.c_str(), partName(f.part), art::clipName(f.clip), f.variant, "DURL"[f.facing & 3], f.i);
+}
+std::vector<FrameId> framesOf(const doll::DollRecipe& r, RigPart part) {
+  std::vector<FrameId> v;
+  const RigSheet s = doll::compose(r, part);
+  for (int fc = 0; fc < 4; fc++)
+    for (int c = 0; c < art::CLIP_COUNT; c++)
+      for (int va = 0; va < art::RIG_VARIANTS; va++) {
+        const RigSheet::Span& sp = s.spans[RigSheet::slot(fc, (Clip)c, va)];
+        if (sp.count <= 0) continue;
+        for (int i = 0; i < sp.count; i++) v.push_back({part, fc, (Clip)c, va, i});
+      }
+  return v;
+}
+std::vector<RigPart> partsOf(const HumanLook& L) {
+  std::vector<RigPart> v{RigPart::Loco, RigPart::Run, RigPart::Death};
+  if (fighter(L)) { v.push_back(RigPart::Drawn); v.push_back(RigPart::Action); }
+  return v;
+}
+
+// ---------------------------------------------------------------- probe helpers
+bool opaque(const doll::FrameProbe& p, int k) { return k >= 0 && p.code[(size_t)k] >= 2; }
+int ownerOf(const doll::FrameProbe& p, int k) { return k >= 0 ? p.owner[(size_t)k] : -1; }
+const doll::FrameProbe::It* itemAt(const doll::FrameProbe& p, int k) {
+  const int o = ownerOf(p, k);
+  return o >= 0 && o < (int)p.items.size() ? &p.items[(size_t)o] : nullptr;
+}
+bool isGear(const doll::FrameProbe::It& it) {
+  return it.has(doll::Role::Armour) || it.has(doll::Role::Helm) || it.has(doll::Role::Pauldron) ||
+         (it.has(doll::Role::Shield) && it.anchor == art::doll::Anchor::GripL) ||
+         (it.has(doll::Role::Overlay) && (it.part.find("tabard") != std::string::npos || it.part.find("armour/") == 0));
+}
+bool isLibraryHeld(const doll::FrameProbe::It& it) { return it.has(doll::Role::Held) && it.held.find('.') != std::string::npos; }
+bool isBow(const doll::FrameProbe::It& it) { return it.has(doll::Role::Held) && it.held.rfind("bow", 0) == 0; }
+bool isShield(const doll::FrameProbe::It& it) { return it.has(doll::Role::Shield) && it.anchor == art::doll::Anchor::GripL; }
+bool isHelm(const doll::FrameProbe::It& it) { return it.has(doll::Role::Helm); }
+doll::Slot slotAt(const doll::FrameProbe& p, int k) { return doll::codeSlot(p.code[(size_t)k]); }
+
+// ---------------------------------------------------------------- C3 checks (pure: synthetic probes test them)
+// a: enclosed holes inside gear (4-connected clear pockets not reached from the canvas edge, every edge pixel gear)
+int holesInGear(const doll::FrameProbe& p, std::string* why) {
+  std::vector<uint8_t> seen((size_t)p.w * p.h, 0);
+  std::vector<int> st;
+  for (int x = 0; x < p.w; x++) for (int y : {0, p.h - 1}) { const int k = y * p.w + x; if (!opaque(p, k)) { seen[(size_t)k] = 1; st.push_back(k); } }
+  for (int y = 0; y < p.h; y++) for (int x : {0, p.w - 1}) { const int k = y * p.w + x; if (!opaque(p, k) && !seen[(size_t)k]) { seen[(size_t)k] = 1; st.push_back(k); } }
+  auto flood = [&]() {
+    while (!st.empty()) {
+      const int k = st.back(); st.pop_back();
+      const int x = k % p.w, y = k / p.w;
+      const int nb[4][2] = {{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}};
+      for (auto& n : nb) {
+        const int q = p.at(n[0], n[1]);
+        if (q < 0 || seen[(size_t)q] || opaque(p, q)) continue;
+        seen[(size_t)q] = 1;
+        st.push_back(q);
+      }
+    }
+  };
+  flood();
+  int holes = 0;
+  for (int k = 0; k < p.w * p.h; k++) {
+    if (seen[(size_t)k] || opaque(p, k)) continue;
+    // one pocket: collect it, then judge its edge
+    std::vector<int> pocket{k};
+    seen[(size_t)k] = 1;
+    for (size_t j = 0; j < pocket.size(); j++) {
+      const int x = pocket[j] % p.w, y = pocket[j] / p.w;
+      const int nb[4][2] = {{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}};
+      for (auto& n : nb) {
+        const int q = p.at(n[0], n[1]);
+        if (q < 0 || seen[(size_t)q] || opaque(p, q)) continue;
+        seen[(size_t)q] = 1;
+        pocket.push_back(q);
+      }
+    }
+    bool allGear = true, bowEdge = false;
+    for (int q : pocket) {
+      const int x = q % p.w, y = q / p.w;
+      for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+          const int n = p.at(x + dx, y + dy);
+          if (n < 0 || !opaque(p, n)) continue;
+          const doll::FrameProbe::It* it = itemAt(p, n);
+          if (it && isBow(*it)) bowEdge = true;
+          if ((dx == 0) != (dy == 0) && (!it || !isGear(*it))) allGear = false;
+        }
+    }
+    if (allGear && !bowEdge) {
+      holes++;
+      if (why && why->empty()) {
+        const doll::FrameProbe::It* it = nullptr;
+        const int x = pocket[0] % p.w, y = pocket[0] / p.w;
+        for (int n : {p.at(x - 1, y), p.at(x + 1, y), p.at(x, y - 1), p.at(x, y + 1)}) if (!it) it = itemAt(p, n);
+        *why = fmt("a %d px hole in %s at (%d,%d)", (int)pocket.size(), it ? it->part.c_str() : "gear", x - p.px, y - p.py);
+      }
+    }
+  }
+  return holes;
+}
+// b: the helm on the head
+std::string helmCheck(const doll::FrameProbe& p) {
+  if (p.turn) return "";
+  int helmItem = -1;
+  for (size_t i = 0; i < p.items.size(); i++)
+    if (isHelm(p.items[i])) {
+      if (p.items[i].anchor != art::doll::Anchor::Head) return p.items[i].part + ": not anchored on the head";
+      helmItem = (int)i;
+    }
+  if (helmItem < 0) return "";
+  std::vector<int> top((size_t)p.w, 1 << 20);
+  for (int y = 0; y < p.h; y++)
+    for (int x = 0; x < p.w; x++) {
+      const int k = y * p.w + x;
+      const doll::FrameProbe::It* it = itemAt(p, k);
+      if (!opaque(p, k) || !it || !isHelm(*it)) continue;
+      const bool plume = slotAt(p, k) == doll::Slot::Plume;
+      if (plume) { if (y - p.py < -37) return fmt("%s: plume pixel at F%d (F-37 at most)", it->part.c_str(), y - p.py); continue; }
+      if (x < p.headX - 1 || x > p.headX + 16) return fmt("%s: helm pixel %d columns outside the head box", it->part.c_str(), x < p.headX - 1 ? p.headX - 1 - x : x - p.headX - 16);
+      if (y < p.headY - 1) return fmt("%s: helm pixel %d rows over the head box", it->part.c_str(), p.headY - 1 - y);
+      top[(size_t)x] = std::min(top[(size_t)x], y);
+    }
+  for (int x = 0; x < p.w; x++) {
+    if (top[(size_t)x] == (1 << 20)) continue;
+    for (int y = 0; y < top[(size_t)x]; y++) {
+      const int k = y * p.w + x;
+      const doll::FrameProbe::It* it = itemAt(p, k);
+      if (opaque(p, k) && it && it->has(doll::Role::Hair)) return fmt("%s: hair over the helm's rim (column %d)", it->part.c_str(), x - p.px);
+    }
+  }
+  return "";
+}
+// c: the shield on the off arm. bare: the same frame without the shield (its boot, shin and figure box)
+std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, bool run, int facing) {
+  int si = -1;
+  for (size_t i = 0; i < p.items.size(); i++) if (isShield(p.items[i])) si = (int)i;
+  if (si < 0) return "";
+  const doll::FrameProbe::It& sh = p.items[(size_t)si];
+  if (sh.anchor != art::doll::Anchor::GripL) return sh.part + ": not on gripL";
+  if (!p.turn) {
+    // (INTEGRATE i1, SLICE-HELM-SHIELD by eye) facing right the raised shield (guard, block) is brought forward across the
+    // chest, still behind the near (sword) arm: layer neck at most; every other key stays behind the torso
+    const bool raised = sh.key == "guard" || sh.key == "block";
+    if (facing == 2 && (int)sh.layer > (int)(raised ? doll::Layer::Neck : doll::Layer::Torso))
+      return sh.part + (raised ? ": in front of the near arm facing right (neck at most)" : ": in front of the torso facing right (behind it)");
+    if ((facing == 3 || facing == 0) && (int)sh.layer < (int)doll::Layer::Torso) return sh.part + fmt(": behind the torso facing %c (in front)", "DURL"[facing]);
+  }
+  // attached: a shield pixel within 1 px of the gripL point
+  if (p.gripL) {
+    bool near = false;
+    for (int dy = -1; dy <= 1 && !near; dy++)
+      for (int dx = -1; dx <= 1 && !near; dx++) {
+        const int k = p.at(p.gripLX + dx, p.gripLY + dy);
+        if (k < 0) continue;
+        if (ownerOf(p, k) == si) near = true;
+        // (under the hand: the shield drawn first, the fist over it)
+        if (!near && opaque(p, k) && p.gripLFrom >= 0 && ownerOf(p, k) == p.gripLFrom) near = true;
+      }
+    // (SLICE-DOLL i2, by eye) facing right the far shield arm draws nothing (its block view is empty: the hand behind the
+    // raised kite); with no hand drawn there is nothing to touch, the arm is hidden behind the shield it holds
+    bool handDrawn = p.gripLFrom < 0;
+    for (int k = 0; k < p.w * p.h && !handDrawn; k++) if (opaque(p, k) && ownerOf(p, k) == p.gripLFrom) handDrawn = true;
+    if (!near && handDrawn) return sh.part + ": not touching the gripping hand";
+  } else if (!p.turn) {
+    return sh.part + ": no gripL mark (the shield arm marks it)";
+  }
+  if (bare && !p.turn) {
+    std::set<int> shinCols;
+    int x0 = 1 << 20, y0 = 1 << 20, x1 = -1, y1 = -1;
+    for (int k = 0; k < p.w * p.h; k++)
+      if (opaque(*bare, k)) { const int x = k % p.w, y = k / p.w; x0 = std::min(x0, x); x1 = std::max(x1, x); y0 = std::min(y0, y); y1 = std::max(y1, y); }
+    for (int k = 0; k < p.w * p.h; k++) {
+      if (ownerOf(p, k) != si || !opaque(p, k)) continue;
+      const uint8_t rg = bare->region[(size_t)k];
+      if (opaque(*bare, k) && (rg == (uint8_t)doll::Region::Boot || rg == (uint8_t)doll::Region::Sole)) return sh.part + ": over a boot";
+      if (opaque(*bare, k) && rg == (uint8_t)doll::Region::Shin) shinCols.insert(k % p.w);
+      if (run) {
+        const int x = k % p.w, y = k / p.w;
+        if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) return sh.part + ": outside the run box + 1";
+      }
+    }
+    if (shinCols.size() > 1) return sh.part + fmt(": over %d columns of a shin (1 at most)", (int)shinCols.size());
+  }
+  return "";
+}
+// d: the grips. bare: the same frame without the weapon (the fist's own hand pixels)
+std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, bool twoHand) {
+  int wi = -1;
+  for (size_t i = 0; i < p.items.size(); i++) if (isLibraryHeld(p.items[i])) wi = (int)i;
+  if (wi < 0) return "";
+  const doll::FrameProbe::It& w = p.items[(size_t)wi];
+  if (w.key == "drop") return "";   // (INTEGRATE i1) on the ground beside the body: no hand holds it
+  const bool bow = isBow(w);
+  const bool onL = w.anchor == art::doll::Anchor::GripL;
+  if (bow && !onL) return w.part + ": a bow not in the left hand (gripL)";
+  if (!bow && onL) return w.part + ": a weapon in the left hand";
+  const int from = onL ? p.gripLFrom : p.gripFrom;
+  if (from < 0 || from >= (int)p.items.size()) return w.part + fmt(": no %s mark on the arm", onL ? "gripL" : "grip");
+  const doll::FrameProbe::It& arm = p.items[(size_t)from];
+  if (!onL && arm.side != 1) return w.part + ": held by " + arm.part + " (the right arm grips in every facing)";
+  if (onL && arm.side != 2) return w.part + ": held by " + arm.part + " (the bow in the left hand)";
+  const int gx = onL ? p.gripLX : p.gripX, gy = onL ? p.gripLY : p.gripY;
+  // the fist's hand pixels (without the weapon), and the grip inside their box +-1
+  int hx0 = 1 << 20, hy0 = 1 << 20, hx1 = -1, hy1 = -1, handPx = 0, covered = 0;
+  const doll::FrameProbe& hp = bare ? *bare : p;
+  // (INTEGRATE i1) the bare frame has one item fewer: the arm's index there is found by its part (a weapon painted before
+  // the arm, the bow facing left, shifted it by one and no hand pixel was found)
+  int hfrom = from;
+  if (bare && hp.items.size() != p.items.size() && arm.partIndex >= 0) {
+    hfrom = -1;
+    for (size_t i = 0; i < hp.items.size(); i++) if (hp.items[i].partIndex == arm.partIndex) hfrom = (int)i;
+  }
+  for (int k = 0; k < p.w * p.h; k++) {
+    if (hp.owner[(size_t)k] != hfrom || hp.region[(size_t)k] != (uint8_t)doll::Region::Hand || !opaque(hp, k)) continue;
+    const int x = k % p.w, y = k / p.w;
+    hx0 = std::min(hx0, x); hx1 = std::max(hx1, x); hy0 = std::min(hy0, y); hy1 = std::max(hy1, y);
+    handPx++;
+    if (ownerOf(p, k) == wi) covered++;
+  }
+  if (!handPx) return arm.part + ": no hand pixels (region H) on the gripping arm";
+  if (gx < hx0 - 1 || gx > hx1 + 1 || gy < hy0 - 1 || gy > hy1 + 1) return w.part + fmt(": the grip (%d,%d) outside the fist", gx - p.px, gy - p.py);
+  if (covered) return w.part + fmt(": %d weapon pixel(s) over the fist", covered);
+  if (!bow) {
+    if (!p.tip) return w.part + ": no tip mark";
+    const double reach = std::hypot(p.tipX - gx, p.tipY - gy);
+    double far = 0;
+    for (int k = 0; k < p.w * p.h; k++)
+      if (ownerOf(p, k) == wi) far = std::max(far, std::hypot(k % p.w - gx, k / p.w - gy));
+    if (reach + 1.5 < far) return w.part + fmt(": the tip mark %.0f px from the grip, the weapon reaches %.0f", reach, far);
+    if (twoHand) {
+      if (!p.gripL) return w.part + ": a two-handed weapon without the off fist (gripL)";
+      const double vx = p.tipX - gx, vy = p.tipY - gy, L2 = vx * vx + vy * vy;
+      double t = L2 > 0 ? ((p.gripLX - gx) * vx + (p.gripLY - gy) * vy) / L2 : 0;
+      // (the haft runs on behind the grip too: the line, not the segment)
+      const double dx = p.gripLX - (gx + t * vx), dy = p.gripLY - (gy + t * vy);
+      if (std::hypot(dx, dy) > 1.5) return w.part + fmt(": the off fist %.1f px off the haft line", std::hypot(dx, dy));
+    }
+  }
+  return "";
+}
+// e: lying keeps its gear
+std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool weapon) {
+  int helmPx = 0;
+  std::vector<int> body, sh, wp, hand;
+  for (int k = 0; k < p.w * p.h; k++) {
+    if (!opaque(p, k)) continue;
+    const doll::FrameProbe::It* it = itemAt(p, k);
+    if (!it) continue;
+    if (isHelm(*it)) helmPx++;
+    if (isShield(*it)) sh.push_back(k);
+    else if (it->has(doll::Role::Held)) wp.push_back(k);
+    else body.push_back(k);
+    if (p.region[(size_t)k] == (uint8_t)doll::Region::Hand) hand.push_back(k);
+  }
+  auto gap = [&](const std::vector<int>& a, const std::vector<int>& b) {
+    double best = 1e9;
+    for (int i : a) for (int j : b) best = std::min(best, std::hypot(i % p.w - j % p.w, i / p.w - j / p.w));
+    return best;
+  };
+  if (helm && !helmPx) return "the helm is gone";
+  if (shield) { if (sh.empty()) return "the shield is gone"; if (gap(sh, body) > 4) return fmt("the shield %.0f px from the body (4)", gap(sh, body)); }
+  if (weapon && !wp.empty() && !hand.empty() && gap(wp, hand) > 6) return fmt("the weapon %.0f px from a hand (6)", gap(wp, hand));
+  return "";
+}
+
+doll::DollRecipe without(const doll::DollRecipe& r, bool (*drop)(int part)) {
+  doll::DollRecipe o = r;
+  o.parts.erase(std::remove_if(o.parts.begin(), o.parts.end(), drop), o.parts.end());
+  return o;
+}
+bool dropShield(int p) {
+  for (const P::RoleRec& rr : P::get().parts[(size_t)p].roles)
+    if (rr.cat == (uint8_t)doll::Role::Shield && P::get().s(rr.value) != "arm") return true;
+  return false;
+}
+bool dropLibraryHeld(int p) {
+  for (const P::RoleRec& rr : P::get().parts[(size_t)p].roles)
+    if (rr.cat == (uint8_t)doll::Role::Held && P::get().s(rr.value).find('.') != std::string::npos) return true;
+  return false;
+}
+
+void gateC3(Line& g, const std::vector<Look>& looks) {
+  for (const Look& l : looks) {
+    const Built b = build(l);
+    if (!armoured(b.L) && !fighter(b.L) && !b.L.helmet && !b.L.helmStyle) continue;
+    const bool hasHelm = b.L.helmet || b.L.helmStyle || b.L.helmForm;
+    const bool hasShield = b.r.has("shield");
+    const bool twoHand = b.r.has("twohand");
+    // a: nothing missing for any part
+    for (RigPart part : partsOf(b.L)) {
+      const std::vector<doll::Missing> m = doll::dollMissing(b.L, part);
+      if (m.empty()) g.ok();
+      for (const doll::Missing& x : m) g.bad(fmt("C3a %s %s: %s", l.tag.c_str(), partName(part), x.what().c_str()));
+    }
+    const doll::DollRecipe noShield = without(b.r, dropShield), noWeapon = without(b.r, dropLibraryHeld);
+    for (RigPart part : partsOf(b.L))
+      for (const FrameId& f : framesOf(b.r, part)) {
+        const doll::FrameProbe p = doll::probeFrame(b.r, part, f.facing, f.clip, f.variant, f.i);
+        if (!p.ok) continue;
+        const std::string nm = frameName(l.tag, f);
+        std::string why;
+        if (holesInGear(p, &why)) g.bad("C3a " + nm + ": " + why); else g.ok();
+        const std::string hb = helmCheck(p);
+        if (!hb.empty()) g.bad("C3b " + nm + ": " + hb); else g.ok();
+        if (hasShield) {
+          const doll::FrameProbe bare = doll::probeFrame(noShield, part, f.facing, f.clip, f.variant, f.i);
+          const std::string sc = shieldCheck(p, bare.ok ? &bare : nullptr, part == RigPart::Run || (part == RigPart::Drawn && f.variant == 2), f.facing);
+          if (!sc.empty()) g.bad("C3c " + nm + ": " + sc); else g.ok();
+        }
+        bool lib = false;
+        for (const doll::FrameProbe::It& it : p.items) lib = lib || isLibraryHeld(it);
+        if (lib) {
+          const doll::FrameProbe bare = doll::probeFrame(noWeapon, part, f.facing, f.clip, f.variant, f.i);
+          const std::string gc = gripCheck(p, bare.ok ? &bare : nullptr, twoHand);
+          if (!gc.empty()) g.bad("C3d " + nm + ": " + gc); else g.ok();
+        }
+        if (f.clip == Clip::Lying) {
+          const std::string lc = lyingCheck(p, hasHelm, hasShield, fighter(b.L));
+          if (!lc.empty()) g.bad("C3e " + nm + ": " + lc); else g.ok();
+        }
+      }
+  }
+}
+
+// ---------------------------------------------------------------- C4 armour shows
+struct Img { int w = 0, h = 0, px = 0, py = 0; std::vector<uint32_t> c; bool ok = false; };
+Img frameImg(const RigSheet& s, int facing, Clip clip, int variant, int i) {
+  Img m;
+  const art::FrameRect* r = s.frame(facing, clip, variant, i);
+  if (!r || s.atlas.w <= 0) return m;
+  m.w = r->w; m.h = r->h; m.px = r->px; m.py = r->py; m.ok = true;
+  m.c.resize((size_t)m.w * m.h);
+  for (int y = 0; y < m.h; y++) for (int x = 0; x < m.w; x++) m.c[(size_t)y * m.w + x] = s.atlas.get(r->x + x, r->y + y);
+  return m;
+}
+// pixels that differ (colour or presence) over the union of both figures' pixels, aligned on the pivot; outline: pixels
+// present in one and not the other
+void diff(const Img& a, const Img& b, int& changed, int& uni, int& outline) {
+  changed = uni = outline = 0;
+  const int L = std::max(a.px, b.px), R = std::max(a.w - a.px, b.w - b.px), U = std::max(a.py, b.py), D = std::max(a.h - a.py, b.h - b.py);
+  for (int y = -U; y < D; y++)
+    for (int x = -L; x < R; x++) {
+      auto get = [&](const Img& m) -> uint32_t {
+        const int X = x + m.px, Y = y + m.py;
+        return X >= 0 && Y >= 0 && X < m.w && Y < m.h ? m.c[(size_t)Y * m.w + X] : 0u;
+      };
+      const uint32_t ca = get(a), cb = get(b);
+      const bool oa = ca >> 24, ob = cb >> 24;
+      if (!oa && !ob) continue;
+      uni++;
+      if (oa != ob) { outline++; changed++; }
+      else if (ca != cb) changed++;
+    }
+}
+std::string armourOfLook(const HumanLook& L) {
+  const doll::DollRecipe r = doll::resolve(L);
+  for (const doll::Need& n : r.needs) if (n.role == doll::Role::Armour) return n.value;
+  return "";
+}
+void gateC4(Line& g, const std::vector<Look>& looks) {
+  for (const Look& l : looks) {
+    const Built b = build(l);
+    const std::string form = armourOfLook(b.L);
+    if (form.empty()) continue;
+    // (INTEGRATE i1, SLICE-ARMOUR's ask) the armour is measured with nothing in hand on both sides: a shield or a weapon
+    // over the chest is the same pixels in both figures and only dilutes the share
+    HumanLook worn = b.L;
+    worn.shield = 0; worn.weapon = 0;
+    HumanLook bare = worn;
+    bare.outfit = art::Outfit::Tunic; bare.armorStyle = 0; bare.bodyForm = 0; bare.pauldron = 0; bare.skirt = 0; bare.gloves = 0; bare.boots = 0;
+    doll::DollRecipe ra = doll::resolve(worn), rb = doll::resolve(bare);
+    ra.ramps = b.r.ramps; rb.ramps = b.r.ramps;
+    const RigSheet sa = doll::compose(ra, RigPart::Loco), sb = doll::compose(rb, RigPart::Loco);
+    const double need = (form == "padded" || form == "leather") ? 0.15 : 0.25;
+    for (int fc : {0, 2}) {
+      const Img a = frameImg(sa, fc, Clip::Idle, 0, 0), c = frameImg(sb, fc, Clip::Idle, 0, 0);
+      if (!a.ok || !c.ok) { g.bad(fmt("C4 %s %c: no idle frame", l.tag.c_str(), "DURL"[fc])); continue; }
+      int ch, un, ol;
+      diff(a, c, ch, un, ol);
+      const double share = un ? (double)ch / un : 0;
+      if (g_report) std::printf("  C4 %-8s %-7s %c: %.1f %% changed (%d of %d), outline %d px\n", l.tag.c_str(), form.c_str(), "DURL"[fc], share * 100, ch, un, ol);
+      if (share < need) g.bad(fmt("C4 %s %s %c: %.1f %% of the idle figure changed (%.0f %%)", l.tag.c_str(), form.c_str(), "DURL"[fc], share * 100, need * 100));
+      else g.ok();
+      if (form == "plate") { if (ol < 6) g.bad(fmt("C4 %s plate %c: the outline moved by %d px (6 or more)", l.tag.c_str(), "DURL"[fc], ol)); else g.ok(); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------- C5 families (the sword against the spear)
+bool mirrored(const Img& a, const Img& b) {
+  if (!a.ok || !b.ok || a.w != b.w || a.h != b.h) return false;
+  for (int y = 0; y < a.h; y++) for (int x = 0; x < a.w; x++) if (a.c[(size_t)y * a.w + x] != b.c[(size_t)y * a.w + (a.w - 1 - x)]) return false;
+  return true;
+}
+// the spear's tip path from the loaded frame (the windup's last) to the impact (the strike's first): forward and drift
+std::string tipPath(const std::vector<std::pair<int, int>>& tips, int facing, int* fwdOut = nullptr) {
+  if (tips.size() < 2) return "no tip marks on the windup and strike frames";
+  const int dir = facing == 3 ? -1 : 1;
+  const int fwd = (tips.back().first - tips.front().first) * dir;
+  int drift = 0;
+  for (const auto& t : tips) drift = std::max(drift, std::abs(t.second - tips.front().second));
+  if (fwdOut) *fwdOut = fwd;
+  if (fwd < 8) return fmt("the tip goes %d px forward (8 or more)", fwd);
+  if (drift >= 4) return fmt("the tip drifts %d px (under 4)", drift);
+  return "";
+}
+void gateC5(Line& g, const std::vector<Look>& looks) {
+  const Look *sw = nullptr, *sp = nullptr;
+  for (const Look& l : looks) {
+    const Built b = build(l);
+    if (b.L.weapon == 1 && !sw && b.r.has("shield")) sw = &l;   // the guard first (the slice's sword with the shield)
+  }
+  for (const Look& l : looks) {
+    const Built b = build(l);
+    if (b.L.weapon == 1 && !sw) sw = &l;
+    if (b.L.weapon == 8 && !sp) sp = &l;
+  }
+  if (!sw || !sp) { g.bad("C5: the looks need a sword and a spear fighter"); return; }
+  const Built bs = build(*sw), bp = build(*sp);
+  const RigSheet as = doll::compose(bs.r, RigPart::Action), ap = doll::compose(bp.r, RigPart::Action);
+  for (int fc = 0; fc < 4; fc++) {
+    const Img a = frameImg(as, fc, Clip::Strike, 0, 0), c = frameImg(ap, fc, Clip::Strike, 0, 0);
+    if (!a.ok || !c.ok) { g.bad(fmt("C5 %c: no strike frame (%s %s, %s %s)", "DURL"[fc], sw->tag.c_str(), a.ok ? "ok" : "missing", sp->tag.c_str(), c.ok ? "ok" : "missing")); continue; }
+    int ch, un, ol;
+    diff(a, c, ch, un, ol);
+    const double share = un ? (double)ch / un : 0;
+    if (g_report) std::printf("  C5 %c: the %s and %s strikes %.1f %% apart\n", "DURL"[fc], sw->tag.c_str(), sp->tag.c_str(), share * 100);
+    if (share < 0.25) g.bad(fmt("C5 %c: the sword's and spear's strikes %.1f %% apart (25 %%)", "DURL"[fc], share * 100)); else g.ok();
+    // the effect on the impact frame
+    const doll::FrameProbe p = doll::probeFrame(bp.r, RigPart::Action, fc, Clip::Strike, 0, 0);
+    bool fx = false;
+    for (int k = 0; p.ok && k < p.w * p.h; k++) { const doll::FrameProbe::It* it = itemAt(p, k); if (opaque(p, k) && it && it->has(doll::Role::Fx)) fx = true; }
+    if (!fx) g.bad(fmt("C5 %s %c: no effect on the impact frame", sp->tag.c_str(), "DURL"[fc])); else g.ok();
+  }
+  for (int fc : {2, 3}) {
+    std::vector<std::pair<int, int>> tips;
+    const int nw = ap.count(fc, Clip::Windup, 0);
+    if (nw > 0) {
+      const doll::FrameProbe p = doll::probeFrame(bp.r, RigPart::Action, fc, Clip::Windup, 0, nw - 1);
+      if (p.ok && p.tip) tips.push_back({p.tipX - p.px, p.tipY - p.py});
+    }
+    for (int i = 0; i < ap.count(fc, Clip::Strike, 0) && i < 1; i++) {
+      const doll::FrameProbe p = doll::probeFrame(bp.r, RigPart::Action, fc, Clip::Strike, 0, i);
+      if (p.ok && p.tip) tips.push_back({p.tipX - p.px, p.tipY - p.py});
+    }
+    int fwd = 0;
+    const std::string w = tipPath(tips, fc, &fwd);
+    if (g_report) std::printf("  C5 %s %c tip path: %d px forward\n", sp->tag.c_str(), "DURL"[fc], fwd);
+    if (!w.empty()) g.bad(fmt("C5 %s %c: ", sp->tag.c_str(), "DURL"[fc]) + w); else g.ok();
+  }
+  if (mirrored(frameImg(ap, 2, Clip::Strike, 0, 0), frameImg(ap, 3, Clip::Strike, 0, 0))) g.bad("C5 " + sp->tag + ": the left strike is the right's plain mirror");
+  else g.ok();
+}
+
+// ---------------------------------------------------------------- C6 the library
+struct Grid { int w = 0, h = 0, ox = 0, oy = 0; std::vector<uint8_t> c; bool tip = false; int tx = 0, ty = 0; };
+Grid gridOf(const P::ViewRec& v) {
+  Grid g;
+  g.w = v.w; g.h = v.h; g.ox = v.ox; g.oy = v.oy; g.c = v.cells;
+  const P::Pool& Pl = P::get();
+  for (uint8_t m = 0; m < v.nMarks; m++) {
+    const P::MarkRec& mk = Pl.marks[v.firstMark + m];
+    if (mk.name == Pl.ids.tip) { g.tip = true; g.tx = mk.x; g.ty = mk.y; }
+  }
+  return g;
+}
+// one view's craft: orphans, the lit edge toward the top-left, the grip on the haft, the tip
+std::string viewCraft(const Grid& g, bool blade, bool bow) {
+  auto at = [&](int x, int y) -> uint8_t { return x >= 0 && y >= 0 && x < g.w && y < g.h ? g.c[(size_t)y * g.w + x] : 0; };
+  int lit = 0, dark = 0;
+  for (int y = 0; y < g.h; y++)
+    for (int x = 0; x < g.w; x++) {
+      const uint8_t c = at(x, y);
+      if (c < 2) continue;
+      bool alone = true;
+      for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if ((dx || dy) && at(x + dx, y + dy) >= 2) alone = false;
+      if (alone) return fmt("an orphan pixel at (%d,%d)", x - g.ox, y - g.oy);
+      const int k = doll::codeStep(c);
+      if (k == 0) continue;
+      for (auto d : {std::make_pair(1, 0), std::make_pair(0, 1), std::make_pair(1, 1)}) {
+        const uint8_t n = at(x + d.first, y + d.second);
+        if (n < 2 || doll::codeStep(n) == 0 || doll::codeSlot(n) != doll::codeSlot(c)) continue;
+        const int kn = doll::codeStep(n);
+        if (k > kn) lit++;
+        else if (k < kn) dark++;
+      }
+    }
+  if (dark > lit + 1) return fmt("lit toward the bottom-right (%d pairs lit top-left, %d bottom-right)", lit, dark);
+  bool haft = false;
+  for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if (at(g.ox + dx, g.oy + dy) >= 2) haft = true;
+  if (!haft) return "the grip origin is not on the haft";
+  if (!bow) {
+    if (!g.tip) return "no tip mark";
+    if (blade) {
+      int best = 0;
+      for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) { const uint8_t c = at(g.tx + dx, g.ty + dy); if (c >= 2) best = std::max(best, doll::codeStep(c)); }
+      if (best < 3) return "no bright tip pixel";
+    }
+  }
+  return "";
+}
+int lengthOf(const std::string& held) {   // STYLE_P2 11 (docs/PLAN.md "Constants that interact"): the a000 view's length
+  const std::string w = held.substr(0, held.find('.'));
+  const std::string form = held.find('.') == std::string::npos ? "" : held.substr(held.find('.') + 1);
+  if (w == "sword") return 15;
+  if (w == "greatsword") return 24;
+  if (w == "spear") return 39;
+  if (w == "staff") return 30;
+  if (w == "bow") return form == "longbow" ? 28 : (form == "recurve" || form == "composite") ? 20 : 22;
+  return 0;
+}
+void gateC6(Line& g) {
+  const P::Pool& Pl = P::get();
+  int libs = 0;
+  for (int pi = 0; pi < (int)Pl.parts.size(); pi++) {
+    const P::PartRec& p = Pl.parts[(size_t)pi];
+    std::string held;
+    for (const P::RoleRec& rr : p.roles) if (rr.cat == (uint8_t)doll::Role::Held && Pl.s(rr.value).find('.') != std::string::npos) held = Pl.s(rr.value);
+    if (held.empty()) continue;
+    libs++;
+    const std::string name = Pl.s(p.name);
+    const bool bow = held.rfind("bow", 0) == 0;
+    const bool blade = held.rfind("sword", 0) == 0 || held.rfind("greatsword", 0) == 0 || held.rfind("dagger", 0) == 0 || held.rfind("spear", 0) == 0;
+    if (!bow) {
+      for (int k = 0; k < 16; k++) {
+        char nm[5];
+        P::angleKey(k, nm);
+        const uint16_t id = Pl.strId(nm);
+        bool any = false;
+        for (int fc = 0; fc < 4 && !any; fc++) any = id != 0xFFFF && P::viewOf(p, fc, id) != nullptr;
+        if (!any) g.bad(fmt("C6 %s (%s): no view %s", name.c_str(), held.c_str(), nm)); else g.ok();
+      }
+    } else {
+      for (const char* k : {"carry", "drop"}) {
+        const uint16_t id = Pl.strId(k);
+        bool any = false;
+        for (int fc = 0; fc < 4 && !any; fc++) any = id != 0xFFFF && P::viewOf(p, fc, id) != nullptr;
+        if (!any) g.bad(fmt("C6 %s (%s): no view %s", name.c_str(), held.c_str(), k)); else g.ok();
+      }
+    }
+    for (uint32_t vi = p.firstView; vi < p.firstView + p.nViews; vi++) {
+      const P::ViewRec& v = Pl.views[vi];
+      if (v.when) continue;
+      const std::string key = Pl.s(v.key);
+      if (key == "drop" || key == "carry") { g.ok(); continue; }   // (rest poses: the craft of the angle views)
+      const std::string w = viewCraft(gridOf(v), blade, bow);
+      if (!w.empty()) g.bad(fmt("C6 %s %c %s: %s", name.c_str(), "DURL"[v.facing & 3], key.c_str(), w.c_str())); else g.ok();
+    }
+    const int want = lengthOf(held);
+    const uint16_t a0 = Pl.strId("a000");
+    const P::ViewRec* v0 = nullptr;
+    for (int fc = 0; fc < 4 && !v0; fc++) if (a0 != 0xFFFF) v0 = P::viewOf(p, fc, a0);
+    if (want && v0) {
+      int x0 = 1 << 20, x1 = -1;
+      for (int y = 0; y < v0->h; y++) for (int x = 0; x < v0->w; x++) if (v0->cells[(size_t)y * v0->w + x] >= 2) { x0 = std::min(x0, x); x1 = std::max(x1, x); }
+      const int len = x1 - x0 + 1;
+      if (g_report) std::printf("  C6 %s length %d px (%d)\n", name.c_str(), len, want);
+      if (std::abs(len - want) > 1) g.bad(fmt("C6 %s: %d px long (%d +-1)", name.c_str(), len, want)); else g.ok();
+    }
+  }
+  if (!libs) g.bad("C6: no library weapon in the pool (`role held <weapon>.<form>`)");
+}
+
+// ---------------------------------------------------------------- selftests (synthetic defects; every one must be caught)
+doll::FrameProbe synth(int w, int h) {
+  doll::FrameProbe p;
+  p.ok = true; p.w = w; p.h = h; p.px = w / 2; p.py = h - 2;
+  p.code.assign((size_t)w * h, 0); p.owner.assign((size_t)w * h, -1); p.region.assign((size_t)w * h, 0);
+  return p;
+}
+int addItem(doll::FrameProbe& p, const char* part, doll::Role role, art::doll::Anchor an, doll::Layer layer, int side = 0, const char* held = "") {
+  doll::FrameProbe::It it;
+  it.part = part; it.roles = 1u << (int)role; it.anchor = an; it.layer = layer; it.side = side; it.held = held;
+  p.items.push_back(it);
+  return (int)p.items.size() - 1;
+}
+void fill(doll::FrameProbe& p, int item, int x0, int y0, int x1, int y1, doll::Slot s = doll::Slot::Metal, int step = 2, doll::Region rg = doll::Region::None) {
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      const int k = p.at(x, y);
+      if (k < 0) continue;
+      p.code[(size_t)k] = doll::code(s, step); p.owner[(size_t)k] = (int16_t)item; p.region[(size_t)k] = (uint8_t)rg;
+    }
+}
+void clearPx(doll::FrameProbe& p, int x, int y) { const int k = p.at(x, y); p.code[(size_t)k] = 0; p.owner[(size_t)k] = -1; }
+
+int selftestC3(bool report) {
+  int missed = 0;
+  auto expect = [&](bool caught, const char* what) { if (!caught) { missed++; std::printf("  C3 selftest MISSED: %s\n", what); } else if (report) std::printf("  C3 selftest caught: %s\n", what); };
+  using A = art::doll::Anchor;
+  {   // a: a hole in a breastplate; a clean plate; a gap between arm and body (not gear)
+    doll::FrameProbe p = synth(40, 40);
+    const int a = addItem(p, "armour/man/plate", doll::Role::Armour, A::Neck, doll::Layer::Torso);
+    fill(p, a, 10, 10, 20, 20);
+    expect(holesInGear(p, nullptr) == 0, "a solid plate reads clean");
+    clearPx(p, 15, 15);
+    expect(holesInGear(p, nullptr) == 1, "a 1 px hole inside the plate");
+    doll::FrameProbe q = synth(40, 40);
+    const int arm = addItem(q, "arms/adult/std", doll::Role::Arms, A::ShoulderR, doll::Layer::ArmNear);
+    fill(q, arm, 10, 10, 20, 20);
+    clearPx(q, 15, 15);
+    expect(holesInGear(q, nullptr) == 0, "a gap between body parts is not a gear hole");
+    const int bow = addItem(p, "held/weapons/bow", doll::Role::Held, A::GripL, doll::Layer::Held, 0, "bow.self");
+    fill(p, bow, 14, 14, 14, 14);
+    clearPx(p, 15, 15);
+    expect(holesInGear(p, nullptr) == 0, "the bow's string gap is exempt");
+  }
+  {   // b: the helm off the head; plume too high; hair over the rim; anchored elsewhere
+    doll::FrameProbe p = synth(60, 60);
+    p.headX = 20; p.headY = 10;
+    const int h = addItem(p, "headwear/helm/nasal", doll::Role::Helm, A::Head, doll::Layer::Headwear);
+    fill(p, h, 22, 10, 33, 14);
+    expect(helmCheck(p).empty(), "a helm on the head reads clean");
+    doll::FrameProbe q = p;
+    fill(q, h, 40, 12, 40, 12);
+    expect(!helmCheck(q).empty(), "a helm pixel outside the head box");
+    q = p;
+    fill(q, h, 25, 2, 25, 2, doll::Slot::Plume);   // F-56: above F-37
+    expect(!helmCheck(q).empty(), "a plume above F-37");
+    q = p;
+    const int hair = addItem(q, "hair/adult/tousled", doll::Role::Hair, A::Head, doll::Layer::HairFront);
+    fill(q, hair, 26, 8, 26, 8, doll::Slot::Hair);
+    expect(!helmCheck(q).empty(), "hair over the helm's rim");
+    q = p;
+    q.items[(size_t)h].anchor = A::Neck;
+    expect(!helmCheck(q).empty(), "a helm not anchored on the head");
+  }
+  {   // c: the shield's layer by facing, detached, over a boot, outside the run box
+    doll::FrameProbe p = synth(60, 60);
+    const int arm = addItem(p, "shield/arm", doll::Role::Shield, A::ShoulderL, doll::Layer::ArmFar, 2);
+    const int sh = addItem(p, "shield/kite", doll::Role::Shield, A::GripL, doll::Layer::Back);
+    fill(p, arm, 30, 20, 31, 35, doll::Slot::Skin, 2, doll::Region::Hand);
+    fill(p, sh, 25, 22, 29, 32, doll::Slot::Field);
+    p.gripL = true; p.gripLX = 30; p.gripLY = 28; p.gripLFrom = arm;
+    doll::FrameProbe bare = synth(60, 60);
+    const int legs = addItem(bare, "legs", doll::Role::Legs, A::Pivot, doll::Layer::Legs);
+    fill(bare, legs, 24, 20, 34, 50, doll::Slot::Cloth2);
+    fill(bare, legs, 24, 50, 34, 57, doll::Slot::Leather, 2, doll::Region::Boot);
+    expect(shieldCheck(p, &bare, false, 2).empty(), "a shield behind facing right, on the hand, reads clean");
+    expect(!shieldCheck(p, &bare, false, 3).empty(), "a shield behind the torso facing left");
+    doll::FrameProbe q = p;
+    q.gripLX = 50;
+    expect(!shieldCheck(q, &bare, false, 2).empty(), "a shield away from the gripping hand");
+    q = p;
+    fill(q, sh, 25, 51, 29, 53, doll::Slot::Field);
+    expect(!shieldCheck(q, &bare, false, 2).empty(), "a shield over a boot");
+    q = p;
+    fill(q, sh, 18, 25, 20, 26, doll::Slot::Field);
+    fill(q, sh, 21, 25, 24, 25, doll::Slot::Field);
+    expect(!shieldCheck(q, &bare, true, 2).empty(), "a shield outside the run box + 1");
+    q = p;
+    q.items[(size_t)sh].anchor = A::Hip;
+    // (no longer counted as the shield: re-mark it as on the hip with the shield role kept)
+    expect(shieldCheck(q, &bare, false, 2).empty(), "(a non-gripL shield part is the arm's)");
+  }
+  {   // d: a weapon over the fist, the grip outside the fist, the left hand, the off fist off the haft, no tip
+    doll::FrameProbe p = synth(80, 60);
+    const int arm = addItem(p, "arms/adult/action/onehand/sw", doll::Role::Arms, A::ShoulderR, doll::Layer::ArmNear, 1);
+    const int w = addItem(p, "held/weapons/spear", doll::Role::Held, A::Grip, doll::Layer::Held, 0, "spear.spear");
+    fill(p, w, 20, 30, 60, 30, doll::Slot::Leather);
+    fill(p, arm, 30, 29, 31, 31, doll::Slot::Skin, 2, doll::Region::Hand);
+    p.grip = true; p.gripX = 30; p.gripY = 30; p.gripFrom = arm; p.tip = true; p.tipX = 60; p.tipY = 30;
+    const int off = addItem(p, "arms/adult/action/twohand/spL", doll::Role::Arms, A::ShoulderL, doll::Layer::ArmFar, 2);
+    fill(p, off, 40, 29, 41, 31, doll::Slot::Skin, 2, doll::Region::Hand);
+    p.gripL = true; p.gripLX = 40; p.gripLY = 30; p.gripLFrom = off;
+    doll::FrameProbe bare = p;
+    expect(gripCheck(p, &bare, true).empty(), "a two-handed grip on the haft reads clean");
+    doll::FrameProbe q = p;
+    fill(q, w, 30, 30, 31, 30, doll::Slot::Leather);
+    expect(!gripCheck(q, &bare, true).empty(), "weapon pixels over the fist");
+    q = p; q.gripX = 36;
+    expect(!gripCheck(q, &bare, true).empty(), "the grip outside the fist");
+    q = p; q.items[(size_t)arm].side = 2;
+    expect(!gripCheck(q, &bare, true).empty(), "a weapon in the left arm");
+    q = p; q.gripLY = 35;
+    expect(!gripCheck(q, &bare, true).empty(), "the off fist off the haft line");
+    q = p; q.tip = false;
+    expect(!gripCheck(q, &bare, true).empty(), "no tip mark");
+    q = p; q.tipX = 45;
+    expect(!gripCheck(q, &bare, true).empty(), "the tip mark short of the far end");
+  }
+  {   // e: lying without the helm, the shield away, the weapon away
+    doll::FrameProbe p = synth(80, 40);
+    const int body = addItem(p, "wear/tunic", doll::Role::Garment, A::Neck, doll::Layer::Torso);
+    const int helm = addItem(p, "headwear/helm/nasal", doll::Role::Helm, A::Head, doll::Layer::Headwear);
+    const int sh = addItem(p, "shield/kite", doll::Role::Shield, A::GripL, doll::Layer::Back);
+    const int w = addItem(p, "held/weapons/sword", doll::Role::Held, A::Grip, doll::Layer::Held, 0, "sword.straight");
+    const int arm = addItem(p, "arms", doll::Role::Arms, A::ShoulderR, doll::Layer::ArmNear, 1);
+    fill(p, body, 10, 20, 50, 26, doll::Slot::Cloth1);
+    fill(p, helm, 51, 20, 55, 26);
+    fill(p, sh, 20, 27, 30, 29, doll::Slot::Field);
+    fill(p, arm, 35, 27, 36, 28, doll::Slot::Skin, 2, doll::Region::Hand);
+    fill(p, w, 38, 28, 48, 28);
+    expect(lyingCheck(p, true, true, true).empty(), "a lying body with its gear reads clean");
+    doll::FrameProbe q = p;
+    for (int k = 0; k < q.w * q.h; k++) if (q.owner[(size_t)k] == helm) { q.code[(size_t)k] = 0; q.owner[(size_t)k] = -1; }
+    expect(!lyingCheck(q, true, true, true).empty(), "the helm gone from a lying body");
+    q = p;
+    for (int k = 0; k < q.w * q.h; k++) if (q.owner[(size_t)k] == sh) { q.code[(size_t)k] = 0; q.owner[(size_t)k] = -1; }
+    fill(q, sh, 20, 36, 30, 38, doll::Slot::Field);
+    expect(!lyingCheck(q, true, true, true).empty(), "the shield 7 px from the body");
+    q = p;
+    for (int k = 0; k < q.w * q.h; k++) if (q.owner[(size_t)k] == w) { q.code[(size_t)k] = 0; q.owner[(size_t)k] = -1; }
+    fill(q, w, 60, 38, 70, 38);
+    expect(!lyingCheck(q, true, true, true).empty(), "the weapon far from the hand");
+  }
+  return missed;
+}
+int selftestC4(bool report) {
+  int missed = 0;
+  auto expect = [&](bool caught, const char* what) { if (!caught) { missed++; std::printf("  C4 selftest MISSED: %s\n", what); } else if (report) std::printf("  C4 selftest caught: %s\n", what); };
+  Img a; a.ok = true; a.w = 10; a.h = 10; a.px = 5; a.py = 9; a.c.assign(100, 0xFF808080u);
+  Img b = a;
+  int ch, un, ol;
+  diff(a, b, ch, un, ol);
+  expect(ch == 0 && un == 100, "the same figure changes nothing");
+  for (int i = 0; i < 20; i++) b.c[(size_t)i] = 0xFF404040u;
+  diff(a, b, ch, un, ol);
+  expect(ch == 20 && ol == 0 && (double)ch / un < 0.25, "20 % recoloured falls short of 25 %");
+  Img c = a; c.w = 12; c.px = 6; c.c.assign(120, 0xFF808080u);
+  diff(a, c, ch, un, ol);
+  expect(ol == 20, "two new columns move the outline");
+  return missed;
+}
+int selftestC5(bool report) {
+  int missed = 0;
+  auto expect = [&](bool caught, const char* what) { if (!caught) { missed++; std::printf("  C5 selftest MISSED: %s\n", what); } else if (report) std::printf("  C5 selftest caught: %s\n", what); };
+  expect(tipPath({{0, 0}, {10, 1}}, 2).empty(), "a 10 px thrust reads clean");
+  expect(!tipPath({{0, 0}, {5, 0}}, 2).empty(), "a 5 px thrust is short");
+  expect(!tipPath({{0, 0}, {12, 5}}, 2).empty(), "a thrust drifting 5 px");
+  expect(!tipPath({{0, 0}, {10, 0}}, 3).empty(), "a thrust going backward facing left");
+  expect(!tipPath({{0, 0}}, 2).empty(), "no tip marks");
+  Img a; a.ok = true; a.w = 4; a.h = 1; a.px = 2; a.py = 0; a.c = {1, 2, 3, 4};
+  Img m = a; m.c = {4, 3, 2, 1};
+  expect(mirrored(a, m), "a plain mirror is caught");
+  m.c = {4, 3, 2, 9};
+  expect(!mirrored(a, m), "a repainted left frame is not a mirror");
+  return missed;
+}
+int selftestC6(bool report) {
+  int missed = 0;
+  auto expect = [&](bool caught, const char* what) { if (!caught) { missed++; std::printf("  C6 selftest MISSED: %s\n", what); } else if (report) std::printf("  C6 selftest caught: %s\n", what); };
+  Grid g; g.w = 8; g.h = 3; g.ox = 1; g.oy = 1; g.c.assign(24, 0);
+  for (int x = 0; x < 8; x++) { g.c[(size_t)x] = doll::code(doll::Slot::Metal, 3); g.c[(size_t)(8 + x)] = doll::code(doll::Slot::Metal, 1); }
+  g.c[7] = doll::code(doll::Slot::Metal, 4);
+  g.tip = true; g.tx = 7; g.ty = 0;
+  expect(viewCraft(g, true, false).empty(), "a blade lit on its top edge with a white tip reads clean");
+  Grid q = g;
+  for (int x = 0; x < 8; x++) { q.c[(size_t)x] = doll::code(doll::Slot::Metal, 1); q.c[(size_t)(8 + x)] = doll::code(doll::Slot::Metal, 3); }
+  q.c[7] = doll::code(doll::Slot::Metal, 4);
+  expect(!viewCraft(q, true, false).empty(), "a blade lit from the bottom-right");
+  q = g; q.c[(size_t)(16 + 5)] = 0; q.c[(size_t)(2 * 8 + 0)] = 0;
+  q.c.resize(40, 0); q.h = 5; q.c[(size_t)(4 * 8 + 6)] = doll::code(doll::Slot::Metal, 2);
+  expect(!viewCraft(q, true, false).empty(), "an orphan pixel");
+  q = g; q.tip = false;
+  expect(!viewCraft(q, true, false).empty(), "no tip mark");
+  q = g; q.c[7] = q.c[6] = doll::code(doll::Slot::Metal, 2);
+  expect(!viewCraft(q, true, false).empty(), "no bright tip pixel");
+  q = g; q.ox = 1; q.oy = 6; q.h = 3;
+  expect(!viewCraft(q, true, false).empty(), "the grip origin off the haft");
+  return missed;
+}
+
+// ---------------------------------------------------------------- runners
+int runGates(const std::vector<Look>& looks, bool selftests, std::vector<Line>* out) {
+  Line c3{"C3 gear"}, c4{"C4 armour change"}, c5{"C5 families"}, c6{"C6 weapons"}, st{"C3-C6 selftests"};
+  gateC3(c3, looks);
+  gateC4(c4, looks);
+  gateC5(c5, looks);
+  gateC6(c6);
+  if (selftests) {
+    const int m3 = selftestC3(g_report), m4 = selftestC4(g_report), m5 = selftestC5(g_report), m6 = selftestC6(g_report);
+    std::printf("  C3 selftest: %s\n  C4 selftest: %s\n  C5 selftest: %s\n  C6 selftest: %s\n", m3 ? "MISSED" : "ALL CAUGHT", m4 ? "MISSED" : "ALL CAUGHT",
+                m5 ? "MISSED" : "ALL CAUGHT", m6 ? "MISSED" : "ALL CAUGHT");
+    if (m3 + m4 + m5 + m6) st.bad(fmt("%d synthetic defect(s) missed", m3 + m4 + m5 + m6)); else st.ok();
+  }
+  int fails = 0;
+  for (Line* l : {&c3, &c4, &c5, &c6, &st}) {
+    if (l == &st && !selftests) continue;
+    if (out) out->push_back(*l);
+    fails += l->fails ? 1 : 0;
+  }
+  return fails;
+}
+
+int armsCmd(int argc, char** argv) {
+  const char* looksFile = nullptr;
+  const char* pool = nullptr;
+  bool self = false;
+  for (int i = 1; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--looks") && i + 1 < argc) looksFile = argv[++i];
+    else if (!std::strcmp(argv[i], "--limbs-looks") && i + 1 < argc) looksFile = argv[++i];
+    else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) pool = argv[++i];
+    else if (!std::strcmp(argv[i], "--report")) g_report = true;
+    else if (!std::strcmp(argv[i], "--selftest")) self = true;
+  }
+  if (pool) {
+    std::string err;
+    if (!doll::loadPoolFile(pool, &err)) { std::printf("FAIL: --pool %s: %s\n", pool, err.c_str()); return 1; }
+  }
+  const doll::PoolStats ps = doll::poolStats();
+  std::printf("  pool: %d parts, %d views, %d clips (%s)\n", ps.parts, ps.views, ps.clips, ps.embedded ? "embedded" : pool);
+  if (self) {
+    const int m3 = selftestC3(g_report), m4 = selftestC4(g_report), m5 = selftestC5(g_report), m6 = selftestC6(g_report);
+    std::printf("  C3 selftest: %s\n  C4 selftest: %s\n  C5 selftest: %s\n  C6 selftest: %s\n", m3 ? "MISSED" : "ALL CAUGHT", m4 ? "MISSED" : "ALL CAUGHT",
+                m5 ? "MISSED" : "ALL CAUGHT", m6 ? "MISSED" : "ALL CAUGHT");
+    const int miss = m3 + m4 + m5 + m6;
+    std::printf("doll-arms selftest: %d missed\n", miss);
+    return miss ? 1 : 0;
+  }
+  const std::vector<Look> looks = readLooks(looksFile);
+  std::vector<Line> lines;
+  const int fails = runGates(looks, true, &lines);
+  for (const Line& l : lines) l.print();
+  std::printf("doll-arms: %d failing line(s)\n", fails);
+  return fails ? 1 : 0;
+}
+
+}  // namespace dollarms
+
+// (test_doll.cpp's --doll --gates calls these)
+int dollArmsGates(bool report, std::vector<std::string>& printed) {
+  dollarms::g_report = report;
+  std::vector<dollarms::Line> lines;
+  const int fails = dollarms::runGates(dollarms::readLooks(nullptr), true, &lines);
+  for (const dollarms::Line& l : lines) {
+    char b[600];
+    std::snprintf(b, sizeof b, "%s %-24s %4d checks, %4d failed%s%s", l.fails ? "FAIL:" : "ok   ", l.id.c_str(), l.checks, l.fails, l.fails ? "; first: " : "", l.first.c_str());
+    printed.push_back(b);
+  }
+  return fails;
+}
+std::string dollSliceLooksText() { return dollarms::kSliceLooks; }
+
+RPG_TEST_CMD("--doll-arms", "P2c gear gates C3-C6 on the slice looks [--looks f] [--pool f] [--report] [--selftest]", dollarms::armsCmd);

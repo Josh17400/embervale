@@ -69,6 +69,40 @@ const char* stateName(AState s) {
   return (size_t)s < sizeof(n) / sizeof(n[0]) ? n[(int)s] : "other";
 }
 const char* questState(QState s) { return s == QState::Active ? "active" : s == QState::Complete ? "complete" : "done"; }
+// (P2c SLICE-DOLL) the doll's gear for a look: the resolver's armour, helm, shield, pauldron, held, sheath (at the hip) and
+// back (quiver, the bow on the back, the greatsword) values; "" where none (docs/P2C_CONTRACTS.md 7)
+template <class J> void dollGear(J& j, const art::HumanLook& look) {
+  const art::doll::DollRecipe r = art::doll::resolve(look);
+  std::string armour, helm, shield, pauldron, held, sheath, back, tabard;
+  for (const art::doll::Need& n : r.needs) {
+    switch (n.role) {
+      case art::doll::Role::Armour: armour = n.value; break;
+      case art::doll::Role::Helm: helm = n.value; break;
+      case art::doll::Role::Shield: if (n.value != "arm") shield = n.value; break;
+      case art::doll::Role::Pauldron: pauldron = n.value; break;
+      case art::doll::Role::Held: held = n.value; break;
+      case art::doll::Role::Overlay: if (n.value == "tabard") tabard = n.value; break;
+      case art::doll::Role::Sheath:
+        if (n.value == "quiver" || n.value == "bowback" || n.value == "greatsword" || n.value == "staffback" || n.value == "shieldback") back += (back.empty() ? "" : "+") + n.value;
+        else sheath = n.value;
+        break;
+      default: break;
+    }
+  }
+  j.key("gear").begin_object().field("armour", armour).field("helm", helm).field("shield", shield).field("pauldron", pauldron).field("held", held)
+      .field("sheath", sheath).field("back", back).field("tabard", tabard).end_object();
+}
+const char* animPartName(art::RigPart p) {
+  switch (p) {
+    case art::RigPart::Loco: return "loco";
+    case art::RigPart::Run: return "run";
+    case art::RigPart::Drawn: return "drawn";
+    case art::RigPart::Action: return "action";
+    case art::RigPart::Death: return "death";
+    default: return "?";
+  }
+}
+
 // an actor's entity type as state.entities names it: Player; a village or farm animal by its kind; a person by role;
 // else a beast by its monster type (a companion hound, the toll bridge's troll). The reset param hide matches it too.
 const char* entityType(const Actor& a) {
@@ -156,7 +190,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       j.field("boxH", hs.by1 - hs.by0 + 1);   // the opaque height in art px
     }
     j.key("pivot").vec(r2(wl.offX + hs.pivX * wl.scale), r2(wl.offY + hs.pivY * wl.scale));
-    if (hs.part >= 0) j.field("part", hs.part == 0 ? "loco" : hs.part == 1 ? "action" : hs.part == 2 ? "death" : hs.part == 3 ? "run" : "posture");
+    if (hs.part >= 0) j.field("part", hs.part == 0 ? "loco" : hs.part == 1 ? "action" : hs.part == 2 ? "death" : hs.part == 3 ? "run" : hs.part == 5 ? "drawn" : "posture");
     {   // (P2b) the doll: whether it covers the hero's look (rig 2 draws the doll, else v1 whole) and what it still lacks
       const bool cov = art::rig2Covers(P.look);
       j.key("doll").begin_object().field("covered", cov).field("pool", art::doll::partCount());
@@ -167,18 +201,26 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       }
       j.end_array();
       if (!v.p2b.dollPart.empty()) j.field("part", v.p2b.dollPart);
+      dollGear(j, P.look);   // (P2c) what the doll puts on the hero
       j.end_object();
     }
     j.end_object();
   }
   {   // (P2a) what the hero shows (rpg/sim/anim.h animPick, or the frozen `pose`)
     AnimPick k = animPick(g, P);
-    if (v.p2a.poseOn) { k.clip = v.p2a.poseClip; k.family = v.p2a.poseFamily; k.variant = (uint8_t)v.p2a.poseVariant; k.frame = (uint8_t)v.p2a.poseFrame; }
+    if (v.p2a.poseOn) {
+      k.clip = v.p2a.poseClip; k.family = v.p2a.poseFamily; k.variant = (uint8_t)v.p2a.poseVariant; k.frame = (uint8_t)v.p2a.poseFrame;
+      // (P2c SLICE-DOLL i2) the part the frozen pose draws from (render_anim.cpp: a drawn idle / walk the DRAWN part, else the
+      // clip's own): the harness is headless, so sprite.part (set by a drawn frame) is stale between shots
+      const art::Clip c = k.clip;
+      k.part = (c == art::Clip::Idle || c == art::Clip::Walk) ? (k.variant >= 1 ? art::RigPart::Drawn : art::RigPart::Loco)
+             : c == art::Clip::Hurt ? art::RigPart::Loco : (c == art::Clip::Fall || c == art::Clip::Lying) ? art::RigPart::Death : art::RigPart::Action;
+    }
     // (P2b) the gait the speed asks for (walk, or run above art::doll::kGaitSwitch px/s) and the speed itself
     // (vel when the sim sets it, else the walker's own speed: the hero's movement is not kept in vel)
     const float sp = P.st == AState::Walk ? (len(P.vel) > 0.5f ? len(P.vel) : P.speed) : len(P.vel);
     j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
-        .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn)
+        .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn).field("part", animPartName(k.part))
         .field("speed", r2(sp)).field("gait", sp > art::doll::kGaitSwitch ? "run" : "walk").end_object();
   }
   j.end_object();
@@ -339,6 +381,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
         j.field("missing", (int)m.size());
         if (!m.empty()) j.field("first", m[0].what());
       }
+      dollGear(j, a.look);   // (P2c)
       j.end_object();
     }
     j.end_object();

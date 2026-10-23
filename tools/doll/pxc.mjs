@@ -48,7 +48,7 @@ export const ROLES = ['legs', 'arms', 'garment', 'overlay', 'neck', 'belt', 'she
 export const BODIES = { man: 1, woman: 2, youth: 4, child: 8, adult: 3 };
 export const FACINGS = 'DURL';
 export const CLIPS = ['idle', 'walk', 'hurt', 'windup', 'strike', 'follow', 'cast', 'draw', 'release', 'block', 'roll', 'fall', 'lying'];
-export const PARTS = ['loco', 'action', 'death', 'run', 'posture'];
+export const PARTS = ['loco', 'action', 'death', 'run', 'posture', 'drawn'];   // (P2c) drawn: art::RigPart::Drawn (the drawn idle, walk, run)
 export const FAMILIES = ['unarmed', 'dagger', 'sword', 'greatsword', 'axe', 'mace', 'spear', 'staff', 'bow'];
 export const POSTURES = ['none', 'sit', 'siteat', 'sitdrink', 'eat', 'drink', 'cheer', 'hammer', 'hoe', 'sweep', 'chop', 'stir',
   'carry', 'fish', 'sleep', 'wave', 'play', 'dance', 'lute', 'drum', 'flute', 'pray', 'beg', 'lamp', 'read', 'sitfloor',
@@ -72,9 +72,9 @@ function defaultChannel(layer, side) {
   if (layer === 'fx' || layer === 'fxBack') return 'fx';
   return 'rest';
 }
-const POOL_VERSION = 2;   // 2: views carry flags (replace), frames carry turn and at
+const POOL_VERSION = 3;   // 2: views carry flags (replace), frames carry turn and at; 3 (P2c): clips carry a `when` condition
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
-const CACHE_VERSION = 6;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts
+const CACHE_VERSION = 7;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts; 7: P2c tags
 
 // ---------------------------------------------------------------------------------------------- arguments
 const args = process.argv.slice(2);
@@ -377,6 +377,15 @@ function parsePart(file, text) {
         for (const b of toks.slice(1)) { if (!(b in BODIES)) err(where, `body: unknown set ${b} (man woman youth child adult)`); else P.bodyMask |= BODIES[b]; }
         break;
       case 'tags': P.tags.push(...toks.slice(1)); break;
+      // (P2c) a region tile: `on-region <U F C H X T K S B> ...` (with `tags tile`): repeated over those regions' composed
+      // pixels on every part that marks them; a cell's slot recolours (ink: keep the slot), its step 2 keeps the step, 1 / 3
+      // move it one down / up, 0 and 4 set it (outlines never change). Kept in the pool as the tag on-region:<letters>
+      case 'on-region': {
+        const rs = toks.slice(1).join('');
+        if (!rs || [...rs].some((c) => !(c in REGIONS) || c === 'O' || c === 'E')) err(where, 'on-region <U F C H X T K S B> ...');
+        else P.tags.push('on-region:' + rs);
+        break;
+      }
       case 'layer': if (LAYERS.indexOf(toks[1]) < 0) err(where, `layer: unknown ${toks[1]}`); else P.layer = toks[1]; break;
       case 'anchor': if (ANCHORS.indexOf(toks[1]) < 0) err(where, `anchor: unknown ${toks[1]}`); else P.anchor = toks[1]; break;
       case 'keys': if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(toks[1] || '')) err(where, 'keys <channel>'); else P.channel = toks[1]; break;
@@ -533,7 +542,7 @@ function facingChecks(parts, clips) {
   }
   const out = [];
   for (const P of parts) {
-    if (P.tags.includes('tile')) continue;
+    if (P.tags.includes('tile') || P.tags.includes('anyfacing')) continue;   // (P2c) anyfacing: D serves every facing
     const have = new Map();
     for (const V of P.views) if (!V.when) { if (!have.has(V.key)) have.set(V.key, new Set()); have.get(V.key).add(V.facing); }
     for (const [k, fs4] of have) {
@@ -718,8 +727,8 @@ function readClips() {
           if (name === 'run') { name = 'walk'; part = 3; }
           const ci = CLIPS.indexOf(name);
           const fc = FACINGS.indexOf(toks[2] || '?');
-          if (ci < 0 || fc < 0) { err(where, `clip <${CLIPS.join('|')}|run> <D|U|R|L> [part p] [family f] [variant n] [posture p] [cycle px]`); return; }
-          clip = { body: body.name, clip: ci, part, facing: fc, family: 255, variant: 0, posture: 255, cycle: 0, frames: [], line: i + 1, file: rel(f) };
+          if (ci < 0 || fc < 0) { err(where, `clip <${CLIPS.join('|')}|run> <D|U|R|L> [part p] [family f] [variant n] [posture p] [cycle px] [when flags]`); return; }
+          clip = { body: body.name, clip: ci, part, facing: fc, family: 255, variant: 0, posture: 255, cycle: 0, when: '', frames: [], line: i + 1, file: rel(f) };
           for (let k = 3; k < toks.length; k++) {
             const a = toks[k], v = toks[++k];
             if (a === 'part') { clip.part = PARTS.indexOf(v); if (clip.part < 0) err(where, `part: ${PARTS.join(' ')}`); }
@@ -727,11 +736,12 @@ function readClips() {
             else if (a === 'variant') clip.variant = parseInt(v, 10) | 0;
             else if (a === 'posture') { clip.posture = POSTURES.indexOf(v); if (clip.posture < 0) err(where, `posture: ${POSTURES.join(' ')}`); }
             else if (a === 'cycle') clip.cycle = Math.round(parseFloat(v) * 16);
+            else if (a === 'when') { if (!v || !/^!?[A-Za-z0-9_.\-]+(,!?[A-Za-z0-9_.\-]+)*$/.test(v)) err(where, 'clip: when <flag>[,<flag>...] (a flag or !flag)'); else clip.when = v; }
             else err(where, `clip: unknown attribute ${a}`);
           }
           if (clip.part < 0) clip.part = clip.posture !== 255 ? 4 : ci <= 2 ? 0 : ci >= 11 ? 2 : 1;
           if (clips.some((c) => c.body === clip.body && c.clip === clip.clip && c.part === clip.part && c.facing === clip.facing &&
-              c.family === clip.family && c.variant === clip.variant && c.posture === clip.posture)) err(where, 'a second clip with the same body, name, facing, part, family, variant and posture');
+              c.family === clip.family && c.variant === clip.variant && c.posture === clip.posture && c.when === clip.when)) err(where, 'a second clip with the same body, name, facing, part, family, variant, posture and condition');
           clips.push(clip);
           return;
         }
@@ -846,7 +856,7 @@ function pack(parts, bodySets, clips) {
   rec.u32(clips.length);
   for (const c of clips) {
     rec.u16(S(c.body)); rec.u8(c.clip); rec.u8(c.part); rec.u8(c.facing); rec.u8(c.family); rec.u8(c.variant); rec.u8(c.posture);
-    rec.u16(c.cycle); rec.u32(frameCount); rec.u16(c.frames.length);
+    rec.u16(c.cycle); rec.u32(frameCount); rec.u16(c.frames.length); rec.u16(c.when ? S(c.when) : 0);
     frameCount += c.frames.length;
   }
   rec.u32(frameCount);

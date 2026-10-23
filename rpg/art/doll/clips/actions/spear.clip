@@ -1,0 +1,139 @@
+# rpg/art/doll/clips/actions/spear.clip: PROPOSED by SLICE-ARMS (2026-10-23); SLICE-DOLL owns and commits it. The spear
+# family on both bodies (STYLE_P2 25.8): the drawn guard (idle; walk and run below), the thrust (hit 1) and the block, in
+# four facings. Timing at the hero's spear pace 1.1 (windup 77, strike 121, follow 143 ms): the loaded pose 77 ms; the
+# impact 71 ms then the HIT-STOP beat (the same pose held 50 ms, the streak still at full length); the pull 70 ms; back
+# on the guard 73 ms (0 px from the drawn idle). weapon=<deg>,front|back names the library angle (held/weapons/spear
+# a<deg>); held= names the same view until the compositor picks angles itself. Facing up the spear is behind the body.
+# (P2c slice iteration 1, INTEGRATE) SLICE-ARMS's proposed lines committed: the drawn idle / walk / run moved to `part drawn`,
+# every clip gated `when spear` (a fighter's: a civil trade with the same tool keeps the generic clips).
+# (INTEGRATE i2) SLICE-ARMS i2's lines (fD / fU foreshortened spear facing down / up, the lunge lean 4 on torso runl, the
+# 60 ms settle before the guard); the drawn walk / run stay in spear_carry.clip (upright carry, B10); the steps (at=) are
+# tools/doll/p2c_weight.py's.
+# (SLICE-ARMS i3 PROPOSAL) block: arms sp_brace (the haft raised across the body: R a067, L a112, D a045, U a135,back),
+# legs buckle (the knees bent); the bob and steps kept; the old sp_block arms stay in the maps until this lands.
+
+body man
+clip idle D part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 expr=blink
+clip windup D family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=77 at=-1,-1
+clip strike D family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=1 ms=71 at=1,1
+f armL=sp_hit armR=sp_hit held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=1 ms=50 at=1,1
+clip follow D family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a2 bob=1 ms=70 at=1,1
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+clip block D family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a045 weapon=45,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 at=-1,-1
+clip idle U part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
+clip windup U family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=77 at=1,1
+clip strike U family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=71 at=-1,-1
+f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=50 at=-1,-1
+clip follow U family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+clip block U family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 at=1,1
+clip idle R part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+clip windup R family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=a000 weapon=0,front legs=stance neck=rest sheath=rest torso=rest bob=1 tuft=- lean=-2 ms=77 at=-2,0
+clip strike R family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=4 ms=71 at=3,0
+f armL=sp_hit armR=sp_hit held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=4 ms=50 at=3,0
+clip follow R family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a2 bob=1 lean=3 ms=70 at=1,0
+f armL=sp_wind armR=sp_wind held=a000 weapon=0,front legs=stance neck=rest sheath=rest torso=rest bob=1 lean=-1 ms=60
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 ms=73
+clip block R family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a067 weapon=67.5,front legs=buckle neck=rest sheath=rest torso=rest bob=2 lean=-1 at=-2,0
+clip idle L part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+clip windup L family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=a180 weapon=180,front legs=stance neck=rest sheath=rest torso=rest bob=1 tuft=- lean=2 ms=77 at=2,0
+clip strike L family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=-4 ms=71 at=-3,0
+f armL=sp_hit armR=sp_hit held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=-4 ms=50 at=-3,0
+clip follow L family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a2 bob=1 lean=-3 ms=70 at=-1,0
+f armL=sp_wind armR=sp_wind held=a180 weapon=180,front legs=stance neck=rest sheath=rest torso=rest bob=1 lean=1 ms=60
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 ms=73
+clip block L family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a112 weapon=112.5,front legs=buckle neck=rest sheath=rest torso=rest bob=2 lean=1 at=2,0
+
+body woman
+clip idle D part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 expr=blink
+clip windup D family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=77 at=-1,-1
+clip strike D family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=1 ms=71 at=1,1
+f armL=sp_hit armR=sp_hit held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=1 ms=50 at=1,1
+clip follow D family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a2 bob=1 ms=70 at=1,1
+f armL=sp_guard armR=sp_guard held=fD weapon=337.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+clip block D family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a045 weapon=45,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 at=-1,-1
+clip idle U part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
+clip windup U family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=77 at=1,1
+clip strike U family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=71 at=-1,-1
+f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=50 at=-1,-1
+clip follow U family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
+f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+clip block U family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 at=1,1
+clip idle R part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+clip windup R family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=a000 weapon=0,front legs=stance neck=rest sheath=rest torso=rest bob=1 tuft=- lean=-2 ms=77 at=-2,0
+clip strike R family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=4 ms=71 at=3,0
+f armL=sp_hit armR=sp_hit held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=4 ms=50 at=3,0
+clip follow R family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=a000 weapon=0,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a2 bob=1 lean=3 ms=70 at=1,0
+f armL=sp_wind armR=sp_wind held=a000 weapon=0,front legs=stance neck=rest sheath=rest torso=rest bob=1 lean=-1 ms=60
+f armL=sp_guard armR=sp_guard held=a022 weapon=22.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 ms=73
+clip block R family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a067 weapon=67.5,front legs=buckle neck=rest sheath=rest torso=rest bob=2 lean=-1 at=-2,0
+clip idle L part drawn family spear variant 1 when spear
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+clip windup L family spear variant 0 when spear
+f armL=sp_wind armR=sp_wind held=a180 weapon=180,front legs=stance neck=rest sheath=rest torso=rest bob=1 tuft=- lean=2 ms=77 at=2,0
+clip strike L family spear variant 0 when spear
+f armL=sp_hit armR=sp_hit held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=-4 ms=71 at=-3,0
+f armL=sp_hit armR=sp_hit held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a1 bob=1 lean=-4 ms=50 at=-3,0
+clip follow L family spear variant 0 when spear
+f armL=sp_pull armR=sp_pull held=a180 weapon=180,front legs=lunge neck=rest sheath=rest torso=runl expr=fierce fx=a2 bob=1 lean=-3 ms=70 at=-1,0
+f armL=sp_wind armR=sp_wind held=a180 weapon=180,front legs=stance neck=rest sheath=rest torso=rest bob=1 lean=1 ms=60
+f armL=sp_guard armR=sp_guard held=a157 weapon=157.5,front legs=guard neck=rest sheath=rest torso=rest bob=1 ms=73
+clip block L family spear variant 0 when spear
+f armL=sp_brace armR=sp_brace held=a112 weapon=112.5,front legs=buckle neck=rest sheath=rest torso=rest bob=2 lean=1 at=2,0
+
+# the drawn walk (variant 1) and run (variant 2): the sword's drawn lines with the spear's guard
+body man
+body woman
+body man.elder
+body woman.elder

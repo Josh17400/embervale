@@ -1,0 +1,632 @@
+# held/weapons/bow_self: the self bow in the fighter's LEFT hand (art weapon 3 with bowForm 1, `held bow.self`; the hunter's
+# carried bow stays held/civil/bow, value `bow`), P2c SLICE-ARMS 2026-10-23. STYLE_P2 11 / 25.7-25.8: 23 px tip to tip, a
+# 1 px stave of the person's wood stepped in runs of 4-3-2-1 to the curled tips (the upper limb lit, the lower a step
+# darker, horn nocks), a leather wrap under the fist (the hand is drawn over it: P2C_CONTRACTS 4), the linen string 1 px.
+# Origin = the bow hand's gripL. Keys per facing x string state: carry (braced; INTEGRATE i1: was rest, so the LOCO frames leave it on the back), nock (the arrow on the string at the
+# waist: a pixel of pull), draw (to the chest), full (to the cheek: the anchor), release (the string snapped straight with
+# its blur a pixel either side: one frame), low (the drawn idle and walk: the bow low and tilted forward). The nocked arrow
+# is the right hand's (arms/adult/action/twohand bow_r). Facing down the bow stands at screen right with the pull
+# foreshortened; facing up at screen left behind the body (heldBack). `drop` lies by a corpse's hand. Format: doll.h.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+body adult
+role held bow.self
+layer held
+anchor gripL
+keys held
+
+view R key carry origin 5 11
+mark tip 0 0
+|f.....
+|Xi....
+|X.i...
+|X..i..
+|X..i..
+|X...i.
+|X...i.
+|X...i.
+|X....i
+|X....i
+|X....g
+|X....g
+|X....g
+|X....h
+|X....h
+|X...h.
+|X...h.
+|X...h.
+|X..h..
+|X..h..
+|X.h...
+|Xh....
+|f.....
+
+view L key carry origin 0 11
+mark tip 5 0
+|.....f
+|....iX
+|...i.X
+|..i..X
+|..i..X
+|.i...X
+|.i...X
+|.i...X
+|i....X
+|i....X
+|g....X
+|g....X
+|g....X
+|h....X
+|h....X
+|.h...X
+|.h...X
+|.h...X
+|..h..X
+|..i..X
+|...i.X
+|....iX
+|.....f
+
+view D key carry origin 2 11
+mark tip 0 0
+|f..
+|i..
+|i..
+|Xi.
+|Xi.
+|X.i
+|X.i
+|X.i
+|X.i
+|X.i
+|X.g
+|X.g
+|X.g
+|X.h
+|X.h
+|X.h
+|X.h
+|X.h
+|Xh.
+|Xh.
+|h..
+|h..
+|f..
+
+view U key carry origin 0 11 layer heldBack
+mark tip 2 0
+|..f
+|..i
+|..i
+|.iX
+|.iX
+|i.X
+|i.X
+|i.X
+|i.X
+|i.X
+|g.X
+|g.X
+|g.X
+|h.X
+|h.X
+|h.X
+|h.X
+|h.X
+|.hX
+|.hX
+|..h
+|..h
+|..f
+
+view R key nock origin 6 11
+mark tip 1 0
+|.f.....
+|.Xi....
+|.X.i...
+|.X..i..
+|.X..i..
+|.X...i.
+|X....i.
+|X....i.
+|X.....i
+|X.....i
+|X.....g
+|X.....g
+|X.....g
+|X.....h
+|X.....h
+|X....h.
+|X....h.
+|.X...h.
+|.X..h..
+|.X..h..
+|.X.h...
+|.Xh....
+|.f.....
+
+view L key nock origin 0 11
+mark tip 5 0
+|.....f.
+|....iX.
+|...i.X.
+|..i..X.
+|..i..X.
+|.i...X.
+|.i....X
+|.i....X
+|i.....X
+|i.....X
+|g.....X
+|g.....X
+|g.....X
+|h.....X
+|h.....X
+|.h....X
+|.h....X
+|.h...X.
+|..h..X.
+|..i..X.
+|...i.X.
+|....iX.
+|.....f.
+
+view D key nock origin 2 11
+mark tip 0 0
+|f..
+|i..
+|i..
+|Xi.
+|Xi.
+|X.i
+|X.i
+|X.i
+|X.i
+|X.i
+|X.g
+|X.g
+|X.g
+|X.h
+|X.h
+|X.h
+|X.h
+|X.h
+|Xh.
+|Xh.
+|h..
+|h..
+|f..
+
+view U key nock origin 0 11 layer heldBack
+mark tip 2 0
+|..f
+|..i
+|..i
+|.iX
+|.iX
+|i.X
+|i.X
+|i.X
+|i.X
+|i.X
+|g.X
+|g.X
+|g.X
+|h.X
+|h.X
+|h.X
+|h.X
+|h.X
+|.hX
+|.hX
+|..h
+|..h
+|..f
+
+view R key draw origin 9 11
+mark tip 3 0
+|...f......
+|...Xi.....
+|...X.i....
+|..X...i...
+|..X....i..
+|..X....i..
+|.X......i.
+|.X......i.
+|.X......i.
+|.X.......i
+|X........g
+|X........g
+|X........g
+|.X.......h
+|.X......h.
+|.X......h.
+|.X......h.
+|..X....h..
+|..X....h..
+|..X...h...
+|...X.h....
+|...Xh.....
+|...f......
+
+view L key draw origin 0 11
+mark tip 6 0
+|......f...
+|.....iX...
+|....i.X...
+|...i...X..
+|..i....X..
+|..i....X..
+|.i......X.
+|.i......X.
+|.i......X.
+|i.......X.
+|g........X
+|g........X
+|g........X
+|h.......X.
+|.h......X.
+|.h......X.
+|.h......X.
+|..h....X..
+|..h....X..
+|...i...X..
+|....i.X...
+|.....iX...
+|......f...
+
+view D key draw origin 5 11
+mark tip 2 0
+|..f...
+|..Xi..
+|..Xi..
+|..Xi..
+|.X..i.
+|.X..i.
+|.X...i
+|.X...i
+|.X...i
+|X....i
+|X....g
+|X....g
+|X....g
+|X....h
+|.X...h
+|.X...h
+|.X...h
+|.X..h.
+|.X..h.
+|..Xh..
+|..Xh..
+|..Xh..
+|..f...
+
+view U key draw origin 0 11 layer heldBack
+mark tip 3 0
+|...f..
+|..iX..
+|..iX..
+|..iX..
+|.i..X.
+|.i..X.
+|i...X.
+|i...X.
+|i...X.
+|i....X
+|g....X
+|g....X
+|g....X
+|h....X
+|h...X.
+|h...X.
+|h...X.
+|.h..X.
+|.h..X.
+|..hX..
+|..hX..
+|..hX..
+|...f..
+
+view R key full origin 11 10
+mark tip 5 0
+|.....f......
+|.....Xi.....
+|....X..i....
+|....X...i...
+|...X.....i..
+|...X.....i..
+|..X.......i.
+|..X.......i.
+|.X.........i
+|.X.........g
+|X..........g
+|.X.........g
+|.X.........h
+|..X.......h.
+|..X.......h.
+|...X.....h..
+|...X.....h..
+|....X...h...
+|....X..h....
+|.....Xh.....
+|.....f......
+
+view L key full origin 0 10
+mark tip 6 0
+|......f.....
+|.....iX.....
+|....i..X....
+|...i...X....
+|..i.....X...
+|..i.....X...
+|.i.......X..
+|.i.......X..
+|i.........X.
+|g.........X.
+|g..........X
+|g.........X.
+|h.........X.
+|.h.......X..
+|.h.......X..
+|..h.....X...
+|..h.....X...
+|...h...X....
+|....i..X....
+|.....iX.....
+|......f.....
+
+view D key full origin 5 10
+mark tip 2 0
+|..f...
+|..Xi..
+|..Xi..
+|..Xi..
+|.X..i.
+|.X..i.
+|.X...i
+|.X...i
+|X....i
+|X....g
+|X....g
+|X....g
+|X....h
+|.X...h
+|.X...h
+|.X..h.
+|.X..h.
+|..Xh..
+|..Xh..
+|..Xh..
+|..f...
+
+view U key full origin 0 10 layer heldBack
+mark tip 3 0
+|...f..
+|..iX..
+|..iX..
+|..iX..
+|.i..X.
+|.i..X.
+|i...X.
+|i...X.
+|i....X
+|g....X
+|g....X
+|g....X
+|h....X
+|h...X.
+|h...X.
+|.h..X.
+|.h..X.
+|..hX..
+|..hX..
+|..hX..
+|...f..
+
+view R key release origin 6 11
+mark tip 1 0
+|.f.....
+|.Xi....
+|.X.i...
+|.X..i..
+|.X..i..
+|.X...i.
+|.XW..i.
+|.XW..i.
+|.XW...i
+|.XW...i
+|.XW...g
+|.XW...g
+|.XW...g
+|.XW...h
+|.XW...h
+|.XW..h.
+|.XW..h.
+|.X...h.
+|.X..h..
+|.X..h..
+|.X.h...
+|.Xh....
+|.f.....
+
+view L key release origin 0 11
+mark tip 5 0
+|.....f.
+|....iX.
+|...i.X.
+|..i..X.
+|..i..X.
+|.i...X.
+|.i...XW
+|.i...XW
+|i....XW
+|i....XW
+|g....XW
+|g....XW
+|g....XW
+|h....XW
+|h....XW
+|.h...XW
+|.h...XW
+|.h...X.
+|..h..X.
+|..i..X.
+|...i.X.
+|....iX.
+|.....f.
+
+view D key release origin 3 11
+mark tip 1 0
+|.f..
+|.i..
+|.i..
+|.Xi.
+|.Xi.
+|.X.i
+|.XWi
+|.XWi
+|.XWi
+|.XWi
+|.XWg
+|.XWg
+|.XWg
+|.XWh
+|.XWh
+|.XWh
+|.XWh
+|.X.h
+|.Xh.
+|.Xh.
+|.h..
+|.h..
+|.f..
+
+view U key release origin 0 11 layer heldBack
+mark tip 2 0
+|..f.
+|..i.
+|..i.
+|.iX.
+|.iX.
+|i.X.
+|i.XW
+|i.XW
+|i.XW
+|i.XW
+|g.XW
+|g.XW
+|g.XW
+|h.XW
+|h.XW
+|h.XW
+|h.XW
+|h.X.
+|.hX.
+|.hX.
+|..h.
+|..h.
+|..f.
+
+# (INTEGRATE i2) the compositor lays the pivot items down after the turn (SLICE-DOLL i2), so this drop is SLICE-ARMS i2's
+# upright drawing transposed (as the west turn would have laid it; the light stays top-left), level under the corpse
+# (P2c slice i3) flipped: the string lies along the corpse's top edge and the stave arcs away above it (behind the body),
+# so no stave pixel crosses the body
+view L key drop origin 6 15 anchor pivot
+mark tip 0 5
+|........iiggghh........
+|.....iii.......hhh.....
+|...ii.............hh...
+|..i.................h..
+|.i...................h.
+|fXXXXXXXXXXXXXXXXXXXXXf
+
+view R key low origin 12 10
+mark tip 18 0
+|..................f
+|................XXi
+|...............X..i
+|.............XX...i
+|............X....i.
+|..........XX....i..
+|.........X......i..
+|.......XX......i...
+|......X.......i....
+|....XX.......ii....
+|...X........g......
+|.XX.....h.hh.......
+|fhh..hhh.hh........
+|...hh..h...........
+
+view L key low origin 6 10
+mark tip 0 0
+|f..................
+|iXX................
+|i..X...............
+|i...XX.............
+|.i....X............
+|..i....XX..........
+|..i......X.........
+|...i......XX.......
+|....i.......X......
+|....ii.......XX....
+|......g........X...
+|.......ii.i.....XX.
+|........ii.iii..iif
+|...........i..ii...
+
+view D key low origin 2 11
+mark tip 0 0
+|f..
+|i..
+|i..
+|Xi.
+|Xi.
+|X.i
+|X.i
+|X.i
+|X.i
+|X.i
+|X.g
+|X.g
+|X.g
+|X.h
+|X.h
+|X.h
+|X.h
+|X.h
+|Xh.
+|Xh.
+|h..
+|h..
+|f..
+
+view U key low origin 0 11 layer heldBack
+mark tip 2 0
+|..f
+|..i
+|..i
+|.iX
+|.iX
+|i.X
+|i.X
+|i.X
+|i.X
+|i.X
+|g.X
+|g.X
+|g.X
+|h.X
+|h.X
+|h.X
+|h.X
+|h.X
+|.hX
+|.hX
+|..h
+|..h
+|..f
+

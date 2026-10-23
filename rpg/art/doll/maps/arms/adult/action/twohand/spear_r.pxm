@@ -1,0 +1,532 @@
+# arms/adult/action/twohand/spear_r: the right (spear) arm of the spear family, both bodies (P2c SLICE-ARMS 2026-10-23;
+# STYLE_P2 25.8 items 5 and 11). Keys: sp_guard (the drawn idle, walk and run: levelled at the hip, tip forward), sp_wind
+# (both fists drawn to the back hip, weight back: the loaded pose), sp_hit (the thrust at full reach, the off hand slid
+# up toward the rear fist: 8 > 6 px apart), sp_pull (the shaft pulled back), sp_block (the haft across the body). Facing
+# right drawn from the loco arms' vocabulary; facing left the same pose from the other side, repainted (the light from
+# the top-left, the far arm a value darker), never the plain mirror. The right fist marks `grip` (the spear's origin),
+# the left `gripL` on the haft line (C3d: within 1 px; kn_check in the area report). Regions U F C H (mail, plate and
+# gloves recolour the drawing). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role arms std
+layer armNear
+anchor shoulderR
+keys armR
+side R
+z 1
+
+view R key sp_guard origin 3 -1 layer held
+mark grip 1 7
+mark handR 1 7
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|qtsq....
+|qsrq....
+|.qq.....
+regions
+|...UUUUU
+|..UUUUU.
+|..UUUUU.
+|.FFFFF..
+|.CCCCC..
+|CCCCC...
+|HHHH....
+|HHHH....
+|.HH.....
+
+view L key sp_guard origin 4 -1
+mark grip 6 7
+mark handR 6 7
+|56665...
+|.56665..
+|.56665..
+|..56665.
+|..fhggf.
+|...fhggf
+|....qrrq
+|....qrrq
+|.....qq.
+regions
+|UUUUU...
+|.UUUUU..
+|.UUUUU..
+|..FFFFF.
+|..CCCCC.
+|...CCCCC
+|....HHHH
+|....HHHH
+|.....HH.
+
+view D key sp_guard origin 1 -1 layer held
+mark grip 3 6
+mark handR 3 6
+|597..
+|.597.
+|.597.
+|..fih
+|..fih
+|..qts
+|..qsr
+|...qq
+regions
+|UUU..
+|.UUU.
+|.UUU.
+|..CCC
+|..CCC
+|..HHH
+|..HHH
+|...HH
+
+view U key sp_guard origin 3 -1 layer heldBack
+mark grip 1 6
+mark handR 1 6
+|..765
+|.765.
+|.765.
+|hgf..
+|hgf..
+|tsq..
+|srq..
+|qq...
+regions
+|..UUU
+|.UUU.
+|.UUU.
+|CCC..
+|CCC..
+|HHH..
+|HHH..
+|HH...
+
+view R key sp_wind origin 6 -1 layer held
+mark grip 1 6
+mark handR 1 6
+|......58765
+|....58765..
+|..58765....
+|.fihgf.....
+|fihgf......
+|qtsq.......
+|qsrq.......
+|.qq........
+regions
+|......UUUUU
+|....UUUUU..
+|..UUUUU....
+|.CCCCC.....
+|CCCCC......
+|HHHH.......
+|HHHH.......
+|.HH........
+
+view L key sp_wind origin 4 -1
+mark grip 9 6
+mark handR 9 6
+|56665......
+|..56665....
+|....56665..
+|.....fhggf.
+|......fhggf
+|.......qrrq
+|.......qrrq
+|........qq.
+regions
+|UUUUU......
+|..UUUUU....
+|....UUUUU..
+|.....CCCCC.
+|......CCCCC
+|.......HHHH
+|.......HHHH
+|........HH.
+
+view D key sp_wind origin 1 -1 layer held
+mark grip 1 4
+mark handR 1 4
+|597
+|597
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key sp_wind origin 1 -1 layer heldBack
+mark grip 1 4
+mark handR 1 4
+|765
+|765
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|CCC
+|HHH
+|HHH
+|HH.
+
+view R key sp_hit origin 0 -1 layer held
+mark grip 4 6
+mark handR 4 6
+|58765...
+|.58765..
+|..58765.
+|...fihgf
+|...fihgf
+|....qtsq
+|....qsrq
+|.....qq.
+regions
+|UUUUU...
+|.UUUUU..
+|..UUUUU.
+|...CCCCC
+|...CCCCC
+|....HHHH
+|....HHHH
+|.....HH.
+
+view L key sp_hit origin 7 -1
+mark grip 3 6
+mark handR 3 6
+|...56665
+|..56665.
+|.56665..
+|fhggf...
+|fhggf...
+|qrrq....
+|qrrq....
+|.qq.....
+regions
+|...UUUUU
+|..UUUUU.
+|.UUUUU..
+|CCCCC...
+|CCCCC...
+|HHHH....
+|HHHH....
+|.HH.....
+
+view D key sp_hit origin 1 -1 layer held
+mark grip 4 7
+mark handR 4 7
+|597...
+|.597..
+|..597.
+|..597.
+|...fih
+|...fih
+|...qts
+|...qsr
+|....qq
+regions
+|UUU...
+|.UUU..
+|..UUU.
+|..FFF.
+|...CCC
+|...CCC
+|...HHH
+|...HHH
+|....HH
+
+view U key sp_hit origin 4 -1 layer heldBack
+mark grip 1 7
+mark handR 1 7
+|...765
+|..765.
+|.765..
+|.765..
+|hgf...
+|hgf...
+|tsq...
+|srq...
+|qq....
+regions
+|...UUU
+|..UUU.
+|.UUU..
+|.FFF..
+|CCC...
+|CCC...
+|HHH...
+|HHH...
+|HH....
+
+view R key sp_pull origin 0 -1 layer held
+mark grip 3 6
+mark handR 3 6
+|58765..
+|.58765.
+|.58765.
+|..fihgf
+|..fihgf
+|..qtsq.
+|..qsrq.
+|...qq..
+regions
+|UUUUU..
+|.UUUUU.
+|.UUUUU.
+|..CCCCC
+|..CCCCC
+|..HHHH.
+|..HHHH.
+|...HH..
+
+view L key sp_pull origin 6 -1
+mark grip 3 6
+mark handR 3 6
+|..56665
+|.56665.
+|.56665.
+|fhggf..
+|fhggf..
+|.qrrq..
+|.qrrq..
+|..qq...
+regions
+|..UUUUU
+|.UUUUU.
+|.UUUUU.
+|CCCCC..
+|CCCCC..
+|.HHHH..
+|.HHHH..
+|..HH...
+
+view D key sp_pull origin 1 -1 layer held
+mark grip 3 6
+mark handR 3 6
+|597..
+|.597.
+|.597.
+|..fih
+|..fih
+|..qts
+|..qsr
+|...qq
+regions
+|UUU..
+|.UUU.
+|.UUU.
+|..CCC
+|..CCC
+|..HHH
+|..HHH
+|...HH
+
+view U key sp_pull origin 3 -1 layer heldBack
+mark grip 1 6
+mark handR 1 6
+|..765
+|.765.
+|.765.
+|hgf..
+|hgf..
+|tsq..
+|srq..
+|qq...
+regions
+|..UUU
+|.UUU.
+|.UUU.
+|CCC..
+|CCC..
+|HHH..
+|HHH..
+|HH...
+
+view R key sp_block origin 0 -1 layer held
+mark grip 1 7
+mark handR 1 7
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|qtsq.
+|qsrq.
+|.qq..
+regions
+|UUUUU
+|UUUUU
+|UUUUU
+|FFFFF
+|CCCCC
+|CCCCC
+|HHHH.
+|HHHH.
+|.HH..
+
+view L key sp_block origin 4 -1
+mark grip 3 7
+mark handR 3 7
+|56665
+|56665
+|56665
+|56665
+|fhggf
+|fhggf
+|.qrrq
+|.qrrq
+|..qq.
+regions
+|UUUUU
+|UUUUU
+|UUUUU
+|FFFFF
+|CCCCC
+|CCCCC
+|.HHHH
+|.HHHH
+|..HH.
+
+view D key sp_block origin 1 -1 layer held
+mark grip 1 4
+mark handR 1 4
+|597.
+|.597
+|fih.
+|qts.
+|qsr.
+|.qq.
+regions
+|UUU.
+|.UUU
+|CCC.
+|HHH.
+|HHH.
+|.HH.
+
+view U key sp_block origin 2 -1 layer heldBack
+mark grip 2 4
+mark handR 2 4
+|.765
+|765.
+|.hgf
+|.tsq
+|.srq
+|.qq.
+regions
+|.UUU
+|UUU.
+|.CCC
+|.HHH
+|.HHH
+|.HH.
+
+# (P2c slice i3) sp_brace: the spear block redrawn (STYLE_P2 25.8 item 7): the knees bent (legs buckle), the haft raised
+# across the body steeply in front (facing right a067, left a112; down a045 across the chest, up a135 behind), the rear
+# fist low before the belly, the off fist high on the haft (C3d within 1 px). sp_block above is the iteration-2 pose,
+# kept until the clip moves to sp_brace.
+view D key sp_brace origin 1 -1 layer held
+mark grip 4 8
+mark handR 4 8
+|597...
+|597...
+|597...
+|.597..
+|.597..
+|..fih.
+|..fih.
+|...qts
+|...qsr
+|....qq
+regions
+|UUU...
+|UUU...
+|UUU...
+|.UUU..
+|.UUU..
+|..CCC.
+|..CCC.
+|...HHH
+|...HHH
+|....HH
+
+view U key sp_brace origin 4 -1 layer heldBack
+mark grip 1 8
+mark handR 1 8
+|...795
+|...795
+|...795
+|..795.
+|..795.
+|.hif..
+|.hif..
+|stq...
+|rsq...
+|qq....
+regions
+|...UUU
+|...UUU
+|...UUU
+|..UUU.
+|..UUU.
+|.CCC..
+|.CCC..
+|HHH...
+|HHH...
+|HH....
+
+view R key sp_brace origin 0 -1 layer held
+mark grip 6 7
+mark handR 6 7
+|58765...
+|58765...
+|.58765..
+|..58765.
+|...fihgf
+|....fihgf
+|.....qtsq
+|.....qsrq
+|......qq.
+regions
+|UUUUU...
+|UUUUU...
+|.UUUUU..
+|..UUUUU.
+|...CCCCC
+|....CCCCC
+|.....HHHH
+|.....HHHH
+|......HH.
+
+view L key sp_brace origin 8 -1
+mark grip 2 7
+mark handR 2 7
+|....56665
+|....56665
+|...56665.
+|..56665..
+|.fhggf...
+|fhggf....
+|qrrq.....
+|qrrq.....
+|.qq......
+regions
+|....UUUUU
+|....UUUUU
+|...UUUUU.
+|..UUUUU..
+|.CCCCC...
+|CCCCC....
+|HHHH.....
+|HHHH.....
+|.HH......

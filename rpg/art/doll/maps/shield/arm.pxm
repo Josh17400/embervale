@@ -1,0 +1,590 @@
+# shield/arm: the shield arm (P2c slice, SLICE-HELM-SHIELD): the off (left) arm of every shield bearer (`role shield arm`),
+# on its own channel `sharm` (a shield bearer's clips name armL=- sharm=<key>; P2C_CONTRACTS 4). It carries the shield:
+# every view marks gripL (the fist on the shield's grip), which places the shield (shield/kite and the other shapes).
+# Regions U F C H as the arm library's, so the sleeve, the bracer, mail, plate and gloves recolour it (regionsOf). It does
+# not swing: at rest and in the walk the shield hangs still on the arm (STYLE_P2 25.5); the run hugs it to the body; guard
+# raises it to the chest; block squares it to the threat; hurt drops it a pixel; fling is the fall's recoil; lie the
+# corpse's arm. Swing keys: shtuck (the shield tucked in while the sword arm swings: the guard's windup, strike and
+# follow) and guard (his recover). Facing right it is the far arm (behind the body), so its views there are the grip
+# marks and a knuckle. Shared by both bodies (the shoulders and the arm library match). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role shield arm
+layer armNear
+anchor shoulderL
+keys sharm
+side L
+
+view D key rest origin 1 -1
+mark gripL 1 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key walk origin 1 -1
+mark gripL 1 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key run origin 1 -1
+mark gripL 1 6
+|765
+|765
+|765
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|FFF
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key hurt origin 1 -1
+mark gripL 1 7
+|765
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key guard origin 4 -1
+mark gripL 1 5
+|...765
+|...765
+|..765.
+|.hgf..
+|tsq...
+|srq...
+|qq....
+regions
+|...UUU
+|...UUU
+|..FFF.
+|.CCC..
+|HHH...
+|HHH...
+|HH....
+
+view D key shtuck origin 4 -1
+mark gripL 1 5
+|...765
+|...765
+|..765.
+|.hgf..
+|tsq...
+|srq...
+|qq....
+regions
+|...UUU
+|...UUU
+|..FFF.
+|.CCC..
+|HHH...
+|HHH...
+|HH....
+
+view D key block origin 6 -1
+mark gripL 1 4
+|.....765
+|.....765
+|....765.
+|..hgf...
+|tsqf....
+|srq.....
+|qq......
+regions
+|.....UUU
+|.....UUU
+|....FFF.
+|..CCC...
+|HHHC....
+|HHH.....
+|HH......
+
+view D key fling origin 1 -1
+mark gripL 4 5
+|765....
+|8765...
+|.8765..
+|..ihgf.
+|...ihgf
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUU....
+|UUUU...
+|.FFFF..
+|..CCCC.
+|...CCCC
+|...HHHH
+|...HHHH
+|....HH.
+
+view U key rest origin 1 -1
+mark gripL 1 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key walk origin 1 -1
+mark gripL 1 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key run origin 1 -1
+mark gripL 1 4
+|597
+|597
+|597
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|FFF
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key hurt origin 1 -1
+mark gripL 1 7
+|597
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key guard origin 1 -1
+mark gripL 4 5
+|597...
+|597...
+|.597..
+|..fih.
+|...qts
+|...qsr
+|....qq
+regions
+|UUU...
+|UUU...
+|.FFF..
+|..CCC.
+|...HHH
+|...HHH
+|....HH
+
+view U key shtuck origin 1 -1
+mark gripL 4 5
+|597...
+|597...
+|.597..
+|..fih.
+|...qts
+|...qsr
+|....qq
+regions
+|UUU...
+|UUU...
+|.FFF..
+|..CCC.
+|...HHH
+|...HHH
+|....HH
+
+view U key block origin 1 -1
+mark gripL 6 5
+|597.....
+|597.....
+|.597....
+|...fih..
+|....gqts
+|.....qsr
+|......qq
+regions
+|UUU.....
+|UUU.....
+|.FFF....
+|...CCC..
+|....CHHH
+|.....HHH
+|......HH
+
+view U key fling origin 5 -1
+mark gripL 1 5
+|....597
+|...5976
+|..5976.
+|.fihg..
+|fihg...
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|...UUUU
+|..FFFF.
+|.CCCC..
+|CCCC...
+|HHHH...
+|HHHH...
+|.HH....
+
+view L key rest origin 4 -1
+mark gripL 2 6
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|.qtsq
+|.qsrq
+|..qq.
+regions
+|UUUUU
+|UUUUU
+|FFFFF
+|FFFFF
+|CCCCC
+|CCCCC
+|.HHHH
+|.HHHH
+|..HH.
+
+view L key walk origin 4 -1
+mark gripL 2 6
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|.qtsq
+|.qsrq
+|..qq.
+regions
+|UUUUU
+|UUUUU
+|FFFFF
+|FFFFF
+|CCCCC
+|CCCCC
+|.HHHH
+|.HHHH
+|..HH.
+
+view L key run origin 4 -1
+mark gripL 1 5
+|58765
+|58765
+|ihgf5
+|qtsq.
+|qsrq.
+|.qq..
+regions
+|UUUUU
+|UUUUU
+|CCCCF
+|HHHH.
+|HHHH.
+|.HH..
+
+view L key hurt origin 4 -1
+mark gripL 2 7
+|58765
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|.qtsq
+|.qsrq
+|..qq.
+regions
+|UUUUU
+|UUUUU
+|FFFFF
+|FFFFF
+|FFFFF
+|CCCCC
+|CCCCC
+|.HHHH
+|.HHHH
+|..HH.
+
+view L key guard origin 5 -1
+mark gripL 1 4
+|.58765
+|.58765
+|.ihgf5
+|qtsqf.
+|qsrq..
+|.qq...
+regions
+|.UUUUU
+|.UUUUU
+|.CCCCF
+|HHHHC.
+|HHHH..
+|.HH...
+
+view L key shtuck origin 5 -1
+mark gripL 1 4
+|.58765
+|.58765
+|.ihgf5
+|qtsqf.
+|qsrq..
+|.qq...
+regions
+|.UUUUU
+|.UUUUU
+|.CCCCF
+|HHHHC.
+|HHHH..
+|.HH...
+
+view L key block origin 6 -1
+mark gripL 1 4
+|..58765
+|..58765
+|ihhgf5.
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|..UUUUU
+|..UUUUU
+|CCCCFF.
+|HHHH...
+|HHHH...
+|.HH....
+
+view L key fling origin 3 -1
+mark gripL 10 5
+|58765........
+|..58765......
+|....58765....
+|.....fihgf...
+|.......fihgf.
+|.........qtsq
+|.........qsrq
+|..........qq.
+regions
+|UUUUU........
+|..UUUUU......
+|....FFFFF....
+|.....CCCCC...
+|.......CCCCC.
+|.........HHHH
+|.........HHHH
+|..........HH.
+
+view L key lie origin 0 0
+mark gripL 3 9
+|58765.
+|587765
+|587765
+|587765
+|.fihgf
+|.fihgf
+|..fhgf
+|..fhgf
+|..qsrq
+|..qtsq
+|...qq.
+regions
+|UUUUU.
+|UUUUUU
+|FFFFFF
+|FFFFFF
+|.CCCCC
+|.CCCCC
+|..CCCC
+|..CCCC
+|..HHHH
+|..HHHH
+|...HH.
+
+view R key rest origin 7 -6
+mark gripL 0 1
+|.5
+|qr
+|qq
+regions
+|.U
+|HH
+|HH
+
+view R key walk origin 7 -6
+mark gripL 0 1
+|.5
+|qr
+|qq
+regions
+|.U
+|HH
+|HH
+
+view R key hurt origin 8 -7
+mark gripL 0 1
+|.5
+|qr
+|qq
+regions
+|.U
+|HH
+|HH
+
+view R key run origin 5 0
+mark gripL 0 6
+|.
+|.
+|.
+|.
+|.
+|.
+|.
+
+view R key guard origin 0 0
+mark gripL 4 5
+|.....
+|.....
+|.....
+|.....
+|.....
+|.....
+
+view R key shtuck origin 0 0
+mark gripL 3 4
+|.....
+|.....
+|.....
+|.....
+|.....
+|.....
+
+view R key block origin 0 0
+mark gripL 4 5
+|.....
+|.....
+|.....
+|.....
+|.....
+|.....
+
+view R key fling origin 4 0
+mark gripL 0 4
+|.
+|.
+|.
+|.
+|.
+

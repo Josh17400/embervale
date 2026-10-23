@@ -275,8 +275,12 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     };
     auto tryClip = [&](art::Clip c, int variant, int frame) { tryPart(partOf(c), c, variant, frame); };
     if (k.part != partOf(k.clip) && !(a.player && p2a.poseOn)) tryPart(k.part, k.clip, k.variant, k.frame);
+    // (P2c) a frozen drawn idle or walk (`pose idle|walk <family> 1|2 <frame>`): the DRAWN part's frame
+    if (a.player && p2a.poseOn && (k.clip == art::Clip::Idle || k.clip == art::Clip::Walk) && k.variant >= 1) tryPart(art::RigPart::Drawn, k.clip, k.variant, k.frame);
     // (P2b fix r1) a drawn run (ACTION walk variant 2) whose ACTION atlas lacks it or is not baked yet: the sheathed run
-    if (k.gait && k.part == art::RigPart::Action) tryPart(art::RigPart::Run, k.clip, 0, k.frame);
+    if (k.gait && (k.part == art::RigPart::Action || k.part == art::RigPart::Drawn)) tryPart(art::RigPart::Run, k.clip, 0, k.frame);
+    // (P2c) a drawn idle or walk whose DRAWN atlas is not baked yet: the sheathed LOCO frame (never a hole)
+    if (k.part == art::RigPart::Drawn) tryPart(art::RigPart::Loco, k.clip, 0, k.frame);
     tryClip(k.clip, k.variant, k.frame);
     switch (k.clip) {   // a clip this look's atlas lacks: the nearest it has (never a v1 frame mid-swing)
       case art::Clip::Draw: case art::Clip::Release: case art::Clip::Block: tryClip(art::Clip::Cast, 0, k.clip == art::Clip::Draw ? 0 : 1); [[fallthrough]];
@@ -288,7 +292,8 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
-      if (a.player) heroSprite.part = partDrawn;
+      // (P2c) HeroSprite::part: 0 loco 1 action 2 death 3 run, 4 a posture atlas (home_view's too), 5 the DRAWN part
+      if (a.player) heroSprite.part = partDrawn == (int)art::RigPart::Drawn ? 5 : partDrawn;
       return;
     }
   }

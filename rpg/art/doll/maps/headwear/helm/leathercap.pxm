@@ -1,0 +1,56 @@
+# headwear/helm/leathercap: the Leather cap (P2c slice, SLICE-HELM-SHIELD; band1, the archer's): a close boiled-leather
+# arming cap, matte and warm (no glint: a lit left plane in leather 3, the turn in 2, the shadowed right in 1), a stitched
+# seam over the crown and a rolled band lit along its top, its lower edge on the brow row (F-25 man, F-24 woman) so the eyes
+# show under it. Volume styles draw their capped views (the `capped` flag); '-' masks the hair above the band. Shared by
+# both bodies (D10). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role helm band1
+layer headwear
+anchor head
+keys rest
+tags overlay
+
+view D key rest origin 2 1
+|--------------------
+|--------------------
+|-------ffffff-------
+|-----ff877676ff-----
+|----f8877767766f----
+|---f887777677766f---
+|---fiiiiiiiihhhgf---
+|---fhhhhhhhhgggff---
+|----KKKKKKKKKKKK----
+
+view U key rest origin 2 1
+|--------------------
+|--------------------
+|-------ffffff-------
+|-----ff877676ff-----
+|----f8877767766f----
+|---f887777677766f---
+|---fiiiiiiiihhhgf---
+|---fhhhhhhhhgggff---
+|----KKKKKKKKKKKK----
+
+view R key rest origin 3 1
+|---------------------
+|---------------------
+|---------fffff-------
+|-------ff87776f------
+|-----f8877777766f----
+|----f887777777766f---
+|----fiiiiiiiiihhgf---
+|----fhhhhhhhhhgggf---
+|----KKKKKKKKKKKKKK---
+
+view L key rest origin 2 1
+|---------------------
+|---------------------
+|-------fffff---------
+|------f87776ff-------
+|----f8877777766f-----
+|---f887777777766f----
+|---fiiiiiiiiihhgf----
+|---fhhhhhhhhhgggf----
+|---KKKKKKKKKKKKKK----

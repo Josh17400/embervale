@@ -53,3 +53,9 @@ view L key flare origin 8 -1
 |vyyyyyywxwxwwxv
 build
 |..........+....
+
+# ---- (P2c SLICE-ARMOUR, ADD) the lying key (the lying skirt is the torso's lie view)
+
+view L key lie origin 0 0
+|.
+

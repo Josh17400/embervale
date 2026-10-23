@@ -1,0 +1,207 @@
+# armour/woman/plate_hang: the woman's plate tassets (short): two rigid plates over the thighs below her fauld (her
+# torso holds the last lame), cut to her hips; they hinge and never bend: `wide` opens them over the stride, `flare` trails
+# them a pixel, the lie lays them along the thighs. Seated keys keep the rest plates. Format: rpg/art/doll/doll.h.
+use person
+body woman
+role armour plate
+layer hangFront
+anchor hip
+keys hang
+z 10
+
+view D key rest origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key wide origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key flare origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vvvvvvvvvvvv
+
+view D key lie origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key idle origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key sit origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key floor origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key kneel origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key ride origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key rest origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key wide origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key flare origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vvvvvvvvvvvv
+
+view U key lie origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key idle origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key sit origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key floor origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key kneel origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key ride origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view R key rest origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key wide origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key flare origin 7 -1
+|.vyyyyyxxxxwv.
+|vyyyxvvxxxxwwv
+|vvvvvvvvvvvvvv
+
+view R key lie origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key idle origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key sit origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key floor origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key kneel origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key ride origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view L key rest origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key wide origin 7 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view L key flare origin 7 -1
+|.vyyyyxxxxwwv.
+|vyyyxvvxxxxwwv
+|vvvvvvvvvvvvvv
+
+view L key lie origin 6 -1
+|....vyyxxwv
+|....vyxxwwv
+|....vvvvvvv
+
+view L key idle origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key sit origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key floor origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key kneel origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key ride origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+

@@ -1786,3 +1786,731 @@ Baselines (phase A, before the areas):
 - Kin numbers recorded in docs/MOTION_P2.md 12; the wear calibrations in docs/MOTION_P2.md 13 and the plan's section 12.
 - Open for the fix round (owners named in the plan's section 12): the items above; CI keeps `--doll --gates` as it is
   until they pass.
+- Closed by integration round 2, 2026-10-23 (docs/P2B_MOTION_ROLLOUT.md 12): every gate green. Re-measured by the
+  planner on main at 390c485 (build/, MSVC): `--doll --gates` B1 16 / 0, B2 288 / 0, B8 1,120 / 0, B9 118 / 0, B10
+  1,324 / 0, B11 limbs 409 / 0, B11 wear 5,112 / 0, B12 426 / 0, selftests ALL CAUGHT; pool 473ba3975c49c08e.
+
+## P2c, "Arms and Armour": steel on the doll, every action, and the flip (VISION_PLAN 15.36 P2c, re-planned 2026-10-23)
+
+Re-planned by the planner on the shipped doll (P2b) and the shipped motion method (docs/MOTION_P2.md,
+docs/P2B_MOTION_ROLLOUT.md). Where it differs from VISION_PLAN 15.36's P2c plan of 2026-10-18, this section wins; the C
+gate names are kept. Art direction: docs/STYLE_P2.md 25 (arms and armour) and 26 (the P2c style slice). Shared shapes,
+ownership and test hooks: docs/P2C_CONTRACTS.md. The humanoid monsters move to P2d (decision D8).
+
+### Vision (and how it should feel)
+
+Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
+Soldiers wear their people's signature helm and harness. Captains and royal guards wear plate, bandits poor local
+leathers, the king gilded plate, and the hero, man or woman, whatever they found, bought or forged. On a phone at arm's
+length you can tell a Jade masked lancer, an Imperial crested spearman and a Fjordfolk horned axeman apart at a glance,
+and putting on plate visibly changes the hero. Every weapon class fights with its own body: three blows each, a clear
+coil before the blow and a hit you feel. Guards fall into a ready guard when trouble comes near. An archer holds a full
+draw, then the string snaps. A soldier who falls keeps his helm, his shield lies flat and his spear lands beside his
+hand. Then comes the flip: rig 2 becomes the game, v1's 16 x 24 people and the rejected procedural rig are deleted, every
+menu figure and portrait is the doll, and no player ever sees two kinds of people again. It should feel like a finished
+16-bit RPG whose cast was drawn by one hand, at 1x and zoomed.
+
+### Where P2c starts (measured 2026-10-23, main at 390c485, build/ MSVC)
+
+- **The doll**: pool 794,486 bytes (428 parts, 7,504 views, 670 clips, 1,672 frames; hash 473ba3975c49c08e); every
+  `--doll --gates` line green (above).
+- **Gear already on the doll**:
+  - mail: the man's torso, hang, sleeves and stride panel; the woman's torso and sleeves (the P2b slice);
+  - the nasal helm (form1, band2);
+  - A3's sword: pivot-anchored overlays that include the near arm (hit 1 in all four facings, guard, gmove, drop), its
+    scabbard and hilt, and A3's arc;
+  - P2b's civil tools at rest (axe, hammer, bow, staff, stick, horn, ledger, scroll).
+  The only action clip is actions/sword.clip (hit 1). There are no block, roll, cast or bow clips. The drawn idle, walk
+  and run exist for the sword family only (ACTION variants 1 and 2). No pauldron, shield, effect, quiver, other helm,
+  other armour form or other weapon map exists.
+- **Coverage at scope all** (`--doll-coverage --seeds 1..2 --scope all --report`; it counts sources A, B and D only):
+  8,073 of 9,869 looks (81.8 %): A 74 / 78, B 5,120 / 6,912, D 2,879 / 2,879.
+  - 61 dead parts: the 8 mail parts, reached only by looks still drawn on v1; the nasal helm, reached by none; and P2b's
+    civil leftovers (the woman's culture tunic, kilt and poncho, the kids' culture wear and headwear, face paints, the
+    braided beard, the topknot, the turban, the child's sack).
+  - Top missing values: pauldron dial3 and dial4; armour brigandine, scale, lamellar, plate, leather and padded; helm
+    form5, 6, 8, 9 and 10; shield form2, 4, 6 and 9; the action clips.
+  - Sources C (gear rolls) and E (party, story people, statues) are not counted yet.
+- **B10 today**:
+  - The armed sweep's worst RUN is 60.6 KB. Its worst ACTION is 303.0 KB, which holds only hit 1 and the drawn loco:
+    about 160 KB of drawn frames, plus 141 KB for 16 swing frames with the arc baked in (8.8 KB each).
+  - Civil tools: worst LOCO 124.0, RUN 63.9, DEATH 39.8, POSTURE 53.2 KB. The M7 cloak watch: LOCO 127.6, RUN 63.6 KB.
+  - Bake: one facing's LOCO p95 0.178 ms (the v1 sheet's 0.100). People textures in the capital at 15:00: 10.3 MB at
+    rig 2.
+- **Rig 1**: art_hash TOTAL 317eef6efe4d8229; `city_gallery --village-art-check` 65 groups, 0 changed; `rpg_test --anim`
+  0 failures.
+- **Still drawn on v1 at rig 2**:
+  - every armed or armoured look the doll does not cover: the Witness start village's 21 plate guards and its leather villager (seed 1; witness/p2b_doll),
+    every soldier, captain, royal guard, king, jarl, bandit in leathers, chief, warlord, pirate and herald, and
+    companions holding anything but a sword;
+  - the bather and swimmer crop (render_anim.cpp) and the Mythic aura (built on v1 cells);
+  - the paperdoll, the creator preview, the HUD hero, the party list, loot previews and party portraits;
+  - statues of uncovered looks, and the humanoid monsters.
+- **Resolver gaps** (doll_resolve.cpp):
+  - shield form9 (ShieldForm::None) asks for a shield, where v1's hasShield draws none;
+  - pauldron dial1 (the grammar's "none") asks for a pauldron;
+  - the herald (Outfit::Guard with no helm and no body form) resolves to mail, where v1 draws a padded coat and tabard;
+  - no look ever asks for a tabard;
+  - bow fighters have no quiver, and HumanLook::backItem (a soldier's spare bow and quiver, a staff on the back) is not
+    resolved at all, so it is silently not drawn;
+  - the hunter's carried bow and a fighter's bow share the value `bow`.
+
+### In and out
+
+**IN**
+- Body armour: the 8 forms (padded, leather, mail, scale, lamellar, brigandine, plate, leaf), each fitted to the man and
+  to the woman.
+  - Torsos; skirts and tassets by the skirt dial; sleeves and leg armour by region and hand-drawn material tiles.
+  - Every band, bronze, alloy, sheen and Mythic tempering, all as ramps.
+  - The legacy outfits mapped onto the forms (Leather, Chain, Plate, Elven, Ebony, Guard).
+- The tabard over armour (the watch, soldiers, heralds) with the kingdom's device; pauldrons (3 families x small, medium,
+  large); gloves and gauntlets; boots and greaves.
+- The 12 helm shapes, with crest, plume and horsetail regions, hair masks, and lying views where the turn fails.
+- The 8 shield shapes and the legacy round: field, device and rim; at rest, guard, block, bash, lying and slung.
+- The weapon library, every weapon at 16 angles: sword, axe, mace, dagger, greatsword, spear, staff, bow, walking stick.
+  Also the 8 blade, 3 polearm and 5 bow forms, the crossbow, the sheaths, the quiver, the back carries, and legendary and
+  Mythic glints.
+- Every action in four facings:
+  - each family's three blows;
+  - the bow's draw and release, and the crossbow's aim, shoot and crank;
+  - block, roll (with the shield bash) and cast;
+  - every family's guard stance and drawn walk and run;
+  - carry at rest for every weapon class;
+  - hurt and death with gear;
+  - armoured postures (riders, kneelers, sitters, the throne).
+- The family effects, re-cut and drawn from maps.
+- Every remaining human draw path on the doll. Then the flip: rig 2 is the only rig, v1 people and the procedural rig are
+  deleted, and art_hash and the goldens are re-recorded once.
+- Gates C1-C11, and playtests T4-T6.
+
+**OUT**
+- The humanoid monsters (skeleton, draugr, goblin), the creatures, the village animals, and the props the P2c judge lists
+  as reading wrong: all P2d (D8).
+- Any balance change: the sim's clocks, damage, parry and roll rules stay. Block is a visual flash; there is no new sim
+  state and no new attack. Parry stays the sword's.
+- Armour on kids.
+- Rig 1 after the flip (D9).
+- The creator's flow (P3). P2b leftovers that are not gear: the talk mouth, the dust puff, the loose horse's coat.
+- Any change to the shipped walk and run, or to front and back walks.
+- Any SAVE_VER, ENDLESS_GEN_VER or SAGA_GEN_VER bump. save_v23.bin and the town, world and endless goldens never change.
+
+### Inventory: what the game puts on people (code read 2026-10-23)
+
+Sources: rig 1's painter (rpg/art/art_human.cpp); the item and look data (rpg/sim/items.h, gear.cpp, gear_look.cpp
+wearGear, looks.cpp census::dress and makeLook, game.cpp, wayside.cpp, party_*.cpp, quests.cpp, ai.cpp); the culture
+grammar (rpg/culture/culture.h ArmsStyle, priors.cpp).
+
+**Body armour.** The resolver's value comes from bodyForm, else the outfit, else armorStyle (1 leather, 2 mail, 3 and up
+plate).
+
+| form | who wears it | doll today | P2c parts |
+|---|---|---|---|
+| padded | Highland and Sun Temple soldiers (their signature); bandits of Highland, Dune, Marsh, Jade, Sun Temple, Sylvan, Starspire; heralds (fix); the hero's gambeson (in the maker's cloth) | none | torso m / w, quilt tile, cloth skirt |
+| leather | bandits of Fjordfolk, Heartland, Imperial, Steppe and River; Marsh soldiers (boiled); pirates (half); band-1 armour; the seed-1 start village's leather villager | none (civil trades draw their garb, P2b) | torso m / w, stitch and studs tiles, skirt |
+| mail | Heartland, Fjordfolk and Dune guards and soldiers; the Chain and Guard outfits; band-2 armour; captains of mail cultures | man and woman (P2b) | the P2b maps + dials, the tabard, the mail tile (D3) |
+| scale | Imperial and Starspire soldiers, warlords, Dune (1 in 3) | none | torso m / w, scale tile, tassets |
+| lamellar | Steppe and Jade soldiers and guards | none | torso m / w, lamellar tile, skirt |
+| brigandine | River soldiers and guards, Imperial (1 in 5) | none | torso m / w, rivets tile |
+| leaf | Sylvan guards and soldiers; the Elven outfit | none | torso m / w, leaf tile, gilt edge |
+| plate | plate cultures' guards (21 in the seed-1 start village), captains, royal guards, kings, jarls, the bandit chief, story knights (quests.cpp), the Ebony outfit (obsidian, spikes), band 3-7 armour, the hero | none | torso m / w, tassets, lames tile, pauldrons |
+
+**Helms.** The value is formN from helmForm, else bandN from helmStyle. (The Highland soldier wears a bonnet instead:
+P2b's cap.)
+
+| shape | values | who wears it | doll today |
+|---|---|---|---|
+| leather cap | band1 | bandits' leather helms, band-1 helmets | none |
+| nasal | form1, band2 | Heartland, Fjordfolk and Highland second forms; iron helmets | P2b's |
+| kettle | form2 | Highland, Marsh (boiled leather) and River soldiers | none |
+| great helm | form3, band3 | royal guards, Heartland, Imperial; steel helmets | none |
+| spangenhelm | form4 | Steppe soldiers, Fjordfolk; Steppe bandits (leather) | none |
+| horned | form5, band6 | Fjordfolk soldiers, warlords; obsidian helmets | none |
+| plumed | form6 | Sun Temple and Steppe soldiers; Sun Temple bandits (leather) | none |
+| conical with aventail | form7 | Dune soldiers | none |
+| masked | form8 | Jade soldiers | none |
+| crested | form9, band5 | Imperial and Sylvan soldiers, River; Imperial bandits (leather); jade helmets | none |
+| winged | form10, band4 | Starspire and Sun Temple soldiers, kings; gilded helmets | none |
+| horned crown | band7 | emberforged helmets | none |
+
+**Shields.** The value is formN from shieldForm, else shapeN from shieldStyle, else shape0 when only `shield` is set.
+form9 means no shield.
+
+| shape | values | who carries it |
+|---|---|---|
+| round | form1, shape1, shape0 | legacy guards, the iron tier, Fjordfolk, Steppe and Sun Temple soldiers, Dune (alternate), Fjordfolk bandits |
+| kite | form2, shape3 | Heartland and Starspire soldiers; the gilded and emberforged tiers |
+| heater | form3, shape2 | the capital watch, royal guards, captains, River; the steel and jade tiers |
+| tower | form4, shape4 | Imperial soldiers; the obsidian tier |
+| crescent | form5 | Dune soldiers |
+| oval | form6 | Marsh, Jade (alternate); Imperial and Sun Temple bandits |
+| buckler | form7 | Highland soldiers; Heartland and River bandits; bandits generally (1 in 4) |
+| leaf | form8 | Sylvan soldiers and bandits |
+
+**Pauldrons, skirts, gloves and boots.**
+- The culture dials (pauldron and skirt, 1-4: none, small, medium, large, or the skirt to the knee) add 1 for capital
+  guards and captains and 2 for kings and jarls. Poor pieces are small at most. The watch's skirt stops above the knee.
+- Guards' gloves and boots match the body band (steel at most). Soldiers' follow the harness's weight, and the village
+  watch wears leather boots. The hero's follow each piece's band.
+
+**Weapons and things in hand.**
+
+| art id | weapon (forms) | who carries it |
+|---|---|---|
+| 1 | sword (blade forms: leaf, falchion, scimitar, khopesh, wavy, broad, curved, glaive) | guards, captains, kings, royal guards, half the bandits, pirates (the cutlass), fighter companions, the hero |
+| 2 | axe | half the bandits, the chief, warlords, militia farmers, rogue companions, the hero |
+| 3 | bow (self, recurve, composite, crossbow, longbow) | bandit archers (35 %), wayside and party archers, hunters (civil: carried), the hero; a guard's or soldier's spare bow on the back |
+| 4 | staff | mages and lamplighters (civil), mage companions, the hero |
+| 5 | dagger | the hero |
+| 6 | mace / hammer | militia smiths; smiths and shipwrights (civil tools); the hero |
+| 7 | greatsword (blade forms) | the hero |
+| 8 | spear, glaive, halberd | every soldier (with a shield), the hero |
+| 9 | walking stick | refugees, elders (P2b) |
+| 10-12 | ledger, scroll, horn | stewards, envoys, heralds (P2b) |
+
+**Sheaths and back items**:
+- the sword's scabbard (A3's) and the dagger's;
+- axes and maces through the belt (P2b's civil maps serve fighters too);
+- the greatsword across the back;
+- the quiver (every bow fighter; new) and the bow on the back out of combat;
+- the staff on the back (backItem 2);
+- the crossbow, slung;
+- the shield, slung, in postures.
+
+**Who carries it, and where they are drawn**:
+- the watch (village, capital, royal);
+- soldiers and captains (war camps, sieges, patrols);
+- kings and jarls (thrones: postures);
+- bandits, chiefs and warlords (camps, ambushes), and pirates (the sea);
+- heralds, companions (M8), story knights;
+- statues (humanFigureStill);
+- riders: the hero and mounted companions, in Posture::Ride on HOLDERS' horse;
+- corpses (DEATH: 60 s, at most 24);
+- sleepers (helms off, as in v1), kneelers and the downed (postures).
+
+### Actions the doll needs
+
+| action | clip (atlas) | frames per facing | when it plays | notes |
+|---|---|---|---|---|
+| carry at rest | idle, walk, hurt (LOCO); run (RUN) | 3, 6, 1; 6 | out of a fight | sheathed, slung or upright by class (STYLE_P2 25.7); the shield arm holds still |
+| guard stance | idle variant 1 (DRAWN) | 3 | a hostile in aggro, and 4 s after a swing | per family (STYLE_P2 25.8, item 11) |
+| drawn walk, run | walk variants 1 and 2 (DRAWN) | 6, 6 | moving while drawn | the loco legs and plants under the guard arms |
+| swings | windup, strike, follow x 3 variants (ACTION) | 1-2, 1-2, 2 | attacks: foes cycle the variants, the hero combos | 8 melee families: unarmed, dagger, sword, greatsword, axe, mace, spear (with glaive and halberd), staff |
+| bow | draw, release (ACTION) | 3, 1 | the bow's windup and shot; the hero's Cast with a bow | the crossbow: aim, shoot, crank |
+| block | block (ACTION) | 1 | a 0.15 s flash on the sword's parry and a shield bearer's parry | no sim state |
+| roll | roll (ACTION) | 4 | the dodge | turned crouch frames; the shield bash |
+| cast | cast (ACTION) | 2 | spells | gather, release |
+| hurt | hurt (LOCO) | 1 | being hit | gear rides it |
+| death with gear | fall (3 x 2 sides), lying (DEATH) | 3, 1 | the killing blow; lying 60 s | per family: held=drop, shield=lie, the helm on, back items under the body |
+| postures with gear | posture clips (POSTURE) | as in P2b | sitting, kneeling, the throne, riding, carrying, downed | armour composes; shield and weapon by D12 |
+
+### The flip (wave 3)
+
+- **What makes rig 2 the default.** All of these:
+  - C1 at 100 % over sources A-E (seeds 1..20);
+  - C3-C6 and C8 green at rig 2;
+  - the wave-2 judge's look review passed;
+  - the owner's go on the flip pack: before / after pairs at rig 1 and rig 2 of the reference screens, the start village,
+    a war camp, a market, a harbour and every menu.
+- **What changes.**
+  - `rigVersion()` returns 2 always (art_rig.h's default).
+  - `setRigVersion(1)`, `EMB_RIG=1`, script `rig 1`, Witness `rig: 1` and web `?rig=1` warn once and are ignored.
+    `rig 2` stays accepted, so old scripts still run.
+  - The k-scaled holders become the only size.
+- **What is deleted.**
+  - The v1 people painter: art_human.cpp's sheets, postures, sleepers and v1 portrait helpers (humanSheet, humanCellRaw,
+    humanFigureStill, humanPostureCellRaw, paintSleeperHead), and art_life.cpp's v1 posture tables.
+  - The procedural rig: rpg/art/rig/** and tools/preview/rigdraft.cpp, rig_gallery.cpp, rigarms_gallery.cpp and
+    rigposes_gallery.cpp.
+  - Every v1 human fallback in the view (humanTex, poseTex, sleeperTex, the v1Draws sites), and RigMetrics r1's people
+    rows.
+- **What is kept and moved.**
+  - metalRampKeys moves to art_items.cpp (the icons share it).
+  - HumanLook and key() stay: they are the doll's input.
+  - humanoidCell moves to art_monsters.cpp, pixel for pixel; P2d redraws it.
+  - Every gallery that drew v1 people now draws the doll and keeps its boards.
+- **Rig 1 retires** (D9). Nothing keeps v1 people alive after the flip; the before / after pack is the record.
+- **art_hash and the goldens.** Each is re-recorded once, by the flip, with before / after pairs.
+  - In art_hash, `humans` goes and `doll` comes in: the composed atlases of a fixed reference list (the A3 hero and
+    woman, the slice looks, one look per armour form and body, one per family), all deterministic.
+  - `monsters` and `icons` stay identical, and the hash proves it.
+  - `buildings`, `walls` and `props` change, because the k-scaled holders are now the only size. `fx` changes because the
+    effects now come from maps. TOTAL is new.
+  - `city_gallery --village-art-check` (65 groups) is re-recorded, with a before / after PNG per changed group.
+  - tests/fixtures/golden_anim_v1.txt and `--anim`'s A1 retire with rig 1's pick.
+  - `--arms` golden keys are re-recorded with a before / after table (key() always mixes the doll's fields).
+  - save_v23.bin and golden_towns, golden_world, golden_endless and golden_villages never change.
+- **CI** ("Clear Sight rig and animation test"):
+  - runs `pxc --check`, `--rig` (the contract), `--anim --gates`, `--doll --gates`,
+    `--doll-coverage --scope all --seeds 1..3 --gates` and `--doll-variety --seeds 1..3 --gates`;
+  - `--rig-coverage` retires (C1 replaces it).
+- **Scripts and Witness**: every `rig 1` line and v1 expectation in tools/scripts and witness/*.json is restated at rig 2,
+  and witness/p2c_switch.witness.json joins (v1Draws 0, coverage, menus).
+
+### Gates (P2c DONE; every B gate stays green)
+
+| gate | target | measured by |
+|---|---|---|
+| C1 coverage | 100 % of distinct looks and 0 dead parts over sources A (the world and its residents), B (cultures x roles x sexes x ages x 8 seeds), C (every gear.cpp roll per maker culture: kind x material x rarity x form, worn through wearGear by a man and by a woman), D (the creator) and E (companions of every vocation, story people, statues). P2b's civil leftovers are reached by FOLK-SIM-C or ruled out by the planner. | `rpg_test --doll-coverage --scope all --seeds 1..20 --gates` |
+| C2 v1 draws | 0 people frames from a v1 sheet after the flip | Witness `v1Draws` over the full script sweep and every Witness test |
+| C3 gear on every frame | 0 failures, every frame of LOCO, RUN, DRAWN, ACTION, DEATH and POSTURE, for every armed or armoured look in the matrix. **a, no holes**: every gear part has a view (empty or not) for every key its channel takes, and no frame has an enclosed hole (the bow's string gap is exempt: R5's question, answered). **b, helm on the head**: helm pixels inside the head box ± 1 column, except crest, plume, horns and wings (up to F-37) and an aventail to the shoulders; the helm moves exactly with the head anchor; no hair above a masking rim. **c, shield on the off arm**: its origin on gripL; attached; behind the torso facing right, in front facing left and down; clear of the boots and over at most 1 column of a shin; inside the run box + 1. **d, grips**: the weapon's grip inside the gripping fist, and no weapon pixel over that fist's H pixels; the right hand in every facing, the bow in the left; for two-handed weapons the off fist on the haft line within 1 px; a tip mark at the far end. **e, lying keeps gear**: the helm on the turned head, the shield flat within 4 px of the body, the weapon's drop within 6 px of the near hand, back items under the body. **f, motion with gear**: B11 limbs, B11 wear (W1-W10, T1, T2) and B12 boots over every armour form x body x build and every carried weapon, with W4 and HEAD extended to pauldrons, the tabard and helms, W7 to weapons and shields, and W10 to shields. | `rpg_test --doll --gates` (lines C3, B11, B12); `--doll-arms` |
+| C4 armour shows | For every form x band x body, at least 25 % of the idle figure's pixels (facing down and facing right) change against the same look bare (15 % for padded and leather). The medium and heavy forms change the outline (shoulders, skirt line or head). Equipped in game, as shot pairs of the hero before and after `gear6` / `kit6`, with `witness measure box` and a diff. The judge reviews the man / woman fit. | `--doll --gates` C4; the p2c_gear script |
+| C5 families | strike frames of every family pair 25 % apart (of their union) per facing; a family's three variants 25 % apart; tip paths side-on (the sword's over the head; the spear's forward 8 px or more with under 4 px of drift; axe and mace down 10 px or more; the greatsword's 14); left frames painted (never the plain mirror of the right) with the weapon in the right hand; the effect ending with the strike state within a frame; bow 3 + 1, block 1, roll 4 and cast 2 present for every body | `--doll --gates` C5; `--anim --gates` A2 restated |
+| C6 the library | every weapon map at its 16 angles (bows: their aim views); the lit edge toward the top-left in every view; a tip mark, and a bright tip pixel on blades; no orphans; no doubled pixels or L-jaggies along a line; the grip origin on the haft; lengths per STYLE_P2 11 ± 1 px | `--doll --gates` C6; pxc craft |
+| C7 menus | the paperdoll, creator preview, HUD hero, party list, portraits and loot previews show doll frames at whole multiples; the Mythic aura hugs doll frames (alpha only within 3 px of the silhouette) | the p2c_menus script, Witness, the judge |
+| C8 speed | per look: LOCO 128, RUN 64, DRAWN 256, ACTION 512, DEATH 48, POSTURE 64 KB over the M12 heavy-kit sweep; people 24 MB or less in the capital at 15:00; the city-arrival worst frame within baseline + 4 ms; View::draw at NORMAL within baseline + 10 %; one facing's LOCO bake p95 0.385 ms or less, an ACTION atlas 6 ms or less; the pool 1.5 MB or less; embervale.wasm within today's + 1.0 MB | `--doll --gates` B10, p2a_lead_perf.txt, EMB_TIMING, the web build |
+| C9 art_hash and goldens | unchanged through waves 1-2 (rig 1); re-recorded once at the flip with before / after pairs (above) | art_hash, `city_gallery --village-art-check`, `--arms` |
+| C10 playtests | **T4 fighter**: "fight bandits with each weapon family: does each swing look different?" **T5 outfitter**: "as a man, then as a woman (the `female` reset), buy and equip leather, mail and plate, and take a shot after each." **T6 watch**: "find guards in three peoples' towns and soldiers of two realms, and say how each is armed." Each goal met by 2 of 3 testers; every note with a shot triaged | `witness play batch` (P2b B13's setup: the phone window, rig 2, world:3 shots) |
+| C11 fighters' faces | no head recipe (type, nose, brows, beard, hair colour) shared by more than 2 guards of a settlement or 2 soldiers of a squad under open helms (the playtest's "four clone soldiers") | `--doll-variety --gates` (fighters) |
+
+### Constants that interact (budgets and timing)
+
+| constant | value | arithmetic |
+|---|---|---|
+| the body | man 32, woman 31 px; a 12-row head box; 16 px shoulders on both bodies | helms, pauldrons and shields fit the shared anchors; a crest to F-37 lifts the marker by the frame's top (topY) |
+| walk and run | 22 / 36 px cycles, 6 frames, bob 1 / 2, lean 4, switch at 54 px/s | gear never changes the tables, and REG holds for armour |
+| LOCO | 128 KB a look | 40 frames; today's worst 124.0 (staff + hood). A kite shield adds about 3-6 columns on the down, up and left frames, so a guard's LOCO is about 100 x 1.15 = 115 KB. Tower shields with large pauldrons are the risk (M12 sweep; fallback D4) |
+| RUN | 64 KB | 24 frames; today's worst 63.6. Armour adds 0-2 columns (pauldrons) and a carried spear about 1-2 KB, so the spear rides tight to the body and tilts one step only (D5) |
+| DRAWN (new) | 256 KB | 60 frames; the drawn sword frames weigh about 160 KB today, and a levelled spear adds about 40 %: 225 KB |
+| ACTION | 512 KB | After the split, a family has 3 variants x 4 facings x 4-5 frames = 48-60 swing frames at 4-6.5 KB (effects not baked in) = 190-390 KB, plus block 4, roll 16 and cast 8 at about 3 KB (85 KB): 275-475 KB. Without the split, a spear look would need about 650 KB (D2). |
+| DEATH | 48 KB | 26 frames; today's worst 39.8. A dropped spear widens the lying frames by about 10 columns: about 45 KB |
+| people textures | 24 MB in the capital at 15:00 | 80 folk x LOCO 100 KB (8.0 MB) + 12 fighters x (DRAWN 220 + ACTION 420 KB) (7.7 MB) + 10 runners x 60 KB (0.6) + 40 postures x 50 KB (2.0) + 24 dead x 45 KB (1.1) = 19.4 MB |
+| bake | LOCO p95 0.385 ms a facing; the queue 2 ms a frame (1.2 on the web) | An ACTION atlas (about 110 frames) bakes in 2-4 ms. It is queued when a hostile enters aggro (130 px: 1.75 s, or 105 frames, at 74 px/s), so it is ready before the first blow. |
+| pool | 1.5 MB (P2b's 1.0 MB restated: D11) | Today 794 KB for 7,504 views (106 B a view). P2c adds about 5,000 views: armour 16 torso sets x 4 facings x 7 keys = 450, hangs 600, helms 60, shields 300, pauldrons 110, the library 640, action arms about 2,400, legs 300, sheaths 150, fx 130. At about 100 B each that is + 0.5 MB, so about 1.3 MB. |
+| colours | 48 a figure | The guard: skin 5 + hair 5 + eyes 2 + face 3 + ink 1 + cloth1 5 + cloth2 4 + accent (tabard and field) 4 + leather 5 + metal 5 + metal2 3 + device 3 = 45. The field shares the accent, or the look goes over. |
+| timing | hero 70 / 110 / 130 ms x pace (sword 1.0, dagger 0.8, axe 1.08, spear 1.1, mace 1.25, greatsword 1.18, fists 0.9); foes 220-380 / 280 (heavy 400) / 350 (750); folk 300 / 250 / 300; release 80; block flash 150; roll 4 x 85; fall 100 / 120 / 120 | The pick splits each state at 45 / 40 / 50 %, so the hero's loaded pose shows about 40 ms and a foe's 120-210 ms (the telegraph). Hence one strongest silhouette per windup (STYLE_P2 25.8). |
+| reach and effects | rig(2).reach {9 12 16 22 16 16 30 22 12} px, fxLift 12 | the doll's tip marks agree within 3 px (R8 restated) |
+| weapon lengths | sword 15, greatsword 24, spear 34 + 5, staff 30, bows 22 / 28 / 20 px | a spear carried upright tops out near F-40, and the marker rides topY |
+
+### Decisions taken by default (confirm or overrule)
+
+- **D1. Weapons are an authored library**: 16 angles, on the grip, with the doll drawing the hand over the grip. A3's
+  sword is re-cut onto it at 0 px (B1). Fallback, if the re-cut cannot hold 0 px: A3's overlays stay as the straight
+  sword's named views, and every other weapon and form uses the library.
+- **D2. The drawn idle, walk and run move to a new DRAWN atlas** (256 KB), so ACTION (512 KB) holds the families.
+  Effects are drawn from their maps as separate sprites, and A3's arc stays pixel-identical on screen.
+- **D3. Sleeves and leg armour are region recolours with hand-drawn material tiles**, never per-key sleeve maps.
+  Silhouettes change only through torsos, skirts, pauldrons, helms and shields. The slice decides by eye whether the mail
+  tile replaces P2b's drawn mail sleeves.
+- **D4. Shields ride the off arm at rest** (STYLE_P2 23). Fallback, if a look's LOCO goes over 128 KB: slung on the back
+  out of combat.
+- **D5. Spears and staffs are carried upright** in the right hand at rest, tilted one step in the run. Fallback, if RUN
+  goes over 64 KB: upright in the run too.
+- **D6. Bow fighters carry the bow on the back with a quiver** out of combat. Civil hunters keep P2b's carried bow (value
+  `bow`; fighters use `bow.<form>`).
+- **D7. Block is a 0.15 s visual flash** on the sword's parry and on a shield bearer's parry. No sim state, no balance
+  change.
+- **D8. The humanoid monsters move to P2d.** Their v1 painter moves to art_monsters.cpp unchanged at the flip. (VISION_PLAN
+  15.36 had them in P2c; the P2b integrator already counted them as P2d's.)
+- **D9. Rig 1 retires at the flip**, and the flip waits for the owner's go on the before / after pack.
+- **D10. Pauldrons and helms are shared** by both bodies: the same 16 px shoulders and head box, with the anchors carrying
+  the woman's row. Torsos, skirts and tabards are fitted per body.
+- **D11. The pool budget is 1.5 MB** (it was 1.0 MB), and embervale.wasm stays within today's + 1.0 MB (the deleted
+  painters offset part of it).
+- **D12. Shields and weapons in postures**: seated, kneeling and lying postures sling the shield on the back and set the
+  held weapon aside (not drawn). Ride keeps the shield on the arm and the weapon at rest. The king's sword across his lap
+  on the throne is depth.
+
+### The style slice (wave 1; the owner signs it off before any production map)
+
+The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It
+shows each new form on both bodies, every slice clip in all four facings (the in-game read), and the A3 sword re-cut onto
+the library. STYLE_P2 26 lists its contents and the owner pack.
+
+| tag | body | kit | it proves |
+|---|---|---|---|
+| guard | man | P2b mail + a tabard in the kingdom's red, the nasal helm, a kite shield with a gold device, A3's sword at the hip, leather gloves and boots, a full beard | cloth over mail; the shield at rest, in guard, in block and in the run; A3's swing with a shield; the re-cut |
+| knight | woman | steel plate, medium plate pauldrons, short tassets, gauntlets and greaves, an open crested helm with a red crest (her braid below), a spear | heavy armour on the shipped legs and lean; the woman's fit; the crest; two-handed grips; a new family (the thrust) |
+| archer | man | studded leather, a leather cap over tousled hair, a self bow, the quiver and the bow on his back at rest | light armour; the bow's draw and release; back items; a weapon in the off hand |
+| knightm | man | the knight's plate and helm, unarmed | plate fitted to the man |
+| archerw | woman | the archer's leather and cap, unarmed, a ponytail below the cap | leather fitted to the woman |
+| hero | man | A3, the reference | the re-cut at 0 px |
+
+**Clips, in four facings.**
+- guard, knight and archer: sheathed idle, walk and hurt; the run; the drawn idle, walk and run; the fall and lying on
+  both sides.
+- guard: hit 1 (A3's swing with the shield on his arm) and block.
+- knight: hit 1 (the thrust) and block.
+- archer: the draw (3 frames) and release.
+- The twins: loco, run and the fall.
+
+**Areas** (at most 4, files disjoint; docs/P2C_CONTRACTS.md 1). Art areas edit only their maps, preview on isolated
+pools, and propose clip lines and region slots in their reports. SLICE-DOLL owns every code, clip and gate change.
+
+- **SLICE-DOLL** (engineer; a hard-systems area: escalate to engineer-high after two failed attempts; BDIR
+  build-p2c-doll).
+  - Files: rpg/art/doll/*.h, *.cpp, gen/** (at delivery), clips/** (loco.clip, death.clip, actions/*; postures.clip and
+    the kin clips untouched); tools/doll/**; rpg/art/art_rig.h/.cpp, art_fx.h/.cpp; rpg/sim/anim.h/.cpp;
+    rpg/view/render_anim.cpp, witness_state.cpp, script_p2c.cpp (new); tools/tests/test_doll*.cpp, doll_motion.h,
+    test_anim.cpp; tools/preview/doll_gallery.cpp; tools/scripts/p2c_slice*.txt; witness/p2c_slice.witness.json;
+    docs/P2C_CONTRACTS.md 8 ("as built"); this section's "Slice results" (append).
+  - Core:
+    - the slice's resolver values, flags and region slots (contracts 3), with the four fixes: form9 none, dial1 none,
+      the herald padded, the quiver;
+    - region tiles (`on-region`);
+    - the library compose: `weapon=<deg>,front|back` picks `a<deg>` views, plus `anyfacing`;
+    - the hand drawn over the grip (both hands; the bow hand);
+    - the shield on gripL with per-facing layers;
+    - clip conditions;
+    - RigPart::Drawn end to end: pxc `part drawn`, compose, the anim pick, the render bake, the B10 line, and the freeze
+      tool reading DRAWN;
+    - effects from maps through art_fx (the arc identical; the thrust and twang new);
+    - every slice clip line in four facings: the sword's drawn lines move to actions/sword.clip as `part drawn`, plus
+      the guard's `when shield` lines, actions/spear.clip, actions/bow.clip, and the spear and bow death lines;
+    - the test hooks (contracts 7);
+    - gate lines C3, C4, C5 (sword against spear) and C6 on the slice looks, with selftests;
+    - the scripts p2c_slice, _phone, _pack and _fight; `tools/doll/owner_pack.py --p2c`;
+    - the exes s1, s2 and on, published.
+  - Depth: an incremental pool compile for the artists' roots; the `grip` board onion-skinning a swing with its tip path.
+  - Delight: the gallery's `silhouette` board, every strike frame filled flat side by side, so the families read at a
+    glance.
+  - Done:
+    - `node tools/doll/pxc.mjs --check` is clean;
+    - `rpg_test --doll --gates --parity` exits 0: B1 16 / 16 at 0 px with the re-cut, B8 0, B10 within LOCO 128, RUN 64,
+      DRAWN 256, ACTION 512 and DEATH 48 KB for every slice look, B11 limbs, B11 wear and B12 0 including the slice looks;
+    - `rpg_test --doll --motion --limbs-looks <slice looks> --report` shows 0 failures;
+    - the C3 to C6 lines show 0 on the slice looks, and the selftests are ALL CAUGHT;
+    - `dollMissing` is empty for every slice look in LOCO, RUN, DRAWN, ACTION and DEATH;
+    - witness/p2c_slice and the slice scripts pass;
+    - rig 1 is unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0) and the full `rpg_test` is
+      ALL OK;
+    - the owner pack builds.
+- **SLICE-ARMOUR** (artist, at xhigh effort).
+  - Files: rpg/art/doll/maps/armour/** (new: man/plate*, woman/plate*, man/leather*, woman/leather*, man/tabard*,
+    shared/pauldron_plate_*, tiles/**; the P2b mail keeps its views and ADDs).
+  - Core:
+    - plate on the man and the woman, the torso in every key the slice clips name (rest, idle, run, runl, drawn, swing,
+      lie), with one lit ridge per plate and at most three glints;
+    - the tassets on the hang channel (rest, wide, flare, lie, idle);
+    - medium plate pauldrons (shared, both sides), riding the lean and lifting on wind-ups;
+    - studded leather on both bodies, with its skirt;
+    - the tabard over the man's mail (run and runl views, the device region);
+    - the tiles (lames, stitch, studs, and the mail tile tried against P2b's drawn sleeves);
+    - proposed region slots for gloves, boots, greaves and sabatons.
+  - Depth: mail with a glint that walks with the bob; the plate's lit edge jumping to the new lit side as the body turns.
+  - Delight: the tabard's hem kicking out in the run while the mail skirt trails.
+  - Done:
+    - C3a is 0 for the armour parts on every slice frame;
+    - B11 limbs, B11 wear and B12 are 0 on all five slice looks;
+    - C4: plate changes 25 % or more and leather 15 % or more of the idle figure on both bodies, and plate changes the
+      outline;
+    - B8 is 0 on every armour map and composed frame (48 colours or fewer, the top-left light, no orphans, banding or
+      pillow shading; mail never dither);
+    - LOCO and RUN are within budget;
+    - the judge's fit review of man against woman passes.
+- **SLICE-HELM-SHIELD** (artist).
+  - Files: rpg/art/doll/maps/headwear/helm/** (the new crested helm, form9 and band5, and the leather cap, band1; the
+    nasal keeps its views and ADDs); rpg/art/doll/maps/shield/** (new: the kite shield, form2 and shape3, and the shield
+    arm).
+  - Core:
+    - the crested helm: an open face, the crest in the plume slot with crest1-4 regions, hair masks for the slice
+      styles, the braid below the rim, and a lying view only if the turn reads wrong;
+    - the leather cap over the tousled hair's capped view;
+    - the nasal re-checked on the guard's cropped hair and beard;
+    - the kite shield (field, device, rim; rest, guard, block, lie and back; per-facing layers);
+    - the shield arm, with the sharm keys the guard's clips name, gripL and regions.
+  - Depth: the crest bobbing a pixel behind the walk; the device in the kingdom's two colours.
+  - Delight: the rim catching a glint as the guard raises the shield to block.
+  - Done:
+    - C3b and C3c are 0 on every slice frame, including the lean and lying;
+    - W7: the shield is never over the face;
+    - B8 is 0;
+    - LOCO with the shield is 128 KB or less, and RUN 64 KB or less;
+    - the judge reads the crest, the kite's device and the leather cap at 1x on the phone.
+- **SLICE-ARMS** (artist, at xhigh effort).
+  - Files: rpg/art/doll/maps/arms/adult/action/onehand/**, action/twohand/**, legs/adult/action/onehand/**,
+    action/twohand/**, held/weapons/**, belt/sheaths/** (existing views kept; ADD), back/** (new), fx/** (the arc kept;
+    ADD).
+  - Core:
+    - A3's sword re-cut: the near arm per swing key, with grip marks, plus the blade's angle views and A3's named views,
+      holding B1 at 0 px; the guard and gmove poses re-cut;
+    - the guard's drawn idle, walk and run and his hit 1 with the shield (the sword side);
+    - the spear: 16 angles, carry and drop; on the knight, the carry, the drawn idle, walk and run, the thrust and block
+      in four facings, with action legs on the method (the far leg whole, boots stamped);
+    - the self bow: aim views x string states, the nocked arrow and the drop; on the archer, the drawn idle, walk and
+      run, the draw (3 frames) and the release in four facings;
+    - the quiver with arrows and the bow on the back;
+    - the thrust streak and the twang in A3's three tones;
+    - proposed clip lines (frames, ms, weapon angle and depth) for SLICE-DOLL.
+  - Depth: a hit-stop beat on the thrust's impact frame; the off hand sliding along the shaft through the thrust.
+  - Delight: arrows showing in the quiver; the string's blur on the release frame.
+  - Done:
+    - B1 is 16 / 16 at 0 px;
+    - C3d is 0 (the hand over every grip, the right hand in every facing, the bow in the left, the spear's off fist on
+      the haft);
+    - C5: the spear's strike is 25 % or more apart from the sword's in every facing, its tip travels forward 8 px or
+      more, and the left frames are painted;
+    - C6 is 0 on the sword, spear and bow;
+    - C3e: every drop lies within 6 px of the hand;
+    - W7: no weapon is over a face in the drawn walk or run;
+    - B10: DRAWN is 256 KB or less and ACTION 512 KB or less for the guard, the knight and the archer;
+    - B8 is 0;
+    - the judge's read at game speed: anticipation and impact read, and the swings differ.
+
+**The slice gate** (the judge measures first and states the full protocol in round 1; at most 4 rounds; fix rounds
+verify only their items):
+1. Coverage: every slice look resolves with nothing missing.
+2. B1 parity: 16 / 16 at 0 px.
+3. Motion: B11 limbs, B11 wear and B12 at 0 on every slice look.
+4. Gear: C3 a-f at 0.
+5. C4.
+6. C5: the sword against the spear.
+7. C6: the slice's weapons.
+8. B8 at 0, with 48 colours or fewer.
+9. B10 within budget.
+10. Size, crispness and contrast: heights per STYLE_P2 3 (a crest to F-37), whole D x D blocks in `ui 0` shots at D3,
+    D4 and D5, and the day edge 40 or more on grass, road, sand and snow (tools/p2_measure.mjs).
+11. Rig 1 unchanged.
+12. The look review (STYLE_P2 26 acceptance) at 1x on the phone and at 3x / 8x / 12x.
+13. The owner's sign-off on the owner pack. It also settles D1 and D3-D6.
+
+### Production areas (wave 2) and the flip (wave 3)
+
+Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
+slice's look and conventions, previews on isolated pools, and reruns the gates on its own looks before it delivers.
+
+- **DOLL-C** (engineer-high).
+  - Files: rpg/art/doll/*.h, *.cpp, gen/**; clips/{loco, death, postures, kin_youth, kin_child}.clip; tools/doll/**;
+    rpg/art/art_rig.h/.cpp, art_fx.h/.cpp; tools/tests/test_doll*.cpp, doll_motion.h, test_rig.cpp;
+    tools/preview/doll_gallery.cpp, doll_poses.cpp; docs/P2C_CONTRACTS.md 8.
+  - Core:
+    - the production resolver: every value, flag, region slot and tile of contracts 3, for every form and band;
+    - coverage sources C and E;
+    - the compositor at scale: the library, two hands, shields, pauldrons, clip conditions, turned rolls;
+    - effects from maps for the 9 families;
+    - the matrix families M8 (armour forms x bodies x builds), M9 (helms), M10 (shields x weapons), M11 (every weapon
+      sheathed, carried and drawn) and M12 (the heaviest kits: plate, large pauldrons, a tower shield, a spear or
+      greatsword, a cloak, a crested helm);
+    - the gates C1, C3, C6 and C11, and C8's atlas, bake and pool lines;
+    - death.clip's fall and drop lines for every family, and postures.clip's gear keys (Ride, Kneel, Downed, Sit,
+      Throne, Carry: D12);
+    - the bake queue for DRAWN and ACTION on aggro.
+  - Depth: `--doll-arms` reports with 12x crops of every failure.
+  - Delight: the gallery's `kit` board turning a look through every armour form in its four facings.
+  - Done: C1's harness, C3, C6 and C8 (atlas, bake, pool) green, B1-B12 green, `pxc --check` clean, the selftests ALL
+    CAUGHT, and rig 1 unchanged until the flip.
+- **FOLK-SIM-C** (engineer).
+  - Files: rpg/sim/gear_look.cpp/.h, looks.cpp, anim.h/.cpp, skills_game.cpp (the parry's blockT only), game.h (the
+    one field Actor::blockT); tools/tests/test_anim.cpp, test_folk_sim.cpp.
+  - Core:
+    - the herald's padded coat and tabard;
+    - the drawn and carried state for every weapon class (spears and staffs carried; bows slung; foes, guards and
+      companions drawn while a hostile is in aggro);
+    - blockT and kBlockShow wired to the parries;
+    - the crossbow's pick (aim, shoot, crank) and the roll's bash flag;
+    - the census reaching C1's dead parts (the woman's culture cuts, the kids' wear and headwear, face paints, the
+      braided beard, the topknot, the turban), or a list for the planner to rule on;
+    - fighters' faces under open helms (C11);
+    - the heavy finisher's impact flag (SWITCH's camera nudge).
+  - Depth: guards turning to face the threat as they draw.
+  - Delight: a captain's crest a step taller than his men's.
+  - Done: `--anim --gates` green (A2 per family), `--folk-sim` green, C11 green, no balance test moved (p1b-engine,
+    skills, foes).
+- **ARMOUR-M** (artist-xhigh). Files: maps/armour/man/**.
+  - Core: the 8 forms on the man in every key the clips name (loco, run, drawn, actions, death, postures); the skirt
+    dials as hang families; the tabard; ornaments as optional regions (plumes, fur trim, gilding, studs, etching,
+    tassels, scallops, rivets, filigree); the M12 rank marks.
+  - Depth: the Ebony form's obsidian spikes as a `when` region.
+  - Delight: plate catching the lit edge as the body turns.
+  - Done: C3 and C4 (man), B11 and B12 on every man armour look, B8.
+- **ARMOUR-W** (artist-xhigh). Files: maps/armour/woman/**.
+  - Core: the same 8 forms cut to the woman (STYLE_P2 25.3) and her tabard.
+  - Depth: her surcoat's split skirt in the run.
+  - Delight: a gilded breastplate's ridge glint.
+  - Done: C3 and C4 (woman), B9 (armour pairs), B11, B12, B8, and the judge's fit review.
+- **ARMOUR-X** (artist). Files: maps/armour/shared/**, maps/armour/tiles/**.
+  - Core: pauldrons in 3 families x 3 sizes, both sides, all keys and builds; the material tiles (mail, scale, lamellar,
+    quilt, studs, rivets, leaf, lames, stitch).
+  - Depth: fur trim that ruffles a pixel in the run.
+  - Delight: horsetails on large pauldrons swinging behind.
+  - Done: C3 (pauldrons ride the lean, the bob and the swings), the tiles readable at 1x (the judge), B8.
+- **HELMS** (artist). Files: maps/headwear/helm/**.
+  - Core: the 12 shapes with crest, plume and horsetail regions, face and hair masks, and lying views where needed.
+  - Depth: the hair under open helms by style.
+  - Delight: plumes that bob on the walk.
+  - Done: C3b and C3e on every helm x hair style x body, and B8.
+- **SHIELDS** (artist). Files: maps/shield/**.
+  - Core: the 8 shapes and the legacy round in every key (rest, guard, block, bash, lie, back, ride), with field, device
+    and rim regions; the shield arm's keys for every family's shield-bearer frames.
+  - Depth: devices drawn per culture.
+  - Delight: sparks when a mace meets a shield.
+  - Done: C3c, B10 LOCO and RUN with every shape (M12), B8.
+- **WEAPONS** (artist-xhigh). Files: maps/held/weapons/**, maps/held/civil/** (relabel only), maps/belt/sheaths/**,
+  maps/back/**.
+  - Core: every weapon at 16 angles with carry and drop views; the 8 blade, 3 polearm and 5 bow forms; the crossbow's
+    states; a sheath for every sheathed kind; the quiver, the bow and the staff on the back; legendary and Mythic glints.
+  - Depth: the culture hilts.
+  - Delight: arrows visible in the quiver.
+  - Done: C6, C3d (with the action areas), B8.
+- **FX** (artist). Files: maps/fx/**.
+  - Core: the 9 family effects re-cut to A3's three tones, in side and down orientations, with the finisher tint.
+  - Depth: chips and dust that fall with gravity over the follow.
+  - Delight: the impact sparks on metal.
+  - Done: C5's effect timing (with FOLK-SIM-C), B8, and the judge's read.
+- **ACTIONS-1H** (artist-xhigh). Files: maps/arms/adult/action/onehand/**, maps/legs/adult/action/onehand/**,
+  clips/actions/{unarmed, dagger, sword, axe, mace}.clip.
+  - Core: those families' three variants in four facings on both bodies, every form through the library; their guard
+    stances and drawn walk and run (`part drawn`); the sword's parry block.
+  - Depth: a parry pose; a shield bash on the roll.
+  - Delight: the impact flash and the camera nudge on heavy finishers.
+  - Done: C5 (these families), C3d, B11 on their drawn walk and run, B10 ACTION and DRAWN.
+- **ACTIONS-2H** (artist-xhigh). Files: maps/arms/adult/action/twohand/**, maps/legs/adult/action/twohand/**,
+  clips/actions/{greatsword, spear, staff, bow, crossbow}.clip.
+  - Core: those families' variants (glaive and halberd sweeps), the bow's draw and release on both bodies, the crossbow;
+    their guard stances and drawn walk and run.
+  - Depth: the spear set against a charge (the guard, lowered).
+  - Delight: the bowstring's twang frame.
+  - Done: C5, C3d, B11, B10 (M12 spear and greatsword looks).
+- **ACTIONS-BODY** (artist). Files: maps/arms/adult/action/body/**, maps/legs/adult/action/body/**,
+  clips/actions/common.clip.
+  - Core: the roll (turned crouch frames: STYLE_P2 25.8, item 8), the cast (gather, release; with a staff and empty
+    handed), and hurt variants with gear.
+  - Depth: the cast's glow pixel lighting the face.
+  - Delight: a shoulder roll that tucks the helm.
+  - Done: C5 (roll 4, cast 2 for every body), C3 on their frames, B8.
+- **SWITCH** (engineer-high).
+  - Files in wave 2: rpg/view/** (render_anim, render, terrain, hud, party_hud, paperdoll, creator, loot_ui, home_view,
+    party_view, render_sea, witness_state, script_p2c), rpg/art/art_party_portrait.cpp, rpg/main.cpp, web/**,
+    tools/preview/** (but doll_gallery and doll_poses), tools/scripts/p2c_{gear, swings, menus, world}*.txt and
+    p2c_playtests.txt, witness/p2c_switch.witness.json.
+  - Files in wave 3 (serial, every other area delivered): rpg/art/art_human.cpp/.h, art_life.cpp/.h, art_internal.h,
+    rpg/art/rig/**, art_monsters.cpp, art_items.cpp, art_rig.h/.cpp, CMakeLists.txt, tools/art_hash.cpp,
+    tools/tests/test_rig.cpp, test_anim.cpp, test_arms.cpp, tests/fixtures/golden_anim_v1.txt, golden_village_art.txt,
+    .github/workflows/web.yml, and every script and Witness file that says `rig 1`.
+  - Core in wave 2 (behind rig 2):
+    - every remaining draw path on the doll: the paperdoll at whole multiples, the creator preview, the HUD hero, the
+      party list, portraits from A3's face, loot previews, statues through figureStill, the bather and swimmer crop
+      from doll frames, the Mythic aura per doll frame, the hidden-hero silhouette checked, the rider's Ride frame per
+      horse frame;
+    - lying bodies sorting by their own baseline (tall grass, the loose horse);
+    - the p2c scripts with their `_phone` twins, witness/p2c_switch, and the C10 goals.
+  - Core in wave 3: the flip (above).
+  - Depth: the creator preview animating idle, walk, run and a swing.
+  - Delight: the paperdoll turning to the facing of the last tap; the camera nudge.
+  - Done: C2, C7, C9, the flip checklist, CI updated; then the integration below.
+
+### Waves
+
+1. **Wave 0** (the planner; done): this section, STYLE_P2 25-26, docs/P2C_CONTRACTS.md and the slice looks.
+2. **Wave 1, the slice.**
+   - SLICE-DOLL lands the contract code and publishes exe s1 in its first working block: the resolver values, the looks
+     fields and gaits, and the four-facing dump.
+   - The three art areas start at once, by eye, on isolated pools (build-proto's exe for loco gaits until s1).
+   - Then the slice gate: the judge, at most 4 rounds.
+   - Then the owner pack, and the owner's sign-off.
+3. **Wave 2, production.** All 13 areas start at once after the sign-off. DOLL-C and FOLK-SIM-C publish their contract
+   pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
+4. **The barrier**: every area delivered, then C1, C3-C6 and C8 green at rig 2, then the owner's go on the flip pack.
+5. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
+   - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
+   - The script sweep; Witness `test --repeat 2`.
+   - The web build (EMBERVALE_WITNESS=OFF) and its size.
+   - art_hash and the goldens re-recorded with pairs.
+   - The C10 playtests.
+   Then a verifier gate, then judge rounds (at most 4).
+
+### What the judge focuses on (and how each done is measured)
+
+1. **Look and feel first**, at game speed, at 1x on the phone and at 3x / 8x / 12x:
+   - guards of three peoples (OSLARS and two other cultures), soldiers of two realms, bandits by family, and the hero
+     and a woman knight in every band;
+   - each family's three blows, live and frozen with `pose`;
+   - anticipation and impact;
+   - every material reading as itself, and the woman's fit;
+   - corpses keeping their gear and lying under the grass correctly;
+   - nothing floating, sliding, clipping, vanishing or crossing a face.
+2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
+3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
+   seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
+   word passes nothing.
+
+### Risks and fallbacks
+
+- **The A3 re-cut cannot hold 0 px** (the fist and blade interleave): the D1 fallback.
+- **Budgets with shields and long weapons**: the slice measures them first, and M12 measures production. Fallbacks D4
+  and D5; families stay at 4-5 frames a variant. Raising a budget is the owner's call only.
+- **Region tiles read as noise at 1x**: that form alone gets per-key drawn sleeves (P2b's mail approach).
+- **Volume** (about 5,000 views): shared arm poses within a family group, the angle library, tiles, shared pauldrons and
+  helms, the turned roll, and rigdraft's P2a pose numbers and weapon drafts as starting points.
+- **Cross-area keys** (the shield arm under every one-hand family; sleeves under action keys): the key-agreement rule
+  (contracts 4) and W1 / C3a.
+- **The 48-colour cap on shield-bearing, tabarded, plumed looks**: the field shares the accent, the device takes 3 steps,
+  and the slice measures it.
+- **The flip's breadth** (galleries, tests, CI): SWITCH lists every file it will touch in its first wave-2 report, and
+  the flip lands as one serial step behind a verifier gate.
+- **The frozen doll contract**: P2c only ADDs; the one restatement (pauldron values) breaks no map.
+- **City bake hitches**: baking on aggro, measured by C8's city-arrival worst frame.
+
+### Process (the owner's rules for P2c)
+
+- Commercial 16-bit quality, judged by eye at 1x and zoomed.
+- Design by eye first, then make the checks agree. A check that contradicts an eye-approved frame is re-tuned with the
+  judge's ruling and recorded; the art is never bent to fit a check.
+- One full regression per milestone: at integration, after the flip. Fix rounds verify only their fixes.
+- Screenshots and iterations are never capped. An `eyes` agent turns shots into text for long-lived agents.
+- Builds: `tools/slot.sh cmd //c "set BDIR=<dir>&& tools\\build.bat <target>" < /dev/null`. Each engineer and judge has
+  its own BDIR; nobody builds into build/ or another area's directory.
+- Never kill a Desktop Embervale.exe. No area makes state-changing git operations (the owner commits). Screenshots go to
+  %TEMP% and are deleted after review.
+
+### Slice results (SLICE-DOLL fills at the slice gate)
+
+**Iteration 1, SLICE-DOLL (2026-10-23; BDIR build-p2c-doll, pool 444 parts / 7854 views / 914 clips, 891 KB, hash b7d5aa9e,
+taken mid-delivery of SLICE-ARMS and SLICE-HELM-SHIELD; SLICE-ARMOUR not yet in the tree).** Exes s1 and s2 published in
+%TEMP%/claude/emb_P2c/bin (LATEST.txt).
+- Held: B1 parity 16 / 16 at 0 px (with the arms area's re-cut sword_r in the tree); B2, faces, hands, B8 (1120), B9, ramps,
+  B11 leg mass, B11 limbs (649 incl. the slice looks) all 0; selftests B11 and C3-C6 ALL CAUGHT; rig 1 unchanged (art_hash
+  TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0); full `rpg_test` ALL OK; save_test ALL OK.
+- Open on the art in flight: B10 slice knight RUN 72.7 KB (64) and one more; B11 wear 41 (back/bow coverage until the bow
+  clips are integrated, W1 W5 W7 on the slice looks); B12 20 (the knight's run boots); C3 316 (tabard, plate, leather and
+  the shield arm's keys not in the pool yet); C4 13 (no slice armour yet); C5 2 (the spear placeholder clips: the tip does
+  not move); C6 5 (the bow has no carry view). `--doll --motion` on the slice looks: 240 side frames, 55 failures.
+- Not built yet: effects drawn by art_fx from maps (ComposeOpts::withFx); the arms area's spear.clip / bow.clip proposals
+  integrated (placeholders from tools/doll/p2c_clips.py --families stand in).
+- Needs another owner: tools/tests/test_folk_sim.cpp F9 (lines 327, 340) still expects the drawn idle / run in
+  RigPart::Action; contracts 6 moves them to RigPart::Drawn (`rpg_test --folk-sim` F9 fails 2 until changed);
+  rpg/view/render.cpp's bake queue (`want`) does not pre-bake RigPart::Drawn (rigTex bakes it on first use).
+
+**Iteration 2, SLICE-DOLL (2026-10-23; BDIR build-p2c-doll, pool 458 parts / 8334 views / 930 clips, 938 KB, hash
+fb2a883613fc4d7b; exe s3 published).** The blind panel's code items: corpses grounded with the spear and bow level beside
+them (screen-space `anchor pivot` in turned frames), the spear held through the fall, a step into every thrust / swing
+(`at=` on upright frames, tools/doll/p2c_weight.py), a braced block, the spear's drawn walk/run upright (B10 DRAWN).
+- Held: `pxc --check` clean; B1 16 / 16 at 0 px; B8, B11 limbs / wear, B12 0; B10 every slice look within LOCO, DRAWN,
+  ACTION, DEATH (DRAWN knight 319 -> under 256 KB); C3 0, C4 0, C5 0; every selftest ALL CAUGHT; `--doll --motion` slice
+  looks 240 side frames, 0 failures; dollMissing empty (C3a); witness/p2c_slice PASS (238 expects); the four p2c_slice
+  scripts 0 failures; owner pack 11 boards, 0 missing inputs; rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229,
+  village-art 65 / 0, `--anim` 0); full `rpg_test` ALL OK; save_test ALL OK.
+- Open: B10 knight RUN 72.4 KB (64): not reachable by clips (a 39 px upright spear makes every run frame >= 41 px tall,
+  24 frames >= 78 KB raw); needs a plan call (a polearm RUN budget of 80 KB, or the held part in its own atlas rect).
+  C6 4 (SLICE-ARMS art: bow_self R / D `release` lit bottom-right; spear D a315 lit bottom-right; spear a000 41 px vs 39).
+- Art asks: SLICE-ARMS the release view's string blur reads as a white ladder (panel); SLICE-HELM-SHIELD the kettle helm
+  wants a `hatpose=lie` view (an oversized disc lying); world guards draw on v1 because their lamellar / brigandine /
+  form10 looks are production values (not in the slice).
+
+**Iteration 3, SLICE-DOLL (2026-10-23; BDIR build-p2c-doll, pool 458 parts / 8399 views / 946 clips, 943 KB, hash
+e42c15b04e2ab7a9; exe s4 published).** The blind panel's code items:
+- The knight's spear facing down / up: the haft is now one line from the butt to the leaf. Before, the leaf floated
+  14 px above the helm. Now the idle, walk, hurt, drawn walk / run and the fall's buckle carry it at the fist
+  (`held=carry`), and a hand-mark grip redraws the fist over the haft (doll_compose).
+- The guard's shield in the hurt facing R / L: held at the chest, 1 px knock-back.
+- The guard's block: the sword cocked back while the shield squares up. Every block steps 2 px back, and the spear's
+  block crouches (bob 2).
+- The spear's hurt: a 1 px knock-back.
+- Held: `pxc --check` clean; B1 16 / 16 at 0 px; B8 1120 / 0; B10 every slice look within budget (knight RUN 62.8 / 64,
+  DRAWN 184, ACTION 106, DEATH 33.5); B11 limbs 649 / 0, wear 5592 / 0, B12 666 / 0; C3 2130 / 0 (dollMissing empty),
+  C4 14 / 0, C5 11 / 0, C6 69 / 0; selftests ALL CAUGHT; `--doll --motion` slice looks 240 side frames, 0 failures;
+  witness/p2c_slice 1 passed; the four p2c_slice scripts 0 failures; owner pack 11 boards, 0 missing; rig 1 unchanged
+  (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0); full `rpg_test` ALL OK; save_test ALL OK.
+- Open (code): the RUN part facing D / U keeps the rest view (the leaf above the helm). The 39 px carry put knight RUN at
+  64.2 KB. SLICE-ARMS ask: a 38 px `carry ... when run replace` view, then p2c_clips.py `RUN_CARRY = True`. The side views
+  keep the rest view behind the head, because at the fist the haft crossed the helm and the face. A forward-leaning side
+  carry view (`carryR` / `carryL`, as the map header names) would cure that.
+- Art asks from the panel, outside SLICE-DOLL:
+  - the knight's block wants both arms raised with the haft high (sp_block's grips fix the 45 deg line; at 67 deg the
+    haft crossed the face);
+  - a block spark fx;
+  - the kite `lie` sits over the belly (the guard corpse reads as a red box);
+  - the helm sizes and faces, the archer's hair and beard noise, and knightm's beard colour (the slice look has no
+    hairColor);
+  - the hero's 0.4 s recovery hold, which is A3 timing (B1).
+
+### Production results and the flip (the integrator fills)

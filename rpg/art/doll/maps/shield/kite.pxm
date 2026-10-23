@@ -1,0 +1,280 @@
+# shield/kite: the Kite shield (P2c slice, SLICE-HELM-SHIELD; form2, shape3): the town guard's. On the off arm's grip
+# (gripL, shield/arm). The face: a steel rim (lit left and top, shadowed right), the field in three steps lit as a convex
+# face (Field slot: the accent by default, a maker's paint when set) and a 5 px cross device centred in the upper half
+# (Device slot: two steps, the kingdom's gold on its red). The back: wooden boards (leather steps 1-2), the strap across
+# with its brass buckle, the rim. Layers by facing (STYLE_P2 25.5): facing down and left it is in front (its face; facing
+# left over the chest and belly, its rim at the shoulder line, never over the face), facing up its back at screen left
+# behind the arm, facing right behind the body (its back shows past the back); guard and block bring it before the chest
+# (edge-on facing right). Keys: rest (it hangs still on the arm), guard (raised to the chest), block (squared to the
+# threat, the rim catching a glint at its top-left: the delight), lie (flat beside the corpse: the fall's turned frames
+# are composed facing left), back (slung on the back for seated and kneeling postures, on the neck). Format: doll.h.
+use person
+body adult
+role shield form2
+role shield shape3
+layer shield
+anchor gripL
+keys shield
+tags overlay
+legend R field 1
+legend S field 2
+legend T field 3
+legend F device 2
+legend J device 3
+view D key rest origin 3 7
+|..vvvvv..
+|.vyyyyxv.
+|vyTTTTSwv
+|vyTSJSSwv
+|vyTJJFSwv
+|vySSFSRwv
+|.vySSRwv.
+|.vySRRwv.
+|..vyRwv..
+|..vyRwv..
+|...vxv...
+|...vwv...
+|....v....
+
+view D key guard origin 3 6
+|..vvvvv..
+|.vyyyyxv.
+|vyTTTTSwv
+|vyTSJSSwv
+|vyTJJFSwv
+|vySSFSRwv
+|.vySSRwv.
+|.vySRRwv.
+|..vyRwv..
+|..vyRwv..
+|...vxv...
+|...vwv...
+|....v....
+
+view D key block origin 5 7
+|...vvvvv...
+|.vvzzyyxvv.
+|vzyTTTTSSwv
+|vyTTTJSSRwv
+|vyTJJJFFRwv
+|vyTSSFSSRwv
+|vyTSSFSRRwv
+|.vySSSRRwv.
+|.vySSRRRwv.
+|..vySRRwv..
+|..vySRRwv..
+|...vyRwv...
+|....vxv....
+|.....v.....
+
+view U key rest origin 5 6 layer armFar
+|..vvvvv..
+|.vwxxxwv.
+|vxhhhhgwv
+|vxhgfhgwv
+|vffOfffwv
+|vxhgfhgwv
+|.vxhhgwv.
+|.vxhggwv.
+|..vxgwv..
+|..vxgwv..
+|...vwv...
+|...vwv...
+|....v....
+
+view U key guard origin 6 6 layer back
+|..vvvvv..
+|.vwxxxwv.
+|vxhhhhgwv
+|vxhgfhgwv
+|vffOfffwv
+|vxhgfhgwv
+|.vxhhgwv.
+|.vxhggwv.
+|..vxgwv..
+|..vxgwv..
+|...vwv...
+|...vwv...
+|....v....
+
+view U key block origin 8 10 layer back
+|...vvvvv...
+|.vvzwxxwvv.
+|vxhhhhhhgwv
+|vxhhgfhhgwv
+|vffffOffffv
+|vxhhgfhhgwv
+|vxhhhhhggwv
+|.vxhhhhgwv.
+|.vxhhhggwv.
+|..vxhhgwv..
+|..vxhggwv..
+|...vxgwv...
+|....vwv....
+|.....v.....
+
+view R key rest origin 2 7 layer back
+|..vvvvv..
+|.vwxxxwv.
+|vxhhhhgwv
+|vxhgfhgwv
+|vffOfffwv
+|vxhgfhgwv
+|.vxhhgwv.
+|.vxhggwv.
+|..vxgwv..
+|..vxgwv..
+|...vwv...
+|...vwv...
+|....v....
+
+view R key guard origin -1 4 layer neck
+|..vvvv..
+|.vyyyyxv
+|vyTTTSwv
+|vyTSJSwv
+|vyTJJFwv
+|vySSFRwv
+|.vySSRwv
+|.vySRRwv
+|..vyRwv.
+|..vyRwv.
+|...vxv..
+|...vv...
+|...v....
+
+view R key block origin 0 6 layer neck
+|..vvvv..
+|.vyyzyxv
+|vyTTTSwv
+|vyTSJSwv
+|vyTJJFwv
+|vySSFRwv
+|.vySSRwv
+|.vySRRwv
+|..vyRwv.
+|..vyRwv.
+|...vxv..
+|...vwv..
+|....v...
+
+view L key rest origin 2 7
+|..vvvvv..
+|.vyyyyxv.
+|vyTTTTSwv
+|vyTSJSSwv
+|vyTJJFSwv
+|vySSFSRwv
+|.vySSRwv.
+|.vySRRwv.
+|..vyRwv..
+|..vyRwv..
+|...vxv...
+|...vwv...
+|....v....
+
+view L key guard origin 2 6
+|..vvvvv..
+|.vyyyyxv.
+|vyTTTTSwv
+|vyTSJSSwv
+|vyTJJFSwv
+|vySSFSRwv
+|.vySSRwv.
+|.vySRRwv.
+|..vyRwv..
+|..vyRwv..
+|...vxv...
+|...vwv...
+|....v....
+
+view L key block origin 3 7
+|...vvvvv...
+|.vvzzyyxvv.
+|vzyTTTTSSwv
+|vyTTTJSSRwv
+|vyTJJJFFRwv
+|vyTSSFSSRwv
+|vyTSSFSRRwv
+|.vySSSRRwv.
+|.vySSRRRwv.
+|..vySRRwv..
+|..vySRRwv..
+|...vyRwv...
+|....vxv....
+|.....v.....
+
+view L key lie origin -2 11
+|..vvv..
+|.vyyyv.
+|vzTTSxv
+|vyTJSwv
+|vyJJJwv
+|vyTJSwv
+|vySFSwv
+|vySSRwv
+|vySSRwv
+|vxRRRwv
+|.vRRwv.
+|.vwRwv.
+|..vwv..
+|...v...
+
+view D key back origin 4 2 layer back anchor neck
+|..vvvvv..
+|.vwxxxwv.
+|vxhhhhgwv
+|vxhgfhgwv
+|vffOfffwv
+|vxhgfhgwv
+|.vxhhgwv.
+|.vxhggwv.
+|..vxgwv..
+|..vxgwv..
+|...vwv...
+|...vwv...
+|....v....
+
+view U key back origin 4 1 anchor neck
+|..vvvvv..
+|.vyyyyxv.
+|vyTTTTSwv
+|vyTSJSSwv
+|vyTJJFSwv
+|vySSFSRwv
+|.vySSRwv.
+|.vySRRwv.
+|..vyRwv..
+|..vyRwv..
+|...vxv...
+|...vwv...
+|....v....
+
+view R key back origin 8 1 layer back anchor neck
+|.vvvv.
+|vyyyxv
+|vyTSwv
+|vyJSwv
+|vyJFwv
+|vyFRwv
+|vySRwv
+|.vyRwv
+|.vyRwv
+|..vxwv
+|..vwv.
+|...v..
+
+view L key back origin -4 1 layer back anchor neck
+|.vvvv.
+|vyyyxv
+|vyTSwv
+|vyJSwv
+|vyJFwv
+|vyFRwv
+|vySRwv
+|.vyRwv
+|.vyRwv
+|..vxwv
+|..vwv.
+|...v..
+

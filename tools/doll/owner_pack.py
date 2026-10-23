@@ -17,6 +17,21 @@
 #   10 Sit on real seats: the variety row seated by `seatall` in the start village's inn, D4
 #   11 A3's scene_phone_zoom.png beside the same spot in the engine (phone D5, 2x)
 #   12-25 the desktop (1440x810, D3 / D4) and phone (2556x1179, D5) shots, 11:00 and 22:00
+#
+# (P2c SLICE-DOLL) python tools/doll/owner_pack.py --p2c [--bdir build] [--out DIR] [--assemble-only] [--keep-work]: the P2c
+# style slice's owner pack (STYLE_P2 26), its 11 boards from the game: the engine scripts tools/scripts/p2c_slice.txt,
+# _phone, _pack and _fight, rpg_test --doll --parity --dump (the A3 re-cut), rpg_test --doll --limbs on
+# tools/doll/slice_looks.txt (every slice clip in four facings, with each frame's ms) and the gates (--doll --gates --parity
+# --report, --doll-arms --report). Default DIR %LOCALAPPDATA%/Temp/claude/emb_P2c/owner_pack. The boards:
+#   01 the A3 re-cut parity sheet           02 the slice lineup at NEAR (D4), four facings, 11:00 and 22:00
+#   03 the fit pairs (mail, plate, leather on both bodies)
+#   04 side walk and run: 8x strips (both facings) with the pivot and sole row marked, and 3x game-speed GIFs
+#   05 the guard: drawn guard, hit 1 and block (GIF at game speed and at 1/4)
+#   06 the plate soldier: carry, drawn stance, thrust and block (GIF, game speed and 1/4)
+#   07 the archer: draw and release (GIF, game speed and 1/4)       08 the falls and the lying bodies with gear
+#   09 each slice look on rig 1 (v1) beside rig 2                     10 the in-world shots (desktop D3 / D4, phone D5, 22:00)
+#   11 the budgets and gates table
+# A missing input is drawn as a red MISSING tile and counted; the exit code is 0 only with 11 boards and none missing.
 import argparse
 import json
 import os
@@ -346,13 +361,216 @@ def assemble(work, out):
     return made
 
 
+# ======================================================================================== (P2c SLICE-DOLL) the P2c pack
+P2C_SCRIPTS = ['p2c_slice', 'p2c_slice_phone', 'p2c_slice_pack', 'p2c_slice_fight']
+P2C_LOOKS = ['hero', 'guard', 'knight', 'archer', 'knightm', 'archerw']
+P2C_MISSING = []
+
+
+def p2c_capture(bdir, work):
+    os.makedirs(work, exist_ok=True)
+    exe = os.path.join(REPO, bdir, 'embervale.exe')
+    rt = os.path.join(REPO, bdir, 'rpg_test.exe')
+    slot = ['bash', os.path.join(REPO, 'tools', 'slot.sh')]
+    print('engine scripts')
+    for s in P2C_SCRIPTS:
+        run(slot + [exe, '--script', os.path.join(REPO, 'tools', 'scripts', s + '.txt')], os.path.join(work, s + '.log'), cwd=work)
+    print('parity dump, limbs strips, gates')
+    for d in ('parity', 'limbs'):
+        shutil.rmtree(os.path.join(work, d), ignore_errors=True)
+        os.makedirs(os.path.join(work, d))
+    run(slot + [rt, '--doll', '--parity', '--dump', os.path.join(work, 'parity')], os.path.join(work, 'parity.log'))
+    run(slot + [rt, '--doll', '--limbs', os.path.join(work, 'limbs'), '--limbs-looks', os.path.join(REPO, 'tools', 'doll', 'slice_looks.txt')],
+        os.path.join(work, 'limbs.log'))
+    run(slot + [rt, '--doll', '--gates', '--parity', '--report'], os.path.join(work, 'gates.log'))
+    run(slot + [rt, '--doll-arms', '--report'], os.path.join(work, 'arms.log'))
+
+
+def p2c_load(work, name):
+    path = os.path.join(work, name)
+    if os.path.exists(path):
+        return load(path)
+    P2C_MISSING.append(name)
+    t = Image.new('RGB', (220, 40), (90, 20, 24))
+    label(t, 'MISSING: ' + name, 4, 14)
+    return t
+
+
+def scale(img, k):
+    return img.resize((img.width * k, img.height * k), Image.NEAREST)
+
+
+def titled(img, text):
+    t = Image.new('RGB', (max(img.width, 8 * len(text) + 8), img.height + 16), BG)
+    t.paste(img, (0, 16))
+    label(t, text, 2, 2)
+    return t
+
+
+def p2c_lineup(work, row, hour):
+    shots = [p2c_load(work, f'p2c_pack_{row}_{hour}_{f}.png') for f in ('down', 'right', 'left', 'up')]
+    empty = p2c_load(work, f'p2c_pack_{row}_{hour}_empty.png')
+    box = None
+    for sh in shots:
+        if sh.size == empty.size:
+            box = union(box, bbox_of_diff(sh, empty, 2, band=True))
+    if box is None:
+        return stack(shots, 4)
+    box = grow(box, 12, empty.width, empty.height)
+    return stack([sh.crop(box) if sh.size == empty.size else sh for sh in shots], 4)
+
+
+def p2c_gaits(work, tag):
+    path = os.path.join(work, 'limbs', tag + '_gaits.json')
+    if not os.path.exists(path):
+        P2C_MISSING.append('limbs/' + tag + '_gaits.json')
+        return {}
+    return {(g['gait'], g['facing']): g for g in json.load(open(path))['gaits']}
+
+
+def p2c_frames(work, tag, gait, facing):
+    """The frames of a gait strip (limbs/<tag>_<gait>_<F>.png, 1x) cut into cells, with each frame's ms."""
+    G = p2c_gaits(work, tag).get((gait, facing))
+    strip = os.path.join(work, 'limbs', f'{tag}_{gait}_{facing}.png')
+    if not G or not G['frames'] or not os.path.exists(strip):
+        P2C_MISSING.append(f'limbs/{tag}_{gait}_{facing}.png')
+        return [], []
+    im = load(strip)
+    n = len(G['frames'])
+    cw = (im.width - 2) // n
+    cells = [im.crop((1 + i * cw, 1, 1 + (i + 1) * cw, im.height - 1)) for i in range(n)]
+    ms = [max(40, int(f.get('ms') or 0) or 100) for f in G['frames']]
+    return cells, ms
+
+
+def p2c_gif(path, tracks, k=3, slow=1):
+    """An animated GIF: each track (label, cells, ms) side by side, looped on the longest track's clock."""
+    tracks = [t for t in tracks if t[1]]
+    if not tracks:
+        P2C_MISSING.append(os.path.basename(path))
+        Image.new('RGB', (64, 16), (90, 20, 24)).save(path)
+        return
+    total = max(sum(t[2]) for t in tracks)
+    step = 20
+    frames = []
+    w = sum(t[1][0].width * k + 8 for t in tracks)
+    h = max(t[1][0].height * k for t in tracks) + 14
+    for at in range(0, total, step):
+        canvas = Image.new('RGB', (w, h), BG)
+        x = 0
+        for name, cells, ms in tracks:
+            t, i = at % sum(ms), 0
+            while t >= ms[i]:
+                t -= ms[i]
+                i += 1
+            canvas.paste(scale(cells[i], k), (x, 14))
+            label(canvas, name, x + 2, 1)
+            x += cells[0].width * k + 8
+        frames.append(canvas)
+    frames[0].save(path, save_all=True, append_images=frames[1:], duration=step * slow, loop=0)
+
+
+def p2c_strip_board(work, tag, gaits, k=4):
+    rows = []
+    for g in gaits:
+        for f in 'DURL':
+            cells, _ = p2c_frames(work, tag, g, f)
+            if cells:
+                rows.append(titled(scale(stack(cells, 2, vertical=False), k), f'{tag} {g} {f}'))
+    return stack(rows, 6) if rows else p2c_load(work, f'limbs/{tag}_{gaits[0]}_D.png')
+
+
+def p2c_hero_crop(img, size=140):
+    w, h = img.size
+    return img.crop((w // 2 - size, h // 2 - size, w // 2 + size, h // 2 + size // 2))
+
+
+def p2c_table(work):
+    lines = []
+    for log in ('gates.log', 'arms.log'):
+        path = os.path.join(work, log)
+        if not os.path.exists(path):
+            P2C_MISSING.append(log)
+            continue
+        for ln in open(path, encoding='utf-8', errors='replace').read().splitlines():
+            if ln.startswith(('ok ', 'FAIL:', '  B10 slice', '  C4 ', '  C5 ', '  C6 ', 'doll:', 'doll-arms:')):
+                lines.append(ln[:150])
+    img = Image.new('RGB', (1000, 14 * max(1, len(lines)) + 24), BG)
+    label(img, 'P2c SLICE: BUDGETS AND GATES (rpg_test --doll --gates --parity --report; --doll-arms --report)', 4, 4)
+    for i, ln in enumerate(lines):
+        ImageDraw.Draw(img).text((4, 20 + i * 14), ln, fill=(232, 96, 60) if ln.startswith('FAIL') else LABEL, font=FONT)
+    return img
+
+
+def p2c_assemble(work, out):
+    os.makedirs(out, exist_ok=True)
+    made = []
+
+    def put(name, img):
+        img.save(os.path.join(out, name))
+        made.append(name)
+
+    put('01_recut_parity_sheet.png', parity_sheet(work) if os.path.isdir(os.path.join(work, 'parity')) and os.listdir(os.path.join(work, 'parity'))
+        else p2c_load(work, 'parity/hero_IDLE_D.png'))
+    put('02_slice_lineup_D4.png', stack([titled(p2c_lineup(work, 'slice', 11), '11:00'), titled(p2c_lineup(work, 'slice', 22), '22:00')], 8, vertical=False))
+    put('03_fit_pairs_D4.png', stack([titled(p2c_lineup(work, 'fit', 11), '11:00'), titled(p2c_lineup(work, 'fit', 22), '22:00')], 8, vertical=False))
+    strips = [p2c_strip_board(work, t, ['walk', 'run'], 8) for t in ('guard', 'knight', 'archer', 'knightm', 'archerw')]
+    put('04_side_walk_run_8x.png', stack(strips, 10))
+    for tag in ('guard', 'knight', 'archer', 'knightm', 'archerw'):
+        tracks = []
+        for g in ('walk', 'run'):
+            for f in 'RL':
+                c, ms = p2c_frames(work, tag, g, f)
+                tracks.append((f'{tag} {g} {f}', c, ms))
+        p2c_gif(os.path.join(out, f'04_{tag}_walk_run_3x.gif'), tracks)
+    for num, tag, gaits in (('05', 'guard', ['didle', 'hit1', 'block']), ('06', 'knight', ['stay', 'didle', 'hit1', 'block']), ('07', 'archer', ['didle', 'draw'])):
+        board = p2c_strip_board(work, tag, gaits, 4)
+        put(f'{num}_{tag}_actions.png', board)
+        tracks = []
+        for g in gaits:
+            for f in 'RLDU':
+                c, ms = p2c_frames(work, tag, g, f)
+                tracks.append((f'{g} {f}', c, ms))
+        p2c_gif(os.path.join(out, f'{num}_{tag}_actions_game_speed.gif'), tracks, 3, 1)
+        p2c_gif(os.path.join(out, f'{num}_{tag}_actions_quarter_speed.gif'), tracks, 3, 4)
+    put('08_falls_and_lying.png', stack([p2c_strip_board(work, t, ['fall', 'lying'], 4) for t in P2C_LOOKS], 10))
+    pairs = []
+    for t in P2C_LOOKS:
+        r2 = p2c_load(work, f'p2c_slice_{t}_idle_down.png')
+        r1 = p2c_load(work, f'p2c_slice_{t}_rig1.png')
+        pairs.append(titled(stack([p2c_hero_crop(r1), p2c_hero_crop(r2)], 4, vertical=False), f'{t}: rig 1 (v1) | rig 2 (doll)'))
+    put('09_rig1_beside_rig2.png', stack(pairs, 8))
+    world = [titled(p2c_load(work, n), n) for n in ('p2c_fight_guard_d3.png', 'p2c_fight_guard_d4.png', 'p2c_fight_guard_night.png',
+                                                    'p2c_fight_knight_run_east.png', 'p2c_fight_archer_draw.png', 'p2c_slice_phone_guard_near.png')]
+    put('10_in_world.png', stack(world, 8))
+    put('11_budgets_and_gates.png', p2c_table(work))
+    return made
+
+
+def p2c_main(a):
+    out = os.path.abspath(a.out if a.out_set else os.path.join(os.environ.get('LOCALAPPDATA', '/tmp'), 'Temp', 'claude', 'emb_P2c', 'owner_pack'))
+    work = os.path.join(out, 'work')
+    if not a.assemble_only:
+        p2c_capture(a.bdir, work)
+    made = p2c_assemble(work, out)
+    if not a.keep_work:
+        shutil.rmtree(work, ignore_errors=True)
+    miss = sorted(set(P2C_MISSING))
+    print(f'owner pack (P2c): {len(made)} boards in {out}; {len(miss)} missing input(s)' + (': ' + ', '.join(miss[:12]) if miss else ''))
+    return 0 if len(made) == 11 and not miss else 1
+
+
 def main():
     ap = argparse.ArgumentParser(description='the P2b owner pack from the game (STYLE_P2 19 item 6)')
     ap.add_argument('--bdir', default='build', help='the build directory (embervale.exe and rpg_test.exe), relative to the repo')
     ap.add_argument('--out', default=os.path.join(os.environ.get('LOCALAPPDATA', '/tmp'), 'Temp', 'claude', 'emb_P2b', 'owner_pack'))
     ap.add_argument('--assemble-only', action='store_true', help='reuse DIR/work (no game runs)')
     ap.add_argument('--keep-work', action='store_true', help='keep DIR/work (the raw shots and captures)')
+    ap.add_argument('--p2c', action='store_true', help='the P2c style slice pack (STYLE_P2 26): 11 boards')
     a = ap.parse_args()
+    a.out_set = any(x == '--out' or x.startswith('--out=') for x in sys.argv[1:])
+    if a.p2c:
+        return p2c_main(a)
     out = os.path.abspath(a.out)
     work = os.path.join(out, 'work')
     if not a.assemble_only:

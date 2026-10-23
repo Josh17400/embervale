@@ -1,0 +1,102 @@
+# armour/shared/pauldron_plate_L: the medium plate pauldron (family plate, size 3: 2 px past the 16 px shoulder line
+# facing right and left, 1 px facing down and up (i2: the knights' LOCO/RUN atlases, B10)),
+# shared by the man and the woman (decision D10): a domed cop with one lit ridge and a glint on the lit (near, screen-left)
+# one, and a lower lame under a shadow line. Over the near arm (armNear), behind the torso with the far arm (the compositor
+# moves a `side` part to armFar on the far side). It rides the shoulder anchor (the lean and the bob exactly); `up` lifts it
+# a pixel for overhead wind-ups; `lie` lays the near cop flat (no lower lame) and drops the far one under the body
+# (the lying clip names pauld=lie; SLICE-DOLL's clip line). Format: rpg/art/doll/doll.h.
+use person
+role pauldron plate.3
+layer armNear
+anchor shoulderL
+keys pauld
+z 5
+side L
+
+view D key rest origin 3 2
+|.vvvv.
+|vyxxwv
+|vxwwwv
+|vwwwwv
+|vxwwwv
+|.vvvv.
+
+view D key up origin 3 3
+|.vvvv.
+|vyxxwv
+|vxwwwv
+|vwwwwv
+|vxwwwv
+|.vvvv.
+
+view D key lie origin 3 2
+|.vvvv.
+|vyxxwv
+|vxwwwv
+|vwwwwv
+|vxwwwv
+|.vvvv.
+
+view U key rest origin 2 2
+|.vvvv.
+|vzyxwv
+|vyxxwv
+|vwwwwv
+|vxxwwv
+|.vvvv.
+
+view U key up origin 2 3
+|.vvvv.
+|vzyxwv
+|vyxxwv
+|vwwwwv
+|vxxwwv
+|.vvvv.
+
+view U key lie origin 2 2
+|.vvvv.
+|vzyxwv
+|vyxxwv
+|vwwwwv
+|vxxwwv
+|.vvvv.
+
+view R key rest origin 3 2
+|..vvvv.
+|.vxxwwv
+|vxwwwwv
+|vwwwwwv
+|vvvvvvv
+
+view R key up origin 3 3
+|..vvvv.
+|.vxxwwv
+|vxwwwwv
+|vwwwwwv
+|vvvvvvv
+
+view R key lie origin 0 0
+|.
+
+view L key rest origin 4 2
+|..vvvv.
+|.vyyyxv
+|vzyyxwv
+|vwwwwwv
+|vxxxwwv
+|.vvvvv.
+
+view L key up origin 4 3
+|..vvvv.
+|.vyyyxv
+|vzyyxwv
+|vwwwwwv
+|vxxxwwv
+|.vvvvv.
+
+view L key lie origin 4 2
+|.vvvv.
+|vyyyxv
+|vzyxwv
+|.vvvv.
+

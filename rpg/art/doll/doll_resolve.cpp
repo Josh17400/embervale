@@ -5,6 +5,7 @@
 // "Coverage"). Nothing here draws.
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <set>
 #include <unordered_map>
 #include "rpg/art/doll/doll_internal.h"
@@ -99,6 +100,8 @@ const char* armourOf(const HumanLook& L) {
     static const char* f[] = {"padded", "leather", "mail", "scale", "lamellar", "brigandine", "plate", "leaf"};
     return f[std::min<int>(L.bodyForm - 1, 7)];
   }
+  // (P2c fix, contracts 3) the herald: Outfit::Guard with no helm and no body form wears padded cloth under the tabard
+  if (L.outfit == Outfit::Guard && !L.armorStyle && !(L.helmet || L.helmStyle || L.helmForm)) return "padded";
   switch (L.outfit) {
     case Outfit::Leather: return "leather";
     case Outfit::Chain: case Outfit::Guard: return "mail";
@@ -116,6 +119,74 @@ int headwearOf(const HumanLook& L) {
   return L.headwear >= 1 && L.headwear <= 8 ? L.headwear : 0;
 }
 
+// (P2c) the helm's band (1..7; 0 no helm): helmStyle, else a legacy helmet's band by its outfit (v1: the leather cap,
+// the iron nasal, the steel great helm, the elven winged helm, ebony's horns)
+int helmBandOf(const HumanLook& L) {
+  if (L.helmStyle) return std::min<int>(L.helmStyle, 7);
+  if (!L.helmet) return 0;
+  switch (L.outfit) {
+    case Outfit::Leather: return 1;
+    case Outfit::Plate: return 3;
+    case Outfit::Elven: return 4;
+    case Outfit::Ebony: return 6;
+    default: return 2;
+  }
+}
+// (P2c) a shield is borne (shieldForm 9 = ShieldForm::None + 1: none)
+bool shieldOf(const HumanLook& L) {
+  if (L.shieldForm == 9) return false;
+  return L.shield || L.shieldStyle || L.shieldForm;
+}
+std::string pauldronOf(const HumanLook& L) {
+  if (L.pauldron < 2) return "";   // 0 the band's own (none drawn yet), 1 none
+  const char* a = armourOf(L);
+  if (!a) return "";
+  const std::string m = a;
+  const char* fam = (m == "plate" || m == "brigandine" || m == "leaf") ? "plate" : (m == "padded" || m == "leather") ? "fur" : "scale";
+  return std::string(fam) + "." + std::to_string(std::min<int>(L.pauldron, 4));
+}
+// (P2c, D3) the material tile laid over an armour's sleeves
+const char* sleeveTileOf(const HumanLook& L) {
+  const char* a = armourOf(L);
+  if (!a) return nullptr;
+  const std::string m = a;
+  if (m == "mail") return "mail";
+  if (m == "scale") return "scale";
+  if (m == "lamellar") return "lamellar";
+  if (m == "plate") return "lames";
+  if (m == "leather") return "stitch";
+  if (m == "padded") return "quilt";
+  if (m == "brigandine") return "rivets";
+  if (m == "leaf") return "leaf";
+  return nullptr;
+}
+// (P2c) the form name of a fighter's weapon (contracts 3)
+std::string weaponFormOf(const HumanLook& L) {
+  static const char* const kBlade[9] = {"straight", "leaf", "falchion", "scimitar", "khopesh", "wavy", "broad", "curved", "glaive"};
+  static const char* const kPole[3] = {"spear", "glaive", "halberd"};
+  static const char* const kBow[6] = {"classic", "self", "recurve", "composite", "crossbow", "longbow"};
+  switch (L.weapon) {
+    case 1: case 7: return kBlade[L.bladeForm >= 1 && L.bladeForm <= 9 ? L.bladeForm - 1 : 0];
+    case 2: return "bearded";
+    case 6: return "flanged";
+    case 5: return "straight";
+    case 8: return kPole[L.polearmForm >= 1 && L.polearmForm <= 3 ? L.polearmForm - 1 : 0];
+    case 4: return "plain";
+    case 3: return kBow[L.bowForm <= 5 ? L.bowForm : 0];
+    case 9: return "crook";
+    default: return "";
+  }
+}
+std::string heldOf(const HumanLook& L) {
+  if (L.weapon < 1 || L.weapon > 12) return "";
+  const std::string bare = kHeld[L.weapon];
+  if (L.civil || L.weapon >= 10) return bare;
+  const std::string form = weaponFormOf(L);
+  if (form.empty()) return bare;
+  const std::string lib = (L.weapon == 9 ? std::string("stick") : bare) + "." + form;
+  return pool::get().partsWithRole(Role::Held, lib).empty() ? bare : lib;
+}
+
 void needsOf(const HumanLook& L, DollRecipe& r) {
   auto need = [&](Role role, const std::string& v) { if (!v.empty()) r.needs.push_back(Need{role, v}); };
   const bool kid = r.body == BodySet::Child || r.body == BodySet::Youth;
@@ -124,9 +195,26 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   need(Role::Arms, "std");
   need(Role::Garment, g);
   if (const char* a = armourOf(L)) need(Role::Armour, a);
-  if (L.helmet || L.helmStyle) need(Role::Helm, L.helmForm ? "form" + std::to_string(L.helmForm) : "band" + std::to_string(L.helmStyle));
-  if (L.shield || L.shieldStyle || L.shieldForm) need(Role::Shield, L.shieldForm ? "form" + std::to_string(L.shieldForm) : "shape" + std::to_string(L.shieldStyle));
-  if (L.pauldron) need(Role::Pauldron, "dial" + std::to_string(L.pauldron));
+  // (P2c) the helm: form1..form10 (HelmForm + 1), else the band (band1..band7; a legacy helmet's band by its outfit)
+  if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? "form" + std::to_string(L.helmForm) : "band" + std::to_string(hb));
+  else if (L.helmForm) need(Role::Helm, "form" + std::to_string(L.helmForm));
+  // (P2c) the shield: the shield arm for every bearer, plus its form (form1..8) or shape (shape0 legacy round, 1..4);
+  // form9 is ShieldForm::None: no shield at all (v1's hasShield rule)
+  if (shieldOf(L)) {
+    need(Role::Shield, "arm");
+    need(Role::Shield, L.shieldForm ? "form" + std::to_string(L.shieldForm) : "shape" + std::to_string(L.shieldStyle));
+  }
+  // (P2c restated) pauldrons: <family>.<size> (plate: plate brigandine leaf; fur: padded leather; scale: mail scale
+  // lamellar), size 2 small, 3 medium, 4 large from the dial; dial 1 is none
+  {
+    const std::string pd = pauldronOf(L);
+    if (!pd.empty()) need(Role::Pauldron, pd);
+  }
+  // (P2c) the tabard over the armour of every Outfit::Guard look (watch, soldiers, heralds): its colour is the accent
+  if (L.outfit == Outfit::Guard) need(Role::Overlay, "tabard");
+  // (P2c) the armour's material tile over its sleeves (D3), where the pool draws one (a decoration, never a hole)
+  if (const char* t = sleeveTileOf(L))
+    if (!pool::get().partsWithRole(Role::Overlay, t).empty()) need(Role::Overlay, t);
   if (L.neck) need(Role::Neck, neckName(L.neck));
   if (L.jewellery & 2) need(Role::Neck, "torc");
   if (L.amulet) need(Role::Neck, "amulet");
@@ -152,10 +240,18 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   else if (L.hood && !(L.helmet || L.helmStyle || L.helmForm)) need(Role::Headwear, "legacyhood");
   if (L.cloak >= 1 && L.cloak <= 3) need(Role::Cloak, kCloak[L.cloak]);
   else if (L.cape) need(Role::Cloak, "cape");
-  // what is carried: a sword rides sheathed at the hip (LOCO) and is drawn in hand to fight (ACTION, with its arc)
-  if (L.weapon == 1) { need(Role::Sheath, "sword"); need(Role::Held, "sword"); need(Role::Fx, "arc"); }
-  else if (L.weapon == 2 || L.weapon == 5 || L.weapon == 6) { need(Role::Sheath, kHeld[L.weapon]); need(Role::Held, kHeld[L.weapon]); }
-  else if (L.weapon >= 3 && L.weapon <= 12) need(Role::Held, kHeld[L.weapon]);
+  // what is carried: a sword rides sheathed at the hip (LOCO) and is drawn in hand to fight (ACTION, with its arc).
+  // (P2c) a fighter's weapon is the library's `<weapon>.<form>` (heldOf: P2b's bare name while the pool serves no library
+  // map for it, so a look covered today stays covered); civil tools keep their bare names
+  const std::string held = heldOf(L);
+  if (L.weapon == 1) { need(Role::Sheath, "sword"); need(Role::Held, held); need(Role::Fx, "arc"); }
+  else if (L.weapon == 2 || L.weapon == 5 || L.weapon == 6) { need(Role::Sheath, kHeld[L.weapon]); need(Role::Held, held); }
+  else if (L.weapon >= 3 && L.weapon <= 12) need(Role::Held, held);
+  if (!L.civil) {
+    if (L.weapon == 7) need(Role::Sheath, "greatsword");   // across the back
+    if (L.weapon == 3) { need(Role::Sheath, "quiver"); need(Role::Sheath, "bowback"); need(Role::Fx, "twang"); }   // (P2c fix) the quiver; the bow on the back at rest
+    if (L.weapon == 8) need(Role::Fx, "thrust");
+  }
 }
 
 // the sleeve and the legwear of each civilian garment: which slot the arm and leg libraries' regions take (STYLE_P2 24;
@@ -185,7 +281,27 @@ void regionsOf(const HumanLook& L, const std::string& g, DollRecipe& r) {
   }
   // the garment's edge: a border trim or an embroidered hem takes the pattern's colour
   if (L.pattern == 3 || L.pattern == 5) set(Region::Edge, Slot::Pattern);
-  // (P2c: gloves recolour the hand and the flare, boots the boot, greaves the shin; mail and plate sleeves)
+  // (P2c, contracts 3) the sleeves by armour form (mail's only where its tile is drawn: D3 keeps P2b's drawn mail sleeves
+  // otherwise); gloves recolour the hand and the flare, boots the boot, tall boots and greaves the shin, a metal cop the knee
+  if (const char* a = armourOf(L)) {
+    const std::string m = a;
+    // (INTEGRATE i1) mail's U / F are metal whether or not the mail tile exists: P2b's drawn mail sleeves cover the loco
+    // arms, and an arm no sleeve map draws (the shield arm, A3's re-cut sword arm) shows steel, not the tunic's cloth1
+    if (m == "mail") { set(Region::Upper, Slot::Metal); set(Region::Fore, Slot::Metal); }
+    else if (m == "scale" || m == "lamellar" || m == "leaf") set(Region::Upper, Slot::Metal);
+    else if (m == "plate") { set(Region::Upper, Slot::Metal); set(Region::Fore, Slot::Metal); }
+    else if (m == "leather") set(Region::Fore, Slot::Leather);
+    else if (m == "padded" || m == "brigandine") { set(Region::Upper, Slot::Cloth1); set(Region::Fore, Slot::Cloth1); }
+  }
+  if (L.gloves) {
+    set(Region::Hand, L.gloves >= 2 ? Slot::Metal : Slot::Leather);
+    if (L.gloves >= 3) set(Region::Flare, Slot::Metal);
+  }
+  if (L.boots) {
+    set(Region::Boot, L.boots >= 3 ? Slot::Metal : Slot::Leather);
+    if (L.boots == 2) set(Region::Shin, Slot::Leather);
+    if (L.boots >= 3) { set(Region::Shin, Slot::Metal); set(Region::Knee, Slot::Metal); }
+  }
 }
 
 void flagsOf(const HumanLook& L, DollRecipe& r) {
@@ -213,6 +329,36 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   if (L.glow) flag("glint");
   if (L.jewellery & 1) flag("earrings");
   for (int b = 0; b < 6; b++) if (L.marks >> b & 1) flag(kMarks[b]);
+  // (P2c, contracts 3) the arms flags `when` tests
+  auto flagS = [&](const std::string& f) { r.flags.push_back(f); };
+  if (const int hb = helmBandOf(L)) flagS("band" + std::to_string(hb));
+  if (L.armourTint) flag(L.sheen ? "alloy" : "bronze");
+  if (L.sheen >= 1 && L.sheen <= 8) {
+    static const char* const kSheen[8] = {"matte", "bright", "dark", "banded", "iridescent", "glowing", "pale", "burnished"};
+    flagS(std::string("sheen-") + kSheen[L.sheen - 1]);
+  }
+  static const char* const kOrn[10] = {"plumes", "furtrim", "gilding", "horsetail", "studs", "etching", "tassels", "scallops", "rivets", "filigree"};
+  for (int b = 0; b < 10; b++) if (L.armsOrnament >> b & 1) flag(kOrn[b]);
+  if (L.skirt >= 1 && L.skirt <= 4) flagS("skirt" + std::to_string(L.skirt));
+  if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
+  if (L.pauldron >= 2 && L.pauldron <= 4) flagS("pauldron" + std::to_string(L.pauldron));
+  if (shieldOf(L)) flag("shield");
+  const Family fam = familyOf(L);
+  if (!L.civil && L.weapon >= 1 && L.weapon <= 9) {
+    if (fam == Family::Greatsword || fam == Family::Spear || fam == Family::Staff) flag("twohand");
+    else if (fam != Family::Bow) flag("onehand");
+  }
+  flag(familyName(L.civil ? Family::Unarmed : fam));
+  if (!L.civil) {
+    const std::string form = weaponFormOf(L);
+    if (!form.empty()) {
+      if (L.weapon == 1 || L.weapon == 7) flagS("blade-" + form);
+      else if (L.weapon == 8) flagS("pole-" + form);
+      else if (L.weapon == 3) flagS("bow-" + form);
+    }
+  }
+  static const char* const kGlint[5] = {"glint-weapon", "glint-body", "glint-helm", "glint-shield", "glint-cloak"};
+  for (int b = 0; b < 5; b++) if (L.glow >> b & 1) flag(kGlint[b]);
 }
 
 }  // namespace
@@ -352,10 +498,10 @@ void missingIn(const DollRecipe& r, uint8_t poolPart, int posture, std::vector<M
     }
   }
   const std::vector<const ClipRec*> cs = poolPart == kPartPosture && variant >= 0 ? postureClips(r.bodyKey, r.family, posture, (uint8_t)variant)
-                                                                                 : clipsOf(r.bodyKey, poolPart, r.family, posture);
+                                                                                 : clipsOf(r.bodyKey, poolPart, r.family, posture, &r);
   if (cs.empty()) {
     Missing m; m.role = Role::Body; m.value = poolPart == kPartPosture ? "posture clips" : poolPart == 0 ? "loco clips" : poolPart == 1 ? "action clips" :
-                                                                                          poolPart == 2 ? "death clips" : "run clips";
+                                                                                          poolPart == 2 ? "death clips" : poolPart == kPartDrawn ? "drawn clips" : "run clips";
     m.body = r.body;
     out.push_back(m);
     return;
@@ -391,8 +537,11 @@ void missingIn(const DollRecipe& r, uint8_t poolPart, int posture, std::vector<M
         uint16_t key = 0xFFFF;
         for (const KeyRec& k : f.keys) if (k.channel == ch) key = k.key;
         if (key == dashId) continue;
-        const bool named = key != 0xFFFF;
+        bool named = key != 0xFFFF;
         if (!named) key = restId;
+        // (P2c, INTEGRATE i1) the held channel's angle view (`weapon=<deg>`) is a named key too, as the compositor picks it
+        if (!named && ch == P.ids.held && P.ids.held != 0xFFFF && f.weapon != -32768) { key = P.ids.angle[angleIndex(f.weapon)]; named = key != 0xFFFF; }
+        if (key == 0xFFFF) continue;
         bool any = false;
         int first = -1;
         for (int pi : r.parts) {
@@ -400,6 +549,8 @@ void missingIn(const DollRecipe& r, uint8_t poolPart, int posture, std::vector<M
           if (p.channel != ch) continue;
           if (first < 0) first = pi;
           if (viewOf(p, facing, key)) { any = true; break; }
+          // (P2c, INTEGRATE i1) `tags anyfacing`: D's view serves every facing, as in the compositor
+          if (P.ids.anyfacing != 0xFFFF && std::find(p.tags.begin(), p.tags.end(), P.ids.anyfacing) != p.tags.end() && viewOf(p, 0, key)) { any = true; break; }
         }
         if (!any && named && first >= 0) report(first, facing, key);
       }
@@ -420,7 +571,7 @@ std::set<int>& reached() { static std::set<int> s; return s; }
 std::vector<Missing> dollMissing(const HumanLook& look, RigPart part) {
   const DollRecipe r = resolve(look);
   std::vector<Missing> out;
-  missingIn(r, (uint8_t)part, -1, out);
+  missingIn(r, pool::poolPart(part), -1, out);
   return out;
 }
 std::vector<Missing> dollMissing(const HumanLook& look) {
@@ -430,7 +581,10 @@ std::vector<Missing> dollMissing(const HumanLook& look) {
   missingIn(r, (uint8_t)RigPart::Death, -1, out);
   const bool runs = r.body != BodySet::Child && look.age != 3;   // elders never run; kids run with the Play posture
   if (runs) missingIn(r, (uint8_t)RigPart::Run, -1, out);
-  if (look.weapon >= 1 && look.weapon <= 8 && !look.civil) missingIn(r, (uint8_t)RigPart::Action, -1, out);   // (a civil tool rests)
+  if (look.weapon >= 1 && look.weapon <= 8 && !look.civil) {   // (a civil tool rests)
+    missingIn(r, (uint8_t)RigPart::Action, -1, out);
+    missingIn(r, pool::kPartDrawn, -1, out);   // (P2c) the drawn idle, walk and run
+  }
   return out;
 }
 bool dollCovers(const HumanLook& look, RigPart part) {
@@ -445,7 +599,7 @@ bool dollCovers(const HumanLook& look, RigPart part) {
   if (it != c.map.end()) return it->second;
   if (c.map.size() > 50000) c.map.clear();
   std::vector<Missing> m;
-  missingIn(resolve(look), (uint8_t)part, -1, m);
+  missingIn(resolve(look), pool::poolPart(part), -1, m);
   return c.map[k] = m.empty();
 }
 bool dollCoversPosture(const HumanLook& look, Posture p) { return dollCoversPosture(look, p, 0); }
@@ -470,5 +624,102 @@ std::vector<std::string> deadParts() {
   return out;
 }
 
+}  // namespace doll
+}  // namespace art
+
+// ---------------------------------------------------------------- (P2c SLICE-DOLL) the looks-file fields, one list
+namespace art {
+namespace doll {
+bool applyLookField(HumanLook& L, const std::string& k, const std::string& v) {
+  const int n = (int)std::strtol(v.c_str(), nullptr, 0);
+  auto col = [&]() {
+    const uint32_t rgb = (uint32_t)std::strtoul(v.c_str() + (!v.empty() && v[0] == '#' ? 1 : 0), nullptr, 16);
+    return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF);
+  };
+  auto col0 = [&]() { return v == "0" ? 0u : col(); };   // fields where 0 means "derived"
+  auto u8 = [&]() { return (uint8_t)std::clamp(n, 0, 255); };
+  if (k == "body") L.body = u8();
+  else if (k == "build") L.build = u8();
+  else if (k == "people") L.people = u8();
+  else if (k == "age") L.age = u8();
+  else if (k == "garb") L.garb = u8();
+  else if (k == "cut") L.cut = u8();
+  else if (k == "outfit") L.outfit = (Outfit)std::clamp(n, 0, (int)Outfit::COUNT - 1);
+  else if (k == "weapon") L.weapon = u8();
+  else if (k == "civil") L.civil = u8();
+  else if (k == "pattern") L.pattern = u8();
+  else if (k == "cloak") L.cloak = u8();
+  else if (k == "cape") L.cape = n != 0;
+  else if (k == "hair") L.hair = (Hair)std::clamp(n, 0, (int)Hair::COUNT - 1);
+  else if (k == "hairVar") L.hairVar = u8();
+  else if (k == "beard") L.beard = n != 0;
+  else if (k == "beardStyle") L.beardStyle = u8();
+  else if (k == "headwear") L.headwear = u8();
+  else if (k == "hood") L.hood = n != 0;
+  else if (k == "neck") L.neck = u8();
+  else if (k == "jewellery") L.jewellery = u8();
+  else if (k == "amulet") L.amulet = n != 0;
+  else if (k == "ring") L.ring = n != 0;
+  else if (k == "head") L.head = u8();
+  else if (k == "nose") L.nose = u8();
+  else if (k == "brow") L.brow = u8();
+  else if (k == "marks") L.marks = u8();
+  else if (k == "facePaint") L.facePaint = u8();
+  else if (k == "helmet") L.helmet = n != 0;
+  else if (k == "helmStyle") L.helmStyle = u8();
+  else if (k == "helmForm") L.helmForm = u8();
+  else if (k == "armorStyle" || k == "armourStyle") L.armorStyle = u8();
+  else if (k == "bodyForm") L.bodyForm = u8();
+  else if (k == "shield") L.shield = n != 0;
+  else if (k == "shieldStyle") L.shieldStyle = u8();
+  else if (k == "shieldForm") L.shieldForm = u8();
+  else if (k == "bladeForm") L.bladeForm = u8();
+  else if (k == "polearmForm") L.polearmForm = u8();
+  else if (k == "bowForm") L.bowForm = u8();
+  else if (k == "pauldron") L.pauldron = u8();
+  else if (k == "skirt") L.skirt = u8();
+  else if (k == "crest") L.crest = u8();
+  else if (k == "armsOrnament") L.armsOrnament = (uint16_t)std::clamp(n, 0, 65535);
+  else if (k == "gloves") L.gloves = u8();
+  else if (k == "boots") L.boots = u8();
+  else if (k == "backItem") L.backItem = u8();
+  else if (k == "sheen") L.sheen = u8();
+  else if (k == "glow") L.glow = u8();
+  else if (k == "skin") L.skin = col();
+  else if (k == "hairColor") L.hairColor = col();
+  else if (k == "topColor") L.topColor = col();
+  else if (k == "bottomColor") L.bottomColor = col();
+  else if (k == "tabardColor") L.tabardColor = col();
+  else if (k == "cloakColor") L.cloakColor = col();
+  else if (k == "headColor") L.headColor = col0();
+  else if (k == "patternColor") L.patternColor = col0();
+  else if (k == "eyeColor") L.eyeColor = col0();
+  else if (k == "plumeColor") L.plumeColor = col0();
+  else if (k == "armourTint" || k == "armorTint") L.armourTint = col0();
+  else if (k == "armourTint2" || k == "armorTint2") L.armourTint2 = col0();
+  else if (k == "glowColor") L.glowColor = col0();
+  else if (k == "shieldField") L.shieldField = col0();
+  else if (k == "shieldDevice") L.shieldDevice = col0();
+  else if (k == "trimColor") L.trimColor = col0();
+  else if (k == "weaponColor") L.weaponColor = col();
+  else return false;
+  return true;
+}
+void applyLookSpec(HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad) {
+  if (spec.empty() || spec == "-") return;
+  size_t a = 0;
+  while (a < spec.size()) {
+    size_t b = spec.find(',', a);
+    if (b == std::string::npos) b = spec.size();
+    const std::string kv = spec.substr(a, b - a);
+    a = b + 1;
+    const size_t eq = kv.find('=');
+    if (eq == std::string::npos) { if (!kv.empty() && bad) *bad += (bad->empty() ? "" : ",") + kv; continue; }
+    const std::string k = kv.substr(0, eq), v = kv.substr(eq + 1);
+    if (k == "palette") { if (lookPal) *lookPal = v == "look"; }
+    else if (k == "bare") { if (bare) *bare = v == "1"; }
+    else if (!applyLookField(L, k, v) && bad) *bad += (bad->empty() ? "" : ",") + k;
+  }
+}
 }  // namespace doll
 }  // namespace art

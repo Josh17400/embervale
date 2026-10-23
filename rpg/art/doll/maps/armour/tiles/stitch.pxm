@@ -1,0 +1,13 @@
+# armour/tiles/stitch: the leather bracer's stitch line on the forearm region (F): a step-1 row every second row
+# (matte leather, no shine).
+# Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4 (the regions after the word).
+use person
+body adult
+role overlay stitch
+tags tile overlay
+on-region F
+
+view D key rest origin 0 0
+|h
+|g
+

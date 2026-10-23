@@ -1,0 +1,661 @@
+# P2c Arms and Armour: THE STYLE SLICE on the 1440x810 desktop (NORMAL D3, NEAR D4) (docs/PLAN.md "## P2c" > "The style slice", STYLE_P2 26; SLICE-DOLL).
+# Seed 7, the start village OSLARS, rig 2. Every slice look (`slicegear`: the guard, the plate soldier, the archer, the
+# fit twins, the A3 hero) checked on the doll (`expect doll covered`, `expect doll gear`), each clip frozen by `pose` in
+# the four facings (`p2cline face`), shot. A look the doll does not cover is drawn whole on v1 and fails `expect doll`.
+#   embervale.exe --script tools/scripts/p2c_slice.txt          (p2c_slice_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 at -140 -432
++2.5 skill clearing 16
+# ---- hero
++0.1 slicegear hero
++0.3 expect doll covered
++0.1 p2cline face 0
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_hero_idle_down.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_hero_didle_down.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_hero_dwalk_down.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_hero_hurt_down.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_hero_windup0_down.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_hero_strike0_down.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_hero_follow0_down.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_hero_follow1_down.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_hero_fall0_down.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_hero_lying0_down.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_hero_fall1_down.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_hero_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_hero_idle_right.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_hero_didle_right.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_hero_dwalk_right.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_hero_hurt_right.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_hero_windup0_right.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_hero_strike0_right.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_hero_follow0_right.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_hero_follow1_right.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_hero_fall0_right.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_hero_lying0_right.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_hero_fall1_right.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_hero_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_hero_idle_left.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_hero_didle_left.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_hero_dwalk_left.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_hero_hurt_left.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_hero_windup0_left.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_hero_strike0_left.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_hero_follow0_left.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_hero_follow1_left.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_hero_fall0_left.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_hero_lying0_left.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_hero_fall1_left.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_hero_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_hero_idle_up.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_hero_didle_up.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_hero_dwalk_up.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_hero_hurt_up.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_hero_windup0_up.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_hero_strike0_up.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_hero_follow0_up.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_hero_follow1_up.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_hero_fall0_up.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_hero_lying0_up.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_hero_fall1_up.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_hero_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_hero_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_hero_near_world.png p2c_slice_hero_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- guard
++0.1 slicegear guard
++0.3 expect doll covered
++0.0 expect doll gear armour=mail
++0.0 expect doll gear tabard=tabard
++0.0 expect doll gear helm=form1
++0.0 expect doll gear shield=form2
++0.0 expect doll gear sheath=sword
++0.1 p2cline face 0
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_guard_idle_down.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_guard_didle_down.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_guard_dwalk_down.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_guard_hurt_down.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_guard_windup0_down.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_guard_strike0_down.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_guard_follow0_down.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_guard_follow1_down.png
++0.1 pose block sword 0 0
++0.2 shot p2c_slice_guard_block0_down.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_guard_fall0_down.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_guard_lying0_down.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_guard_fall1_down.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_guard_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_guard_idle_right.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_guard_didle_right.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_guard_dwalk_right.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_guard_hurt_right.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_guard_windup0_right.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_guard_strike0_right.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_guard_follow0_right.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_guard_follow1_right.png
++0.1 pose block sword 0 0
++0.2 shot p2c_slice_guard_block0_right.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_guard_fall0_right.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_guard_lying0_right.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_guard_fall1_right.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_guard_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_guard_idle_left.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_guard_didle_left.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_guard_dwalk_left.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_guard_hurt_left.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_guard_windup0_left.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_guard_strike0_left.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_guard_follow0_left.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_guard_follow1_left.png
++0.1 pose block sword 0 0
++0.2 shot p2c_slice_guard_block0_left.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_guard_fall0_left.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_guard_lying0_left.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_guard_fall1_left.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_guard_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle sword 0 0
++0.2 shot p2c_slice_guard_idle_up.png
++0.1 pose idle sword 1 0
++0.2 shot p2c_slice_guard_didle_up.png
++0.1 pose walk sword 1 2
++0.2 shot p2c_slice_guard_dwalk_up.png
++0.1 pose hurt sword 0 0
++0.2 shot p2c_slice_guard_hurt_up.png
++0.1 pose windup sword 0 0
++0.2 shot p2c_slice_guard_windup0_up.png
++0.1 pose strike sword 0 0
++0.2 shot p2c_slice_guard_strike0_up.png
++0.1 pose follow sword 0 0
++0.2 shot p2c_slice_guard_follow0_up.png
++0.1 pose follow sword 0 1
++0.2 shot p2c_slice_guard_follow1_up.png
++0.1 pose block sword 0 0
++0.2 shot p2c_slice_guard_block0_up.png
++0.1 pose fall sword 0 2
++0.2 shot p2c_slice_guard_fall0_up.png
++0.1 pose lying sword 0 0
++0.2 shot p2c_slice_guard_lying0_up.png
++0.1 pose fall sword 1 2
++0.2 shot p2c_slice_guard_fall1_up.png
++0.1 pose lying sword 1 0
++0.2 shot p2c_slice_guard_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_guard_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_guard_near_world.png p2c_slice_guard_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- knight
++0.1 slicegear knight
++0.3 expect doll covered
++0.0 expect doll gear armour=plate
++0.0 expect doll gear helm=form9
++0.0 expect doll gear pauldron=plate.3
++0.1 p2cline face 0
++0.1 pose idle spear 0 0
++0.2 shot p2c_slice_knight_idle_down.png
++0.1 pose idle spear 1 0
++0.2 shot p2c_slice_knight_didle_down.png
++0.1 pose walk spear 1 2
++0.2 shot p2c_slice_knight_dwalk_down.png
++0.1 pose hurt spear 0 0
++0.2 shot p2c_slice_knight_hurt_down.png
++0.1 pose windup spear 0 0
++0.2 shot p2c_slice_knight_windup0_down.png
++0.1 pose windup spear 0 1
++0.2 shot p2c_slice_knight_windup1_down.png
++0.1 pose strike spear 0 0
++0.2 shot p2c_slice_knight_strike0_down.png
++0.1 pose strike spear 0 1
++0.2 shot p2c_slice_knight_strike1_down.png
++0.1 pose follow spear 0 0
++0.2 shot p2c_slice_knight_follow0_down.png
++0.1 pose follow spear 0 1
++0.2 shot p2c_slice_knight_follow1_down.png
++0.1 pose block spear 0 0
++0.2 shot p2c_slice_knight_block0_down.png
++0.1 pose fall spear 0 2
++0.2 shot p2c_slice_knight_fall0_down.png
++0.1 pose lying spear 0 0
++0.2 shot p2c_slice_knight_lying0_down.png
++0.1 pose fall spear 1 2
++0.2 shot p2c_slice_knight_fall1_down.png
++0.1 pose lying spear 1 0
++0.2 shot p2c_slice_knight_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle spear 0 0
++0.2 shot p2c_slice_knight_idle_right.png
++0.1 pose idle spear 1 0
++0.2 shot p2c_slice_knight_didle_right.png
++0.1 pose walk spear 1 2
++0.2 shot p2c_slice_knight_dwalk_right.png
++0.1 pose hurt spear 0 0
++0.2 shot p2c_slice_knight_hurt_right.png
++0.1 pose windup spear 0 0
++0.2 shot p2c_slice_knight_windup0_right.png
++0.1 pose windup spear 0 1
++0.2 shot p2c_slice_knight_windup1_right.png
++0.1 pose strike spear 0 0
++0.2 shot p2c_slice_knight_strike0_right.png
++0.1 pose strike spear 0 1
++0.2 shot p2c_slice_knight_strike1_right.png
++0.1 pose follow spear 0 0
++0.2 shot p2c_slice_knight_follow0_right.png
++0.1 pose follow spear 0 1
++0.2 shot p2c_slice_knight_follow1_right.png
++0.1 pose block spear 0 0
++0.2 shot p2c_slice_knight_block0_right.png
++0.1 pose fall spear 0 2
++0.2 shot p2c_slice_knight_fall0_right.png
++0.1 pose lying spear 0 0
++0.2 shot p2c_slice_knight_lying0_right.png
++0.1 pose fall spear 1 2
++0.2 shot p2c_slice_knight_fall1_right.png
++0.1 pose lying spear 1 0
++0.2 shot p2c_slice_knight_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle spear 0 0
++0.2 shot p2c_slice_knight_idle_left.png
++0.1 pose idle spear 1 0
++0.2 shot p2c_slice_knight_didle_left.png
++0.1 pose walk spear 1 2
++0.2 shot p2c_slice_knight_dwalk_left.png
++0.1 pose hurt spear 0 0
++0.2 shot p2c_slice_knight_hurt_left.png
++0.1 pose windup spear 0 0
++0.2 shot p2c_slice_knight_windup0_left.png
++0.1 pose windup spear 0 1
++0.2 shot p2c_slice_knight_windup1_left.png
++0.1 pose strike spear 0 0
++0.2 shot p2c_slice_knight_strike0_left.png
++0.1 pose strike spear 0 1
++0.2 shot p2c_slice_knight_strike1_left.png
++0.1 pose follow spear 0 0
++0.2 shot p2c_slice_knight_follow0_left.png
++0.1 pose follow spear 0 1
++0.2 shot p2c_slice_knight_follow1_left.png
++0.1 pose block spear 0 0
++0.2 shot p2c_slice_knight_block0_left.png
++0.1 pose fall spear 0 2
++0.2 shot p2c_slice_knight_fall0_left.png
++0.1 pose lying spear 0 0
++0.2 shot p2c_slice_knight_lying0_left.png
++0.1 pose fall spear 1 2
++0.2 shot p2c_slice_knight_fall1_left.png
++0.1 pose lying spear 1 0
++0.2 shot p2c_slice_knight_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle spear 0 0
++0.2 shot p2c_slice_knight_idle_up.png
++0.1 pose idle spear 1 0
++0.2 shot p2c_slice_knight_didle_up.png
++0.1 pose walk spear 1 2
++0.2 shot p2c_slice_knight_dwalk_up.png
++0.1 pose hurt spear 0 0
++0.2 shot p2c_slice_knight_hurt_up.png
++0.1 pose windup spear 0 0
++0.2 shot p2c_slice_knight_windup0_up.png
++0.1 pose windup spear 0 1
++0.2 shot p2c_slice_knight_windup1_up.png
++0.1 pose strike spear 0 0
++0.2 shot p2c_slice_knight_strike0_up.png
++0.1 pose strike spear 0 1
++0.2 shot p2c_slice_knight_strike1_up.png
++0.1 pose follow spear 0 0
++0.2 shot p2c_slice_knight_follow0_up.png
++0.1 pose follow spear 0 1
++0.2 shot p2c_slice_knight_follow1_up.png
++0.1 pose block spear 0 0
++0.2 shot p2c_slice_knight_block0_up.png
++0.1 pose fall spear 0 2
++0.2 shot p2c_slice_knight_fall0_up.png
++0.1 pose lying spear 0 0
++0.2 shot p2c_slice_knight_lying0_up.png
++0.1 pose fall spear 1 2
++0.2 shot p2c_slice_knight_fall1_up.png
++0.1 pose lying spear 1 0
++0.2 shot p2c_slice_knight_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_knight_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_knight_near_world.png p2c_slice_knight_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- archer
++0.1 slicegear archer
++0.3 expect doll covered
++0.0 expect doll gear armour=leather
++0.0 expect doll gear helm=band1
++0.0 expect doll gear back=quiver
++0.0 expect doll gear back=bowback
++0.1 p2cline face 0
++0.1 pose idle bow 0 0
++0.2 shot p2c_slice_archer_idle_down.png
++0.1 pose idle bow 1 0
++0.2 shot p2c_slice_archer_didle_down.png
++0.1 pose walk bow 1 2
++0.2 shot p2c_slice_archer_dwalk_down.png
++0.1 pose hurt bow 0 0
++0.2 shot p2c_slice_archer_hurt_down.png
++0.1 pose draw bow 0 0
++0.2 shot p2c_slice_archer_draw0_down.png
++0.1 pose draw bow 0 1
++0.2 shot p2c_slice_archer_draw1_down.png
++0.1 pose draw bow 0 2
++0.2 shot p2c_slice_archer_draw2_down.png
++0.1 pose release bow 0 0
++0.2 shot p2c_slice_archer_release0_down.png
++0.1 pose fall bow 0 2
++0.2 shot p2c_slice_archer_fall0_down.png
++0.1 pose lying bow 0 0
++0.2 shot p2c_slice_archer_lying0_down.png
++0.1 pose fall bow 1 2
++0.2 shot p2c_slice_archer_fall1_down.png
++0.1 pose lying bow 1 0
++0.2 shot p2c_slice_archer_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle bow 0 0
++0.2 shot p2c_slice_archer_idle_right.png
++0.1 pose idle bow 1 0
++0.2 shot p2c_slice_archer_didle_right.png
++0.1 pose walk bow 1 2
++0.2 shot p2c_slice_archer_dwalk_right.png
++0.1 pose hurt bow 0 0
++0.2 shot p2c_slice_archer_hurt_right.png
++0.1 pose draw bow 0 0
++0.2 shot p2c_slice_archer_draw0_right.png
++0.1 pose draw bow 0 1
++0.2 shot p2c_slice_archer_draw1_right.png
++0.1 pose draw bow 0 2
++0.2 shot p2c_slice_archer_draw2_right.png
++0.1 pose release bow 0 0
++0.2 shot p2c_slice_archer_release0_right.png
++0.1 pose fall bow 0 2
++0.2 shot p2c_slice_archer_fall0_right.png
++0.1 pose lying bow 0 0
++0.2 shot p2c_slice_archer_lying0_right.png
++0.1 pose fall bow 1 2
++0.2 shot p2c_slice_archer_fall1_right.png
++0.1 pose lying bow 1 0
++0.2 shot p2c_slice_archer_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle bow 0 0
++0.2 shot p2c_slice_archer_idle_left.png
++0.1 pose idle bow 1 0
++0.2 shot p2c_slice_archer_didle_left.png
++0.1 pose walk bow 1 2
++0.2 shot p2c_slice_archer_dwalk_left.png
++0.1 pose hurt bow 0 0
++0.2 shot p2c_slice_archer_hurt_left.png
++0.1 pose draw bow 0 0
++0.2 shot p2c_slice_archer_draw0_left.png
++0.1 pose draw bow 0 1
++0.2 shot p2c_slice_archer_draw1_left.png
++0.1 pose draw bow 0 2
++0.2 shot p2c_slice_archer_draw2_left.png
++0.1 pose release bow 0 0
++0.2 shot p2c_slice_archer_release0_left.png
++0.1 pose fall bow 0 2
++0.2 shot p2c_slice_archer_fall0_left.png
++0.1 pose lying bow 0 0
++0.2 shot p2c_slice_archer_lying0_left.png
++0.1 pose fall bow 1 2
++0.2 shot p2c_slice_archer_fall1_left.png
++0.1 pose lying bow 1 0
++0.2 shot p2c_slice_archer_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle bow 0 0
++0.2 shot p2c_slice_archer_idle_up.png
++0.1 pose idle bow 1 0
++0.2 shot p2c_slice_archer_didle_up.png
++0.1 pose walk bow 1 2
++0.2 shot p2c_slice_archer_dwalk_up.png
++0.1 pose hurt bow 0 0
++0.2 shot p2c_slice_archer_hurt_up.png
++0.1 pose draw bow 0 0
++0.2 shot p2c_slice_archer_draw0_up.png
++0.1 pose draw bow 0 1
++0.2 shot p2c_slice_archer_draw1_up.png
++0.1 pose draw bow 0 2
++0.2 shot p2c_slice_archer_draw2_up.png
++0.1 pose release bow 0 0
++0.2 shot p2c_slice_archer_release0_up.png
++0.1 pose fall bow 0 2
++0.2 shot p2c_slice_archer_fall0_up.png
++0.1 pose lying bow 0 0
++0.2 shot p2c_slice_archer_lying0_up.png
++0.1 pose fall bow 1 2
++0.2 shot p2c_slice_archer_fall1_up.png
++0.1 pose lying bow 1 0
++0.2 shot p2c_slice_archer_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_archer_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_archer_near_world.png p2c_slice_archer_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- knightm
++0.1 slicegear knightm
++0.3 expect doll covered
++0.0 expect doll gear armour=plate
++0.0 expect doll gear helm=form9
++0.0 expect doll gear pauldron=plate.3
++0.0 expect doll gear held=none
++0.1 p2cline face 0
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_knightm_idle_down.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_knightm_hurt_down.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_knightm_fall0_down.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_knightm_lying0_down.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_knightm_fall1_down.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_knightm_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_knightm_idle_right.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_knightm_hurt_right.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_knightm_fall0_right.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_knightm_lying0_right.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_knightm_fall1_right.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_knightm_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_knightm_idle_left.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_knightm_hurt_left.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_knightm_fall0_left.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_knightm_lying0_left.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_knightm_fall1_left.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_knightm_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_knightm_idle_up.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_knightm_hurt_up.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_knightm_fall0_up.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_knightm_lying0_up.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_knightm_fall1_up.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_knightm_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_knightm_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_knightm_near_world.png p2c_slice_knightm_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- archerw
++0.1 slicegear archerw
++0.3 expect doll covered
++0.0 expect doll gear armour=leather
++0.0 expect doll gear helm=band1
++0.0 expect doll gear held=none
++0.1 p2cline face 0
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_archerw_idle_down.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_archerw_hurt_down.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_archerw_fall0_down.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_archerw_lying0_down.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_archerw_fall1_down.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_archerw_lying1_down.png
++0.1 p2cline face 2
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_archerw_idle_right.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_archerw_hurt_right.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_archerw_fall0_right.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_archerw_lying0_right.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_archerw_fall1_right.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_archerw_lying1_right.png
++0.1 p2cline face 3
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_archerw_idle_left.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_archerw_hurt_left.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_archerw_fall0_left.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_archerw_lying0_left.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_archerw_fall1_left.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_archerw_lying1_left.png
++0.1 p2cline face 1
++0.1 pose idle unarmed 0 0
++0.2 shot p2c_slice_archerw_idle_up.png
++0.1 pose hurt unarmed 0 0
++0.2 shot p2c_slice_archerw_hurt_up.png
++0.1 pose fall unarmed 0 2
++0.2 shot p2c_slice_archerw_fall0_up.png
++0.1 pose lying unarmed 0 0
++0.2 shot p2c_slice_archerw_lying0_up.png
++0.1 pose fall unarmed 1 2
++0.2 shot p2c_slice_archerw_fall1_up.png
++0.1 pose lying unarmed 1 0
++0.2 shot p2c_slice_archerw_lying1_up.png
++0.1 pose off
++0.1 p2cline face 0
++0.1 zoom near
++0.4 shot p2c_slice_archerw_near.png
++0.1 ui 0
++0.2 shotpair p2c_slice_archerw_near_world.png p2c_slice_archerw_near_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- the guard at 22:00, then every slice look on rig 1 (v1) for the side-by-side
++0.1 slicegear guard
++0.1 hour 22
++0.6 shot p2c_slice_guard_night.png
++0.1 hour 11
++0.3 rig 1
++0.0 expect rig 1
++0.1 slicegear hero
++0.3 shot p2c_slice_hero_rig1.png
++0.1 slicegear guard
++0.3 shot p2c_slice_guard_rig1.png
++0.1 slicegear knight
++0.3 shot p2c_slice_knight_rig1.png
++0.1 slicegear archer
++0.3 shot p2c_slice_archer_rig1.png
++0.1 slicegear knightm
++0.3 shot p2c_slice_knightm_rig1.png
++0.1 slicegear archerw
++0.3 shot p2c_slice_archerw_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.1 slicegear hero
++0.3 expect doll covered

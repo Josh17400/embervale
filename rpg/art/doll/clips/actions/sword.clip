@@ -4,65 +4,231 @@
 
 body man
 clip windup R family sword variant 0
-f armL=- armR=- held=r0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
 clip strike R family sword variant 0
-f armL=- armR=- expr=fierce fx=a1 held=r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
+f armL=- armR=sw_r1 expr=fierce fx=a1 held=a3r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
 clip follow R family sword variant 0
-f armL=- armR=- expr=fierce fx=a2 held=r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
-f armL=- armR=- held=r3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
+f armL=- armR=sw_r2 expr=fierce fx=a2 held=a3r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
+f armL=- armR=sw_r3 held=a3r3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
 clip windup D family sword variant 0
-f armL=idle armR=- held=d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
+f armL=idle armR=sw_d0 held=a3d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
 clip strike D family sword variant 0
-f armL=idle armR=- expr=fierce fx=a1 held=d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
+f armL=idle armR=sw_d1 expr=fierce fx=a1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
 clip follow D family sword variant 0
-f armL=idle armR=- expr=fierce fx=a2 held=d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
-f armL=idle armR=- held=d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
+f armL=idle armR=sw_d2 expr=fierce fx=a2 held=a3d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
+f armL=idle armR=sw_d3 held=a3d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
 
 # hit 1 facing left (the right hand, the far one: behind the body on the wind-up) and up (the sweep away, mostly hidden)
 clip windup L family sword variant 0
-f armL=lie armR=- held=l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
+f armL=lie armR=sw_l0 held=a3l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
 clip strike L family sword variant 0
-f armL=lie armR=- expr=fierce fx=a1 held=l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
+f armL=lie armR=sw_l1 expr=fierce fx=a1 held=a3l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
 clip follow L family sword variant 0
-f armL=lie armR=- expr=fierce fx=a2 held=l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
-f armL=lie armR=- held=l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
+f armL=lie armR=sw_l2 expr=fierce fx=a2 held=a3l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
+f armL=lie armR=sw_l3 held=a3l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
 clip windup U family sword variant 0
-f armL=idle armR=- held=u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
+f armL=idle armR=sw_u0 held=a3u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
 clip strike U family sword variant 0
-f armL=idle armR=- fx=a1 held=u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
+f armL=idle armR=sw_u1 fx=a1 held=a3u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
 clip follow U family sword variant 0
-f armL=idle armR=- fx=a2 held=u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
-f armL=idle armR=- held=u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60
+f armL=idle armR=sw_u2 fx=a2 held=a3u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
+f armL=idle armR=sw_u3 held=a3u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60
 
 # the woman hero (the shirt and trousers): the same swing on her body (her head a row lower; the arm overlays are A3's)
 body woman
 clip windup R family sword variant 0
-f armL=- armR=- held=r0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
 clip strike R family sword variant 0
-f armL=- armR=- expr=fierce fx=a1 held=r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
+f armL=- armR=sw_r1 expr=fierce fx=a1 held=a3r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
 clip follow R family sword variant 0
-f armL=- armR=- expr=fierce fx=a2 held=r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
-f armL=- armR=- held=r3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
+f armL=- armR=sw_r2 expr=fierce fx=a2 held=a3r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
+f armL=- armR=sw_r3 held=a3r3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
 clip windup D family sword variant 0
-f armL=idle armR=- held=d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
+f armL=idle armR=sw_d0 held=a3d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
 clip strike D family sword variant 0
-f armL=idle armR=- expr=fierce fx=a1 held=d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
+f armL=idle armR=sw_d1 expr=fierce fx=a1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
 clip follow D family sword variant 0
-f armL=idle armR=- expr=fierce fx=a2 held=d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
-f armL=idle armR=- held=d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
+f armL=idle armR=sw_d2 expr=fierce fx=a2 held=a3d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
+f armL=idle armR=sw_d3 held=a3d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
 
 # her hit 1 facing left (the right hand, the far one: behind the body on the wind-up) and up (the sweep away, mostly hidden)
 clip windup L family sword variant 0
-f armL=lie armR=- held=l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
+f armL=lie armR=sw_l0 held=a3l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
 clip strike L family sword variant 0
-f armL=lie armR=- expr=fierce fx=a1 held=l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
+f armL=lie armR=sw_l1 expr=fierce fx=a1 held=a3l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
 clip follow L family sword variant 0
-f armL=lie armR=- expr=fierce fx=a2 held=l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
-f armL=lie armR=- held=l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
+f armL=lie armR=sw_l2 expr=fierce fx=a2 held=a3l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
+f armL=lie armR=sw_l3 held=a3l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60
 clip windup U family sword variant 0
-f armL=idle armR=- held=u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
+f armL=idle armR=sw_u0 held=a3u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
 clip strike U family sword variant 0
-f armL=idle armR=- fx=a1 held=u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
+f armL=idle armR=sw_u1 fx=a1 held=a3u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
 clip follow U family sword variant 0
-f armL=idle armR=- fx=a2 held=u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
-f armL=idle armR=- held=u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60
+f armL=idle armR=sw_u2 fx=a2 held=a3u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
+f armL=idle armR=sw_u3 held=a3u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60
+
+# ======================================================================================== (P2c SLICE-DOLL) the DRAWN part
+# The drawn idle and walk (variant 1) and the drawn run (walk variant 2), moved from clips/loco.clip (part action) with
+# every number unchanged: RigPart::Drawn bakes them into the DRAWN atlas (256 KB), so ACTION holds the swings.
+body man
+# ---- the drawn-weapon LOCO (P2b production, FOLK-BODY): what a fighter shows for 4 s after a swing or while a foe is near
+# (anim.cpp: the drawn idle and walk are the ACTION part's variant 1, the drawn run its walk variant 2: P2b fix r1,
+# B10-ARMED-RUN-ATLAS, so the RUN atlas holds only the sheathed run and stays in its 64 KB for armed looks; ACTION is
+# baked for every fighter anyway, the only bodies that run drawn). The weapon
+# hand holds the blade in a ready guard (arms `guard`, held `guard` on its grip: A3's recover facing right and left); the
+# off hand swings free of the empty scabbard (arms `o*`); the hips sit a pixel low on the guard / drawn stance and breathe
+# up a pixel. The walk and the run keep the sheathed clips' legs, plants, bob, hangs and hair, so they register the same.
+clip idle D part drawn family sword variant 1
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest bob=1 expr=blink
+clip idle U part drawn family sword variant 1
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest
+f armL=oidle armR=guard held=guard legs=drawn neck=rest sheath=drawn torso=rest bob=1
+clip idle R part drawn family sword variant 1
+f armL=- armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=- armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest
+f armL=- armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+clip idle L part drawn family sword variant 1
+f armL=oidle armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest bob=1
+f armL=oidle armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest
+f armL=oidle armR=guard held=guard hilt=- legs=guard neck=rest sheath=rest torso=rest bob=1 expr=blink
+
+clip walk D part drawn family sword variant 1
+f armL=ofwd armR=guard held=guard legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
+f armL=ofwd armR=guard held=guard legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=oidle armR=guard held=guard legs=walkB neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+f armL=oback armR=guard held=guard legs=walkC neck=rest sheath=drawn torso=rest sway=1 plant=6:3
+f armL=oback armR=guard held=guard legs=walkC2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=oidle armR=guard held=guard legs=walkD neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+clip walk U part drawn family sword variant 1
+f armL=oback armR=guard held=guard legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
+f armL=oback armR=guard held=guard legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=oidle armR=guard held=guard legs=walkB neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+f armL=ofwd armR=guard held=guard legs=walkC neck=rest sheath=drawn torso=rest sway=1 plant=6:3
+f armL=ofwd armR=guard held=guard legs=walkC2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=oidle armR=guard held=guard legs=walkD neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+clip walk R part drawn family sword variant 1
+f hang=wide armL=- armR=guard held=guard hilt=- legs=walkA neck=flow sheath=rest torso=run bob=1 plant=3:0
+f hang=wide armL=- armR=guard held=guard hilt=- legs=walkA2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing
+f hang=rest armL=oback armR=guard held=guard hilt=- legs=walkB2 neck=flow sheath=rest torso=run plant=-4:-8
+f hang=wide armL=oback armR=guard held=guard hilt=- legs=walkC neck=flow sheath=rest torso=run bob=1 plant=3:0
+f hang=wide armL=- armR=guard held=guard hilt=- legs=walkC2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing
+f hang=rest armL=- armR=guard held=guard hilt=- legs=walkD2 neck=flow sheath=rest torso=run plant=-4:-8
+clip walk L part drawn family sword variant 1
+f hang=wide armL=oB armR=guard held=guard hilt=- legs=walkA neck=flow sheath=kick torso=run bob=1 plant=4:1
+f hang=wide armL=oN armR=guard held=guard hilt=- legs=walkA2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing
+f hang=rest armL=oF armR=guard held=guard hilt=- legs=walkB2 neck=flow sheath=kick torso=run plant=-3:-7
+f hang=wide armL=oF armR=guard held=guard hilt=- legs=walkC neck=flow sheath=kick torso=run bob=1 plant=4:1
+f hang=wide armL=oN armR=guard held=guard hilt=- legs=walkC2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing
+f hang=rest armL=oB armR=guard held=guard hilt=- legs=walkD2 neck=flow sheath=kick torso=run plant=-3:-7
+
+clip run D part drawn family sword variant 2
+f armL=orunF armR=guard held=guard legs=run1 neck=rest sheath=drawn torso=rest hang=flare sway=-1 plant=5:-1
+f armL=orunF armR=guard held=guard legs=run2 neck=rest sheath=drawn torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing
+f armL=oidle armR=guard held=guard legs=run3 neck=rest sheath=drawn torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+f armL=oback armR=guard held=guard legs=run4 neck=rest sheath=drawn torso=rest hang=flare sway=1 plant=5:-1
+f armL=oback armR=guard held=guard legs=run5 neck=rest sheath=drawn torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing
+f armL=oidle armR=guard held=guard legs=run6 neck=rest sheath=drawn torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+clip run U part drawn family sword variant 2
+f armL=oback armR=guard held=guard legs=run1 neck=rest sheath=drawn torso=rest hang=flare sway=-1 plant=5:-1
+f armL=oback armR=guard held=guard legs=run2 neck=rest sheath=drawn torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing
+f armL=oidle armR=guard held=guard legs=run3 neck=rest sheath=drawn torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+f armL=orunF armR=guard held=guard legs=run4 neck=rest sheath=drawn torso=rest hang=flare sway=1 plant=5:-1
+f armL=orunF armR=guard held=guard legs=run5 neck=rest sheath=drawn torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing
+f armL=oidle armR=guard held=guard legs=run6 neck=rest sheath=drawn torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+clip run R part drawn family sword variant 2
+f armL=- armR=guard held=guard hilt=- legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=4 plant=0:-6 hip=2,0 hair=run braid=run
+f armL=- armR=guard held=guard hilt=- legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run
+f armL=oback armR=guard held=guard hilt=- legs=run3 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up
+f armL=oback armR=guard held=guard hilt=- legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=4 plant=0:-6 hip=2,0 hair=run braid=run
+f armL=- armR=guard held=guard hilt=- legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run
+f armL=- armR=guard held=guard hilt=- legs=run6 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up
+clip run L part drawn family sword variant 2
+f armL=orunB armR=guard held=guard hilt=- legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 plant=1:-5 hip=-2,0 hair=run braid=run
+f armL=oN armR=guard held=guard hilt=- legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run
+f armL=orunF armR=guard held=guard hilt=- legs=run3 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
+f armL=orunF armR=guard held=guard hilt=- legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 plant=1:-5 hip=-2,0 hair=run braid=run
+f armL=oN armR=guard held=guard hilt=- legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run
+f armL=orunB armR=guard held=guard hilt=- legs=run6 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
+
+body woman
+# ---- her drawn-weapon LOCO (P2b production, FOLK-BODY): the man's guard on her body (her guard arm's grip lands where his
+# does); her off hand swings as in her sheathed walk and run (her arms never rest on the hilt). (INTEGRATION 2026-10-23)
+# her side drawn walk and run hold the sword on held=gmove (held/weapons/sword.pxm: her guard with the blade clear of her
+# face, B11 W7); her drawn idle keeps held=guard, frozen.
+clip idle D part drawn family sword variant 1
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest bob=1 braid=rest
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest braid=rest
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest bob=1 expr=blink braid=rest
+clip idle U part drawn family sword variant 1
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest bob=1 braid=rest
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest braid=rest
+f armL=idle armR=guard held=guard hair=rest hang=idle legs=drawn sheath=drawn torso=rest bob=1 braid=rest
+clip idle R part drawn family sword variant 1
+f armL=- armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest bob=1 braid=rest
+f armL=- armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest braid=rest
+f armL=- armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest bob=1 expr=blink braid=rest
+clip idle L part drawn family sword variant 1
+f armL=idle armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest bob=1 braid=rest
+f armL=idle armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest braid=rest
+f armL=idle armR=guard held=guard hilt=- hair=rest hang=idle legs=guard sheath=rest torso=rest bob=1 expr=blink braid=rest
+
+clip walk D part drawn family sword variant 1
+f armL=down armR=guard held=guard hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
+f armL=down1 armR=guard held=guard hair=swing hang=rest legs=walkA2 sheath=drawn torso=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=rest legs=walkB sheath=drawn torso=rest plant=0:-3 braid=rest
+f armL=up armR=guard held=guard hair=rest hang=rest legs=walkC sheath=drawn torso=rest sway=1 plant=6:3 braid=rest
+f armL=up1 armR=guard held=guard hair=swing hang=rest legs=walkC2 sheath=drawn torso=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest
+clip walk U part drawn family sword variant 1
+f armL=down armR=guard held=guard hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
+f armL=down armR=guard held=guard hair=swing hang=rest legs=walkA2 sheath=drawn torso=rest bob=1 sway=-1 plant=3:0 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=rest legs=walkB sheath=drawn torso=rest plant=0:-3 braid=rest
+f armL=up armR=guard held=guard hair=rest hang=rest legs=walkC sheath=drawn torso=rest sway=1 plant=6:3 braid=rest
+f armL=up armR=guard held=guard hair=swing hang=rest legs=walkC2 sheath=drawn torso=rest bob=1 sway=1 plant=3:0 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest
+clip walk R part drawn family sword variant 1
+f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkA sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest
+f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkA2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing
+f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkB2 sheath=rest torso=run plant=-4:-8 braid=rest
+f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkC sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest
+f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkC2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing
+f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkD2 sheath=rest torso=run plant=-4:-8 braid=rest
+clip walk L part drawn family sword variant 1
+f armL=B armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkA sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest
+f armL=N armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkA2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing
+f armL=F armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkB2 sheath=kick torso=run plant=-3:-7 braid=rest
+f armL=F armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkC sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest
+f armL=N armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing
+f armL=B armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest
+
+clip run D part drawn family sword variant 2
+f armL=runF armR=guard held=guard hair=swing hang=flare legs=run1 sheath=drawn torso=rest sway=-1 plant=5:-1 braid=swing
+f armL=runF armR=guard held=guard hair=swing hang=flare legs=run2 sheath=drawn torso=rest sway=-1 plant=-1:-7 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=flare legs=run3 sheath=drawn torso=rest bob=-1 plant=-7:-13 braid=rest
+f armL=up armR=guard held=guard hair=swing hang=flare legs=run4 sheath=drawn torso=rest sway=1 plant=5:-1 braid=swing
+f armL=up armR=guard held=guard hair=swing hang=flare legs=run5 sheath=drawn torso=rest sway=1 plant=-1:-7 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=flare legs=run6 sheath=drawn torso=rest bob=-1 plant=-7:-13 braid=rest
+clip run U part drawn family sword variant 2
+f armL=up armR=guard held=guard hair=swing hang=flare legs=run1 sheath=drawn torso=rest sway=-1 plant=5:-1 braid=swing
+f armL=up armR=guard held=guard hair=swing hang=flare legs=run2 sheath=drawn torso=rest sway=-1 plant=-1:-7 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=flare legs=run3 sheath=drawn torso=rest bob=-1 plant=-7:-13 braid=rest
+f armL=runF armR=guard held=guard hair=swing hang=flare legs=run4 sheath=drawn torso=rest sway=1 plant=5:-1 braid=swing
+f armL=runF armR=guard held=guard hair=swing hang=flare legs=run5 sheath=drawn torso=rest sway=1 plant=-1:-7 braid=swing
+f armL=idle armR=guard held=guard hair=rest hang=flare legs=run6 sheath=drawn torso=rest bob=-1 plant=-7:-13 braid=rest
+clip run R part drawn family sword variant 2
+f armL=pF armR=guard held=gmove hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run
+f armL=pK armR=guard held=gmove hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run
+f armL=pB armR=guard held=gmove hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up
+f armL=pB armR=guard held=gmove hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run
+f armL=pM armR=guard held=gmove hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run
+f armL=pF armR=guard held=gmove hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up
+clip run L part drawn family sword variant 2
+f armL=pB armR=guard held=gmove hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run
+f armL=pM armR=guard held=gmove hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run
+f armL=pF armR=guard held=gmove hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up
+f armL=pF armR=guard held=gmove hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run
+f armL=pK armR=guard held=gmove hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run
+f armL=pB armR=guard held=gmove hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up

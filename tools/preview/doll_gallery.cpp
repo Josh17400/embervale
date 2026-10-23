@@ -19,6 +19,16 @@
 //     pose:<posture>[:<variant>]   every frame of a posture, R L D U rows on one ground line beside the look's idle, at 1x
 //                 and 6x (doll_pose_<posture>[_v<variant>].png): carry, play, dance, sit, wave, ... (the walking postures:
 //                 carry 0-2, play, dance)
+//   (P2c SLICE-DOLL)
+//     kit         the look in every armour form (padded leather mail scale lamellar brigandine plate leaf) on the man and the
+//                 woman, idle in four facings (the fit pairs at a glance)
+//     actions     every DRAWN and ACTION clip of the look frame by frame, a row per clip and facing, each frame's ms under it
+//     grip:<part>:<D|U|R|L>:<clip>:<i>[:<variant>]   one frame at 12x with its grip (gold), off grip (cyan) and tip (red)
+//                 marks, beside the clip's swing onion-skinned at 4x (every frame of windup, strike and follow at 30 %) with
+//                 the tip's path drawn through them
+//     silhouette  the slice's strike frames (the sword's, the spear's, the bow's release) filled flat, side by side in four
+//                 facings, so the families read by shape alone
+//   --slice <tag> takes a slice look (tools/doll/slice_looks.txt: hero guard knight archer knightm archerw) with its palette
 //   --look sets the look's fields on top of the chosen A3 look: body hair hairVar build people age pattern headwear hood
 //   beard beardStyle head nose brow marks neck garb cut outfit weapon cloak jewellery facePaint (numbers) and skin hairColor
 //   topColor bottomColor tabardColor patternColor cloakColor headColor eyeColor (#RRGGBB); --palette look colours it by
@@ -32,6 +42,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <set>
 #include "rpg/art/art_holders2.h"
 #include "rpg/art/doll/doll.h"
@@ -71,44 +82,30 @@ int g_who = 0;
 bool g_lookPalette = false;
 std::string g_lookSpec;
 
-bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) {
-  auto num = [&]() { return (int)std::strtol(v.c_str(), nullptr, 0); };
-  auto col = [&]() { return hexc((uint32_t)std::strtoul(v.c_str() + (v[0] == '#' ? 1 : 0), nullptr, 16)); };
-  if (k == "body") L.body = (uint8_t)num();
-  else if (k == "hair") L.hair = (art::Hair)num();
-  else if (k == "hairVar") L.hairVar = (uint8_t)num();
-  else if (k == "build") L.build = (uint8_t)num();
-  else if (k == "people") L.people = (uint8_t)num();
-  else if (k == "age") L.age = (uint8_t)num();
-  else if (k == "pattern") L.pattern = (uint8_t)num();
-  else if (k == "headwear") L.headwear = (uint8_t)num();
-  else if (k == "hood") L.hood = num() != 0;
-  else if (k == "beard") L.beard = num() != 0;
-  else if (k == "beardStyle") L.beardStyle = (uint8_t)num();
-  else if (k == "head") L.head = (uint8_t)num();
-  else if (k == "nose") L.nose = (uint8_t)num();
-  else if (k == "brow") L.brow = (uint8_t)num();
-  else if (k == "marks") L.marks = (uint8_t)num();
-  else if (k == "neck") L.neck = (uint8_t)num();
-  else if (k == "garb") L.garb = (uint8_t)num();
-  else if (k == "cut") L.cut = (uint8_t)num();
-  else if (k == "outfit") L.outfit = (art::Outfit)num();
-  else if (k == "weapon") L.weapon = (uint8_t)num();
-  else if (k == "cloak") L.cloak = (uint8_t)num();
-  else if (k == "cape") L.cape = num() != 0;   // (OUTER: the cape, HumanLook::cape)
-  else if (k == "jewellery") L.jewellery = (uint8_t)num();
-  else if (k == "facePaint") L.facePaint = (uint8_t)num();
-  else if (k == "skin") L.skin = col();
-  else if (k == "hairColor") L.hairColor = col();
-  else if (k == "topColor") L.topColor = col();
-  else if (k == "bottomColor") L.bottomColor = col();
-  else if (k == "tabardColor") L.tabardColor = col();
-  else if (k == "patternColor") L.patternColor = col();
-  else if (k == "cloakColor") L.cloakColor = col();
-  else if (k == "headColor") L.headColor = col();
-  else if (k == "eyeColor") L.eyeColor = col();
-  else return false;
-  return true;
+bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) { return art::doll::applyLookField(L, k, v); }   // (P2c: the one list, doll.h)
+// (P2c) the slice looks (tools/doll/slice_looks.txt's lines)
+struct SliceLook { const char* tag; int who; const char* spec; };
+const SliceLook kSlice[] = {
+    {"hero", 0, ""},
+    {"guard", 0, "outfit=8,armorStyle=2,bodyForm=3,tabardColor=#A8322E,helmet=1,helmStyle=2,helmForm=1,shield=1,shieldStyle=3,shieldForm=2,"
+                 "shieldDevice=#E8C25A,weapon=1,bladeForm=1,gloves=1,boots=1,pauldron=1,neck=0,head=1,hair=1,hairVar=1,hairColor=#4A3022,beard=1,"
+                 "beardStyle=0,skin=#D9A07A"},
+    {"knight", 1, "outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
+                  "weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A"},
+    {"archer", 0, "outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,topColor=#5E6A3A,"
+                  "bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#6A4426,beard=1,beardStyle=1,skin=#B98060"},
+    {"knightm", 0, "outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
+                   "weapon=0,neck=0,head=4,beard=1,beardStyle=2"},
+    {"archerw", 1, "outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=0,gloves=1,boots=1,topColor=#5E6A3A,"
+                   "bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418"},
+};
+doll::DollRecipe sliceRecipe(const SliceLook& sl, art::HumanLook* out = nullptr) {
+  art::HumanLook L = a3Look(sl.who);
+  doll::applyLookSpec(L, sl.spec);
+  doll::DollRecipe r = doll::resolve(L);
+  r.ramps = sl.spec[0] ? doll::rampsOf(L) : doll::a3Palette(sl.who);
+  if (out) *out = L;
+  return r;
 }
 art::HumanLook theLook(int who) {
   art::HumanLook L = a3Look(who);
@@ -213,7 +210,7 @@ void boardClips(const std::string& dir) {
   const doll::DollRecipe r = recipeOf(g_who);
   Board b(1400, 560);
   int y = 70;
-  for (RigPart p : {RigPart::Loco, RigPart::Run, RigPart::Action, RigPart::Death}) {
+  for (RigPart p : {RigPart::Loco, RigPart::Run, RigPart::Drawn, RigPart::Action, RigPart::Death}) {
     const RigSheet s = doll::compose(r, p);
     for (int c = 0; c < art::CLIP_COUNT; c++)
       for (int v = 0; v < art::RIG_VARIANTS; v++) {
@@ -552,7 +549,7 @@ void boardZoom(const std::string& dir, const std::string& arg) {
     int who = g_who;
     if (w[1] == "hero" || w[1] == "woman") { who = w[1] == "woman" ? 1 : 0; o = 2; }
     if (w.size() < o + 4) { std::printf("doll_gallery: %s: frame:<part>:<facing>:<clip>:<i>[:<variant>]\n", arg.c_str()); return; }
-    const RigPart part = w[o] == "run" ? RigPart::Run : w[o] == "action" ? RigPart::Action : w[o] == "death" ? RigPart::Death : RigPart::Loco;
+    const RigPart part = w[o] == "run" ? RigPart::Run : w[o] == "action" ? RigPart::Action : w[o] == "drawn" ? RigPart::Drawn : w[o] == "death" ? RigPart::Death : RigPart::Loco;
     // (OUTER) frame:posture:<facing>:<posture>:<i>[:<variant>]: one frame of a posture (the cloaks' sit, floor, kneel and
     // ride drapes; the walking postures' Carry 0-2, Play and Dance). <posture> a name or its art::Posture number; the
     // variant is the posture's (composePosture files every variant's frames as Idle variant 0)
@@ -581,6 +578,185 @@ void boardZoom(const std::string& dir, const std::string& arg) {
   for (char& ch : name) if (ch == ':' || ch == '/' || ch == '\\') ch = '_';
   savePng(b.c, dir + "/" + name + ".png", 1);
 }
+
+// ---------------------------------------------------------------- (P2c SLICE-DOLL) kit, actions, grip, silhouette
+void boardKit(const std::string& dir) {
+  static const char* kForms[8] = {"padded", "leather", "mail", "scale", "lamellar", "brigandine", "plate", "leaf"};
+  Board b(8 * 150 + 40, 2 * 120 + 40);
+  dirt(b, 0, b.c.h);
+  b.text(4, 4, "KIT: EVERY ARMOUR FORM ON THE MAN AND THE WOMAN, IDLE D U R L" + (g_lookSpec.empty() ? std::string() : " (" + g_lookSpec + ")"));
+  for (int who = 0; who < 2; who++)
+    for (int f = 0; f < 8; f++) {
+      art::HumanLook L = theLook(who);
+      L.bodyForm = (uint8_t)(f + 1);
+      if (L.outfit == art::Outfit::Dress) L.outfit = art::Outfit::Tunic;
+      if (f == 6 && !L.pauldron) L.pauldron = 3;
+      doll::DollRecipe r = doll::resolve(L);
+      if (!g_lookPalette) r.ramps = doll::a3Palette(L.body == 1 ? 1 : 0);
+      const RigSheet s = doll::compose(r, RigPart::Loco);
+      const int x0 = 20 + f * 150, g0 = 90 + who * 120;
+      b.text(x0, g0 - 70, std::string(kForms[f]) + (who ? " W" : " M"));
+      if (s.empty()) {
+        for (const doll::Missing& m : doll::dollMissing(L, RigPart::Loco)) { b.text(x0, g0 - 58, m.value + ": NO PART", rgba(232, 96, 60)); break; }
+        continue;
+      }
+      for (int fc = 0; fc < 4; fc++) putFrame(b, s, fc, Clip::Idle, 0, 0, x0 + 16 + fc * 32, g0);
+    }
+  save3(b, dir, "doll_kit");
+}
+void boardActions(const std::string& dir) {
+  const doll::DollRecipe r = recipeOf(g_who);
+  struct Row { RigPart part; Clip clip; int variant; };
+  std::vector<Row> rows;
+  for (RigPart p : {RigPart::Drawn, RigPart::Action}) {
+    const RigSheet s = doll::compose(r, p);
+    for (int c = 0; c < art::CLIP_COUNT; c++)
+      for (int v = 0; v < art::RIG_VARIANTS; v++) {
+        bool any = false;
+        for (int f = 0; f < 4; f++) {
+          const RigSheet::Span& sp = s.spans[RigSheet::slot(f, (Clip)c, v)];
+          any = any || sp.count > 0;
+        }
+        if (any) rows.push_back({p, (Clip)c, v});
+      }
+  }
+  Board b(1600, std::max(120, (int)rows.size() * 4 * 56 + 60));
+  dirt(b, 0, b.c.h);
+  b.text(4, 4, "ACTIONS: EVERY DRAWN AND ACTION CLIP, FRAME BY FRAME, D U R L (MS UNDER EACH FRAME)" + (g_lookSpec.empty() ? std::string() : " " + g_lookSpec));
+  if (rows.empty()) b.text(4, 30, "NO DRAWN OR ACTION CLIPS FOR THIS LOOK", rgba(232, 96, 60));
+  std::map<int, RigSheet> cache;
+  int y = 70;
+  for (const Row& row : rows) {
+    auto it = cache.find((int)row.part);
+    if (it == cache.end()) it = cache.emplace((int)row.part, doll::compose(r, row.part)).first;
+    const RigSheet& s = it->second;
+    for (int fc = 0; fc < 4; fc++) {
+      const RigSheet::Span& sp = s.spans[RigSheet::slot(fc, row.clip, row.variant)];
+      b.text(4, y - 40, std::string(row.part == RigPart::Drawn ? "DRAWN " : "ACTION ") + art::clipName(row.clip) + " v" + std::to_string(row.variant) + " " + "DURL"[fc]);
+      int x = 150;
+      for (int i = 0; i < sp.count; i++) {
+        putFrame(b, s, fc, row.clip, row.variant, i, x, y);
+        const doll::FrameInfo fi = doll::frameInfo(r, row.part, fc, row.clip, row.variant, i);
+        b.text(x - 8, y + 6, std::to_string(fi.ms) + "MS", rgba(240, 236, 220));
+        x += 56;
+      }
+      y += 56;
+    }
+  }
+  save3(b, dir, "doll_actions");
+}
+// the marks of a probe, pivot-relative
+struct Marks { bool g = false, gl = false, t = false; int gx = 0, gy = 0, glx = 0, gly = 0, tx = 0, ty = 0; };
+Marks marksOf(const doll::FrameProbe& p) {
+  Marks m;
+  if (!p.ok) return m;
+  m.g = p.grip; m.gx = p.gripX - p.px; m.gy = p.gripY - p.py;
+  m.gl = p.gripL; m.glx = p.gripLX - p.px; m.gly = p.gripLY - p.py;
+  m.t = p.tip; m.tx = p.tipX - p.px; m.ty = p.tipY - p.py;
+  return m;
+}
+void boardGrip(const std::string& dir, const std::string& arg) {
+  const std::vector<std::string> w = split(arg);
+  if (w.size() < 5) { std::printf("doll_gallery: grip:<part>:<D|U|R|L>:<clip>:<i>[:<variant>]\n"); return; }
+  const RigPart part = w[1] == "run" ? RigPart::Run : w[1] == "action" ? RigPart::Action : w[1] == "drawn" ? RigPart::Drawn : w[1] == "death" ? RigPart::Death : RigPart::Loco;
+  const int facing = facingOf(w[2]);
+  Clip clip = Clip::Idle;
+  for (int c = 0; c < art::CLIP_COUNT; c++) if (w[3] == art::clipName((Clip)c)) clip = (Clip)c;
+  const int idx = std::atoi(w[4].c_str()), variant = w.size() > 5 ? std::atoi(w[5].c_str()) : 0;
+  const doll::DollRecipe r = recipeOf(g_who);
+  const RigSheet s = doll::compose(r, part);
+  int px, py;
+  const Canvas f = rigpv::frameCanvas(s, facing, clip, variant, idx, px, py);
+  if (f.w <= 0) { std::printf("doll_gallery: %s: nothing to show\n", arg.c_str()); return; }
+  Canvas z = zoom12(f, px, py);
+  const Marks m = marksOf(doll::probeFrame(r, part, facing, clip, variant, idx));
+  auto mark = [&](bool on, int mx, int my, uint32_t col) {
+    if (!on) return;
+    const int X = 30 + (mx + px) * 12, Y = (my + py) * 12;
+    for (int d = 0; d < 12; d++) {
+      z.set(X + d, Y, col); z.set(X + d, Y + 11, col); z.set(X, Y + d, col); z.set(X + 11, Y + d, col);
+      z.set(X + d, Y + 1, col); z.set(X + d, Y + 10, col); z.set(X + 1, Y + d, col); z.set(X + 10, Y + d, col);
+    }
+  };
+  mark(m.g, m.gx, m.gy, rgba(242, 193, 78));
+  mark(m.gl, m.glx, m.gly, rgba(90, 220, 230));
+  mark(m.t, m.tx, m.ty, rgba(232, 70, 60));
+  // the swing onion-skinned at 4x: every frame of windup, strike and follow at 30 % over the board, the tip path drawn
+  const int k = 4, ow = 72, oh = 72;
+  Canvas on(ow * k, oh * k);
+  for (uint32_t& q : on.px) q = rgba(40, 36, 46);
+  std::vector<std::pair<int, int>> tips;
+  const int cx = ow / 2, cy = oh - 12;
+  const RigSheet as = doll::compose(r, RigPart::Action);
+  int nFrames = 0;
+  for (Clip c : {Clip::Windup, Clip::Strike, Clip::Follow})
+    for (int i = 0; i < as.count(facing, c, variant); i++) {
+      int fx, fy;
+      const Canvas fr = rigpv::frameCanvas(as, facing, c, variant, i, fx, fy);
+      if (fr.w <= 0) continue;
+      nFrames++;
+      for (int y = 0; y < fr.h; y++)
+        for (int x = 0; x < fr.w; x++) {
+          const uint32_t q = fr.get(x, y);
+          if (!(q >> 24)) continue;
+          const int X = cx - fx + x, Y = cy - fy + y;
+          if (X < 0 || Y < 0 || X >= ow || Y >= oh) continue;
+          for (int dy = 0; dy < k; dy++)
+            for (int dx = 0; dx < k; dx++) {
+              const uint32_t o = on.get(X * k + dx, Y * k + dy);
+              auto mix = [&](int sh) { return (int)(((o >> sh) & 255) * 0.7 + ((q >> sh) & 255) * 0.3); };
+              on.set(X * k + dx, Y * k + dy, rgba(mix(0), mix(8), mix(16)));
+            }
+        }
+      const Marks mm = marksOf(doll::probeFrame(r, RigPart::Action, facing, c, variant, i));
+      if (mm.t) tips.push_back({cx + mm.tx, cy + mm.ty});
+    }
+  for (size_t i = 0; i + 1 < tips.size(); i++) {   // the tip's path: a line through the tip marks, a dot on each
+    const int x0 = tips[i].first * k + 2, y0 = tips[i].second * k + 2, x1 = tips[i + 1].first * k + 2, y1 = tips[i + 1].second * k + 2;
+    const int n = std::max(std::abs(x1 - x0), std::abs(y1 - y0));
+    for (int j = 0; j <= n; j++) on.set(x0 + (x1 - x0) * j / std::max(1, n), y0 + (y1 - y0) * j / std::max(1, n), rgba(232, 70, 60));
+  }
+  for (const auto& t : tips) for (int dy = 0; dy < k; dy++) for (int dx = 0; dx < k; dx++) on.set(t.first * k + dx, t.second * k + dy, rgba(255, 220, 120));
+  Board b(z.w + on.w + 12, std::max(z.h, on.h) + 40);
+  plain(b, rgba(40, 36, 46));
+  b.put(z, 2, 30);
+  rowNumbers(b, 2, 30, f.h, py);
+  b.put(on, z.w + 8, 30);
+  b.text(4, 4, arg + "  GRIP (GOLD) OFF GRIP (CYAN) TIP (RED)" + (m.g ? "" : "  NO GRIP MARK"));
+  b.text(z.w + 8, 16, "THE SWING ONION-SKINNED (" + std::to_string(nFrames) + " FRAMES), THE TIP PATH" + (tips.empty() ? ": NO TIP MARKS" : ""));
+  std::string name = "doll_grip_" + arg.substr(5);
+  for (char& ch : name) if (ch == ':' || ch == '/' || ch == '\\') ch = '_';
+  savePng(b.c, dir + "/" + name + ".png", 1);
+}
+void boardSilhouette(const std::string& dir) {
+  struct Fam { const char* tag; Clip clip; const char* label; };
+  const Fam fams[] = {{"hero", Clip::Strike, "SWORD (A3)"}, {"guard", Clip::Strike, "SWORD + SHIELD"}, {"knight", Clip::Strike, "SPEAR"}, {"archer", Clip::Release, "BOW"}};
+  const int cell = 70;
+  Board b(4 * 4 * cell + 60, 2 * cell + 80);
+  plain(b, rgba(226, 220, 204));
+  b.text(4, 4, "SILHOUETTE: EVERY STRIKE FRAME FILLED FLAT (THE BOW: ITS RELEASE), D U R L PER FAMILY", rgba(30, 22, 42));
+  int x0 = 20;
+  for (const Fam& fm : fams) {
+    const SliceLook* sl = nullptr;
+    for (const SliceLook& q : kSlice) if (!std::strcmp(q.tag, fm.tag)) sl = &q;
+    const doll::DollRecipe r = sliceRecipe(*sl);
+    const RigSheet s = doll::compose(r, RigPart::Action);
+    b.text(x0, 24, fm.label, rgba(30, 22, 42));
+    for (int fc = 0; fc < 4; fc++) {
+      for (int row = 0; row < 2; row++) {   // row 0: filled flat; row 1: the frame itself
+        int px, py;
+        const Canvas f = rigpv::frameCanvas(s, fc, fm.clip, 0, 0, px, py);
+        const int gx = x0 + fc * cell + cell / 2, gy = 40 + cell + row * cell - 6;
+        if (f.w <= 0) { b.text(x0 + fc * cell, gy - 20, "-", rgba(160, 40, 40)); continue; }
+        Canvas flat = f;
+        if (!row) for (uint32_t& q : flat.px) if (q >> 24) q = rgba(30, 22, 42);
+        b.put(flat, gx - px, gy - py);
+      }
+    }
+    x0 += 4 * cell + 10;
+  }
+  save3(b, dir, "doll_silhouette");
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -600,6 +776,14 @@ int main(int argc, char** argv) {
     if (!std::strcmp(argv[i], "--who") && i + 1 < argc) { g_who = !std::strcmp(argv[++i], "woman") ? 1 : 0; continue; }
     if (!std::strcmp(argv[i], "--look") && i + 1 < argc) { g_lookSpec = argv[++i]; continue; }
     if (!std::strcmp(argv[i], "--palette") && i + 1 < argc) { g_lookPalette = !std::strcmp(argv[++i], "look"); continue; }
+    if (!std::strcmp(argv[i], "--slice") && i + 1 < argc) {   // (P2c) a slice look: its fields and its palette
+      const char* t = argv[++i];
+      bool found = false;
+      for (const SliceLook& sl : kSlice)
+        if (!std::strcmp(sl.tag, t)) { g_who = sl.who; g_lookSpec = sl.spec; g_lookPalette = sl.spec[0] != 0; found = true; }
+      if (!found) { std::printf("doll_gallery: --slice: unknown tag %s (hero guard knight archer knightm archerw)\n", t); return 1; }
+      continue;
+    }
     boards.push_back(argv[i]);
   }
   if (boards.empty()) boards = {"looks", "clips", "parts", "lineup", "onion"};
@@ -618,6 +802,10 @@ int main(int argc, char** argv) {
     else if (b == "ramps") boardRamps(dir);
     else if (b.rfind("part:", 0) == 0 || b.rfind("frame:", 0) == 0) boardZoom(dir, b);
     else if (b.rfind("pose:", 0) == 0) boardPose(dir, b);
+    else if (b == "kit") boardKit(dir);
+    else if (b == "actions") boardActions(dir);
+    else if (b == "silhouette") boardSilhouette(dir);
+    else if (b.rfind("grip:", 0) == 0) boardGrip(dir, b);
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

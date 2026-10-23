@@ -14,169 +14,321 @@
 
 body man
 clip fall D variant 0 family sword
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall D variant 1 family sword
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall U variant 0 family sword
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall U variant 1 family sword
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall R variant 0 family sword
 f armL=- armR=fling hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
 f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall R variant 1 family sword
 f armL=- armR=fling hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
 f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall L variant 0 family sword
 f armL=fling armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
 f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall L variant 1 family sword
 f armL=fling armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
 f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip lying L variant 0 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 1 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip fall D variant 0
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall D variant 1
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall U variant 0
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall U variant 1
-f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall R variant 0
 f armL=- armR=fling hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
 f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall R variant 1
 f armL=- armR=fling hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
 f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall L variant 0
 f armL=fling armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
 f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall L variant 1
 f armL=fling armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
 f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip lying L variant 0
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 clip lying L variant 1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 
 body woman
 clip fall D variant 0 family sword
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall D variant 1 family sword
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall U variant 0 family sword
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall U variant 1 family sword
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall R variant 0 family sword
 f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest
 f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall R variant 1 family sword
 f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest
 f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall L variant 0 family sword
 f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest
 f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall L variant 1 family sword
 f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest
 f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip lying L variant 0 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 1 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip fall D variant 0
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall D variant 1
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall U variant 0
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall U variant 1
-f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up
 f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall R variant 0
 f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest
 f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall R variant 1
 f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest
 f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip fall L variant 0
 f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest
 f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,-2 braid=lie
 clip fall L variant 1
 f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest
 f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,-2 braid=lie
 clip lying L variant 0
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 clip lying L variant 1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 
 # Elders lie with the same body (P2b production: their stoop is a lean in the standing side clips, so the left view's
 # head anchor is the adult's and the lying head moves the adult's 2 px; the falls are the adult's)
 body man.elder
 clip lying L variant 0 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 1 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 0
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 clip lying L variant 1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 body woman.elder
 clip lying L variant 0 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 1 family sword
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
 clip lying L variant 0
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
 clip lying L variant 1
-f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 braid=lie
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 braid=lie
+
+# ---- (P2c, GENERATED by tools/doll/p2c_clips.py: the spear and the bow fall; edit the generator)
+# The weapon lands beside the near hand (held=drop) on the topple and the lying body, the bow archer's quiver under the
+# body (sheath=lie); `when <family>`: a fighter's (a civil hunter keeps the shipped falls).
+
+body man
+clip fall D variant 0 family spear when spear
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up held=fall
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall D variant 1 family spear when spear
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up held=fall
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall U variant 0 family spear when spear
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up held=fall
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall U variant 1 family spear when spear
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up held=fall
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall R variant 0 family spear when spear
+f armL=- armR=fling legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1 held=fall
+f armL=- armR=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1 weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall R variant 1 family spear when spear
+f armL=- armR=fling legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1 held=fall
+f armL=- armR=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1 weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall L variant 0 family spear when spear
+f armL=fling armR=- legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1 held=fall
+f armL=idle armR=- legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1 weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall L variant 1 family spear when spear
+f armL=fling armR=- legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1 held=fall
+f armL=idle armR=- legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1 weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip lying L variant 0 family spear when spear
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip lying L variant 1 family spear when spear
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip fall D variant 0 family bow when bow
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up held=-
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall D variant 1 family bow when bow
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up held=-
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall U variant 0 family bow when bow
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up held=-
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall U variant 1 family bow when bow
+f armL=fling armR=fling legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up held=-
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall R variant 0 family bow when bow
+f armL=- armR=fling legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1 held=-
+f armL=- armR=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall R variant 1 family bow when bow
+f armL=- armR=fling legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1 held=-
+f armL=- armR=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall L variant 0 family bow when bow
+f armL=fling armR=- legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1 held=-
+f armL=idle armR=- legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall L variant 1 family bow when bow
+f armL=fling armR=- legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1 held=-
+f armL=idle armR=- legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1 held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip lying L variant 0 family bow when bow
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip lying L variant 1 family bow when bow
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+
+body woman
+clip fall D variant 0 family spear when spear
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up held=fall
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall D variant 1 family spear when spear
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up held=fall
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall U variant 0 family spear when spear
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up held=fall
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall U variant 1 family spear when spear
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up held=fall
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall R variant 0 family spear when spear
+f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest held=fall
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall R variant 1 family spear when spear
+f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest held=fall
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest weapon=135,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall L variant 0 family spear when spear
+f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest held=fall
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall L variant 1 family spear when spear
+f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest held=fall
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest weapon=45,back
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip lying L variant 0 family spear when spear
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip lying L variant 1 family spear when spear
+f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip fall D variant 0 family bow when bow
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up sheath=rest held=-
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall D variant 1 family bow when bow
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up sheath=rest held=-
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall U variant 0 family bow when bow
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up sheath=rest held=-
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall U variant 1 family bow when bow
+f armL=fling armR=fling hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1 braid=rest crest=up sheath=rest held=-
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall R variant 0 family bow when bow
+f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest sheath=rest held=-
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall R variant 1 family bow when bow
+f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1 braid=rest sheath=rest held=-
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip fall L variant 0 family bow when bow
+f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest sheath=rest held=-
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
+clip fall L variant 1 family bow when bow
+f armL=fling armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1 braid=rest sheath=rest held=-
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1 braid=rest sheath=rest held=-
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
+clip lying L variant 0 family bow when bow
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie
+clip lying L variant 1 family bow when bow
+f armL=lie armR=- legs=lie neck=lie sheath=lie torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 at=0,4 braid=lie

@@ -257,6 +257,21 @@ struct DollRecipe {
 };
 DollRecipe resolve(const HumanLook& look);
 
+// ---------------------------------------------------------------- (P2c SLICE-DOLL) the looks-file fields, one list
+// Every tool that reads a looks line (`tag who spec [gaits]`: rpg_test --limbs, --doll --motion, --doll-arms, the gates'
+// matrices, doll_gallery --look) sets the look's fields through this one function (docs/P2C_CONTRACTS.md 7). Numbers take
+// strtol's forms; colours "#RRGGBB" (or RRGGBB). Returns false for a field it does not know (the caller names it).
+// Fields: every HumanLook field by its member name (body build people age garb cut outfit weapon civil pattern cloak cape
+// hair hairVar beard beardStyle headwear hood neck jewellery amulet ring head nose brow marks facePaint helmet helmStyle
+// helmForm armorStyle bodyForm shield shieldStyle shieldForm bladeForm polearmForm bowForm pauldron skirt crest
+// armsOrnament gloves boots backItem sheen glow; colours skin hairColor topColor bottomColor tabardColor cloakColor
+// headColor patternColor eyeColor plumeColor armourTint armourTint2 glowColor shieldField shieldDevice trimColor
+// weaponColor). `palette` and `bare` are the callers' own (the ramps and the bare-leg probe), not look fields.
+bool applyLookField(HumanLook& look, const std::string& key, const std::string& value);
+// a whole spec "k=v,k=v" ("-" or "" for none): unknown fields are listed in *bad (comma separated); palette=look sets
+// *lookPal, bare=1 sets *bare (either pointer may be null)
+void applyLookSpec(HumanLook& look, const std::string& spec, bool* lookPal = nullptr, bool* bare = nullptr, std::string* bad = nullptr);
+
 // ---------------------------------------------------------------- coverage (the census reads these)
 struct Missing {
   Role role = Role::Legs;
@@ -297,6 +312,44 @@ RigSheet compose(const HumanLook& look, RigPart part);
 RigSheet compose(const DollRecipe& r, RigPart part, const ComposeOpts* opts = nullptr);
 RigSheet composePosture(const HumanLook& look, Posture p, uint8_t variant);
 RigSheet composePosture(const DollRecipe& r, Posture p, uint8_t variant);
+// (P2c SLICE-DOLL) what one frame of a part's clip is made of (rpg_test --limbs strips, doll_gallery): the clip frame the
+// compose picks for (facing, clip, variant, i) (a missing variant falls back to 0, as RigSheet::frame does) and each part it
+// draws with its layer and key. ok false: no such frame.
+struct FrameInfo {
+  bool ok = false;
+  int ms = 0, turn = 0, weapon = -32768;   // the frame's ms, turn (0 upright, 1 west, 2 east) and weapon angle (-32768 none)
+  struct P { std::string part, layer, key; };
+  std::vector<P> parts;                    // back to front
+};
+FrameInfo frameInfo(const DollRecipe& r, RigPart part, int facing, Clip clip, int variant, int i);
+// (P2c SLICE-DOLL) one frame composed for the gear gates (rpg_test --doll-arms C3-C6): the raw scratch canvas (a turned
+// frame in its left view, before the turn) with, per pixel, the item that wrote it last and the region it was drawn with;
+// the items with their roles, layers, anchors and keys; the head anchor, the grips (and the arm items that marked them)
+// and the tip mark. Coordinates are canvas cells; the pivot is (px, py).
+struct FrameProbe {
+  bool ok = false;
+  int w = 0, h = 0, px = 0, py = 0, turn = 0, ms = 0, weapon = -32768;
+  bool front = true;
+  std::vector<uint8_t> code;       // pixel codes after the finishing pass (finish = false: raw)
+  std::vector<int16_t> owner;      // the item index that wrote the pixel last (-1: none or erased)
+  std::vector<uint8_t> region;     // its Region as drawn (0 none)
+  struct It {
+    std::string part, key, held;   // held: the part's `role held` value ("" none)
+    int partIndex = -1, side = 0;  // side 0 none, 1 R, 2 L
+    Layer layer = Layer::Torso;
+    Anchor anchor = Anchor::Pivot;
+    uint32_t roles = 0;            // 1 << Role for every role the part serves
+    int ax = 0, ay = 0;            // where its anchor landed (canvas)
+    bool has(Role r) const { return roles >> (int)r & 1; }
+  };
+  std::vector<It> items;           // back to front (the paint order)
+  int headX = 0, headY = 0;        // the head anchor (canvas): the head box's top-left
+  int gripX = 0, gripY = 0, gripLX = 0, gripLY = 0, tipX = 0, tipY = 0;
+  bool grip = false, gripL = false, tip = false;
+  int gripFrom = -1, gripLFrom = -1;   // the items whose views marked grip / gripL
+  int at(int x, int y) const { return x >= 0 && y >= 0 && x < w && y < h ? y * w + x : -1; }
+};
+FrameProbe probeFrame(const DollRecipe& r, RigPart part, int facing, Clip clip, int variant, int i, bool finish = true);
 // one part's view alone at its anchor in the recipe's body (the `dollpart` hook, doll_gallery): frames of the part's
 // key on the clip's frame 0 for that facing. Empty when the part has no such view.
 RigSheet composePart(const DollRecipe& r, const std::string& partName, int facing, const std::string& key);

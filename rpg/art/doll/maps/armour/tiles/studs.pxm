@@ -1,0 +1,14 @@
+# armour/tiles/studs: studs on the leather bracer (F, with the `studs` ornament): a metal-2 rivet on a
+# 3 px grid, at the leather's own step (the shadow side's studs fall darker by themselves).
+# Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4 (the regions after the word).
+use person
+body adult
+role overlay studs
+tags tile overlay
+on-region F
+
+view D key rest origin 0 0
+|...
+|.O.
+|...
+

@@ -1,0 +1,346 @@
+# armour/woman/plate: steel plate cut to the woman's torso (P2c slice, SLICE-ARMOUR; STYLE_P2 25.3): the same plates as
+# the man's, the breastplate shaped by ONE step-1 row across the chest under the bust (never sculpted cups), the waist a
+# pixel narrower than the man's (the tunic's waist column erased under it), the fauld lames over her hips. The sleeve caps
+# of her torso (facing down and up) are steel; the pauldrons are shared (shared/pauldron_plate_*), her tassets plate_hang.
+# Keys: rest idle run runl drawn swing lie in D U R L (side runl: the method's lean rows; the L lie is the rest).
+# Format: rpg/art/doll/doll.h.
+use person
+body woman
+role armour plate
+layer torso
+anchor neck
+keys torso
+z 2
+
+view D key rest origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key idle origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key run origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key runl origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key drawn origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key swing origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view D key lie origin 8 -1
+|.....vxyyxwv....
+|vyxvvxyyyxwwvxwv
+|vyxvyyyyzxxwvxwv
+|vxwvwwwwwwwwvwwv
+|...-vxyyxxwwv...
+|...-vxyyxwwwv...
+|...-vxxxxwwwv...
+|...fghhPOhggf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key rest origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key idle origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key run origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key runl origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key drawn origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key swing origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view U key lie origin 8 -1
+|.....vxyyxxv....
+|vyxvxyyyxxwwvxwv
+|vyxvyyzyxxwwvxwv
+|vxwvyyyxxwwwvwwv
+|...vxyyxxwww-...
+|...vxyyxwwww-...
+|...vxxxxwwww-...
+|...fghhhhhhgf...
+|...vxyyxxwwwv...
+|..vxyyxxwwwwwv..
+
+view R key rest origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..-vyxxwwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view R key idle origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..-vyxxwwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view R key run origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view R key runl origin 6 -1
+|......vxyxv
+|..vxyyyxxwv
+|..vzyyxxxwv
+|.vyyyxxxwwv
+|.vxwwwwwwwv
+|.-vyxxxwwv.
+|.fghhhhhPf.
+|.vxyyxxwwwv
+|vxyxxxwwwwv
+
+view R key drawn origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..-vyxxwwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view R key swing origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..-vyxxwwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view R key lie origin 6 -1
+|......vxyxv..
+|..vxyyyxxwv..
+|..vzyyxxxwv..
+|..vyyyxxxwwv.
+|..vxwwwwwwwv.
+|..-vyxxxwwv..
+|..-vyxxwwwv..
+|..fghhhhhPf..
+|..vxyyxxwwwv.
+|.vxyxxxwwwwv.
+
+view L key rest origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..vyxxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+
+view L key idle origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..vyxxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+
+view L key run origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+
+view L key runl origin 5 -1
+|vxyxv......
+|vyyyxxwwv..
+|vzyyxxwwv..
+|vyyyxxxwwv.
+|vwwwwwwwwv.
+|.vyyxxwwv-.
+|.fPhhhhhgf.
+|vxyyxxwwwv.
+|vxyyxxwwwwv
+
+view L key drawn origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..vyxxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+
+view L key swing origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..vyxxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+
+view L key lie origin 7 -1
+|..vxyxv......
+|..vyyyxxwwv..
+|..vzyyxxwwv..
+|.vyyyxxxwwv..
+|.vwwwwwwwwv..
+|..vyyxxwwv-..
+|..vyxxxwwv-..
+|..fPhhhhhgf..
+|.vxyyxxwwwv..
+|.vxyyxxwwwwv.
+

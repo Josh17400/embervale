@@ -94,7 +94,7 @@ bool parse(const uint8_t* data, size_t n, Pool& P, std::string* error) {
   r.u16();
   const uint32_t size = r.u32();
   r.u32();
-  if (version != 1 && version != 2) return fail("pool version is not 1 or 2 (rebuild with tools/doll/pxc.mjs)");
+  if (version < 1 || version > 3) return fail("pool version is not 1, 2 or 3 (rebuild with tools/doll/pxc.mjs)");
   if (size != n) return fail("pool size does not match its header");
   const uint32_t ns = r.u32();
   P.str.resize(ns);
@@ -142,6 +142,7 @@ bool parse(const uint8_t* data, size_t n, Pool& P, std::string* error) {
   for (ClipRec& c : P.clips) {
     c.body = r.u16(); c.clip = r.u8(); c.part = r.u8(); c.facing = r.u8(); c.family = r.u8(); c.variant = r.u8(); c.posture = r.u8();
     c.cycle16 = r.u16(); c.firstFrame = r.u32(); c.nFrames = r.u16();
+    if (version >= 3) c.when = r.u16();   // (P2c) the clip's condition (0: none)
   }
   const uint32_t nf = r.u32();
   P.frames.resize(nf);
@@ -177,6 +178,8 @@ bool parse(const uint8_t* data, size_t n, Pool& P, std::string* error) {
   I.rest = P.strId("rest"); I.dash = P.strId("-"); I.grip = P.strId("grip"); I.gripL = P.strId("gripL"); I.handR = P.strId("handR");
   I.handL = P.strId("handL"); I.face = P.strId("face"); I.tip = P.strId("tip"); I.hip = P.strId("hip"); I.footL = P.strId("footL");
   I.footR = P.strId("footR"); I.top = P.strId("top"); I.tile = P.strId("tile");
+  I.held = P.strId("held"); I.anyfacing = P.strId("anyfacing");
+  for (int k = 0; k < 16; k++) { char nm[5]; angleKey(k, nm); I.angle[k] = P.strId(nm); }
   for (size_t pi = 0; pi < P.parts.size(); pi++) {
     PartRec& p = P.parts[pi];
     for (uint32_t vi = p.firstView; vi < p.firstView + p.nViews; vi++) {
@@ -242,29 +245,48 @@ const BodyRec* bodyOf(const std::string& bodyKey) {
   return nullptr;
 }
 
-std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, int family, int posture) {
+std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, int family, int posture, const DollRecipe* rr) {
   const Pool& P = get();
   std::vector<const ClipRec*> out;
   // the family's own clips first, then the generic ones, whatever their order in the clip files (a generic clip never
-  // doubles a family clip's slot); the modifier set's clips win over the base set's for the same slot
+  // doubles a family clip's slot); the modifier set's clips win over the base set's for the same slot; (P2c) inside each
+  // tier a conditioned clip whose condition holds comes before the unconditioned one
   auto take = [&](const std::string& key) {
     const uint16_t id = P.strId(key);
     if (id == 0xFFFF) return;
     for (int generic = 0; generic < 2; generic++)
-      for (const ClipRec& c : P.clips) {
-        if (c.body != id || c.part != part) continue;
-        if (posture >= 0 ? c.posture != posture : c.posture != kNone8) continue;
-        if (generic ? c.family != kNone8 : (c.family == kNone8 || c.family != family)) continue;
-        bool dup = false;
-        for (const ClipRec* o : out)
-          if (o->clip == c.clip && o->facing == c.facing && o->variant == c.variant) dup = true;
-        if (!dup) out.push_back(&c);
-      }
+      for (int cond = 1; cond >= 0; cond--)
+        for (const ClipRec& c : P.clips) {
+          if (c.body != id || c.part != part) continue;
+          if (posture >= 0 ? c.posture != posture : c.posture != kNone8) continue;
+          if (generic ? c.family != kNone8 : (c.family == kNone8 || c.family != family)) continue;
+          if ((c.when != 0) != (cond == 1)) continue;
+          if (c.when && (!rr || !condHolds(*rr, P.s(c.when)))) continue;
+          bool dup = false;
+          for (const ClipRec* o : out)
+            if (o->clip == c.clip && o->facing == c.facing && o->variant == c.variant) dup = true;
+          if (!dup) out.push_back(&c);
+        }
   };
   take(bodyKey);
   const size_t dot = bodyKey.find('.');
   if (dot != std::string::npos) take(bodyKey.substr(0, dot));
   return out;
+}
+bool condHolds(const DollRecipe& r, const std::string& cond) {
+  size_t a = 0;
+  while (a <= cond.size()) {
+    size_t b = cond.find(',', a);
+    if (b == std::string::npos) b = cond.size();
+    std::string t = cond.substr(a, b - a);
+    const bool neg = !t.empty() && t[0] == '!';
+    if (neg) t = t.substr(1);
+    // (r.flags read directly: rpg_doll links without the resolver's DollRecipe::has)
+    const bool has = std::find(r.flags.begin(), r.flags.end(), t) != r.flags.end();
+    if (!t.empty() && has == neg) return false;
+    a = b + 1;
+  }
+  return true;
 }
 
 const ViewRec* viewOf(const PartRec& p, int facing, uint16_t key, uint16_t when) {

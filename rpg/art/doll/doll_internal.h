@@ -63,15 +63,26 @@ struct ClipRec {
   uint16_t cycle16 = 0;
   uint32_t firstFrame = 0;
   uint16_t nFrames = 0;
+  uint16_t when = 0;   // (pool v3, P2c) the clip's condition (`clip ... when <flags>`): a string id, 0 none
 };
-// RigPart values in the pool (art::RigPart, plus the posture clips)
-constexpr uint8_t kPartPosture = 4;
+// RigPart values in the pool (art::RigPart, plus the posture clips); (P2c) art::RigPart::Drawn (4 in the enum) is 5 in the pool
+constexpr uint8_t kPartPosture = 4, kPartDrawn = 5;
+inline uint8_t poolPart(RigPart p) { return p == RigPart::Drawn ? kPartDrawn : (uint8_t)p; }
 // frame turns (pool v2): the frame composed in the left view, then laid down (STYLE_P2 13)
 constexpr uint8_t kTurnNone = 0, kTurnWest = 1, kTurnEast = 2;
 
 // the string ids every bake asks for (0xFFFF: not in the pool), resolved once on load
 struct Ids { uint16_t rest = 0xFFFF, dash = 0xFFFF, grip = 0xFFFF, gripL = 0xFFFF, handR = 0xFFFF, handL = 0xFFFF, face = 0xFFFF,
-             tip = 0xFFFF, hip = 0xFFFF, footL = 0xFFFF, footR = 0xFFFF, top = 0xFFFF, tile = 0xFFFF; };
+             tip = 0xFFFF, hip = 0xFFFF, footL = 0xFFFF, footR = 0xFFFF, top = 0xFFFF, tile = 0xFFFF;
+             // (P2c) the held channel, the anyfacing tag, the library's 16 angle keys (a000 a022 ... a337)
+             uint16_t held = 0xFFFF, anyfacing = 0xFFFF, angle[16] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                                                                      0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; };
+// (P2c) the library's view key for a weapon angle (degrees counter-clockwise from screen-right, rounded to 22.5): "a000".."a337"
+inline int angleIndex(int deg) { int k = (int)((deg % 360 + 360) % 360 / 22.5 + 0.5); return k % 16; }
+inline void angleKey(int index, char out[5]) {
+  const int d = (int)(index * 22.5);
+  out[0] = 'a'; out[1] = (char)('0' + d / 100); out[2] = (char)('0' + d / 10 % 10); out[3] = (char)('0' + d % 10); out[4] = 0;
+}
 
 struct Pool {
   bool ok = false;
@@ -99,8 +110,12 @@ uint32_t generation();
 
 // the body record for a body key ("man.elder" falls back to "man"); nullptr: none
 const BodyRec* bodyOf(const std::string& bodyKey);
-// the clips of a body key for a RigPart / posture (the modifier set's clips first, the base set's for the rest)
-std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, int family, int posture);
+// the clips of a body key for a RigPart / posture (the modifier set's clips first, the base set's for the rest).
+// (P2c) clip conditions: with a recipe, a conditioned clip whose condition holds wins its slot (name, facing, variant)
+// over the unconditioned one of the same tier; without one, conditioned clips are skipped
+std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, int family, int posture, const DollRecipe* r = nullptr);
+// a `when` condition ("flag", "!flag", joined by ',') against the recipe's flags
+bool condHolds(const DollRecipe& r, const std::string& cond);
 // a part's view for (facing, key, when id 0 = base); nullptr: none
 const ViewRec* viewOf(const PartRec& p, int facing, uint16_t key, uint16_t when = 0);
 

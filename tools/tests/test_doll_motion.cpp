@@ -61,51 +61,7 @@ art::HumanLook a3Woman() {
   L.eyeColor = hexc(0x3F8A5A);
   return L;
 }
-bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) {
-  auto num = [&]() { return (int)std::strtol(v.c_str(), nullptr, 0); };
-  auto col = [&]() { return hexc((uint32_t)std::strtoul(v.c_str() + (!v.empty() && v[0] == '#' ? 1 : 0), nullptr, 16)); };
-  if (k == "body") L.body = (uint8_t)num();
-  else if (k == "build") L.build = (uint8_t)num();
-  else if (k == "people") L.people = (uint8_t)num();
-  else if (k == "age") L.age = (uint8_t)num();
-  else if (k == "garb") L.garb = (uint8_t)num();
-  else if (k == "cut") L.cut = (uint8_t)num();
-  else if (k == "outfit") L.outfit = (art::Outfit)num();
-  else if (k == "weapon") L.weapon = (uint8_t)num();
-  else if (k == "civil") L.civil = (uint8_t)num();
-  else if (k == "pattern") L.pattern = (uint8_t)num();
-  else if (k == "cloak") L.cloak = (uint8_t)num();
-  else if (k == "hair") L.hair = (art::Hair)num();
-  else if (k == "hairVar") L.hairVar = (uint8_t)num();
-  else if (k == "beard") L.beard = num() != 0;
-  else if (k == "beardStyle") L.beardStyle = (uint8_t)num();
-  else if (k == "headwear") L.headwear = (uint8_t)num();
-  else if (k == "neck") L.neck = (uint8_t)num();
-  else if (k == "hood") L.hood = num() != 0;
-  else if (k == "jewellery") L.jewellery = (uint8_t)num();
-  else if (k == "amulet") L.amulet = num() != 0;
-  else if (k == "head") L.head = (uint8_t)num();
-  else if (k == "helmStyle") L.helmStyle = (uint8_t)num();
-  else if (k == "helmet") L.helmet = num() != 0;
-  else if (k == "backItem") L.backItem = (uint8_t)num();
-  else if (k == "cape") L.cape = num() != 0;
-  else if (k == "shield") L.shield = num() != 0;
-  else if (k == "shieldStyle") L.shieldStyle = (uint8_t)num();
-  else if (k == "boots") L.boots = (uint8_t)num();
-  else if (k == "gloves") L.gloves = (uint8_t)num();
-  else if (k == "armorStyle") L.armorStyle = (uint8_t)num();
-  else if (k == "ring") L.ring = num() != 0;
-  else if (k == "skin") L.skin = col();
-  else if (k == "hairColor") L.hairColor = col();
-  else if (k == "topColor") L.topColor = col();
-  else if (k == "bottomColor") L.bottomColor = col();
-  else if (k == "tabardColor") L.tabardColor = col();
-  else if (k == "cloakColor") L.cloakColor = col();
-  else if (k == "headColor") L.headColor = col();
-  else if (k == "patternColor") L.patternColor = col();
-  else return false;
-  return true;
-}
+bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) { return art::doll::applyLookField(L, k, v); }   // (P2c: the one list, doll.h)
 struct LookOpts { art::HumanLook L; bool lookPal = false, bare = false; };
 LookOpts lookOf(const Look& l) {
   LookOpts o;
@@ -139,7 +95,7 @@ doll::DollRecipe probed(doll::DollRecipe r) {
   return r;
 }
 const P::ClipRec* clipOf(const doll::DollRecipe& r, RigPart part, int fc, Clip clip, int variant) {
-  for (const P::ClipRec* c : P::clipsOf(r.bodyKey, (uint8_t)part, r.family, -1))
+  for (const P::ClipRec* c : P::clipsOf(r.bodyKey, P::poolPart(part), r.family, -1, &r))
     if (c->clip == (uint8_t)clip && c->facing == fc && c->variant == variant) return c;
   return nullptr;
 }
@@ -195,7 +151,7 @@ Img cutImg(const RigSheet& s, const art::FrameRect* fr, bool rgba) {
 }
 struct GaitDef { const char* name; RigPart part; Clip clip; int variant; };
 const GaitDef kGaitDefs[5] = {{"idle", RigPart::Loco, Clip::Idle, 0}, {"walk", RigPart::Loco, Clip::Walk, 0}, {"run", RigPart::Run, Clip::Walk, 0},
-                              {"dwalk", RigPart::Action, Clip::Walk, 1}, {"drun", RigPart::Action, Clip::Walk, 2}};
+                              {"dwalk", RigPart::Drawn, Clip::Walk, 1}, {"drun", RigPart::Drawn, Clip::Walk, 2}};
 std::string g_poolLoaded;
 
 // ---- the walking postures (gates-wear fix round 1)

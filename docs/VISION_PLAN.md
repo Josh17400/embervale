@@ -4445,6 +4445,9 @@ and sleeping, then `seatall sleep` sleepers at 23:00; `home lot / fill / ride`; 
 
 #### P2c "Arms and Armour": steel on the new folk, and the flip
 
+(Re-planned 2026-10-23 on the shipped doll and motion method: docs/PLAN.md "## P2c" is the plan, with docs/STYLE_P2.md
+25-26 and docs/P2C_CONTRACTS.md; where they differ from the text below, they win. The humanoid monsters moved to P2d.)
+
 Goal: every fighter on the doll (armour fitted to man and woman, helms, shields, every weapon and form, every action
 family and its effect, the humanoid monsters), every remaining draw path on the doll, coverage 100 %, and the flip: rig 2
 the only rig, v1 and the procedural rig deleted.
@@ -4516,7 +4519,8 @@ P2c DONE gates:
 #### P2d "Proportion" (was P2c)
 
 Unchanged in content: the creatures and village animals re-proportioned to the 32 px people, and every prop the P2c judge
-lists as reading wrong. It follows STYLE_P2's ramps and outlines; whether creatures move to hand-placed maps is decided at
+lists as reading wrong. (2026-10-23: plus the humanoid monsters, skeleton, draugr and goblin, moved here from P2c; their
+v1 painter moves unchanged to art_monsters.cpp at the P2c flip.) It follows STYLE_P2's ramps and outlines; whether creatures move to hand-placed maps is decided at
 P2d's phase A from the P2c judge's notes.
 
 Phase A (lead): creature heights from painter metadata (`rpg_test --creatures`), scripts p2d_creatures.txt and _phone

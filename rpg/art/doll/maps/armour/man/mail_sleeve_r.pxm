@@ -172,3 +172,21 @@ view D key guard origin 0 0
 
 view U key guard origin 0 0
 |.
+
+# ---- (P2c SLICE-ARMOUR, ADD) the fall's recoil `fling` (the death clips): the upper arm in the brick
+
+view D key fling origin 5 -1
+|....vxx
+|...vxyw
+|..vxxw.
+
+view U key fling origin 1 -1
+|xwv....
+|wxwv...
+|.xwxv..
+
+view R key fling origin 9 -1
+|........vywxv
+|......vxxwv..
+|....vywxv....
+

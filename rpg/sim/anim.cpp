@@ -117,8 +117,9 @@ AnimPick pickV2(const Game& g, const Actor& a) {
       if (T.frames > 0) { k.frames = (uint8_t)T.frames; k.frame = (uint8_t)T.frameAt((float)px); }
       else k.frame = (uint8_t)animWalkFrame(px);
       // (P2b fix r1, B10) the drawn run lives in the ACTION atlas (walk variant 2), so RUN stays the sheathed run only
-      if (k.gait) { k.part = k.drawn ? art::RigPart::Action : art::RigPart::Run; k.variant = (uint8_t)(k.drawn ? 2 : 0); }
-      else { k.part = k.drawn ? art::RigPart::Action : art::RigPart::Loco; k.variant = (uint8_t)(k.drawn ? 1 : 0); }
+      // (P2c) the drawn walk and run are the DRAWN part's (RigPart::Drawn: walk variant 1 and 2)
+      if (k.gait) { k.part = k.drawn ? art::RigPart::Drawn : art::RigPart::Run; k.variant = (uint8_t)(k.drawn ? 2 : 0); }
+      else { k.part = k.drawn ? art::RigPart::Drawn : art::RigPart::Loco; k.variant = (uint8_t)(k.drawn ? 1 : 0); }
       break;
     }
     case AState::Roll:   // crouch, tuck, over, rise: 0.085 s each over the sim's 0.34 s roll
@@ -183,7 +184,7 @@ AnimPick pickV2(const Game& g, const Actor& a) {
       const float period = 3.0f + 3.0f * own(a, 2);
       if (std::fmod(a.stT + own(a, 3) * period, period) < 0.12f) k.frame = 2;
       // (P2b) the drawn idle is the ACTION part's variant 1; sheathed (or nothing to sheathe), LOCO's variant 0
-      k.part = k.drawn ? art::RigPart::Action : art::RigPart::Loco;
+      k.part = k.drawn ? art::RigPart::Drawn : art::RigPart::Loco;   // (P2c) the DRAWN part
       k.variant = (uint8_t)(k.drawn ? 1 : 0);
       break;
     }

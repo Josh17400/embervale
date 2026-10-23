@@ -329,3 +329,27 @@ view D key orunF origin 0 0
 
 view U key orunF origin 0 0
 |.
+
+# ---- (P2c SLICE-ARMOUR, ADD) the fall's `fling`; `ofwd` facing down and up is drawn by the torso (empty, as oback / oidle)
+
+view D key fling origin 1 -1
+|xwv....
+|wxwv...
+|.xwxv..
+
+view U key fling origin 5 -1
+|....vxx
+|...vxyw
+|..vxxw.
+
+view L key fling origin 3 -1
+|vywxv........
+|..vxxwv......
+|....vywxv....
+
+view D key ofwd origin 0 0
+|.
+
+view U key ofwd origin 0 0
+|.
+

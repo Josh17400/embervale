@@ -1,0 +1,382 @@
+# arms/adult/action/twohand/bow_l: the archer's left (bow) arm, both bodies (P2c SLICE-ARMS
+# 2026-10-23; STYLE_P2 25.8 items 6 and 11). Keys: bw_low (the drawn idle, walk and run: the bow low in the left hand, an
+# arrow nocked), bw_nock (the arrow to the string, the bow raised), bw_draw (to the chest), bw_full (to the cheek: the
+# anchor, the bow arm straight, the elbow up), bw_rel (the string snaps: the draw hand flies back, the arrow gone: the
+# projectile is the game's; the bow hand recoils a pixel). The side draw arm is A3's horizontal sword arm (sw_r1) set
+# on the nock; the bow arm its far twin, straight at the target. Facing left repainted, never the plain mirror. The
+# right fist marks `grip` on the nock (the arrow is part of this drawing); the left `gripL` holds the bow
+# (held/weapons/bow_self, origin gripL). Regions U F C H (the archer's bracers and gloves). Format: rpg/art/doll/doll.h.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+body adult
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+z 1
+
+view R key bw_low origin 2 -1
+mark gripL 10 6
+mark handL 10 6
+|56665.......
+|.56665......
+|...56665....
+|.....56665..
+|......fhggf.
+|........fhggf
+|........qrrq
+|........qrrq
+|.........qq.
+regions
+|UUUUU.......
+|.UUUUU......
+|...UUUUU....
+|.....UUUUU..
+|......CCCCC.
+|........CCCCC
+|........HHHH
+|........HHHH
+|.........HH.
+
+view R key bw_nock origin -4 -1
+mark gripL 8 1
+mark handL 8 1
+|.55555ffqq.
+|577777hgsr.
+|.566666hgrr
+|..66666ggqq
+regions
+|.UUUUUCCHH.
+|UUUUUUCCHH.
+|.UUUUUUCCHH
+|..UUUUUCCHH
+
+view R key bw_draw origin -4 1
+mark gripL 8 1
+mark handL 8 1
+|.55555ffqq.
+|577777hgsr.
+|.566666hgrr
+|..66666ggqq
+regions
+|.UUUUUCCHH.
+|UUUUUUCCHH.
+|.UUUUUUCCHH
+|..UUUUUCCHH
+
+view R key bw_full origin -4 2
+mark gripL 8 1
+mark handL 8 1
+|.55555ffqq.
+|577777hgsr.
+|.566666hgrr
+|..66666ggqq
+regions
+|.UUUUUCCHH.
+|UUUUUUCCHH.
+|.UUUUUUCCHH
+|..UUUUUCCHH
+
+view R key bw_rel origin -5 2
+mark gripL 8 1
+mark handL 8 1
+|.55555ffqq.
+|577777hgsr.
+|.566666hgrr
+|..66666ggqq
+regions
+|.UUUUUCCHH.
+|UUUUUUCCHH.
+|.UUUUUUCCHH
+|..UUUUUCCHH
+
+view L key bw_low origin 10 -1 layer held
+mark gripL 2 6
+mark handL 2 6
+|........58765
+|.......58765.
+|.....58765...
+|...58765.....
+|..fihgf......
+|fihgf........
+|.qtsq........
+|.qsrq........
+|..qq.........
+regions
+|........UUUUU
+|.......UUUUU.
+|.....UUUUU...
+|...UUUUU.....
+|..CCCCC......
+|CCCCC........
+|.HHHH........
+|.HHHH........
+|..HH.........
+
+view L key bw_nock origin 14 -1 layer held
+mark gripL 2 1
+mark handL 2 1
+|.qtff58765.
+|.qsff587665
+|qqff587665.
+|qqff58765..
+regions
+|.HHCCUUUUU.
+|.HHCCUUUUUU
+|HHCCUUUUUU.
+|HHCCUUUUU..
+
+view L key bw_draw origin 14 1 layer held
+mark gripL 2 1
+mark handL 2 1
+|.qtff58765.
+|.qsff587665
+|qqff587665.
+|qqff58765..
+regions
+|.HHCCUUUUU.
+|.HHCCUUUUUU
+|HHCCUUUUUU.
+|HHCCUUUUU..
+
+view L key bw_full origin 14 2 layer held
+mark gripL 2 1
+mark handL 2 1
+|.qtff58765.
+|.qsff587665
+|qqff587665.
+|qqff58765..
+regions
+|.HHCCUUUUU.
+|.HHCCUUUUUU
+|HHCCUUUUUU.
+|HHCCUUUUU..
+
+view L key bw_rel origin 15 2 layer held
+mark gripL 2 1
+mark handL 2 1
+|.qtff58765.
+|.qsff587665
+|qqff587665.
+|qqff58765..
+regions
+|.HHCCUUUUU.
+|.HHCCUUUUUU
+|HHCCUUUUUU.
+|HHCCUUUUU..
+
+view D key bw_low origin 1 -1 layer held
+mark gripL 1 6
+mark handL 1 6
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key bw_nock origin 0 2 layer held
+mark gripL 1 6
+mark handL 1 6
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key bw_draw origin 0 3 layer held
+mark gripL 1 6
+mark handL 1 6
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key bw_full origin 0 4 layer held
+mark gripL 1 6
+mark handL 1 6
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view D key bw_rel origin 0 4 layer held
+mark gripL 1 6
+mark handL 1 6
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view U key bw_low origin 1 -1 layer heldBack
+mark gripL 1 6
+mark handL 1 6
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key bw_nock origin 2 2 layer heldBack
+mark gripL 1 6
+mark handL 1 6
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key bw_draw origin 2 3 layer heldBack
+mark gripL 1 6
+mark handL 1 6
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key bw_full origin 2 4 layer heldBack
+mark gripL 1 6
+mark handL 1 6
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key bw_rel origin 2 4 layer heldBack
+mark gripL 1 6
+mark handL 1 6
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+

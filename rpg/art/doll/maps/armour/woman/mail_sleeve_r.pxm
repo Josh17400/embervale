@@ -134,3 +134,35 @@ view L key guard origin 9 1 layer armNear
 |vyxyxv..
 |.vywv...
 |..vv....
+
+# ---- (P2c SLICE-ARMOUR, ADD) the fall's `fling`; `guard` facing down and up as the idle; `runF` facing down and up shows only the fist (empty)
+
+view D key fling origin 5 -1
+|....vxx
+|...vxyw
+|..vxxw.
+
+view U key fling origin 1 -1
+|xwv....
+|wxwv...
+|.xwxv..
+
+view R key fling origin 9 -1
+|........vywxv
+|......vxxwv..
+|....vywxv....
+
+view D key guard origin 1 -4
+|vyx
+|vxx
+
+view U key guard origin 1 -4
+|xxv
+|xwv
+
+view D key runF origin 0 0
+|.
+
+view U key runF origin 0 0
+|.
+

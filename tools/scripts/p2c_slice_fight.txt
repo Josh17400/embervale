@@ -1,0 +1,45 @@
+# P2c Arms and Armour: the slice in the world: the guard at the gate, the plate soldier running across the square, the archer drawing on a bandit (docs/PLAN.md "## P2c" > "The style slice", STYLE_P2 26; SLICE-DOLL).
+# Seed 7, the start village OSLARS, rig 2. Every slice look (`slicegear`: the guard, the plate soldier, the archer, the
+# fit twins, the A3 hero) checked on the doll (`expect doll covered`, `expect doll gear`), each clip frozen by `pose` in
+# the four facings (`p2cline face`), shot. A look the doll does not cover is drawn whole on v1 and fails `expect doll`.
+#   embervale.exe --script tools/scripts/p2c_slice_fight.txt     (p2c_fight_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 at -140 -432
++2.5 skill clearing 16
+# ---- the guard
++0.1 slicegear guard
++0.3 expect doll covered
++0.1 zoom near
++0.3 shot p2c_fight_guard_d4.png
++0.1 zoom normal
++0.2 shot p2c_fight_guard_d3.png
++0.1 hour 22
++0.6 shot p2c_fight_guard_night.png
++0.1 hour 11
+# ---- the plate soldier running east, then west (the run and the drawn run)
++0.1 slicegear knight
++0.3 expect doll covered
++0.0 walk east 1.2
++0.6 shot p2c_fight_knight_run_east.png
++0.6 walk west 1.2
++0.6 shot p2c_fight_knight_run_west.png
+# ---- the archer drawing on a bandit (a hostile three tiles east: `p2cline foe`)
++0.6 slicegear archer
++0.3 expect doll covered
++0.1 p2cline foe 1
++0.1 p2cline face 2
++0.1 pose draw bow 0 2
++0.3 shot p2c_fight_archer_draw.png
++0.1 pose release bow 0 0
++0.2 shot p2c_fight_archer_release.png
++0.1 pose off
++0.1 p2cline clear

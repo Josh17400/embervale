@@ -139,20 +139,8 @@ struct Item {
   int tx = 0, ty = 0;     // the pattern tile's origin: the neck's rest point moved by this item's own anchor
 };
 struct Tile { const ViewRec* v = nullptr; Slot on = Slot::Cloth1; };
-
-bool condHolds(const DollRecipe& r, const std::string& cond) {
-  size_t a = 0;
-  while (a <= cond.size()) {
-    size_t b = cond.find(',', a);
-    if (b == std::string::npos) b = cond.size();
-    std::string t = cond.substr(a, b - a);
-    const bool neg = !t.empty() && t[0] == '!';
-    if (neg) t = t.substr(1);
-    if (!t.empty() && r.has(t.c_str()) == neg) return false;
-    a = b + 1;
-  }
-  return true;
-}
+// (P2c) a region tile (`tags tile` + `on-region <R>`): repeated over those regions' pixels on every part that marks them
+struct RegionTile { const ViewRec* v = nullptr; uint16_t mask = 0; };
 
 // the body set's base anchors for a facing (defaults where the clip file names none: the A3 man's)
 void baseAnchors(const DollRecipe& r, int facing, Pt out[ANCHOR_COUNT]) {
@@ -230,6 +218,23 @@ bool partTaggedId(const PartRec& p, uint16_t id) {
   for (uint16_t t : p.tags) if (t == id) return true;
   return false;
 }
+// (P2c) a region tile's regions (the tag on-region:<letters>; 0: a garment tile)
+uint16_t regionTileMask(const Pool& P, const PartRec& p) {
+  uint16_t m = 0;
+  for (uint16_t t : p.tags) {
+    const std::string& s = P.s(t);
+    if (s.rfind("on-region:", 0) != 0) continue;
+    for (size_t i = 10; i < s.size(); i++)
+      for (int rg = 1; rg < REGION_COUNT; rg++) if (regionChar((Region)rg) == s[i]) m |= (uint16_t)(1u << rg);
+  }
+  return m;
+}
+// (P2c) a library weapon (`role held <weapon>.<form>`): the gripping hand is drawn again over it
+bool libraryHeld(const Pool& P, const PartRec& p) {
+  for (const RoleRec& rr : p.roles)
+    if (rr.cat == (uint8_t)Role::Held && P.s(rr.value).find('.') != std::string::npos) return true;
+  return false;
+}
 // a tile part's target slot: `tags tile on-<slot>` (default cloth1)
 Slot tileTarget(const Pool& P, const PartRec& p) {
   for (uint16_t t : p.tags) {
@@ -239,6 +244,16 @@ Slot tileTarget(const Pool& P, const PartRec& p) {
   }
   return Slot::Cloth1;
 }
+
+thread_local std::vector<Item> g_items;   // the last composed frame's items (frameInfo reads them)
+// (P2c) the probe's per-pixel planes (probeFrame sets them for one compose; null otherwise)
+thread_local std::vector<int16_t>* g_probeOwner = nullptr;
+thread_local std::vector<uint8_t>* g_probeRegion = nullptr;
+thread_local int g_probeGrip = -1, g_probeGripL = -1;
+// (P2c SLICE-DOLL i2) a turned frame's screen-space items: a view placed at the pivot (`anchor pivot`: the corpse's spear
+// and bow `drop`) is drawn after the turn, level on the ground beside the lying body, not turned with it. 0: every item;
+// 1: the body only (the turned pass); 2: the pivot items only (drawn into the turned figure)
+thread_local int g_screenMode = 0;
 
 // composes one frame into o (raw: no finishing pass). `facing` is the frame's own (a turned frame passes the left view)
 void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o, const std::vector<int>* onlyParts = nullptr,
@@ -256,9 +271,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     moveAnchor((Anchor)a, f, p);
     o.anchors[a] = p;
   }
-  static thread_local std::vector<Item> items;
+  std::vector<Item>& items = g_items;
   items.clear();
   Tile tile;
+  static thread_local std::vector<RegionTile> rtiles;
+  rtiles.clear();
   const uint16_t forced = forceKey ? P.strId(forceKey) : (uint16_t)0xFFFF;
   const std::vector<int>& list = onlyParts ? *onlyParts : r.parts;
   for (size_t li = 0; li < list.size(); li++) {
@@ -269,21 +286,28 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     if (partTaggedId(p, I.tile)) {   // a pattern tile: laid over the garments' cloth, never placed itself
       const ViewRec* tv = viewOf(p, facing, I.rest);
       if (!tv) tv = viewOf(p, 0, I.rest);
+      if (const uint16_t m = regionTileMask(P, p)) { if (tv) rtiles.push_back(RegionTile{tv, m}); continue; }   // (P2c) a region tile
       if (tv && !tile.v) { tile.v = tv; tile.on = tileTarget(P, p); }
       continue;
     }
     uint16_t key = I.rest;
+    const bool heldPart = I.held != 0xFFFF && p.channel == I.held;
     if (forceKey) key = forced;
     else if (p.channel != I.rest) {
-      for (const KeyRec& k : f.keys) if (k.channel == p.channel) key = k.key;
+      bool named = false;
+      for (const KeyRec& k : f.keys) if (k.channel == p.channel) { key = k.key; named = true; }
       if (key == I.dash) continue;
+      // (P2c) `weapon=<deg>,front|back`: the held part's `a<deg>` view (rounded to 22.5); a named `held=<key>` wins
+      if (heldPart && !named && f.weapon != -32768) key = I.angle[angleIndex(f.weapon)];
     }
     if (key == 0xFFFF) continue;
+    int vf = facing;
     const ViewRec* v = viewOf(p, facing, key, 0);
+    if (!v && partTaggedId(p, I.anyfacing)) { v = viewOf(p, 0, key, 0); if (v) vf = 0; }   // (P2c) one D view for every facing
     // a `replace` view whose condition holds is drawn instead of the base
     for (uint32_t wi : p.whenViews) {
       const ViewRec& w = P.views[wi];
-      if ((w.flags & 1) && w.facing == facing && w.key == key && condHolds(r, P.s(w.when))) { v = &w; break; }
+      if ((w.flags & 1) && w.facing == vf && w.key == key && condHolds(r, P.s(w.when))) { v = &w; break; }
     }
     if (!v) continue;
     Item it;
@@ -291,13 +315,16 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     it.layer = v->layer != kNone8 ? v->layer : p.layer;
     if (v->layer == kNone8 && p.side && (it.layer == (int)Layer::ArmNear || it.layer == (int)Layer::ArmFar))
       it.layer = (int)((p.side == 1 && facing == 3) || (p.side == 2 && facing == 2) ? Layer::ArmFar : Layer::ArmNear);
+    // (P2c) a weapon placed by angle lies on held (front) or heldBack (back) unless its view names a layer
+    if (heldPart && f.weapon != -32768 && v->layer == kNone8) it.layer = (int)(f.front ? Layer::Held : Layer::HeldBack);
     it.anchor = (Anchor)(v->anchor != kNone8 ? v->anchor : p.anchor);
+    if (g_screenMode && ((it.anchor == Anchor::Pivot) != (g_screenMode == 2))) continue;
     it.garment = (it.layer == (int)Layer::Torso || it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront) && partIsGarment(p);
     items.push_back(it);
     // the optional regions (`when` overlays) of this view whose condition holds
     for (uint32_t wi : p.whenViews) {
       const ViewRec& w = P.views[wi];
-      if ((w.flags & 1) || w.facing != facing || w.key != key || !condHolds(r, P.s(w.when))) continue;
+      if ((w.flags & 1) || w.facing != vf || w.key != key || !condHolds(r, P.s(w.when))) continue;
       Item ov = it;
       ov.view = &w;
       ov.sub = (int)(wi - p.firstView) + 1;
@@ -311,6 +338,8 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     return a.sub < b.sub;
   });
   // anchors first (grip-anchored items read the marks of the parts placed before them in every layer)
+  int gripFrom = -1, gripLFrom = -1;   // (P2c) the items whose views marked grip and gripL (the gripping arms)
+  int handRFrom = -1, handLFrom = -1;  // (P2c i3) the items that marked handR / handL (the grip's fallback: a carry at rest)
   auto place = [&](Item& it) {
     const Pt& a = o.anchors[(int)it.anchor];
     it.ax = CPX + a.x; it.ay = CPY + a.y;
@@ -321,19 +350,27 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       const MarkRec& mk = P.marks[it.view->firstMark + m];
       const int s = markSlot(o, mk.name);
       if (s >= 0) o.marks[s] = Pt{it.ax + mk.x - it.view->ox - CPX, it.ay + mk.y - it.view->oy - CPY, true};
+      if (mk.name == I.grip && I.grip != 0xFFFF) gripFrom = (int)(&it - items.data());
+      if (mk.name == I.gripL && I.gripL != 0xFFFF) gripLFrom = (int)(&it - items.data());
+      if (mk.name == I.handR && I.handR != 0xFFFF) handRFrom = (int)(&it - items.data());
+      if (mk.name == I.handL && I.handL != 0xFFFF) handLFrom = (int)(&it - items.data());
     }
   };
   for (Item& it : items) if (it.anchor != Anchor::Grip && it.anchor != Anchor::GripL) place(it);
   auto markPt = [&](uint16_t id) { for (int i = 0; i < o.nMarks; i++) if (o.markIds[i] == id && o.marks[i].on) return o.marks[i]; return Pt{}; };
-  Pt g = markPt(I.grip); if (!g.on) g = markPt(I.handR);
-  Pt gl = markPt(I.gripL); if (!gl.on) gl = markPt(I.handL);
+  // (i3) a grip that falls back to the hand mark takes that arm as the gripping arm too, so the fist is drawn over a
+  // weapon carried at rest (the spear's upright carry facing down / up) instead of the haft running past the hand
+  Pt g = markPt(I.grip); if (!g.on) { g = markPt(I.handR); if (g.on && gripFrom < 0) gripFrom = handRFrom; }
+  Pt gl = markPt(I.gripL); if (!gl.on) { gl = markPt(I.handL); if (gl.on && gripLFrom < 0) gripLFrom = handLFrom; }
   o.anchors[(int)Anchor::Grip] = g.on ? g : Pt{0, -10, true};
   o.anchors[(int)Anchor::GripL] = gl.on ? gl : Pt{0, -10, true};
   for (Item& it : items) if (it.anchor == Anchor::Grip || it.anchor == Anchor::GripL) place(it);
   // paint back to front
   static thread_local std::vector<int> dst0, dst1;
   const uint8_t tileOn = (uint8_t)tile.on;
-  for (const Item& it : items) {
+  const bool twoHand = r.has("twohand");
+  // handOnly: (P2c) the gripping arm's H pixels drawn again over the weapon it holds
+  auto paint = [&](const Item& it, bool handOnly) {
     const ViewRec& v = *it.view;
     const int sway = it.part->sway && f.sway ? f.sway : 0, swayFrom = (int)v.h - std::min<int>(it.part->sway, v.h);
     buildColumns(r, v, dst0, dst1);
@@ -351,10 +388,26 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       for (int x = 0; x < v.w; x++) {
         uint8_t c = row[x];
         if (!c) continue;
-        if (c >= 2 && hasReg) {
-          const uint8_t rg = v.regions[(size_t)y * v.w + x];
-          if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
-        }
+        const uint8_t rg = c >= 2 && hasReg ? v.regions[(size_t)y * v.w + x] : 0;
+        if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
+        if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
+        // (P2c) a region tile over this region's pixels (outlines kept): ink keeps the slot; step 2 keeps the step, 1 / 3 move
+        // it one down / up, 0 and 4 set it
+        if (rg && !rtiles.empty() && codeStep(c) >= 1)
+          for (const RegionTile& rt : rtiles) {
+            if (!(rt.mask >> rg & 1)) continue;
+            const ViewRec& t = *rt.v;
+            int tx = (it.ax + x - v.ox - it.tx + t.ox) % t.w, ty = (it.ay + y - v.oy - it.ty + t.oy) % t.h;
+            if (tx < 0) tx += t.w;
+            if (ty < 0) ty += t.h;
+            const uint8_t tc = t.cells[(size_t)ty * t.w + tx];
+            if (tc < 2) break;
+            const Slot ts = codeSlot(tc);
+            const int tk = codeStep(tc), ck = codeStep(c);
+            const int nk = tk == 2 ? ck : tk == 1 ? std::max(1, ck - 1) : tk == 3 ? std::min(4, ck + 1) : tk;
+            c = code(ts == Slot::Ink ? codeSlot(c) : ts, nk);
+            break;
+          }
         for (int yi = 0; yi < 2; yi++) {
           if (ys[yi] == INT32_MIN) continue;
           for (int xi = 0; xi < 2; xi++) {
@@ -362,7 +415,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             if (dx == INT32_MIN) continue;
             const int X = it.ax + dx - v.ox + sx, Y = it.ay + ys[yi] - v.oy;
             if (X < 0 || Y < 0 || X >= CW || Y >= CH) continue;
-            if (c == kErase) { o.code[(size_t)Y * CW + X] = 0; continue; }
+            if (c == kErase) {
+              o.code[(size_t)Y * CW + X] = 0;
+              if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = -1; (*g_probeRegion)[(size_t)Y * CW + X] = 0; }
+              continue;
+            }
             uint8_t w = c;
             // the pattern tile: a cloth pixel (not its outline) takes the tile's slot where the tile marks it, keeping
             // the cloth's own step (so the garment's shading runs through the pattern); the tile's grid: Item::tx, ty
@@ -375,6 +432,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
               if (tc >= 2) w = code(codeSlot(tc), codeStep(c));
             }
             o.code[(size_t)Y * CW + X] = w;
+            if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = (int16_t)(&it - items.data()); (*g_probeRegion)[(size_t)Y * CW + X] = rg; }
             if (X < o.bx0) o.bx0 = X;
             if (X > o.bx1) o.bx1 = X;
             if (Y < o.by0) o.by0 = Y;
@@ -382,6 +440,19 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           }
         }
       }
+    }
+  };
+  g_probeGrip = gripFrom; g_probeGripL = gripLFrom;
+  for (const Item& it : items) {
+    paint(it, false);
+    // (P2c) the hand over the grip: after a library weapon on the grip, the main hand; on a two-handed weapon the off hand
+    // too; after a library weapon on gripL (the bow), the bow hand
+    if (!libraryHeld(P, *it.part)) continue;
+    if (it.anchor == Anchor::Grip) {
+      if (gripFrom >= 0 && &items[(size_t)gripFrom] != &it) paint(items[(size_t)gripFrom], true);
+      if (twoHand && gripLFrom >= 0 && &items[(size_t)gripLFrom] != &it) paint(items[(size_t)gripLFrom], true);
+    } else if (it.anchor == Anchor::GripL && gripLFrom >= 0 && &items[(size_t)gripLFrom] != &it) {
+      paint(items[(size_t)gripLFrom], true);
     }
   }
 }
@@ -433,14 +504,16 @@ Cut cutOf(const DollRecipe& r, const uint8_t* code, int w, int h, int stride, in
   return cut;
 }
 
-Cut toCut(const DollRecipe& r, FrameOut& o, const ComposeOpts& op) {
+// atX, atY (P2c SLICE-DOLL i2): an upright frame's `at`, the figure drawn that far right / down of its pivot (a lunge's
+// step into the blow, the recoil's step back): the pivot moves the other way in the cut
+Cut toCut(const DollRecipe& r, FrameOut& o, const ComposeOpts& op, int atX = 0, int atY = 0) {
   if (o.bx1 < o.bx0) return Cut();
   const int bw = o.bx1 - o.bx0 + 1, bh = o.by1 - o.by0 + 1;
   uint8_t* at = &o.code[(size_t)o.by0 * CW + o.bx0];
   if (op.finish) finishPass(at, bw, bh, CW);
   Cut cut;
-  if (op.trim) cut = cutOf(r, at, bw, bh, CW, CPX - o.bx0, CPY - o.by0);
-  else cut = cutOf(r, o.code.data(), CW, CH, CW, CPX, CPY);   // (the whole scratch canvas: parity diffs)
+  if (op.trim) cut = cutOf(r, at, bw, bh, CW, CPX - o.bx0 - atX, CPY - o.by0 - atY);
+  else cut = cutOf(r, o.code.data(), CW, CH, CW, CPX - atX, CPY - atY);   // (the whole scratch canvas: parity diffs)
   if (cut.c.w <= 0) return cut;
   if (!op.trim) {   // the scratch canvas keeps its size (the box of the opaque pixels is not cut away)
     Canvas full(CW, CH);
@@ -454,17 +527,17 @@ Cut toCut(const DollRecipe& r, FrameOut& o, const ComposeOpts& op) {
   const Ids& I = P.ids;
   auto mark = [&](uint16_t id, int16_t& ax, int16_t& ay) {
     if (id == 0xFFFF) return;
-    for (int i = 0; i < o.nMarks; i++) if (o.markIds[i] == id && o.marks[i].on) { ax = (int16_t)o.marks[i].x; ay = (int16_t)o.marks[i].y; }
+    for (int i = 0; i < o.nMarks; i++) if (o.markIds[i] == id && o.marks[i].on) { ax = (int16_t)(o.marks[i].x + atX); ay = (int16_t)(o.marks[i].y + atY); }
   };
   const Pt& hd = o.anchors[(int)Anchor::Head];
-  an.headX = (int16_t)hd.x; an.headY = (int16_t)hd.y; an.headW = 16; an.headH = 14;
+  an.headX = (int16_t)(hd.x + atX); an.headY = (int16_t)(hd.y + atY); an.headW = 16; an.headH = 14;
   mark(I.face, an.faceX, an.faceY);
   mark(I.handR, an.handRX, an.handRY);
   mark(I.handL, an.handLX, an.handLY);
   mark(I.grip, an.gripX, an.gripY);
   mark(I.tip, an.tipX, an.tipY);
   const Pt& hp = o.anchors[(int)Anchor::Hip];
-  an.hipX = (int16_t)hp.x; an.hipY = (int16_t)hp.y;
+  an.hipX = (int16_t)(hp.x + atX); an.hipY = (int16_t)(hp.y + atY);
   mark(I.hip, an.hipX, an.hipY);
   int16_t fy = 0;
   mark(I.footL, an.footLX, fy);
@@ -476,7 +549,7 @@ Cut toCut(const DollRecipe& r, FrameOut& o, const ComposeOpts& op) {
 // the turned figure (STYLE_P2 13): the raw left-view frame in o turned a quarter clockwise (east: head east) or
 // transposed (west: the turn mirrored, head west), finished again; the pivot under the middle of the body (halfway from
 // the soles to the head box's top) on the figure's lowest row (its back), moved by the frame's `at`
-Cut turnedCut(const DollRecipe& r, FrameOut& o, uint8_t turn, int atX, int atY, const ComposeOpts& op) {
+Cut turnedCut(const DollRecipe& r, FrameOut& o, uint8_t turn, int atX, int atY, const ComposeOpts& op, const FrameOut* screen = nullptr) {
   if (o.bx1 < o.bx0) return Cut();
   const int bw = o.bx1 - o.bx0 + 1, bh = o.by1 - o.by0 + 1;
   const int tw = bh, th = bw;
@@ -489,7 +562,6 @@ Cut turnedCut(const DollRecipe& r, FrameOut& o, uint8_t turn, int atX, int atY, 
       const int X = turn == kTurnEast ? bh - 1 - y : y, Y = x;
       t[(size_t)Y * tw + X] = c;
     }
-  if (op.finish) finishPass(t.data(), tw, th, tw);
   // the middle of the body in the frame's box, then turned
   const int midY = o.anchors[(int)Anchor::Head].y / 2;
   const int my = CPY + midY - o.by0;   // (the turned x of the body's middle; its column becomes a row)
@@ -498,7 +570,29 @@ Cut turnedCut(const DollRecipe& r, FrameOut& o, uint8_t turn, int atX, int atY, 
   for (int y = th - 1; y >= 0 && low < 0; y--)
     for (int x = 0; x < tw; x++) if (t[(size_t)y * tw + x] >= 2) { low = y; break; }
   if (low < 0) return Cut();
-  Cut cut = cutOf(r, t.data(), tw, th, tw, tmx - atX, low - atY);
+  int pvx = tmx - atX, pvy = low - atY;
+  // (P2c SLICE-DOLL i2) the screen-space items (the corpse's dropped spear / bow): composed alone in the left view, their
+  // pivot at CPX, CPY, laid UNDER the turned body at its pivot (the body hides what it lies on)
+  if (screen && screen->bx1 >= screen->bx0) {
+    const int PAD = 48, Tw = tw + 2 * PAD, Th = th + 2 * PAD;
+    static thread_local std::vector<uint8_t> T;
+    T.assign((size_t)Tw * Th, 0);
+    for (int y = 0; y < th; y++) std::memcpy(&T[(size_t)(y + PAD) * Tw + PAD], &t[(size_t)y * tw], (size_t)tw);
+    for (int y = screen->by0; y <= screen->by1; y++)
+      for (int x = screen->bx0; x <= screen->bx1; x++) {
+        const uint8_t c = screen->code[(size_t)y * CW + x];
+        if (c < 2) continue;
+        // (head east: the ground item mirrored, so it lies by the near hand toward the feet either way)
+        const int X = PAD + pvx + (turn == kTurnEast ? CPX - x : x - CPX), Y = PAD + pvy + y - CPY;
+        if (X < 0 || Y < 0 || X >= Tw || Y >= Th) continue;
+        uint8_t& d = T[(size_t)Y * Tw + X];
+        if (d < 2) d = c;
+      }
+    if (op.finish) finishPass(T.data(), Tw, Th, Tw);
+    return cutOf(r, T.data(), Tw, Th, Tw, pvx + PAD, pvy + PAD);
+  }
+  if (op.finish) finishPass(t.data(), tw, th, tw);
+  Cut cut = cutOf(r, t.data(), tw, th, tw, pvx, pvy);
   return cut;
 }
 
@@ -510,14 +604,19 @@ uint8_t turnOf(const FrameRec& f, bool lyingClip, uint8_t variant) {
 }
 Cut composeOne(const DollRecipe& r, int facing, const FrameRec& f, uint8_t turn, FrameOut& fo, const ComposeOpts& op) {
   if (turn) {
+    static thread_local FrameOut so;
+    g_screenMode = 2;
+    composeFrame(r, 3, f, so);
+    g_screenMode = 1;
     composeFrame(r, 3, f, fo);
-    return turnedCut(r, fo, turn, f.atX, f.atY, op);
+    g_screenMode = 0;
+    return turnedCut(r, fo, turn, f.atX, f.atY, op, &so);
   }
   composeFrame(r, facing, f, fo);
-  return toCut(r, fo, op);
+  return toCut(r, fo, op, f.atX, f.atY);
 }
 
-uint8_t partOf(RigPart p) { return (uint8_t)p; }
+uint8_t partOf(RigPart p) { return poolPart(p); }
 
 }  // namespace
 
@@ -536,7 +635,7 @@ RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
   DollRecipe walkR = r;
   if (part != RigPart::Run) walkR.flags.push_back("walk");
   AtlasBuilder ab;
-  std::vector<const ClipRec*> sorted = clipsOf(r.bodyKey, partOf(part), r.family, -1);
+  std::vector<const ClipRec*> sorted = clipsOf(r.bodyKey, partOf(part), r.family, -1, &r);
   // facing, then clip, then variant: the atlas index order
   std::stable_sort(sorted.begin(), sorted.end(), [](const ClipRec* a, const ClipRec* b) {
     if (a->facing != b->facing) return a->facing < b->facing;
@@ -573,6 +672,88 @@ RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
   return ab.finish();
 }
 RigSheet compose(const HumanLook& look, RigPart part) { return compose(resolve(look), part); }
+
+namespace {
+// the clip frame compose draws for (facing, clip, variant, i) of a part, with the recipe compose uses (run / walk flags)
+const FrameRec* pickFrame(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i, DollRecipe& r, uint8_t& turn) {
+  const Pool& P = get();
+  r = r0;
+  if (part == RigPart::Run) r.flags.push_back("run");
+  else if (clip == Clip::Walk) r.flags.push_back("walk");
+  const ClipRec* pick = nullptr;
+  for (int pass = 0; pass < 2 && !pick; pass++)
+    for (const ClipRec* c : clipsOf(r.bodyKey, partOf(part), r.family, -1, &r))
+      if (c->clip == (uint8_t)clip && c->facing == facing && c->variant == (pass ? 0 : variant)) { pick = c; break; }
+  if (!pick && clip == Clip::Lying)   // a lying clip of one facing serves every facing
+    for (const ClipRec* c : clipsOf(r.bodyKey, partOf(part), r.family, -1, &r))
+      if (c->clip == (uint8_t)clip && c->variant == variant) { pick = c; break; }
+  if (!pick || !pick->nFrames) return nullptr;
+  const FrameRec& f = P.frames[pick->firstFrame + (uint16_t)(((i % pick->nFrames) + pick->nFrames) % pick->nFrames)];
+  turn = turnOf(f, clip == Clip::Lying, pick->variant);
+  return &f;
+}
+}  // namespace
+
+FrameInfo frameInfo(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i) {
+  FrameInfo out;
+  const Pool& P = get();
+  DollRecipe r;
+  uint8_t turn = 0;
+  const FrameRec* fp = pickFrame(r0, part, facing, clip, variant, i, r, turn);
+  if (!fp) return out;
+  const FrameRec& f = *fp;
+  static thread_local FrameOut fo;
+  composeFrame(r, turn ? 3 : facing, f, fo);
+  out.ok = true;
+  out.ms = f.ms; out.turn = turn; out.weapon = f.weapon;
+  for (const Item& it : g_items) out.parts.push_back(FrameInfo::P{P.s(it.part->name), layerName((Layer)it.layer), P.s(it.view->key)});
+  return out;
+}
+
+FrameProbe probeFrame(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i, bool finish) {
+  FrameProbe out;
+  const Pool& P = get();
+  DollRecipe r;
+  uint8_t turn = 0;
+  const FrameRec* fp = pickFrame(r0, part, facing, clip, variant, i, r, turn);
+  if (!fp) return out;
+  static thread_local FrameOut fo;
+  std::vector<int16_t> owner((size_t)CW * CH, -1);
+  std::vector<uint8_t> region((size_t)CW * CH, 0);
+  g_probeOwner = &owner; g_probeRegion = &region;
+  composeFrame(r, turn ? 3 : facing, *fp, fo);
+  g_probeOwner = nullptr; g_probeRegion = nullptr;
+  out.ok = true;
+  out.w = CW; out.h = CH; out.px = CPX - (turn ? 0 : fp->atX); out.py = CPY - (turn ? 0 : fp->atY); out.turn = turn; out.ms = fp->ms; out.weapon = fp->weapon; out.front = fp->front != 0;
+  out.code = fo.code;
+  if (finish && fo.bx1 >= fo.bx0) finishPass(&out.code[(size_t)fo.by0 * CW + fo.bx0], fo.bx1 - fo.bx0 + 1, fo.by1 - fo.by0 + 1, CW);
+  for (size_t k = 0; k < out.code.size(); k++) if (out.code[k] < 2) owner[k] = -1;
+  out.owner = std::move(owner);
+  out.region = std::move(region);
+  for (const Item& it : g_items) {
+    FrameProbe::It x;
+    x.part = P.s(it.part->name); x.key = P.s(it.view->key);
+    x.partIndex = (int)(it.part - P.parts.data());
+    x.side = it.part->side; x.layer = (Layer)it.layer; x.anchor = it.anchor; x.ax = it.ax; x.ay = it.ay;
+    for (const RoleRec& rr : it.part->roles) {
+      x.roles |= 1u << rr.cat;
+      if (rr.cat == (uint8_t)Role::Held && x.held.empty()) x.held = P.s(rr.value);
+    }
+    out.items.push_back(x);
+  }
+  const Pt& hd = fo.anchors[(int)Anchor::Head];
+  out.headX = CPX + hd.x; out.headY = CPY + hd.y;
+  const Ids& I = P.ids;
+  for (int k = 0; k < fo.nMarks; k++) {
+    if (!fo.marks[k].on) continue;
+    const int X = CPX + fo.marks[k].x, Y = CPY + fo.marks[k].y;
+    if (fo.markIds[k] == I.grip) { out.grip = true; out.gripX = X; out.gripY = Y; }
+    else if (fo.markIds[k] == I.gripL) { out.gripL = true; out.gripLX = X; out.gripLY = Y; }
+    else if (fo.markIds[k] == I.tip) { out.tip = true; out.tipX = X; out.tipY = Y; }
+  }
+  out.gripFrom = g_probeGrip; out.gripLFrom = g_probeGripL;
+  return out;
+}
 
 RigSheet composePosture(const DollRecipe& r0, Posture p, uint8_t variant) {
   const Pool& P = get();
@@ -643,12 +824,12 @@ bool notHeadwear(const PartRec& p) {
 bool sleeperFrame(const DollRecipe& r, int want, int frame, FrameRec& out) {
   const Pool& P = get();
   const ClipRec* clip = nullptr;
-  const std::vector<const ClipRec*> cs = clipsOf(r.bodyKey, kPartPosture, r.family, (int)Posture::Sleep);
+  const std::vector<const ClipRec*> cs = clipsOf(r.bodyKey, kPartPosture, r.family, (int)Posture::Sleep, &r);
   for (const ClipRec* c : cs) if (c->facing == want && c->variant == 0) clip = c;
   if (!clip) for (const ClipRec* c : cs) if (c->facing == want) clip = c;
   if (clip && clip->nFrames) { out = P.frames[clip->firstFrame + (uint16_t)(frame & 1) % clip->nFrames]; return true; }
   const bool across = want == 3;
-  for (const ClipRec* c : clipsOf(r.bodyKey, across ? (uint8_t)RigPart::Death : (uint8_t)RigPart::Loco, r.family, -1)) {
+  for (const ClipRec* c : clipsOf(r.bodyKey, across ? (uint8_t)RigPart::Death : (uint8_t)RigPart::Loco, r.family, -1, &r)) {
     if (c->clip != (uint8_t)(across ? Clip::Lying : Clip::Idle) || !c->nFrames) continue;
     if (!across && c->facing != 0) continue;
     if (clip && c->variant > clip->variant) continue;

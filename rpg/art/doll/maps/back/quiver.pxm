@@ -1,0 +1,295 @@
+# back/quiver: the archer's quiver with its arrows (`sheath quiver`, every bow fighter: P2C_CONTRACTS 3), P2c SLICE-ARMS
+# 2026-10-23. STYLE_P2 25.7 (the bow on the back with the quiver, arrows showing: the delight) and 25.9 (it stays on the
+# back in the run). A boiled-leather tube slung over the right shoulder, the strap's brass stud, its lit rim, and the
+# fletchings standing out of the mouth (linen, one cock feather in the accent). On the neck anchor like a scabbard on the
+# sheath channel: rest, kick (the run), lag (a pixel behind the bob), drawn (it stays while the bow is out), sit, stride;
+# lie draws nothing (back items lie under the body). Behind the body facing down and in the side views (the fletchings
+# over the shoulder), over the back facing up. Format: rpg/art/doll/doll.h.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+body adult
+role sheath quiver
+anchor neck
+keys sheath
+z 31
+
+view D key rest origin 7 3 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key kick origin 7 3 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key lag origin 7 4 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key drawn origin 7 3 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key sit origin 7 3 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key stride origin 7 3 layer back
+|Y.Y.
+|nYnY
+|.nYf
+|..ff
+
+view D key lie origin 0 0
+|.
+
+view U key rest origin 2 3 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key kick origin 2 3 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key lag origin 2 4 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key drawn origin 2 3 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key sit origin 2 3 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key stride origin 2 3 layer neck
+|......Y.Y...
+|.....YnYnY..
+|......nYnY..
+|.....fjjif..
+|.....fihgf..
+|....fihgf...
+|....fiOgf...
+|...fihgf....
+|...fihgf....
+|..fihgf.....
+|..fihgf.....
+|.fihgf......
+|.fgggf......
+|..fff.......
+
+view U key lie origin 0 0
+|.
+
+view R key rest origin 8 4 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key kick origin 8 4 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key lag origin 8 5 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key drawn origin 8 4 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key sit origin 8 4 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key stride origin 8 4 layer back
+|Y.Y...
+|nYnY..
+|.fjif.
+|.fihf.
+|..fihf
+|..fihf
+|..fihf
+|...fhf
+|...ff.
+
+view R key lie origin 0 0
+|.
+
+view L key rest origin -3 4 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key kick origin -3 4 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key lag origin -3 5 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key drawn origin -3 4 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key sit origin -3 4 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key stride origin -3 4 layer back
+|...Y.Y
+|..YnYn
+|.fjif.
+|.fihf.
+|fihf..
+|fihf..
+|fihf..
+|fhf...
+|.ff...
+
+view L key lie origin 0 0
+|.
+

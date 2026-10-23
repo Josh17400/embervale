@@ -56,6 +56,8 @@
 #define EMB_DOLL_MOTION 1
 #endif
 
+std::string dollSliceLooksText();   // (test_doll_arms.cpp: the slice looks file, embedded)
+
 namespace wear {
 namespace {
 
@@ -103,50 +105,7 @@ struct Parsed { HumanLook L; bool lookPal = false, bare = false; std::string bad
 Parsed parse(const WLook& w) {
   Parsed p;
   p.L = w.who ? a3Woman() : a3Hero();
-  HumanLook& L = p.L;
-  size_t a = 0;
-  while (a < w.spec.size()) {
-    size_t b = w.spec.find(',', a);
-    if (b == std::string::npos) b = w.spec.size();
-    const std::string kv = w.spec.substr(a, b - a);
-    a = b + 1;
-    const size_t eq = kv.find('=');
-    if (eq == std::string::npos) continue;
-    const std::string k = kv.substr(0, eq), v = kv.substr(eq + 1);
-    const int n = (int)std::strtol(v.c_str(), nullptr, 0);
-    auto col = [&]() { return hexc((uint32_t)std::strtoul(v.c_str() + (v[0] == '#' ? 1 : 0), nullptr, 16)); };
-    if (k == "palette") p.lookPal = v == "look";
-    else if (k == "bare") p.bare = v == "1";
-    else if (k == "body") L.body = (uint8_t)n;
-    else if (k == "build") L.build = (uint8_t)n;
-    else if (k == "people") L.people = (uint8_t)n;
-    else if (k == "age") L.age = (uint8_t)n;
-    else if (k == "garb") L.garb = (uint8_t)n;
-    else if (k == "cut") L.cut = (uint8_t)n;
-    else if (k == "outfit") L.outfit = (art::Outfit)n;
-    else if (k == "weapon") L.weapon = (uint8_t)n;
-    else if (k == "civil") L.civil = (uint8_t)n;
-    else if (k == "pattern") L.pattern = (uint8_t)n;
-    else if (k == "cloak") L.cloak = (uint8_t)n;
-    else if (k == "cape") L.cape = n != 0;
-    else if (k == "hair") L.hair = (art::Hair)n;
-    else if (k == "hairVar") L.hairVar = (uint8_t)n;
-    else if (k == "beard") L.beard = n != 0;
-    else if (k == "beardStyle") L.beardStyle = (uint8_t)n;
-    else if (k == "headwear") L.headwear = (uint8_t)n;
-    else if (k == "hood") L.hood = n != 0;
-    else if (k == "neck") L.neck = (uint8_t)n;
-    else if (k == "jewellery") L.jewellery = (uint8_t)n;
-    else if (k == "amulet") L.amulet = n != 0;
-    else if (k == "head") L.head = (uint8_t)n;
-    else if (k == "helmStyle") L.helmStyle = (uint8_t)n;
-    else if (k == "skin") L.skin = col();
-    else if (k == "hairColor") L.hairColor = col();
-    else if (k == "topColor") L.topColor = col();
-    else if (k == "bottomColor") L.bottomColor = col();
-    else if (k == "tabardColor") L.tabardColor = col();
-    else p.bad += (p.bad.empty() ? "" : ",") + k;
-  }
+  doll::applyLookSpec(p.L, w.spec, &p.lookPal, &p.bare, &p.bad);   // (P2c: the one list, doll.h)
   return p;
 }
 doll::DollRecipe recipeOf(const Parsed& p) {
@@ -187,7 +146,7 @@ std::vector<WLook> readLooksFile(const char* file) {
 struct GaitDef { const char* name; RigPart part; int variant; bool run; int posture; uint8_t pv; };
 const GaitDef kGaits[] = {
     {"walk", RigPart::Loco, 0, false, -1, 0},  {"run", RigPart::Run, 0, true, -1, 0},
-    {"dwalk", RigPart::Action, 1, false, -1, 0}, {"drun", RigPart::Action, 2, true, -1, 0},
+    {"dwalk", RigPart::Drawn, 1, false, -1, 0}, {"drun", RigPart::Drawn, 2, true, -1, 0},
     {"carry", RigPart::Loco, 0, false, (int)art::Posture::Carry, 0}, {"carry1", RigPart::Loco, 0, false, (int)art::Posture::Carry, 1},
     {"carry2", RigPart::Loco, 0, false, (int)art::Posture::Carry, 2}, {"play", RigPart::Loco, 0, true, (int)art::Posture::Play, 0},
     {"dance", RigPart::Loco, 0, false, (int)art::Posture::Dance, 0}};
@@ -352,7 +311,7 @@ inline bool vis(const FD& f, int k, int X, int Y) { const uint8_t c = f.g[k].at(
 inline bool heldVis(const FD& f, int X, int Y) { return f.has[kNoHeld] && f.g[kFull].at(X, Y) != f.g[kNoHeld].at(X, Y) && f.g[kFull].at(X, Y); }
 
 const P::FrameRec* clipFrame(const doll::DollRecipe& r, RigPart part, int facing, Clip clip, int variant, int i) {
-  for (const P::ClipRec* c : P::clipsOf(r.bodyKey, (uint8_t)part, r.family, -1))
+  for (const P::ClipRec* c : P::clipsOf(r.bodyKey, P::poolPart(part), r.family, -1, &r))
     if (c->clip == (uint8_t)clip && c->facing == facing && c->variant == variant && i < c->nFrames) return &P::get().frames[c->firstFrame + i];
   return nullptr;
 }
@@ -854,10 +813,10 @@ struct KeyFrame { int facing; std::string gait; int i; const P::FrameRec* fr; };
 std::vector<KeyFrame> sideFrames(const doll::DollRecipe& r, const std::vector<int>& gaits, bool idle) {
   std::vector<KeyFrame> v;
   bool drawn = false;
-  for (int g : gaits) drawn = drawn || kGaits[g].part == RigPart::Action;
+  for (int g : gaits) drawn = drawn || kGaits[g].part == RigPart::Drawn;
   for (int fc : {2, 3}) {
     auto add = [&](RigPart part, Clip clip, int variant, const char* name) {
-      for (const P::ClipRec* c : P::clipsOf(r.bodyKey, (uint8_t)part, r.family, -1))
+      for (const P::ClipRec* c : P::clipsOf(r.bodyKey, P::poolPart(part), r.family, -1, &r))
         if (c->clip == (uint8_t)clip && c->facing == fc && c->variant == variant) {
           for (int i = 0; i < c->nFrames; i++) v.push_back({fc, name, i, &P::get().frames[c->firstFrame + i]});
           break;
@@ -865,7 +824,7 @@ std::vector<KeyFrame> sideFrames(const doll::DollRecipe& r, const std::vector<in
     };
     if (idle) { add(RigPart::Loco, Clip::Idle, 0, "idle"); continue; }
     for (int g : gaits) if (kGaits[g].posture < 0) add(kGaits[g].part, Clip::Walk, kGaits[g].variant, kGaits[g].name);
-    if (drawn) add(RigPart::Action, Clip::Idle, 1, "didle");
+    if (drawn) add(RigPart::Drawn, Clip::Idle, 1, "didle");
   }
   return v;
 }
@@ -900,6 +859,18 @@ void w1Look(const doll::DollRecipe& r, const std::vector<int>& gaits, const Repo
     for (const KeyFrame& k : moving) {
       const uint16_t key = keyFor(p, *k.fr);
       if (key == I.dash || (P::viewOf(p, k.facing, key) && !(hide && (*hide)(pi, k.facing, key)))) continue;
+      // (P2c, INTEGRATE i1) an action arm (arms/adult/action: the spear's two fists, the bow arms) serves the key in the
+      // loco arm's place on the same channel: the channel is drawn, so the loco arm's silence is not a hole
+      // (a garment riding the arm's channel, a sleeve, is never excused: only an arm by an action arm)
+      bool sibling = false;
+      if (Pl.s(p.name).rfind("arms/", 0) == 0)
+        for (int qi : r.parts)
+          if (qi != pi && Pl.parts[(size_t)qi].channel == p.channel && Pl.s(Pl.parts[(size_t)qi].name).rfind("arms/adult/action/", 0) == 0 &&
+              drawsView(P::viewOf(Pl.parts[(size_t)qi], k.facing, key)) && !(hide && (*hide)(qi, k.facing, key))) sibling = true;
+      if (sibling) continue;
+      // (P2c, INTEGRATE i1) `tags anyfacing` (the weapon library): D's view serves every facing, as the compositor draws it
+      if (I.anyfacing != 0xFFFF && std::find(p.tags.begin(), p.tags.end(), I.anyfacing) != p.tags.end() && P::viewOf(p, 0, key) &&
+          !(hide && (*hide)(pi, 0, key))) continue;
       const std::string w = fmt("%s %c key %s", Pl.s(p.name).c_str(), "DURL"[k.facing], Pl.s(key).c_str());
       if (told.insert(w).second) rep("W1", true, w + fmt(": no view (%s %d; the part draws nothing)", k.gait.c_str(), k.i));
     }
@@ -1109,6 +1080,28 @@ std::vector<WLook> buildMatrix() {
   // M6 the walking postures (leg checks; the freeze keeps their front and back frames)
   for (int b = 0; b < 2; b++) add("M6", fmt("pose_%s", bodyName[b]), b, b ? tw + ",weapon=0" : "weapon=0", "carry,carry1,carry2,play,dance");
   add("M6", "pose_child", 0, "age=1,weapon=0", "carry,play");
+  // (P2c, INTEGRATE i1) the slice looks (tools/doll/slice_looks.txt, embedded in test_doll_arms.cpp): the armour, helms,
+  // shield and the spear / bow carriers judged on their moving side frames, so their parts are covered (COVER)
+  {
+    std::string t = dollSliceLooksText();
+    size_t a = 0;
+    while (a < t.size()) {
+      size_t e = t.find('\n', a);
+      if (e == std::string::npos) e = t.size();
+      const std::string line = t.substr(a, e - a);
+      a = e + 1;
+      if (line.empty() || line[0] == '#') continue;
+      std::vector<std::string> w;
+      { size_t i = 0; while (i < line.size()) { while (i < line.size() && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r')) i++; size_t j = i;
+          while (j < line.size() && line[j] != ' ' && line[j] != '\t' && line[j] != '\r') j++; if (j > i) w.push_back(line.substr(i, j - i)); i = j; } }
+      if (w.size() < 3) continue;
+      std::string gaits;
+      for (const std::string& g : splitc(w.size() > 3 ? w[3] : std::string("walk,run"), ','))
+        if (g == "walk" || g == "run" || g == "dwalk" || g == "drun") gaits += (gaits.empty() ? "" : ",") + g;
+      if (gaits.empty()) gaits = "walk,run";
+      add("P2c", "slice_" + w[0], w[1] == "woman" ? 1 : 0, w[2] == "-" ? std::string() : w[2], gaits.c_str());
+    }
+  }
   return m;
 }
 
@@ -1145,7 +1138,8 @@ void partCoverage(const std::vector<WLook>& looks) {
   std::map<uint16_t, std::set<uint16_t>> chanKeys;
   for (const P::ClipRec& c : Pl.clips) {
     if (c.facing != 2 && c.facing != 3) continue;
-    const bool moving = c.clip == (uint8_t)Clip::Walk && c.posture == P::kNone8 && (c.part == (uint8_t)RigPart::Loco || c.part == (uint8_t)RigPart::Run || (c.part == (uint8_t)RigPart::Action && c.variant >= 1));
+    if (c.when) continue;   // (INTEGRATE i1) a conditioned clip's keys (a shield bearer's, a spear or bow fighter's) bind only its own looks
+    const bool moving = c.clip == (uint8_t)Clip::Walk && c.posture == P::kNone8 && (c.part == (uint8_t)RigPart::Loco || c.part == (uint8_t)RigPart::Run || (c.part == P::kPartDrawn && c.variant >= 1));
     if (!moving) continue;
     for (int i = 0; i < c.nFrames; i++)
       for (const P::KeyRec& k : Pl.frames[c.firstFrame + i].keys) chanKeys[k.channel].insert(k.key);
@@ -1236,7 +1230,12 @@ void frozenFrames(const WLook& w, std::map<std::string, uint64_t>& out) {
     sheet(doll::compose(r, RigPart::Loco), "loco", false);
     sheet(doll::compose(r, RigPart::Run), "run", false);
     sheet(doll::compose(r, RigPart::Death), "death", false);
-    if (p.L.weapon >= 1 && p.L.weapon <= 8 && !p.L.civil) sheet(doll::compose(r, RigPart::Action), "action", false);
+    if (p.L.weapon >= 1 && p.L.weapon <= 8 && !p.L.civil) {
+      sheet(doll::compose(r, RigPart::Action), "action", false);
+      // (P2c) the drawn idle, walk and run moved from ACTION to DRAWN: their frames keep the manifest's "action" lines
+      // (clips Idle / Walk variants 1-2, which ACTION no longer holds), so the freeze reads them there
+      sheet(doll::compose(r, RigPart::Drawn), "action", false);
+    }
   } else {
     for (const std::string& g : w.gaits) {
       const int gi = gaitIx(g);
@@ -1589,6 +1588,7 @@ int wearCmd(int argc, char** argv) {
       else if (pn == "run") sh = doll::compose(r, RigPart::Run);
       else if (pn == "death") sh = doll::compose(r, RigPart::Death);
       else if (pn == "action") sh = doll::compose(r, RigPart::Action);
+      else if (pn == "drawn") sh = doll::compose(r, RigPart::Drawn);
       else { const int gi = gaitIx(pn); if (gi >= 0 && kGaits[gi].posture >= 0) sh = doll::composePosture(r, (art::Posture)kGaits[gi].posture, kGaits[gi].pv); }
       const art::FrameRect* fr = sh.frame(fpF, (Clip)fpC, fpV, fpI);
       if (!fr) { std::printf("FAIL: --frame-png: no such frame\n"); return 1; }

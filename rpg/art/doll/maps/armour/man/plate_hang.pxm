@@ -1,0 +1,209 @@
+# armour/man/plate_hang: the man's plate tassets (short, the skirt dial's 2): the last fauld lame and two rigid plates
+# over the thighs. They hinge and never bend (STYLE_P2 25.6): `wide` (the walk) opens the front plate a pixel forward and the
+# back plate a pixel back over the stride, `flare` (the run) trails the pair a pixel behind, the lie lays them along the
+# thighs. Seated keys (sit floor kneel ride) keep the rest plates (postures are wave 2's to tune).
+# Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour plate
+layer hangFront
+anchor hip
+keys hang
+z 10
+
+view D key rest origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key wide origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key flare origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vvvvvvvvvvvv
+
+view D key lie origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key idle origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key sit origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key floor origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key kneel origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view D key ride origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key rest origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key wide origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key flare origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vvvvvvvvvvvv
+
+view U key lie origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key idle origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key sit origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key floor origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key kneel origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view U key ride origin 6 -1
+|.vyyyyxxxwv.
+|vyyyxvvxxxwv
+|vxxxwvvwwwwv
+|vvvvvv.vvvvv
+
+view R key rest origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key wide origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key flare origin 7 -1
+|.vyyyyyxxxxwv.
+|vyyyxvvxxxxwwv
+|vvvvvvvvvvvvvv
+
+view R key lie origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key idle origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key sit origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key floor origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key kneel origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view R key ride origin 6 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view L key rest origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key wide origin 7 -1
+|.vyyyyxxxxwv.
+|vyyyxvvxxxwwv
+|vvvvvvvvvvvvv
+
+view L key flare origin 7 -1
+|.vyyyyxxxxwwv.
+|vyyyxvvxxxxwwv
+|vvvvvvvvvvvvvv
+
+view L key lie origin 6 -1
+|....vyyxxwv
+|....vyxxwwv
+|....vvvvvvv
+
+view L key idle origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key sit origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key floor origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key kneel origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+
+view L key ride origin 7 -1
+|.vyyyyxxxxwv.
+|vyyxvvxxxwwwv
+|vvvvvvvvvvvvv
+

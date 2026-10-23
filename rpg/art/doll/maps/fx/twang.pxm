@@ -1,0 +1,60 @@
+# fx/twang: the Twang (the bow's effect, `fx twang`), P2c SLICE-ARMS 2026-10-23 (iteration 2: redrawn; the dotted
+# ladder of iteration 1 read as a glitch). STYLE_P2 25.10, A3's three tones (A core, B body, C edge): a plus-shaped pop
+# on the string's middle where the arrow left it, and a short dash flying out
+# ahead of the bow in the arrow's line (its bright end leading). Facing down the arrow comes at the camera (a starburst
+# at the nock); facing up it flies away (a dash rising beside the head). The string's own blur is the bow's
+# `release` view. Drawn on the pivot at the release frame only (bw_rel); a2 (the follow) is empty.
+# Format: rpg/art/doll/doll.h.
+use person
+body adult
+role fx twang
+layer fx
+anchor pivot
+keys fx
+
+# the pop on the string's middle (+9,-19) and the dash beyond the stave (facing left: the string at -9)
+view R key a1 origin -8 21
+|.C..........
+|.B..........
+|BAB....CBBBA
+|.B..........
+|.C..........
+
+view R key a2 origin 0 0
+|.
+
+view L key a1 origin 19 21
+|..........C.
+|..........B.
+|ABBBC....BAB
+|..........B.
+|..........C.
+
+view L key a2 origin 0 0
+|.
+
+# facing down: the arrow comes at the camera, a starburst on the nock (+5,-17)
+view D key a1 origin -2 20
+|C.....C
+|.B...B.
+|...B...
+|..BAB..
+|...B...
+|.B...B.
+|C.....C
+
+view D key a2 origin 0 0
+|.
+
+# facing up: the pop at the nock (-5,-15) and the dash rising away behind the head
+view U key a1 origin 7 21
+|..A..
+|..B..
+|..C..
+|.....
+|..C..
+|.BAB.
+|..C..
+
+view U key a2 origin 0 0
+|.

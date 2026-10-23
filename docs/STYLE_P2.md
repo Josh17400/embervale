@@ -828,6 +828,298 @@ artist draws by.
 
 ---
 
+## 25. P2c: arms and armour on the doll (planner, 2026-10-23; binding on every P2c art area)
+
+Sections 11, 12, 22 and 23 still hold; this section says how they are rendered in A3 on the shipped body and motion
+(docs/MOTION_P2.md), and how actions are timed. docs/PLAN.md "## P2c" is the plan; docs/P2C_CONTRACTS.md the shapes.
+
+### 25.1 The feel
+
+A town guard at the gate, on a phone at arm's length: the kingdom's red tabard over grey mail, a glint on the nasal helm,
+the kite shield on his arm with its gold device, a brass hilt at his hip. Across the square a plate soldier turns and her
+pauldrons catch the light; her crest bobs over the crowd as she runs. In a fight every weapon has its own body. The sword
+coils and sweeps through A3's three-tone arc. The spear is drawn back to the hip and darts out in a streak. The archer
+brings the string to the cheek, holds it, and lets it snap. Metal reads as metal: broad lit planes, one ridge, a few
+glints. Mail reads as mail, a fine brick and never noise. Leather is matte and warm, and a tabard over mail is plainly
+cloth. Put on plate and the hero changes shape. Fall in it, and the helm stays on, the shield lies flat and the sword
+lands beside the hand. Nothing floats, slides, clips or crosses a face, and every leg is still the short, chunky,
+far-leg-whole leg the owner approved.
+
+### 25.2 Materials in A3
+
+- **Steel plate**: A3's steel ramp (`#201C31 #525C7A #95A2BC #D5DEEA #FFFFFF`) laid as **broad planes**, never a gradient.
+  The plane facing the top-left light is step 3, the turn is step 2, the shadow side step 1, and the silhouette step 0
+  (the finishing pass lights its top-left edge). Each convex plate (breastplate, cop, crown, pauldron) carries **one lit
+  ridge**: a step-4 line or run where the plane turns, on the lit side. White glints (step 4 pixels) sit at the top-left
+  of convex shapes only, and a figure shows **three at most** in a frame. In the walk they may move a pixel with the bob
+  and in the turn they jump to the new lit edge (the delight: plate catching the light as the body turns).
+- **Bands and alloys are ramps, never shapes**: leather, iron (dark, matte, narrow spread), steel (A3's), gilded (warm,
+  steps 3-4 toward yellow), jade (green-gold), obsidian (purple-black, one violet glint), emberforged (red-orange, the visor
+  or seams in the glow slot). Sheens change the spread: matte compresses it, bright widens it with a white step 4, dark
+  shifts it down, banded alternates step rows on the plates, iridescent hue-shifts the steps, glowing adds a glow-slot rim,
+  pale lifts it, burnished warms steps 3-4. Mythic tempering is gear_look's ember red, read through the same ramp.
+- **Mail**: the metal ramp in a **brick**: 2x1 cells in horizontal courses, offset a pixel each row, steps 2/3 on the lit
+  side and 1/2 on the shadow side. Never more than three brick rows run unbroken: a belt, a fold, a tabard hem or the
+  collar breaks them. The mail's edges (hem, sleeve end, coif rim) are a **solid step-1 band** with no brick, so the edge
+  reads as an edge. At 1x mail reads as a grey-blue fabric with a fine texture. If it reads as dither, it is wrong.
+- **Scale**: rows of 2-3 px units, each with a step-3 top and a step-1 lower edge, courses offset by half a unit.
+  **Lamellar**: vertical plates 1x3 px laced by an accent line every third row. **Brigandine**: the maker's cloth with
+  metal-2 rivet dots on the lit planes only (a 3 px grid). **Leaf**: curved rows of leaf plates with a gilt (metal 2)
+  edge, elven and light. **Padded**: the maker's cloth with step-1 quilt lines every two rows, all straight and never
+  alternating; the sides bulge a pixel every two rows, so the coat reads as stuffed.
+- **Leather** (`#2C1621 #5B3129 #8D5536 #BF8249 #E7B672`): matte and warm. Boiled plates have a step-3 top edge and a
+  step-1 stitch line. Studs are metal-2 pixels on an optional region. There are no white glints on leather, only one
+  step-4 shine on a convex lit plane (a shoulder, the lit toe).
+- **Cloth over mail** (tabard, surcoat): the tabard is cloth in the accent slot on the chest plane, lit like A3's tunic
+  (a lit plane, one fold under the belt, a solid lit hem). Its side edges are a step-0 line against the mail, and its hem
+  sits two rows above the mail skirt's hem so both read. The mail shows at the shoulders, on the arms and below the hem.
+  The kingdom's device (field and device colours, 3-5 px) sits at the chest centre as an optional region. The tabard's
+  base luma differs from the mail's step 2 by 25 or more, so the cloth never merges into the metal. No pattern tiles on
+  armour.
+- **Trim** (metal 2: brass, gold, silver, bronze): 1 px edges, rivets, buckles and guards; at most 15 % of a piece's pixels
+  (the gilding ornament excepted).
+
+### 25.3 Silhouettes and fit
+
+- **Three weights.** *Light* (padded, leather) keeps the civilian silhouette within a pixel, with small pauldrons at most.
+  *Medium* (mail, scale, lamellar, brigandine, leaf) adds a skirt toward the knee by the skirt dial and a collar or coif.
+  *Heavy* (plate) adds pauldrons, the tasset fan and the helm's mass. The silhouette changes only through **torsos,
+  skirts, pauldrons, helms and shields**.
+- **Legs never change shape.** Leg armour recolours the leg's regions: cuisses on the thigh, the cop on the knee, the
+  greave on the shin, the sabaton on the boot. A hand-drawn tile may add lames inside the silhouette. The leg is always
+  the shipped leg (short, full thickness, the far leg whole) and the boot is always the one boot (MOTION_P2 0). Arms are
+  the same: sleeves, vambraces, bracers and gauntlets are the arm regions recoloured, with material tiles. The cuff flare
+  (region X) is the only arm shape armour adds.
+- **The woman's armour** is the same piece cut to her torso: a waist one pixel narrower, and the breastplate shaped by
+  **one step-1 shading row** across the chest. No sculpted cups and no exaggeration. Skirts, tassets and tabards follow
+  her hem rules (section 14) and her legs are judged in armour as well as in a dress. Torsos, skirts and tabards are
+  separate maps per body. Pauldrons and helms are shared, because the shoulders (16 px) and the head box are the same on
+  both bodies (docs/PLAN.md P2c decision D10).
+- **Builds** move armour with the body's build masks: broad adds a column to the plates and pauldrons, slim removes one.
+  Elves wear the leaf form most and their legs carry the stretch row as always. Elders wear what adults wear, with the
+  stoop. **No armour on kids.**
+- **Equipping must show** (section 22): plate changes 25 % or more of the idle figure's pixels and its outline, leather
+  15 % or more, on the man and on the woman.
+
+### 25.4 Helms
+
+- On the adult head box, lit as a sphere: a lit crown and a highlight ring across the crown from behind, as A3's hair has.
+  Steel helms carry one white glint at the top-left of the crown and leather caps carry none.
+- **Open helms show the face.** The rim sits on the brow row (F-25 man, F-24 woman), so the eyes, the nose pixel and the
+  mouth always show. The nasal bar covers the nose pixel only and the cheek guards cover the cheek columns, never an eye.
+  **Closed helms** (great helm, masked) hide the face to an eye slit: a 1 px dark line on the eye row whose top-left end
+  the finishing pass lights.
+- Crests, plumes and horsetails are in the plume slot (plumeColor) and rise to F-37 at most. The crest dial (1-4) is
+  optional regions inside one map. A plume bobs a pixel behind the walk's bob (the delight). Horns and wings use the
+  metal or horn ramps.
+- Each helm masks the hair it hides (`-` cells). Long lengths, braids and tails below the rim still show, so a woman in an
+  open helm reads as a woman by her braid and her face. Volume styles switch to their capped views. A helm stays on a
+  lying head, and gets a painted lying view only where the turn reads wrong.
+
+### 25.5 Shields
+
+- The shield is on the **off arm** (the body's left) and rides its hand's grip. Facing right it is behind the body (its
+  rim and the top of a kite show past the back and over the shoulder). Facing left it is in front, covering the chest and
+  belly with its rim at the shoulder line, never over the face. Facing down it shows its face at screen right. Facing up
+  it shows its back (straps, the grip, wood in steps 1-2) at screen left.
+- Three regions: the **field** (3 steps, lit top-left as a convex face: a lit band at the top-left and shadow at the
+  bottom-right), the **device** (2-3 colours, 3-5 px, centred) and the **rim** (metal trim or leather, 1 px). The field
+  defaults to the accent (the hero's arms, the kingdom's colour). A maker culture's paint is the field slot.
+- Keys: at rest the shield hangs still on the arm (the off arm does not swing when it carries a shield). Guard raises it
+  to the chest. Block squares it to the threat. Bash leads the roll. Lie puts it flat beside a corpse. Back slings it on
+  the back for seated and kneeling postures.
+
+### 25.6 Pauldrons, skirts, gloves and boots
+
+- **Pauldrons** sit on the shoulder cap at the shoulder anchors. Small, medium and large reach 1, 2 and 3 px past the
+  16 px shoulder line on each side. There are three families: *plate* (plate, brigandine, leaf: one lit ridge and a
+  glint), *fur and leather* (padded, leather: matte, a fur edge with the fur trim ornament) and *scale* (mail, scale,
+  lamellar: two rows of units). On the near side they sit over the arm and on the far side behind it. They ride the lean
+  and the bob exactly and lift a pixel on overhead wind-ups.
+- **Skirts and tassets** (the skirt dial: none, short, mid, to the knee) ride the hang channel like garment hangs. A mail
+  skirt opens over the stride. Plate tassets are rigid plates that hinge: they shift whole by a pixel and never bend.
+  The watch's skirt stops above the knee so the legs read.
+- **Gloves and boots** by band: leather gloves recolour the hand, metal gauntlets add the cuff flare from steel up. Boots
+  recolour the boot, tall leather runs up the shin, and greaves and knee cops come from steel up. All of this is recolour
+  inside the shipped arm and leg (25.3).
+
+### 25.7 Weapons at 32 px (the library)
+
+- Sizes are section 11's table. Weapons are **authored maps at 16 angles** (22.5 degree steps) on the grip, drafted from
+  P2a's rasterizer and cleaned by hand. Each angle is a drawing: lines step regularly (1:1 at 45 degrees, 2:1 at 22.5),
+  there are no doubled pixels at corners and no L-shaped jaggies, and the lit edge is toward the top-left at every angle.
+- **Blades** are 2 px (A3): a lit edge row in steps 3-4 and a back row in steps 1-2, a white tip pixel, the step-0 outline
+  only at the tip and where the blade crosses the body, a 3 px brass guard and a 1-2 px pommel. **Hafts** are 2 px of
+  wood (steps 2 and 3), outlined only where they cross a part of similar value. **Heads read by shape**: the axe's bearded
+  head (5x6) has a steel edge line and a dark cheek; the mace's flanged head (4x5) has two glints; the spear's leaf head
+  (5 px) has a white tip; the staff's 3x3 head has a glow pixel. **Bows** are a 1 px stave (wood or horn) curved by
+  stepped runs of 1-3 px with a 1 px string in linen step 3. The crossbow is 12x10 with the prod across.
+- **The silhouette test**: fill a held weapon black at 1x on the phone and its class must still be clear (cross guard,
+  bearded head, flanged head, leaf point, long two-hand grip, curve and string).
+- **The hand holds the hilt** (section 5): the fist is drawn over the grip, with the guard showing on one side and the
+  pommel on the other. Two-handed weapons have both fists on the haft (greatsword 3 px apart, spear and staff 6-8 px
+  apart) in every frame. The weapon is in the right hand in every facing and the bow in the left.
+- **Depth**: the weapon is behind the body when its hand is the far one (facing left) and on wind-ups over the back.
+- **Forms** (8 blades, 3 polearms, 5 bows) are their own maps on the base hilts and hafts. Tier and alloy are the metal
+  slot. Legendary and Mythic pieces glint in the glow colour on the breathe frame, also while sheathed.
+- **Carried at rest**: swords, daggers, axes and maces on the belt (the off hand on the hilt: A3). The greatsword is
+  across the back. Spears and staffs are upright in the right hand, the hand at mid-shaft and the foot a pixel off the
+  ground. In the run they tilt one step forward. Bows go on the back with the quiver, and arrows show in the quiver (the
+  delight). The crossbow is slung by its stock.
+
+### 25.8 Actions: timing, anticipation, impact
+
+The sim's clocks are fixed (no balance change). The doll's frames are timed against them:
+
+| who | windup | strike | recover | frames per hit (windup / strike / follow) |
+|---|---|---|---|---|
+| the hero | 70 ms x pace (unarmed 50) | 110 ms x pace | 130 ms x pace (finisher 280, unarmed 80) | 1-2 / 1-2 / 2 (A3's sword 1 / 1 / 2) |
+| foes | 220-380 ms by family (dagger 0.22 ... greatsword 0.38; the bandits' mean held at 0.36) | 280 ms (heavy 400) | 350 ms (heavy 750) | the same frames, held longer |
+| guards and militia | 300 ms | 250 ms | 300 ms | the same |
+| the bow | the draw over the windup: nock, chest, cheek | release 80 ms | the drawn idle | 3 / 1 / - |
+| block | 150 ms flash on a parry (no sim state) | | | 1 |
+| roll | 4 x 85 ms | | | 4 |
+| cast | gather while the spell is held | release | | 2 |
+
+Pace: sword 1.0, dagger 0.8, axe 1.08, spear 1.1, mace 1.25, greatsword 1.18, fists 0.9. The pick splits the windup at
+45 %, the strike at 40 % and the follow at 50 %. The hero's **loaded pose** (the windup's last frame) is on screen for
+about 40 ms, so it must read in one glance. A foe's loaded pose is held 120-210 ms and is the telegraph.
+
+1. **Anticipation**: every blow starts with a coil against its direction. Weight goes on the back foot and the weapon
+   goes behind (A3's sword: the hand behind the back shoulder, the blade cocked clear of the jaw). The loaded frame is
+   the family's strongest silhouette.
+2. **Impact**: the strike's first frame. The weapon is fully visible at the end of its travel or its fastest point (never
+   edge-on and never hidden in side views). The body commits with lunge legs and a 1-2 px lean, the face is fierce and
+   the effect is at full width.
+3. **Follow-through**: the weapon carries 22.5-45 degrees past the target. Hangs, tassets, the tabard, plumes and braids
+   lag a frame, and the off arm counter-swings (or tucks the shield). The **recover** lands within 2 px of the guard
+   stance (hands and weapon angle), so the next blow reads as one motion.
+4. **Variants**: hit 2 mirrors hit 1 or changes its plane (a backhand, a rising cut). Hit 3, the finisher, is bigger: a
+   stance 2 px wider, a deeper coil, the effect in the finisher tint, and a held impact frame. On heavy families the
+   delight is the impact flash and a one-frame camera nudge.
+5. **Families** (section 12's table, on this body):
+
+| family | anticipation | impact | follow |
+|---|---|---|---|
+| unarmed | the fist at the ear | the jab at full reach | back to the guard |
+| dagger | a short cock at the hip (the fastest family: small) | the stab at full reach, the off hand forward | snap back |
+| sword | A3's coil | A3's sweep and arc | A3's cut and guard |
+| greatsword | the blade over the back shoulder, the stance wide | the cleave at the ground line | the weight drags it on |
+| axe | up behind the head | the chop at knee height | the head bites down |
+| mace | overhead, both elbows up | the smash on the ground line, dust | the bounce |
+| spear (glaive, halberd) | both fists drawn to the back hip, weight back | the thrust at full reach, the front foot planted (the polearms sweep) | the shaft pulled back to the guard |
+| staff | drawn back across the body | the diagonal strike | it swings through |
+| bow | the draw is the anticipation | the release | the bow lowers |
+
+6. **The bow**: *nock* (the arrow to the string at the waist), *draw* (to the chest), *full draw* (to the cheek, the
+   anchor: the bow arm straight, the elbow up, held for the rest of the windup), *release* (the string snaps forward, the
+   bow hand recoils a pixel, the arrow is gone because the projectile is the game's), then back to the drawn idle. The
+   crossbow aims with the stock at the shoulder, shoots as the prod snaps, and cranks as its follow.
+7. **Block**: one held pose. With a shield, the shield is square to the threat with the eyes over its rim and the knees
+   bent. Without one (the sword's parry), the blade or haft is across the body at 45 degrees.
+8. **Roll**: crouch, tuck (the crouch turned a quarter toward the roll), over (the other quarter), rise. The shield
+   leads the tuck as the bash.
+9. **Cast**: *gather* (the hands meet at the chest with the glow between them, weight back), then *release* (the arms or
+   the staff thrust toward the aim, weight forward).
+10. **Hurt** is the flinch (section 10). A helm snaps back with the head and the shield arm drops a pixel.
+11. **Guard stance** (the drawn idle) is ready, never hanging. One-handed weapons point forward-up at 45 degrees beside
+    the body with the shield at the chest. The spear is levelled at the hip, tip forward. The greatsword is angled up in
+    front in both hands, the staff held across, the bow low in the left hand with an arrow nocked, the fists up. The
+    breathe frame lifts weapon and shield with the upper body.
+12. **Death with gear** (section 13): recoil, buckle, topple. The weapon lands beside the near hand, the shield falls flat
+    beside the body, the helm stays on, and back items lie under the body.
+
+### 25.9 Gear in motion (the shipped method holds)
+
+Every armoured or armed look passes B11 limbs, B11 wear and B12 boots (MOTION_P2 13). Skirts, tassets and tabards ride
+the hang channel (`wide` in the walk, `flare` in the run), open over the stride and trail. The run's 4 px lean carries
+the torso's `runl` view, and pauldrons, the tabard, the helm and the plume ride it exactly. Shields hug the body in the
+run, inside the frame box plus one column, and never over a boot. In the run the scabbard swings back (`kick`), the
+spear tilts one step forward and the bow stays on the back. The drawn run keeps the guard. Nothing crosses a face. No
+gear widens a near-budget look's side run frames (B10).
+
+### 25.10 Effects
+
+The nine family effects are re-cut to A3's three-tone construction (edge, body, core), using section 6's named colours.
+They are drawn from maps in side and down orientations (mirrored and turned for the others, since FX carry no light),
+with the finisher by tint (`#FFE6A0`) and P2a's sizes. An effect peaks on the impact frame and ends with the strike state
+within a frame. The Thrust Streak runs from the spear tip back along the shaft's line. The Twang is the string's
+vibration lines for one frame. The delight is sparks (`#FFD87A`) when a mace meets metal.
+
+### 25.11 Colours with gear
+
+48 colours or fewer per composed figure (B8). Gear shares slots. The tabard is the accent. The shield's field defaults to
+the accent, and a separate field ramp appears only for a maker's paint. The device takes 3 steps and the plume 3-4. Every
+metal piece shares metal and metal 2 (the body armour's band tints them all, gear_look's rule), and every leather piece
+shares leather.
+
+### 25.12 P2c don'ts
+
+- No armour that widens a leg or reshapes a boot; no per-key sleeve map where a region tile does the job.
+- No mail that reads as dither; no more than three glints in a frame; no glints on leather; no pillow-shaded plate.
+- No new shape for a band or an alloy (they are ramps); no torso, skirt or tabard shared between the bodies.
+- No tool-rotated weapon map: every angle is hand-cleaned. No weapon changing hands between facings.
+- No weapon, shield, plume or effect over a face in any idle, walk or run frame; no helm floating a row above the head.
+- No hidden or edge-on weapon on an impact frame in side views; no recover that pops back to the guard.
+- No pattern tiles on armour; no armour on kids.
+
+---
+
+## 26. The P2c style slice (wave 1; the owner signs it off)
+
+The smallest finished piece that locks how steel, leather, a shield, a spear and a bow look and move on the shipped doll.
+No production map is drawn for P2c until the owner signs it off (docs/PLAN.md "## P2c", "The style slice").
+
+**Looks** (looks.txt lines in docs/PLAN.md):
+1. **The town guard** (man): the man's P2b mail with a tabard in the kingdom's red, the nasal helm, a kite shield with a
+   gold device, A3's sword sheathed at the left hip, leather gloves and boots, a full beard under the helm.
+2. **The plate soldier** (woman): steel plate with medium plate pauldrons, short tassets, gauntlets and greaves, an open
+   crested helm with a red crest (her braid shows below it), and a spear.
+3. **The archer** (man): studded leather, a leather cap over tousled hair, a self bow, and a quiver with arrows and the bow
+   on his back out of combat.
+4. **The fit twins**, unarmed, so the owner sees each new form on both bodies: plate on the man, leather on the woman.
+5. **The A3 hero**, as the reference: his sword re-cut onto the library, pixel-identical (B1).
+
+**Clips, in all four facings** (the in-game read): sheathed idle, walk and hurt; the run; the drawn idle, walk and run;
+hit 1 (the guard: A3's swing with the shield on his arm; the soldier: the thrust); block (guard and soldier); the bow's
+draw and release (archer); the fall and lying on both sides, with gear. The twins: loco, run and the fall.
+
+**The owner pack** (regenerated from the game by the owner-pack tool):
+1. The A3 re-cut parity sheet.
+2. The slice lineup at NEAR (D4): five looks in four facings, at 11:00 and 22:00.
+3. The fit pairs: plate, leather and mail on both bodies.
+4. Side walk and run: 8x strips with the hip-to-boot trace and 3x game-speed GIFs in both facings.
+5. The guard's drawn guard, hit 1 and block at game speed and at 1/4 speed.
+6. The soldier's carry, drawn stance, thrust and block.
+7. The archer's draw and release.
+8. The falls and the lying bodies with gear.
+9. Each slice look at rig 1 (v1) beside rig 2.
+10. In-world shots (seed 7, OSLARS: desktop 1440x810 at D3 and D4, phone 2556x1179 at D5, 11:00 and 22:00) with the
+    guard at the gate, the soldier running across the square and the archer drawing on a bandit.
+11. The budgets and gates table.
+
+**Acceptance** (measured first, then the eye):
+- B1 parity 16 / 16 at 0 px with the re-cut sword.
+- B11 limbs, B11 wear and B12 boots at 0 on every slice look.
+- C3 gear: no holes, the helm on the head, the shield on the arm, the hand on every grip, the lying gear.
+- C4: plate 25 % or more and leather 15 % or more of the idle figure changed, both bodies.
+- C5: the spear's strike 25 % or more apart from the sword's in every facing, its tip forward 8 px or more, the left
+  frames painted.
+- C6 on the sword, spear and bow maps.
+- B8 craft at 0, with 48 colours or fewer.
+- B10 within LOCO 128, RUN 64, DRAWN 256, ACTION 512 and DEATH 48 KB.
+- Whole D x D blocks; the day edge 40 or more on the four grounds; heights by section 3 (crest to F-37).
+- Then **the judge's look review**: steel as planes with one ridge, mail as mail, leather matte, the tabard clearly
+  cloth, the woman's plate shaped and not sculpted, the crest, device and cap readable at 1x on the phone, the spear and
+  bow readable by silhouette, anticipation and impact at game speed, nothing floating, sliding, clipping or crossing a
+  face.
+- Then **the owner's sign-off**. It also settles the open looks: the library re-cut, shields on the arm at rest, the
+  spear carried upright, the tabard over mail, mail sleeves by tile or drawn, and the DRAWN atlas split.
+
+After the sign-off this section records the slice's measured numbers, and every later P2c part matches the slice.
+
+---
+
 ## Appendix: the P2a slice record (history; its look is superseded)
 
 The P2a procedural slice passed its judge on 2026-10-18 (VISION_PLAN 15.36 P2a gates, R1). Its measured numbers still

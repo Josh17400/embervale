@@ -1,0 +1,382 @@
+# arms/adult/action/onehand/sword_r: the near (right) arm of A3's sword swing, re-cut from the old pivot overlays (P2c
+# SLICE-ARMS, 2026-10-23; STYLE_P2 25.7, P2C_CONTRACTS 2 and 4). Every view is A3's arm pixel for pixel (B1 16 / 16 at
+# 0 px): the sleeve, the bracer and the fist, on A3's pivot origin and layer, with `mark grip` in the fist, where the
+# blade (held/weapons/sword `a3<key>`, or a library angle a000..a337) hangs. Regions: U upper sleeve, F forearm, C the
+# bracer, H the fist, so the guard's mail and the knight's plate recolour one drawing (regionsOf). Keys sw_<A3 key>:
+# d0 coil, d1 sweep, d2 cut, d3 recover (and u, r, l). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role arms std
+layer held
+anchor pivot
+keys armR
+side R
+z 1
+
+view D key sw_d0 origin 15 16 layer held anchor pivot
+mark grip 1 2
+|.qq....5976
+|qtsfffi5976
+|qsriiihg76.
+|qqqhhhgg6..
+|..ffffff...
+regions
+|.HH....UUUU
+|HHHCCCCFFFF
+|HHHCCCCCFF.
+|HHHCCCCCF..
+|..CCCCCC...
+
+view D key sw_d1 origin 7 16 layer held anchor pivot
+mark grip 8 7
+|5976......
+|.5976.....
+|..5976....
+|...fihg...
+|....fihg..
+|.....fihq.
+|......qtsq
+|.......qsr
+|........qq
+regions
+|UUUU......
+|.UFFF.....
+|..FFFF....
+|...CCCC...
+|....CCCC..
+|.....CCCH.
+|......HHHH
+|.......HHH
+|........HH
+
+view D key sw_d2 origin 6 16 layer held anchor pivot
+mark grip 12 5
+|5976..........
+|.59876........
+|..587766ff....
+|...6666iiihfq.
+|.....ffhhhqtsq
+|..........qsrq
+|...........qqq
+regions
+|UUUU..........
+|.UUUFF........
+|..UFFFFFCC....
+|...FFFFCCCCCH.
+|.....CCCCCHHHH
+|..........HHHH
+|...........HHH
+
+view D key sw_d3 origin 8 15 layer held anchor pivot
+mark grip 13 4
+|5976............
+|.5976...........
+|..5976........qq
+|...59fig..fqtsq.
+|....fiigfihqsrq.
+|.....fffffiiqqq.
+regions
+|UUUU............
+|.UUFF...........
+|..FFFF........HH
+|...FFCCC..CHHHH.
+|....CCCCCCCHHHH.
+|.....CCCCCCCHHH.
+
+view U key sw_u0 origin -5 16 layer held anchor pivot
+mark grip 3 2
+|5866.......qq
+|.qsrfffh5866.
+|.qrrhhhgg66..
+|..qqqggggg6..
+|...ffffff....
+regions
+|UUUU.......HH
+|.HHHCCCCFFFF.
+|.HHHCCCCCFF..
+|..HHHCCCCCF..
+|...CCCCCC....
+
+view U key sw_u1 origin 6 16 layer heldBack anchor pivot
+mark grip 3 7
+|..........5866
+|.........5866.
+|........5866..
+|.......fhgg...
+|......fhgg....
+|.....fhgq.....
+|...qsrq.......
+|.qrr..........
+|qq............
+regions
+|..........UUUU
+|.........FFFU.
+|........FFFF..
+|.......CCCC...
+|......CCCC....
+|.....CCCH.....
+|...HHHH.......
+|.HHH..........
+|HH............
+
+view U key sw_u2 origin 19 16 layer heldBack anchor pivot
+mark grip 6 4
+|......................5866
+|....................58766.
+|................576666ff..
+|.............6666hhhgfq...
+|.ffgggqsrq................
+|qrrq......................
+|.qqq......................
+regions
+|......................UUUU
+|....................FUUUU.
+|................FFFFFFCC..
+|.............FFFFCCCCCH...
+|.CCCCCHHHH................
+|HHHH......................
+|.HHH......................
+
+view U key sw_u3 origin 6 15 layer heldBack anchor pivot
+mark grip 7 4
+|...........5866
+|..........5866.
+|..qq.....5866..
+|fqsrq..58fhg...
+|fhhgfhgqrrq....
+|fffffhhqqq.....
+regions
+|...........UUUU
+|..........FUUF.
+|..HH.....FFFF..
+|CHHHH..FFCCC...
+|CCCCCCCHHHH....
+|CCCCCCCHHH.....
+
+view R key sw_r0 origin 10 18 layer held anchor pivot
+mark grip 2 1
+|.qq...........
+|qtssq.........
+|qssrqf...58765
+|.qqfihf.58765.
+|...fihf8765...
+|....ffff665...
+regions
+|.HH...........
+|HHHHH.........
+|HHHHHC...UUUUF
+|.HHCCCC.UUUFF.
+|...CCCCFFFF...
+|....CCCCFFF...
+
+view R key sw_r1 origin -1 18 layer held anchor pivot
+mark grip 8 1
+|.55555ffqq
+|588888ihts
+|577777ihsr
+|.66666ggqq
+|..555.ff..
+regions
+|.UUUFFCCHH
+|UUUFFFCCHH
+|UUUFFFCCHH
+|.UFFFFCCHH
+|..FFF.CC..
+
+view R key sw_r2 origin -2 16 layer held anchor pivot
+mark grip 9 5
+|.55f........
+|5887ff......
+|57778ff.....
+|.5677ihf....
+|..566fihqq..
+|...555fiqtsq
+|.....ffqsrq.
+|........qq..
+regions
+|.UUC........
+|UUUFCC......
+|UUUFFCC.....
+|.FFFFCCC....
+|..FFFCCCHH..
+|...FFFCCHHHH
+|.....CCHHHH.
+|........HH..
+
+view R key sw_r3 origin -1 19 layer held anchor pivot
+mark grip 7 3
+|.58..8....
+|5876f..q..
+|587fihqtsq
+|.5fihqsrq.
+|..ff..qq..
+regions
+|.UF..F....
+|UUFFC..H..
+|UFFCCCHHHH
+|.FCCCHHHH.
+|..CC..HH..
+
+view L key sw_l0 origin 3 18 layer heldBack anchor pivot
+mark grip 11 1
+|..............qq
+|..........qsrrq.
+|57665...qrrrqf..
+|.57665.qqfhgf...
+|...fhgf7665.....
+|...ffff665......
+regions
+|..............HH
+|..........HHHHH.
+|UUUUU...HHHHHC..
+|.UUFFF.HHCCCC...
+|...CCCCFFFF.....
+|...CCCCFFF......
+
+view L key sw_l1 origin 21 18 layer held anchor pivot
+mark grip 9 1
+|.55555ffqq.........
+|577777hgsr.........
+|.566666hgrr........
+|..66666ggqq........
+|.............ff.555
+regions
+|.FFFUUCCHH.........
+|FFFFFUCCHH.........
+|.FFFFUUCCHH........
+|..FFFUUCCHH........
+|.............CC.UUU
+
+view L key sw_l2 origin 13 16 layer held anchor pivot
+mark grip 5 5
+|........55f.
+|......5776ff
+|.....56667ff
+|....5666hgf.
+|..566fhgqq..
+|555fhqsrq...
+|ffqrrq......
+|..qq........
+regions
+|........UUC.
+|......FUUUCC
+|.....FFUUUCC
+|....FFFFCCC.
+|..FFFCCCHH..
+|FFFCCHHHH...
+|CCHHHH......
+|..HH........
+
+view L key sw_l3 origin 10 19 layer held anchor pivot
+mark grip 7 3
+|...57..7..
+|..5766f..q
+|576fhgqsrq
+|.5fhgqrrq.
+|..ff..qq..
+regions
+|...FU..U..
+|..FFUUC..H
+|FFFCCCHHHH
+|.FCCCHHHH.
+|..CC..HH..
+
+# (P2c slice i3) sw_blk: the shield bearer's block (STYLE_P2 25.8 item 7): the knees bent, the shield square to the threat
+# and the sword drawn back low under it, the point forward (side views) or out and up at the right side (D, U); the fist marks
+# grip, the blade is the library angle the clip names (weapon=0 / 180 / 157.5 / 22.5). The drawing is the spear block's
+# low fist (twohand/spear_r sp_block), on the shoulder like the loco arms.
+view D key sw_blk origin 1 -1 layer held anchor shoulderR
+mark grip 4 8
+mark handR 4 8
+|597...
+|597...
+|597...
+|.597..
+|.597..
+|..fih.
+|..fih.
+|...qts
+|...qsr
+|....qq
+regions
+|UUU...
+|UUU...
+|UUU...
+|.UUU..
+|.UUU..
+|..CCC.
+|..CCC.
+|...HHH
+|...HHH
+|....HH
+
+view U key sw_blk origin 4 -1 layer heldBack anchor shoulderR
+mark grip 1 8
+mark handR 1 8
+|...795
+|...795
+|...795
+|..795.
+|..795.
+|.hif..
+|.hif..
+|stq...
+|rsq...
+|qq....
+regions
+|...UUU
+|...UUU
+|...UUU
+|..UUU.
+|..UUU.
+|.CCC..
+|.CCC..
+|HHH...
+|HHH...
+|HH....
+
+view R key sw_blk origin 0 -1 layer held anchor shoulderR
+mark grip 6 7
+mark handR 6 7
+|58765...
+|58765...
+|.58765..
+|..58765.
+|...fihgf
+|....fihgf
+|.....qtsq
+|.....qsrq
+|......qq.
+regions
+|UUUUU...
+|UUUUU...
+|.UUUUU..
+|..UUUUU.
+|...CCCCC
+|....CCCCC
+|.....HHHH
+|.....HHHH
+|......HH.
+
+view L key sw_blk origin 8 -1 layer armFar anchor shoulderR
+mark grip 2 7
+mark handR 2 7
+|....56665
+|....56665
+|...56665.
+|..56665..
+|.fhggf...
+|fhggf....
+|qrrq.....
+|qrrq.....
+|.qq......
+regions
+|....UUUUU
+|....UUUUU
+|...UUUUU.
+|..UUUUU..
+|.CCCCC...
+|CCCCC....
+|HHHH.....
+|HHHH.....
+|.HH......

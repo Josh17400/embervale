@@ -161,7 +161,7 @@ struct RigAnchors {
 };
 // LOCO all humans; ACTION fighters; DEATH when someone falls; (P2b) RUN movers above the gait switch (54 px/s: clip Walk
 // holds the run cycle)
-enum class RigPart : uint8_t { Loco, Action, Death, Run, COUNT };
+enum class RigPart : uint8_t { Loco, Action, Death, Run, Drawn, COUNT };   // (P2c) Drawn: the drawn idle, walk (variant 1) and run (variant 2)
 // A look's atlas for one part: the trimmed frames packed into one canvas, indexed by facing x clip x variant.
 struct RigSheet {
   struct Span { int16_t first = -1; uint8_t count = 0; };
