@@ -1,6 +1,9 @@
 # wear/woman/gown_hang: the gown's skirt to the floor: long folds, a gilt hem band (metal2) over the outline row and her shoe tips,
 # a short train behind in the side views; it sways by whole rows, widens on the stride, flares in the run
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment gown
@@ -179,11 +182,11 @@ view R key rest origin 9 -1
 |NPPPPPPPPOOOOOONN
 |55555555555555555
 
-view R key wide origin 10 -1
-|......5877677665...
-|.....588776776665..
-|.....588767767665..
-|....5887677677665..
+view R key wide origin 9 -1
+|.....5877677665....
+|....588776776665...
+|....588767767665...
+|...5887677677665...
 |...5888767767766665
 |..58887677677676665
 |.588876776776776665
@@ -257,11 +260,11 @@ view L key rest origin 8 -1
 |NPPPPPPPPOOOOOONN
 |55555555555555555
 
-view L key wide origin 9 -1
-|...5887767765......
-|..5887767767765....
-|..5887677677665....
-|..58876776776665...
+view L key wide origin 10 -1
+|....5887767765.....
+|...5887767767765...
+|...5887677677665...
+|...58876776776665..
 |58887677677677665..
 |588876776776776665.
 |5888767767767776665

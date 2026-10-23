@@ -170,17 +170,30 @@ view L key rest origin 6 3
 |.QRQ.
 |..Q..
 
+# (INTEGRATION 2026-10-23) walking and running (kick) the near-hip hammer swings back off the striding shin: the same
+# head, the handle turned 45 degrees behind (B11 W10: hanging plumb it covered the near shin in every stride)
 view L key kick origin 6 3
-|vvvvv
-|vzyxv
-|vxxwv
-|vxwwv
-|.vQv.
-|.QTQ.
-|.QSQ.
-|.QSQ.
-|.QRQ.
-|..Q..
+|vvvvv..
+|vzyxv..
+|vxxwv..
+|vxwwv..
+|.vQv...
+|..QTQ..
+|...QSQ.
+|....QRQ
+|.....Q.
+
+# (INTEGRATION 2026-10-23) running, the hips ride over the trailing shin: the handle swings further up behind (its butt
+# end turned up out of sight behind the hip, 4 px of shaft), clear of the shin at the contact (W10)
+view L key kick origin 6 3 when run replace
+|vvvvv..
+|vzyxv..
+|vxxwv..
+|vxwwv..
+|.vQv...
+|..QTQ..
+|...QSQ.
+|....QRQ
 
 view L key lag origin 5 2
 |vvvvv

@@ -1,0 +1,47 @@
+# armour/man/mail_stride: the hauberk's two skirt rows in the side walk's REACH frames, keyed by the legs (MAN-WEAR, P2B
+# rollout, 2026-10-22): the reach keys (walkB2, walkD2) draw the hang's frozen rest view, so mail_hang cannot carry the skirt
+# there; these views do, pixel for pixel the rows mail.pxm's run view drew before. Every other key draws nothing.
+# Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour mail
+layer hangFront
+anchor hip
+keys legs
+z 10
+
+view D key walkB2 origin 0 0
+|.
+
+view U key walkB2 origin 0 0
+|.
+
+view D key walkD2 origin 0 0
+|.
+
+view U key walkD2 origin 0 0
+|.
+
+view R key walkB2 origin 6 -1
+|vyxyxywxwxwv.
+|vyyyyyywxwxwv
+build
+|...+.........
+
+view R key walkD2 origin 6 -1
+|vyxyxywxwxwv.
+|vyyyyyywxwxwv
+build
+|...+.........
+
+view L key walkB2 origin 8 -1
+|.vyxyxxwxwxwwv
+|vyyyyyywxwxwxv
+build
+|..........+...
+
+view L key walkD2 origin 8 -1
+|.vyxyxxwxwxwwv
+|vyyyyyywxwxwxv
+build
+|..........+...

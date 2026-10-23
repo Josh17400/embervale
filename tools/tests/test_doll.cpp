@@ -103,7 +103,10 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/sim/life.h"
+#include "tools/tests/doll_motion.h"
 #include "tools/tests/tests.h"
+
+namespace dollmotion { void setMapsRoot(const std::string& dir); }   // test_doll_motion.cpp (--maps)
 
 namespace census {
 struct Rank { bool royal = false, capital = false; };
@@ -611,6 +614,12 @@ void gateAtlas(Gate& g) {   // B10
   const double v1p95 = v1ms[v1ms.size() * 95 / 100], lp95 = locoMs[locoMs.size() * 95 / 100];
   std::printf("  B10 bake: v1 sheet p50 %.3f p95 %.3f ms; one facing's LOCO p50 %.3f p95 %.3f ms\n", v1ms[v1ms.size() / 2], v1p95, locoMs[locoMs.size() / 2], lp95);
   if (lp95 > std::max(v1p95, 0.385)) g.bad(fmt("one facing's LOCO bakes in %.3f ms at p95 (the v1 sheet's %.3f; the plan's 0.385)", lp95, v1p95)); else g.ok();
+  {   // (P2B_MOTION_ROLLOUT 5.6) the M7 watch list: cloak x hood x staff / stick / sword (GATES-WEAR)
+    std::vector<dollmotion::Fail> fs;
+    dollmotion::b10Watch(fs, g_report);
+    for (const dollmotion::Fail& f : fs) g.bad(f.check + " " + f.where + ": " + f.why);
+    if (fs.empty()) g.ok();
+  }
   const doll::PoolStats ps = doll::poolStats();
   if (ps.bytes > 1024 * 1024) g.bad(fmt("the pool %.2f MB (1.0)", ps.bytes / 1048576.0)); else g.ok();
 }
@@ -802,29 +811,6 @@ LimbFrame limbFrame(const Fr& legs, const Fr& comb, bool left) {
     }
   return f;
 }
-// a synthetic frame from rows of T S B O N (visible), t s b o n (under a garment), '.' clear; the pivot on the last row
-// A row may carry its ramp steps after a space ("TTSS 0320"; synth.py's frames): the probe's step per pixel.
-LimbFrame fromAscii(const std::vector<const char*>& rows, int pivotCol, bool left = false) {
-  LimbFrame f;
-  const char* sp0 = std::strchr(rows[0], ' ');
-  f.ok = true; f.left = left; f.h = (int)rows.size(); f.w = sp0 ? (int)(sp0 - rows[0]) : (int)std::strlen(rows[0]); f.px = pivotCol; f.py = f.h - 1;
-  f.cls.assign((size_t)f.w * f.h, kNo); f.step = f.cls; f.vis = f.cls;
-  static const char* const kinds = "TSBON";
-  for (int y = 0; y < f.h; y++) {
-    const char* steps = std::strchr(rows[y], ' ');
-    for (int x = 0; x < f.w && rows[y][x] && rows[y][x] != ' '; x++) {
-      const char ch = rows[y][x];
-      if (ch == '.') continue;
-      const char* k = std::strchr(kinds, std::toupper((unsigned char)ch));
-      if (!k) continue;
-      f.cls[(size_t)y * f.w + x] = (uint8_t)(k - kinds + 1);
-      f.vis[(size_t)y * f.w + x] = (uint8_t)(std::isupper((unsigned char)ch) ? 1 : 0);
-      if (steps && (int)std::strlen(steps + 1) > x && std::isdigit((unsigned char)steps[1 + x])) f.step[(size_t)y * f.w + x] = (uint8_t)(steps[1 + x] - '0');
-    }
-  }
-  return f;
-}
-
 // the body's sole lengths by key (K0 flat .. K4 hang): adult 7, youth and child 6 (STYLE_P2 24, MOTION_P2 4.2)
 // k1Steep: K1 is the 1:2 toe-up (runs 3, 2, 2: the fix-r1 re-plan of MOTION_P2 4.2, R1-04) and a whole 1:4 two-step
 // toe-up is no key; the youth's and child's Y1 / C1 follow in R1-08, until then either slope reads as their K1
@@ -1114,316 +1100,6 @@ LimbM measure(const LimbFrame& f, const SoleTab& T) {
   }
   return m;
 }
-// the boots' pixel counts against the look's flat boot (the most common count of its lone, whole, uncovered K0 boots)
-void bootCounts(const std::vector<const LimbM*>& ms, const std::vector<std::string>& names, Gate& g) {
-  std::map<int, int> k0;
-  for (const LimbM* m : ms) for (const auto& b : m->bootPx) if (b.first == 0) k0[b.second]++;
-  if (k0.empty()) return;
-  int ref = 0, best = 0;
-  for (const auto& kv : k0) if (kv.second > best) { best = kv.second; ref = kv.first; }
-  for (size_t i = 0; i < ms.size(); i++)
-    for (const auto& b : ms[i]->bootPx) {
-      const bool covered = b.first >= 100;
-      const int key = b.first % 100;
-      if (b.second > ref + 2) g.bad(names[i] + fmt(": a K%.0f boot of %.0f px (the flat boot %.0f; +2 at most): enlarged or distorted", key, b.second, ref));
-      else if (!covered && b.second < ref - 2) g.bad(names[i] + fmt(": a K%.0f boot of %.0f px (the flat boot %.0f; -2 at most): squashed", key, b.second, ref));
-      else g.ok();
-    }
-}
-
-// the tables (MOTION_P2 5): stance per phase (0 unchecked), the envelope, the ground (1 a sole on F, 0 none)
-struct GaitRule { int stance[3], env0[3], env1[3], ground[3]; };
-GaitRule ruleOf(doll::BodySet b, bool run) {
-  if (b == doll::BodySet::Youth) return run ? GaitRule{{0, 0, 0}, {-7, -7, -7}, {7, 7, 7}, {1, 1, 0}} : GaitRule{{14, 12, 9}, {-7, -7, -7}, {7, 7, 7}, {1, 1, 1}};
-  if (b == doll::BodySet::Child) return GaitRule{{13, 12, 8}, {-7, -7, -7}, {6, 6, 6}, {1, 1, 1}};
-  return run ? GaitRule{{18, 14, 19}, {-9, -7, -9}, {9, 9, 9}, {1, 1, 0}} : GaitRule{{16, 15, 14}, {-7, -8, -10}, {9, 9, 9}, {1, 1, 1}};
-}
-// 12 the feet on the table (MOTION_P2 5.2-5.5, targets.json): per phase two feet, each a key, its u span and lift
-// (liftMax: a lift allowed above lift; fb: the run kick's fallback, K3 inside -7); feet 0 and 1 are the table's near and
-// far; the adult and kin tables are generated from targets.json by .tmp/judge/motion/gen_tables.py --write
-struct FootT { int key, u0, u1, lift, liftMax, fbKey, fbU0, fbU1, fbLift; };
-struct PhaseT { FootT feet[2]; };
-const PhaseT* feetOf(doll::BodySet b, bool run) {
-  static const PhaseT aw[3] = {{{{1, 3, 9, 0, 0, -1, 0, 0, 0}, {3, -6, 0, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, 0, 6, 0, 0, -1, 0, 0, 0}, {3, -8, -3, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, -3, 3, 0, 0, -1, 0, 0, 0}, {3, -10, -5, 1, 1, -1, 0, 0, 0}}}};
-  static const PhaseT ar[3] = {{{{0, 3, 9, 0, 0, -1, 0, 0, 0}, {3, -8, -3, 2, 2, -1, 0, 0, 0}}},
-                               {{{0, -2, 4, 0, 0, -1, 0, 0, 0}, {3, 4, 9, 2, 2, -1, 0, 0, 0}}},
-                               {{{3, -9, -4, 2, 2, -1, 0, 0, 0}, {0, 3, 9, 2, 2, -1, 0, 0, 0}}}};
-  static const PhaseT yw[3] = {{{{1, 2, 7, 0, 0, -1, 0, 0, 0}, {3, -6, -1, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, -1, 4, 0, 0, -1, 0, 0, 0}, {3, -7, -3, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, -4, 1, 0, 0, -1, 0, 0, 0}, {3, -1, 3, 1, 1, -1, 0, 0, 0}}}};
-  static const PhaseT yr[3] = {{{{0, 2, 7, 0, 0, -1, 0, 0, 0}, {3, -6, -2, 1, 1, -1, 0, 0, 0}}},
-                               {{{0, -3, 2, 0, 0, -1, 0, 0, 0}, {3, 2, 6, 2, 2, -1, 0, 0, 0}}},
-                               {{{3, -6, -2, 2, 2, -1, 0, 0, 0}, {0, 2, 7, 2, 2, -1, 0, 0, 0}}}};
-  static const PhaseT cw[3] = {{{{1, 1, 6, 0, 0, -1, 0, 0, 0}, {3, -6, -1, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, -1, 4, 0, 0, -1, 0, 0, 0}, {3, -7, -3, 0, 0, -1, 0, 0, 0}}},
-                               {{{0, -3, 2, 0, 0, -1, 0, 0, 0}, {3, -1, 3, 2, 2, -1, 0, 0, 0}}}};
-  if (b == doll::BodySet::Youth) return run ? yr : yw;
-  if (b == doll::BodySet::Child) return run ? nullptr : cw;
-  return run ? ar : aw;
-}
-// each table foot matched to a distinct sole by the most overlap; a whole sole must be the foot's key, lift and span
-// (+/-1 an end); a short (covered) sole only overlaps; a foot with no sole at all fails
-int soleOverlap(const Sole* s, const FootT& t) { return std::max(0, std::min(s->u1, t.u1) - std::max(s->u0, t.u0) + 1); }
-// each table foot's sole (nullptr: none): a distinct clean sole by the most overlap (trace.py's match_feet)
-std::array<const Sole*, 2> matchFeet(const LimbM& m, const PhaseT& P) {
-  std::vector<const Sole*> ss;
-  for (const Sole& s : m.soles) if (s.bad.empty() && s.key >= 0) ss.push_back(&s);
-  int bi = -1, bj = -1, best = -1;
-  for (int i = -1; i < (int)ss.size(); i++)
-    for (int j = -1; j < (int)ss.size(); j++) {
-      if (i >= 0 && i == j) continue;
-      const int v = (i >= 0 ? soleOverlap(ss[i], P.feet[0]) : 0) + (j >= 0 ? soleOverlap(ss[j], P.feet[1]) : 0);
-      if (v > best) { best = v; bi = i; bj = j; }
-    }
-  std::array<const Sole*, 2> out{bi >= 0 ? ss[bi] : nullptr, bj >= 0 ? ss[bj] : nullptr};
-  for (int f = 0; f < 2; f++) if (out[f] && !soleOverlap(out[f], P.feet[f])) out[f] = nullptr;
-  return out;
-}
-std::vector<std::string> feetFaults(const LimbM& m, const PhaseT& P) {
-  std::vector<std::string> out;
-  const std::array<const Sole*, 2> mf = matchFeet(m, P);
-  static const char* const kName[5] = {"K0 flat", "K1 toe-up", "K2 heel-up", "K3 toe-off", "K4 hang"};
-  for (int f = 0; f < 2; f++) {
-    const FootT& t = P.feet[f];
-    const std::string want = std::string(kName[t.key]) + fmt(" at u %+.0f..%+.0f lift %.0f", t.u0, t.u1, t.lift);
-    if (!mf[f]) { out.push_back("no sole for the " + want); continue; }
-    const Sole& s = *mf[f];
-    if (!s.whole) {   // a covered sole only overlaps; a hidden piece of a tilted sole must tilt the table's way
-      auto fam = [](int key) { return key >= 2 ? 2 : key; };
-      if (s.partial && fam(s.key) != fam(t.key))
-        out.push_back(std::string("a hidden ") + (s.key == 1 ? "toe-up" : "heel-up") + fmt(" piece at u %+.0f..%+.0f (runs ", s.u0, s.u1) + s.runs + ") where the table wants the " + want);
-      continue;
-    }
-    auto fits = [&](int key, int u0, int u1, int lift, int liftMax) {
-      return s.key == key && std::abs(s.u0 - u0) <= 1 && std::abs(s.u1 - u1) <= 1 && s.low >= lift && s.low <= std::max(lift, liftMax);
-    };
-    if (fits(t.key, t.u0, t.u1, t.lift, t.liftMax) || (t.fbKey >= 0 && fits(t.fbKey, t.fbU0, t.fbU1, t.fbLift, t.fbLift))) continue;
-    out.push_back(std::string(kName[s.key]) + fmt(" at u %+.0f..%+.0f lift %.0f", s.u0, s.u1, s.low) + " where the table wants the " + want);
-  }
-  return out;
-}
-
-// 13 the phase's shape (MOTION_P2 5.2 / 5.3 / 5.7; the same measures as the harness's trace.py): the two legs traced from
-// their own soles up (each row's leg runs; for the swing knee also split where the near leg's own outline divides two
-// legs, a step-0 thigh or shin pixel between shaded ones: MOTION_P2 6.7). Contact frames: background between the legs on
-// every row from apartFrom down where both legs have pixels (a lifted foot leaves its rows to the other leg). The walk pass
-// and the run push: the swing knee's front, on the swing leg's own pixels within a row of its target row, kneeAhead px
-// or more ahead of the planted shin's front (F-3..F-5); a swing leg with no sole of its own, or never parted from the
-// planted one there, fails. The flight: the leading (K0) knee leadAbove rows or more over the trailing knee, its shin
-// within shinDx px of vertical, and neither knee on its hip-ankle line (no stiff inverted V). Adult tables only.
-struct ShapeT {
-  int apartFrom, kneeAhead;
-  double swingKneeR;
-  int leadAbove, shinDx;
-  double hipX[2];                     // the near, far hip x (feetOf order: near, far)
-  double pHip[2], pAnkle[2];          // the planted (near-by-position) leg's hip and ankle (x, rows above F): its line
-  double swAnkle[2];                  // the push's swing ankle (x, rows; 0 0: unchecked): the shin folds back to it
-  int heelBehind = 0;                 // fix r3 (MOTION_P2 5.10): the walk pass's swing boot its own, its heel this far behind the planted heel
-};
-const ShapeT* shapeOf(doll::BodySet b, bool run) {
-  // generated from targets.json (MOTION_P2 5.7) by .tmp/judge/motion/gen_tables.py --write (its plain run checks them)
-  static const ShapeT aw[3] = {{6, 0, 0, 0, 0, {2, -1}, {2, 9}, {4, 3}, {0, 0}},
-                               {6, 0, 0, 0, 0, {2, -1}, {2, 8}, {2, 3}, {0, 0}},
-                               {-1, 0, 0, 0, 0, {1, -2}, {1, 9}, {-1, 3}, {0, 0}, 5}};
-  static const ShapeT ar[3] = {{7, 0, 0, 0, 0, {2, -1}, {2, 9}, {5, 3}, {0, 0}},
-                               {-1, 3, 7, 0, 0, {-1, 3}, {-1, 9}, {0, 3}, {7, 6}},
-                               {8, 0, 0, 1, 1, {-1, 2}, {-1, 10}, {-5, 6}, {0, 0}}};
-  if (b != doll::BodySet::Man && b != doll::BodySet::Woman) return nullptr;
-  return run ? ar : aw;
-}
-struct Band { int u0, u1; bool merged; };
-using Leg = std::map<int, Band>;   // rows above F -> the leg's band on that row
-uint8_t clsAt(const LimbFrame& f, int u, int r) {
-  const int x = f.left ? f.px - u - 1 : u + f.px, y = f.py - r;
-  return x >= 0 && y >= 0 && x < f.w && y < f.h ? f.cls[(size_t)y * f.w + x] : kNo;
-}
-int stepAt(const LimbFrame& f, int u, int r) {
-  const int x = f.left ? f.px - u - 1 : u + f.px, y = f.py - r;
-  return x >= 0 && y >= 0 && x < f.w && y < f.h ? f.step[(size_t)y * f.w + x] : 0;
-}
-std::vector<std::pair<int, int>> legRuns(const LimbFrame& f, int r, bool split) {
-  std::vector<std::pair<int, int>> out;
-  int a = INT32_MIN;
-  for (int u = -40; u <= 41; u++) {
-    const bool on = u <= 40 && clsAt(f, u, r) != kNo;
-    if (on && a == INT32_MIN) a = u;
-    if (!on && a != INT32_MIN) { out.push_back({a, u - 1}); a = INT32_MIN; }
-  }
-  if (!split) return out;
-  auto limb = [&](int u) { const uint8_t k = clsAt(f, u, r); return k == kThigh || k == kShin; };
-  std::vector<std::pair<int, int>> sp;
-  for (const auto& rn : out) {
-    int cur = rn.first;
-    for (int u = rn.first + 1; u < rn.second; u++)
-      if (limb(u) && stepAt(f, u, r) == 0 && limb(u - 1) && limb(u + 1) && stepAt(f, u - 1, r) > 0 && stepAt(f, u + 1, r) > 0) {
-        sp.push_back({cur, u - 1});
-        cur = u + 1;
-      }
-    sp.push_back({cur, rn.second});
-  }
-  return sp;
-}
-std::array<Leg, 2> traceLegs(const LimbFrame& f, const std::array<const Sole*, 2>& soles, bool split) {
-  std::array<Leg, 2> legs;
-  double anchor[2] = {0, 0};
-  bool has[2] = {false, false};
-  for (int k = 0; k < 2; k++) if (soles[k]) { anchor[k] = (soles[k]->u0 + soles[k]->u1) / 2.0; has[k] = true; }
-  for (int r = 0; r <= f.py; r++) {
-    const auto rs = legRuns(f, r, split);
-    std::vector<std::vector<int>> cand(rs.size());
-    for (size_t i = 0; i < rs.size(); i++)
-      for (int k = 0; k < 2; k++) {
-        const auto prev = legs[k].find(r - 1);
-        if (prev != legs[k].end()) {
-          if (rs[i].first <= prev->second.u1 + 1 && rs[i].second >= prev->second.u0 - 1) cand[i].push_back(k);
-        } else if (legs[k].empty() && soles[k] && soles[k]->low <= r && r < soles[k]->low + soles[k]->rows && rs[i].first <= soles[k]->u1 && rs[i].second >= soles[k]->u0)
-          cand[i].push_back(k);
-      }
-    bool both = false;
-    for (const auto& c : cand) both = both || c.size() == 2;
-    if (rs.size() >= 2 && both && has[0] && has[1]) {   // part the legs: the pairing nearest the anchors
-      auto in = [&](size_t i, int k) { return std::find(cand[i].begin(), cand[i].end(), k) != cand[i].end(); };
-      double best = 1e9;
-      int b0 = -1, b1 = -1;
-      for (size_t i0 = 0; i0 < rs.size(); i0++)
-        for (size_t i1 = 0; i1 < rs.size(); i1++) {
-          if (i0 == i1 || !in(i0, 0) || !in(i1, 1)) continue;
-          const double c = std::abs((rs[i0].first + rs[i0].second) / 2.0 - anchor[0]) + std::abs((rs[i1].first + rs[i1].second) / 2.0 - anchor[1]);
-          if (c < best) { best = c; b0 = (int)i0; b1 = (int)i1; }
-        }
-      if (b0 >= 0)
-        for (size_t i = 0; i < rs.size(); i++) cand[i] = (int)i == b0 ? std::vector<int>{0} : (int)i == b1 ? std::vector<int>{1} : std::vector<int>{};
-    }
-    for (size_t i = 0; i < rs.size(); i++)
-      for (int k : cand[i]) {
-        auto it = legs[k].find(r);
-        if (it != legs[k].end()) it->second = {std::min(it->second.u0, rs[i].first), std::max(it->second.u1, rs[i].second), it->second.merged || cand[i].size() > 1};
-        else legs[k][r] = {rs[i].first, rs[i].second, cand[i].size() > 1};
-        if (cand[i].size() == 1) { anchor[k] = (legs[k][r].u0 + legs[k][r].u1) / 2.0; has[k] = true; }
-      }
-  }
-  return legs;
-}
-// a leg's knee (its last thigh row) or ankle (its last shin row): x the centre of that class in its band; unset if merged
-struct Joint { bool ok = false; double x = 0; int r = 0; };
-Joint legJoint(const LimbFrame& f, const Leg& leg, uint8_t cls) {
-  Joint j;
-  int lo = INT32_MAX;
-  for (const auto& kv : leg)
-    for (int u = kv.second.u0; u <= kv.second.u1; u++)
-      if (clsAt(f, u, kv.first) == cls) { lo = std::min(lo, kv.first); break; }
-  if (lo == INT32_MAX) return j;
-  const Band& b = leg.at(lo);
-  if (b.merged) return j;
-  int a = INT32_MAX, z = INT32_MIN, sa = INT32_MAX, sz = INT32_MIN;
-  for (int u = b.u0; u <= b.u1; u++) {
-    if (clsAt(f, u, lo) != cls) continue;
-    a = std::min(a, u); z = std::max(z, u);
-    const uint8_t under = clsAt(f, u, lo - 1);
-    if (under == kBoot || under == kSole) { sa = std::min(sa, u); sz = std::max(sz, u); }
-  }
-  // the ankle sits on the boot's socket (MOTION_P2 5.1): the shin's last row centred on its pixels with the boot under
-  // them, when there are any (a kicked shin lying back over its hanging boot is centred on its end)
-  if (cls == kShin && sa != INT32_MAX) { a = sa; z = sz; }
-  j.ok = true; j.x = (a + z) / 2.0; j.r = lo;
-  return j;
-}
-std::vector<std::string> shapeFaults(const LimbFrame& f, const LimbM& m, const PhaseT& P, const ShapeT& S, bool run) {
-  std::vector<std::string> out;
-  const std::array<const Sole*, 2> soles = matchFeet(m, P);
-  const std::array<Leg, 2> legs = traceLegs(f, soles, false);
-  if (S.apartFrom >= 0) {
-    std::string bad;
-    for (int r = 0; r <= S.apartFrom; r++)
-      if (legs[0].count(r) && legs[1].count(r) && legRuns(f, r, false).size() < 2) bad += (bad.empty() ? "F-" : ",F-") + std::to_string(r);
-    if (!bad.empty()) out.push_back("apart: the legs joined at " + bad + fmt(" (background between them from F-%.0f down)", S.apartFrom));
-  }
-  if (S.kneeAhead) {
-    // on each leg's own pixels: each row's runs split by the near leg's outline; the planted leg owns the part holding its
-    // straight hip-ankle line, its front on F-3..F-5 its shin's (thigh / shin pixels run on from the line); the swing knee
-    // a part of its own (3+ px) ahead of the planted part on the knee row or the row under it
-    const std::string what = run ? "push" : "pass";
-    const int kr = (int)std::floor(S.swingKneeR + 0.5);
-    auto plantedX = [&](int r) { return S.pHip[1] == S.pAnkle[1] ? S.pHip[0] : S.pAnkle[0] + (S.pHip[0] - S.pAnkle[0]) * (r - S.pAnkle[1]) / (S.pHip[1] - S.pAnkle[1]); };
-    auto plantedPart = [&](const std::vector<std::pair<int, int>>& segs, double px) {
-      int best = -1;
-      double bd = 1e9;
-      for (size_t i = 0; i < segs.size(); i++) {
-        const double d = segs[i].first <= px && px <= segs[i].second ? 0 : std::min(std::abs(segs[i].first - px), std::abs(segs[i].second - px));
-        if (d < bd) { bd = d; best = (int)i; }
-      }
-      return best;
-    };
-    if (!soles[0]) out.push_back(what + ": no planted sole");
-    else if (!soles[1] || legs[1].empty()) out.push_back(what + ": the swing leg not traced (no sole of its own)");
-    else {
-      int pf = INT32_MIN, sf = INT32_MIN, srow = 0;
-      std::string seen;
-      for (int r : {3, 4, 5, kr, kr - 1}) {
-        const auto segs = legRuns(f, r, true);
-        if (segs.empty()) continue;
-        const double px = plantedX(r);
-        const int pl = plantedPart(segs, px);
-        if (r >= 3 && r <= 5) {
-          int u = std::max(segs[pl].first, std::min(segs[pl].second, (int)std::lround(px)));
-          while (u + 1 <= segs[pl].second && (clsAt(f, u + 1, r) == kShin || clsAt(f, u + 1, r) == kThigh)) u++;
-          pf = std::max(pf, u);
-        } else
-          for (int i = 0; i < (int)segs.size(); i++) {
-            if (i == pl || segs[i].second <= segs[pl].second) continue;
-            seen += (seen.empty() ? "" : ", ") + fmt("F-%.0f u %+.0f..%+.0f", r, segs[i].first, segs[i].second);
-            if (segs[i].second - segs[i].first + 1 >= 3 && segs[i].second > sf) { sf = segs[i].second; srow = r; }
-          }
-      }
-      if (pf == INT32_MIN) out.push_back(what + ": no planted shin");
-      else if (sf == INT32_MIN) out.push_back(what + fmt(": no swing knee of its own (3+ px) ahead of the planted leg at F-%.0f..F-%.0f", kr, kr - 1) + (seen.empty() ? "" : " (only " + seen + ")"));
-      else if (sf - pf < S.kneeAhead)
-        out.push_back(what + fmt(": the swing knee %.0f px ahead of the planted shin (%.0f or more;", sf - pf, S.kneeAhead) + fmt(" front u %+.0f at F-%.0f, the shin u %+.0f)", sf, srow, pf));
-      if (S.swAnkle[1] > 0) {   // the push: the swing shin folds back under the knee to its ankle (+1, never ahead)
-        const int ar = (int)std::floor(S.swAnkle[1] + 0.5);
-        const auto segs = legRuns(f, ar, true);
-        if (!segs.empty()) {
-          const int pl = plantedPart(segs, plantedX(ar));
-          int g = -1;
-          for (int i = 0; i < (int)segs.size(); i++)
-            if (i != pl && segs[i].second > segs[pl].second && (g < 0 || segs[i].second > segs[g].second)) g = i;
-          if (g >= 0 && (segs[g].first + segs[g].second) / 2.0 - S.swAnkle[0] > 1)
-            out.push_back(what + fmt(": the swing shin a column under the knee (its ankle row's own part at u %+.0f..%+.0f; the table folds it back to %+.1f)", segs[g].first, segs[g].second, S.swAnkle[0]));
-        }
-      }
-    }
-  }
-  if (S.heelBehind) {   // fix r3 (MOTION_P2 5.10): the reference's frame 3, the swing boot lifted behind the planted heel, its own boot
-    if (!soles[0]) out.push_back("pass: no planted sole");
-    else if (!soles[1]) out.push_back("pass: no swing boot of its own (the swing K3 behind the planted heel)");
-    else if (soles[0]->u0 - soles[1]->u0 < S.heelBehind)
-      out.push_back(fmt("pass: the swing heel %.0f px behind the planted heel (%.0f or more)", soles[0]->u0 - soles[1]->u0, S.heelBehind));
-  }
-  if (S.leadAbove) {
-    const int lead = P.feet[0].key == 0 ? 0 : 1, trail = 1 - lead;
-    const Joint kl = legJoint(f, legs[lead], kThigh), kt = legJoint(f, legs[trail], kThigh);
-    if (!kl.ok || !kt.ok) out.push_back("flight: both knees not traced");
-    else {
-      if (kl.r - kt.r < S.leadAbove) out.push_back(fmt("flight: the lead knee at F-%.0f, the trailing knee at F-%.0f (%.0f row above or more)", kl.r, kt.r, S.leadAbove));
-      const Joint al = legJoint(f, legs[lead], kShin);
-      if (al.ok && std::abs(kl.x - al.x) > S.shinDx) out.push_back(fmt("flight: the lead shin %.1f px off vertical (%.0f at most)", std::abs(kl.x - al.x), S.shinDx));
-    }
-    for (int k = 0; k < 2; k++) {
-      const Joint kn = legJoint(f, legs[k], kThigh), an = legJoint(f, legs[k], kShin);
-      const int hr = m.hipRow;
-      if (!kn.ok || !an.ok || hr <= kn.r) continue;
-      auto hb = legs[k].find(hr);
-      const double hipx = hb != legs[k].end() && !hb->second.merged ? (hb->second.u0 + hb->second.u1) / 2.0 : S.hipX[k];
-      const double t = (double)(kn.r - an.r) / (hr - an.r), linex = an.x + (hipx - an.x) * t;
-      if (std::abs(kn.x - linex) < 1)
-        out.push_back(std::string("flight: the ") + (k == lead ? "lead" : "trailing") + fmt(" knee %.1f px off its hip-ankle line (1 or more: no straight leg)", std::abs(kn.x - linex)));
-    }
-  }
-  return out;
-}
-
 // the looks: B11 limbs' list (MOTION_P2 9) and --limbs-looks files ("tag who spec [gaits]" a line; who hero|woman;
 // spec k=v,... as doll_gallery's --look plus palette=look and bare=1, "-" for none; gaits walk,run,dwalk,drun)
 bool applyField(HumanLook& L, const std::string& k, const std::string& v) {
@@ -1552,211 +1228,19 @@ std::string frameName(const LimbLook& l, const One& o) {
   return l.tag + " " + (o.gait < 0 ? "idle" : kGaits[o.gait].name) + " " + "DURL"[o.facing] + (o.gait < 0 ? std::string() : std::to_string(o.i));
 }
 
-// one side frame's B11 limbs checks (1-12); check(bad, why) is called once per check
-struct FrameCtx {
-  bool tips = false, run = false;
-  int ph = 0, plantU = INT32_MIN, skirt = 0, idleSkirt = 0;
-  const LimbM* idle = nullptr;
-  const LimbM* contact = nullptr;
-  GaitRule R{};
-  const PhaseT* P = nullptr;   // the body's feet table (nullptr: none)
-  const ShapeT* S = nullptr;   // the body's shape table (13; nullptr: none)
-  const LimbFrame* f = nullptr;
-};
-int heelOffset(const LimbM& m, int plantU) {   // the sole run on F whose heel is nearest the plant (99: none)
-  int off = 99;
-  for (int h : m.heels) if (plantU != INT32_MIN && std::abs(h - plantU) < std::abs(off)) off = h - plantU;
-  return off;
-}
-void frameChecks(const LimbM& m, const FrameCtx& c, const std::function<void(bool, const std::string&)>& check) {
-  const int ph = c.ph;
-  const double ratio = c.idle && c.idle->area ? (double)m.area / c.idle->area : 0, skirt = c.idleSkirt ? (double)c.skirt / c.idleSkirt : 1;
-  check(ratio < 0.895, fmt("1 legs %.0f %% of the idle's (90)", 100 * ratio));
-  if (c.tips) {
-    check(skirt < 0.895, fmt("skirt %.0f %% of the idle's (90)", 100 * skirt));
-  } else {
-    check(m.hipW < (c.idle ? c.idle->hipW : 0) - 1, fmt("2 hip row %.0f px (the idle's %.0f, at most 1 narrower)", m.hipW, c.idle ? c.idle->hipW : 0));
-    check(m.minRun < 3, fmt("3 a leg run of %.0f px (3 or more)", m.minRun));
-    check(c.contact && std::abs(c.contact->hipRow - m.hipRow) > 1, fmt("4 the hip row at F-%.0f, the contact's F-%.0f (1)", m.hipRow, c.contact ? c.contact->hipRow : 0));
-    if (!c.run && ph == 1) check(c.contact && m.stance > c.contact->stance, fmt("5 the down frame %.0f px wide (the contact %.0f)", m.stance, c.contact ? c.contact->stance : 0));
-    check(m.pieces != 1 || m.emptyRows, fmt("6 the legs in %.0f pieces, %.0f empty rows (1, 0)", m.pieces, m.emptyRows));
-    std::string j;
-    for (const std::string& x : m.joints) j += (j.empty() ? "" : "; ") + x;
-    check(!m.joints.empty(), "6b joints: " + j);
-    if (c.R.ground[ph] == 1) check(!m.soleOnF, "7 no sole on the ground row");
-    else check(m.soleOnF, "7 a sole on the ground row in the flight (both feet off it)");
-    if (c.R.ground[ph] == 1 && c.plantU != INT32_MIN) {
-      const int off = heelOffset(m, c.plantU);
-      check(std::abs(off) > 1, off == 99 ? fmt("8 no sole run on F for the plant %+.0f", c.plantU) : fmt("8 the planted heel at u %+.0f, the plant %+.0f (1)", c.plantU + off, c.plantU));
-    }
-    if (c.R.stance[ph]) check(std::abs(m.stance - c.R.stance[ph]) > 1, fmt("10 stance %.0f px (the table's %.0f, +/-1)", m.stance, c.R.stance[ph]));
-    if (c.P) {   // frames 3-5 are 0-2 with near and far swapped: the same feet by position
-      const std::vector<std::string> ff = feetFaults(m, c.P[ph]);
-      std::string j2;
-      for (const std::string& x : ff) j2 += (j2.empty() ? "" : "; ") + x;
-      check(!ff.empty(), "12 feet: " + j2);
-    }
-    if (c.P && c.S && c.f) {   // 13 the phase's shape
-      const std::vector<std::string> sf = shapeFaults(*c.f, m, c.P[ph], c.S[ph], c.run);
-      std::string j3;
-      for (const std::string& x : sf) j3 += (j3.empty() ? "" : "; ") + x;
-      check(!sf.empty(), "13 shape: " + j3);
-    }
-  }
-  check(m.u0 < c.R.env0[ph] || m.u1 > c.R.env1[ph], fmt("9 the legs span u %+.0f..%+.0f (the envelope %+.0f..%+.0f)", m.u0, m.u1, c.R.env0[ph], c.R.env1[ph]));
-}
-
-// B11 limbs (checks 1-12) and B12's composed half for one look
-void gateLook(LimbLook& l, Gate& g, Gate& b12) {
-  const LookFrames lf = shoot(l, false);
-  const doll::DollRecipe full = recipeOf(l);
-  const bool tips = tipsLook(full);
-  std::vector<const LimbM*> ms;
-  std::vector<std::string> names;
-  for (const One& o : lf.frames) {
-    const One& idle = lf.idle[o.facing == 2 ? 0 : 1];
-    const One* contact = nullptr;
-    for (const One& c : lf.frames) if (c.gait == o.gait && c.facing == o.facing && c.i == 0) contact = &c;
-    FrameCtx c;
-    c.tips = tips; c.run = kGaits[o.gait].run; c.ph = o.i % 3;
-    c.plantU = o.plant0 == INT32_MIN ? INT32_MIN : o.facing == 3 ? o.plant0 - 1 : o.plant0;
-    c.skirt = o.skirt; c.idleSkirt = idle.skirt; c.idle = &idle.m; c.contact = contact ? &contact->m : nullptr;
-    c.R = ruleOf(full.body, c.run); c.P = feetOf(full.body, c.run); c.S = shapeOf(full.body, c.run); c.f = &o.f;
-    const std::string nm = frameName(l, o);
-    const LimbM& m = o.m;
-    std::vector<std::string> faults;
-    frameChecks(m, c, [&](bool bad, const std::string& why) { if (bad) { faults.push_back(why); g.bad(nm + ": " + why); } else g.ok(); });
-    if (!tips) {
-      for (const std::string& x : m.bootBad) b12.bad(nm + ": " + x);
-      if (m.bootBad.empty()) b12.ok();
-      ms.push_back(&o.m);
-      names.push_back(nm);
-    }
-    if (g_report) {
-      const int heelOff = heelOffset(m, c.plantU);
-      const double ratio = idle.m.area ? (double)m.area / idle.m.area : 0;
-      std::string soles, fl;
-      for (const Sole& x : m.soles) soles += " " + std::string(x.split ? "|" : "") + (x.key >= 0 && x.bad.empty() ? "K" + std::to_string(x.key) : std::string("K!")) + fmt("%+.0f..%+.0f", x.u0, x.u1) + (x.whole ? "" : "~") + (x.low ? fmt("^%.0f", x.low) : "");
-      for (const std::string& x : faults) fl += (fl.empty() ? "" : ",") + x.substr(0, x.find(' '));
-      for (size_t k = 0; !tips && k < m.bootBad.size(); k++) fl += (fl.empty() ? "" : ",") + std::string("B12");
-      std::printf("  B11L %-20s legs %3d/%3d (%3.0f%%) hip %2d/%2d @F-%-2d run %d bob %+d stance %2d [%+d..%+d] pieces %d soleF %s heel %s plant %s soles%s%s%s\n", nm.c_str(), m.area,
-                  idle.m.area, 100 * ratio, m.hipW, idle.m.hipW, m.hipRow, m.minRun == 99 ? 0 : m.minRun, o.bob, m.stance, m.u0, m.u1, m.pieces, m.soleOnF ? "y" : "n",
-                  heelOff == 99 ? "-" : fmt("%+.0f", c.plantU + heelOff).c_str(), c.plantU == INT32_MIN ? "-" : fmt("%+.0f", c.plantU).c_str(), soles.c_str(),
-                  fl.empty() ? "" : "  FAIL ", fl.c_str());
-    }
-  }
-  bootCounts(ms, names, b12);
-}
-
-// The harness's synthetic frames (.tmp/judge/motion/synth.py: the plan's tables drawn from targets.json and the boot
-// stamps, every leg the table's hip > knee > ankle as a band, the near leg's outline over the far one), R frames 0-2 per
-// look, each row "classes steps" (lower case under the hem), the pivot column 11. Looks: 0 plan_walk, 1 plan_run, then the
-// broken variants 2 bad_flight (straight legs), 3 bad_push (the swing leg a column over the planted one), 4 bad_pass (the
-// swing leg hidden in the planted one), 5 bad_contact (flat K0 boots). Regenerate with `python -I .tmp/judge/motion/synth.py
-// OUT.txt --cpp OUT.inc` after a re-plan of MOTION_P2 5.2 / 5.3 (targets.json) and paste OUT.inc's rows here.
-const std::vector<std::vector<const char*>>& synthFrames() {
-  static const std::vector<std::vector<const char*>> w = {
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", "........TTTTTTTTT...... ........021103210......", ".......TTTTTTTTTT...... .......0211003210......", ".......TTTTT.TTTTT..... .......02110.03210.....", "......SSSSS..SSSSS..... ......02110..03210.....", ".....BSSSSS..SSSSSBBB.. .....002110..03210000..", ".....BBBB....SSSSSBBB.. .....0221....03210110..", ".....OOBBBB...BBBBBOO.. .....002110...0222100..", ".......OOBBB..BBBOO.... .......00110..03200....", ".........OOO..OOO...... .........000..000......"},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", "......TTTTT.TTTTT...... ......02110.03210......", ".....SSSSS..SSSSS...... .....02110..03210......", "....SSSSS..SSSSS....... ....02110..03210.......", "...BBBBB...SSSSS....... ...02211...03210.......", "...OOBBBB..BBBBBB...... ...002110..022210......", ".....OOBB..BBBBBBB..... .....0010..0322110.....", ".......OO..OOOOOOO..... .......00..0000000....."},
-      {".......tttttttt........ .......02103210........", ".......TTTTTTTT........ .......02103210........", "......TTTTTTTTT........ ......021103210........", ".....TTTTTTTTT......... .....021103210.........", "...SSSSSSTTTTT......... ...02111003210.........", "..SSSSSS.SSSSS......... ..021110.03210.........", ".BBBBB..SSSSS.......... .02211..03210..........", ".OOBBBB.SSSSS.......... .002110.03210..........", "...OOBB.BBBBBB......... ...0010.022210.........", ".....OO.BBBBBBB........ .....00.0322110........", "........OOOOOOO........ ........0000000........"},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", ".....TTTTT...TTTTT..... .....02110...03210.....", "....SSSSS.....TTTTT.... ....02110.....03210....", "...BBBBB......SSSSS.... ...02211......03210....", "...OOBBBB.....SSSSS.... ...002110.....03210....", ".....OOBB.....SSSSS.... .....0010.....03210....", ".......OO.....BBBBBB... .......00.....022210...", "..............BBBBBBB.. ..............0322110..", "..............OOOOOOO.. ..............0000000.."},
-      {"........ttttttttt...... ........032102110......", "........TTTTTTTTTT..... ........0321021110.....", "........TTTTTTTTTTT.... ........03210021110....", "........TTTTT..TTTTT... ........03210..02110...", "........TTTTT...SSSSS.. ........03210...02110..", "........SSSSS..BBBBB... ........03210..02211...", ".........SSSSS.OOBBBB.. .........03210.002110..", ".........SSSSS...OOBB.. .........03210...0010..", ".........BBBBBB....OO.. .........022210....00..", ".........BBBBBBB....... .........0322110.......", ".........OOOOOOO....... .........0000000......."},
-      {"........tttttttt....... ........03210110.......", "........TTTTTTTTT...... ........032101110......", ".......TTTTTTTTTTT..... .......03210021110.....", ".......TTTTT.TTTTTTT... .......03210.0211110...", "......TTTTT....SSSSS... ......03210....02110...", "...BSSSSS.....SSSSS.... ...003210.....02110....", "..BBBBB.......SSSSS.... ..03221.......02110....", "..OOBBBB......BBBBBB... ..002210......022110...", "....OOBB......BBBBBBB.. ....0010......0221110..", "......OO......OOOOOOO.. ......00......0000000..", "....................... .......................", "....................... ......................."},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", ".....TTTTT...TTTTT..... .....02110...03210.....", "....SSSSS.....TTTTT.... ....02110.....03210....", "...BBBBB......SSSSS.... ...02211......03210....", "...OOBBBB.....SSSSS.... ...002110.....03210....", ".....OOBB.....SSSSS.... .....0010.....03210....", ".......OO.....BBBBBB... .......00.....022210...", "..............BBBBBBB.. ..............0322110..", "..............OOOOOOO.. ..............0000000.."},
-      {"........ttttttttt...... ........032102110......", "........TTTTTTTTTT..... ........0321021110.....", "........TTTTTTTTTTT.... ........03210021110....", "........TTTTT..TTTTT... ........03210..02110...", "........TTTTT...SSSSS.. ........03210...02110..", "........SSSSS..BBBBB... ........03210..02211...", ".........SSSSS.OOBBBB.. .........03210.002110..", ".........SSSSS...OOBB.. .........03210...0010..", ".........BBBBBB....OO.. .........022210....00..", ".........BBBBBBB....... .........0322110.......", ".........OOOOOOO....... .........0000000......."},
-      {"........tttttttt....... ........03210110.......", "........TTTTTTTT....... ........03210110.......", ".......TTTTTTTTTT...... .......0321002110......", "......TTTTT.TTTTT...... ......03210.02110......", ".....TTTTT...SSSSS..... .....03210...02110.....", "...BSSSSS....SSSSS..... ...003210....02110.....", "..BBBBB.......SSSSS.... ..03221.......02110....", "..OOBBBB......BBBBBB... ..002210......022110...", "....OOBB......BBBBBBB.. ....0010......0221110..", "......OO......OOOOOOO.. ......00......0000000..", "....................... .......................", "....................... ......................."},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", ".....TTTTT...TTTTT..... .....02110...03210.....", "....SSSSS.....TTTTT.... ....02110.....03210....", "...BBBBB......SSSSS.... ...02211......03210....", "...OOBBBB.....SSSSS.... ...002110.....03210....", ".....OOBB.....SSSSS.... .....0010.....03210....", ".......OO.....BBBBBB... .......00.....022210...", "..............BBBBBBB.. ..............0322110..", "..............OOOOOOO.. ..............0000000.."},
-      {"........ttttt.......... ........03210..........", "........TTTTT.......... ........03210..........", "........TTTTT.......... ........03210..........", "........TTTTT.......... ........03210..........", "........TTTTT...BB..... ........03210...02.....", "........SSSSS..BBBBB... ........03210..02211...", ".........SSSSS.OOBBBB.. .........03210.002110..", ".........SSSSS...OOBB.. .........03210...0010..", ".........BBBBBB....OO.. .........022210....00..", ".........BBBBBBB....... .........0322110.......", ".........OOOOOOO....... .........0000000......."},
-      {"........tttttttt....... ........03210110.......", "........TTTTTTTTT...... ........032101110......", ".......TTTTTTTTTTT..... .......03210021110.....", ".......TTTTT.TTTTTTT... .......03210.0211110...", "......TTTTT....SSSSS... ......03210....02110...", "...BSSSSS.....SSSSS.... ...003210.....02110....", "..BBBBB.......SSSSS.... ..03221.......02110....", "..OOBBBB......BBBBBB... ..002210......022110...", "....OOBB......BBBBBBB.. ....0010......0221110..", "......OO......OOOOOOO.. ......00......0000000..", "....................... .......................", "....................... ......................."},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", "........TTTTTTTTT...... ........021103210......", ".......TTTTTTTTTT...... .......0211003210......", ".......TTTTT.TTTTT..... .......02110.03210.....", "......SSSSS..SSSSS..... ......02110..03210.....", ".....BSSSSS..SSSSSBBB.. .....002110..03210000..", ".....BBBB....SSSSSBBB.. .....0221....03210110..", ".....OOBBBB...BBBBBOO.. .....002110...0222100..", ".......OOBBB..BBBOO.... .......00110..03200....", ".........OOO..OOO...... .........000..000......"},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", "......TTTTT.TTTTT...... ......02110.03210......", ".....SSSSS..SSSSS...... .....02110..03210......", "....SSSSS..SSSSS....... ....02110..03210.......", "...BBBBB...SSSSS....... ...02211...03210.......", "...OOBBBB..BBBBBB...... ...002110..022210......", ".....OOBB..BBBBBBB..... .....0010..0322110.....", ".......OO..OOOOOOO..... .......00..0000000....."},
-      {"..........ttttt........ ..........03210........", "..........TTTTT........ ..........03210........", "..........TTTTT........ ..........03210........", ".........TTTTT......... .........03210.........", ".........TTTTT......... .........03210.........", ".........SSSSS......... .........03210.........", "........SSSSS.......... ........03210..........", "........SSSSS.......... ........03210..........", "........BBBBBB......... ........022210.........", "........BBBBBBB........ ........0322110........", "........OOOOOOO........ ........0000000........"},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", "........TTTTTTTTT...... ........021103210......", ".......TTTTTTTTTT...... .......0211003210......", ".......TTTTT.TTTTT..... .......02110.03210.....", "......SSSSS..SSSSS..... ......02110..03210.....", "B.....SSSSS..SSSSS..... 2.....02110..03210.....", "BBB...SSSSS..SSSSS..... 221...02110..03210.....", "OBBBB.SSSSS...BBBBBB... 02110.02110...022210...", ".OOBBBSSSSS...BBBBBBB.. .0011002110...0322110..", "...OOOSSSSS...OOOOOOO.. ...00002110...0000000.."},
-      {"........tttttttt....... ........02103210.......", "........TTTTTTTT....... ........02103210.......", ".......TTTTTTTTTT...... .......0211003210......", "......TTTTT.TTTTT...... ......02110.03210......", ".....SSSSS..SSSSS...... .....02110..03210......", "....SSSSS..SSSSS....... ....02110..03210.......", "...BBBBB...SSSSS....... ...02211...03210.......", "...OOBBBB..BBBBBB...... ...002110..022210......", ".....OOBB..BBBBBBB..... .....0010..0322110.....", ".......OO..OOOOOOO..... .......00..0000000....."},
-      {".......tttttttt........ .......02103210........", ".......TTTTTTTT........ .......02103210........", "......TTTTTTTTT........ ......021103210........", ".....TTTTTTTTT......... .....021103210.........", "...SSSSSSTTTTT......... ...02111003210.........", "..SSSSSS.SSSSS......... ..021110.03210.........", ".BBBBB..SSSSS.......... .02211..03210..........", ".OOBBBB.SSSSS.......... .002110.03210..........", "...OOBB.BBBBBB......... ...0010.022210.........", ".....OO.BBBBBBB........ .....00.0322110........", "........OOOOOOO........ ........0000000........"}};
-  return w;
-}
-// A3's side idle (std.pxm idle R) on a grid with the pivot column 7: 80 visible leg px under the hem, the hip row 8
-const std::vector<const char*>& a3Idle() {
-  static const std::vector<const char*> w = {".................", "....tttttttt.....", "....TTTTTTTT.....", "....TTTTTTTT.....", "....TTTTTTTT.....",
-                                              "....SSSSSSSS.....", "....SSSSSSSS.....", "....SSSSSSSS.....", "...BBBBBBBBBB....", "...BBBBBBBBBBB...",
-                                              "...OOOOOOOOOOO..."};
-  return w;
-}
-// a frame in either view (the left mirrored: each row's classes and steps reversed, the pivot column w - pivot)
-LimbFrame synth(const std::vector<const char*>& rows, bool left, int pivot = 7) {
-  const char* sp = std::strchr(rows[0], ' ');
-  const int w = sp ? (int)(sp - rows[0]) : (int)std::strlen(rows[0]);
-  if (!left) return fromAscii(rows, pivot, false);
-  std::vector<std::string> mir;
-  for (const char* r : rows) {
-    std::string t = r, a = t.substr(0, w), b = t.size() > (size_t)w ? t.substr(w + 1) : std::string();
-    std::reverse(a.begin(), a.end());
-    std::reverse(b.begin(), b.end());
-    mir.push_back(b.empty() ? a : a + " " + b);
-  }
-  std::vector<const char*> p;
-  for (const std::string& r : mir) p.push_back(r.c_str());
-  return fromAscii(p, w - pivot, true);
-}
-// the synthetic frames through frameChecks (checks 1-13), both facings. The plan's frames must pass every check; the
-// broken variants must fail their own check (13 flight, 13 push, 13 pass; 12 feet for the flat contact). (Before the fix-r1
-// re-plan the tables themselves hid the swing leg and straightened the trailing flight leg; `gated` let those phases be
-// reported only. Every phase is gated since.)
-void selftestPoses(Gate& g) {
-  const SoleTab T = soleTab(doll::BodySet::Man);
-  static const int plantW[3] = {3, 0, -3}, plantR[3] = {3, -2, -7};
-  static const bool gated[2][3] = {{true, true, true}, {true, true, true}};   // [walk, run][phase]: every phase since the re-plan
-  static const char* const lookName[6] = {"the plan's walk", "the plan's run", "the straight flight", "the column push", "the hidden pass", "the flat contact"};
-  static const char* const expect[6] = {"", "", "13 shape: flight", "13 shape: push", "13 shape: pass", "12 feet"};
-  static const int brokenPhase[6] = {-1, -1, 2, 1, 2, 0};
-  for (int left = 0; left < 2; left++) {
-    const LimbM idle = measure(synth(a3Idle(), left != 0), T);   // A3's side idle: 80 visible leg px, the hip row 8
-    if (idle.area != 80 || idle.hipW != 8) g.bad(fmt("the synthetic A3 idle measures %.0f px, hip %.0f (80, 8)", idle.area, idle.hipW));
-    for (int l = 0; l < 6; l++) {
-      const bool run = l == 1 || l == 2 || l == 3;
-      const LimbFrame f0 = synth(synthFrames()[l * 3], left != 0, 11);
-      const LimbM m0 = measure(f0, T);
-      for (int k = 0; k < 3; k++) {
-        const bool plan = l < 2;
-        if (!plan && k != brokenPhase[l]) continue;
-        const LimbFrame f = synth(synthFrames()[l * 3 + k], left != 0, 11);
-        const LimbM m = measure(f, T);
-        FrameCtx c;
-        c.run = run; c.ph = k; c.plantU = run ? plantR[k] : plantW[k]; c.idle = &idle; c.contact = &m0; c.f = &f;
-        c.R = ruleOf(doll::BodySet::Man, run); c.P = feetOf(doll::BodySet::Man, run); c.S = shapeOf(doll::BodySet::Man, run);
-        std::vector<std::string> faults;
-        frameChecks(m, c, [&](bool bad, const std::string& why) { if (bad) faults.push_back(why); });
-        for (const std::string& b : m.bootBad) faults.push_back("B12 " + b);
-        std::string got;
-        for (const std::string& x : faults) got += (got.empty() ? "" : " | ") + x;
-        const std::string nm = std::string(lookName[l]) + fmt(" f%.0f", k) + (left ? " (L)" : " (R)");
-        bool ok;
-        if (plan) ok = faults.empty() || !gated[run ? 1 : 0][k];
-        else {
-          ok = false;
-          // the broken look's own measure: a fault starting `expect`, or (check 13 joins its parts with "; ") a "13 shape:"
-          // fault holding the expected part ("flight: ...") after another part (fix r2: the flight's apart_from row 8
-          // also catches the straight flight's joined legs, reported first)
-          const std::string ex = expect[l], head = "13 shape: ";
-          for (const std::string& x : faults)
-            ok = ok || x.rfind(ex, 0) == 0 ||
-                 (ex.rfind(head, 0) == 0 && x.rfind(head, 0) == 0 && x.find("; " + ex.substr(head.size()) + ":") != std::string::npos);
-        }
-        if (g_report)
-          std::printf("  B11 selftest %-28s %s%s%s\n", nm.c_str(), ok ? "as expected" : "UNEXPECTED: ", plan && !gated[run ? 1 : 0][k] ? " (reported, not gated until the re-plan) " : " ",
-                      got.empty() ? "no fault" : got.c_str());
-        if (!ok) g.bad(nm + (plan ? ": expected no fault, got: " : std::string(": expected a fault starting '") + expect[l] + "', got: ") + (got.empty() ? "none" : got));
-        else g.ok();
-      }
-    }
-  }
-}
-
 // B12's pool half: the stamped leg parts tagged, with a view for every side walk/run key their clips name
 void gateStampedParts(Gate& g) {
   const auto& P = doll::pool::get();
-  for (const char* name : {"legs/adult/loco/std", "legs/adult/loco/tips", "kin/youth/legs/std", "kin/youth/legs/tips", "kin/child/legs/std", "kin/child/legs/tips"}) {
+  // (P2B_MOTION_ROLLOUT 5.4 LIBRARY) every side-loco legs part of every body: std, far and tips (the base six must exist;
+  // every other legs part under legs/adult/loco/ or kin/*/legs/ is held to the same, so a new far part enters by itself)
+  std::vector<std::string> names = {"legs/adult/loco/std", "legs/adult/loco/tips", "kin/youth/legs/std", "kin/youth/legs/tips", "kin/child/legs/std", "kin/child/legs/tips"};
+  for (int q = 0; q < doll::partCount(); q++) {
+    const std::string n = doll::partName(q);
+    const bool loco = n.rfind("legs/adult/loco/", 0) == 0 || (n.rfind("kin/", 0) == 0 && n.find("/legs/") != std::string::npos);
+    if (loco && std::find(names.begin(), names.end(), n) == names.end()) names.push_back(n);
+  }
+  for (const std::string& nameS : names) {
+    const char* name = nameS.c_str();
     const int p = doll::findPart(name);
     if (p < 0) { g.bad(std::string(name) + ": not in the pool"); continue; }
     if (!doll::partTagged(p, "boots-stamped")) g.bad(std::string(name) + ": not tagged boots-stamped (MOTION_P2 8: every side walk/run boot a stamp)");
@@ -1777,80 +1261,6 @@ void gateStampedParts(Gate& g) {
     if (!missing.empty()) g.bad(std::string(name) + ": no view for " + *missing.begin() + (missing.size() > 1 ? fmt(" (+%.0f more)", (double)(missing.size() - 1)) : ""));
     else g.ok();
   }
-}
-
-// the gate's own proof: synthetic frames through measure(), each failing exactly where it should, in both facings
-void selftest(Gate& g) {
-  SoleTab T = soleTab(doll::BodySet::Man);
-  T.k1Steep = false;   // the cases' front boot is the 1:4 K1 of 2026-10-20 (the slope has its own case below)
-  struct Case { const char* name; std::vector<const char*> rows; const char* expect; };   // expect: j joints, b boots, r a sliver
-  const std::vector<Case> cases = {
-      {"clean contact", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.", ".SSSS........SSSS.", "BBBBBB......BBBBBB", "OOOBBBB....BBBBOOO", "...OOOO....OOOO..."}, ""},
-      {"floating boot", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.", "..................", "BBBBBB......BBBBBB", "OOOBBBB....BBBBOOO", "...OOOO....OOOO..."}, "j"},
-      {"boot glued to a thigh", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..TTTT......SSSS..", ".BBBB.......SSSSS.", ".BBBB........SSSS.", "BBBBBB......BBBBBB", "OOOBBBB....BBBBOOO", "...OOOO....OOOO..."}, "j"},
-      {"jagged sole", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.", ".SSSS........SSSS.", "BBBBBB......BBBBBB", "OOBOBBB....BBBBOOO", "..O.OOO....OOOO..."}, "b"},
-      {"stretched boot", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.", ".SSSS........SSSS.", "BBBBBBBB....BBBBBB", "BBBBBBBBB..BBBBOOO", "OOOOOOOOO..OOOO..."}, "b"},
-      {"squashed boot", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.", ".SSSS........SSSS.", ".BBBB.......BBBBBB", ".BBBB......BBBBOOO", ".OOOO......OOOO..."}, "b"},
-      {"boot beside a boot", {"...TTTTTTTTT......", "..TTTTT.TTTTT.....", "..TTTT...TTTT.....", ".TTTT.....TTTT....", ".SSSS.....SSSS....", ".SSSS....SSSS.....",
-                              "BBBBBBB..SSSS.....", "BBBBBBBBBBBBBB....", "OOOOOOOBBBBBBB....", ".......OOOOOOO...."}, ""},
-      {"lone boot, bent toe", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.",
-                               ".SSSS........SSSS.", "BBBBBB......BBBBBB", "BBBBBBOO...BBBBOOO", "OOOOOO.....OOOO..."}, "b"},
-      {"lifted boot over a boot", {"...TTTTTTTTT......", "..TTTT..TTTT......", "..TTTT..TTTT......", ".TTTT...TTTT......", ".SSSS...SSSS......", ".SSSS...SSSS......",
-                                   "BBBBBBB.SSSS......", "BBBBBBBBBBBB......", "OOOOOOOBBBBB......", ".....OOOOOOO......"}, ""},
-      {"doubled sole", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.",
-                        ".SSSS........SSSS.", "BBBBBB......BBBBBB", "OOOOOOO....BBBBOOO", "OOOOOOO....OOOO..."}, "b"},
-      {"2 px sliver", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TT.....TTTTT...", "..TT.......TTTTT..", "..SS........SSSS..", ".SS.........SSSSS.", ".SS..........SSSS.", "BBBBBB......BBBBBB", "OOOBBBB....BBBBOOO", "...OOOO....OOOO..."}, "r"},
-      // (R1-06 f) a tilted sole mostly hidden behind the other leg shows a short two-step piece (runs 2,1): no fault by
-      // itself (feet judge its tilt against the table); the same piece with nothing covering it is a squashed boot
-      {"hidden two-step piece", {"....TTTTTTT.......", "....TTTTTTT.......", "....TTTTTTT.......", "....TTTTTTT.......", "...SSSSSSSS.......",
-                                 "..SSSSSSSSS.......", "BBSSSSSSSSS.......", "OOBSSSSSSSS.......", "..O.BBBBBBB.......", "....OOOOOOO......."}, ""},
-      {"uncovered two-step piece", {"....TTTTTTTT......", "...TTTTT.TTTTT....", "...TTTT...TTTTT...", "..TTTT.....TTTTT..", "..SSSS......SSSS..", ".SSSS.......SSSSS.",
-                                    ".SSSS........SSSS.", ".BBBB.......BBBBBB", ".OOBB......BBBBOOO", "...O.......OOOO..."}, "b"},
-  };
-  for (const Case& c : cases)
-    for (int left = 0; left < 2; left++) {
-      std::vector<std::string> mir;
-      std::vector<const char*> rows = c.rows;
-      if (left) {   // the same frame in the left view (mirrored): the measures must agree
-        for (const char* r : c.rows) { std::string t = r; std::reverse(t.begin(), t.end()); mir.push_back(t); }
-        rows.clear();
-        for (const std::string& r : mir) rows.push_back(r.c_str());
-      }
-      const int w = (int)std::strlen(c.rows[0]);
-      const LimbFrame f = fromAscii(rows, left ? w - 7 : 7, left);
-      const LimbM m = measure(f, T);
-      std::string got, why;
-      if (!m.joints.empty() || m.pieces != 1 || m.emptyRows) got += 'j';
-      if (!m.bootBad.empty()) got += 'b';
-      if (m.minRun < 3) got += 'r';
-      for (const auto& s : m.joints) why += " [" + s + "]";
-      for (const auto& s : m.bootBad) why += " [" + s + "]";
-      if (m.minRun < 3) why += fmt(" [a %.0f px run]", m.minRun);
-      if (m.pieces != 1 || m.emptyRows) why += fmt(" [%.0f pieces, %.0f empty rows]", m.pieces, m.emptyRows);
-      const std::string want = c.expect;
-      if (g_report) std::printf("  B11 selftest %-22s %s expect {%s} got {%s}%s\n", c.name, left ? "L" : "R", want.c_str(), got.c_str(), why.c_str());
-      if (got != want) g.bad(std::string(c.name) + (left ? " (L)" : " (R)") + ": expected failures {" + want + "}, got {" + got + "}" + why);
-      else g.ok();
-      if (!std::strcmp(c.name, "clean contact")) {   // its soles read as the keys drawn: K2 behind (heel up), K1 in front (toe up)
-        std::string keys;
-        std::vector<Sole> ss = m.soles;
-        std::sort(ss.begin(), ss.end(), [](const Sole& a, const Sole& b) { return a.u0 < b.u0; });
-        for (const Sole& s : ss) keys += "K" + std::to_string(s.key) + (s.whole ? "" : "~");
-        if (keys != "K2K1") g.bad(std::string("clean contact") + (left ? " (L)" : " (R)") + ": soles read " + keys + " (K2 behind, K1 in front)");
-        else g.ok();
-      }
-    }
-  // the K1 slope (R1-04): the adult 1:2 toe-up (runs 3,2,2) is K1, whole; the 1:4 two-step toe-up is no adult key; the
-  // youth still reads its 1:4 Y1 as K1 until R1-08
-  const SoleTab A = soleTab(doll::BodySet::Man), Y = soleTab(doll::BodySet::Youth);
-  const Sole k12 = analyseSole({{0, 0}, {1, 0}, {2, 0}, {3, 1}, {4, 1}, {5, 2}, {6, 2}}, A);
-  const Sole k14 = analyseSole({{0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 1}, {5, 1}, {6, 1}}, A);
-  const Sole y14 = analyseSole({{0, 0}, {1, 0}, {2, 0}, {3, 1}, {4, 1}, {5, 1}}, Y);
-  const bool k1ok = k12.bad.empty() && k12.key == 1 && k12.whole && !k14.bad.empty() && y14.bad.empty() && y14.key == 1;
-  if (g_report) std::printf("  B11 selftest K1 slopes             %s (adult 3,2,2: K%d%s; adult 4,3: %s; youth 3,3: K%d)\n", k1ok ? "as expected" : "UNEXPECTED", k12.key,
-                            k12.bad.empty() ? "" : (" " + k12.bad).c_str(), k14.bad.empty() ? "no fault" : k14.bad.c_str(), y14.key);
-  if (!k1ok) g.bad("K1 slopes: the adult 1:2 toe-up must read K1 and the 1:4 fail; got " + std::to_string(k12.key) + " / " + (k14.bad.empty() ? "no fault" : k14.bad));
-  else g.ok();
 }
 
 // --limbs DIR: the harness's dumps (JSON per look, PNG figures)
@@ -1918,66 +1328,6 @@ void dumpLimbs(const char* dir, std::vector<LimbLook> looks) {
   }
   std::printf("  limbs: %zu look(s) written to %s\n", looks.size(), dir);
 }
-// --limbs-selftest DIR: the embedded synthetic looks (synthFrames: plan_walk, plan_run, bad_flight, bad_push, bad_pass,
-// bad_contact; frames 3-5 repeat 0-2) as the harness's looks. run_all.sh's J2 SELFTEST uses synth.py and --limbs-synth
-// instead, so a re-plan in targets.json is judged without a rebuild; this keeps the embedded copy readable by trace.py.
-void dumpSelftest(const char* dir) {
-  static const char* const tags[6] = {"plan_walk", "plan_run", "bad_flight", "bad_push", "bad_pass", "bad_contact"};
-  const SoleTab T = soleTab(doll::BodySet::Man);
-  for (int l = 0; l < 6; l++) {
-    const bool run = l == 1 || l == 2 || l == 3;
-    static const int pw0[3] = {3, 0, -3}, pw1[3] = {0, -3, -6}, pr0[3] = {3, -2, -7}, pr1[3] = {-2, -7, -15}, bw[3] = {0, 1, 0}, br[3] = {0, 0, -1};
-    LookFrames lf;
-    for (int left = 0; left < 2; left++)
-      for (int i = -1; i < 6; i++) {
-        One o;
-        o.gait = i < 0 ? -1 : run ? 1 : 0; o.facing = left ? 3 : 2; o.i = std::max(i, 0);
-        o.f = i < 0 ? synth(a3Idle(), left != 0) : synth(synthFrames()[l * 3 + i % 3], left != 0, 11);
-        o.m = measure(o.f, T);
-        if (i >= 0) {
-          o.plant0 = (run ? pr0 : pw0)[i % 3] + left; o.plant1 = (run ? pr1 : pw1)[i % 3] + left; o.bob = (run ? br : bw)[i % 3];
-        }
-        (i < 0 ? lf.idle : lf.frames).push_back(o);
-      }
-    writeLook(dir, tags[l], 0, "synthetic", "man", "man", false, lf);
-  }
-  std::printf("  limbs: the embedded synthetic looks written to %s\n", dir);
-}
-// --limbs-synth FILE DIR: synth.py's frames (the plan's tables drawn from targets.json and the boot stamps, and the
-// broken variants), measured and written as the harness's looks (trace.py judges them: run_all.sh's J2 SELFTEST)
-void dumpSynth(const char* file, const char* dir) {
-  FILE* f = std::fopen(file, "r");
-  if (!f) { std::printf("FAIL: --limbs-synth %s: cannot read\n", file); return; }
-  const SoleTab T = soleTab(doll::BodySet::Man);
-  char line[1024];
-  std::string tag;
-  LookFrames lf;
-  int n = 0;
-  auto num = [](const char* t) { return std::strcmp(t, "-") ? (int)std::strtol(t, nullptr, 10) : INT32_MIN; };
-  while (std::fgets(line, sizeof line, f)) {
-    char a[64] = {}, b[64] = {}, c[64] = {}, d[64] = {}, e[64] = {}, g[64] = {}, h[64] = {}, k[64] = {}, kw[16] = {};
-    if (std::sscanf(line, "%15s", kw) != 1) continue;
-    if (!std::strcmp(kw, "look")) { std::sscanf(line, "%*s %63s", a); tag = a; lf = LookFrames(); continue; }
-    if (!std::strcmp(kw, "endlook")) { writeLook(dir, tag, 0, "synthetic", "man", "man", false, lf); n++; continue; }
-    if (std::strcmp(kw, "frame")) continue;
-    std::sscanf(line, "%*s %63s %63s %63s %63s %63s %63s %63s %63s", a, b, c, d, e, g, h, k);
-    const int rows = (int)std::strtol(k, nullptr, 10);
-    std::vector<std::string> rs;
-    for (int i = 0; i < rows && std::fgets(line, sizeof line, f); i++) { std::string t = line; while (!t.empty() && (t.back() == '\n' || t.back() == '\r')) t.pop_back(); rs.push_back(t); }
-    std::vector<const char*> rp;
-    for (const std::string& t : rs) rp.push_back(t.c_str());
-    One o;
-    const bool idle = !std::strcmp(a, "idle");
-    o.gait = idle ? -1 : !std::strcmp(a, "run") ? 1 : 0; o.facing = b[0] == 'L' ? 3 : 2; o.i = (int)std::strtol(c, nullptr, 10);
-    o.f = fromAscii(rp, (int)std::strtol(d, nullptr, 10), o.facing == 3);
-    // (synth.py mirrors the L view about the pivot, x' = 2 pivot - x - 1, so the pivot column stays: u = pivot - x - 1)
-    o.m = measure(o.f, T);
-    o.plant0 = num(e); o.plant1 = num(g); o.bob = (int)std::strtol(h, nullptr, 10);
-    (idle ? lf.idle : lf.frames).push_back(o);
-  }
-  std::fclose(f);
-  std::printf("  limbs: %d synthetic look(s) from %s written to %s\n", n, file, dir);
-}
 std::vector<LimbLook> readLooks(const char* file) {
   std::vector<LimbLook> v;
   FILE* f = std::fopen(file, "r");
@@ -2004,17 +1354,40 @@ std::vector<LimbLook> readLooks(const char* file) {
 
 }  // namespace limbs
 
-void gateLimbs(Gate& g, Gate& b12, Gate& self) {
-  limbs::selftest(self);
-  limbs::selftestPoses(self);
-  limbs::gateStampedParts(b12);
-  std::vector<limbs::LimbLook> looks = limbs::gateLooks();
-  for (limbs::LimbLook& l : looks) limbs::gateLook(l, g, b12);
-  // 11 the default hero's trouser body (MOTION_P2 14: the dark trousers read as legs on grass)
-  const HumanLook L = limbs::lookOf(looks.back());
+std::vector<dollmotion::Look> motionRefLooks(bool kin);
+// B11 limbs (R L) and B12 boots: check.py's checks in C++ on the reference looks and the kin (test_doll_motion.cpp); B11
+// wear on GATES-WEAR's matrix; the selftests (P2B_MOTION_ROLLOUT 5.2-5.6)
+void gateLimbs(Gate& g, Gate& b12, Gate& wear, Gate& self) {
+  limbs::gateStampedParts(b12);   // B12 LIBRARY
+  auto take = [](Gate& gt, const std::vector<dollmotion::Fail>& fs, int frames) {
+    gt.checks += frames;   // (one per side frame judged; each failure counts again)
+    for (const dollmotion::Fail& f : fs) gt.bad(f.check + " " + f.where + ": " + f.why);
+  };
+  for (const dollmotion::Look& l : motionRefLooks(true)) {
+    const dollmotion::LookFrames lf = dollmotion::shoot(l, nullptr);
+    std::vector<dollmotion::Fail> fs, lim, boots;
+    dollmotion::limbsChecks(lf, fs, false);
+    for (const dollmotion::Fail& f : fs) (f.check.rfind("B12", 0) == 0 ? boots : lim).push_back(f);
+    take(g, lim, (int)lf.frames.size());
+    take(b12, boots, (int)lf.frames.size());
+  }
+  std::vector<dollmotion::Look> matrix = dollmotion::matrixLooks("");
+  for (const dollmotion::Look& l : matrix) {
+    const dollmotion::LookFrames lf = dollmotion::shoot(l, nullptr);
+    std::vector<dollmotion::Fail> fs;
+    dollmotion::wearChecks(lf, fs, false);
+    take(wear, fs, (int)lf.frames.size());
+  }
+  if (matrix.empty()) wear.ok();
+  const int miss = dollmotion::limbsSelftest(g_report) + dollmotion::wearSelftest(g_report);
+  if (miss) self.bad(fmt("%.0f synthetic failure(s) missed (rpg_test --doll --motion --selftest --report)", miss)); else self.ok();
+  // the default hero's trouser body (MOTION_P2 14: the dark trousers read as legs on grass)
+  dollmotion::Look dh{"defhero", 0, "weapon=0,topColor=#466E96,bottomColor=#4E3C2C,hairColor=#784624,palette=look", {}};
+  limbs::LimbLook ll; ll.tag = dh.tag; ll.who = 0; ll.spec = dh.spec;
+  const HumanLook L = limbs::lookOf(ll);
   const float luma = lumaOf(doll::rampsOf(L).c[(int)doll::Slot::Cloth2][1]);
-  if (g_report) std::printf("  B11L 11 the default hero's trouser body (Cloth2 step 1) luma %.1f (52 or more)\n", luma);
-  if (luma < 52.0f) g.bad(fmt("11 the default hero's trouser body (Cloth2 step 1) luma %.1f (52 or more)", luma)); else g.ok();
+  if (g_report) std::printf("  B11L LUMA the default hero's trouser body (Cloth2 step 1) luma %.1f (52 or more)\n", luma);
+  if (luma < 52.0f) g.bad(fmt("LUMA the default hero's trouser body (Cloth2 step 1) luma %.1f (52 or more)", luma)); else g.ok();
 }
 
 // --frames DIR (the walk fix's look-and-measure loop): every LOCO idle and walk frame and every RUN frame of the A3 hero
@@ -2056,6 +1429,84 @@ void dumpFrames(const char* dir) {
   std::printf("  frames written to %s\n", dir);
 }
 
+// ---------------------------------------------------------------- B11 limbs, B11 wear, B12 boots (P2B_MOTION_ROLLOUT 5)
+// the reference looks (5.5 M1) and the kin: B11 limbs and B12 judge these in --gates and by default in --motion
+std::vector<dollmotion::Look> motionRefLooks(bool kin) {
+  std::vector<dollmotion::Look> v;
+  auto add = [&](const char* tag, int who, const char* spec, std::vector<std::string> gaits) { v.push_back({tag, who, spec, gaits}); };
+  const std::vector<std::string> wr = {"walk", "run"}, w = {"walk"}, all = {"walk", "run", "dwalk", "drun"}, dr = {"dwalk", "drun"};
+  add("hero", 0, "", all);                                                                                  // the A3 hero, sword
+  add("defhero", 0, "weapon=0,topColor=#466E96,bottomColor=#4E3C2C,hairColor=#784624,palette=look", wr);   // the default hero
+  add("womant", 1, "outfit=0,bottomColor=#4F4B6B,weapon=1", all);                                          // shirt and trousers, sword
+  add("womanb", 1, "outfit=0,bottomColor=#4F4B6B,bare=1", wr);                                             // bare legs
+  add("elfm", 0, "people=2,weapon=0", wr);
+  add("elfw", 1, "people=2,outfit=0,bottomColor=#4F4B6B", wr);
+  add("halfm", 0, "people=1,weapon=0", wr);
+  add("broadm", 0, "build=2,weapon=0", wr);
+  add("slimw", 1, "build=1,outfit=0,bottomColor=#4F4B6B", wr);
+  add("elderm", 0, "age=3,weapon=0", w);
+  add("elderw", 1, "age=3,outfit=0,bottomColor=#4F4B6B", w);
+  add("hdrawn", 0, "weapon=1", dr);
+  add("wdrawn", 1, "outfit=0,bottomColor=#4F4B6B,weapon=1", dr);
+  if (kin) {
+    add("youthm", 0, "age=2,weapon=0", wr);
+    add("youthw", 1, "age=2,outfit=0,weapon=0", wr);
+    add("childm", 0, "age=1,weapon=0", w);
+    add("childw", 1, "age=1,outfit=0,weapon=0", w);
+  }
+  return v;
+}
+// rpg_test --doll --motion [--pool FILE] [--maps DIR] [--limbs-looks FILE | --matrix FILTER] [--report] [--frames DIR] [--selftest]
+int motionCmd(const char* looksFile, const char* matrix, bool selftest, const char* framesDir) {
+  std::vector<dollmotion::Look> looks;
+  if (looksFile) looks = dollmotion::readLooks(looksFile);
+  else if (matrix) looks = dollmotion::matrixLooks(matrix);
+  else {
+    looks = dollmotion::matrixLooks("");
+    if (looks.empty()) looks = motionRefLooks(true);   // (until GATES-WEAR's matrix lands)
+  }
+  std::vector<dollmotion::Fail> fails;
+  std::map<std::string, int> per;
+  int frames = 0;
+  for (const dollmotion::Look& l : looks) {
+    const dollmotion::LookFrames lf = dollmotion::shoot(l, nullptr);
+    frames += (int)lf.frames.size();
+    const size_t was = fails.size();
+    dollmotion::limbsChecks(lf, fails, g_report);
+    dollmotion::wearChecks(lf, fails, g_report);
+    if (framesDir) dollmotion::writeStrips(lf, framesDir);
+    std::map<std::string, int> mine;
+    for (size_t k = was; k < fails.size(); k++) { mine[fails[k].check]++; per[fails[k].check]++; }
+    std::string s;
+    for (auto& [c, n] : mine) s += " " + c + " " + std::to_string(n);
+    std::printf("  motion %-10s %3d side frames: %s%s\n", l.tag.c_str(), (int)lf.frames.size(), mine.empty() ? "ok" : "FAIL", s.c_str());
+  }
+  int self = 0;
+  if (selftest) {
+    self += dollmotion::limbsSelftest(g_report);
+    self += dollmotion::wearSelftest(g_report);
+  }
+  std::string s;
+  for (auto& [c, n] : per) s += " " + c + " " + std::to_string(n) + ";";
+  std::printf("motion: %d looks, %d side frames, %d failure(s)%s%s\n", (int)looks.size(), frames, (int)fails.size(), s.empty() ? "" : ":", s.c_str());
+  if (selftest) std::printf("motion selftest: %d miss(es)\n", self);
+  return fails.empty() && !self ? 0 : 1;
+}
+void mapsArg(int argc, char** argv) {
+  const char* env = std::getenv("CHECK_MAPS");
+  std::string maps = env && *env ? env : "";
+  for (int i = 1; i + 1 < argc; i++) {
+    if (!std::strcmp(argv[i], "--maps")) maps = argv[i + 1];
+    if (!std::strcmp(argv[i], "--pool") && maps.empty()) {   // an isolated try: <root>/x.pool beside <root>/doll/maps
+      std::string d = argv[i + 1];
+      const size_t sl = d.find_last_of("/\\");
+      d = sl == std::string::npos ? std::string(".") : d.substr(0, sl);
+      if (FILE* t = std::fopen((d + "/doll/maps/stamps/boots_adult.stamps").c_str(), "r")) { std::fclose(t); maps = d + "/doll/maps"; }
+    }
+  }
+  if (!maps.empty()) { dollmotion::setMapsRoot(maps); std::printf("  maps read from %s\n", maps.c_str()); }
+}
+
 bool loadPoolArg(int argc, char** argv) {
   for (int i = 1; i + 1 < argc; i++)
     if (!std::strcmp(argv[i], "--pool")) {
@@ -2072,9 +1523,8 @@ int dollCmd(int argc, char** argv) {
   const char* frames = nullptr;
   const char* limbsDir = nullptr;
   const char* limbsLooks = nullptr;
-  const char* limbsSelf = nullptr;
-  const char* limbsSynth = nullptr;
-  const char* limbsSynthDir = nullptr;
+  bool motion = false, mself = false;
+  const char* matrix = nullptr;
   for (int i = 1; i < argc; i++) {
     if (!std::strcmp(argv[i], "--gates")) gates = true;
     else if (!std::strcmp(argv[i], "--parity")) par = true;
@@ -2083,10 +1533,19 @@ int dollCmd(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--frames") && i + 1 < argc) frames = argv[++i];
     else if (!std::strcmp(argv[i], "--limbs") && i + 1 < argc) limbsDir = argv[++i];
     else if (!std::strcmp(argv[i], "--limbs-looks") && i + 1 < argc) limbsLooks = argv[++i];
-    else if (!std::strcmp(argv[i], "--limbs-selftest") && i + 1 < argc) limbsSelf = argv[++i];
-    else if (!std::strcmp(argv[i], "--limbs-synth") && i + 2 < argc) { limbsSynth = argv[++i]; limbsSynthDir = argv[++i]; }
+    else if (!std::strcmp(argv[i], "--motion")) motion = true;
+    else if (!std::strcmp(argv[i], "--selftest")) mself = true;
+    else if (!std::strcmp(argv[i], "--matrix") && i + 1 < argc) matrix = argv[++i];
   }
   if (!loadPoolArg(argc, argv)) return 1;
+  mapsArg(argc, argv);
+  if (motion) {   // only B11 limbs, B11 wear and B12 (5.7): exit 0 iff 0 failures
+    const int was = art::rigVersion();
+    art::setRigVersion(2);
+    const int r = motionCmd(limbsLooks, matrix, mself, frames);
+    art::setRigVersion(was);
+    return r;
+  }
   g_contract = 0;
   contract();
   std::printf("doll contract: %d failure(s)\n", g_contract);
@@ -2095,8 +1554,6 @@ int dollCmd(int argc, char** argv) {
   art::setRigVersion(2);
   if (frames) dumpFrames(frames);
   if (limbsDir) limbs::dumpLimbs(limbsDir, limbsLooks ? limbs::readLooks(limbsLooks) : limbs::gateLooks());
-  if (limbsSelf) limbs::dumpSelftest(limbsSelf);
-  if (limbsSynth) limbs::dumpSynth(limbsSynth, limbsSynthDir);
   if (par || gates) {
     Gate b1{"B1 parity"};
     parity(b1, dump);
@@ -2105,7 +1562,7 @@ int dollCmd(int argc, char** argv) {
   }
   if (gates) {
     Gate b2{"B2 heights"}, fc{"faces"}, hd{"hands"}, b8{"B8 craft"}, b9{"B9 fitted pairs"}, b10{"B10 atlas and speed"}, rp{"ramps dE 6"}, b11{"B11 leg mass (D U)"}, b11l{"B11 limbs (R L)"},
-        b12{"B12 boots"}, b11s{"B11 selftest"};
+        b12{"B12 boots"}, b11w{"B11 wear (R L)"}, b11s{"B11 selftest"};
     gateHeights(b2);
     gateFaces(fc, hd);
     gateCraft(b8);
@@ -2113,8 +1570,8 @@ int dollCmd(int argc, char** argv) {
     gateAtlas(b10);
     gateRamps(rp);
     gateLegs(b11);
-    gateLimbs(b11l, b12, b11s);
-    for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp, &b11, &b11l, &b12, &b11s}) {
+    gateLimbs(b11l, b12, b11w, b11s);
+    for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp, &b11, &b11l, &b11w, &b12, &b11s}) {
       std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g->fails ? "FAIL:" : "ok   ", g->id, g->checks, g->fails, g->fails ? "; first: " : "", g->first.c_str());
       gateFails += g->fails ? 1 : 0;
     }

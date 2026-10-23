@@ -107,13 +107,12 @@ view R key wide origin 8 -2 stretch 2
 |mmmmmmmmmmmmmmmmv
 
 view R key flare origin 9 -2 stretch 2
-|...5867776777pv...
-|..587677767777pv..
-|.5877677767777pv..
-|.58776777677777pv.
-|587776777677777pv.
-|mppoooooooonnnnnnv
-|mmmmmmmmmmmmmmmmmv
+|...5867776777pv.
+|..587677767777pv
+|.5877677767777pv
+|58777677777777pv
+|mppoooooonnnnnnv
+|.mmmmmmmmmmmmmmv
 
 
 view R key sit origin 5 2 stretch 5
@@ -156,14 +155,13 @@ view L key wide origin 10 -2 stretch 2
 |vppoooooooonnnnnnm
 |vmmmmmmmmmmmmmmmmm
 
-view L key flare origin 10 -2 stretch 2
-|...vp77776777665...
-|..vp7777767776765..
-|..vp77777677767765.
-|.vp777777677767765.
-|.vp7777776777677765
-|vppooooooooonnnnnnm
-|vmmmmmmmmmmmmmmmmmm
+view L key flare origin 8 -2 stretch 2
+|.vp77776777665...
+|vp7777767776765..
+|vp77777677767765.
+|vp777777777677765
+|vppooooooonnnnnnm
+|vmmmmmmmmmmmmmmm.
 
 
 view L key sit origin 7 2 stretch 5

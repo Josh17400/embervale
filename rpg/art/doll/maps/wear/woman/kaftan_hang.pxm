@@ -2,6 +2,9 @@
 # and the trimmed hem (the edge region), the outline row over her shoe tips; it sways by whole rows, parts a little wider on the
 # stride and flares in the run
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment kaftan
@@ -180,16 +183,16 @@ view R key rest origin 8 -1
 |..mpppppooooonm.
 |...555555555555.
 
-view R key wide origin 9 -1
-|.....587777po.....
-|....5877767po.....
-|....58777677po....
-|...587776777po....
-|..58877677767ppv..
-|..58877677767pxxo.
-|..588767776776ppo.
-|..mppppppooooonnm.
-|...55555555555555.
+view R key wide origin 6 -1
+|..587777po.....
+|.5877767po.....
+|.58777677po....
+|587776777po....
+|58877677767ppv.
+|58877677767pxxo
+|588767776776ppo
+|mppppppooooonnm
+|.55555555555555
 
 view R key flare origin 10 -1
 |......587777po.....
@@ -259,15 +262,15 @@ view L key rest origin 8 -1
 |.555555555555...
 
 view L key wide origin 9 -1
-|.....po777765.....
-|.....po7677765....
-|....po77677765....
-|....po777677765...
-|..vpp76777677665..
-|.pxxo76777677665..
-|.poo677677767665..
-|.mppppppooooonnm..
-|.55555555555555...
+|.....po777765..
+|.....po7677765.
+|....po77677765.
+|....po777677765
+|.vpp76777677665
+|pxxo76777677665
+|poo677677767665
+|mppppppooooonnm
+|55555555555555.
 
 view L key flare origin 9 -1
 |.....po777765......

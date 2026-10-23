@@ -2,6 +2,8 @@
 # docs/MOTION_P2.md 7.3). The pass draws the hang's rest view under the torso's lifted run view: these views (the pass
 # keys walkB2 and walkD2 only, so idles, hurts, falls and postures are untouched) close the row between them and widen
 # the hang's back edge over the crossed legs' seat. GARB (motion rebuild). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the reach panels fitted to the shipped reach legs (rows of the rest hang carried
+# over the leg runs it left as slivers).
 use person woman
 body woman
 role garment rags
@@ -23,14 +25,30 @@ view U key walkD2 origin 0 0
 |.
 
 
-view R key walkB2 origin 5 -1
-|58887776765
+view R key walkB2 origin 6 -1
+|.58887776765..
+|..............
+|..............
+|.5985859885665
+|56556665555555
 
-view R key walkD2 origin 5 -1
-|58887776765
+view R key walkD2 origin 6 -1
+|.58887776765..
+|..............
+|..............
+|.5985859885665
+|56556665555555
 
-view L key walkB2 origin 6 -1
-|588777676665
+view L key walkB2 origin 8 -1
+|..588777676665
+|..............
+|..............
+|5889595988565.
+|55555555666565
 
-view L key walkD2 origin 6 -1
-|588777676665
+view L key walkD2 origin 8 -1
+|..588777676665
+|..............
+|..............
+|5889595988565.
+|55555555666565

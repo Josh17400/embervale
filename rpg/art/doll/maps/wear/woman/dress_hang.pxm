@@ -1,5 +1,8 @@
 # wear/woman/dress_hang: the dress's skirt to the ankles with A3's apron; the hem sways by whole rows (sway 5), widens on contact frames
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment dress
@@ -137,11 +140,11 @@ view R key sit origin 6 2
 |......59888777
 |......55555555
 
-view R key wide origin 9 -1
-|....587776BCCDA...
-|...5877767BCCDA...
-|...5877677BCCCDA..
-|..58776777BCCCDA..
+view R key wide origin 8 -1
+|...587776BCCDA....
+|..5877767BCCDA....
+|..5877677BCCCDA...
+|.58776777BCCCDA...
 |..58767776BCBCDA..
 |..58767776ADBDDA..
 |58767777766AAAA665
@@ -193,11 +196,11 @@ view L key sit origin 7 2
 |59888775......
 |55555555......
 
-view L key wide origin 9 -1
-|...ADCCB777665....
-|...ADCCB7776665...
-|..ADCCCB7776765...
-|..ADCCCB77776765..
+view L key wide origin 10 -1
+|....ADCCB777665...
+|....ADCCB7776665..
+|...ADCCCB7776765..
+|...ADCCCB77776765.
 |..ADCBCB77767665..
 |..ADDBDA77767665..
 |58AAAA77777676665.

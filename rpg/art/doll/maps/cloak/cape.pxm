@@ -169,17 +169,17 @@ view R key wide origin 10 1
 |.QQQQQQQQQQQQQQ.
 
 view L key wide origin 5 1
-|........QQQQ....
-|.QQQQQQQRSSSQ...
-|QRRRRRRQRSSSSQ..
-|QRRRRRRRRSSSSSQ.
-|QRRRRRRRSRSSSSQ.
-|QRRRRRRRSSRSSSSQ
-|QRRRRRRRSSRSSSSQ
-|QRRRRRRRSSSRSSSQ
-|QRRRRRRRSSSRSSSQ
-|QSSSSSSSTTTTTTTQ
-|.QQQQQQQQQQQQQQ.
+|........QQQQ...
+|.QQQQQQQRSSSQ..
+|QRRRRRRQRSSSSQ.
+|QRRRRRRRRSSSSSQ
+|QRRRRRRRSRSSSSQ
+|QRRRRRRRSSRSSSQ
+|QRRRRRRRSSRSSSQ
+|QRRRRRRRSSSRSSQ
+|QRRRRRRRSSSRSSQ
+|QSSSSSSSTTTTTTQ
+|.QQQQQQQQQQQQQQ
 
 view D key flare origin 10 2
 |......QQQQQQQQ......
@@ -205,27 +205,29 @@ view U key flare origin 10 2 layer cloakFront
 |.QTTTTTTQQTTTQQRRRRQ
 |..QQQQQQ..QQQ..QQQQ.
 
-view R key flare origin 10 1
-|....QQQQ........
-|...QTTSRQQQQQQQ.
-|.QQTSSSRQRRRRRRQ
-|QTTSSSSRRRRRRRRQ
-|QTSSSSRSRRRRRRRQ
-|QTSSSRSSRRRRRRRQ
-|.QTTSSSSRRRRRRRQ
-|..QQTTTSSSSSSRQ.
-|....QQQQQQQQQQ..
+view R key flare origin 10 0
+|......QQQ
+|.....QTSQ
+|....QTSSR
+|...QTSRSR
+|..QTSRSSR
+|.QTSRSSRR
+|QTSRSRSRR
+|QSRSRRRRR
+|.QQRQRRRR
+|...QQQQQ.
 
-view L key flare origin 5 1
-|........QQQQ....
-|.QQQQQQQRSSSQ...
-|QRRRRRRQRSSSSQQ.
-|QRRRRRRRRSSSSSSQ
-|QRRRRRRRSRSSSSSQ
-|QRRRRRRRSSRSSSSQ
-|QRRRRRRRSSSSSSQ.
-|.QRSSSSSSTTTQQ..
-|..QQQQQQQQQQ....
+view L key flare origin -1 0
+|.........
+|QQRQ.....
+|TSSRQ....
+|TSTSRQ...
+|TSSTSRQ..
+|TTSSTSRQ.
+|TTSTSTSRQ
+|TTTTTSTSQ
+|TTTTQTQQ.
+|.QQQQQ...
 
 view D key sit origin 10 2
 |......QQQQQQQQ......
@@ -450,3 +452,60 @@ view L key lie origin 5 1
 |...........QSRQ.
 |..........QSSRQ.
 |..........QQQQ..
+
+
+view R key wide origin 9 1 when woman replace
+|...QQQQ........
+|..QTTSRQQQQQQQ.
+|.QTSSSRQRRRRRRQ
+|QTSSSSRRRRRRRRQ
+|QTSSSRSRRRRRRRQ
+|QSSSRSSRRRRRRRQ
+|QSSSRSSRRRRRRRQ
+|QSSRSSSRRRRRRRQ
+|QSSRSSSRRRRRRRQ
+|QTTTTTTSSSSSSSQ
+|QQQQQQQQQQQQQQ.
+
+view L key wide origin 5 1 when woman replace
+|........QQQQ..
+|.QQQQQQQRSSSQ.
+|QRRRRRRQRSSSSQ
+|QRRRRRRRRSSSSQ
+|QRRRRRRRSRSSSQ
+|QRRRRRRRSSRSSQ
+|QRRRRRRRSSRSSQ
+|QRRRRRRRSSSRSQ
+|QRRRRRRRSSSRSQ
+|QSSSSSSSTTTTTQ
+|.QQQQQQQQQQQQQ
+
+# (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the drape's back edge 2 px in, inside her
+# narrower body (B11 W8: the man's drape stood 2-4 columns past her box); the front edge and the hood as his.
+view R key rest origin 10 1 when woman,walk replace
+|....QQQQ........
+|.....QSRQQQQQQQ.
+|....QSSRQRRRRRRQ
+|...QSSSRRRRRRRRQ
+|...QSSRSRRRRRRRQ
+|...QSSRSRRRRRRRQ
+|..QSSRSSRRRRRRRQ
+|..QSSRSSRRRRRRRQ
+|..QSRSSSRRRRRRRQ
+|..QTTTTSSSSSSSSQ
+|...QQQQQQQQQQQQ.
+
+# (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the drape's back edge 3 px in, inside her
+# narrower body (B11 W8: the man's drape stood 2-4 columns past her box); the front edge and the hood as his.
+view L key rest origin 5 1 when woman,walk replace
+|........QQQQ....
+|.QQQQQQQRQ......
+|QRRRRRRQRSQ.....
+|QRRRRRRRRSSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSSRSQ...
+|QRRRRRRRSSRSQ...
+|QRRRRRRRSSSRQ...
+|QSSSSSSSSTTTQ...
+|.QQQQQQQQQQQ....

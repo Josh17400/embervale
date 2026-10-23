@@ -14,6 +14,11 @@
 //     ramps       the curated skins and hair, the generator's cloth, elves, elders and eyes, on the look's figure
 //     part:<name>[:<D|U|R|L>[:<key>]]   one part's view alone at 12x with its pixel grid and row numbers
 //     frame:<loco|run|action|death>:<D|U|R|L>:<clip>:<i>[:<variant>]   one composed frame of the look at 12x
+//     frame:posture:<D|U|R|L>:<posture>:<i>[:<variant>]   one frame of a posture at 12x (<posture>: a name as in
+//                 pose: below, or its art::Posture number; <variant> the posture's variant, e.g. Carry 1 the basket)
+//     pose:<posture>[:<variant>]   every frame of a posture, R L D U rows on one ground line beside the look's idle, at 1x
+//                 and 6x (doll_pose_<posture>[_v<variant>].png): carry, play, dance, sit, wave, ... (the walking postures:
+//                 carry 0-2, play, dance)
 //   --look sets the look's fields on top of the chosen A3 look: body hair hairVar build people age pattern headwear hood
 //   beard beardStyle head nose brow marks neck garb cut outfit weapon cloak jewellery facePaint (numbers) and skin hairColor
 //   topColor bottomColor tabardColor patternColor cloakColor headColor eyeColor (#RRGGBB); --palette look colours it by
@@ -22,6 +27,7 @@
 //   then doll_gallery <dir> --pool <scratch>/a3.pool. `node tools/doll/pxc.mjs --watch --gallery <exe> <dir> [boards]`
 //   re-renders on every save.
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -483,6 +489,46 @@ void boardRamps(const std::string& dir) {
   save3(b, dir, "doll_ramps");
 }
 int facingOf(const std::string& s) { return s == "U" ? 1 : s == "R" ? 2 : s == "L" ? 3 : 0; }
+std::vector<std::string> split(const std::string& s);
+// art::Posture by name (lower case, as postures.clip names them) or number; -1: unknown
+const char* const kPostureNames[] = {"none", "sit", "siteat", "sitdrink", "eat", "drink", "cheer", "hammer", "hoe", "sweep", "chop", "stir",
+                                     "carry", "fish", "sleep", "wave", "play", "dance", "lute", "drum", "flute", "pray", "beg", "lamp",
+                                     "read", "sitfloor", "sitflooreat", "sitfloordrink", "ride", "downed", "kneel"};
+int postureOf(const std::string& s) {
+  if (!s.empty() && std::isdigit((unsigned char)s[0])) return std::atoi(s.c_str());
+  std::string l = s;
+  for (char& c : l) c = (char)std::tolower((unsigned char)c);
+  for (int i = 0; i < (int)(sizeof kPostureNames / sizeof kPostureNames[0]); i++) if (l == kPostureNames[i]) return i;
+  return -1;
+}
+// pose:<posture>[:<variant>]: every frame of the posture in R, L, D and U, beside the look's idle, on one ground line
+void boardPose(const std::string& dir, const std::string& arg) {
+  const std::vector<std::string> w = split(arg);
+  const int pz = w.size() > 1 ? postureOf(w[1]) : -1;
+  if (pz <= 0) { std::printf("doll_gallery: %s: pose:<posture name or number>[:<variant>]\n", arg.c_str()); return; }
+  const int variant = w.size() > 2 ? std::atoi(w[2].c_str()) : 0;
+  const doll::DollRecipe r = recipeOf(g_who);
+  const RigSheet ps = doll::composePosture(r, (art::Posture)pz, (uint8_t)variant), idle = doll::compose(r, RigPart::Loco);
+  int n = 0;
+  for (int f = 0; f < 4; f++) n = std::max(n, ps.count(f, Clip::Idle, 0));
+  if (!n) { std::printf("doll_gallery: %s: the look has no such posture\n", arg.c_str()); return; }
+  const int cw = 36, rh = 50, x0 = 56;
+  Board b(x0 + (n + 1) * cw + 8, 24 + 4 * rh);
+  plain(b, rgba(60, 104, 70));
+  b.text(4, 4, arg + " (" + std::to_string(n) + " frames; idle first)");
+  const int order[4] = {2, 3, 0, 1};
+  for (int k = 0; k < 4; k++) {
+    const int fc = order[k], ground = 24 + k * rh + rh - 6;
+    b.text(4, ground - 20, std::string(1, "DURL"[fc]));
+    for (int x = 0; x < b.c.w; x++) b.c.set(x, ground + 1, rgba(46, 82, 54));
+    putFrame(b, idle, fc, Clip::Idle, 0, 0, x0 - cw / 2 + cw / 2, ground);
+    for (int i = 0; i < ps.count(fc, Clip::Idle, 0); i++) putFrame(b, ps, fc, Clip::Idle, 0, i, x0 + (i + 1) * cw, ground);
+  }
+  std::string name = "doll_pose_" + std::string(pz < (int)(sizeof kPostureNames / sizeof kPostureNames[0]) ? kPostureNames[pz] : w[1].c_str()) +
+                     (variant ? "_v" + std::to_string(variant) : std::string());
+  savePng(b.c, dir + "/" + name + "_1x.png", 1);
+  savePng(b.c, dir + "/" + name + ".png", 6);
+}
 std::vector<std::string> split(const std::string& s) {
   std::vector<std::string> v;
   size_t a = 0;
@@ -507,14 +553,20 @@ void boardZoom(const std::string& dir, const std::string& arg) {
     if (w[1] == "hero" || w[1] == "woman") { who = w[1] == "woman" ? 1 : 0; o = 2; }
     if (w.size() < o + 4) { std::printf("doll_gallery: %s: frame:<part>:<facing>:<clip>:<i>[:<variant>]\n", arg.c_str()); return; }
     const RigPart part = w[o] == "run" ? RigPart::Run : w[o] == "action" ? RigPart::Action : w[o] == "death" ? RigPart::Death : RigPart::Loco;
-    // (OUTER) frame:posture:<facing>:<posture number (art::Posture)>:<i>: one frame of a posture (the cloaks' sit, floor,
-    // kneel and ride drapes)
-    if (w[o] == "posture") s = doll::composePosture(recipeOf(who), (art::Posture)std::atoi(w[o + 2].c_str()), 0);
-    else s = doll::compose(recipeOf(who), part);
+    // (OUTER) frame:posture:<facing>:<posture>:<i>[:<variant>]: one frame of a posture (the cloaks' sit, floor, kneel and
+    // ride drapes; the walking postures' Carry 0-2, Play and Dance). <posture> a name or its art::Posture number; the
+    // variant is the posture's (composePosture files every variant's frames as Idle variant 0)
     facing = facingOf(w[o + 1]);
-    for (int c = 0; c < art::CLIP_COUNT; c++) if (w[o + 2] == art::clipName((Clip)c)) clip = (Clip)c;
     idx = std::atoi(w[o + 3].c_str());
-    if (w.size() > o + 4) variant = std::atoi(w[o + 4].c_str());
+    if (w[o] == "posture") {
+      const int pz = postureOf(w[o + 2]);
+      if (pz <= 0) { std::printf("doll_gallery: %s: unknown posture %s\n", arg.c_str(), w[o + 2].c_str()); return; }
+      s = doll::composePosture(recipeOf(who), (art::Posture)pz, (uint8_t)(w.size() > o + 4 ? std::atoi(w[o + 4].c_str()) : 0));
+    } else {
+      s = doll::compose(recipeOf(who), part);
+      for (int c = 0; c < art::CLIP_COUNT; c++) if (w[o + 2] == art::clipName((Clip)c)) clip = (Clip)c;
+      if (w.size() > o + 4) variant = std::atoi(w[o + 4].c_str());
+    }
   }
   int px, py;
   const Canvas f = rigpv::frameCanvas(s, facing, clip, variant, idx, px, py);
@@ -565,6 +617,7 @@ int main(int argc, char** argv) {
     else if (b == "stats") boardStats(dir);
     else if (b == "ramps") boardRamps(dir);
     else if (b.rfind("part:", 0) == 0 || b.rfind("frame:", 0) == 0) boardZoom(dir, b);
+    else if (b.rfind("pose:", 0) == 0) boardPose(dir, b);
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

@@ -4,7 +4,7 @@ use person woman
 body child
 role garment kilt
 layer torso
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |vxyyxxxmoonm
@@ -37,3 +37,21 @@ view L key rest origin 4 0
 |.fihhhhgf
 |597879785
 |597879785
+
+# (KIN-CHILD rollout, 2026-10-22) the side walk's torso (clip torso=run): the hem a pixel wider at the back (and the
+# front where the rest view is straight), the garment's skirt kicked by the stride over the walking legs
+view R key run origin 5 0
+|..vyyxxwv.
+|.vyyxonmv.
+|.vyxonmwv.
+|.fihhhhgf.
+|.597879785
+|5597879785
+
+view L key run origin 4 0
+|.vyyxxwv..
+|.vmyyxonv.
+|.vyxonmwv.
+|.fihhhhgf.
+|597879785.
+|5978797855

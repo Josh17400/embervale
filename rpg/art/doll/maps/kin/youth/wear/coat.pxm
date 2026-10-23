@@ -1,12 +1,17 @@
 # kin/youth/wear/coat: the youth's coat: knee length, open down the front over a linen shirt, lapels, brass buttons
 # (metal2) on the left edge; coat_hang opens over the trousers to the knee
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) fitted a pixel in at the waist.
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) on the torso channel (keys torso): the side walk names `run` (the rest view),
+# the run `runl` (rows 0-1 as rest, 2-3 a pixel back, 4 two back: under kin_youth.clip's lean 3 the chest leads the waist
+# by 2 and the belt sits over hip 1); L `lie` repeats the rest view for the turned fall frames. The girl's run views carry
+# the boy's belt row (and in the leaning run her waist row): the belt rides her hips, so her thighs start inside them.
+# Every rest view is untouched.
 use person woman
 body youth
 role garment coat
 layer torso
 anchor neck
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |...5qrrq5...
@@ -63,3 +68,73 @@ view L key rest origin 4 0 when girl replace
 |x8877665
 |.xP8765.
 |.w88765.
+
+view L key run origin 4 0
+|.5qrq5..
+|y988765.
+|x8877665
+|xP887765
+|w8877665
+
+view L key runl origin 4 0
+|.5qrq5....
+|y988765...
+|.x8877665.
+|.xP887765.
+|..w8877665
+
+view L key lie origin 4 0
+|.5qrq5..
+|y988765.
+|x8877665
+|xP887765
+|w8877665
+
+view L key run origin 4 0 when girl replace
+|.5qrq5..
+|y988765.
+|x8877665
+|.xP8765.
+|w8877665
+
+view L key runl origin 4 0 when girl replace
+|.5qrq5....
+|y988765...
+|.x8877665.
+|.xP887765.
+|..w8877665
+
+view L key lie origin 4 0 when girl replace
+|.5qrq5..
+|y988765.
+|x8877665
+|.xP8765.
+|.w88765.
+
+view R key run origin 4 0
+|..5qrq5.
+|.598876y
+|5887766x
+|588776Px
+|5887766w
+
+view R key runl origin 6 0
+|....5qrq5.
+|...598876y
+|.5887766x.
+|.588776Px.
+|5887766w..
+
+view R key run origin 4 0 when girl replace
+|..5qrq5.
+|.598876y
+|5887766x
+|.58876Px
+|5887766w
+
+view R key runl origin 6 0 when girl replace
+|....5qrq5.
+|...598876y
+|.5887766x.
+|.588776Px.
+|5887766w..

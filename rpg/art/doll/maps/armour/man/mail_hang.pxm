@@ -1,0 +1,55 @@
+# armour/man/mail_hang: the hauberk's skirt in the side walk and run (MAN-WEAR, P2B rollout, 2026-10-22). armour/man/mail's
+# side run views end at the tunic's hem, so the legs' hipline is judged where the tunic's is (B11 limbs HIPLINE); the two
+# skirt rows under it ride the hip here: `wide` (the walk's contact and down frames) is the run view's last two rows pixel
+# for pixel, `flare` (the run) the leaning run view's (the lean drawn, the back corner trailing a pixel). The reach frames
+# (hang=rest, the frozen idle key) take the same rows from mail_stride; every rest view is empty, so idles, hurts, falls,
+# swings and postures draw exactly as before (the idle's knee skirt is mail.pxm's own rest view). Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour mail
+layer hangFront
+anchor hip
+keys hang
+z 10
+
+view D key rest origin 0 0
+|.
+
+view U key rest origin 0 0
+|.
+
+view D key flare origin 0 0
+|.
+
+view U key flare origin 0 0
+|.
+
+view R key rest origin 0 0
+|.
+
+view R key wide origin 6 -1
+|vyxyxywxwxwv.
+|vyyyyyywxwxwv
+build
+|...+.........
+
+view R key flare origin 7 -1
+|.vyxyxywxwxwv.
+|vyyyyyyywxwxwv
+build
+|....+.........
+
+view L key rest origin 0 0
+|.
+
+view L key wide origin 8 -1
+|.vyxyxxwxwxwwv
+|vyyyyyywxwxwxv
+build
+|..........+...
+
+view L key flare origin 8 -1
+|.vyxyxxwxwxwwv.
+|vyyyyyywxwxwwxv
+build
+|..........+....

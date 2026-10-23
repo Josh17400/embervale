@@ -3,6 +3,8 @@
 # standing leg key the side views draw with hang=rest (pixel for pixel, so idles, postures and swings compose as before),
 # and draw the pass keys (walkB2, walkD2) with the hem lifted, so both knees show as the legs cross. GARB (motion rebuild).
 # Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the reach panels fitted to the shipped reach legs (rows of the rest hang carried
+# over the leg runs it left as slivers).
 use person woman
 body woman
 role garment coat
@@ -83,24 +85,24 @@ view U key stance origin 0 0
 
 
 view R key walkB2 origin 6 -1
-|.58887777P5
-|...........
-|59888887765
+|.58887777PP5
+|.58877776665
+|598888877665
 
 view R key walkD2 origin 6 -1
-|.58887777P5
-|...........
-|59888887765
+|.58887777PP5
+|.58877776665
+|598888877665
 
-view L key walkB2 origin 5 -1
-|5P777766665.
-|............
-|598888887765
+view L key walkB2 origin 6 -1
+|5PP777766665.
+|58887777665..
+|5998888887765
 
-view L key walkD2 origin 5 -1
-|5P777766665.
-|............
-|598888887765
+view L key walkD2 origin 6 -1
+|5PP777766665.
+|58887777665..
+|5998888887765
 
 view D key walkB2 origin 0 0
 |.
@@ -112,4 +114,127 @@ view D key walkD2 origin 0 0
 |.
 
 view U key walkD2 origin 0 0
+|.
+
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the side walk and run keys draw nothing on purpose (W1: an empty view declares it):
+# the walk's wide / rest and the run's flare views carry the skirt over the shipped legs; the reach keys keep their panel.
+
+view R key walkA origin 0 0
+|.
+
+view R key walkA2 origin 0 0
+|.
+
+view R key walkC origin 0 0
+|.
+
+view R key walkC2 origin 0 0
+|.
+
+view R key run1 origin 0 0
+|.
+
+view R key run2 origin 0 0
+|.
+
+view R key run3 origin 0 0
+|.
+
+view R key run4 origin 0 0
+|.
+
+view R key run5 origin 0 0
+|.
+
+view R key run6 origin 0 0
+|.
+
+view L key walkA origin 0 0
+|.
+
+view L key walkA2 origin 0 0
+|.
+
+view L key walkC origin 0 0
+|.
+
+view L key walkC2 origin 0 0
+|.
+
+view L key run1 origin 0 0
+|.
+
+view L key run2 origin 0 0
+|.
+
+view L key run3 origin 0 0
+|.
+
+view L key run4 origin 0 0
+|.
+
+view L key run5 origin 0 0
+|.
+
+view L key run6 origin 0 0
+|.
+
+view D key walkA origin 0 0
+|.
+
+view D key walkA2 origin 0 0
+|.
+
+view D key walkC origin 0 0
+|.
+
+view D key walkC2 origin 0 0
+|.
+
+view D key run1 origin 0 0
+|.
+
+view D key run2 origin 0 0
+|.
+
+view D key run3 origin 0 0
+|.
+
+view D key run4 origin 0 0
+|.
+
+view D key run5 origin 0 0
+|.
+
+view D key run6 origin 0 0
+|.
+
+view U key walkA origin 0 0
+|.
+
+view U key walkA2 origin 0 0
+|.
+
+view U key walkC origin 0 0
+|.
+
+view U key walkC2 origin 0 0
+|.
+
+view U key run1 origin 0 0
+|.
+
+view U key run2 origin 0 0
+|.
+
+view U key run3 origin 0 0
+|.
+
+view U key run4 origin 0 0
+|.
+
+view U key run5 origin 0 0
+|.
+
+view U key run6 origin 0 0
 |.

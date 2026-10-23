@@ -3,6 +3,8 @@
 # One view per key of the woman's arm library (arms/adult/loco and arms/adult/pose woman_r / woman_l), on the same origin:
 # a new arm key needs its view here too (the arm's forearm pixels recoloured in the sleeve's ramp, the hand left bare).
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): re-fitted to the i3 pump: the near pB sleeve on the redrawn forearm (3 rows: cloth,
+# cloth, cuff), and the far arm's pump keys (pB pM pF pK) sleeved too (the far forearm a value darker, the hand bare).
 use person woman
 body woman
 role garment culturetunic
@@ -692,16 +694,10 @@ view L key pF origin 8 -1
 |....onm...
 |....5875..
 
-view L key pB origin 2 -1
-|.........
-|.........
-|.........
-|....5875.
-|....monm.
-|.........
-|.........
-|.........
-|.........
+view L key pB origin -3 -4
+|5875.
+|5875.
+|.monm
 
 view L key pN origin 3 -4
 |.5875
@@ -724,18 +720,22 @@ view L key pK origin 1 -4
 |......
 |......
 
-view R key pF origin 0 0
-|.
+view R key pF origin 1 -4
+|..mnm...
+|5666.665
 
-view R key pB origin 0 0
-|.
+view R key pB origin 4 -4
+|....5665
+|..5665..
+|mnnm....
 
 view R key pN origin 0 0
 |.
 
-view R key pM origin 0 0
-|.
+view R key pM origin 0 -4
+|5665.
+|.mnnm
 
-view R key pK origin 0 0
-|.
-
+view R key pK origin 2 -4
+|.5665
+|mnnm.

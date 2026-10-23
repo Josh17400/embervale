@@ -8,6 +8,10 @@
 # the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
 # pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
 # hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the side `runl` views hand-finished on the shipped lean (rows 0-2 stay, 3-6 a pixel
+# back, 7.. two: a straight back diagonal; the chest row keeps its front edge; the hem's back corner trails a pixel and its
+# front a pixel or two so the hem rides the hip, W4; L a pixel more behind, HIPLINE on the elves); the walk's `run` hem a
+# pixel further back where the legs met it (HIPLINE); the elder's run overlay carries that back corner under the stoop.
 use person woman
 body woman
 role garment gown
@@ -94,15 +98,15 @@ view R key run origin 6 -1
 |.58777776765.
 
 view R key runl origin 8 -1
-|........qrrqq..
-|....5875988PO..
-|....58658877P5.
-|...5865887765..
-|...NPPPOOOONN..
-|...587677765...
-|..587777765....
-|..587777765....
-|.58777776765...
+|........qrrqq.
+|....5875988PO.
+|....58658877P5
+|...58658877765
+|...NPPPOOOONN.
+|...587677765..
+|...587777765..
+|..5877777665..
+|588777776765..
 
 view R key rest origin 4 -2 when elder
 |-
@@ -149,16 +153,16 @@ view L key run origin 7 -1
 |..587777765..
 |.58777677765.
 
-view L key runl origin 7 -1
-|..qqrrq........
-|..OP9885765....
-|.5P89885765....
-|..5889885765...
-|..NNOOOOPPPN...
-|...587776765...
-|....587777765..
-|....587777765..
-|...58777677765.
+view L key runl origin 6 -1
+|.qqrrq........
+|.OP9885765....
+|5P89885765....
+|58889885765...
+|.NNOOOOPPPN...
+|..587776765...
+|..587777765...
+|..5887777765..
+|..587776777665
 
 view L key rest origin -3 -2 when elder
 |-

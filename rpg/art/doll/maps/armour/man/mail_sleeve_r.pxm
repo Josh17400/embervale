@@ -83,3 +83,92 @@ view R key idle origin 0 -1
 
 view L key back origin -5 -6
 |v
+
+
+# MAN-WEAR (P2B rollout, 2026-10-22): the mail brick over the sleeve (the arm's U and F cells) on every side key the
+# side clips name: the run pump (pB pM pF pK pN), runB, runF, guard and the off hand's o* keys, fitted cell for cell on the
+# frozen arm drawings (far arms a value darker); before this a mail wearer's sleeves vanished in the run and drawn frames.
+
+view R key runB origin 4 -1
+|....vywxv
+|..vxxwv..
+|.vywxv...
+
+view R key runF origin 0 -1
+|vywxv
+|vxxwv
+|vywv.
+
+view R key guard origin -2 1
+|.vywxv
+|vxxv..
+|vyv...
+|.v....
+
+view L key guard origin 15 1 layer armNear
+|.........vywxv
+|........vxxv..
+|......vyv.....
+|.......v......
+
+view R key pF origin 0 -1
+|vywxv.
+|.vxxwv
+|..vywv
+
+view R key pB origin 10 -1
+|..........vywxv
+|.......vxxwv...
+|....vywxv......
+
+view R key pN origin 0 -1
+|vywxv.
+|vxxwv.
+|.vywxv
+
+view L key pF origin 9 -1
+|......vwxwv
+|......vxwv.
+|......vwv..
+
+view L key pB origin 3 -1
+|vwxwv....
+|..vxwwv..
+|....vwxwv
+
+view L key pN origin -1 -1
+|.
+
+view R key pM origin 0 -1
+|vywxv..
+|.vxxwv.
+|..vywxv
+
+view R key pK origin 4 -1
+|....vywxv
+|...vxxwv.
+|..vywxv..
+
+view L key pM origin 6 -1
+|...vwxwv
+|..vxwwv.
+|.vwxwv..
+
+view L key pK origin 3 -1
+|vwxwv..
+|.vxwwv.
+|..vwxwv
+
+# The front and back views of the keys above stay as they were (D and U frames are frozen in the P2B rollout): empty views
+# say so, so the mail draws nothing there exactly as before (a later D/U pass may draw them).
+view D key runF origin 0 0
+|.
+
+view U key runF origin 0 0
+|.
+
+view D key guard origin 0 0
+|.
+
+view U key guard origin 0 0
+|.

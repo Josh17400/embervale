@@ -342,6 +342,7 @@ const uint32_t kTrim[4][5] = {
 void setHex(uint32_t dst[5], const uint32_t src[5]) { for (int i = 0; i < 5; i++) dst[i] = hex(src[i]); }
 
 constexpr double kTrouserFloor = 52.0;   // A3's trouser body #33304E (MOTION_P2 14)
+constexpr double kTrouserBody = 101.0;   // the lit trouser body over the game's grass (luma 89 + 12; run fix i1)
 
 uint32_t mixHash(uint32_t h, uint32_t v) { h ^= v + 0x9E3779B9u + (h << 6) + (h >> 2); return h; }
 
@@ -491,6 +492,38 @@ DollRamps rampsOf(const HumanLook& L) {
         return rgba(ch(chR(b)), ch(chG(b)), ch(chB(b)));
       };
       auto good = [&](const uint32_t g[5]) { return luma(g[2]) >= want && luma(g[1]) >= kTrouserFloor; };
+      double lo = 1.0, hi = 255.0 / mx;
+      uint32_t g[5];
+      generateCached(scaled(hi), Material::Cloth, g);
+      if (good(g)) {
+        for (int it = 0; it < 24; it++) {
+          const double mid = (lo + hi) * 0.5;
+          generateCached(scaled(mid), Material::Cloth, g);
+          (good(g) ? hi : lo) = mid;
+        }
+        const uint32_t ownOutline = T[0];
+        generateCached(scaled(hi), Material::Cloth, T);
+        if (luma(ownOutline) < luma(T[0])) T[0] = ownOutline;
+      }
+    }
+  }
+  // (P2b run fix i1, 2026-10-22; the owner: the woman's navy trousers "nearly vanish against grass and merge with her dark
+  // boots") the trousers' light steps part from the grass: a trouser body (Cloth2 step 2, the lit leg's body; the near leg
+  // shows steps 3 and 2, the far leg 2 and 1) under kTrouserBody (the game's grass #4A663A is luma 89: 12 over it) is
+  // lifted the floor's way (RGB scaled, hue and saturation kept) to the smallest value whose step 2 reaches it, so the
+  // near leg's light step 3 sits 40+ over the grass and the body over the boot's shadow. Darker picks all land on it
+  // (monotonic). The outline keeps the pick's own step 0 (the silhouette ring as dark as drawn) and step 1 keeps the
+  // floor. Rig 2 only.
+  {
+    uint32_t* T = R.c[(int)Slot::Cloth2];
+    if (luma(T[2]) < kTrouserBody) {
+      const uint32_t b = (L.bottomColor & 0xFFFFFFu) ? L.bottomColor : rgba(1, 1, 1);
+      const int mx = std::max({chR(b), chG(b), chB(b), 1});
+      auto scaled = [&](double k) {
+        auto ch = [&](int v) { return (int)std::clamp(std::lround(v * k), 0L, 255L); };
+        return rgba(ch(chR(b)), ch(chG(b)), ch(chB(b)));
+      };
+      auto good = [&](const uint32_t g[5]) { return luma(g[2]) >= kTrouserBody && luma(g[1]) >= kTrouserFloor; };
       double lo = 1.0, hi = 255.0 / mx;
       uint32_t g[5];
       generateCached(scaled(hi), Material::Cloth, g);

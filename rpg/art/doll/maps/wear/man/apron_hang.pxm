@@ -62,9 +62,9 @@ view R key wide origin 5 10 anchor pivot when elf replace
 build
 |.............
 
-view R key flare origin -2 0
-|fihhhf.
-|.fjiiif
+view R key flare origin 0 0
+|.fihhf
+|fjiif.
 
 view R key sit origin -1 0
 |fihhhhhf
@@ -90,9 +90,11 @@ view L key wide origin 8 10 anchor pivot when elf replace
 build
 |.............
 
-view L key flare origin 9 0
-|.fiihhf
-|fjiiif.
+# (INTEGRATION 2026-10-23) left-facing run: the flap a pixel further forward, off the front of the thighs (B11 HIPW: it
+# narrowed the hip row to 4 px against the idle's 7)
+view L key flare origin 7 0
+|fiihf.
+|.fjiif
 
 view L key sit origin 7 0
 |fiihhhhf
@@ -127,3 +129,9 @@ view L key floor origin 0 0
 
 view L key ride origin 0 0
 |.
+
+# (INTEGRATION 2026-10-23) left-facing walk (the `walk` flag: the passing frames name hang=rest): the flap a pixel further
+# forward, off the front of the passing thighs (B11 HIPW: the hip row showed 5 px against the idle's 7); the idles as above
+view L key rest origin 8 -2 when walk replace
+|fiihf
+|fjiif

@@ -530,6 +530,11 @@ RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
   DollRecipe runR;
   if (part == RigPart::Run) { runR = r0; runR.flags.push_back("run"); }
   const DollRecipe& r = part == RigPart::Run ? runR : r0;
+  // (INTEGRATION 2026-10-23) the flag `walk` on the walk clips of every other part (the LOCO walk, the drawn walk): a part
+  // may fit the stepping body there (`when walk replace`) without touching the idles, hurts, swings and falls that share its
+  // keys (her cloak in the walk's passing frames: B11 W8)
+  DollRecipe walkR = r;
+  if (part != RigPart::Run) walkR.flags.push_back("walk");
   AtlasBuilder ab;
   std::vector<const ClipRec*> sorted = clipsOf(r.bodyKey, partOf(part), r.family, -1);
   // facing, then clip, then variant: the atlas index order
@@ -550,7 +555,7 @@ RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
     const bool lying = c->clip == (uint8_t)Clip::Lying;
     for (uint16_t i = 0; i < c->nFrames; i++) {
       const FrameRec& f = P.frames[c->firstFrame + i];
-      Cut cut = composeOne(r, c->facing, f, turnOf(f, lying, c->variant), fo, op);
+      Cut cut = composeOne(c->clip == (uint8_t)Clip::Walk ? walkR : r, c->facing, f, turnOf(f, lying, c->variant), fo, op);
       if (cut.c.w <= 0) continue;
       const int src = ab.add(c->facing, (Clip)c->clip, c->variant, std::move(cut));
       if (lying && c->variant < RIG_VARIANTS) lyingSrc[c->variant].push_back(src);

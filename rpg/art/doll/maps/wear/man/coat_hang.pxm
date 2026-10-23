@@ -75,21 +75,22 @@ regions
 build
 |...+x.......
 
-view R key wide origin 8 8 anchor pivot
+view R key wide origin 8 9 anchor pivot
+|...58877677791
 |.5887767777779
 |59888888777779
 |5555..........
 
-view R key wide origin 8 9 anchor pivot when elf replace
+view R key wide origin 8 10 anchor pivot when elf replace
+|...58877677791
 |.5887767777779
 |59888888777779
 |5555..........
 
 view R key flare origin 8 0
-|.55.......
-|5887......
-|5555567779
-|....559879
+|.55.............
+|5887887767779991
+|55555677779999..
 
 view R key kneel origin 7 -2
 |598888887779.
@@ -109,21 +110,22 @@ regions
 build
 |........x+...
 
-view L key wide origin 6 8 anchor pivot
-|9888877677665.
-|99988888887765
-|..........5555
+view L key wide origin 7 9 anchor pivot
+|1988777766665..
+|.9888877677665.
+|.99988888887765
+|...........5555
 
-view L key wide origin 6 9 anchor pivot when elf replace
-|9888877677665.
-|99988888887765
-|..........5555
+view L key wide origin 7 10 anchor pivot when elf replace
+|1988777766665..
+|.9888877677665.
+|.99988888887765
+|...........5555
 
-view L key flare origin 2 0
-|.......55.
-|......7665
-|9877655555
-|998855....
+view L key flare origin 9 0
+|..............55.
+|19998877776667665
+|...9999877655555.
 
 view L key kneel origin 7 -2
 |.9988888877765
@@ -162,3 +164,23 @@ view L key floor origin 0 0
 
 view L key ride origin 0 0
 |.
+
+# (INTEGRATION 2026-10-23) walking (the `walk` flag: the walk clips' passing frames name hang=rest), the hem a pixel further
+# over the passing knee (the swing thigh showed a 1 px sliver past it: B11 SLIVER); idles and swings as above
+view R key rest origin 7 -2 when walk replace
+|.588776777799
+|5988888877779
+regions
+|...........EE
+|EEEEEEEEEEEEE
+build
+|...+x........
+
+view L key rest origin 7 -2 when walk replace
+|9988776776665.
+|99988888877765
+regions
+|EE............
+|EEEEEEEEEEEEEE
+build
+|.........x+...

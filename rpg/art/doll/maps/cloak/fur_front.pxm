@@ -42,3 +42,13 @@ view L key rest origin 5 2
 |fiihhhhhhhgghf
 |..ffiihhiihhf.
 |....ffffffff..
+
+# (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the back edge 1 px in, inside her
+# narrower body (B11 W8: the man's stood 1-4 columns past her box); the front edge as his.
+view L key rest origin 5 2 when woman,walk replace
+|.......fff....
+|.ff..ffhhhgf..
+|fihffhhhgghgf.
+|fiihhhhhhhggf.
+|..ffiihhiihf..
+|....fffffff...

@@ -2,12 +2,17 @@
 # with the plaid (cloth1) over the left shoulder and across the chest, a leather belt and buckle; kilt_hang is the
 # pleated kilt to the knee (the knees bare: the legs' K region)
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) on the torso channel (keys torso): the side walk names `run` (the rest view),
+# the run `runl` (rows 0-1 as rest, 2-3 a pixel back, 4 two back: under kin_youth.clip's lean 3 the chest leads the waist
+# by 2 and the belt sits over hip 1); L `lie` repeats the rest view for the turned fall frames. The girl's run views carry
+# the boy's belt row (and in the leaning run her waist row): the belt rides her hips, so her thighs start inside them.
+# Every rest view is untouched.
 use person woman
 body youth
 role garment kilt
 layer torso
 anchor neck
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |...vqrrqv...
@@ -64,3 +69,73 @@ view L key rest origin 4 0 when girl replace
 |5987wwwv
 |.x987wv.
 |.fihhgf.
+
+view L key run origin 4 0
+|.vqrqv..
+|5988775.
+|5987wwwv
+|x9877wwv
+|fihhhhgf
+
+view L key runl origin 4 0
+|.vqrqv....
+|5988775...
+|.5987wwwv.
+|.x9877wwv.
+|..fihhhhgf
+
+view L key lie origin 4 0
+|.vqrqv..
+|5988775.
+|5987wwwv
+|x9877wwv
+|fihhhhgf
+
+view L key run origin 4 0 when girl replace
+|.vqrqv..
+|5988775.
+|5987wwwv
+|.x987wv.
+|fihhhhgf
+
+view L key runl origin 4 0 when girl replace
+|.vqrqv....
+|5988775...
+|.5987wwwv.
+|.x9877wwv.
+|..fihhhhgf
+
+view L key lie origin 4 0 when girl replace
+|.vqrqv..
+|5988775.
+|5987wwwv
+|.x987wv.
+|.fihhgf.
+
+view R key run origin 4 0
+|..vqrqv.
+|.vw98775
+|vxw98775
+|vxww9875
+|fihhhhgf
+
+view R key runl origin 6 0
+|....vqrqv.
+|...vw98775
+|.vxw98775.
+|.vxww9875.
+|fihhhhgf..
+
+view R key run origin 4 0 when girl replace
+|..vqrqv.
+|.vw98775
+|vxw98775
+|.vxw987.
+|fihhhhgf
+
+view R key runl origin 6 0 when girl replace
+|....vqrqv.
+|...vw98775
+|.vxw98775.
+|.vxww9875.
+|fihhhhgf..

@@ -220,3 +220,57 @@ view L key swing origin -12 -11 layer hairBack when capped,!circlet replace
 |..acba
 |...aba
 |....a.
+
+# --- hair=run (ADULT-RIG 2026-10-22)
+# the run (loco.clip hair=run, every side run frame): the hang streams back off the leaned head, lifted and shorter,
+# inside the body's box (B11 W8) and behind the neck (W9); L is R mirrored and re-lit.
+view R key run origin 3 -1
+|......aaaa.
+|...aaadeeda
+|.aadddcccba
+|adddcccbba.
+|adccbbaa...
+|acdcba.....
+|acdcba.....
+|acdba......
+|acdba......
+|.acba......
+|.acba......
+|.abba......
+|..aa.......
+
+view L key run origin -8 -1
+|.aaaa......
+|aaadeeda...
+|aadddcccba.
+|.adddcccbba
+|...adccbbaa
+|.....acdcba
+|.....acdcba
+|......acdba
+|......acdba
+|......acba.
+|......acba.
+|......abba.
+|.......aa..
+
+view R key run origin 3 -11 layer hairBack when capped,!circlet replace
+|...mna
+|..amoa
+|.acdba
+|adcba.
+|acdba.
+|acba..
+|aba...
+|.a....
+
+view L key run origin -13 -11 layer hairBack when capped,!circlet replace
+|anm...
+|aoma..
+|acdba.
+|.adcba
+|.acdba
+|..acba
+|...aba
+|....a.
+

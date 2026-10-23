@@ -1,0 +1,42 @@
+# held/props/sack_child: the child's grain sack for the Carry posture (PROPS, P2b fix round 2; variant 0): the adult sack
+# (held/props/sack) cut down to the child's 21 px, burlap in cloth 3, the neck in the fist. Format: rpg/art/doll/doll.h.
+# Anchored on the child's right shoulder (kin/child/arms/arm_r `shoulder`); it rides behind the head (neck), over the back
+# when seen from behind, on the near shoulder facing right and behind the head facing left, as the adult's.
+use person
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+body child
+role held sack
+anchor shoulderR
+keys held
+z 40
+
+view D key shoulder origin 4 3 layer neck
+|..QQQ.
+|.QSTRQ
+|QSTSRQ
+|QSSRRQ
+|.QRRQ.
+
+view U key shoulder origin 1 3 layer neck
+|..QQQ.
+|.QSTRQ
+|QSTSRQ
+|QSSRRQ
+|.QRRQ.
+
+view R key shoulder origin 5 3 layer hairFront
+|.QQQQ.
+|QSTSRQ
+|QTSSRQ
+|QSRRRQ
+|.QQQQ.
+
+view L key shoulder origin -3 6 layer hairBack
+|.QQQQ.
+|QSTSRQ
+|QTSSRQ
+|QSRRRQ
+|.QQQQ.

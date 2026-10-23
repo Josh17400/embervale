@@ -31,7 +31,7 @@ timing model (frames by distance walked, swings by the family's pace), the swing
 | Ink #1E162A outer outline with Lit Ink on every person | coloured outlines: each material outlined in its own darkest step; the finishing pass lights the outline pixels that face the top-left to the next step. Ink only on the sole line. The Ink outline stays on v1 sheets and creatures until those are redrawn | 8 |
 | ramps from the creator hexes, spread 0.8-1.3 | A3's hue-shifted 5-step ramps: curated tables for skin and hair, a generator calibrated on A3 for every other colour | 6 |
 | dither at light-band edges on wide cloth | no dither on people: solid lit bands, clean folds, no single-pixel trims | 7 |
-| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet; after the owner's walk fix (2026-10-19) both bodies walk an 18 px cycle with chunky legs and flat boots; a RUN (36 px) above 54 px/s; side views since the owner's motion reference (2026-10-20): limbs, a scissor stride, one boot in five angled keys (docs/MOTION_P2.md) | 10 |
+| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet; after the owner's walk fix (2026-10-19) both bodies walk an 18 px cycle with chunky legs and flat boots; a RUN (36 px) above 54 px/s; side views since the owner's motion reference (2026-10-20): limbs, a scissor stride, one boot in five angled keys; since 2026-10-22 the shipped method (docs/MOTION_P2.md): walk 22 px, run 36 px with a 2 px bob and a 4 px lean | 10 |
 | weapons rasterized procedurally at 16 angles | weapons are authored maps at 16 angles (drafted from P2a's rasterizer, then cleaned by hand) | 11 |
 | fighters hold the weapon in every clip | out of combat the blade rides sheathed (A3: the sword at the hip, the hand on the hilt); in hand while fighting (the owner confirms at the slice) | 11 |
 | fall: recoil, buckle, a painted topple | recoil, buckle, then the lying figure itself lifted for one frame; lying is the composed side view turned a quarter | 13 |
@@ -361,6 +361,15 @@ POSTURE (per posture in use). The clip list and its timing model are P2a's (anim
 | Fall | 3: recoil, buckle, topple | 0.10, 0.12, 0.12 s | the body gives way |
 | Lying | head west, head east | 60 s, fading the last 5 | the dead lie down |
 
+**The shipped method (2026-10-22; binding; wins over every number below that disagrees).** docs/MOTION_P2.md is the side
+walk and run as the owner approved them (proto6 i3, then the 2 px run bob on 2026-10-22, then RUN FIX i1-i3): legs drawn per
+frame from their joints at the idle's length, full thickness across the bone, the far leg a whole leg on its own part, one
+boot library placed by `put`. The **walk** is 6 frames on a **22 px** cycle (holds 3 / 4 / 4 px, bob +1 / 0 / 0, lowest on
+the contact); the **run** is 6 frames on a **36 px** cycle (holds 6 / 6 / 6 px, **bob 0 / -1 / -2**: the run may bob 2 px,
+the walk 1), the upper body leaning 4 px (head, torso and arms together; the torso's sheared `runl` view; hip-anchored parts
+on `hip=2,0`, the woman `3,0`), the arms pumping on their own keys (pB pM pF pK pN). docs/P2B_MOTION_ROLLOUT.md carries the
+method to every body, garment and item; the gates are B11 limbs, B11 wear and B12 boots (MOTION_P2 section 13).
+
 **The owner's motion reference (2026-10-20; binding for the SIDE walk and run; supersedes the walk fix's boot and stance
 rules below, and anything else in this section that disagrees).** The owner circled the side run ("the feet are
 completely disconnected from the body"), then sent docs/ref/motion/owner_walk_ref.png, an 8-frame side walk in another art
@@ -382,11 +391,12 @@ facings, every body), the boot keys, the plants and the gates; these are its rul
   the shin. (The round the owner rejected on 2026-10-19, "the feet are getting rotated, joints look a little off", turned
   whole boots and broke the joints.)
 - **Still binding:** chunky legs (90 % of the idle's visible leg area, the idle's hip width at most 1 px narrower, no leg
-  run under 3 px above the feet), clean knees and ankles, a hip bob of 1 px at most and no squat, the planted leg under the
-  hips, the down frame no wider than its contact, women drawn and judged in trousers, bare legs and skirts, the 18 / 36 px
-  cycles and 6 frames, registration. Elves show the leg drawing's top row: it is a finished seat row (walk and run keys use
-  no stretch row). Front and back walks are unchanged.
-Gated by `rpg_test --doll --gates` (B11 limbs and B12 boots, MOTION_P2 section 9) and the judge's trace of every frame.
+  run under 3 px above the feet), clean knees and ankles, a hip bob of 1 px at most in the walk and 2 px in the run, no
+  squat, the planted leg under the hips, women drawn and judged in trousers, bare legs and skirts, the 22 / 36 px cycles and
+  6 frames, registration. Elves show the leg drawing's top row: it is a finished seat row (walk and run keys use no stretch
+  row). Front and back walks are unchanged.
+Gated by `rpg_test --doll --gates` (B11 limbs, B11 wear and B12 boots, MOTION_P2 section 13) and the judge's trace of every
+frame.
 
 **The owner's walk fix (2026-10-19; binding, supersedes the stride notes below where they differ; its boot and stance
 rules are superseded for side views by the motion reference above).** After three review
@@ -421,7 +431,8 @@ back views walk in place (the 16-bit convention, A3's drawings).
 
 **The run (signed off by the owner, 2026-10-19).** A3's walk at the hero's 74 px/s would be 3.9 cycles a second, a
 scurry. Above 54 px/s people run: 6 frames, the torso leaning 1 px forward in side views, the hips bobbing 1 px at most
-(the owner's walk fix above; the first plan's 2 px bob is superseded), the legs keeping the idle's mass, arms bent and pumping, every hanging part lagging 2 px. The planted foot travels about 10 px in the two stance
+(the owner's walk fix above; the first plan's 2 px bob is superseded; **since 2026-10-22: lean 4, bob 0 / -1 / -2, holds
+6 / 6 / 6, the shipped method at the top of this section and docs/MOTION_P2.md 6**), the legs keeping the idle's mass, arms bent and pumping, every hanging part lagging 2 px. The planted foot travels about 10 px in the two stance
 frames and the flight adds about 8 px a half-cycle, so the cycle is **about 36 px** (the drawings' anchors decide): at
 74 px/s, 2.06 cycles a second and 12.3 fps, close to the cadence of A3's approved walk GIF (2.6 cycles a second). Kids
 run with the Play posture's frames; elders never run. Its side poses (landing, push, flight) are MOTION_P2 5.3's.

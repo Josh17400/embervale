@@ -1,0 +1,48 @@
+# wear/man/rags_stride: the rags' skirt row in the side walk's REACH frames, keyed by the legs (MAN-WEAR, P2B rollout,
+# 2026-10-22). rags.pxm's side run views end at the tunic's hem (so the legs' hipline is judged where the tunic's is) and
+# the row under it rides the hang: rags_hang's wide and flare views carry it, and the reach keys (walkB2, walkD2, which
+# draw the hang's frozen rest view) take it from here, pixel for pixel the row the torso drew before. Every other key
+# draws nothing (idles, hurts, falls and postures untouched). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment rags
+layer hangFront
+anchor hip
+keys legs
+z 1
+
+view D key walkB2 origin 0 0
+|.
+
+view U key walkB2 origin 0 0
+|.
+
+view D key walkD2 origin 0 0
+|.
+
+view U key walkD2 origin 0 0
+|.
+
+
+view R key walkB2 origin 5 -1
+|57777767665
+build
+|..+x.......
+
+
+view R key walkD2 origin 5 -1
+|57777767665
+build
+|..+x.......
+
+
+view L key walkB2 origin 7 -1
+|577777676655
+build
+|........x+..
+
+
+view L key walkD2 origin 7 -1
+|577777676655
+build
+|........x+..

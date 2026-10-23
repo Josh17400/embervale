@@ -176,6 +176,10 @@ jobs:
       # contract, --doll-coverage reports B6. Each integrator adds --gates as its gates pass. Blocking.
       # (P2b integration, 2026-10-19) --doll --gates (B1, B2, faces, hands, B8, B9, B10, ramps, B11) passes on MSVC and
       # clang; --doll-coverage stays without --gates (B6's dead parts) and --rig without (R5-R10 are P2c's, H2 the seats).
+      # (P2b motion rollout, 2026-10-23) --doll --gates adds B11 limbs (R L) (check.py's checks in C++), B11 wear (R L)
+      # (W1-W10, T1, T2 over GATES-WEAR's 213-look matrix and part coverage), B12 boots (the library's boot measures) and
+      # the M7 cloak watch in B10; rpg_test --doll-wear runs B11 wear, the freeze check and the M7 sweep alone. All pass
+      # on MSVC and clang after the rollout's fix rounds (docs/P2B_MOTION_ROLLOUT.md 12).
       - name: Clear Sight rig and animation test
         run: |
           node tools/doll/pxc.mjs --check

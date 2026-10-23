@@ -93,3 +93,23 @@ view L key lie origin -4 -14
 |acba
 |adca
 |.aa.
+
+# --- hair=run (ADULT-RIG 2026-10-22)
+# the run (loco.clip hair=run, every side run frame): the hang streams back off the leaned head, lifted and shorter,
+# inside the body's box (B11 W8) and behind the neck (W9); L is R mirrored and re-lit.
+view R key run origin 1 -14
+|..aa
+|.ada
+|.aca
+|ada.
+|aca.
+|.b..
+
+view L key run origin -13 -14
+|aa..
+|ada.
+|aca.
+|.ada
+|.aca
+|..c.
+

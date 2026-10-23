@@ -1,6 +1,6 @@
 # Playtesting Embervale with Witness
 
-Witness lives at `../witness` (0.7.3). Run it from the repo root as `node ../witness/bin/witness.js <command>`, always
+Witness lives at `../witness` (0.7.9). Run it from the repo root as `node ../witness/bin/witness.js <command>`, always
 wrapped in `tools/slot.sh` (the machine-wide cap of 5 heavy jobs) and always headless (no `--watch`).
 
 ## Machine budget (set these in every shell that runs Witness)
@@ -11,7 +11,11 @@ export WITNESS_MAX_BROWSERS=1   # at most 1 headless browser (the web build, too
 ```
 
 The user environment already has both; a shell started before they were set does not, so export them anyway. A
-launch over the budget prints `waiting for a free slot` and fails after `WITNESS_BUDGET_WAIT` seconds (default 90).
+launch over the budget prints `waiting for a free slot` (naming each holder, its pid and how long it has held the slot)
+and fails after `WITNESS_BUDGET_WAIT` seconds (default 600 for `test`, `doctor` and `play batch`, 90 for the rest;
+`play batch` queues for a slot before each tester). A long wait: run the command in the background.
+An unknown `--flag` is named on stderr (`unknown flag --sead (ignored): did you mean --seed?`) and the command still
+runs; check stderr. `--t` means `--at` (except on `window`).
 Never kill a game by PID: `play end` / `play stop` stop only the sessions that answer, and a Desktop Embervale.exe
 is never Witness's to stop.
 
@@ -48,5 +52,6 @@ purpose, when the picture is meant to change.
   background (Bash `run_in_background`) and wait for the notification. Only one batch runs machine-wide (Witness
   holds a lock), and a batch never runs more testers than `WITNESS_MAX_PROCS`.
 - `--minutes` on brief/batch counts GAME minutes; `--wall-minutes` is the real-time stop.
-- After runs: `node ../witness/bin/witness.js clean` (applies retention: the newest 5 playtests within 7 days) or
+- After runs: `node ../witness/bin/witness.js clean --dry-run` (lists what would go), then `clean` (applies retention:
+  the newest 5 playtests within 7 days; a playtest written in the last 24 hours always stays, a judge may cite it) or
   `clean --all` once the reports have been read. Running playtests are never touched.

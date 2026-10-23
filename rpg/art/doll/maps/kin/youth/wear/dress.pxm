@@ -3,12 +3,17 @@
 # puff sleeve: regionsOf's dress sets U linen, C skin), the apron's bib (cloth 3) over the belly; dress_hang carries the
 # skirt and the apron to the ankles. A girl's garment: one fit (the A3 woman's), so no `when girl` replacements.
 # KIN-YOUTH (P2b fix round 1: before it the youth had no dress, and rig 2 drew a girl in a dress with v1's whole sprite).
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) on the torso channel (keys torso): the side walk names `run` (the rest view),
+# the run `runl` (rows 0-1 as rest, 2-3 a pixel back, 4 two back: under kin_youth.clip's lean 3 the chest leads the waist
+# by 2 and the belt sits over hip 1); L `lie` repeats the rest view for the turned fall frames. The girl's run views carry
+# the boy's belt row (and in the leaning run her waist row): the belt rides her hips, so her thighs start inside them.
+# Every rest view is untouched.
 use person woman
 body youth
 role garment dress
 layer torso
 anchor neck
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |...xqrrqx...|
@@ -37,3 +42,38 @@ view L key rest origin 4 0
 |58877665|
 |.ADB765.|
 |ADCB765.|
+
+view L key run origin 4 0
+|.xqrq5..
+|5x98765.
+|58877665
+|.ADB765.
+|ADCB765.
+
+view L key runl origin 4 0
+|.xqrq5...
+|5x98765..
+|.58877665
+|..ADB765.
+|..ADCB765
+
+view L key lie origin 4 0
+|.xqrq5..|
+|5x98765.|
+|58877665|
+|.ADB765.|
+|ADCB765.|
+
+view R key run origin 4 0
+|..5qrqx.
+|.59887x5
+|58877665
+|.587BDA.
+|.587BCDA
+
+view R key runl origin 5 0
+|...5qrqx.
+|..59887x5
+|58877665.
+|.587BDA..
+|587BCDA..

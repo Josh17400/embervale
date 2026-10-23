@@ -1,16 +1,19 @@
 # kin/youth/wear/poncho: the youth's poncho: a wide drape over the shoulders and the arms (drawn over the arms, under the
 # head), an accent band woven across it, a lit hem and a fringe; the hands peek through the fringe
-# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. One shape for boy and girl (a drape hides the waist); the girl's
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. (P2b motion rollout, 2026-10-22) on the torso channel: the part's
+# layer is torso so the gates read it as the garment it is, every rest / lie view keeps its head layer (drawn over the arms,
+# pixel for pixel as before); the side walk and run views (`run`, `runl` sheared for the lean) lie on the torso layer, the
+# pumping arms over the drape, the fringe tucked (in motion it would cut the thighs into slivers) and the hem a row up (F-9, as every youth hem in motion). One shape for boy and girl (a drape hides the waist); the girl's
 # neck opening is rounder.
 use person
 body youth
 role garment poncho
-layer head
+layer torso
 anchor neck
-keys rest
+keys torso
 z -1
 
-view D key rest origin 7 0
+view D key rest origin 7 0 layer head
 |....5qrrq5....
 |.5988qrrq7765.
 |58888877776665
@@ -19,7 +22,7 @@ view D key rest origin 7 0
 |59888887777765
 |.6.7.6.6.6.6..
 
-view D key rest origin 7 0 when girl replace
+view D key rest origin 7 0 when girl replace layer head
 |....5qrrq5....
 |.5989qrrq7765.
 |58888877776665
@@ -28,7 +31,7 @@ view D key rest origin 7 0 when girl replace
 |59888887777765
 |.6.7.6.6.6.6..
 
-view U key rest origin 7 0
+view U key rest origin 7 0 layer head
 |....588765....
 |.598877777665.
 |58887777776665
@@ -37,7 +40,7 @@ view U key rest origin 7 0
 |59888887777765
 |..6.6.7.6.6.6.
 
-view R key rest origin 5 0
+view R key rest origin 5 0 layer head
 |...5qrq5..
 |.59888765.
 |5888777665
@@ -45,7 +48,8 @@ view R key rest origin 5 0
 |5887777665
 |5988887765
 |.6.7.6.6..
-view L key rest origin 5 0
+
+view L key rest origin 5 0 layer head
 |..5qrq5...
 |.59888765.
 |5888777665
@@ -54,3 +58,39 @@ view L key rest origin 5 0
 |5988887765
 |..6.7.6.6.
 
+view L key run origin 5 0
+|..5qrq5...
+|.59888765.
+|5888777665
+|5pppoonnm5
+|5988887765
+
+view L key runl origin 5 0
+|..5qrq5.....
+|.59888765...
+|.5888777665.
+|.5pppoonnm5.
+|..5988887765
+
+view L key lie origin 5 0 layer head
+|..5qrq5...
+|.59888765.
+|5888777665
+|5pppoonnm5
+|5887777665
+|5988887765
+|..6.7.6.6.
+
+view R key run origin 5 0
+|...5qrq5..
+|.59888765.
+|5888777665
+|5pppoonnm5
+|5988887765
+
+view R key runl origin 7 0
+|.....5qrq5.
+|...59888765
+|.5888777665
+|.5pppoonnm5
+|5988887765.

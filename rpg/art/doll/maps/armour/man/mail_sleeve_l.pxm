@@ -146,3 +146,186 @@ view L key lie origin 0 0
 |vxxwxv
 |vywxwv
 |vxxwxv
+
+
+# MAN-WEAR (P2B rollout, 2026-10-22): the mail brick over the sleeve (the arm's U and F cells) on every side key the
+# side clips name: the run pump (pB pM pF pK pN), runB, runF, guard and the off hand's o* keys, fitted cell for cell on the
+# frozen arm drawings (far arms a value darker); before this a mail wearer's sleeves vanished in the run and drawn frames.
+
+view L key runB origin 3 -1
+|vywxv...
+|..vxxwv.
+|...vywxv
+
+view L key runB origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view L key runF origin 8 -1
+|.....vywxv
+|.....vxxwv
+|......vywv
+
+view L key runF origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view R key oback origin 5 -6
+|.v
+
+view L key oidle origin 4 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view L key oN origin 4 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view L key oB origin 4 -1
+|vywxv..
+|.vxxwv.
+|.vywxv.
+|..vxxwv
+
+view L key oF origin 7 -1
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view L key orunB origin 3 -1
+|vywxv...
+|..vxxwv.
+|...vywxv
+
+view L key orunF origin 8 -1
+|.....vywxv
+|.....vxxwv
+|vywv......
+
+view L key pF origin 9 -1
+|......vywxv
+|.....vxxwv.
+|.....vywv..
+
+view L key pF origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view L key pB origin 4 -1
+|vywxv......
+|...vxxwv...
+|......vywxv
+
+view L key pB origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view L key pN origin 6 -1
+|...vywxv
+|...vxxwv
+|..vywxv.
+
+view L key pN origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view R key pF origin 0 -1
+|vwxwv
+|.vxwv
+|..vwv
+
+view R key pF origin 0 0 when armed replace
+|.
+
+view R key pB origin 8 -1
+|........vwxwv
+|......vxwwv..
+|....vwxwv....
+
+view R key pB origin 0 0 when armed replace
+|.
+
+view R key pN origin 0 -1
+|.
+
+view R key pN origin 0 0 when armed replace
+|.
+
+view L key pM origin 6 -1
+|...vywxv
+|..vxxwv.
+|.vywxv..
+
+view L key pM origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view L key pK origin 3 -1
+|vywxv..
+|.vxxwv.
+|..vywxv
+
+view L key pK origin 8 -1 when armed replace
+|...vywxv
+|..vxxwv.
+|..vywxv.
+|.vxxwv..
+
+view R key pM origin 0 -1
+|vwxwv..
+|.vxwwv.
+|..vwxwv
+
+view R key pM origin 0 0 when armed replace
+|.
+
+view R key pK origin 4 -1
+|....vwxwv
+|...vxwwv.
+|..vwxwv..
+
+view R key pK origin 0 0 when armed replace
+|.
+
+# The front and back views of the keys above stay as they were (D and U frames are frozen in the P2B rollout): empty views
+# say so, so the mail draws nothing there exactly as before (a later D/U pass may draw them).
+view D key runF origin 0 0
+|.
+
+view U key runF origin 0 0
+|.
+
+view D key oback origin 0 0
+|.
+
+view U key oback origin 0 0
+|.
+
+view D key oidle origin 0 0
+|.
+
+view U key oidle origin 0 0
+|.
+
+view D key orunF origin 0 0
+|.
+
+view U key orunF origin 0 0
+|.

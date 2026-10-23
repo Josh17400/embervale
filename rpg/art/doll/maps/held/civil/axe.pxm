@@ -173,17 +173,28 @@ view L key rest origin 6 3
 |...QRQ
 |....Q.
 
+# (INTEGRATION 2026-10-23) walking and running (kick) the near-hip axe swings back off the striding shin: the same
+# head, the handle turned 45 degrees behind (B11 W10)
 view L key kick origin 6 3
-|.vvv..
-|vzyvQ.
-|vyxvQ.
-|vxwv..
-|.vv.Q.
-|...QTQ
-|...QSQ
-|...QSQ
-|...QRQ
-|....Q.
+|.vvv....
+|vzyvQ...
+|vyxvQ...
+|vxwv....
+|.vv.Q...
+|...QTQ..
+|....QSQ.
+|.....QRQ
+|......Q.
+
+# (INTEGRATION 2026-10-23) running: the handle swings further up behind, clear of the trailing shin (W10)
+view L key kick origin 6 3 when run replace
+|.vvv.....
+|vzyvQ....
+|vyxvQ....
+|vxwv.....
+|.vv.Q....
+|....QTQ..
+|......QRQ
 
 view L key lag origin 5 2
 |.vvv..

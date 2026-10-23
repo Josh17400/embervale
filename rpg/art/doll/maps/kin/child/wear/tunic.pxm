@@ -5,7 +5,7 @@ body child
 role garment tunic
 role garment rags
 layer torso
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |598877776665
@@ -38,3 +38,21 @@ view L key rest origin 3 0
 |fihhhhgf
 |58877665
 |59888765
+
+# (KIN-CHILD rollout, 2026-10-22) the side walk's torso (clip torso=run): the hem a pixel wider at the back (and the
+# front where the rest view is straight), the garment's skirt kicked by the stride over the walking legs
+view R key run origin 5 0
+|..5988765.
+|.58877665.
+|.58877665.
+|.fihhhhgf.
+|.58877665.
+|5698887665
+
+view L key run origin 4 0
+|.5988765..
+|.58877665.
+|.58877665.
+|.fihhhhgf.
+|.58877665.
+|5668887965

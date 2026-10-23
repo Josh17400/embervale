@@ -1,4 +1,8 @@
 # kin/youth/arms/arm_r: the youth's right arm: a 3-row sleeve, the cuff row, a 3 x 2 hand (regions: U upper arm, C cuff, H hand)
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) the run pump keys at the youth's size with the adult's timing (kin_youth.clip:
+# near pB pM pF pF pK pB, far pF pK pB pB pM pF): pB the arm driven back and flatter, pM forward-mid, pF the forearm up and
+# forward (the fist at the chest), pK back-mid, pN passing; R views near, L views far (a value darker) on arm_r and the
+# reverse on arm_l; the L near drawings the R mirrored and re-lit.
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The sleeve is drawn in cloth1 (a long sleeve); the regions let a
 # garment show a puff sleeve (dress: U linen, C skin), rolled sleeves, a trimmed cuff (coat, robe: C accent) or bare arms.
 # Front and back: the forward swing comes toward the camera (the hand a row lower in front, higher from behind), the
@@ -241,6 +245,7 @@ regions
 # ---- postures (KIN-YOUTH): lap (seated, the hands on the thighs), hold (before the belly: the bowl, the mug at rest),
 # mouth (eating, drinking), raise (straight up: tag, a toast), wave / wave2 (the open hand beside the head, two beats),
 # knee (cross-legged, the hand on the knee). `grip` marks where the prop's grip goes.
+
 view D key lap origin 1 -1
 mark handR 1 3
 |597.
@@ -753,3 +758,156 @@ regions
 |HHHH...
 |.HH....
 
+# ---- the run pump (KIN-YOUTH, P2b motion rollout 2026-10-22): pB back, pM forward-mid, pF forward (the forearm up),
+# pK back-mid, pN passing; near drawn lit, far a value darker (the far arm behind the torso: its fist shows in front or behind)
+view L key pB origin 3 -1
+mark handR 5 3
+|5665.....
+|..5665...
+|....5665.
+|.....qrrq
+|.....qrrq
+|......qq.
+regions
+|UUUU.....
+|..UUUU...
+|....CCCC.
+|.....HHHH
+|.....HHHH
+|......HH.
+
+view L key pF origin 7 -1
+mark handR 0 1
+|....5665
+|qrrq5665
+|qrrq5665
+|.qq.555.
+regions
+|....UUUU
+|HHHHUUUU
+|HHHHCCCC
+|.HH.CCC.
+
+view L key pK origin 3 -1
+mark handR 3 3
+|5665...
+|.5665..
+|..5665.
+|...qrrq
+|...qrrq
+|....qq.
+regions
+|UUUU...
+|.UUUU..
+|..CCCC.
+|...HHHH
+|...HHHH
+|....HH.
+
+view L key pM origin 6 -1
+mark handR 0 3
+|...5665
+|..5665.
+|.5665..
+|qrrq...
+|qrrq...
+|.qq....
+regions
+|...UUUU
+|..UUUU.
+|.CCCC..
+|HHHH...
+|HHHH...
+|.HH....
+
+view L key pN origin 4 -1
+mark handR 0 3
+|.5665
+|.5665
+|5665.
+|qrrq.
+|qrrq.
+|.qq..
+regions
+|.UUUU
+|.UUUU
+|CCCC.
+|HHHH.
+|HHHH.
+|.HH..
+
+view R key pB origin 5 -1
+mark handR 0 3
+|.....5875
+|...5875..
+|.5765....
+|qtsq.....
+|qsrq.....
+|.qq......
+regions
+|.....UUUU
+|...UUUU..
+|.CCCC....
+|HHHH.....
+|HHHH.....
+|.HH......
+
+view R key pF origin 0 -1
+mark handR 4 1
+|5875....
+|5875qtsq
+|5765qsrq
+|.555.qq.
+regions
+|UUUU....
+|UUUUHHHH
+|CCCCHHHH
+|.CCC.HH.
+
+view R key pK origin 3 -1
+mark handR 0 3
+|...5875
+|..5875.
+|.5765..
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|...UUUU
+|..UUUU.
+|.CCCC..
+|HHHH...
+|HHHH...
+|.HH....
+
+view R key pM origin 0 -1
+mark handR 3 3
+|5875...
+|.5875..
+|..5765.
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUUU...
+|.UUUU..
+|..CCCC.
+|...HHHH
+|...HHHH
+|....HH.
+
+view R key pN origin 0 -1
+mark handR 1 3
+|5875.
+|5875.
+|.5765
+|.qtsq
+|.qsrq
+|..qq.
+regions
+|UUUU.
+|UUUU.
+|.CCCC
+|.HHHH
+|.HHHH
+|..HH.

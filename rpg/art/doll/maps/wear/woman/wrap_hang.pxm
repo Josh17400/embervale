@@ -2,6 +2,9 @@
 # (a lit overlapping panel), the lit hem band (the edge region) and its outline row over her shoe tips; from behind the drape's
 # end hangs down her back to the knee; it sways by whole rows, widens on the stride, flares in the run
 # GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment wrap
@@ -180,16 +183,16 @@ view R key rest origin 8 -1
 |..59999998887765
 |...5555555555555
 
-view R key wide origin 9 -1
-|.....58777777665..
-|....5887777777665.
-|....5887777777665.
-|...58876777777665.
-|..5888876777776665
-|..5888886777777665
-|..5888888677777665
-|..5999999988877665
-|...555555555555555
+view R key wide origin 6 -1
+|..58777777665...
+|.5887777777665..
+|.5887777777665..
+|58876777777665..
+|5888876777776665
+|5888886777777665
+|5888888677777665
+|5999999988877665
+|.555555555555555
 
 view R key flare origin 10 -1
 |......58777777665..
@@ -258,16 +261,16 @@ view L key rest origin 8 -1
 |59999998887765..
 |.5555555555555..
 
-view L key wide origin 9 -1
-|...5n87777765.....
-|..5on887777765....
-|..5on887777765....
-|..5om8877777765...
-|.588887777777665..
-|5888887777777665..
-|5888888777777665..
-|5999999988877665..
-|.555555555555555..
+view L key wide origin 10 -1
+|....5n87777765..
+|...5on887777765.
+|...5on887777765.
+|...5om8877777765
+|.588887777777665
+|5888887777777665
+|5888888777777665
+|5999999988877665
+|.555555555555555
 
 view L key flare origin 9 -1
 |...5n87777765......

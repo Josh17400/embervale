@@ -4,6 +4,9 @@
 # The motion rebuild (2026-10-21, docs/MOTION_P2.md 7.3): the run's flare tatters lift clear of the kicked shin and fly
 # back over the trailing thigh; the man's side `wide` views ride the pivot (his down frames drop the hip, the hem holds its
 # row; a `when elf` twin a row up).
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment rags
@@ -124,19 +127,16 @@ view R key rest origin 8 -1
 |...5985.598.565.
 |....55...5...5..
 
-view R key wide origin 8 -1
-|....5887776765..
-|...5887776776665
-|..5877677766665.
-|..5985.5985.5865
-|...55...55...55.
+view R key wide origin 6 -1
+|.58887776765..
+|.5887776776665
+|5877677766665.
+|55855595565865
 
 view R key flare origin 8 -1
-|...55887776765
+|..555887776765
 |.5888777677665
-|5555.76776665.
-|.....598.565..
-|......5...5...
+|55555765765665
 
 view R key kneel origin 8 -1
 |....5887776765..
@@ -180,15 +180,12 @@ view L key wide origin 8 -1
 |..588777676665
 |58877677766665
 |.5887677766665
-|5985.5985.5865
-|.55...55...55.
+|55855595565865
 
 view L key flare origin 6 -1
-|58877767665...
+|58877767666665
 |5887767776655.
-|.58776665.5555
-|..589.565.....
-|...5...5......
+|55577566565555
 
 view L key kneel origin 8 -1
 |..5887776765....

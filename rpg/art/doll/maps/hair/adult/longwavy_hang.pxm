@@ -80,3 +80,21 @@ view L key swing origin -9 -15
 |...acdcbba
 |.....abba.
 |......aa..
+
+# --- hair=run (ADULT-RIG 2026-10-22)
+# the run (loco.clip hair=run, every side run frame): the hang streams back off the leaned head, lifted and shorter,
+# inside the body's box (B11 W8) and behind the neck (W9); L is R mirrored and re-lit.
+view R key run origin 3 -15
+|.adcdcdcba
+|adcdcdcba.
+|acdcdcba..
+|acdcbba...
+|.abba.....
+
+view L key run origin -9 -15
+|adcdcdcba.
+|.adcdcdcba
+|..acdcdcba
+|...acdcbba
+|.....abba.
+

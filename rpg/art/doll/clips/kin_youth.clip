@@ -1,4 +1,17 @@
 # rpg/art/doll/clips/kin_youth.clip: the youth's LOCO, RUN and DEATH clips (KIN-YOUTH, P2b wave 2). Format: rpg/art/doll/doll.h.
+# THE SIDE WALK AND RUN, the adult method at the youth's scale (KIN-YOUTH, P2b motion rollout 2026-10-22; docs/MOTION_P2.md 12;
+# supersedes the side walk and run numbers below; the front and back walks and runs, idles, falls and postures unchanged):
+#   walk (R, L): plants R 2:-1, -1:-4, -4:-7 (L a pixel forward): holds 3 / 3 / 3, an 18 px cycle; bob +1 on the contacts;
+#     torso=run (each youth garment's side run view), hang=wide, neck flow (flow2 on the pass), hair=swing, tuft=down and
+#     braid=swing on the pass (braid=rest else); the near arm B N F F N B against the near leg, the far hand `back` on
+#     the reach and the next contact (the adult's timing);
+#   run (R, L): plants R 0:-5, -5:-10, -10:-15 (L a pixel forward): holds 5 / 5 / 5, a 30 px cycle; bob 0 / -1 / -2 (the
+#     contact lowest, both soles 2 rows up in the flight); lean 3 (head, torso and arms together; never a head offset) over
+#     torso=runl (the garments' sheared run views) with the hip-anchored hangs on hip=1,0 (L -1,0); hang=flare, neck flow2,
+#     braid=run (down her back), hair=swing on the push, tuft=down on the contact; the arms pump on the youth's own keys with
+#     the adult's timing: near pB pM pF pF pK pB, far pF pK pB pB pM pF.
+#   every side run line names hair=run (INTEGRATION 2026-10-23: ADULT-RIG's hair hangs' run views; the twin braids clear
+#   the chest: W9); legs in kin/youth/legs/std (near) and far (far), feet boots_youth Y0-Y3, Y9.
 # The youth is 26 px (STYLE_P2 3): the adult head box (crown F-25, chin F-14), the collar F-13, shoulders F-12 (12 px),
 # the chest F-11..F-10, the belt F-9, the hem F-7, trousers to F-5, boots F-4..F-1, the sole F. Boys and girls share the
 # body set; their garments are fitted per sex (`when girl replace` views) and the head box is the adult's of their sex.
@@ -55,19 +68,19 @@ f armL=idle armR=idle legs=walkD torso=rest hang=rest tuft=up plant=0:-2
 # 3 (R3-06): the side wide / flare hangs end a row higher (the thighs show) and the down frames drop hip=0,-1, so the
 # hem rides down with the body (as the adult's torso=run does) instead of opening a row over the seat.
 clip walk R
-f armL=- armR=B legs=walkA neck=flow torso=rest hang=wide plant=2:-1
-f armL=- armR=B legs=walkA2 neck=flow2 torso=rest hang=wide hair=swing bob=1 plant=-1:-4
-f armL=- armR=N legs=walkB2 neck=flow torso=rest hang=wide plant=-4:-6
-f armL=back armR=F legs=walkC neck=flow torso=rest hang=wide plant=2:-1
-f armL=back armR=F legs=walkC2 neck=flow2 torso=rest hang=wide hair=swing bob=1 plant=-1:-4
-f armL=- armR=N legs=walkD2 neck=flow torso=rest hang=wide plant=-4:-6
+f armL=- armR=B legs=walkA neck=flow torso=run hang=wide braid=rest bob=1 plant=2:-1
+f armL=- armR=N legs=walkA2 neck=flow2 torso=run hang=wide hair=swing tuft=down braid=swing plant=-1:-4
+f armL=back armR=F legs=walkB2 neck=flow torso=run hang=wide braid=rest plant=-4:-7
+f armL=back armR=F legs=walkC neck=flow torso=run hang=wide braid=rest bob=1 plant=2:-1
+f armL=- armR=N legs=walkC2 neck=flow2 torso=run hang=wide hair=swing tuft=down braid=swing plant=-1:-4
+f armL=- armR=B legs=walkD2 neck=flow torso=run hang=wide braid=rest plant=-4:-7
 clip walk L
-f armL=B armR=- legs=walkA neck=flow torso=rest hang=wide plant=3:0
-f armL=B armR=- legs=walkA2 neck=flow2 torso=rest hang=wide hair=swing bob=1 plant=0:-3
-f armL=N armR=- legs=walkB2 neck=flow torso=rest hang=wide plant=-3:-5
-f armL=F armR=back legs=walkC neck=flow torso=rest hang=wide plant=3:0
-f armL=F armR=back legs=walkC2 neck=flow2 torso=rest hang=wide hair=swing bob=1 plant=0:-3
-f armL=N armR=- legs=walkD2 neck=flow torso=rest hang=wide plant=-3:-5
+f armR=- armL=B legs=walkA neck=flow torso=run hang=wide braid=rest bob=1 plant=3:0
+f armR=- armL=N legs=walkA2 neck=flow2 torso=run hang=wide hair=swing tuft=down braid=swing plant=0:-3
+f armR=back armL=F legs=walkB2 neck=flow torso=run hang=wide braid=rest plant=-3:-6
+f armR=back armL=F legs=walkC neck=flow torso=run hang=wide braid=rest bob=1 plant=3:0
+f armR=- armL=N legs=walkC2 neck=flow2 torso=run hang=wide hair=swing tuft=down braid=swing plant=0:-3
+f armR=- armL=B legs=walkD2 neck=flow torso=run hang=wide braid=rest plant=-3:-6
 
 clip hurt D
 f armL=idle armR=idle legs=idle torso=rest hang=rest expr=hurt bob=-1
@@ -95,19 +108,19 @@ f armL=runF armR=back legs=run4 torso=rest hang=flare sway=1 plant=5:0
 f armL=runF armR=back legs=run5 torso=rest hang=flare hair=swing tuft=down sway=1 plant=0:-4
 f armL=idle armR=idle legs=run6 torso=rest hang=flare tuft=up bob=-1 plant=-4:-10
 clip run R
-f armL=- armR=runB legs=run1 neck=flow2 torso=rest hang=flare lean=1 plant=2:-3
-f armL=- armR=N legs=run2 neck=flow2 torso=rest hang=flare hair=swing lean=1 plant=-3:-7
-f armL=back armR=runF legs=run3 neck=flow torso=rest hang=flare lean=1 bob=-1 plant=-7:-13
-f armL=back armR=runF legs=run4 neck=flow2 torso=rest hang=flare lean=1 plant=2:-3
-f armL=- armR=N legs=run5 neck=flow2 torso=rest hang=flare hair=swing lean=1 plant=-3:-7
-f armL=- armR=runB legs=run6 neck=flow torso=rest hang=flare lean=1 bob=-1 plant=-7:-13
+f armL=pF armR=pB legs=run1 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 tuft=down hair=run braid=run plant=0:-5
+f armL=pK armR=pM legs=run2 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 hair=run braid=run bob=-1 plant=-5:-10
+f armL=pB armR=pF legs=run3 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 hair=run braid=run bob=-2 plant=-10:-15
+f armL=pB armR=pF legs=run4 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 tuft=down hair=run braid=run plant=0:-5
+f armL=pM armR=pK legs=run5 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 hair=run braid=run bob=-1 plant=-5:-10
+f armL=pF armR=pB legs=run6 neck=flow2 torso=runl hang=flare lean=3 hip=1,0 hair=run braid=run bob=-2 plant=-10:-15
 clip run L
-f armL=runB armR=- legs=run1 neck=flow2 torso=rest hang=flare lean=-1 plant=3:-2
-f armL=N armR=- legs=run2 neck=flow2 torso=rest hang=flare hair=swing lean=-1 plant=-2:-6
-f armL=runF armR=back legs=run3 neck=flow torso=rest hang=flare lean=-1 bob=-1 plant=-6:-12
-f armL=runF armR=back legs=run4 neck=flow2 torso=rest hang=flare lean=-1 plant=3:-2
-f armL=N armR=- legs=run5 neck=flow2 torso=rest hang=flare hair=swing lean=-1 plant=-2:-6
-f armL=runB armR=- legs=run6 neck=flow torso=rest hang=flare lean=-1 bob=-1 plant=-6:-12
+f armR=pF armL=pB legs=run1 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 tuft=down hair=run braid=run plant=1:-4
+f armR=pK armL=pM legs=run2 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 hair=run braid=run bob=-1 plant=-4:-9
+f armR=pB armL=pF legs=run3 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 hair=run braid=run bob=-2 plant=-9:-14
+f armR=pB armL=pF legs=run4 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 tuft=down hair=run braid=run plant=1:-4
+f armR=pM armL=pK legs=run5 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 hair=run braid=run bob=-1 plant=-4:-9
+f armR=pF armL=pB legs=run6 neck=flow2 torso=runl hang=flare lean=-3 hip=-1,0 hair=run braid=run bob=-2 plant=-9:-14
 
 # the fall (STYLE_P2 13): recoil (the hurt face, the head snapped back), buckle (the knees give, the head bowed), topple
 # (the lying figure 2 px up and 2 px toward where the body stood); lying: the left view laid down (variant 0 west, 1 east)

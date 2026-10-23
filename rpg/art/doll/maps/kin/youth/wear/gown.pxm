@@ -2,12 +2,17 @@
 # gilt girdle (metal2) at the waist. The girl's (`when girl replace`): a fitted bodice with a scooped neck, the waist a
 # pixel in on each side, the gilt girdle; gown_hang falls from it with a gilt hem
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h.
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) on the torso channel (keys torso): the side walk names `run` (the rest view),
+# the run `runl` (rows 0-1 as rest, 2-3 a pixel back, 4 two back: under kin_youth.clip's lean 3 the chest leads the waist
+# by 2 and the belt sits over hip 1); L `lie` repeats the rest view for the turned fall frames. The girl's run views carry
+# the boy's belt row (and in the leaning run her waist row): the belt rides her hips, so her thighs start inside them.
+# Every rest view is untouched.
 use person
 body youth
 role garment gown
 layer torso
 anchor neck
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |...588765...
@@ -50,6 +55,7 @@ view R key rest origin 4 0 when girl replace
 |58877665
 |.588765.
 |.PPOONN.
+
 view L key rest origin 4 0
 |.58875..
 |5988765.
@@ -64,3 +70,72 @@ view L key rest origin 4 0 when girl replace
 |.588765.
 |.PPOONN.
 
+view L key run origin 4 0
+|.58875..
+|5988765.
+|58877665
+|58877665
+|5PPOONN5
+
+view L key runl origin 4 0
+|.58875....
+|5988765...
+|.58877665.
+|.58877665.
+|..5PPOONN5
+
+view L key lie origin 4 0
+|.58875..
+|5988765.
+|58877665
+|58877665
+|5PPOONN5
+
+view L key run origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|5PPOONN5
+
+view L key runl origin 4 0 when girl replace
+|.5qrq5....
+|5988765...
+|.58877665.
+|.58877665.
+|..5PPOONN5
+
+view L key lie origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.PPOONN.
+
+view R key run origin 4 0
+|..58875.
+|.5988765
+|58877665
+|58877665
+|5PPOONN5
+
+view R key runl origin 6 0
+|....58875.
+|...5988765
+|.58877665.
+|.58877665.
+|5PPOONN5..
+
+view R key run origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|5PPOONN5
+
+view R key runl origin 6 0 when girl replace
+|....5qrq5.
+|...5988765
+|.58877665.
+|.58877665.
+|5PPOONN5..

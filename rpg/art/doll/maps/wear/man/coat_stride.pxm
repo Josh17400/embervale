@@ -90,3 +90,153 @@ view D key stance origin 0 0
 
 view U key stance origin 0 0
 |.
+
+
+view R key walkB2 origin 5 -1
+|58877677791
+build
+|..+x.......
+
+
+view R key walkD2 origin 5 -1
+|58877677791
+build
+|..+x.......
+
+
+view L key walkB2 origin 7 -1
+|1988777766665
+build
+|........x+...
+
+
+view L key walkD2 origin 7 -1
+|1988777766665
+build
+|........x+...
+
+# MAN-WEAR (P2B rollout, 2026-10-22): the stride panel states its intent on every side walk and run key. The reach keys
+# (walkB2, walkD2) carry the skirt row coat.pxm's side run views no longer draw (they end at the tunic's hem, so the legs'
+# hipline is judged where the tunic's is); the contact and down keys draw nothing (coat_hang's wide view carries that row
+# and the knee rows lift with the stride) and neither do the run keys (the flare carries the skirt). The front and back
+# views of those keys draw nothing either, exactly as before.
+
+view R key walkA origin 0 0
+|.
+
+view R key walkA2 origin 0 0
+|.
+
+view R key walkC origin 0 0
+|.
+
+view R key walkC2 origin 0 0
+|.
+
+view R key run1 origin 0 0
+|.
+
+view R key run2 origin 0 0
+|.
+
+view R key run3 origin 0 0
+|.
+
+view R key run4 origin 0 0
+|.
+
+view R key run5 origin 0 0
+|.
+
+view R key run6 origin 0 0
+|.
+
+view L key walkA origin 0 0
+|.
+
+view L key walkA2 origin 0 0
+|.
+
+view L key walkC origin 0 0
+|.
+
+view L key walkC2 origin 0 0
+|.
+
+view L key run1 origin 0 0
+|.
+
+view L key run2 origin 0 0
+|.
+
+view L key run3 origin 0 0
+|.
+
+view L key run4 origin 0 0
+|.
+
+view L key run5 origin 0 0
+|.
+
+view L key run6 origin 0 0
+|.
+
+view D key walkA origin 0 0
+|.
+
+view D key walkA2 origin 0 0
+|.
+
+view D key walkC origin 0 0
+|.
+
+view D key walkC2 origin 0 0
+|.
+
+view D key run1 origin 0 0
+|.
+
+view D key run2 origin 0 0
+|.
+
+view D key run3 origin 0 0
+|.
+
+view D key run4 origin 0 0
+|.
+
+view D key run5 origin 0 0
+|.
+
+view D key run6 origin 0 0
+|.
+
+view U key walkA origin 0 0
+|.
+
+view U key walkA2 origin 0 0
+|.
+
+view U key walkC origin 0 0
+|.
+
+view U key walkC2 origin 0 0
+|.
+
+view U key run1 origin 0 0
+|.
+
+view U key run2 origin 0 0
+|.
+
+view U key run3 origin 0 0
+|.
+
+view U key run4 origin 0 0
+|.
+
+view U key run5 origin 0 0
+|.
+
+view U key run6 origin 0 0
+|.

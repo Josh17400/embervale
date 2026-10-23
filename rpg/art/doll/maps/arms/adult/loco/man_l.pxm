@@ -7,9 +7,15 @@
 # (the fall's recoil, D U R/L); guard (armR: the drawn weapon's ready guard, D U R L, its `grip` mark); the off hand while
 # a weapon is out (armL): D/U oidle ofwd oback orunF, L oidle oB oF oN orunB orunF, R oback.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# ROLLOUT ADULT-RIG (2026-10-22): the far fist on pB (R, the far arm) takes a lit knuckle (skin step 2): hand pixels only,
+# inside the silhouette, so the fist behind the back reads as a hand, not a second cuff block (worst on slim builds).
 # PROTO6 i3 (2026-10-22): the run pump's back key pB swings 2 px further back (the elbow behind the back, the hand clear
 # of the hips; the woman's 1, for the robed scholar's RUN atlas), the far pF raises its fist to the chest (no stub at the
 # belt); loco.clip puts the extremes on the push and the flight.
+# RUN FIX i2 (2026-10-22): the run pump's forward key pF closes the fist on its own bottom row (the bracer stops at the
+# wrist; no bracer pixel or detached outline row hangs under the hand: it read as a loose dark cuff).
+# RUN FIX i3 (2026-10-22): the near back key pB swings back flatter (3 px a row, the same length): the forearm's sleeve
+# shows past the coat's back edge and the fist sits a row higher at the small of the back (the panel read i2's as a cuff block).
 use person
 body man
 role arms std
@@ -1024,14 +1030,12 @@ mark handL 3 1
 |......58765
 |.qtsq58765.
 |qsrqf5876..
-|...fihgf...
-|..qq.......
+|.qqqihgf...
 regions
 |......UUUUU
 |.HHHHUUUUU.
 |HHHHCFFFF..
-|...CCCCC...
-|..HH.......
+|.HHHCCCC...
 
 view L key pF origin 8 -1 when armed replace
 mark handL 1 6
@@ -1055,25 +1059,23 @@ regions
 |.HHHH...
 |..HH....
 
-view L key pB origin 3 -1
-mark handL 12 5
-|58765........
-|..58765......
-|....58765....
-|......fihgf..
-|........fihgf
-|.........qtsq
-|.........qsrq
-|..........qq.
+view L key pB origin 4 -1
+mark handL 13 4
+|58765..........
+|...58765.......
+|......58765....
+|........fihgf..
+|..........qtsq.
+|..........qsrq.
+|...........qq..
 regions
-|UUUUU........
-|..UUUUU......
-|....FFFFF....
-|......CCCCC..
-|........CCCCC
-|.........HHHH
-|.........HHHH
-|..........HH.
+|UUUUU..........
+|...UUUUU.......
+|......FFFFF....
+|........CCCCC..
+|..........HHHH.
+|..........HHHH.
+|...........HH..
 
 view L key pB origin 8 -1 when armed replace
 mark handL 1 6
@@ -1144,8 +1146,7 @@ mark handL 6 1
 |56665.....
 |.5666qrrq.
 |..566fqrrq
-|...fhggf..
-|......qq..
+|...fhgqqq.
 
 view R key pF origin 0 0 when armed replace
 |.
@@ -1157,7 +1158,7 @@ mark handL 0 5
 |....56665....
 |..fhggf......
 |fhggf........
-|qrrq.........
+|qsrq.........
 |qrrq.........
 |.qq..........
 

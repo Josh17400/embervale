@@ -59,6 +59,15 @@ view L key rest origin -3 0 layer heldBack
 |VXWV.
 |.VV..
 
+# (INTEGRATION 2026-10-23) running, the far hand pumps (its handR mark on every pump key): the scroll stays in that
+# fist, not 3 px off it where the idle's hidden hand would be (W5: it floated behind the knees)
+view L key rest origin 2 2 layer heldBack when run replace
+|...VV
+|..VYV
+|.VXWV
+|VXWV.
+|.VV..
+
 view D key rest origin 0 0 when posture replace
 |.
 

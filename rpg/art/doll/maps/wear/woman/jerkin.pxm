@@ -8,6 +8,10 @@
 # the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
 # pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
 # hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the side `runl` views hand-finished on the shipped lean (rows 0-2 stay, 3-6 a pixel
+# back, 7.. two: a straight back diagonal; the chest row keeps its front edge; the hem's back corner trails a pixel and its
+# front a pixel or two so the hem rides the hip, W4; L a pixel more behind, HIPLINE on the elves); the walk's `run` hem a
+# pixel further back where the legs met it (HIPLINE); the elder's run overlay carries that back corner under the stoop.
 use person woman
 body woman
 role garment jerkin
@@ -82,31 +86,37 @@ view R key rest origin 6 -1
 |..fihhhhhgf..
 |..fggggggPOf.
 
-view R key run origin 6 -1
-|......qrrqq..
-|..fih5988hf..
-|..fih5887hhf.
-|..fhh5998hgf.
-|..fihhhhhxgf.
-|..fihhhhxgf..
-|..fhhhhhhgf..
-|..fggggggPOf.
+view R key run origin 5 -1
+|.....qrrqq.
+|.fih5988hf.
+|.fih5887hhf
+|.fhh5998hgf
+|.fihhhhhxgf
+|.fihhhhxgf.
+|.fhhhhhhgf.
+|fgggggggPOf
 
 view R key runl origin 8 -1
-|........qrrqq..
-|....fih5988hf..
-|....fih5887hhf.
-|...fhh5998hgf..
-|...fihhhhhxgf..
-|...fihhhhxgf...
-|..fhhhhhhgf....
-|..fggggggPOf...
+|........qrrqq.
+|....fih5988hf.
+|....fih5887hhf
+|...fhh5998hhhf
+|...fihhhhhxgf.
+|...fihhhhxgf..
+|...fhhhhhhgf..
+|fggggggggPOf..
 
 view R key rest origin 4 -2 when elder
 |-
 
-view R key run origin 4 -2 when elder
-|-
+view R key run origin 6 -2 when elder
+|..-
+|...
+|...
+|...
+|...
+|...
+|fg.
 
 view R key runl origin 6 -2 when elder
 |..-
@@ -136,31 +146,37 @@ view L key rest origin 7 -1
 |..fihhhhhgf..
 |.fOPggggggf..
 
-view L key run origin 7 -1
-|..qqrrq......
-|..fi9885hgf..
-|..fi8875hgf..
-|.fii9985hgf..
-|.fixhhhhhgf..
-|..fixhhhhgf..
-|..fihhhhhgf..
-|.fOPggggggf..
+view L key run origin 6 -1
+|.qqrrq.....
+|.fi9885hgf.
+|.fi8875hgf.
+|fii9985hgf.
+|fixhhhhhgf.
+|.fixhhhhgf.
+|.fihhhhhgf.
+|fOPgggggggf
 
-view L key runl origin 7 -1
-|..qqrrq........
-|..fi9885hgf....
-|..fi8875hgf....
-|..fii9985hgf...
-|..fixhhhhhgf...
-|...fixhhhhgf...
-|....fihhhhhgf..
-|...fOPggggggf..
+view L key runl origin 6 -1
+|.qqrrq.........
+|.fi9885hgf.....
+|.fi8875hgf.....
+|fiii9985hgf....
+|.iixhhhhhgf....
+|..fixhhhhgf....
+|.fiihhhhhgf....
+|..fOPgggggggggf
 
 view L key rest origin -3 -2 when elder
 |-
 
 view L key run origin -3 -2 when elder
-|-
+|-..
+|...
+|...
+|...
+|...
+|...
+|.gf
 
 view L key runl origin -3 -2 when elder
 |-..

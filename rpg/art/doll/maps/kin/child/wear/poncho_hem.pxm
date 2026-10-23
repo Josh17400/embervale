@@ -1,0 +1,16 @@
+# kin/child/wear/poncho_hem: the poncho's hem rows on the torso layer, drawn only in the side walk (torso=run), under the
+# poncho itself (armNear), so nothing new shows: it gives the walk's hem span the walking legs keep inside (KIN-CHILD
+# rollout 2026-10-22; HIPLINE). The poncho's own two bottom rows, a pixel wider at the back as the tunic's walk hem.
+use person woman
+body child
+role garment poncho
+layer torso
+keys torso
+
+view R key run origin 5 -4
+|5988776665
+|5.5.5.5.5.
+
+view L key run origin 4 -4
+|5988776665
+|.5.5.5.5.5

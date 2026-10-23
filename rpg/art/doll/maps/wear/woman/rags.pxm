@@ -10,6 +10,10 @@
 # the side run frames name (loco.clip torso=runl): the rows from 4 under the neck sit a pixel back and from 7 under it two
 # pixels back, so under the clip's lean 4 the chest leads the waist (a real lean; the head never leaves the torso) and the
 # hem lands where lean 2 put it, over the run legs; the hip-anchored tails follow it (hip 2, the woman's 3). Walks keep `run`.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the side `runl` views hand-finished on the shipped lean (rows 0-2 stay, 3-6 a pixel
+# back, 7.. two: a straight back diagonal; the chest row keeps its front edge; the hem's back corner trails a pixel and its
+# front a pixel or two so the hem rides the hip, W4; L a pixel more behind, HIPLINE on the elves); the walk's `run` hem a
+# pixel further back where the legs met it (HIPLINE); the elder's run overlay carries that back corner under the stoop.
 use person woman
 body woman
 role garment rags
@@ -95,22 +99,29 @@ view R key run origin 5 -1
 |.587777765.
 |fiihihihhgf
 
-view R key runl origin 7 -1
-|.......qrrqq.
-|...5875888765
-|...5865887765
-|..586qts7765.
-|..5877CD7765.
-|..5877BC765..
-|.577776765...
-|.587777765...
-|fiihihihhgf..
+view R key runl origin 8 -1
+|........qrrqq.
+|....5875888765
+|....5865887765
+|...586qts77765
+|...5877CD7765.
+|...5877BC765..
+|...577776765..
+|..5877777665..
+|fiiihihihhggf.
 
 view R key rest origin 4 -2 when elder
 |-
 
-view R key run origin 4 -2 when elder
-|-
+view R key run origin 6 -2 when elder
+|..-
+|...
+|...
+|...
+|...
+|...
+|...
+|fi.
 
 view R key runl origin 6 -2 when elder
 |..-
@@ -152,21 +163,28 @@ view L key run origin 6 -1
 |fihihihhggf
 
 view L key runl origin 6 -1
-|.qqrrq.......
-|.5888875765..
-|5887885665...
-|.5887stq565..
-|.58DC777665..
-|..5CB77665...
-|...576777765.
-|...587777765.
-|..fihihihhggf
+|.qqrrq.........
+|.5888875765....
+|5887885665.....
+|58887stq565....
+|.58DC777665....
+|..5CB77665.....
+|..576777765....
+|.58887777765...
+|.fiihihihhggggf
 
 view L key rest origin -3 -2 when elder
 |-
 
 view L key run origin -3 -2 when elder
-|-
+|-..
+|...
+|...
+|...
+|...
+|...
+|...
+|.gf
 
 view L key runl origin -3 -2 when elder
 |-..

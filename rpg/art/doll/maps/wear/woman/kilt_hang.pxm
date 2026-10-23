@@ -8,6 +8,9 @@
 # reach a pixel further back over her fuller walking hip; the pass frames' rows are <garment>_stride.pxm's (keyed by the
 # legs), so the rest and idle views (idles, hurts, falls, postures) are untouched. The run's flare is two rows (never a
 # one-row spur behind the hips).
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment kilt
@@ -99,14 +102,14 @@ view R key rest origin 8 -1
 |...599899887765.
 
 view R key wide origin 6 0
-|..fihhhhhhgf..
-|..5886786765..
+|.fiihhhhhhgf..
+|.58886786765..
 |.5886785676665
 |59989955598876
 
 view R key flare origin 8 0
-|..58867867866665
-|.59989989887765.
+|.588678678665
+|599899887765.
 
 view R key kneel origin 8 -1
 |....5886786765..
@@ -141,14 +144,14 @@ view L key rest origin 8 -1
 |.599899888765...
 
 view L key wide origin 8 0
-|..fihhhhhhgf..
+|..fihhhhhhggf.
 |..588678676665
 |58867856766665
 |99899555988765
 
-view L key flare origin 8 0
-|58867867866665..
-|.59989989887765.
+view L key flare origin 5 0
+|588678678665.
+|.599899887765
 
 view L key kneel origin 8 -1
 |..5886786765....

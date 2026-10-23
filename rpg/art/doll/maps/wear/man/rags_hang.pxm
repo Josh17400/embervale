@@ -49,17 +49,20 @@ view R key rest origin 5 -2
 |5.565.6656.
 |..5...5.5..
 
-view R key wide origin 6 8 anchor pivot
+view R key wide origin 6 9 anchor pivot
+|.57777767665
 |.56767667665
 |5.5665.66565
 |..5...5..5.5
 
-view R key wide origin 6 9 anchor pivot when elf replace
+view R key wide origin 6 10 anchor pivot when elf replace
+|.57777767665
 |.56767667665
 |5.5665.66565
 |..5...5..5.5
 
-view R key flare origin 7 -2
+view R key flare origin 7 -1
+|.577777767665
 |.556767667665
 |....5665.6656
 |......5..5...
@@ -76,20 +79,23 @@ view L key rest origin 7 -2
 |.6565.6565.5
 |..5.5...5...
 
-view L key wide origin 8 8 anchor pivot
+view L key wide origin 8 9 anchor pivot
+|.577777676655
 |.567676676665
 |5656.65656.65
 |5.5..5...5...
 
-view L key wide origin 8 9 anchor pivot when elf replace
+view L key wide origin 8 10 anchor pivot when elf replace
+|.577777676655
 |.567676676665
 |5656.65656.65
 |5.5..5...5...
 
-view L key flare origin 6 -2
-|567676676655.
-|.6565.656....
-|...5..5......
+view L key flare origin 7 -1
+|5777776766655.
+|.567676676655.
+|..6565.656....
+|....5..5......
 
 view L key kneel origin 7 -2
 |.6565.6565.5

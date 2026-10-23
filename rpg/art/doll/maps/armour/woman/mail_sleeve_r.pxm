@@ -1,5 +1,7 @@
 # armour/woman/mail_sleeve_r: Mail's sleeve over the arm: the upper arm in the mail brick to the elbow
 # The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): every side arm key the clips name (runB runF pB pM pF pK pN, guard; the far arm's
+# pump keys): the arm's upper arm and forearm in the mail brick (W1: no more bare tunic sleeves in the run or drawn frames).
 use person
 body woman
 role armour mail
@@ -64,3 +66,71 @@ view R key N origin 0 -4
 view R key idle origin 0 -4
 |vxyv
 |vywv
+
+view R key runB origin 2 -4
+|.vyxv
+|vywv.
+
+view R key runF origin 0 -4
+|vyxy.xv
+
+view R key pB origin 6 -1
+|......vyxv
+|....vywv..
+|..vyxv....
+|.vywv.....
+|.vyxv.....
+|vywv......
+
+view R key pM origin 0 -4
+|vyxv.
+|.vywv
+|..vv.
+
+view R key pF origin 0 -1
+|vyxv..
+|.vywv.
+|..vyxv
+|..vywv
+
+view R key pK origin 2 -4
+|.vyxv
+|vywv.
+
+view R key pN origin 0 -4
+|vyxv.
+|.vywv
+
+view R key guard origin -2 1
+|.vyxyv
+|vywywv
+|vyxyxv
+|.vywv.
+|..vv..
+
+view L key pB origin 2 -4
+|vxwv....
+|..vwwv..
+|....vxwv
+
+view L key pM origin 3 -4
+|.vxwv
+|vwwv.
+
+view L key pF origin 5 -4
+|...vxv..
+|vww.wwwv
+
+view L key pK origin 1 -4
+|vxwv.
+|.vwwv
+
+view L key pN origin 0 0
+|.
+
+view L key guard origin 9 1 layer armNear
+|...vyxyv
+|..vywywv
+|vyxyxv..
+|.vywv...
+|..vv....

@@ -2,12 +2,17 @@
 # chest plane, the belt and buckle; the skirt (tunic_hang) holds still while the chest bobs
 # KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Fitted per sex: the girl's (`when girl replace`) a rounder neck,
 # the waist a pixel in on each side under the chest, the belt shorter.
+# (P2b motion rollout 2026-10-22, KIN-YOUTH) on the torso channel (keys torso): the side walk names `run` (the rest view),
+# the run `runl` (rows 0-1 as rest, 2-3 a pixel back, 4 two back: under kin_youth.clip's lean 3 the chest leads the waist
+# by 2 and the belt sits over hip 1); L `lie` repeats the rest view for the turned fall frames. The girl's run views carry
+# the boy's belt row (and in the leaning run her waist row): the belt rides her hips, so her thighs start inside them.
+# Every rest view is untouched.
 use person
 body youth
 role garment tunic
 layer torso
 anchor neck
-keys rest
+keys torso
 
 view D key rest origin 6 0
 |...5qrrq5...
@@ -64,3 +69,73 @@ view L key rest origin 4 0 when girl replace
 |58877665
 |.588765.
 |.fihhgf.
+
+view L key run origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|fihhhhgf
+
+view L key runl origin 4 0
+|.5qrq5....
+|5988765...
+|.58877665.
+|.58877665.
+|..fihhhhgf
+
+view L key lie origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|fihhhhgf
+
+view L key run origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|fihhhhgf
+
+view L key runl origin 4 0 when girl replace
+|.5qrq5....
+|5988765...
+|.58877665.
+|.58877665.
+|..fihhhhgf
+
+view L key lie origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.fihhgf.
+
+view R key run origin 4 0
+|..5qrq5.
+|.5988765
+|58877665
+|58877665
+|fihhhhgf
+
+view R key runl origin 6 0
+|....5qrq5.
+|...5988765
+|.58877665.
+|.58877665.
+|fihhhhgf..
+
+view R key run origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|fihhhhgf
+
+view R key runl origin 6 0 when girl replace
+|....5qrq5.
+|...5988765
+|.58877665.
+|.58877665.
+|fihhhhgf..

@@ -65,3 +65,11 @@ view L key swing when capped,!circlet replace
 
 view L key lie origin 0 0
 |.
+
+# --- hair=run (ADULT-RIG 2026-10-22)
+# the run: no crown dip (the head does not drop through the run as on the walk's down frames)
+view R key run origin 0 0
+|.
+
+view L key run origin 0 0
+|.

@@ -880,333 +880,418 @@ view R key idle origin 0 12 when posture replace
 |.....fjf
 |.....vxv
 
-view R key walkA origin 0 11
-|.ff.
-|fjif
-|fjff
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|vxv.
+view R key walkA origin 4 11
+|.ff....
+|fjif...
+|fjff...
+|.fjf...
+|.fjf...
+|..fjf..
+|...fjf.
+|...fjf.
+|...fjf.
+|....fjf
+|....vxv
 
 view R key walkA origin 0 0 when posture replace
 |.
 
-view R key walkA origin 0 12 when woman replace
-|.ff.
-|fjif
-|fjff
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|vxv.
+view R key walkA origin 3 12 when woman,elder replace
+|.ff...
+|fjif..
+|fjff..
+|.fjf..
+|.fjf..
+|..fjf.
+|..fjf.
+|..fjf.
+|..fjf.
+|...fjf
+|...fjf
+|...vxv
 
-view R key walkA2 origin 2 10
-|.ff.
-|fjif
-|fjff
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|fjf.
-|vxv.
+view R key walkA origin 4 12 when woman replace
+|.ff....
+|fjif...
+|fjff...
+|.fjf...
+|.fjf...
+|..fjf..
+|..fjf..
+|...fjf.
+|...fjf.
+|....fjf
+|....fjf
+|....vxv
+
+view R key walkA2 origin 2 12
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
 
 view R key walkA2 origin 0 0 when posture replace
 |.
 
-view R key walkA2 origin 2 11 when woman replace
+view R key walkA2 origin 2 13 when woman,elder replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkA2 origin 2 13 when woman replace
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
+
+view R key walkB2 origin -1 12
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
+
+view R key walkB2 origin 0 0 when posture replace
+|.
+
+view R key walkB2 origin -1 13 when woman,elder replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|..fjf.
+|..fjf.
+|..fjf.
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkB2 origin -1 13 when woman replace
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
+
+view R key walkC origin 0 11
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkC origin 0 0 when posture replace
+|.
+
+view R key walkC origin 0 12 when woman,elder replace
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|...fjf.
+|...fjf.
+|...fjf.
+|..fjf..
+|.fjf...
+|.fjf...
+|.fjf...
+|fjf....
+|vxv....
+
+view R key walkC origin 0 12 when woman replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkC2 origin 3 12
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkC2 origin 0 0 when posture replace
+|.
+
+view R key walkC2 origin 3 13 when woman,elder replace
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|....fjf
+|...fjf.
+|...fjf.
+|..fjf..
+|..fjf..
+|.fjf...
+|.fjf...
+|fjf....
+|fjf....
+|vxv....
+
+view R key walkC2 origin 3 13 when woman replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|.fjf..
+|fjf...
+|fjf...
+|vxv...
+
+view R key walkD2 origin 7 12
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|....fjf
+|...fjf.
+|..fjf..
+|..fjf..
+|..fjf..
+|.fjf...
+|fjf....
+|fjf....
+|vxv....
+
+view R key walkD2 origin 0 0 when posture replace
+|.
+
+view R key walkD2 origin 7 13 when woman,elder replace
+|.....ff.
+|....fjif
+|....fjff
+|.....fjf
+|....fjf.
+|....fjf.
+|...fjf..
+|...fjf..
+|..fjf...
+|..fjf...
+|.fjf....
+|.fjf....
+|fjf.....
+|vxv.....
+
+view R key walkD2 origin 7 13 when woman replace
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|....fjf
+|...fjf.
+|...fjf.
+|..fjf..
+|..fjf..
+|.fjf...
+|.fjf...
+|fjf....
+|fjf....
+|vxv....
+
+view R key run1 origin 7 15
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
+
+view R key run1 origin 0 0 when posture replace
+|.
+
+view R key run1 origin 4 13 when woman replace
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|vxv..
+
+view R key run2 origin -7 20
 |.ff.
 |fjif
 |fjff
-|fjf.
-|fjf.
-|fjf.
+|.fjf
+|.fjf
+|.fjf
 |fjf.
 |fjf.
 |fjf.
 |fjf.
 |vxv.
 
-view R key walkB2 origin -1 11
-|.ff...
-|fjif..
-|fjff..
-|fjf...
-|fjf...
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
-
-view R key walkB2 origin 0 0 when posture replace
-|.
-
-view R key walkB2 origin -1 12 when woman replace
-|.ff...
-|fjif..
-|fjff..
-|fjf...
-|fjf...
-|fjf...
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
-
-view R key walkC origin -7 11
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..fjf
-|..vxv
-
-view R key walkC origin 0 0 when posture replace
-|.
-
-view R key walkC origin -7 12 when woman replace
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..fjf
-|..vxv
-
-view R key walkC2 origin -4 10
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..vxv
-
-view R key walkC2 origin 0 0 when posture replace
-|.
-
-view R key walkC2 origin -4 11 when woman replace
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..vxv
-
-view R key walkD2 origin -1 11
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..fjf
-|..vxv
-
-view R key walkD2 origin 0 0 when posture replace
-|.
-
-view R key walkD2 origin -1 12 when woman replace
-|.ff..
-|fjif.
-|fjff.
-|fjf..
-|fjf..
-|fjf..
-|.fjf.
-|.fjf.
-|.fjf.
-|..fjf
-|..fjf
-|..fjf
-|..vxv
-
-view R key run1 origin 3 12
-|.ff...
-|fjif..
-|fjff..
-|.fjf..
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
-
-view R key run1 origin 0 0 when posture replace
-|.
-
-view R key run1 origin 3 13 when woman replace
-|.ff...
-|fjif..
-|fjff..
-|.fjf..
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
-
-view R key run2 origin 8 11
-|........ff.
-|.......fjif
-|......fjf.f
-|.....fjf...
-|....fjf....
-|...fjf.....
-|..fjf......
-|.fjf.......
-|vxv........
-
 view R key run2 origin 0 0 when posture replace
 |.
 
-view R key run3 origin -2 17
-|........ff
-|....fjf.jf
-|....fjf.f.
-|...fjf....
-|...fjf....
-|..fjf.....
-|..fjf.....
-|.fjf......
-|.fjf......
-|fjf.......
-|vxv.......
+view R key run3 origin -9 19
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
 view R key run3 origin 0 0 when posture replace
 |.
 
-view R key run3 origin -1 14 when woman replace
-|.......ff
-|...fjf.jf
-|...fjf.f.
-|..fjf....
-|..fjf....
-|.fjf.....
-|.fjf.....
-|fjf......
-|fjf......
-|vxv......
+view R key run3 origin -9 19 when woman replace
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
-view R key run4 origin -2 16
-|........ff
-|....fjf.jf
-|....fjf.f.
-|...fjf....
-|...fjf....
-|..fjf.....
-|..fjf.....
-|.fjf......
-|.fjf......
-|fjf.......
-|vxv.......
+view R key run4 origin -9 17
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
 view R key run4 origin 0 0 when posture replace
 |.
 
-view R key run4 origin -1 13 when woman replace
-|.......ff
-|...fjf.jf
-|...fjf.f.
-|..fjf....
-|..fjf....
-|.fjf.....
-|.fjf.....
-|fjf......
-|fjf......
-|vxv......
+view R key run4 origin -9 17 when woman replace
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
-view R key run5 origin 8 11
-|........ff.
-|.......fjif
-|......fjf.f
-|.....fjf...
-|....fjf....
-|...fjf.....
-|..fjf......
-|.fjf.......
-|vxv........
+view R key run5 origin 0 19
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
 view R key run5 origin 0 0 when posture replace
 |.
 
-view R key run6 origin 3 13
-|.ff...
-|fjif..
-|fjff..
-|.fjf..
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
+view R key run6 origin 7 17
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
 
 view R key run6 origin 0 0 when posture replace
 |.
 
-view R key run6 origin 3 14 when woman replace
-|.ff...
-|fjif..
-|fjff..
-|.fjf..
-|.fjf..
-|.fjf..
-|..fjf.
-|..fjf.
-|..fjf.
-|..fjf.
-|...fjf
-|...vxv
+view R key run6 origin 4 15 when woman replace
+|..ff.
+|.fjif
+|.fjff
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|vxv..
 
 view L key idle origin 6 11
 |ff....
@@ -1252,24 +1337,23 @@ view L key idle origin 5 12 when woman replace
 |.fjf..
 |.vxv..
 
-view L key walkA origin 4 11
-|.ff.
-|fjif
-|ffjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.vxv
+view L key walkA origin 3 11
+|..ff.
+|.fjif
+|.ffjf
+|..fjf
+|..fjf
+|.fjf.
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
 
 view L key walkA origin 0 0 when posture replace
 |.
 
-view L key walkA origin 4 12 when woman replace
+view L key walkA origin 3 12 when woman,elder replace
 |.ff.
 |fjif
 |ffjf
@@ -1277,29 +1361,301 @@ view L key walkA origin 4 12 when woman replace
 |.fjf
 |.fjf
 |.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.fjf
-|.vxv
+|fjf.
+|fjf.
+|fjf.
+|fjf.
+|vxv.
 
-view L key walkA2 origin 3 10
-|.ff..
-|fjif.
-|ffjf.
+view L key walkA origin 3 12 when woman replace
+|..ff.
+|.fjif
+|.ffjf
+|..fjf
+|..fjf
 |.fjf.
 |.fjf.
-|..fjf
-|..fjf
-|..fjf
-|..fjf
-|..vxv
+|.fjf.
+|.fjf.
+|fjf..
+|fjf..
+|vxv..
+
+view L key walkA2 origin 5 12
+|.ff....
+|fjif...
+|ffjf...
+|.fjf...
+|..fjf..
+|..fjf..
+|..fjf..
+|...fjf.
+|....fjf
+|....fjf
+|....vxv
 
 view L key walkA2 origin 0 0 when posture replace
 |.
 
-view L key walkA2 origin 3 11 when woman replace
+view L key walkA2 origin 6 13 when woman,elder replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|...fjf..
+|...fjf..
+|....fjf.
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkA2 origin 5 13 when woman replace
+|.ff....
+|fjif...
+|ffjf...
+|.fjf...
+|.fjf...
+|..fjf..
+|..fjf..
+|...fjf.
+|...fjf.
+|....fjf
+|....fjf
+|....vxv
+
+view L key walkB2 origin 8 12
+|.ff....
+|fjif...
+|ffjf...
+|.fjf...
+|..fjf..
+|..fjf..
+|...fjf.
+|...fjf.
+|....fjf
+|....vxv
+
+view L key walkB2 origin 0 0 when posture replace
+|.
+
+view L key walkB2 origin 9 13 when woman,elder replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|...fjf..
+|....fjf.
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkB2 origin 8 13 when woman replace
+|.ff....
+|fjif...
+|ffjf...
+|.fjf...
+|.fjf...
+|..fjf..
+|...fjf.
+|...fjf.
+|...fjf.
+|....fjf
+|....vxv
+
+view L key walkC origin 8 11
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|...fjf..
+|...fjf..
+|....fjf.
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkC origin 0 0 when posture replace
+|.
+
+view L key walkC origin 9 12 when woman,elder replace
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|....fjf..
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key walkC origin 8 12 when woman replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|.fjf....
+|..fjf...
+|...fjf..
+|...fjf..
+|...fjf..
+|....fjf.
+|.....fjf
+|.....fjf
+|.....vxv
+
+view L key walkC2 origin 5 12
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|..fjf...
+|...fjf..
+|....fjf.
+|....fjf.
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkC2 origin 0 0 when posture replace
+|.
+
+view L key walkC2 origin 6 13 when woman,elder replace
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|...fjf...
+|....fjf..
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key walkC2 origin 5 13 when woman replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|...fjf..
+|...fjf..
+|....fjf.
+|....fjf.
+|.....fjf
+|.....fjf
+|.....vxv
+
+view L key walkD2 origin 2 12
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|...fjf...
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key walkD2 origin 0 0 when posture replace
+|.
+
+view L key walkD2 origin 3 13 when woman,elder replace
+|.ff.......
+|fjif......
+|ffjf......
+|.fjf......
+|..fjf.....
+|..fjf.....
+|...fjf....
+|....fjf...
+|....fjf...
+|.....fjf..
+|......fjf.
+|......fjf.
+|.......fjf
+|.......vxv
+
+view L key walkD2 origin 2 13 when woman replace
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|...fjf...
+|....fjf..
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key run1 origin 0 15
+|.ff...
+|fjif..
+|ffjf..
+|.fjf..
+|.fjf..
+|..fjf.
+|..fjf.
+|...fjf
+|...fjf
+|...vxv
+
+view L key run1 origin 0 0 when posture replace
+|.
+
+view L key run1 origin 2 13 when woman replace
+|.ff...
+|fjif..
+|ffjf..
+|.fjf..
+|.fjf..
+|..fjf.
+|...fjf
+|...fjf
+|...vxv
+
+view L key run2 origin 12 20
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
+
+view L key run2 origin 0 0 when posture replace
+|.
+
+view L key run3 origin 14 19
 |.ff..
 |fjif.
 |ffjf.
@@ -1309,276 +1665,90 @@ view L key walkA2 origin 3 11 when woman replace
 |..fjf
 |..fjf
 |..fjf
-|..fjf
 |..vxv
-
-view L key walkB2 origin 7 11
-|...ff.
-|..fjif
-|..ffjf
-|...fjf
-|...fjf
-|..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
-
-view L key walkB2 origin 0 0 when posture replace
-|.
-
-view L key walkB2 origin 7 12 when woman replace
-|...ff.
-|..fjif
-|..ffjf
-|...fjf
-|...fjf
-|...fjf
-|..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
-
-view L key walkC origin 12 11
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|fjf..
-|vxv..
-
-view L key walkC origin 0 0 when posture replace
-|.
-
-view L key walkC origin 12 12 when woman replace
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|fjf..
-|vxv..
-
-view L key walkC2 origin 9 10
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|vxv..
-
-view L key walkC2 origin 0 0 when posture replace
-|.
-
-view L key walkC2 origin 9 11 when woman replace
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|vxv..
-
-view L key walkD2 origin 6 11
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|fjf..
-|vxv..
-
-view L key walkD2 origin 0 0 when posture replace
-|.
-
-view L key walkD2 origin 6 12 when woman replace
-|..ff.
-|.fjif
-|.ffjf
-|..fjf
-|..fjf
-|..fjf
-|.fjf.
-|.fjf.
-|.fjf.
-|fjf..
-|fjf..
-|fjf..
-|vxv..
-
-view L key run1 origin 3 12
-|...ff.
-|..fjif
-|..ffjf
-|..fjf.
-|..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
-
-view L key run1 origin 0 0 when posture replace
-|.
-
-view L key run1 origin 3 13 when woman replace
-|...ff.
-|..fjif
-|..ffjf
-|..fjf.
-|..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
-
-view L key run2 origin 3 11
-|.ff........
-|fjif.......
-|f.fjf......
-|...fjf.....
-|....fjf....
-|.....fjf...
-|......fjf..
-|.......fjf.
-|........vxv
-
-view L key run2 origin 0 0 when posture replace
-|.
-
-view L key run3 origin 12 17
-|ff........
-|jf.fjf....
-|.f..fjf...
-|....fjf...
-|.....fjf..
-|.....fjf..
-|......fjf.
-|......fjf.
-|.......fjf
-|.......fjf
-|.......vxv
 
 view L key run3 origin 0 0 when posture replace
 |.
 
-view L key run3 origin 10 14 when woman replace
-|ff.......
-|jf.fjf...
-|.f.fjf...
-|....fjf..
-|....fjf..
-|.....fjf.
-|.....fjf.
-|......fjf
-|......fjf
-|......vxv
+view L key run3 origin 14 19 when woman replace
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
 
-view L key run4 origin 12 16
-|ff........
-|jf.fjf....
-|.f..fjf...
-|....fjf...
-|.....fjf..
-|.....fjf..
-|......fjf.
-|......fjf.
-|.......fjf
-|.......fjf
-|.......vxv
+view L key run4 origin 14 17
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
 
 view L key run4 origin 0 0 when posture replace
 |.
 
-view L key run4 origin 10 13 when woman replace
-|ff.......
-|jf.fjf...
-|.f.fjf...
-|....fjf..
-|....fjf..
-|.....fjf.
-|.....fjf.
-|......fjf
-|......fjf
-|......vxv
+view L key run4 origin 14 17 when woman replace
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
 
-view L key run5 origin 3 11
-|.ff........
-|fjif.......
-|f.fjf......
-|...fjf.....
-|....fjf....
-|.....fjf...
-|......fjf..
-|.......fjf.
-|........vxv
+view L key run5 origin 5 19
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
 
 view L key run5 origin 0 0 when posture replace
 |.
 
-view L key run6 origin 3 13
-|...ff.
-|..fjif
-|..ffjf
+view L key run6 origin 0 17
+|.ff...
+|fjif..
+|ffjf..
+|.fjf..
+|.fjf..
 |..fjf.
 |..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
+|...fjf
+|...fjf
+|...vxv
 
 view L key run6 origin 0 0 when posture replace
 |.
 
-view L key run6 origin 3 14 when woman replace
-|...ff.
-|..fjif
-|..ffjf
+view L key run6 origin 2 15 when woman replace
+|.ff...
+|fjif..
+|ffjf..
+|.fjf..
+|.fjf..
 |..fjf.
-|..fjf.
-|..fjf.
-|.fjf..
-|.fjf..
-|.fjf..
-|.fjf..
-|fjf...
-|vxv...
+|...fjf
+|...fjf
+|...vxv
 
 view L key lie origin 8 12
 |.fff
@@ -1594,3 +1764,217 @@ view L key lie origin 8 12
 |....
 |....
 |.vxv
+
+view R key walkA origin 3 11 when elder replace
+|.ff...
+|fjif..
+|fjff..
+|.fjf..
+|.fjf..
+|..fjf.
+|..fjf.
+|..fjf.
+|...fjf
+|...fjf
+|...vxv
+
+view R key walkA2 origin 2 12 when elder replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|...fjf
+|..fjf.
+|.fjf..
+|.fjf..
+|.fjf..
+|fjf...
+|vxv...
+
+view R key walkB2 origin -1 12 when elder replace
+|...ff.
+|..fjif
+|..fjff
+|...fjf
+|..fjf.
+|..fjf.
+|.fjf..
+|.fjf..
+|fjf...
+|vxv...
+
+view R key walkC origin 0 11 when elder replace
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|...fjf.
+|...fjf.
+|..fjf..
+|..fjf..
+|.fjf...
+|.fjf...
+|fjf....
+|vxv....
+
+view R key walkC2 origin 3 12 when elder replace
+|....ff.
+|...fjif
+|...fjff
+|....fjf
+|....fjf
+|...fjf.
+|..fjf..
+|..fjf..
+|..fjf..
+|.fjf...
+|fjf....
+|fjf....
+|vxv....
+
+view R key walkD2 origin 7 12 when elder replace
+|.....ff.
+|....fjif
+|....fjff
+|.....fjf
+|....fjf.
+|....fjf.
+|...fjf..
+|..fjf...
+|..fjf...
+|.fjf....
+|.fjf....
+|fjf.....
+|vxv.....
+
+view L key walkA origin 3 11 when elder replace
+|.ff.
+|fjif
+|ffjf
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|fjf.
+|vxv.
+
+view L key walkA2 origin 6 12 when elder replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|..fjf...
+|...fjf..
+|....fjf.
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkB2 origin 9 12 when elder replace
+|.ff.....
+|fjif....
+|ffjf....
+|.fjf....
+|..fjf...
+|...fjf..
+|...fjf..
+|....fjf.
+|.....fjf
+|.....vxv
+
+view L key walkC origin 9 11 when elder replace
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key walkC2 origin 6 12 when elder replace
+|.ff......
+|fjif.....
+|ffjf.....
+|.fjf.....
+|..fjf....
+|..fjf....
+|...fjf...
+|...fjf...
+|....fjf..
+|.....fjf.
+|.....fjf.
+|......fjf
+|......vxv
+
+view L key walkD2 origin 3 12 when elder replace
+|.ff.......
+|fjif......
+|ffjf......
+|.fjf......
+|..fjf.....
+|..fjf.....
+|...fjf....
+|....fjf...
+|.....fjf..
+|......fjf.
+|......fjf.
+|.......fjf
+|.......vxv
+
+view R key run2 origin -7 19 when woman replace
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|fjf.
+|vxv.
+
+view R key run5 origin 0 19 when woman replace
+|.ff.
+|fjif
+|fjff
+|.fjf
+|.fjf
+|.fjf
+|fjf.
+|fjf.
+|fjf.
+|vxv.
+
+view L key run2 origin 12 19 when woman replace
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv
+
+view L key run5 origin 5 19 when woman replace
+|.ff..
+|fjif.
+|ffjf.
+|.fjf.
+|.fjf.
+|.fjf.
+|..fjf
+|..fjf
+|..fjf
+|..vxv

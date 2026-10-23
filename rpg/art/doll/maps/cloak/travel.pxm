@@ -268,12 +268,12 @@ view L key wide origin 5 3
 |QRRRRRRSSRSSSSQ.
 |QRRRRRRSSRSSSSQ.
 |QRRRRRRSSSRSSSQ.
-|QRRRRRRSSSRSSSSQ
-|QRRRRRRSSSSRSSSQ
-|QRRRRRRSSSSRSSSQ
-|QRRRRRRSSSSRSSSQ
-|QRRRRRRSSSSRSSSQ
-|QSSSSSSSTTTTTTTQ
+|QRRRRRRSSSRSSSQ.
+|QRRRRRRSSSSRSSQ.
+|QRRRRRRSSSSRSSQ.
+|QRRRRRRSSSSRSSQ.
+|QRRRRRRSSSSRSSQ.
+|QSSSSSSSTTTTTTQ.
 |.QQQQQQQQQQQQQQ.
 
 view D key flare origin 10 2
@@ -311,39 +311,39 @@ view U key flare origin 10 2 layer cloakFront
 |.QTTTTTTQQTTTQQRRRRQ
 |..QQQQQQ..QQQ..QQQQ.
 
-view R key flare origin 10 3
-|....QQQQ........
-|...QTUUTQ.......
-|..QTUTTSRQ......
-|.QTUTSSSRQQQQQQ.
-|.QTTSSSRRQRRRRRQ
-|QTTSSQQRQRRRRRRQ
-|QTSSSSSQRRRRRRRQ
-|QTSSSSRSRRRRRRRQ
-|QTSSSRSSRRRRRRRQ
-|QTSSRSSSSRRRRRRQ
-|QTSRSSSSSRRRRRRQ
-|QTTSSSSSRRRRRRRQ
-|.QQTTSSSSRRRRRRQ
-|...QQTTTSSSSSRQ.
-|.....QQQQQQQQQ..
+view R key flare origin 10 0
+|......QQQ
+|.....QTSQ
+|....QTSSR
+|...QTSRSR
+|..QTSRSSR
+|.QTSRSSRR
+|QTSRSSRSR
+|QTSRSRSRR
+|.QTRSRSRR
+|QTSRSRRRR
+|QTRSRSRRR
+|QSRSRRRRR
+|QRRQRRRRR
+|.QQRQRRR.
+|...QQQQQ.
 
-view L key flare origin 5 3
-|........QQQQ....
-|.......QSTTSQ...
-|......QRSSSTSQ..
-|.QQQQQQRSSSSTSQ.
-|QRRRRRQRRSSSSSQ.
-|QRRRRRRQRQQSSSSQ
-|QRRRRRRRQSSSSSSQ
-|QRRRRRRRSRSSSSSQ
-|QRRRRRRRSSRSSSSQ
-|QRRRRRRSSSSRSSSQ
-|QRRRRRRSSSSSRSSQ
-|QRRRRRRRSSSSSSSQ
-|QRRRRRRSSSSSSQQ.
-|.QRSSSSSTTTQQ...
-|..QQQQQQQQQ.....
+view L key flare origin -1 0
+|.........
+|QQRQ.....
+|TSSRQ....
+|TSTSRQ...
+|TSSTSRQ..
+|TTSSTSRQ.
+|TSTSSTSRQ
+|TTSTSTSRQ
+|TTSTSTRQ.
+|TTTTSTSRQ
+|TTTSTSTRQ
+|TTTTTSTSQ
+|TTTTTQTTQ
+|.TTTQTQQ.
+|.QQQQQ...
 
 view D key sit origin 10 2
 |.....QQQQQQQQQQ.....
@@ -634,3 +634,134 @@ view L key lie origin 5 3
 |..........QQQSRQ
 |..........QSSSRQ
 |..........QQQQQ.
+
+
+view R key wide origin 9 3 when woman replace
+|...QQQQ........
+|..QTUUTQ.......
+|.QTUTTSRQ......
+|QTUTSSSRQQQQQQ.
+|QTTSSSRRQRRRRRQ
+|QTTSQQRQRRRRRRQ
+|.QTSSQQRRRRRRRQ
+|.QTSSSSRRRRRRRQ
+|.QTSSSSRRRRRRRQ
+|.QTSSSRSRRRRRRQ
+|QTSSSRSSRRRRRRQ
+|QTSSSRSSRRRRRRQ
+|QTSSRSSSRRRRRRQ
+|QTSSRSSSRRRRRRQ
+|QSSRSSSSRRRRRRQ
+|QSSRSSSSRRRRRRQ
+|QSSRSSSSRRRRRRQ
+|QSSRSSSSRRRRRRQ
+|QTTTTTTSSSSSSSQ
+|QQQQQQQQQQQQQQ.
+
+view L key wide origin 5 3 when woman replace
+|........QQQQ..
+|.......QSTTSQ.
+|......QRSSSTSQ
+|.QQQQQQRSSSSTQ
+|QRRRRRQRRSSSSQ
+|QRRRRRRQRQQSSQ
+|QRRRRRRRQQSSSQ
+|QRRRRRRRSSSSSQ
+|QRRRRRRRSSSSSQ
+|QRRRRRRSRSSSSQ
+|QRRRRRRSSRSSSQ
+|QRRRRRRSSRSSSQ
+|QRRRRRRSSSRSSQ
+|QRRRRRRSSSRSSQ
+|QRRRRRRSSSSRSQ
+|QRRRRRRSSSSRSQ
+|QRRRRRRSSSSRSQ
+|QRRRRRRSSSSRSQ
+|QSSSSSSSTTTTTQ
+|.QQQQQQQQQQQQQ
+
+# (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the drape's back edge 1 px in, inside her
+# narrower body (B11 W8: the man's drape stood 2-4 columns past her box); the front edge and the hood as his.
+view R key rest origin 10 3 when woman,walk replace
+|.....QQQ........
+|....QUUTQ.......
+|...QUTTSRQ......
+|..QUTSSSRQQQQQQ.
+|..QTSSSRRQRRRRRQ
+|..QTSQQRQRRRRRRQ
+|...QSSQQRRRRRRRQ
+|...QSSSSRRRRRRRQ
+|...QSSSSRRRRRRRQ
+|...QSSSRSRRRRRRQ
+|...QSSSRSRRRRRRQ
+|...QSSSRSRRRRRRQ
+|...QSSRSSRRRRRRQ
+|..QTSSRSSRRRRRRQ
+|..QSSRSSSRRRRRRQ
+|..QSSRSSSRRRRRRQ
+|..QSSRSSSRRRRRRQ
+|..QSSRSSSRRRRRRQ
+|..QTTTTTSSSSSSSQ
+|...QQQQQQQQQQQQ.
+
+# (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the drape's back edge 2 px in, inside her
+# narrower body (B11 W8: the man's drape stood 2-4 columns past her box); the front edge and the hood as his.
+view L key rest origin 5 3 when woman,walk replace
+|........QQQQ....
+|.......QSTQ.....
+|......QRSSSQ....
+|.QQQQQQRSSSSQ...
+|QRRRRRQRRSSSQ...
+|QRRRRRRQRQQSQ...
+|QRRRRRRRQQSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRSRSSQ....
+|QRRRRRRSRSSQ....
+|QRRRRRRSRSSQ....
+|QRRRRRRSSRSQ....
+|QRRRRRRSSRSSQ...
+|QRRRRRRSSSRSQ...
+|QRRRRRRSSSRSQ...
+|QRRRRRRSSSRSQ...
+|QRRRRRRSSSRSQ...
+|QSSSSSSSTTTTQ...
+|.QQQQQQQQQQQ....
+
+# (OVER-CARRY 2026-10-23) under a hood (the culture hood or the legacy hood: flag hood) the hood's drape covers the
+# shoulders, so the run's flare streams from under it: the back edge one straight line down from the hood's back to the hem
+# (no notch between hood and cloak: no backpack lump), the folds running back from the neck, the hem cut back and up
+# toward the legs; inside the body's run box (no new column behind the hood: B10). L is the mirror of R.
+view R key flare origin 10 0 when hood replace
+|.....QQQQ
+|..QRRRSSS
+|..QRRSSSS
+|.QTRSSRSS
+|.QTSSRSSS
+|.QTSRSSRS
+|QTSSRSRSS
+|QTSRSRSSS
+|QTSRSRSSS
+|QTRSRSSSQ
+|QTRSRSSQ.
+|QTRSRSQ..
+|QTRSQQ...
+|QTQQ.....
+|QQ.......
+
+view L key flare origin -1 0 when hood replace
+|QQQQ.....
+|SSSRRRQ..
+|SSSSRRQ..
+|SSRSSRTQ.
+|SSSRSSTQ.
+|SRSSRSTQ.
+|SSRSRSSTQ
+|SSSRSRSTQ
+|SSSRSRSTQ
+|QSSSRSRTQ
+|.QSSRSRTQ
+|..QSRSRTQ
+|...QQSRTQ
+|.....QQTQ
+|.......QQ

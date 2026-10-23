@@ -1766,3 +1766,23 @@ Baselines (phase A, before the areas):
   - "wheat tufts drawn over a corpse" (r3_t3a): tall-grass tufts in front of a lying v1 body by feet row: P2c with
     the corpses above.
   - "go e 12 walked into a house; home ride says NOT INDOORS" (r3/r4 T3): the testers' route; not P2b.
+
+### P2b motion rollout (docs/P2B_MOTION_ROLLOUT.md), integration (GATES-WEAR), 2026-10-23: integrated, fix round open
+- Every area's delivery in the tree (ADULT-RIG, MAN-WEAR, WOMAN-WEAR, KIN-YOUTH, KIN-CHILD, OVER-CARRY, GATES-LIMBS);
+  the pool regenerated (9c637a21586cf561, 789,222 bytes, 427 parts), `pxc --check` clean; build-wear, build/ (every target,
+  MSVC) and build-native (WSL clang 18) built.
+- New: tools/tests/test_doll_wear.cpp (GATES-WEAR): B11 wear (W1-W10, T1, T2) on every side walk / run / drawn frame of a
+  213-look matrix built from the pool's role vocabulary (M1-M6) with part coverage (175 parts, 0 unjudged), the M7 B10
+  watch (72 cloak x hood x staff / stick / sword looks, inside `--doll --gates`' B10), the freeze manifest
+  (.tmp/judge/rollout/freeze_f47c3af.txt from the checkpoint pool; ruled exceptions in freeze_accepted.txt), `--frames`
+  strips, and `rpg_test --doll-wear` to run them alone. Wear selftest ALL CAUGHT.
+- Measured (plan section 12 has the table): `--doll --gates` exit 1 on MSVC and clang with identical lines: B10 9 (M7: the
+  elf man with hood and any cloak, RUN 64.4-65.3 KB), B11 limbs 38 (elves, child AREA), B11 wear 202 (W7 the woman's drawn
+  guard over her chin 120, T2 the child's long skirts 20, W10 hammer / axe 19, W8 the woman's cloaks in the walk 16, W2 the
+  robe sleeve run 4 12, W9 the youth's twin braids 12, W5 the ledger / scroll 3; 1,621 on the checkpoint pool), B12 16
+  (elves). Freeze: 144 frames changed (the youth girl's fall and lying frames, 7 px: KIN-YOUTH), 16 ruled (the mail sleeves
+  now drawn where they vanished). Rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0);
+  `--doll-coverage --seeds 1..3` 100 % covered; the gates take 21.7 s (+20 s).
+- Kin numbers recorded in docs/MOTION_P2.md 12; the wear calibrations in docs/MOTION_P2.md 13 and the plan's section 12.
+- Open for the fix round (owners named in the plan's section 12): the items above; CI keeps `--doll --gates` as it is
+  until they pass.

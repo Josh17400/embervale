@@ -1,11 +1,15 @@
 # hair/adult/braid_hang: Braid's hanging part: over her left shoulder in front, over the near shoulder in side views; the tip swings (hair keys)
+# (run fix i3, 2026-10-22) the side run's `run` key streams the braid back from the nape down her back (R and L), a
+# strand 3 px wide ending in its tie: on the chest it read as a sash (L) or a badge (R).
+# (run fix i1, 2026-10-22) its own key channel `braid` (the clips name braid= beside hair=) and a `run` key for the side
+# run: on the leaned chest, the tip straight under the braid (no gap row), so it never floats off the sheared torso.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
 use person woman
 body adult
 role hair braid
 layer neck
 anchor head
-keys hair
+keys braid
 z 1
 
 view D key rest origin -2 -14
@@ -91,3 +95,19 @@ view L key lie origin -4 -14
 |acba
 |adca
 |.aa.
+
+view R key run origin -1 -14
+|..aa
+|.ada
+|.aca
+|ada.
+|aca.
+|.b..
+
+view L key run origin -1 -14
+|..........aa..
+|..........ada.
+|..........aca.
+|...........ada
+|...........aca
+|............b.

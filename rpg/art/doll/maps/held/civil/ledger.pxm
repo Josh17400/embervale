@@ -53,6 +53,14 @@ view L key rest origin -3 -3 layer heldBack
 |XWWWf
 |VVVff
 
+# (INTEGRATION 2026-10-23) running, the far hand pumps (its handR mark on every pump key): the ledger hangs from that
+# fist by its top edge, not from the idle's hidden hand 3 px off it (W5: it floated behind the knees)
+view L key rest origin 2 -1 layer heldBack when run replace
+|VVVVf
+|XXWWf
+|XWWWf
+|VVVff
+
 view D key rest origin 0 0 when posture replace
 |.
 

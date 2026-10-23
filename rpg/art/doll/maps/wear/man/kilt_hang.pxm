@@ -83,12 +83,9 @@ view R key wide origin 7 10 anchor pivot when elf replace
 build
 |..............
 
-view R key flare origin 6 1
-|.568768768765.
+view R key flare origin 8 1
+|..568768768765
 |59889889889775
-regions
-|..............
-|EEEEEEEEEEEEEE
 
 view R key kneel origin 6 -2
 |598898898775
@@ -121,11 +118,8 @@ build
 |..............
 
 view L key flare origin 8 1
-|5768768768765.
-|59889889889775
-regions
-|..............
-|EEEEEEEEEEEEEE
+|.5768768768765..
+|..59889889889775
 
 view L key kneel origin 7 -2
 |598898898775

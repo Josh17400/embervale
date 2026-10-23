@@ -194,15 +194,15 @@ f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=r
 f armL=fwd armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
 clip idle R posture carry
-f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry
-f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle D posture carry variant 1
 f armL=fwd armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
 f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
@@ -214,15 +214,15 @@ f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
 f armL=fwd armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
 clip idle R posture carry variant 1
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry variant 1
-f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle D posture carry variant 2
 f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
 f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
@@ -234,15 +234,15 @@ f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=
 f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
 clip idle R posture carry variant 2
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry variant 2
-f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
-f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 
 # ---- Fish: the rod held out in both hands, then a twitch
 clip idle D posture fish
@@ -284,15 +284,15 @@ f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob
 f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
 f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
 clip idle R posture play
-f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
-f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=run hang=flare lean=2
+f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=2
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=run hang=flare lean=2
+f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=2
 clip idle L posture play
-f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
-f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=run hang=flare lean=-2
+f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=-2
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=run hang=flare lean=-2
+f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=-2
 
 # ---- Dance: a turning step, the arms up and out by turns
 clip idle D posture dance
@@ -306,15 +306,15 @@ f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
 f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
 f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
 clip idle R posture dance
-f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
-f armL=raise armR=wave hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
-f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
-f armL=raise armR=wave2 hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=run hang=wide bob=1
+f armL=raise armR=wave hilt=rest legs=idle neck=flow2 sheath=rest torso=rest lean=-1
+f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run hang=wide bob=1
+f armL=raise armR=wave2 hilt=rest legs=idle neck=flow2 sheath=rest torso=rest lean=-1
 clip idle L posture dance
-f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
-f armL=wave armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
-f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
-f armL=wave2 armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=run hang=wide bob=1
+f armL=wave armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest lean=1
+f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=run hang=wide bob=1
+f armL=wave2 armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest lean=1
 
 # ---- Lute (and the oud): the left hand on the neck, the right strumming at the belly (variant 6 the fiddle at the
 #      shoulder and its bow; 9 the harp before the chest in both hands)
@@ -861,15 +861,15 @@ f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=r
 f armL=up armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
 clip idle R posture carry
-f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry
-f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle D posture carry variant 1
 f armL=up armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
 f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
@@ -881,15 +881,15 @@ f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
 f armL=up armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
 clip idle R posture carry variant 1
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry variant 1
-f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
-f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle D posture carry variant 2
 f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
 f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
@@ -901,15 +901,15 @@ f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=
 f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
 f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
 clip idle R posture carry variant 2
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
-f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 clip idle L posture carry variant 2
-f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
-f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
-f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
-f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=run sway=-1 bob=1 hip=0,-1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=run
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run sway=1 bob=1 hip=0,-1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=run
 
 # ---- Fish: the rod held out in both hands, then a twitch
 clip idle D posture fish
@@ -951,15 +951,15 @@ f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob
 f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
 f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
 clip idle R posture play
-f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
-f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=run hang=flare lean=2
+f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=2
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=run hang=flare lean=2
+f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=2
 clip idle L posture play
-f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
-f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
-f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=run hang=flare lean=-2
+f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=-2
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=run hang=flare lean=-2
+f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=run hang=flare bob=-2 lean=-2
 
 # ---- Dance: a turning step, the arms up and out by turns
 clip idle D posture dance
@@ -973,15 +973,15 @@ f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
 f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
 f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
 clip idle R posture dance
-f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
-f armL=raise armR=wave hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
-f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
-f armL=raise armR=wave2 hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=run hang=wide bob=1 hip=0,-1
+f armL=raise armR=wave hilt=rest hang=idle legs=idle neck=flow2 sheath=rest torso=rest lean=-1
+f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=run hang=wide bob=1 hip=0,-1
+f armL=raise armR=wave2 hilt=rest hang=idle legs=idle neck=flow2 sheath=rest torso=rest lean=-1
 clip idle L posture dance
-f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
-f armL=wave armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
-f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
-f armL=wave2 armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=run hang=wide bob=1 hip=0,-1
+f armL=wave armR=raise hilt=rest hang=idle legs=idle neck=flow2 sheath=rest torso=rest lean=1
+f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=run hang=wide bob=1 hip=0,-1
+f armL=wave2 armR=raise hilt=rest hang=idle legs=idle neck=flow2 sheath=rest torso=rest lean=1
 
 # ---- Lute (and the oud): the left hand on the neck, the right strumming at the belly (variant 6 the fiddle at the
 #      shoulder and its bow; 9 the harp before the chest in both hands)

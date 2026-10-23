@@ -6,6 +6,9 @@
 # `flare` (run) flies the back panel out from the waist and sweeps the front over the leading thigh, clear of the kicked
 # shin and the flight's high knee; the side `rest` views stop above the knee rows, which <garment>_stride.pxm puts back for
 # every standing leg key (pixel for pixel) and lifts in the pass keys.
+# WOMAN-WEAR (P2B rollout, 2026-10-22): the run `flare` trails the leaned torso (front level with the torso's hem front,
+# each row lower a pixel further back, never reaching far behind: B10), covering whole leg rows (B11 HIPW, SLIVER); long
+# skirts' walk `wide` hem rows swing a whole pixel forward on the contact and pass (rest on the reach): no glide.
 use person woman
 body woman
 role garment smock
@@ -124,17 +127,17 @@ view R key rest origin 6 -1
 |.588777677665.
 |58887776776665
 
-view R key wide origin 8 -1
-|....5887776765..
-|..5888777677665.
-|.599888898887765
-|.5555...........
+view R key wide origin 7 -1
+|..58887776765..
+|.5888777677665.
+|599888898887765
+|5555...........
 
 view R key flare origin 8 0
 |..5...........
-|.5887887776765
-|55555677767765
-|....5988765...
+|.58878876765..
+|5555567677665.
+|..599988766665
 
 view R key kneel origin 8 -1
 |....5887776765..
@@ -181,11 +184,11 @@ view L key wide origin 8 -1
 |599888898887765
 |...........5555
 
-view L key flare origin 7 0
-|............5..
-|58887776766665.
-|588877767766665
-|....5988855....
+view L key flare origin 6 0
+|...........5...
+|..588877766665.
+|.58888777766665
+|599998885555...
 
 view L key kneel origin 8 -1
 |..5887776765....
