@@ -1,4 +1,5 @@
 // EMBERVALE art: effects. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
+#include <algorithm>
 #include <cmath>
 #include "rpg/art/art_internal.h"
 #include "rpg/art/rig/rig_internal.h"   // (P2a style slice) rig2::steelArc, the Steel Arc
@@ -545,55 +546,6 @@ float sparkAt(float t, float phase) {
   return u < kSparkRun ? u / kSparkRun : -1.0f;
 }
 int sparkFrame(float u) { return u < 0 ? -1 : u < 0.25f ? 0 : u < 0.75f ? 1 : 2; }
-int motes(uint32_t seed, float t, const std::vector<std::pair<int, int>>& glowPx, Mote out[kMaxMotes]) {
-  if (glowPx.empty() || t < 0) return 0;
-  const float off = (seed % 1000u) / 1000.0f * kMoteEvery;
-  const long long last = (long long)std::floor((t - off) / kMoteEvery);
-  int n = 0;
-  for (long long k = last; k > last - 4 && n < kMaxMotes; k--) {
-    const float birth = (float)k * kMoteEvery + off, age = t - birth;
-    if (age < 0 || age >= kMoteLife) continue;
-    uint32_t h = seed ^ (uint32_t)(k * 0x27D4EB2Dll);
-    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12;
-    const std::pair<int, int>& p = glowPx[h % glowPx.size()];
-    Mote m;
-    m.age = age;
-    m.rise = kMoteRise * age / kMoteLife;
-    m.x = (float)p.first;
-    m.y = (float)p.second - m.rise;
-    m.step = age < kMoteLife * 0.5f ? 3 : 2;
-    m.alpha = 1.0f - age / kMoteLife;
-    out[n++] = m;
-  }
-  return n;
-}
-int embers(uint32_t seed, float t, const std::vector<std::pair<int, int>>& glowPx, Ember out[kMaxEmbers]) {
-  if (glowPx.empty() || t < 0) return 0;
-  const float off = (seed % 997u) / 997.0f * kEmberEvery;
-  const long long last = (long long)std::floor((t - off) / kEmberEvery);
-  int n = 0;
-  for (long long k = last; k > last - 8 && n < kMaxEmbers; k--) {
-    const float birth = (float)k * kEmberEvery + off, age = t - birth;
-    if (age < 0 || age >= kEmberLife) continue;
-    uint32_t h = seed * 0x9E3779B1u ^ (uint32_t)(k * 0x85EBCA6Bll);
-    h ^= h >> 13; h *= 0xC2B2AE35u; h ^= h >> 16;
-    // born on the upper glow pixels mostly (a flame climbs off the shoulders and helm, not the greaves)
-    size_t pick = h % glowPx.size();
-    const size_t alt = (h >> 11) % glowPx.size();
-    if (glowPx[alt].second < glowPx[pick].second) pick = alt;
-    const float u = age / kEmberLife;
-    Ember e;
-    e.age = age;
-    const float sway = ((h >> 20) & 1 ? 1.0f : -1.0f) * std::sin(u * 3.1415927f * 1.5f) * 1.4f;
-    e.x = (float)glowPx[pick].first + sway;
-    e.y = (float)glowPx[pick].second - kEmberRise * (u * (2.0f - u)) - 1.0f;   // fast off the metal, slowing as it cools
-    e.heat = u < 0.3f ? 0 : u < 0.65f ? 1 : 2;
-    e.tall = u < 0.6f;
-    e.alpha = u < 0.1f ? u / 0.1f : 1.0f - (u - 0.1f) / 0.9f;
-    out[n++] = e;
-  }
-  return n;
-}
 float gleamAt(float t, float phase) {
   float u = std::fmod(t + phase * kGleamEvery + kGleamEvery * 0.5f, kGleamEvery);
   if (u < 0) u += kGleamEvery;
@@ -604,61 +556,291 @@ float pixelLight(const Pulse& p, float t, float phase, int x, int y) {
   const int band = (((x + y) / 2) % 3 + 3) % 3;
   const float breath = light(p, t, phase);
   const float crawl = 0.5f - 0.5f * std::cos(6.2831853f * (2.0f * t / p.period + phase + band / 3.0f));
-  return breath * (0.7f + 0.3f * crawl);
+  return breath * (0.82f + 0.18f * crawl);   // (polish i2: "busy, many separate glints" at night) the piece breathes as one
 }
-void frameLights(int topTier, bool mythic, uint32_t seed, float t, float phase, const std::vector<GlowPx>& px, std::vector<Light>& out) {
-  if (topTier < 5 || px.empty()) return;
-  const Pulse P = pulseOf(topTier);
-  auto ch = [](uint32_t c, int sh) { return (int)(c >> sh & 255u); };
-  auto up = [&](uint32_t c, float k) {
-    auto u = [&](int v) { return (uint32_t)std::min(255, (int)(v + (255 - v) * k)); };
-    return 0xFF000000u | u(ch(c, 16)) << 16 | u(ch(c, 8)) << 8 | u(ch(c, 0));
-  };
-  int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30);
+Mask maskOf(const Canvas& atlas, int fx, int fy, int fw, int fh) {
+  Mask m;
+  if (fw <= 0 || fh <= 0) return m;
+  m.w = fw; m.h = fh;
+  m.on.assign((size_t)fw * fh, 0);
+  for (int y = 0; y < fh; y++)
+    for (int x = 0; x < fw; x++) {
+      const int ax = fx + x, ay = fy + y;
+      if (ax >= 0 && ay >= 0 && ax < atlas.w && ay < atlas.h && (atlas.get(ax, ay) >> 24) >= 128) {
+        // (polish i3) 2: a fire-coloured pixel (warm, little blue): the Mythic's drawn flame crown lights itself
+        const uint32_t c = atlas.get(ax, ay);
+        const int r = (int)(c & 255u), g = (int)(c >> 8 & 255u), b = (int)(c >> 16 & 255u);
+        m.on[(size_t)y * fw + x] = (r >= 200 && b <= 120 && r - g >= 30) ? 2 : 1;
+      }
+    }
+  return m;
+}
+
+namespace {
+inline int chan(uint32_t c, int sh) { return (int)(c >> sh & 255u); }
+inline uint32_t towardWhite(uint32_t c, float k) {
+  auto u = [&](int v) { return (uint32_t)std::min(255, (int)(v + (255 - v) * k)); };
+  return 0xFF000000u | u(chan(c, 16)) << 16 | u(chan(c, 8)) << 8 | u(chan(c, 0));
+}
+inline uint32_t rgbaOf(int r, int g, int b) { return 0xFF000000u | (uint32_t)b << 16 | (uint32_t)g << 8 | (uint32_t)r; }
+inline float clamp01(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+uint32_t hottest(const std::vector<GlowPx>& px) {
   uint32_t hot = 0;
   int hotL = -1;
   for (const GlowPx& g : px) {
-    x0 = std::min(x0, g.x); y0 = std::min(y0, g.y); x1 = std::max(x1, g.x); y1 = std::max(y1, g.y);
-    const int l = ch(g.c, 0) * 3 + ch(g.c, 8) * 6 + ch(g.c, 16);
+    const int l = chan(g.c, 0) * 3 + chan(g.c, 8) * 6 + chan(g.c, 16);
     if (l > hotL) { hotL = l; hot = g.c; }
   }
-  // the halo's grid (1 px border): the brightest light that spills onto each non-glow cell
-  const int W = x1 - x0 + 3, H = y1 - y0 + 3;
-  std::vector<float> spill((size_t)W * H, 0.0f);
-  std::vector<uint32_t> spillC((size_t)W * H, 0u);
-  std::vector<uint8_t> isGlow((size_t)W * H, 0);
-  for (const GlowPx& g : px) isGlow[(size_t)(g.y - y0 + 1) * W + (g.x - x0 + 1)] = 1;
-  for (const GlowPx& g : px) {
-    const float a = pixelLight(P, t, phase, g.x, g.y);
-    out.push_back({(float)g.x, (float)g.y, 1, 1, up(g.c, 0.55f), a});
-    static const int kN[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-    for (const auto& d : kN) {
-      const size_t i = (size_t)(g.y + d[1] - y0 + 1) * W + (g.x + d[0] - x0 + 1);
-      if (isGlow[i]) continue;
-      if (a * kHalo > spill[i]) { spill[i] = a * kHalo; spillC[i] = g.c; }
+  return hot ? hot : rgbaOf(150, 200, 255);
+}
+// a smooth flame noise in -1..1 (two drifting waves; its slope keeps every pixel's light step small in 1/60 s)
+inline float flameNoise(float t, int x, int y, float phase) {
+  return 0.55f * std::sin(t * 4.3f + x * 0.9f + phase * 6.283f) + 0.45f * std::sin(t * 2.9f - x * 1.7f + y * 0.45f);
+}
+uint32_t hashBirth(uint32_t seed, long long k) {
+  uint32_t h = seed * 0x9E3779B1u ^ (uint32_t)(k * 0x85EBCA6Bll) ^ (uint32_t)((unsigned long long)k >> 32);
+  h ^= h >> 13; h *= 0xC2B2AE35u; h ^= h >> 16;
+  return h;
+}
+}  // namespace
+
+void figureLights(const Figure& F, std::vector<Light>& out) {
+  if (F.topTier < 5) return;
+  const Pulse P = pulseOf(F.topTier);
+  const float breath = light(P, F.t, F.phase);
+  static const std::vector<GlowPx> kNone;
+  const std::vector<GlowPx>& px = F.glow ? *F.glow : kNone;
+  const uint32_t hot = hottest(px);
+  // ---- the glow pixels and their 2 px halo (light, not sprite pixels)
+  if (!px.empty()) {
+    int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30);
+    for (const GlowPx& g : px) { x0 = std::min(x0, g.x); y0 = std::min(y0, g.y); x1 = std::max(x1, g.x); y1 = std::max(y1, g.y); }
+    const int W = x1 - x0 + 5, H = y1 - y0 + 5;
+    std::vector<float> spill((size_t)W * H, 0.0f);
+    std::vector<uint32_t> spillC((size_t)W * H, 0u);
+    std::vector<uint8_t> isGlow((size_t)W * H, 0);
+    for (const GlowPx& g : px) isGlow[(size_t)(g.y - y0 + 2) * W + (g.x - x0 + 2)] = 1;
+    for (const GlowPx& g : px) {
+      const float a = pixelLight(P, F.t, F.phase, g.x, g.y);
+      out.push_back({(float)g.x, (float)g.y, 1, 1, towardWhite(g.c, 0.55f), a});
+      for (int dy = -2; dy <= 2; dy++)
+        for (int dx = -2; dx <= 2; dx++) {
+          const int d = std::abs(dx) + std::abs(dy);
+          if (d == 0 || d > 2) continue;
+          const size_t i = (size_t)(g.y + dy - y0 + 2) * W + (g.x + dx - x0 + 2);
+          if (isGlow[i]) continue;
+          const float s = a * (d == 1 ? kHalo : kHalo2);
+          if (s > spill[i]) { spill[i] = s; spillC[i] = g.c; }
+        }
+    }
+    for (int y = 0; y < H; y++)
+      for (int x = 0; x < W; x++) {
+        const size_t i = (size_t)y * W + x;
+        if (spill[i] > 0.004f) out.push_back({(float)(x + x0 - 2), (float)(y + y0 - 2), 1, 1, spillC[i], spill[i]});
+      }
+  }
+  if (F.topTier < 6) return;
+  // ---- the aura (T6): a 1 px ring of breathing light outside the silhouette, from the crown down to mid-body (light off
+  // the helm and shoulders, never a selection outline round the boots). The Mythic: flame tongues licking up off every
+  // upper edge (1-4.5 px, a smooth noise per column; the last pixel's light is the height's fraction, so a tongue grows
+  // and sinks, never pops) over a 1 px fire ring down its sides.
+  if (F.mask && F.mask->w > 0) {
+    const Mask& M = *F.mask;
+    int top = M.h, bot = -1;
+    for (int y = 0; y < M.h; y++)
+      for (int x = 0; x < M.w; x++)
+        if (M.on[(size_t)y * M.w + x]) { top = std::min(top, y); bot = std::max(bot, y); }
+    if (bot >= 0) {
+      const float span = (float)std::max(1, bot - top);
+      const uint32_t fWhite = rgbaOf(255, 232, 140), fOrange = rgbaOf(255, 150, 40), fRed = rgbaOf(224, 64, 24);
+      // (polish i3, the panel: "the T6 aura: a soft, blurry pale-green halo, the only anti-aliased element, a cheap filter
+      // glow / a selection outline"; "the Mythic's blackened body sinks into the dark grass") the light lives ON the figure
+      // now, as a 16-bit painter lights a hero: a rim of light one pixel inside the dark outline (the outline keeps its edge,
+      // the ground never takes a halo), lit from the upper left (the right side at 60 %, nothing on an underside), bright at
+      // the crown and fading down the body, breathing with the runes. T6: the glow's own hue pulled toward white over the
+      // helm, shoulders and chest; the Mythic: fire light licking up both flanks below the head (the face stays clean).
+      {
+        const uint32_t rimC = F.mythic ? rgbaOf(255, 156, 48) : towardWhite(hot, 0.25f);
+        const float yA = F.mythic ? top + span * 0.30f : (float)top, yB = top + span * (F.mythic ? 0.86f : 0.62f);
+        for (int y = (int)yA; y <= (int)yB; y++)
+          for (int x = 0; x < M.w; x++) {
+            if (!M.at(x, y)) continue;
+            if (!M.at(x - 1, y) || !M.at(x + 1, y) || !M.at(x, y - 1) || !M.at(x, y + 1)) continue;   // the outline itself
+            const bool offL = !M.at(x - 2, y), offR = !M.at(x + 2, y), offU = !M.at(x, y - 2);
+            float side = 0;
+            if (F.mythic) side = (offL || offR) ? 1.0f : 0.0f;
+            else side = (offU || offL) ? 1.0f : offR ? 0.6f : 0.0f;
+            if (side <= 0) continue;
+            const float down = clamp01((y - yA) / std::max(1.0f, yB - yA));
+            float a;
+            if (F.mythic) {
+              const float n = 0.5f + 0.5f * flameNoise(F.t * 1.1f, 0, y, F.phase + (offL ? 0.0f : 0.37f));
+              a = kRimM * side * (0.6f + 0.4f * n) * (0.7f + 0.3f * breath) * (1.0f - 0.35f * down);
+            } else {
+              a = kRim * side * breath * (1.0f - 0.6f * down);
+            }
+            if (a > 0.004f) out.push_back({(float)x, (float)y, 1, 1, rimC, a});
+          }
+      }
+      if (!F.mythic) {
+        // the T6's off-figure light is its motes alone (particleLights): no ring round the silhouette
+      } else {
+        // (polish i2, the panel: "the flame and glow fringe makes the silhouette muddy, an orange blob at 3x") the Mythic's
+        // fire licks up in separate tongues off the crown alone (the helm, its horns or crest: the upper 30 % of the
+        // figure), white-hot at the root, amber, red at the tip; each column's tongue rises and sinks on a smooth noise,
+        // so they come and go with gaps between them. No ring down the sides: the outline stays clean.
+        // the drawn flame crown burns: its fire-coloured pixels (Mask 2) in the upper 30 % take soft fire light that
+        // flickers on the flame noise (the panel: "the Mythic flames still don't glow"; at night they went dark)
+        for (int y = top; y <= top + (int)(span * 0.3f); y++)
+          for (int x = 0; x < M.w; x++) {
+            if (M.on[(size_t)y * M.w + x] != 2) continue;
+            auto hotAt = [&](int xx, int yy) { return xx >= 0 && yy >= 0 && xx < M.w && yy < M.h && M.on[(size_t)yy * M.w + xx] == 2; };
+            if (hotAt(x - 1, y) && hotAt(x + 1, y) && !hotAt(x, y - 1) && !hotAt(x, y + 1)) continue;   // a gold band, not a flame
+            const float n = 0.5f + 0.5f * flameNoise(F.t * 1.6f, x, y, F.phase);
+            out.push_back({(float)x, (float)y, 1, 1, rgbaOf(255, 196, 92), kCrown * (0.55f + 0.45f * n)});
+          }
+        for (int x = 0; x < M.w; x++) {
+          int yt = -1;
+          for (int y = 0; y < M.h; y++) if (M.on[(size_t)y * M.w + x]) { yt = y; break; }
+          if (yt < 0 || yt > top + span * 0.3f) continue;
+          const float n = 0.5f + 0.5f * flameNoise(F.t * 1.4f, x * 2, 0, F.phase);
+          const float h = 6.0f * n * (0.75f + 0.25f * breath) - 1.2f;   // <= 0: no tongue in this column now
+          if (h <= 0) continue;
+          for (int j = 0; j < (int)std::ceil(h); j++) {
+            const float part = std::min(1.0f, h - j);   // the tip pixel's share: a tongue grows and sinks, never pops
+            const float u = j / std::max(1.0f, h - 1.0f);
+            const uint32_t c = u < 0.34f ? fWhite : u < 0.7f ? fOrange : fRed;
+            out.push_back({(float)x, (float)(yt - 1 - j), 1, 1, c, kFlame1 * (1.0f - 0.45f * u) * part});
+          }
+        }
+      }
     }
   }
-  for (int y = 0; y < H; y++)
-    for (int x = 0; x < W; x++) {
-      const size_t i = (size_t)y * W + x;
-      if (spill[i] > 0.004f) out.push_back({(float)(x + x0 - 1), (float)(y + y0 - 1), 1, 1, spillC[i], spill[i]});
+  // ---- the edge sweep: a white head, a tail in the glow's light, along the grip-to-tip line (on the drawn piece only)
+  if (F.bladeT6 && F.line) {
+    const float u = sparkAt(F.t, F.phase);
+    const float dx = F.tx - F.gx, dy = F.ty - F.gy, L = std::sqrt(dx * dx + dy * dy);
+    auto starAt = [&](float a) {
+      const float sx = std::floor(F.tx + 0.5f), sy = std::floor(F.ty + 0.5f);
+      out.push_back({sx, sy, 1, 1, 0xFFFFFFFFu, a});
+      const uint32_t w = towardWhite(hot, 0.6f);
+      for (int k = 1; k <= 2; k++) {
+        const float ak = a * (k == 1 ? 0.75f : 0.35f);
+        out.push_back({sx - k, sy, 1, 1, w, ak}); out.push_back({sx + k, sy, 1, 1, w, ak});
+        out.push_back({sx, sy - k, 1, 1, w, ak}); out.push_back({sx, sy + k, 1, 1, w, ak});
+      }
+    };
+    if (u >= 0 && L >= 2) {
+      const float head = u * (L + kSweepTail);   // the head runs off the tip as the tail follows it in
+      const uint32_t tail = towardWhite(hot, 0.35f);
+      int lastX = 1 << 30, lastY = 1 << 30;
+      const int steps = (int)std::ceil(L * 2.0f);
+      for (int s = 0; s <= steps; s++) {
+        const float d = L * s / steps;
+        const int x = (int)std::floor(F.gx + dx * d / L + 0.5f), y = (int)std::floor(F.gy + dy * d / L + 0.5f);
+        if (x == lastX && y == lastY) continue;
+        lastX = x; lastY = y;
+        if (F.mask && F.mask->w > 0 && !F.mask->at(x, y)) continue;
+        const float behind = head - d;
+        if (behind < -1.0f || behind > kSweepTail) continue;
+        if (behind < 1.0f) out.push_back({(float)x, (float)y, 1, 1, 0xFFFFFFFFu, 0.95f});
+        else out.push_back({(float)x, (float)y, 1, 1, tail, 0.85f * (1.0f - (behind - 1.0f) / (kSweepTail - 1.0f))});
+      }
+      if (u > 0.8f) starAt(0.95f * (1.0f - (u - 0.8f) / 0.2f * 0.5f));
+    } else if (F.strike) {
+      // (polish i2, the panel: "the orange and gold palette merges the sword into the body on the strike") the Mythic's
+      // blade flashes white-hot along its length on the impact frame, so it parts from the burning harness
+      if (F.mythic && L >= 2) {
+        int lastX = 1 << 30, lastY = 1 << 30;
+        const int steps = (int)std::ceil(L * 2.0f);
+        for (int s = 0; s <= steps; s++) {
+          const float d = L * s / steps;
+          const int x = (int)std::floor(F.gx + dx * d / L + 0.5f), y = (int)std::floor(F.gy + dy * d / L + 0.5f);
+          if (x == lastX && y == lastY) continue;
+          lastX = x; lastY = y;
+          if (F.mask && F.mask->w > 0 && !F.mask->at(x, y)) continue;
+          out.push_back({(float)x, (float)y, 1, 1, rgbaOf(255, 246, 214), 0.45f + 0.4f * d / L});
+        }
+      }
+      starAt(0.9f);
     }
-  if (topTier < 6) return;
-  std::vector<std::pair<int, int>> xy;
-  xy.reserve(px.size());
-  for (const GlowPx& g : px) xy.push_back({g.x, g.y});
-  if (mythic) {
-    Ember e[kMaxEmbers];
-    const int n = embers(seed, t, xy, e);
-    static const uint32_t kHeat[3] = {0xFF9CF4FFu, 0xFF2AA8FFu, 0xFF2040E8u};   // rgba: #FFF49C, #FFA82A, #E84020
-    for (int k = 0; k < n; k++) {
-      const float ex = std::floor(e[k].x + 0.5f), ey = std::floor(e[k].y + 0.5f);
-      out.push_back({ex, ey, 1, e[k].tall ? 2.0f : 1.0f, kHeat[e[k].heat], 0.95f * e[k].alpha});
+  }
+}
+
+void frameLights(int topTier, bool mythic, uint32_t, float t, float phase, const std::vector<GlowPx>& px, std::vector<Light>& out) {
+  Figure f;
+  f.topTier = topTier; f.mythic = mythic; f.t = t; f.phase = phase; f.glow = &px;
+  figureLights(f, out);
+}
+
+void particlesStep(Particles& ps, uint32_t seed, float t, bool mythic, float ox, float oy, const std::vector<GlowPx>& glow, bool tipOn,
+                   float tipX, float tipY) {
+  const float every = mythic ? kEmberEvery : kMoteEvery;
+  const float off = (seed % 997u) / 997.0f * every;
+  const long long k = (long long)std::floor((t - off) / every);
+  if (ps.lastT < 0 || t < ps.lastT || t - ps.lastT > 1.0f || ps.mythic != mythic) { ps.live.clear(); ps.lastK = k; ps.mythic = mythic; }
+  ps.lastT = t;
+  const float life = mythic ? kEmberLife : kMoteLife;
+  ps.live.erase(std::remove_if(ps.live.begin(), ps.live.end(), [&](const Particles::P& p) { return t - p.born >= life; }), ps.live.end());
+  const size_t cap = mythic ? kMaxEmbers : kMaxMotes;
+  for (long long b = std::max(ps.lastK + 1, k - 5); b <= k; b++) {
+    const uint32_t h = hashBirth(seed, b);
+    const float born = (float)b * every + off;
+    if (t - born >= life || ps.live.size() >= cap) continue;
+    Particles::P p;
+    p.h = h; p.born = born;
+    if (mythic && tipOn && (b & 1)) { p.x = tipX; p.y = tipY; }
+    else if (!glow.empty()) {
+      size_t pick = h % glow.size();
+      const size_t alt = (h >> 11) % glow.size();
+      if (glow[alt].y < glow[pick].y) pick = alt;   // the upper pixels mostly: a flame climbs off the helm and shoulders
+      p.x = ox + (float)glow[pick].x; p.y = oy + (float)glow[pick].y;
+    } else continue;
+    ps.live.push_back(p);
+  }
+  ps.lastK = std::max(ps.lastK, k);
+}
+int particlesAlive(const Particles& ps, float t) {
+  const float life = ps.mythic ? kEmberLife : kMoteLife;
+  int n = 0;
+  for (const Particles::P& p : ps.live) if (t - p.born >= 0 && t - p.born < life) n++;
+  return n;
+}
+float particleRise(const Particles& ps, size_t i, float t) {
+  if (i >= ps.live.size()) return 0;
+  const float life = ps.mythic ? kEmberLife : kMoteLife, rise = ps.mythic ? kEmberRise : kMoteRise;
+  const float u = clamp01((t - ps.live[i].born) / life);
+  return ps.mythic ? rise * u * (2.0f - u) : rise * u;
+}
+void particleLights(const Particles& ps, float t, uint32_t hot, std::vector<Light>& out) {
+  const float life = ps.mythic ? kEmberLife : kMoteLife;
+  if (!hot) hot = rgbaOf(150, 200, 255);
+  for (size_t i = 0; i < ps.live.size(); i++) {
+    const Particles::P& p = ps.live[i];
+    const float age = t - p.born;
+    if (age < 0 || age >= life) continue;
+    const float u = age / life;
+    const float sway = ((p.h >> 20) & 1 ? 1.0f : -1.0f) * std::sin(u * 3.1415927f * 1.5f) * (ps.mythic ? 1.6f : 1.0f);
+    const float x = std::floor(p.x + sway + 0.5f), y = std::floor(p.y - particleRise(ps, i, t) - 1.0f + 0.5f);
+    const float a = u < 0.1f ? u / 0.1f : 1.0f - (u - 0.1f) / 0.9f;
+    if (ps.mythic) {
+      static const uint32_t kHeat[3] = {0xFF9CF4FFu, 0xFF2AA8FFu, 0xFF2040E8u};   // rgba: #FFF49C, #FFA82A, #E84020
+      const int heat = u < 0.3f ? 0 : u < 0.65f ? 1 : 2;
+      const float hgt = u < 0.6f ? 2.0f : 1.0f;
+      out.push_back({x, y, 1, hgt, kHeat[heat], 0.95f * a});
+      if (heat < 2) {   // the soft glow round a hot ember: what makes it read at 1x
+        const float g = (heat == 0 ? 0.34f : 0.22f) * a;
+        out.push_back({x - 1, y, 1, hgt, kHeat[1], g});
+        out.push_back({x + 1, y, 1, hgt, kHeat[1], g});
+        out.push_back({x, y - 1, 1, 1, kHeat[1], g});
+        out.push_back({x, y + hgt, 1, 1, kHeat[2], g * 0.8f});
+      }
+    } else {
+      out.push_back({x, y, 1, 1, towardWhite(hot, u < 0.5f ? 0.6f : 0.3f), 0.95f * a});
+      const float g = 0.3f * a;
+      out.push_back({x - 1, y, 1, 1, hot, g}); out.push_back({x + 1, y, 1, 1, hot, g});
+      out.push_back({x, y - 1, 1, 1, hot, g}); out.push_back({x, y + 1, 1, 1, hot, g});
     }
-  } else {
-    Mote m[kMaxMotes];
-    const int n = motes(seed, t, xy, m);
-    for (int k = 0; k < n; k++) out.push_back({std::floor(m[k].x), std::floor(m[k].y), 1, 1, m[k].step >= 3 ? up(hot, 0.6f) : up(hot, 0.3f), 0.95f * m[k].alpha});
   }
 }
 bool enabled() { return rigVersion() >= 2; }

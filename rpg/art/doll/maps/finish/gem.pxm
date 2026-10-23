@@ -1,14 +1,15 @@
-# finish/gem: T5-T6 gems on G (STYLE_P2 27.3; P2C_CONTRACTS 3b; LADDER-FINISH, ladder slice i3): a STAMP set laid once
-# per G blob, keyed by its size (w, h capped at 3): 1x1 a pommel or a spear's socket, 2x1 / 1x2 a clasp, 2x2 a brow,
-# 3x2 a chest or a boss, 3x3 a buckler's boss. A cut stone in two glow steps (B8: 3 glow steps a figure): the white
-# point (1, Glow 4) at the top-left and the body (0, Glow 2); the piece owner's step-1 socket gives it its dark side.
-# At T3-T4 G is the metal-2 boss (the resolver's recolour, no stamp). Absolute steps (a stamp). i3: the stone's shadow
-# facet is the setting's dark gold (N, metal2 1); i2 named 'q' (skin 0) there by mistake.
+# finish/gem: T5-T6 gems on G (STYLE_P2 27.3; P2C_CONTRACTS 3b; LADDER-FINISH, ladder slice i3 + polish i1 + i2): a STAMP set
+# laid once per G blob, keyed by its size (w, h capped at 3): 1x1 a pommel or a spear's socket, 2x1 / 1x2 a clasp, 2x2 a
+# brow or a shield's boss, 3x2 a chest or a boss, 3x3 a buckler's boss or the cloak's escutcheon. A cut stone in the three
+# glow steps (B8: 3 a figure): the white point (1, Glow 4) at the top-left, the body (3, Glow 3: polish i2, so the halo
+# spreads a band of light round it, not a dim dot) and one Glow 2 facet at the bottom-right (0); the piece owner's step-1
+# socket gives it its dark side. At T3-T4 G is the metal-2 boss (the resolver's recolour, no stamp). Absolute steps.
 use person
 body adult
 role overlay finish.gem
 legend 0 glow 2
 legend 1 glow 4
+legend 3 glow 3
 tags tile overlay stamp
 on-region G
 
@@ -16,29 +17,29 @@ view D key 1x1 origin 0 0
 |1
 
 view D key 2x1 origin 0 0
-|10
+|13
 
 view D key 1x2 origin 0 0
 |1
-|0
+|3
 
 view D key 2x2 origin 0 0
-|10
-|0N
+|13
+|30
 
 view D key 3x2 origin 0 0
-|100
-|0N0
+|133
+|330
 
 view D key 2x3 origin 0 0
-|10
-|00
-|0N
+|13
+|33
+|30
 
 view D key 3x3 origin 0 0
-|.0.
-|010
-|.0.
+|.3.
+|313
+|.3.
 
 view D key rest origin 0 0
 |1

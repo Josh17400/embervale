@@ -154,6 +154,11 @@ struct HumanLook {
   uint32_t gemColor = 0;     // 0: the glow colour, else the metal's default glow
   uint8_t motif = 0;         // the filigree's motif by the body's maker people: 0 oak (Heartland, default) 1 clouds (Jade)
                              // 2 laurel (Imperial) 3 knot (Fjordfolk, Highland)
+  uint8_t floor = 0;         // (polish i1) bits by slot (1 << TIER_*): an empty slot drawn as the T1 floor (gear::fillLadder:
+                             // nothing worn there; the resolver draws T1's padded jerkin / leather boots; rig 2)
+  uint8_t kitVar = 0;        // (polish i1) a ranked fighter's own kit (census: rankTiers, from the person's face; no draw):
+                             // 0 none, else 1-255; the resolver varies each piece's tier a step, the dials, gloves, the
+                             // sergeant's cloak, a bare head now and then (doll_resolve.cpp ladderLook; rig 2)
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

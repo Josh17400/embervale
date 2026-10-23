@@ -175,7 +175,7 @@ catches a missing view.
 AnimPick.part gains `Drawn` (the drawn idle, walk and run): the slice. Block shows while `Actor::blockT > 0`
 (production, FOLK-SIM-C: set by the sword's parry and a shield bearer's parry for `kBlockShow = 0.15 s`, visual only;
 in the slice Block is reached by `pose block` and the dump). The bow's Draw / Release are unchanged.
-Atlas budgets per look: LOCO 128, RUN 64, DRAWN 256 (NEW), ACTION 512, DEATH 48, POSTURE 64 KB. Effects are drawn from
+Atlas budgets per look: LOCO 128, RUN 64, DRAWN 256 (NEW), ACTION 512, DEATH 52 (polish i1: was 48; the corpse's legs now lie with it), POSTURE 64 KB. Effects are drawn from
 their maps by art_fx at the frame's pivot plus the clip's fx offset, not baked into each look's atlas. The doll composes
 them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's arc is pixel-identical on screen.
 (The ladder re-plan: A3's arc is re-cut, so "pixel-identical" now means the re-cut arc on screen as in the compose.)
@@ -185,19 +185,40 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
 - **The glow plane**: compose also returns, per RigSheet, the Glow-slot pixels of each frame after the finishing pass,
   cropped to their box and packed (`RigSheet::glow`: an atlas plus a rect and offset per frame; empty when the look has
   none). The view bakes it beside the atlas (at most 12 looks cached) and draws it after the lighting, additively, with
-  light a(t) = lo + (hi - lo)(0.5 - 0.5 cos 2pi(t / P + phase)): T6 P 2.2 s, 0.30-0.85; a T5 gem P 3.3 s, 0.15-0.45;
+  light a(t) = lo + (hi - lo)(0.5 - 0.5 cos 2pi(t / P + phase)): T6 P 2.2 s, 0.10-1.00; a T5 gem P 3.3 s, 0.10-0.60 (i3);
   phase = the actor's anim phase (anim.cpp's per-actor number); while idle the peak locks to the breathe frame. Depth,
   the rune crawl: three sub-planes by (x + y) / 2 mod 3, a third of a cycle apart.
-- **The edge spark**: `fx glint` (3 frames) travels the frame's RigAnchors grip to tip in 0.33 s every 3.3 s (each actor
-  offset), and flashes once at the tip on the strike's impact frame, for a T6 piece in hand with a tip mark.
-- **Motes**: view particles, no atlas: 3 a figure at most, born every 0.45 s on a glow-plane pixel of the current frame,
-  rising 8 px over 1.0 s in glow steps 3 then 2, fading; seeded per actor (deterministic under Witness).
-- **The stir**: conditioned clips (`clip idle <F> when breeze`) name `cloak=breeze` and `crest=breeze` on the breathe
-  frame; the run's cloak `flare` has a `when cloak.t5` view. No new frame; the frozen loco walk and run lines unchanged.
-- **Mythic** (ladder slice depth; C7 in production): the aura rebuilt per doll frame as a cropped ring plane (two
-  flicker variants), light only within 3 px of the silhouette.
-- **Budgets** (C13): 32 animated pixels a figure-frame at most (ladder i2 integration: was 24; T6 runes 21-24 px + 3 motes + the spark, the owner's animated late gear); light changes 0.25 or less per 1/60 s; a glow plane 25 %
-  or less of its atlas; 8 T6 figures cost the city frame 0.3 ms or less. Nothing draws at rig 1.
+- **The edge sweep** (polish i1; was the spark): a white head with a 6 px tail in the glow's light runs the frame's
+  RigAnchors grip (else the weapon fist) to tip in 0.40 s every 2.75 s (each actor offset), on the drawn piece's own
+  pixels only (the frame's silhouette mask), and ends in a 5 px star at the tip; the star flashes on the strike's impact
+  frame; a T6 piece in hand with a tip.
+- **The halo** (polish i1): each glow pixel's light spills 0.42 onto its 4 non-glow neighbours and 0.16 at 2 px: the
+  runes and gems read as a band of light, not dots.
+- **The aura** (polish i1): T6, a 1 px ring of the glow's light (half-way to white) outside the silhouette round the helm
+  and shoulders (the upper 45 % of the figure, fading down), 0.40 x the breath; the Mythic, flame tongues 1-4.5 px off
+  every upper edge (a smooth noise per column, the tip pixel lit by the height's fraction so a tongue grows and sinks,
+  white-yellow, amber, red; 0.58 at the root) over a 1 px fire ring down to 62 % of the figure (0.24). Built per frame from
+  the frame's silhouette (the view keeps a mask per frame of a T6 look's atlas).
+  **Since polish i3 the light is ON the figure** (the panel: "a blurry pale-green selection halo"): no off-silhouette ring.
+  T6: a rim one pixel inside the dark outline, lit from the upper left (right side 60 %, no underside), the crown to 62 % of
+  the figure fading 60 % down it, the glow's hue a quarter toward white, kRim 0.75 x the breath. The Mythic: a fire rim
+  (#FF9C30) up both flanks from 30 % to 86 % (below the face) at kRimM 0.85 on a flame noise, and its drawn flame crown
+  (the mask's fire-coloured pixels, value 2, in the upper 30 %; horizontal gold bands skipped) lit at kCrown 0.42 x a
+  flicker; the separate flame tongues off the crown stay.
+- **Motes and embers** (polish i1): view particles in WORLD space (one set per actor; a walker leaves them behind; seeded
+  per actor and birth tick, deterministic under Witness): T6 motes born every 0.45 s on a glow pixel of the current frame,
+  4 alive, rising 10 px over 1.2 s with a sway and a soft 4-neighbour glow; the Mythic's embers every 0.07 s, 12 alive,
+  0.8 s, licking 13 px up, white-yellow -> amber -> red with a soft glow round the hot ones; while the Mythic strikes every
+  other ember is born at the blade's tip (a trail of fire along the swing).
+- **The stir**: the idle's breathe frame and (polish i1) the walk's passing frames (1 and 4 of 6, where the hair swings)
+  draw the `breeze` views of every rest-key part of a look flagged `breeze` (the T5-T6 cloak's hem, the crest's tail); the
+  run's cloak `flare` has a `when cloak.t5` view. No new frame; the frozen loco walk and run lines unchanged.
+- **Budgets** (C13, polish i1): sprite-bright animated pixels (light over 0.45, or a glow pixel: the glow plane, the
+  sweep, the flame roots, the particles' cores, the rim at its peak) 128 a figure-frame at most (polish i3: was 112; the Mythic measures 119 with its fire rim and lit crown; was 32: the blind panel saw "no animation at
+  game scale"); soft light (halo, aura, flame tips) 320 px at most, each 0.45 or less; a T6 figure shows 40 px of soft light
+  or more at the breath's peak; still lights (glow, halo, aura) change 0.25 or less per 1/60 s (the sweep and the
+  particles move by design); a glow plane 25 % or less of its atlas; 8 T6 figures' light 0.3 ms or less. Nothing draws at
+  rig 1.
 
 ## 7. Test hooks
 
@@ -429,3 +450,50 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
 - **Lying**: the corpse's dropped weapon or shield (screen items) lies 3 px up, under the body (was a line 2-3 px below it).
 - **The archer** (the panel: "garish speckled orange"): skin #CA8E66, hair #8A5A30 (the leather pick a dark woodsman
   brown, the hair parted from it for C14).
+
+### LADDER-DOLL, polish iteration 1 (2026-10-23; the blind panel's polish list P2, P5 grip, P6, P7)
+- **HumanLook ADD** (ladder fields; key() at rig 2 only): `floor` (bits by slot: an empty slot drawn as the T1 floor) and
+  `kitVar` (a ranked fighter's own kit, 0 none, 1-255). Looks macros take `floor=` and `kitVar=`.
+- **The T1 floor** (gear::fillLadder): nobody who dresses from an inventory goes bare at rig 2: an empty body slot is T1 with
+  the floor bit (the resolver draws T1's padded jerkin in the wearer's shirt colour), empty feet T1 leather boots. The
+  player starts in T1 gear; a worn piece keeps its own tier. Rig 1 and the look's own fields untouched.
+- **Each fighter's kit** (gear::rankTiers(L, tier, person = true); census::dress calls it as before): kitVar from the person's
+  face (no draw). The resolver (ladderLook) varies helm, shield, gloves and boots a tier either way (never over body + 1),
+  the shoulder and skirt dials a step, a third of T1-T3 bare-handed, a sergeant in six (T2-T4) with a travel cloak in the
+  livery, one in eight of the village watch (T1-T2) bare-headed. The body keeps the rank. The looks macros' `tier=` passes
+  person = false (the slice looks keep their authored kit).
+- **Coverage, not holes**: pauldronOf takes the nearest drawn size of the family (the T2 cap asked for "plate.2", never
+  drawn); the tabard is needed only where the library draws one for the body (the watchwoman fell back to v1 in a row of
+  rig-2 guards). Still v1 in game: census looks whose armour form has no woman's map (scale 336, brigandine 257, lamellar
+  241 in `--doll-coverage --scope all`): production art.
+- **Corpses** (compose): a turned frame's screen items are the views that NAME `anchor pivot` (drops, the shield's lie); a
+  part anchored at the pivot by default (the legs, the sword) turns with the body. The legs' `lie` stood upright out of
+  every corpse. DEATH budget 52 KB (was 48: the legs now lie with the body; worst civil tool look 48.3).
+- **The living finish** (art::finish, 6b restated): figureLights (glow + 2 px halo, the T6 aura, the Mythic's flame tongues,
+  the edge sweep and its star) and world-space Particles (motes, embers; the Mythic's strike sheds embers off the tip) are
+  the one model of the game (render.cpp: masks per frame of a T6 atlas, finishParts_ per actor) and of doll_gallery.
+  doll_gallery `motion:<tag>[:<facing>[:night]]` plays a look at game speed (idle 3.3 s, walk 40 px/s, two blows, walk),
+  30 frames a second, the board and an 80 x 72 follow crop at 3x. The walk's passing frames draw the `breeze` views.
+- **C13 restated** (test_doll_ladder.cpp): the sweep's interval and run, particles' counts, rise and the walker's trail
+  (8 px or more), per look and frame the bright and soft budgets, the still lights' step and the T6 soft-light floor, the
+  cost of 8 figures (measured 0.043 ms).
+- tools/scripts/p2c_polish.txt: the hero as he starts (T1 floor, `expect doll gear armour=padded`), four census lineups,
+  the T6 and Mythic walking by day and night (0 failures).
+
+### LADDER-DOLL, polish iteration 2 (2026-10-23; the blind panel on polish i1)
+- **The T6 aura stands off the silhouette** (the panel: "the pale green glow outline softens the dark A3 outline", "vanishes
+  in front of foliage"): one clear pixel, then a 2 px band (kAura x breath at 2 px, half at 3 px) of warm white-gold (the
+  glow's colour 30 %, #FFF0C8 70 %) round the helm and shoulders (reach 0.45). The outline keeps its edge.
+- **The Mythic's fire licks in separate tongues** off the crown only (the upper 30 % of the figure), 0-4.8 px on a smooth
+  noise with gaps; i1's fire ring down the sides is gone (kFlame2 kept, not drawn): "an orange blob at 3x". On a strike
+  frame the Mythic's blade flashes white-hot along grip to tip (0.45-0.85) so it parts from the burning harness.
+- **The pieces breathe as one**: pixelLight's crawl share 0.18 (was 0.3): "busy, many separate glints" at night.
+- C13 numbers unchanged (112 bright, 320 soft at 0.45 or less, 0.25 step); measured lt6 soft 157-307, lt6m bright 65.
+- **Each fighter's kit, more of it** (ladderLook, kitVar, rig 2): a bonnet man (headwear cap, no helm, rank 2+) wears the
+  people's kettle hat one in three (helmForm 2, iron; drawnForm finds the part), the rest dye their caps unevenly; the coat a
+  step either way (padded -> leather 1/3, leather -> padded 1/4, mail at T2-T3 -> leather 1/4; the body tier stays the
+  rank's); the shield's face dark livery 1/4 or a pale field 1/4. `p2cline npc <people> <role> [rank] [n] [mixed]`
+  stages census fighters as the game makes them (the npc= macro: the role's base with its weapon); P2b's `lineup` dresses
+  a bare look, which is why the i1 rows carried no weapons.
+- **Corpse feet** (for the legs' owner or the integrator; legs_lie_feet.patch): legs/adult/loco/std.pxm `lie` foot 6 px wide
+  in line with the shin (was 8: the turn stood its 3 px toe block up out of every corpse), tips.pxm `lie` origin 1 1 to match.

@@ -1,6 +1,8 @@
-# finish/mote: the living finish's mote (STYLE_P2 27.7; P2C_CONTRACTS 6b `fx mote`; LADDER-FINISH, ladder slice i3): a
-# rising spark drawn by the view as a particle: a1 (its first third) a 1x2 streak, white head over a Glow 2 tail so it
-# reads as moving up; a2 (the middle third) one Glow 3 pixel; a3 (the last third) one Glow 2 pixel, its light fading.
+# finish/mote: the living finish's mote (STYLE_P2 27.7; P2C_CONTRACTS 6b `fx mote`; LADDER-FINISH, ladder polish i1 + i2):
+# a rising spark drawn as a particle. Polish i2 (the panel: "the motes are 1-2 px sparks, easy to miss"): a1 (its first
+# third) a 3x3 plus, a white core in Glow 2 arms; a2 (the middle third) the plus with a Glow 3 core; a3 (the last third) a
+# 1x2 streak fading up. PROPOSED for the view (art_fx.h's particles draw a 1 px core with a soft 4-neighbour glow today):
+# drawn opaque as this sprite, a mote reads at 1x.
 use person
 body adult
 role fx mote
@@ -12,42 +14,58 @@ anchor pivot
 keys fx
 tags overlay
 
-view D key a1 origin 0 0
-|4
-|2
+view D key a1 origin 1 1
+|.2.
+|242
+|.2.
 
-view D key a2 origin 0 0
-|3
+view D key a2 origin 1 1
+|.2.
+|232
+|.2.
 
 view D key a3 origin 0 0
-|2
-
-view U key a1 origin 0 0
-|4
-|2
-
-view U key a2 origin 0 0
 |3
+|2
+
+view U key a1 origin 1 1
+|.2.
+|242
+|.2.
+
+view U key a2 origin 1 1
+|.2.
+|232
+|.2.
 
 view U key a3 origin 0 0
-|2
-
-view R key a1 origin 0 0
-|4
-|2
-
-view R key a2 origin 0 0
 |3
+|2
+
+view R key a1 origin 1 1
+|.2.
+|242
+|.2.
+
+view R key a2 origin 1 1
+|.2.
+|232
+|.2.
 
 view R key a3 origin 0 0
-|2
-
-view L key a1 origin 0 0
-|4
-|2
-
-view L key a2 origin 0 0
 |3
+|2
+
+view L key a1 origin 1 1
+|.2.
+|242
+|.2.
+
+view L key a2 origin 1 1
+|.2.
+|232
+|.2.
 
 view L key a3 origin 0 0
+|3
 |2

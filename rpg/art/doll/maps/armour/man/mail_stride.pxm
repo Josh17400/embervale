@@ -4,6 +4,7 @@
 # Format: rpg/art/doll/doll.h.
 # (LADDER-ARMOUR i3) the 1px checker re-laid as STYLE_P2 25.2's brick: lit side courses yyx / xyy (steps 3/2), shadow side xww / wwx
 # (steps 2/1), alternate rows offset, so mail reads as rings and a fine grey fabric, never a chessboard (the blind panel).
+# (LADDER-ARMOUR polish i2) mail as lit planes with a sparse ring dot (mailfix.py), as the hauberk
 use person
 body man
 role armour mail
@@ -26,7 +27,7 @@ view U key walkD2 origin 0 0
 
 view R key walkB2 origin 6 -1
 |vyxyyxxwwxwv.
-|vyyyyyywxwwxv
+|vyyyxyxxwwwwv
 regions
 |.............
 |.RRRRR.......
@@ -35,7 +36,7 @@ build
 
 view R key walkD2 origin 6 -1
 |vyxyyxxwwxwv.
-|vyyyyyywxwwxv
+|vyyyxyxxwwwwv
 regions
 |.............
 |.RRRRR.......
@@ -44,7 +45,7 @@ build
 
 view L key walkB2 origin 8 -1
 |.vyyxywwxwwxwv
-|vyyyyyyxwwxwwv
+|vyyyxyxxwxwwwv
 regions
 |..............
 |.RRRRRR.......
@@ -53,7 +54,7 @@ build
 
 view L key walkD2 origin 8 -1
 |.vyyxywwxwwxwv
-|vyyyyyyxwwxwwv
+|vyyyxyxxwxwwwv
 regions
 |..............
 |.RRRRRR.......
@@ -61,7 +62,6 @@ build
 |..........+...
 
 # ---- (P2c SLICE-ARMOUR, ADD) every other legs key the loco, run, drawn and death clips take: empty (the panel is the walk's)
-
 view D key buckle origin 0 0
 |.
 
@@ -244,4 +244,3 @@ view L key walkC origin 0 0
 
 view L key walkC2 origin 0 0
 |.
-

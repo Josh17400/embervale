@@ -5,6 +5,11 @@
 # Finish regions: R the gorget's rim and the hem band, P the lit chest, G the chest socket, N the lowest lacing row, W a 2x2
 # spot on the shadow side. Keys: rest idle run runl drawn swing lie in D U R L.
 # Format: rpg/art/doll/doll.h. Source: LADDER-ARMOUR's expand.py (fill: lamellar).
+# (LADDER-ARMOUR polish i1, P5) the lacing courses solid cords, the plate courses smooth planes (the blind
+# panel: "the red-dotted lamellar is noise").
+# (LADDER-ARMOUR polish i2) only the cord under the gorget and the cord under the belt stay; the middle courses are plate, one big lit plane (the style lens: thin stripes look busy)
+# (LADDER-ARMOUR polish i3) quieter: one lacing cord across the chest; below the belt plain lacquer (the panel: "red-dotted
+# lamellar is noise", "a stack of orange bars").
 use person
 body man
 role armour lamellar
@@ -14,15 +19,15 @@ keys torso
 z 2
 
 view D key rest origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -37,15 +42,15 @@ regions
 |...RRRRRRR...
 
 view D key idle origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -60,15 +65,15 @@ regions
 |...RRRRRRR...
 
 view D key run origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -83,15 +88,15 @@ regions
 |...RRRRRRR...
 
 view D key runl origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -106,15 +111,15 @@ regions
 |...RRRRRRR...
 
 view D key drawn origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -129,15 +134,15 @@ regions
 |...RRRRRRR...
 
 view D key swing origin 7 0
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..voxownwnwv.
-|..vxyxxwxwxv.
-|..vxyxxwwwwv.
-|..voxnwnwnwv.
-|..vxywxwxwxv.
+|...vyyxxwwv..
+|vyyxxxvvwwwwv
+|..voooonnnmv.
+|..vyxxxxxwwv.
+|..vyxxxwwwwv.
+|..vyxxxwwwwv.
+|..vyxxxxwwwv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyyyyxxxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -160,7 +165,7 @@ view D key lie origin 7 0
 |..voxnwnwnwv.
 |..vxywxwxwxv.
 |..fghhPOhggf.
-|..voxownwnwv.
+|..vyxywxwxwv.
 |..vyyyxxxxvv.
 regions
 |....RRRRRR...
@@ -175,15 +180,15 @@ regions
 |...RRRRRRR...
 
 view U key rest origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -198,15 +203,15 @@ regions
 |...RRRRRRR....
 
 view U key idle origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -221,15 +226,15 @@ regions
 |...RRRRRRR....
 
 view U key run origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -244,15 +249,15 @@ regions
 |...RRRRRRR....
 
 view U key runl origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -267,15 +272,15 @@ regions
 |...RRRRRRR....
 
 view U key drawn origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -290,15 +295,15 @@ regions
 |...RRRRRRR....
 
 view U key swing origin 7 0
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..voxownwnwv..
-|..vxyxxwxwxv..
-|..vxyxxwwwwv..
-|..voxnwnwnwv..
-|..vxywxwxwxv..
+|..vyyxxxwwwv..
+|vyyxxxwvwwwwwv
+|..voooonnnmv..
+|..vyxxxxxwwv..
+|..vyxxxwwwwv..
+|..vyxxxwwwwv..
+|..vyxxxxwwwv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyyyyxxxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -321,7 +326,7 @@ view U key lie origin 7 0
 |..voxnwnwnwv..
 |..vxywxwxwxv..
 |..fghhhhhggf..
-|..voxownwnwv..
+|..vyxywxwxwv..
 |..vyyyxxxxvv..
 regions
 |...RRRRRRRR...
@@ -336,15 +341,15 @@ regions
 |...RRRRRRR....
 
 view R key rest origin 5 0
-|..vxyxwv....
-|.vxyyxwwv...
-|.vxoxnwnwv..
-|.vyxywxwxwxv
-|.vyxywwwwwwv
-|.vxownwnwnv.
-|.vyxxwxwxwv.
+|..vyxxwv....
+|.vyyxxwwv...
+|.vooonnnmv..
+|.vyyxxxxwwwv
+|.vyyxwwwwwwv
+|.vyyxwwwwwv.
+|.vyxxxxwwwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vyyyyxxxwv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -359,15 +364,15 @@ regions
 |.RRRRRRRRR..
 
 view R key idle origin 5 0
-|..vxyxwv....
-|.vxyyxwwv...
-|.vxoxnwnwv..
-|.vyxywxwxwxv
-|.vyxywwwwwwv
-|.vxownwnwnv.
-|.vyxxwxwxwv.
+|..vyxxwv....
+|.vyyxxwwv...
+|.vooonnnmv..
+|.vyyxxxxwwwv
+|.vyyxwwwwwwv
+|.vyyxwwwwwv.
+|.vyxxxxwwwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vyyyyxxxwv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -382,15 +387,15 @@ regions
 |.RRRRRRRRR..
 
 view R key run origin 5 0
-|..vxyxwv....
-|.vxyyxwwv...
-|.vxoxnwnwv..
-|.vyxywxwxwxv
-|.vyxywwwwwwv
-|.vxownwnwnv.
-|.vyxxwxwxwv.
+|..vyxxwv....
+|.vyyxxwwv...
+|.vooonnnmv..
+|.vyyxxxxwwwv
+|.vyyxwwwwwwv
+|.vyyxwwwwwv.
+|.vyxxxxwwwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vyyyyxxxwv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -405,15 +410,15 @@ regions
 |.RRRRRRRRR..
 
 view R key runl origin 7 0
-|....vxyxwv....
-|...vxyyxwwv...
-|...vxoxnwnwv..
-|..vyxywxwxwxv.
-|..vyxywwwwwwv.
-|..vxownwnwnv..
-|..vyxxwxwxwv..
+|....vyxxwv....
+|...vyyxxwwv...
+|...vooonnnmv..
+|..vyyxxxxwwwv.
+|..vyyxwwwwwwv.
+|..vyyxwwwwwv..
+|..vyxxxxwwwv..
 |.fghhhhhgPf...
-|.vxoxnwnwnv...
+|.vyyyyxxxwv...
 |vyyyxxxxxxv...
 regions
 |.....RRRR.....
@@ -428,15 +433,15 @@ regions
 |.RRRRRRRRR....
 
 view R key drawn origin 5 0
-|..vxyxwv....
-|.vxyyxwwv...
-|.vxoxnwnwv..
-|.vyxywxwxwxv
-|.vyxywwwwwwv
-|.vxownwnwnv.
-|.vyxxwxwxwv.
+|..vyxxwv....
+|.vyyxxwwv...
+|.vooonnnmv..
+|.vyyxxxxwwwv
+|.vyyxwwwwwwv
+|.vyyxwwwwwv.
+|.vyxxxxwwwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vyyyyxxxwv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -451,15 +456,15 @@ regions
 |.RRRRRRRRR..
 
 view R key swing origin 5 0
-|..vxyxwv....
-|.vxyyxwwv...
-|.vxoxnwnwv..
-|.vyxywxwxwxv
-|.vyxywwwwwwv
-|.vxownwnwnv.
-|.vyxxwxwxwv.
+|..vyxxwv....
+|.vyyxxwwv...
+|.vooonnnmv..
+|.vyyxxxxwwwv
+|.vyyxwwwwwwv
+|.vyyxwwwwwv.
+|.vyxxxxwwwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vyyyyxxxwv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -482,7 +487,7 @@ view R key lie origin 5 0
 |.vxownwnwnv.
 |.vyxxwxwxwv.
 |.fghhhhhgPf.
-|.vxoxnwnwnv.
+|.vxyxxwxwxv.
 |vyyyxxxxxxv.
 regions
 |...RRRR.....
@@ -497,15 +502,15 @@ regions
 |.RRRRRRRRR..
 
 view L key rest origin 8 0
-|.....vxyxwv..
-|...vxyyxwwv..
-|..voxownwnwnv
-|vxyxywxwxwxv.
-|vxyxxwwwwwv..
-|.vxownwnwnv..
-|.vyxxwxwxwv..
+|.....vyxxwv..
+|...vyyxxwwv..
+|..voooonnnnmv
+|vyyxxxxxwwwv.
+|vyxxxwwwwwv..
+|.vxxxwwwwwv..
+|.vyxxxxwwwv..
 |.fPghhhhhgf..
-|.vxoxnwnwnv..
+|.vyyyyxxxwv..
 |.vyyyxxxxxxv.
 regions
 |......RRRR...
@@ -520,15 +525,15 @@ regions
 |..RRRRRRRRR..
 
 view L key idle origin 8 0
-|.....vxyxwv..
-|...vxyyxwwv..
-|..voxownwnwnv
-|vxyxywxwxwxv.
-|vxyxxwwwwwv..
-|.vxownwnwnv..
-|.vyxxwxwxwv..
+|.....vyxxwv..
+|...vyyxxwwv..
+|..voooonnnnmv
+|vyyxxxxxwwwv.
+|vyxxxwwwwwv..
+|.vxxxwwwwwv..
+|.vyxxxxwwwv..
 |.fPghhhhhgf..
-|.vxoxnwnwnv..
+|.vyyyyxxxwv..
 |.vyyyxxxxxxv.
 regions
 |......RRRR...
@@ -543,15 +548,15 @@ regions
 |..RRRRRRRRR..
 
 view L key run origin 8 0
-|.....vxyxwv..
-|...vxyyxwwv..
-|..voxownwnwnv
-|vxyxywxwxwxv.
-|vxyxxwwwwwv..
-|.vxownwnwnv..
-|.vyxxwxwxwv..
+|.....vyxxwv..
+|...vyyxxwwv..
+|..voooonnnnmv
+|vyyxxxxxwwwv.
+|vyxxxwwwwwv..
+|.vxxxwwwwwv..
+|.vyxxxxwwwv..
 |.fPghhhhhgf..
-|.vxoxnwnwnv..
+|.vyyyyxxxwv..
 |.vyyyxxxxxxv.
 regions
 |......RRRR...
@@ -566,15 +571,15 @@ regions
 |..RRRRRRRRR..
 
 view L key runl origin 8 0
-|.....vxyxwv....
-|...vxyyxwwv....
-|..voxownwnwnv..
-|.vxyxywxwxwxv..
-|.vxyxxwwwwwv...
-|..vxownwnwnv...
-|..vyxxwxwxwv...
+|.....vyxxwv....
+|...vyyxxwwv....
+|..voooonnnnmv..
+|.vyyxxxxxwwwv..
+|.vyxxxwwwwwv...
+|..vxxxwwwwwv...
+|..vyxxxxwwwv...
 |...fPghhhhhgf..
-|...vxoxnwnwnv..
+|...vyyyyxxxwv..
 |...vyyyxxxxxxv.
 regions
 |......RRRR.....
@@ -589,15 +594,15 @@ regions
 |....RRRRRRRRR..
 
 view L key drawn origin 8 0
-|.....vxyxwv..
-|...vxyyxwwv..
-|..voxownwnwnv
-|vxyxywxwxwxv.
-|vxyxxwwwwwv..
-|.vxownwnwnv..
-|.vyxxwxwxwv..
+|.....vyxxwv..
+|...vyyxxwwv..
+|..voooonnnnmv
+|vyyxxxxxwwwv.
+|vyxxxwwwwwv..
+|.vxxxwwwwwv..
+|.vyxxxxwwwv..
 |.fPghhhhhgf..
-|.vxoxnwnwnv..
+|.vyyyyxxxwv..
 |.vyyyxxxxxxv.
 regions
 |......RRRR...
@@ -612,15 +617,15 @@ regions
 |..RRRRRRRRR..
 
 view L key swing origin 8 0
-|.....vxyxwv..
-|...vxyyxwwv..
-|..voxownwnwnv
-|vxyxywxwxwxv.
-|vxyxxwwwwwv..
-|.vxownwnwnv..
-|.vyxxwxwxwv..
+|.....vyxxwv..
+|...vyyxxwwv..
+|..voooonnnnmv
+|vyyxxxxxwwwv.
+|vyxxxwwwwwv..
+|.vxxxwwwwwv..
+|.vyxxxxwwwv..
 |.fPghhhhhgf..
-|.vxoxnwnwnv..
+|.vyyyyxxxwv..
 |.vyyyxxxxxxv.
 regions
 |......RRRR...
@@ -643,7 +648,7 @@ view L key lie origin 6 0
 |voxnwnwnwnv
 |vxxwxwxwxvv
 |.fPhhhhgggf
-|...vxownwnv
+|...vxywxwxv
 |...vxxwwwwv
 |...vvvvvvvv
 regions

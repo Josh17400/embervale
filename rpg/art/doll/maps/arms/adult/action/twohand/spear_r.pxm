@@ -534,34 +534,34 @@ regions
 # (LADDER-ARMS i1) sp_carry: the walking carry facing R / L, the spear shouldered: the fist before the chest and the haft
 # sloping back over the shoulder behind the head (spear carryR / carryL), so it never crosses the helm or the face.
 view R key sp_carry origin 0 -1 layer held
-mark grip 6 3
-mark handR 6 3
-|58765....
-|58765....
-|5876fqtsq
-|.5fihqsrq
-|..ff..qq.
+mark grip 8 3
+mark handR 8 3
+|58765......
+|58765......
+|5876ffiqtsq
+|.5fihhiqsrq
+|..ff....qq.
 regions
-|UUUUU....
-|UUUUU....
-|FFFCCHHHH
-|.FCCCHHHH
-|..CC..HH.
+|UUUUU......
+|UUUUU......
+|FFFCCCCHHHH
+|.FCCCCCHHHH
+|..CC....HH.
 
-view L key sp_carry origin 8 -1
+view L key sp_carry origin 10 -1
 mark grip 2 3
 mark handR 2 3
-|....56665
-|....56665
-|qrrqh6665
-|qrrqgfh5.
-|.qq..ff..
+|......56665
+|......56665
+|qrrqihh6665
+|qrrqhgfh5..
+|.qq...ff...
 regions
-|....UUUUU
-|....UUUUU
-|HHHHCCFFF
-|HHHHCCCF.
-|.HH..CC..
+|......UUUUU
+|......UUUUU
+|HHHHCCCCFFF
+|HHHHCCCCF..
+|.HH...CC...
 
 # (LADDER-ARMS i1) empty views: the spear arm draws only sp_carry in the side loco; on the other loco keys the loco arm
 # draws (W1: declared empty, not vanished)

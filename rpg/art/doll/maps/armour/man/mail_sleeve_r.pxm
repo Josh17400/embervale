@@ -1,5 +1,6 @@
 # armour/man/mail_sleeve_r: Mail's sleeve over the arm: the upper arm in the mail brick to the elbow
 # The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR polish i2) mail as lit planes with a sparse ring dot (mailfix.py), as the hauberk
 use person
 body man
 role armour mail
@@ -11,153 +12,151 @@ z 1
 
 view D key back origin 1 -1
 |vxx
-|vyw
-|vxx
+|vxw
+|vxw
 
 view D key fwd origin 1 -1
 |vxx
-|vyw
-|vxx
-|vyw
-|vxx
+|vxw
+|vxw
+|vxw
+|vxw
 
 view D key idle origin 1 -1
 |vxx
-|vyw
-|vxx
-|vyw
+|vxw
+|vxw
+|vxw
 
 view D key lap origin 1 -1
 |vxx
-|vyw
-|vxx
-|vyw
+|vxw
+|vxw
+|vxw
 
 view U key back origin 1 -1
 |xwv
-|wxv
-|xwv
-|wxv
+|xxv
+|yxv
+|yxv
 
 view U key fwd origin 1 -1
 |xwv
-|wxv
-|xwv
-|wxv
+|xxv
+|yxv
+|yxv
 
 view U key idle origin 1 -1
 |xwv
-|wxv
-|xwv
-|wxv
+|xxv
+|yxv
+|yxv
 
 view U key lap origin 1 -1
 |xwv
-|wxv
-|xwv
-|wxv
+|xxv
+|yxv
+|yxv
 
 view R key B origin 2 -1
 |..vywxv
-|.vywxv.
-|.vxxwv.
-|vxxwv..
+|.vyxwv.
+|.vyxwv.
+|vywwv..
 
 view R key F origin 0 -1
 |vywxv..
-|.vywxv.
-|.vxxwv.
-|..vxxwv
+|.vyxwv.
+|.vyxwv.
+|..vyxwv
 
 view R key N origin 0 -1
 |vywxv
-|vxxwv
-|vywxv
-|vxxwv
+|vyxwv
+|vyxwv
+|vywwv
 
 view R key idle origin 0 -1
 |vywxv
-|vxxwv
-|vywxv
-|vxxwv
+|vyxwv
+|vyxwv
+|vywwv
 
 view L key back origin -5 -6
 |v
 
-
 # MAN-WEAR (P2B rollout, 2026-10-22): the mail brick over the sleeve (the arm's U and F cells) on every side key the
 # side clips name: the run pump (pB pM pF pK pN), runB, runF, guard and the off hand's o* keys, fitted cell for cell on the
 # frozen arm drawings (far arms a value darker); before this a mail wearer's sleeves vanished in the run and drawn frames.
-
 view R key runB origin 4 -1
 |....vywxv
-|..vxxwv..
-|.vywxv...
+|..vywwv..
+|.vyxwv...
 
 view R key runF origin 0 -1
 |vywxv
-|vxxwv
-|vywv.
+|vyxwv
+|vyxv.
 
 view R key guard origin -2 1
 |.vywxv
-|vxxv..
-|vyv...
+|vyxv..
+|vxv...
 |.v....
 
 view L key guard origin 15 1 layer armNear
 |.........vywxv
-|........vxxv..
-|......vyv.....
+|........vyxv..
+|......vxv.....
 |.......v......
 
 view R key pF origin 0 -1
 |vywxv.
-|.vxxwv
-|..vywv
+|.vyxwv
+|..vyxv
 
 view R key pB origin 10 -1
 |..........vywxv
 |.......vxxwv...
-|....vywxv......
+|....vyxwv......
 
 view R key pN origin 0 -1
 |vywxv.
-|vxxwv.
-|.vywxv
+|vyxwv.
+|.vyxwv
 
 view L key pF origin 9 -1
 |......vwxwv
-|......vxwv.
-|......vwv..
+|......vywv.
+|......vxv..
 
 view L key pB origin 3 -1
 |vwxwv....
-|..vxwwv..
-|....vwxwv
+|..vywwv..
+|....vyxwv
 
 view L key pN origin -1 -1
 |.
 
 view R key pM origin 0 -1
 |vywxv..
-|.vxxwv.
-|..vywxv
+|.vyxwv.
+|..vyxwv
 
 view R key pK origin 4 -1
 |....vywxv
 |...vxxwv.
-|..vywxv..
+|..vyxwv..
 
 view L key pM origin 6 -1
 |...vwxwv
-|..vxwwv.
-|.vwxwv..
+|..vywwv.
+|.vyxwv..
 
 view L key pK origin 3 -1
 |vwxwv..
-|.vxwwv.
-|..vwxwv
+|.vyxwv.
+|..vyxwv
 
 # The front and back views of the keys above stay as they were (D and U frames are frozen in the P2B rollout): empty views
 # say so, so the mail draws nothing there exactly as before (a later D/U pass may draw them).
@@ -174,19 +173,17 @@ view U key guard origin 0 0
 |.
 
 # ---- (P2c SLICE-ARMOUR, ADD) the fall's recoil `fling` (the death clips): the upper arm in the brick
-
 view D key fling origin 5 -1
 |....vxx
-|...vxyw
-|..vxxw.
+|...vxxw
+|..vyxw.
 
 view U key fling origin 1 -1
 |xwv....
-|wxwv...
-|.xwxv..
+|xyxv...
+|.yyxv..
 
 view R key fling origin 9 -1
 |........vywxv
-|......vxxwv..
-|....vywxv....
-
+|......vywwv..
+|....vyxwv....

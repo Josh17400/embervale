@@ -29,7 +29,8 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
 
 // census::dress's ladder half: every slot the look wears takes `tier` (PLAN "People"); the metal from the look's band or
 // alloy tint. Writes only the ladder fields (no draw).
-void rankTiers(art::HumanLook& L, int tier);
+// person: a census person (sets HumanLook::kitVar from the face: each fighter's own kit); false for the looks macros' tier=
+void rankTiers(art::HumanLook& L, int tier, bool person = true);
 
 // ---- the ladder kit (contracts 3b "The kit"): real Items for one people at one tier, from cult::Atlas::make(people,
 // seed); the Heartland's forms are Item::form picks (padded, leather, mail, plate; the leather cap, nasal, great helm; round,

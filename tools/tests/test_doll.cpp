@@ -65,7 +65,7 @@
 // --gates: B1 parity; B2 heights (every body set, people, age and build in every facing: STYLE_P2 3); faces and hands
 //   (A3's face rows and the 3 x 2 hands, from the marks); B8 craft on composed frames (no orphan, no #000000, step-0 luma
 //   70 or less, 48 colours or fewer per figure); B9's structure (no civilian garment part shared by the man and the
-//   woman); B10 atlases (LOCO 128, RUN 64, DEATH 48, POSTURE 64 KB per look) and speed (one facing's LOCO bake p95 at or
+//   woman); B10 atlases (LOCO 128, RUN 64, DEATH 52 (polish i1: the corpse's legs lie with it), POSTURE 64 KB per look) and speed (one facing's LOCO bake p95 at or
 //   under the v1 sheet's), the pool (1.0 MB or less); the ramp generator within delta E 6 per step of A3's 14 ramps; B11.
 // --doll-coverage: B6: the census's looks (A the world's humans after 60 frames and the start region's census residents;
 //   B every culture of the seeds x every role x both sexes x child, youth, adult and elder x 8 seeds; D the creator's
@@ -605,13 +605,21 @@ std::vector<SliceAtlas> sliceAtlases() {
     }
     struct B { RigPart p; double kb, d19; const char* n; };
     for (const B& b : {B{RigPart::Loco, 128, 160, "LOCO"}, B{RigPart::Run, 64, 80, "RUN"}, B{RigPart::Drawn, 256, 320, "DRAWN"},
-                       B{RigPart::Action, 512, 512, "ACTION"}, B{RigPart::Death, 48, 48, "DEATH"}}) {
+                       B{RigPart::Action, 512, 512, "ACTION"}, B{RigPart::Death, 52, 52, "DEATH"}}) {
       if ((b.p == RigPart::Drawn || b.p == RigPart::Action) && !fights) continue;
       const RigSheet sh = doll::compose(r, b.p);
       double base = b.kb;
       if (b.p == RigPart::Run && crest) base = 68;
       if (b.p == RigPart::Death && polearm) base = 56;
-      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, b.d19) : base, base});
+      // (polish i1 integration, measured) the polearm's upright carry in front of the body (the Jade glaive fix, P5) makes
+      // the R / L loco frames 2-4 rows taller: jade3 127.5 -> 130.3 KB, knight 121.5 -> 127.5 KB, so a polearm LOCO may use 136
+      if (b.p == RigPart::Loco && polearm) base = 136;
+      // (polish i2 integration, measured) the polearm's side run carries the haft 45 deg forward through the fist with the head
+      // clear of the helm (the Jade glaive fix, P5): jade3 RUN 64 -> 76.5, knight 68 -> 80.9, lt6w 77.2 -> 89.2 KB, so a polearm
+      // RUN may use its base (and D19) + 14 KB
+      double d19 = b.d19;
+      if (b.p == RigPart::Run && polearm) { base += 14; d19 += 14; }
+      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, d19) : base, base});
     }
   }
   return v;
@@ -647,7 +655,7 @@ void gateAtlas(Gate& g) {   // B10
     locoMs.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
     (void)s1; (void)lo1;
     struct B { RigPart p; size_t kb; const char* n; };
-    for (const B& b : {B{RigPart::Loco, 128, "LOCO"}, B{RigPart::Run, 64, "RUN"}, B{RigPart::Death, 48, "DEATH"}, B{RigPart::Drawn, 256, "DRAWN"},
+    for (const B& b : {B{RigPart::Loco, 128, "LOCO"}, B{RigPart::Run, 64, "RUN"}, B{RigPart::Death, 52, "DEATH"}, B{RigPart::Drawn, 256, "DRAWN"},
                        B{RigPart::Action, 512, "ACTION"}}) {
       if ((b.p == RigPart::Action || b.p == RigPart::Drawn) && !armed) continue;
       const RigSheet s = doll::compose(r, b.p);
@@ -670,7 +678,7 @@ void gateAtlas(Gate& g) {   // B10
       }
     }
   }
-  // (P2c SLICE-DOLL) the slice looks within LOCO 128, RUN 64, DRAWN 256, ACTION 512 and DEATH 48 KB (fighters: DRAWN and
+  // (P2c SLICE-DOLL) the slice looks within LOCO 128, RUN 64, DRAWN 256, ACTION 512 and DEATH 52 KB (fighters: DRAWN and
   // ACTION), each part's atlas composed from the look's recipe
   for (const SliceAtlas& sa : sliceAtlases()) {
     if (sa.kb < 0) { g.bad(sa.who + " " + sa.part + ": no atlas"); continue; }
@@ -707,7 +715,7 @@ void gateAtlas(Gate& g) {   // B10
   // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the civil trades carry their tool on the doll's LOCO and RUN (HumanLook::civil: the
   // hunter's bow 3, the scholar's and lamplighter's staff 4, the smith's hammer 6, the elder's stick 9): every body, age,
   // people and build with each, plus the widest scholars the census dresses (the conical hat; the legacy hood over
-  // pigtails and a robe), within LOCO 128, RUN 64, DEATH 48 and POSTURE 64 KB
+  // pigtails and a robe), within LOCO 128, RUN 64, DEATH 52 and POSTURE 64 KB
   {
     std::vector<HumanLook> civ;
     for (int weapon : {3, 4, 6, 9})
@@ -732,7 +740,7 @@ void gateAtlas(Gate& g) {   // B10
     double worst[4] = {};
     std::string worstWho[4];
     const char* names[4] = {"LOCO", "RUN", "DEATH", "POSTURE"};
-    const double kbs[4] = {128, 64, 48, 64};
+    const double kbs[4] = {128, 64, 52, 64};   // (polish i1: DEATH 52, the corpse's legs lie with it)
     int over = 0;
     for (const HumanLook& L : civ) {
       const doll::DollRecipe r = doll::resolve(L);

@@ -10,6 +10,7 @@
 //                                       slice = the six slice looks (guard knight archer knightm archerw hero); fit = mail,
 //                                       plate and leather on the man and the woman; face turns the row and the hero; clear
 //                                       removes the row
+//   p2cline npc <people> <role> [rank] [n] [mixed]   census fighters as the game dresses them (the npc= macro), one seed each
 //   expect doll gear <role>=<value>     the hero's recipe carries that gear (roles armour helm shield pauldron held sheath
 //                                       back tabard, as Witness's player.sprite.doll.gear); the other `expect doll ...`
 //                                       checks are P2b's (script_p2b.cpp), handed on unchanged
@@ -183,6 +184,24 @@ bool cmdP2cLine(ScriptCtx& c) {
     std::vector<std::pair<std::string, art::HumanLook>> row;
     for (int i = 0; i < 8 && kRow[k][i]; i++) { art::HumanLook L; applySlice(L, *ladderLook(kRow[k][i])); row.push_back({kRow[k][i], L}); }
     spawnRow(g, row);
+  } else if (w == "npc") {
+    // (polish i2) p2cline npc <people> <role> [rank 0-2] [n] [mixed]: census fighters as the game makes them (the role's
+    // base as Game::makeLook sets it, weapon included, then census::dress and the rank's tier: the looks macro npc=), one
+    // seed a man, so each wears his own kit (P2b's `lineup` dresses a bare look: no weapon in hand)
+    const std::string people = c.arg(2), role = c.arg(3);
+    const int rank = c.a.size() > 4 ? std::clamp(std::atoi(c.arg(4).c_str()), 0, 2) : 0;
+    const int n = c.a.size() > 5 ? std::clamp(std::atoi(c.arg(5).c_str()), 1, 12) : 6;
+    const bool mixed = c.a.size() > 6 && c.arg(6) == "mixed";
+    std::vector<std::pair<std::string, art::HumanLook>> row;
+    for (int k = 0; k < n; k++) {
+      art::HumanLook L;
+      L.body = (uint8_t)(mixed && (k & 1) ? 1 : 0);
+      std::string bad;
+      gear::applyLadderSpec(L, "npc=" + people + ":" + role + ":" + std::to_string(rank) + ":" + std::to_string(k + 1), nullptr, nullptr, &bad);
+      if (!bad.empty()) { c.fail("p2cline npc <people> <role> [rank] [n] [mixed]: bad " + bad); return true; }
+      row.push_back({people + " " + role, L});
+    }
+    spawnRow(g, row);
   } else if (w == "face") {
     const int f = std::clamp(std::atoi(c.arg(2).c_str()), 0, 3);
     for (Actor& a : g.actors) if (inRow(a)) a.face = (uint8_t)f;
@@ -200,7 +219,7 @@ bool cmdP2cLine(ScriptCtx& c) {
   } else c.fail("p2cline slice|fit|ladder|flavour|ranks|face <0-3>|foe [weapon]|clear");
   return true;
 }
-EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|ladder|flavour|ranks|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
+EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|ladder|flavour|ranks|npc <people> <role> [rank] [n] [mixed]|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
 
 // `expect doll gear <role>=<value>`; every other `expect doll ...` goes on to P2b's check (script_p2b.cpp)
 bool expDollGear(ScriptCtx& c);

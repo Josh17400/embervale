@@ -1,0 +1,60 @@
+# P2c ladder polish i3 (LADDER-DOLL): census fighters at rig 2 (`p2cline npc`), six seeds a row: each man his own kit AND
+# now his own dye lot (darker, faded, deeper livery; his own hose); then the T6 hero and the Mythic by day and on the
+# dark forest floor for the on-figure rim light (no off-figure halo since i3) and the Mythic fire rim.
+#   embervale.exe --script tools/scripts/p2c_polish3.txt          (p2c_polish3_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.3 expect doll tier 1
++0.1 p2cline npc highland soldier 0 6
++0.5 zoom near
++0.5 shot p2c_polish3_highland_soldier.png
++0.1 zoom normal
++0.1 p2cline npc heartland guard 0 6 mixed
++0.5 zoom near
++0.5 shot p2c_polish3_heartland_guard.png
++0.1 zoom normal
++0.1 p2cline npc heartland guard 1 6
++0.5 zoom near
++0.5 shot p2c_polish3_heartland_capital.png
++0.1 zoom normal
++0.1 p2cline npc marsh soldier 0 6
++0.5 zoom near
++0.5 shot p2c_polish3_marsh_soldier.png
++0.1 zoom normal
++0.1 p2cline npc imperial guard 1 6 mixed
++0.5 zoom near
++0.5 shot p2c_polish3_imperial_guard.png
++0.1 zoom normal
++0.1 p2cline npc steppe soldier 0 6
++0.5 zoom near
++0.5 shot p2c_polish3_steppe_soldier.png
++0.1 p2cline clear
++0.1 zoom near
++0.1 ladderkit lt6
++0.3 expect doll tier 6
++1.2 shot p2c_polish3_t6_idle_00.png
++0.4 shot p2c_polish3_t6_idle_01.png
++0.1 ladderkit lt6m
++1.2 shot p2c_polish3_t6m_idle_00.png
++0.4 shot p2c_polish3_t6m_idle_01.png
++0.1 walk west 1.2
++0.1 shot p2c_polish3_t6m_walk_00.png
++0.1 at -60 -400
++0.6 shot p2c_polish3_t6m_dark_00.png
++0.1 ladderkit lt6
++1.0 shot p2c_polish3_t6_dark_00.png
++0.6 shot p2c_polish3_t6_dark_01.png
++0.1 hour 22
++1.0 shot p2c_polish3_t6_night_00.png
++0.1 ladderkit lt6m
++1.0 shot p2c_polish3_t6m_night_00.png

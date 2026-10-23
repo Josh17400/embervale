@@ -1730,10 +1730,10 @@ view L key lie origin 3 9
 |...1432f
 |...fiihf
 |...fhhgf
+|...fhhgf
 |..fhhhgf
-|.fhhhhgf
-|fiihhggf
-|KKKKKKKK
+|..fihhgf
+|..KKKKKK
 regions
 |...TTTTT
 |...TTTTT
@@ -1741,10 +1741,10 @@ regions
 |...KKKKS
 |...SSSSS
 |...SSSSS
-|..SSSSSS
-|.BBBBBBB
-|BBBBBBBB
-|OOOOOOOO
+|...SSSSS
+|..BBBBBB
+|..BBBBBB
+|..OOOOOO
 
 view R key stance origin 7 9
 |....1222221......

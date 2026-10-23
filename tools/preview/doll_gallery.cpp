@@ -661,6 +661,8 @@ uint32_t addLight(uint32_t base, uint32_t light, float a) {
   auto ch = [&](int sh) { return std::min(255, (int)((base >> sh & 255) + (light >> sh & 255) * a)); };
   return rgba(ch(0), ch(8), ch(16)) | (base & 0xFF000000u);
 }
+void finishOnBoard(Board& b, const RigSheet& s, const art::HumanLook& L, size_t fi, const Canvas& f, int bx, int by, float t, float phase,
+                   float k, bool strike, art::finish::Particles* ps, uint32_t seed, int fc, Clip clip, int variant, int i);
 void boardLadder(const std::string& dir, const std::string& arg) {
   std::string set = arg.size() > 7 ? arg.substr(7) : "";
   std::string list = set;
@@ -689,29 +691,14 @@ void boardLadder(const std::string& dir, const std::string& arg) {
         Canvas f = rigpv::frameCanvas(s, fc, Clip::Idle, 0, 0, px, py);
         if (f.w <= 0) continue;
         if (band >= 2) for (uint32_t& c : f.px) if (c >> 24) c = nightOf(c);
-        // the glow plane over the frame (night: at its peak; day: its mean)
-        const art::RigSheet::GlowPlane& gp = s.glow;
-        const art::FrameRect* fr = s.frame(fc, Clip::Idle, 0, 0);
-        if (!gp.empty() && fr) {
-          const size_t fi = (size_t)(fr - s.frames.data());
-          if (fi < gp.rects.size() && gp.rects[fi].w > 0) {
-            const art::FrameRect& g = gp.rects[fi];
-            // (ladder i3) art::finish::frameLights, as the game: night at the breath's peak, day at its mean (motes off)
-            const art::finish::Pulse P = art::finish::pulseOf(L.topTier());
-            std::vector<art::finish::GlowPx> gpx;
-            gp.each(fi, [&](int gx, int gy, uint32_t lc) { gpx.push_back({gx, gy, lc}); });
-            std::vector<art::finish::Light> lights;
-            art::finish::frameLights(L.topTier(), L.mythic != 0, 1, band >= 2 ? P.period * 0.5f : P.period * 0.25f, 0, gpx, lights);
-            for (const art::finish::Light& q : lights)
-              for (int yy = 0; yy < (int)q.h; yy++)
-                for (int xx = 0; xx < (int)q.w; xx++) {
-                  const int X = (int)q.x + xx, Y = (int)q.y + yy;
-                  if (X >= 0 && Y >= 0 && X < f.w && Y < f.h && (f.get(X, Y) >> 24)) f.set(X, Y, addLight(f.get(X, Y), q.c, q.a));
-                }
-          }
-        }
         shadow(b, x0 + 16 + fc * 34, g0, std::min(24, std::max(10, f.w - 4)));
         b.put(f, x0 + 16 + fc * 34 - px, g0 - py);
+        // (polish i1) the living finish as the game draws it (night: the breath's peak; day: its mean; no particles)
+        if (const art::FrameRect* fr = s.frame(fc, Clip::Idle, 0, 0)) {
+          const art::finish::Pulse P = art::finish::pulseOf(L.topTier());
+          finishOnBoard(b, s, L, (size_t)(fr - s.frames.data()), f, x0 + 16 + fc * 34 - px, g0 - py, band >= 2 ? P.period * 0.5f : P.period * 0.25f,
+                        0, band >= 2 ? 1.0f : 0.92f, false, nullptr, 0, fc, Clip::Idle, 0, 0);
+        }
       }
     }
   }
@@ -763,7 +750,12 @@ void boardFinish(const std::string& dir, const std::string& arg) {
         std::vector<art::finish::GlowPx> gpx;
         if (fi < s.glow.rects.size() && s.glow.rects[fi].w > 0) s.glow.each(fi, [&](int gx, int gy, uint32_t lc) { gpx.push_back({gx, gy, lc}); });
         std::vector<art::finish::Light> lights;
-        art::finish::frameLights(L.topTier(), L.mythic != 0, id * 2654435761u, t + 1.0f, phase, gpx, lights);
+        // (polish i1) the game's figure model: glow, halo, the T6 aura or the Mythic's flame (the mask), the edge sweep
+        const art::finish::Mask mk = art::finish::maskOf(s.atlas, fr->x, fr->y, fr->w, fr->h);
+        art::finish::Figure F;
+        F.topTier = L.topTier(); F.mythic = L.mythic != 0; F.t = t + 1.0f; F.phase = phase; F.glow = &gpx; F.mask = &mk;
+        F.bladeT6 = L.tier[art::HumanLook::TIER_WEAPON] >= 6;
+        art::finish::figureLights(F, lights);
         for (const art::finish::Light& q : lights)
           for (int yy = 0; yy < (int)q.h; yy++)
             for (int xx = 0; xx < (int)q.w; xx++) {
@@ -809,6 +801,290 @@ void boardFinish(const std::string& dir, const std::string& arg) {
       savePng(one.c, dir + nm, 3);
     }
   savePng(strip.c, dir + "/doll_finish_" + tag + "_strip_3x.png", 3);
+}
+// (polish i1) one figure-frame's living finish on a board, as the game draws it (art::finish::figureLights, then the
+// gleam): frame f drawn with its pivot at (bx + px, by + py) (bx, by: the frame's top-left on the board). `k` scales the
+// light (the game's day 0.85-1.0, night 1.0). Lights fall on the board whatever is under them (the halo, the aura).
+void finishOnBoard(Board& b, const RigSheet& s, const art::HumanLook& L, size_t fi, const Canvas& f, int bx, int by, float t, float phase,
+                   float k, bool strike, art::finish::Particles* ps, uint32_t seed, int fc, Clip clip, int variant, int i) {
+  if (L.topTier() < 5 || fi >= s.frames.size()) return;
+  const art::FrameRect& fr = s.frames[fi];
+  std::vector<art::finish::GlowPx> gpx;
+  if (fi < s.glow.first.size()) s.glow.each(fi, [&](int gx, int gy, uint32_t c) { gpx.push_back({gx, gy, c}); });
+  art::finish::Mask mask = art::finish::maskOf(s.atlas, fr.x, fr.y, fr.w, fr.h);
+  art::finish::Figure F;
+  F.topTier = L.topTier(); F.mythic = L.mythic != 0; F.t = t; F.phase = phase; F.glow = &gpx; F.mask = &mask; F.strike = strike;
+  F.bladeT6 = L.tier[art::HumanLook::TIER_WEAPON] >= 6;
+  const art::RigAnchors* an = s.anchorsOf(fc, clip, variant, i);
+  const bool gripOn = an && an->gripX != art::kNoAnchor, handOn = an && an->handRX != art::kNoAnchor;
+  if (an && (gripOn || handOn) && an->tipX != art::kNoAnchor) {
+    F.line = true;
+    F.gx = (gripOn ? an->gripX : an->handRX + 1.0f) + fr.px; F.gy = (gripOn ? an->gripY : an->handRY + 1.0f) + fr.py;
+    F.tx = an->tipX + fr.px; F.ty = an->tipY + fr.py;
+  }
+  std::vector<art::finish::Light> lights;
+  art::finish::figureLights(F, lights);
+  auto lay = [&](const art::finish::Light& q, int ox, int oy) {
+    for (int yy = 0; yy < (int)q.h; yy++)
+      for (int xx = 0; xx < (int)q.w; xx++) {
+        const int X = ox + (int)q.x + xx, Y = oy + (int)q.y + yy;
+        if (X >= 0 && Y >= 0 && X < b.c.w && Y < b.c.h) b.c.set(X, Y, addLight(b.c.get(X, Y), q.c, q.a * k));
+      }
+  };
+  for (const art::finish::Light& q : lights) lay(q, bx, by);
+  if (F.topTier < 6) return;
+  if (ps) {
+    uint32_t hot = 0;
+    int hotL = -1;
+    for (const auto& g : gpx) { const int l = (int)(g.c & 255) * 3 + (int)(g.c >> 8 & 255) * 6 + (int)(g.c >> 16 & 255); if (l > hotL) { hotL = l; hot = g.c; } }
+    art::finish::particlesStep(*ps, seed, t, F.mythic, (float)bx, (float)by, gpx, F.line && strike, bx + F.tx, by + F.ty);
+    std::vector<art::finish::Light> pl;
+    art::finish::particleLights(*ps, t, hot, pl);
+    for (const art::finish::Light& q : pl) lay(q, 0, 0);
+  }
+  const float u = art::finish::gleamAt(t, phase);
+  if (u >= 0)
+    for (int y = 0; y < f.h; y++)
+      for (int c = art::finish::gleamCol(u, f.w, f.h, y & ~1), x = c; x < c + art::finish::kGleamW; x++) {
+        if (x < 0 || x >= f.w || !(f.get(x, y) >> 24)) continue;
+        const int X = bx + x, Y = by + y;
+        if (X < 0 || Y < 0 || X >= b.c.w || Y >= b.c.h) continue;
+        uint32_t src = f.get(x, y);
+        if (L.mythic) src = rgba((int)((src & 255)), (int)((src >> 8 & 255) * 0.62f), (int)((src >> 16 & 255) * 0.3f));
+        b.c.set(X, Y, addLight(b.c.get(X, Y), src, art::finish::kGleamA * k));
+      }
+}
+// motion:<tag>[:<facing>[:<night>]]: the figure on grass at game speed, 30 frames a second (each saved 3x), as the game
+// plays it: idle 3.3 s (the drawn idle when armed), a walk 3.6 s at 40 px/s, a run 2.4 s at 76 px/s (the RUN part, the
+// body's run table), two blows (windup 0.12 s, strike 0.10 s,
+// follow 0.20 s, 0.35 s apart), a walk 2.4 s. The living finish is the game's (finishOnBoard). Files motion_<tag>_<F>_f####.png
+void boardMotion(const std::string& dir, const std::string& arg) {
+  const std::vector<std::string> a = split(arg);   // motion <tag> [facing] [night]
+  if (a.size() < 2) { std::printf("doll_gallery: motion:<tag>[:<facing>[:night]]\n"); return; }
+  const std::string tag = a[1];
+  const int fc = a.size() >= 3 ? facingOf(a[2]) : 2;
+  const bool night = a.size() >= 4 && a[3] == "night";
+  doll::DollRecipe r;
+  art::HumanLook L;
+  if (!fileLookRecipe(tag, r, L)) { std::printf("doll_gallery: motion: %s not in %s\n", tag.c_str(), g_looksFile.c_str()); return; }
+  const bool fights = L.weapon >= 1 && L.weapon <= 8 && !L.civil;
+  const RigSheet loco = doll::compose(r, RigPart::Loco);
+  const RigSheet drawn = fights ? doll::compose(r, RigPart::Drawn) : RigSheet();
+  const RigSheet act = fights ? doll::compose(r, RigPart::Action) : RigSheet();
+  const doll::WalkTable wt = doll::walkTable(L, doll::Gait::Walk, fc);
+  const RigSheet run = doll::compose(r, RigPart::Run);
+  const doll::WalkTable rt = doll::walkTable(L, doll::Gait::Run, fc);
+  const bool side = fc >= 2;
+  const int W = side ? 240 : 120, H = side ? 80 : 150;
+  const float speed = 40.0f, fps = 30.0f;
+  const float tIdle = 3.3f, tWalk1 = 3.6f, tRun = 2.4f, runSpeed = 76.0f, tBlow = 0.42f, tGap = 0.35f, tWalk2 = 2.4f;
+  const float total = tIdle + tWalk1 + tRun + 2 * tBlow + tGap + tWalk2;
+  const uint32_t id = 7;
+  const float phase = art::finish::actorPhase(id);
+  art::finish::Particles ps;
+  Board ground(W, H);
+  if (night) for (uint32_t& c : ground.c.px) c = nightOf(c);
+  const int frames = (int)(total * fps);
+  const char fl = "DURL"[fc];
+  float travel = 0, runTravel = 0;
+  for (int n = 0; n < frames; n++) {
+    const float t = n / fps;
+    const RigSheet* s = &loco;
+    Clip clip = Clip::Idle;
+    int variant = 0, i = 0;
+    bool strike = false, walking = false, running = false;
+    if (t < tIdle) {
+      if (fights && drawn.count(fc, Clip::Idle, 1) > 0) { s = &drawn; variant = 1; }
+      const int cnt = std::max(1, s->count(fc, Clip::Idle, variant));
+      i = (int)(t / 0.55f) % cnt;
+    } else if (t < tIdle + tWalk1 || t >= total - tWalk2) {
+      clip = Clip::Walk; walking = true;
+      const int cnt = std::max(1, s->count(fc, Clip::Walk, 0));
+      i = wt.frames ? std::min(wt.frameAt(travel), cnt - 1) : (int)(t / 0.13f) % cnt;
+    } else if (t < tIdle + tWalk1 + tRun && run.count(fc, Clip::Walk, 0) > 0) {
+      s = &run; clip = Clip::Walk; running = true;
+      const int cnt = std::max(1, s->count(fc, Clip::Walk, 0));
+      i = rt.frames ? std::min(rt.frameAt(runTravel), cnt - 1) : (int)(t / 0.09f) % cnt;
+    } else if (t < tIdle + tWalk1 + tRun) {
+      // no run frames: hold the drawn idle
+      if (fights && drawn.count(fc, Clip::Idle, 1) > 0) { s = &drawn; variant = 1; }
+    } else {
+      const float u = t - tIdle - tWalk1 - tRun;
+      const float v = u < tBlow ? u : u < tBlow + tGap ? -1.0f : u - tBlow - tGap;
+      if (v < 0 || !fights) {
+        if (fights && drawn.count(fc, Clip::Idle, 1) > 0) { s = &drawn; variant = 1; }
+      } else {
+        s = &act;
+        clip = v < 0.12f ? Clip::Windup : v < 0.22f ? Clip::Strike : Clip::Follow;
+        strike = clip == Clip::Strike;
+        if (s->count(fc, clip, 0) <= 0) { s = &drawn; clip = Clip::Idle; variant = 1; strike = false; }
+      }
+    }
+    if (walking) travel += speed / fps;
+    if (running) { travel += runSpeed / fps; runTravel += runSpeed / fps; }
+    const art::FrameRect* fr = s->frame(fc, clip, variant, i);
+    Board b = ground;
+    int px = 0, py = 0;
+    const Canvas f = rigpv::frameCanvas(*s, fc, clip, variant, i, px, py);
+    // the walker's place: side views cross the board (left to right, or right to left facing L), D / U walk down / up
+    const float d = std::fmod(travel, side ? (float)(W - 60) : (float)(H - 70));
+    int cx = W / 2, cy = H - 10;
+    if (fc == 2) cx = 30 + (int)d;
+    else if (fc == 3) cx = W - 30 - (int)d;
+    else if (fc == 0) cy = 50 + (int)d;
+    else cy = H - 10 - (int)d;
+    if (f.w > 0 && fr) {
+      Canvas g = f;
+      if (night) for (uint32_t& c : g.px) if (c >> 24) c = nightOf(c);
+      shadow(b, cx, cy, std::min(24, std::max(10, f.w - 4)));
+      b.put(g, cx - px, cy - py);
+      finishOnBoard(b, *s, L, (size_t)(fr - s->frames.data()), f, cx - px, cy - py, t + 1.0f, phase, night ? 1.0f : 0.92f, strike, &ps,
+                    id * 2654435761u + 0x5EEDu, fc, clip, variant, i);
+    }
+    char nm[96];
+    std::snprintf(nm, sizeof nm, "/motion_%s_%c%s_f%04d.png", tag.c_str(), fl, night ? "n" : "", n);
+    savePng(b.c, dir + nm, 3);
+    // the follow crop: 80 x 72 round the figure (the game's near view of one person), 3x
+    Canvas crop(80, 72);
+    for (int y = 0; y < crop.h; y++)
+      for (int x = 0; x < crop.w; x++) {
+        const int X = cx - 40 + x, Y = cy - 56 + y;
+        crop.set(x, y, X >= 0 && Y >= 0 && X < b.c.w && Y < b.c.h ? b.c.get(X, Y) : rgba(20, 20, 24));
+      }
+    std::snprintf(nm, sizeof nm, "/motion_%s_%c%s_c%04d.png", tag.c_str(), fl, night ? "n" : "", n);
+    savePng(crop, dir + nm, 3);
+  }
+  std::printf("doll_gallery: motion %s %c: %d frames at %.0f fps\n", tag.c_str(), fl, frames, fps);
+}
+// lit:<requests file>: still frames with the game's living finish, for the owner boards. Each line of the file:
+//   <tag> <D|U|R|L> <loco|action|death|run|drawn> <clip> <variant> <i> <t> <day|night> <strike 0|1> <out base path>
+// writes <out>_fig.png (the 1x frame on magenta, 96 x 96, feet at 48,84) and <out>_lit.png (the frame on black with the
+// finish added the game's way, particles run for 1 s before t so motes and embers are in the air)
+void boardLit(const std::string& dir, const std::string& arg) {
+  (void)dir;
+  const std::string file = arg.substr(4);
+  std::FILE* fp = std::fopen(file.c_str(), "r");
+  if (!fp) { std::printf("doll_gallery: lit: cannot open %s\n", file.c_str()); return; }
+  char line[1024];
+  int done = 0;
+  std::string lastTag;
+  doll::DollRecipe r;
+  art::HumanLook L;
+  RigSheet sheets[(int)RigPart::COUNT];
+  bool have[(int)RigPart::COUNT] = {};
+  while (std::fgets(line, sizeof line, fp)) {
+    char tag[128], fac[8], part[16], clip[16], dn[8], out[600];
+    int variant = 0, i = 0, strike = 0;
+    float t = 0;
+    if (line[0] == '#' || std::sscanf(line, "%127s %7s %15s %15s %d %d %f %7s %d %599s", tag, fac, part, clip, &variant, &i, &t, dn, &strike, out) < 10) continue;
+    if (lastTag != tag) {
+      if (!fileLookRecipe(tag, r, L)) { std::printf("doll_gallery: lit: %s not in %s\n", tag, g_looksFile.c_str()); continue; }
+      lastTag = tag;
+      for (bool& h : have) h = false;
+    }
+    const std::string ps = part;
+    const RigPart rp = ps == "action" ? RigPart::Action : ps == "death" ? RigPart::Death : ps == "run" ? RigPart::Run : ps == "drawn" ? RigPart::Drawn : RigPart::Loco;
+    if (!have[(int)rp]) { sheets[(int)rp] = doll::compose(r, rp); have[(int)rp] = true; }
+    const RigSheet& s = sheets[(int)rp];
+    static const char* kClips[] = {"idle", "walk", "hurt", "windup", "strike", "follow", "cast", "draw", "release", "block", "roll", "fall", "lying"};
+    Clip c = Clip::Idle;
+    for (int k = 0; k < (int)Clip::COUNT; k++) if (!std::strcmp(clip, kClips[k])) c = (Clip)k;
+    const int fc = facingOf(fac);
+    const bool night = !std::strcmp(dn, "night");
+    int px = 0, py = 0;
+    Canvas f = rigpv::frameCanvas(s, fc, c, variant, i, px, py);
+    const art::FrameRect* fr = s.frame(fc, c, variant, i);
+    if (f.w <= 0 || !fr) { std::printf("doll_gallery: lit: %s %s %s %s %d %d: no frame\n", tag, fac, part, clip, variant, i); continue; }
+    if (night) for (uint32_t& q : f.px) if (q >> 24) q = nightOf(q);
+    const int W = 96, H = 96, ox = 48 - px, oy = 84 - py;
+    Canvas fig(W, H);
+    for (uint32_t& q : fig.px) q = rgba(255, 0, 255);   // the key (savePng writes opaque)
+    for (int y = 0; y < f.h; y++) for (int x = 0; x < f.w; x++) if (f.get(x, y) >> 24) { const int X = ox + x, Y = oy + y; if (X >= 0 && Y >= 0 && X < W && Y < H) fig.set(X, Y, f.get(x, y)); }
+    Board b(W, H);
+    plain(b, rgba(0, 0, 0));
+    b.put(f, ox, oy);
+    const uint32_t id = 7;
+    const float phase = art::finish::actorPhase(id);
+    const size_t fi = (size_t)(fr - s.frames.data());
+    art::finish::Particles parts;
+    Board scratch(W, H);
+    for (int n = 30; n >= 1; n--)   // particles: the second before t, the figure standing in this frame
+      finishOnBoard(scratch, s, L, fi, f, ox, oy, t - n / 30.0f, phase, 1.0f, strike != 0, &parts, id * 2654435761u + 0x5EEDu, fc, c, variant, i);
+    finishOnBoard(b, s, L, fi, f, ox, oy, t, phase, night ? 1.0f : 0.92f, strike != 0, &parts, id * 2654435761u + 0x5EEDu, fc, c, variant, i);
+    savePng(fig, std::string(out) + "_fig.png", 1);
+    savePng(b.c, std::string(out) + "_lit.png", 1);
+    done++;
+  }
+  std::fclose(fp);
+  std::printf("doll_gallery: lit: %d frames\n", done);
+}
+// film:<requests file>: a figure moving through the world with the game's living finish, frame by frame, for the owner videos.
+// Each line: <tag> <D|U|R|L> <part> <clip> <variant> <i> <t> <wx> <wy> <day|night> <strike 0|1> <out base path> (wx, wy: the
+// feet in world px, 0..4000 x 0..200). The particles live in world space across the lines of one tag (motes and embers stay
+// where they were born, so a walker trails them). Writes <out>_fig.png and <out>_lit.png: the 160 x 112 window round the feet
+// (feet at 80,88), the frame alone on magenta and the frame on black with the finish added.
+void boardFilm(const std::string& dir, const std::string& arg) {
+  (void)dir;
+  const std::string file = arg.substr(5);
+  std::FILE* fp = std::fopen(file.c_str(), "r");
+  if (!fp) { std::printf("doll_gallery: film: cannot open %s\n", file.c_str()); return; }
+  char line[1024];
+  int done = 0;
+  std::string lastTag;
+  doll::DollRecipe r;
+  art::HumanLook L;
+  RigSheet sheets[(int)RigPart::COUNT];
+  bool have[(int)RigPart::COUNT] = {};
+  art::finish::Particles parts;
+  const int BW = 4200, BH = 240, WW = 160, WH = 112;
+  Board world(BW, BH);
+  while (std::fgets(line, sizeof line, fp)) {
+    char tag[128], fac[8], part[16], clip[16], dn[8], out[600];
+    int variant = 0, i = 0, strike = 0;
+    float t = 0, wx = 0, wy = 0;
+    if (line[0] == '#' || std::sscanf(line, "%127s %7s %15s %15s %d %d %f %f %f %7s %d %599s", tag, fac, part, clip, &variant, &i, &t, &wx, &wy, dn, &strike, out) < 12) continue;
+    if (lastTag != tag) {
+      if (!fileLookRecipe(tag, r, L)) { std::printf("doll_gallery: film: %s not in %s\n", tag, g_looksFile.c_str()); continue; }
+      lastTag = tag;
+      for (bool& h : have) h = false;
+      parts = art::finish::Particles();
+    }
+    const std::string ps = part;
+    const RigPart rp = ps == "action" ? RigPart::Action : ps == "death" ? RigPart::Death : ps == "run" ? RigPart::Run : ps == "drawn" ? RigPart::Drawn : RigPart::Loco;
+    if (!have[(int)rp]) { sheets[(int)rp] = doll::compose(r, rp); have[(int)rp] = true; }
+    const RigSheet& s = sheets[(int)rp];
+    static const char* kClips[] = {"idle", "walk", "hurt", "windup", "strike", "follow", "cast", "draw", "release", "block", "roll", "fall", "lying"};
+    Clip c = Clip::Idle;
+    for (int k = 0; k < (int)Clip::COUNT; k++) if (!std::strcmp(clip, kClips[k])) c = (Clip)k;
+    const int fc = facingOf(fac);
+    const bool night = !std::strcmp(dn, "night");
+    int px = 0, py = 0;
+    Canvas f = rigpv::frameCanvas(s, fc, c, variant, i, px, py);
+    const art::FrameRect* fr = s.frame(fc, c, variant, i);
+    if (f.w <= 0 || !fr) { std::printf("doll_gallery: film: %s %s %s %s %d %d: no frame\n", tag, fac, part, clip, variant, i); continue; }
+    if (night) for (uint32_t& q : f.px) if (q >> 24) q = nightOf(q);
+    const int fx = (int)std::floor(wx + 0.5f), fy = (int)std::floor(wy + 0.5f);
+    const int x0 = fx - 80, y0 = fy - 88;
+    plain(world, rgba(0, 0, 0));
+    world.put(f, fx - px, fy - py);
+    const uint32_t id = 7;
+    finishOnBoard(world, s, L, (size_t)(fr - s.frames.data()), f, fx - px, fy - py, t, art::finish::actorPhase(id), night ? 1.0f : 0.92f,
+                  strike != 0, &parts, id * 2654435761u + 0x5EEDu, fc, c, variant, i);
+    Canvas lit(WW, WH), fig(WW, WH);
+    for (uint32_t& q : fig.px) q = rgba(255, 0, 255);   // the key (savePng writes opaque)
+    for (int y = 0; y < WH; y++)
+      for (int x = 0; x < WW; x++) {
+        const int X = x0 + x, Y = y0 + y;
+        lit.set(x, y, X >= 0 && Y >= 0 && X < BW && Y < BH ? (world.c.get(X, Y) | 0xFF000000u) : rgba(0, 0, 0));
+        const int u = X - (fx - px), v = Y - (fy - py);
+        if (u >= 0 && v >= 0 && u < f.w && v < f.h && (f.get(u, v) >> 24)) fig.set(x, y, f.get(u, v));
+      }
+    savePng(fig, std::string(out) + "_fig.png", 1);
+    savePng(lit, std::string(out) + "_lit.png", 1);
+    done++;
+  }
+  std::fclose(fp);
+  std::printf("doll_gallery: film: %d frames\n", done);
 }
 void boardActions(const std::string& dir) {
   const doll::DollRecipe r = recipeOf(g_who);
@@ -1024,6 +1300,9 @@ int main(int argc, char** argv) {
     else if (b.rfind("grip:", 0) == 0) boardGrip(dir, b);
     else if (b == "ladder" || b.rfind("ladder:", 0) == 0) boardLadder(dir, b);
     else if (b.rfind("finish:", 0) == 0) boardFinish(dir, b);
+    else if (b.rfind("motion:", 0) == 0) boardMotion(dir, b);
+    else if (b.rfind("lit:", 0) == 0) boardLit(dir, b);
+    else if (b.rfind("film:", 0) == 0) boardFilm(dir, b);
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

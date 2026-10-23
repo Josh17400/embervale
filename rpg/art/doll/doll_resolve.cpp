@@ -143,7 +143,17 @@ std::string pauldronOf(const HumanLook& L) {
   if (!a) return "";
   const std::string m = a;
   const char* fam = (m == "plate" || m == "brigandine" || m == "leaf") ? "plate" : (m == "padded" || m == "leather") ? "fur" : "scale";
-  return std::string(fam) + "." + std::to_string(std::min<int>(L.pauldron, 4));
+  // (polish i1) the nearest size the library has drawn for the family (the T2 cap made "plate.2", never drawn: the imperial
+  // watchwoman fell back to v1 in a row of rig-2 guards); none drawn at all: no pauldron rather than a hole
+  const pool::Pool& P = pool::get();
+  const int want = std::min<int>(L.pauldron, 4);
+  for (int d : {0, 1, -1, 2, -2}) {
+    const int sz = want + d;
+    if (sz < 2 || sz > 4) continue;
+    const std::string v = std::string(fam) + "." + std::to_string(sz);
+    if (!P.partsWithRole(Role::Pauldron, v).empty()) return v;
+  }
+  return "";
 }
 // (P2c, D3) the material tile laid over an armour's sleeves
 const char* sleeveTileOf(const HumanLook& L) {
@@ -232,7 +242,14 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
     if (!pd.empty()) need(Role::Pauldron, pd);
   }
   // (P2c) the tabard over the armour of every Outfit::Guard look (watch, soldiers, heralds): its colour is the accent
-  if (L.outfit == Outfit::Guard) need(Role::Overlay, "tabard");
+  // (polish i1) only where the library draws a tabard for the body: the watchwoman has none yet, and a missing tabard sent
+  // her whole figure back to v1 in a row of rig-2 guards; she wears her armour bare until LADDER-ARMOUR draws hers
+  if (L.outfit == Outfit::Guard) {
+    const pool::Pool& P = pool::get();
+    bool drawn = false;
+    for (int i : P.partsWithRole(Role::Overlay, "tabard")) if (P.parts[(size_t)i].bodyMask >> (int)r.body & 1) drawn = true;
+    if (drawn) need(Role::Overlay, "tabard");
+  }
   // (P2c) the armour's material tile over its sleeves (D3), where the pool draws one (a decoration, never a hole)
   if (const char* t = sleeveTileOf(L))
     if (!pool::get().partsWithRole(Role::Overlay, t).empty()) need(Role::Overlay, t);
@@ -393,7 +410,13 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
 HumanLook ladderLook(const HumanLook& L) {
   if (!L.topTier()) return L;
   HumanLook E = L;
-  const int tb = L.tier[HumanLook::TIER_BODY], th = L.tier[HumanLook::TIER_HELM];
+  const int tb = L.tier[HumanLook::TIER_BODY];
+  // (polish i1) the T1 floor (gear::fillLadder): a T1 body with no armour is T1's padded jerkin in the wearer's shirt colour,
+  // T1 feet with no boots are leather boots (the player starts in T1 gear: the rags of the rags-to-riches ladder)
+  using O = Outfit;
+  const bool cloth = L.outfit == O::Tunic || L.outfit == O::Rags;
+  if ((L.floor >> HumanLook::TIER_BODY & 1) && tb == 1 && !L.armorStyle && !L.bodyForm && cloth && !L.civil) { E.armorStyle = 1; E.bodyForm = 1; }
+  if ((L.floor >> HumanLook::TIER_BOOTS & 1) && L.tier[HumanLook::TIER_BOOTS] == 1 && !L.boots) E.boots = 1;
   if (tb && !L.pauldron && !L.skirt && !L.crest) {
     static const uint8_t kPd[7] = {0, 1, 2, 3, 3, 4, 4}, kSk[7] = {0, 2, 2, 3, 3, 4, 4};
     E.pauldron = kPd[tb];
@@ -403,16 +426,122 @@ HumanLook ladderLook(const HumanLook& L) {
       E.bodyForm = (uint8_t)(m == 1 ? 2 : (m == 2 || m == 3) ? 3 : 7);   // BodyArm + 1: leather 2, mail 3, plate 7
     }
   }
+  // (polish i1, the owner: "six identical guards in a row") a ranked fighter's own kit (HumanLook::kitVar, from census:
+  // gear::rankTiers): his helm, shield, gloves and boots a step worse or better than his rank's (a dented old helm, a
+  // brass-trimmed shield), the shoulder and skirt dials a step either way, a third bare-handed, a sergeant in six with a
+  // travel cloak in the livery, and in the village watch one in eight bare-headed. The body keeps the rank.
+  if (L.kitVar) {
+    uint32_t h = L.kitVar * 0x9E3779B1u;
+    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+    auto jit = [&](int slot, int bit) {
+      int t = E.tier[slot];
+      if (!t) return;
+      const int j = (int)(h >> bit & 7u);
+      if (j <= 1 && t > 1) t--;
+      else if (j == 2 && t < 6 && t < tb + 1) t++;
+      E.tier[slot] = (uint8_t)t;
+    };
+    jit(HumanLook::TIER_HELM, 0);
+    jit(HumanLook::TIER_SHIELD, 3);
+    jit(HumanLook::TIER_GLOVES, 6);
+    jit(HumanLook::TIER_BOOTS, 9);
+    if (E.pauldron) { const int j = (int)(h >> 20 & 3u); if (j == 0 && E.pauldron > 1) E.pauldron--; else if (j == 1 && E.pauldron < 4) E.pauldron++; }
+    if (E.skirt) { const int j = (int)(h >> 22 & 3u); if (j == 0 && E.skirt > 1) E.skirt--; else if (j == 1 && E.skirt < 4) E.skirt++; }
+    if (tb <= 3 && E.gloves && (h >> 12 & 3u) == 0) { E.gloves = 0; E.tier[HumanLook::TIER_GLOVES] = 0; }
+    if (tb >= 2 && tb <= 4 && (h >> 24) % 6u == 0 && !E.cloak && !E.cape) {
+      E.cloak = 1;
+      const uint32_t c = L.tabardColor ? L.tabardColor : rgba(110, 40, 40);
+      auto dk = [&](int sh) { return (uint32_t)((c >> sh & 255u) * 62u / 100u); };
+      E.cloakColor = 0xFF000000u | dk(16) << 16 | dk(8) << 8 | dk(0);
+      E.tier[HumanLook::TIER_CLOAK] = (uint8_t)tb;   // (no crest: a crest dial closes the helm, and the face must read)
+    } else if (tb <= 2 && (h >> 28) % 8u == 3 && (E.helmet || E.helmStyle || E.helmForm)) {
+      E.helmet = false; E.helmStyle = 0; E.helmForm = 0; E.tier[HumanLook::TIER_HELM] = 0;
+    }
+    // (polish i2, the panel: "Heartland and Highland lineups are near clones: same kit, varying only in skin and beard";
+    // "Highland soldiers wear red caps with no kettle hat") the man's own kit reaches the shapes that read at 1x, all
+    // within his people's outputs: a second hash (the first's bits are spent above)
+    uint32_t h2 = h * 0x85EBCA6Bu ^ 0x5F3759DFu;
+    h2 ^= h2 >> 13; h2 *= 0xC2B2AE35u; h2 ^= h2 >> 16;
+    const bool helmed = E.helmet || E.helmStyle || E.helmForm;
+    // the bonnet peoples (census: the Highland soldier's cap): one in three has bought the people's kettle hat (iron)
+    if (!helmed && !E.hood && E.headwear == 2 && tb >= 2 && h2 % 3u == 0) {
+      E.helmet = true; E.helmStyle = 2; E.helmForm = 2; E.headwear = 0;
+      E.tier[HumanLook::TIER_HELM] = (uint8_t)tb;
+    } else if (!helmed && E.headwear == 2 && E.headColor) {
+      // the rest dye their caps unevenly: the livery's shade, a darker dyeing, or the hose's cloth
+      const uint32_t c = E.headColor;
+      auto sh = [&](uint32_t col, uint32_t pct) {
+        return 0xFF000000u | ((col >> 16 & 255u) * pct / 100u) << 16 | ((col >> 8 & 255u) * pct / 100u) << 8 | (col & 255u) * pct / 100u;
+      };
+      const uint32_t j = h2 >> 4 & 3u;
+      if (j == 1) E.headColor = sh(c, 72);
+      else if (j == 2 && E.bottomColor) E.headColor = E.bottomColor | 0xFF000000u;
+    }
+    // the coat: a padded man of rank 2 or more may wear a leather jerkin (one in three); a leather man a quilted coat (one
+    // in four); a mailed man of rank 3 or less a leather jerkin over his shirt (one in four). The body's TIER stays the rank's
+    if (tb >= 2 && E.bodyForm) {
+      const uint32_t j = h2 >> 8 & 15u;
+      if (E.bodyForm == 1 && j % 3u == 0) E.bodyForm = 2;
+      else if (E.bodyForm == 2 && j % 4u == 1) E.bodyForm = 1;
+      else if (E.bodyForm == 3 && tb <= 3 && j % 4u == 2) E.bodyForm = 2;
+    }
+    // the shield's face: one in four painted dark in the livery, one in four a pale field (the device as drawn)
+    if (E.tier[HumanLook::TIER_SHIELD] && !E.shieldField) {
+      const uint32_t j = h2 >> 14 & 3u;
+      const uint32_t c = E.tabardColor ? E.tabardColor : rgba(110, 40, 40);
+      if (j == 1) E.shieldField = 0xFF000000u | ((c >> 16 & 255u) * 58u / 100u) << 16 | ((c >> 8 & 255u) * 58u / 100u) << 8 | (c & 255u) * 58u / 100u;
+      else if (j == 2) E.shieldField = rgba(214, 200, 162);
+    }
+    // (polish i3, the panel: "within a culture the six seeds still share one palette: all red tabards, the same hose") the
+    // livery's dye lots: the coat and tabard in the people's colours, but one in four dyed darker, one in eight sun-faded
+    // toward undyed wool, one in eight a deeper, richer lot, one in eight pale and washed out; the hose of whatever cloth the man owns (his own, a dark
+    // brown, a grey, or the livery's dark). The hue stays the people's: a row reads as one company of different men.
+    // Rank and file only (body tier 4 or less): an officer's, a lord's or a king's cloth is the dear dye, as drawn.
+    if (tb <= 4) {
+      auto mixC = [](uint32_t a, uint32_t b, uint32_t pct) {   // a toward b by pct %
+        auto ch = [&](int sh) { const int x = (int)(a >> sh & 255u), y = (int)(b >> sh & 255u); return (uint32_t)(x + (y - x) * (int)pct / 100); };
+        return 0xFF000000u | ch(16) << 16 | ch(8) << 8 | ch(0);
+      };
+      const uint32_t dye = h2 >> 18 & 7u;
+      auto lot = [&](uint32_t c) -> uint32_t {
+        if (!c) return c;
+        // a darker dyeing, only of a cloth with light to lose: a dark coat dyed darker drowns the lit edge in the grass (C14:
+        // the heartland bandit's brown read 33 over the darkest ground)
+        const int lu = (int)(0.299f * (c >> 16 & 255u) + 0.587f * (c >> 8 & 255u) + 0.114f * (c & 255u));
+        if (dye == 1 || dye == 2) return lu >= 110 ? mixC(c, 0xFF000000u, 34) : c;
+        if (dye == 3) return mixC(c, rgba(158, 148, 124), 48);                  // sun-faded toward undyed wool
+        if (dye == 5) return mixC(c, rgba(236, 224, 196), 26);                  // a pale, washed-out lot
+        return c;
+      };
+      E.topColor = lot(E.topColor);
+      E.tabardColor = lot(E.tabardColor);
+      if (dye == 4) {   // a richer lot: the strongest channel lifted, the others pressed (more saturated, same hue)
+        auto rich = [](uint32_t c) {
+          int ch[3] = {(int)(c & 255u), (int)(c >> 8 & 255u), (int)(c >> 16 & 255u)};
+          const int mx = std::max(ch[0], std::max(ch[1], ch[2]));
+          for (int& v : ch) v = v == mx ? std::min(255, v + 24) : v * 66 / 100;
+          return 0xFF000000u | (uint32_t)ch[2] << 16 | (uint32_t)ch[1] << 8 | (uint32_t)ch[0];
+        };
+        E.topColor = rich(E.topColor);
+        E.tabardColor = rich(E.tabardColor);
+      }
+      const uint32_t hose = h2 >> 21 & 3u;
+      if (hose == 1) E.bottomColor = rgba(74, 58, 44);
+      else if (hose == 2) E.bottomColor = rgba(98, 98, 104);
+      else if (hose == 3 && L.tabardColor) E.bottomColor = mixC(L.tabardColor, 0xFF000000u, 45);
+    }
+  }
+  const int thE = E.tier[HumanLook::TIER_HELM];   // the helm's tier after the fighter's own kit
   if (tb == 1) { E.pauldron = std::min<uint8_t>(E.pauldron, 1); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 2); }
   else if (tb == 2) { E.pauldron = std::min<uint8_t>(E.pauldron, 2); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 3); }
-  if (th == 1) { if (E.crest) E.crest = 1; E.armsOrnament &= (uint16_t)~1u; }   // no crest, no plume (ARM_PLUMES)
-  else if (th == 2) { if (E.crest) E.crest = std::min<uint8_t>(E.crest, 2); E.armsOrnament &= (uint16_t)~1u; }
+  if (thE == 1) { if (E.crest) E.crest = 1; E.armsOrnament &= (uint16_t)~1u; }   // no crest, no plume (ARM_PLUMES)
+  else if (thE == 2) { if (E.crest) E.crest = std::min<uint8_t>(E.crest, 2); E.armsOrnament &= (uint16_t)~1u; }
   // (ladder i3) the top never steps down: a T6 piece wears T5's dials at least (the heartland's band-7 STARMETAL is steel,
   // so gear_look gave it the people's plain dials, one under the masterwork alloy's: the blind panel saw T6 lose the T5
   // plume and the large pauldrons). A lift only where the piece is worn; rig 2 only (the resolver).
   if (tb >= 6 && E.pauldron && E.pauldron < 4) E.pauldron = 4;
-  if (th >= 6 && E.crest && E.crest < 2) E.crest = 2;
-  if (th >= 5 && E.crest >= 2) E.armsOrnament |= 1u;   // a plume on a helm made for one
+  if (thE >= 6 && E.crest && E.crest < 2) E.crest = 2;
+  if (thE >= 5 && E.crest >= 2) E.armsOrnament |= 1u;   // a plume on a helm made for one
   return E;
 }
 
@@ -495,6 +624,26 @@ DollRecipe resolve(const HumanLook& L0) {
     return ro == Role::Head || ro == Role::Nose || ro == Role::Brow || ro == Role::Ears || ro == Role::Expr || ro == Role::Paint ||
            ro == Role::Earring || ro == Role::Hair || ro == Role::Headwear;
   };
+  // (polish i1 integration, P7) an armour material the body has no drawing for wears the nearest drawn one, as drawnForm
+  // does for helms and shields: the census's women of the scale and lamellar peoples (Imperial, Steppe, Jade) fell back
+  // whole to the v1 sprite at rig 2, half a head short among the dolls. Chains: scale, lamellar -> mail; brigandine -> plate;
+  // leaf -> leather; mail -> leather -> padded. The material named stays the look's (its regions and colours); only the
+  // part it draws changes.
+  for (Need& n : r.needs) {
+    if (n.role != Role::Armour || (r.body != BodySet::Man && r.body != BodySet::Woman)) continue;
+    auto served = [&](const std::string& v) {
+      for (int i : P.partsWithRole(Role::Armour, v)) if (P.parts[(size_t)i].bodyMask >> (int)r.body & 1) return true;
+      return false;
+    };
+    std::string v = n.value;
+    for (int guard = 0; guard < 4 && !served(v); guard++) {
+      const char* next = v == "scale" || v == "lamellar" ? "mail" : v == "brigandine" ? "plate" : v == "leaf" ? "leather" :
+                         v == "mail" || v == "plate" ? "leather" : v == "leather" ? "padded" : nullptr;
+      if (!next) break;
+      v = next;
+    }
+    if (served(v)) n.value = v;   // (a chain that finds nothing drawn leaves the need as it was: still reported missing)
+  }
   for (const Need& n : r.needs)
     for (int i : P.partsWithRole(n.role, n.value)) {
       const uint8_t m = P.parts[(size_t)i].bodyMask;

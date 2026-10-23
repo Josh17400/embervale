@@ -116,6 +116,7 @@ class View {
     const Tex* tex = nullptr;
     const art::RigSheet* sheet = nullptr;   // the atlas's frames (the canvas itself is dropped once baked)
     const Tex* glowTex = nullptr;           // (P2c ladder) the glow plane's texture (null: the look has none)
+    const std::vector<art::finish::Mask>* masks = nullptr;   // (polish i1) T6: each frame's silhouette (the aura, the sweep)
     bool ready() const { return tex && tex->t && sheet && !sheet->empty(); }
   };
   RigTex rigTex(const art::HumanLook& L, art::RigPart part, bool child = false);
@@ -670,11 +671,13 @@ class View {
   // (P2c ladder, contracts 6b) the living finish of a rig-2 frame just drawn (T5-T6): its glow plane pulsed with the
   // actor's phase, the edge spark, the motes; queued and drawn additively after the lighting (render.cpp)
   void queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
-                         float x2, float y2, float pivX, float pivY, float alpha);
+                         float x2, float y2, float pivX, float pivY, float alpha, bool strike = false);
+  // (polish i1) the living finish's world-space motes / embers, one set per actor id (dropped 2 s after its last draw)
+  std::unordered_map<int, art::finish::Particles> finishParts_;
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
   friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
   // v2 atlases by (look key x part x child): the canvas is baked and dropped, its frames kept (LENS: MB caps, bake queue)
-  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; Tex glowTex; };   // (ladder) glowTex: the glow plane
+  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; Tex glowTex; std::vector<art::finish::Mask> masks; };   // (ladder) glowTex: the glow plane
   std::unordered_map<uint64_t, RigEntry> rigTex_;
   // (Witness) each v1 standing sheet's opaque box per cell (state.player.sprite.box), by humans_ key; filled only for a
   // harness run

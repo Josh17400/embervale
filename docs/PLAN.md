@@ -2240,7 +2240,7 @@ form9 means no shield.
 | colours by tier | T1 about 34-38; T6 48 + 3 glow | a T1 piece: 3 material steps + a patch's 2. The T6 hero under a great helm: skin 3 + eyes 1 + face 1 + ink 1 + cloth 4 + cloak 5 + leather 3 + metal 5 + gold 4 + blade 4 + field 3 + device 3 + plume 3 = 40, + glow 3. An open helm, a beard and a tabard is the worst case: the colour fallbacks (contracts 3b) |
 | the living finish | runes 2.2 s (two 1.1 s breaths), light 0.30-0.85; a T5 gem 3.3 s, 0.15-0.45; the spark every 3.3 s, 0.33 s from grip to tip; motes 3 at most, born every 0.45 s, life 1.0 s, rise 8 px; the stir on the idle's 0.55 s frames | 32 animated px a figure-frame at most (i2: was 24); light changes 0.25 or less per 1/60 s; 1 pulse blit + up to 4 sprite blits a T6 figure |
 | glow memory | a glow plane is 25 % or less of its look's atlas; at most 12 looks cached | a T6 look's atlases are about 1 MB, so its plane about 0.25 MB; 6 T5-T6 looks in a city = 1.5 MB inside the 24 MB people budget (19.4 MB estimated) |
-| top-tier atlases (D19) | T5-T6: LOCO 160, RUN 80, DRAWN 320 KB; any tier (ladder i2 integration, measured): a crested or plumed helm RUN 68 KB, a polearm DEATH 56 KB | the M7 cloak watch's LOCO is 127.6 KB; large pauldrons (+2 columns a side facing D / U, about + 10 %) and a shield give about 145 KB. Six such looks add about 0.7 MB to a city. The fallback without D19: a T5-T6 look with a shield wears the short cape |
+| top-tier atlases (D19) | T5-T6: LOCO 160, RUN 80, DRAWN 320 KB; any tier (ladder i2 integration, measured): a crested or plumed helm RUN 68 KB, a polearm DEATH 56 KB; (polish i1 integration, measured) a polearm LOCO 136 KB (the upright carry in front of the body: jade3 130.3, knight 127.5); (polish i2 integration, measured) a polearm RUN + 14 KB over its base and D19 (the 45 deg forward run carry: jade3 76.5 of 78, knight 80.9 of 82, lt6w 89.2 of 94) | the M7 cloak watch's LOCO is 127.6 KB; large pauldrons (+2 columns a side facing D / U, about + 10 %) and a shield give about 145 KB. Six such looks add about 0.7 MB to a city. The fallback without D19: a T5-T6 look with a shield wears the short cape |
 | pool (D21) | 1.75 MB | 943 KB at slice iteration 3 + the rest of production about 0.35 MB + the ladder about 0.2 MB (new forms, region planes about + 5 %, finish tiles, stir views, the spark and motes) = about 1.5 MB, with room; test_doll.cpp still checks 1.0 MB |
 
 ### Decisions taken by default (confirm or overrule)
@@ -3029,4 +3029,52 @@ witness p2c_ladder 33 / 33, p2c_slice pass; rig 1 unchanged (art_hash 317eef6efe
 --arms ALL OK). Open (art areas): helm forms kettle and conical-aventail undrawn; no glow on the cloak's back (a rune hem
 `N` region on the noble cloak would give the T6 / Mythic back view its light); the guard's beard mask (R / L); the mail tile's
 1 px checker.
+**Polish iteration 1 (LADDER-DOLL, 2026-10-23; BDIR build-polish-doll; the blind panel's polish list, items P2, P5 grip,
+P6, P7).** P2: the living finish reads at game scale: the glow's halo is a 2 px band, a T6 figure breathes a halo of light
+round its helm and shoulders, the Mythic burns (flame tongues 1-4.5 px off every upper edge over a fire ring, on a smooth
+noise: no flicker), the T6 blade's edge sweep (a white head, a 6 px glowing tail, grip to tip in 0.40 s every 2.75 s, a
+star at the tip and on the strike), motes and the Mythic's embers (12, licking 13 px) live in world space so a walker
+trails them and a striking Mythic sheds fire off the blade; the cloak hem and plume stir in the walk's passing frames too.
+C13 restated (contracts 6b: 112 bright px, 320 soft px at 0.45 or less, still lights 0.25 per 1/60 s, a T6 figure 40 px of
+soft light or more; measured: lt6m 96 bright, 0.065 step; 8 figures 0.043 ms). doll_gallery `motion:<tag>` plays a look at
+game speed with the game's own light code. P6: corpses lie whole (the legs no longer stand up out of the body: compose's
+screen items are the views that name `anchor pivot`); DEATH 52 KB. P7: the player starts in T1 gear (the T1 floor: an
+empty body or feet slot draws T1's padded jerkin and leather boots at rig 2), and census fighters vary man to man
+(HumanLook::kitVar from the face: helm, shield, gloves, boots a tier either way, dials, bare hands, a sergeant's cloak, a
+bare head in the village watch); a T2 plate pauldron and the watchwoman's tabard no longer send a guard back to v1.
+Integrated the art areas' maps in the tree at 14:50 (pool 4d10c00b4f144bba): `--doll --gates --parity` 22 / 22 ok on MSVC
+and on WSL clang 18; C1 source L 57 / 57; `--doll-arms` 0; rig 1 unchanged (art_hash 317eef6efe4d8229, village-art 65 / 0,
+--anim 0); save_test ALL OK; tools/scripts/p2c_polish.txt 0 failures. Open: the hero's creator default is brown-haired in a
+blue shirt (appearance.h, not the doll: A3's colours there would make the new player the ladder hero); census looks whose
+armour form has no woman's map stay v1 (scale, brigandine, lamellar); the art areas still at work after 14:50 need the
+pool regenerated (`node tools/doll/pxc.mjs`) and the gates rerun.
+**Polish iteration 2 (LADDER-DOLL, 2026-10-23; BDIR build-polish-doll; the blind panel on i1).** P2: the T6 aura stands one
+clear pixel off the silhouette as a 2 px warm white-gold band (the dark outline keeps its edge; no longer lost on foliage);
+the Mythic's fire licks in separate tongues off the crown only, no fringe down the sides, and its blade flashes white-hot
+on the strike; the pieces breathe as one (crawl 0.18). P7: census fighters vary more man to man within their people
+(kettle hats on a third of the bonnet men, the coat a step either way, cap dyes, shield faces); `p2cline npc` shows them
+as the game dresses them, weapons in hand (tools/scripts/p2c_polish2.txt). P6 corpses: a legs `lie` foot patch (6 px, in
+line with the shin) waits for the integrator. P5 Jade run carry and P6 bow: LADDER-ARMS's maps. Measured on a snapshot
+pool of the tree's maps (15:33) plus the feet patch: `--doll --gates --parity` 22 / 22 ok (C13 113 / 0); coverage --scope
+all 97.3 % (unchanged); rig 1 unchanged (art_hash 317eef6efe4d8229, village-art 65 / 0, --anim 0); full rpg_test ALL OK;
+p2c_polish2.txt 0 failures; WSL clang 18 -fsyntax-only 0 errors on the 3 changed C++ files.
+
+**Polish iteration 3 (LADDER-DOLL, 2026-10-23; BDIR build-polish-doll; the blind panel on i2).** P2: the T6 aura band is
+gone ("a blurry pale-green selection halo", "the only anti-aliased element"): the light lives ON the figure as a rim one
+pixel inside the dark outline, upper-left lit, breathing with the runes (kRim 0.75); the Mythic gains a fire rim up both
+flanks below the face (kRimM 0.85, flame noise: it no longer sinks into dark grass) and its drawn flame crown burns
+(fire-coloured mask pixels lit at kCrown 0.42 with a flicker: "the Mythic flames still don't glow"). C13 bright cap 112 ->
+128 (lt6m 119, lt6 84, lt6w 53); soft unchanged (320; lt6m 219, lt6 160). P7: rank-and-file fighters (body tier 4 or less)
+take a livery dye lot from their own kit hash (darker, sun-faded, deeper, pale, or as issued) and their own hose (brown,
+grey, the livery's dark); officers, lords and kings keep the dear dye (C14 nking held). tools/scripts/p2c_polish3.txt.
+
+**Polish iteration 3 integration (2026-10-23; BDIR build).** Merged LADDER-ARMOUR (plate, plate_hang man+woman, leather,
+lamellar, lamellar_hang, cloak noble/noble_front/travel), LADDER-HEAD (crested, crested_crest, leathercap, masked, heater,
+round), LADDER-ARMS (glaive), LADDER-FINISH (glyph) and LADDER-DOLL (art_fx, doll_resolve); pool hash 4aa10b4c73310c16.
+Two integration fixes: (1) the dye lot's darker dyeing applies only to a cloth of luma 110 or more (the heartland bandit's
+brown, darkened, put his lit edge 33 over the darkest ground: C14 failed on nband); (2) a leather wearer's Metal slot is
+iron (doll_ramps: `mk == 1` draws kMetalKind[3]), because sword.pxm's held role has no library dot and so always paints in
+Metal, not Blade: T1/T2's sword and the shield boss drew in the leather's browns (LADDER-ARMS repro). Gates 0 failures;
+art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
+
 ### Production results and the flip (the integrator fills)

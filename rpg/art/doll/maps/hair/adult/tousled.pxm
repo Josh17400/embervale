@@ -1,5 +1,6 @@
 # hair/adult/tousled: Tousled (A3's hero): locks over the brow, the cowlick
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# (polish i1, gen_cap.py) capped R / L: no strands hanging over the cheek in front of the ear (the archer's face)
 use person
 body adult
 role hair tousled
@@ -132,8 +133,8 @@ view R key rest when capped,!circlet replace
 |.acddccbccccbccca.
 |.acddccbccccbccca.
 |..abccbccbcc......
-|..accbcc..b.......
-|.abccbcb..b.......
+|..accbcc..........
+|.abccbcb..........
 |..aabbba..........
 |.....aa...........
 
@@ -147,7 +148,7 @@ view L key rest when capped,!circlet replace
 |.addccbccccbccbba.
 |.addccccbccccbcba.
 |......ccbccbccba..
-|.......b..cbcbba..
-|.......b..bcbcbba.
+|..........cbcbba..
+|..........bcbcbba.
 |..........abbbaa..
 |...........aa.....

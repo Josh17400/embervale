@@ -4957,7 +4957,7 @@ uint64_t HumanLook::key() const {
     // (P2c ladder, contracts 3b) the tiers, marks and metals: only when set, so every earlier rig-2 look keeps its key
     uint64_t t8 = 0;
     for (int i = 0; i < TIER_SLOTS; i++) t8 |= (uint64_t)tier[i] << (8 * i);
-    const uint64_t lad = (uint64_t)rare | (uint64_t)metalKind << 8 | (uint64_t)bladeKind << 16 | (uint64_t)mythic << 24 | (uint64_t)motif << 32;
+    const uint64_t lad = (uint64_t)rare | (uint64_t)metalKind << 8 | (uint64_t)bladeKind << 16 | (uint64_t)mythic << 24 | (uint64_t)motif << 32 | (uint64_t)kitVar << 40 | (uint64_t)floor << 48;
     if (t8 || lad || gemColor) { mx(0x7A1D000000000000ull ^ t8); mx(lad); mx(gemColor); }
   }
   return k;

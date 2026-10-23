@@ -99,6 +99,11 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
       if (m) { L.metalKind = m; break; }
     }
   if (hand) L.bladeKind = metalKindOf(*hand);
+  // (polish i1, the owner: "the player starts in T1 gear") nobody who dresses from an inventory goes bare at rig 2: an
+  // empty body slot draws as T1's padded jerkin in the wearer's own shirt colour, empty feet as T1's leather boots (the
+  // resolver's ladderLook makes them; the look's own fields, and so rig 1, are untouched). A worn piece keeps its tier.
+  if (!g.armor && !L.tier[H::TIER_BODY]) { L.tier[H::TIER_BODY] = 1; L.floor |= (uint8_t)(1u << H::TIER_BODY); }
+  if (!g.boots && !L.tier[H::TIER_BOOTS]) { L.tier[H::TIER_BOOTS] = 1; L.floor |= (uint8_t)(1u << H::TIER_BOOTS); }
   // the filigree's motif: the body's maker people (else the helm's): Jade's cloud scrolls, the Imperial laurel, the northern
   // knotwork, the Heartland's oak leaves (the default, and every people without its own drawing yet)
   for (const Item* src : {g.armor, g.helmet})
@@ -110,7 +115,7 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     }
 }
 
-void rankTiers(art::HumanLook& L, int tier) {
+void rankTiers(art::HumanLook& L, int tier, bool person) {
   using H = art::HumanLook;
   if (tier <= 0) return;
   const uint8_t t = (uint8_t)std::min(tier, 6);
@@ -125,6 +130,17 @@ void rankTiers(art::HumanLook& L, int tier) {
   if (L.boots) L.tier[H::TIER_BOOTS] = t;
   if (L.cloak || L.cape) L.tier[H::TIER_CLOAK] = t;
   if (L.backItem) L.tier[H::TIER_BACK] = t;
+  // (polish i1, the owner: "six identical guards in a row") each ranked fighter's own kit: a variant from the person's own
+  // face (skin, hair, eyes, head: what census::dress already drew for them), so the same role, rank and culture still
+  // differ man to man; the resolver reads it at rig 2 (ladderLook). No draw: the census's stream is untouched.
+  if (armour && person) {
+    uint32_t h = 0x9E3779B9u;
+    for (uint32_t v : {L.skin, L.hairColor, L.eyeColor, (uint32_t)L.hair, (uint32_t)L.hairVar, (uint32_t)L.beard, (uint32_t)L.beardStyle,
+                       (uint32_t)L.head, (uint32_t)L.nose, (uint32_t)L.brow, (uint32_t)L.body, (uint32_t)L.age})
+      h = (h ^ v) * 0x01000193u, h ^= h >> 15;
+    h *= 0x2C1B3C6Du; h ^= h >> 12;
+    L.kitVar = (uint8_t)(1 + h % 255u);
+  }
   // the metal: an alloy's tint, else the look's band (1 leather 2 iron 3 steel 4 gilded 5 jade 6 obsidian 7 ember)
   if (!L.metalKind) {
     static const uint8_t kBand[8] = {0, 1, 3, 4, 5, 6, 7, 8};
@@ -372,7 +388,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "npc") npc = v;
     else if (k == "wpn") wpn = v;
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
-    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif")
+    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor")
       tiers.push_back(KV{k, v});
     else plain.push_back(KV{k, v});
   }
@@ -456,7 +472,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     if (kv.k == "tier") {
       // every slot the look wears takes n (the census's rule: rankTiers), keeping the metal it has
       for (uint8_t& t : L.tier) t = 0;
-      rankTiers(L, n);
+      rankTiers(L, n, false);
       done = true;
     }
     for (int s = 0; s < 8 && !done; s++)
@@ -467,6 +483,8 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       else if (kv.k == "metalKind") L.metalKind = (uint8_t)n;
       else if (kv.k == "bladeKind") L.bladeKind = (uint8_t)n;
       else if (kv.k == "motif") L.motif = (uint8_t)n;
+      else if (kv.k == "kitVar") L.kitVar = (uint8_t)n;
+      else if (kv.k == "floor") L.floor = (uint8_t)n;
       else if (kv.k == "gemColor") {
         const uint32_t rgb = (uint32_t)std::strtoul(kv.v.c_str() + (!kv.v.empty() && kv.v[0] == '#' ? 1 : 0), nullptr, 16);
         L.gemColor = kv.v == "0" ? 0u : hexc(rgb);
@@ -514,7 +532,7 @@ std::string describeLook(const art::HumanLook& L) {
   C_(plumeColor) C_(armourTint) C_(armourTint2) C_(glowColor) C_(shieldField) C_(shieldDevice) C_(trimColor) C_(weaponColor)
   static const char* const kSlot[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
   for (int s = 0; s < 8; s++) if (L.tier[s]) add(kSlot[s], L.tier[s]);
-  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) C_(gemColor)
+  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) C_(gemColor)
 #undef N_
 #undef C_
   return out.empty() ? "-" : out;

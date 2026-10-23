@@ -296,7 +296,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
         const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
         const float pivX = std::floor(at.x - cam.x + 0.5f), pivY = std::floor(at.y + bob2 - cam.y + 0.5f);
-        queueLivingFinish(a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha);
+        queueLivingFinish(a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
       }
       // (P2c) HeroSprite::part: 0 loco 1 action 2 death 3 run, 4 a posture atlas (home_view's too), 5 the DRAWN part
       if (a.player) heroSprite.part = partDrawn == (int)art::RigPart::Drawn ? 5 : partDrawn;

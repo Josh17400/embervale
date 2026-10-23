@@ -629,7 +629,9 @@ DollRamps rampsOf(const HumanLook& L) {
     if (L.armourTint && (mk == 10 || mk <= 4)) {
       metalRampKeys(L.armourTint, L.armourTint2, L.sheen, R.c[(int)Slot::Metal]);
       if (mk == 10) metalize(R.c[(int)Slot::Metal]);
-    } else if (mk) metalRamp(mk, R.c[(int)Slot::Metal]);
+    } else if (mk == 1) metalRamp(3, R.c[(int)Slot::Metal]);   // (polish i3, LADDER-ARMS: "T2's sword and boss draw in the
+    // leather's browns") a leather wearer's metal is his fittings, the boss, the blade: plain iron (the leather has its own slot)
+    else if (mk) metalRamp(mk, R.c[(int)Slot::Metal]);
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal][i] |= 0xFF000000u;
     // T1 compresses: the metal's and the leather's highlight is their light step (matte, one shine)
     if (L.tier[HumanLook::TIER_BODY] == 1 || (!L.tier[HumanLook::TIER_BODY] && top == 1)) {

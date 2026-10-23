@@ -1,0 +1,89 @@
+# P2c ladder polish i1 (LADDER-DOLL): THE GAME AT RIG 2 as the owner meets it. Seed 7, the start village OSLARS.
+#   1. the hero as he starts (nothing equipped: the T1 floor, padded jerkin and leather boots in his own colours), near
+#   2. rows of census guards and soldiers (`lineup`: one culture, one role, one rank, six seeds): each man his own kit
+#   3. the T6 hero and the Mythic walking on grass by day and night, shot every 0.1 s (the living finish in motion)
+#   embervale.exe --script tools/scripts/p2c_polish.txt          (p2c_polish_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- 1. the hero as he starts: the T1 floor
++0.3 expect doll covered
++0.0 expect doll tier 1
++0.0 expect doll gear armour=padded
++0.1 shot p2c_polish_start.png
++0.1 zoom near
++0.3 shot p2c_polish_start_near.png
++0.0 hideplayer 0
+# ---- 2. the census's fighters, each his own kit
++0.1 zoom normal
++0.1 lineup heartland guard 6 mixed
++0.5 zoom near
++0.5 shot p2c_polish_guards_heartland.png
++0.1 zoom normal
++0.1 lineup marsh guard 6 mixed
++0.5 zoom near
++0.5 shot p2c_polish_guards_marsh.png
++0.1 zoom normal
++0.1 lineup highland soldier 6 male
++0.5 zoom near
++0.5 shot p2c_polish_soldiers_highland.png
++0.1 zoom normal
++0.1 lineup imperial guard 6 mixed
++0.5 zoom near
++0.5 shot p2c_polish_guards_imperial.png
+# ---- 3. the living finish in motion: the T6 hero walks east, then the Mythic, day then night
++0.1 zoom near
++0.1 ladderkit lt6
++0.3 expect doll tier 6
++0.1 walk east 2.4
++0.1 shot p2c_polish_t6_walk_00.png
++0.1 shot p2c_polish_t6_walk_01.png
++0.1 shot p2c_polish_t6_walk_02.png
++0.1 shot p2c_polish_t6_walk_03.png
++0.1 shot p2c_polish_t6_walk_04.png
++0.1 shot p2c_polish_t6_walk_05.png
++1.0 shot p2c_polish_t6_idle_00.png
++0.1 shot p2c_polish_t6_idle_01.png
++0.1 shot p2c_polish_t6_idle_02.png
++0.1 shot p2c_polish_t6_idle_03.png
++0.1 shot p2c_polish_t6_idle_04.png
++0.1 shot p2c_polish_t6_idle_05.png
++0.1 shot p2c_polish_t6_idle_06.png
++0.1 shot p2c_polish_t6_idle_07.png
++0.1 ladderkit lt6m
++0.3 expect doll tier 6
++0.1 walk west 2.4
++0.1 shot p2c_polish_t6m_walk_00.png
++0.1 shot p2c_polish_t6m_walk_01.png
++0.1 shot p2c_polish_t6m_walk_02.png
++0.1 shot p2c_polish_t6m_walk_03.png
++0.1 shot p2c_polish_t6m_walk_04.png
++0.1 shot p2c_polish_t6m_walk_05.png
++1.0 shot p2c_polish_t6m_idle_00.png
++0.1 shot p2c_polish_t6m_idle_01.png
++0.1 shot p2c_polish_t6m_idle_02.png
++0.1 shot p2c_polish_t6m_idle_03.png
++0.1 shot p2c_polish_t6m_idle_04.png
++0.1 shot p2c_polish_t6m_idle_05.png
++0.1 shot p2c_polish_t6m_idle_06.png
++0.1 shot p2c_polish_t6m_idle_07.png
++0.1 hour 22
++0.1 walk east 2.4
++0.1 shot p2c_polish_t6m_night_walk_00.png
++0.1 shot p2c_polish_t6m_night_walk_01.png
++0.1 shot p2c_polish_t6m_night_walk_02.png
++0.1 shot p2c_polish_t6m_night_walk_03.png
++1.0 shot p2c_polish_t6m_night_idle_00.png
++0.1 shot p2c_polish_t6m_night_idle_01.png
++0.1 shot p2c_polish_t6m_night_idle_02.png
++0.1 shot p2c_polish_t6m_night_idle_03.png
++0.5 quit

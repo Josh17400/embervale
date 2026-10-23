@@ -882,6 +882,11 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
         e.glowTex = pix_->bake(lightKey);
       }
     }
+    // (polish i1) a T6 look keeps each frame's silhouette: the aura breathes round it, the edge sweep stays on the piece
+    if (L.topTier() >= 6 && e.sheet.atlas.w > 0) {
+      e.masks.reserve(e.sheet.frames.size());
+      for (const art::FrameRect& f : e.sheet.frames) e.masks.push_back(art::finish::maskOf(e.sheet.atlas, f.x, f.y, f.w, f.h));
+    }
     e.sheet.atlas = Canvas();   // the frames are kept; the pixels live in the texture
     it = rigTex_.emplace(k, std::move(e)).first;
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
@@ -892,14 +897,17 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
   r.tex = &it->second.tex;
   r.sheet = &it->second.sheet;
   if (it->second.glowTex.t) r.glowTex = &it->second.glowTex;
+  if (!it->second.masks.empty()) r.masks = &it->second.masks;
   return r;
 }
 // (P2c ladder, contracts 6b; STYLE_P2 27.7) the living finish of the rig-2 frame just drawn at (x2, y2) (its pivot at
-// pivX, pivY; world-view px): the glow plane breathing on the actor's own phase (T6 2.2 s 0.10-1.00, a T5 gem 3.3 s
-// 0.10-0.60), the T6 blade's edge spark running grip to tip every 3.3 s, and T6's motes rising off the glow pixels.
-// Queued here (the sorted pass), drawn additively after the lighting (drawWeather's tail). Rig 2 only.
+// pivX, pivY; world-view px): art::finish::figureLights (the glow breathing with its 2 px halo, the T6 aura or the Mythic's
+// flame ring, the edge sweep grip to tip with its star, flashed on a strike), the gleam (the figure's own pixels through a
+// slanted band), and the world-space motes / embers (born on this frame's glow pixels, rising where they were born: a
+// walker trails them; a striking Mythic sheds them off the blade's tip). Queued here (the sorted pass), drawn additively
+// after the lighting (drawWeather's tail). Rig 2 only.
 void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
-                             float x2, float y2, float pivX, float pivY, float alpha) {
+                             float x2, float y2, float pivX, float pivY, float alpha, bool strike) {
   if (!art::finish::enabled() || !rt.ready() || alpha <= 0.02f) return;
   const int top = L.topTier();
   if (top < 5) return;
@@ -907,8 +915,6 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
   const size_t fi = (size_t)(&f - S.frames.data());
   if (fi >= S.frames.size()) return;
   const float phase = art::finish::actorPhase((uint32_t)a.id);
-  // (ladder i3) the light model is art::finish::frameLights (doll_gallery's boards draw the same): the breath over the
-  // whole piece rippled by the rune crawl, the halo spilling round each glow pixel, T6 motes or the Mythic's embers
   std::vector<art::finish::GlowPx> gpx;
   if (fi < S.glow.first.size()) S.glow.each(fi, [&](int gx, int gy, uint32_t c) { gpx.push_back({gx, gy, c}); });
   uint32_t hot = 0;
@@ -916,37 +922,37 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
     int hotL = -1;
     for (const auto& g : gpx) { const int l = (int)(g.c & 255) * 3 + (int)(g.c >> 8 & 255) * 6 + (int)(g.c >> 16 & 255); if (l > hotL) { hotL = l; hot = g.c; } }
   }
+  auto push = [&](const art::finish::Light& q, float ox, float oy) {
+    beasts::finish.push_back({nullptr, 0, 0, 0, 0, ox + q.x, oy + q.y, q.w, q.h,
+                              Color((q.c & 255) / 255.0f, (q.c >> 8 & 255) / 255.0f, (q.c >> 16 & 255) / 255.0f, q.a * alpha)});
+  };
+  art::finish::Figure F;
+  F.topTier = top; F.mythic = L.mythic != 0; F.t = t_; F.phase = phase; F.glow = &gpx; F.strike = strike;
+  F.mask = rt.masks && fi < rt.masks->size() ? &(*rt.masks)[fi] : nullptr;
+  F.bladeT6 = L.tier[art::HumanLook::TIER_WEAPON] >= 6;
+  // the line in frame px (the grip: its mark, else the weapon hand's fist)
+  const bool gripOn = an && an->gripX != art::kNoAnchor, handOn = an && an->handRX != art::kNoAnchor;
+  if (an && (gripOn || handOn) && an->tipX != art::kNoAnchor) {
+    F.line = true;
+    F.gx = (gripOn ? an->gripX : an->handRX + 1.0f) + f.px; F.gy = (gripOn ? an->gripY : an->handRY + 1.0f) + f.py;
+    F.tx = an->tipX + f.px; F.ty = an->tipY + f.py;
+  }
   {
     std::vector<art::finish::Light> lights;
-    art::finish::frameLights(top, L.mythic != 0, (uint32_t)a.id * 2654435761u + 0x5EEDu, t_, phase, gpx, lights);
-    for (const art::finish::Light& q : lights)
-      beasts::finish.push_back({nullptr, 0, 0, 0, 0, x2 + q.x, y2 + q.y, q.w, q.h,
-                                Color((q.c & 255) / 255.0f, (q.c >> 8 & 255) / 255.0f, (q.c >> 16 & 255) / 255.0f, q.a * alpha)});
+    art::finish::figureLights(F, lights);
+    for (const art::finish::Light& q : lights) push(q, x2, y2);
   }
   if (top < 6) { beasts::finishFigures++; return; }
-  const Color hc = hot ? Color((hot & 255) / 255.0f, (hot >> 8 & 255) / 255.0f, (hot >> 16 & 255) / 255.0f, 1) : Color(0.75f, 0.9f, 1.0f, 1);
-  auto mixW = [](const Color& c, float k) { return Color(c.r + (1 - c.r) * k, c.g + (1 - c.g) * k, c.b + (1 - c.b) * k, c.a); };
-  auto point = [&](float x, float y, float w, float h, Color c, float aa) { c.a = aa; beasts::finish.push_back({nullptr, 0, 0, 0, 0, x, y, w, h, c}); };
-  // the edge spark (a T6 piece in hand, its grip and tip known this frame): a four-point star, 3 frames along the run
-  // (the grip: its mark, else the weapon hand's fist)
-  const bool gripOn = an && an->gripX != art::kNoAnchor, handOn = an && an->handRX != art::kNoAnchor;
-  if (L.tier[art::HumanLook::TIER_WEAPON] >= 6 && an && (gripOn || handOn) && an->tipX != art::kNoAnchor) {
-    const float u = art::finish::sparkAt(t_, phase);
-    const float gx = gripOn ? an->gripX : an->handRX + 1.0f, gy = gripOn ? an->gripY : an->handRY + 1.0f;
-    if (u >= 0) {
-      const float sx = std::floor(pivX + gx + (an->tipX - gx) * u + 0.5f);
-      const float sy = std::floor(pivY + gy + (an->tipY - gy) * u + 0.5f);
-      const int fr = art::finish::sparkFrame(u);
-      const int arm = fr == 1 ? 2 : 1;
-      const Color w = mixW(hc, 0.6f);
-      point(sx, sy, 1, 1, Color(1, 1, 1, 1), 0.95f * alpha);
-      point(sx - arm, sy, (float)arm, 1, w, 0.7f * alpha);
-      point(sx + 1, sy, (float)arm, 1, w, 0.7f * alpha);
-      point(sx, sy - arm, 1, (float)arm, w, 0.7f * alpha);
-      point(sx, sy + 1, 1, (float)arm, w, 0.7f * alpha);
-    }
+  // the motes / embers: world space (view px + the camera), so the camera's motion never drags them along
+  {
+    art::finish::Particles& ps = finishParts_[a.id];
+    const float wx = x2 + std::floor(cam_.x + 0.5f), wy = y2 + std::floor(cam_.y + 0.5f);
+    art::finish::particlesStep(ps, (uint32_t)a.id * 2654435761u + 0x5EEDu, t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
+    std::vector<art::finish::Light> lights;
+    art::finish::particleLights(ps, t_, hot, lights);
+    for (const art::finish::Light& q : lights) push(q, -std::floor(cam_.x + 0.5f), -std::floor(cam_.y + 0.5f));
   }
-  // (ladder i3) the gleam: the figure's own pixels added back through a slanted 2 px band sweeping across it
+  // (ladder i3) the gleam: the figure's own pixels added back through a slanted band sweeping across it
   {
     const float u = art::finish::gleamAt(t_, phase);
     if (u >= 0) {
@@ -958,6 +964,7 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
       }
     }
   }
+  (void)pivX; (void)pivY;
   beasts::finishFigures++;
 }
 // a v2 posture atlas (art::humanPosture2: the posture's frames as clip Idle, variant 0, in four facings), cached with the
@@ -2423,6 +2430,8 @@ void View::drawWorld(Game& g) {
   trimCaches();
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
   beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
+  for (auto it = finishParts_.begin(); it != finishParts_.end();)   // (polish i1) motes / embers of actors gone 2 s
+    it = (it->second.lastT < t_ - 2.0f || it->second.lastT > t_) ? finishParts_.erase(it) : std::next(it);
   beasts::plates.clear();
   beasts::last = beasts::cur;
   beasts::cur = beasts::Stats();

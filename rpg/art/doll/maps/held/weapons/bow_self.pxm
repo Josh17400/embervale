@@ -8,7 +8,9 @@
 # waist: a pixel of pull), draw (to the chest), full (to the cheek: the anchor), release (the string snapped straight with
 # its blur a pixel either side: one frame), low (the drawn idle and walk: the bow low and tilted forward). The nocked arrow
 # is the right hand's (arms/adult/action/twohand bow_r). Facing down the bow stands at screen right with the pull
-# foreshortened; facing up at screen left behind the body (heldBack). `drop` lies by a corpse's hand. Format: doll.h.
+# foreshortened; facing up at screen left, drawn over the body edge (LADDER-ARMS polish i1: was heldBack, so the bow vanished
+# facing U); facing D / U the stave is edged dark both sides with its lit wood between (it read as a 1 px line). `drop` lies
+# by a corpse's hand. Format: doll.h.
 use person
 legend V linen 0
 legend W linen 1
@@ -75,53 +77,53 @@ mark tip 5 0
 
 view D key carry origin 2 11
 mark tip 0 0
-|f...
-|Xj..
-|Xj..
-|X.j.
-|X.j.
-|X.j.
-|X..j
-|X..j
-|X.jh
-|X.hg
-|X.hg
-|X.hg
-|X.hg
-|X.if
-|X..i
-|X..i
-|X.i.
-|X.i.
-|X.i.
-|Xi..
-|Xi..
-|f...
+|f.....
+|WYjf..
+|WYjf..
+|WfYjf.
+|WfYjf.
+|WfYjf.
+|W.fYjf
+|W.fYjf
+|WfYjhf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|WfXif.
+|W.fXif
+|W.fXif
+|WfXif.
+|WfXif.
+|WfXif.
+|WXif..
+|WXif..
+|f.....
 
-view U key carry origin 1 11 layer heldBack
-mark tip 3 0
-|...f
-|..jX
-|..jX
-|.j.X
-|.j.X
-|.j.X
-|j..X
-|j..X
-|jh.X
-|hg.X
-|hg.X
-|hg.X
-|hg.X
-|if.X
-|i..X
-|i..X
-|.i.X
-|.i.X
-|.i.X
-|..iX
-|..iX
-|...f
+view U key carry origin 3 11 layer held
+mark tip 5 0
+|.....f
+|..fjYW
+|..fjYW
+|.fjYfW
+|.fjYfW
+|.fjYfW
+|fjYf.W
+|fjYf.W
+|fjYh.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fiXf.W
+|fiXf.W
+|fiXf.W
+|.fiXfW
+|.fiXfW
+|.fiXfW
+|..fiXW
+|..fiXW
+|.....f
 
 view R key nock origin 6 11
 mark tip 1 0
@@ -177,53 +179,53 @@ mark tip 5 0
 
 view D key nock origin 3 11
 mark tip 1 0
-|.f...
-|.Xj..
-|.Xj..
-|.X.j.
-|.X.j.
-|.X.j.
-|.X..j
-|.X..j
-|X..jh
-|X..hg
-|X..hg
-|X..hg
-|X..hg
-|X..if
-|X...i
-|.X..i
-|.X.i.
-|.X.i.
-|.X.i.
-|.Xi..
-|.Xi..
-|.f...
+|.f.....
+|.WYjf..
+|.WYjf..
+|.WfYjf.
+|.WfYjf.
+|.WfYjf.
+|.W.fYjf
+|.W.fYjf
+|W.fYjhf
+|W..hhgf
+|W..hhgf
+|W..hhgf
+|W..hhgf
+|W.fXif.
+|W..fXif
+|.W.fXif
+|.WfXif.
+|.WfXif.
+|.WfXif.
+|.WXif..
+|.WXif..
+|.f.....
 
-view U key nock origin 1 11 layer heldBack
-mark tip 3 0
-|...f.
-|..jX.
-|..jX.
-|.j.X.
-|.j.X.
-|.j.X.
-|j..X.
-|j..X.
-|jh..X
-|hg..X
-|hg..X
-|hg..X
-|hg..X
-|if..X
-|i...X
-|i..X.
-|.i.X.
-|.i.X.
-|.i.X.
-|..iX.
-|..iX.
-|...f.
+view U key nock origin 3 11 layer held
+mark tip 5 0
+|.....f.
+|..fjYW.
+|..fjYW.
+|.fjYfW.
+|.fjYfW.
+|.fjYfW.
+|fjYf.W.
+|fjYf.W.
+|fjYh..W
+|fhgg..W
+|fhgg..W
+|fhgg..W
+|fhgg..W
+|fiXf..W
+|fiXf..W
+|fiXf.W.
+|.fiXfW.
+|.fiXfW.
+|.fiXfW.
+|..fiXW.
+|..fiXW.
+|.....f.
 
 view R key draw origin 9 11
 mark tip 3 0
@@ -279,53 +281,53 @@ mark tip 6 0
 
 view D key draw origin 4 11
 mark tip 2 0
-|..f...
-|..Xj..
-|..Xj..
-|..X.j.
-|.X..j.
-|.X..j.
-|.X...j
-|X....j
-|X...jh
-|X...hg
-|X...hg
-|X...hg
-|X...hg
-|X...if
-|X....i
-|.X...i
-|.X..i.
-|.X..i.
-|..X.i.
-|..Xi..
-|..Xi..
-|..f...
+|..f.....
+|..WYjf..
+|..WYjf..
+|..WfYjf.
+|.W.fYjf.
+|.W.fYjf.
+|.W..fYjf
+|W...fYjf
+|W..fYjhf
+|W...hhgf
+|W...hhgf
+|W...hhgf
+|W...hhgf
+|W..fXif.
+|W...fXif
+|.W..fXif
+|.W.fXif.
+|.W.fXif.
+|..WfXif.
+|..WXif..
+|..WXif..
+|..f.....
 
-view U key draw origin 1 11 layer heldBack
-mark tip 3 0
-|...f..
-|..jX..
-|..jX..
-|.j.X..
-|.j..X.
-|.j..X.
-|j...X.
-|j....X
-|jh...X
-|hg...X
-|hg...X
-|hg...X
-|hg...X
-|if...X
-|i....X
-|i...X.
-|.i..X.
-|.i..X.
-|.i.X..
-|..iX..
-|..iX..
-|...f..
+view U key draw origin 3 11 layer held
+mark tip 5 0
+|.....f..
+|..fjYW..
+|..fjYW..
+|.fjYfW..
+|.fjYf.W.
+|.fjYf.W.
+|fjYf..W.
+|fjYf...W
+|fjYh...W
+|fhgg...W
+|fhgg...W
+|fhgg...W
+|fhgg...W
+|fiXf...W
+|fiXf...W
+|fiXf..W.
+|.fiXf.W.
+|.fiXf.W.
+|.fiXfW..
+|..fiXW..
+|..fiXW..
+|.....f..
 
 view R key full origin 11 10
 mark tip 5 0
@@ -377,53 +379,53 @@ mark tip 6 0
 
 view D key full origin 5 11
 mark tip 3 0
-|...f...
-|...Xj..
-|...Xj..
-|..X..j.
-|..X..j.
-|.X...j.
-|.X....j
-|X.....j
-|X....jh
-|X....hg
-|X....hg
-|X....hg
-|X....hg
-|X....if
-|X.....i
-|.X....i
-|.X...i.
-|..X..i.
-|..X..i.
-|...Xi..
-|...Xi..
-|...f...
+|...f.....
+|...WYjf..
+|...WYjf..
+|..W.fYjf.
+|..W.fYjf.
+|.W..fYjf.
+|.W...fYjf
+|W....fYjf
+|W...fYjhf
+|W....hhgf
+|W....hhgf
+|W....hhgf
+|W....hhgf
+|W...fXif.
+|W....fXif
+|.W...fXif
+|.W..fXif.
+|..W.fXif.
+|..W.fXif.
+|...WXif..
+|...WXif..
+|...f.....
 
-view U key full origin 1 11 layer heldBack
-mark tip 3 0
-|...f...
-|..jX...
-|..jX...
-|.j..X..
-|.j..X..
-|.j...X.
-|j....X.
-|j.....X
-|jh....X
-|hg....X
-|hg....X
-|hg....X
-|hg....X
-|if....X
-|i.....X
-|i....X.
-|.i...X.
-|.i..X..
-|.i..X..
-|..iX...
-|..iX...
-|...f...
+view U key full origin 3 11 layer held
+mark tip 5 0
+|.....f...
+|..fjYW...
+|..fjYW...
+|.fjYf.W..
+|.fjYf.W..
+|.fjYf..W.
+|fjYf...W.
+|fjYf....W
+|fjYh....W
+|fhgg....W
+|fhgg....W
+|fhgg....W
+|fhgg....W
+|fiXf....W
+|fiXf....W
+|fiXf...W.
+|.fiXf..W.
+|.fiXf.W..
+|.fiXf.W..
+|..fiXW...
+|..fiXW...
+|.....f...
 
 # (LADDER-ARMS i3) the release's string blur thinned to a dotted ghost over the string's middle (was a solid 2 px
 # column that read as a white bar on the release frame, the judge, ladder i2)
@@ -485,55 +487,55 @@ mark tip 5 0
 # column that read as a white bar on the release frame, the judge, ladder i2)
 view D key release origin 4 11
 mark tip 2 0
-|..f...
-|.X.j..
-|.X.j..
-|.X..j.
-|.X..j.
-|.X..j.
-|.XW..j
-|.X...j
-|.XW.jh
-|.X..hg
-|.XW.hg
-|.X..hg
-|.XW.hg
-|.X..if
-|.XW..i
-|.X...i
-|.X..i.
-|.X..i.
-|.X..i.
-|.X.i..
-|.X.i..
-|..f...
+|..f.....
+|.WfYjf..
+|.WfYjf..
+|.W.fYjf.
+|.W.fYjf.
+|.W.fYjf.
+|.WV.fYjf
+|.W..fYjf
+|.WVfYjhf
+|.W..hhgf
+|.WV.hhgf
+|.W..hhgf
+|.WV.hhgf
+|.W.fXif.
+|.WV.fXif
+|.W..fXif
+|.W.fXif.
+|.W.fXif.
+|.W.fXif.
+|.WfXif..
+|.WfXif..
+|..f.....
 
 # (LADDER-ARMS i3) the release's string blur thinned to a dotted ghost over the string's middle (was a solid 2 px
 # column that read as a white bar on the release frame, the judge, ladder i2)
-view U key release origin 1 11 layer heldBack
-mark tip 3 0
-|...f..
-|..j.X.
-|..j.X.
-|.j..X.
-|.j..X.
-|.j..X.
-|j...XW
-|j...X.
-|jh..XW
-|hg..X.
-|hg..XW
-|hg..X.
-|hg..XW
-|if..X.
-|i...XW
-|i...X.
-|.i..X.
-|.i..X.
-|.i..X.
-|..i.X.
-|..i.X.
-|...f..
+view U key release origin 3 11 layer held
+mark tip 5 0
+|.....f..
+|..fjYfW.
+|..fjYfW.
+|.fjYf.W.
+|.fjYf.W.
+|.fjYf.W.
+|fjYf..WV
+|fjYf..W.
+|fjYh..WV
+|fhgg..W.
+|fhgg..WV
+|fhgg..W.
+|fhgg..WV
+|fiXf..W.
+|fiXf..WV
+|fiXf..W.
+|.fiXf.W.
+|.fiXf.W.
+|.fiXf.W.
+|..fiXfW.
+|..fiXfW.
+|.....f..
 
 # (INTEGRATE i2) the compositor lays the pivot items down after the turn (SLICE-DOLL i2), so this drop is SLICE-ARMS i2's
 # upright drawing transposed (as the west turn would have laid it; the light stays top-left), level under the corpse
@@ -541,11 +543,20 @@ mark tip 3 0
 # so no stave pixel crosses the body
 # (LADDER-ARMS i2) the bow lies flat below the corpse, seen from above: the string along the body's lower edge and the
 # stave a shallow 2-row curve with its grip (the 5-row arc read as a bow hanging in the air, tangled with the body)
-view L key drop origin 6 -4 anchor pivot
+# (LADDER-ARMS polish i2) the drop sat wholly under the corpse (the compositor lays it 3 px up, under the body: the
+# archer's corpse showed no bow). Now the string lies hidden along the body's lower edge and the stave arcs 3 rows
+# below it, the pale sapwood belly up and the dark back under (as facing D / U), the wrap at the middle.
+view L key drop origin 6 -6 anchor pivot
 mark tip 0 0
-|fXXXXXXXXXXXXXXXXXXXXXf
-|.jii...............hhg.
-|....iiiijfgggfhhhhh....
+|fWWWWWWWWWWWWWWWWWWWWWf
+|fYYj...............jYYf
+|.fjYYYj.........jYYYjf.
+|..ffjjYYYYhhgYYYYjjff..
+regions
+|.......................
+|.......................
+|.......................
+|.......................
 
 view R key low origin 12 10
 mark tip 18 0
@@ -583,51 +594,51 @@ mark tip 0 0
 
 view D key low origin 2 11
 mark tip 0 0
-|f...
-|Xj..
-|Xj..
-|X.j.
-|X.j.
-|X.j.
-|X..j
-|X..j
-|X.jh
-|X.hg
-|X.hg
-|X.hg
-|X.hg
-|X.if
-|X..i
-|X..i
-|X.i.
-|X.i.
-|X.i.
-|Xi..
-|Xi..
-|f...
+|f.....
+|WYjf..
+|WYjf..
+|WfYjf.
+|WfYjf.
+|WfYjf.
+|W.fYjf
+|W.fYjf
+|WfYjhf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|WfXif.
+|W.fXif
+|W.fXif
+|WfXif.
+|WfXif.
+|WfXif.
+|WXif..
+|WXif..
+|f.....
 
-view U key low origin 1 11 layer heldBack
-mark tip 3 0
-|...f
-|..jX
-|..jX
-|.j.X
-|.j.X
-|.j.X
-|j..X
-|j..X
-|jh.X
-|hg.X
-|hg.X
-|hg.X
-|hg.X
-|if.X
-|i..X
-|i..X
-|.i.X
-|.i.X
-|.i.X
-|..iX
-|..iX
-|...f
+view U key low origin 3 11 layer held
+mark tip 5 0
+|.....f
+|..fjYW
+|..fjYW
+|.fjYfW
+|.fjYfW
+|.fjYfW
+|fjYf.W
+|fjYf.W
+|fjYh.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fiXf.W
+|fiXf.W
+|fiXf.W
+|.fiXfW
+|.fiXfW
+|.fiXfW
+|..fiXW
+|..fiXW
+|.....f
 

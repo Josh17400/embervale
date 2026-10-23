@@ -6,6 +6,7 @@
 # swings and postures draw exactly as before (the idle's knee skirt is mail.pxm's own rest view). Format: rpg/art/doll/doll.h.
 # (LADDER-ARMOUR i3) the 1px checker re-laid as STYLE_P2 25.2's brick: lit side courses yyx / xyy (steps 3/2), shadow side xww / wwx
 # (steps 2/1), alternate rows offset, so mail reads as rings and a fine grey fabric, never a chessboard (the blind panel).
+# (LADDER-ARMOUR polish i2) mail as lit planes with a sparse ring dot (mailfix.py), as the hauberk
 use person
 body man
 role armour mail
@@ -31,7 +32,7 @@ view R key rest origin 0 0
 
 view R key wide origin 6 -1
 |vyxyyxxwwxwv.
-|vyyyyyywxwwxv
+|vyyyxyxxwwwwv
 regions
 |.............
 |.RRRRR.......
@@ -40,7 +41,7 @@ build
 
 view R key flare origin 7 -1
 |.vyxyyxxwwxwv.
-|vyyyyyyywxwwxv
+|vyyyxyxxwxwwwv
 regions
 |..............
 |.RRRRRR.......
@@ -52,7 +53,7 @@ view L key rest origin 0 0
 
 view L key wide origin 8 -1
 |.vyyxywwxwwxwv
-|vyyyyyyxwwxwwv
+|vyyyxyxxwxwwwv
 regions
 |..............
 |.RRRRRR.......
@@ -61,7 +62,7 @@ build
 
 view L key flare origin 8 -1
 |.vyyxywwxwwxwv.
-|vyyyyyyxwwxwwxv
+|vyyyxyxxwxxwwwv
 regions
 |...............
 |.RRRRRR........
@@ -69,7 +70,5 @@ build
 |..........+....
 
 # ---- (P2c SLICE-ARMOUR, ADD) the lying key (the lying skirt is the torso's lie view)
-
 view L key lie origin 0 0
 |.
-

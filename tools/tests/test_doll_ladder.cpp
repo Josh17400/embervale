@@ -11,6 +11,7 @@
 // Heartland hero's line lt1..lt6 and the T3 flavour row (lt3 jade3 imp3 fjord3), idle facing D and R. Every number is from
 // art::doll::probeFrame (the composed frame with each pixel's owner and region) and the recipe's ramps.
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -453,65 +454,59 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
     if (std::fabs(P.lo - lo) > 1e-3f || std::fabs(P.hi - hi) > 1e-3f) g.bad(fmt("T%d light %.2f-%.2f (%.2f-%.2f wanted)", tier, P.lo, P.hi, lo, hi)); else g.ok();
   }
   if (pulseOf(4).hi > 0) g.bad("a T4 piece pulses"); else g.ok();
-  // the spark: every 3.3 s, 0.33 s grip to tip
+  // the edge sweep (polish i1): every kSparkEvery 2.75 s, kSparkRun 0.40 s grip to tip
   {
     int runs = 0;
-    float first = -1, runLen = 0, cur = 0;
+    float runLen = 0, cur = 0, s0 = -1, s1 = -1;
     bool on = false;
     for (int i = 0; i <= (int)(8.0f / dt); i++) {
-      const float u = sparkAt(i * dt, 0.21f);
-      if (u >= 0) { if (!on) { runs++; if (first < 0) first = i * dt; cur = 0; } cur += dt; on = true; }
-      else { if (on) runLen = cur; on = false; }
-    }
-    if (runs < 2) g.bad(fmt("the spark ran %d time(s) in 8 s", runs)); else g.ok();
-    if (std::fabs(runLen - 0.33f) > 0.035f) g.bad(fmt("the spark run %.2f s (0.33 wanted)", runLen)); else g.ok();
-    int starts = 0;
-    float s0 = -1, s1 = -1;
-    bool was = false;
-    for (int i = 0; i <= (int)(8.0f / dt); i++) {
       const bool r = sparkAt(i * dt, 0.21f) >= 0;
-      if (r && !was) { if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; starts++; }
-      was = r;
+      if (r && !on) { runs++; cur = 0; if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; }
+      if (r) cur += dt; else if (on) runLen = cur;
+      on = r;
     }
-    if (s1 < 0 || std::fabs((s1 - s0) - 3.3f) > 0.05f) g.bad(fmt("the spark's interval %.2f s (3.3 wanted)", s1 - s0)); else g.ok();
+    if (runs < 2) g.bad(fmt("the sweep ran %d time(s) in 8 s", runs)); else g.ok();
+    if (std::fabs(runLen - kSparkRun) > 0.035f) g.bad(fmt("the sweep run %.2f s (%.2f wanted)", runLen, kSparkRun)); else g.ok();
+    if (s1 < 0 || std::fabs((s1 - s0) - kSparkEvery) > 0.05f) g.bad(fmt("the sweep's interval %.2f s (%.2f wanted)", s1 - s0, kSparkEvery)); else g.ok();
   }
-  // motes: 3 or fewer, life 1.0 s, rise 8 px
-  {
-    std::vector<std::pair<int, int>> glowPx;
-    for (int i = 0; i < 20; i++) glowPx.push_back({i % 7, -10 - i / 7});
-    int most = 0;
-    float maxAge = 0, maxRise = 0;
-    for (int i = 0; i <= 264; i++) {
-      Mote m[kMaxMotes];
-      const int n = motes(0xC0FFEEu, i * dt, glowPx, m);
-      most = std::max(most, n);
-      for (int k = 0; k < n; k++) { maxAge = std::max(maxAge, m[k].age); maxRise = std::max(maxRise, m[k].rise); }
+  // the particles (world space): motes and embers stepped at 60 Hz for 6 s on a still figure: count, life and rise; then a
+  // walker at 40 px/s leaves its embers behind (the oldest 8 px or more back from the newest)
+  for (int myth = 0; myth < 2; myth++) {
+    std::vector<GlowPx> glow;
+    for (int i = 0; i < 20; i++) glow.push_back({i % 7, 10 + i / 7, 0xFFFFE0A0u});
+    Particles ps;
+    int most = 0, least = 99;
+    float maxRise = 0;
+    for (int i = 0; i <= 360; i++) {
+      const float t = 1.0f + i * dt;
+      particlesStep(ps, 0xC0FFEEu, t, myth != 0, 0, 0, glow, false, 0, 0);
+      const int n = particlesAlive(ps, t);
+      if (i > 120) { most = std::max(most, n); least = std::min(least, n); }
+      for (size_t k = 0; k < ps.live.size(); k++) maxRise = std::max(maxRise, particleRise(ps, k, t));
     }
-    if (most > 3 || most < 1) g.bad(fmt("motes: %d alive at most (1-3 wanted)", most)); else g.ok();
-    if (maxAge > 1.0f + 1e-3f) g.bad(fmt("motes live %.2f s (1.0)", maxAge)); else g.ok();
-    if (std::fabs(maxRise - 8.0f) > 0.6f) g.bad(fmt("motes rise %.1f px (8)", maxRise)); else g.ok();
+    const int cap = myth ? kMaxEmbers : kMaxMotes;
+    const float rise = myth ? kEmberRise : kMoteRise;
+    const char* nm = myth ? "embers" : "motes";
+    if (most > cap || least < (myth ? 6 : 1)) g.bad(fmt("%s: %d-%d alive (%d-%d wanted)", nm, least, most, myth ? 6 : 1, cap)); else g.ok();
+    if (std::fabs(maxRise - rise) > 0.8f) g.bad(fmt("%s rise %.1f px (%.0f)", nm, maxRise, rise)); else g.ok();
+    if (myth) {
+      Particles w;
+      float minX = 1e9f, maxX = -1e9f;
+      for (int i = 0; i <= 120; i++) {
+        const float t = 1.0f + i * dt;
+        particlesStep(w, 0xC0FFEEu, t, true, 40.0f * i * dt, 0, glow, false, 0, 0);
+      }
+      for (const auto& p : w.live) { minX = std::min(minX, p.x); maxX = std::max(maxX, p.x); }
+      if (w.live.empty() || maxX - minX < 8.0f) g.bad(fmt("a walking Mythic's embers trail %.1f px (8 or more wanted)", maxX - minX)); else g.ok();
+    }
   }
-  // (ladder i3) the Mythic's embers: 6 or fewer, life 0.7 s, licking up 10 px or less; the gleam every 3.3 s, 0.5 s across
+  // the gleam every 3.3 s, 0.5 s across
   {
-    std::vector<std::pair<int, int>> glowPx;
-    for (int i = 0; i < 20; i++) glowPx.push_back({i % 7, -10 - i / 7});
-    int most = 0;
-    float maxAge = 0, maxRise = 0;
-    for (int i = 0; i <= 264; i++) {
-      Ember e[kMaxEmbers];
-      const int n = embers(0xC0FFEEu, i * dt, glowPx, e);
-      most = std::max(most, n);
-      for (int k = 0; k < n; k++) { maxAge = std::max(maxAge, e[k].age); maxRise = std::max(maxRise, -10.0f - e[k].y); }
-    }
-    if (most > kMaxEmbers || most < 3) g.bad(fmt("embers: %d alive at most (3-%d wanted)", most, kMaxEmbers)); else g.ok();
-    if (maxAge > kEmberLife + 1e-3f) g.bad(fmt("embers live %.2f s (%.2f)", maxAge, kEmberLife)); else g.ok();
-    if (maxRise > kEmberRise + 3.5f) g.bad(fmt("embers rise %.1f px (%.0f + the start row)", maxRise, kEmberRise)); else g.ok();
-    int starts = 0;
     float s0 = -1, s1 = -1, run = 0, cur = 0;
     bool was = false;
     for (int i = 0; i <= (int)(8.0f / dt); i++) {
       const bool r = gleamAt(i * dt, 0.21f) >= 0;
-      if (r && !was) { if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; starts++; cur = 0; }
+      if (r && !was) { if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; cur = 0; }
       if (r) cur += dt; else if (was) run = cur;
       was = r;
     }
@@ -534,7 +529,12 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
     if (step) g.bad(fmt("phases: %d neighbouring pairs pulse in step", step)); else g.ok();
     if (g_report) std::printf("    C13: %d of %d neighbouring pairs within 0.15 cycle\n", near, pairs);
   }
-  // the glow planes: 25 % or less of their atlases; animated pixels 24 or fewer a figure-frame; nothing below T5
+  // per look and frame (polish i1): the glow plane 25 % or less of its atlas; nothing below T5; sprite-bright animated px
+  // (light over kSoftMax, or a glow pixel: glow, sweep, flame roots, the particles' cores) kMaxAnimated or fewer; soft light (halo, aura) kMaxSoft px or
+  // fewer, none over kSoftMax; the still lights (glow, halo, aura) step 0.25 or less in 1/60 s at every phase; the aura
+  // and halo really light the T6 figure (40 px or more of soft light at the breath's peak: the panel's "invisible")
+  double costMs = 0;
+  int costFigs = 0;
   for (const Built& b : looks) {
     if (!b.lookPal) continue;
     for (RigPart part : {RigPart::Loco, RigPart::Drawn}) {
@@ -542,13 +542,89 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
       if (sh.empty()) continue;
       const size_t gb = sh.glow.atlas.w * (size_t)sh.glow.atlas.h * 4;
       const int top = b.L.topTier();
-      if (top < 5) { if (gb) g.bad(b.tag + fmt(" %s: a glow plane below T5", part == RigPart::Loco ? "LOCO" : "DRAWN")); else g.ok(); continue; }
+      const char* pn = part == RigPart::Loco ? "LOCO" : "DRAWN";
+      if (top < 5) { if (gb) g.bad(b.tag + fmt(" %s: a glow plane below T5", pn)); else g.ok(); continue; }
       if (gb * 4 > sh.bytes()) g.bad(b.tag + fmt(": glow plane %.1f KB over 25 %% of the atlas's %.1f KB", gb / 1024.0, sh.bytes() / 1024.0)); else g.ok();
-      int worst = 0;
-      for (size_t i = 0; i < sh.glow.rects.size(); i++) worst = std::max(worst, (int)sh.glow.count[i]);
-      const int sprites = b.L.mythic ? kMaxEmbers : kMaxMotes;   // (i3) the Mythic wears embers instead of motes
-      if (worst + sprites + 1 > kMaxAnimated) g.bad(b.tag + fmt(": %d glow pixels in a frame (+%d motes or embers and the spark: %d max)", worst, sprites, kMaxAnimated)); else g.ok();
+      int worstBright = 0, worstSoft = 0, leastSoft = 1 << 30, frames = 0;
+      float worstSoftA = 0, worstStep = 0;
+      const Pulse P = pulseOf(top);
+      for (size_t fi = 0; fi < sh.frames.size(); fi++) {
+        const art::FrameRect& fr = sh.frames[fi];
+        if (fr.w <= 0) continue;
+        std::vector<GlowPx> gpx;
+        if (fi < sh.glow.first.size()) sh.glow.each(fi, [&](int x, int y, uint32_t c) { gpx.push_back({x, y, c}); });
+        const Mask mask = maskOf(sh.atlas, fr.x, fr.y, fr.w, fr.h);
+        Figure F;
+        F.topTier = top; F.mythic = b.L.mythic != 0; F.glow = &gpx; F.mask = &mask; F.bladeT6 = b.L.tier[HumanLook::TIER_WEAPON] >= 6;
+        F.line = true; F.gx = fr.w * 0.5f; F.gy = fr.h * 0.6f; F.tx = fr.w * 0.5f + 8; F.ty = fr.h * 0.1f;   // a stand-in line
+        auto measure = [&](float t, std::map<int, float>& still, int& bright, int& soft, float& softA) {
+          std::vector<Light> L1;
+          F.t = t; F.phase = 0;
+          const auto c0 = std::chrono::steady_clock::now();
+          figureLights(F, L1);
+          costMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - c0).count();
+          costFigs++;
+          std::map<int, float> brightPx, softPx;
+          for (const Light& q : L1)
+            for (int yy = 0; yy < (int)q.h; yy++)
+              for (int xx = 0; xx < (int)q.w; xx++) {
+                const int key = ((int)q.y + yy + 512) * 1024 + ((int)q.x + xx + 512);
+                const bool glowPx = std::any_of(gpx.begin(), gpx.end(), [&](const GlowPx& p) { return p.x == (int)q.x + xx && p.y == (int)q.y + yy; });
+                if (q.a > kSoftMax || glowPx) brightPx[key] = std::max(brightPx[key], q.a);
+                else softPx[key] = std::max(softPx[key], q.a);
+              }
+          bright = (int)brightPx.size();
+          soft = (int)softPx.size();
+          softA = 0;
+          for (auto& kv : softPx) softA = std::max(softA, kv.second);
+          // the still lights: everything but the sweep (which moves by design) is breath, halo or aura
+          for (auto& kv : softPx) still[kv.first] = kv.second;
+          for (auto& kv : brightPx) if (!F.bladeT6 || sparkAt(t, 0) < 0) still[kv.first] = kv.second;
+        };
+        // the breath's peak (t = P / 2 at phase 0), the sweep mid-run (bright worst case): budgets
+        {
+          std::map<int, float> st;
+          int br = 0, so = 0;
+          float sa = 0;
+          measure(P.period * 0.5f, st, br, so, sa);
+          leastSoft = std::min(leastSoft, so);
+          worstSoft = std::max(worstSoft, so);
+          worstSoftA = std::max(worstSoftA, sa);
+          int brSweep = 0, soSweep = 0;
+          float saSweep = 0;
+          std::map<int, float> st2;
+          // a time where the sweep runs mid-blade: sparkAt(t, 0) = 0.5
+          measure(kSparkRun * 0.5f + kSparkEvery * 4, st2, brSweep, soSweep, saSweep);
+          const int sprites = (b.L.mythic ? kMaxEmbers * 2 : kMaxMotes);   // the particles' cores (a hot ember is 2 px tall)
+          worstBright = std::max(worstBright, std::max(br, brSweep) + sprites);
+        }
+        // the step: two neighbouring 1/60 s samples at 12 points of the breath (sweep at rest)
+        if (frames++ % 7 == 0)
+          for (int k = 0; k < 12; k++) {
+            float t0 = P.period * k / 12.0f + 1.3f;
+            while (sparkAt(t0, 0) >= 0 || sparkAt(t0 + dt, 0) >= 0) t0 += 0.5f;
+            std::map<int, float> a0, a1;
+            int x1, x2;
+            float x3;
+            measure(t0, a0, x1, x2, x3);
+            measure(t0 + dt, a1, x1, x2, x3);
+            for (auto& kv : a0) { const auto it = a1.find(kv.first); worstStep = std::max(worstStep, std::fabs(kv.second - (it == a1.end() ? 0.0f : it->second))); }
+            for (auto& kv : a1) if (!a0.count(kv.first)) worstStep = std::max(worstStep, kv.second);
+          }
+      }
+      if (worstBright > kMaxAnimated) g.bad(b.tag + fmt(" %s: %d sprite-bright animated px in a frame (%d max)", pn, worstBright, kMaxAnimated)); else g.ok();
+      if (worstSoft > kMaxSoft) g.bad(b.tag + fmt(" %s: %d px of soft light in a frame (%d max)", pn, worstSoft, kMaxSoft)); else g.ok();
+      if (worstSoftA > kSoftMax + 1e-3f) g.bad(b.tag + fmt(" %s: soft light %.2f (%.2f max)", pn, worstSoftA, kSoftMax)); else g.ok();
+      if (worstStep > 0.25f) g.bad(b.tag + fmt(" %s: a still light steps %.3f in 1/60 s (0.25 max: a flicker)", pn, worstStep)); else g.ok();
+      if (top >= 6 && leastSoft < 40) g.bad(b.tag + fmt(" %s: %d px of soft light at the breath's peak (40 wanted: it must read at 1x)", pn, leastSoft)); else g.ok();
+      if (g_report) std::printf("    C13 %s %s: bright %d, soft %d-%d px (max %.2f), still step %.3f\n", b.tag.c_str(), pn, worstBright, leastSoft, worstSoft, worstSoftA, worstStep);
     }
+  }
+  // the cost: 8 T6 figures' figureLights 0.3 ms or less (the mean figure-frame measured above, times 8)
+  if (costFigs > 0) {
+    const double per = costMs / costFigs;
+    if (per * 8 > 0.3) g.bad(fmt("8 T6 figures' living light %.3f ms (0.3 max)", per * 8)); else g.ok();
+    if (g_report) std::printf("    C13 cost: %.4f ms a figure-frame, %.3f ms for 8\n", per, per * 8);
   }
   // nothing at rig 1
   {

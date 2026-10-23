@@ -551,7 +551,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     // (P2c) a weapon placed by angle lies on held (front) or heldBack (back) unless its view names a layer
     if (heldPart && f.weapon != -32768 && v->layer == kNone8) it.layer = (int)(f.front ? Layer::Held : Layer::HeldBack);
     it.anchor = (Anchor)(v->anchor != kNone8 ? v->anchor : p.anchor);
-    if (g_screenMode && ((it.anchor == Anchor::Pivot) != (g_screenMode == 2))) continue;
+    // a turned frame's screen items (drawn level on the ground after the turn) are the views that NAME `anchor pivot`
+    // (the drops, the shield's lie); a part anchored at the pivot by default (the legs, the sword) turns with the body
+    // (polish i1: the legs' `lie` stood upright out of every corpse, "a boot block sticking up")
+    const bool screenItem = v->anchor != kNone8 && (Anchor)v->anchor == Anchor::Pivot;
+    if (g_screenMode && (screenItem != (g_screenMode == 2))) continue;
     it.garment = (it.layer == (int)Layer::Torso || it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront) && partIsGarment(p);
     items.push_back(it);
     // the optional regions (`when` overlays) of this view whose condition holds
@@ -1054,7 +1058,9 @@ RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
     const bool lying = c->clip == (uint8_t)Clip::Lying;
     for (uint16_t i = 0; i < c->nFrames; i++) {
       const FrameRec& f = P.frames[c->firstFrame + i];
-      g_breeze = breeze && c->clip == (uint8_t)Clip::Idle && i == 1;
+      // (polish i1) the walk stirs too: its passing frames (1 and 4 of 6, where the hair swings) draw the breeze views, so
+      // the T5-T6 cloak's hem and the plume flutter at the step's rhythm (the panel: "cloak/plume flutter in idle and loco")
+      g_breeze = breeze && ((c->clip == (uint8_t)Clip::Idle && i == 1) || (c->clip == (uint8_t)Clip::Walk && c->nFrames == 6 && i % 3 == 1));
       Cut cut = composeOne(c->clip == (uint8_t)Clip::Walk ? walkR : r, c->facing, f, turnOf(f, lying, c->variant), fo, op);
       g_breeze = false;
       if (cut.c.w <= 0) continue;

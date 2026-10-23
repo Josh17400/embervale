@@ -10,6 +10,8 @@
 # right its back behind the body, raised edge-on before the chest (layer neck) for guard and block. Regions (contracts
 # 3b): R the rim, P the field round the device, G the boss, N the boards, W wear. Written by the LADDER-HEAD area's
 # gen_shields.py from shape masks and checked by eye at 1x and 8x. Format: rpg/art/doll/doll.h.
+# (LADDER-HEAD i3, w3/gen_round3.py) T2: a brass rim, the accent field with a tan cross through the boss (a painted
+# shield; T1 keeps bare boards)
 use person
 body adult
 role shield form1
@@ -688,3 +690,110 @@ regions
 |.RPPNR.
 |..RRR..
 |.......
+
+# (polish i1, gen_round2.py) T2: the field painted in the arms colour (accent), no device (STYLE 27.2), the boss and rim as drawn
+view D key rest when shield.t2,!shield.t3
+|...........
+|...OOOOO...
+|..OppTooN..
+|.OppoToooN.
+|.Opo...onN.
+|.OTT...SSN.
+|.Ooo...nnN.
+|.NoooSnnnN.
+|..NonSnnN..
+|...NNNNN...
+|...........
+
+view D key guard when shield.t2,!shield.t3
+|...........
+|...OOOOO...
+|..OppTooN..
+|.OppoToooN.
+|.Opo...onN.
+|.OTT...SSN.
+|.Ooo...nnN.
+|.NoooSnnnN.
+|..NonSnnN..
+|...NNNNN...
+|...........
+
+view D key block when shield.t2,!shield.t3
+|.............
+|...OOOOOOO...
+|..OpppToooN..
+|.OppppTooonN.
+|.Oppp...onnN.
+|.OTTT...SSSN.
+|.OTTT...SSSN.
+|.OooooSnnnnN.
+|.NooonSnnnnN.
+|..NonnSnnnN..
+|...NNNNNNN...
+|.............
+
+view R key guard when shield.t2,!shield.t3
+|..........
+|..OOOOOO..
+|..OpTToN..
+|.OppTTooN.
+|.Opo...nN.
+|.OTT...SN.
+|.Ooo...nN.
+|.NooSSnnN.
+|..NnSSnN..
+|..NNNNNN..
+|..........
+
+view R key block when shield.t2,!shield.t3
+|..........
+|..OOOOOO..
+|..OpTToN..
+|.OppTTooN.
+|.Opo...nN.
+|.OTT...SN.
+|.Ooo...nN.
+|.NooSSnnN.
+|..NnSSnN..
+|..NNNNNN..
+|..........
+
+view L key rest when shield.t2,!shield.t3
+|...........
+|...OOOOO...
+|..OppTooN..
+|.OppoToooN.
+|.Opo...onN.
+|.OTT...SSN.
+|.Ooo...nnN.
+|.NoooSnnnN.
+|..NonSnnN..
+|...NNNNN...
+|...........
+
+view L key guard when shield.t2,!shield.t3
+|...........
+|...OOOOO...
+|..OppTooN..
+|.OppoToooN.
+|.Opo...onN.
+|.OTT...SSN.
+|.Ooo...nnN.
+|.NoooSnnnN.
+|..NonSnnN..
+|...NNNNN...
+|...........
+
+view L key block when shield.t2,!shield.t3
+|.............
+|...OOOOOOO...
+|..OpppToooN..
+|.OppppTooonN.
+|.Oppp...onnN.
+|.OTTT...SSSN.
+|.OTTT...SSSN.
+|.OooooSnnnnN.
+|.NooonSnnnnN.
+|..NonnSnnnN..
+|...NNNNNNN...
+|.............
