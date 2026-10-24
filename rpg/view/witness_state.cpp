@@ -5,6 +5,7 @@
 #ifdef EMB_WITNESS
 #include "rpg/view/witness_state.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_forge.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -91,6 +92,16 @@ template <class J> void dollGear(J& j, const art::HumanLook& look) {
   }
   j.key("gear").begin_object().field("armour", armour).field("helm", helm).field("shield", shield).field("pauldron", pauldron).field("held", held)
       .field("sheath", sheath).field("back", back).field("tabard", tabard).end_object();
+  // (P2c forge) the body's forge style as the doll draws it (the cut on its armour's family; crest the helm's): "" none
+  {
+    namespace F = art::doll::forge;
+    const uint8_t* b = r.forgeAx[art::HumanLook::TIER_BODY];
+    auto nm = [&](int a, int v) { return std::string(v ? F::valueName(a, v) : ""); };
+    j.key("forge").begin_object().field("base", look.forge[art::HumanLook::TIER_BODY] ? std::string(F::valueName(F::AX_BASE, b[0])) : std::string())
+        .field("shoulder", nm(F::AX_SHOULDER, b[F::AX_SHOULDER])).field("crest", nm(F::AX_CREST, r.forgeAx[art::HumanLook::TIER_HELM][F::AX_CREST]))
+        .field("cut", nm(F::AX_CUT, b[F::AX_CUT])).field("edge", nm(F::AX_EDGE, b[F::AX_EDGE])).field("collar", nm(F::AX_COLLAR, b[F::AX_COLLAR]))
+        .field("limb", nm(F::AX_LIMB, b[F::AX_LIMB])).field("fit", nm(F::AX_FIT, b[F::AX_FIT])).end_object();
+  }
 }
 const char* animPartName(art::RigPart p) {
   switch (p) {

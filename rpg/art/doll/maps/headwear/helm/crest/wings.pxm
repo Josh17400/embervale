@@ -1,0 +1,86 @@
+# headwear/helm/crest/wings: the forge crest accent `wings` (STYLE_P2 28.3, contracts 3c: overlay crest.<v>, anchor crown)
+# Two swept wings (the peoples who wear winged helms) on the dome's shoulders, three lit feather tips each, rising
+# up and out past the dome; in profile the near wing sweeps back behind the head.
+# Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+body adult
+role overlay crest.wings
+layer headwear
+anchor crown
+keys hatpose
+z 2
+tags overlay
+legend v metal 0
+legend w metal 1
+legend x metal 2
+legend y metal 3
+legend z metal 4
+legend J metal2 0
+legend N metal2 1
+legend O metal2 2
+legend P metal2 3
+legend Q metal2 4
+legend f leather 0
+legend g leather 1
+legend h leather 2
+legend i leather 3
+legend j leather 4
+legend 5 cloth1 0
+legend 6 cloth1 1
+legend 7 cloth1 2
+legend 8 cloth1 3
+legend 9 cloth1 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+legend X glow 3
+legend W glow 4
+legend k cloak 0
+legend l cloak 1
+legend m cloak 2
+legend n cloak 3
+legend o cloak 4
+
+view D key rest origin 8 1
+|v................v
+|zv.v..........v.vx
+|vzvzv........vxvxv
+|.vzyzv......vxwxv.
+|..vyyzv....vyxwv..
+|...vvvv....vvvv...
+
+view U key rest origin 8 1
+|v................v
+|xv.v..........v.vz
+|vxvxv........vzvzv
+|.vxwxv......vzyzv.
+|..vxwyv....vzyyv..
+|...vvvv....vvvv...
+
+view R key rest origin 7 3
+|v.v.v.....
+|zvzvzv....
+|vzyzyzv...
+|.vzyyyxv..
+|..vyyxxwv.
+|...vvxwwv.
+|.....vvv..
+
+view L key rest origin 2 3
+|.....v.v.v
+|....vzvzvz
+|...vzyzyzv
+|..vzyyyxv.
+|.vyyxxwv..
+|.vxwwvv...
+|..vvv.....
+
+view L key lie origin 2 3
+|.....v.v.v
+|....vzvzvz
+|...vzyzyzv
+|..vzyyyxv.
+|.vyyxxwv..
+|.vxwwvv...
+|..vvv.....

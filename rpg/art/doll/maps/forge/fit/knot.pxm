@@ -1,0 +1,87 @@
+# forge/fit/knot: knotwork (Fjordfolk, Highland, Dune, Jade; 28.3): an interlace on the panel, two loops crossing with a
+# lit over-crossing, two steps down where the cord dips.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+use person
+role overlay fit.knot
+tags tile overlay fit
+on-region P
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+view D key knot3x3 origin 0 0
+|.=.
+|=+=
+|.=.
+
+view D key knot4x4 origin 0 0
+|.==.
+|=++=
+|=++=
+|.==.
+
+view D key knot5x3 origin 0 0
+|.=.=.
+|=+=+=
+|.=.=.
+
+view D key knot7x3 origin 0 0
+|.==.==.
+|=..+..=
+|.==.==.
+
+view D key knot5x5 origin 0 0
+|.=.=.
+|=+=+=
+|.=+=.
+|=+=+=
+|.=.=.
+
+view D key knot1x1 origin 0 0
+|+
+
+view D key knot2x1 origin 0 0
+|+=
+
+view D key knot1x2 origin 0 0
+|+
+|=
+
+view D key knot3x1 origin 0 0
+|=+=
+
+view D key knot1x3 origin 0 0
+|=
+|+
+|=
+
+view D key knot2x2 origin 0 0
+|.=
+|=+
+
+view D key knot3x2 origin 0 0
+|=+=
+|.=.
+
+view D key knot2x3 origin 0 0
+|=.
+|+=
+|=.
+
+view D key knot4x2 origin 0 0
+|=++=
+|.==.
+
+view D key knot5x2 origin 0 0
+|=+=+=
+|.=.=.
+
+view D key knot6x2 origin 0 0
+|.=..=.
+|=+==+=

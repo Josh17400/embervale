@@ -1,0 +1,32 @@
+# P2c Arms and Armour: THE FORGE SLICE on the phone (2556x1179, NORMAL D5) (docs/PLAN.md "The forge slice"; FORGE-DOLL).
+# Seed 7, the start village, rig 2: the hero in FOUNDRY bronze, ARMOURER'S steel and STARFALL starmetal, 11:00 and 22:00.
+#   embervale.exe --script tools/scripts/p2c_forge_phone.txt          (p2c_forge_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 ladderkit hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=bronze
++0.3 expect doll covered
++0.0 expect doll forge foundry
++0.3 shot p2c_forge_phone_bronze.png
++0.1 ladderkit hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=steel
++0.3 expect doll covered
++0.0 expect doll forge armourer
++0.3 shot p2c_forge_phone_d5_11.png
++0.1 hour 22
++0.5 shot p2c_forge_phone_d5_22.png
++0.1 hour 11
++0.1 ladderkit hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=starmetal
++0.3 expect doll covered
++0.0 expect doll forge starfall
++0.3 shot p2c_forge_phone_starmetal.png

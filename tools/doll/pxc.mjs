@@ -42,7 +42,7 @@ export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O
 export const LAYERS = ['fxBack', 'heldBack', 'back', 'cloakBack', 'hairBack', 'armFar', 'legs', 'shoes', 'hangBack', 'torso',
   'hangFront', 'belt', 'neck', 'armNear', 'head', 'face', 'beard', 'hairFront', 'ears', 'headwear', 'held', 'shield',
   'cloakFront', 'fx'];
-export const ANCHORS = ['pivot', 'head', 'neck', 'hip', 'shoulderR', 'shoulderL', 'grip', 'gripL'];
+export const ANCHORS = ['pivot', 'head', 'neck', 'hip', 'shoulderR', 'shoulderL', 'grip', 'gripL', 'crown'];   // (P2c forge) crown: the helm's `mark crown`
 export const ROLES = ['legs', 'arms', 'garment', 'overlay', 'neck', 'belt', 'sheath', 'head', 'nose', 'brow', 'ears', 'marks',
   'expr', 'paint', 'earring', 'beard', 'hair', 'headwear', 'cloak', 'held', 'fx', 'body', 'armour', 'helm', 'shield', 'pauldron'];
 export const BODIES = { man: 1, woman: 2, youth: 4, child: 8, adult: 3 };
@@ -74,7 +74,7 @@ function defaultChannel(layer, side) {
 }
 const POOL_VERSION = 3;   // 2: views carry flags (replace), frames carry turn and at; 3 (P2c): clips carry a `when` condition
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
-const CACHE_VERSION = 7;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts; 7: P2c tags
+const CACHE_VERSION = 8;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts; 7: P2c tags; 8: forge tiles
 
 // ---------------------------------------------------------------------------------------------- arguments
 const args = process.argv.slice(2);
@@ -386,6 +386,22 @@ function parsePart(file, text) {
         else P.tags.push('on-region:' + rs);
         break;
       }
+      // (P2c forge, contracts 3c) a cut tile: `on-slot <slot>` (with `tags tile`): repeated over that slot's pixels on the
+      // armour and pauldron parts (R, G and W skipped); its cells are step deltas ('+' +1, '-' -1, '=' -2, '~' 0) and/or a
+      // region letter (R P G N, in the grid or the regions block) the pixel takes. Kept as the tag on-slot:<slot>
+      case 'on-slot': {
+        if (toks.length !== 2 || SLOTS.indexOf(toks[1]) < 0 || UNLIT.has(toks[1])) err(where, 'on-slot <slot> (metal, leather, cloth1...)');
+        else P.tags.push('on-slot:' + toks[1]);
+        break;
+      }
+      // (P2c forge) an edge stamp: `on-edge hem|rim` (with `tags tile edge`): a 1-3 row pattern along the part's lower outer
+      // boundary (hem: the armour hang's, else the torso's; rim: a pauldron's lower edge); the view's origin row lies on the
+      // boundary row, cells below it add pixels (2 rows at most) in the hem's slot at the cell's step, '-' notches
+      case 'on-edge': {
+        if (toks.length !== 2 || (toks[1] !== 'hem' && toks[1] !== 'rim')) err(where, 'on-edge hem|rim');
+        else P.tags.push('on-edge:' + toks[1]);
+        break;
+      }
       case 'layer': if (LAYERS.indexOf(toks[1]) < 0) err(where, `layer: unknown ${toks[1]}`); else P.layer = toks[1]; break;
       case 'anchor': if (ANCHORS.indexOf(toks[1]) < 0) err(where, `anchor: unknown ${toks[1]}`); else P.anchor = toks[1]; break;
       case 'keys': if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(toks[1] || '')) err(where, 'keys <channel>'); else P.channel = toks[1]; break;
@@ -456,9 +472,19 @@ function buildPart(P, legends, stamps) {
     V.w = w; V.h = h;
     V.cells = new Uint8Array(w * h);
     V.opaque = 0;
+    // (P2c forge) a cut tile's cells: step deltas as Ink steps (the compositor moves the step by k - 2: '+' 3, '-' 1, '=' 0,
+    // '~' 2) and region letters (Ink 2 + the region)
+    const cutTile = P.tags.some((t) => t.startsWith('on-slot:'));
+    const INK = SLOTS.indexOf('ink');
+    const gridReg = cutTile ? new Uint8Array(w * h) : null;
     V.rows.forEach((r, y) => {
       cpOf(r.row).forEach((ch, x) => {
         if (ch === '.') return;
+        if (cutTile) {
+          const d = { '+': 3, '-': 1, '=': 0, '~': 2 }[ch];
+          if (d !== undefined) { V.cells[y * w + x] = 2 + INK * 5 + d; V.opaque++; return; }
+          if ('RPGN'.includes(ch)) { V.cells[y * w + x] = 2 + INK * 5 + 2; gridReg[y * w + x] = REGIONS[ch]; V.opaque++; return; }
+        }
         if (ch === '-') { V.cells[y * w + x] = 1; return; }
         const e = L[ch];
         if (!e) { err(`${P.file}:${r.line}`, `'${ch}' is not in the legend (${P.uses.join(', ') || 'no use'})`); return; }
@@ -474,6 +500,16 @@ function buildPart(P, legends, stamps) {
         if (!REGIONS[ch]) err(`${P.file}:${r.line}`, `regions: '${ch}' is no region (${Object.keys(REGIONS).join('')})`);
         else V.reg[y * w + x] = REGIONS[ch];
       }));
+    }
+    if (cutTile) {
+      // the grid's region letters, and a region on a clear cell (a region with no step change)
+      if (gridReg.some((g) => g)) { if (!V.reg) V.reg = new Uint8Array(w * h); for (let k = 0; k < w * h; k++) if (gridReg[k]) V.reg[k] = gridReg[k]; }
+      if (V.reg) for (let k = 0; k < w * h; k++) {
+        if (!V.reg[k]) continue;
+        const rc = Object.keys(REGIONS).find((c) => REGIONS[c] === V.reg[k]);
+        if (!'RPGN'.includes(rc)) err(where, `on-slot tile: region ${rc} (a cut tile's cells take R P G N)`);
+        if (!V.cells[k]) { V.cells[k] = 2 + INK * 5 + 2; V.opaque++; }
+      }
     }
     if (V.build.length) {
       if (V.build.length !== 1) err(where, 'build: one row');

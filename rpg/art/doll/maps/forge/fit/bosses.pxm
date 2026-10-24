@@ -1,0 +1,69 @@
+# forge/fit/bosses: bosses (FOUNDRY, Fjordfolk, Imperial, Jade; 28.3): round bosses centred on the piece's panel, each a
+# lit cap with a glint and a dark rim (two on a wide panel, one on a narrow one).
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+use person
+role overlay fit.bosses
+tags tile overlay fit
+on-region P
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+view D key bosses2x2 origin 0 0
+|+:
+|:=
+
+view D key bosses3x3 origin 0 0
+|.+.
+|++:
+|.=.
+
+view D key bosses6x3 origin 0 0
+|.+..+.
+|++::+:
+|.=..=.
+
+view D key bosses7x3 origin 0 0
+|.+...+.
+|++:.++:
+|.=...=.
+
+view D key bosses4x4 origin 0 0
+|.++.
+|+++:
+|++::
+|.==.
+
+view D key bosses5x5 origin 0 0
+|..+..
+|.+++.
+|+++::
+|.+::.
+|..=..
+
+view D key bosses1x1 origin 0 0
+|+
+
+view D key bosses2x1 origin 0 0
+|+:
+
+view D key bosses1x2 origin 0 0
+|+
+|=
+
+view D key bosses3x1 origin 0 0
+|++:
+
+view D key bosses5x1 origin 0 0
+|+:.+:
+
+view D key bosses1x3 origin 0 0
+|+
+|+
+|=

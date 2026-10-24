@@ -605,7 +605,12 @@ uint32_t hashBirth(uint32_t seed, long long k) {
 }  // namespace
 
 void figureLights(const Figure& F, std::vector<Light>& out) {
-  if (F.topTier < 5) return;
+  if (F.topTier < 5) {
+    // (P2c forge, D28) the glowing sheen's tell from T4: its seams lit, steady (the breath, halo and aura are T5's and T6's)
+    if (F.topTier == 4 && F.steady && F.glow)
+      for (const GlowPx& g : *F.glow) out.push_back({(float)g.x, (float)g.y, 1, 1, towardWhite(g.c, 0.55f), kSteadyGlow});
+    return;
+  }
   const Pulse P = pulseOf(F.topTier);
   const float breath = light(P, F.t, F.phase);
   static const std::vector<GlowPx> kNone;

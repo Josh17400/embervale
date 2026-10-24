@@ -23,6 +23,23 @@ i = s.index('const char* kSliceLooks ='); j = s.index(';\n', i) + 2
 if '--check' in sys.argv:
     ok = s[i:j] == body
     print('embed_looks: ' + ('in step' if ok else 'STALE: run python tools/doll/embed_looks.py'))
+    if not ok: sys.exit(1)
+else:
+    p.write_text(s[:i] + body + s[j:], encoding='utf-8', newline='\n')
+    print('embed_looks: %d looks embedded' % len(lines))
+
+# (P2c forge, FORGE-DOLL) tools/doll/forge_looks.txt as tools/tests/test_doll_forge.cpp kForgeLooks (the gates' matrix adds
+# its tags that the ladder file lacks: test_doll_arms.cpp dollSliceLooksText)
+fsrc = (ROOT / 'tools/doll/forge_looks.txt').read_text(encoding='utf-8').splitlines()
+flines = [l for l in fsrc if l.strip() and not l.startswith('#')]
+fbody = ("const char* kForgeLooks =   // (P2c forge) tools/doll/forge_looks.txt (tools/doll/embed_looks.py writes it)\n"
+         + '\n'.join(cstr(l) for l in flines) + ';\n')
+fp = ROOT / 'tools/tests/test_doll_forge.cpp'
+fs = fp.read_text(encoding='utf-8')
+fi = fs.index('const char* kForgeLooks ='); fj = fs.index(';\n', fi) + 2
+if '--check' in sys.argv:
+    ok = fs[fi:fj] == fbody
+    print('embed_looks (forge): ' + ('in step' if ok else 'STALE: run python tools/doll/embed_looks.py'))
     sys.exit(0 if ok else 1)
-p.write_text(s[:i] + body + s[j:], encoding='utf-8', newline='\n')
-print('embed_looks: %d looks embedded' % len(lines))
+fp.write_text(fs[:fi] + fbody + fs[fj:], encoding='utf-8', newline='\n')
+print('embed_looks: %d forge looks embedded' % len(flines))

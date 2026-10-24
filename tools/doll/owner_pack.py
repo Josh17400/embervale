@@ -560,8 +560,126 @@ def p2c_main(a):
     return 0 if len(made) == 11 and not miss else 1
 
 
+# ---- (P2c forge, FORGE-DOLL) python tools/doll/owner_pack.py --forge [--bdir build] [--pool FILE] [--out DIR]
+#      [--assemble-only] [--keep-work]: the forge slice's owner pack (STYLE_P2 28.10), every image 8000 px or less on its long
+#      side. Sources: doll_gallery's forge boards (forge, forgegrey, silhouette:forge, forge:t5 / alloys / woman / ladder,
+#      metalread, families, alloystyles:<people>:<seed>), rpg_test --doll --limbs on tools/doll/forge_looks.txt (the walk
+#      frames and GIFs), the gates (--doll --gates --parity --report, --doll-forge --report, --doll-coverage --scope forge) and
+#      the in-world script tools/scripts/p2c_forge.txt (embervale.exe, when built). Default DIR
+#      %LOCALAPPDATA%/Temp/claude/emb_P2c/forge/owner_pack. The boards:
+#   01 the materials lineup (colour, dark ground, greyscale; the walk facing R at 3x)   02 the silhouettes
+#   03 the T5 row          04 the alloys (each culture's alloys beside their metal word's style)
+#   05 the ladder (and its walk GIF)      06 the metal read (the six names; every sheen's ramp)   07 the colour spread
+#   08 the open items (T2 to T3, the T5 face, the Mythic crown, the blade) at 8x     09 in the world    10 the gates table
+FORGE_MAX = 8000
+FORGE_BOARDS = ['forge', 'forgegrey', 'silhouette:forge', 'forge:t5', 'forge:alloys', 'forge:woman', 'forge:ladder', 'metalread', 'families',
+                'alloystyles:highland:1', 'alloystyles:jade:5', 'alloystyles:starspire:1', 'forge:lt2,lt3,f5_gilt,fm_myth']
+FORGE_WORLD = ['p2c_forge_hero_d4_11.png', 'p2c_forge_hero_d4_22.png', 'p2c_forge_phone_d5_11.png', 'p2c_forge_captains_d4.png']
+
+
+def forge_capture(bdir, work, pool):
+    for d in ('', 'boards', 'limbs'):
+        os.makedirs(os.path.join(work, d), exist_ok=True)
+    slot = ['bash', os.path.join(REPO, 'tools', 'slot.sh')]
+    gal, rt = os.path.join(REPO, bdir, 'doll_gallery.exe'), os.path.join(REPO, bdir, 'rpg_test.exe')
+    pl = ['--pool', pool] if pool else []
+    run(slot + [gal, os.path.join(work, 'boards')] + pl + FORGE_BOARDS, os.path.join(work, 'gallery.log'), cwd=REPO)
+    run(slot + [rt, '--doll', '--limbs', os.path.join(work, 'limbs'), '--limbs-looks', os.path.join(REPO, 'tools', 'doll', 'forge_looks.txt')] + pl,
+        os.path.join(work, 'limbs.log'), cwd=REPO)
+    run(slot + [rt, '--doll', '--gates', '--parity', '--report'] + pl, os.path.join(work, 'gates.log'), cwd=REPO)
+    run(slot + [rt, '--doll-forge', '--report', '--selftest'], os.path.join(work, 'forge.log'), cwd=REPO)
+    run(slot + [rt, '--doll-coverage', '--scope', 'forge'] + pl, os.path.join(work, 'coverage.log'), cwd=REPO)
+    exe = os.path.join(REPO, bdir, 'embervale.exe')
+    if os.path.exists(exe):
+        for sc in ('p2c_forge', 'p2c_forge_phone'):
+            run(slot + [exe, '--script', os.path.join(REPO, 'tools', 'scripts', sc + '.txt')], os.path.join(work, sc + '.log'), cwd=work)
+
+
+def forge_fit(img):
+    """The largest whole-number shrink that brings the long side to FORGE_MAX or less (boards come at 3x: shrink by 3 to 1x)."""
+    k = 1
+    while max(img.width, img.height) / k > FORGE_MAX:
+        k += 1
+    return img if k == 1 else img.resize((img.width // k, img.height // k), Image.NEAREST)
+
+
+def forge_grey(img):
+    return img.convert('L').convert('RGB')
+
+
+def forge_text(lines, w=1400):
+    img = Image.new('RGB', (w, 14 * len(lines) + 8), BG)
+    d = ImageDraw.Draw(img)
+    for i, ln in enumerate(lines):
+        d.text((4, 4 + 14 * i), ln, fill=(230, 120, 110) if ln.startswith('FAIL') else LABEL, font=FONT)
+    return img
+
+
+def forge_assemble(work, out):
+    os.makedirs(out, exist_ok=True)
+    made = []
+
+    def put(name, img):
+        img = forge_fit(img)
+        assert max(img.width, img.height) <= FORGE_MAX
+        img.save(os.path.join(out, name))
+        made.append(name)
+
+    B = lambda n: p2c_load(work, os.path.join('boards', n))
+    fm = ['fm_home', 'fm_tan', 'fm_bronze', 'fm_iron', 'fm_steel', 'fm_gilt', 'fm_obsid', 'fm_ember', 'fm_star', 'fm_myth']
+    walks = []
+    for t in fm:
+        c, ms = p2c_frames(work, t, 'walk', 'R')
+        if c:
+            row = stack([scale(x, 3) for x in c], 2, vertical=False)
+            walks.append(titled(stack([row, forge_grey(row)], 2, vertical=False), t + ' walk R, colour | greyscale (3x)'))
+    put('01_materials_lineup.png', stack([B('doll_forge_3x.png')] + walks, 8))
+    put('01b_materials_lineup_1x.png', B('doll_forge_1x.png'))
+    put('02_silhouettes.png', B('doll_silhouette_forge_3x.png'))
+    put('03_t5_row.png', B('doll_forge_t5_3x.png'))
+    put('04_alloys.png', stack([B('doll_forge_alloys_3x.png'), B('doll_alloystyles_highland_1_3x.png')], 8))
+    put('04b_alloys_jade_starspire.png', stack([B('doll_alloystyles_jade_5_3x.png'), B('doll_alloystyles_starspire_1_3x.png')], 8))
+    put('04c_woman.png', B('doll_forge_woman_3x.png'))
+    put('05_ladder.png', B('doll_forge_ladder_3x.png'))
+    tracks = []
+    for t in ['lt1', 'lt2', 'lt3', 'lt4', 'lt5', 'lt6', 'lt6m']:
+        c, ms = p2c_frames(work, t, 'walk', 'R')
+        tracks.append((t, c, ms))
+    p2c_gif(os.path.join(out, '05b_ladder_walk_3x.gif'), tracks, 3, 1)
+    made.append('05b_ladder_walk_3x.gif')
+    put('06_metal_read.png', B('doll_forge_metalread_3x.png'))
+    put('07_colour_spread.png', B('doll_families_3x.png'))
+    put('08_open_items.png', B('doll_forge_lt2,lt3,f5_gilt,fm_myth_8x.png'))
+    world = [titled(p2c_load(work, n), n) for n in FORGE_WORLD]
+    put('09_in_world.png', stack(world, 8))
+    lines = []
+    for lg in ('gates.log', 'forge.log', 'coverage.log'):
+        p = os.path.join(work, lg)
+        if os.path.exists(p):
+            lines += [lg + ':'] + [ln.rstrip() for ln in open(p, encoding='utf-8', errors='replace') if ln.startswith(('ok', 'FAIL', '  pool', 'doll', '  C16 C17'))]
+        else:
+            P2C_MISSING.append(lg)
+    put('10_gates.png', forge_text(lines))
+    return made
+
+
+def forge_main(a):
+    out = os.path.abspath(a.out if a.out_set else os.path.join(os.environ.get('LOCALAPPDATA', '/tmp'), 'Temp', 'claude', 'emb_P2c', 'forge', 'owner_pack'))
+    work = os.path.join(out, 'work')
+    if not a.assemble_only:
+        forge_capture(a.bdir, work, a.pool)
+    made = forge_assemble(work, out)
+    if not a.keep_work:
+        shutil.rmtree(work, ignore_errors=True)
+    miss = sorted(set(P2C_MISSING))
+    print(f'owner pack (forge): {len(made)} files in {out}; {len(miss)} missing input(s)' + (': ' + ', '.join(miss[:12]) if miss else ''))
+    return 0 if not miss else 1
+
+
 def main():
     ap = argparse.ArgumentParser(description='the P2b owner pack from the game (STYLE_P2 19 item 6)')
+    ap.add_argument('--forge', action='store_true', help='the P2c forge slice pack (STYLE_P2 28.10)')
+    ap.add_argument('--pool', default='', help='(--forge) an isolated pool for the boards and gates')
     ap.add_argument('--bdir', default='build', help='the build directory (embervale.exe and rpg_test.exe), relative to the repo')
     ap.add_argument('--out', default=os.path.join(os.environ.get('LOCALAPPDATA', '/tmp'), 'Temp', 'claude', 'emb_P2b', 'owner_pack'))
     ap.add_argument('--assemble-only', action='store_true', help='reuse DIR/work (no game runs)')
@@ -571,6 +689,8 @@ def main():
     a.out_set = any(x == '--out' or x.startswith('--out=') for x in sys.argv[1:])
     if a.p2c:
         return p2c_main(a)
+    if a.forge:
+        return forge_main(a)
     out = os.path.abspath(a.out)
     work = os.path.join(out, 'work')
     if not a.assemble_only:

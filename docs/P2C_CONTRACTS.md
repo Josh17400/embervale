@@ -6,6 +6,8 @@ this file says "P2c restates", that change is made once, by the code owner (SLIC
 because no map depends on the old meaning. SLICE-DOLL / DOLL-C append "as built" notes at the end; nothing above is edited.
 **The ladder re-plan (2026-10-23)** adds the ladder slice's ownership (1), its freezes (2), vocabulary (3), the ladder's
 data (3b), the living finish (6b) and test hooks (7); LADDER-DOLL is the code owner in wave 1b.
+**The forge re-plan (2026-10-24)** adds the forge slice's ownership (1), its freezes (2), the forge styles' data and pick
+rule (3c) and test hooks (7); FORGE-DOLL is the code owner in wave 1c.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -23,6 +25,14 @@ data (3b), the living finish (6b) and test hooks (7); LADDER-DOLL is the code ow
 | LADDER-HEAD (artist) | maps/headwear/helm/**, maps/shield/**; maps/beard/** (ADD only: `when capped` R / L views) |
 | LADDER-ARMS (artist) | maps/arms/adult/action/**, legs/adult/action/**, held/weapons/**, belt/sheaths/**, back/**, fx/** (but `fx glint` and `fx mote`) |
 | LADDER-FINISH (artist) | maps/finish/** (new) |
+
+| area | files (wave 1c, the forge slice) |
+|---|---|
+| FORGE-DOLL (engineer) | rpg/art/doll/*.h, *.cpp, gen/**, clips/** (ADD only), maps/legend/** (ADD only); tools/doll/**; art_human.h (HumanLook ADD) and art_human.cpp's key() only; rpg/art/art_fx.*; rpg/sim/gear_forge.* (new), gear_ladder.*, gear_look.* (ADD only), looks.cpp (the realm into rankTiers only); rpg/view/render.cpp (the steady T4 glow only), witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp, test_doll_forge.cpp (new), doll_motion.h; tools/preview/doll_gallery.cpp; CMakeLists.txt (gear_forge.cpp, test_doll_forge.cpp only); tools/scripts/p2c_forge*; witness/p2c_forge; this file's section 8; PLAN "Forge slice results" |
+| FORGE-PLATE (artist) | maps/armour/man/**, maps/armour/woman/** |
+| FORGE-SHOULDERS (artist) | maps/armour/shared/** |
+| FORGE-HELM (artist) | maps/headwear/helm/**, maps/headwear/collar/** (new), maps/shield/** |
+| FORGE-MARKS (artist) | maps/armour/tiles/**, maps/finish/**, maps/forge/** (new) |
 
 Wave 2 ownership is in docs/PLAN.md "Production areas". Art areas never build: they compile isolated pools and use the
 published exes (section 7).
@@ -44,6 +54,13 @@ outputs are frozen until the flip (the ladder writes only its new fields; art_ha
 HumanLook only gains fields that v1 ignores and key() mixes at rig 2 only. ADD-only exceptions: maps/cloak (`breeze` keys,
 `when` views), maps/beard (`when capped` views facing R / L). Restated: A3's arc is re-cut (the owner), and B1 compares
 the figure only (the doll composes without fx; A3's Fx colours are left out of the reference).
+
+**The forge (2026-10-24)** keeps all of this and adds: rpg/culture/** is read only (styles come from the alloys as they
+are); every look whose forge fields are 0 keeps its pixels (`--freeze-check`; the ladder looks' frames change only by
+their styles); today's maps keep every view, and areas ADD views, `when` overlays, marks and region cells (FORGE-HELM adds
+`mark crown` to every helm view, FORGE-PLATE adds `when` overlays to the armour maps); the pauldron values plate.N, fur.N
+and scale.N keep their meaning; the ladder's tiers, dials and finish table (3b) are unchanged and lay over the style;
+wearGear's, census::dress's and gearIcon's existing outputs stay frozen (the forge writes only its new field).
 
 ## 3. The resolver's P2c vocabulary (`role <category> <value>`, doll_resolve.cpp)
 
@@ -70,6 +87,8 @@ blade-<form> pole-<form> bow-<form>; glint-weapon glint-body glint-helm glint-sh
 Sleeves by form: mail U F + mail tile; scale and lamellar U + their tiles; plate U F metal (+ lames tile); leather F
 leather (bracer) + stitch tile; padded U F cloth1 + quilt tile; brigandine U F cloth1 + rivets tile; leaf U metal + leaf
 tile. The slice decides by eye whether the mail tile replaces P2b's drawn mail sleeves (decision D3).
+
+(The forge re-plan's roles, flags, tile modes and Anchor::Crown are in 3c.)
 
 ## 3b. The gear ladder in data (re-plan 2026-10-23; STYLE_P2 27, PLAN "The gear ladder")
 
@@ -131,6 +150,100 @@ tile. The slice decides by eye whether the mail tile replaces P2b's drawn mail s
   `heroine=1` (A3's face, hair and colours; the scarf through T3), `kit=<people>:<tier>[:<seed>]`, `wpn=<family>`,
   `rarity=<common..mythic>`, `npc=<people>:<role>[:<rank>][:<seed>]` (census::dress), `tier=<n>` and `tierBody=` ..
   `tierBack=`. People: fjordfolk highland heartland imperial dune steppe marsh jade river suntemple sylvan starspire.
+
+## 3c. Forge styles in data (re-plan 2026-10-24; STYLE_P2 28, PLAN "Forge styles")
+
+- **HumanLook ADD** (art_human.h; derived, never saved; v1 ignores it; key() mixes it at rig 2 only and only when set):
+  `uint64_t forge[TIER_SLOTS]`, one packed style per worn slot, a byte per axis: 0 base, 1 shoulder, 2 crest, 3 cut,
+  4 edge, 5 collar, 6 limb, 7 fittings; 0 = no style (today's pixels). Base: 0 generated (an alloy), 1 homespun 2 tanner
+  3 foundry 4 wrought 5 armourer 6 parade 7 knapped 8 furnace 9 starfall 10 mythic. An axis value is a 1-based index into
+  its list below (0: the form's own drawing). Slots used: body (torso, skirt, shoulders, collar, sleeves, thighs), helm
+  (crest, brow), shield (boss, rim), gloves (hands, cuffs), boots (feet, greaves, cops).
+- **The value lists** (gear_forge.cpp `forgeValueName(axis, v)`, the flag words; append only):
+  - shoulder: plate fur scale roll flap cop slab flared lobed shard vented crystal flame layered winged leaf
+  - crest: ridge comb knife brow crown shards chimney spire fin finial spike horns wings flame
+  - cut: smooth fluted keeled banded faceted muscled ribbed vented embossed splinted crackled plain plackart round pointed
+    square laced staggered channel diamond brick lacedfront stitched studded tooled (a value reads on the form's family:
+    `banded` is lames on plate, bands over the brick on mail, lacing bands on lamellar; a value the family lacks maps by
+    STYLE_P2 28.4's columns)
+  - edge: plain rolled scalloped dagged strips serrated spiked cusped pointed stepped fringed flame
+  - collar: rolled stand torc riveted gorget flared angular furnace high ember ruff coif
+  - limb: plain banded splinted scaled laced studded ribbed fluted faceted crackled
+  - fittings: rivets studs bosses stars scored knot inlay lacing
+- **gear_forge.h/.cpp** (rpg/sim, new; pure; no RNG stream; integer maths):
+
+```
+struct ForgeStyle { uint8_t base = 0, shoulder = 0, crest = 0, cut = 0, edge = 0, collar = 0, limb = 0, fit = 0; };
+uint64_t packForge(const ForgeStyle&);   ForgeStyle unpackForge(uint64_t);
+ForgeStyle baseStyle(uint8_t metalKind, cult::BodyArm form);     // STYLE_P2 28.4; the cut mapped onto the form's family
+ForgeStyle alloyStyle(const cult::Culture& c, int alloyIndex);   // the pick rule (below)
+ForgeStyle forgeOf(const Item& it, const cult::Culture* maker);  // Mythic -> mythic; Mat::Alloy -> alloyStyle; else baseStyle
+int styleDistance(const ForgeStyle& a, const ForgeStyle& b);      // shoulder 3, cut 3, crest 2, edge 2, collar 1, limb 1, fit 1
+int forgeSchool(const cult::Culture& c);   // posmod(ci, 3) + 3 posmod(cj, 3) of the culture cell; Atlas::make's: seed % 9
+const char* forgeValueName(int axis, int v);
+```
+
+- **The pick rule** (alloyStyle). Every input is the alloy's or its culture's own data, so the same alloy of the same
+  culture always looks the same, and a dialect (which copies its family's alloys and cell) shares it:
+  1. **Menu**: kForgeVocab[archetype] (STYLE_P2 28.5: a weighted set per axis); an isolated family ORs archetype and
+     archetype2; a hidden word (VEIL WHORL TIDE PEARL SHARD WRACK) adds its picks first at the top weight.
+  2. **Score** every value in Q8: the menu weight x kWord[gear::alloyMetalWord] x kSheen[sheen] x kRank[alloy index] x
+     kReagent over the recipe's reagents (ASH, CHAR: scored, vented; GLASS, QUARTZ, DUST, OBSIDIAN: faceted, ribbed,
+     shard, stars; SALT, RIME: serrated, banded; OIL, RESIN, SAP, LACQUER, AMBER, COPAL: smooth, inlay, lacing; BONE,
+     HORN: spiked, studs; STONE: stars; LIME, MARBLE, CLAY: muscled, embossed; WATER: fluted, smooth; SAND: banded; MOSS:
+     ribbed, leaf) x kOrn over the culture's ARM_* bits (scallops: scalloped; tassels: fringed; studs; rivets; furtrim: fur
+     and ruff; filigree and gilding: embossed and inlay). The sheen's tell filters the cut (banded: banded; iridescent: a
+     row cut; glowing: vented, ribbed or banded).
+  3. **Seed**: h = FNV-1a over the name, the recipe's ore ids and parts and its reagent strings; it breaks ties and adds a
+     12 % jitter per axis and value.
+  4. **School**: on edge, collar, limb and fittings, school s takes the (s mod n)-th best of the n candidates; shoulder,
+     cut and crest take the best.
+  5. **Constraints**: against the culture's earlier alloys d 7 or more with two of shoulder, crest, edge and collar apart;
+     against every hero style d 4 or more, and 5 against its metal word's (BRONZE and BRASS foundry, IRON wrought, STEEL
+     armourer, SILVER parade, GLASS knapped). On a failure, walk: the colliding axis of highest weight takes its next
+     candidate, in the order shoulder, cut, crest, edge, collar, limb, fittings; at most 64 steps, then the best d found
+     stands and C16d reports it. Neighbours (d 5 or more) are kept apart by the school, so the rule never reads another
+     culture; C16c measures them.
+- **fillLadder** (wearGear's half) sets forge[] for body, helm, shield, gloves and boots from each worn item (forgeOf with
+  the item's maker). **rankTiers** gains `const cult::Culture* realm = nullptr`: the rank's metal by baseStyle; D29, the
+  T4 officers the realm's best alloy below the masterwork, kings the masterwork, by alloyStyle.
+- **Flags** (flagsOf): `forge-<base>`; from the body `shoulder-<v>`, `cut-<v>`, `edge-<v>`, `collar-<v>`, `limb-<v>`,
+  `fit-<v>`; from the helm `crest-<v>`; from the shield `boss-<fittings>` and `rim-<edge>`; from gloves and boots
+  `glimb-<v>` and `blimb-<v>`; `blademetal-<kind>` from bladeKind (leather bronze iron steel gilded obsidian ember
+  starmetal alloy mythic).
+- **Parts** (ADD; pxc mirrors every word):
+  - `pauldron <shape>.<size>` (size 2-4): pauldronOf asks the body style's shape at the dial's size; fallback, the same
+    shape's nearest size, then the form family's shape (today's rule), then none.
+  - `overlay collar.<v>`: anchor neck, layer neck, keys rest (rigid), a `lie` view (maps/headwear/collar).
+  - `overlay crest.<v>`: anchor crown, layer headwear z + 1, keys rest, a `lie` view. **Anchor::Crown** (ADD before
+    COUNT): the composed helm view's `mark crown`, else the head box's top centre. A people's plume draws at the crest's
+    `mark socket` when it has one.
+  - `overlay cut.<v>`: `tags tile`, **`on-slot <slot>`** (NEW: metal, leather or cloth1): repeated over that slot's pixels
+    on the armour and pauldron parts, skipping R, G and W and the tabard; a cell is a step delta (`+` +1, `-` -1, `=` -2)
+    and/or a region letter (R P G N) the pixel takes, so the tier's finish follows the style; per-facing views (D serves a
+    facing with none); the tile rides the part's anchor.
+  - `overlay limb.<v>`: `tags tile`, `on-region U F C H X T K S B` (today's mode; gloves' and boots' cuts on their
+    regions).
+  - `overlay edge.<v>`: **`tags tile edge`, `on-edge hem|rim`** (NEW): a 1-3 row pattern repeated along the part's lower
+    outer boundary (hem: the armour hang's lowest silhouette rows, else the torso's; rim: a pauldron's lower edge, a
+    shield's outer rim); cells add pixels outside it (2 rows at most) in the edge's own step, or notch with `-`; the step-0
+    ring stays closed (the finishing pass runs after).
+  - `overlay fit.<v>`: `tags tile fit` on P (bosses, a medallion) or `tags tile` on N (rivets, star rivets, studs along the
+    seams).
+  - Torso overlays: `view <F> key rest when cut-<v>` (or `forge-<base>`) in the armour maps. **The key fallback** (NEW): a
+    `when` overlay drawn only for key rest serves every key of its facing that has none of its own, laid at that key
+    view's origin and clipped to the base view's opaque pixels.
+  - Shields: `when boss-<v>` (on G) and `when rim-<v>` views in each shield map.
+- **Compose and ramps**: a held weapon part paints its Metal pixels in Slot::Blade always (library dot or not; D30), the
+  Blade ramp from bladeKind. **ComposeOpts::grey**: every material slot (Cloth1-3, Accent, Linen, Leather, Metal, Metal2,
+  Blade, Cloak, Pattern, Plume, Field, Device, Glow) in one neutral ramp (#202020 #555555 #8C8C8C #C8C8C8 #F4F4F4); skin,
+  hair, eyes, face and ink kept (C16, the grey boards). A Glowing sheen's N pixels draw in the Glow slot from T4 at a
+  steady 0.35 (D28; the breath from T5, 6b). An iridescent alloy's Metal 2 is its hue-turned ramp (its trim too). C17's
+  clamps live in the alloy model; C15f re-solves kAlloyFam (tools/doll/alloys). Styles add no slot (B8 48 + 3 glow).
+- **Looks macros** (gear::applyLadderSpec): `mat=<cloth|leather|bronze|iron|steel|gilded|obsidian|ember|starmetal|mythic>`
+  (re-materials the kit's armour pieces: cloth padded, leather leather, the rest in the kit's own form), `forge=<base>` (a
+  hero style on every armour piece), `style=<axis>:<value>[+<axis>:<value>...]` (forces values on the body slot),
+  `alloyStyle=<people>:<seed>:<n>` (that culture's alloy n's style on the body), `alloy=N` (exists).
 
 ## 4. Parts: anchors, layers, channels, keys
 
@@ -264,6 +377,17 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   tier <slot>=<n>`; Witness `player.sprite.doll.tier`, `entities[].doll.tier`, `player.finish` {glow, spark, motes}. The
   artists' roots: `%TEMP%\claude\emb_P2c\ladder\<area>\doll\`; LADDER-DOLL publishes s5 (fields, flags, regions,
   macros) within its first working block, and the artists use s4 for the open items until then.
+- **The forge's hooks** (wave 1c): tools/doll/forge_looks.txt (3c's macros); `rpg_test --doll-forge [--looks F]
+  [--worlds a..b] [--report] [--selftest]` (C16, C17, C15f; `--doll --gates` adds the C16 and C17 lines);
+  `--doll-coverage --scope forge` (source F); doll_gallery boards `forge` (the hero styles on one figure: idle D and R and
+  the walk facing R; 1x, 3x, 8x), `forgegrey` (the same in the neutral ramp), `silhouette:forge`,
+  `alloystyles:<people>:<seed>` (a culture's alloys on its own kit beside their metal word's hero style, colour and grey),
+  `metalread` (every family x sheen on its people's T4 kit, the tells marked) and `families` (the 96 families); script
+  `forgekit <people> <tier> <mat|alloyN> [wpn]` (the hero's worn items, test only) and `expect doll forge <slot>=<style>`;
+  Witness `player.sprite.doll.forge` {body, helm, shield} and `entities[].doll.forge`. The artists' roots:
+  `%TEMP%\claude\emb_P2c\forge\<area>\doll\`; FORGE-DOLL publishes exe f1 (fields, flags, parts, Anchor::Crown, tile
+  modes, macros, the forge board) within its first working block, and the artists preview with `style=` and `forge=` from
+  f1 on.
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 
@@ -558,3 +682,130 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
 - **C15c**: same rank and same metal word >= 12 (min 13.2); same rank, different metals >= 8. **C15e**: the family's
   metal equals the name's metal word (replaces i2's warm/cool rule). C15 min dE within a people 23.0.
 - **Finish (A5)**: gleam every 2.4 s (was 2.8), 0.9 s across (was 0.8), 7 px wide (was 6).
+
+### FORGE-DOLL, forge iteration 1 (2026-10-24; exe f1: the forge styles' data, parts and tile modes)
+- **f1 exes**: build-p2c-forge/rpg_test.exe and doll_gallery.exe. Preview: `node tools/doll/pxc.mjs --root <dir> --no-cpp --bin
+  X.pool`, then `doll_gallery <out> --pool X.pool forge[:t5|:woman|:alloys|:metalread|:ladder|:<tag,...>]` (the board reads
+  tools/doll/forge_looks.txt; put `--looks` BEFORE `--tag` on the other boards). `rpg_test --expand-looks
+  tools/doll/forge_looks.txt` prints each look's picks and its forge flags; `rpg_test --forge-picks [--people p] [--seeds A..B]`
+  lists every alloy's seven picks; `rpg_test --forge-mech --pool X.pool` checks the mechanisms on a pool.
+- **Data**: HumanLook::forge[TIER_SLOTS] (u64, a byte per axis); the value lists, the hero styles' table and the cut-on-family
+  mapping in rpg/art/doll/doll_forge.h (header only, read by the sim and the doll); the pick rule in rpg/sim/gear_forge.cpp.
+  fillLadder fills body, helm, shield, gloves, boots from each item (forgeOf), the T1 floor HOMESPUN / TANNER'S; rankTiers
+  from the rank's metal, (D29) a realm's T4 officers its best alloy below the masterwork and its T5 king the masterwork
+  (style and metal family; ladder fields only).
+- **The cut on the family**: the resolver sets the body's cut flag on the family the armour draws (`form-<armour>` flag):
+  a hero style takes its STYLE_P2 28.4 column; a generated cut maps by character (round, vertical, banded, angular). On mail
+  every plate cut but smooth and banded is `cut-plackart`.
+- **School (deviation, recorded)**: edge, collar, limb and fittings: each value has a fixed class A/B (gear_forge.cpp
+  schoolClass; every people's menu holds both on edge, collar and fittings); the cell's checkerboard parity plus the rank
+  picks the class and the best candidate of that class leads; these axes take no seed jitter. The 3 x 3 `s mod n` rule left
+  down neighbours on one pick and let two peoples' menus collide (C16c failed 2-6 of 1008); with the classes C16c is 0 of 5092
+  over worlds 1..30. Kit cultures (ids 0x1ADD...) and Atlas::make ones use seed % 9 and (seed / 9) & 1.
+- **Flags**: `forge-<base>` (alloy homespun tanner foundry wrought armourer parade knapped furnace starfall mythic),
+  `shoulder- cut- edge- collar- limb- fit-` (body), `crest-` (helm), `boss-<fit>` `rim-<edge>` (shield), `glimb-` `blimb-`,
+  `form-<armour>` (with a body style), `blademetal-<kind>` (every armed look).
+- **Parts**: `role pauldron <shape>.<size>` (the shape's nearest drawn size, then the family's, then none);
+  `role overlay collar.<v>` (layer neck), `role overlay crest.<v>` with `anchor crown` (`layer headwear`, `z 1`); the crown is
+  the helm view's `mark crown`, else the head box's top centre, moving with the head. Each is drawn only where the library
+  has it (never a hole); `--doll-coverage --scope forge` names what is not drawn yet.
+- **Cut tiles**: `tags tile` + `on-slot <slot>`; cells `+` `-` `=` `~` (step +1, -1, -2, 0) and R P G N (in the grid or a
+  regions block); laid over the slot's lit pixels (outline, R, G, W untouched) of the body's armour and pauldron views, the
+  grid on the view's origin; not over a `when` view keyed on a forge flag (the drawn overlay is the style). A legend cell
+  writes its own slot and step.
+- **Edge stamps**: `tags tile edge` + `on-edge hem|rim`; the view's origin row lies on each column's lowest opaque row
+  (hem: the armour hang's base views when the frame draws one, else the torso's; rim: the pauldrons); cells below add up to
+  2 rows in the hem's slot at the cell's step (Ink stays ink), `-` notches; base views only.
+- **Fittings and limbs**: `role overlay fit.<v>` (`tags tile fit` on P, the `<prefix><w>x<h>` views; or `tags tile` +
+  `on-region N`) on the body's pieces only; `role overlay limb.<v>` (`on-region ...`) narrowed to the regions of the slots
+  that picked v (body U F T, gloves H C X, boots B S K); a body limb tile replaces the material's sleeve tile.
+- **Key fallback**: a `when` view keyed on a forge flag (cut- forge- shoulder- edge- collar- limb- fit- crest- boss- rim-
+  glimb- blimb- form-) drawn only for key rest serves every key of its facing with no view of that condition, clipped to
+  that key view's opaque pixels (checked: 56 of 56 frames on fm_steel).
+- **Blade (D30)**: every held weapon part (`role held` sword axe bow staff dagger mace greatsword spear stick, any form)
+  paints its metal in Slot::Blade (the ramp of bladeKind; equal to Metal when they match). Props keep the armour's metal.
+- **ComposeOpts::grey**: kGreyRamp on every material slot (doll::greyRamps); skin, hair, eyes, face and ink kept.
+- **Macros**: `mat=` (cloth padded, leather leather, the metals in the kit's form; clears the alloy tint and sheen; the
+  blade keeps its metal), `forge=<base>`, `style=<axis>:<value>[+...]` (`none` clears), `alloyStyle=<people>:<seed>:<n>`,
+  `forgeBody=0x..`..`forgeBack=` (describeLook's output).
+
+### FORGE-DOLL, forge iteration 2 (2026-10-24; the i1 blind panel: "the same armour recoloured", "Cloth wears the plate helm")
+- **The style's own helm and shield (deviation, recorded; the owner's request outranks 3c's "form unchanged")**: doll_resolve
+  `styleKitOf` draws a hero style's helm and shield shape from the library over a people's generic forms (helm nasal kettle
+  great-helm spangen plumed crested; shield round kite heater tower oval buckler): HOMESPUN the cloth hood (Headwear `hood`,
+  no crest, the gambeson's own Cloth3 ramp), TANNER'S the band-1 leather cap + buckler, FOUNDRY crested + round, WROUGHT kettle
+  + round, ARMOURER'S nasal + tower, PARADE crested + oval, KNAPPED masked + round, FURNACE great helm + tower, STARFALL
+  spangen + oval. The universal materials (TANNER'S..ARMOURER'S) only with `HumanLook::forgeKit` (ADD; the Heartland's kit:
+  fillLadder by the helm's (else body's) maker, rankTiers by the realm, `mat=` always); another people's leather, bronze, iron
+  and steel keep its helm, shield and plume (C12e). Signature shapes (horned, conical, masked, winged; crescent, leaf, none)
+  are never replaced; at T5-T6 PARADE and STARFALL and always the MYTHIC keep the ladder's own helm.
+- **A culture alloy's helm by its crest** (generic-helm peoples): comb crown fin -> crested; knife ridge -> nasal; brow finial
+  -> kettle; spike spire shards -> spangen; chimney -> great helm; horns wings flame -> the people's. **Its shield** by
+  `HumanLook::alloyRank` (ADD: 1 everyday, 2 warriors', 3 masterwork; fillLadder from the item's alloy index, rankTiers D29):
+  the people's own or one of its two neighbours (round: oval buckler; kite: heater oval; heater: kite round; tower: oval kite;
+  oval: round tower; buckler: round oval). **The masterwork's shoulders a size larger** (pauldronOf).
+- **One crest per helm**: a forge crest takes the helm's own `_crest` / `_plume` part up to T4 where the style kit decides the
+  helm (forgeKit, an alloy, or a band metal); on another people's universal metal the plume stays and the style's crest (part
+  and need) goes. No crest at T2 (STYLE_P2 27.4: the T2 cap plain).
+- **Pick rule (gear_forge)**: a culture's alloys part on the shoulder AND the crest (plus i1's distance 7 and two silhouette
+  axes); the metal word's hero is parted on the crest; strictness steps down 2 -> 1 -> 0 in the bounded search when a
+  people's menu is too short (Dune's three crests with PARADE's crown among them); the crest leads by the cell's parity and
+  the shoulder by its column (`forgeColumn`: ci & 1), values swapped, scores kept, so every orthogonal or diagonal neighbour
+  parts on one of the two.
+- **The glint pass (doll_compose `glintPass`, styled bodies from T2)**: to T4 the three step-4 clusters nearest the top-left
+  light keep their glint on the body's armour and pauldrons, the rest drop to step 3; a figure with none takes one on its
+  upper-left lit plane (step 3, else 2); the sheen: matte drops step-4 runs to 1 px, bright makes the top glint a 2 px run;
+  a glowing alloy at T4-T5 lights its seams where the form has few N pixels (an inner step-1 pixel between lighter metal, then
+  any inner step-1, then every other pixel of the widest step-2 row; 6-10). `DollRecipe::sheen` (ADD) carries the sheen.
+- **Ramps (rampsOf)**: a pale alloy's step 2 whitened to 150 (chroma falls), a dark one's under 90 with a glint 196+, parted
+  from skin and hair by going darker; steps 2-3 of every metal 20 dE off the look's skin and A3's (chroma together); the lit
+  plane 0.57 x step 2's chroma; a styled metal's step 1 lifted toward 80 luma under its caps (45 % of step 3, step 2 - 12,
+  step 3 - 61), step 3 or step 2 rising a little where they cap it; a styled figure's leather and cloths 16 dE off metal steps
+  2-3 and the shirt 18 luma off the hair (C14's mover, partner sets stepping down when none clears all); the cloak or the
+  accent off the metal; ComposeOpts::grey also greys Slot::Head (the hood).
+- **Gates**: C17's glint count 1-3 to T4, 1 or more at T5-T6 (C12b's rising finish); C14's lit edge for a dark sheen is its
+  own step 1; B10 allows a forge crest the crested RUN 68 KB and a styled body's LOCO and RUN 3 % (PLAN constants "forge:
+  atlases"). `rpg_test --doll-forge-drawn [--report]` runs the drawn forge gates alone (FORGE_RAMPS=1 or =<looks file> prints
+  the looks' ramp lumas). tools/doll/forge_looks.txt adds a_fj2 (Fjordfolk FROSTSTEEL: the coif collar, B11's coverage).
+
+### INTEGRATE, forge iteration 2 (2026-10-24)
+- **Merged**: FORGE-HELM's headwear/helm, headwear/collar and shield maps and FORGE-MARKS' maps/forge/** and finish/{etch,
+  filigree,glyph} from their isolated pools (cut/lambanded and cut/mailbanded removed); FORGE-PLATE's six man and woman
+  mail/plate/plate_hang maps and FORGE-SHOULDERS' 56 armour/shared maps were already in the tree; FORGE-DOLL's code as is.
+- **C3**: the tower's bottom-left corner is filled in its R guard and L rest views (a 1 px pocket between the corner, the
+  mail and its hang on lt3, whose ARMOURER'S kit now bears the tower); the Mythic heater's D and U rest views sit a column
+  further in (origin 7 8 and 5 7: the RUN box + 1 on lt6m). C3c's grip: facing up, a grip whose 3 x 3 is all cloak drawn
+  over the shield with a shield pixel within 3 px counts as attached (the T5 surcoat and the noble cloak hang over the far
+  arm; by eye the shield runs on under the cloak to the hand). `EMB_C3_DEBUG=1` prints the grip, hole and run-box surrounds.
+- **C14**: the shield's field parts from the leather too where it can (HOMESPUN's straps sat 2 luma off it).
+- **C17**: the glint pass runs on any styled look (a soft body under a styled helm) and, where the body's own metal holds
+  no lit pair (the Highland and Marsh kits' mail) or too little plate for six glow seams (the Sylvan kit), the bright
+  sheen's 2 px run and the glowing seam line fall back to any metal of the figure (helm, shield); a styled body with under
+  12 px of metal still takes its one glint.
+
+### FORGE-DOLL, forge iteration 3 (2026-10-24; the i2 blind panel: "about 20 of the 37 alloys wear the same kettle helm on the same torso", "the 6 Jade alloys look like one armour", "Emberforged reads as painted clay")
+- **The guise** (`art::doll::forge::Guise`, doll_forge.h; `gear::alloyGuise(c, i)`, gear_forge.cpp; `HumanLook::forgeGuise`
+  uint16, derived, never saved, key() at rig 2 only; macro key `forgeGuise=`; `--expand-looks` prints it): a culture alloy's
+  silhouette beyond the seven picks: head (HelmForm + 1 of a drawn helm: 1 nasal 2 kettle 3 great 4 spangen 8 mask 9 crested;
+  or a metal head cut from the headwear library: 11 coif = hood, 12 turban helm = turban, 13 jingasa = conical, 14 aventail
+  = veil), skirt 2-4, cloak 0/2/3 (the masterwork), shoulders 2-4. Packed `helm | skirt << 4 | cloak << 7 | pd << 9 | 1 << 15`.
+- **The head rule**: each people's menu of six heads (kVocab; its most typical first, the mail hoods late); the everyday alloy
+  starts on one of the first two (the family's first alloy name picks), the crest's own helm next where the people makes it,
+  then the menu rotated by the family's name; a culture's alloys never share a head SHAPE (the open domes nasal / kettle /
+  spangen / crested are one shape, coif and aventail one) and never the people's own helm (as the doll draws it: an undrawn
+  form's nearest); the everyday alloy not even its shape (C16c: the universal materials wear the people's helm there). The
+  Heartland: its materials wear their hero helms, so an alloy keeps off its metal word's hero helm by the code only.
+- **The doll** (doll_resolve): styleKitOf takes the guise's head for an alloy helm over every people's form (their horned,
+  conical, winged forms were never drawn and all fell back to the spangenhelm); a hood head draws the crested
+  helm instead at body T5-T6 (C4: the king's armour swap read 23 %). A headwear head sets `DollRecipe::guiseHead`; the compositor draws
+  that part's cloth, head, linen and leather pixels in Metal; rampsOf copies Metal into Head. The guise's skirt and shoulders
+  only LIFT the dials (C12c); the masterwork's cloak at T4+ in the tabard colour at 70 %; the Dune and every kit with no
+  shoulders take the guise's size. The glint pass and C17 count a guise head as body armour.
+- **Hero heads**: PARADE wears the gilt turban helm (12) below T5 (C16a bronze vs gilt 0.29 -> pass); ARMOURER'S in the
+  aventail was tried and dropped (C3e, C4, C12c); ARMOURER'S on the Heartland's mail wears the hauberk to the knee and its
+  guards a size up (C12a +6.2 %).
+- **Fixes**: the matte glint pass ran left to right and split a 3 px run into two glints (C17 4-5 glints); emberforged's
+  ramp a forge-dark red with a yellow straw lit plane (C17 holds its chroma under 60 % of the body's; an orange went pink).
+- **Gates**: C16g (data) a culture's alloys never share a head shape; no shape on over 40 % of the alloys (seeds 1..64:
+  dome 24 %, great 18 %, mask 18 %, hood 11 %, turban 16 %, jingasa 11 %); selftest: an unset guise has no head. C3e counts
+  a guise head (Headwear) as the helm on the lying frames. `doll_gallery specs:<label>=<spec>;...` previews any specs.

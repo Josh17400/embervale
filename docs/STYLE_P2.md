@@ -42,6 +42,12 @@ progression: beginner gear okay / mid, steadily cooler, late gear animated, buil
 27 is that ladder. "Bands are ramps, never shapes" now reads "materials are ramps; tiers are finish and the culture's
 dials" (22, 25.2, 25.12).
 
+**2026-10-24, forge styles.** The owner saw every metal and every culture alloy drawn as the same T5 plate in another
+colour: "every alloy or material armor should be different in style cause if they all look the same it kinda not too
+fun". Section 28 gives every material a hand-designed armour style and every culture alloy a style picked from a drawn
+kit. "Materials are ramps" now reads "a material's ramp is its colour, its forge style its shape; tiers are finish and
+the culture's dials" (25.2, 25.12, 27, 27.8).
+
 ---
 
 ## 0. The feel
@@ -861,7 +867,8 @@ far-leg-whole leg the owner approved.
   ridge**: a step-4 line or run where the plane turns, on the lit side. White glints (step 4 pixels) sit at the top-left
   of convex shapes only, and a figure shows **three at most** in a frame. In the walk they may move a pixel with the bob
   and in the turn they jump to the new lit edge (the delight: plate catching the light as the body turns).
-- **Bands and alloys are ramps, never shapes** (a tier's finish and dials are section 27): leather, bronze (warm
+- **Bands and alloys are ramps** for their colour (a tier's finish and dials are section 27; since 2026-10-24 a
+  material's or an alloy's **forge style** gives it its own shape: section 28): leather, bronze (warm
   gold-brown, never the gilded yellow), iron (dark, matte, narrow spread), steel (A3's), gilded (warm, steps 3-4 toward
   yellow), jade (green-gold), obsidian (purple-black, one violet glint), emberforged (red-orange; its visor or seams take
   the glow slot from T5, 27.3), starmetal (pale blue-white, the heartland's band 7). Sheens change the spread: matte
@@ -1078,8 +1085,9 @@ no colour then). T5-T6 looks may add up to 3 glow-slot steps beyond the 48, and 
 
 - No armour that widens a leg or reshapes a boot; no per-key sleeve map where a region tile does the job.
 - No mail that reads as dither; no more than three glints in a frame; no glints on leather; no pillow-shaded plate.
-- No new torso, helm or skirt shape for a band, an alloy or a tier (materials are ramps; tiers are finish and the
-  culture's dials: 27); no torso, skirt or tabard shared between the bodies.
+- No new torso, helm or skirt shape for a tier (tiers are finish and the culture's dials: 27). A band or an alloy changes
+  shape only through its forge style's kit (28: shoulders, crest, cut, edge, collar, limbs, fittings), never through a
+  new torso outline. No torso, skirt or tabard shared between the bodies.
 - No tool-rotated weapon map: every angle is hand-cleaned. No weapon changing hands between facings.
 - No weapon, shield, plume or effect over a face in any idle, walk or run frame; no helm floating a row above the head.
 - No hidden or edge-on weapon on an impact frame in side views; no recover that pops back to the guard.
@@ -1159,7 +1167,8 @@ thinking too late stage gear could be animated in some way", built on the cultur
 This section is how gear looks at each step and how it moves at the top. docs/PLAN.md "## P2c" ("The gear ladder") maps
 the steps onto items, ranks and hours; docs/P2C_CONTRACTS.md 3b and 6b hold the data and the runtime. Sections 22-25
 still hold: a piece's **material** is its ramp (25.2), its **maker culture** its shapes (25.3-25.7), and its **tier** its
-finish, how far the culture's silhouette dials grow, and, at the top, how it moves.
+finish, how far the culture's silhouette dials grow, and, at the top, how it moves. (Since 2026-10-24 its material or
+alloy also gives it a **forge style**, the way it was made: section 28.)
 
 ### 27.1 The feel
 
@@ -1299,7 +1308,7 @@ Late gear moves quietly, as light over the drawn frame (no extra frames, no new 
 ### 27.8 Ladder don'ts
 
 - No broken, torn or ugly T1 gear: worn means mended and whole; no holes in a silhouette.
-- No new torso, helm or skirt shape for a tier: tiers are finish and dials, materials are ramps.
+- No new torso, helm or skirt shape for a tier: tiers are finish and dials (a material's shape is its forge style: 28).
 - No people borrowing another people's forms at any tier.
 - No trim inside a plane (but rivet rows); no etching or filigree that reads as dither; no glow below T5 (but white
   glints).
@@ -1340,6 +1349,258 @@ the living finish.
 T1 okay / mid (plain, mended, whole, never ugly); the finish reads as craft, never noise; the living finish quiet and
 readable; the peoples distinct at the same tier; every open item closed. Then the owner's sign-off, which also settles
 PLAN D13-D23. After it, this section records the measured numbers and every later part matches the ladder slice.
+
+---
+
+## 28. Forge styles: every material and alloy its own armour (planner, 2026-10-24; binding on every P2c art area)
+
+The owner (2026-10-24), after the alloys and metals boards drew every metal and every culture alloy as the same T5 plate
+in another colour: "every alloy or material armor should be different in style cause if they all look the same it kinda
+not too fun". VISION 15.11 asked for it from the start: each culture's alloys come "with its own distinctive look for
+armour and weapons". This section restates 25.2 ("bands and alloys are ramps, never shapes"), 25.12 and 27.8. A piece now
+has four layers, each owned by one rule:
+- its **form** is its maker people's (mail, scale, lamellar, plate...; the helm and shield shapes: 27.4), unchanged;
+- its **forge style** is how it was made: the shape of its shoulders and crest, the cut of its plates, the edge of its
+  hems, its collar, its limbs and its fittings (this section), new;
+- its **tier** is its finish and how far its dials grow (27), unchanged, and now laid into the style's own rims, panels,
+  sockets and seams;
+- its **ramp** is its colour (25.2), unchanged but for the metal read (28.8).
+
+docs/PLAN.md "Forge styles" maps the styles onto items and people; docs/P2C_CONTRACTS.md 3c holds the data and the pick
+rule.
+
+### 28.1 The feel
+
+Put on a new metal and you are wearing a new armour. Bronze is cast and rounded like an old hero's statue: a muscled
+cuirass with rolled rims, round shoulder discs, a skirt of hanging strips, a comb on the helm. Iron is the village smith's
+honest work: hammered bands, square shoulder slabs, a ring of rivets, heavy and plain. Steel is the knight's: clean
+fluted plate, a sharp keel, shoulders that flare up into a guard beside the neck, pointed tassets. Gilded is for the
+parade: steel embossed and gilt, petal shoulders, a crown on the brow. Obsidian is knapped black glass, all facets and
+shards. Emberforged is heavy furnace plate, vented like a stove, its slits glowing. Starmetal is crystal: slim ribs, star
+rivets, tall points. The Mythic is blackened steel cracked with fire. Far from home every people's alloys are their own
+smiths' work: a Jade lancer's steel is staggered lamellar under a finned helm while his people's glowing masterwork is
+laced in bands whose seams glow, with winged shoulders and a crown, and two Fjordfolk clans across a fjord quench their
+steel differently. Every style reads at arm's length on a
+phone **with the colour turned off**: shape first, colour second. Finding a new metal should feel like finding a new
+armour set, and every step of the ladder should feel like a new suit, not a new paint.
+
+### 28.2 Shape before colour
+
+- A style is read by its **silhouette** (shoulders, crest, collar, hem) and its **structure** (the cut's lines and
+  planes), never by its ramp. Design every style in greyscale first (the `forgegrey` board), then colour it.
+- Each style has a **signature** you can name from the black silhouette at 1x (the strip skirt, the square slabs, the
+  notch of the standing guard, the petals, the shards, the flat vented tops, the crystal points, the flames) and a **cut**
+  you can name from the greyscale at 1x (muscle curves, bands, flutes, relief, facets, vents, ribs, cracks).
+- **Inside the people's shapes.** The form is the people's (Jade lamellar stays lamellar); the style re-cuts it inside
+  that form and that people's vocabulary (28.5). A style never borrows another people's signature: Highlanders never
+  sprout winged shoulders.
+- **The style picks the shape, the tier picks the size** (27.4's dials: T1 no shoulders, crest or cape; T2 small; T3 the
+  people's; T4 one more; T5 the plume). So every style reads at T1 through its cut, edge and collar alone, and its
+  shoulders come in small, medium and large of matched area (each size within 10 % of the plate family's), so a tier
+  never looks smaller than the one below it.
+- **Faces stay clear.** No collar over the mouth of an open helm; no crest or crown pixel within two rows of the eyes or
+  beside the face; the face framed by the helm's dark lining, 25 luma off the skin.
+- **Surfaces meet with intent.** A breastplate over mail ends in a dark seam (N) and the brick resumes below it; strips
+  hang from a rolled waist lip; shards rise out of the plate along a dark crease with a lit facet above; a vent is a dark
+  slit under a lit lip; a petal overlaps the next petal along a step-0 line. Every cut obeys the top-left light: the
+  flute or facet that faces the light is lit and its partner shaded. A cut follows the planes; it is never a pattern laid
+  flat over them.
+- **One focal point.** The face and the chest carry the read; shoulders and crest frame them. A style never piles
+  detail on every axis at once: the signature is loud, the fittings quiet.
+
+### 28.3 The forge kit (seven axes, drawn once, composed)
+
+Every style is seven picks, one per axis. Each pick is drawn once and composed onto any form, body and tier, so the kit
+covers every alloy the generator will ever make.
+
+| axis | what it changes | the values (the 32 px read) |
+|---|---|---|
+| shoulder | the pauldron's shape (the tier gives its size) | today's plate, fur and scale families; **roll** (a stuffed sausage roll); **flap** (two or three overlapping rounded leather tabs); **cop** (a round dome with a rolled rim); **slab** (one square plate with a rivet row); **flared** (lames rising into a standing guard beside the neck: a notch in the outline); **lobed** (three petals with a scalloped rim); **shard** (two or three angular points, up and out); **vented** (a broad flat-topped stack of lames with slits); **crystal** (a cluster of narrow points, the tallest 2 px over the shoulder); **flame** (tongues licking up off the rim); **layered** (lamellar flaps laced in steps); **winged** (one upswept point like an eave); **leaf** (curved leaf plates) |
+| crest | the helm's metal accent (a people's plume sits in its socket) | none; **stitched ridge**; **comb** (a front-to-back crest); **knife comb** (a thin sharp ridge); **brow band** (a riveted band with a low front peak); **crown** (a circlet of three to five points); **shard cluster**; **chimney** (a flat top with a short stack); **spire** (one tall crystal point); **fin** (a swept fin: crane, heron, leaf); **finial** (a knob or ball); **spike**; **small horns** (only peoples who wear horned helms); **small wings** (only peoples who wear winged helms); **flame crown** (the Mythic) |
+| cut | the plates' inside structure (torso, skirt, sleeves) | *plate*: **smooth** (broad planes, one keel: today's), **fluted** (fans of lit and dark 1 px lines, period 2), **keeled** (a 2 px keel and a ridge under the chest), **banded** (lames: a lit top row over two shadow rows, period 3), **faceted** (big angular planes from the shoulders to a point on the sternum), **muscled** (two chest curves, a sternum line, a navel line, all as plane changes), **ribbed** (narrow ribs with dark gaps, tapering at the waist), **vented** (rows of dark 3-4 px slits under a lit lip, every 2 rows), **embossed** (a raised medallion with radiating relief), **splinted** (vertical riveted strips), **crackled** (dark plates with hairline cracks); *mail*: **plain** (the brick), **plackart** (a breastplate over the mail in the material's plate cut), **banded** (riveted bands over the brick); *scale*: **round**, **pointed**, **square** units; *lamellar*: **laced**, **banded** (lacing in coloured bands), **staggered**; *padded*: **channel**, **diamond**, **brick** quilt; *leather*: **laced front**, **stitched panels**, **studded**, **tooled** |
+| edge | the hem's and rim's profile (1 px in or out) | **plain**; **rolled** (a thick lit lip); **scalloped** (round lobes, period 3); **dagged** (square tabs, period 3); **strips** (hanging strips with rounded ends, a notch between); **serrated** (sawtooth, period 2); **spiked** (1 x 2 teeth every 4); **cusped** (a point at each plate); **pointed** (a V at the centre and the sides); **stepped** (a double hem, two layers a row apart); **fringed** (1 px tassel strands); **flame** (tongues 1-2 px every 3) |
+| collar | the neck and gorget | none; **rolled**; **stand** (a soft stand collar); **torc** (a metal ring); **riveted band**; **gorget** (a plate collar with a rolled rim); **flared gorget**; **angular** (standing shards); **furnace ring** (a heavy ring with a dark inner band); **high** (two rows, standing); **ember ring**; **fur ruff**; **coif** (a mail hood's edge under the helm) |
+| limb | the vambraces and greaves (inside the shipped arm and leg: 25.3) | **plain**; **banded**; **splinted**; **scaled**; **laced**; **studded**; **ribbed**; **fluted**; **faceted**; **crackled** |
+| fittings | the small hardware | none; **rivets** (rows on the seams); **studs** (a grid on the plane); **bosses** (two or three round bosses); **star rivets** (3 x 3 four-point stars); **scored** (forge-scored diagonal lines); **knot** (knotwork on the panel); **inlay** (a coloured band across); **lacing** (cross-laced lines) |
+
+"How different are two styles" (contracts 3c) weighs the axes by how well they read at 1x: shoulder 3, cut 3, crest 2,
+edge 2, collar 1, limb 1, fittings 1, out of 13.
+
+### 28.4 The materials' hero styles
+
+Ten, hand designed, one per material the game makes armour from (gear.cpp matFor; gear_ladder metalKindOf). Each first
+line in italics is what the judge and the blind panel must read at 1x with the colour removed.
+
+1. **HOMESPUN** (cloth: the padded gambeson; the T1 floor, bandits, militia). *Stuffed and quilted.* Channel quilting
+   (vertical lines every two columns), the sides bulging a pixel every two rows, a rolled collar, a quilted roll at the
+   shoulder from T2, laces at the side, a rolled hem with one frayed notch at T1. Never stiff: it sags a pixel under the
+   belt. Signature: the bulge and the roll.
+2. **TANNER'S** (leather). *Laced and stitched hide.* A laced front (three or four crosses down the chest), stitched
+   panel seams (step-1 lines, stitch ticks at 3x), flap shoulders, a dagged skirt of square tabs, a stand collar, laced
+   bracers, studs where the people use them. Matte, one shine (25.2). Signature: the tabbed skirt and the flaps.
+3. **FOUNDRY** (bronze: poured in clay moulds). *Cast and rounded, a statue's armour.* A muscled cuirass (the curves are
+   plane changes, never outlines), rolled rims at the neck, the arms and the waist, a skirt of strips hanging from the
+   rolled waist, cop shoulders, a comb on the helm, a torc, scaled sleeves, two or three bosses. Warm and soft-edged,
+   never sharp. Signature: the strips, the discs and the comb.
+4. **WROUGHT** (iron: hammered and riveted). *Honest and heavy.* Four or five bands across chest and belly (a lit top row
+   and its shadow each), a rivet at each band's ends, square slab shoulders with a rivet row, a riveted collar band, a
+   plain heavy hem, splinted arms and legs, a riveted brow band with a low peak on the helm. A dull lit plane (iron's
+   ramp) and a hammer pit or two on the shadow side. Boxy, never elegant. Signature: the slabs and the bands.
+5. **ARMOURER'S** (steel: the knight's plate). *Clean, sharp and bright.* Fluted plate fanning from the waist, a keel,
+   shoulders whose lames flare up into a standing guard beside the neck (the outline's notch), cusped tassets, a plate
+   gorget, a knife comb on the helm, fluted cuffs and greaves; one ridge a plate and the glints, no clutter. On mail (the
+   Heartland's T3) it is a fluted breastplate over the mail with the flared shoulders, so T2's leather to T3's steel is a
+   plain step up. Signature: the notches and the flutes.
+6. **PARADE** (gilded, the Heartland's band 4: parcel-gilt). *Steel embossed and gilt for the parade, never a lump of
+   gold.* A raised medallion on the chest (a sunburst or the people's charge), gilt relief and rims on steel planes (gold
+   on 35 % of the pieces at most, so the planes and the face read: the T5 "gold mass" fixed), lobed petal shoulders, a
+   flared gorget, a crown circlet on the helm, scalloped hems, gilt-studded limbs, a gilt inlay band. Symmetrical and
+   ceremonial. Signature: the petals and the crown.
+7. **KNAPPED** (obsidian, band 5: flaked black glass). *All angles.* Big facets from the shoulders to a point on the
+   sternum, each lit by the top-left rule (one near-white glint, one violet edge), shard shoulders, a serrated hem, an
+   angular collar, faceted limbs, a shard cluster on the helm. No curve anywhere. Signature: the shards.
+8. **FURNACE** (emberforged, band 6). *The heaviest plate, vented like a stove.* Rows of vent slits across the chest
+   (dark, glowing ember from T5 as 27.3 says), lames stacked like a grate, vented shoulders broad and flat on top, a
+   stepped double hem, a furnace-ring collar, banded limbs, forge-scored lines, a chimney on the helm. Signature: the flat
+   tops and the vents.
+9. **STARFALL** (starmetal, band 7). *Crystal, slim and tall.* Narrow ribs with dark gaps tapering to the waist, star
+   rivets, crystal shoulders (narrow points, the tallest 2 px over the shoulder), a high standing collar, a pointed hem,
+   ribbed limbs, a spire on the helm. Vertical and light: the opposite of FURNACE. Signature: the points and the spire.
+10. **MYTHIC** (the ember tempering, on any metal). *Blackened steel cracked with fire.* Crackled plates (the cracks are
+    N seams lit amber), flame-cut hems and shoulder rims, an ember-ring collar, the flame crown lifted on a dark brow
+    band with one clear row above the eyes, crackled limbs. Signature: the flames off the shoulders and the crown. A
+    Legendary piece keeps its own material's style and wears T6's finish.
+
+The picks, and how each style re-cuts the other forms (a Jade bronze piece is Jade lamellar, cast the FOUNDRY way):
+
+| style | shoulder | crest | plate cut | mail | scale | lamellar | edge | collar | limb | fittings |
+|---|---|---|---|---|---|---|---|---|---|---|
+| HOMESPUN | roll | none | padded: channel | | | | rolled | rolled | plain | lacing |
+| TANNER'S | flap | stitched ridge | leather: laced front | | | | dagged | stand | laced | studs |
+| FOUNDRY | cop | comb | muscled | plackart | round | banded | strips | torc | scaled | bosses |
+| WROUGHT | slab | brow band | banded | banded | square | banded | plain | riveted band | splinted | rivets |
+| ARMOURER'S | flared | knife comb | fluted | plackart | pointed | staggered | cusped | gorget | fluted | none |
+| PARADE | lobed | crown | embossed | plackart | round | laced | scalloped | flared gorget | studded | inlay |
+| KNAPPED | shard | shard cluster | faceted | plackart | pointed | staggered | serrated | angular | faceted | none |
+| FURNACE | vented | chimney | vented | plackart | square | banded | stepped | furnace ring | banded | scored |
+| STARFALL | crystal | spire | ribbed | plackart | pointed | staggered | pointed | high | ribbed | star rivets |
+| MYTHIC | flame | flame crown | crackled | plackart | round | laced | flame | ember ring | crackled | none |
+
+Every two hero styles differ on every axis but, for a few pairs, the fittings (12 or 13 of 13). The universal materials
+(leather, bronze, iron, steel) look the same in every people, so the player learns them; where a people never makes one
+of a hero style's picks (28.5), the nearest pick it does make stands in, still apart from its other materials.
+
+### 28.5 The peoples' forge vocabularies (the alloy kit's menu)
+
+An alloy's style is picked from its people's own menu, so the style always sits inside that people's look. Each people's
+smiths have a way (their lore line), and the menu follows it.
+
+| people | their smiths | shoulder | crest | cut (on their forms) | edge | collar | limb | fittings |
+|---|---|---|---|---|---|---|---|---|
+| Fjordfolk | QUENCHED IN SNOWMELT UNDER THE AURORA (rime salt, black sand, whale oil) | fur, scale, cop, slab | comb, spike, small horns, brow band | banded, keeled; mail banded, plackart; round scale | plain, dagged, serrated, rolled | fur ruff, coif, riveted band | banded, laced, scaled | knot, rivets, bosses |
+| Highland | HAMMERED BY CLAN SMITHS WHERE THE PEAT FIRES NEVER DIE (peat ash, heather char, bog iron) | slab, flap, fur, cop | spike, finial, brow band | splinted, keeled; square scale; mail banded | plain, dagged, fringed, stepped | stand, riveted band, fur ruff | studded, laced, splinted | studs, knot, scored |
+| Heartland | FORGED FOR THE CROWN'S OWN KNIGHTS (bone ash, oak char, holy water) | flared, plate, cop, lobed | knife comb, comb, crown, finial | fluted, keeled, smooth, embossed; mail plackart; round scale | rolled, cusped, scalloped, plain | gorget, flared gorget, stand | fluted, banded, splinted | rivets, bosses, inlay |
+| Imperial | CAST IN THE LEGION FOUNDRIES BY IMPERIAL DECREE (cinnabar, marble lime, vermilion) | plate, cop, lobed | comb, brow band, finial, crown | muscled, banded, embossed; square scale | strips, scalloped, rolled | gorget, torc | banded, splinted, scaled | bosses, inlay, rivets |
+| Dune | FOLDED A THOUSAND TIMES IN SALAMANDER ASH (desert glass, salamander ash, date palm char) | scale, lobed, flared, layered | spike, finial, crown | ribbed, embossed, banded (watered); mail plackart; pointed scale | fringed, scalloped, pointed | coif, stand, torc | laced, scaled | knot, inlay, bosses |
+| Steppe | BEATEN FROM STARS THAT FELL ON THE GRASS SEA (horse bone, sky stone, tamarisk ash) | layered, flap, scale, slab | spike, finial, fin | lamellar laced, banded, staggered; square scale | stepped, fringed, dagged, spiked | stand, fur ruff, torc | laced, banded, studded | studs, star rivets, scored |
+| Marsh | TEMPERED IN BLACK BOG WATER AT THE NEW MOON (bog resin, eel oil, reed ash) | flap, slab, leaf, layered | fin, spike, finial | splinted, smooth, banded | fringed, dagged, strips, plain | stand, coif | laced, splinted | lacing, studs, scored |
+| Jade | FOLDED WITH JADE DUST IN THE TERRACE FORGES (jade dust, lacquer, cinnabar) | layered, winged, lobed, scale | fin, finial, crown, spike | lamellar laced, banded, staggered; round scale | scalloped, fringed, rolled | stand, high | laced, banded | knot, inlay, bosses |
+| River | SMELTED UNDER GUILD SEAL IN THE RIVER FORGES (alum, river clay, tin salt) | plate, slab, cop, flared | finial, comb, brow band | splinted, banded, smooth, keeled | plain, rolled, stepped, scalloped | gorget, stand, riveted band | banded, studded | rivets, bosses, inlay |
+| Sun Temple | BLESSED ON THE TEMPLE STAIR AT NOON (obsidian, gold dust, copal resin) | winged, lobed, flap, shard | small wings, crown, brow band, fin | embossed, smooth, faceted; padded diamond | fringed, stepped, serrated | fur ruff (feathers), torc, flared gorget | laced, banded | bosses, inlay, studs |
+| Sylvan | GROWN, NOT FORGED: SAP SET ROUND RIVER SILVER (amber, heartwood sap, moonmoss) | leaf, lobed, flared, layered | fin, finial, spire, crown | on the leaf form: ribbed, smooth, the leaf's veins | pointed, scalloped, rolled | high, stand | ribbed, laced | inlay, knot, none |
+| Starspire | DRAWN FROM MOONWATER UNDER A CLEAR NIGHT SKY (starglass dust, moonwater, silvered quartz) | crystal, winged, flared, lobed | spire, small wings, finial, crown | ribbed, faceted, smooth, fluted; pointed scale | pointed, cusped, rolled | high, gorget | ribbed, fluted | star rivets, inlay, knot |
+
+- **Isolated families** (two archetypes crossed) take both menus.
+- **The hidden peoples' words** (beyond the Mist) put their own picks first on the masterwork: VEIL a scale veil (round
+  scale, fringed, coif), WHORL spiral fluting (fluted, lobed, finial), TIDE the wave (scalloped, fin, layered), PEARL the
+  nacre (smooth, cop, bosses, rolled), SHARD the splinter (faceted, shard, shard cluster, serrated), WRACK the wreck
+  (crackled, spiked, angular). These are the "metals and gear never seen at home" (VISION 15.11).
+
+### 28.6 Styles on the ladder
+
+- The tier's finish lands in the style's own regions. Every style marks once, in its own drawing, its **rims** (R: rolled
+  lips, slab edges, petal rims), its **panel** (P: the medallion, the centre facet, the plane beside the keel), its
+  **socket** (G: a boss, a star rivet, the medallion's heart) and its **seams** (N: band joins, flute valleys, rib gaps,
+  vent slits, facet creases, cracks). T3 lays brass on R, T4 etching in P, T5 gold on R with filigree in P and a gem in
+  G, T6 runes along N (27.3). So a T6 FURNACE breathes through its vents, a T6 STARFALL between its ribs, a T6 WROUGHT
+  along its bands.
+- Every step of the ladder is now a new armour. The Heartland hero climbs HOMESPUN (T1), TANNER'S (T2), ARMOURER'S over
+  mail (T3), his people's alloy (T4), PARADE (T5), STARFALL (T6) and the MYTHIC; every people climbs through its own
+  materials and alloys.
+- Every step still reads up: bigger shoulders by tier, brighter finish, never a smaller silhouette between T2 and T5.
+- T1 stays okay / mid: a style at T1 is its cut, edge and collar in a compressed ramp with its wear (27.3), never ugly.
+
+### 28.7 Sheens in shape (so a sheen reads with the colour removed)
+
+| sheen | its tell | the cuts and fittings it takes |
+|---|---|---|
+| matte | a dull plane, no step-4 run longer than 1 px, but a hard step under the lit plane | scored, studs; plain or stepped edges; never fluted |
+| bright | a 2 px step-4 run on the ridge | fluted, keeled, smooth |
+| dark | a blackened body, one near-white glint | faceted, shard; serrated or spiked edges |
+| banded | rows alternating 15 luma or more | always a banded cut |
+| iridescent | the hue turns across the steps, and the rows alternate two hues (the second in Metal 2) | always a row cut: round or pointed scale, laced or staggered lamellar |
+| glowing | its seams glow from T4, steady (PLAN D28), and breathe from T5 | always a seam-rich cut: vented, ribbed, banded |
+| pale | a whitened plane (step 2 at 150 luma or more) | smooth, ribbed; inlay |
+| burnished | warm lights | embossed, muscled; bosses; rolled edges |
+
+### 28.8 Metal reads as metal (the alloy panel's clay, cloth and leather)
+
+- A near-black core (step 1 at 45 % of step 3's luma or less), a saturated body, a hard pale lit plane (step 3 at least
+  22 luma over step 2 and at most 60 % of its chroma), a near-white glint: alloys i3's model, now checked on the composed
+  figure (C17), not only on the ramp. Clay, cloth and leather keep their chroma in the light; metal loses it.
+- Matte is still metal: a hard step between the body and the lit plane, a 1 px glint.
+- Warm metals (bronze, brass, the copper reds) turn their lights toward gold and stay 20 dE off the skin; steps 2-3 are
+  never pink, brown or skin.
+- The alloys' colours spread (C15f): no more clusters of pale silvers, mints, slates and teals. The style parts what
+  colour cannot.
+
+### 28.9 Forge don'ts
+
+- No style that is only a recolour: if two styles match in greyscale, one of them is wrong.
+- No style element over a face; no crest past F-37; no shoulder point wider than its size's reach; no widening of a side
+  view (B10).
+- No cut finer than 2 px, no checker, no dither, no pattern laid flat over the planes.
+- No new torso outline for a style (cuts, shoulders, collars, crests and edges carry it); no change to the shipped legs
+  and boots; no new colour slot.
+- No people wearing another people's signature; no armour, and so no style, on kids.
+- Weapons keep their forms (PLAN D34) and draw their own metal (D30).
+
+### 28.10 The forge slice (wave 1c; the owner signs it off)
+
+The smallest finished piece that locks forge styles before any production map (docs/PLAN.md "The forge slice"):
+1. **Every material on one figure**: the A3 hero at T4 in the ten hero styles (the same open crested helm form, heater,
+   sword and dials, so only the style changes), five of them again at T5, and FOUNDRY, ARMOURER'S and STARFALL on the A3
+   woman.
+2. **Alloys**: Highland seed 1's three (an iron and two steels of one sheen) on the Highland T4 kit; Jade's glowing
+   masterwork and Starspire's iridescent masterwork on their own T5 kits; each beside its metal word's hero style.
+3. **The ladder**: the Heartland T1-T6 and the Mythic, a new armour at every step.
+4. **The open items**: the six clay names, the sheens, the colour spread, T2 to T3, the T5 face, the Mythic crown, the
+   blades.
+
+**First light**: ARMOURER'S and FOUNDRY finished end to end (cut, shoulder, crest, collar, edge, limbs, fittings, T4 and T5
+finish) before the other eight. They are the forge style slice; every later style matches their craft.
+
+**The owner pack** (every image 8,000 px or less on its long side):
+1. The materials lineup: idle D and R and the six walk frames facing R, at 1x, 3x and 8x, in colour and in greyscale, on
+   grass and on dark ground.
+2. The silhouettes: the ten styles filled black at 3x.
+3. The T5 row (the finish on top of the style), colour and greyscale.
+4. The alloys: each culture's row on its own kit at 1x, 3x and 8x, colour and greyscale, each alloy beside its metal
+   word's hero style.
+5. The ladder: T1-T6 and the Mythic, idle D R U L at 3x and a 1x strip, colour and greyscale; 3x game-speed GIFs of the
+   walk.
+6. The metal read: the six names before and after; every sheen's tell at 3x.
+7. The colour spread: the 96 families before and after.
+8. The open items before and after (T2 to T3, the T5 face, the Mythic crown, the blade).
+9. In the world (seed 7, the start village; phone 2556x1179 at D5, desktop 1440x810 at D4; 11:00 and 22:00): the hero in
+   three materials beside the watch; a Highland captain and a Jade captain in their realms' alloys (depth).
+10. The gates table: C16 per pair, C17 per look, every B and C line, the pool, rig 1.
+
+**Acceptance**: measured first (PLAN's forge slice gate), then the judge's look review: every material a different armour
+at a glance, in colour and in greyscale; a culture's alloys apart from each other and from their metal's hero style,
+each inside its people's look; metal reads as metal and every sheen shows; the ladder a new armour at each step and still
+climbing; faces clear. Then the owner's sign-off, which also settles PLAN D24-D34. After it, this section records the
+measured numbers and every later part matches the forge slice.
 
 ---
 

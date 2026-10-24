@@ -59,7 +59,48 @@ def ramp(h,C,v,sheen):
     it=0
     while it<30 and luma(out[1])<82.0 and L[1]<L[2]-6:
         L[1]+=1; out[1]=fromLab(lch(L[1],Cs[1],H[1])); it+=1
+    # (P2c forge, C17: doll_alloy.cpp famRamp's metal read, line for line)
+    def st(i): out[i]=fromLab(lch(L[i],Cs[i],H[i]))
+    def chroma(c): l=toLab(c); return math.hypot(l[1],l[2])
+    def hue(c): l=toLab(c); return math.fmod(math.degrees(math.atan2(l[2],l[1]))+360.0,360.0)
+    Cs[3]=min(Cs[3],0.56*Cs[2]); st(3)
+    for _ in range(20):
+        if not (chroma(out[3])>=13.0 and (hue(out[3])>=328.0 or hue(out[3])<32.0)): break
+        H[3]=hueTurn(H[3],60.0,6.0); Cs[3]*=0.94; st(3)
+    for _ in range(30):
+        if not (chroma(out[2])>=6.0 and chroma(out[3])>0.57*chroma(out[2])): break
+        Cs[3]*=0.92; st(3)
+    for _ in range(40):
+        if not ((luma(out[3])<luma(out[2])+23.0 or luma(out[1])>0.44*luma(out[3])) and L[3]<96.0): break
+        L[3]+=1; st(3)
+    for _ in range(40):
+        if not (luma(out[1])>0.44*luma(out[3]) and L[1]>12.0): break
+        L[1]-=1; st(1)
+    for _ in range(30):
+        if not (luma(out[4])<198.0 and L[4]<100.0): break
+        L[4]+=1; Cs[4]*=0.9; st(4)
+    if sheen==3:
+        for _ in range(40):
+            if not (luma(out[2])>88.0 and L[2]>L[1]+3.0): break
+            L[2]-=1; st(2)
+    for _ in range(30):
+        if not (math.dist(toLab(out[3]),sk)<21.0): break
+        Cs[3]*=0.9; H[3]+= -3.0 if (H[3]<55.0 or H[3]>235.0) else 3.0
+        if L[3]<96.0: L[3]+=0.5
+        st(3)
     return out
+def metal_read(r):   # doll_alloy.cpp metalRead against A3's skin
+    l=[luma(c) for c in r]
+    s2,s3,k=toLab(r[2]),toLab(r[3]),toLab(SKIN)
+    c2,c3=math.hypot(s2[1],s2[2]),math.hypot(s3[1],s3[2])
+    h3=math.fmod(math.degrees(math.atan2(s3[2],s3[1]))+360,360)
+    if l[1]>0.45*l[3]+0.5: return False
+    if l[3]-l[2]<22: return False
+    if c2>=6 and c3>0.6*c2+0.5: return False
+    if l[4]<196: return False
+    if math.dist(s2,k)<20 or math.dist(s3,k)<20: return False
+    if c3>=15 and (h3>=330 or h3<30): return False
+    return True
 def metal_ok(r):
     l=[luma(c) for c in r]
     return l[4]>=196 and l[4]-l[0]>=165 and l[0]<=56 and l[3]-l[1]>=60, [round(x) for x in l]

@@ -1804,6 +1804,15 @@ item), gates C12-C14 and the restated B1, B8, C1, C3e, C5, C6, C8 and C10, const
 areas (the ladder in every art area, a new FINISH area), waves, the judge's focus and the risks. Art direction:
 docs/STYLE_P2.md 27; data and runtime: docs/P2C_CONTRACTS.md 3b and 6b.
 
+**Re-planned again on 2026-10-24 (forge styles).** The owner, after the alloys and metals boards drew every metal and every
+culture alloy as the same T5 plate in another colour: "every alloy or material armor should be different in style cause
+if they all look the same it kinda not too fun". What changed: "Forge styles" (new: every material draws its own
+hand-designed armour style, and every culture alloy a style picked from a drawn kit by a fixed rule from its own data),
+"The forge slice" (new: wave 1c, signed off before production; it also closes the alloy panel's open items), gates C15
+(recorded), C16 and C17 and the restated C1, C3f, C12 and C15, constants, decisions D24-D34 (D14's "materials stay ramps"
+restated), production, waves, the judge's focus and the risks. Art direction: docs/STYLE_P2.md 28; data:
+docs/P2C_CONTRACTS.md 3c.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -1976,6 +1985,106 @@ produce.
    FOLK-SIM-C adds `rpg_test --ladder-pace`: the tiers the shops stock and the drops roll at each pacing stage's danger,
    from shopStock and rollDropC over 1,000 rolls, so the hours above are measured, not assumed.
 
+### Forge styles: every material and alloy its own armour (re-plan 2026-10-24)
+
+The owner (2026-10-24), after the alloys board (every culture's alloys on one T5 plate) and the metals board (bronze to
+starmetal and the Mythic on the same plate): "every alloy or material armor should be different in style cause if they
+all look the same it kinda not too fun". VISION 15.11 promised it: each culture's alloys "with its own distinctive look
+for armour and weapons". How each style looks: docs/STYLE_P2.md 28. The data and the pick rule: docs/P2C_CONTRACTS.md
+3c. This part says what a forge style is, which ones exist, and how they sit on the game and the ladder.
+
+**Four layers make a piece**, each owned by one rule:
+
+| layer | decides | from | in this re-plan |
+|---|---|---|---|
+| form | what it is (mail, scale, lamellar, plate...; the helm and shield shapes) | the maker people (ArmsStyle; the ladder's table) | unchanged |
+| forge style | how it was made: shoulder shape, helm crest, the plates' cut, the hem's edge, collar, limbs, fittings | the material (a hero style) or the culture alloy (the kit and the pick rule) | new |
+| tier | how fine: finish, dial sizes, the living finish | the item's band and rarity | unchanged; the finish lands in the style's own rims, panels, sockets and seams |
+| ramp | the colour | the metal | unchanged but for C17's metal read and C15f's spread |
+
+The style picks the shape, the tier the size. A Jade lancer in his people's warriors' STEEL and in its glowing masterwork
+wears Jade lamellar at T4 and at T5, one with layered shoulders, staggered plates and a fin on the helm, the other with
+winged shoulders, lacing bands whose seams glow and a crown, and the masterwork's shoulders are bigger and its finish
+finer.
+
+**It changes no game rule** (as the ladder). A style is derived from what an item already carries: its material, its alloy
+(name, recipe, sheen, rank) and its maker culture. No item field, no SAVE_VER bump, no RNG draw in the loot rolls or the
+census, no balance change; rig 1 never sees it (the field enters key() at rig 2 only).
+
+**The materials' hero styles** (hand designed; STYLE_P2 28.4 draws them):
+
+| style | material (metalKind) | the game's use | the read at 1x | signature |
+|---|---|---|---|---|
+| HOMESPUN | cloth: the padded gambeson (BodyArm::Padded) | the T1 floor, the hero's start, bandits, militia | stuffed and quilted | the bulge and the shoulder roll |
+| TANNER'S | leather (1) | band-1 armour (T1, T2, a Legendary T6) | laced and stitched hide | the tabbed skirt and the flaps |
+| FOUNDRY | bronze (2) | band 1 | cast and rounded, a statue's cuirass | the strip skirt, the discs, the comb |
+| WROUGHT | iron (3) | band 2 | hammered bands and rivets, boxy | the square slabs and the bands |
+| ARMOURER'S | steel (4) | band 3 (on mail: a fluted breastplate over it) | clean fluted plate | the standing guards' notches and the flutes |
+| PARADE | gilded (5, the heartland's band 4) | band 4 | steel embossed and parcel-gilt | the petals and the crown |
+| KNAPPED | obsidian (7, band 5) | band 5 | flaked black glass, all angles | the shards |
+| FURNACE | emberforged (8, band 6) | band 6 | vented furnace plate, the heaviest | the flat tops and the vents |
+| STARFALL | starmetal (9, band 7) | band 7 | crystal, slim and tall | the points and the spire |
+| MYTHIC | Mythic tempering (11), on any metal | Mythic rarity | blackened, cracked with fire | the flames off the shoulders and crown |
+
+Every two hero styles differ on every axis but, for a few pairs, the fittings (STYLE_P2 28.4's table), so C16a has room.
+Leather and cloth keep D23 (they rise by rarity); bone and wood make no armour (gear.cpp matFor); metalKind 6 (jade) is
+legacy and never set. A Legendary piece keeps its material's style with T6's finish; only the Mythic changes style.
+
+**Culture alloys: the kit and the pick rule.** A culture has 1-3 alloys (priors.cpp makeAlloys: the everyday BRONZE, BRASS
+or IRON; the warriors' STEEL or SILVER; the masterwork STEEL, SILVER, GLASS or IRON; a hidden people's masterwork VEIL,
+WHORL, TIDE, PEARL, SHARD or WRACK), generated per world, so their styles cannot be drawn one by one. Each alloy takes
+seven picks from the drawn kit (STYLE_P2 28.3) by a fixed rule (contracts 3c):
+1. **The people's vocabulary** (STYLE_P2 28.5) is the menu: only shapes that people would make. An isolated family takes
+   both its archetypes' menus; a hidden word puts its own picks first.
+2. **Scores** from the alloy's own data: the metal word (BRONZE and BRASS cast and rounded, IRON banded and square, STEEL
+   fluted and flared, SILVER smooth and lobed, GLASS faceted and pointed); the sheen (each has a structural tell it must
+   show: STYLE_P2 28.7); the rank (everyday plain, warriors' martial, masterwork elaborate); the recipe's reagents (ash and
+   char scored or vented; glass, quartz and dust faceted or ribbed; salt and rime serrated; oil, resin, sap, lacquer and
+   amber smooth with inlay; bone and horn spiked; stone star-riveted; lime and clay cast); and the people's ornament bits
+   (scallops, tassels, studs, rivets, fur trim, filigree).
+3. **A seed** from the alloy's name and recipe breaks ties: the same alloy always looks the same, and a family's dialects
+   (which copy its alloys) share it.
+4. **The forge school**: the family's culture cell on a 3 x 3 tiling (the dialect swaps' rule: neighbours never share a
+   label) rotates the secondary picks, so two neighbouring families of one people pick apart.
+5. **Distinctness, enforced**: a culture's alloys pairwise d 7 or more of 13 (shoulder 3, cut 3, crest 2, edge 2, collar
+   1, limb 1, fittings 1), with two of the silhouette axes (shoulder, crest, edge, collar) different; an alloy against
+   every hero style d 4 or more, and against its metal word's (BRONZE and BRASS FOUNDRY, IRON WROUGHT, STEEL ARMOURER'S,
+   SILVER PARADE, GLASS KNAPPED) 5 or more; same-rank alloys of neighbouring families 5 or more. A collision walks to the
+   next candidate in a fixed order. C16 then measures the drawn result with the colour removed.
+
+**Universal materials in a people's form.** Leather, bronze, iron and steel look the same in every people (the player
+learns them), re-cut inside the people's form: a Jade iron piece is Jade lamellar in WROUGHT's bands with slab shoulders.
+Where a people never makes one of a hero style's picks, the nearest pick it makes stands in, still apart from its other
+materials (C16a per people in production).
+
+**On the ladder.** Every tier step now changes the style as well as the finish, so the climb is a new armour each time.
+The Heartland hero: HOMESPUN (T1), TANNER'S (T2), ARMOURER'S steel over mail (T3), his people's alloy (T4), PARADE (T5),
+STARFALL (T6), MYTHIC. The tier still caps the dials (T1 has no shoulders or crest, so HOMESPUN, TANNER'S and FOUNDRY read
+at T1 through cut, edge and collar), and every style's shoulder sizes are area-matched, so the silhouette never shrinks
+(C12c). The finish rides each style's own regions: T3 brass on its rims, T4 etching in its panel, T5 gold rims, filigree
+and the gem, T6 runes along its seams (the furnace's vents, the starfall's rib gaps, the wrought bands, the knapped
+creases and the Mythic's cracks glow).
+
+**Slots.** The body's style dresses the torso, skirt, shoulders, collar and sleeves; the helm's its crest and brow; the
+shield's its boss and rim; gloves and boots their own limb cut on hands and feet. A mixed kit mixes styles (D31). A weapon
+keeps its form and its own metal (D30); weapon styles come later (D34).
+
+**People.** Census fighters wear the style of the material their rank gives (bandits and militia HOMESPUN or TANNER'S, the
+watch and soldiers their band's metal). Captains, the royal guard, jarls and story knights wear their realm's best alloy
+below the masterwork, and kings the masterwork (D29), so every kingdom's officers look their own.
+
+**The alloy panel's open items** (2026-10-23 and 24), closed by the forge slice:
+
+| item | the fix | the check |
+|---|---|---|
+| alloys reading as clay, cloth or leather (STAGBRONZE, ANIBRASS, ENKHOBRASS, UHABRASS, VENSTEEL, BAKOSTEEL) | the metal read enforced on the composed figure (STYLE_P2 28.8): a near-black core, a hard pale lit plane, a glint, warm lights turned to gold | C17, the six as named rows |
+| glowing and iridescent sheens invisible | each sheen's tell in structure and light: glowing seams lit from T4 (D28); iridescent rows alternating two hues on a row cut | C17's sheen read |
+| cross-culture colour clusters (pale silvers, mints, slates, teals) | the 96 families re-solved with a global spread (tools/doll/alloys); the style parts what colour cannot | C15f; C16 |
+| T2 to T3 reads as a sidegrade | TANNER'S leather to ARMOURER'S steel: a fluted breastplate over the mail, flared shoulders, a knife comb on the nasal | C12a restated: 25 % or more, the outline 6 % or more bigger |
+| the T5 front is a gold mass that hides the face | PARADE is parcel-gilt (steel planes, gold relief and rims, D33); the open helm framed by a dark lining | gold 35 % or less of the T5 gear pixels facing D; C14's face line; the eyes, nose and mouth show |
+| the Mythic's crown crowds the face | the flame crown lifted on a dark brow band | one clear row above the eyes; no flame pixel within 2 rows of the eye row or beside the face's columns |
+| blades take the armour's metal | every held weapon's metal drawn in Slot::Blade from its own item (A3's sword map too, D30); `blademetal-<kind>` flags | the blade's ramp equals bladeKind's on every held frame of the forge looks |
+
 ### In and out
 
 **IN**
@@ -2006,6 +2115,9 @@ produce.
   own metal; the living finish on T5-T6 (the breathing glow, the edge spark, motes, the cloak and plume stirring, the
   Mythic flame on doll frames); every people's arms at every tier it can produce (C1 source L); the ladder slice before
   production.
+- **Forge styles** (re-plan 2026-10-24): ten hero styles for the materials and a drawn kit (shoulder, crest, cut, edge,
+  collar, limb, fittings) for every culture alloy, picked by a fixed rule from the alloy's data; the metal and sheen read;
+  the colour spread; the officers' realm alloys; blades in their own metal; the forge slice before production.
 - Every remaining human draw path on the doll. Then the flip: rig 2 is the only rig, v1 people and the procedural rig are
   deleted, and art_hash and the goldens are re-recorded once.
 - Gates C1-C14, and playtests T4-T7.
@@ -2024,6 +2136,9 @@ produce.
   heartland's band names in the sim (proposal 2), shop stock, drop rates and prices.
 - The ladder on item icons (D22: art_hash `icons` holds); any change to wearGear's, census::dress's or gearIcon's existing
   outputs before the flip (the ladder writes only new fields).
+- Weapon forge styles (D34): in P2c a weapon keeps its form and draws its own metal. A new armour form, or a new torso
+  outline for a style (styles re-cut the people's forms). Any change to the alloy generator: rpg/culture/** is read only,
+  and styles come from the alloys as they are. Forge styles on item icons (D22).
 
 ### Inventory: what the game puts on people (code read 2026-10-23)
 
@@ -2138,7 +2253,7 @@ form9 means no shield.
 
 - **What makes rig 2 the default.** All of these:
   - C1 at 100 % over sources A-E and L (seeds 1..20; L seeds 1..3);
-  - C12-C14 green over the matrices and source L;
+  - C12-C17 green over the matrices and source L;
   - C3-C6 and C8 green at rig 2;
   - the wave-2 judge's look review passed;
   - the owner's go on the flip pack: before / after pairs at rig 1 and rig 2 of the reference screens, the start village,
@@ -2196,6 +2311,9 @@ form9 means no shield.
 | C12 the ladder reads | Over each ladder line (the ladder slice: the Heartland hero T1-T6; production: every people's kit T1-T6, man and woman), idle facing D and R. **a, steps**: consecutive tiers differ in 15 % or more of the union of their gear pixels, T1 against T6 in 50 % or more. **b, richness**: the trim share of each piece inside its tier's band (T1 0, T2 3 % or less, T3 3-8 %, T4 6-12 %, T5-T6 10-20 %); step-4 pixels and gear colours never fall from T1 to T5; glow pixels 0 below T5, present at T5 (gems) and at T6 (runes). **c, silhouette**: the idle figure's area without the weapon never shrinks by more than 2 % from one tier to the next between T2 and T5, and T5 is 15 % or more over T1. **d, T1 is okay**: B8 clean, the step-0 ring closed, C14 holds, at most 2 wear marks a piece and wear 6 % or less of a piece. **e, flavour**: two peoples' kits of one tier differ in 25 % or more of their gear pixels and 8 % or more of their outline, with trim share and glints inside the tier's band. The judge's eye has the last word (process) | `rpg_test --doll-ladder --gates` (line C12) |
 | C13 the living finish | Over 4.4 s stepped at 60 Hz (deterministic): the pulse period 2.2 s (a T5 gem 3.3 s) within 0.05 s; the spark every 3.3 s, 0.33 s from grip to tip; 3 motes or fewer, life 1.0 s; no glow pixel's light changes by more than 0.25 between two steps, and nothing toggles faster than 2 Hz (the spark's run aside); 32 animated pixels or fewer a figure-frame (ladder i2: was 24); glints (white step 4 and the spark) 3 or fewer; two actors' phases 0.15 cycle or more apart for 95 % of id pairs; glow plane bytes 25 % or less of their atlas; the city frame within baseline + 0.3 ms with 8 T6 figures; nothing drawn at rig 1 | `--doll-ladder --finish`; EMB_TIMING; the judge at 1x |
 | C14 value | On every composed idle frame of every matrix look, touching materials (cloth 1, cloth 2, accent, leather, metal, hair, skin, cloak, field, head) differ by 18 luma or more at step 2 (the face, and pixels inside one material, aside); the figure's lit top-left edge stands 40 luma or more over the darkest day ground; plate's step 3 and step 1 stand 60 luma or more apart | `--doll --gates` C14 |
+| C15 alloys (alloys i1-i3; recorded by the forge re-plan) | **a**, every family under every sheen passes metalTest; **b**, a people's alloys 22.5 dE or more apart on the mid step; **c**, same rank and same metal word between neighbouring peoples 12 or more, different metals 8 or more; **d**, icon and doll agree; **e**, the family's metal is its name's; **f** (forge re-plan), the spread: no dE-10 ball holds more than 3 of the 96 families, and each slot's 12 families span 3 or more hue sextants | `--doll --gates` C15; `--doll-ladder` |
+| C16 forge styles | With the colour removed (one neutral ramp for every material slot; skin, hair and face kept), the same figure but its style, idle D and R and the walk's passing frame R. **a**, the ten hero styles pairwise (and, in production, each people's materials): silhouette XOR 4 % or more of the union in D or R, and the edge-structure distance (1 minus the Jaccard of step-edge pixels over the gear box) 0.30 or more. **b**, a culture's alloys pairwise (every people; seeds 1..64 at the data level, 1..8 drawn): XOR 3 % or more in a facing and edge distance 0.25 or more. **c**, same-rank alloys of neighbouring families (worlds 1..6, as C15c) and an alloy against its metal word's hero style: edge distance 0.15 or more, or XOR 2 % or more. **d**, data: the pick rule's distances (7 or more inside a culture with two silhouette axes apart; 4 to every hero style, 5 to its metal word's; 5 to neighbours). **s**, silhouettes: the hero styles filled black (gear on one body, no weapon) pairwise XOR 4 % or more in D or R. The thresholds are set by eye at the forge slice and recorded (process) | `rpg_test --doll-forge [--worlds 1..6]` (line C16); `--doll --gates` |
+| C17 metal and sheen read | On every composed idle frame (D, R) of every forge look and of every family x sheen on its people's T4 kit, the Metal pixels: step 3 over step 1 by 60 luma (plate) or 45 (scale, lamellar, mail); the lit plane's chroma 0.6 x step 2's or less, and step 3 at least step 2 + 22 luma; step 1 at 0.45 x step 3's luma or less; 1-3 step-4 pixels from T2; steps 2-3 at dE 20 or more off the skin ramp and 15 or more off the look's leather and cloth. The sheen's tell: glowing, 6 or more lit glow pixels on its seams from T4; iridescent, steps 1-3 turn 40 degrees of hue or more and 2 or more hue rows show; banded, rows 15 luma apart or more; pale, step 2 at 150 luma or more; dark, step 2 at 90 or less with a near-white glint; burnished, a warm metal's lights 15 degrees or more toward gold; matte, no step-4 run over 1 px; bright, a step-4 run of 2 px. The six named alloys are report rows | `rpg_test --doll-forge` (line C17); `--doll --gates` |
 
 **Restated by the ladder re-plan (2026-10-23):**
 - **B1** compares the figure: the doll composes without effects, and A3's Fx colours (#7FA8D8 #C9E6F4 #FFFDF4) are left
@@ -2214,6 +2332,14 @@ form9 means no shield.
   top-tier atlases, and the pool at 1.75 MB (D21).
 - **C10** adds **T7 ladder**: "start a new game and play the first hour, then use the `ladderkit` reset for tiers 1 to 6
   and take a shot at each: does the first kit look okay, and is each a step up?"
+
+**Restated by the forge re-plan (2026-10-24):**
+- **C1** adds source F (tools/doll/forge_looks.txt) and `--scope forge`; source L dresses each people's kits in their real
+  materials and alloys, so every style a kit can produce resolves.
+- **C3f** extends W4 and HEAD to collars and crests, and the hang lines to edge stamps.
+- **C12a**: T2 to T3 differs in 25 % or more of the union of the gear pixels, and its outline is 6 % or more bigger (the
+  sidegrade). **C12b**: PARADE's gilt relief counts with the gilding ornament, outside the trim share (25.2 allows it).
+- **C15f** (new, in the C15 row above).
 
 ### Constants that interact (budgets and timing)
 
@@ -2242,6 +2368,16 @@ form9 means no shield.
 | glow memory | a glow plane is 25 % or less of its look's atlas; at most 12 looks cached | a T6 look's atlases are about 1 MB, so its plane about 0.25 MB; 6 T5-T6 looks in a city = 1.5 MB inside the 24 MB people budget (19.4 MB estimated) |
 | top-tier atlases (D19) | T5-T6: LOCO 160, RUN 80, DRAWN 320 KB; any tier (ladder i2 integration, measured): a crested or plumed helm RUN 68 KB, a polearm DEATH 56 KB; (polish i1 integration, measured) a polearm LOCO 136 KB (the upright carry in front of the body: jade3 130.3, knight 127.5); (polish i2 integration, measured) a polearm RUN + 14 KB over its base and D19 (the 45 deg forward run carry: jade3 76.5 of 78, knight 80.9 of 82, lt6w 89.2 of 94) | the M7 cloak watch's LOCO is 127.6 KB; large pauldrons (+2 columns a side facing D / U, about + 10 %) and a shield give about 145 KB. Six such looks add about 0.7 MB to a city. The fallback without D19: a T5-T6 look with a shield wears the short cape |
 | pool (D21) | 1.75 MB | 943 KB at slice iteration 3 + the rest of production about 0.35 MB + the ladder about 0.2 MB (new forms, region planes about + 5 %, finish tiles, stir views, the spark and motes) = about 1.5 MB, with room; test_doll.cpp still checks 1.0 MB |
+| forge: shoulders | small 1, medium 2, large 3 px past the 16 px shoulder line for every shape (25.6); points (shard, crystal, flame, winged, the flared guard) rise up to 2 px over the shoulder top facing D and U, never wider; side views within today's pauldron widths | each size's area within 10 % of the plate family's, so C12c holds; B10 RUN unchanged in the side views |
+| forge: crests | inside F-37 with the helm; a people's plume sits in the accent's socket (2 px or less) | the marker rides topY, as today |
+| forge: edges | 1 px in or out on hems and rims; periods: scallops and tabs 3, teeth 2, spikes 1 x 2 every 4, flame tongues 1-2 every 3 | never on a leg; the watch's hem stays above the knee |
+| forge: collars | 2 rows or less over the neck line, inside the 16 px shoulders | never over the mouth of an open helm |
+| forge: cuts | periods 2 px or more: flutes 2, bands 3 rows, ribs 2 with a 1 px gap, vents 3-4 px every 2 rows, scale units 3, facets 4 px or more | no dither, never a checker at 1x (B8) |
+| forge: colours | no new slot: cuts, edges and fittings move steps; fittings in Metal 2; iridescent's second hue in Metal 2 (its own trim, as alloys i3) | B8's 48 + 3 glow unchanged |
+| forge: glow (D28) | a glowing alloy's seams at a steady 0.35 light at T4, 24 glow px or fewer; T5-T6 as contracts 6b | C13 unchanged |
+| forge: distances | d out of 13 (shoulder 3, cut 3, crest 2, edge 2, collar 1, limb 1, fittings 1); a people's menu holds about 1,700 (Marsh, Jade, Sylvan) to 5,200 (Fjordfolk) combinations against at most 3 alloys, 9 schools and 10 hero styles | 7 or more inside a culture, 4 to every hero style (5 to its metal word's), 5 to neighbours: always solvable; the walk stops at 64 steps |
+| forge: the pool | today 1,411,047 B (1.35 MiB: 499 parts, 12,709 views, 111 B a view). The slice's kit: shoulders 12 shapes x 2 sizes x 2 sides x 12 views = 576 views (about 55 KB), crests 14 x 8 = 112 (8 KB), collars 12 x 5 = 60 (5 KB), torso overlays and the plackart about 110 (13 KB), tiles, edges and fittings about 200 small views (6 KB), shield bosses and rims about 100 (5 KB): about 0.09 MB. Production adds the small sizes, the other forms' overlays and the rest: about 0.08 MB | the forge slice lands near 1.45 MiB, inside D21's 1.75. Production (actions about 0.26 MB, the weapon library 0.07, the remaining forms, helms, shields and postures about 0.2, the kit 0.08) lands near 2.1 MiB: over D21 (D27) |
+| forge: atlases | shoulders, crests and edges add 2 columns or rows at most on some frames: LOCO and RUN about + 2-3 % | B10 per look; T5-T6 within D19 |
 
 ### Decisions taken by default (confirm or overrule)
 
@@ -2299,6 +2435,35 @@ The ladder re-plan (2026-10-23) adds:
   pass.
 - **D23. The light-armour ladder is a later rules batch** (proposal 1); in P2c a leather or cloth piece rises by rarity
   only.
+
+The forge re-plan (2026-10-24) adds:
+- **D24. Materials and alloys change shape** (restates D14's "materials stay ramps" and STYLE_P2 25.2, 25.12 and 27.8): a
+  piece's material or culture alloy picks its forge style (shoulder, crest, cut, edge, collar, limbs, fittings). The ramp
+  still carries its colour, a tier still adds only finish and dial size, the forms stay the people's, and no style gets a
+  new torso outline.
+- **D25. Hero styles and a kit**: ten hand-designed styles for the materials; every culture alloy takes seven picks from
+  a drawn kit by a fixed rule (no table drawn per world). The same alloy looks the same everywhere; a family's dialects
+  share it.
+- **D26. No form changes**: a mail body takes its metal's plate cut as a breastplate over the mail (the plackart), so
+  heartland bronze, iron and steel mail read as their metal; D20's form by metal holds.
+- **D27. The pool budget**: the forge slice stays inside D21's 1.75 MiB. Production needs about 2.1 MiB (D21's arithmetic
+  is stale: 1.35 MiB is in use before production starts). Either raise it to 2.5 MiB with embervale.wasm within P2c's
+  start + 2.0 MB (the flip's deletions measured against it), or compress the pool in the binary (about a day's
+  engineering; the wasm budget holds). The owner's call before wave 2.
+- **D28. A glowing alloy glows from T4**: a steady light on its seams, breathing only from T5. It is an exception to "no
+  glow below T5" (STYLE_P2 27.8), because a glowing sheen that does not glow is invisible.
+- **D29. Officers wear their realm's alloy style**: captains, the royal guard, jarls and story knights (T4) the realm's
+  best alloy below the masterwork, kings (T5) the masterwork. census::dress passes the realm to rankTiers (no draw, no
+  rule).
+- **D30. Blades keep their own metal**: every held weapon draws its metal in Slot::Blade from its own item (A3's sword map
+  included), so a gilded body never gilds the sword.
+- **D31. Each piece wears its own style**: a bronze helm on steel plate shows FOUNDRY's comb. The alternative (the body's
+  style dresses the whole figure) is one switch in the resolver. The owner's call.
+- **D32. MYTHIC is its own style**, on any metal; a Legendary piece keeps its material's style with T6's finish.
+- **D33. GILDED is parcel-gilt**: steel planes with gold relief, rims and a medallion (gold on 35 % of the pieces or
+  less), not solid gold. It fixes the T5 gold mass.
+- **D34. Weapon styles later**: in P2c a weapon keeps its form and draws its own metal. Per-material blades (a bronze leaf
+  blade, a knapped obsidian edge, a starmetal crystal fuller) are a later step; VISION 15.11 asks for them too.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -2678,6 +2843,167 @@ verify only their items):
 10. The look review at 1x on the phone and at 3x / 8x / 12x (STYLE_P2 27.9's acceptance), with every open item closed.
 11. The owner's sign-off on the ladder pack. It also settles D13-D23.
 
+### The forge slice (wave 1c; the owner signs it off before production)
+
+The ladder slice locked the ladder; the forge slice locks forge styles before any production map: every material its own
+armour on one figure, one culture's three alloys and two far peoples' alloys on their own kits, in colour and in
+greyscale, the ladder still climbing, and the alloy panel's open items closed. STYLE_P2 28.10 lists the look and the owner
+pack. The owner's answer to the ladder's alloys pack was this re-plan, so the ladder's sign-off (D13-D23) comes with this
+one (D24-D34).
+
+**Looks** (tools/doll/forge_looks.txt, through contracts 3c's macros; FORGE-DOLL writes the lines, picks the seeds that
+give the named alloys and records `rpg_test --expand-looks` beside the file):
+
+| tag | body | tier | the kit | it proves |
+|---|---|---|---|---|
+| fm_home, fm_tan, fm_bronze, fm_iron, fm_steel, fm_gilt, fm_obsid, fm_ember, fm_star | man, the A3 hero | T4 | the Heartland T4 kit re-materialled (`mat=`): padded, leather, then plate in each metal; one open crested helm form, the heater, the sword, medium shoulders, a mid skirt, so only the style changes | every material its own armour, by shape alone (C16a, C16s) |
+| fm_myth | man, the hero | T6 Mythic | the T6 kit, Mythic | MYTHIC; the crown off the face |
+| f5_steel, f5_gilt, f5_obsid, f5_ember, f5_star | man, the hero | T5 | as fm_*, at T5 | the finish lands on the style; the T5 face |
+| fw_bronze, fw_steel, fw_star | woman, the A3 woman | T4 | FOUNDRY, ARMOURER'S, STARFALL | the styles on her torso |
+| a_hl1, a_hl2, a_hl3 | man | T4 | Highland seed 1's THORNIRON (iron, matte), GWESTEEL and THORNSTEEL (two steels of one sheen) on the Highland T4 kit | a culture's alloys apart (C16b) inside the Highland look: the hardest case |
+| a_jade3 | man | T5 | Jade's glowing masterwork on the Jade T5 kit (lamellar, the masked helm, a glaive) | the glowing tell; a far people's style |
+| a_star3 | woman | T5 | Starspire's iridescent masterwork on the Starspire T5 kit | the iridescent tell; a style on her |
+| mr_1 .. mr_6 | man | T4 | STAGBRONZE, ANIBRASS, ENKHOBRASS, UHABRASS, VENSTEEL, BAKOSTEEL on their peoples' T4 kits (FORGE-DOLL finds the seeds) | C17's metal read |
+| lt1 .. lt6, lt6m, lt6w, nband, nroyal, nking | | | the ladder slice's lines, styled from their items | the ladder still climbs (C12) |
+| hero | man | | A3 | B1 |
+
+**Clips, in four facings**: idle, walk, run, the drawn idle, hit 1, hurt, the fall and lying for fm_*, fw_* and a_*; idle
+and walk for f5_* and mr_*; the ladder lines keep theirs.
+
+**The open items** are the table in "Forge styles"; each area's list below names its part.
+
+**Areas** (5, files disjoint; contracts 1). Art areas edit only their maps, preview on isolated pools
+(`%TEMP%\claude\emb_P2c\forge\<area>\doll\`), and propose kit values, region slots and vocabulary changes in their
+reports; FORGE-DOLL owns every code, table, clip and gate change. **First light**: ARMOURER'S and FOUNDRY finished end to
+end on fm_steel and fm_bronze first, by all five areas, before any other style (FORGE-PLATE reviews the two as wholes).
+They are the forge style slice: every later style matches their craft. Then the other eight hero styles, then the alloys.
+
+- **FORGE-DOLL** (engineer; a hard-systems area: run at engineer-high where the workflow allows, escalate after two failed
+  attempts; BDIR build-p2c-forge).
+  - Files: rpg/art/doll/*.h, *.cpp, gen/** (at delivery), clips/** (ADD only), maps/legend/** (ADD only); tools/doll/**
+    (pxc.mjs, forge_looks.txt, owner_pack.py --forge, alloys/**); rpg/art/art_human.h (HumanLook ADD) and art_human.cpp's
+    key() only (rig 2); rpg/art/art_fx.h/.cpp; rpg/sim/gear_forge.h/.cpp (new), gear_ladder.h/.cpp, gear_look.h/.cpp (ADD
+    only), looks.cpp (D29: the realm into rankTiers, nothing else); rpg/view/render.cpp (the glow pass's steady T4 light
+    only), witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp, test_doll_forge.cpp (new), doll_motion.h;
+    tools/preview/doll_gallery.cpp; CMakeLists.txt (gear_forge.cpp and test_doll_forge.cpp only);
+    tools/scripts/p2c_forge*.txt; witness/p2c_forge.witness.json; docs/P2C_CONTRACTS.md 8 (append); this section's
+    "Forge slice results" (append).
+  - Core:
+    - the data and the pick rule (contracts 3c): HumanLook::forge; gear::baseStyle, alloyStyle (the vocabularies, the
+      scores, the seed, the school, the distances, the bounded walk) and forgeOf; fillLadder and rankTiers fill it; the
+      macros `mat=`, `forge=`, `style=`, `alloyStyle=`; `--expand-looks` shows the picks;
+    - the resolver and the compositor: the flags; pauldron shapes with their fallback chain; the collar and crest parts on
+      Anchor::Crown; cut tiles on a slot with step and region cells; edge stamps; fittings; the `when` overlay key
+      fallback; the plackart on mail; shield bosses and rims; the blade fix and the `blademetal-` flags;
+    - the ramps: C17's metal read in the alloy model (the six names), the sheen tells (a glowing alloy's steady T4 light
+      on its seams, iridescent rows in Metal 2), C15f's re-solve (tools/doll/alloys: sim.py, opt.py, port.py);
+    - the neutral-ramp compose (ComposeOpts::grey) for C16 and the greyscale boards;
+    - the gates C16 a-d and s, C17 with the sheen read, C15f, C12a and b restated, C1 source F, C3f's extension, and a
+      selftest per line (the T5 plate recoloured must FAIL C16a; a clay ramp must FAIL C17);
+    - the boards `forge`, `forgegrey`, `silhouette:forge`, `alloystyles:<people>:<seed>`, `metalread` and `families`;
+      `owner_pack.py --forge` (every image 8,000 px or less); tools/scripts/p2c_forge.txt (the hero in three materials in
+      the start village beside the watch; a captain of two realms); witness/p2c_forge;
+    - exe f1 published in the first working block (the fields, flags, part roles, Anchor::Crown, tile modes, macros and
+      the forge board), so the artists see their pieces in place from the start.
+  - Depth: the officers' realm alloy (D29) in the census and `p2cline npc`; the hidden words as kit preferences; a
+    `forge:<tag>` board turning one look through its people's materials T1-T6.
+  - Delight: the forge board's smith's sheet: each style with its name, its metal, its people's lore line (FOLDED WITH
+    JADE DUST IN THE TERRACE FORGES) and its seven picks.
+  - Done:
+    - `node tools/doll/pxc.mjs --check` is clean;
+    - `rpg_test --doll --gates --parity` exits 0 with the forge looks in its matrices: B1 16 / 16 at 0 px, B8 0, B10 within
+      budget (T5-T6 within D19), B11 limbs, B11 wear and B12 0, C3-C6 0, C12-C17 0, every selftest ALL CAUGHT;
+    - `rpg_test --doll-forge --worlds 1..6 --report` shows 0 failures (C16b-d over every people, seeds 1..64 at the data
+      level and 1..8 drawn; C17 over every family x sheen; C15f);
+    - `--doll-coverage --scope forge` and `--scope ladder` find nothing missing; `rpg_test --doll --motion --limbs-looks
+      tools/doll/forge_looks.txt --report` shows 0 failures;
+    - tools/scripts/p2c_forge.txt 0 failures; witness/p2c_forge, p2c_ladder and p2c_slice pass; the owner pack builds;
+    - the pool is 1.75 MiB or less;
+    - rig 1 is unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0, `--arms` unchanged); the full
+      `rpg_test` is ALL OK; save_test is ALL OK; the WSL clang 18 build passes `--doll --gates` (no memcmp on padded
+      structs; paths through EMB_SOURCE_DIR).
+- **FORGE-PLATE** (artist, at xhigh effort; the look lead of the hero styles).
+  - Files: rpg/art/doll/maps/armour/man/**, maps/armour/woman/**.
+  - Core:
+    - the ten hero styles' torsos on the man, as `when cut-<v>` overlays per facing wherever a tile cannot carry the
+      shape (muscled, keeled, the embossed medallion, faceted, crackled, the laced front, the vent rows' frame, the ribs'
+      taper), each with its R P G N W marks and lit by the top-left rule; `runl` and `lie` views where the key fallback
+      misreads; the overlays key on `cut-<v>`, so the same drawings serve every alloy that picks that cut;
+    - the plackart (a breastplate over the mail in the material's plate cut, its lower edge a dark N seam) on the man's
+      and the woman's mail: the T3 step (T2 to T3);
+    - the hangs a tile and an edge stamp cannot carry: FOUNDRY's strips from the rolled waist, ARMOURER'S cusped tassets,
+      FURNACE's stepped double hem;
+    - PARADE's parcel-gilt front (gold 35 % or less, the people's colour below the belt, the face reading);
+    - the woman's twins: FOUNDRY, ARMOURER'S and STARFALL, and the torso of the Starspire alloy kit;
+    - each hero style composed with the other areas' pieces and signed off as a whole in the report (the look lead).
+  - Depth: every style's lie view legible; the run lean keeping its cut.
+  - Delight: FOUNDRY's cuirass catching one warm ridge on the chest as the body turns.
+  - Done: C3a 0 for the armour parts on every forge frame; B11 and B12 0; C4 on both bodies; C14 (plate 60 luma, the face
+    line); B8 0; LOCO and RUN within budget (T5-T6 within D19); C16a on the torso box; the judge reads every style at 1x as
+    its STYLE_P2 28.4 line, in colour and in greyscale.
+- **FORGE-SHOULDERS** (artist).
+  - Files: rpg/art/doll/maps/armour/shared/**.
+  - Core: the new shoulder shapes (STYLE_P2 28.3): roll, flap, cop, slab, flared, lobed, shard, vented, crystal, flame,
+    layered and winged, in medium and large (small where a forge look reaches it), both sides, keys rest, up and lie in D
+    U R L; riding the lean and the bob and lifting a pixel on wind-ups; each size's area within 10 % of the plate
+    family's; points that rise and never widen, side views within today's pauldron widths; R G N marks per shape.
+  - Depth: the small sizes of flap, cop, slab and flared (T2).
+  - Delight: STARFALL's crystal tips taking a glint as the body turns; FURNACE's slits catching the ember light at T5.
+  - Done: C3 (pauldrons ride the lean, the bob and the swings) and W4 0 on every forge look; B10 RUN within budget; B8 0;
+    C16s on the shoulders at medium (4 % or more apart pairwise); the judge names each shape at 1x on the phone.
+- **FORGE-HELM** (artist).
+  - Files: rpg/art/doll/maps/headwear/helm/**, maps/headwear/collar/** (new), maps/shield/**.
+  - Core:
+    - a `mark crown` on every helm view (D U R L and lie);
+    - the crest accents (`overlay crest.<v>`, STYLE_P2 28.3) in D U R L and lie, inside F-37, each with a plume socket;
+    - the collars (`overlay collar.<v>`), rigid on the neck, with lie views, never over the mouth of an open helm;
+    - the Mythic's flame crown lifted on a dark brow band (one clear row above the eyes, no flame beside the face);
+    - the T5 open helm framed by a dark lining (the face 25 luma off it);
+    - shield bosses and rims by style (`when boss-<v>`, `when rim-<v>`) on the heater, the round and the kite, and on the
+      shields the alloy looks carry.
+  - Depth: a brow band per style on the nasal, crested and great helms.
+  - Delight: the spire's tip taking the T6 breath; the comb catching the light on the walk's bob.
+  - Done: C3b, C3c and C3e 0 on every forge frame (crests ride the head exactly, collars the neck); crests inside F-37;
+    the Mythic and T5 face checks pass; B8 0; LOCO 128 and RUN 64 KB or less (T5-T6 within D19); the judge reads every
+    crest, collar and boss at 1x on the phone.
+- **FORGE-MARKS** (artist).
+  - Files: rpg/art/doll/maps/armour/tiles/**, maps/finish/**, maps/forge/** (new).
+  - Core:
+    - the cut tiles (`overlay cut.<v>`, step and region cells): fluted, banded, ribbed, vented, splinted; scale round,
+      pointed and square; lamellar laced, banded and staggered; quilt channel, diamond and brick; leather stitched,
+      studded and tooled;
+    - the limb tiles: banded, splinted, scaled, laced, studded, ribbed, fluted, faceted, crackled;
+    - the edge stamps (`overlay edge.<v>`): rolled, scalloped, dagged, strips, serrated, spiked, cusped, pointed, stepped,
+      fringed, flame;
+    - the fittings (`overlay fit.<v>`): rivets, studs, bosses, star rivets, scored, knot, inlay, lacing;
+    - the sheen tells: the iridescent rows (Metal 2) and the glowing seams;
+    - the tier finish fitted to every style: etch and filigree fit sizes for each style's panel, the rune dashes along
+      vents, ribs, bands, creases and cracks;
+    - the line review: the forge slice at 1x, 3x and 8x, colour and greyscale, on grass and on dark ground, with asks to
+      the other areas.
+  - Depth: the hidden words' tiles (whorl flutes, tide scallops, pearl bosses, the veil's mesh).
+  - Delight: WROUGHT's rivets each taking one lit pixel on the top-left.
+  - Done: every tile and stamp B8 0 (no orphans, periods 2 px or more, never a checker); edge stamps keep the step-0 ring
+    closed (C3a); C16's structure term passes on their cuts with the colour removed; C17's sheen tells pass; C12b and C13
+    hold over every style; the judge reads every cut as structure, never noise, at 1x and 3x.
+
+**The forge slice gate** (the judge measures first and states the whole protocol in round 1; at most 4 rounds; fix rounds
+verify only their items):
+1. Coverage: every forge look resolves with nothing missing (C1 source F), and every ladder look still does (L).
+2. B1 16 / 16 at 0 px on the figure.
+3. Motion: B11 limbs, B11 wear and B12 at 0 on every forge look.
+4. Gear: C3 a-f at 0 with the new parts (crests on the helm, collars on the neck, edges closed, shoulders on the lean).
+5. C4, C5, C6; C12 (a and b restated), C13, C14.
+6. C15 a-f.
+7. C16 a-d and s (thresholds set by eye in round 1 and recorded; the art is never bent to fit a check).
+8. C17 with the sheen read and the six named alloys.
+9. B8 at 0 (48 + 3 glow); B10 within budget (T5-T6 within D19); the pool 1.75 MiB or less.
+10. Rig 1 unchanged; the full rpg_test and save_test ALL OK; WSL clang 18 `--doll --gates` passes.
+11. The look review at 1x on the phone and at 3x and 8x, in colour and in greyscale (STYLE_P2 28.10's acceptance), and a
+    blind match: an `eyes` agent given the greyscale materials lineup, unlabelled and shuffled, and STYLE_P2 28.4's ten
+    descriptions names 8 or more of the 10 correctly; every open item closed.
+12. The owner's sign-off on the forge pack. It also settles D13-D34 (D27 before wave 2).
+
 ### Production areas (wave 2) and the flip (wave 3)
 
 Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
@@ -2703,6 +3029,20 @@ ladder slice:
   - Done: C12 and C13 over source L, B8, and the judge's ladder review per people (T1-T6 boards, man and woman).
 - **SWITCH**: the living finish in every draw path (the paperdoll at whole multiples, the party list, portraits, the
   creator preview), and the Mythic aura on doll frames if the ladder slice left it.
+
+**The forge styles in production** (re-plan 2026-10-24). After the forge sign-off every area adds the kit, matching the
+forge slice:
+- **DOLL-C**: the kit's resolver at scale (every form family's cuts, every shoulder size, the census's styles); C16 and
+  C17 over source L and each people's materials and alloys (seeds 1..8 drawn, 1..64 at the data level); C15f. Files add
+  rpg/sim/gear_forge.* (from FORGE-DOLL).
+- **FOLK-SIM-C**: the officers' realm alloy (D29) for every role.
+- **ARMOUR-M, ARMOUR-W**: every hero style's overlays and the plackart on every form of both bodies (scale, lamellar,
+  brigandine and leaf included); the hangs' edges.
+- **ARMOUR-X**: every shoulder shape in small, medium and large; every cut, limb and edge tile on every form.
+- **HELMS**: the crown mark and every crest accent on every helm shape; every collar.
+- **SHIELDS**: bosses and rims by style on every shape.
+- **FINISH**: the tier finish fitted to every style; the hidden words' tiles.
+- **WEAPONS**: blade styles only if the owner brings D34 forward.
 
 - **DOLL-C** (engineer-high).
   - Files: rpg/art/doll/*.h, *.cpp, gen/**; clips/{loco, death, postures, kin_youth, kin_child}.clip; tools/doll/**;
@@ -2826,8 +3166,8 @@ ladder slice:
 
 ### Waves
 
-1. **Wave 0** (the planner; done, and again on 2026-10-23 for the ladder): this section, STYLE_P2 25-27,
-   docs/P2C_CONTRACTS.md, the slice looks and the ladder looks.
+1. **Wave 0** (the planner; done, again on 2026-10-23 for the ladder and on 2026-10-24 for the forge styles): this
+   section, STYLE_P2 25-28, docs/P2C_CONTRACTS.md, the slice, ladder and forge looks.
 2. **Wave 1, the style slice** (done: three iterations, committed on branch p2c-slice). The owner approved its direction
    on 2026-10-23, listed the open items and asked for the ladder.
 3. **Wave 1b, the ladder slice.**
@@ -2836,12 +3176,20 @@ ladder slice:
    - The four art areas start at once, by eye, on isolated pools: open items first, then the ladder (the s4 exe until
      s5 for the fixes).
    - Then the ladder slice gate: the judge, at most 4 rounds.
-   - Then the ladder pack, and the owner's sign-off (D13-D23, D9 still open).
-4. **Wave 2, production.** All 14 areas start at once after the ladder sign-off. DOLL-C and FOLK-SIM-C publish their
+   - Then the ladder pack, and the owner's sign-off (D13-D23, D9 still open). Built (iterations 1-3, polish 1-3, alloys
+     1-3); the owner's answer to the alloys pack was the forge re-plan, so the ladder's sign-off comes with wave 1c's.
+4. **Wave 1c, the forge slice** (re-plan 2026-10-24).
+   - FORGE-DOLL publishes exe f1 in its first working block: the fields, flags, part roles, Anchor::Crown, tile modes,
+     macros and the forge board.
+   - The four art areas start at once, by eye, on isolated pools: first light (ARMOURER'S and FOUNDRY end to end), then
+     the other eight hero styles, then the alloys and the open items.
+   - Then the forge slice gate: the judge, at most 4 rounds.
+   - Then the forge pack, and the owner's sign-off (D13-D34; D27 before wave 2).
+5. **Wave 2, production.** All 14 areas start at once after the forge sign-off. DOLL-C and FOLK-SIM-C publish their
    contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
-5. **The barrier**: every area delivered, then C1, C3-C6, C8 and C12-C14 green at rig 2, then the owner's go on the flip
+6. **The barrier**: every area delivered, then C1, C3-C6, C8 and C12-C17 green at rig 2, then the owner's go on the flip
    pack.
-6. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
+7. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
    - The web build (EMBERVALE_WITNESS=OFF) and its size.
@@ -2863,7 +3211,12 @@ ladder slice:
      ground, by day and at night: six clear steps; T1 okay / mid (plain, mended, whole, never ugly); the finish reading
      as craft, never noise; the living finish quiet, readable and never in step between two wearers; the peoples
      distinct at one tier; people by rank (a bandit, the village watch, the royal guard, a king), and a late hero
-     outshining the king.
+     outshining the king;
+   - **the forge styles** (re-plan 2026-10-24): every material a different armour at a glance, in colour and with the
+     colour removed (the `forgegrey` board and the blind match); a culture's alloys apart from each other and from their
+     metal's hero style, each inside its people's look; metal reading as metal and every sheen showing; the ladder a new
+     armour at each step and still climbing; faces clear under T5 and the Mythic crown; blades in their own metal;
+     nothing that reads as a recolour.
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
@@ -2897,6 +3250,19 @@ ladder slice:
   frame with 8 T6 figures.
 - **T6 too early or too common**: the tiers follow the game's floors and caps, and `--ladder-pace` measures them; if
   the owner wants a slower climb, a rule changes (the band table), never the art.
+- **The forge kit reads as noise at 1x** (tiles on a 13 px torso): FORGE-MARKS tunes at 1x first; a cut that fails falls
+  back to the form's smooth planes and the style leans on its heavy axes (shoulder, crest, edge).
+- **A style fights its people's look**: the vocabulary is the menu, and the judge reads every alloy in its people's row.
+- **Shapes break budgets**: points rise and never widen in side views; sizes are area-matched; B10 per look.
+- **The pool in production**: D27, the owner's call before wave 2.
+- **Too many combinations to see**: C16 checks every alloy at the data level (worlds 1..6) and a drawn sample (every
+  people's alloys at seeds 1..8); the judge reads a random 12.
+- **Mixed kits look chaotic**: D31's switch.
+- **The art volume** (12 shoulder shapes in 3 sizes, 14 crests, 12 collars, about 40 tiles): shoulders, crests and
+  collars are shared by both bodies, cuts are tiles rather than views, and first light settles the craft on two styles
+  before the rest.
+- **A hero style collides with a people's signature** (STARFALL beside Starspire's crystal): the d 4 rule against every
+  hero style, and the forms and helms still differ.
 
 ### Process (the owner's rules for P2c)
 
@@ -3106,3 +3472,78 @@ Open: inventory icons still tint from gear_look's exotic() hue, so about 70 % of
 - A5: T6 gleam every 2.4 s, 0.9 s, 7 px.
 - A6: p2c_alloys at rig 2, 0 failures (creator hero in T1, then T3, T4, T6).
 - Rig 1 unchanged: art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
+
+### Forge slice results (FORGE-DOLL fills at the forge slice gate)
+
+(Re-plan 2026-10-24: "Forge styles" and "The forge slice" above. Record per iteration: the pool's size and hash, the C16
+numbers per pair and the thresholds the judge set by eye, C17 per look with the six named alloys, the gates, rig 1, and
+the open items closed.)
+
+**FORGE-DOLL iteration 1 (2026-10-24; exe f1 and the code half; the art areas still drawing).** Exes build-p2c-forge
+(rpg_test, doll_gallery, embervale, art_hash, city_gallery, save_test). Contracts 8 "FORGE-DOLL, forge iteration 1" holds
+the as-built rules. Measured on the embedded pool (499 parts, 1411047 bytes, hash f6b5dad252226f71; not regenerated: the art
+areas' maps are in flight) and on the live maps (pxc --root rpg/art/doll: 555 parts, 1517754 bytes = 1.45 MiB):
+- Data (`rpg_test --doll-forge --worlds 1..6`): C16h hero styles 45/0 (min d 11), C16b 1788/0, C16c 1008/0 (0/5092 over
+  worlds 1..30, after the school's class rule), C16d 2046/0, C17 ramps 776/0 (every family x sheen and the band metals),
+  the six named 6/0, C15f 104/0 (densest dE-10 ball 3; kAlloyFam re-solved by tools/doll/alloys with the C17 model and the
+  spread), data selftest ALL CAUGHT.
+- Drawn (`--doll --gates`): C1 source F 43/0, C17 blades 43/0, selftests ALL CAUGHT (the recoloured T5 plate fails C16a, a
+  clay ramp fails C17); C15 a-e 7636/0 and C15c 1005/0 with the new table. Open, waiting on the art: C16a 36/45 and C16s 22/45
+  (the styles' cuts, edges, collars and crests are not drawn yet: grey XOR 0.5-3 %, edge distance 0.05-0.2), C16b drawn
+  174/226, C16c drawn 255/257, C12a (lt2 to lt3 outline +3.1 %, 6 wanted: the plackart and flared T3 shoulders), C17 457/854
+  (mostly 4-5 glints on the plate maps against 1-3), B8 31 (fm_home's T4 padded kit 49-51 colours), C14 10 (steel at the
+  hero's skin 16 luma and the heroine's hair 12 where the helm's dark lining is to come; three alloy looks' lit edge 30-39;
+  nking accent / cloak 12 since D29 gave the king his realm's masterwork).
+- Motion `--doll --motion --limbs-looks tools/doll/forge_looks.txt` 43 looks 0 failures; `--doll-coverage --scope ladder` 88/88;
+  `--scope forge` on the live pool lists the forge parts not drawn yet (42 of 43 looks).
+- p2c_forge.txt and p2c_forge_phone.txt 0 failures; Witness p2c_forge 60/60, p2c_ladder 33/33, p2c_slice 238/238; the owner
+  pack (`owner_pack.py --forge`) builds, 14 files, every image 8000 px or less.
+- Rig 1: art_hash TOTAL 317eef6efe4d8229, village-art 65/0, --anim 0, --arms identical; the full rpg_test ALL OK; save_test
+  ALL OK; WSL clang 18 builds and gives MSVC's numbers on `--doll --gates` and `--doll-forge`.
+- Thresholds as planned (C16a XOR 4 % / edge 0.30, b 3 % / 0.25, c 0.15 or 2 %, s 4 %); the judge sets them by eye once the
+  styles are drawn. C17's "1-3 step-4 pixels" is read as 1-3 glints (8-connected groups) on the body's armour and shoulders.
+
+**FORGE-DOLL iteration 2 (2026-10-24; the i1 blind panel: "every material the same knight recoloured", "Cloth wears the
+plate helm", "the 5 Jade alloys one sprite").** Contracts 8 "FORGE-DOLL, forge iteration 2" holds the rules. The silhouette
+levers the code owns, measured on the integrated pool (631 parts, e1f888897ceb7d4f; no map changed here):
+- **Each material its own helm and shield** (deviation from "form unchanged", recorded: the owner's request): HOMESPUN a
+  hood, TANNER'S the leather cap and buckler, FOUNDRY the crested helm and round shield, WROUGHT the kettle hat, ARMOURER'S
+  the nasal and the tower, PARADE crested and oval, KNAPPED the masked helm, FURNACE the great helm and tower, STARFALL the
+  spangenhelm and oval, on the Heartland's kit (forgeKit) and for the band metals; other peoples keep their own forms. A
+  culture alloy's helm follows its crest and its shield its rank; the masterwork's shoulders a size up. The style's crest
+  replaces the old plume to T4. C16a 45/0 (min edge 0.31, was 36 failing), C16c drawn 257/0 (was 21), C12a 2/0 (lt2 to lt3
+  outline +6.4 % D, +12.8 % R).
+- **Pick rule**: a culture's alloys part on shoulder AND crest, the word hero on the crest; the crest and the secondary axes
+  by the school's classes in the bounded search too. Data `--doll-forge --worlds 1..6`: C16h, C16b, C16c, C16d, C17 ramps, the
+  six named, C15f all 0.
+- **Metal read and sheens on the figure**: the glint pass (1-3 clusters to T4, a 2 px run for bright, 1 px for matte, seams lit
+  for glowing at T4-T5), the pale / dark / skin clamps and the C14 movers: C17 856/0 (was 622 failing), C14 437/0, B8 0, B10 0
+  (a forge crest has the crested RUN allowance; styled LOCO / RUN + 3 %), B11 0 (a_fj2 wears the coif).
+- Motion 44 looks 0 failures; coverage ladder 89/89; rig 1: art_hash TOTAL 317eef6efe4d8229, village-art 65/0, --anim 0,
+  --arms ALL OK; the full rpg_test ALL OK; save_test ALL OK.
+- **Open** (art, not code): C16b drawn 20/226 (the peoples whose helm and shield are signatures, Jade, Dune, Steppe, Sylvan,
+  Starspire: their alloys differ only by shoulders and crests drawn 1-3 px; the bodies' cuts still read alike), C3 104 (the
+  T5-T6 heater, imp3's tower and lt4's shields from the shield maps, mostly in i1's list), C12 5 (i1's T4-T6 trim and T5
+  glints from the plate maps), `--doll-coverage --scope forge` 8 looks missing edge.plain, limb.plain, pauldron leaf,
+  cut.smooth. Not run here: pxc --check, Witness, the p2c_forge script, the owner pack, WSL clang.
+
+**FORGE-DOLL iteration 3 (2026-10-24; the i2 blind panel: "about 20 of the 37 alloys wear the same kettle helm on the same
+torso, told apart by colour", "the jade alloys are one armour six times", "Emberforged reads as painted clay").** Contracts 8
+"FORGE-DOLL, forge iteration 3" holds the rules. Measured on the integrated pool (629 parts, 1682612 bytes, hash
+8e50f6c4bd437b77; no map changed here):
+- **The guise** (`gear::alloyGuise`, `HumanLook::forgeGuise`): every culture alloy its own head from its people's menu of
+  six (the drawn helms plus four metal heads cut from the headwear library: the mail coif, the turban helm, the jingasa, the
+  aventail), never another alloy's head shape in its culture nor the people's own helm; its skirt, shoulders and the
+  masterwork's cloak. The Fjord, Dune, Jade and Starspire alloys had all fallen back to the one spangenhelm (their horned,
+  conical and winged forms were never drawn). Seeds 1..64: dome 24 %, great helm 18 %, mask 18 %, mail hood 11 %, turban 16 %,
+  jingasa 11 % (C16g 2053/0). PARADE wears the gilt turban helm below T5.
+- Drawn gates now: C16a 45/0 (was 1), C16b 226/0 (was 35), C16c 257/0 (was 8), C12a +6.2 % D, +11.2 % R (was +4.4 %), C3,
+  C4, C17 0; fixed on the way: the matte glint pass split a 3 px run into two glints; ember's lit plane a yellow straw heat.
+- `--doll-forge --worlds 1..6` 0; motion 50 looks 0 failures (the guises' heads walk, run, hit, fall and lie: g_dune1 g_mars2
+  g_hl2 g_fj1 g_step1 g_sylv1w); coverage ladder 89/89; rig 1: art_hash TOTAL 317eef6efe4d8229, village-art 65/0, --anim 0,
+  --doll --arms 0; full rpg_test ALL OK; save_test ALL OK; WSL clang 18 `--doll --gates` = MSVC's; p2c_forge.txt 0 failures;
+  Witness p2c_forge 60/60 (the Jade masterwork's expectations restated to the i2 pick rule's lobed / spike), p2c_ladder 33/33,
+  p2c_slice 238/238; the owner pack builds (14 files, 7424 px the longest side).
+- **Open** (art, unchanged from i2): C12 6 (lt5 D helm trim 8.8 %, lt5 step-4 metal falls 25 -> 16 D and 15 -> 6 R, lt4 R trim
+  5.3 %, lt6 R trim 9.2 %, imp3 vs fjord3 outline 7 %); `--scope forge` 8 looks missing edge.plain, limb.plain, pauldron leaf,
+  cut.smooth. The bodies under the alloys are still one torso (the body forms differ little at 1x): FORGE-PLATE's.

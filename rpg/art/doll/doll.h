@@ -178,7 +178,8 @@ enum class Layer : uint8_t {
 constexpr int LAYER_COUNT = (int)Layer::COUNT;
 const char* layerName(Layer l);
 
-enum class Anchor : uint8_t { Pivot, Head, Neck, Hip, ShoulderR, ShoulderL, Grip, GripL, COUNT };
+// (P2c forge, contracts 3c ADD) Crown: the composed helm view's `mark crown`, else the head box's top centre (crests sit on it)
+enum class Anchor : uint8_t { Pivot, Head, Neck, Hip, ShoulderR, ShoulderL, Grip, GripL, Crown, COUNT };
 constexpr int ANCHOR_COUNT = (int)Anchor::COUNT;
 const char* anchorName(Anchor a);
 
@@ -265,7 +266,13 @@ struct DollRecipe {
   uint8_t finTiles[8] = {};
   uint8_t pieceTier[8] = {};
   bool blade = false;                // the held part's metal draws in Slot::Blade
+  bool guiseHead = false;            // (forge i3) the headwear part is a culture alloy's metal head: its cloth draws in Metal
   std::string motif = "oak";         // the filigree tile's motif (`tags fit` views <motif><w>x<h>)
+  // (P2c forge, contracts 3c) each tier slot's forge style unpacked (rpg/art/doll/doll_forge.h axes: 0 base .. 7 fittings),
+  // the body's cut already on the family its armour draws; armourFam that family (forge::Family; -1 no armour)
+  uint8_t forgeAx[8][8] = {};
+  int armourFam = -1;
+  uint8_t sheen = 0;                 // (forge i2) the armour's sheen (HumanLook::sheen: cult::Sheen + 1; 0 none): the glint pass
   DollRecipe() { for (uint8_t& r : region) r = 0xFF; for (auto& f : fin) for (uint8_t& x : f) x = 0xFF; }
   bool has(const char* flag) const;
 };
@@ -329,7 +336,15 @@ struct ComposeOpts {
   bool finish = true;       // the finishing pass (A3's selout); off: the raw composite (tests)
   bool trim = true;         // frames trimmed to their opaque box (off: the scratch canvas, for parity diffs)
   int onlyFacing = -1;      // compose one facing (-1: all four)
+  // (P2c forge, contracts 3c) every material slot (Cloth1-3, Accent, Linen, Leather, Metal, Metal2, Blade, Cloak, Pattern,
+  // Plume, Field, Device, Glow) in one neutral ramp (#202020 #555555 #8C8C8C #C8C8C8 #F4F4F4); skin, hair, eyes, face and
+  // ink kept: shape with the colour removed (C16, the grey boards)
+  bool grey = false;
 };
+// (P2c forge) the neutral ramp ComposeOpts::grey draws every material slot in, and whether a slot takes it
+extern const uint32_t kGreyRamp[5];
+bool greySlot(Slot s);
+DollRamps greyRamps(const DollRamps& r);   // r with every material slot in kGreyRamp
 // A RigSheet as art_rig.h defines it (frames by facing x clip x variant, a pivot per frame, RigAnchors from the marks;
 // RigAnchors::topY the frame's top). Loco: Idle, Walk, Hurt; Run: Walk (the run cycle); Action: the family's clips;
 // Death: Fall and Lying. Empty when the pool has no clip for the body set.
@@ -429,6 +444,9 @@ void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]);
 void metalKindRamp(int kind, uint32_t out[5]);   // HumanLook::metalKind's curated ramp (10: the fallback steel)
 // the metal test (C15): a bright glint (step 4 luma >= 196), a dark core (step 0 <= 56), 0-4 >= 165 and 1-3 >= 60 apart
 bool metalTest(const uint32_t r[5], std::string* why = nullptr);
+// (P2c forge, C17; STYLE_P2 28.8) the metal read: a near-black core (step 1 <= 45 % of step 3's luma), a hard pale lit plane
+// (step 3 >= step 2 + 22 luma, <= 60 % of its chroma), a glint (step 4 luma >= 196), the lit steps 20 dE off the skin, never pink
+bool metalRead(const uint32_t r[5], uint32_t skin, std::string* why = nullptr);
 
 // ---------------------------------------------------------------- the pool
 // the embedded pool (gen/doll_pool.cpp) is used unless a tool loads another; every cache keyed on the pool is cleared

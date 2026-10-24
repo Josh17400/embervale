@@ -287,6 +287,17 @@ int holesInGear(const doll::FrameProbe& p, std::string* why) {
         const int x = pocket[0] % p.w, y = pocket[0] / p.w;
         for (int n : {p.at(x - 1, y), p.at(x + 1, y), p.at(x, y - 1), p.at(x, y + 1)}) if (!it) it = itemAt(p, n);
         *why = fmt("a %d px hole in %s at (%d,%d)", (int)pocket.size(), it ? it->part.c_str() : "gear", x - p.px, y - p.py);
+        if (std::getenv("EMB_C3_DEBUG")) {
+          for (int dy = -3; dy <= 3; dy++) {
+            std::string row;
+            for (int dx = -4; dx <= 4; dx++) {
+              const int k = p.at(x + dx, y + dy);
+              row += (k < 0 || !opaque(p, k)) ? (dx == 0 && dy == 0 ? " O" : " .") : fmt("%2d", ownerOf(p, k));
+            }
+            std::printf("      hole%+d %s\n", dy, row.c_str());
+          }
+          for (size_t i = 0; i < p.items.size(); i++) std::printf("      item %zu %s key %s at %d,%d hole %d,%d\n", i, p.items[i].part.c_str(), p.items[i].key.c_str(), p.items[i].ax, p.items[i].ay, x, y);
+        }
       }
     }
   }
@@ -326,9 +337,15 @@ std::string helmCheck(const doll::FrameProbe& p) {
 }
 // c: the shield on the off arm. bare: the same frame without the shield (its boot, shin and figure box)
 std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, bool run, int facing) {
+  // (INTEGRATE forge i1) a shield is its base view plus its `when` overlays (tier fields, forge boss-/rim- styles): every
+  // shield item counts as the shield, the base (the first) names it; before, the last overlay alone (a ring of rivets) was
+  // tested against the hand, the shins and the run box
   int si = -1;
-  for (size_t i = 0; i < p.items.size(); i++) if (isShield(p.items[i])) si = (int)i;
+  std::vector<char> isSh(p.items.size(), 0);
+  for (size_t i = 0; i < p.items.size(); i++)
+    if (isShield(p.items[i])) { isSh[i] = 1; if (si < 0) si = (int)i; }
   if (si < 0) return "";
+  auto shOwner = [&](int k) { const int o = ownerOf(p, k); return o >= 0 && o < (int)isSh.size() && isSh[(size_t)o]; };
   const doll::FrameProbe::It& sh = p.items[(size_t)si];
   if (sh.anchor != art::doll::Anchor::GripL) return sh.part + ": not on gripL";
   if (!p.turn) {
@@ -346,14 +363,44 @@ std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare,
       for (int dx = -1; dx <= 1 && !near; dx++) {
         const int k = p.at(p.gripLX + dx, p.gripLY + dy);
         if (k < 0) continue;
-        if (ownerOf(p, k) == si) near = true;
+        if (shOwner(k)) near = true;
         // (under the hand: the shield drawn first, the fist over it)
         if (!near && opaque(p, k) && p.gripLFrom >= 0 && ownerOf(p, k) == p.gripLFrom) near = true;
       }
     // (SLICE-DOLL i2, by eye) facing right the far shield arm draws nothing (its block view is empty: the hand behind the
     // raised kite); with no hand drawn there is nothing to touch, the arm is hidden behind the shield it holds
+    // (INTEGRATE forge i2, by eye) facing up the T5 surcoat and the noble cloak hang over the far arm: the grip and the
+    // shield's inner edge lie under the cloak. Attached when the grip's 3 x 3 is all cloak drawn over the shield and a shield
+    // pixel shows within 3 px of the grip (the shield runs on under the cloak to the hand)
+    if (!near) {
+      bool allCloak = true, shNear = false;
+      for (int dy = -1; dy <= 1 && allCloak; dy++)
+        for (int dx = -1; dx <= 1 && allCloak; dx++) {
+          const int k = p.at(p.gripLX + dx, p.gripLY + dy);
+          const int o = k < 0 ? -1 : ownerOf(p, k);
+          if (k < 0 || !opaque(p, k) || o < 0 || o <= si || !p.items[(size_t)o].has(doll::Role::Cloak)) allCloak = false;
+        }
+      for (int dy = -3; dy <= 3 && allCloak && !shNear; dy++)
+        for (int dx = -3; dx <= 3 && !shNear; dx++) {
+          const int k = p.at(p.gripLX + dx, p.gripLY + dy);
+          if (k >= 0 && shOwner(k)) shNear = true;
+        }
+      if (allCloak && shNear) near = true;
+    }
     bool handDrawn = p.gripLFrom < 0;
     for (int k = 0; k < p.w * p.h && !handDrawn; k++) if (opaque(p, k) && ownerOf(p, k) == p.gripLFrom) handDrawn = true;
+    if (!near && handDrawn && std::getenv("EMB_C3_DEBUG")) {
+      for (int dy = -3; dy <= 3; dy++) {
+        std::string row;
+        for (int dx = -4; dx <= 4; dx++) {
+          const int k = p.at(p.gripLX + dx, p.gripLY + dy);
+          const int o = k < 0 ? -1 : ownerOf(p, k);
+          row += (k < 0 || !opaque(p, k)) ? " ." : o == p.gripLFrom ? " H" : shOwner(k) ? " S" : fmt("%2d", o);
+        }
+        std::printf("      grip%+d %s\n", dy, row.c_str());
+      }
+      for (size_t i = 0; i < p.items.size(); i++) std::printf("      item %zu %s\n", i, p.items[i].part.c_str());
+    }
     if (!near && handDrawn) return sh.part + ": not touching the gripping hand";
   } else if (!p.turn) {
     return sh.part + ": no gripL mark (the shield arm marks it)";
@@ -364,13 +411,19 @@ std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare,
     for (int k = 0; k < p.w * p.h; k++)
       if (opaque(*bare, k)) { const int x = k % p.w, y = k / p.w; x0 = std::min(x0, x); x1 = std::max(x1, x); y0 = std::min(y0, y); y1 = std::max(y1, y); }
     for (int k = 0; k < p.w * p.h; k++) {
-      if (ownerOf(p, k) != si || !opaque(p, k)) continue;
+      if (!shOwner(k) || !opaque(p, k)) continue;
       const uint8_t rg = bare->region[(size_t)k];
       if (opaque(*bare, k) && (rg == (uint8_t)doll::Region::Boot || rg == (uint8_t)doll::Region::Sole)) return sh.part + ": over a boot";
       if (opaque(*bare, k) && rg == (uint8_t)doll::Region::Shin) shinCols.insert(k % p.w);
       if (run) {
         const int x = k % p.w, y = k / p.w;
-        if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) return sh.part + ": outside the run box + 1";
+        if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) {
+          if (std::getenv("EMB_C3_DEBUG")) {
+            std::printf("      runbox %d..%d x %d..%d, shield px %d,%d (pivot %d,%d)\n", x0, x1, y0, y1, x, y, p.px, p.py);
+            for (size_t i = 0; i < p.items.size(); i++) std::printf("      item %zu %s key %s at %d,%d\n", i, p.items[i].part.c_str(), p.items[i].key.c_str(), p.items[i].ax, p.items[i].ay);
+          }
+          return sh.part + ": outside the run box + 1";
+        }
       }
     }
     if (shinCols.size() > 1) return sh.part + fmt(": over %d columns of a shin (1 at most)", (int)shinCols.size());
@@ -433,7 +486,8 @@ std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, b
   return "";
 }
 // e: lying keeps its gear
-std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool weapon) {
+// (forge i3) headHelm: the look's helm is a culture alloy's metal head cut from the headwear library (DollRecipe::guiseHead)
+std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool weapon, bool headHelm = false) {
   int helmPx = 0;
   std::vector<int> body, sh, wp, hand, figure;   // figure: every opaque pixel that is not the weapon or the shield
   for (int k = 0; k < p.w * p.h; k++) {
@@ -441,7 +495,7 @@ std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool w
     const doll::FrameProbe::It* it = itemAt(p, k);
     if (!it || !(it->has(doll::Role::Held) || it->has(doll::Role::Shield))) figure.push_back(k);
     if (!it) continue;
-    if (isHelm(*it)) helmPx++;
+    if (isHelm(*it) || (headHelm && it->has(doll::Role::Headwear))) helmPx++;
     // (P2c ladder i1: the lie views lie flat beside the corpse, `anchor pivot`: the shield on the ground still counts)
     if (isShield(*it) || (it->has(doll::Role::Shield) && it->anchor == art::doll::Anchor::Pivot)) sh.push_back(k);
     else if (it->has(doll::Role::Held)) wp.push_back(k);
@@ -515,7 +569,7 @@ void gateC3(Line& g, const std::vector<Look>& looks) {
           if (!gc.empty()) g.bad("C3d " + nm + ": " + gc); else g.ok();
         }
         if (f.clip == Clip::Lying) {
-          const std::string lc = lyingCheck(p, hasHelm, hasShield, fighter(b.L));
+          const std::string lc = lyingCheck(p, hasHelm, hasShield, fighter(b.L), b.r.guiseHead);
           if (!lc.empty()) g.bad("C3e " + nm + ": " + lc); else g.ok();
         }
       }
@@ -1047,6 +1101,17 @@ int dollArmsGates(bool report, std::vector<std::string>& printed) {
   }
   return fails;
 }
-std::string dollSliceLooksText() { return dollarms::kSliceLooks; }
+std::string dollForgeLooksText();   // test_doll_forge.cpp: tools/doll/forge_looks.txt (embedded)
+// (P2c forge) the gates' matrix: the ladder looks, then the forge looks whose tags the ladder file lacks
+std::string dollSliceLooksText() {
+  std::string out = dollarms::kSliceLooks;
+  std::set<std::string> have;
+  auto tagOf = [](const std::string& ln) { const size_t e = ln.find_first_of(" \t"); return ln.substr(0, e); };
+  auto lines = [](const std::string& t, auto fn) { for (size_t a = 0; a < t.size();) { size_t b = t.find('\n', a); if (b == std::string::npos) b = t.size(); fn(t.substr(a, b - a)); a = b + 1; } };
+  lines(out, [&](const std::string& ln) { have.insert(tagOf(ln)); });
+  const std::string f = dollForgeLooksText();
+  lines(f, [&](const std::string& ln) { if (!ln.empty() && ln[0] != '#' && !have.count(tagOf(ln))) out += ln + "\n"; });
+  return out;
+}
 
 RPG_TEST_CMD("--doll-arms", "P2c gear gates C3-C6 on the slice looks [--looks f] [--pool f] [--report] [--selftest]", dollarms::armsCmd);

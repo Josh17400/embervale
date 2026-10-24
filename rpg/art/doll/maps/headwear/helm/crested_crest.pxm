@@ -26,6 +26,549 @@ legend l linen 2
 legend D linen 1
 legend I glow 4
 
+# (FORGE-HELM i2 plume_yield.py) the forge crest replaces the plume at T1-T4: empty views (begin)
+view D key breeze when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when forge-homespun,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when forge-tanner,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-ridge,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-comb,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-knife,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-brow,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-crown,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-shards,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-chimney,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-spire,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-fin,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-finial,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-spike,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-horns,!helm.t5,!helm.t6 replace
+|.
+
+view D key breeze when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view D key rest when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view D key up when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view L key breeze when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view L key rest when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view L key up when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view R key breeze when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view R key rest when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view R key up when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view U key breeze when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view U key rest when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+view U key up when crest-wings,!helm.t5,!helm.t6 replace
+|.
+
+# (FORGE-HELM i2 plume_yield.py) (end)
+
 view D key rest origin 0 4
 |................
 |.......QQ.......
@@ -47,19 +590,58 @@ view D key rest origin 0 4
 # on a gilt holder (D/U a wide arc; R/L edge-on, a tall upright brush: T4's crest sweeps back, T5's stands across)
 # (LADDER-HEAD alloys i2, w2/g2.py) Mythic: the flame crown, a gilt circlet on the dome top with five flames
 # (three in profile), the centre spire tallest with a white-hot core; up: a row lower; breeze: the odd flames dip
+# (FORGE-HELM i1) the forge crest draws the flame crown (crest-flame): these views stay empty then
+# (FORGE-HELM i1) the forge crest draws the flame crown (crest-flame): these views stay empty then
+# (FORGE-HELM i1) the forge crest draws the flame crown (crest-flame): these views stay empty then
+view D key rest when helm.t6,mythic,crest-flame replace
+|.
+
+view D key up when helm.t6,mythic,crest-flame replace
+|.
+
+view D key breeze when helm.t6,mythic,crest-flame replace
+|.
+
+view U key rest when helm.t6,mythic,crest-flame replace
+|.
+
+view U key up when helm.t6,mythic,crest-flame replace
+|.
+
+view U key breeze when helm.t6,mythic,crest-flame replace
+|.
+
+view R key rest when helm.t6,mythic,crest-flame replace
+|.
+
+view R key up when helm.t6,mythic,crest-flame replace
+|.
+
+view R key breeze when helm.t6,mythic,crest-flame replace
+|.
+
+view L key rest when helm.t6,mythic,crest-flame replace
+|.
+
+view L key up when helm.t6,mythic,crest-flame replace
+|.
+
+view L key breeze when helm.t6,mythic,crest-flame replace
+|.
+
 view D key rest origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|.......Q..QUTQ..Q.......
-|......QUQ.QUTQ.QTQ......
-|...Q.QUTQQUZZSQQTSQ.Q...
-|..QUQQUTTQUZTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QUTQ.Q........
+|.......QTQQUTSQTQ.......
+|.......QUTSUUTSTSQ......
+|.......vwwvvvvwwv.......
+|.......vxxwwxxwwv.......
+|........................
+|........................
 |........................
 |........................
 
@@ -68,30 +650,30 @@ view D key up origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|.......Q..QUTQ..Q.......
-|......QUQ.QUTQ.QTQ......
-|...Q.QUTQQUZZSQQTSQ.Q...
-|..QUQQUTTQUZTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QUTQ.Q........
+|.......QTQQUTSQTQ.......
+|.......QUTSUUTSTSQ......
+|.......vwwvvvvwwv.......
+|.......vxxwwxxwwv.......
+|........................
+|........................
 |........................
 
 view D key breeze origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|......Q...QUTQ...Q......
-|.....QUQQ.QUTQ.QQSQ.....
-|...Q.QUTTQUZZSQTTSQ.Q...
-|..QUQQUTTQUZTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QUTQ.Q........
+|.......QTQQUTSQTQ.......
+|.......QUTSUUTSTSQ......
+|.......vwwvvvvwwv.......
+|.......vxxwwxxwwv.......
+|........................
+|........................
 |........................
 |........................
 
@@ -99,15 +681,15 @@ view U key rest origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|.......Q..QUTQ..Q.......
-|......QUQ.QUTQ.QTQ......
-|...Q.QUTQQUUUSQQTSQ.Q...
-|..QUQQUTTQUUTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QTUQ.Q........
+|.......QTQSTUUQTQ.......
+|......QSTSTUUSTUQ.......
+|.......vwwvvvvwwv.......
+|.......vxwwxxwwxv.......
+|........................
+|........................
 |........................
 |........................
 
@@ -116,30 +698,30 @@ view U key up origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|.......Q..QUTQ..Q.......
-|......QUQ.QUTQ.QTQ......
-|...Q.QUTQQUUUSQQTSQ.Q...
-|..QUQQUTTQUUTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QTUQ.Q........
+|.......QTQSTUUQTQ.......
+|......QSTSTUUSTUQ.......
+|.......vwwvvvvwwv.......
+|.......vxwwxxwwxv.......
+|........................
+|........................
 |........................
 
 view U key breeze origin 4 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
+|........................
 |...........QQ...........
-|......Q...QUTQ...Q......
-|.....QUQQ.QUTQ.QQSQ.....
-|...Q.QUTTQUUUSQTTSQ.Q...
-|..QUQQUTTQUUTSQTSRQQTQ..
-|...QUTQzPPPPOOONNQSTQ...
-|...QTUSQ........QRTSQ...
-|....QTRQ........QRSQ....
-|.....QQ..........QQ.....
+|........Q.QTUQ.Q........
+|.......QTQSTUUQTQ.......
+|......QSTSTUUSTUQ.......
+|.......vwwvvvvwwv.......
+|.......vxwwxxwwxv.......
+|........................
+|........................
 |........................
 |........................
 
@@ -147,15 +729,15 @@ view R key rest origin 7 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|...............Q........
-|..............QUQQ......
-|......Q......QQUQTQ.....
-|.....QUQ....QUQZQTQ.....
-|.....QUTQ...QTTZTSQ.....
-|......QUTQ..vzPOONv.....
-|......QTUSQ.............
-|.......QTRQ.............
-|........QQ..............
+|........................
+|........................
+|...............QQ.......
+|.............Q.QUQ.Q....
+|............QTQUTSQTQ...
+|...........QUTSUUTSTQ...
+|...........vwwvvvvwwv...
+|...........vxxwwxxwwv...
+|........................
 |........................
 |........................
 
@@ -164,30 +746,30 @@ view R key up origin 7 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|...............Q........
-|..............QUQQ......
-|......Q......QQUQTQ.....
-|.....QUQ....QUQZQTQ.....
-|.....QUTQ...QTTZTSQ.....
-|......QUTQ..vzPOONv.....
-|......QTUSQ.............
-|.......QTRQ.............
-|........QQ..............
+|........................
+|........................
+|...............QQ.......
+|.............Q.QUQ.Q....
+|............QTQUTSQTQ...
+|...........QUTSUUTSTQ...
+|...........vwwvvvvwwv...
+|...........vxxwwxxwwv...
+|........................
 |........................
 
 view R key breeze origin 7 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|...............Q........
-|.............QQUQ.......
-|......Q.....QUQUQQ......
-|.....QUQ....QUQZQTQ.....
-|.....QUTQ...QTTZTSQ.....
-|......QUTQ..vzPOONv.....
-|......QTUSQ.............
-|.......QTRQ.............
-|........QQ..............
+|........................
+|........................
+|...............QQ.......
+|.............Q.QUQ.Q....
+|............QTQUTSQTQ...
+|...........QUTSUUTSTQ...
+|...........vwwvvvvwwv...
+|...........vxxwwxxwwv...
+|........................
 |........................
 |........................
 
@@ -195,15 +777,15 @@ view L key rest origin 1 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|........Q...............
-|......QQUQ..............
-|.....QUQUQQ......Q......
-|.....QUQZQTQ....QTQ.....
-|.....QUTZTSQ...QUTQ.....
-|.....vzPOONv..QUTQ......
-|.............QUTSQ......
-|.............QTRQ.......
-|..............QQ........
+|........................
+|........................
+|.......QQ...............
+|....Q.QUQ.Q.............
+|...QTQUTSQTQ............
+|...QUTSUUTSTQ...........
+|...vwwvvvvwwv...........
+|...vxxwwxxwwv...........
+|........................
 |........................
 |........................
 
@@ -212,30 +794,30 @@ view L key up origin 1 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|........Q...............
-|......QQUQ..............
-|.....QUQUQQ......Q......
-|.....QUQZQTQ....QTQ.....
-|.....QUTZTSQ...QUTQ.....
-|.....vzPOONv..QUTQ......
-|.............QUTSQ......
-|.............QTRQ.......
-|..............QQ........
+|........................
+|........................
+|.......QQ...............
+|....Q.QUQ.Q.............
+|...QTQUTSQTQ............
+|...QUTSUUTSTQ...........
+|...vwwvvvvwwv...........
+|...vxxwwxxwwv...........
+|........................
 |........................
 
 view L key breeze origin 1 6 when helm.t6,mythic replace
 |........................
 |........................
 |........................
-|........Q...............
-|.......QUQQ.............
-|......QQUQTQ.....Q......
-|.....QUQZQTQ....QTQ.....
-|.....QUTZTSQ...QUTQ.....
-|.....vzPOONv..QUTQ......
-|.............QUTSQ......
-|.............QTRQ.......
-|..............QQ........
+|........................
+|........................
+|.......QQ...............
+|....Q.QUQ.Q.............
+|...QTQUTSQTQ............
+|...QUTSUUTSTQ...........
+|...vwwvvvvwwv...........
+|...vxxwwxxwwv...........
+|........................
 |........................
 |........................
 

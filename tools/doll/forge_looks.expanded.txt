@@ -1,0 +1,432 @@
+hero     man   weapon=1,hairVar=2,neck=1,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,eyeColor=#3A78B0
+         needs: sheath=sword held=sword.straight
+         tiers: none; metal 0, blade 0
+fm_home  man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=1,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=1,bladeKind=4,forgeBody=0x0801010213000401,forgeHelm=0x0801010213000401,forgeShield=0x0801010213000401,forgeGloves=0x0801010213000401,forgeBoots=0x0801010213000401
+         needs: armour=padded shield=arm shield=form6 pauldron=roll.3 overlay=collar.rolled overlay=cut.channel overlay=edge.rolled overlay=fit.lacing overlay=quilt cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 1, blade 4
+         forge body   homespun: roll - channel rolled rolled plain lacing
+         forge helm   homespun: roll - channel rolled rolled plain lacing
+         forge shield homespun: roll - channel rolled rolled plain lacing
+         forge gloves homespun: roll - channel rolled rolled plain lacing
+         forge boots  homespun: roll - channel rolled rolled plain lacing
+         forge flags: forge-homespun shoulder-roll cut-channel edge-rolled collar-rolled limb-plain fit-lacing boss-lacing rim-rolled glimb-plain blimb-plain form-padded blademetal-steel
+fm_tan   man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=2,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=1,bladeKind=4,forgeBody=0x0205020416010502,forgeHelm=0x0205020416010502,forgeShield=0x0205020416010502,forgeGloves=0x0205020416010502,forgeBoots=0x0205020416010502
+         needs: armour=leather helm=band1 shield=arm shield=form7 pauldron=flap.3 overlay=collar.stand overlay=cut.lacedfront overlay=edge.dagged overlay=fit.studs overlay=limb.laced overlay=crest.ridge overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 1, blade 4
+         forge body   tanner: flap ridge lacedfront dagged stand laced studs
+         forge helm   tanner: flap ridge lacedfront dagged stand laced studs
+         forge shield tanner: flap ridge lacedfront dagged stand laced studs
+         forge gloves tanner: flap ridge lacedfront dagged stand laced studs
+         forge boots  tanner: flap ridge lacedfront dagged stand laced studs
+         forge flags: forge-tanner shoulder-flap cut-lacedfront edge-dagged collar-stand limb-laced fit-studs crest-ridge boss-studs rim-dagged glimb-laced blimb-laced form-leather blademetal-steel
+fm_bronze man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=2,bladeKind=4,forgeBody=0x0304030506020603,forgeHelm=0x0304030506020603,forgeShield=0x0304030506020603,forgeGloves=0x0304030506020603,forgeBoots=0x0304030506020603
+         needs: armour=plate helm=form9 shield=arm shield=form1 pauldron=cop.3 overlay=collar.torc overlay=edge.strips overlay=fit.bosses overlay=limb.scaled overlay=crest.comb overlay=limb.scaled overlay=limb.scaled cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 2, blade 4
+         forge body   foundry: cop comb muscled strips torc scaled bosses
+         forge helm   foundry: cop comb muscled strips torc scaled bosses
+         forge shield foundry: cop comb muscled strips torc scaled bosses
+         forge gloves foundry: cop comb muscled strips torc scaled bosses
+         forge boots  foundry: cop comb muscled strips torc scaled bosses
+         forge flags: forge-foundry shoulder-cop cut-muscled edge-strips collar-torc limb-scaled fit-bosses crest-comb boss-bosses rim-strips glimb-scaled blimb-scaled form-plate blademetal-steel
+fm_iron  man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=3,bladeKind=4,forgeBody=0x0103040104040704,forgeHelm=0x0103040104040704,forgeShield=0x0103040104040704,forgeGloves=0x0103040104040704,forgeBoots=0x0103040104040704
+         needs: armour=plate helm=form2 shield=arm shield=form1 pauldron=slab.3 overlay=collar.riveted overlay=cut.banded overlay=fit.rivets overlay=limb.splinted overlay=crest.brow overlay=limb.splinted overlay=limb.splinted cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 3, blade 4
+         forge body   wrought: slab brow banded plain riveted splinted rivets
+         forge helm   wrought: slab brow banded plain riveted splinted rivets
+         forge shield wrought: slab brow banded plain riveted splinted rivets
+         forge gloves wrought: slab brow banded plain riveted splinted rivets
+         forge boots  wrought: slab brow banded plain riveted splinted rivets
+         forge flags: forge-wrought shoulder-slab cut-banded edge-plain collar-riveted limb-splinted fit-rivets crest-brow boss-rivets rim-plain glimb-splinted blimb-splinted form-plate blademetal-steel
+fm_steel man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=4,bladeKind=4,forgeBody=0x0008050802030805,forgeHelm=0x0008050802030805,forgeShield=0x0008050802030805,forgeGloves=0x0008050802030805,forgeBoots=0x0008050802030805
+         needs: armour=plate helm=form1 shield=arm shield=form4 pauldron=flared.3 overlay=collar.gorget overlay=cut.fluted overlay=edge.cusped overlay=limb.fluted overlay=crest.knife overlay=limb.fluted overlay=limb.fluted cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 4, blade 4
+         forge body   armourer: flared knife fluted cusped gorget fluted -
+         forge helm   armourer: flared knife fluted cusped gorget fluted -
+         forge shield armourer: flared knife fluted cusped gorget fluted -
+         forge gloves armourer: flared knife fluted cusped gorget fluted -
+         forge boots  armourer: flared knife fluted cusped gorget fluted -
+         forge flags: forge-armourer shoulder-flared cut-fluted edge-cusped collar-gorget limb-fluted crest-knife rim-cusped glimb-fluted blimb-fluted form-plate blademetal-steel
+fm_gilt  man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=5,bladeKind=4,forgeBody=0x0706060309050906,forgeHelm=0x0706060309050906,forgeShield=0x0706060309050906,forgeGloves=0x0706060309050906,forgeBoots=0x0706060309050906
+         needs: armour=plate shield=arm shield=form6 pauldron=lobed.3 overlay=collar.flared overlay=edge.scalloped overlay=fit.inlay overlay=limb.studded overlay=crest.crown overlay=limb.studded overlay=limb.studded cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 5, blade 4
+         forge body   parade: lobed crown embossed scalloped flared studded inlay
+         forge helm   parade: lobed crown embossed scalloped flared studded inlay
+         forge shield parade: lobed crown embossed scalloped flared studded inlay
+         forge gloves parade: lobed crown embossed scalloped flared studded inlay
+         forge boots  parade: lobed crown embossed scalloped flared studded inlay
+         forge flags: forge-parade shoulder-lobed cut-embossed edge-scalloped collar-flared limb-studded fit-inlay crest-crown boss-inlay rim-scalloped glimb-studded blimb-studded form-plate blademetal-steel
+fm_obsid man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=7,bladeKind=4,forgeBody=0x0009070605060A07,forgeHelm=0x0009070605060A07,forgeShield=0x0009070605060A07,forgeGloves=0x0009070605060A07,forgeBoots=0x0009070605060A07
+         needs: armour=plate helm=form8 shield=arm shield=form1 pauldron=shard.3 overlay=collar.angular overlay=edge.serrated overlay=limb.faceted overlay=crest.shards overlay=limb.faceted overlay=limb.faceted cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 7, blade 4
+         forge body   knapped: shard shards faceted serrated angular faceted -
+         forge helm   knapped: shard shards faceted serrated angular faceted -
+         forge shield knapped: shard shards faceted serrated angular faceted -
+         forge gloves knapped: shard shards faceted serrated angular faceted -
+         forge boots  knapped: shard shards faceted serrated angular faceted -
+         forge flags: forge-knapped shoulder-shard cut-faceted edge-serrated collar-angular limb-faceted crest-shards rim-serrated glimb-faceted blimb-faceted form-plate blademetal-steel
+fm_ember man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=8,bladeKind=4,forgeBody=0x0502080A08070B08,forgeHelm=0x0502080A08070B08,forgeShield=0x0502080A08070B08,forgeGloves=0x0502080A08070B08,forgeBoots=0x0502080A08070B08
+         needs: armour=plate helm=form3 shield=arm shield=form4 pauldron=vented.3 overlay=collar.furnace overlay=cut.vented overlay=edge.stepped overlay=fit.scored overlay=limb.banded overlay=crest.chimney overlay=limb.banded overlay=limb.banded cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 8, blade 4
+         forge body   furnace: vented chimney vented stepped furnace banded scored
+         forge helm   furnace: vented chimney vented stepped furnace banded scored
+         forge shield furnace: vented chimney vented stepped furnace banded scored
+         forge gloves furnace: vented chimney vented stepped furnace banded scored
+         forge boots  furnace: vented chimney vented stepped furnace banded scored
+         forge flags: forge-furnace shoulder-vented cut-vented edge-stepped collar-furnace limb-banded fit-scored crest-chimney boss-scored rim-stepped glimb-banded blimb-banded form-plate blademetal-steel
+fm_star  man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=9,bladeKind=4,forgeBody=0x0407090907080C09,forgeHelm=0x0407090907080C09,forgeShield=0x0407090907080C09,forgeGloves=0x0407090907080C09,forgeBoots=0x0407090907080C09
+         needs: armour=plate helm=form4 shield=arm shield=form6 pauldron=crystal.3 overlay=collar.high overlay=cut.ribbed overlay=edge.pointed overlay=fit.stars overlay=limb.ribbed overlay=crest.spire overlay=limb.ribbed overlay=limb.ribbed cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 9, blade 4
+         forge body   starfall: crystal spire ribbed pointed high ribbed stars
+         forge helm   starfall: crystal spire ribbed pointed high ribbed stars
+         forge shield starfall: crystal spire ribbed pointed high ribbed stars
+         forge gloves starfall: crystal spire ribbed pointed high ribbed stars
+         forge boots  starfall: crystal spire ribbed pointed high ribbed stars
+         forge flags: forge-starfall shoulder-crystal cut-ribbed edge-pointed collar-high limb-ribbed fit-stars crest-spire boss-stars rim-pointed glimb-ribbed blimb-ribbed form-plate blademetal-steel
+fm_myth  man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=4,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=801,gloves=3,boots=3,sheen=2,glow=31,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#480A14,eyeColor=#3A78B0,plumeColor=#F06A1E,armourTint=#DF8C70,armourTint2=#522A2E,glowColor=#FF6828,shieldField=#A88A4B,shieldDevice=#2D7047,trimColor=#DF8C70,weaponColor=#ECF2FF,tierBody=6,tierHelm=6,tierShield=6,tierWeapon=6,tierGloves=6,tierBoots=6,tierCloak=6,mythic=127,metalKind=11,bladeKind=11,forgeBody=0x000A0A0C0B0E0D0A,forgeHelm=0x000A0A0C0B0E0D0A,forgeShield=0x000A0A0C0B0E0D0A,forgeGloves=0x000A0A0C0B0E0D0A,forgeBoots=0x000A0A0C0B0E0D0A
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=flame.4 overlay=collar.ember overlay=cut.crackled overlay=edge.flame overlay=limb.crackled overlay=crest.flame overlay=limb.crackled overlay=limb.crackled cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.rune overlay=finish.gem overlay=finish.glyph
+         tiers: body T6, helm T6, shield T6, weapon T6, gloves T6, boots T6, cloak T6; metal 11, blade 11, mythic
+         forge body   mythic: flame flame crackled flame ember crackled -
+         forge helm   mythic: flame flame crackled flame ember crackled -
+         forge shield mythic: flame flame crackled flame ember crackled -
+         forge gloves mythic: flame flame crackled flame ember crackled -
+         forge boots  mythic: flame flame crackled flame ember crackled -
+         forge flags: forge-mythic shoulder-flame cut-crackled edge-flame collar-ember limb-crackled crest-flame rim-flame glimb-crackled blimb-crackled form-plate blademetal-mythic
+f5_steel man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=4,bladeKind=5,forgeBody=0x0008050802030805,forgeHelm=0x0008050802030805,forgeShield=0x0008050802030805,forgeGloves=0x0008050802030805,forgeBoots=0x0008050802030805
+         needs: armour=plate helm=form1 shield=arm shield=form4 pauldron=flared.4 overlay=collar.gorget overlay=cut.fluted overlay=edge.cusped overlay=limb.fluted overlay=crest.knife overlay=limb.fluted overlay=limb.fluted cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 4, blade 5
+         forge body   armourer: flared knife fluted cusped gorget fluted -
+         forge helm   armourer: flared knife fluted cusped gorget fluted -
+         forge shield armourer: flared knife fluted cusped gorget fluted -
+         forge gloves armourer: flared knife fluted cusped gorget fluted -
+         forge boots  armourer: flared knife fluted cusped gorget fluted -
+         forge flags: forge-armourer shoulder-flared cut-fluted edge-cusped collar-gorget limb-fluted crest-knife rim-cusped glimb-fluted blimb-fluted form-plate blademetal-gilded
+f5_gilt  man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=5,bladeKind=5,forgeBody=0x0706060309050906,forgeHelm=0x0706060309050906,forgeShield=0x0706060309050906,forgeGloves=0x0706060309050906,forgeBoots=0x0706060309050906
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=lobed.4 overlay=collar.flared overlay=edge.scalloped overlay=fit.inlay overlay=limb.studded overlay=crest.crown overlay=limb.studded overlay=limb.studded cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 5, blade 5
+         forge body   parade: lobed crown embossed scalloped flared studded inlay
+         forge helm   parade: lobed crown embossed scalloped flared studded inlay
+         forge shield parade: lobed crown embossed scalloped flared studded inlay
+         forge gloves parade: lobed crown embossed scalloped flared studded inlay
+         forge boots  parade: lobed crown embossed scalloped flared studded inlay
+         forge flags: forge-parade shoulder-lobed cut-embossed edge-scalloped collar-flared limb-studded fit-inlay crest-crown boss-inlay rim-scalloped glimb-studded blimb-studded form-plate blademetal-gilded
+f5_obsid man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=7,bladeKind=5,forgeBody=0x0009070605060A07,forgeHelm=0x0009070605060A07,forgeShield=0x0009070605060A07,forgeGloves=0x0009070605060A07,forgeBoots=0x0009070605060A07
+         needs: armour=plate helm=form8 shield=arm shield=form1 pauldron=shard.4 overlay=collar.angular overlay=edge.serrated overlay=limb.faceted overlay=crest.shards overlay=limb.faceted overlay=limb.faceted cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 7, blade 5
+         forge body   knapped: shard shards faceted serrated angular faceted -
+         forge helm   knapped: shard shards faceted serrated angular faceted -
+         forge shield knapped: shard shards faceted serrated angular faceted -
+         forge gloves knapped: shard shards faceted serrated angular faceted -
+         forge boots  knapped: shard shards faceted serrated angular faceted -
+         forge flags: forge-knapped shoulder-shard cut-faceted edge-serrated collar-angular limb-faceted crest-shards rim-serrated glimb-faceted blimb-faceted form-plate blademetal-gilded
+f5_ember man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=8,bladeKind=5,forgeBody=0x0502080A08070B08,forgeHelm=0x0502080A08070B08,forgeShield=0x0502080A08070B08,forgeGloves=0x0502080A08070B08,forgeBoots=0x0502080A08070B08
+         needs: armour=plate helm=form3 shield=arm shield=form4 pauldron=vented.4 overlay=collar.furnace overlay=cut.vented overlay=edge.stepped overlay=fit.scored overlay=limb.banded overlay=crest.chimney overlay=limb.banded overlay=limb.banded cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 8, blade 5
+         forge body   furnace: vented chimney vented stepped furnace banded scored
+         forge helm   furnace: vented chimney vented stepped furnace banded scored
+         forge shield furnace: vented chimney vented stepped furnace banded scored
+         forge gloves furnace: vented chimney vented stepped furnace banded scored
+         forge boots  furnace: vented chimney vented stepped furnace banded scored
+         forge flags: forge-furnace shoulder-vented cut-vented edge-stepped collar-furnace limb-banded fit-scored crest-chimney boss-scored rim-stepped glimb-banded blimb-banded form-plate blademetal-gilded
+f5_star  man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=9,bladeKind=5,forgeBody=0x0407090907080C09,forgeHelm=0x0407090907080C09,forgeShield=0x0407090907080C09,forgeGloves=0x0407090907080C09,forgeBoots=0x0407090907080C09
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=crystal.4 overlay=collar.high overlay=cut.ribbed overlay=edge.pointed overlay=fit.stars overlay=limb.ribbed overlay=crest.spire overlay=limb.ribbed overlay=limb.ribbed cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 9, blade 5
+         forge body   starfall: crystal spire ribbed pointed high ribbed stars
+         forge helm   starfall: crystal spire ribbed pointed high ribbed stars
+         forge shield starfall: crystal spire ribbed pointed high ribbed stars
+         forge gloves starfall: crystal spire ribbed pointed high ribbed stars
+         forge boots  starfall: crystal spire ribbed pointed high ribbed stars
+         forge flags: forge-starfall shoulder-crystal cut-ribbed edge-pointed collar-high limb-ribbed fit-stars crest-spire boss-stars rim-pointed glimb-ribbed blimb-ribbed form-plate blademetal-gilded
+fw_bronze woman body=1,weapon=1,cloak=1,hair=5,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#EEAA86,hairColor=#C79346,topColor=#922F60,bottomColor=#4F4B6B,tabardColor=#28728C,cloakColor=#163E4D,eyeColor=#3F8A5A,plumeColor=#28728C,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=2,bladeKind=4,forgeBody=0x0304030506020603,forgeHelm=0x0304030506020603,forgeShield=0x0304030506020603,forgeGloves=0x0304030506020603,forgeBoots=0x0304030506020603
+         needs: armour=plate helm=form9 shield=arm shield=form1 pauldron=cop.3 overlay=collar.torc overlay=edge.strips overlay=fit.bosses overlay=limb.scaled overlay=crest.comb overlay=limb.scaled overlay=limb.scaled cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 2, blade 4
+         forge body   foundry: cop comb muscled strips torc scaled bosses
+         forge helm   foundry: cop comb muscled strips torc scaled bosses
+         forge shield foundry: cop comb muscled strips torc scaled bosses
+         forge gloves foundry: cop comb muscled strips torc scaled bosses
+         forge boots  foundry: cop comb muscled strips torc scaled bosses
+         forge flags: forge-foundry shoulder-cop cut-muscled edge-strips collar-torc limb-scaled fit-bosses crest-comb boss-bosses rim-strips glimb-scaled blimb-scaled form-plate blademetal-steel
+fw_steel woman body=1,weapon=1,cloak=1,hair=5,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#EEAA86,hairColor=#C79346,topColor=#922F60,bottomColor=#4F4B6B,tabardColor=#28728C,cloakColor=#163E4D,eyeColor=#3F8A5A,plumeColor=#28728C,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=4,bladeKind=4,forgeBody=0x0008050802030805,forgeHelm=0x0008050802030805,forgeShield=0x0008050802030805,forgeGloves=0x0008050802030805,forgeBoots=0x0008050802030805
+         needs: armour=plate helm=form1 shield=arm shield=form4 pauldron=flared.3 overlay=collar.gorget overlay=cut.fluted overlay=edge.cusped overlay=limb.fluted overlay=crest.knife overlay=limb.fluted overlay=limb.fluted cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 4, blade 4
+         forge body   armourer: flared knife fluted cusped gorget fluted -
+         forge helm   armourer: flared knife fluted cusped gorget fluted -
+         forge shield armourer: flared knife fluted cusped gorget fluted -
+         forge gloves armourer: flared knife fluted cusped gorget fluted -
+         forge boots  armourer: flared knife fluted cusped gorget fluted -
+         forge flags: forge-armourer shoulder-flared cut-fluted edge-cusped collar-gorget limb-fluted crest-knife rim-cusped glimb-fluted blimb-fluted form-plate blademetal-steel
+fw_star  woman body=1,weapon=1,cloak=1,hair=5,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=3,skirt=3,forgeKit=1,crest=2,armsOrnament=289,gloves=3,boots=3,skin=#EEAA86,hairColor=#C79346,topColor=#922F60,bottomColor=#4F4B6B,tabardColor=#28728C,cloakColor=#163E4D,eyeColor=#3F8A5A,plumeColor=#28728C,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=9,bladeKind=4,forgeBody=0x0407090907080C09,forgeHelm=0x0407090907080C09,forgeShield=0x0407090907080C09,forgeGloves=0x0407090907080C09,forgeBoots=0x0407090907080C09
+         needs: armour=plate helm=form4 shield=arm shield=form6 pauldron=crystal.3 overlay=collar.high overlay=cut.ribbed overlay=edge.pointed overlay=fit.stars overlay=limb.ribbed overlay=crest.spire overlay=limb.ribbed overlay=limb.ribbed cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 9, blade 4
+         forge body   starfall: crystal spire ribbed pointed high ribbed stars
+         forge helm   starfall: crystal spire ribbed pointed high ribbed stars
+         forge shield starfall: crystal spire ribbed pointed high ribbed stars
+         forge gloves starfall: crystal spire ribbed pointed high ribbed stars
+         forge boots  starfall: crystal spire ribbed pointed high ribbed stars
+         forge flags: forge-starfall shoulder-crystal cut-ribbed edge-pointed collar-high limb-ribbed fit-stars crest-spire boss-stars rim-pointed glimb-ribbed blimb-ribbed form-plate blademetal-steel
+a_hl1    man   weapon=1,cloak=1,hairVar=1,beard=1,neck=1,head=4,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=7,bladeForm=7,pauldron=2,skirt=2,alloyRank=1,forgeGuise=33827,crest=2,armsOrnament=304,gloves=3,boots=3,sheen=1,skin=#E2A882,hairColor=#8A3A22,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#92302C,eyeColor=#3A78B0,plumeColor=#296141,armourTint=#9B64C0,armourTint2=#3F2352,shieldField=#92302C,shieldDevice=#9B64C0,trimColor=#9B64C0,weaponColor=#9B64C0,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=26,forgeBody=0x020602010A0A0700,forgeHelm=0x020602010A0A0700,forgeShield=0x020602010A0A0700,forgeGloves=0x020602010A0A0700,forgeBoots=0x020602010A0A0700
+         needs: armour=scale helm=form3 shield=arm shield=form7 pauldron=slab.2 overlay=collar.stand overlay=cut.pointed overlay=fit.studs overlay=limb.studded overlay=crest.finial overlay=limb.studded overlay=limb.studded cloak=travel sheath=sword held=sword.broad overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: slab finial splinted plain stand studded studs
+         forge helm   alloy: slab finial splinted plain stand studded studs
+         forge shield alloy: slab finial splinted plain stand studded studs
+         forge gloves alloy: slab finial splinted plain stand studded studs
+         forge boots  alloy: slab finial splinted plain stand studded studs
+         forge flags: forge-alloy shoulder-slab cut-pointed edge-plain collar-stand limb-studded fit-studs crest-finial boss-studs rim-plain glimb-studded blimb-studded form-scale blademetal-alloy
+a_hl2    man   weapon=1,cloak=1,hairVar=1,beard=1,neck=1,head=4,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=7,bladeForm=7,pauldron=2,skirt=2,alloyRank=2,forgeGuise=34377,crest=2,armsOrnament=304,gloves=3,boots=3,sheen=8,skin=#E2A882,hairColor=#8A3A22,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#92302C,eyeColor=#3A78B0,plumeColor=#296141,armourTint=#BC9A5C,armourTint2=#634F2A,shieldField=#92302C,shieldDevice=#BC9A5C,trimColor=#BC9A5C,weaponColor=#BC9A5C,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=38,forgeBody=0x05030404030B0500,forgeHelm=0x05030404030B0500,forgeShield=0x05030404030B0500,forgeGloves=0x05030404030B0500,forgeBoots=0x05030404030B0500
+         needs: armour=scale helm=form9 shield=arm shield=form1 pauldron=flap.3 overlay=collar.riveted overlay=cut.pointed overlay=edge.dagged overlay=fit.scored overlay=limb.splinted overlay=crest.spike overlay=limb.splinted overlay=limb.splinted cloak=travel sheath=sword held=sword.broad overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: flap spike keeled dagged riveted splinted scored
+         forge helm   alloy: flap spike keeled dagged riveted splinted scored
+         forge shield alloy: flap spike keeled dagged riveted splinted scored
+         forge gloves alloy: flap spike keeled dagged riveted splinted scored
+         forge boots  alloy: flap spike keeled dagged riveted splinted scored
+         forge flags: forge-alloy shoulder-flap cut-pointed edge-dagged collar-riveted limb-splinted fit-scored crest-spike boss-scored rim-dagged glimb-splinted blimb-splinted form-scale blademetal-alloy
+a_hl3    man   weapon=1,cloak=1,hairVar=1,beard=1,neck=1,head=4,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=7,bladeForm=7,pauldron=2,skirt=2,alloyRank=3,forgeGuise=35243,crest=2,armsOrnament=304,gloves=3,boots=3,sheen=8,skin=#E2A882,hairColor=#8A3A22,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#92302C,eyeColor=#3A78B0,plumeColor=#296141,armourTint=#C2AE6A,armourTint2=#5F5229,shieldField=#92302C,shieldDevice=#C2AE6A,trimColor=#C2AE6A,weaponColor=#C2AE6A,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=62,forgeBody=0x0206020103040200,forgeHelm=0x0206020103040200,forgeShield=0x0206020103040200,forgeGloves=0x0206020103040200,forgeBoots=0x0206020103040200
+         needs: armour=scale helm=form9 shield=arm shield=form6 pauldron=fur.2 overlay=collar.stand overlay=cut.pointed overlay=fit.studs overlay=limb.studded overlay=crest.brow overlay=limb.studded overlay=limb.studded cloak=travel sheath=sword held=sword.broad overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5, weapon T5, gloves T5, boots T5, cloak T3; metal 10, blade 10
+         forge body   alloy: fur brow keeled plain stand studded studs
+         forge helm   alloy: fur brow keeled plain stand studded studs
+         forge shield alloy: fur brow keeled plain stand studded studs
+         forge gloves alloy: fur brow keeled plain stand studded studs
+         forge boots  alloy: fur brow keeled plain stand studded studs
+         forge flags: forge-alloy shoulder-fur cut-pointed edge-plain collar-stand limb-studded fit-studs crest-brow boss-studs rim-plain glimb-studded blimb-studded form-scale blademetal-alloy
+a_fj2    man   weapon=1,cloak=1,hairVar=2,beard=1,beardStyle=3,neck=1,head=3,helmStyle=3,helmForm=4,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=1,bladeForm=7,pauldron=3,skirt=3,alloyRank=2,forgeGuise=34376,crest=2,armsOrnament=290,gloves=3,boots=3,sheen=4,skin=#F0C8A8,hairColor=#C8A050,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#82867C,eyeColor=#3A78B0,plumeColor=#973521,armourTint=#A371C5,armourTint2=#47285C,shieldField=#82867C,shieldDevice=#A371C5,trimColor=#A371C5,weaponColor=#A371C5,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=37,forgeBody=0x03020C04100B0700,forgeHelm=0x03020C04100B0700,forgeShield=0x03020C04100B0700,forgeGloves=0x03020C04100B0700,forgeBoots=0x03020C04100B0700
+         needs: armour=scale helm=form8 shield=arm shield=form6 pauldron=slab.3 overlay=collar.coif overlay=cut.square overlay=edge.dagged overlay=fit.bosses overlay=limb.banded overlay=crest.spike overlay=limb.banded overlay=limb.banded cloak=travel sheath=sword held=sword.broad overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: slab spike square dagged coif banded bosses
+         forge helm   alloy: slab spike square dagged coif banded bosses
+         forge shield alloy: slab spike square dagged coif banded bosses
+         forge gloves alloy: slab spike square dagged coif banded bosses
+         forge boots  alloy: slab spike square dagged coif banded bosses
+         forge flags: forge-alloy shoulder-slab cut-square edge-dagged collar-coif limb-banded fit-bosses crest-spike boss-bosses rim-dagged glimb-banded blimb-banded form-scale blademetal-alloy
+a_jade3  man   weapon=8,cloak=3,hairVar=1,neck=1,head=6,helmStyle=3,helmForm=8,armorStyle=3,bodyForm=4,polearmForm=2,pauldron=4,skirt=3,alloyRank=3,forgeGuise=35267,crest=4,armsOrnament=484,gloves=3,boots=3,sheen=6,skin=#E2B58A,hairColor=#1E1A22,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#BC4027,eyeColor=#3A78B0,plumeColor=#C82C26,armourTint=#74CEA5,armourTint2=#1F563D,weaponColor=#74CEA5,tierBody=5,tierHelm=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=123,metalKind=10,bladeKind=10,motif=1,alloyFam=80,forgeBody=0x06050203040B0900,forgeHelm=0x06050203040B0900,forgeGloves=0x06050203040B0900,forgeBoots=0x06050203040B0900
+         needs: armour=scale helm=form3 pauldron=lobed.4 overlay=collar.stand overlay=cut.square overlay=edge.scalloped overlay=fit.knot overlay=limb.laced overlay=crest.spike overlay=limb.laced overlay=limb.laced cloak=noble held=spear.glaive overlay=finish.filigree overlay=finish.gem
+         tiers: body T5 r, helm T5 r, weapon T5 r, gloves T5 r, boots T5 r, cloak T5 r; metal 10, blade 10
+         forge body   alloy: lobed spike banded scalloped stand laced knot
+         forge helm   alloy: lobed spike banded scalloped stand laced knot
+         forge gloves alloy: lobed spike banded scalloped stand laced knot
+         forge boots  alloy: lobed spike banded scalloped stand laced knot
+         forge flags: forge-alloy shoulder-lobed cut-square edge-scalloped collar-stand limb-laced fit-knot crest-spike glimb-laced blimb-laced form-scale blademetal-alloy
+a_star3  woman body=1,weapon=1,cloak=3,hair=5,helmStyle=3,helmForm=10,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=2,bladeForm=9,pauldron=4,skirt=3,alloyRank=3,forgeGuise=35260,crest=4,armsOrnament=805,gloves=3,boots=3,sheen=5,skin=#F0D2B8,hairColor=#E8DCC0,topColor=#922F60,tabardColor=#28728C,cloakColor=#3F4A8F,eyeColor=#3F8A5A,plumeColor=#E6E6F0,armourTint=#B8A7F1,armourTint2=#403172,shieldField=#3F4A8F,shieldDevice=#B8A7F1,trimColor=#B8A7F1,weaponColor=#B8A7F1,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=127,metalKind=10,bladeKind=10,alloyFam=72,forgeBody=0x04080508040D0900,forgeHelm=0x04080508040D0900,forgeShield=0x04080508040D0900,forgeGloves=0x04080508040D0900,forgeBoots=0x04080508040D0900
+         needs: armour=plate shield=arm shield=form6 pauldron=lobed.4 overlay=collar.gorget overlay=cut.banded overlay=edge.cusped overlay=fit.stars overlay=limb.fluted overlay=crest.wings overlay=limb.fluted overlay=limb.fluted cloak=noble sheath=sword held=sword overlay=finish.filigree overlay=finish.gem
+         tiers: body T5 r, helm T5 r, shield T5 r, weapon T5 r, gloves T5 r, boots T5 r, cloak T5 r; metal 10, blade 10
+         forge body   alloy: lobed wings banded cusped gorget fluted stars
+         forge helm   alloy: lobed wings banded cusped gorget fluted stars
+         forge shield alloy: lobed wings banded cusped gorget fluted stars
+         forge gloves alloy: lobed wings banded cusped gorget fluted stars
+         forge boots  alloy: lobed wings banded cusped gorget fluted stars
+         forge flags: forge-alloy shoulder-lobed cut-banded edge-cusped collar-gorget limb-fluted fit-stars crest-wings boss-stars rim-cusped glimb-fluted blimb-fluted form-plate blademetal-alloy
+mr_1     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=8,shieldStyle=2,shieldForm=8,bladeForm=2,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33869,crest=3,armsOrnament=800,gloves=3,boots=3,sheen=7,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#365151,eyeColor=#3A78B0,plumeColor=#C8AA50,armourTint=#C7D89F,armourTint2=#5E7231,shieldField=#365151,shieldDevice=#C7D89F,trimColor=#C7D89F,weaponColor=#C7D89F,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=11,forgeBody=0x06050203010A0900,forgeHelm=0x06050203010A0900,forgeShield=0x06050203010A0900,forgeGloves=0x06050203010A0900,forgeBoots=0x06050203010A0900
+         needs: armour=leather shield=arm shield=form2 pauldron=lobed.3 overlay=collar.stand overlay=edge.scalloped overlay=fit.knot overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.leaf overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: lobed finial smooth scalloped stand laced knot
+         forge helm   alloy: lobed finial smooth scalloped stand laced knot
+         forge shield alloy: lobed finial smooth scalloped stand laced knot
+         forge gloves alloy: lobed finial smooth scalloped stand laced knot
+         forge boots  alloy: lobed finial smooth scalloped stand laced knot
+         forge flags: forge-alloy shoulder-lobed cut-smooth edge-scalloped collar-stand limb-laced fit-knot crest-finial boss-knot rim-scalloped glimb-laced blimb-laced form-leaf blademetal-alloy
+mr_2     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=10,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=2,bladeForm=9,pauldron=4,skirt=3,alloyRank=1,forgeGuise=33843,crest=4,armsOrnament=805,gloves=3,boots=3,sheen=7,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#3F4A8F,eyeColor=#3A78B0,plumeColor=#E6E6F0,armourTint=#A9CCEF,armourTint2=#315272,shieldField=#3F4A8F,shieldDevice=#A9CCEF,trimColor=#A9CCEF,weaponColor=#A9CCEF,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=24,forgeBody=0x04080508070A0C00,forgeHelm=0x04080508070A0C00,forgeShield=0x04080508070A0C00,forgeGloves=0x04080508070A0C00,forgeBoots=0x04080508070A0C00
+         needs: armour=scale helm=form3 shield=arm shield=form2 pauldron=crystal.4 overlay=collar.gorget overlay=cut.pointed overlay=edge.cusped overlay=fit.stars overlay=limb.fluted overlay=crest.finial overlay=limb.fluted overlay=limb.fluted cloak=travel sheath=sword held=sword overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: crystal finial ribbed cusped gorget fluted stars
+         forge helm   alloy: crystal finial ribbed cusped gorget fluted stars
+         forge shield alloy: crystal finial ribbed cusped gorget fluted stars
+         forge gloves alloy: crystal finial ribbed cusped gorget fluted stars
+         forge boots  alloy: crystal finial ribbed cusped gorget fluted stars
+         forge flags: forge-alloy shoulder-crystal cut-pointed edge-cusped collar-gorget limb-fluted fit-stars crest-finial boss-stars rim-cusped glimb-fluted blimb-fluted form-scale blademetal-alloy
+mr_3     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=7,armorStyle=3,bodyForm=5,shieldStyle=2,shieldForm=7,bladeForm=8,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33832,crest=4,armsOrnament=314,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#37666C,eyeColor=#3A78B0,plumeColor=#3E786C,armourTint=#40679B,armourTint2=#1A293C,shieldField=#37666C,shieldDevice=#40679B,trimColor=#40679B,weaponColor=#40679B,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=18,forgeBody=0x02050B0A110A0500,forgeHelm=0x02050B0A110A0500,forgeShield=0x02050B0A110A0500,forgeGloves=0x02050B0A110A0500,forgeBoots=0x02050B0A110A0500
+         needs: armour=lamellar helm=form8 shield=arm shield=form7 pauldron=flap.3 overlay=collar.ruff overlay=cut.laced overlay=edge.stepped overlay=fit.studs overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.curved overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: flap finial laced stepped ruff laced studs
+         forge helm   alloy: flap finial laced stepped ruff laced studs
+         forge shield alloy: flap finial laced stepped ruff laced studs
+         forge gloves alloy: flap finial laced stepped ruff laced studs
+         forge boots  alloy: flap finial laced stepped ruff laced studs
+         forge flags: forge-alloy shoulder-flap cut-laced edge-stepped collar-ruff limb-laced fit-studs crest-finial boss-studs rim-stepped glimb-laced blimb-laced form-lamellar blademetal-alloy
+mr_4     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=8,armorStyle=3,bodyForm=5,bladeForm=8,pauldron=4,skirt=3,alloyRank=1,forgeGuise=33865,crest=4,armsOrnament=480,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#363A6A,eyeColor=#3A78B0,plumeColor=#1E6252,armourTint=#2E4670,armourTint2=#101825,weaponColor=#2E4670,tierBody=4,tierHelm=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=1,alloyFam=20,forgeBody=0x06050203110A0E00,forgeHelm=0x06050203110A0E00,forgeGloves=0x06050203110A0E00,forgeBoots=0x06050203110A0E00
+         needs: armour=lamellar helm=form9 pauldron=layered.4 overlay=collar.stand overlay=cut.laced overlay=edge.scalloped overlay=fit.knot overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.curved overlay=finish.etch
+         tiers: body T4, helm T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: layered finial laced scalloped stand laced knot
+         forge helm   alloy: layered finial laced scalloped stand laced knot
+         forge gloves alloy: layered finial laced scalloped stand laced knot
+         forge boots  alloy: layered finial laced scalloped stand laced knot
+         forge flags: forge-alloy shoulder-layered cut-laced edge-scalloped collar-stand limb-laced fit-knot crest-finial glimb-laced blimb-laced form-lamellar blademetal-alloy
+mr_5     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=2,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=3,pauldron=4,skirt=2,alloyRank=3,forgeGuise=35245,crest=3,armsOrnament=289,gloves=3,boots=3,sheen=8,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#EEE4CE,eyeColor=#3A78B0,plumeColor=#29623D,armourTint=#DC9254,armourTint2=#7A4A22,shieldField=#EEE4CE,shieldDevice=#DC9254,trimColor=#DC9254,weaponColor=#DC9254,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=69,forgeBody=0x0106050104020700,forgeHelm=0x0106050104020700,forgeShield=0x0106050104020700,forgeGloves=0x0106050104020700,forgeBoots=0x0106050104020700
+         needs: armour=plate shield=arm shield=form1 pauldron=slab.4 overlay=collar.gorget overlay=cut.banded overlay=fit.rivets overlay=limb.studded overlay=crest.comb overlay=limb.studded overlay=limb.studded cloak=travel sheath=sword held=sword.falchion overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5, weapon T5, gloves T5, boots T5, cloak T3; metal 10, blade 10
+         forge body   alloy: slab comb banded plain gorget studded rivets
+         forge helm   alloy: slab comb banded plain gorget studded rivets
+         forge shield alloy: slab comb banded plain gorget studded rivets
+         forge gloves alloy: slab comb banded plain gorget studded rivets
+         forge boots  alloy: slab comb banded plain gorget studded rivets
+         forge flags: forge-alloy shoulder-slab cut-banded edge-plain collar-gorget limb-studded fit-rivets crest-comb boss-rivets rim-plain glimb-studded blimb-studded form-plate blademetal-alloy
+mr_6     man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=2,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=6,bladeForm=2,pauldron=2,skirt=2,alloyRank=3,forgeGuise=35244,crest=2,armsOrnament=352,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#B9B68B,eyeColor=#3A78B0,plumeColor=#B46537,armourTint=#8A3949,armourTint2=#32161B,shieldField=#B9B68B,shieldDevice=#8A3949,trimColor=#8A3949,weaponColor=#8A3949,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=67,forgeBody=0x0205020101091000,forgeHelm=0x0205020101091000,forgeShield=0x0205020101091000,forgeGloves=0x0205020101091000,forgeBoots=0x0205020101091000
+         needs: armour=scale shield=arm shield=form4 pauldron=scale.4 overlay=collar.stand overlay=cut.round overlay=fit.studs overlay=limb.laced overlay=crest.fin overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.leaf overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5, weapon T5, gloves T5, boots T5, cloak T3; metal 10, blade 10
+         forge body   alloy: leaf fin smooth plain stand laced studs
+         forge helm   alloy: leaf fin smooth plain stand laced studs
+         forge shield alloy: leaf fin smooth plain stand laced studs
+         forge gloves alloy: leaf fin smooth plain stand laced studs
+         forge boots  alloy: leaf fin smooth plain stand laced studs
+         forge flags: forge-alloy shoulder-leaf cut-round edge-plain collar-stand limb-laced fit-studs crest-fin boss-studs rim-plain glimb-laced blimb-laced form-scale blademetal-alloy
+lt1      man   weapon=1,hairVar=2,neck=1,armorStyle=1,bodyForm=1,shieldStyle=1,shieldForm=1,pauldron=2,skirt=2,forgeKit=1,boots=1,skin=#E9A077,hairColor=#AA4A2C,topColor=#A88A4B,bottomColor=#4F4B6B,tabardColor=#C83E38,eyeColor=#3A78B0,shieldField=#A88A4B,shieldDevice=#6E4C32,trimColor=#96643E,weaponColor=#9698A0,tierBody=1,tierShield=1,tierWeapon=1,tierBoots=1,metalKind=1,bladeKind=3,forgeBody=0x0801010213000401,forgeShield=0x0205020416010502,forgeBoots=0x0205020416010502
+         needs: armour=padded shield=arm shield=form7 overlay=collar.rolled overlay=cut.channel overlay=edge.rolled overlay=fit.lacing overlay=limb.laced overlay=quilt sheath=sword held=sword.straight overlay=finish.wear
+         tiers: body T1, shield T1, weapon T1, boots T1; metal 1, blade 3
+         forge body   homespun: roll - channel rolled rolled plain lacing
+         forge shield tanner: flap ridge lacedfront dagged stand laced studs
+         forge boots  tanner: flap ridge lacedfront dagged stand laced studs
+         forge flags: forge-homespun shoulder-roll cut-channel edge-rolled collar-rolled limb-plain fit-lacing boss-studs rim-dagged blimb-laced form-padded blademetal-iron
+lt2      man   weapon=1,hairVar=2,neck=1,helmStyle=1,armorStyle=1,bodyForm=2,shieldStyle=1,shieldForm=1,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,armsOrnament=257,gloves=1,boots=1,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,eyeColor=#3A78B0,plumeColor=#2D7047,shieldField=#A88A4B,shieldDevice=#2D7047,trimColor=#96643E,weaponColor=#9EA0A8,tierBody=2,tierHelm=2,tierShield=2,tierWeapon=2,tierGloves=2,tierBoots=2,metalKind=1,bladeKind=3,forgeBody=0x0205020416010502,forgeHelm=0x0205020416010502,forgeShield=0x0205020416010502,forgeGloves=0x0205020416010502,forgeBoots=0x0205020416010502
+         needs: armour=leather helm=band1 shield=arm shield=form7 pauldron=flap.2 overlay=collar.stand overlay=cut.lacedfront overlay=edge.dagged overlay=fit.studs overlay=limb.laced overlay=limb.laced overlay=limb.laced sheath=sword held=sword.straight
+         tiers: body T2, helm T2, shield T2, weapon T2, gloves T2, boots T2; metal 1, blade 3
+         forge body   tanner: flap ridge lacedfront dagged stand laced studs
+         forge helm   tanner: flap ridge lacedfront dagged stand laced studs
+         forge shield tanner: flap ridge lacedfront dagged stand laced studs
+         forge gloves tanner: flap ridge lacedfront dagged stand laced studs
+         forge boots  tanner: flap ridge lacedfront dagged stand laced studs
+         forge flags: forge-tanner shoulder-flap cut-lacedfront edge-dagged collar-stand limb-laced fit-studs crest-ridge boss-studs rim-dagged glimb-laced blimb-laced form-leather blademetal-iron
+lt3      man   weapon=1,hairVar=2,neck=1,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=3,shieldStyle=3,shieldForm=2,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=257,gloves=1,boots=2,sheen=2,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,eyeColor=#3A78B0,plumeColor=#C83E38,armourTint=#C4C8D3,armourTint2=#4B4F5B,shieldField=#A88A4B,shieldDevice=#2D7047,trimColor=#C4C8D3,weaponColor=#C4C8D3,tierBody=3,tierHelm=3,tierShield=3,tierWeapon=3,tierGloves=2,tierBoots=2,metalKind=4,bladeKind=4,forgeBody=0x000805080D030805,forgeHelm=0x0008050802030805,forgeShield=0x0008050802030805,forgeGloves=0x0205020416010502,forgeBoots=0x0103040104040704
+         needs: armour=mail helm=form1 shield=arm shield=form4 pauldron=flared.4 overlay=collar.gorget overlay=edge.cusped overlay=limb.fluted overlay=crest.knife overlay=limb.laced overlay=limb.splinted sheath=sword held=sword.straight
+         tiers: body T3, helm T3, shield T3, weapon T3, gloves T2, boots T2; metal 4, blade 4
+         forge body   armourer: flared knife plackart cusped gorget fluted -
+         forge helm   armourer: flared knife fluted cusped gorget fluted -
+         forge shield armourer: flared knife fluted cusped gorget fluted -
+         forge gloves tanner: flap ridge lacedfront dagged stand laced studs
+         forge boots  wrought: slab brow banded plain riveted splinted rivets
+         forge flags: forge-armourer shoulder-flared cut-plackart edge-cusped collar-gorget limb-fluted crest-knife rim-cusped glimb-laced blimb-splinted form-mail blademetal-steel
+lt4      man   weapon=1,cloak=1,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=2,shieldForm=3,bladeForm=1,pauldron=4,skirt=2,forgeKit=1,alloyRank=1,forgeGuise=33849,crest=2,armsOrnament=289,gloves=3,boots=3,sheen=2,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#6E221E,eyeColor=#3A78B0,plumeColor=#C83E38,armourTint=#E1BFB7,armourTint2=#723E31,shieldField=#A88A4B,shieldDevice=#E1BFB7,trimColor=#E1BFB7,weaponColor=#E1BFB7,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=27,forgeBody=0x010805080F0A0100,forgeHelm=0x010805080F0A0100,forgeShield=0x010805080F0A0100,forgeGloves=0x010805080F0A0100,forgeBoots=0x010805080F0A0100
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=plate.4 overlay=collar.gorget overlay=edge.cusped overlay=fit.rivets overlay=limb.fluted overlay=crest.finial overlay=limb.fluted overlay=limb.fluted cloak=travel sheath=sword held=sword.straight overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: plate finial pointed cusped gorget fluted rivets
+         forge helm   alloy: plate finial pointed cusped gorget fluted rivets
+         forge shield alloy: plate finial pointed cusped gorget fluted rivets
+         forge gloves alloy: plate finial pointed cusped gorget fluted rivets
+         forge boots  alloy: plate finial pointed cusped gorget fluted rivets
+         forge flags: forge-alloy shoulder-plate cut-faceted edge-cusped collar-gorget limb-fluted fit-rivets crest-finial boss-rivets rim-cusped glimb-fluted blimb-fluted form-plate blademetal-alloy
+lt5      man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=3,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=289,gloves=3,boots=3,sheen=2,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#941F22,eyeColor=#3A78B0,plumeColor=#C83E38,armourTint=#C4C8D3,armourTint2=#4B4F5B,shieldField=#A88A4B,shieldDevice=#D7C49E,trimColor=#D7C49E,weaponColor=#C4C8D3,tierBody=5,tierHelm=5,tierShield=5,tierWeapon=5,tierGloves=5,tierBoots=5,tierCloak=5,rare=4,metalKind=5,bladeKind=5,forgeBody=0x0706060309050906,forgeHelm=0x0706060309050906,forgeShield=0x030206020F020800,forgeGloves=0x0706060309050906,forgeBoots=0x0706060309050906
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=lobed.4 overlay=collar.flared overlay=edge.scalloped overlay=fit.inlay overlay=limb.studded overlay=crest.crown overlay=limb.studded overlay=limb.studded cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, shield T5 r, weapon T5, gloves T5, boots T5, cloak T5; metal 5, blade 5
+         forge body   parade: lobed crown embossed scalloped flared studded inlay
+         forge helm   parade: lobed crown embossed scalloped flared studded inlay
+         forge shield alloy: flared comb pointed rolled flared banded bosses
+         forge gloves parade: lobed crown embossed scalloped flared studded inlay
+         forge boots  parade: lobed crown embossed scalloped flared studded inlay
+         forge flags: forge-parade shoulder-lobed cut-embossed edge-scalloped collar-flared limb-studded fit-inlay crest-crown boss-bosses rim-rolled glimb-studded blimb-studded form-plate blademetal-gilded
+lt6      man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=4,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=801,gloves=3,boots=3,sheen=2,glow=31,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#23387A,eyeColor=#3A78B0,plumeColor=#C83E38,armourTint=#C4C8D3,armourTint2=#4B4F5B,glowColor=#C4C8D3,shieldField=#A88A4B,shieldDevice=#2D7047,trimColor=#C4C8D3,weaponColor=#C4C8D3,tierBody=6,tierHelm=6,tierShield=6,tierWeapon=6,tierGloves=6,tierBoots=6,tierCloak=6,metalKind=9,bladeKind=9,forgeBody=0x0407090907080C09,forgeHelm=0x0407090907080C09,forgeShield=0x0407090907080C09,forgeGloves=0x0407090907080C09,forgeBoots=0x0407090907080C09
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=crystal.4 overlay=collar.high overlay=cut.ribbed overlay=edge.pointed overlay=fit.stars overlay=limb.ribbed overlay=crest.spire overlay=limb.ribbed overlay=limb.ribbed cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.rune overlay=finish.gem overlay=finish.glyph
+         tiers: body T6, helm T6, shield T6, weapon T6, gloves T6, boots T6, cloak T6; metal 9, blade 9
+         forge body   starfall: crystal spire ribbed pointed high ribbed stars
+         forge helm   starfall: crystal spire ribbed pointed high ribbed stars
+         forge shield starfall: crystal spire ribbed pointed high ribbed stars
+         forge gloves starfall: crystal spire ribbed pointed high ribbed stars
+         forge boots  starfall: crystal spire ribbed pointed high ribbed stars
+         forge flags: forge-starfall shoulder-crystal cut-ribbed edge-pointed collar-high limb-ribbed fit-stars crest-spire boss-stars rim-pointed glimb-ribbed blimb-ribbed form-plate blademetal-starmetal
+lt6m     man   weapon=1,cloak=3,hairVar=2,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,shieldStyle=4,shieldForm=3,bladeForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=801,gloves=3,boots=3,sheen=2,glow=31,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#480A14,eyeColor=#3A78B0,plumeColor=#F06A1E,armourTint=#DF8C70,armourTint2=#522A2E,glowColor=#FF6828,shieldField=#A88A4B,shieldDevice=#2D7047,trimColor=#DF8C70,weaponColor=#ECF2FF,tierBody=6,tierHelm=6,tierShield=6,tierWeapon=6,tierGloves=6,tierBoots=6,tierCloak=6,mythic=127,metalKind=11,bladeKind=11,forgeBody=0x000A0A0C0B0E0D0A,forgeHelm=0x000A0A0C0B0E0D0A,forgeShield=0x000A0A0C0B0E0D0A,forgeGloves=0x000A0A0C0B0E0D0A,forgeBoots=0x000A0A0C0B0E0D0A
+         needs: armour=plate helm=form9 shield=arm shield=form3 pauldron=flame.4 overlay=collar.ember overlay=cut.crackled overlay=edge.flame overlay=limb.crackled overlay=crest.flame overlay=limb.crackled overlay=limb.crackled cloak=noble sheath=sword held=sword.straight overlay=finish.filigree overlay=finish.rune overlay=finish.gem overlay=finish.glyph
+         tiers: body T6, helm T6, shield T6, weapon T6, gloves T6, boots T6, cloak T6; metal 11, blade 11, mythic
+         forge body   mythic: flame flame crackled flame ember crackled -
+         forge helm   mythic: flame flame crackled flame ember crackled -
+         forge shield mythic: flame flame crackled flame ember crackled -
+         forge gloves mythic: flame flame crackled flame ember crackled -
+         forge boots  mythic: flame flame crackled flame ember crackled -
+         forge flags: forge-mythic shoulder-flame cut-crackled edge-flame collar-ember limb-crackled crest-flame rim-flame glimb-crackled blimb-crackled form-plate blademetal-mythic
+lt6w     woman body=1,weapon=8,cloak=3,hair=5,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=7,polearmForm=1,pauldron=3,skirt=2,forgeKit=1,crest=1,armsOrnament=801,gloves=3,boots=3,sheen=2,glow=23,skin=#EEAA86,hairColor=#8C5A2A,topColor=#922F60,bottomColor=#4F4B6B,tabardColor=#28728C,cloakColor=#23387A,eyeColor=#3F8A5A,plumeColor=#28728C,armourTint=#C4C8D3,armourTint2=#4B4F5B,glowColor=#C4C8D3,weaponColor=#C4C8D3,tierBody=6,tierHelm=6,tierWeapon=6,tierGloves=6,tierBoots=6,tierCloak=6,metalKind=9,bladeKind=9,forgeBody=0x0407090907080C09,forgeHelm=0x0407090907080C09,forgeGloves=0x0407090907080C09,forgeBoots=0x0407090907080C09
+         needs: armour=plate helm=form9 pauldron=crystal.4 overlay=collar.high overlay=cut.ribbed overlay=edge.pointed overlay=fit.stars overlay=limb.ribbed overlay=crest.spire overlay=limb.ribbed overlay=limb.ribbed cloak=noble held=spear.spear overlay=finish.filigree overlay=finish.rune overlay=finish.gem overlay=finish.glyph
+         tiers: body T6, helm T6, weapon T6, gloves T6, boots T6, cloak T6; metal 9, blade 9
+         forge body   starfall: crystal spire ribbed pointed high ribbed stars
+         forge helm   starfall: crystal spire ribbed pointed high ribbed stars
+         forge gloves starfall: crystal spire ribbed pointed high ribbed stars
+         forge boots  starfall: crystal spire ribbed pointed high ribbed stars
+         forge flags: forge-starfall shoulder-crystal cut-ribbed edge-pointed collar-high limb-ribbed fit-stars crest-spire glimb-ribbed blimb-ribbed form-plate blademetal-starmetal
+nband    man   outfit=3,weapon=1,hairVar=3,beard=1,beardStyle=1,hood=1,head=2,brow=2,armorStyle=1,bodyForm=2,shieldForm=7,bladeForm=1,bowForm=5,forgeKit=1,skin=#ECBC92,hairColor=#6B4C34,topColor=#3F3854,bottomColor=#3F562E,headColor=#466034,tierBody=1,tierShield=1,tierWeapon=1,metalKind=1,kitVar=224,forgeBody=0x0205020416010502,forgeShield=0x0205020416010502
+         needs: armour=leather shield=arm shield=form7 overlay=collar.stand overlay=cut.lacedfront overlay=edge.dagged overlay=fit.studs overlay=limb.laced sheath=sword held=sword.straight overlay=finish.wear
+         tiers: body T1, shield T1, weapon T1; metal 1, blade 0
+         forge body   tanner: flap ridge lacedfront dagged stand laced studs
+         forge shield tanner: flap ridge lacedfront dagged stand laced studs
+         forge flags: forge-tanner shoulder-flap cut-lacedfront edge-dagged collar-stand limb-laced fit-studs boss-studs rim-dagged form-leather blademetal-leather
+nroyal   woman body=1,outfit=5,weapon=1,cloak=3,hair=6,hairVar=1,beardStyle=1,head=2,nose=2,marks=4,helmet=1,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=3,shield=1,shieldStyle=2,shieldForm=2,bladeForm=1,bowForm=5,pauldron=4,skirt=2,forgeKit=1,alloyRank=2,forgeGuise=34347,crest=2,armsOrnament=261,gloves=3,boots=3,sheen=8,skin=#ECBC92,hairColor=#6B4C34,plumeColor=#2D7047,armourTint=#D3C3A2,armourTint2=#6F5B49,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=4,metalKind=10,kitVar=200,alloyFam=39,forgeBody=0x030206020F020800,forgeHelm=0x030206020F020800,forgeShield=0x030206020F020800,forgeGloves=0x030206020F020800,forgeBoots=0x030206020F020800
+         needs: armour=mail shield=arm shield=form3 pauldron=flared.4 overlay=collar.flared overlay=edge.rolled overlay=fit.bosses overlay=limb.banded overlay=crest.comb overlay=limb.banded overlay=limb.banded cloak=noble sheath=sword held=sword.straight overlay=finish.etch overlay=finish.filigree overlay=finish.gem
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T4; metal 10, blade 0
+         forge body   alloy: flared comb pointed rolled flared banded bosses
+         forge helm   alloy: flared comb pointed rolled flared banded bosses
+         forge shield alloy: flared comb pointed rolled flared banded bosses
+         forge gloves alloy: flared comb pointed rolled flared banded bosses
+         forge boots  alloy: flared comb pointed rolled flared banded bosses
+         forge flags: forge-alloy shoulder-flared cut-plackart edge-rolled collar-flared limb-banded fit-bosses crest-comb boss-bosses rim-rolled glimb-banded blimb-banded form-mail blademetal-alloy
+nking    man   outfit=5,weapon=1,cloak=3,hairVar=3,beard=1,beardStyle=1,amulet=1,ring=1,head=2,brow=2,helmet=1,helmStyle=4,helmForm=1,armorStyle=3,bodyForm=3,bladeForm=1,pauldron=4,skirt=2,forgeKit=1,alloyRank=2,forgeGuise=34347,crest=2,armsOrnament=773,skin=#ECBC92,hairColor=#6B4C34,plumeColor=#962828,tierBody=5,tierHelm=5,tierWeapon=5,tierCloak=5,metalKind=10,kitVar=224,alloyFam=39,forgeBody=0x030206020F020800,forgeHelm=0x030206020F020800
+         needs: armour=mail helm=form9 pauldron=flared.4 overlay=collar.flared overlay=edge.rolled overlay=fit.bosses overlay=limb.banded overlay=crest.comb cloak=noble sheath=sword held=sword.straight overlay=finish.etch overlay=finish.filigree overlay=finish.gem
+         tiers: body T5, helm T5, weapon T5, cloak T5; metal 10, blade 0
+         forge body   alloy: flared comb pointed rolled flared banded bosses
+         forge helm   alloy: flared comb pointed rolled flared banded bosses
+         forge flags: forge-alloy shoulder-flared cut-plackart edge-rolled collar-flared limb-banded fit-bosses crest-comb form-mail blademetal-alloy
+ncapt_hl man   outfit=5,weapon=1,cloak=1,hairVar=2,beard=1,jewellery=3,head=1,brow=1,helmet=1,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=1,shield=1,shieldStyle=2,shieldForm=7,bladeForm=7,bowForm=5,pauldron=2,skirt=2,alloyRank=2,forgeGuise=34377,crest=3,armsOrnament=17,gloves=3,boots=3,sheen=8,skin=#ECBC92,hairColor=#95482B,plumeColor=#296141,armourTint=#BBAA71,armourTint2=#5E4529,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=4,metalKind=10,kitVar=11,alloyFam=38,forgeBody=0x05030404030B0500,forgeHelm=0x05030404030B0500,forgeShield=0x05030404030B0500,forgeGloves=0x05030404030B0500,forgeBoots=0x05030404030B0500
+         needs: armour=leather helm=form9 shield=arm shield=form1 pauldron=flap.3 overlay=collar.riveted overlay=cut.tooled overlay=edge.dagged overlay=fit.scored overlay=limb.splinted overlay=crest.spike overlay=limb.splinted overlay=limb.splinted cloak=travel sheath=sword held=sword.broad overlay=finish.etch overlay=finish.filigree overlay=finish.gem
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T4; metal 10, blade 0
+         forge body   alloy: flap spike keeled dagged riveted splinted scored
+         forge helm   alloy: flap spike keeled dagged riveted splinted scored
+         forge shield alloy: flap spike keeled dagged riveted splinted scored
+         forge gloves alloy: flap spike keeled dagged riveted splinted scored
+         forge boots  alloy: flap spike keeled dagged riveted splinted scored
+         forge flags: forge-alloy shoulder-flap cut-tooled edge-dagged collar-riveted limb-splinted fit-scored crest-spike boss-scored rim-dagged glimb-splinted blimb-splinted form-leather blademetal-alloy
+ncapt_jd man   outfit=5,weapon=1,cloak=1,beardStyle=6,head=1,nose=2,marks=3,helmet=1,helmStyle=3,helmForm=8,armorStyle=3,bodyForm=5,shield=1,shieldStyle=2,shieldForm=9,bladeForm=8,bowForm=3,pauldron=4,skirt=3,alloyRank=2,forgeGuise=34377,crest=4,armsOrnament=197,gloves=3,boots=3,sheen=6,skin=#E8B48C,hairColor=#17121C,plumeColor=#C82C26,armourTint=#74CEA5,armourTint2=#1F5646,tierBody=4,tierHelm=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=4,metalKind=10,kitVar=209,alloyFam=44,forgeBody=0x0702090B11090F00,forgeHelm=0x0702090B11090F00,forgeGloves=0x0702090B11090F00,forgeBoots=0x0702090B11090F00
+         needs: armour=lamellar helm=form9 pauldron=winged.3 overlay=collar.high overlay=cut.laced overlay=edge.fringed overlay=fit.inlay overlay=limb.banded overlay=crest.fin overlay=limb.banded overlay=limb.banded cloak=travel sheath=sword held=sword.curved overlay=finish.etch
+         tiers: body T4, helm T4, weapon T4, gloves T4, boots T4, cloak T4; metal 10, blade 0
+         forge body   alloy: winged fin laced fringed high banded inlay
+         forge helm   alloy: winged fin laced fringed high banded inlay
+         forge gloves alloy: winged fin laced fringed high banded inlay
+         forge boots  alloy: winged fin laced fringed high banded inlay
+         forge flags: forge-alloy shoulder-winged cut-laced edge-fringed collar-high limb-banded fit-inlay crest-fin glimb-banded blimb-banded form-lamellar blademetal-alloy
+g_dune1  man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=7,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=1,bladeForm=4,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33868,crest=3,armsOrnament=352,gloves=3,boots=3,sheen=2,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#EEC258,eyeColor=#3A78B0,plumeColor=#A83E20,armourTint=#EFC574,armourTint2=#7C5F27,shieldField=#EEC258,shieldDevice=#EFC574,trimColor=#EFC574,weaponColor=#EFC574,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=5,forgeBody=0x060502030E0A0300,forgeHelm=0x060502030E0A0300,forgeShield=0x060502030E0A0300,forgeGloves=0x060502030E0A0300,forgeBoots=0x060502030E0A0300
+         needs: armour=scale shield=arm shield=form1 pauldron=scale.3 overlay=collar.stand overlay=cut.round overlay=edge.scalloped overlay=fit.knot overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.scimitar overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: scale finial round scalloped stand laced knot
+         forge helm   alloy: scale finial round scalloped stand laced knot
+         forge shield alloy: scale finial round scalloped stand laced knot
+         forge gloves alloy: scale finial round scalloped stand laced knot
+         forge boots  alloy: scale finial round scalloped stand laced knot
+         forge flags: forge-alloy shoulder-scale cut-round edge-scalloped collar-stand limb-laced fit-knot crest-finial boss-knot rim-scalloped glimb-laced blimb-laced form-scale blademetal-alloy
+g_mars2  man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=2,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=6,bladeForm=2,pauldron=2,skirt=2,alloyRank=2,forgeGuise=34381,crest=2,armsOrnament=352,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#B9B68B,eyeColor=#3A78B0,plumeColor=#B46537,armourTint=#409B7D,armourTint2=#18382D,shieldField=#B9B68B,shieldDevice=#409B7D,trimColor=#409B7D,weaponColor=#409B7D,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=43,forgeBody=0x08030C0B0A0B0E00,forgeHelm=0x08030C0B0A0B0E00,forgeShield=0x08030C0B0A0B0E00,forgeGloves=0x08030C0B0A0B0E00,forgeBoots=0x08030C0B0A0B0E00
+         needs: armour=scale shield=arm shield=form1 pauldron=layered.3 overlay=collar.coif overlay=cut.pointed overlay=edge.fringed overlay=fit.lacing overlay=limb.splinted overlay=crest.spike overlay=limb.splinted overlay=limb.splinted cloak=travel sheath=sword held=sword.leaf overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: layered spike splinted fringed coif splinted lacing
+         forge helm   alloy: layered spike splinted fringed coif splinted lacing
+         forge shield alloy: layered spike splinted fringed coif splinted lacing
+         forge gloves alloy: layered spike splinted fringed coif splinted lacing
+         forge boots  alloy: layered spike splinted fringed coif splinted lacing
+         forge flags: forge-alloy shoulder-layered cut-pointed edge-fringed collar-coif limb-splinted fit-lacing crest-spike boss-lacing rim-fringed glimb-splinted blimb-splinted form-scale blademetal-alloy
+g_hl2    man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=1,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=7,bladeForm=7,pauldron=2,skirt=2,alloyRank=2,forgeGuise=34377,crest=2,armsOrnament=304,gloves=3,boots=3,sheen=8,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#92302C,eyeColor=#3A78B0,plumeColor=#296141,armourTint=#BC9A5C,armourTint2=#634F2A,shieldField=#92302C,shieldDevice=#BC9A5C,trimColor=#BC9A5C,weaponColor=#BC9A5C,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=38,forgeBody=0x05030404030B0500,forgeHelm=0x05030404030B0500,forgeShield=0x05030404030B0500,forgeGloves=0x05030404030B0500,forgeBoots=0x05030404030B0500
+         needs: armour=scale helm=form9 shield=arm shield=form1 pauldron=flap.3 overlay=collar.riveted overlay=cut.pointed overlay=edge.dagged overlay=fit.scored overlay=limb.splinted overlay=crest.spike overlay=limb.splinted overlay=limb.splinted cloak=travel sheath=sword held=sword.broad overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: flap spike keeled dagged riveted splinted scored
+         forge helm   alloy: flap spike keeled dagged riveted splinted scored
+         forge shield alloy: flap spike keeled dagged riveted splinted scored
+         forge gloves alloy: flap spike keeled dagged riveted splinted scored
+         forge boots  alloy: flap spike keeled dagged riveted splinted scored
+         forge flags: forge-alloy shoulder-flap cut-pointed edge-dagged collar-riveted limb-splinted fit-scored crest-spike boss-scored rim-dagged glimb-splinted blimb-splinted form-scale blademetal-alloy
+g_fj1    man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=4,armorStyle=3,bodyForm=4,shieldStyle=2,shieldForm=1,bladeForm=7,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33827,crest=2,armsOrnament=290,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#82867C,eyeColor=#3A78B0,plumeColor=#973521,armourTint=#5580B9,armourTint2=#1D2D43,shieldField=#82867C,shieldDevice=#5580B9,trimColor=#5580B9,weaponColor=#5580B9,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,motif=3,alloyFam=25,forgeBody=0x01050B0110020200,forgeHelm=0x01050B0110020200,forgeShield=0x01050B0110020200,forgeGloves=0x01050B0110020200,forgeBoots=0x01050B0110020200
+         needs: armour=scale helm=form3 shield=arm shield=form1 pauldron=fur.2 overlay=collar.ruff overlay=cut.square overlay=fit.rivets overlay=limb.laced overlay=crest.comb overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.broad overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: fur comb square plain ruff laced rivets
+         forge helm   alloy: fur comb square plain ruff laced rivets
+         forge shield alloy: fur comb square plain ruff laced rivets
+         forge gloves alloy: fur comb square plain ruff laced rivets
+         forge boots  alloy: fur comb square plain ruff laced rivets
+         forge flags: forge-alloy shoulder-fur cut-square edge-plain collar-ruff limb-laced fit-rivets crest-comb boss-rivets rim-plain glimb-laced blimb-laced form-scale blademetal-alloy
+g_step1  man   weapon=1,cloak=1,hairVar=2,neck=1,helmStyle=3,helmForm=7,armorStyle=3,bodyForm=5,shieldStyle=2,shieldForm=7,bladeForm=8,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33832,crest=4,armsOrnament=314,gloves=3,boots=3,sheen=3,skin=#E9A077,hairColor=#AA4A2C,topColor=#28728C,bottomColor=#4F4B6B,tabardColor=#C83E38,cloakColor=#37666C,eyeColor=#3A78B0,plumeColor=#3E786C,armourTint=#40679B,armourTint2=#1A293C,shieldField=#37666C,shieldDevice=#40679B,trimColor=#40679B,weaponColor=#40679B,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=18,forgeBody=0x02050B0A110A0500,forgeHelm=0x02050B0A110A0500,forgeShield=0x02050B0A110A0500,forgeGloves=0x02050B0A110A0500,forgeBoots=0x02050B0A110A0500
+         needs: armour=lamellar helm=form8 shield=arm shield=form7 pauldron=flap.3 overlay=collar.ruff overlay=cut.laced overlay=edge.stepped overlay=fit.studs overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.curved overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: flap finial laced stepped ruff laced studs
+         forge helm   alloy: flap finial laced stepped ruff laced studs
+         forge shield alloy: flap finial laced stepped ruff laced studs
+         forge gloves alloy: flap finial laced stepped ruff laced studs
+         forge boots  alloy: flap finial laced stepped ruff laced studs
+         forge flags: forge-alloy shoulder-flap cut-laced edge-stepped collar-ruff limb-laced fit-studs crest-finial boss-studs rim-stepped glimb-laced blimb-laced form-lamellar blademetal-alloy
+g_sylv1w woman body=1,weapon=1,cloak=1,hair=5,helmStyle=3,helmForm=9,armorStyle=3,bodyForm=8,shieldStyle=2,shieldForm=8,bladeForm=2,pauldron=3,skirt=3,alloyRank=1,forgeGuise=33869,crest=3,armsOrnament=800,gloves=3,boots=3,sheen=7,skin=#EEAA86,hairColor=#C79346,topColor=#922F60,tabardColor=#28728C,cloakColor=#365151,eyeColor=#3F8A5A,plumeColor=#C8AA50,armourTint=#C7D89F,armourTint2=#5E7231,shieldField=#365151,shieldDevice=#C7D89F,trimColor=#C7D89F,weaponColor=#C7D89F,tierBody=4,tierHelm=4,tierShield=4,tierWeapon=4,tierGloves=4,tierBoots=4,tierCloak=3,metalKind=10,bladeKind=10,alloyFam=11,forgeBody=0x06050203010A0900,forgeHelm=0x06050203010A0900,forgeShield=0x06050203010A0900,forgeGloves=0x06050203010A0900,forgeBoots=0x06050203010A0900
+         needs: armour=leather shield=arm shield=form2 pauldron=lobed.3 overlay=collar.stand overlay=edge.scalloped overlay=fit.knot overlay=limb.laced overlay=crest.finial overlay=limb.laced overlay=limb.laced cloak=travel sheath=sword held=sword.leaf overlay=finish.etch
+         tiers: body T4, helm T4, shield T4, weapon T4, gloves T4, boots T4, cloak T3; metal 10, blade 10
+         forge body   alloy: lobed finial smooth scalloped stand laced knot
+         forge helm   alloy: lobed finial smooth scalloped stand laced knot
+         forge shield alloy: lobed finial smooth scalloped stand laced knot
+         forge gloves alloy: lobed finial smooth scalloped stand laced knot
+         forge boots  alloy: lobed finial smooth scalloped stand laced knot
+         forge flags: forge-alloy shoulder-lobed cut-smooth edge-scalloped collar-stand limb-laced fit-knot crest-finial boss-knot rim-scalloped glimb-laced blimb-laced form-leaf blademetal-alloy

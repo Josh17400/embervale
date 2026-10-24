@@ -1,0 +1,75 @@
+# forge/fit/stars: star rivets (STARFALL, Steppe, Starspire; 28.3): four-point stars, a lit cross round a bright heart,
+# on the panel (one, two or three).
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+use person
+role overlay fit.stars
+tags tile overlay fit
+on-region P
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+view D key stars3x3 origin 0 0
+|.+.
+|+++
+|.+.
+
+view D key stars7x3 origin 0 0
+|.+...+.
+|+++.+++
+|.+...+.
+
+view D key stars5x5 origin 0 0
+|..+..
+|..+..
+|+++++
+|..+..
+|..+..
+
+view D key stars7x6 origin 0 0
+|.+...+.
+|+++.+++
+|.+...+.
+|...+...
+|..+++..
+|...+...
+
+view D key stars1x1 origin 0 0
+|+
+
+view D key stars2x1 origin 0 0
+|++
+
+view D key stars1x2 origin 0 0
+|+
+|+
+
+view D key stars2x2 origin 0 0
+|++
+|+.
+
+view D key stars3x1 origin 0 0
+|+++
+
+view D key stars1x3 origin 0 0
+|+
+|+
+|+
+
+view D key stars3x2 origin 0 0
+|+++
+|.+.
+
+view D key stars2x3 origin 0 0
+|.+
+|++
+|.+
+
+view D key stars5x1 origin 0 0
+|+++.+

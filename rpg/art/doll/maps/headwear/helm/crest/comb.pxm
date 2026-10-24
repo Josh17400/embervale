@@ -1,0 +1,91 @@
+# headwear/helm/crest/comb: the forge crest accent `comb` (STYLE_P2 28.3, contracts 3c: overlay crest.<v>, anchor crown)
+# FOUNDRY: the Greek comb: a tall cast crest standing on a short stalk front to back, a lit cap and a dark crease,
+# its tail sweeping down behind the nape (a statue's helm). From the front a tall flat-topped blade with a groove.
+# Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+body adult
+role overlay crest.comb
+layer headwear
+anchor crown
+keys hatpose
+z 2
+tags overlay
+legend v metal 0
+legend w metal 1
+legend x metal 2
+legend y metal 3
+legend z metal 4
+legend J metal2 0
+legend N metal2 1
+legend O metal2 2
+legend P metal2 3
+legend Q metal2 4
+legend f leather 0
+legend g leather 1
+legend h leather 2
+legend i leather 3
+legend j leather 4
+legend 5 cloth1 0
+legend 6 cloth1 1
+legend 7 cloth1 2
+legend 8 cloth1 3
+legend 9 cloth1 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+legend X glow 3
+legend W glow 4
+legend k cloak 0
+legend l cloak 1
+legend m cloak 2
+legend n cloak 3
+legend o cloak 4
+
+view D key rest origin 1 3
+mark socket 1 0
+|.vv.
+|vzyv
+|vyxv
+|vxwv
+|vxwv
+|.vv.
+
+view U key rest origin 1 3
+mark socket 1 0
+|.vv.
+|vzyv
+|vyxv
+|vxwv
+|vxwv
+|.vv.
+
+view R key rest origin 8 3
+mark socket 7 0
+|.....vvvvvv...
+|...vvzzzyyyvv.
+|..vzyxxxxwwwwv
+|.vyxwwwwwwwwwv
+|vyxvvvvvvvvvv.
+|vxv...........
+|vv............
+
+view L key rest origin 5 3
+mark socket 6 0
+|...vvvvvv.....
+|.vvzzzyyyvv...
+|vzyxxxxwwwwv..
+|vyxwwwwwwwwwv.
+|.vvvvvvvvvvyxv
+|...........vxv
+|............vv
+
+view L key lie origin 5 3
+mark socket 6 0
+|...vvvvvv.....
+|.vvzzzyyyvv...
+|vzyxxxxwwwwv..
+|vyxwwwwwwwwwv.
+|.vvvvvvvvvvyxv
+|...........vxv
+|............vv

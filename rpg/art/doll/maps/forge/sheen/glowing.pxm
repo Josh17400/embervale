@@ -1,0 +1,19 @@
+# forge/sheen/glowing: the glowing tell (28.7, D28): the engine already writes a glowing alloy's seams (N) in Glow from
+# T4; this tile lights them evenly when a style draws its seams at step 1: Glow 2 with a Glow 3 hot point every fourth
+# cell along any line, an ember line, never a neon tube.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# SHEEN TELL (STYLE_P2 28.7; asks FORGE-DOLL to lay it as a cut tile after the cut when the body's sheen is this one):
+# the iridescent rows recolour alternate courses of the row cuts to Metal 2 keeping the step (P2C_CONTRACTS 3c: an
+# iridescent alloy's Metal 2 is its hue-turned ramp, so the courses alternate two hues), keyed by the cut.
+use person
+role overlay sheen.glowing
+tags tile overlay
+on-region N
+legend g glow 2
+legend ! glow 3
+
+view D key rest origin 0 0
+|ggg!
+|g!gg
+|ggg!
+|g!gg

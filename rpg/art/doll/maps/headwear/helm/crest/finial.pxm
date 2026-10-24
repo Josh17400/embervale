@@ -1,0 +1,288 @@
+# headwear/helm/crest/finial: the forge crest accent `finial` (STYLE_P2 28.3, contracts 3c: overlay crest.<v>, anchor crown)
+# A big cast ball on a ringed neck over a flange: round, lit at its top-left with a glint, a dark ring where it meets
+# the flange.
+# Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+body adult
+role overlay crest.finial
+layer headwear
+anchor crown
+keys hatpose
+z 2
+tags overlay
+legend v metal 0
+legend w metal 1
+legend x metal 2
+legend y metal 3
+legend z metal 4
+legend J metal2 0
+legend N metal2 1
+legend O metal2 2
+legend P metal2 3
+legend Q metal2 4
+legend f leather 0
+legend g leather 1
+legend h leather 2
+legend i leather 3
+legend j leather 4
+legend 5 cloth1 0
+legend 6 cloth1 1
+legend 7 cloth1 2
+legend 8 cloth1 3
+legend 9 cloth1 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+legend X glow 3
+legend W glow 4
+legend k cloak 0
+legend l cloak 1
+legend m cloak 2
+legend n cloak 3
+legend o cloak 4
+
+view D key rest origin 2 3
+mark socket 2 0
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|vyxwwv
+|.vxwv.
+
+view U key rest origin 2 3
+mark socket 2 0
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|vyxwwv
+|.vxwv.
+
+view R key rest origin 2 3
+mark socket 2 0
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|vyxwwv
+|.vxwv.
+
+view L key rest origin 3 3
+mark socket 3 0
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|vyxwwv
+|.vxwv.
+
+view L key lie origin 3 3
+mark socket 3 0
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|vyxwwv
+|.vxwv.
+
+view D key rest origin 2 3 when sheen-pale replace
+mark socket 2 0
+|..vv..
+|.vzxv.
+|vzyxwv
+|.vyxv.
+|..vv..
+
+view U key rest origin 2 3 when sheen-pale replace
+mark socket 2 0
+|..vv..
+|.vzxv.
+|vzyxwv
+|.vyxv.
+|..vv..
+
+view R key rest origin 2 3 when sheen-pale replace
+mark socket 2 0
+|..vv..
+|.vzxv.
+|vzyxwv
+|.vyxv.
+|..vv..
+
+view L key rest origin 3 3 when sheen-pale replace
+mark socket 3 0
+|..vv..
+|.vzxv.
+|vzyxwv
+|.vyxv.
+|..vv..
+
+view L key lie origin 3 3 when sheen-pale replace
+mark socket 3 0
+|..vv..
+|.vzxv.
+|vzyxwv
+|.vyxv.
+|..vv..
+
+view D key rest origin 3 3 when sheen-matte replace
+mark socket 3 0
+|........
+|.vvvvvv.
+|vzyyxxwv
+|.vvvvvv.
+|...vv...
+
+view U key rest origin 3 3 when sheen-matte replace
+mark socket 3 0
+|........
+|.vvvvvv.
+|vzyyxxwv
+|.vvvvvv.
+|...vv...
+
+view R key rest origin 3 3 when sheen-matte replace
+mark socket 3 0
+|........
+|.vvvvvv.
+|vzyyxxwv
+|.vvvvvv.
+|...vv...
+
+view L key rest origin 4 3 when sheen-matte replace
+mark socket 4 0
+|........
+|.vvvvvv.
+|vzyyxxwv
+|.vvvvvv.
+|...vv...
+
+view L key lie origin 4 3 when sheen-matte replace
+mark socket 4 0
+|........
+|.vvvvvv.
+|vzyyxxwv
+|.vvvvvv.
+|...vv...
+
+view D key rest origin 3 3 when sheen-dark replace
+mark socket 3 0
+|..vvvv..
+|.vzyxwv.
+|vzyxxwwv
+|.vvvvvv.
+|...vv...
+
+view U key rest origin 3 3 when sheen-dark replace
+mark socket 3 0
+|..vvvv..
+|.vzyxwv.
+|vzyxxwwv
+|.vvvvvv.
+|...vv...
+
+view R key rest origin 3 3 when sheen-dark replace
+mark socket 3 0
+|..vvvv..
+|.vzyxwv.
+|vzyxxwwv
+|.vvvvvv.
+|...vv...
+
+view L key rest origin 4 3 when sheen-dark replace
+mark socket 4 0
+|..vvvv..
+|.vzyxwv.
+|vzyxxwwv
+|.vvvvvv.
+|...vv...
+
+view L key lie origin 4 3 when sheen-dark replace
+mark socket 4 0
+|..vvvv..
+|.vzyxwv.
+|vzyxxwwv
+|.vvvvvv.
+|...vv...
+
+view D key rest origin 1 3 when sheen-burnished replace
+mark socket 1 0
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vvvv
+|.vv.
+
+view U key rest origin 1 3 when sheen-burnished replace
+mark socket 1 0
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vvvv
+|.vv.
+
+view R key rest origin 1 3 when sheen-burnished replace
+mark socket 1 0
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vvvv
+|.vv.
+
+view L key rest origin 2 3 when sheen-burnished replace
+mark socket 2 0
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vvvv
+|.vv.
+
+view L key lie origin 2 3 when sheen-burnished replace
+mark socket 2 0
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vvvv
+|.vv.
+
+view D key rest origin 2 3 when sheen-iridescent replace
+mark socket 2 0
+|..v..
+|.vzv.
+|vzyxv
+|.vxv.
+|..v..
+
+view U key rest origin 2 3 when sheen-iridescent replace
+mark socket 2 0
+|..v..
+|.vzv.
+|vzyxv
+|.vxv.
+|..v..
+
+view R key rest origin 2 3 when sheen-iridescent replace
+mark socket 2 0
+|..v..
+|.vzv.
+|vzyxv
+|.vxv.
+|..v..
+
+view L key rest origin 2 3 when sheen-iridescent replace
+mark socket 2 0
+|..v..
+|.vzv.
+|vzyxv
+|.vxv.
+|..v..
+
+view L key lie origin 2 3 when sheen-iridescent replace
+mark socket 2 0
+|..v..
+|.vzv.
+|vzyxv
+|.vxv.
+|..v..

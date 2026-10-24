@@ -19,6 +19,7 @@ legend U plume 4
 legend H leather 1
 
 view D key rest origin 2 1
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
@@ -42,6 +43,7 @@ regions
 |..RRRRRRRRRRRRRRRR..
 
 view U key rest origin 2 1
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
@@ -65,6 +67,7 @@ regions
 |..RRRRRRRRRRRRRRRR..
 
 view R key rest origin 3 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
@@ -88,6 +91,7 @@ regions
 |....RRRRRRRRRRRRRR...
 
 view L key rest origin 2 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
@@ -111,6 +115,7 @@ regions
 |...RRRRRRRRRRRRRR....
 
 view L key lie origin 2 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
@@ -135,6 +140,7 @@ regions
 
 # (Marsh) the drooping brim, the wrap, the tassels
 view D key rest when tassels replace
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
@@ -164,6 +170,7 @@ regions
 |....................
 
 view U key rest when tassels replace
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
@@ -193,6 +200,7 @@ regions
 |....................
 
 view R key rest when tassels replace
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
@@ -222,6 +230,7 @@ regions
 |.....................
 
 view L key rest when tassels replace
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------

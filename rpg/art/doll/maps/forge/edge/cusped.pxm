@@ -1,0 +1,18 @@
+# forge/edge/cusped: a cusp at each plate (ARMOURER'S tassets, Heartland, Starspire; 28.3): 5 px plates closing to a
+# point two rows down, lit on the left facet, a dark notch between, period 6: two pointed tassets a side.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# EDGE STAMP (`overlay edge.<v>`, `on-edge:hem`): along the armour hang's lowest outline row (the torso's when no hang),
+# column by column, the view's origin row on that row; cells may redraw two rows above it and add two below. Material
+# cells (v w x y z: steps 0-4) draw in the hem's OWN slot (i1 drew Ink: black bars), K the ink, `-` notches (at or above
+# the hem row), `.` keeps. Every added shape closes on a step-0 row or column of its own (the ring stays closed, C3a).
+# The phase is the part's origin column, so the stamp is symmetric about the body.
+use person
+role overlay edge.cusped
+tags tile overlay edge on-edge:hem
+
+view D key rest origin 5 2
+|......
+|......
+|yxxwwv
+|.vwv..
+|......

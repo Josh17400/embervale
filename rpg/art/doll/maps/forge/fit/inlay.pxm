@@ -1,0 +1,53 @@
+# forge/fit/inlay: an inlaid band (PARADE, Heartland, Imperial, Jade, Sylvan; 28.3): a Metal 2 band two rows deep across
+# the chest under the pectorals' top, lit along its top (R: the tier's gilt rides it).
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+# (FORGE-MARKS forge i3) inlay: a 2-row Metal 2 band held between two dark grooves, across the chest (and the rim row below).
+use person
+role overlay fit.inlay
+tags tile overlay on-slot:metal
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+legend n accent 1
+legend o accent 2
+legend p accent 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key rest origin 7 0
+|...............
+|=============..
+|OOOOOOOOOOOOOOO
+|OOOOOOOOOOOOOOO
+|===============
+|...............
+|...............
+|RRRRRRRRRRRRRRR

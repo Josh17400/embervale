@@ -827,7 +827,7 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       case Role::King: t = 5; break;
       default: break;
     }
-    gear::rankTiers(L, t);
+    gear::rankTiers(L, t, true, &owner);   // (P2c forge, D29) the realm: its officers' alloy
   }
 }
 

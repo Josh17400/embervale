@@ -1,0 +1,260 @@
+[
+ {
+  "name": "p2c forge: the hero in each material on the Heartland T4 kit wears its own forge style (FOUNDRY, WROUGHT, ARMOURER'S, PARADE, KNAPPED, FURNACE, STARFALL, TANNER'S, HOMESPUN), T3 is steel over mail (the plackart), the Mythic its own, and Jade's glowing masterwork its picked style, each covered on the doll at rig 2",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ]
+    ]
+   },
+   {
+    "at": 0.4,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=bronze"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'foundry'",
+     "state.player.sprite.doll.forge.shoulder == 'cop'",
+     "state.player.sprite.doll.forge.cut == 'muscled'",
+     "state.player.sprite.doll.forge.crest == 'comb'"
+    ]
+   },
+   {
+    "at": 0.75,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=iron"
+     ]
+    ]
+   },
+   {
+    "at": 0.95,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'wrought'",
+     "state.player.sprite.doll.forge.shoulder == 'slab'",
+     "state.player.sprite.doll.forge.cut == 'banded'",
+     "state.player.sprite.doll.forge.crest == 'brow'"
+    ]
+   },
+   {
+    "at": 1.1,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=steel"
+     ]
+    ]
+   },
+   {
+    "at": 1.3,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'armourer'",
+     "state.player.sprite.doll.forge.shoulder == 'flared'",
+     "state.player.sprite.doll.forge.cut == 'fluted'",
+     "state.player.sprite.doll.forge.crest == 'knife'"
+    ]
+   },
+   {
+    "at": 1.45,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=gilded"
+     ]
+    ]
+   },
+   {
+    "at": 1.65,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'parade'",
+     "state.player.sprite.doll.forge.shoulder == 'lobed'",
+     "state.player.sprite.doll.forge.cut == 'embossed'",
+     "state.player.sprite.doll.forge.crest == 'crown'"
+    ]
+   },
+   {
+    "at": 1.8,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=obsidian"
+     ]
+    ]
+   },
+   {
+    "at": 2.0,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'knapped'",
+     "state.player.sprite.doll.forge.shoulder == 'shard'",
+     "state.player.sprite.doll.forge.cut == 'faceted'"
+    ]
+   },
+   {
+    "at": 2.15,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=ember"
+     ]
+    ]
+   },
+   {
+    "at": 2.35,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'furnace'",
+     "state.player.sprite.doll.forge.shoulder == 'vented'",
+     "state.player.sprite.doll.forge.cut == 'vented'"
+    ]
+   },
+   {
+    "at": 2.5,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=starmetal"
+     ]
+    ]
+   },
+   {
+    "at": 2.7,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'starfall'",
+     "state.player.sprite.doll.forge.shoulder == 'crystal'",
+     "state.player.sprite.doll.forge.cut == 'ribbed'",
+     "state.player.sprite.doll.forge.crest == 'spire'"
+    ]
+   },
+   {
+    "at": 2.85,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=leather"
+     ]
+    ]
+   },
+   {
+    "at": 3.05,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'tanner'",
+     "state.player.sprite.doll.forge.cut == 'lacedfront'"
+    ]
+   },
+   {
+    "at": 3.2,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=cloth"
+     ]
+    ]
+   },
+   {
+    "at": 3.4,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'homespun'",
+     "state.player.sprite.doll.forge.cut == 'channel'"
+    ]
+   },
+   {
+    "at": 3.55,
+    "call": [
+     [
+      "ladderkit",
+      "lt3"
+     ]
+    ]
+   },
+   {
+    "at": 3.75,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'armourer'",
+     "state.player.sprite.doll.forge.cut == 'plackart'"
+    ]
+   },
+   {
+    "at": 3.9,
+    "call": [
+     [
+      "ladderkit",
+      "lt6m"
+     ]
+    ]
+   },
+   {
+    "at": 4.1,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'mythic'"
+    ]
+   },
+   {
+    "at": 4.25,
+    "call": [
+     [
+      "ladderkit",
+      "kit=jade:5:5,wpn=spear"
+     ]
+    ]
+   },
+   {
+    "at": 4.45,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.forge.base == 'alloy'",
+     "state.player.sprite.doll.forge.shoulder == 'lobed'",
+     "state.player.sprite.doll.forge.crest == 'spike'"
+    ]
+   }
+  ]
+ }
+]

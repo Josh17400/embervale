@@ -1,0 +1,105 @@
+# headwear/collar/riveted: the forge collar `riveted` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
+# WROUGHT: a heavy square iron band, three rows, a big lit rivet at each end and at the throat; plain and boxy.
+# Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+body adult
+role overlay collar.riveted
+layer neck
+anchor neck
+keys neck
+z 1
+tags overlay
+legend v metal 0
+legend w metal 1
+legend x metal 2
+legend y metal 3
+legend z metal 4
+legend J metal2 0
+legend N metal2 1
+legend O metal2 2
+legend P metal2 3
+legend Q metal2 4
+legend f leather 0
+legend g leather 1
+legend h leather 2
+legend i leather 3
+legend j leather 4
+legend 5 cloth1 0
+legend 6 cloth1 1
+legend 7 cloth1 2
+legend 8 cloth1 3
+legend 9 cloth1 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+legend X glow 3
+legend W glow 4
+legend k cloak 0
+legend l cloak 1
+legend m cloak 2
+legend n cloak 3
+legend o cloak 4
+
+view D key rest origin 6 1
+|vvvvvvvvvvvvv
+|vzyyyyzyyyxzv
+|vyxxwxyxwxwwv
+|vxwwwwxwwwwwv
+|vvvvvvvvvvvvv
+
+view U key rest origin 6 1
+|vvvvvvvvvvvvv
+|vzyyyyzyyyxzv
+|vyxxwxyxwxwwv
+|vxwwwwxwwwwwv
+|vvvvvvvvvvvvv
+
+view R key rest origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view L key rest origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view L key lie origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view R key flow origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view R key flow2 origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view L key flow origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv
+
+view L key flow2 origin 5 1
+|vvvvvvvvvvv
+|vyyyyzyyyzv
+|vxxwxyxwxwv
+|vxwwwxwwwwv
+|vvvvvvvvvvv

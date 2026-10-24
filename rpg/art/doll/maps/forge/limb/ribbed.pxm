@@ -1,0 +1,44 @@
+# forge/limb/ribbed: ribbed limbs (STARFALL; 28.3): narrow ribs round the limb, a lit row over a dark row, period 2.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# LIMB TILE (`overlay limb.<v>`, a region tile, `on-region`): the body's style on its sleeves and thighs (U F T), the
+# gloves' on the cuffs and flares (C X), the boots' on the shins (S). Ink cells move the step by k - 2 (inside 1..4):
+# `+` +1, `^` +2, `:` -1, `=` -2; `O` (metal2 2) recolours to Metal 2 keeping the step. Periods 2 or more along one
+# axis only (lines and rows, never a checker): a shin is 2-3 px wide, so each limb is one strong motif.
+# (FORGE-MARKS forge i3) ribbed: period 2 rows, a lit rib and a dark gap: tight hoops.
+use person
+role overlay limb.ribbed
+tags tile overlay
+on-region U F C X T S
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key rest origin 0 0
+|+
+|=

@@ -17,6 +17,7 @@ else:
                 for sh in range(9):
                     r = sim.ramp(h,C,v,sh)
                     ok &= sim.metal_ok(r)[0]
+                    ok &= sim.metal_read(r)   # (forge C17)
                     sk = sim.toLab(sim.SKIN)
                     ok &= min(math.dist(sim.toLab(r[2]),sk), math.dist(sim.toLab(r[3]),sk)) >= 20.5
                     mids[sh] = sim.toLab(r[2])
@@ -27,7 +28,7 @@ def hd(a,b): return abs((a-b+180)%360-180)
 def warmband(h): return 15 <= h <= 115
 REG = {
  'BRONZE': (lambda h,C: (18<=h<=110) or (120<=h<=170 and C<=36), 22, 56, (-2,-1,0,1)),
- 'BRASS':  (lambda h,C: 55<=h<=118, 28, 62, (-2,-1,0,1,2)),
+ 'BRASS':  (lambda h,C: 55<=h<=118 or C<=14, 12, 62, (-2,-1,0,1,2)),   # (forge C15f: a pale brass may go near-neutral)
  'IRON':   (lambda h,C: C<=12 or not (40<=h<=110), 4, 26, (-2,-1,0)),
  'STEEL1': (lambda h,C: C<=12 or not (15<=h<=120), 4, 34, (-1,0,1)),
  'SILVER1':(lambda h,C: C<=12 or not (h<=130 or h>=345), 4, 18, (1,2)),
@@ -92,17 +93,38 @@ def pc(i):
     s1,p1,s2,p2,t = ALL[i]
     d = math.dist(mid(s1,p1), mid(s2,p2))
     return max(0.0, t-d)**2
+# (forge C15f) the spread over all 96 families' plain mid steps: no dE-10 ball holds more than 3 (pairs under 11 cost), and
+# each slot's 12 families span 3 or more hue sextants
+KEYS = [(s,p) for s in slots for p in range(12)]
+def mid0(key): return G[state[key]][1][0]
+def spreadPair(k1, k2):
+    d = math.dist(mid0(k1), mid0(k2))
+    return 0.6*max(0.0, 11.5-d)**2
+RGB0 = {}
+def rgb0(k):
+    if k not in RGB0: RGB0[k] = sim.ramp(*k, 0)[2]
+    return RGB0[k]
+def sextants(s):
+    out = set()
+    for p in range(12):
+        r = rgb0(state[(s,p)])
+        hh, ss, vv = colorsys.rgb_to_hsv(*[x/255 for x in r])
+        out.add(6 if max(r)-min(r) < 21 else int(hh*6) % 6)
+    return len(out)
+def spreadLocal(key):
+    return sum(spreadPair(key, o) for o in KEYS if o != key) + 60.0*max(0, 3-sextants(key[0]))
 def local(key):
-    return sum(pc(i) for i in inv.get(key,[])) + 0.6*seedcost(key[0],key[1],state[key])
+    return sum(pc(i) for i in inv.get(key,[])) + 0.6*seedcost(key[0],key[1],state[key]) + spreadLocal(key)
 def total():
-    return sum(pc(i) for i in range(len(ALL))) + 0.6*sum(seedcost(s,p,state[(s,p)]) for (s,p) in state)
+    sp = sum(spreadPair(KEYS[i], KEYS[j]) for i in range(len(KEYS)) for j in range(i+1, len(KEYS))) + sum(60.0*max(0, 3-sextants(s)) for s in slots)
+    return sum(pc(i) for i in range(len(ALL))) + 0.6*sum(seedcost(s,p,state[(s,p)]) for (s,p) in state) + sp
 if __name__ == '__main__':
   random.seed(int(sys.argv[1]) if len(sys.argv)>1 else 1)
   global_dummy=0
   cur = total(); print('start', cur)
   Tt = 20.0
   keys = list(state)
-  for it in range(200000):
+  for it in range(int(sys.argv[2]) if len(sys.argv)>2 else 120000):
       key = random.choice(keys)
       old = state[key]
       before = local(key)
@@ -115,6 +137,8 @@ if __name__ == '__main__':
   print('end', total())
   viol = [(ALL[i], round(math.dist(mid(ALL[i][0],ALL[i][1]),mid(ALL[i][2],ALL[i][3])),1)) for i in range(len(ALL)) if pc(i)>0]
   print('violations', len(viol))
+  balls = max(sum(1 for o in KEYS if math.dist(mid0(k), mid0(o)) <= 10.0) for k in KEYS)
+  print('C15f densest ball', balls, 'sextants', [sextants(s) for s in slots])
   for v in viol[:40]: print(v)
   pickle.dump(state, open('state.pkl','wb'))
   for s in slots:

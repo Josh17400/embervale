@@ -9,7 +9,7 @@ N = {
 'SILVER1': "VIOLET SILVER,MINT SILVER,ICE SILVER,WHITE SILVER,TEAL SILVER,PALE SILVER,SKY SILVER,BLUE SILVER,PEARL SILVER,LILAC SILVER,JADE SILVER,STAR SILVER",
 'STEEL2': "JADE STEEL,VIOLET STEEL,COBALT STEEL,PURPLE STEEL,TURQUOISE STEEL,TEAL STEEL,GREEN STEEL,DARK JADE STEEL,EMERALD STEEL,INDIGO STEEL,LEAF STEEL,BLUE STEEL",
 'SILVER2': "JADE SILVER,LILAC SILVER,MINT SILVER,SKY SILVER,SEAFOAM SILVER,TEAL SILVER,GREEN SILVER,EMERALD SILVER,COBALT SILVER,WHITE SILVER,AQUA SILVER,STAR SILVER",
-'GLASS2': "SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,SEA GLASS,GREEN GLASS,VIOLET GLASS",
+'GLASS2': "ICE GLASS,PEAT GLASS,SAPPHIRE GLASS,GARNET GLASS,AMBER GLASS,SKY GLASS,BOG GLASS,JADE GLASS,RIVER GLASS,NIGHT GLASS,GREEN GLASS,VIOLET GLASS",
 }
 rows=[]
 for s in ['BRONZE','BRASS','IRON','STEEL1','SILVER1','STEEL2','SILVER2','GLASS2']:
@@ -18,7 +18,8 @@ for s in ['BRONZE','BRASS','IRON','STEEL1','SILVER1','STEEL2','SILVER2','GLASS2'
         h,C,v = st[(s,p)]
         n = names[p]
         rows.append('    {"%s", %d, %d, %d},%s// %s %s' % (n,h,C,v,' '*max(1,22-len(n)),s,P[p]))
-f = r'C:\Users\joshu\Documents\embervale\rpg\art\doll\doll_alloy.cpp'
+import os
+f = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'rpg', 'art', 'doll', 'doll_alloy.cpp')
 src = open(f,encoding='utf-8').read()
 a = src.index('const AlloyFam kAlloyFam[] = {\n') + len('const AlloyFam kAlloyFam[] = {\n')
 b = src.index('\n};', a)

@@ -1,0 +1,48 @@
+# forge/fit/rivets: rivets (WROUGHT, FURNACE, River, Imperial; 28.3): a rivet head on the seams the cut marks (N: band
+# joins, splint gaps, the plate's lower edge) every fourth pixel: one lit pixel (+2) on the dark seam: the delight, each
+# rivet catching the top-left light.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+# (FORGE-MARKS forge i3) rivets: a bright head (+2) every 4th pixel along the seams (N), each catching the top-left light.
+use person
+role overlay fit.rivets
+tags tile overlay
+on-region N
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key rest origin 0 0
+|^...
+|.^..
+|..^.
+|...^

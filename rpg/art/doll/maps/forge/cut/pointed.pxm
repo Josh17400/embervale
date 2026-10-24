@@ -1,0 +1,36 @@
+# forge/cut/pointed: pointed scale (ARMOURER'S, KNAPPED, STARFALL; 28.3): 4 px scales in 3-row courses offset by 2, lit
+# down the left face, the lower edge a dark V closing to a point: rows of leaf points.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# CUT TILE (P2C_CONTRACTS 3c `overlay cut.<v>`, `on-slot <slot>` kept as the tag on-slot:<slot>): laid by forgeView over
+# that slot's lit pixels (step 1-4) on the body's armour, hang and pauldron views (not the style's own `when cut-<v>`
+# drawing, not R G W). Ink cells move the step by k - 2 and stay inside 1..4: `+` +1, `^` +2, `:` -1, `=` -2 (the seam),
+# `.` keeps; the regions plane sets the pixel's region (N: the seam, which takes the T6 runes and the glowing tell; R
+# rim; P panel). Seams are `=` with a `:` hot point every third or fourth cell: on a glowing alloy (N -> Glow from T4)
+# the hot points keep step 2 or more and read as embers along the seam. The tile rides the view's origin (the part's
+# anchor). Every pattern is 3 px or more in period, a line never a speck: the read is structure at 1x (STYLE_P2 28.9).
+use person
+role overlay cut.pointed
+tags tile overlay on-slot:metal
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+legend n accent 1
+legend o accent 2
+legend p accent 3
+
+view D key rest origin 0 0
+|=...
+|.=.=
+|..=.
+|..=.
+|.=.=
+|=...
+regions
+|N...
+|.N.N
+|..N.
+|..N.
+|.N.N
+|N...

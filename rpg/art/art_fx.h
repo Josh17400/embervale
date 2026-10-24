@@ -116,11 +116,13 @@ Mask maskOf(const Canvas& atlas, int fx, int fy, int fw, int fh);
 struct Figure {
   int topTier = 0;
   bool mythic = false, bladeT6 = false, strike = false, line = false;
+  bool steady = false;   // (P2c forge, D28) a glowing alloy at T4: its seams lit at a steady kSteadyGlow, no breath, halo or aura
   float t = 0, phase = 0;
   float gx = 0, gy = 0, tx = 0, ty = 0;                // grip and tip (frame coordinates) when `line`
   const std::vector<GlowPx>* glow = nullptr;
   const Mask* mask = nullptr;
 };
+constexpr float kSteadyGlow = 0.35f;   // (P2c forge, D28) the T4 glowing sheen's steady light
 void figureLights(const Figure& f, std::vector<Light>& out);
 // (i3's entry point, kept for its callers) the glow, halo and aura with no mask or line
 void frameLights(int topTier, bool mythic, uint32_t seed, float t, float phase, const std::vector<GlowPx>& px, std::vector<Light>& out);

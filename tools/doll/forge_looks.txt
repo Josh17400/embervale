@@ -1,0 +1,60 @@
+# P2c forge slice looks (docs/PLAN.md "The forge slice"; docs/P2C_CONTRACTS.md 3c macros): tag who spec gaits.
+# Forge macros: mat=<cloth|leather|bronze|iron|steel|gilded|obsidian|ember|starmetal|mythic> (the kit's armour re-materialled,
+# the blade keeps its own metal), forge=<base>, style=<axis>:<value>[+...], alloyStyle=<people>:<seed>:<n>, alloy=N (the kit's
+# metal pieces in the people's alloy N). The expanded fields and the picks: rpg_test --expand-looks tools/doll/forge_looks.txt
+# (recorded in tools/doll/forge_looks.expanded.txt). Seeds (FORGE-DOLL, rpg_test --forge-picks): Highland 1 THORNIRON
+# GWESTEEL THORNSTEEL; Jade 5 UNSHISILVER (glowing masterwork: lobed, spike, banded; i3 guise the great helm and the noble cloak); Starspire 1 AMIORSTEEL
+# (iridescent masterwork); the metal-read six: Sylvan 1 STAGBRONZE, Starspire 1 ANIBRASS, Steppe 1 ENKHOBRASS, Jade 2
+# UHABRASS, River 1 VENSTEEL, Marsh 2 BAKOSTEEL. (i2) Fjordfolk 1 FROSTSTEEL (a_fj2: the coif collar, the comb on a crested helm).
+#tag     who    spec                                                                        gaits
+hero     man    -                                                                           walk,run,dwalk,drun,didle,hit1,fall,lying
+fm_home  man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=cloth,palette=look          stay,walk,run,didle,hit1,hurt,fall,lying
+fm_tan   man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=leather,palette=look        stay,walk,run,didle,hit1,hurt,fall,lying
+fm_bronze man   hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=bronze,palette=look         stay,walk,run,didle,hit1,hurt,fall,lying
+fm_iron  man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=iron,palette=look           stay,walk,run,didle,hit1,hurt,fall,lying
+fm_steel man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=steel,palette=look          stay,walk,run,didle,hit1,hurt,fall,lying
+fm_gilt  man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=gilded,palette=look         stay,walk,run,didle,hit1,hurt,fall,lying
+fm_obsid man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=obsidian,palette=look       stay,walk,run,didle,hit1,hurt,fall,lying
+fm_ember man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=ember,palette=look          stay,walk,run,didle,hit1,hurt,fall,lying
+fm_star  man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=starmetal,palette=look      stay,walk,run,didle,hit1,hurt,fall,lying
+fm_myth  man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,didle,hit1,hurt,fall,lying
+f5_steel man    hero=1,kit=heartland:5:7,mat=steel,palette=look                             stay,walk
+f5_gilt  man    hero=1,kit=heartland:5:7,mat=gilded,palette=look                            stay,walk
+f5_obsid man    hero=1,kit=heartland:5:7,mat=obsidian,palette=look                          stay,walk
+f5_ember man    hero=1,kit=heartland:5:7,mat=ember,palette=look                             stay,walk
+f5_star  man    hero=1,kit=heartland:5:7,mat=starmetal,palette=look                         stay,walk
+fw_bronze woman heroine=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=bronze,palette=look      stay,walk,run,didle,hit1,hurt,fall,lying
+fw_steel woman  heroine=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=steel,palette=look       stay,walk,run,didle,hit1,hurt,fall,lying
+fw_star  woman  heroine=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=starmetal,palette=look   stay,walk,run,didle,hit1,hurt,fall,lying
+a_hl1    man    kit=highland:4:1,alloy=1,head=4,hair=1,hairVar=1,hairColor=#8A3A22,beard=1,beardStyle=0,skin=#E2A882,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+a_hl2    man    kit=highland:4:1,alloy=2,head=4,hair=1,hairVar=1,hairColor=#8A3A22,beard=1,beardStyle=0,skin=#E2A882,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+a_hl3    man    kit=highland:4:1,alloy=3,head=4,hair=1,hairVar=1,hairColor=#8A3A22,beard=1,beardStyle=0,skin=#E2A882,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+a_fj2    man    kit=fjordfolk:4:1,alloy=2,head=3,hair=1,hairVar=2,hairColor=#C8A050,beard=1,beardStyle=3,skin=#F0C8A8,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+a_jade3  man    kit=jade:5:5,wpn=spear,head=6,hair=1,hairVar=1,hairColor=#1E1A22,skin=#E2B58A,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+a_star3  woman  kit=starspire:5:1,hair=5,hairVar=0,hairColor=#E8DCC0,skin=#F0D2B8,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+mr_1     man    kit=sylvan:4:1,alloy=1,palette=look                                         stay,walk
+mr_2     man    kit=starspire:4:1,alloy=1,palette=look                                      stay,walk
+mr_3     man    kit=steppe:4:1,alloy=1,palette=look                                         stay,walk
+mr_4     man    kit=jade:4:2,alloy=1,palette=look                                           stay,walk
+mr_5     man    kit=river:4:1,alloy=3,palette=look                                          stay,walk
+mr_6     man    kit=marsh:4:2,alloy=3,palette=look                                          stay,walk
+lt1      man    hero=1,kit=heartland:1:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt2      man    hero=1,kit=heartland:2:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt3      man    hero=1,kit=heartland:3:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt4      man    hero=1,kit=heartland:4:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt5      man    hero=1,kit=heartland:5:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6      man    hero=1,kit=heartland:6:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6m     man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,didle,hit1
+lt6w     woman  heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A,palette=look        stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+nband    man    npc=heartland:bandit:0:7,palette=look                                       stay,walk,run,hit1,fall,lying
+nroyal   woman  npc=heartland:guard:2:7,palette=look                                        stay,walk,run,didle,hit1,fall,lying
+nking    man    npc=heartland:king:0:7,palette=look                                         stay,walk
+ncapt_hl man    npc=highland:captain:1:1,palette=look                                       stay,walk
+ncapt_jd man    npc=jade:captain:1:5,palette=look                                           stay,walk
+# (forge i3) the guises' heads in motion (gear::alloyGuise): the turban helm, the jingasa, the coif, the great helm, the mask
+g_dune1  man    kit=dune:4:1,alloy=1,palette=look                                          stay,walk,run,didle,hit1,hurt,fall,lying
+g_mars2  man    kit=marsh:4:2,alloy=2,palette=look                                         stay,walk,run,didle,hit1,hurt,fall,lying
+g_hl2    man    kit=highland:4:1,alloy=2,palette=look                                      stay,walk,run,didle,hit1,hurt,fall,lying
+g_fj1    man    kit=fjordfolk:4:1,alloy=1,palette=look                                     stay,walk,run,didle,hit1,hurt,fall,lying
+g_step1  man    kit=steppe:4:1,alloy=1,palette=look                                        stay,walk,run,didle,hit1,hurt,fall,lying
+g_sylv1w woman  kit=sylvan:4:1,alloy=1,palette=look                                        stay,walk,run,didle,hit1,hurt,fall,lying

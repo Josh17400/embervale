@@ -12,7 +12,11 @@ anchor head
 keys hatpose
 tags overlay
 
+# (FORGE-HELM i2, crown_tweak.py) the crown mark two rows down the dome: the crest rides the dome, never over the frame top (B10)
+# (FORGE-HELM i3, crown3.py) mark crown one row under the tip (a crest rises over the cone instead of hiding in it)
+
 view D key rest origin 2 1
+mark crown 9 2
 |--------------------
 |---------vv---------
 |--------vzyv--------
@@ -42,6 +46,7 @@ regions
 |....................
 
 view U key rest origin 2 1
+mark crown 9 2
 |--------------------
 |---------vv---------
 |--------vzyv--------
@@ -65,6 +70,7 @@ regions
 |....................
 
 view R key rest origin 3 1
+mark crown 10 2
 |---------------------
 |----------vv---------
 |---------vzyv--------
@@ -94,6 +100,7 @@ regions
 |.....................
 
 view L key rest origin 2 1
+mark crown 10 2
 |---------------------
 |---------vv----------
 |--------vyzv---------
@@ -123,6 +130,7 @@ regions
 |.....................
 
 view L key lie origin 2 1
+mark crown 10 2
 |---------------------
 |---------vv----------
 |--------vyzv---------

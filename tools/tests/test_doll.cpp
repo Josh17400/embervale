@@ -119,6 +119,8 @@ int dollArmsGates(bool report, std::vector<std::string>& printed);
 std::string dollSliceLooksText();
 int dollLadderGates(bool report, std::vector<std::string>& printed);   // test_doll_ladder.cpp
 int dollLadderCoverage(int argc, char** argv);   // test_doll_ladder.cpp: --doll-coverage --scope ladder (C1 source L)
+int dollForgeGates(bool report, std::vector<std::string>& printed);   // test_doll_forge.cpp: C16 a b c s, C17, C1 F, C12a
+int dollForgeCoverage(int argc, char** argv);   // test_doll_forge.cpp: --doll-coverage --scope forge
 namespace {
 
 using art::HumanLook;
@@ -349,7 +351,7 @@ void contract() {
   if (doll::SLOT_COUNT != 22 || std::string(doll::slotName(Slot::Fx)) != "fx" || std::string(doll::slotName(Slot::Skin)) != "skin" ||
       std::string(doll::slotName(Slot::Blade)) != "blade") cfail("the slot table");
   if (doll::LAYER_COUNT != 24 || std::string(doll::layerName(doll::Layer::Fx)) != "fx" || std::string(doll::layerName(doll::Layer::FxBack)) != "fxBack") cfail("the layer table");
-  if (doll::ANCHOR_COUNT != 8 || doll::REGION_COUNT != 17 || doll::regionChar(doll::Region::Sole) != 'O' || doll::regionChar(doll::Region::Trim) != 'R' ||
+  if (doll::ANCHOR_COUNT != 9 || std::string(doll::anchorName(doll::Anchor::Crown)) != "crown" || doll::REGION_COUNT != 17 || doll::regionChar(doll::Region::Sole) != 'O' || doll::regionChar(doll::Region::Trim) != 'R' ||
       doll::regionChar(doll::Region::Wear) != 'W') cfail("the anchors and regions");
   if (doll::ROLE_COUNT != 26 || std::string(doll::roleName(doll::Role::Hair)) != "hair") cfail("the role table");
   if (doll::code(Slot::Metal, 4) != 2 + 11 * 5 + 4 || doll::codeSlot(doll::code(Slot::Cloth3, 3)) != Slot::Cloth3 || doll::codeStep(doll::code(Slot::Cloth3, 3)) != 3) cfail("pixel codes");
@@ -598,7 +600,8 @@ std::vector<SliceAtlas> sliceAtlases() {
       for (int pi : r.parts) {
         if (pi < 0 || pi >= (int)P.parts.size()) continue;
         const std::string& nm = P.s(P.parts[(size_t)pi].name);
-        if (nm.find("_crest") != std::string::npos || nm.find("_plume") != std::string::npos) crest = true;
+        // (forge i2) a forge crest (headwear/helm/crest/<v>, which takes the helm's own crest or plume up to T4) stands as high
+        if (nm.find("_crest") != std::string::npos || nm.find("_plume") != std::string::npos || nm.find("helm/crest/") != std::string::npos) crest = true;
         if (nm.find("held/weapons/spear") != std::string::npos || nm.find("held/weapons/glaive") != std::string::npos ||
             nm.find("held/weapons/halberd") != std::string::npos) polearm = true;
       }
@@ -619,6 +622,9 @@ std::vector<SliceAtlas> sliceAtlases() {
       // RUN may use its base (and D19) + 14 KB
       double d19 = b.d19;
       if (b.p == RigPart::Run && polearm) { base += 14; d19 += 14; }
+      // (P2c forge, PLAN constants "forge: atlases") a styled body's shoulders, crest and edges add a column or row on some
+      // frames: its LOCO and RUN may use 3 % more (measured i2: fm_star RUN 68.2 of 68 with its crest, jade3 LOCO 138.6 of 136)
+      if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forge[HumanLook::TIER_BODY]) { base *= 1.03; d19 *= 1.03; }
       v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, d19) : base, base});
     }
   }
@@ -1861,6 +1867,9 @@ int dollCmd(int argc, char** argv) {
     gateFails += armsFails;
     for (const std::string& l : ladderLines) std::printf("%s\n", l.c_str());
     gateFails += ladderFails;
+    std::vector<std::string> forgeLines;
+    gateFails += dollForgeGates(g_report, forgeLines);   // (P2c forge) C16 a b c s, C17, C1 source F, C12a restated
+    for (const std::string& l : forgeLines) std::printf("%s\n", l.c_str());
   }
   art::setRigVersion(was);
   const int bad = g_contract + gateFails;
@@ -2214,8 +2223,10 @@ void censusK(uint64_t seed, std::vector<Who>& out) {
 }
 
 int coverageCmd(int argc, char** argv) {
-  for (int i = 1; i + 1 < argc; i++)
+  for (int i = 1; i + 1 < argc; i++) {
     if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "ladder")) return dollLadderCoverage(argc, argv);
+    if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "forge")) return dollForgeCoverage(argc, argv);
+  }
   bool gates = false, all = false;
   uint64_t a = 1, b = 3;
   for (int i = 1; i < argc; i++) {

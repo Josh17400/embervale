@@ -1,0 +1,46 @@
+# forge/limb/studded: studded limbs (PARADE's gilt studs, Highland, Steppe, River; 28.3): a stud (Metal 2, lit) over a
+# dark foot every third row, offset each course.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# LIMB TILE (`overlay limb.<v>`, a region tile, `on-region`): the body's style on its sleeves and thighs (U F T), the
+# gloves' on the cuffs and flares (C X), the boots' on the shins (S). Ink cells move the step by k - 2 (inside 1..4):
+# `+` +1, `^` +2, `:` -1, `=` -2; `O` (metal2 2) recolours to Metal 2 keeping the step. Periods 2 or more along one
+# axis only (lines and rows, never a checker): a shin is 2-3 px wide, so each limb is one strong motif.
+# (FORGE-MARKS forge i3) studded: a lit stud (Metal 2 beside it) over its shadow every 3rd row, on a 2 px column.
+use person
+role overlay limb.studded
+tags tile overlay
+on-region U F C X T S
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key rest origin 0 0
+|+O
+|==
+|..

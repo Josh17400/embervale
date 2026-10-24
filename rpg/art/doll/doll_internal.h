@@ -75,6 +75,7 @@ constexpr uint8_t kTurnNone = 0, kTurnWest = 1, kTurnEast = 2;
 struct Ids { uint16_t rest = 0xFFFF, dash = 0xFFFF, grip = 0xFFFF, gripL = 0xFFFF, handR = 0xFFFF, handL = 0xFFFF, face = 0xFFFF,
              tip = 0xFFFF, hip = 0xFFFF, footL = 0xFFFF, footR = 0xFFFF, top = 0xFFFF, tile = 0xFFFF;
              // (P2c) the held channel, the anyfacing tag, the library's 16 angle keys (a000 a022 ... a337)
+             uint16_t crown = 0xFFFF, socket = 0xFFFF;   // (P2c forge)
              uint16_t held = 0xFFFF, anyfacing = 0xFFFF, angle[16] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
                                                                       0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; };
 // (P2c) the library's view key for a weapon angle (degrees counter-clockwise from screen-right, rounded to 22.5): "a000".."a337"

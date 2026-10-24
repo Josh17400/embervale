@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_forge.h"
+#include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/world.h"
 
@@ -167,6 +169,8 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
         if (const cult::Culture* c = maker(src)) {
           const std::vector<uint8_t> fam = alloyFamilies(*c);
           if (src->alloy >= 1 && src->alloy <= fam.size()) L.alloyFam = (uint8_t)(fam[src->alloy - 1] + 1);
+          if (src->alloy >= 1) L.alloyRank = (uint8_t)std::min<int>(src->alloy, 3);   // (forge i2) the hidden 4th: a masterwork
+          if (src->alloy >= 1) L.forgeGuise = alloyGuise(*c, src->alloy - 1);           // (forge i3) its own silhouette
         }
         break;
       }
@@ -175,6 +179,26 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
   // resolver's ladderLook makes them; the look's own fields, and so rig 1, are untouched). A worn piece keeps its tier.
   if (!g.armor && !L.tier[H::TIER_BODY]) { L.tier[H::TIER_BODY] = 1; L.floor |= (uint8_t)(1u << H::TIER_BODY); }
   if (!g.boots && !L.tier[H::TIER_BOOTS]) { L.tier[H::TIER_BOOTS] = 1; L.floor |= (uint8_t)(1u << H::TIER_BOOTS); }
+  // (P2c forge, contracts 3c) each worn piece's forge style (forgeOf with its maker); the T1 floor's padded jerkin is
+  // HOMESPUN, its leather boots TANNER'S
+  auto forgeSlot = [&](int slot, const Item* it) {
+    if (!it || !lookTier(*it, maker(it)).tier) return;
+    L.forge[slot] = packForge(forgeOf(*it, maker(it)));
+  };
+  forgeSlot(H::TIER_BODY, g.armor);
+  forgeSlot(H::TIER_HELM, g.helmet);
+  forgeSlot(H::TIER_SHIELD, g.shield);
+  forgeSlot(H::TIER_GLOVES, g.gloves);
+  forgeSlot(H::TIER_BOOTS, g.boots);
+  // (forge i2) the Heartland's leather, bronze, iron and steel wear their hero styles' own helm and shield shapes (another
+  // people's keep its own forms): by the helm's maker, else the body's (no maker: the heartland look)
+  {
+    const Item* src = g.helmet ? g.helmet : g.armor;
+    const cult::Culture* c = src ? maker(src) : nullptr;
+    L.forgeKit = (uint8_t)((src && (!c || c->archetype == cult::Archetype::Heartland)) ? 1 : 0);
+  }
+  if (L.floor >> H::TIER_BODY & 1) L.forge[H::TIER_BODY] = packForge(baseStyle(0, cult::BodyArm::Padded));
+  if (L.floor >> H::TIER_BOOTS & 1) L.forge[H::TIER_BOOTS] = packForge(baseStyle(1, cult::BodyArm::Leather));
   // the filigree's motif: the body's maker people (else the helm's): Jade's cloud scrolls, the Imperial laurel, the northern
   // knotwork, the Heartland's oak leaves (the default, and every people without its own drawing yet)
   for (const Item* src : {g.armor, g.helmet})
@@ -186,7 +210,7 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     }
 }
 
-void rankTiers(art::HumanLook& L, int tier, bool person) {
+void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* realm) {
   using H = art::HumanLook;
   if (tier <= 0) return;
   const uint8_t t = (uint8_t)std::min(tier, 6);
@@ -218,6 +242,38 @@ void rankTiers(art::HumanLook& L, int tier, bool person) {
     const int band = L.armorStyle ? L.armorStyle : (L.helmStyle ? L.helmStyle : 0);
     if (L.armourTint) L.metalKind = 10;
     else if (band >= 1 && band <= 7) L.metalKind = kBand[band];
+  }
+  // (P2c forge, contracts 3c) the rank's metal as its hero style on every worn piece; (D29) the T4 officers (captains, the
+  // royal guard, jarls) wear their realm's best alloy below the masterwork, kings (T5) the masterwork, so every kingdom's
+  // officers look their own (the style and the alloy's metal family: ladder fields only, rig 1 untouched)
+  {
+    const cult::BodyArm form = L.bodyForm ? (cult::BodyArm)std::min<int>(L.bodyForm - 1, 7)
+                                          : (L.outfit == O::Leather ? cult::BodyArm::Leather : L.outfit == O::Chain || L.outfit == O::Guard ? cult::BodyArm::Mail
+                                                                                                                                         : cult::BodyArm::Plate);
+    ForgeStyle st;
+    if (realm && t >= 4 && !realm->arms.alloys.empty() && armour) {
+      const int n = (int)realm->arms.alloys.size();
+      const int idx = t >= 5 ? n - 1 : (n >= 3 ? n - 2 : n - 1 >= 1 ? 1 : 0);
+      st = alloyStyle(*realm, idx);
+      const std::vector<uint8_t> fam = alloyFamilies(*realm);
+      L.metalKind = 10;
+      if (idx < (int)fam.size()) L.alloyFam = (uint8_t)(fam[(size_t)idx] + 1);
+      L.alloyRank = (uint8_t)std::min(idx + 1, 3);
+      L.forgeGuise = alloyGuise(*realm, idx);
+    } else if (L.metalKind && L.metalKind != 10) {
+      st = baseStyle(L.metalKind, L.metalKind == 1 && form != cult::BodyArm::Padded ? cult::BodyArm::Leather : form);
+    } else if (armour && (form == cult::BodyArm::Padded || L.outfit == O::Tunic)) {
+      st = baseStyle(0, cult::BodyArm::Padded);
+    }
+    const uint64_t pk = packForge(st);
+    if (pk && (!realm || realm->archetype == cult::Archetype::Heartland)) L.forgeKit = 1;   // (forge i2) the Heartland's own kit
+    if (pk) {
+      if (L.tier[H::TIER_BODY]) L.forge[H::TIER_BODY] = pk;
+      if (L.tier[H::TIER_HELM]) L.forge[H::TIER_HELM] = pk;
+      if (L.tier[H::TIER_SHIELD]) L.forge[H::TIER_SHIELD] = pk;
+      if (L.tier[H::TIER_GLOVES]) L.forge[H::TIER_GLOVES] = pk;
+      if (L.tier[H::TIER_BOOTS]) L.forge[H::TIER_BOOTS] = pk;
+    }
   }
 }
 
@@ -451,7 +507,7 @@ std::vector<std::string> split(const std::string& s, char c) {
 void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad) {
   if (spec.empty() || spec == "-") return;
   struct KV { std::string k, v; };
-  std::vector<KV> plain, tiers;
+  std::vector<KV> plain, tiers, forges;   // (P2c forge) mat= forge= style= alloyStyle= forgeBody=..
   int hero = -1;   // 0 hero, 1 heroine
   std::string kit, npc, wpn;
   int rarity = -1, kitAlloy = 0;
@@ -468,7 +524,8 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "wpn") wpn = v;
     else if (k == "alloy") kitAlloy = (int)std::strtol(v.c_str(), nullptr, 10);   // (alloys i1) the kit's metal pieces in alloy N
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
-    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam")
+    else if (k == "mat" || k == "forge" || k == "style" || k == "alloyStyle" || (k.rfind("forge", 0) == 0 && k.size() > 5 && k != "forgeKit" && k != "forgeGuise")) forges.push_back(KV{k, v});
+    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam" || k == "forgeKit" || k == "alloyRank" || k == "forgeGuise")
       tiers.push_back(KV{k, v});
     else plain.push_back(KV{k, v});
   }
@@ -570,12 +627,83 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       else if (kv.k == "kitVar") L.kitVar = (uint8_t)n;
       else if (kv.k == "floor") L.floor = (uint8_t)n;
       else if (kv.k == "alloyFam") L.alloyFam = (uint8_t)n;
+      else if (kv.k == "forgeKit") L.forgeKit = (uint8_t)n;
+      else if (kv.k == "alloyRank") L.alloyRank = (uint8_t)n;
+      else if (kv.k == "forgeGuise") L.forgeGuise = (uint16_t)n;
       else if (kv.k == "gemColor") {
         const uint32_t rgb = (uint32_t)std::strtoul(kv.v.c_str() + (!kv.v.empty() && kv.v[0] == '#' ? 1 : 0), nullptr, 16);
         L.gemColor = kv.v == "0" ? 0u : hexc(rgb);
       } else addBad(kv.k);
     }
     (void)H::TIER_BODY;
+  }
+  // (P2c forge, contracts 3c) the forge macros, last: mat= (the kit's armour re-materialled: cloth padded, leather leather, the
+  // rest in the kit's own form; the blade keeps its own metal), forge= (a hero style on every worn armour piece), style=
+  // (values forced on the body), alloyStyle=<people>:<seed>:<n> (that culture's alloy n's style on the body), forgeBody=..
+  // forgeBack= (a packed style, --expand-looks' output)
+  namespace FG = art::doll::forge;
+  using H = art::HumanLook;
+  auto bodyArm = [&]() { return L.bodyForm ? (cult::BodyArm)std::min<int>(L.bodyForm - 1, 7) : cult::BodyArm::Plate; };
+  auto onWorn = [&](uint64_t pk) {
+    for (int sl : {(int)H::TIER_BODY, (int)H::TIER_HELM, (int)H::TIER_SHIELD, (int)H::TIER_GLOVES, (int)H::TIER_BOOTS}) {
+      const bool worn = sl == H::TIER_BODY ? (L.bodyForm || L.armorStyle) : sl == H::TIER_HELM ? (L.helmet || L.helmStyle || L.helmForm)
+                      : sl == H::TIER_SHIELD ? (L.shieldForm != 9 && (L.shield || L.shieldStyle || L.shieldForm)) : sl == H::TIER_GLOVES ? L.gloves != 0 : L.boots != 0;
+      if (worn) L.forge[sl] = pk;
+    }
+  };
+  for (const KV& kv : forges) {
+    if (kv.k == "mat") {
+      static const char* const kMat[10] = {"cloth", "leather", "bronze", "iron", "steel", "gilded", "obsidian", "ember", "starmetal", "mythic"};
+      static const uint8_t kKind[10] = {1, 1, 2, 3, 4, 5, 7, 8, 9, 11};
+      int m = -1;
+      for (int i = 0; i < 10; i++) if (kv.v == kMat[i]) m = i;
+      if (m < 0) { addBad(kv.k); continue; }
+      if (!L.bladeKind) L.bladeKind = L.metalKind;   // the blade keeps its own metal (D30)
+      if (L.bladeKind == 10) L.bladeKind = 4;          // (the kit's alloy blade drawn as the steel it is: the alloy's tint goes)
+      L.metalKind = kKind[m];
+      L.armourTint = 0; L.armourTint2 = 0; L.alloyFam = 0; L.sheen = 0; L.alloyRank = 0; L.forgeGuise = 0;
+      if (m == 0) L.bodyForm = 1;
+      else if (m == 1) L.bodyForm = 2;
+      else if (L.bodyForm <= 2) L.bodyForm = 7;
+      if (m == 9) L.mythic |= (uint8_t)(1u << H::TIER_BODY);
+      L.forgeKit = 1;   // (forge i2) the materials board: each material's own helm and shield
+      onWorn(packForge(baseStyle(L.metalKind, m == 0 ? cult::BodyArm::Padded : bodyArm())));
+    } else if (kv.k == "forge") {
+      const int b = FG::valueOf(FG::AX_BASE, kv.v.c_str());
+      if (b < 1) { addBad(kv.k); continue; }
+      uint8_t ax[FG::AX_COUNT];
+      FG::heroAxes(b, FG::familyOfBodyArm((int)bodyArm()), ax);
+      onWorn(FG::pack(ax));
+      L.forgeGuise = 0;   // (forge i3) a hero style is made in its own silhouette
+    } else if (kv.k == "style") {
+      uint8_t ax[FG::AX_COUNT];
+      FG::unpack(L.forge[H::TIER_BODY], ax);
+      bool ok = true;
+      for (const std::string& av : split(kv.v, '+')) {
+        const size_t c = av.find(':');
+        const int a = c == std::string::npos ? -1 : FG::axisOfName(av.substr(0, c).c_str());
+        const int v = a < 0 ? -1 : (av.substr(c + 1) == "none" ? 0 : FG::valueOf(a, av.substr(c + 1).c_str()));
+        if (a < 0 || v < 0) { ok = false; continue; }
+        ax[a] = (uint8_t)v;
+      }
+      if (!ok) addBad(kv.k);
+      L.forge[H::TIER_BODY] = FG::pack(ax);
+    } else if (kv.k == "alloyStyle") {
+      const std::vector<std::string> f = split(kv.v, ':');
+      cult::Archetype a = cult::Archetype::Heartland;
+      if (f.size() < 3 || !peopleOf(f[0], a)) { addBad(kv.k); continue; }
+      const cult::Culture& C = kitCulture(a, (uint32_t)std::strtoul(f[1].c_str(), nullptr, 10));
+      const int n = (int)std::strtol(f[2].c_str(), nullptr, 10);
+      if (n < 1 || n > (int)C.arms.alloys.size()) { addBad(kv.k); continue; }
+      L.forge[H::TIER_BODY] = packForge(alloyStyle(C, n - 1));
+      L.forgeGuise = alloyGuise(C, n - 1);
+    } else {
+      static const char* const kSlot[8] = {"forgeBody", "forgeHelm", "forgeShield", "forgeWeapon", "forgeGloves", "forgeBoots", "forgeCloak", "forgeBack"};
+      bool done = false;
+      for (int sl = 0; sl < 8; sl++)
+        if (kv.k == kSlot[sl]) { L.forge[sl] = std::strtoull(kv.v.c_str(), nullptr, 0); done = true; }
+      if (!done) addBad(kv.k);
+    }
   }
 }
 
@@ -611,13 +739,18 @@ std::string describeLook(const art::HumanLook& L) {
   if (L.helmet != D.helmet) add("helmet", L.helmet);
   N_(helmStyle) N_(helmForm) N_(armorStyle) N_(bodyForm)
   if (L.shield != D.shield) add("shield", L.shield);
-  N_(shieldStyle) N_(shieldForm) N_(bladeForm) N_(polearmForm) N_(bowForm) N_(pauldron) N_(skirt) N_(crest) N_(armsOrnament) N_(gloves)
+  N_(shieldStyle) N_(shieldForm) N_(bladeForm) N_(polearmForm) N_(bowForm) N_(pauldron) N_(skirt) N_(forgeKit) N_(alloyRank) N_(forgeGuise) N_(crest) N_(armsOrnament) N_(gloves)
   N_(boots) N_(backItem) N_(sheen) N_(glow)
   C_(skin) C_(hairColor) C_(topColor) C_(bottomColor) C_(tabardColor) C_(cloakColor) C_(headColor) C_(patternColor) C_(eyeColor)
   C_(plumeColor) C_(armourTint) C_(armourTint2) C_(glowColor) C_(shieldField) C_(shieldDevice) C_(trimColor) C_(weaponColor)
   static const char* const kSlot[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
   for (int s = 0; s < 8; s++) if (L.tier[s]) add(kSlot[s], L.tier[s]);
   N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) N_(alloyFam) C_(gemColor)
+  {   // (P2c forge) the packed styles (0x.., a byte per axis)
+    static const char* const kFg[8] = {"forgeBody", "forgeHelm", "forgeShield", "forgeWeapon", "forgeGloves", "forgeBoots", "forgeCloak", "forgeBack"};
+    for (int s = 0; s < 8; s++)
+      if (L.forge[s]) { std::snprintf(b, sizeof b, "%s%s=0x%016llX", out.empty() ? "" : ",", kFg[s], (unsigned long long)L.forge[s]); out += b; }
+  }
 #undef N_
 #undef C_
   return out.empty() ? "-" : out;

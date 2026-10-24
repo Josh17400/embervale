@@ -40,7 +40,7 @@ const char* layerName(Layer l) {
   return (int)l < LAYER_COUNT ? n[(int)l] : "?";
 }
 const char* anchorName(Anchor a) {
-  static const char* n[] = {"pivot", "head", "neck", "hip", "shoulderR", "shoulderL", "grip", "gripL"};
+  static const char* n[] = {"pivot", "head", "neck", "hip", "shoulderR", "shoulderL", "grip", "gripL", "crown"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)ANCHOR_COUNT, "a name for every anchor");
   return (int)a < ANCHOR_COUNT ? n[(int)a] : "?";
 }
@@ -180,6 +180,7 @@ bool parse(const uint8_t* data, size_t n, Pool& P, std::string* error) {
   I.handL = P.strId("handL"); I.face = P.strId("face"); I.tip = P.strId("tip"); I.hip = P.strId("hip"); I.footL = P.strId("footL");
   I.footR = P.strId("footR"); I.top = P.strId("top"); I.tile = P.strId("tile");
   I.held = P.strId("held"); I.anyfacing = P.strId("anyfacing");
+  I.crown = P.strId("crown"); I.socket = P.strId("socket");   // (P2c forge) the helm's crown mark, a crest's plume socket
   for (int k = 0; k < 16; k++) { char nm[5]; angleKey(k, nm); I.angle[k] = P.strId(nm); }
   for (size_t pi = 0; pi < P.parts.size(); pi++) {
     PartRec& p = P.parts[pi];

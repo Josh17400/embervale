@@ -161,6 +161,20 @@ struct HumanLook {
                              // sergeant's cloak, a bare head now and then (doll_resolve.cpp ladderLook; rig 2)
   uint8_t alloyFam = 0;      // (alloys i1) the alloy's metal family (art::doll::alloyFamily*; 1-based, 0: from armourTint's
                              // hue): gear::fillLadder picks it per maker culture so a people's alloys never share a family
+  // (P2c forge styles, docs/P2C_CONTRACTS.md 3c) each worn slot's forge style (TIER_* index), a byte per axis: 0 base, 1
+  // shoulder, 2 crest, 3 cut, 4 edge, 5 collar, 6 limb, 7 fittings (rpg/art/doll/doll_forge.h); 0 no style (today's pixels).
+  // Derived (gear::fillLadder, rankTiers, the looks macros), never saved; v1 ignores it; key() mixes it at rig 2 only when set
+  uint64_t forge[TIER_SLOTS] = {};
+  // (P2c forge i2) 1: the universal materials' hero styles (TANNER'S, FOUNDRY, WROUGHT, ARMOURER'S) wear their own helm and
+  // shield shapes (doll_resolve styleKitOf): the Heartland's kit, the materials board (mat=); another people's leather,
+  // bronze, iron and steel keep its own helm and shield. Derived, never saved; key() mixes it at rig 2 only when set
+  uint8_t forgeKit = 0;
+  // (P2c forge i2) the worn culture alloy's rank (1 everyday, 2 warriors', 3 masterwork; 0 none): the masterwork's shoulders
+  // a size larger, and a culture's alloys each on their own shield shape (doll_resolve). Derived, never saved; key() at rig 2
+  uint8_t alloyRank = 0;
+  // (P2c forge i3) the worn culture alloy's guise (art::doll::forge::Guise packed: helm, skirt, cloak, shoulder size; 0 none):
+  // gear::alloyGuise. Derived, never saved; key() at rig 2 only when set
+  uint16_t forgeGuise = 0;
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

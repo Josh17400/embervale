@@ -4959,6 +4959,13 @@ uint64_t HumanLook::key() const {
     for (int i = 0; i < TIER_SLOTS; i++) t8 |= (uint64_t)tier[i] << (8 * i);
     const uint64_t lad = (uint64_t)rare | (uint64_t)metalKind << 8 | (uint64_t)bladeKind << 16 | (uint64_t)mythic << 24 | (uint64_t)motif << 32 | (uint64_t)kitVar << 40 | (uint64_t)floor << 48 | (uint64_t)alloyFam << 56;
     if (t8 || lad || gemColor) { mx(0x7A1D000000000000ull ^ t8); mx(lad); mx(gemColor); }
+    // (P2c forge styles, contracts 3c) the forge styles: only when set
+    uint64_t fg = 0;
+    for (uint64_t f : forge) fg |= f;
+    if (fg) { mx(0xF0E6E00000000000ull); for (uint64_t f : forge) mx(f); }
+    if (forgeKit) mx(0xF0E6E1000000000Full ^ forgeKit);
+    if (alloyRank) mx(0xF0E6E2000000000Full ^ alloyRank);
+    if (forgeGuise) mx(0xF0E6E3000000000Full ^ forgeGuise);
   }
   return k;
 }

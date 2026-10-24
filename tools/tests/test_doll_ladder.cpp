@@ -25,6 +25,7 @@
 #include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/culture/culture.h"
+#include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/gear_look.h"
 #include "tools/tests/tests.h"
@@ -157,6 +158,18 @@ int expandCmd(int argc, char** argv) {
     for (int s = 0; s < 8; s++) if (b.L.tier[s]) tiers += fmt("%s%s T%d%s", tiers.empty() ? "" : ", ", kSlot[s], b.L.tier[s], (b.L.rare >> s & 1) ? " r" : "");
     std::printf("         tiers: %s; metal %d, blade %d%s\n", tiers.empty() ? "none" : tiers.c_str(), b.L.metalKind, b.L.bladeKind,
                 b.L.mythic ? ", mythic" : "");
+    // (P2c forge) each worn slot's forge style (the picks) and the flags the maps test
+    for (int s = 0; s < 8; s++)
+      if (b.L.forge[s]) std::printf("         forge %-6s %s\n", kSlot[s], gear::describeForge(gear::unpackForge(b.L.forge[s])).c_str());
+    {
+      std::string ff;
+      for (const std::string& f : b.r.flags)
+        if (f.rfind("forge-", 0) == 0 || f.rfind("shoulder-", 0) == 0 || f.rfind("cut-", 0) == 0 || f.rfind("edge-", 0) == 0 || f.rfind("collar-", 0) == 0 ||
+            f.rfind("limb-", 0) == 0 || f.rfind("fit-", 0) == 0 || f.rfind("crest-", 0) == 0 || f.rfind("boss-", 0) == 0 || f.rfind("rim-", 0) == 0 ||
+            f.rfind("glimb-", 0) == 0 || f.rfind("blimb-", 0) == 0 || f.rfind("form-", 0) == 0 || f.rfind("blademetal-", 0) == 0)
+          ff += (ff.empty() ? "" : " ") + f;
+      if (!ff.empty()) std::printf("         forge flags: %s\n", ff.c_str());
+    }
     const std::vector<doll::Missing> miss = doll::dollMissing(b.L);
     if (!miss.empty()) std::printf("         missing (%d): %s\n", (int)miss.size(), miss[0].what().c_str());
     if (!b.bad.empty()) { std::printf("         FAIL: unknown field(s) %s\n", b.bad.c_str()); bad++; }
@@ -223,6 +236,19 @@ double outlineDiff(const Frame& a, const Frame& b) {
   for (const auto& kv : b.px) if (!isHeld(b, kv.second)) { sb.insert(kv.first); uni.insert(kv.first); }
   int x = 0;
   for (const auto& k : uni) if (sa.count(k) != sb.count(k)) x++;
+  if (std::getenv("EMB_C12_OUTLINE") && !uni.empty()) {   // the two masks: '#' both, 'a' the first only, 'b' the second only
+    int x0 = 1 << 30, x1 = -(1 << 30), y0 = 1 << 30, y1 = -(1 << 30);
+    for (const auto& k : uni) { x0 = std::min(x0, k.first); x1 = std::max(x1, k.first); y0 = std::min(y0, k.second); y1 = std::max(y1, k.second); }
+    std::printf("      outline %d of %d differ (%.2f %%)\n", x, (int)uni.size(), 100.0 * x / uni.size());
+    for (int y = y0; y <= y1; y++) {
+      std::string row;
+      for (int xx = x0; xx <= x1; xx++) {
+        const bool ia = sa.count({xx, y}) > 0, ib = sb.count({xx, y}) > 0;
+        row += ia && ib ? '#' : ia ? 'a' : ib ? 'b' : '.';
+      }
+      std::printf("      %s\n", row.c_str());
+    }
+  }
   return uni.empty() ? 0 : (double)x / uni.size();
 }
 // per tier slot: its pixels, its trim (R recoloured to metal 2), wear (W) and glow pixels
@@ -306,7 +332,10 @@ double c14Look(Line& g, const Built& b, int facing) {
   // day ground (kDarkGround); the hero's own A3 palette is the yardstick (--report prints it)
   const double lit = edge.empty() ? 0 : edge[edge.size() * 3 / 4];
   if (g_report && !b.lookPal) std::printf("    C14 reference %s %c: lit edge %.0f luma\n", b.tag.c_str(), "DURL"[facing], lit);
-  const double want = std::min(luma(kDarkGround) + 40.0, g_heroLit[facing & 3]);
+  double want = std::min(luma(kDarkGround) + 40.0, g_heroLit[facing & 3]);
+  // (P2c forge i2) a dark sheen's tell is a blackened body (STYLE_P2 28.7: step 2 at 90 luma or less, C17) whose selout edge
+  // is its own step 1 (kept 10 under the body): its lit edge reads by that step and the near-white glint, not 40 over shade
+  if (b.L.sheen == 3 && b.L.forge[HumanLook::TIER_BODY]) want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
   if (lit < want) g.bad(b.tag + fmt(" %c: the lit top-left edge %.0f luma, %.0f over the darkest day ground (%.0f wanted: 40 over, or A3's own)", "DURL"[facing], lit, lit - luma(kDarkGround), want - luma(kDarkGround)));
   else g.ok();
   return lit;
@@ -543,8 +572,12 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
       const RigSheet sh = doll::compose(b.r, part);
       if (sh.empty()) continue;
       const size_t gb = sh.glow.atlas.w * (size_t)sh.glow.atlas.h * 4;
-      const int top = b.L.topTier();
+      // (P2c forge) the pieces' effective tiers (the resolver's, after a ranked fighter's own kit moved a piece a step)
+      int top = 0;
+      for (int s = 0; s < 8; s++) top = std::max(top, (int)b.r.pieceTier[s]);
       const char* pn = part == RigPart::Loco ? "LOCO" : "DRAWN";
+      // (P2c forge, D28) a glowing alloy's seams glow steady from T4: a glow plane at T4 only with the glowing sheen
+      if (top == 4 && b.L.sheen == 6) { g.ok(); continue; }
       if (top < 5) { if (gb) g.bad(b.tag + fmt(" %s: a glow plane below T5", pn)); else g.ok(); continue; }
       if (gb * 4 > sh.bytes()) g.bad(b.tag + fmt(": glow plane %.1f KB over 25 %% of the atlas's %.1f KB", gb / 1024.0, sh.bytes() / 1024.0)); else g.ok();
       int worstBright = 0, worstSoft = 0, leastSoft = 1 << 30, frames = 0;

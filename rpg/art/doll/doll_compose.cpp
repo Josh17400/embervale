@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include "rpg/art/art_holders2.h"
+#include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
 
 namespace art {
@@ -305,13 +306,20 @@ struct Item {
   bool garment = false;   // a garment layer item (torso / hangs) whose cloth takes the pattern tile
   int ax = 0, ay = 0;     // the anchor's canvas position
   int tx = 0, ty = 0;     // the pattern tile's origin: the neck's rest point moved by this item's own anchor
+  const ViewRec* clip = nullptr;   // (P2c forge) the key fallback: a rest overlay clipped to this key view's opaque pixels
 };
 struct Tile { const ViewRec* v = nullptr; Slot on = Slot::Cloth1; };
 // (P2c) a region tile (`tags tile` + `on-region <R>`): repeated over those regions' pixels on every part that marks them
 // (ladder) fin: a finish tile's FIN_TILE_* bit; fit / stamp: LADDER-FINISH's placements (`tags fit`: the view <prefix><w>x<h>
 // that fits the part's P box best, centred on it; `tags stamp`: a view laid once per connected blob of the region, keyed by
 // the blob's size); part: the tile's part (its keyed views)
-struct RegionTile { const ViewRec* v = nullptr; uint32_t mask = 0; uint8_t fin = 0; bool fit = false, stamp = false; const PartRec* part = nullptr; };
+// (P2c forge) forgeSlot: a forge tile's tier slot (its finish-free tiles draw only on that slot's parts; -1 every part);
+// forgeMask: a limb tile's regions narrowed to the slots that picked its value
+struct RegionTile { const ViewRec* v = nullptr; uint32_t mask = 0; uint8_t fin = 0; bool fit = false, stamp = false; const PartRec* part = nullptr;
+                    int forgeSlot = -1; bool forge = false; };
+// (P2c forge, contracts 3c) a cut tile (`on-slot <slot>`) or an edge stamp (`on-edge hem|rim`) on the armour and pauldron
+// parts: their views transformed before the paint (forgeView)
+struct ForgeTile { const PartRec* part = nullptr; bool edge = false, rim = false; Slot on = Slot::Metal; };
 
 // the body set's base anchors for a facing (defaults where the clip file names none: the A3 man's)
 void baseAnchors(const DollRecipe& r, int facing, Pt out[ANCHOR_COUNT]) {
@@ -325,16 +333,19 @@ void baseAnchors(const DollRecipe& r, int facing, Pt out[ANCHOR_COUNT]) {
   out[(int)Anchor::ShoulderL] = {sL, -18, true};
   out[(int)Anchor::Grip] = {0, 0, false};
   out[(int)Anchor::GripL] = {0, 0, false};
+  out[(int)Anchor::Crown] = {0, 0, false};
   if (const BodyRec* b = bodyOf(r.bodyKey))
     for (const AnchorRec& a : b->anchors[facing & 3]) if (a.id < ANCHOR_COUNT) out[a.id] = {a.x, a.y, true};
+  // (P2c forge) the crown's default: the head box's top centre (the helm's `mark crown` moves it in composeFrame)
+  if (!out[(int)Anchor::Crown].on) out[(int)Anchor::Crown] = {out[(int)Anchor::Head].x + 8, out[(int)Anchor::Head].y, true};
 }
 
 void moveAnchor(Anchor a, const FrameRec& f, Pt& p) {
   if (a == Anchor::Pivot) return;
   p.y += f.bob;
-  if (a == Anchor::Neck || a == Anchor::Head || a == Anchor::ShoulderR || a == Anchor::ShoulderL) p.x += f.lean;
+  if (a == Anchor::Neck || a == Anchor::Head || a == Anchor::Crown || a == Anchor::ShoulderR || a == Anchor::ShoulderL) p.x += f.lean;
   if (a == Anchor::Hip) { p.x += f.hipX; p.y += f.hipY; }
-  if (a == Anchor::Head) { p.x += f.headX; p.y += f.headY; }
+  if (a == Anchor::Head || a == Anchor::Crown) { p.x += f.headX; p.y += f.headY; }
 }
 
 // the destination columns of a view's columns under the recipe's build (broad doubles the marked columns, slim drops
@@ -464,9 +475,141 @@ Slot tileTarget(const Pool& P, const PartRec& p) {
   return Slot::Cloth1;
 }
 
+// (P2c forge, D30) a held WEAPON (`role held <weapon>[.<form>]`: sword axe bow staff dagger mace greatsword spear stick): its
+// metal draws in Slot::Blade, the ramp of its own metal (bladeKind); props in a posture's hand keep the armour's metal
+bool heldWeapon(const Pool& P, const PartRec& p) {
+  static const char* const kW[9] = {"sword", "axe", "bow", "staff", "dagger", "mace", "greatsword", "spear", "stick"};
+  for (const RoleRec& rr : p.roles) {
+    if (rr.cat != (uint8_t)Role::Held) continue;
+    const std::string& v = P.s(rr.value);
+    const std::string head = v.substr(0, v.find('.'));
+    for (const char* w : kW) if (head == w) return true;
+  }
+  return false;
+}
+// (P2c forge) a `when` condition on a forge flag (the key fallback serves only these: the torso overlays keyed `cut-<v>`,
+// `forge-<base>`...; every earlier `when` view keeps its own keys)
+bool forgeCond(const std::string& c) {
+  static const char* const kPre[] = {"cut-", "forge-", "shoulder-", "edge-", "collar-", "limb-", "fit-", "crest-", "boss-", "rim-", "glimb-",
+                                     "blimb-", "form-"};
+  for (const char* p : kPre) {
+    const size_t n = std::strlen(p);
+    for (size_t i = 0; i + n <= c.size(); i++)
+      if ((i == 0 || c[i - 1] == ',' || c[i - 1] == '!') && c.compare(i, n, p) == 0) return true;
+  }
+  return false;
+}
+// a forge tile part: `tags tile` with `on-slot:<slot>` (a cut) or `on-edge:<hem|rim>` (an edge stamp)
+bool forgeTileOf(const Pool& P, const PartRec& p, ForgeTile& out) {
+  for (uint16_t t : p.tags) {
+    const std::string& s = P.s(t);
+    if (s.rfind("on-slot:", 0) == 0) {
+      out.part = &p; out.edge = false;
+      for (int k = 0; k < SLOT_COUNT; k++) if (s.compare(8, std::string::npos, slotName((Slot)k)) == 0) out.on = (Slot)k;
+      return true;
+    }
+    if (s.rfind("on-edge:", 0) == 0) { out.part = &p; out.edge = true; out.rim = s.compare(8, std::string::npos, "rim") == 0; return true; }
+  }
+  return false;
+}
+bool partHasRoleCat(const PartRec& p, Role r) {
+  for (const RoleRec& rr : p.roles) if (rr.cat == (uint8_t)r) return true;
+  return false;
+}
+// a forge tile's view for a facing (D serves a facing with none)
+const ViewRec* forgeTileView(const Pool& P, const PartRec& p, int facing) {
+  const ViewRec* v = viewOf(p, facing, P.ids.rest);
+  return v ? v : viewOf(p, 0, P.ids.rest);
+}
+// the cut tiles and edge stamps laid into one armour or pauldron view (contracts 3c): a cut tile over its slot's lit pixels
+// (the outline, R, G and W untouched), its cells moving the step (Ink k: by k - 2) and setting R P G N; an edge stamp along
+// the lowest opaque row of each column (cells below add up to 2 rows in the hem's slot, '-' notches). The tiles ride the
+// view's origin (the part's anchor). Returns v itself when nothing applies, else a transformed copy (thread-local slot k).
+const ViewRec* forgeView(const Pool& P, const ViewRec& v, const std::vector<ForgeTile>& tiles, bool cut, int edgeMode, int facing, int k) {
+  static thread_local ViewRec out[4];
+  ViewRec* o = nullptr;
+  auto copy = [&]() {
+    if (o) return;
+    o = &out[k & 3];
+    *o = v;
+    o->cells = v.cells;
+    o->regions = v.regions;
+  };
+  auto posmod = [](int a, int m) { return ((a % m) + m) % m; };
+  if (cut)
+    for (const ForgeTile& ft : tiles) {
+      if (ft.edge) continue;
+      const ViewRec* T = forgeTileView(P, *ft.part, facing);
+      if (!T || !T->w || !T->h) continue;
+      copy();
+      const bool treg = !T->regions.empty();
+      for (int y = 0; y < o->h; y++)
+        for (int x = 0; x < o->w; x++) {
+          uint8_t& c = o->cells[(size_t)y * o->w + x];
+          if (c < 2 || codeSlot(c) != ft.on || codeStep(c) < 1) continue;
+          const uint8_t rg = o->regions.empty() ? 0 : o->regions[(size_t)y * o->w + x];
+          if (rg == (uint8_t)Region::Trim || rg == (uint8_t)Region::Gem || rg == (uint8_t)Region::Wear) continue;
+          const int tx = posmod(x - o->ox + T->ox, T->w), ty = posmod(y - o->oy + T->oy, T->h);
+          const uint8_t tc = T->cells[(size_t)ty * T->w + tx];
+          if (tc < 2) continue;
+          if (codeSlot(tc) == Slot::Ink) c = code(codeSlot(c), std::clamp(codeStep(c) + codeStep(tc) - 2, 1, 4));
+          else c = tc;
+          const uint8_t tr = treg ? T->regions[(size_t)ty * T->w + tx] : 0;
+          if (tr) {
+            if (o->regions.empty()) o->regions.assign((size_t)o->w * o->h, 0);
+            o->regions[(size_t)y * o->w + x] = tr;
+          }
+        }
+    }
+  if (edgeMode)
+    for (const ForgeTile& ft : tiles) {
+      if (!ft.edge || ft.rim != (edgeMode == 2)) continue;
+      const ViewRec* T = forgeTileView(P, *ft.part, facing);
+      if (!T || !T->w || !T->h) continue;
+      copy();
+      // two rows of room below the view
+      const int w = o->w, h0 = o->h, h = h0 + 2;
+      std::vector<uint8_t> cells((size_t)w * h, 0), regs;
+      std::memcpy(cells.data(), o->cells.data(), (size_t)w * h0);
+      if (!o->regions.empty()) { regs.assign((size_t)w * h, 0); std::memcpy(regs.data(), o->regions.data(), (size_t)w * h0); }
+      std::vector<int> yb((size_t)w, -1);
+      for (int x = 0; x < w; x++)
+        for (int y = h0 - 1; y >= 0; y--) if (o->cells[(size_t)y * w + x] >= 2) { yb[(size_t)x] = y; break; }
+      for (int x = 0; x < w; x++) {
+        const int b = yb[(size_t)x];
+        if (b < 0) continue;
+        // the hem's material: the lowest non-ink pixel of the column within 3 rows of the boundary
+        Slot hem = Slot::Ink;
+        for (int y = b; y >= std::max(0, b - 3) && hem == Slot::Ink; y--) {
+          const uint8_t c = o->cells[(size_t)y * w + x];
+          if (c >= 2 && codeSlot(c) != Slot::Ink) hem = codeSlot(c);
+        }
+        if (hem == Slot::Ink) continue;
+        const int tx = posmod(x - o->ox + T->ox, T->w);
+        for (int ty = 0; ty < T->h; ty++) {
+          const int Y = b + (ty - T->oy);
+          if (Y < 0 || Y > b + 2 || Y >= h) continue;
+          const uint8_t tc = T->cells[(size_t)ty * T->w + tx];
+          if (!tc) continue;
+          uint8_t& d = cells[(size_t)Y * w + x];
+          if (tc == kErase) { if (Y <= b) d = 0; continue; }
+          d = code(codeSlot(tc) == Slot::Ink ? Slot::Ink : hem, codeStep(tc));
+          if (!regs.empty() && Y > b) regs[(size_t)Y * w + x] = 0;
+        }
+      }
+      o->h = (uint16_t)h;
+      o->cells.swap(cells);
+      o->regions.swap(regs);
+      if (!o->buildRow.empty()) {}   // (the build row is per column: unchanged)
+    }
+  return o ? o : &v;
+}
+
 thread_local std::vector<Item> g_items;   // the last composed frame's items (frameInfo reads them)
 // (P2c) the probe's per-pixel planes (probeFrame sets them for one compose; null otherwise)
 thread_local std::vector<int16_t>* g_probeOwner = nullptr;
+// (P2c forge i2) the pixels the body's armour and pauldrons wrote last (the glint pass reads them)
+thread_local std::vector<uint8_t> g_bodyPiece;
 thread_local std::vector<uint8_t>* g_probeRegion = nullptr;
 thread_local int g_probeGrip = -1, g_probeGripL = -1;
 // (P2c SLICE-DOLL i2) a turned frame's screen-space items: a view placed at the pivot (`anchor pivot`: the corpse's spear
@@ -479,6 +622,169 @@ thread_local int g_screenMode = 0;
 // plumed helm: doll_resolve.cpp), every part drawing its rest key that has a `breeze` view draws that instead (the cloak's
 // hem out a pixel, the crest's tail lifted). The panel saw nothing move on the top tiers; the art was drawn, no clip named it.
 thread_local bool g_breeze = false;
+// (P2c forge i2; PLAN C17, STYLE_P2 28.8: "a near-white glint"; the blind panel: "armour fill is 1-px dither noise instead
+// of the reference's clean planes") the glints on a styled body's armour and pauldrons: 1 to 3 step-4 clusters from T2. The
+// cut tiles' lit rows and the mail and scale units left 4-7 scattered step-4 specks (noise at 1x); to T4 the three nearest
+// the top-left light keep their glint, the rest drop to the lit plane (step 3; T5-T6 keep the finish's sparkle, C12b). A figure with none (bronze, the ember, the
+// Mythic: their lit planes stop at step 3) takes one on its upper-left lit plane. Styled figures only (forge[] is rig 2's)
+void glintPass(const DollRecipe& r, FrameOut& o) {
+  bool styled = false, anyStyled = false;
+  for (int a = 0; a < 8; a++) styled |= r.forgeAx[HumanLook::TIER_BODY][a] != 0;
+  for (int t = 0; t < HumanLook::TIER_SLOTS; t++)
+    for (int a = 0; a < 8; a++) anyStyled |= r.forgeAx[t][a] != 0;
+  if (!anyStyled || o.bx1 < o.bx0) return;
+  // (INTEGRATE forge i2) a body with no styled metal of its own (a soft kit under a styled helm): only the sheen's tell
+  const bool bodyStyled = styled && r.pieceTier[HumanLook::TIER_BODY] >= 2;
+  const int x0 = o.bx0, y0 = o.by0, w = o.bx1 - o.bx0 + 1, h = o.by1 - o.by0 + 1;
+  auto at = [&](int x, int y) -> uint8_t& { return o.code[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  // (INTEGRATE forge i2, C17: the Highland plaid, the Marsh mantle and the Sylvan kit carry under 12 px of body metal, so
+  // the sheen's tell never drew) `wide`: the sheen and glow fallbacks below may use any metal of the figure (helm, shield)
+  bool wide = false;
+  auto body = [&](int x, int y) { return wide || g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)] != 0; };
+  auto metalAt = [&](int x, int y, int step) {
+    const uint8_t c = at(x, y);
+    return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) == step && body(x, y);
+  };
+  std::vector<int> lab((size_t)w * h, -1);
+  struct Cl { int key; std::vector<int> px; };
+  std::vector<Cl> cl;
+  int metal = 0;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      if (metalAt(x, y, 1) || metalAt(x, y, 2) || metalAt(x, y, 3)) metal++;
+      if (!metalAt(x, y, 4) || lab[(size_t)y * w + x] >= 0) continue;
+      Cl c{1 << 30, {}};
+      std::vector<int> st{y * w + x};
+      lab[(size_t)y * w + x] = (int)cl.size();
+      while (!st.empty()) {
+        const int q = st.back(); st.pop_back();
+        c.px.push_back(q);
+        const int qx = q % w, qy = q / w;
+        c.key = std::min(c.key, qy * 2 + qx);
+        for (int dy = -1; dy <= 1; dy++)
+          for (int dx = -1; dx <= 1; dx++) {
+            const int nx = qx + dx, ny = qy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h || lab[(size_t)ny * w + nx] >= 0 || !metalAt(nx, ny, 4)) continue;
+            lab[(size_t)ny * w + nx] = (int)cl.size();
+            st.push_back(ny * w + nx);
+          }
+      }
+      cl.push_back(std::move(c));
+    }
+  int metalAll = 0;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) { const uint8_t c = at(x, y); if (c >= 2 && codeSlot(c) == Slot::Metal) metalAll++; }
+  if (metalAll < 12) return;
+  const bool soft = !bodyStyled || metal + (int)cl.size() < 12;   // (a soft kit: only the sheen's tell, on any metal)
+  if (soft) wide = true;
+  // (T5-T6 keep their sparkle: the living finish's gold and its glints climb with the tier, C12b; the cap holds to T4)
+  if (!soft && cl.size() > 3 && r.pieceTier[HumanLook::TIER_BODY] <= 4) {
+    std::stable_sort(cl.begin(), cl.end(), [](const Cl& a, const Cl& b) { return a.key < b.key; });
+    for (size_t i = 3; i < cl.size(); i++)
+      for (int q : cl[i].px) at(q % w, q / w) = code(Slot::Metal, 3);
+  } else if (cl.empty() && bodyStyled) {
+    wide = false;   // (the body's own plates first, then any metal: a soft kit's helm)
+    // the brightest step the plates carry (3, else 2: the crackled Mythic and the ember's dark plates), nearest the light
+    for (int want = 3; want >= 2; want--) {
+      int best = -1, bk = 1 << 30;
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+          if (metalAt(x, y, want) && y * 2 + x < bk) { bk = y * 2 + x; best = y * w + x; }
+      if (best >= 0) { at(best % w, best / w) = code(Slot::Metal, 4); break; }
+    }
+    wide = soft;
+  }
+  // a glowing alloy's seams from T4 (D28): where the form's drawing marks few seams (N: the lamellar and scale units
+  // carry none), its armour's dark seams light instead: a step-1 metal pixel between two lighter metal pixels (above and
+  // below, or left and right), the first 10 down the plates
+  if (r.sheen == 6 && r.pieceTier[HumanLook::TIER_BODY] >= 4 && r.pieceTier[HumanLook::TIER_BODY] <= 5) {
+    int glow = 0;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) { const uint8_t c = at(x, y); if (c >= 2 && codeSlot(c) == Slot::Glow && codeStep(c) >= 2) glow++; }
+    auto lighter = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 2 && body(x, y);
+    };
+    for (int y = 0; y < h && glow < 10; y++)
+      for (int x = 0; x < w && glow < 10; x++)
+        if (metalAt(x, y, 1) && ((lighter(x, y - 1) && lighter(x, y + 1)) || (lighter(x - 1, y) && lighter(x + 1, y)))) {
+          at(x, y) = code(Slot::Glow, 2);
+          glow++;
+        }
+    // a form with no dark seam inside its plates (the leaf, the smooth Dune plate): any inner step-1 metal pixel (all four
+    // neighbours metal), then a seam line cut across the chest's body tone, every other pixel of its widest metal row
+    auto metalAny = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Glow) && codeStep(c) >= 1 && body(x, y);
+    };
+    for (int y = 0; y < h && glow < 6; y++)
+      for (int x = 0; x < w && glow < 6; x++)
+        if (metalAt(x, y, 1) && metalAny(x - 1, y) && metalAny(x + 1, y) && metalAny(x, y - 1) && metalAny(x, y + 1)) {
+          at(x, y) = code(Slot::Glow, 2);
+          glow++;
+        }
+    // (INTEGRATE forge i2, C17: the Sylvan kit's body carries too little plate for six) the seam line runs on the widest
+    // body row, then on the widest row of any metal (the helm's band, the shield's face)
+    for (int pass = 0; pass < 2 && glow < 6; pass++) {
+      if (pass) wide = true;
+      int by = -1, bn = 0;
+      for (int y = 0; y < h; y++) {
+        int n = 0;
+        for (int x = 0; x < w; x++) n += metalAt(x, y, 2) ? 1 : 0;
+        if (n > bn) { bn = n; by = y; }
+      }
+      for (int x = 0, k = 0; by >= 0 && x < w && glow < 10; x++)
+        if (metalAt(x, by, 2) && (k++ & 1) == 0) { at(x, by) = code(Slot::Glow, 2); glow++; }
+    }
+  }
+  // the sheen's glint (STYLE_P2 28.7): matte, no step-4 run over 1 px on any metal (a run drops to its first pixel); bright,
+  // the top glint a 2 px run (its right or left lit neighbour lifted)
+  auto metal4 = [&](int x, int y) { const uint8_t c = at(x, y); return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) == 4; };
+  if (r.sheen == 1) {
+    // (forge i3: right to left, so a run of three keeps its first pixel; left to right split it into two glints)
+    for (int y = 0; y < h; y++)
+      for (int x = w - 1; x >= 1; x--)
+        if (metal4(x, y) && metal4(x - 1, y)) at(x, y) = code(Slot::Metal, 3);
+  } else if (r.sheen == 2) {
+    bool run = false;
+    for (int y = 0; y < h && !run; y++)
+      for (int x = 1; x < w && !run; x++) run = metal4(x, y) && metal4(x - 1, y);
+    for (int y = 0; y < h && !run; y++)
+      for (int x = 0; x < w && !run; x++) {
+        if (!metal4(x, y)) continue;
+        for (int dx : {1, -1, 2, -2, 3, -3}) {
+          const int nx = x + (dx > 0 ? 1 : -1);
+          const int want = 4 - std::abs(dx);   // a lit neighbour first, else a body one, else the shadow
+          if (nx < 0 || nx >= w || !metalAt(nx, y, want)) continue;
+          at(nx, y) = code(Slot::Metal, 4);
+          run = true;
+          break;
+        }
+      }
+    // no glint with a metal neighbour beside it (a glint on a plate's edge): the top-left glint moves onto the nearest
+    // horizontal pair of lit body metal as a 2 px run
+    if (!run) {
+      int bx = -1, by = -1, bk = 1 << 30;
+      // (INTEGRATE forge i2, C17: the Highland and Marsh kits' body metal is mail brick with no lit pair) then any metal's
+      for (int pass = 0; pass < 2 && bx < 0; pass++) {
+        if (pass) wide = true;
+        for (int want = 3; want >= 2 && bx < 0; want--)
+          for (int y = 0; y < h; y++)
+            for (int x = 0; x + 1 < w; x++)
+              if (metalAt(x, y, want) && metalAt(x + 1, y, want) && y * 2 + x < bk) { bk = y * 2 + x; bx = x; by = y; }
+      }
+      if (bx >= 0) {
+        if (!cl.empty() && std::min<size_t>(cl.size(), 3) >= 3)
+          for (int q : cl[2].px) if (metal4(q % w, q / w)) at(q % w, q / w) = code(Slot::Metal, 3);
+        at(bx, by) = code(Slot::Metal, 4);
+        at(bx + 1, by) = code(Slot::Metal, 4);
+      }
+    }
+  }
+}
+
 void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o, const std::vector<int>* onlyParts = nullptr,
                   const char* forceKey = nullptr, bool (*keep)(const PartRec&) = nullptr) {
   const Pool& P = get();
@@ -499,6 +805,8 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   Tile tile;
   static thread_local std::vector<RegionTile> rtiles;
   rtiles.clear();
+  static thread_local std::vector<ForgeTile> ftiles;
+  ftiles.clear();
   const uint16_t forced = forceKey ? P.strId(forceKey) : (uint16_t)0xFFFF;
   const std::vector<int>& list = onlyParts ? *onlyParts : r.parts;
   for (size_t li = 0; li < list.size(); li++) {
@@ -509,10 +817,32 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     if (partTaggedId(p, I.tile)) {   // a pattern tile: laid over the garments' cloth, never placed itself
       const ViewRec* tv = viewOf(p, facing, I.rest);
       if (!tv) tv = viewOf(p, 0, I.rest);
-      if (const uint32_t m = regionTileMask(P, p)) {   // (P2c) a region tile
+      {
+        ForgeTile ft;   // (P2c forge) a cut tile or an edge stamp: laid into the armour and pauldron views (forgeView)
+        if (forgeTileOf(P, p, ft)) { ftiles.push_back(ft); continue; }
+      }
+      if (uint32_t m = regionTileMask(P, p)) {   // (P2c) a region tile
         RegionTile rt;
         rt.v = tv; rt.mask = m; rt.fin = finishTileBit(P, p); rt.part = &p;
         rt.fit = partTagged(pi, "fit"); rt.stamp = partTagged(pi, "stamp");
+        // (P2c forge) the forge tiles: `fit.<v>` on the body's parts only; `limb.<v>` on the regions of the slots that picked
+        // it (the body's sleeves and thighs U F T, the gloves' H C X, the boots' B S K)
+        for (const RoleRec& rr : p.roles) {
+          if (rr.cat != (uint8_t)Role::Overlay) continue;
+          const std::string& val = P.s(rr.value);
+          if (val.rfind("fit.", 0) == 0) { rt.forge = true; rt.forgeSlot = HumanLook::TIER_BODY; }
+          else if (val.rfind("limb.", 0) == 0) {
+            rt.forge = true;
+            const int lv = forge::valueOf(forge::AX_LIMB, val.c_str() + 5);
+            auto rb = [](std::initializer_list<Region> rs) { uint32_t b = 0; for (Region x : rs) b |= 1u << (int)x; return b; };
+            uint32_t allow = 0;
+            if (lv > 0 && r.forgeAx[HumanLook::TIER_BODY][forge::AX_LIMB] == lv) allow |= rb({Region::Upper, Region::Fore, Region::Thigh});
+            if (lv > 0 && r.forgeAx[HumanLook::TIER_GLOVES][forge::AX_LIMB] == lv) allow |= rb({Region::Hand, Region::Cuff, Region::Flare});
+            if (lv > 0 && r.forgeAx[HumanLook::TIER_BOOTS][forge::AX_LIMB] == lv) allow |= rb({Region::Boot, Region::Shin, Region::Knee});
+            rt.mask = m &= allow;
+          }
+        }
+        if (rt.forge && !rt.mask) continue;
         if (tv || rt.fit || rt.stamp) rtiles.push_back(rt);
         continue;
       }
@@ -567,6 +897,24 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       ov.sub = (int)(wi - p.firstView) + 1;
       items.push_back(ov);
     }
+    // (P2c forge, contracts 3c) the key fallback: a forge `when` overlay drawn only for key rest serves every key of its
+    // facing that has none of its own, laid at that key view's origin and clipped to its opaque pixels
+    if (key != I.rest && !forceKey)
+      for (uint32_t wi : p.whenViews) {
+        const ViewRec& w = P.views[wi];
+        if ((w.flags & 1) || w.facing != vf || w.key != I.rest || !forgeCond(P.s(w.when)) || !condHolds(r, P.s(w.when))) continue;
+        bool own = false;
+        for (uint32_t wj : p.whenViews) {
+          const ViewRec& x = P.views[wj];
+          if (x.facing == vf && x.key == key && x.when == w.when) { own = true; break; }
+        }
+        if (own) continue;
+        Item ov = it;
+        ov.view = &w;
+        ov.clip = v;
+        ov.sub = (int)(wi - p.firstView) + 1;
+        items.push_back(ov);
+      }
   }
   std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
     if (a.layer != b.layer) return a.layer < b.layer;
@@ -593,8 +941,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       if (mk.name == I.handL && I.handL != 0xFFFF) handLFrom = (int)(&it - items.data());
     }
   };
-  for (Item& it : items) if (it.anchor != Anchor::Grip && it.anchor != Anchor::GripL) place(it);
+  for (Item& it : items) if (it.anchor != Anchor::Grip && it.anchor != Anchor::GripL && it.anchor != Anchor::Crown) place(it);
   auto markPt = [&](uint16_t id) { for (int i = 0; i < o.nMarks; i++) if (o.markIds[i] == id && o.marks[i].on) return o.marks[i]; return Pt{}; };
+  // (P2c forge) the crown: the helm view's `mark crown`, else the head box's top centre (baseAnchors, moved with the head)
+  if (I.crown != 0xFFFF) { const Pt cr = markPt(I.crown); if (cr.on) o.anchors[(int)Anchor::Crown] = cr; }
+  for (Item& it : items) if (it.anchor == Anchor::Crown) place(it);
   // (i3) a grip that falls back to the hand mark takes that arm as the gripping arm too, so the fist is drawn over a
   // weapon carried at rest (the spear's upright carry facing down / up) instead of the haft running past the hand
   Pt g = markPt(I.grip); if (!g.on) { g = markPt(I.handR); if (g.on && gripFrom < 0) gripFrom = handRFrom; }
@@ -646,8 +997,30 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     return true;
   };
   // handOnly: (P2c) the gripping arm's H pixels drawn again over the weapon it holds
+  // (P2c forge) the hem an edge stamp follows: the armour hang's when the frame draws one, else the torso's
+  bool hangArmour = false;
+  if (!ftiles.empty())
+    for (const Item& it : items)
+      if (!it.sub && (it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront) && partHasRoleCat(*it.part, Role::Armour)) hangArmour = true;
+  if (g_bodyPiece.size() != (size_t)CW * CH) g_bodyPiece.assign((size_t)CW * CH, 0);
+  else std::fill(g_bodyPiece.begin(), g_bodyPiece.end(), (uint8_t)0);
   auto paint = [&](const Item& it, bool handOnly) {
-    const ViewRec& v = *it.view;
+    const ViewRec* vp = it.view;
+    // (forge i3) a culture alloy's metal head (DollRecipe::guiseHead) is its armour too: the glints and the sheen's tell may sit on it
+    const uint8_t bodyPiece = (partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
+                               (r.guiseHead && partHasRoleCat(*it.part, Role::Headwear))) ? 1 : 0;
+    // (P2c forge) the cut tiles and edge stamps laid into the body's armour and pauldron views (a `when` overlay keyed on a
+    // forge flag is the style's own drawing: no tile over it; edges only on the base views)
+    if (!ftiles.empty() && !handOnly && partTierSlot(it.order) == HumanLook::TIER_BODY) {
+      const bool arm = partHasRoleCat(*it.part, Role::Armour), pad = partHasRoleCat(*it.part, Role::Pauldron);
+      if (arm || pad) {
+        const bool forgeOverlay = it.sub && forgeCond(P.s(it.view->when));
+        const bool hangItem = it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront;
+        const int edgeMode = it.sub ? 0 : pad ? 2 : (arm && (hangArmour ? hangItem : it.layer == (int)Layer::Torso)) ? 1 : 0;
+        vp = forgeView(P, *it.view, ftiles, !forgeOverlay, edgeMode, it.view->facing, 0);
+      }
+    }
+    const ViewRec& v = *vp;
     const uint8_t heldMark = isHeld(*it.part) ? 1 : 0;
     // only a helm's erase spares held gear (its box clears hair round the dome); every other part's erase cuts as drawn
     bool helmErase = false;
@@ -659,7 +1032,13 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     const bool tiled = tile.v && it.garment;
     // (P2c ladder) the piece's tier slot (its finish regions and tiles) and the held weapon's own metal (Slot::Blade)
     const int ts = partTierSlot(it.order);
-    const bool toBlade = r.blade && libraryHeld(P, *it.part);
+    // (P2c forge, D30) every held weapon's metal in Slot::Blade (its ramp is bladeKind's; equal to Metal when they match)
+    const bool toBlade = heldWeapon(P, *it.part) || (r.blade && libraryHeld(P, *it.part));
+    // (forge i3) a culture alloy's metal head (a coif, turban helm, jingasa or aventail cut from the headwear library): its
+    // cloth in the armour's metal
+    bool toMetal = false;
+    if (r.guiseHead)
+      for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Headwear) toMetal = true;
     // (P2c ladder) LADDER-FINISH's placements on this view: the P box (fit tiles) and the W / G blobs (stamp tiles)
     struct Place { const ViewRec* v = nullptr; int ox = 0, oy = 0; };
     static thread_local std::vector<Place> fitAt;
@@ -669,7 +1048,9 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     fitAt.assign(rtiles.size(), Place{});
     blobs.clear();
     bool anyStamp = false;
-    if (hasReg && ts >= 0 && r.finTiles[ts]) {
+    bool forgeFit = false;   // (P2c forge) a fittings tile placed on this slot's P box
+    for (const RegionTile& rt : rtiles) if (rt.forgeSlot >= 0 && rt.forgeSlot == ts && rt.fit) forgeFit = true;
+    if (hasReg && ts >= 0 && (r.finTiles[ts] || forgeFit)) {
       int px0 = v.w, py0 = v.h, px1 = -1, py1 = -1;
       for (int y = 0; y < v.h; y++)
         for (int x = 0; x < v.w; x++)
@@ -678,7 +1059,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           }
       for (size_t k = 0; k < rtiles.size(); k++) {
         const RegionTile& rt = rtiles[k];
-        if (!rt.fin || !(r.finTiles[ts] & rt.fin)) continue;
+        if (rt.forgeSlot >= 0 ? rt.forgeSlot != ts : (!rt.fin || !(r.finTiles[ts] & rt.fin))) continue;
         if (rt.stamp) anyStamp = true;
         if (!rt.fit || px1 < 0) continue;
         const int bw = px1 - px0 + 1, bh = py1 - py0 + 1;
@@ -729,6 +1110,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       for (int x = 0; x < v.w; x++) {
         uint8_t c = row[x];
         if (!c) continue;
+        if (it.clip) {   // (P2c forge) the key fallback: only over the key view's own opaque pixels
+          const int cx = x - v.ox + it.clip->ox, cy = y - v.oy + it.clip->oy;
+          if (cx < 0 || cy < 0 || cx >= it.clip->w || cy >= it.clip->h || it.clip->cells[(size_t)cy * it.clip->w + cx] < 2) continue;
+        }
         const uint8_t rg = c >= 2 && hasReg ? v.regions[(size_t)y * v.w + x] : 0;
         if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
         if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
@@ -738,6 +1123,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           if (fs != 0xFF) c = code((Slot)fs, codeStep(c));
         }
         if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
+        if (toMetal && c >= 2) {
+          const Slot qs = codeSlot(c);
+          if (qs == Slot::Head || qs == Slot::Cloth1 || qs == Slot::Cloth2 || qs == Slot::Cloth3 || qs == Slot::Linen || qs == Slot::Leather)
+            c = code(Slot::Metal, codeStep(c));
+        }
         // (P2c) a region tile over this region's pixels (outlines kept): ink keeps the slot; step 2 keeps the step, 1 / 3 move
         // it one down / up, 0 and 4 set it
         // (ladder) tiles stack: the last-listed finish tile first (glyph over filigree); a clear cell falls through to the next
@@ -746,6 +1136,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             const RegionTile& rt = rtiles[ri];
             if (!(rt.mask >> rg & 1)) continue;
             if (rt.fin && !(ts >= 0 && (r.finTiles[ts] & rt.fin))) continue;   // (ladder) a finish tile on its tier's pieces only
+            if (rt.forgeSlot >= 0 && ts != rt.forgeSlot) continue;               // (P2c forge) fittings on their slot's pieces
             const ViewRec* tv = nullptr;
             int tx = 0, ty = 0;
             bool placed = false;
@@ -778,11 +1169,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
               if (ty < 0) ty += tv->h;
             }
             const uint8_t tc = tv->cells[(size_t)ty * tv->w + tx];
-            if (tc < 2) { if (rt.fin) continue; break; }
+            if (tc < 2) { if (rt.fin || rt.forge) continue; break; }
             const Slot tsl = codeSlot(tc);
             const int tk = codeStep(tc), ck = codeStep(c);
             int nk;
-            if (tsl == Slot::Ink && rt.fin) nk = std::clamp(ck + tk - 2, rt.stamp ? 0 : 1, 4);   // (ladder) ink moves the step by k - 2
+            if (tsl == Slot::Ink && (rt.fin || rt.forge)) nk = std::clamp(ck + tk - 2, rt.stamp ? 0 : 1, 4);   // (ladder) ink moves the step by k - 2
             else if (rt.fin && (rt.stamp || tsl == Slot::Glow)) nk = tk;                          // stamps and light write their step
             else nk = tk == 2 ? ck : tk == 1 ? std::max(1, ck - 1) : tk == 3 ? std::min(4, ck + 1) : tk;
             c = code(tsl == Slot::Ink ? codeSlot(c) : tsl, nk);
@@ -798,6 +1189,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             if (c == kErase) {
               if (heldPx[(size_t)Y * CW + X] && !heldMark && helmErase) continue;
               o.code[(size_t)Y * CW + X] = 0;
+              g_bodyPiece[(size_t)Y * CW + X] = 0;
               if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = -1; (*g_probeRegion)[(size_t)Y * CW + X] = 0; }
               continue;
             }
@@ -813,6 +1205,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
               if (tc >= 2) w = code(codeSlot(tc), codeStep(c));
             }
             o.code[(size_t)Y * CW + X] = w;
+            g_bodyPiece[(size_t)Y * CW + X] = bodyPiece;
             heldPx[(size_t)Y * CW + X] = heldMark;
             if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = (int16_t)(&it - items.data()); (*g_probeRegion)[(size_t)Y * CW + X] = rg; }
             if (X < o.bx0) o.bx0 = X;
@@ -837,6 +1230,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       paint(items[(size_t)gripLFrom], true);
     }
   }
+  glintPass(r, o);
 }
 
 // A3's selout over a w x h code buffer: an outline pixel (step 0 of a lit slot) whose outward edge faces the top-left
@@ -1024,8 +1418,27 @@ uint8_t partOf(RigPart p) { return poolPart(p); }
 }  // namespace
 
 // ---------------------------------------------------------------- the public calls
-RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
+const uint32_t kGreyRamp[5] = {0xFF202020u, 0xFF555555u, 0xFF8C8C8Cu, 0xFFC8C8C8u, 0xFFF4F4F4u};
+bool greySlot(Slot s) {
+  switch (s) {
+    case Slot::Cloth1: case Slot::Cloth2: case Slot::Cloth3: case Slot::Accent: case Slot::Linen: case Slot::Leather: case Slot::Metal:
+    case Slot::Metal2: case Slot::Blade: case Slot::Cloak: case Slot::Pattern: case Slot::Plume: case Slot::Field: case Slot::Device:
+    case Slot::Glow: case Slot::Head: return true;   // (forge i2) the headwear is gear: HOMESPUN's hood
+    default: return false;
+  }
+}
+DollRamps greyRamps(const DollRamps& r) {
+  DollRamps g = r;
+  for (int s = 0; s < SLOT_COUNT; s++)
+    if (greySlot((Slot)s)) for (int i = 0; i < 5; i++) g.c[s][i] = kGreyRamp[i];
+  return g;
+}
+RigSheet compose(const DollRecipe& rIn, RigPart part, const ComposeOpts* opts) {
   const ComposeOpts op = opts ? *opts : ComposeOpts{};
+  // (P2c forge) the neutral-ramp compose: every material slot in one grey ramp (the shape with the colour removed)
+  DollRecipe greyR;
+  if (op.grey) { greyR = rIn; greyR.ramps = greyRamps(rIn.ramps); }
+  const DollRecipe& r0 = op.grey ? greyR : rIn;
   const Pool& P = get();
   // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the flag `run` while the RUN part composes: a long carried tool (the staff) draws
   // its run carry there (`when run replace`: held close and upright, so the run's frames stay inside B10's 64 KB)

@@ -17,20 +17,21 @@ tags overlay
 legend X glow 3
 
 view D key rest origin 2 1
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
 |-------vvvvvv-------
-|-----vvzyzxxwvv-----
-|----vyyyyzxxwwwv----
-|---vyyyyxyxxxwwwv---
-|---vyyyyxzyxxwwwv---
-|---vyyyyxyxxxwwwv---
+|-----vvzxzxxwvv-----
+|----vyxxxzxxwwwv----
+|---vyxxxxyxxxwwwv---
+|---vyxxxxzxxxwwwv---
+|---vyxxxxxxxxwwwv---
 |---vyyyyyzxxxxwwv---
 |---vyvvvvyxvvvvwv---
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxvwvwv---
-|---vyyyyxyxxxvwwv---
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxvwvwv---
+|---vyxxxxyxxxvwwv---
 |....vyyyyxxxxwwv....
 |.....vvvvvvvvvv.....
 regions
@@ -52,20 +53,21 @@ regions
 |....................
 
 view U key rest origin 2 1
+mark crown 9 3
 |--------------------
 |--------------------
 |--------------------
 |-------vvvvvv-------
-|-----vvzyzxxwvv-----
-|----vyyyyzxxwwwv----
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxxwwwv---
+|-----vvzxzxxwvv-----
+|----vyxxxzxxwwwv----
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
 |---vyyyyyxxxxxwwv---
-|---vyyyyxyxxxwwwv---
-|---vyyyyxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
+|---vyxxxxyxxxwwwv---
 |....vyyyyxxxxwwv....
 |.....vvvvvvvvvv.....
 regions
@@ -87,20 +89,21 @@ regions
 |....................
 
 view R key rest origin 3 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
 |--------vvvvvv-------
-|------vvzyyyxwvv-----
-|-----vyyyyyyxwwwv----
-|----vyyyyxxxxwywv----
-|----vyyyyxxxxxyzwv---
-|----vyyyyxxxxxxywv---
-|----vyyyyxxyyyxxxv---
-|----vyyyyyxxvvvvyvv--
-|----vyyyyyxxxxxwywv--
-|----vyyyyxxxvxvywv---
-|----vyyyyxxxxxvywv---
+|------vvzxxxxwvv-----
+|-----vyxxxxxxwwwv----
+|----vyxxxxxxxwywv----
+|----vyxxxxxxxxxzwv---
+|----vyxxxxxxxxxxwv---
+|----vyxxxxxyyyxxxv---
+|----vyxxxxxxvvvvyvv--
+|----vyxxxxxxxxxwywv--
+|----vyxxxxxxvxvywv---
+|----vyxxxxxxxxvywv---
 |.....vyyyyxxxxxxv....
 |......vvvvvvvvvv.....
 regions
@@ -122,18 +125,19 @@ regions
 |.....................
 
 view L key rest origin 2 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
 |-------vvvvvv--------
-|-----vvyzyyxwvv------
-|----vyyyyyyxwwwv-----
-|----vyyyyxxxxwwwv----
-|---vyzyyxxxxxwwwv----
-|---vyyxyxxxxxwwwv----
+|-----vvyzxxxwvv------
+|----vyxxxxxxwwwv-----
+|----vyyxxxxxxwwwv----
+|---vyzxxxxxxxwwwv----
+|---vyxxxxxxxxwwwv----
 |---vyxxxxxxxxwwwv----
 |--vvyvvvvxxxwwwwv----
-|--vyyyyyxxxxxwwwv----
+|--vyyxxxxxxxxwwwv----
 |---vyyvyvxxxxwwwv----
 |---vyyvyxxxxxwwwv----
 |....vyyyyyxxxxxv.....
@@ -157,18 +161,19 @@ regions
 |.....................
 
 view L key lie origin 2 1
+mark crown 10 3
 |---------------------
 |---------------------
 |---------------------
 |-------vvvvvv--------
-|-----vvyzyyxwvv------
-|----vyyyyyyxwwwv-----
-|----vyyyyxxxxwwwv----
-|---vyzyyxxxxxwwwv----
-|---vyyxyxxxxxwwwv----
+|-----vvyzxxxwvv------
+|----vyxxxxxxwwwv-----
+|----vyyxxxxxxwwwv----
+|---vyzxxxxxxxwwwv----
+|---vyxxxxxxxxwwwv----
 |---vyxxxxxxxxwwwv----
 |--vvyvvvvxxxwwwwv----
-|--vyyyyyxxxxxwwwv----
+|--vyyxxxxxxxxwwwv----
 |---vyyvyvxxxxwwwv----
 |---vyyvyxxxxxwwwv----
 |....vyyyyyxxxxxv.....
@@ -192,6 +197,7 @@ regions
 |.....................
 
 # (LADDER-HEAD i2) T6: the eye slit glows in the glow slot (the living finish breathes it)
+# (FORGE-HELM i3, post3_greathelm.py) the broad lit plane in step 2, step 3 only on the lit edge and the keel (R): the ember cream no longer reads as skin
 
 view D key rest when helm.t6
 |....................

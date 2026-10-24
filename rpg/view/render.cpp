@@ -910,7 +910,8 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
                              float x2, float y2, float pivX, float pivY, float alpha, bool strike) {
   if (!art::finish::enabled() || !rt.ready() || alpha <= 0.02f) return;
   const int top = L.topTier();
-  if (top < 5) return;
+  const bool steady = top == 4 && L.sheen == 6;   // (P2c forge, D28) a glowing alloy's seams from T4, steady
+  if (top < 5 && !steady) return;
   const art::RigSheet& S = *rt.sheet;
   const size_t fi = (size_t)(&f - S.frames.data());
   if (fi >= S.frames.size()) return;
@@ -927,7 +928,7 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
                               Color((q.c & 255) / 255.0f, (q.c >> 8 & 255) / 255.0f, (q.c >> 16 & 255) / 255.0f, q.a * alpha)});
   };
   art::finish::Figure F;
-  F.topTier = top; F.mythic = L.mythic != 0; F.t = t_; F.phase = phase; F.glow = &gpx; F.strike = strike;
+  F.topTier = top; F.mythic = L.mythic != 0; F.t = t_; F.phase = phase; F.glow = &gpx; F.strike = strike; F.steady = steady;
   F.mask = rt.masks && fi < rt.masks->size() ? &(*rt.masks)[fi] : nullptr;
   F.bladeT6 = L.tier[art::HumanLook::TIER_WEAPON] >= 6;
   // the line in frame px (the grip: its mark, else the weapon hand's fist)
@@ -942,7 +943,7 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
     art::finish::figureLights(F, lights);
     for (const art::finish::Light& q : lights) push(q, x2, y2);
   }
-  if (top < 6) { beasts::finishFigures++; return; }
+  if (top < 6) { beasts::finishFigures++; return; }   // (T4 steady and T5: no motes, no gleam)
   // the motes / embers: world space (view px + the camera), so the camera's motion never drags them along
   {
     art::finish::Particles& ps = finishParts_[a.id];

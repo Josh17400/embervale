@@ -1,0 +1,49 @@
+# forge/fit/studs: studs (TANNER'S, Highland, Steppe, Marsh; 28.3): a grid on the plane, a Metal 2 head over a dark
+# foot, every fourth column and fourth row, offset each course.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# FITTING (`overlay fit.<v>`): P-box fits (`tags tile overlay fit`, `on-region P`: the largest <w>x<h> view that fits
+# the piece's panel, centred: bosses, star rivets, knotwork), seam fittings (`on-region N`, a periodic tile on the seams
+# the cut marks: rivets), or plane tiles (`on-slot:<slot>`, as a cut: studs, scored lines, the inlay band, lacing).
+# Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
+# (FORGE-MARKS forge i3) studs: a 2 x 2 stud (a lit left, its Metal 2 head, the shadow under) on aligned rows, period 4 x 4 (a lone dark pixel read as dirt in grey).
+use person
+role overlay fit.studs
+tags tile overlay on-slot:metal
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+legend n accent 1
+legend o accent 2
+legend p accent 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key rest origin 0 0
+|+O..
+|==..
+|....
+|....

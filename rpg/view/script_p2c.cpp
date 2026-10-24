@@ -22,6 +22,7 @@
 #include <vector>
 #include "rpg/art.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_forge.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear_ladder.h"
@@ -255,6 +256,26 @@ bool expDollGear(ScriptCtx& c) {
   if (c.arg(2) == "tier") {
     const int want = std::atoi(c.arg(3).c_str()), have = c.game.pl().look.topTier();
     if (have != want) c.fail("expect doll tier " + c.arg(3) + ": the hero's top tier is " + std::to_string(have));
+    return true;
+  }
+  // (P2c forge) `expect doll forge <base>` or `expect doll forge <axis>=<value>`: the hero's body forge style (the cut as the
+  // doll draws it, on its armour's family; crest the helm's)
+  if (c.arg(2) == "forge") {
+    namespace F = art::doll::forge;
+    const art::HumanLook& L = c.game.pl().look;
+    const art::doll::DollRecipe r = art::doll::resolve(L);
+    const std::string want = c.arg(3);
+    const size_t eq = want.find('=');
+    std::string have;
+    if (eq == std::string::npos) have = L.forge[art::HumanLook::TIER_BODY] ? F::valueName(F::AX_BASE, r.forgeAx[0][F::AX_BASE]) : "none";
+    else {
+      const int a = F::axisOfName(want.substr(0, eq).c_str());
+      if (a < 1) { c.fail("expect doll forge <base>|<axis>=<value> (shoulder crest cut edge collar limb fit)"); return true; }
+      const int v = a == F::AX_CREST ? r.forgeAx[art::HumanLook::TIER_HELM][a] : r.forgeAx[art::HumanLook::TIER_BODY][a];
+      have = v ? F::valueName(a, v) : "none";
+    }
+    const std::string value = eq == std::string::npos ? want : want.substr(eq + 1);
+    if (have != value) c.fail("expect doll forge " + want + ": the hero's is '" + have + "'");
     return true;
   }
   if (c.arg(2) != "gear") return otherExpDoll(c);

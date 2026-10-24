@@ -1,0 +1,65 @@
+# forge/sheen/iridescent: the iridescent tell (28.7): the row cuts' alternate courses recoloured to Metal 2 keeping the
+# step (the hue-turned ramp), keyed by the cut, so the scales and plates alternate two hues course by course; on any
+# other cut the rest view turns every third row.
+# FORGE-MARKS, forge i2 (tools: emb_P2c/forge/areas/FORGE-MARKS/tools2/mk2.py). Format: rpg/art/doll/doll.h.
+# SHEEN TELL (STYLE_P2 28.7; asks FORGE-DOLL to lay it as a cut tile after the cut when the body's sheen is this one):
+# the iridescent rows recolour alternate courses of the row cuts to Metal 2 keeping the step (P2C_CONTRACTS 3c: an
+# iridescent alloy's Metal 2 is its hue-turned ramp, so the courses alternate two hues), keyed by the cut.
+use person
+role overlay sheen.iridescent
+tags tile overlay on-slot:metal
+legend + ink 3
+legend ^ ink 4
+legend : ink 1
+legend = ink 0
+legend O metal2 2
+legend n accent 1
+legend o accent 2
+legend p accent 3
+
+view D key round origin 0 0
+|OOOO
+|OOOO
+|OOOO
+|....
+|....
+|....
+
+view D key pointed origin 0 0
+|OOOO
+|OOOO
+|OOOO
+|....
+|....
+|....
+
+view D key square origin 0 0
+|OOOO
+|OOOO
+|OOOO
+|....
+|....
+|....
+
+view D key laced origin 0 0
+|...
+|...
+|...
+|...
+|OOO
+|OOO
+|OOO
+|OOO
+
+view D key staggered origin 0 0
+|OOOOOO
+|OOOOOO
+|OOOOOO
+|......
+|......
+|......
+
+view D key rest origin 0 0
+|O
+|.
+|.
