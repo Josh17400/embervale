@@ -497,3 +497,64 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   a bare look, which is why the i1 rows carried no weapons.
 - **Corpse feet** (for the legs' owner or the integrator; legs_lie_feet.patch): legs/adult/loco/std.pxm `lie` foot 6 px wide
   in line with the shin (was 8: the turn stood its 3 px toe block up out of every corpse), tips.pxm `lie` origin 1 1 to match.
+
+### LADDER-DOLL, alloys iteration 1 (2026-10-23; the owner: "does this fit with all our ores")
+- **Alloy metal families** (doll.h `alloyFamilyCount/Name`, `alloyFamilyOf`, `alloyRamp`, `metalTest`; doll_ramps.cpp
+  kAlloyFam): 16 families (rose copper, red copper, amber bronze, brass, electrum, olive bronze, green bronze, verdigris,
+  cerulean, cobalt, ice silver, violet, plum, pearl rose, dark bronze, bottle green) replace i3's metalize() steel cast.
+  Each ramp: L 8-16 core, a step 1 lit to luma 82 or more (the C14 edge), a step 4 glint of L 92-99. The sheen
+  (cult::Sheen + 1) shapes it: matte has a soft top, bright a white glint, dark/glowing a blackened body with a cold rim,
+  iridescent turns its hue across the ramp, pale is whitened, burnished turns its lights gold. Rig 2 only.
+- **HumanLook::alloyFam** (new ladder field, 1-based, 0 = nearest to armourTint): mixed into key() at rig 2 (lad << 56).
+  `gear::alloyFamilies(culture)` sets it in fillLadder for the armour's alloy. Each people has a family table per
+  alloy rank, with every column distinct across the 12 peoples, so neighbouring peoples' same-rank alloys never match. If
+  the table's family would sit within dE 20 of an earlier alloy, the nearest free family is used instead.
+  `gear::alloyKeys(culture, i)` returns the icon's keys (gearIcon).
+- Looks macros: `alloy=N` (kit metal pieces in alloy N) and `alloyFam=`. Census NPCs (looks.cpp; no culture in
+  rankTiers) take the nearest family to their tint.
+- **C15** (in --doll --gates and --doll-ladder): a, every family under every sheen passes metalTest; b, a people's alloys
+  differ by dE76 >= 18 on the mid step (12 peoples x seeds 1..64; measured min 20.3); c, same-rank alloys of neighbouring
+  different peoples (worlds 1..6, a 6x6 block of cells) differ by >= 12 (min 12.3); d, icon/doll hue agreement within 45
+  degrees for alloys still on their nearest family.
+- Finish (art_fx.h, A5): kRim 0.75 -> 0.95, the T6 rim reaching 76 % of the figure (was 62 %) with a fade of 0.5 (was 0.6),
+  sweep run 0.40 -> 0.50 s, tail 6 -> 8 px, gleam 0.5 -> 0.65 s, 3 -> 4 px, 0.8 -> 0.9.
+- Resolver: an undrawn helm band (4, 6, 7 from real heartland loot) falls back 4/6/7 -> 5 -> 3 -> 2.
+- Metal kinds: starmetal is bluer and bronze browner (each had read as steel or as gilded beside the other).
+
+### LADDER-DOLL, alloys iteration 2 (2026-10-23; the blind panel: warm alloys "one gold-orange figure", pinks "skin")
+- **Families** (doll_alloy.cpp kAlloyFam, 16): red copper, amber bronze, brass, electrum, olive bronze, green bronze,
+  bottle green, verdigris, blued steel, cobalt, white silver, violet, garnet, gunmetal, black bronze, slate iron (rose
+  copper, pearl rose, plum, ice silver, cerulean and dark bronze retired). A fourth value row (L 6/31/40/60/93) for the
+  black bronze and the garnet; matte's top 0.62 -> 0.8 of the way (it read as leather); a red's lights turn 18/30 deg
+  toward gold at 55 % chroma; steps 2-3 kept 22 dE76 off A3's skin (#E9A077) by chroma and a hue turn away from it.
+- **gear::alloyFamilies**: the table is [4][12]: everyday bronze/brass (Alloy::baseTier Bronze) -> a warm family,
+  everyday iron -> a cool one, the warriors' and masterwork metals never a bronze. Solved offline: every column parts by
+  dE 13 between peoples that meet in the atlas, a people's three by 21. Heartland: amber bronze / blued steel (the hero's
+  T4), brass (the hero's T5: seed 7 has two alloys), electrum.
+- **T5+ trim**: a body metal within dE 26 of the gold trim's mid step takes the silver trim (kTrim[2]).
+- **Band metals**: bronze, iron (darker and warmer than steel), obsidian (black glass, near-white glint), emberforged
+  (redder, a yellow-hot glint) retuned in kMetalKind.
+- **C15e** (new): name agreement (everyday bronze warm, iron cool, no later bronze), every family x sheen 20 dE off the
+  skin on steps 2-3, the 7 band metals pass metalTest and part pairwise by dE 14.
+- **Finish (A5)**: the gleam every 2.8 s (was 3.3), 0.8 s across (was 0.65), 6 px wide (was 4); T6 motes 6 alive (was 4),
+  born every 0.32 s (was 0.45), 1.5 s life (was 1.2), rising 12 px (was 10). C13 checks the constants.
+
+### LADDER-DOLL, alloys iteration 3 (2026-10-23; the blind panel: names on the wrong metal, nine golds, lavender cloth)
+- **Families by name** (doll_alloy.cpp kAlloyFam, 96 = 8 slots x 12 peoples, `alloyFamilyAt(slot, people)`,
+  `alloyFamilyMetal(fam)`): slot from the alloy's rank and the metal word of its name (`gear::alloyMetalWord`: 0 BRONZE
+  1 BRASS 2 IRON 3 STEEL 4 SILVER 5 GLASS): rank 0 bronze/brass/iron -> slots 0/1/2, rank 1 steel/silver -> 3/4, rank 2
+  steel/silver/glass -> 5/6/7. `gear::alloyFamilies` takes the people's own family in the slot; a pair still within dE
+  20 borrows the next people's family of the same slot (the name holds). The table was solved offline (tools/doll/alloys:
+  sim.py replicates famRamp, `python opt.py 20` solves, port.py writes the table) against the real sheens: a people's three metals >= 22.5 dE on the mid step, two peoples'
+  same-slot metals >= 13.5, cross-word same-rank >= 9.5, no step 2-3 pink, brown or skin, every sheen metalTest.
+- **Ramp model**: value rows L {5 28 38 66 94}, {7 30 44 72 96}, {9 33 52 80 98}, {13 40 62 87 99}, {18 48 71 92 100}
+  (v -2..2; v 2 the silvers), chroma per step 0.7 1.1 1.2 0.55 0.12; matte keeps a glint (0.85 of the way); burnished
+  turns only a warm metal's lights to gold.
+- **T5+ trim**: a culture alloy whose mid step has chroma >= 9 or luma < 120 takes its own ramp one step up as Metal2;
+  a pale neutral keeps the gold (silver and gold).
+- **Band metals**: iron's lit step 0x949092 (a dull plane under steel's near-white), gilded lemon 0xC8A020 body.
+- **Heartland T5 kit**: gilded steel (Epic, ilvl 30) on the metal pieces; the noble cloak at ilvl 47 and the heater from
+  the masterwork alloy (Rare, ilvl 47) keep their band-6 shapes. Resolver: a T5-T6 body's pauldron dial 2-3 lifts to 4.
+- **C15c**: same rank and same metal word >= 12 (min 13.2); same rank, different metals >= 8. **C15e**: the family's
+  metal equals the name's metal word (replaces i2's warm/cool rule). C15 min dE within a people 23.0.
+- **Finish (A5)**: gleam every 2.4 s (was 2.8), 0.9 s across (was 0.8), 7 px wide (was 6).

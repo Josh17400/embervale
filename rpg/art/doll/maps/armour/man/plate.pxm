@@ -11,6 +11,16 @@
 # (LADDER-ARMOUR polish i3) T5 wears its people's colour: the surcoat in the accent slot (tabardColor), the skirt's
 # cross gilt, so T5 reads red-and-gold, the Mythic white-black-and-fire, T6 blue-and-silver (the panel: "T5 and Mythic
 # both red and gold, one outline").
+# (LADDER-ARMOUR alloys i1) the T4 plate in broad lit planes for ANY metal (the owner: "T3->T4 the weakest step"):
+# a lit pec plane with a 2-px step-4 specular, one keel ridge, the shadow half, a dark underside row and a lit fauld lame.
+# (LADDER-ARMOUR alloys i1) the Mythic body in its own BLACKENED steel (metal slot, kind 11), not linen: the
+# owner saw a white slab with no dark values; dark plate, white-hot edges, gold trim and fire carry it.
+# (LADDER-ARMOUR alloys i2) T5's breast is its METAL again: a cuirass (lit left plane, a step-4 glint, the shadow side)
+# under a gilt neckline and chevron, the people's colour kept below the belt, on the cloak and the plume (the panels:
+# "the red tabard covers ~60% of the sprite, only helm, pauldrons and legs show the alloy").
+# (LADDER-ARMOUR alloys i3) the Mythic blackened plate's lit plane a step brighter (the left two fifths, the light side):
+# polished black steel with a dark core on the shadow side, not a flat mid grey (the panels: "Mythic reads darker
+# and muddier than T6 at game scale").
 use person
 body man
 role armour plate
@@ -33,16 +43,16 @@ legend l device 2
 legend F device 3
 
 view D key rest origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -56,16 +66,16 @@ regions
 |...RRRRR.....
 
 view D key rest origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -105,10 +115,10 @@ view D key rest origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -125,16 +135,16 @@ regions
 |...RRRRRRR...
 
 view D key idle origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -148,16 +158,16 @@ regions
 |...RRRRR.....
 
 view D key idle origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -197,10 +207,10 @@ view D key idle origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -217,16 +227,16 @@ regions
 |...RRRRRRR...
 
 view D key run origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -240,16 +250,16 @@ regions
 |...RRRRR.....
 
 view D key run origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -289,10 +299,10 @@ view D key run origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -309,16 +319,16 @@ regions
 |...RRRRRRR...
 
 view D key runl origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -332,16 +342,16 @@ regions
 |...RRRRR.....
 
 view D key runl origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -381,10 +391,10 @@ view D key runl origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -401,16 +411,16 @@ regions
 |...RRRRRRR...
 
 view D key drawn origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -424,16 +434,16 @@ regions
 |...RRRRR.....
 
 view D key drawn origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -473,10 +483,10 @@ view D key drawn origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -493,16 +503,16 @@ regions
 |...RRRRRRR...
 
 view D key swing origin 7 0
-|...vxyyxwwv..
+|...vxyzyxwv..
 |vxyyxwvvxwwwv
-|..vxyyzxwwwv.
-|..vxyyzxwwwv.
-|..vxyyxxwwwv.
-|..vxxyxwwwwv.
-|..vwxxwwwwvv.
+|..vyzzyxyxwv.
+|..vyzyyxxwwv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fghhPOhggf.
-|..vxyxwwwwwv.
-|..vwwwwwwwvv.
+|..vyzyxxwwwv.
+|..vwxxwwwvvv.
 regions
 |....RRRR.....
 |.............
@@ -516,16 +526,16 @@ regions
 |...RRRRR.....
 
 view D key swing origin 7 0 when armour.t6,mythic replace
-|...vxyyxwwv..
-|vxyyxwvvxwwwv
-|..QSTTUSRRRQ.
-|..QSTTUSRRRQ.
-|..QSTTSSRRRQ.
-|..QSSTSRRRRQ.
-|..QRSSRRRRQQ.
+|...vyyyxwwv..
+|vyyyywvvxwwwv
+|..vyyyzxwwwv.
+|..vyyyzxwwwv.
+|..vyyyxxwwwv.
+|..vyyyxwwwwv.
+|..vxyywwwwvv.
 |..fghhPOhggf.
-|..QSTSRRRRRQ.
-|..QRRRRRRRQQ.
+|..vyyywwwwwv.
+|..vxxxwwwwvv.
 regions
 |....RRRR.....
 |.............
@@ -565,10 +575,10 @@ view D key swing origin 7 0 when armour.t5 replace
 |...vxyyxwwv..
 |vxyyxwvvxwwwv
 |..vxyyyxwwwv.
-|..mOPPPONNNm.
-|..mopPOONnnm.
-|..moopONnnnm.
-|..mnoonnnnmm.
+|..vOPPPONNNv.
+|..vyyyxwxwwv.
+|..vxyxxwwwwv.
+|..vvwxxwwvvv.
 |..fNOOPOONNf.
 |..moponnnnnm.
 |..mnnnnnnnmm.
@@ -610,14 +620,14 @@ regions
 view U key rest origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -631,16 +641,16 @@ regions
 |...RRRRR......
 
 view U key rest origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -680,10 +690,10 @@ view U key rest origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -702,14 +712,14 @@ regions
 view U key idle origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -723,16 +733,16 @@ regions
 |...RRRRR......
 
 view U key idle origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -772,10 +782,10 @@ view U key idle origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -794,14 +804,14 @@ regions
 view U key run origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -815,16 +825,16 @@ regions
 |...RRRRR......
 
 view U key run origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -864,10 +874,10 @@ view U key run origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -886,14 +896,14 @@ regions
 view U key runl origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -907,16 +917,16 @@ regions
 |...RRRRR......
 
 view U key runl origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -956,10 +966,10 @@ view U key runl origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -978,14 +988,14 @@ regions
 view U key drawn origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -999,16 +1009,16 @@ regions
 |...RRRRR......
 
 view U key drawn origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -1048,10 +1058,10 @@ view U key drawn origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -1070,14 +1080,14 @@ regions
 view U key swing origin 7 0
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
-|..vxyyxwwwwv..
-|..vxyzxwwwwv..
-|..vxyzxwwwwv..
-|..vxyxwwwwwv..
-|..vwxxwwwwvv..
+|..vyzzyxwxwv..
+|..vyzyxwxwwv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fghhhhhggf..
-|..vxyxwwwwwv..
-|..vwwwwwwwvv..
+|..vyzyxxwwwv..
+|..vwxxwwwvvv..
 regions
 |...RRRRR......
 |..............
@@ -1091,16 +1101,16 @@ regions
 |...RRRRR......
 
 view U key swing origin 7 0 when armour.t6,mythic replace
-|..vxyyxxwwwv..
-|vxyyxxwvwwwwwv
-|..QSTTSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTUSRRRRQ..
-|..QSTSRRRRRQ..
-|..QRSSRRRRQQ..
+|..vyyyxxwwwv..
+|vyyyyywvwwwwwv
+|..vyyyxwwwwv..
+|..vyyzxwwwwv..
+|..vyyzxwwwwv..
+|..vyyywwwwwv..
+|..vxyywwwwvv..
 |..fghhhhhggf..
-|..QSTSRRRRRQ..
-|..QRRRRRRRQQ..
+|..vyyywwwwwv..
+|..vxxxwwwwvv..
 regions
 |...RRRRR......
 |..............
@@ -1140,10 +1150,10 @@ view U key swing origin 7 0 when armour.t5 replace
 |..vxyyxxwwwv..
 |vxyyxxwvwwwwwv
 |..vxyyxwwwwv..
-|..mOPPONNNNm..
-|..mopponnnnm..
-|..moponnnnnm..
-|..mnoonnnnmm..
+|..vOPPONNNNv..
+|..vyyxwvxwwv..
+|..vxyxwvwwwv..
+|..vvwwwvwwvv..
 |..fNOOOOONNf..
 |..moponnnnnm..
 |..mnnnnnnnmm..
@@ -1185,13 +1195,13 @@ regions
 view R key rest origin 5 0
 |..vxyxwv....
 |.vxyyxwwv...
-|.vzyxxwwwv..
-|.vzyxwwwxwwv
-|.vyxxwwwwwwv
-|.vyxwwwwwwv.
-|.vxxwwwwwvv.
+|.vzzyxxwwv..
+|.vzyyxwwyxwv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fghhhhhgPf.
-|.vxyxwwwwwv.
+|.vyzyxwwwwv.
 |vxwxwwwwwvv.
 regions
 |...RRR......
@@ -1206,16 +1216,16 @@ regions
 |.RRRRR......
 
 view R key rest origin 5 0 when armour.t6,mythic replace
-|..vxyxwv....
-|.vxyyxwwv...
-|.QUTSSRRRQ..
-|.QUTSRRRSRRQ
-|.QTSSRRRRRRQ
-|.QTSRRRRRRQ.
-|.QSSRRRRRQQ.
+|..vyyxwv....
+|.vyyyxwwv...
+|.vzyyxwwwv..
+|.vzyyxwwxwwv
+|.vyyyxwwwwwv
+|.vyyxwwwwwv.
+|.vyyxwwwwvv.
 |.fghhhhhgPf.
-|.QSTSRRRRRQ.
-|QSRSRRRRRQQ.
+|.vyyywwwwwv.
+|vyxyxwwwwvv.
 regions
 |...RRR......
 |............
@@ -1255,10 +1265,10 @@ view R key rest origin 5 0 when armour.t5 replace
 |..vxyxwv....
 |.vxyyxwwv...
 |.vyyxxwwwv..
-|.mPPONNNONNm
-|.mpoonNNNnnm
-|.mponnnNnnm.
-|.moonnnnnmm.
+|.vPPONNNONNv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fNOOOOONPf.
 |.moponnnnnm.
 |mononnnnnmm.
@@ -1277,13 +1287,13 @@ regions
 view R key idle origin 5 0
 |..vxyxwv....
 |.vxyyxwwv...
-|.vzyxxwwwv..
-|.vzyxwwwxwwv
-|.vyxxwwwwwwv
-|.vyxwwwwwwv.
-|.vxxwwwwwvv.
+|.vzzyxxwwv..
+|.vzyyxwwyxwv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fghhhhhgPf.
-|.vxyxwwwwwv.
+|.vyzyxwwwwv.
 |vxwxwwwwwvv.
 regions
 |...RRR......
@@ -1298,16 +1308,16 @@ regions
 |.RRRRR......
 
 view R key idle origin 5 0 when armour.t6,mythic replace
-|..vxyxwv....
-|.vxyyxwwv...
-|.QUTSSRRRQ..
-|.QUTSRRRSRRQ
-|.QTSSRRRRRRQ
-|.QTSRRRRRRQ.
-|.QSSRRRRRQQ.
+|..vyyxwv....
+|.vyyyxwwv...
+|.vzyyxwwwv..
+|.vzyyxwwxwwv
+|.vyyyxwwwwwv
+|.vyyxwwwwwv.
+|.vyyxwwwwvv.
 |.fghhhhhgPf.
-|.QSTSRRRRRQ.
-|QSRSRRRRRQQ.
+|.vyyywwwwwv.
+|vyxyxwwwwvv.
 regions
 |...RRR......
 |............
@@ -1347,10 +1357,10 @@ view R key idle origin 5 0 when armour.t5 replace
 |..vxyxwv....
 |.vxyyxwwv...
 |.vyyxxwwwv..
-|.mPPONNNONNm
-|.mpoonNNNnnm
-|.mponnnNnnm.
-|.moonnnnnmm.
+|.vPPONNNONNv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fNOOOOONPf.
 |.moponnnnnm.
 |mononnnnnmm.
@@ -1369,13 +1379,13 @@ regions
 view R key run origin 5 0
 |..vxyxwv....
 |.vxyyxwwv...
-|.vzyxxwwwv..
-|.vzyxwwwxwwv
-|.vyxxwwwwwwv
-|.vyxwwwwwwv.
-|.vxxwwwwwvv.
+|.vzzyxxwwv..
+|.vzyyxwwyxwv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fghhhhhgPf.
-|.vxyxwwwwwv.
+|.vyzyxwwwwv.
 |vxwxwwwwwvv.
 regions
 |...RRR......
@@ -1390,16 +1400,16 @@ regions
 |.RRRRR......
 
 view R key run origin 5 0 when armour.t6,mythic replace
-|..vxyxwv....
-|.vxyyxwwv...
-|.QUTSSRRRQ..
-|.QUTSRRRSRRQ
-|.QTSSRRRRRRQ
-|.QTSRRRRRRQ.
-|.QSSRRRRRQQ.
+|..vyyxwv....
+|.vyyyxwwv...
+|.vzyyxwwwv..
+|.vzyyxwwxwwv
+|.vyyyxwwwwwv
+|.vyyxwwwwwv.
+|.vyyxwwwwvv.
 |.fghhhhhgPf.
-|.QSTSRRRRRQ.
-|QSRSRRRRRQQ.
+|.vyyywwwwwv.
+|vyxyxwwwwvv.
 regions
 |...RRR......
 |............
@@ -1439,10 +1449,10 @@ view R key run origin 5 0 when armour.t5 replace
 |..vxyxwv....
 |.vxyyxwwv...
 |.vyyxxwwwv..
-|.mPPONNNONNm
-|.mpoonNNNnnm
-|.mponnnNnnm.
-|.moonnnnnmm.
+|.vPPONNNONNv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fNOOOOONPf.
 |.moponnnnnm.
 |mononnnnnmm.
@@ -1461,13 +1471,13 @@ regions
 view R key runl origin 7 0
 |....vxyxwv....
 |...vxyyxwwv...
-|...vzyxxwwwv..
-|..vzyxwwwxwwv.
-|..vyxxwwwwwwv.
-|..vyxwwwwwwv..
-|..vxxwwwwwvv..
+|...vzzyxxwwv..
+|..vzyyxwwyxwv.
+|..vyyxwwxxwwv.
+|..vyxxwwwwwv..
+|..vvxwwwwvvv..
 |.fghhhhhgPf...
-|.vxyxwwwwwv...
+|.vyzyxwwwwv...
 |vxwxwwwwwvv...
 regions
 |.....RRR......
@@ -1482,16 +1492,16 @@ regions
 |.RRRRR........
 
 view R key runl origin 7 0 when armour.t6,mythic replace
-|....vxyxwv....
-|...vxyyxwwv...
-|...QUTSSRRRQ..
-|..QUTSRRRSRRQ.
-|..QTSSRRRRRRQ.
-|..QTSRRRRRRQ..
-|..QSSRRRRRQQ..
+|....vyyxwv....
+|...vyyyxwwv...
+|...vzyyxwwwv..
+|..vzyyxwwxwwv.
+|..vyyyxwwwwwv.
+|..vyyxwwwwwv..
+|..vyyxwwwwvv..
 |.fghhhhhgPf...
-|.QSTSRRRRRQ...
-|QSRSRRRRRQQ...
+|.vyyywwwwwv...
+|vyxyxwwwwvv...
 regions
 |.....RRR......
 |..............
@@ -1531,10 +1541,10 @@ view R key runl origin 7 0 when armour.t5 replace
 |....vxyxwv....
 |...vxyyxwwv...
 |...vyyxxwwwv..
-|..mPPONNNONNm.
-|..mpoonNNNnnm.
-|..mponnnNnnm..
-|..moonnnnnmm..
+|..vPPONNNONNv.
+|..vyyxwwxxwwv.
+|..vyxxwwwwwv..
+|..vvxwwwwvvv..
 |.fNOOOOONPf...
 |.moponnnnnm...
 |mononnnnnmm...
@@ -1553,13 +1563,13 @@ regions
 view R key drawn origin 5 0
 |..vxyxwv....
 |.vxyyxwwv...
-|.vzyxxwwwv..
-|.vzyxwwwxwwv
-|.vyxxwwwwwwv
-|.vyxwwwwwwv.
-|.vxxwwwwwvv.
+|.vzzyxxwwv..
+|.vzyyxwwyxwv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fghhhhhgPf.
-|.vxyxwwwwwv.
+|.vyzyxwwwwv.
 |vxwxwwwwwvv.
 regions
 |...RRR......
@@ -1574,16 +1584,16 @@ regions
 |.RRRRR......
 
 view R key drawn origin 5 0 when armour.t6,mythic replace
-|..vxyxwv....
-|.vxyyxwwv...
-|.QUTSSRRRQ..
-|.QUTSRRRSRRQ
-|.QTSSRRRRRRQ
-|.QTSRRRRRRQ.
-|.QSSRRRRRQQ.
+|..vyyxwv....
+|.vyyyxwwv...
+|.vzyyxwwwv..
+|.vzyyxwwxwwv
+|.vyyyxwwwwwv
+|.vyyxwwwwwv.
+|.vyyxwwwwvv.
 |.fghhhhhgPf.
-|.QSTSRRRRRQ.
-|QSRSRRRRRQQ.
+|.vyyywwwwwv.
+|vyxyxwwwwvv.
 regions
 |...RRR......
 |............
@@ -1623,10 +1633,10 @@ view R key drawn origin 5 0 when armour.t5 replace
 |..vxyxwv....
 |.vxyyxwwv...
 |.vyyxxwwwv..
-|.mPPONNNONNm
-|.mpoonNNNnnm
-|.mponnnNnnm.
-|.moonnnnnmm.
+|.vPPONNNONNv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fNOOOOONPf.
 |.moponnnnnm.
 |mononnnnnmm.
@@ -1645,13 +1655,13 @@ regions
 view R key swing origin 5 0
 |..vxyxwv....
 |.vxyyxwwv...
-|.vzyxxwwwv..
-|.vzyxwwwxwwv
-|.vyxxwwwwwwv
-|.vyxwwwwwwv.
-|.vxxwwwwwvv.
+|.vzzyxxwwv..
+|.vzyyxwwyxwv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fghhhhhgPf.
-|.vxyxwwwwwv.
+|.vyzyxwwwwv.
 |vxwxwwwwwvv.
 regions
 |...RRR......
@@ -1666,16 +1676,16 @@ regions
 |.RRRRR......
 
 view R key swing origin 5 0 when armour.t6,mythic replace
-|..vxyxwv....
-|.vxyyxwwv...
-|.QUTSSRRRQ..
-|.QUTSRRRSRRQ
-|.QTSSRRRRRRQ
-|.QTSRRRRRRQ.
-|.QSSRRRRRQQ.
+|..vyyxwv....
+|.vyyyxwwv...
+|.vzyyxwwwv..
+|.vzyyxwwxwwv
+|.vyyyxwwwwwv
+|.vyyxwwwwwv.
+|.vyyxwwwwvv.
 |.fghhhhhgPf.
-|.QSTSRRRRRQ.
-|QSRSRRRRRQQ.
+|.vyyywwwwwv.
+|vyxyxwwwwvv.
 regions
 |...RRR......
 |............
@@ -1715,10 +1725,10 @@ view R key swing origin 5 0 when armour.t5 replace
 |..vxyxwv....
 |.vxyyxwwv...
 |.vyyxxwwwv..
-|.mPPONNNONNm
-|.mpoonNNNnnm
-|.mponnnNnnm.
-|.moonnnnnmm.
+|.vPPONNNONNv
+|.vyyxwwxxwwv
+|.vyxxwwwwwv.
+|.vvxwwwwvvv.
 |.fNOOOOONPf.
 |.moponnnnnm.
 |mononnnnnmm.
@@ -1760,13 +1770,13 @@ regions
 view L key rest origin 8 0
 |.....vxyxwv..
 |...vxyyxwwv..
-|..vzyyxwwwwwv
-|vzyyxxwwwwwv.
-|vyyxxwwwwwv..
-|.vxyxwwwwwv..
-|.vwxxwwwwvv..
+|..vzzyxxwwwwv
+|vzzyyxxwwwwv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPghhhhhgf..
-|.vxyxwwwwwv..
+|.vyzyxwwwwv..
 |.vxyxwwwwwwv.
 regions
 |......RRR....
@@ -1781,16 +1791,16 @@ regions
 |..RRRRR......
 
 view L key rest origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv..
-|...vxyyxwwv..
-|..QUTTSRRRRRQ
-|QUTTSSRRRRRQ.
-|QTTSSRRRRRQ..
-|.QSTSRRRRRQ..
-|.QRSSRRRRQQ..
+|.....vyyxwv..
+|...vyyyxwwv..
+|..vzyyywwwwwv
+|vzyyyxwwwwwv.
+|vyyyywwwwwv..
+|.vyyywwwwwv..
+|.vxyywwwwvv..
 |.fPghhhhhgf..
-|.QSTSRRRRRQ..
-|.QSTSRRRRRRQ.
+|.vyyywwwwwv..
+|.vyyyxwwwwwv.
 regions
 |......RRR....
 |.............
@@ -1830,10 +1840,10 @@ view L key rest origin 8 0 when armour.t5 replace
 |.....vxyxwv..
 |...vxyyxwwv..
 |..vyyyxwwwwwv
-|mPPPOONNNNNm.
-|mppOONnnnnm..
-|.mopOnnnnnm..
-|.mnoonnnnmm..
+|vPPPOONNNNNv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPNOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
@@ -1852,13 +1862,13 @@ regions
 view L key idle origin 8 0
 |.....vxyxwv..
 |...vxyyxwwv..
-|..vzyyxwwwwwv
-|vzyyxxwwwwwv.
-|vyyxxwwwwwv..
-|.vxyxwwwwwv..
-|.vwxxwwwwvv..
+|..vzzyxxwwwwv
+|vzzyyxxwwwwv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPghhhhhgf..
-|.vxyxwwwwwv..
+|.vyzyxwwwwv..
 |.vxyxwwwwwwv.
 regions
 |......RRR....
@@ -1873,16 +1883,16 @@ regions
 |..RRRRR......
 
 view L key idle origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv..
-|...vxyyxwwv..
-|..QUTTSRRRRRQ
-|QUTTSSRRRRRQ.
-|QTTSSRRRRRQ..
-|.QSTSRRRRRQ..
-|.QRSSRRRRQQ..
+|.....vyyxwv..
+|...vyyyxwwv..
+|..vzyyywwwwwv
+|vzyyyxwwwwwv.
+|vyyyywwwwwv..
+|.vyyywwwwwv..
+|.vxyywwwwvv..
 |.fPghhhhhgf..
-|.QSTSRRRRRQ..
-|.QSTSRRRRRRQ.
+|.vyyywwwwwv..
+|.vyyyxwwwwwv.
 regions
 |......RRR....
 |.............
@@ -1922,10 +1932,10 @@ view L key idle origin 8 0 when armour.t5 replace
 |.....vxyxwv..
 |...vxyyxwwv..
 |..vyyyxwwwwwv
-|mPPPOONNNNNm.
-|mppOONnnnnm..
-|.mopOnnnnnm..
-|.mnoonnnnmm..
+|vPPPOONNNNNv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPNOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
@@ -1944,13 +1954,13 @@ regions
 view L key run origin 8 0
 |.....vxyxwv..
 |...vxyyxwwv..
-|..vzyyxwwwwwv
-|vzyyxxwwwwwv.
-|vyyxxwwwwwv..
-|.vxyxwwwwwv..
-|.vwxxwwwwvv..
+|..vzzyxxwwwwv
+|vzzyyxxwwwwv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPghhhhhgf..
-|.vxyxwwwwwv..
+|.vyzyxwwwwv..
 |.vxyxwwwwwwv.
 regions
 |......RRR....
@@ -1965,16 +1975,16 @@ regions
 |..RRRRR......
 
 view L key run origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv..
-|...vxyyxwwv..
-|..QUTTSRRRRRQ
-|QUTTSSRRRRRQ.
-|QTTSSRRRRRQ..
-|.QSTSRRRRRQ..
-|.QRSSRRRRQQ..
+|.....vyyxwv..
+|...vyyyxwwv..
+|..vzyyywwwwwv
+|vzyyyxwwwwwv.
+|vyyyywwwwwv..
+|.vyyywwwwwv..
+|.vxyywwwwvv..
 |.fPghhhhhgf..
-|.QSTSRRRRRQ..
-|.QSTSRRRRRRQ.
+|.vyyywwwwwv..
+|.vyyyxwwwwwv.
 regions
 |......RRR....
 |.............
@@ -2014,10 +2024,10 @@ view L key run origin 8 0 when armour.t5 replace
 |.....vxyxwv..
 |...vxyyxwwv..
 |..vyyyxwwwwwv
-|mPPPOONNNNNm.
-|mppOONnnnnm..
-|.mopOnnnnnm..
-|.mnoonnnnmm..
+|vPPPOONNNNNv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPNOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
@@ -2036,13 +2046,13 @@ regions
 view L key runl origin 8 0
 |.....vxyxwv....
 |...vxyyxwwv....
-|..vzyyxwwwwwv..
-|.vzyyxxwwwwwv..
-|.vyyxxwwwwwv...
-|..vxyxwwwwwv...
-|..vwxxwwwwvv...
+|..vzzyxxwwwwv..
+|.vzzyyxxwwwwv..
+|.vyyyxxwwwwv...
+|..vyyxxwwwwv...
+|..vvwxxwwvvv...
 |...fPghhhhhgf..
-|...vxyxwwwwwv..
+|...vyzyxwwwwv..
 |...vxyxwwwwwwv.
 regions
 |......RRR......
@@ -2057,16 +2067,16 @@ regions
 |....RRRRR......
 
 view L key runl origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv....
-|...vxyyxwwv....
-|..QUTTSRRRRRQ..
-|.QUTTSSRRRRRQ..
-|.QTTSSRRRRRQ...
-|..QSTSRRRRRQ...
-|..QRSSRRRRQQ...
+|.....vyyxwv....
+|...vyyyxwwv....
+|..vzyyywwwwwv..
+|.vzyyyxwwwwwv..
+|.vyyyywwwwwv...
+|..vyyywwwwwv...
+|..vxyywwwwvv...
 |...fPghhhhhgf..
-|...QSTSRRRRRQ..
-|...QSTSRRRRRRQ.
+|...vyyywwwwwv..
+|...vyyyxwwwwwv.
 regions
 |......RRR......
 |...............
@@ -2106,10 +2116,10 @@ view L key runl origin 8 0 when armour.t5 replace
 |.....vxyxwv....
 |...vxyyxwwv....
 |..vyyyxwwwwwv..
-|.mPPPOONNNNNm..
-|.mppOONnnnnm...
-|..mopOnnnnnm...
-|..mnoonnnnmm...
+|.vPPPOONNNNNv..
+|.vyyyxxwwwwv...
+|..vyyxxwwwwv...
+|..vvwxxwwvvv...
 |...fPNOOOOONf..
 |...moponnnnnm..
 |...moponnnnnnm.
@@ -2128,13 +2138,13 @@ regions
 view L key drawn origin 8 0
 |.....vxyxwv..
 |...vxyyxwwv..
-|..vzyyxwwwwwv
-|vzyyxxwwwwwv.
-|vyyxxwwwwwv..
-|.vxyxwwwwwv..
-|.vwxxwwwwvv..
+|..vzzyxxwwwwv
+|vzzyyxxwwwwv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPghhhhhgf..
-|.vxyxwwwwwv..
+|.vyzyxwwwwv..
 |.vxyxwwwwwwv.
 regions
 |......RRR....
@@ -2149,16 +2159,16 @@ regions
 |..RRRRR......
 
 view L key drawn origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv..
-|...vxyyxwwv..
-|..QUTTSRRRRRQ
-|QUTTSSRRRRRQ.
-|QTTSSRRRRRQ..
-|.QSTSRRRRRQ..
-|.QRSSRRRRQQ..
+|.....vyyxwv..
+|...vyyyxwwv..
+|..vzyyywwwwwv
+|vzyyyxwwwwwv.
+|vyyyywwwwwv..
+|.vyyywwwwwv..
+|.vxyywwwwvv..
 |.fPghhhhhgf..
-|.QSTSRRRRRQ..
-|.QSTSRRRRRRQ.
+|.vyyywwwwwv..
+|.vyyyxwwwwwv.
 regions
 |......RRR....
 |.............
@@ -2198,10 +2208,10 @@ view L key drawn origin 8 0 when armour.t5 replace
 |.....vxyxwv..
 |...vxyyxwwv..
 |..vyyyxwwwwwv
-|mPPPOONNNNNm.
-|mppOONnnnnm..
-|.mopOnnnnnm..
-|.mnoonnnnmm..
+|vPPPOONNNNNv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPNOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
@@ -2220,13 +2230,13 @@ regions
 view L key swing origin 8 0
 |.....vxyxwv..
 |...vxyyxwwv..
-|..vzyyxwwwwwv
-|vzyyxxwwwwwv.
-|vyyxxwwwwwv..
-|.vxyxwwwwwv..
-|.vwxxwwwwvv..
+|..vzzyxxwwwwv
+|vzzyyxxwwwwv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPghhhhhgf..
-|.vxyxwwwwwv..
+|.vyzyxwwwwv..
 |.vxyxwwwwwwv.
 regions
 |......RRR....
@@ -2241,16 +2251,16 @@ regions
 |..RRRRR......
 
 view L key swing origin 8 0 when armour.t6,mythic replace
-|.....vxyxwv..
-|...vxyyxwwv..
-|..QUTTSRRRRRQ
-|QUTTSSRRRRRQ.
-|QTTSSRRRRRQ..
-|.QSTSRRRRRQ..
-|.QRSSRRRRQQ..
+|.....vyyxwv..
+|...vyyyxwwv..
+|..vzyyywwwwwv
+|vzyyyxwwwwwv.
+|vyyyywwwwwv..
+|.vyyywwwwwv..
+|.vxyywwwwvv..
 |.fPghhhhhgf..
-|.QSTSRRRRRQ..
-|.QSTSRRRRRRQ.
+|.vyyywwwwwv..
+|.vyyyxwwwwwv.
 regions
 |......RRR....
 |.............
@@ -2290,10 +2300,10 @@ view L key swing origin 8 0 when armour.t5 replace
 |.....vxyxwv..
 |...vxyyxwwv..
 |..vyyyxwwwwwv
-|mPPPOONNNNNm.
-|mppOONnnnnm..
-|.mopOnnnnnm..
-|.mnoonnnnmm..
+|vPPPOONNNNNv.
+|vyyyxxwwwwv..
+|.vyyxxwwwwv..
+|.vvwxxwwvvv..
 |.fPNOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.

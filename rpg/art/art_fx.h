@@ -68,8 +68,8 @@ float light(const Pulse& p, float t, float phase);
 float actorPhase(uint32_t id);
 // the edge sweep (a T6 piece in hand): a white head with a glowing tail runs grip to tip in 0.4 s once every 2.75 s (offset
 // by the phase) and ends in a star at the tip; -1 while it rests, else 0..1 along the line
-constexpr float kSparkEvery = 2.75f, kSparkRun = 0.40f;
-constexpr int kSweepTail = 6;                          // px of glowing tail behind the head
+constexpr float kSparkEvery = 2.75f, kSparkRun = 0.50f;   // (alloys i1, A5: 0.40 -> 0.50 s, seen at game scale)
+constexpr int kSweepTail = 8;                          // px of glowing tail behind the head
 float sparkAt(float t, float phase);
 int sparkFrame(float u);                               // the star's frame (0..2) along the run
 // C13 (polish i1): sprite-bright animated pixels a figure-frame (light over kSoftMax, or a glow pixel: the glow plane, the
@@ -89,13 +89,14 @@ constexpr float kAura = 0.40f, kFlame1 = 0.58f, kFlame2 = 0.24f;
 // 62 % of the figure, fading 60 % down it; the Mythic's fire rim up both flanks from 30 % to 86 % (below the face) on a
 // flame noise (kRimM at its peak). At the peak the rim is sprite-bright (over kSoftMax: it counts in kMaxAnimated), fading
 // to soft light down the body. kAura (the i2 band) is kept for its readers and no longer drawn.
-constexpr float kRim = 0.75f, kRimM = 0.85f;
+constexpr float kRim = 0.95f, kRimM = 0.85f;   // (alloys i1, A5: the T6 rim 0.75 -> 0.95, down to 76 % of the figure)
 // the Mythic's drawn flame crown (its fire-coloured pixels, Mask value 2, in the upper 30 %) lit at kCrown x a flicker
 constexpr float kCrown = 0.42f;
 // the gleam: a slanted band of light kGleamW px wide sweeps the whole T6 figure in 0.5 s once every 3.3 s, half a cycle
 // after the spark. The figure's own colours added back at kGleamA; the Mythic's in its fire.
-constexpr float kGleamEvery = 3.3f, kGleamRun = 0.5f, kGleamA = 0.8f;
-constexpr int kGleamW = 3;
+constexpr float kGleamEvery = 2.4f, kGleamRun = 0.90f, kGleamA = 0.9f;   // (alloys i1, A5: 0.5 s -> 0.65 s, 3 -> 4 px, 0.8 -> 0.9; i3: every 2.4 s, 0.9 s)
+constexpr int kGleamW = 7;   // (alloys i2, A5 "still too subtle at game scale": every 2.8 s, a slower 0.8 s pass, 6 px wide; i3: 7 px,
+                             // the blind panel still read the plain T6 finish as "a small gleam, easy to miss": a broad, slow, regular pass)
 float gleamAt(float t, float phase);                   // -1 while it rests, else 0..1 across the figure
 // the band's left column at row y of a w x h frame (rows rise to the right: 1 px every 2 rows)
 inline int gleamCol(float u, int w, int h, int y) { return (int)std::floor(-h * 0.5f - 2.0f + (w + h * 0.5f + 4.0f) * u) + (h - y) / 2; }
@@ -127,8 +128,8 @@ void frameLights(int topTier, bool mythic, uint32_t seed, float t, float phase, 
 // Mythic's also at the blade's tip while it strikes: a trail of fire along the swing), they rise and sway where they were
 // born, so a walker leaves them behind. T6 motes: every 0.45 s, 1.2 s, rising 10 px, 4 alive; the Mythic's embers: every
 // 0.07 s, 0.8 s, licking 13 px up, 12 alive, white-yellow -> amber -> red with a soft glow round the hot ones.
-constexpr int kMaxMotes = 4, kMaxEmbers = 12;
-constexpr float kMoteEvery = 0.45f, kMoteLife = 1.2f, kMoteRise = 10.0f;
+constexpr int kMaxMotes = 6, kMaxEmbers = 12;   // (alloys i2, A5: T6 motes 4 -> 6 alive, every 0.45 -> 0.32 s, 1.2 -> 1.5 s, 10 -> 12 px)
+constexpr float kMoteEvery = 0.32f, kMoteLife = 1.5f, kMoteRise = 12.0f;
 constexpr float kEmberEvery = 0.07f, kEmberLife = 0.8f, kEmberRise = 13.0f;
 struct Particles {
   struct P { float x = 0, y = 0, born = 0; uint32_t h = 0; };

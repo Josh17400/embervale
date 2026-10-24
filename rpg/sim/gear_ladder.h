@@ -6,6 +6,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <vector>
 #include "rpg/art.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_look.h"
@@ -22,6 +23,16 @@ LookTier lookTier(const Item& it, const cult::Culture* maker = nullptr);
 // 8 ember 9 starmetal 10 alloy 11 mythic; 0 cloth, wood or nothing. A heartland steel piece above band 3 is the band's
 // metal (GILDED band 4, OBSIDIAN 5, EMBERFORGED 6, STARMETAL 7: gear.cpp matWord), D20.
 uint8_t metalKindOf(const Item& it);
+
+// (alloys i1, the owner: "does this fit with all our ores") a culture alloy's keys as the icons draw them (gearIcon: the
+// light and dark key and the sheen, cult::Sheen + 1), and each alloy's metal family (art::doll::alloyFamily*, 0-based) in
+// arms.alloys order: (alloys i3) the people's own family of the metal its name says (art::doll::alloyFamilyAt(slot,
+// people)), parted from the people's other metals by dE 20 (docs/P2C_CONTRACTS.md 3b, gate C15)
+struct AlloyKeys { uint32_t light = 0, dark = 0; uint8_t sheen = 0; };
+AlloyKeys alloyKeys(const cult::Culture& c, int alloyIndex);   // alloyIndex 0-based
+std::vector<uint8_t> alloyFamilies(const cult::Culture& c);
+// (alloys i3) the metal word of an alloy's name: 0 BRONZE 1 BRASS 2 IRON 3 STEEL 4 SILVER 5 GLASS (art::doll::alloyFamilyMetal)
+int alloyMetalWord(const cult::Alloy& a, int rank);
 
 // wearGear's ladder half (gear_look.cpp calls it last): each worn slot's tier, the Rare and Mythic marks, the armour's
 // metal (the body's, else the helm's, gloves', boots') and the metal in hand. Writes only the ladder fields.

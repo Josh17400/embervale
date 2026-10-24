@@ -1,6 +1,8 @@
 # armour/shared/pauldron_plate_l: the medium plate pauldron on the left shoulder (plate.3; P2c slice, re-shaded by
 # LADDER-ARMOUR, STYLE_P2 25.6 / 27.5): the right one's cop and lame, lit from the top-left as it falls on this side.
 # Finish regions: R the lame's hem, P the cop's face, N the seam, W a spot on the shadow side. Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
 use person
 role pauldron plate.3
 layer armNear
@@ -11,7 +13,7 @@ side L
 
 view D key rest origin 3 2
 |.vvvv.
-|vyxwwv
+|vzxwwv
 |vxwwwv
 |vwwwwv
 |vxwwwv
@@ -26,7 +28,7 @@ regions
 
 view D key up origin 3 3
 |.vvvv.
-|vyxwwv
+|vzxwwv
 |vxwwwv
 |vwwwwv
 |vxwwwv
@@ -41,7 +43,7 @@ regions
 
 view D key lie origin 3 2
 |.vvvv.
-|vyxwwv
+|vzxwwv
 |vxwwwv
 |vwwwwv
 |vxwwwv

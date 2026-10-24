@@ -4,12 +4,15 @@
 # glow steps (B8: 3 a figure): the white point (1, Glow 4) at the top-left, the body (3, Glow 3: polish i2, so the halo
 # spreads a band of light round it, not a dim dot) and one Glow 2 facet at the bottom-right (0); the piece owner's step-1
 # socket gives it its dark side. At T3-T4 G is the metal-2 boss (the resolver's recolour, no stamp). Absolute steps.
+# Alloys i3 (A2): 3x3 is a four-point star: a white heart, Glow 3 arms and the corners k = the device paint one step down
+# (no glow pixel: the Mythic's burning boss gets a dark structure instead of a white blob, and four bright px less).
 use person
 body adult
 role overlay finish.gem
 legend 0 glow 2
 legend 1 glow 4
 legend 3 glow 3
+legend k device 1
 tags tile overlay stamp
 on-region G
 
@@ -37,9 +40,9 @@ view D key 2x3 origin 0 0
 |30
 
 view D key 3x3 origin 0 0
-|.3.
+|k3k
 |313
-|.3.
+|k3k
 
 view D key rest origin 0 0
 |1

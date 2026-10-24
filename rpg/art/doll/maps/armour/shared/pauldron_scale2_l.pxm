@@ -3,6 +3,8 @@
 # a solid band rim; the near views lit at the top-left, the far one in shadow behind the arm. It rides the lean and
 # the bob and lifts a pixel on wind-ups (`up`). Finish regions: R the rim band, P the cop's face, W a spot on the shadow side.
 # Shared by both bodies (D10). Format: rpg/art/doll/doll.h. Source: LADDER-ARMOUR's pauld.py + expand.py (fill: scale).
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
 use person
 role pauldron scale.2
 layer armNear
@@ -53,7 +55,7 @@ regions
 view U key rest origin 1 2
 |.vvv.
 |vwwwv
-|vyxwv
+|vzxwv
 |vyxxv
 |.vvv.
 regions
@@ -66,7 +68,7 @@ regions
 view U key up origin 1 3
 |.vvv.
 |vwwwv
-|vyxwv
+|vzxwv
 |vyxxv
 |.vvv.
 regions
@@ -79,7 +81,7 @@ regions
 view U key lie origin 1 2
 |.vvv.
 |vwwwv
-|vyxwv
+|vzxwv
 |vyxxv
 |.vvv.
 regions
@@ -117,7 +119,7 @@ view R key lie origin 0 0
 view L key rest origin 3 2
 |.vvvv.
 |vwwwwv
-|vyywxv
+|vzywxv
 |vyyxxv
 |.vvvv.
 regions
@@ -130,7 +132,7 @@ regions
 view L key up origin 3 3
 |.vvvv.
 |vwwwwv
-|vyywxv
+|vzywxv
 |vyyxxv
 |.vvvv.
 regions
@@ -143,7 +145,7 @@ regions
 view L key lie origin 3 2
 |.vvvv.
 |vwwwwv
-|vyywxv
+|vzywxv
 |.vvvv.
 regions
 |......

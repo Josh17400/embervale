@@ -2,6 +2,8 @@
 # down: the seams) laced every third row in the accent (the cord between the plates), as the body (STYLE_P2 25.2).
 # Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4.
 # (LADDER-ARMOUR polish i2) broad plates lit at the top-left, the cord every fourth row a step down (no 1px seam stripes).
+# (LADDER-ARMOUR alloys i3) the sleeve lames laced in the metal's own dark (no accent cord): the gold 1 px rows on the
+# arms were the Jade's banding noise.
 use person
 body adult
 role overlay lamellar
@@ -12,4 +14,4 @@ view D key rest origin 0 0
 |yx
 |xx
 |xw
-|nm
+|wv

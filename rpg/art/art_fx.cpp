@@ -660,8 +660,8 @@ void figureLights(const Figure& F, std::vector<Light>& out) {
       // the crown and fading down the body, breathing with the runes. T6: the glow's own hue pulled toward white over the
       // helm, shoulders and chest; the Mythic: fire light licking up both flanks below the head (the face stays clean).
       {
-        const uint32_t rimC = F.mythic ? rgbaOf(255, 156, 48) : towardWhite(hot, 0.25f);
-        const float yA = F.mythic ? top + span * 0.30f : (float)top, yB = top + span * (F.mythic ? 0.86f : 0.62f);
+        const uint32_t rimC = F.mythic ? rgbaOf(255, 156, 48) : towardWhite(hot, 0.1f);   // (alloys i1) the glow's own hue: a whiter rim clipped to white on lit steel and vanished
+        const float yA = F.mythic ? top + span * 0.30f : (float)top, yB = top + span * (F.mythic ? 0.86f : 0.76f);
         for (int y = (int)yA; y <= (int)yB; y++)
           for (int x = 0; x < M.w; x++) {
             if (!M.at(x, y)) continue;
@@ -677,7 +677,7 @@ void figureLights(const Figure& F, std::vector<Light>& out) {
               const float n = 0.5f + 0.5f * flameNoise(F.t * 1.1f, 0, y, F.phase + (offL ? 0.0f : 0.37f));
               a = kRimM * side * (0.6f + 0.4f * n) * (0.7f + 0.3f * breath) * (1.0f - 0.35f * down);
             } else {
-              a = kRim * side * breath * (1.0f - 0.6f * down);
+              a = kRim * side * breath * (1.0f - 0.5f * down);
             }
             if (a > 0.004f) out.push_back({(float)x, (float)y, 1, 1, rimC, a});
           }

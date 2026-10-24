@@ -3078,3 +3078,31 @@ Metal, not Blade: T1/T2's sword and the shield boss drew in the leather's browns
 art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
 
 ### Production results and the flip (the integrator fills)
+
+
+**Alloys iteration 1 (LADDER-DOLL, 2026-10-23).** Each culture alloy now draws as its own metal family. There are 16
+families, each with a dark core, a wide lit plane, a hard glint and a sheen model. A per-people table keeps a people's
+2-3 alloys and its neighbours' alloys apart (gate C15: within a people min dE 20.3, neighbours min 12.3; every family
+under every sheen passes the metal test). The T6 living finish is stronger (rim, sweep, gleam; C13 bright px lt6 126 of
+128). A new game at rig 2 starts the player's own creator hero in T1, and real equipped gear sets the tier after that
+(tools/scripts/p2c_alloys.txt, all expects pass). Rig 1 is unchanged (art_hash 317eef6efe4d8229, village 65/0, anim 0).
+Open: inventory icons still tint from gear_look's exotic() hue, so about 70 % of alloys differ in hue from the doll
+(gear_look.cpp gearIcon should take gear::alloyFamilies' ramp). Census NPCs pick their family by tint.
+
+### P2c alloys i2, LADDER-DOLL (2026-10-23)
+- A1: 16 re-cut alloy families (no skin-coloured pinks; warm families part by value), chosen by the alloy's recipe
+  (bronze everyday -> warm, iron -> cool, later metals never bronze); warm bodies at T5+ take silver trim; band
+  bronze/iron/obsidian/emberforged retuned; the alloys board wears undyed charcoal cloth so the metal is what reads.
+  New gate C15e. Gates B1-B12, C3-C6, C12-C15 pass (C15: min dE in a people 22.1, between neighbours 13.2).
+- A5: T6 gleam 2.8 s / 0.8 s / 6 px, motes 6 / 0.32 s / 1.5 s / 12 px (lt6 idle at 3x: about 4.5k px change during
+  the gleam against about 0.9k at rest).
+- A6: p2c_alloys at rig 2, 0 failures (creator hero in T1, then T3, T4 and T6 from equipped gear).
+- Rig 1 unchanged: art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
+### P2c alloys i3, LADDER-DOLL (2026-10-23)
+- A1: every alloy draws the metal its name says (96 families, 8 slots x 12 peoples, solved offline); a metal ramp with a
+  saturated body under a hard pale lit plane; T5+ coloured alloys trimmed in their own polished metal; iron a dull lit
+  plane under steel's; gilded lemon. Heartland T5 is gilded steel (LIONSTEEL now draws as white steel). C15c by metal,
+  C15e by name. Gates B1-B12, C3-C6, C12-C15 pass (C15: min dE in a people 23.0, same-metal neighbours 13.2).
+- A5: T6 gleam every 2.4 s, 0.9 s, 7 px.
+- A6: p2c_alloys at rig 2, 0 failures (creator hero in T1, then T3, T4, T6).
+- Rig 1 unchanged: art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.

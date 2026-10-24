@@ -30,11 +30,11 @@ view D key rest origin 2 1
 |--------------------
 |--------------------
 |-------vvvvvv-------
-|-----vvzyyyxxvv-----
-|----vyyyyyxxxxwv----
-|---vyyyyxxxxxxwwv---
-|---vyyxxxxxxxxwwv---
-|---vyyyyyyyxxxxwv---
+|-----vvzzzyxwvv-----
+|----vzzyyxxxwvwv----
+|---vzyyyxxxwwvxwv---
+|---vywwwwwwwwwxwv---
+|---vzyyyyyxxxxwwv---
 |---vvvvvvvvvvvvvv---
 |...vyx........xwv...
 |...vyx........xwv...
@@ -59,11 +59,11 @@ view U key rest origin 2 1
 |--------------------
 |--------------------
 |--------vvvv--------
-|------vvzyyxvv------
-|-----vyyyyyxxxv-----
-|----vyyyyxxxxxwv----
-|---vyyyxxxxxxxwwv---
-|---vyyyyyyyxxxxwv---
+|------vvzzxwvv------
+|-----vzzyyxwvwv-----
+|----vzyyyxxwvxwv----
+|---vywwwwwwwwwxwv---
+|---vzyyyyyyxxxwwv---
 |---vxxxwwwwwwwwwv---
 |---vyxxxxxxxxxwwv---
 |---vyxxxxxxxxxwwv---
@@ -89,10 +89,10 @@ view R key rest origin 3 1
 |---------------------
 |---------------------
 |---------vvvvv-------
-|-------vvzyyyxvv-----
-|-----vvyyyyyyxxxv----
-|----vyyyyyxxxxxxwv---
-|----vyyyyyyyyyyyyxv--
+|-------vvzzyxwvv-----
+|-----vvzzyyxxwvwv----
+|----vywwwwwwwwwwxv---
+|----vzyyyyyyyyyyyxv--
 |----vxxwwwwwvvvvvvv--
 |----vyxxxwwv.........
 |----vyxxwwv..........
@@ -118,10 +118,10 @@ view L key rest origin 2 1
 |---------------------
 |---------------------
 |-------vvvvv---------
-|-----vvzyyyxvv-------
-|----vyyyyyyxxxvv-----
-|---vyyyyyxxxxxxwv----
-|--vyyyyyyyyyyyyxv----
+|-----vvzzyxwvv-------
+|----vzzyyxxwvwvv-----
+|---vywwwwwwwwwxwv----
+|--vzyyyyyyyyyyyxv----
 |--vvvvvvvxxwwwwwv----
 |.........vyxxxwwv----
 |..........vyxxwwv----
@@ -147,10 +147,10 @@ view L key lie origin 2 1
 |---------------------
 |---------------------
 |-------vvvvv---------
-|-----vvzyyyxvv-------
-|----vyyyyyyxxxvv-----
-|---vyyyyyxxxxxxwv----
-|--vyyyyyyyyyyyyxv----
+|-----vvzzyxwvv-------
+|----vzzyyxxwvwvv-----
+|---vywwwwwwwwwxwv----
+|--vzyyyyyyyyyyyxv----
 |--vvvvvvvxxwwwwwv----
 |..........vyxxwwv----
 |...........vvvvv-----
@@ -173,16 +173,41 @@ regions
 # crown band of three points, the brow gem breathing in the glow slot (X); the white wings are crested_crest's.
 # T5 (helm.t5): the visored crested helm: a raised visor across the brow with gilt edges and breaths, a beak past the
 # face in profile, long gilt cheek guards; the great swept plume is crested_crest's.
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2) T5 back: a gilt ridge down the dome, two neck lames, the guard flared at a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i3, i3/src/mhelm.py) Mythic: the dome reads BLACKENED by structure (a white-hot streak on the lit
+# left, a dark core, a cold rim light on the right edge); the brim underside over the face gilt (N), no ink bar (the panel:
+# "the crown sits close over a shadowed face")
 view D key rest origin 2 1 when helm.t6,mythic replace
 |--------------------
 |--------------------
 |-------vvvvvv-------
-|-----vvPPPPOOvv-----
-|----vPPPPPOOOONv----
-|---vvPPPPPOOOOvNv---
-|---vPvPPPPOOOOvNv---
-|---vxxxwwXXwwwwwv---
-|---vvvvvvvvvvvvvv---
+|-----vvzzyxwwvv-----
+|----vzzyxwwwwwxv----
+|---vyzyxwwwwwwxyv---
+|---vyyxwwwwwwwxyv---
+|---vPPPOOXXOONNNv---
+|---vvNNNNNNNNNNvv---
 |...vyP........Nwv...
 |...vyP........Nwv...
 |...vxP........Nwv...
@@ -210,15 +235,15 @@ view U key rest origin 2 1 when helm.t6,mythic replace
 |--------------------
 |--------------------
 |--------vvvv--------
-|------vvPPPOvv------
-|-----vPPPPPOOOv-----
-|----vvPPPPOOOOvv----
-|---vPvPPPPOOOOvNv---
-|---vxxxwwwwwwwwwv---
-|---vOOONNNNNNNNNv---
-|---vPOOOOOOOOONNv---
-|---vPOOOOOOOOONNv---
-|---vxxxwwwwwwwwwv---
+|------vvzPOxvv------
+|-----vzyxPOwwxv-----
+|----vzyxwPOwwwxv----
+|---vyxwwwPOwwwwxv---
+|---vPPPPOOOONNNNv---
+|---vyxwwwPOwwwwxv---
+|---vxxwwwPOwwwwvv---
+|---vyxwwwPOwwwxyv---
+|---vPPPOOOOONNNNv---
 |---vvvvvvvvvvvvvv---
 |...vxv........vxv...
 |...vvv........vvv...
@@ -244,11 +269,11 @@ view R key rest origin 3 1 when helm.t6,mythic replace
 |---------------------
 |---------------------
 |---------vvvvv-------
-|-------vvPPPPOvv-----
-|-----vvPPPPPPOOOvv---
-|----vPvPPPPPOOOOvNv--
-|----vxxxwwwwwwwwXXv--
-|----vxxwwwwwKKKKKKK--
+|-------vvzzyxwvv-----
+|-----vvzyxwwwwwxvv---
+|----vyvzxwwwwwwxvPv--
+|----vPPPPOOOOONNXXv--
+|----vxxwwwwwNNNNNNK--
 |----vyxxxwwK.........
 |----vyxxwwK..........
 |----vyxwwK...........
@@ -279,11 +304,11 @@ view L key rest origin 2 1 when helm.t6,mythic replace
 |---------------------
 |---------------------
 |-------vvvvv---------
-|-----vvPPPPOvv-------
-|---vvPPPPPPOOOvv-----
-|--vPvPPPPPPOOOOvNv---
-|--vXXxxwwwwwwwwwv----
-|--KKKKKKKxxwwwwwv----
+|-----vvzzyxwvv-------
+|---vvzyxwwwwwxvv-----
+|--vPvzyxwwwwwwxvNv---
+|--vXXPPPPOOOOONNv----
+|--KNNNNNNxxwwwwwv----
 |.........Kyxxxwwv----
 |..........Kyxxwwv----
 |...........Kyxwwv----
@@ -308,10 +333,10 @@ view L key lie origin 2 1 when helm.t6,mythic replace
 |---------------------
 |---------------------
 |-------vvvvv---------
-|-----vvPPPPOvv-------
-|---vvPPPPPPOOOvv-----
-|--vPvPPPPPPOOOOvNv---
-|--vXXxxwwwwwwwwwv----
+|-----vvzyyxxvv-------
+|---vvyzyyxxxwwvv-----
+|--vPvyyxxxxxwwwvNv---
+|--vXXPPPPOOOOONNv----
 |--KKKKKKKxxwwwwwv----
 |.........Kyxxxwwv----
 |..........Kyxxwwv----
@@ -483,15 +508,48 @@ regions
 |.....................
 |.....................
 
+# (LADDER-HEAD alloys i2) T5 back: a gilt ridge down the dome, two neck lames, the guard flared at a gilt rim
+# (LADDER-HEAD alloys i3, i3/src/t5helm.py) T5: the lower brim in the helm's own metal (no R), lit along its top; facing
+# R / L its gilt stops above the ear and the metal darkens toward the tip, so the face reads under a shaded brim and the
+# helm shows its alloy (the panel: every alloy's helm read as the gold band)
+view U key rest origin 2 1 when helm.t5 replace
+|--------------------
+|--------------------
+|--------vvvv--------
+|------vvzPOxvv------
+|-----vzyyPOxwwv-----
+|----vzyyxPOxxwwv----
+|---vyyxxxPOxxwwwv---
+|---vPPPOOOOOONNNv---
+|---vyyxxxxxxxwwwv---
+|---vxwwwwwwwwwwvv---
+|--vyyxxxxxxxxxwwwv--
+|--vPPPPOOOOOONNNNv--
+|--vvvvvvvvvvvvvvvv--
+regions
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....RRRRRRRRRRRR....
+|....................
+|....................
+|....................
+|...RRRRRRRRRRRRRR...
+|....................
+
 view D key rest origin 2 1 when helm.t5 replace
 |--------------------
 |--------------------
 |-------vvvvvv-------
-|-----vvzyyyxxvv-----
-|----vyyzyyxxxxwv----
+|-----vvzzyyxxvv-----
+|----vzzyyxxxxwwv----
 |---vPPPPOXXONNNNv---
 |---vyzyyvyyvxxwwv---
-|---vPPOOOOOOONNNv---
+|---vzyyyyyxxxxwwv---
 |---vvvvvvvvvvvvvv---
 |...vyP........Nwv...
 |...vyP........Nwv...
@@ -505,52 +563,23 @@ regions
 |....................
 |....RRRRRGGRRRRR....
 |....................
-|....RRRRRRRRRRRR....
+|....................
 |....................
 |.....R........R.....
 |.....R........R.....
 |.....R........R.....
 |.....R........R.....
-
-view U key rest origin 2 1 when helm.t5 replace
-|--------------------
-|--------------------
-|--------vvvv--------
-|------vvzyyxvv------
-|-----vyyyyyxxxv-----
-|----vyyyyxxxxxwv----
-|---vyyyxxxxxxxwwv---
-|---vPPPOOOOOONNNv---
-|---vxxxwwwwwwwwwv---
-|---vyxxxxxxxxxwwv---
-|---vyxxxxxxxxxwwv---
-|---vPPPOOOOOONNNv---
-|---vvvvvvvvvvvvvv---
-regions
-|....................
-|....................
-|....................
-|....................
-|....................
-|....................
-|....................
-|....RRRRRRRRRRRR....
-|....................
-|....................
-|....................
-|....RRRRRRRRRRRR....
-|....................
 
 view R key rest origin 3 1 when helm.t5 replace
 |---------------------
 |---------------------
 |---------------------
 |---------vvvvv-------
-|-------vvzyyyxvv-----
-|-----vvyyyyyyxxxv----
+|-------vvzzyxxvv-----
+|-----vvzzyyxxxwwv----
 |----vPPPPPPOOOONXXv--
 |----vyyyyvyyvyyxxxwv-
-|----vxxwwPPOOONNNNvv-
+|----vxxwwPPOOOxwwwvv-
 |----vyxxxwwv.........
 |----vyxxwwv..........
 |----vyxwwv...........
@@ -564,7 +593,7 @@ regions
 |.....................
 |.....RRRRRRRRRRRGG...
 |.....................
-|.........RRRRRRRRR...
+|.........RRRRR.......
 |.....................
 |.....................
 |.....................
@@ -575,11 +604,11 @@ view L key rest origin 2 1 when helm.t5 replace
 |---------------------
 |---------------------
 |-------vvvvv---------
-|-----vvzyyyxvv-------
-|----vyyyyyyxxxvv-----
+|-----vvzzyxxvv-------
+|----vzzyyxxxwwvv-----
 |--vXXPPPOOOONNNNv----
 |-vzyyyvyyvyyxxxwv----
-|-vvPPOOOOOONNwwwv----
+|-vvwxyyxOOONNwwwv----
 |.........vyxxxwwv----
 |..........vyxxwwv----
 |...........vyxwwv----
@@ -593,7 +622,7 @@ regions
 |.....................
 |...GGRRRRRRRRRRR.....
 |.....................
-|...RRRRRRRRRR........
+|........RRRRR........
 |.....................
 |.....................
 |.....................
@@ -627,3 +656,10 @@ regions
 |.....................
 |.....................
 |.....................
+
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim
+# (LADDER-HEAD alloys i2, w2/g2.py) Mythic (helm.t6,mythic): the dome in the blackened mythic steel
+# (a dark core, the lit left plane, a hard glint) split by a gilt rib, the gilt brow band and its burning gem (X); the
+# flame crown is crested_crest's, a small circlet on the dome top. Back view: two neck lames, a gilt rim

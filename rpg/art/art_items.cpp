@@ -1,5 +1,6 @@
 // EMBERVALE art: item icons. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/doll/doll.h"
 
 namespace art {
 
@@ -1076,7 +1077,13 @@ Canvas itemIconLook(const IconLook& l) {
   Canvas c(ICON, ICON);
   const bool leather = l.mat == 1;   // Mat::Leather
   Ramp M = kIron;
-  if (l.tint2 || l.sheen) {
+  if (l.dollMetal >= 2 && l.dollMetal <= 11 && !leather) {   // (alloys i1, rig 2) the doll's own metal ramp
+    uint32_t k[5];
+    if (l.dollMetal == 10 && l.alloyFam) doll::alloyRamp(l.alloyFam - 1, l.sheen, k);
+    else if (l.dollMetal == 10) metalRampKeys(l.tint, l.tint2, l.sheen, k);
+    else doll::metalKindRamp(l.dollMetal, k);
+    M = ramp5(k[0], k[1], k[2], k[3], k[4]);
+  } else if (l.tint2 || l.sheen) {
     uint32_t k[5];
     metalRampKeys(l.tint, l.tint2, l.sheen, k);
     M = ramp5(k[0], k[1], k[2], k[3], k[4]);

@@ -34,6 +34,8 @@
 //     finish:<tag>[:<D|U|R|L>]   one living-finish cycle (2.2 s, 12 frames) of a look's drawn idle (else its idle): the glow
 //                 plane pulsed additively, the edge spark on the grip-to-tip line, the motes; by day and by night:
 //                 doll_finish_<tag>_strip_3x.png and doll_finish_<tag>_<day|night>_fNN.png (3x; owner_pack.py makes the GIFs)
+//   (alloys i1) alloys      every people's alloys on the T5 plate figure (idle D, R), named, with the family: alloys_8x.png
+//     metals      bronze iron steel gilded obsidian emberforged starmetal Mythic on the same figure: metals_8x.png
 //   --looks FILE (default tools/doll/ladder_looks.txt) --tag <tag>: a looks-file line (its macros, fields and palette)
 //   --slice <tag> takes a slice look (tools/doll/slice_looks.txt: hero guard knight archer knightm archerw) with its palette
 //   --look sets the look's fields on top of the chosen A3 look: body hair hairVar build people age pattern headwear hood
@@ -1241,6 +1243,134 @@ void boardSilhouette(const std::string& dir) {
 }
 }  // namespace
 
+// ---------------------------------------------------------------- (alloys i1) the metals
+// alloys: every people's alloys (a culture with three: the everyday, the warriors' and the masterwork) on the one T5 plate
+// figure (the Heartland hero's kit, its metal swapped), idle D and R, labelled with the alloy's in-game name and its family;
+// metals: the band metals and Mythic on the same figure. Printed: every alloy of seeds 1..64 with its keys and family.
+const char* const kPeopleName[12] = {"FJORDFOLK", "HIGHLAND", "HEARTLAND", "IMPERIAL", "DUNE", "STEPPE", "MARSH", "JADE", "RIVER", "SUNTEMPLE",
+                                     "SYLVAN", "STARSPIRE"};
+art::HumanLook plateFigure() {
+  art::HumanLook L = a3Look(0);
+  doll::applyLookSpec(L, "hero=1,kit=heartland:5:7,palette=look");
+  // (alloys i2: the blind panel saw "the fixed red tabard, red plume and gold shield cover most of the pixels", so every
+  // warm metal ran into the costume) the board's figure wears undyed cloth: a charcoal tabard and cloak, a cream plume and
+  // a charcoal shield field, so the metal is what the eye compares (the device is drawn in the metal's own light)
+  L.tabardColor = hexc(0x3A3742); L.cloakColor = hexc(0x2A2832); L.plumeColor = hexc(0xE6E0D2);
+  L.shieldField = hexc(0x34313C); L.patternColor = 0; L.pattern = 0;
+  return L;
+}
+void metalPair(Board& b, const art::HumanLook& L, int x, int g0) {
+  doll::DollRecipe r = doll::resolve(L);
+  r.ramps = doll::rampsOf(L);
+  const RigSheet s = doll::compose(r, RigPart::Loco);
+  for (int k = 0; k < 2; k++) {
+    const int fc = k == 0 ? 0 : 2;
+    int px, py;
+    Canvas f = rigpv::frameCanvas(s, fc, Clip::Idle, 0, 0, px, py);
+    if (f.w <= 0) continue;
+    shadow(b, x + 16 + k * 34, g0, std::min(24, std::max(10, f.w - 4)));
+    b.put(f, x + 16 + k * 34 - px, g0 - py);
+  }
+  // the metal ramp under the pair (the five steps)
+  for (int i = 0; i < 5; i++)
+    for (int yy = 0; yy < 3; yy++)
+      for (int xx = 0; xx < 6; xx++) b.c.set(x + 10 + i * 6 + xx, g0 + 3 + yy, r.ramps.c[(int)doll::Slot::Metal][i]);
+}
+void boardAlloys(const std::string& dir) {
+  // the census of alloys (seeds 1..64), and the board's culture per people: the first seed with the most alloys
+  int pick[12] = {};
+  int census[12][3][6] = {};
+  for (int a = 0; a < 12; a++) {
+    size_t most = 0;
+    for (uint32_t sd = 1; sd <= 64; sd++) {
+      const cult::Culture c = cult::Atlas::make((cult::Archetype)a, sd);
+      const std::vector<uint8_t> fam = gear::alloyFamilies(c);
+      for (size_t i = 0; i < c.arms.alloys.size(); i++) {
+        const gear::AlloyKeys k = gear::alloyKeys(c, (int)i);
+        if (sd <= 4)
+          std::printf("alloy %-9s s%-2u %zu %-12s sheen %d light #%06X family %s\n", kPeopleName[a], sd, i + 1, c.arms.alloys[i].name.c_str(), k.sheen,
+                      (k.light & 0xFF) << 16 | (k.light & 0xFF00) | (k.light >> 16 & 0xFF), doll::alloyFamilyName(fam[i]));
+      }
+      if (c.arms.alloys.size() > most) { most = c.arms.alloys.size(); pick[a] = (int)sd; }
+      for (size_t i = 0; i < c.arms.alloys.size() && i < 3; i++) {
+        const std::string& nm = c.arms.alloys[i].name;
+        const char* ws[6] = {"BRONZE", "BRASS", "IRON", "STEEL", "SILVER", "GLASS"};
+        for (int w = 0; w < 6; w++)
+          if (nm.size() >= std::strlen(ws[w]) && nm.compare(nm.size() - std::strlen(ws[w]), std::string::npos, ws[w]) == 0) { census[a][i][w]++; break; }
+      }
+    }
+    std::printf("census %-9s", kPeopleName[a]);
+    for (int i = 0; i < 3; i++) std::printf(" | r%d br%2d bs%2d ir%2d st%2d si%2d gl%2d", i, census[a][i][0], census[a][i][1], census[a][i][2], census[a][i][3], census[a][i][4], census[a][i][5]);
+    std::printf("\n");
+  }
+  {   // which peoples meet in the atlas (gate C15c's cells: worlds 1..6, a 6x6 block, right and down)
+    int nb[12][12] = {};
+    for (uint64_t w = 1; w <= 6; w++) {
+      cult::Atlas at(w);
+      for (int ci = 0; ci < 6; ci++)
+        for (int cj = 0; cj < 6; cj++)
+          for (int dir = 0; dir < 2; dir++) {
+            const int x = (int)at.family(ci, cj).archetype, y = (int)at.family(ci + (dir == 0), cj + (dir == 1)).archetype;
+            if (x != y) nb[std::min(x, y)][std::max(x, y)]++;
+          }
+    }
+    for (int x = 0; x < 12; x++)
+      for (int y = x + 1; y < 12; y++)
+        if (nb[x][y]) std::printf("meet %d %d %d\n", x, y, nb[x][y]);
+  }
+  const art::HumanLook base = plateFigure();
+  const int cellW = 2 * 34 + 100, rowH = 74, lab = 78;   // (i3) wide enough for "TURQUOISE STEEL IRIDESCENT"
+  Board b(lab + 3 * cellW + 8, 16 + 12 * rowH);
+  b.text(4, 4, "ALLOYS ON THE T5 PLATE: NAME, METAL FAMILY, SHEEN, RAMP (IDLE D, R)");
+  for (int a = 0; a < 12; a++) {
+    const cult::Culture c = cult::Atlas::make((cult::Archetype)a, (uint32_t)pick[a]);
+    const std::vector<uint8_t> fam = gear::alloyFamilies(c);
+    const int y0 = 16 + a * rowH;
+    if (a & 1) darkGround(b, y0, y0 + rowH);
+    b.text(4, y0 + 26, kPeopleName[a]);
+    b.text(4, y0 + 36, "SEED " + std::to_string(pick[a]));
+    for (size_t i = 0; i < c.arms.alloys.size() && i < 3; i++) {
+      const gear::AlloyKeys k = gear::alloyKeys(c, (int)i);
+      art::HumanLook L = base;
+      L.armourTint = k.light; L.armourTint2 = k.dark; L.sheen = k.sheen; L.metalKind = 10; L.bladeKind = 10; L.alloyFam = (uint8_t)(fam[i] + 1);
+      { uint32_t rr[5]; doll::alloyRamp(fam[i], k.sheen, rr); L.shieldDevice = rr[3]; }
+      const int x = lab + (int)i * cellW;
+      b.text(x + 4, y0 + 2, c.arms.alloys[i].name);
+      static const char* const kSh[9] = {"-", "MATTE", "BRIGHT", "DARK", "BANDED", "IRIDESCENT", "GLOWING", "PALE", "BURNISHED"};
+      b.text(x + 4, y0 + 10, std::string(doll::alloyFamilyName(fam[i])) + " " + kSh[std::min<int>(k.sheen, 8)], rgba(200, 200, 200));
+      metalPair(b, L, x, y0 + rowH - 12);
+    }
+  }
+  savePng(b.c, dir + "/alloys_1x.png", 1);
+  savePng(b.c, dir + "/alloys_3x.png", 3);
+  savePng(b.c, dir + "/alloys_8x.png", 8);
+}
+void boardMetals(const std::string& dir) {
+  struct M { const char* name; int kind; };
+  const M ms[8] = {{"BRONZE", 2}, {"IRON", 3}, {"STEEL", 4}, {"GILDED", 5}, {"OBSIDIAN", 7}, {"EMBERFORGED", 8}, {"STARMETAL", 9}, {"MYTHIC", 11}};
+  const art::HumanLook base = plateFigure();
+  const int cellW = 2 * 34 + 26;
+  Board b(4 * cellW + 16, 16 + 2 * 74);
+  b.text(4, 4, "METALS: BAND METALS AND MYTHIC, T5 PLATE, IDLE D AND R");
+  for (int i = 0; i < 8; i++) {
+    art::HumanLook L = base;
+    L.armourTint = 0; L.armourTint2 = 0; L.sheen = 0; L.alloyFam = 0;
+    L.metalKind = (uint8_t)ms[i].kind; L.bladeKind = (uint8_t)ms[i].kind;
+    { uint32_t rr[5]; doll::metalKindRamp(ms[i].kind, rr); L.shieldDevice = rr[3]; }
+    if (ms[i].kind == 11) {
+      art::HumanLook My = a3Look(0);
+      doll::applyLookSpec(My, "hero=1,kit=heartland:6:7,rarity=mythic,palette=look");
+      L = My;
+    }
+    const int x = 8 + (i % 4) * cellW, y0 = 16 + (i / 4) * 74;
+    b.text(x + 4, y0 + 2, ms[i].name);
+    metalPair(b, L, x, y0 + 62);
+  }
+  savePng(b.c, dir + "/metals_1x.png", 1);
+  savePng(b.c, dir + "/metals_3x.png", 3);
+  savePng(b.c, dir + "/metals_8x.png", 8);
+}
+
 int main(int argc, char** argv) {
   gear::installLadderMacros();   // (P2c ladder) the looks macros (hero kit npc wpn rarity tier) in --look and --slice
   if (argc < 2) {
@@ -1303,6 +1433,8 @@ int main(int argc, char** argv) {
     else if (b.rfind("motion:", 0) == 0) boardMotion(dir, b);
     else if (b.rfind("lit:", 0) == 0) boardLit(dir, b);
     else if (b.rfind("film:", 0) == 0) boardFilm(dir, b);
+    else if (b == "alloys") boardAlloys(dir);
+    else if (b == "metals") boardMetals(dir);
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

@@ -227,7 +227,15 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   need(Role::Garment, g);
   if (const char* a = armourOf(L)) need(Role::Armour, a);
   // (P2c) the helm: form1..form10 (HelmForm + 1), else the band (band1..band7; a legacy helmet's band by its outfit)
-  if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : "band" + std::to_string(hb));
+  // (alloys i1, A6: a heartland band-4/6/7 helm from real loot drew nothing: "helm=band4: no part") a band the library has
+  // not drawn wears the nearest drawn one: 4, 6, 7 -> 5 (the crested helm) -> 3 (the great helm) -> 2 (the nasal)
+  auto drawnBand = [&](int hb) {
+    const pool::Pool& P = pool::get();
+    static const int kNext[8] = {0, 0, 0, 2, 5, 3, 5, 5};
+    for (int guard = 0; guard < 5 && hb > 0 && P.partsWithRole(Role::Helm, "band" + std::to_string(hb)).empty(); guard++) hb = kNext[std::min(hb, 7)];
+    return "band" + std::to_string(hb > 0 ? hb : 2);
+  };
+  if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : drawnBand(hb));
   else if (L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));
   // (P2c) the shield: the shield arm for every bearer, plus its form (form1..8) or shape (shape0 legacy round, 1..4);
   // form9 is ShieldForm::None: no shield at all (v1's hasShield rule)
@@ -426,6 +434,10 @@ HumanLook ladderLook(const HumanLook& L) {
       E.bodyForm = (uint8_t)(m == 1 ? 2 : (m == 2 || m == 3) ? 3 : 7);   // BodyArm + 1: leather 2, mail 3, plate 7
     }
   }
+  // (alloys i3) the one lift: a T5-T6 body with shoulder plates wears the large ones (the heartland line's T5-T6 size), so the
+  // top tiers never shrink at the shoulder (a gilded band-4 plate's sim dial is a size under an alloy's; the panel read the
+  // shoulders as the step up, and the medium plate left the heater's grip bare facing U)
+  if (tb >= 5 && E.pauldron >= 2 && E.pauldron < 4) E.pauldron = 4;
   // (polish i1, the owner: "six identical guards in a row") a ranked fighter's own kit (HumanLook::kitVar, from census:
   // gear::rankTiers): his helm, shield, gloves and boots a step worse or better than his rank's (a dented old helm, a
   // brass-trimmed shield), the shoulder and skirt dials a step either way, a third bare-handed, a sergeant in six with a

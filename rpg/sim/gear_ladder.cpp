@@ -1,6 +1,7 @@
 // P2c the gear ladder (rpg/sim/gear_ladder.h; docs/P2C_CONTRACTS.md 3b). LADDER-DOLL.
 #include "rpg/sim/gear_ladder.h"
 #include <algorithm>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -70,6 +71,66 @@ uint8_t metalKindOf(const Item& it) {
   return 0;
 }
 
+AlloyKeys alloyKeys(const cult::Culture& c, int alloyIndex) {
+  AlloyKeys k;
+  if (alloyIndex < 0 || alloyIndex >= (int)c.arms.alloys.size()) return k;
+  Item it;
+  it.kind = ItemKind::Armor;
+  it.mat = Mat::Alloy;
+  it.alloy = (uint8_t)(alloyIndex + 1);
+  it.rarity = Rarity::Common;
+  it.ilvl = 20;
+  it.culture = c.id;
+  const art::IconLook l = gearIconKeys(it, &c);
+  k.light = l.tint; k.dark = l.tint2; k.sheen = l.sheen;
+  return k;
+}
+int alloyMetalWord(const cult::Alloy& a, int rank) {
+  static const char* const kWord[6] = {"BRONZE", "BRASS", "IRON", "STEEL", "SILVER", "GLASS"};
+  const std::string& n = a.name;
+  for (int w = 0; w < 6; w++) {
+    const size_t k = std::strlen(kWord[w]);
+    if (n.size() >= k && n.compare(n.size() - k, k, kWord[w]) == 0) return w;
+  }
+  // a name without a metal word (none today): the everyday metal by its recipe, the others a steel
+  return rank == 0 ? (a.baseTier == cult::Tier::Bronze ? 0 : 2) : 3;
+}
+std::vector<uint8_t> alloyFamilies(const cult::Culture& c) {
+  // (alloys i3, the blind panel: "Eaglesilver is drawn as brass, Thorniron as white silver") the metal follows the NAME: the
+  // alloy's metal word and its rank pick a slot (the everyday bronze, brass or iron; the warriors' steel or silver; the
+  // masterwork steel, silver or glass) and the people its own family in that slot (art::doll::kAlloyFam, solved so a
+  // people's metals part by dE 22 and two peoples' same-slot metals by 13). A people whose metals would still sit within dE
+  // 20 (a dialect's jittered sheen) borrows another people's family of the same metal word, so the name always holds.
+  std::vector<uint8_t> out;
+  std::vector<uint32_t> mids;
+  const int a = std::clamp((int)c.archetype, 0, 11);
+  for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
+    const AlloyKeys k = alloyKeys(c, i);
+    const int rank = std::min(i, 2);
+    const int w = alloyMetalWord(c.arms.alloys[(size_t)i], rank);
+    int slot;
+    if (rank == 0) slot = w == 1 ? 1 : (w == 0 ? 0 : 2);
+    else if (rank == 1) slot = w == 4 ? 4 : 3;
+    else slot = w == 4 ? 6 : (w == 5 ? 7 : 5);
+    int pick = -1;
+    for (int t = 0; t < 12 && pick < 0; t++) {
+      const int f = art::doll::alloyFamilyAt(slot, (a + t) % 12);
+      bool ok = true;
+      for (uint8_t o : out) ok &= o != f;
+      uint32_t r[5];
+      art::doll::alloyRamp(f, k.sheen, r);
+      for (uint32_t m : mids) ok &= art::doll::deltaE76(m, r[2]) >= 20.0f;
+      if (ok) pick = f;
+    }
+    if (pick < 0) pick = art::doll::alloyFamilyAt(slot, a);
+    uint32_t r[5];
+    art::doll::alloyRamp(pick, k.sheen, r);
+    mids.push_back(r[2]);
+    out.push_back((uint8_t)pick);
+  }
+  return out;
+}
+
 void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf) {
   using H = art::HumanLook;
   auto maker = [&](const Item* it) -> const cult::Culture* { return it && it->culture && cultureOf ? cultureOf(it->culture) : nullptr; };
@@ -99,6 +160,16 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
       if (m) { L.metalKind = m; break; }
     }
   if (hand) L.bladeKind = metalKindOf(*hand);
+  // (alloys i1) the armour's alloy: its people's family for it (alloyFamilies), so the doll draws THAT metal
+  if (L.metalKind == 10)
+    for (const Item* src : {g.armor, g.helmet, g.gloves, g.boots})
+      if (src && metalKindOf(*src) == 10) {
+        if (const cult::Culture* c = maker(src)) {
+          const std::vector<uint8_t> fam = alloyFamilies(*c);
+          if (src->alloy >= 1 && src->alloy <= fam.size()) L.alloyFam = (uint8_t)(fam[src->alloy - 1] + 1);
+        }
+        break;
+      }
   // (polish i1, the owner: "the player starts in T1 gear") nobody who dresses from an inventory goes bare at rig 2: an
   // empty body slot draws as T1's padded jerkin in the wearer's own shirt colour, empty feet as T1's leather boots (the
   // resolver's ladderLook makes them; the look's own fields, and so rig 1, are untouched). A worn piece keeps its tier.
@@ -213,15 +284,20 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
   // masterwork alloy as "T5 with a few sparkle pixels"; a legendary is earned from level 20 on, so a band-7 piece is a
   // fair pick for the kit, and its own metal (pale blue-white, a cold light) is the step up the eye wants
   const bool starT6 = heart && tier == 6;
-  const int il = starT6 ? 55 : kIlvl[tier];
-  const Rarity rar = rarity >= 0 ? (Rarity)std::clamp(rarity, 0, RARITIES - 1) : kRar[tier];
+  // (alloys i3) the Heartland's T5 is GILDED steel (its band-4 steel, an Epic piece: T5): i1-i2 drew its masterwork alloy
+  // LIONSTEEL in brass to keep the owner's gold T5, and the panel caught the name ("a steel drawn as brass"); the gilding
+  // keeps the gold and the name agrees, and LIONSTEEL draws as the steel it is (the noble cloak and the heater keep their
+  // band-6 pieces: gear_look reads their shapes from the item's tier)
+  const bool gildT5 = heart && tier == 5;
+  const int il = starT6 ? 55 : gildT5 ? 30 : kIlvl[tier];
+  const Rarity rar = rarity >= 0 ? (Rarity)std::clamp(rarity, 0, RARITIES - 1) : gildT5 ? Rarity::Epic : kRar[tier];
   auto ovr = [&](Rarity own) { return rarity >= 0 ? (Rarity)std::clamp(rarity, 0, RARITIES - 1) : own; };
   // the metal of a metal piece: steel at T3, the first alloy at T4, the masterwork (the best) alloy at T5-T6
   const uint8_t nAl = (uint8_t)A.alloys.size();
   auto metalAt = [&](uint8_t& alloy) -> Mat {
     alloy = 0;
     if (tier <= 2) return Mat::Iron;
-    if (tier == 3 || !nAl || starT6) return Mat::Steel;
+    if (tier == 3 || !nAl || starT6 || gildT5) return Mat::Steel;
     alloy = tier == 4 ? 1 : nAl;
     return Mat::Alloy;
   };
@@ -267,7 +343,10 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
       if (heart || A.shield == SF::Round || A.shield == SF::Kite || A.shield == SF::Heater) k.shield.form = (uint8_t)((int)SF::Round + 1);
     } else {
       const Mat m = metalAt(al);
-      k.shield = make(ItemKind::Shield, 0, il, rar, m, al, C);
+      // (alloys i3) the gilded T5's heater is the masterwork alloy's (a Rare band-6 piece, the noble heater's shape: a
+      // band-4 heater is the smaller kite-cut one); the doll draws the shield in the harness's trim, so the steel reads
+      if (gildT5 && nAl) k.shield = make(ItemKind::Shield, 0, kIlvl[5], kRar[5], Mat::Alloy, nAl, C);
+      else k.shield = make(ItemKind::Shield, 0, il, rar, m, al, C);
       form(k.shield, tier == 3 ? (int)SF::Kite : (int)SF::Heater);
     }
     k.hasShield = true;
@@ -317,7 +396,7 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
     k.cloak = make(ItemKind::Cloak, 0, 20, ovr(Rarity::Common), Mat::Cloth, 0, C);   // band 3: the travel cloak (cloakStyleOf)
     k.hasCloak = true;
   } else if (tier >= 5) {
-    k.cloak = make(ItemKind::Cloak, 0, il, rar, Mat::Cloth, 0, C);                   // band 6: the noble cloak
+    k.cloak = make(ItemKind::Cloak, 0, gildT5 ? kIlvl[5] : il, rar, Mat::Cloth, 0, C);   // band 6: the noble cloak
     k.hasCloak = true;
   }
   // the cloak's style is read from the item (gear_look.cpp cloakStyleOf: a MANTLE is the fur mantle): the kit wears the
@@ -375,7 +454,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
   std::vector<KV> plain, tiers;
   int hero = -1;   // 0 hero, 1 heroine
   std::string kit, npc, wpn;
-  int rarity = -1;
+  int rarity = -1, kitAlloy = 0;
   auto addBad = [&](const std::string& k) { if (bad) *bad += (bad->empty() ? "" : ",") + k; };
   for (const std::string& kv : split(spec, ',')) {
     if (kv.empty()) continue;
@@ -387,8 +466,9 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "kit") kit = v;
     else if (k == "npc") npc = v;
     else if (k == "wpn") wpn = v;
+    else if (k == "alloy") kitAlloy = (int)std::strtol(v.c_str(), nullptr, 10);   // (alloys i1) the kit's metal pieces in alloy N
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
-    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor")
+    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam")
       tiers.push_back(KV{k, v});
     else plain.push_back(KV{k, v});
   }
@@ -401,7 +481,11 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else {
       const int t = (int)std::strtol(f[1].c_str(), nullptr, 10);
       const uint32_t seed = f.size() >= 3 ? (uint32_t)std::strtoul(f[2].c_str(), nullptr, 10) : 1u;
-      const LadderKit K = ladderKit(a, t, L.body, wpn, rarity, seed);
+      LadderKit K = ladderKit(a, t, L.body, wpn, rarity, seed);
+      // (alloys i1) alloy=N (1-based): every metal piece of the kit in the people's alloy N (the alloys board)
+      if (kitAlloy >= 1 && kitAlloy <= (int)K.culture.arms.alloys.size())
+        for (Item* it : {&K.weapon, &K.armor, &K.helmet, &K.shield, &K.gloves, &K.boots})
+          if (it->mat == Mat::Alloy || it->mat == Mat::Steel || it->mat == Mat::Iron) { it->mat = Mat::Alloy; it->alloy = (uint8_t)kitAlloy; }
       L.outfit = art::Outfit::Tunic;   // appearanceLook's start: the shirt under the kit
       L.weapon = 0; L.shield = false; L.backItem = 0;
       wearGear(L, K.worn(), K.lookup());
@@ -485,6 +569,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       else if (kv.k == "motif") L.motif = (uint8_t)n;
       else if (kv.k == "kitVar") L.kitVar = (uint8_t)n;
       else if (kv.k == "floor") L.floor = (uint8_t)n;
+      else if (kv.k == "alloyFam") L.alloyFam = (uint8_t)n;
       else if (kv.k == "gemColor") {
         const uint32_t rgb = (uint32_t)std::strtoul(kv.v.c_str() + (!kv.v.empty() && kv.v[0] == '#' ? 1 : 0), nullptr, 16);
         L.gemColor = kv.v == "0" ? 0u : hexc(rgb);
@@ -532,7 +617,7 @@ std::string describeLook(const art::HumanLook& L) {
   C_(plumeColor) C_(armourTint) C_(armourTint2) C_(glowColor) C_(shieldField) C_(shieldDevice) C_(trimColor) C_(weaponColor)
   static const char* const kSlot[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
   for (int s = 0; s < 8; s++) if (L.tier[s]) add(kSlot[s], L.tier[s]);
-  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) C_(gemColor)
+  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) N_(alloyFam) C_(gemColor)
 #undef N_
 #undef C_
   return out.empty() ? "-" : out;

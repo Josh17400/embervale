@@ -413,6 +413,22 @@ DollRamps a3Palette(int who);
 // the look's ramps (curated skin and hair, eyes, the generator for cloth): doll_ramps.cpp
 DollRamps rampsOf(const HumanLook& look);
 float deltaE76(uint32_t a, uint32_t b);
+// (alloys i1) the culture alloys' metal families (doll_ramps.cpp kAlloyFam: hue, chroma and value class; STYLE_P2 27.3):
+// every family a metal (a dark core, a wide lit plane, a hard glint), each its own hue/value; the sheen (HumanLook::sheen,
+// cult::Sheen + 1: 1 matte 2 bright 3 dark 4 banded 5 iridescent 6 glowing 7 pale 8 burnished) shapes the top and the depth
+int alloyFamilyCount();
+// (alloys i3) the families by slot and people: slot 0 bronze, 1 brass, 2 iron (the everyday metal), 3 steel, 4 silver (the
+// warriors'), 5 steel, 6 silver, 7 glass (the masterwork); people = cult::Archetype (0..11). alloyFamilyMetal: the family's
+// metal word, 0 BRONZE 1 BRASS 2 IRON 3 STEEL 4 SILVER 5 GLASS (gear::alloyMetalWord of the alloy's name must match it)
+int alloyFamilyAt(int slot, int people);
+int alloyFamilyMetal(int fam);
+const char* alloyFamilyName(int fam);
+// the family nearest an alloy's light key (skipMask: families already taken, bit per family; gear::alloyFamilies)
+int alloyFamilyOf(uint32_t light, uint8_t sheen, int skipMask = 0);
+void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]);
+void metalKindRamp(int kind, uint32_t out[5]);   // HumanLook::metalKind's curated ramp (10: the fallback steel)
+// the metal test (C15): a bright glint (step 4 luma >= 196), a dark core (step 0 <= 56), 0-4 >= 165 and 1-3 >= 60 apart
+bool metalTest(const uint32_t r[5], std::string* why = nullptr);
 
 // ---------------------------------------------------------------- the pool
 // the embedded pool (gen/doll_pool.cpp) is used unless a tool loads another; every cache keyed on the pool is cleared

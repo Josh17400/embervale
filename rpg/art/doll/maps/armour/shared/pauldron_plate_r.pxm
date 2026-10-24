@@ -4,6 +4,8 @@
 # the arm, far side behind it; it rides the lean and the bob and lifts a pixel on wind-ups (`up`).
 # Finish regions: R the lame's hem, P the cop's face, N the seam between cop and lame, W a spot on the shadow side.
 # Shared by the man and the woman (D10). Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
 use person
 role pauldron plate.3
 layer armNear
@@ -59,7 +61,7 @@ regions
 
 view U key rest origin 3 2
 |.vvvv.
-|vyxxwv
+|vzxxwv
 |vxwwwv
 |vwwwwv
 |vxwwwv
@@ -74,7 +76,7 @@ regions
 
 view U key up origin 3 3
 |.vvvv.
-|vyxxwv
+|vzxxwv
 |vxwwwv
 |vwwwwv
 |vxwwwv
@@ -89,7 +91,7 @@ regions
 
 view U key lie origin 3 2
 |.vvvv.
-|vyxxwv
+|vzxxwv
 |vxwwwv
 |vwwwwv
 |vxwwwv

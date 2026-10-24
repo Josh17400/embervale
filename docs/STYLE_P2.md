@@ -1241,6 +1241,13 @@ longer sash, a plume and a gold-studded targe.
   crest, the generator's rule); T5 adds a plume on a helm drawn for one, and the noble cloak where it is worn. Ranks lift
   people's dials as the census does (the capital +1, royals and kings +2); the ladder never lifts twice. So the
   Heartland's shoulders go none, small, medium, then large from its first alloy.
+  (alloys i3) A T5-T6 body with shoulder plates always wears the large ones (the resolver's one lift), whatever its metal.
+- **Alloys by name** (alloys i3): an alloy draws the metal its NAME says (BRONZE warm orange-brown, BRASS yellow, IRON dark
+  and cool, STEEL mid and cool, SILVER pale, GLASS a jewel), in its people's own family of that metal (96 families: 8
+  slots x 12 peoples). Metal, never cloth: a near-black core, a saturated body (step 2 at 1.2x chroma), a hard pale lit
+  plane 28 L above it at half the chroma, a near-white glint; no lit step pink, brown or skin. At T5-T6 a coloured or dark
+  alloy's trim is its own metal polished (one ramp step up); a pale neutral steel or silver keeps the gold trim.
+  The Heartland's T5 is gilded (its band-4 steel), its masterwork alloy drawn as the steel it is named.
 - **Heartland pieces** (no maker culture) climb the heartland's own line: leather at T1, mail at T2, plate from T3;
   pauldrons none, small, medium, medium, large, large; skirts short, short, mid, mid, knee, knee.
 - **Flavour at every tier**: the same tier reads differently in each people because forms, dials, ornament, palette and

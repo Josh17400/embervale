@@ -45,3 +45,6 @@ constexpr uint32_t kMythicGlow = 0xFF2868FFu;
 
 // One piece's icon look (the pack, the shop, the paper doll's slots, pickups on the ground)
 art::IconLook gearIcon(const Item& it, const cult::Culture* maker);
+// (alloys i1) gearIcon without the rig-2 doll metal (IconLook::dollMetal / alloyFam): the culture's own alloy keys, which
+// gear::alloyKeys reads to pick each people's families
+art::IconLook gearIconKeys(const Item& it, const cult::Culture* maker);

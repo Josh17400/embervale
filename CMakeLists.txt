@@ -50,9 +50,11 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/art/art_core.cpp)
   # The doll's DATA (the pool: doll_pool.cpp + the generated gen/doll_pool.cpp; the body sets and walk tables:
   # doll_walk.cpp) is its own library, rpg_doll, below both rpg_sim and rpg_art: the simulation reads the walk and run
   # tables (rpg/sim/anim.cpp: the gait, the walk clock), so a target that links rpg_sim without the painters (save_test)
-  # still links. No painter, no SDL: headers only from engine/ (pix.h, color.h), like rpg_culture.
+  # still links. No painter, no SDL: headers only from engine/ (pix.h, color.h), like rpg_culture. The alloy families
+  # (doll_alloy.cpp) live here too: the gear ladder (rpg/sim/gear_ladder.cpp) picks each people's alloys from them.
   set(RPG_DOLL_DATA ${CMAKE_SOURCE_DIR}/rpg/art/doll/doll_pool.cpp ${CMAKE_SOURCE_DIR}/rpg/art/doll/doll_walk.cpp
-                    ${CMAKE_SOURCE_DIR}/rpg/art/doll/gen/doll_pool.cpp)
+                    ${CMAKE_SOURCE_DIR}/rpg/art/doll/gen/doll_pool.cpp
+                    ${CMAKE_SOURCE_DIR}/rpg/art/doll/doll_alloy.cpp)
   add_library(rpg_doll STATIC ${RPG_DOLL_DATA})
   target_include_directories(rpg_doll PUBLIC ${CMAKE_SOURCE_DIR})
   file(GLOB RPG_ART CONFIGURE_DEPENDS rpg/art/*.cpp rpg/art/rig/*.cpp rpg/art/doll/*.cpp)

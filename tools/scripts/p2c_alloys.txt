@@ -1,0 +1,59 @@
+# P2c alloys i1 (LADDER-DOLL, A6): the hero the player makes wears the ladder from the first second. Seed 7, a new game at
+# rig 2, NO ladderkit: the creator's own look (his hair, skin and shirt) in T1 (the floor jerkin and boots, the OLD BLADE);
+# then real items through the game's own equip path (kit6 / gear6: gear::wearGear -> fillLadder), each checked on the
+# doll (`expect doll tier`): band-3 steel T3, the people's first alloy T4, its masterwork T5, a legendary T6; then the
+# start people's three alloys on body and helm, so its three alloy families show in the world (A1).
+#   embervale.exe --script tools/scripts/p2c_alloys.txt          (p2c_alloys_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- the start: the creator's hero in T1 (the floor and the old blade)
++0.3 expect doll covered
++0.0 expect doll tier 1
++0.1 zoom near
++0.3 shot p2c_alloys_start_t1.png
++0.1 zoom normal
+# ---- the game's own gear, equipped
++0.1 kit6 heartland mat steel ilvl 20
++0.3 expect doll covered
++0.0 expect doll tier 3
++0.1 zoom near
++0.3 shot p2c_alloys_steel_t3.png
++0.1 zoom normal
++0.1 kit6 here mat alloy ilvl 28
++0.3 expect doll covered
++0.0 expect doll tier 4
++0.1 zoom near
++0.3 shot p2c_alloys_alloy_t4.png
++0.1 zoom normal
++0.1 plevel 30
++0.1 kit6 heartland mat steel ilvl 47 rarity 4
++0.3 expect doll covered
++0.0 expect doll tier 6
++0.1 zoom near
++0.3 shot p2c_alloys_legend_t6.png
++0.1 zoom normal
+# ---- the start people's other alloys (gear6 alloy N: the warriors' metal, and a third when it has one;
+# seed 7's start people has two, so alloy 3 leaves the alloy-2 pieces worn), body and helm
++0.1 gear6 armor here mat alloy alloy 2 ilvl 28 equip
++0.1 gear6 helmet here mat alloy alloy 2 ilvl 28 equip
++0.3 expect doll covered
++0.1 zoom near
++0.3 shot p2c_alloys_alloy2.png
++0.1 zoom normal
++0.1 gear6 armor here mat alloy alloy 3 ilvl 28 equip
++0.1 gear6 helmet here mat alloy alloy 3 ilvl 28 equip
++0.3 expect doll covered
++0.1 zoom near
++0.3 shot p2c_alloys_alloy3.png
++0.1 zoom normal
++0.5 quit

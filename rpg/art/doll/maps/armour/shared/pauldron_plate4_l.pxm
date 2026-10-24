@@ -4,6 +4,8 @@
 # (LADDER-ARMOUR i3) D U and the near side view redrawn: a raised haute-piece (the neck flange, R: gilt from T3) over the domed
 # cop and a lit lame, inside the old box (origin a row lower for the flange); N dropped (runes live on the breastplate).
 # (LADDER-ARMOUR polish i2) (P1) armour.t5 near views redrawn: T5's great spaulder (see pauldron_plate4_r)
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
 use person
 role pauldron plate.4
 layer armNear
@@ -222,7 +224,7 @@ regions
 view U key rest origin 4 3
 |....vv.
 |.vvvyxv
-|vyxxxwv
+|vzxxxwv
 |vxwwwwv
 |vwwwwwv
 |vxxwwwv
@@ -316,7 +318,7 @@ regions
 view U key up origin 4 4
 |....vv.
 |.vvvyxv
-|vyxxxwv
+|vzxxxwv
 |vxwwwwv
 |vwwwwwv
 |vxxwwwv
@@ -410,7 +412,7 @@ regions
 view U key lie origin 4 3
 |....vv.
 |.vvvyxv
-|vyxxxwv
+|vzxxxwv
 |vxwwwwv
 |vwwwwwv
 |vxxwwwv

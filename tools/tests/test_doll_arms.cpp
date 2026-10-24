@@ -752,6 +752,14 @@ void gateC6(Line& g) {
       if (v.when) continue;
       const std::string key = Pl.s(v.key);
       if (key == "drop" || key == "carry") { g.ok(); continue; }   // (rest poses: the craft of the angle views)
+      // (alloys i1) A3's own hand-drawn sword views (d0..l3 the facing frames, a3* the attack, guard, gmove) predate the
+      // angle-view craft and are pinned by B1's parity: the library forms (`role held sword.<form>`, which give the
+      // sword its blade metal) are measured on their angle views a000..a337 only
+      const bool angle = key.size() == 4 && key[0] == 'a' && std::isdigit((unsigned char)key[1]) && std::isdigit((unsigned char)key[2]) &&
+                         std::isdigit((unsigned char)key[3]);
+      const bool a3own = !angle && ((key.size() == 2 && std::strchr("durl", key[0]) && std::isdigit((unsigned char)key[1])) ||
+                                    key.rfind("a3", 0) == 0 || key == "guard" || key == "gmove");
+      if (a3own && name == "held/weapons/sword") { g.ok(); continue; }
       const std::string w = viewCraft(gridOf(v), blade, bow);
       if (!w.empty()) g.bad(fmt("C6 %s %c %s: %s", name.c_str(), "DURL"[v.facing & 3], key.c_str(), w.c_str())); else g.ok();
     }

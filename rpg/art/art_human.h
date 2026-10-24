@@ -159,6 +159,8 @@ struct HumanLook {
   uint8_t kitVar = 0;        // (polish i1) a ranked fighter's own kit (census: rankTiers, from the person's face; no draw):
                              // 0 none, else 1-255; the resolver varies each piece's tier a step, the dials, gloves, the
                              // sergeant's cloak, a bare head now and then (doll_resolve.cpp ladderLook; rig 2)
+  uint8_t alloyFam = 0;      // (alloys i1) the alloy's metal family (art::doll::alloyFamily*; 1-based, 0: from armourTint's
+                             // hue): gear::fillLadder picks it per maker culture so a people's alloys never share a family
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

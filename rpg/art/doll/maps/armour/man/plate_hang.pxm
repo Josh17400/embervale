@@ -9,6 +9,12 @@
 # (LADDER-ARMOUR polish i3) T5 wears its people's colour: the surcoat in the accent slot (tabardColor), the skirt's
 # cross gilt, so T5 reads red-and-gold, the Mythic white-black-and-fire, T6 blue-and-silver (the panel: "T5 and Mythic
 # both red and gold, one outline").
+# (LADDER-ARMOUR alloys i1) the Mythic body in its own BLACKENED steel (metal slot, kind 11), not linen: the
+# owner saw a white slab with no dark values; dark plate, white-hot edges, gold trim and fire carry it.
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
+# (LADDER-ARMOUR alloys i2) the Mythic's side tassets end in a gilt hem (R) facing D/U, so its dark greaves part from
+# the black skirt in the walk (the panel: "the dark legs vanish against its own black skirt").
 use person
 body man
 role armour plate
@@ -31,7 +37,7 @@ legend l device 2
 legend F device 3
 
 view D key rest origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -42,24 +48,24 @@ regions
 |............
 
 view D key rest origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key rest origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -76,7 +82,7 @@ regions
 |......RR.....
 
 view D key rest origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -95,7 +101,7 @@ regions
 |.............
 
 view D key wide origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -106,24 +112,24 @@ regions
 |............
 
 view D key wide origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key wide origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -140,7 +146,7 @@ regions
 |......RR.....
 
 view D key wide origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -159,7 +165,7 @@ regions
 |.............
 
 view D key flare origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vvvvvvvvvvvv
 regions
@@ -168,24 +174,24 @@ regions
 |............
 
 view D key flare origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key flare origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -202,7 +208,7 @@ regions
 |......RR.....
 
 view D key flare origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -217,7 +223,7 @@ regions
 |....RRRRRR...
 
 view D key lie origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -228,7 +234,7 @@ regions
 |............
 
 view D key idle origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -239,24 +245,24 @@ regions
 |............
 
 view D key idle origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key idle origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -273,7 +279,7 @@ regions
 |......RR.....
 
 view D key idle origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -292,7 +298,7 @@ regions
 |.............
 
 view D key sit origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -303,24 +309,24 @@ regions
 |............
 
 view D key sit origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key sit origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -337,7 +343,7 @@ regions
 |......RR.....
 
 view D key sit origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -352,7 +358,7 @@ regions
 |....RRRRRR...
 
 view D key floor origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -363,24 +369,24 @@ regions
 |............
 
 view D key floor origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key floor origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -397,7 +403,7 @@ regions
 |......RR.....
 
 view D key floor origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -412,7 +418,7 @@ regions
 |....RRRRRR...
 
 view D key kneel origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -423,24 +429,24 @@ regions
 |............
 
 view D key kneel origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key kneel origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -457,7 +463,7 @@ regions
 |......RR.....
 
 view D key kneel origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -472,7 +478,7 @@ regions
 |....RRRRRR...
 
 view D key ride origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -483,24 +489,24 @@ regions
 |............
 
 view D key ride origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTSlSSRQwv
-|vwxQTlFlSRQwv
-|vvvQTSlSSRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyxlxxwvwv
+|vwxvylFlxwvwv
+|vvvvyxlxxwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R.G..R...
+|.RR.R.G..R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view D key ride origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIHlHHDJwv
 |vwxJIlFlHDJwv
 |vvvJIHlHHDJvv
@@ -517,7 +523,7 @@ regions
 |......RR.....
 
 view D key ride origin 6 -1 when armour.t5 replace
-|vxympppnnnmwv
+|vxzmpppnnnmwv
 |vxymppPOnnmwv
 |vwxmpPPOOnmwv
 |vvvmppPNnnmvv
@@ -532,7 +538,7 @@ regions
 |....RRRRRR...
 
 view U key rest origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -543,24 +549,24 @@ regions
 |............
 
 view U key rest origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key rest origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -577,7 +583,7 @@ regions
 |......RR.....
 
 view U key rest origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -596,7 +602,7 @@ regions
 |.............
 
 view U key wide origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -607,24 +613,24 @@ regions
 |............
 
 view U key wide origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key wide origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -641,7 +647,7 @@ regions
 |......RR.....
 
 view U key wide origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -660,7 +666,7 @@ regions
 |.............
 
 view U key flare origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vvvvvvvvvvvv
 regions
@@ -669,24 +675,24 @@ regions
 |............
 
 view U key flare origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key flare origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -703,7 +709,7 @@ regions
 |......RR.....
 
 view U key flare origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -718,7 +724,7 @@ regions
 |....RRRRRR...
 
 view U key lie origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -729,7 +735,7 @@ regions
 |............
 
 view U key idle origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -740,24 +746,24 @@ regions
 |............
 
 view U key idle origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key idle origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -774,7 +780,7 @@ regions
 |......RR.....
 
 view U key idle origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -793,7 +799,7 @@ regions
 |.............
 
 view U key sit origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -804,24 +810,24 @@ regions
 |............
 
 view U key sit origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key sit origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -838,7 +844,7 @@ regions
 |......RR.....
 
 view U key sit origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -853,7 +859,7 @@ regions
 |....RRRRRR...
 
 view U key floor origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -864,24 +870,24 @@ regions
 |............
 
 view U key floor origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key floor origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -898,7 +904,7 @@ regions
 |......RR.....
 
 view U key floor origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -913,7 +919,7 @@ regions
 |....RRRRRR...
 
 view U key kneel origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -924,24 +930,24 @@ regions
 |............
 
 view U key kneel origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key kneel origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -958,7 +964,7 @@ regions
 |......RR.....
 
 view U key kneel origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -973,7 +979,7 @@ regions
 |....RRRRRR...
 
 view U key ride origin 6 -1
-|.vxyxwvxxwv.
+|.vxzxwvxxwv.
 |vxyxwwvxwwwv
 |vwxwwwvwwwwv
 |vvvvvv.vvvvv
@@ -984,24 +990,24 @@ regions
 |............
 
 view U key ride origin 6 -1 when armour.t6,mythic replace
-|vxyQTTSSRRQwv
-|vxyQTTSSRRQwv
-|vwxQTTSSRRQwv
-|vvvQTTSSRRQvv
-|...QTTSSRRQ..
-|....QTSSRQ...
-|.....QSRQ....
+|vxyvyyxxwwvwv
+|vxyvyyxxwwvwv
+|vwxvyyxxwwvwv
+|vvvvyyxxwwvvv
+|...vyyxxwwv..
+|....vyxxwv...
+|.....vxwv....
 regions
 |....R....R...
 |....R....R...
-|....R....R...
+|.RR.R....R.R.
 |....R....R...
 |....R....R...
 |.....RRRR....
 |......RR.....
 
 view U key ride origin 6 -1 when armour.t6 replace
-|vxyJIIHHDDJwv
+|vxzJIIHHDDJwv
 |vxyJIIHHDDJwv
 |vwxJIIHHDDJwv
 |vvvJIIHHDDJvv
@@ -1018,7 +1024,7 @@ regions
 |......RR.....
 
 view U key ride origin 6 -1 when armour.t5 replace
-|.vxymppnnmwv.
+|.vxzmppnnmwv.
 |vxyxmppnnmwwv
 |vwxwmppnnmwwv
 |vvvvmppnnnmvv
@@ -1033,7 +1039,7 @@ regions
 |....RRRRRR...
 
 view R key rest origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1042,12 +1048,12 @@ regions
 |.............
 
 view R key rest origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1057,7 +1063,7 @@ regions
 |.............
 
 view R key rest origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1072,7 +1078,7 @@ regions
 |.............
 
 view R key rest origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1085,7 +1091,7 @@ regions
 |.RR.......RR.
 
 view R key wide origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1094,12 +1100,12 @@ regions
 |.............
 
 view R key wide origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1109,7 +1115,7 @@ regions
 |.............
 
 view R key wide origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1124,7 +1130,7 @@ regions
 |.............
 
 view R key wide origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1137,7 +1143,7 @@ regions
 |.RR.......RR.
 
 view R key flare origin 7 -1
-|.vxyyxwxxxxwv.
+|.vxzyxwxxxxwv.
 |vxyxwwvxxwwwwv
 |vvvvvvvvvvvvvv
 regions
@@ -1146,22 +1152,22 @@ regions
 |..............
 
 view R key flare origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
 
 view R key flare origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 
 view R key flare origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 
 view R key lie origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1170,7 +1176,7 @@ regions
 |.............
 
 view R key idle origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1179,12 +1185,12 @@ regions
 |.............
 
 view R key idle origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1194,7 +1200,7 @@ regions
 |.............
 
 view R key idle origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1209,7 +1215,7 @@ regions
 |.............
 
 view R key idle origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1222,7 +1228,7 @@ regions
 |.RR.......RR.
 
 view R key sit origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1231,12 +1237,12 @@ regions
 |.............
 
 view R key sit origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1246,7 +1252,7 @@ regions
 |.............
 
 view R key sit origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1261,7 +1267,7 @@ regions
 |.............
 
 view R key sit origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1274,7 +1280,7 @@ regions
 |.RR.......RR.
 
 view R key floor origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1283,12 +1289,12 @@ regions
 |.............
 
 view R key floor origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1298,7 +1304,7 @@ regions
 |.............
 
 view R key floor origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1313,7 +1319,7 @@ regions
 |.............
 
 view R key floor origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1326,7 +1332,7 @@ regions
 |.RR.......RR.
 
 view R key kneel origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1335,12 +1341,12 @@ regions
 |.............
 
 view R key kneel origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1350,7 +1356,7 @@ regions
 |.............
 
 view R key kneel origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1365,7 +1371,7 @@ regions
 |.............
 
 view R key kneel origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1378,7 +1384,7 @@ regions
 |.RR.......RR.
 
 view R key ride origin 6 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1387,12 +1393,12 @@ regions
 |.............
 
 view R key ride origin 6 -1 when armour.t6,mythic replace
-|QTSQxyyxwxTSQ
-|QTSQyxwwvxTSQ
-|QTSQvvvvvvTSQ
-|QTRQ.....QSRQ
-|QSRQ......QRQ
-|.QQ........Q.
+|vyxvxyyxwxyxv
+|vyxvyxwwvxyxv
+|vyxvvvvvvvyxv
+|vywv.....vxwv
+|vxwv......vwv
+|.vv........v.
 regions
 |.............
 |.............
@@ -1402,7 +1408,7 @@ regions
 |.............
 
 view R key ride origin 6 -1 when armour.t6 replace
-|JIHJxyyxwxIHJ
+|JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 |JIDJ.....JHDJ
@@ -1417,7 +1423,7 @@ regions
 |.............
 
 view R key ride origin 6 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1430,7 +1436,7 @@ regions
 |.RR.......RR.
 
 view L key rest origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1439,12 +1445,12 @@ regions
 |.............
 
 view L key rest origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1454,7 +1460,7 @@ regions
 |.............
 
 view L key rest origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1469,7 +1475,7 @@ regions
 |.............
 
 view L key rest origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1482,7 +1488,7 @@ regions
 |.RR.......RR.
 
 view L key wide origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1491,12 +1497,12 @@ regions
 |.............
 
 view L key wide origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1506,7 +1512,7 @@ regions
 |.............
 
 view L key wide origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1521,7 +1527,7 @@ regions
 |.............
 
 view L key wide origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1534,7 +1540,7 @@ regions
 |.RR.......RR.
 
 view L key flare origin 7 -1
-|.vxyyxwxxxxwv.
+|.vxzyxwxxxxwv.
 |vxyxwwvxxwwwwv
 |vvvvvvvvvvvvvv
 regions
@@ -1543,22 +1549,22 @@ regions
 |..............
 
 view L key flare origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
 
 view L key flare origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 
 view L key flare origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 
 view L key lie origin 6 -1
-|....vyyxwwv
+|....vzyxwwv
 |....vxxwwwv
 |....vvvvvvv
 regions
@@ -1567,7 +1573,7 @@ regions
 |...........
 
 view L key idle origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1576,12 +1582,12 @@ regions
 |.............
 
 view L key idle origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1591,7 +1597,7 @@ regions
 |.............
 
 view L key idle origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1606,7 +1612,7 @@ regions
 |.............
 
 view L key idle origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1619,7 +1625,7 @@ regions
 |.RR.......RR.
 
 view L key sit origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1628,12 +1634,12 @@ regions
 |.............
 
 view L key sit origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1643,7 +1649,7 @@ regions
 |.............
 
 view L key sit origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1658,7 +1664,7 @@ regions
 |.............
 
 view L key sit origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1671,7 +1677,7 @@ regions
 |.RR.......RR.
 
 view L key floor origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1680,12 +1686,12 @@ regions
 |.............
 
 view L key floor origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1695,7 +1701,7 @@ regions
 |.............
 
 view L key floor origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1710,7 +1716,7 @@ regions
 |.............
 
 view L key floor origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1723,7 +1729,7 @@ regions
 |.RR.......RR.
 
 view L key kneel origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1732,12 +1738,12 @@ regions
 |.............
 
 view L key kneel origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1747,7 +1753,7 @@ regions
 |.............
 
 view L key kneel origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1762,7 +1768,7 @@ regions
 |.............
 
 view L key kneel origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm
@@ -1775,7 +1781,7 @@ regions
 |.RR.......RR.
 
 view L key ride origin 7 -1
-|.vxyyxwxxxwv.
+|.vxzyxwxxxwv.
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1784,12 +1790,12 @@ regions
 |.............
 
 view L key ride origin 7 -1 when armour.t6,mythic replace
-|QSTxyyxwxQTSQ
-|QSTyxwvxxQTSQ
-|QSTvvvvvvQTSQ
-|QSRQ.....QTRQ
-|QRQ......QSRQ
-|.Q........QQ.
+|vxyxyyxwxvyxv
+|vxyyxwvxxvyxv
+|vxyvvvvvvvyxv
+|vxwv.....vywv
+|vwv......vxwv
+|.v........vv.
 regions
 |.............
 |.............
@@ -1799,7 +1805,7 @@ regions
 |.............
 
 view L key ride origin 7 -1 when armour.t6 replace
-|JHIxyyxwxJIHJ
+|JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
 |JHDJ.....JIDJ
@@ -1814,7 +1820,7 @@ regions
 |.............
 
 view L key ride origin 7 -1 when armour.t5 replace
-|mpovxyyxwxnnm
+|mpovxzyxwxnnm
 |mpoxyxwvxxnnm
 |mpovvvvvvvnnm
 |mpnm.....mnnm

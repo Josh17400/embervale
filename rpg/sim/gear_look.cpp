@@ -189,6 +189,9 @@ uint16_t ornamentOf(const Item& it, const cult::ArmsStyle& A) {
 // a culture shield comes painted in its maker's colours (an alloy one is faced in its metal); 0 = the hero's own arms
 void shieldPaint(const Item& it, const cult::ArmsStyle& A, const Metal& m, uint32_t& field, uint32_t& device) {
   field = device = 0;
+  // (alloys i1, rig 2) a painted heater: the field in the maker's cloth, the alloy in the device and the rim (the alloy's
+  // dark field read as "brown wood" at T4); rig 1 keeps the shield faced in its metal
+  if (it.mat == Mat::Alloy && m.light && art::rigVersion() >= 2 && A.cloth) { field = A.cloth | 0xFF000000u; device = m.light; return; }
   if (it.mat == Mat::Alloy && m.light) { field = m.dark; device = m.light; return; }
   if (!A.cloth) return;
   field = A.cloth | 0xFF000000u;
@@ -377,7 +380,7 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
   gear::fillLadder(L, g, cultureOf);
 }
 
-art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
+art::IconLook gearIconKeys(const Item& it, const cult::Culture* maker) {
   art::IconLook l;
   l.icon = it.icon;
   l.tint = it.tint;
@@ -407,7 +410,7 @@ art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
       case ItemKind::Armor: l.form = bodyFormOf(it, A); break;
       case ItemKind::Shield:
         l.form = shieldFormOf(it, A);
-        if (it.mat == Mat::Alloy && m.dark) l.accent = m.dark;   // faced in its metal, as on the doll (shieldPaint)
+        if (it.mat == Mat::Alloy && m.dark && !(art::rigVersion() >= 2 && A.cloth)) l.accent = m.dark;   // as on the doll (shieldPaint)
         break;
       case ItemKind::Bow: l.form = formOr(it.form, A.bow, (int)cult::BowKind::COUNT); break;
       case ItemKind::Weapon:
@@ -419,6 +422,23 @@ art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
     }
   } else if (it.kind == ItemKind::Weapon && it.sub == (uint8_t)WeaponType::Spear) {
     l.form = polearmFormOf(it, nullptr);
+  }
+  return l;
+}
+art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
+  art::IconLook l = gearIconKeys(it, maker);
+  if (!l.mat) return l;   // the classic icon
+  // (alloys i1, rig 2) the icon takes the doll's metal (its ramp, and for an alloy its people's family: gear::alloyFamilies)
+  if (art::rigVersion() >= 2 && it.mat != Mat::Leather && it.kind != ItemKind::Cloak && it.kind != ItemKind::Ring && it.kind != ItemKind::Amulet &&
+      it.kind != ItemKind::Bow) {
+    const uint8_t mk = gear::metalKindOf(it);
+    if (mk >= 2) {
+      l.dollMetal = mk;
+      if (mk == 10 && maker) {
+        const std::vector<uint8_t> fam = gear::alloyFamilies(*maker);
+        if (it.alloy >= 1 && it.alloy <= fam.size()) l.alloyFam = (uint8_t)(fam[it.alloy - 1] + 1);   // l.sheen: the doll's
+      }
+    }
   }
   return l;
 }

@@ -24,7 +24,9 @@
 #include "rpg/art.h"
 #include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/culture/culture.h"
 #include "rpg/sim/gear_ladder.h"
+#include "rpg/sim/gear_look.h"
 #include "tools/tests/tests.h"
 
 using art::Clip;
@@ -454,7 +456,7 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
     if (std::fabs(P.lo - lo) > 1e-3f || std::fabs(P.hi - hi) > 1e-3f) g.bad(fmt("T%d light %.2f-%.2f (%.2f-%.2f wanted)", tier, P.lo, P.hi, lo, hi)); else g.ok();
   }
   if (pulseOf(4).hi > 0) g.bad("a T4 piece pulses"); else g.ok();
-  // the edge sweep (polish i1): every kSparkEvery 2.75 s, kSparkRun 0.40 s grip to tip
+  // the edge sweep (polish i1): every kSparkEvery 2.75 s, kSparkRun 0.50 s grip to tip (alloys i1)
   {
     int runs = 0;
     float runLen = 0, cur = 0, s0 = -1, s1 = -1;
@@ -510,8 +512,8 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
       if (r) cur += dt; else if (was) run = cur;
       was = r;
     }
-    if (s1 < 0 || std::fabs((s1 - s0) - kGleamEvery) > 0.05f) g.bad(fmt("the gleam's interval %.2f s (3.3 wanted)", s1 - s0)); else g.ok();
-    if (std::fabs(run - kGleamRun) > 0.035f) g.bad(fmt("the gleam run %.2f s (0.5 wanted)", run)); else g.ok();
+    if (s1 < 0 || std::fabs((s1 - s0) - kGleamEvery) > 0.05f) g.bad(fmt("the gleam's interval %.2f s (kGleamEvery wanted)", s1 - s0)); else g.ok();
+    if (std::fabs(run - kGleamRun) > 0.035f) g.bad(fmt("the gleam run %.2f s (kGleamRun wanted)", run)); else g.ok();
   }
   // phases: two actors 0.15 cycle or more apart for 95 % of id pairs. Actors stand beside the ones spawned with them, so
   // the pairs are neighbouring ids (id, id + 1 .. id + 3) over ids 1..2000; no two neighbours share a phase within 0.005
@@ -703,19 +705,142 @@ std::vector<Built> buildAll(const std::vector<Look>& looks) {
   return v;
 }
 
+// ---------------------------------------------------------------- C15 the alloys (alloys i1; docs/P2C_CONTRACTS.md 3b)
+// Every culture alloy reads as ITS OWN METAL. a: every family ramp under every sheen passes the metal test (a glint at
+// step 4, a dark core, wide steps: art::doll::metalTest); b: each people's alloys (the 12 peoples, seeds 1..64) part by
+// delta E 76 >= kAlloyPart on the mid step (the plate's lit body); c: the same-rank alloys of neighbouring cultures (the
+// atlas's culture cells, worlds 1..6, a 6x6 block) of different peoples part by >= kNeighbourPart on the mid step;
+// d: the doll and the icon agree (at rig 2 the icon paints the doll's own family ramp, every alloy).
+constexpr double kAlloyPart = 18.0, kNeighbourPart = 12.0;
+void gateC15(Line& g, Line& n) {
+  // a
+  for (int f = 0; f < doll::alloyFamilyCount(); f++)
+    for (int sh = 0; sh <= 8; sh++) {
+      uint32_t r[5];
+      doll::alloyRamp(f, (uint8_t)sh, r);
+      std::string why;
+      if (doll::metalTest(r, &why)) g.ok(); else g.bad(fmt("C15a %s sheen %d: %s", doll::alloyFamilyName(f), sh, why.c_str()));
+    }
+  // b, d
+  double minIn = 1e9, minNb = 1e9;
+  int shifted = 0, total = 0;
+  auto midOf = [](const cult::Culture& c, int i, uint8_t fam) {
+    uint32_t r[5];
+    doll::alloyRamp(fam, gear::alloyKeys(c, i).sheen, r);
+    return r[2];
+  };
+  for (int a = 0; a < 12; a++)
+    for (uint32_t sd = 1; sd <= 64; sd++) {
+      const cult::Culture c = cult::Atlas::make((cult::Archetype)a, sd);
+      const std::vector<uint8_t> fam = gear::alloyFamilies(c);
+      for (size_t i = 0; i < fam.size(); i++) {
+        for (size_t j = i + 1; j < fam.size(); j++) {
+          const double d = doll::deltaE76(midOf(c, (int)i, fam[i]), midOf(c, (int)j, fam[j]));
+          minIn = std::min(minIn, d);
+          if (d >= kAlloyPart) g.ok();
+          else g.bad(fmt("C15b %s s%u: %s and %s mid steps dE %.1f < %.0f", gear::alloyKeys(c, 0).light ? c.name.c_str() : "?", sd, c.arms.alloys[i].name.c_str(),
+                         c.arms.alloys[j].name.c_str(), d, kAlloyPart));
+        }
+        const gear::AlloyKeys k = gear::alloyKeys(c, (int)i);
+        total++;
+        if (doll::alloyFamilyOf(k.light, k.sheen) != fam[i]) shifted++;
+        // d (integration i1): the bag icon paints the doll's own ramp at rig 2 (IconLook::alloyFam, gear::gearIcon)
+        Item it;
+        it.kind = ItemKind::Armor; it.mat = Mat::Alloy; it.alloy = (uint8_t)(i + 1); it.ilvl = 20; it.culture = c.id;
+        const int was = art::rigVersion();
+        art::setRigVersion(2);
+        const art::IconLook il = gearIcon(it, &c);
+        art::setRigVersion(was);
+        uint32_t ik[5], dk[5];
+        doll::alloyRamp(il.alloyFam ? il.alloyFam - 1 : 0, il.sheen, ik);
+        doll::alloyRamp(fam[i], k.sheen, dk);
+        bool same = il.dollMetal == 10 && il.alloyFam == fam[i] + 1;
+        for (int q = 0; q < 5; q++) same &= ik[q] == dk[q];
+        if (same) g.ok();
+        else g.bad(fmt("C15d %s %s: the icon's family %d (metal %d), the doll's %d", c.name.c_str(), c.arms.alloys[i].name.c_str(), (int)il.alloyFam - 1,
+                       (int)il.dollMetal, (int)fam[i]));
+      }
+    }
+  // c
+  for (uint64_t w = 1; w <= 6; w++) {
+    cult::Atlas at(w);
+    for (int ci = 0; ci < 6; ci++)
+      for (int cj = 0; cj < 6; cj++)
+        for (int dir = 0; dir < 2; dir++) {
+          const cult::Culture& A = at.family(ci, cj);
+          const cult::Culture B = at.family(ci + (dir == 0), cj + (dir == 1));
+          if (A.archetype == B.archetype) continue;   // one people's dialects share their metals (by design)
+          const std::vector<uint8_t> fa = gear::alloyFamilies(A), fb = gear::alloyFamilies(B);
+          for (size_t i = 0; i < fa.size() && i < fb.size(); i++) {
+            const double d = doll::deltaE76(midOf(A, (int)i, fa[i]), midOf(B, (int)i, fb[i]));
+            // (alloys i3) two different metals by name (a bronze beside a brass, a steel beside a silver) part by 8; the
+            // same metal of the same rank (two peoples' everyday irons) by kNeighbourPart
+            const bool sameMetal = doll::alloyFamilyMetal(fa[i]) == doll::alloyFamilyMetal(fb[i]);
+            const double need = sameMetal ? kNeighbourPart : 8.0;
+            if (sameMetal) minNb = std::min(minNb, d);
+            if (d >= need) n.ok();
+            else n.bad(fmt("C15c world %d cells %d,%d+%d: %s (people %d) %s %s and %s (people %d) %s %s dE %.1f < %.0f", (int)w, ci, cj, dir, A.name.c_str(),
+                           (int)A.archetype, A.arms.alloys[i].name.c_str(), doll::alloyFamilyName(fa[i]), B.name.c_str(), (int)B.archetype,
+                           B.arms.alloys[i].name.c_str(), doll::alloyFamilyName(fb[i]), d, need));
+          }
+        }
+  }
+  if (g_report) std::printf("    C15: min dE within a people %.1f, between neighbours %.1f; %d of %d alloys moved off their nearest family\n", minIn, minNb, shifted, total);
+  // e (alloys i2): the metal agrees with its name and is never skin. An everyday bronze or brass (copper and tin) draws a
+  // warm family, an everyday iron a cool one, and no warriors' or masterwork metal draws a bronze (the blind panel read
+  // "silver" alloys drawn in bronze); every family's mid step under every sheen parts from A3's skin by dE 20 (it read the
+  // rose families as "pink skin"); the band metals (bronze iron steel gilded obsidian emberforged starmetal) pass the metal
+  // test and part pairwise by dE 14 on the mid step (iron and steel read as "the same grey", bronze and emberforged leaned)
+  {
+    // (alloys i3) the family's metal is the metal word of the alloy's NAME (gear::alloyMetalWord): a BRASS draws a brass, a
+    // SILVER a silver, an IRON an iron (the blind panel caught "Eaglesilver drawn as brass, Thorniron as white silver")
+    for (int a = 0; a < 12; a++)
+      for (uint32_t sd = 1; sd <= 64; sd++) {
+        const cult::Culture c = cult::Atlas::make((cult::Archetype)a, sd);
+        const std::vector<uint8_t> fam = gear::alloyFamilies(c);
+        for (size_t i = 0; i < fam.size(); i++) {
+          const int word = gear::alloyMetalWord(c.arms.alloys[i], std::min((int)i, 2));
+          if (doll::alloyFamilyMetal(fam[i]) == word) g.ok();
+          else g.bad(fmt("C15e %s s%u: %s (alloy %zu) drawn in %s", c.name.c_str(), sd, c.arms.alloys[i].name.c_str(), i + 1, doll::alloyFamilyName(fam[i])));
+        }
+      }
+    const uint32_t skin = rgba(0xE9, 0xA0, 0x77);
+    for (int f = 0; f < doll::alloyFamilyCount(); f++)
+      for (int sh = 0; sh <= 8; sh++) {
+        uint32_t r[5];
+        doll::alloyRamp(f, (uint8_t)sh, r);
+        const double d = std::min({doll::deltaE76(r[2], skin), doll::deltaE76(r[3], skin)});
+        if (d >= 20.0) g.ok(); else g.bad(fmt("C15e %s sheen %d: lit steps dE %.1f from the skin (< 20)", doll::alloyFamilyName(f), sh, d));
+      }
+    const int band[7] = {2, 3, 4, 5, 7, 8, 9};
+    uint32_t br[7][5];
+    for (int i = 0; i < 7; i++) {
+      doll::metalKindRamp(band[i], br[i]);
+      std::string why;
+      if (doll::metalTest(br[i], &why)) g.ok(); else g.bad(fmt("C15e band metal %d: %s", band[i], why.c_str()));
+      for (int j = 0; j < i; j++) {
+        const double d = doll::deltaE76(br[i][2], br[j][2]);
+        if (d >= 14.0) g.ok(); else g.bad(fmt("C15e band metals %d and %d mid steps dE %.1f < 14", band[j], band[i], d));
+      }
+    }
+  }
+}
+
 int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::vector<std::string>& out) {
   const std::vector<Built> built = buildAll(looks);
   Line c12{"C12 the ladder reads"}, c13{"C13 the living finish"}, c14{"C14 value"}, st{"C12-C14 selftests"};
+  Line c15{"C15 the alloys"}, c15n{"C15c alloy neighbours"};
   gateC12(c12, built);
   if (finish) gateC13(c13, built);
   gateC14(c14, built);
+  gateC15(c15, c15n);
   if (self) {
     const int m = selftests(g_report);
     if (m) st.bad(fmt("%d synthetic defect(s) missed", m)); else st.ok();
     out.push_back(fmt("  C12-C14 selftest: %s", m ? "MISSED" : "ALL CAUGHT"));
   }
   int fails = 0;
-  for (Line* l : {&c12, &c13, &c14, &st}) {
+  for (Line* l : {&c12, &c13, &c14, &c15, &c15n, &st}) {
     if ((l == &c13 && !finish) || (l == &st && !self)) continue;
     out.push_back(l->text());
     fails += l->fails ? 1 : 0;

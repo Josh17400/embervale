@@ -9,6 +9,11 @@
 # (LADDER-ARMOUR polish i2) the skirt's lacing a step darker (accent 1 lit, 0 shadow): lacing, not stripes
 # (LADDER-ARMOUR polish i3) quieter: one lacing cord across the chest; below the belt plain lacquer (the panel: "red-dotted
 # lamellar is noise", "a stack of orange bars").
+# (LADDER-ARMOUR alloys i1) a step-4 specular on the lit top of the first scales / lames / plates (top-left light):
+# with no step 4 a coloured alloy read as clay; the glint and the dark core make any metal read as metal.
+# (LADDER-ARMOUR alloys i2) the N lacing row dropped from the regions (the style lens: "Jade's lamellar is the busiest
+# culture, 1 px gold banding on the torso and legs"): the gorget rim, the belt and the hem carry the trim; the lames
+# read by their lit tops and dark undersides alone.
 use person
 body man
 role armour lamellar
@@ -18,7 +23,7 @@ keys hang
 z 10
 
 view D key rest origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -27,7 +32,7 @@ view D key rest origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -49,7 +54,7 @@ view D key rest when tassels
 |......x.....
 
 view D key wide origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -58,7 +63,7 @@ view D key wide origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -80,14 +85,14 @@ view D key wide when tassels
 |......x.....
 
 view D key flare origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxwwvwwwwv
 |vyyxxxvxxxxv
 |vvvvvvvvvvvv
 |............
 regions
 |............
-|.NNNN..NNWW.
+|.........WW.
 |.RRRRR.RRRR.
 |............
 |............
@@ -100,7 +105,7 @@ view D key flare when scallops
 |.v.v.v.v.v..
 
 view D key lie origin 6 -1
-|vxyxxwvxxwxv
+|vxzxxwvxxwxv
 |vxyxxwvwwwwv
 |vxxxwxvxwxwv
 |vyyxxxvxxxxv
@@ -109,7 +114,7 @@ view D key lie origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -131,7 +136,7 @@ view D key lie when tassels
 |......x.....
 
 view D key idle origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -140,7 +145,7 @@ view D key idle origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -162,7 +167,7 @@ view D key idle when tassels
 |......x.....
 
 view D key sit origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -171,7 +176,7 @@ view D key sit origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -193,7 +198,7 @@ view D key sit when tassels
 |......x.....
 
 view D key floor origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -202,7 +207,7 @@ view D key floor origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -224,7 +229,7 @@ view D key floor when tassels
 |......x.....
 
 view D key kneel origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -233,7 +238,7 @@ view D key kneel origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -255,7 +260,7 @@ view D key kneel when tassels
 |......x.....
 
 view D key ride origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -264,7 +269,7 @@ view D key ride origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -286,7 +291,7 @@ view D key ride when tassels
 |......x.....
 
 view U key rest origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -295,7 +300,7 @@ view U key rest origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -309,7 +314,7 @@ view U key rest when scallops
 |.v.v.v..v.v.
 
 view U key wide origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -318,7 +323,7 @@ view U key wide origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -332,14 +337,14 @@ view U key wide when scallops
 |.v.v.v..v.v.
 
 view U key flare origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxwwvwwwwv
 |vyyxxxvxxxxv
 |vvvvvvvvvvvv
 |............
 regions
 |............
-|.NNNN..NNWW.
+|.........WW.
 |.RRRRR.RRRR.
 |............
 |............
@@ -352,7 +357,7 @@ view U key flare when scallops
 |.v.v.v.v.v..
 
 view U key lie origin 6 -1
-|vxyxxwvxxwxv
+|vxzxxwvxxwxv
 |vxyxxwvwwwwv
 |vxxxwxvxwxwv
 |vyyxxxvxxxxv
@@ -361,7 +366,7 @@ view U key lie origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -375,7 +380,7 @@ view U key lie when scallops
 |.v.v.v..v.v.
 
 view U key idle origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -384,7 +389,7 @@ view U key idle origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -398,7 +403,7 @@ view U key idle when scallops
 |.v.v.v..v.v.
 
 view U key sit origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -407,7 +412,7 @@ view U key sit origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -421,7 +426,7 @@ view U key sit when scallops
 |.v.v.v..v.v.
 
 view U key floor origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -430,7 +435,7 @@ view U key floor origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -444,7 +449,7 @@ view U key floor when scallops
 |.v.v.v..v.v.
 
 view U key kneel origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -453,7 +458,7 @@ view U key kneel origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -467,7 +472,7 @@ view U key kneel when scallops
 |.v.v.v..v.v.
 
 view U key ride origin 6 -1
-|vyxxxxvxxwwv
+|vzxxxxvxxwwv
 |vyxxxwvwwwwv
 |vxxxxxvxxxwv
 |vyyxxxvxxxxv
@@ -476,7 +481,7 @@ view U key ride origin 6 -1
 regions
 |............
 |........WW..
-|.NNNN..NNNN.
+|............
 |.RRRRR.RRRR.
 |............
 |............
@@ -490,7 +495,7 @@ view U key ride when scallops
 |.v.v.v..v.v.
 
 view R key rest origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -499,7 +504,7 @@ regions
 |.............
 
 view R key wide origin 6 -1
-|vyxxxxxxvwwwv
+|vzxxxxxxvwwwv
 |vyyxxxxxvxxxv
 |vvvvvvvvvvvvv
 regions
@@ -508,7 +513,7 @@ regions
 |.............
 
 view R key flare origin 7 -1
-|vyxxxxxxvxwwwv
+|vzxxxxxxvxwwwv
 |vyyxxxxxvxxxxv
 |vvvvvvvvvvvvvv
 regions
@@ -517,7 +522,7 @@ regions
 |..............
 
 view R key lie origin 6 -1
-|vxyxxwxvywxwv
+|vxzxxwxvywxwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -526,7 +531,7 @@ regions
 |.............
 
 view R key idle origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -535,7 +540,7 @@ regions
 |.............
 
 view R key sit origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -544,7 +549,7 @@ regions
 |.............
 
 view R key floor origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -553,7 +558,7 @@ regions
 |.............
 
 view R key kneel origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -562,7 +567,7 @@ regions
 |.............
 
 view R key ride origin 6 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -571,7 +576,7 @@ regions
 |.............
 
 view L key rest origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -580,7 +585,7 @@ regions
 |.............
 
 view L key wide origin 7 -1
-|vyyxxxvxxwwwv
+|vzyxxxvxxwwwv
 |vyyxxxvxxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -589,7 +594,7 @@ regions
 |.............
 
 view L key flare origin 7 -1
-|vyxxxxxxvxwwwv
+|vzxxxxxxvxwwwv
 |vyyxxxxxvxxxxv
 |vvvvvvvvvvvvvv
 regions
@@ -598,7 +603,7 @@ regions
 |..............
 
 view L key lie origin 6 -1
-|....vxywxwv
+|....vxzwxwv
 |....vxxwwwv
 |....vxxwwwv
 |....vvvvvvv
@@ -609,7 +614,7 @@ regions
 |...........
 
 view L key idle origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -618,7 +623,7 @@ regions
 |.............
 
 view L key sit origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -627,7 +632,7 @@ regions
 |.............
 
 view L key floor origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -636,7 +641,7 @@ regions
 |.............
 
 view L key kneel origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
@@ -645,7 +650,7 @@ regions
 |.............
 
 view L key ride origin 7 -1
-|vyyxxxxvxwwwv
+|vzyxxxxvxwwwv
 |vyyxxxxvxxxxv
 |vvvvvvvvvvvvv
 regions
