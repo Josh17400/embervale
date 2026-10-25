@@ -19,6 +19,34 @@ z 10
 view D key rest origin 0 0
 |.
 
+view D key rest origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mppppm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|...RRRR...
+|..........
+
+view D key rest origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
+
 view U key rest origin 0 0
 |.
 

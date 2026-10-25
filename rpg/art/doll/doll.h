@@ -134,7 +134,8 @@
 // read too: v2 adds a view's flags byte after its stretch row and a frame's turn and at after its plant), u16 flags,
 // u32 size, u32 0; strings (u32 n; u16 len + UTF-8 each); parts; views; marks; body sets; clips; frames; the pixel data
 // (per view an RLE plane: a control byte < 128 = that + 1 clear cells, >= 128 = that - 127 literal bytes; a literal is
-// 1 erase or 2 + slot * 5 + step; region planes the same with region ids; build rows raw). The record layouts are written
+// 1 erase or 2 + slot * 5 + step; region planes the same with region ids; build rows raw; identical planes are stored
+// once, so views may share an offset). The record layouts are written
 // out in pxc.mjs ("the pool") and read in doll_pool.cpp in the same order. The game embeds gen/doll_pool.cpp (no file is
 // read at run time: the web build has no assets); tools may load a pool file instead (loadPool: rpg_test --pool,
 // doll_gallery --pool), e.g. the A3 drafts: node tools/doll/pxc.mjs --root rpg/art/doll/drafts/a3 --bin <f> --no-cpp
@@ -473,6 +474,11 @@ bool metalRead(const uint32_t r[5], uint32_t skin, std::string* why = nullptr);
 // out of the skin box (HSV hue 5-45, Lab chroma 25-60, luma 110-210); greens' lit plane half the body's chroma or less
 bool metalRead2(const uint32_t r[5], std::string* why = nullptr);
 void metalRound2(uint32_t r[5], int sheen = -1);   // moves a ramp until metalRead2 holds (the body darker, the lit plane paler, then toward gold)
+// (forge fix i1) a culture alloy's metal CHARACTER on the composed figure (doll only: the icons and the family picks keep
+// alloyRamp): brass and bronze bodies turned to gold-olive and saturated (never chocolate or maroon), greens cold with a
+// cyan-white light (never khaki or lime), near-neutral greys turned to steel (never plaster), a blackened body under a hard
+// specular plane; the glint warm-white on warm metals, cold-white on cool ones (metalRead and metalRead2 still hold)
+void metalCharacter(uint32_t r[5], int sheen = -1, int metal = -1);   // metal: alloyFamilyMetal (0 bronze 1 brass 2 iron 3 steel 4 silver 5 glass)
 
 // ---------------------------------------------------------------- the pool
 // the embedded pool (gen/doll_pool.cpp) is used unless a tool loads another; every cache keyed on the pool is cleared

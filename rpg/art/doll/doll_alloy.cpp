@@ -73,7 +73,7 @@ const AlloyFam kAlloyFam[] = {
     {"BRASS", 80, 62, 1},                 // BRASS HE
     {"RED BRASS", 60, 56, 0},             // BRASS IM
     {"SUN BRASS", 80, 58, 0},             // BRASS DU
-    {"DARK BRASS", 20, 14, -2},            // BRASS ST
+    {"DARK BRASS", 20, 14, -2},            // BRASS ST (forge fix i1: the doll's metalCharacter turns it to copper-gold)
     {"GREEN BRASS", 110, 46, 1},           // BRASS MA
     {"TEMPLE BRASS", 70, 48, -1},          // BRASS JA
     {"LEMON BRASS", 100, 56, 0},           // BRASS RI
@@ -395,6 +395,97 @@ void round2Read(uint32_t r[5], int sheen = -1) {
 }  // namespace
 void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]) { famRamp(fam, sheen, out); round2Read(out, sheen); }
 void metalRound2(uint32_t r[5], int sheen) { round2Read(r, sheen); }
+// (forge fix i1, ENGINE; the owner's silhouette pack: "reads as cloth, leather or skin, not metal": UHABRASS, JAONBRASS (a
+// dark brass drawn #643B00, chocolate), ENKHOBRASS (#533839, maroon cloth), IKOSILVER, BAKOSTEEL, MIKASTEEL (dark greens
+// under a khaki light), BRIARSTEEL and VENSTEEL (lime, "a pickle"), STAGBRONZE (khaki-cream), SANDSTEEL (greige plaster),
+// THORNIRON ("a grey bullet")) the metal's character by its hue family. Hue and chroma move (the family's value order kept,
+// so C15f's spread and the sheens' tells hold); each step is checked against metalRead2 and kept only if it holds.
+void metalCharacter(uint32_t r[5], int sheen, int metal) {
+  auto lch = [](uint32_t c, double& L, double& C, double& H) { const Lab l = toLab(c); L = l.L; C = std::hypot(l.a, l.b); H = labHue(l); };
+  auto mk = [](double L, double C, double H) { return fromLab(lchLab(std::clamp(L, 0.0, 100.0), std::max(0.0, C), H)) | 0xFF000000u; };
+  const bool dark = sheen == 3 || sheen == 6;
+  double L[5], C[5], H[5];
+  for (int i = 0; i < 5; i++) lch(r[i], L[i], C[i], H[i]);
+  uint32_t t[5] = {r[0], r[1], r[2], r[3], r[4]};
+  const double h2 = H[2], c2 = C[2];
+  // (an iron, steel or silver is never turned to brass: the gold turn is the bronzes' and brasses' (metal 0-1), or a strongly
+  // warm body's; a red under 20 is a copper only on a bronze or brass)
+  const bool warmWord = metal == 0 || metal == 1;
+  const bool warm = ((h2 >= 20.0 && h2 < 112.0) && (warmWord ? c2 >= 10.0 : c2 >= 22.0)) || ((h2 >= 330.0 || h2 < 20.0) && warmWord && c2 >= 10.0);
+  const bool green = h2 >= 112.0 && h2 <= 200.0 && c2 >= 12.0;
+  const bool neutral = c2 < 12.0 && !warm && h2 >= 60.0 && h2 < 160.0;   // (a greige or khaki grey: plaster)
+  if (warm) {
+    // a brass or bronze: the body turned toward the gold-olive (a copper under 45 keeps its red, turned 8), saturated (a
+    // brown at chroma 41 read as hide: gold reads by its colour), the shadow brown-olive, the lit plane a pale gold, the
+    // glint warm white (the dark sheen's cold turn had made it pink), the core a warm black (not #340000)
+    // (a dull red under chroma 22, ENKHOBRASS's maroon, is no copper: it turns the whole way to the gold)
+    const bool redish = h2 < 45.0 || h2 >= 330.0;
+    const double hb = redish && c2 < 22.0 ? hueTurn(h2, 80.0, 75.0) : redish ? hueTurn(h2, 60.0, 8.0) : hueTurn(h2, 86.0, 18.0);
+    // (a dark sheen's body climbs to L 36, its luma still 88 or less: the most gold the blackened tell allows; L 29 at
+    // chroma 39 was the chocolate)
+    const double cb = std::max(c2, dark ? 50.0 : 42.0);
+    const double lb = dark ? std::max(L[2], 36.0) : L[2];
+    t[2] = mk(lb, cb, hb);
+    t[1] = mk(L[1], std::max(C[1], 0.7 * cb), hueTurn(hb, 75.0, 10.0));
+    t[0] = mk(std::min(L[0], 9.0), std::min(C[0], 14.0), hueTurn(hb, 55.0, 30.0));
+    const double l3 = std::max(L[3], std::min(93.0, lb + (dark ? 44.0 : 34.0)));
+    t[3] = mk(l3, 0.54 * cb, hueTurn(hb, 95.0, 24.0));
+    t[4] = mk(std::max(L[4], 96.0), 8.0, 95.0);
+    // out of the skin box: the body darker (a dark sheen's) or more golden, never back to brown
+    for (int it = 0; it < 30 && (inSkinBox(t[2]) || inSkinBox(t[3])); it++) {
+      double l, c, h;
+      lch(t[2], l, c, h);
+      if (inSkinBox(t[2])) t[2] = mk(l, c, hueTurn(h, 95.0, 2.0));
+      lch(t[3], l, c, h);
+      if (inSkinBox(t[3])) t[3] = mk(l, c * 0.92, hueTurn(h, 98.0, 2.0));
+    }
+  } else if (green) {
+    // a green (patina, jade, verdigris): the body cooled toward the sea-green (lime is a pickle) at chroma 34 at most, the
+    // shadow deep and cold, the lit plane CYAN-WHITE (the old turn toward yellow drew it khaki: cloth), the glint cold
+    const double hb = hueTurn(h2, 165.0, 14.0);
+    // (and no paler than L 54: VENSTEEL's pale mint body under a near-white plane read as plastic; the green deepens)
+    const double cb = std::min(c2, 34.0);
+    const double lb = sheen == 7 ? L[2] : std::min(L[2], 54.0);   // (a pale sheen keeps its whitened body)
+    t[2] = mk(lb, cb, hb);
+    t[1] = mk(L[1], std::min(C[1], 0.9 * cb + 4.0), hueTurn(hb, 205.0, 18.0));
+    t[0] = mk(std::min(L[0], 9.0), std::min(C[0], 14.0), hueTurn(hb, 220.0, 30.0));
+    const double l3 = std::min(93.0, lb + (dark ? 42.0 : 30.0));
+    t[3] = mk(l3, std::min(0.45 * cb, 14.0), hueTurn(hb, 200.0, 40.0));
+    t[4] = mk(std::max(L[4], 96.0), 6.0, 215.0);
+  } else if (neutral) {
+    // a near-neutral grey: steel, cold (a greige read as plaster, a khaki-grey as cloth): the hue turned to the steel blue
+    // at a little colour, the lit plane cold white
+    const double cb = std::clamp(c2, 6.0, 9.0);
+    const double hb = (h2 >= 200.0 && h2 <= 320.0) ? h2 : 238.0;
+    t[2] = mk(L[2], cb, hb);
+    t[1] = mk(L[1], std::clamp(C[1], 6.0, 11.0), hueTurn(hb, 260.0, 20.0));
+    t[0] = mk(std::min(L[0], 9.0), std::min(C[0], 10.0), 270.0);
+    t[3] = mk(std::max(L[3], std::min(93.0, L[2] + (dark ? 42.0 : 30.0))), 4.0, hb);
+    t[4] = mk(std::max(L[4], 97.0), 3.0, 230.0);
+  } else {
+    // a cool colour (blue, violet, teal-blue): the blackened body's lit plane hard (42 L over), the glint cold white
+    if (dark) t[3] = mk(std::max(L[3], std::min(93.0, L[2] + 42.0)), C[3], H[3]);
+    t[4] = mk(std::max(L[4], 96.0), std::min(C[4], c2 < 14.0 ? 4.0 : 8.0), hueTurn(H[2], 230.0, 40.0));
+  }
+  // the sheens' tells and the metal read hold: a dark body stays at luma 88 or less (it darkens, its colour kept), the core
+  // under 45 % of the lit plane, the lit plane 22 luma over the body and at most 56 % of its chroma
+  for (int it = 0; it < 40 && dark && luma(t[2]) > 86.0; it++) { double l, c, h; lch(t[2], l, c, h); t[2] = mk(l - 1.0, c, h); }
+  // a pale body stays whitened (step 2 at 150 luma or more: the pale sheen's tell), its colour paling as it climbs
+  for (int it = 0; it < 40 && sheen == 7 && luma(t[2]) < 152.0; it++) { double l, c, h; lch(t[2], l, c, h); t[2] = mk(l + 1.0, c * 0.97, h); }
+  for (int it = 0; it < 40 && luma(t[1]) > 0.44 * luma(t[3]); it++) { double l, c, h; lch(t[1], l, c, h); t[1] = mk(l - 1.0, c, h); }
+  for (int it = 0; it < 40 && luma(t[1]) > luma(t[2]) - 10.0; it++) { double l, c, h; lch(t[1], l, c, h); t[1] = mk(l - 1.0, c, h); }
+  {
+    const Lab b2 = toLab(t[2]);
+    const double cc2 = std::hypot(b2.a, b2.b);
+    double l, c, h;
+    lch(t[3], l, c, h);
+    if (cc2 >= 6.0 && c > 0.55 * cc2) t[3] = mk(l, 0.55 * cc2, h);
+    for (int it = 0; it < 40 && luma(t[3]) < luma(t[2]) + 23.0 && l < 96.0; it++) { l += 1.0; t[3] = mk(l, std::hypot(toLab(t[3]).a, toLab(t[3]).b), h); }
+  }
+  for (int it = 0; it < 30 && luma(t[4]) < 200.0; it++) { double l, c, h; lch(t[4], l, c, h); t[4] = mk(l + 1.0, c * 0.9, h); }
+  if (metalRead2(t, nullptr) || !metalRead2(r, nullptr))
+    for (int i = 0; i < 5; i++) r[i] = t[i];
+}
 bool metalRead2(const uint32_t r[5], std::string* why) {
   char b[200];
   const Lab s2 = toLab(r[2]), s3 = toLab(r[3]);

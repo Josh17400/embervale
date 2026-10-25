@@ -124,7 +124,10 @@ void spawnRow(Game& g, const std::vector<std::pair<std::string, art::HumanLook>>
   const int n = (int)people.size();
   const float pitch = 26.0f, rowW = pitch * (float)(n - 1);
   Vec2 centre = g.pl().p + Vec2(0, -2.0f * TILE);
-  if (!g.inside) {   // the row on open ground (no walls, props or water), the hero two tiles in front of it
+  // (forge fix i1, the owner's village_rig2: "two guard sprites overlap") the hero stands 3.5 tiles in front of the row (2
+  // tiles put his head on the middle figure's boots: a doll is 44 px tall) and half a pitch aside, so no two overlap
+  const Vec2 heroAt((n & 1) ? 0.5f * pitch : 0.0f, 3.5f * TILE);
+  if (!g.inside) {   // the row on open ground (no walls, props or water), the hero in front of it
     const Map& m = g.map();
     const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
     const int half = (int)std::ceil(rowW * 0.5f / TILE) + 1;
@@ -135,13 +138,13 @@ void spawnRow(Game& g, const std::vector<std::pair<std::string, art::HumanLook>>
           if (std::max(std::abs(dx), std::abs(dy)) != r) continue;
           const int cx = px + dx, cy = py + dy;
           bool clear = true;
-          for (int y = cy - 3; y <= cy + 3 && clear; y++)
+          for (int y = cy - 3; y <= cy + 5 && clear; y++)
             for (int x = cx - half; x <= cx + half && clear; x++) {
               if (!m.in(x, y) || m.blocked(x, y) || m.propAt(x, y)) clear = false;
             }
           if (clear) { found = true; centre = Vec2(cx * TILE + 8.0f, cy * TILE + 10.0f); }
         }
-    g.pl().p = centre + Vec2(0, 2.0f * TILE);
+    g.pl().p = centre + heroAt;
   }
   const Vec2 o = centre - Vec2(rowW * 0.5f, 0);
   for (int k = 0; k < n; k++) {

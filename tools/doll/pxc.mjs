@@ -827,7 +827,16 @@ function pack(parts, bodySets, clips) {
   const strings = [''], strIx = new Map([['', 0]]);
   const S = (s) => { if (!strIx.has(s)) { strIx.set(s, strings.length); strings.push(s); } return strIx.get(s); };
   const blob = [];
-  const rle = (cells) => {   // control < 128: (c + 1) clear cells; >= 128: (c - 127) literal bytes follow
+  // (P2c forge fix i1, D21) identical planes are stored once: a view's offset may point at an earlier view's bytes (the
+  // reader only follows offsets). Many keys repeat their rest plane (idle, sit / floor / kneel / ride, the drawn keys).
+  const planes = new Map();
+  const rle = (cells) => {
+    const at = rlePack(cells), key = Buffer.from(blob.slice(at)).toString('latin1');
+    if (planes.has(key)) { blob.length = at; return planes.get(key); }
+    planes.set(key, at);
+    return at;
+  };
+  const rlePack = (cells) => {   // control < 128: (c + 1) clear cells; >= 128: (c - 127) literal bytes follow
     const at = blob.length;
     let i = 0;
     while (i < cells.length) {

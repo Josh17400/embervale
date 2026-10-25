@@ -882,6 +882,21 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
       for (size_t i = 0; i < g.size() && glow < cap; i += step)
         for (int q : *g[i]) if (glow < cap) { at(q % w, q / w) = code(Slot::Glow, 2); glow++; }
     }
+    // (forge fix i1, the owner: "Emberforged has no hot-metal glow: needs bright molten seams") a crack's inner pixels (a glow
+    // pixel with glow on both sides along its line) burn white-hot (the glow's step 3): each crack a hot core in an orange
+    // body under a red rim, never a painted stripe; a crack of 2 keeps its orange
+    {
+      auto g2 = [&](int x, int y) {
+        if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        const uint8_t c = at(x, y);
+        return c >= 2 && codeSlot(c) == Slot::Glow && codeStep(c) >= 2;
+      };
+      std::vector<int> core;
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+          if (g2(x, y) && ((g2(x - 1, y) && g2(x + 1, y)) || (g2(x, y - 1) && g2(x, y + 1)))) core.push_back(y * w + x);
+      for (int q : core) at(q % w, q / w) = code(Slot::Glow, 3);
+    }
     // (silhouettes i3, the blind panel: "a cold iron stove with lit vents, no red-orange gradient") the heat bleeds into the
     // iron: a shadow or body metal pixel under or beside a glowing crack takes the glow's dark step (a red ember edge), the
     // pixel below first (heat rises from the vent's lip), 16 pixels at most, so each crack reads hot-cored, red-rimmed
@@ -900,6 +915,30 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
             if (hit && std::find(halo.begin(), halo.end(), y * w + x) == halo.end()) halo.push_back(y * w + x);
           }
       for (size_t i = 0; i < halo.size() && i < 16; i++) at(halo[i] % w, halo[i] / w) = code(Slot::Glow, 1);
+    }
+    wide = was;
+  }
+  // (forge fix i1, the owner: "Obsidian reads as black cloth or lacquer: needs glassy specular streaks") KNAPPED's glass: up to
+  // four diagonal streaks (rising to the right, 45 degrees, the lit facet's step 3, 3-4 px long) across the body's dark facets
+  // (step 1-2 metal runs of 3 or more along the diagonal), 7 px apart: the light slides across glass, it does not sit on it
+  if (r.has("glass")) {
+    const bool was = wide;
+    wide = true;   // (the helm's and the shoulders' facets too: KNAPPED's torso facets are narrow)
+    auto dark = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && (metalAt(x, y, 2) || metalAt(x, y, 1)); };
+    int streaks = 0;
+    for (int c0 = 6; c0 < w + h && streaks < 4; c0 += 7) {
+      // the longest run of dark facet pixels along x + y = c0 (from the lower left up to the upper right)
+      int bestS = -1, bestN = 0;
+      for (int y = std::min(h - 1, c0), n = 0, s0 = -1; y >= 0 && c0 - y < w; y--) {
+        const int x = c0 - y;
+        if (dark(x, y)) { if (!n) s0 = y; n++; if (n > bestN) { bestN = n; bestS = s0; } }
+        else n = 0;
+      }
+      if (bestN < 3) continue;
+      // the streak in the run's middle, 3 px (4 on a run of 7 or more)
+      const int len = bestN >= 7 ? 4 : 3, start = bestS - (bestN - len) / 2;
+      for (int k = 0; k < len; k++) { const int y = start - k, x = c0 - y; if (dark(x, y)) at(x, y) = code(Slot::Metal, 3); }
+      streaks++;
     }
     wide = was;
   }
@@ -1047,7 +1086,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     Item it;
     it.part = &p; it.view = v; it.z = p.z; it.order = pi;
     it.clipTorso = motifFallback;
-    it.iris = r.irisBands && (overlayPrefix(P, p, "skirt.") || overlayPrefix(P, p, "motif.") || overlayPrefix(P, p, "sleeve."));
+    // (INTEGRATE forge fix i1, C17: Thorniron's iridescent kit read 19 % second hue, its unbanded collar and crest 60 of the
+    // 88 counted metal px) the forge collar and crest overlays band too: the sheen's two hues run over every forged piece
+    it.iris = r.irisBands && (overlayPrefix(P, p, "skirt.") || overlayPrefix(P, p, "motif.") || overlayPrefix(P, p, "sleeve.") ||
+                              overlayPrefix(P, p, "collar.") || overlayPrefix(P, p, "crest."));
     // (silhouettes i2, C17: the second hue on 11-14 % of the Heartland and Jade kits' metal, the seams too sparse to part the
     // lames) every iridescent piece alternates in 2-row bands: a two-tone figure at 1x
     it.irisRows = it.iris;
@@ -1303,6 +1345,12 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
         for (size_t k = 0; k < v.regions.size() && !seams; k++) seams = v.regions[k] == (uint8_t)Region::Seam && v.cells[k] >= 2;
       uint8_t b = 0;
       int top = -1;
+      // (forge fix i1) 3-row bands on a piece 9 rows tall or more (a two-tone plate at 1x), 2-row on a small one (a shoulder,
+      // a helm band) so it still carries both hues
+      int rowsDrawn = 0;
+      for (int y = 0; y < v.h; y++)
+        for (int x = 0; x < v.w; x++) if (v.cells[(size_t)y * v.w + x] >= 2) { rowsDrawn++; break; }
+      const int period = rowsDrawn >= 9 ? 3 : 2;
       for (int y = 0; y < v.h; y++) {
         bool any = false, seamRow = false;
         for (int x = 0; x < v.w; x++) {
@@ -1312,7 +1360,30 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
         }
         if (any && top < 0) top = y;
         irisBand[(size_t)y] = b;
-        if (seams ? seamRow : (top >= 0 && (y - top) % (it.irisRows ? 2 : 3) == (it.irisRows ? 1 : 2))) b ^= 1;
+        if (seams ? seamRow : (top >= 0 && (y - top) % period == period - 1)) b ^= 1;
+      }
+      // (INTEGRATE forge fix i1) the bands' phase balances the piece's own metal: a jerkin whose metal is its collar and belt
+      // plates (Thorniron's T4 torso) took the body hue on both and the second hue on 19 % of it, so the bands' boundaries
+      // shift (0 to 2 periods) to the phase that leaves each hue nearest half the piece's metal (a two-tone piece, not a
+      // one-hue piece with a stripe); the drawn phase stays unless another is clearly better (a tenth of the metal)
+      if (!seams && top >= 0) {
+        static thread_local std::vector<int> metalRow;
+        metalRow.assign(v.h, 0);
+        int all = 0;
+        for (int y = 0; y < v.h; y++)
+          for (int x = 0; x < v.w; x++) {
+            const uint8_t c = v.cells[(size_t)y * v.w + x];
+            if (c >= 2 && codeSlot(c) == Slot::Metal) { metalRow[(size_t)y]++; all++; }
+          }
+        auto off = [&](int o) {
+          int on = 0;
+          for (int y = top; y < v.h; y++) on += (((y - top + o) / period) & 1) ? metalRow[(size_t)y] : 0;
+          return std::abs(2 * on - all);
+        };
+        int best = 0, bestD = off(0);
+        for (int o = 1; o < 2 * period; o++) { const int d = off(o); if (d < bestD) { bestD = d; best = o; } }
+        if (all && best && off(0) - bestD > all / 10)
+          for (int y = top; y < v.h; y++) irisBand[(size_t)y] = (uint8_t)(((y - top + best) / period) & 1);
       }
     }
     for (int y = 0; y < v.h; y++) {
@@ -1454,6 +1525,22 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   }
   despecklePass(r, o);
   glintPass(r, o);
+  // (forge fix i2, B8 and STYLE_P2 "no 1 px speckle") a round-2 silhouette lays a shoulder mass, a skirt and an over-layer
+  // the art drew apart; where two of them meet at a corner a single pixel can be left floating clear of the figure (mr_4's
+  // drop shoulders over its tabard, a pixel off the arm's corner on some frames). A figure pixel with no figure neighbour
+  // (8-connected) is cleared; a held item's pixels stay
+  if (r.has("alloyshape") && o.bx1 >= o.bx0) {
+    auto at = [&](int x, int y) { return x >= 0 && y >= 0 && x < CW && y < CH && o.code[(size_t)y * CW + x] != 0; };
+    for (int y = o.by0; y <= o.by1; y++)
+      for (int x = o.bx0; x <= o.bx1; x++) {
+        const size_t q = (size_t)y * CW + x;
+        if (!o.code[q] || heldPx[q]) continue;
+        bool nb = false;
+        for (int dy = -1; dy <= 1 && !nb; dy++)
+          for (int dx = -1; dx <= 1 && !nb; dx++) nb = (dx || dy) && at(x + dx, y + dy);
+        if (!nb) o.code[q] = 0;
+      }
+  }
   // (silhouettes i2, the blind panel: "Mythic: a fire-sparkle soup of bright 1-2 px specks, the face only just readable";
   // C13's bright-pixel budget) on the Mythic a glow speck (a blob of 1-2 pixels) goes dark: the fire lives
   // in the cracks and the rims, never as speckle

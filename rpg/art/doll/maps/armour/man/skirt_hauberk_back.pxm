@@ -12,50 +12,60 @@ z 10
 view D key rest origin 0 0
 |.
 
-view D key rest origin 8 -5 when !form-mail replace
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vvvvvvvvvvvvvvvv
+view D key rest origin 10 -5 when !form-mail replace
+|.vwwwwwwwwwwwwwvvvv.
+|.vyyyyyxxxxxxwwwwwv.
+|vyyyyyyyyyxxxxxxwwwv
+|vvvvvvvvvvvvvvvvvvvv
 regions
-|.NNNNNNNNNNNNNN.
-|.RRRRRRRRRRRRRR.
-|................
+|..NNNNNNNNNNNNNNNN..
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+|....................
 
 view D key flare origin 0 0
 |.
 
-view D key flare origin 9 -5 when !form-mail replace
-|vyyyyyyyxxxwwwwwwv
-|vwwwwwwwwwwwwwwwwv
-|vvvvvvvvvvvvvvvvvv
+view D key flare origin 11 -5 when !form-mail replace
+|..vwwwwwwwwwwwwwvvvv..
+|.vyyyyyyxxxxxxwwwwwwv.
+|vyyyyyyyyyyxxxxxxxwwwv
+|vvvvvvvvvvvvvvvvvvvvvv
 regions
-|.NNNNNNNNNNNNNNNN.
-|.RRRRRRRRRRRRRRRR.
-|..................
+|...NNNNNNNNNNNNNNNN...
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+|......................
 
 view D key idle origin 0 0
 |.
 
-view D key idle origin 8 -5 when !form-mail replace
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vvvvvvvvvvvvvvvv
+view D key idle origin 10 -5 when !form-mail replace
+|.vwwwwwwwwwwwwwvvvv.
+|.vyyyyyxxxxxxwwwwwv.
+|vyyyyyyyyyxxxxxxwwwv
+|vvvvvvvvvvvvvvvvvvvv
 regions
-|.NNNNNNNNNNNNNN.
-|.RRRRRRRRRRRRRR.
-|................
+|..NNNNNNNNNNNNNNNN..
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+|....................
 
 view R key rest origin 0 0
 |.
 
-view R key rest origin 7 -3 when !form-mail replace
-|vyyyyyxxwwwwwv
-|vwwwwwwwwwwwwv
-|vyyyyyxxwwwwwv
-|vyyyyyyxxxxxxv
+view R key rest origin 7 -2 when !form-mail replace
+|vwwwwwwwwwwvvv
+|vyyyyxxxxwwwwv
+|vxxxxxxwwwwwwv
+|vwwwwwwwwwwvvv
+|vyyyyxxxxwwwwv
+|vyyyyyyxxxxwwv
 |vvvvvvvvvvvvvv
 regions
 |.NNNNNNNNNNNN.
+|..............
+|..............
 |.NNNNNNNNNNNN.
 |..............
 |.RRRRRRRRRRRR.
@@ -64,46 +74,58 @@ regions
 view R key wide origin 0 0
 |.
 
-view R key wide origin 8 -3 when !form-mail replace
-|.vyyyyyxxxwwwwwv
-|.vwwwwwwwwwwwwwv
-|vxyyyyyxxxwwwwwv
-|vyyyyyyyxxxxxxxv
-|vvvvvvvvvvvvvvvv
+view R key wide origin 8 -2 when !form-mail replace
+|vwwwwwwwwwwwwvvv.
+|vyyyyyxxxxwwwwwv.
+|vxxxxxxxwwwwwwwv.
+|vwwwwwwwwwwwwvvvv
+|vyyyyyxxxxxwwwwwv
+|vyyyyyyyxxxxxwwwv
+|vvvvvvvvvvvvvvvvv
 regions
-|..NNNNNNNNNNNNN.
-|..NNNNNNNNNNNNN.
-|................
-|.RRRRRRRRRRRRRR.
-|................
+|.NNNNNNNNNNNNNN..
+|.................
+|.................
+|.NNNNNNNNNNNNNNN.
+|.................
+|.RRRRRRRRRRRRRRR.
+|.................
 
 view R key flare origin 0 0
 |.
 
-view R key flare origin 10 -3 when !form-mail replace
-|..vyyyyyxxwwwwwwv
-|..vwwwwwwwwwwwwwv
-|vxxyyyyyxxwwwwwwv
-|vyyyyyyyyxxxxxxxv
-|vvvvvvvvvvvvvvvvv
+view R key flare origin 10 -2 when !form-mail replace
+|..vwwwwwwwwwwwvvv
+|..vyyyyxxxxxwwwwv
+|..vxxxxxxwwwwwwwv
+|.vwwwwwwwwwwwvvv.
+|.vyyyyxxxxxwwwwv.
+|vyyyyyyyxxxxxwwv.
+|vvvvvvvvvvvvvvvv.
 regions
 |...NNNNNNNNNNNNN.
-|...NNNNNNNNNNNNN.
 |.................
-|.RRRRRRRRRRRRRRR.
+|.................
+|..NNNNNNNNNNNNN..
+|.................
+|.RRRRRRRRRRRRRR..
 |.................
 
 view R key idle origin 0 0
 |.
 
-view R key idle origin 7 -3 when !form-mail replace
-|vyyyyyxxwwwwwv
-|vwwwwwwwwwwwwv
-|vyyyyyxxwwwwwv
-|vyyyyyyxxxxxxv
+view R key idle origin 7 -2 when !form-mail replace
+|vwwwwwwwwwwvvv
+|vyyyyxxxxwwwwv
+|vxxxxxxwwwwwwv
+|vwwwwwwwwwwvvv
+|vyyyyxxxxwwwwv
+|vyyyyyyxxxxwwv
 |vvvvvvvvvvvvvv
 regions
 |.NNNNNNNNNNNN.
+|..............
+|..............
 |.NNNNNNNNNNNN.
 |..............
 |.RRRRRRRRRRRR.
@@ -112,14 +134,18 @@ regions
 view L key rest origin 0 0
 |.
 
-view L key rest origin 7 -3 when !form-mail replace
-|vzyyyyxxwwwwwv
-|vwwwwwwwwwwwwv
-|vyyyyyxxwwwwwv
-|vyyyyyyxxxxxxv
+view L key rest origin 6 -2 when !form-mail replace
+|vvvwwwwwwwwwwv
+|vyyyyxxxxwwwwv
+|vxxxxxxwwwwwwv
+|vvvwwwwwwwwwwv
+|vyyyyxxxxwwwwv
+|vyyyyyyxxxxwwv
 |vvvvvvvvvvvvvv
 regions
 |.NNNNNNNNNNNN.
+|..............
+|..............
 |.NNNNNNNNNNNN.
 |..............
 |.RRRRRRRRRRRR.
@@ -128,46 +154,58 @@ regions
 view L key wide origin 0 0
 |.
 
-view L key wide origin 8 -3 when !form-mail replace
-|vzyyyyyxxxwwwwv.
-|vwwwwwwwwwwwwwv.
-|vyyyyyyxxxwwwwwv
-|vyyyyyyyxxxxxxxv
-|vvvvvvvvvvvvvvvv
+view L key wide origin 8 -2 when !form-mail replace
+|.vvvwwwwwwwwwwwwv
+|.vyyyyyxxxxwwwwwv
+|.vxxxxxxxwwwwwwwv
+|vvvvwwwwwwwwwwwwv
+|vyyyyyxxxxxwwwwwv
+|vyyyyyyyxxxxxwwwv
+|vvvvvvvvvvvvvvvvv
 regions
-|.NNNNNNNNNNNNN..
-|.NNNNNNNNNNNNN..
-|................
-|.RRRRRRRRRRRRRR.
-|................
+|..NNNNNNNNNNNNNN.
+|.................
+|.................
+|.NNNNNNNNNNNNNNN.
+|.................
+|.RRRRRRRRRRRRRRR.
+|.................
 
 view L key flare origin 0 0
 |.
 
-view L key flare origin 7 -3 when !form-mail replace
-|vzyyyyyyxxwwwwv..
-|vwwwwwwwwwwwwwv..
-|vyyyyyyyxxwwwwwwv
-|vyyyyyyyyxxxxxxxv
-|vvvvvvvvvvvvvvvvv
+view L key flare origin 6 -2 when !form-mail replace
+|vvvwwwwwwwwwwwv..
+|vyyyyxxxxxwwwwv..
+|vxxxxxxwwwwwwwv..
+|.vvvwwwwwwwwwwwv.
+|.vyyyyxxxxxwwwwv.
+|.vyyyyyyyxxxxxwwv
+|.vvvvvvvvvvvvvvvv
 regions
 |.NNNNNNNNNNNNN...
-|.NNNNNNNNNNNNN...
 |.................
-|.RRRRRRRRRRRRRRR.
+|.................
+|..NNNNNNNNNNNNN..
+|.................
+|..RRRRRRRRRRRRRR.
 |.................
 
 view L key idle origin 0 0
 |.
 
-view L key idle origin 7 -3 when !form-mail replace
-|vzyyyyxxwwwwwv
-|vwwwwwwwwwwwwv
-|vyyyyyxxwwwwwv
-|vyyyyyyxxxxxxv
+view L key idle origin 6 -2 when !form-mail replace
+|vvvwwwwwwwwwwv
+|vyyyyxxxxwwwwv
+|vxxxxxxwwwwwwv
+|vvvwwwwwwwwwwv
+|vyyyyxxxxwwwwv
+|vyyyyyyxxxxwwv
 |vvvvvvvvvvvvvv
 regions
 |.NNNNNNNNNNNN.
+|..............
+|..............
 |.NNNNNNNNNNNN.
 |..............
 |.RRRRRRRRRRRR.

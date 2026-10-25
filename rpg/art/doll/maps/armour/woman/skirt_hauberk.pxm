@@ -15,43 +15,111 @@ view D key rest origin 0 0
 |.
 
 view D key rest origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
+|.vyzyyyyyxxwwwv.
+|.vxxxxxwwwwwwwv.
+|.vwwwwvvvwwwwvv.
+|.vyyxwv..vyyxwv.
+|.vyxxwv..vyxxwv.
+|.vvvvvv..vvvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
 |................
-|.RRRRRRR.RRRRRR.
+|................
+|..NNNNN..NNNNN..
+|................
+|..RRRR....RRRR..
+|................
+
+view D key rest origin 4 0 when layer-tabard
+|.mpoonm.
+|.mpoonm.
+|.mpoonm.
+|.mppppm.
+|.mmmmmm.
+regions
+|........
+|........
+|........
+|..RRRR..
+|........
+
+view D key rest origin 1 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
 
 view D key flare origin 0 0
 |.
 
 view D key flare origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
+|.vyzyyyyyxxwwwv.
+|.vxxxxxwwwwwwwv.
+|.vwwwwvvvvwwwwv.
+|.vyxwv....vyxwv.
+|.vyxwv....vyxwv.
+|.vvvvv....vvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
 |................
-|.RRRRRRR.RRRRRR.
+|................
+|..NNNN....NNNN..
+|................
+|..RRR......RRR..
+|................
 
 view D key idle origin 0 0
 |.
 
 view D key idle origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
+|.vyzyyyyyxxwwwv.
+|.vxxxxxwwwwwwwv.
+|.vwwwwvvvwwwwvv.
+|.vyyxwv..vyyxwv.
+|.vyxxwv..vyxxwv.
+|.vvvvvv..vvvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
 |................
-|.RRRRRRR.RRRRRR.
+|................
+|..NNNNN..NNNNN..
+|................
+|..RRRR....RRRR..
+|................
+
+view D key idle origin 4 0 when layer-tabard
+|.mpoonm.
+|.mpoonm.
+|.mpoonm.
+|.mppppm.
+|.mmmmmm.
+regions
+|........
+|........
+|........
+|..RRRR..
+|........
+
+view D key idle origin 1 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
 
 view D key kneel origin 0 0
 |.

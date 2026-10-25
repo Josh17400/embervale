@@ -122,6 +122,57 @@ regions
 |RRRRRGGRRRRRRR
 |.RRRRRRRRRRRR.
 
+# (HELMS forge-fix i2) begin crest yield (forge fix 2): this crest steps aside on these helm outlines
+# the sun crown (none): its rays are the crown
+view D key rest when helmfam-crown,mass-none replace
+|.
+
+view U key rest when helmfam-crown,mass-none replace
+|.
+
+view R key rest when helmfam-crown,mass-none replace
+|.
+
+view L key rest when helmfam-crown,mass-none replace
+|.
+
+view L key lie when helmfam-crown,mass-none replace
+|.
+
+# the sun crown (mantle): its rays are the crown
+view D key rest when helmfam-crown,mass-mantle replace
+|.
+
+view U key rest when helmfam-crown,mass-mantle replace
+|.
+
+view R key rest when helmfam-crown,mass-mantle replace
+|.
+
+view L key rest when helmfam-crown,mass-mantle replace
+|.
+
+view L key lie when helmfam-crown,mass-mantle replace
+|.
+
+# the sun crown (tall): its rays are the crown
+view D key rest when helmfam-crown,mass-tall replace
+|.
+
+view U key rest when helmfam-crown,mass-tall replace
+|.
+
+view R key rest when helmfam-crown,mass-tall replace
+|.
+
+view L key rest when helmfam-crown,mass-tall replace
+|.
+
+view L key lie when helmfam-crown,mass-tall replace
+|.
+
+# (HELMS forge-fix i2) end
+
 # (FORGE-HEAD i2) crest yield: drawn only on crown kabuto; any other alloy helm family wears no crown crest
 view D key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
 |.

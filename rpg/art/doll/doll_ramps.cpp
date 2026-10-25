@@ -364,12 +364,12 @@ const uint32_t kMetalKind[12][5] = {
     {0x3A2A08, 0x6E5410, 0xC8A020, 0xF6E6A6, 0xFFFAE4},   // (forge C17: a pale gilt plane, the core deeper)
       // 5 gilded (alloys i3: a lemon gold, apart from the bronze's orange at game scale; its body 18 luma under the skin)
     {0x0E2A22, 0x1F5A46, 0x3E9474, 0x7CC8A0, 0xD0F4E0},   // 6 jade
-    {0x0A0810, 0x181424, 0x2A2440, 0x82808F, 0xF2F6FF},   // (silhouettes i2: the lit facet violet-cold #82808F (C17: its chroma 60 % of the body's), not i1's grey #868596 that read as dark iron) (forge round 2, STYLE_P2 28.4 KNAPPED: near-black violet glass, cold lit facets, hard white glints)
+    {0x0A0810, 0x241A40, 0x1E1A2E, 0x84808F, 0xF2F6FF},   // (forge fix i1, the owner: "black cloth or lacquer": the lit edge (step 1) a VIOLET rim light over the black glass, the facet colder)   // (silhouettes i2: the lit facet violet-cold #82808F (C17: its chroma 60 % of the body's), not i1's grey #868596 that read as dark iron) (forge round 2, STYLE_P2 28.4 KNAPPED: near-black violet glass, cold lit facets, hard white glints)
       // 7 obsidian (alloys i2: black glass, a near-white glint; the violet read as cloth)
-    {0x120C0E, 0x2A1614, 0x4A2622, 0x786A5E, 0xFFD8A8},   // (silhouettes i3, the blind panel: "a cold iron stove": the char holds its heat, a red-black body under a warm lit plane) (silhouettes i2: black iron, i1's taupe #887868 lit plane read as clay; the heat is the seams') (forge round 2, STYLE_P2 28.4 FURNACE: soft char, the heat only in the seams' Glow; i3:
+    {0x100A0C, 0x2B1614, 0x49201D, 0x897267, 0xFFE2A8},   // (forge fix i1: a darker char body, the lit plane a warm heat-lit rim, so the seams burn on it)   // (silhouettes i3, the blind panel: "a cold iron stove": the char holds its heat, a red-black body under a warm lit plane) (silhouettes i2: black iron, i1's taupe #887868 lit plane read as clay; the heat is the seams') (forge round 2, STYLE_P2 28.4 FURNACE: soft char, the heat only in the seams' Glow; i3:
       // the face plate as skin: a forge-dark red body, the lit plane a yellow straw heat (C17 keeps its chroma under 60 % of the body: an orange went pink), the glint white-hot)
       // 8 emberforged (alloys i2: redder, a yellow-hot glint, apart from bronze)
-    {0x1C2A4C, 0x3E5CA0, 0x8CB2F2, 0xCCE4FF, 0xFFFFFF},   // (forge C17: the core under the crystal plane)
+    {0x26224A, 0x5A5890, 0xC0B8EC, 0xF2F0FE, 0xFFFFFF},   // (forge fix i1, the owner: "T4 and T6 both blue on the ladder": a star-white crystal with lavender shadows, apart from the Heartland T4 blued iron) (forge C17: the core under the crystal plane)
       // 9 starmetal (alloys i1: bluer, it read as steel beside it)
     {0x201C31, 0x525C7A, 0x95A2BC, 0xD5DEEA, 0xFFFFFF},   // 10 alloy: from the tint (this row is the fallback)
     // 11 mythic (ladder i3; i2's crimson-black read as "rust", "a red cap", "a step down" to all five of the blind panel):
@@ -602,6 +602,42 @@ DollRamps rampsOf(const HumanLook& L) {
       }
     }
   }
+  // (INTEGRATE forge fix i1, C14: Froststeel's SKIRT NONE showed its tunic's hem on the trousers, 95 against 101 luma) a
+  // forged body with no skirt shows the tunic's hem over the trousers: the trousers' lit body parts from the tunic's by 18
+  // luma, lifted the floor's way (RGB scaled, hue and saturation kept: the lifts above only ever raise it) while it stays
+  // 18 off the boots' leather; the outline keeps the pick's own step 0. Rig 2's forged figures only.
+  if (L.forgeShape && L.forge[HumanLook::TIER_BODY]) {
+    uint8_t sx[forge::SX_COUNT];
+    forge::unpackShapeAxes(L.forgeShape, sx);
+    uint32_t* T = R.c[(int)Slot::Cloth2];
+    const double c1 = luma(R.c[(int)Slot::Cloth1][2]), boot = luma(R.c[(int)Slot::Leather][2]);
+    if (sx[forge::SX_SKIRT] == forge::SK_NONE && std::fabs(luma(T[2]) - c1) < 18.0) {
+      const uint32_t b = (L.bottomColor & 0xFFFFFFu) ? L.bottomColor : rgba(1, 1, 1);
+      const int mx = std::max({chR(b), chG(b), chB(b), 1});
+      auto scaled = [&](double k) {
+        auto ch = [&](int v) { return (int)std::clamp(std::lround(v * k), 0L, 255L); };
+        return rgba(ch(chR(b)), ch(chG(b)), ch(chB(b)));
+      };
+      const double want = std::fabs(c1 + 18.0 - boot) < 18.0 ? std::max(c1, boot) + 18.0 : c1 + 18.0;   // past the boots too
+      auto good = [&](const uint32_t g[5]) { return luma(g[2]) >= want; };
+      double lo = 1.0, hi = 255.0 / mx;
+      uint32_t g[5];
+      generateCached(scaled(hi), Material::Cloth, g);
+      if (good(g)) {
+        for (int it = 0; it < 24; it++) {
+          const double mid = (lo + hi) * 0.5;
+          generateCached(scaled(mid), Material::Cloth, g);
+          (good(g) ? hi : lo) = mid;
+        }
+        generateCached(scaled(hi), Material::Cloth, g);
+        if (luma(g[2]) > luma(T[2]) && std::fabs(luma(g[2]) - boot) >= 18.0) {
+          const uint32_t ownOutline = T[0];
+          for (int i = 0; i < 5; i++) T[i] = g[i];
+          if (luma(ownOutline) < luma(T[0])) T[0] = ownOutline;
+        }
+      }
+    }
+  }
   // trim: the nearest curated metal to the look's trim colour (brass by default)
   if (L.trimColor) {
     const Lab t = toLab(L.trimColor);
@@ -756,6 +792,7 @@ DollRamps rampsOf(const HumanLook& L) {
     // (forge round 2) and again after the moves above (the skin's and the hair's partings, the lit edge): the read holds
     if (L.forge[HumanLook::TIER_BODY] && mk == 10) {
       metalRound2(R.c[(int)Slot::Metal], L.sheen);
+      metalCharacter(R.c[(int)Slot::Metal], L.sheen, alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen)));   // (forge fix i1) brass gold, greens cold, greys steel, dark ones hard-lit
       // the body still parts from the hair it touches (C14: 18 luma): away from it, the lit plane kept 22 over
       uint32_t* M = R.c[(int)Slot::Metal];
       const double hr = luma(R.c[(int)Slot::Hair][2]), sk = luma(R.c[(int)Slot::Skin][2]);
@@ -764,6 +801,7 @@ DollRamps rampsOf(const HumanLook& L) {
       auto clash = [&](uint32_t c) { return std::fabs(luma(c) - hr) < 18.0 || std::fabs(luma(c) - sk) < 18.0 || std::fabs(luma(c) - c2l) < 18.0; };
       if (clash(M[2]))
         for (double k : {L.sheen == 7 ? 1.03 : 0.96, L.sheen == 7 ? 0.96 : 1.03}) {   // darker first (out of the skin box), else lighter; a pale body lighter first
+          if (k > 1.0 && (L.sheen == 3 || L.sheen == 6)) continue;   // (forge fix i1: a blackened body never lightens past its tell)
           uint32_t c = M[2], c3 = M[3];
           bool ok = false;
           for (int it = 0; it < 40; it++) {
@@ -787,6 +825,17 @@ DollRamps rampsOf(const HumanLook& L) {
         b3.a *= 0.9; b3.b *= 0.9;
         M[3] = fromLab(b3) | 0xFF000000u;
       }
+      // (forge fix i2, the owner: "reads as cloth/leather, not metal: Uhabrass, Jaonbrass, Ikosilver, Bakosteel, Mikasteel,
+      // Enkhobrass") a dark sheen's body sits under the hair it touches (luma 65 at most) with its shadow 10 under it: one
+      // flat brown or green plane, a hide or a felt. Blackened metal reads by its planes: the shadow (step 1) sinks to 60 %
+      // of the body's luma and loses some colour (a cold near-black core, not a second brown), so each plate is a dark core,
+      // a body and the hard pale light. (C14's dark-sheen edge is its own step 1: the lit edge follows it.)
+      if (L.sheen == 3) {   // (the glowing sheen keeps C14's lit edge: its seams, not its core, are its tell)
+        const double want = 0.6 * luma(M[2]);
+        Lab s1 = toLab(M[1]);
+        for (int it = 0; it < 40 && luma(fromLab(s1) | 0xFF000000u) > want && s1.L > 8.0; it++) { s1.L -= 1.0; s1.a *= 0.985; s1.b *= 0.985; }
+        if (luma(fromLab(s1) | 0xFF000000u) > luma(M[0]) + 8.0) M[1] = fromLab(s1) | 0xFF000000u;
+      }
     }
     // the blade: its own metal (bladeKind; a Mythic blade white-hot), the armour's when they match
     const int bk = std::clamp((int)L.bladeKind, 0, 11);
@@ -807,6 +856,26 @@ DollRamps rampsOf(const HumanLook& L) {
     // pairing (a dark neutral iron under gold read as one gold figure)
     if (topR >= 5 && mk == 10 && (alloyTint(R.c[(int)Slot::Metal][2]) >= 9.0 || luma(R.c[(int)Slot::Metal][2]) < 120.0))
       for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal2][i] = R.c[(int)Slot::Metal][std::min(4, i + 1)];
+    // (forge fix i2, the owner: "Thorniron ... a stray pink band") a culture alloy's trim drawn from its second key by A3's
+    // generator keeps the key's colour in its light: a violet key lit pink (#E5A2DE) on a grey iron reads as a ribbon, not
+    // metal. The trim reads as metal as the body does: its lit plane and glint pale (56 % of its body's chroma at most) and
+    // never pink (turned toward the violet, away from the reds)
+    if (mk == 10 && L.sheen != 5 && L.forge[HumanLook::TIER_BODY] && topR < 5) {
+      uint32_t* T = R.c[(int)Slot::Metal2];
+      const Lab b2 = toLab(T[2]);
+      const double cb = std::hypot(b2.a, b2.b);
+      for (int i = 3; i <= 4; i++) {
+        Lab l = toLab(T[i]);
+        double c = std::hypot(l.a, l.b), h = std::fmod(std::atan2(l.b, l.a) * 57.29578 + 360.0, 360.0);
+        const double cap = i == 3 ? 0.56 * cb : std::min(10.0, 0.3 * cb);
+        const bool pink = c >= 12.0 && (h >= 320.0 || h < 30.0);
+        if (c <= cap && !pink) continue;
+        if (pink) h = h >= 320.0 ? 310.0 : 45.0;
+        c = std::min(c, cap);
+        l.a = c * std::cos(h * 0.01745329); l.b = c * std::sin(h * 0.01745329);
+        T[i] = fromLab(l) | 0xFF000000u;
+      }
+    }
     // (P2c forge, STYLE_P2 28.7) the iridescent tell: Metal 2 is the alloy's own ramp turned 70 degrees of hue (its value
     // kept), so the row cut's alternate rows (and the trim) shift hue across the plates; read in shape by the rows
     if (mk == 10 && L.sheen == 5) {
@@ -819,19 +888,54 @@ DollRamps rampsOf(const HumanLook& L) {
         const double h0 = std::atan2(m2.b, m2.a) * 57.29578;
         auto pinkness = [](double h) { h = std::fmod(h + 720.0, 360.0); const double d = std::min(std::fabs(h - 15.0), 360.0 - std::fabs(h - 15.0)); return d; };
         if (pinkness(h0 - 110.0) > pinkness(h0 + 110.0)) turn = -110.0;
+        // (forge fix i2, the owner and the blind panel: "no iridescent sheen visible anywhere") blue to green and teal to blue
+        // are neighbours that melt into one teal at 1x. An oil sheen's pair is wider: 150 degrees (blue with gold, teal with
+        // violet), landing in the gold (hue 50-110) or the blue-violet (255-300), never the pinks and mauves (the clown
+        // costume): the turn nearest 150 degrees that lands in one of them
+        auto lands = [](double h) { h = std::fmod(h + 720.0, 360.0); return (h >= 50.0 && h <= 110.0) || (h >= 255.0 && h <= 300.0); };
+        bool found = false;
+        for (int d = 0; d <= 60 && !found; d += 5)
+          for (double t : {150.0 - d, -(150.0 - d), 150.0 + d, -(150.0 + d)})
+            if (!found && std::fabs(t) <= 175.0 && lands(h0 + t)) { turn = t; found = true; }
       }
       for (int i = 0; i < 5; i++) {
         Lab l = toLab(M[i]);
         const double c = std::hypot(l.a, l.b), h = std::atan2(l.b, l.a) + turn * 0.01745329;   // (INTEGRATE silhouettes i1: 110, so a dark iron or a pale glass reads 40 HSV degrees off)
-        const double cc = i >= 1 && i <= 3 ? std::clamp(c * 0.8, 16.0, 22.0) : c;   // a pale silver turns visibly, a vivid one stays gentle
+        // (forge fix i1, the owner: "no iridescent sheen visible anywhere: needs a clear 2-hue shift") the second hue at chroma
+        // 28-38 (16-22 was a grey shimmer at 1x)
+        const double cc = i >= 1 && i <= 3 ? std::clamp(c * 1.0, 28.0, 38.0) : c;
         l.a = cc * std::cos(h); l.b = cc * std::sin(h);
         R.c[(int)Slot::Metal2][i] = fromLab(l) | 0xFF000000u;
+      }
+    }
+    // (forge fix i1, the owner: "no iridescent sheen visible") the iridescent body's own lit plane and glint take the second
+    // hue (their light and the 56 %-of-the-body chroma kept): every plate shows two hues, the body's and its light's
+    if (mk == 10 && L.sheen == 5) {
+      uint32_t* M = R.c[(int)Slot::Metal];
+      const Lab h2 = toLab(R.c[(int)Slot::Metal2][2]), b2 = toLab(M[2]);
+      const double hh = std::atan2(h2.b, h2.a), cb = std::hypot(b2.a, b2.b);
+      for (int i = 3; i <= 4; i++) {
+        Lab l = toLab(M[i]);
+        const double c = i == 3 ? std::min(0.54 * cb, std::max(std::hypot(l.a, l.b), 0.5 * cb)) : std::min(10.0, std::hypot(l.a, l.b) + 4.0);
+        l.a = c * std::cos(hh); l.b = c * std::sin(hh);
+        uint32_t n = fromLab(l) | 0xFF000000u;
+        // (the turned light keeps its luma: a hue at the same L can lose 10 luma, and the dark core is read against it)
+        for (int it = 0; it < 20 && luma(n) < luma(M[i]) && l.L < 99.0; it++) { l.L += 1.0; n = fromLab(l) | 0xFF000000u; }
+        uint32_t t[5] = {M[0], M[1], M[2], i == 3 ? n : M[3], i == 4 ? n : M[4]};
+        if (metalRead2(t, nullptr) && metalRead(t, R.c[(int)Slot::Skin][2], nullptr) == metalRead(M, R.c[(int)Slot::Skin][2], nullptr)) M[i] = n;
       }
     }
     // Glow: the glow colour, else the gem colour, else the metal's own
     {
       const uint32_t g0 = L.glowColor ? L.glowColor : L.gemColor ? L.gemColor : (mk == 10 && L.armourTint ? L.armourTint : hex(kGlowOf[mk]));
       rampA3(glowLight(g0, topR >= 5 && !L.mythic && mk != 11, L.mythic != 0 || mk == 11), Material::Metal, R.c[(int)Slot::Glow]);
+    }
+    // (forge fix i1, the owner: "Emberforged has no hot-metal glow") emberforged's seams are molten: a red rim (1), an orange
+    // body (2), a white-hot core (3: the compositor's crack centres), the glint near white
+    if (mk == 8 && !L.glowColor) {
+      static const uint32_t kMolten[5] = {0x2A0600, 0xD8380C, 0xFF9A1E, 0xFFE882, 0xFFFCE6};
+      setHex(R.c[(int)Slot::Glow], kMolten);
+      for (int i = 0; i < 5; i++) R.c[(int)Slot::Glow][i] |= 0xFF000000u;
     }
     // T6: the shield's device burns in the glow's light (STYLE_P2 27.2: "the device or boss glowing"), drawn (no pulse)
     if (L.tier[HumanLook::TIER_SHIELD] >= 6)

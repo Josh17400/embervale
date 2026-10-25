@@ -16,9 +16,14 @@ legend : ink 1
 legend = ink 0
 legend O metal2 2
 # (FORGE-TORSO round 2 i1) faceted: a glass facet per 4 rows: the hard lit edge, the lit face, the plane, its shade (rows only: a 3 px limb takes no diagonal).
+# (forge fix i2, MATERIAL; the owner: "Obsidian reads as black cloth": i1's 1-wide tile drew a white row every 4 px across
+# every glove and greave, zebra stripes that read as quilted cloth) a glass facet a 4 x 6 cell: a "/" specular streak (+2)
+# with its lit flank (+1) on the upper left, a flat dark plane, the lower right a step down (on obsidian the violet rim).
 
 view D key rest origin 0 0
-|^
-|+
-|.
-|:
+|.+^.
+|+^..
+|^...
+|....
+|...:
+|..::

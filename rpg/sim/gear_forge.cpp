@@ -868,6 +868,10 @@ AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& k
       if (hidAsk && *hidAsk && hasWord(hidAsk, w)) x.s += 4000;
       if (rootAsk && *rootAsk && hasWord(rootAsk, w)) x.s += 2000;
       for (const AlloyDetails& e : earlier) if ((axis == F::SX_MOTIF ? e.motif : e.arm) == x.v) x.s -= 300;
+      // (forge fix i2, the owner: "bare arms, no mass: a peasant figure with a different cap") bare arms only beside a
+      // shoulder mass; a mass-less alloy's arms are plated (heavy first, then wide)
+      if (axis == F::SX_ARM && key.mass == F::MS_NONE)
+        x.s += x.v == F::AR_BARE ? -6000 : x.v == F::AR_HEAVY ? 600 : x.v == F::AR_WIDE ? 300 : 0;
       x.s += jitter(axis + 16, x.v);
     }
     std::stable_sort(cs.begin(), cs.end(), [](const C& p, const C& q) { return p.s > q.s; });
@@ -1124,6 +1128,12 @@ ShapeSolve solveShapes(const ShapeModel& m) {
               // (silhouettes i2, the blind panel: "a crown on a mid-tier hauberk muddles the ladder: a crown should mean high
               // rank") the CROWN helm leans to the masterwork
               if (s.helm == F::H_CROWN && r < 2) sc -= 1.5;
+              // (forge fix i2, the owner: "Uhabrass, Jaonbrass, Briarsteel, Jaguariron read as cloth: a peasant with a new
+              // hat") a body with no skirt and no shoulder mass shows no metal at true 1x: the helm alone carries the alloy.
+              // Every alloy shows its metal on the body (a skirt, a mass or both); a tabard over a mass-less body hides the
+              // little plate there is
+              if (s.skirt == F::SK_NONE && s.mass == F::MS_NONE) continue;
+              else if (s.mass == F::MS_NONE && s.layer == F::LY_TABARD) sc -= 2.0;
               cand[p][r].push_back(KeyCand{shapeKey(s), s, sc});
             }
           }
@@ -1257,6 +1267,13 @@ ShapeSolve solveShapes(const ShapeModel& m) {
           const int apart = (n.s.skirt != c.s.skirt) + (n.s.mass != c.s.mass) + (n.s.layer != c.s.layer);
           if (apart < 3) pen += same ? 14.0 : 7.0;
           if (apart < 2) pen += same ? 20.0 : 10.0;
+          // (forge fix i2, the owner's look-alike groups at 1x: the warhat trio, the plumed five, the winged four, the veil
+          // trio) three axes apart in the table can still be a pixel or two at true 1x: two alike helms on the owner's
+          // board stand apart by a measured body OD of 0.12 (the twin line is 0.05) on their real figures
+          if (m.boardBody) {
+            const double od = m.boardBody(p, s, r, c.s, n.q, n.t, n.rr, n.s);
+            if (od < 0.12) pen += (same ? 6.0 : 3.0) * (0.12 - od) / 0.07;
+          }
         }
       }
       if (ownHelm > 0.0) pen += 2.5 * ownHelm * ownHelm;
@@ -1295,6 +1312,9 @@ ShapeSolve solveShapes(const ShapeModel& m) {
         if (boardEqual) continue;
         KeyCand x = c;
         x.score -= keyPenalty(p, s, r, c, bc);
+        // (forge fix i2) a warm start (--keep) holds the shipped key unless a rule or a measured twin asks it to move: the
+        // judged art and the owner's favourites stay put, only the cells the new rules flag change
+        if (m.start && m.start[p][s][r] == c.key) x.score += 2.5;
         top[r].push_back(x);
       }
       std::stable_sort(top[r].begin(), top[r].end(), [](const KeyCand& x, const KeyCand& y) { return x.score > y.score; });

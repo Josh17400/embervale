@@ -82,6 +82,41 @@ view L key lie origin 4 3
 |vzyzxzwwv
 |.vvvvvvv.
 
+# (HELMS forge-fix i2) begin crest yield (forge fix 2): this crest steps aside on these helm outlines
+# the tall hounskull: its own point is the crest (a spike on it read as a second horn)
+view D key rest when helmfam-snout,mass-tall replace
+|.
+
+view U key rest when helmfam-snout,mass-tall replace
+|.
+
+view R key rest when helmfam-snout,mass-tall replace
+|.
+
+view L key rest when helmfam-snout,mass-tall replace
+|.
+
+view L key lie when helmfam-snout,mass-tall replace
+|.
+
+# the same, the drop shoulders
+view D key rest when helmfam-snout,mass-drop replace
+|.
+
+view U key rest when helmfam-snout,mass-drop replace
+|.
+
+view R key rest when helmfam-snout,mass-drop replace
+|.
+
+view L key rest when helmfam-snout,mass-drop replace
+|.
+
+view L key lie when helmfam-snout,mass-drop replace
+|.
+
+# (HELMS forge-fix i2) end
+
 # (FORGE-HEAD i2) crest yield: drawn only on cone snout; any other alloy helm family wears no spike crest
 view D key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
 |.

@@ -1,11 +1,13 @@
 // rpg_test --forge-solve, --forge-shapes (P2c forge round 2, FORGE-DOLL; docs/P2C_CONTRACTS.md 3c.1, STYLE_P2 28.3-28.5): the
 // silhouette's shape table.
 //
-//   rpg_test --forge-solve [--pool P] [--estimate] [--out FILE]
+//   rpg_test --forge-solve [--pool P] [--estimate] [--keep] [--out FILE]
 //       solves kShapeTable (12 peoples x 36 schools x 3 ranks) on the measured 1x outlines (every helm family on the man's
 //       head; every skirt x mass x layer on each people's T4 man kit; idle D, idle R and the walk's passing frame R; grey,
 //       no held items; split at the neck) or, with --estimate or no pool drawing the kit, the design estimates in doll_forge.h;
-//       writes the .inc (default rpg/sim/gear_forge_shapes.inc) and prints the rules' log. Rules 1-4 are hard.
+//       writes the .inc (default rpg/sim/gear_forge_shapes.inc) and prints the rules' log. Rules 1-4 are hard. --keep (forge
+//       fix i1) warm-starts every round from the compiled table, so a re-solve after an art change moves only the cells the
+//       rules and the measured twins ask for (the alloys keep their helm families, skirts and layers where they can)
 //   rpg_test --forge-shapes [--people a,b] [--seeds A..B] [--check] [--pool P]
 //       every kit culture's alloys (seeds A..B, default 1..3): school, key, details and the smith's line; --check re-checks
 //       rules 1-4 on the compiled table (C16d's data rules) and C16u over the board set and worlds 1..6
@@ -874,11 +876,12 @@ std::vector<std::pair<uint32_t, uint32_t>> c18aFailKeys(int w0, int w1) {
 // ---------------------------------------------------------------- --forge-solve
 int solveCmd(int argc, char** argv) {
   std::string out = "rpg/sim/gear_forge_shapes.inc";
-  bool estimate = false;
+  bool estimate = false, keep = false;
   std::string poolPath;
   for (int i = 2; i < argc; i++) {
     if (!std::strcmp(argv[i], "--out") && i + 1 < argc) out = argv[++i];
     else if (!std::strcmp(argv[i], "--estimate")) estimate = true;
+    else if (!std::strcmp(argv[i], "--keep")) keep = true;
     else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) { poolPath = argv[++i]; if (!loadPool(poolPath.c_str())) return 1; }
   }
   uint64_t hash = 0;
@@ -902,6 +905,8 @@ int solveCmd(int argc, char** argv) {
   std::string how = estimate ? "design estimates (art::doll::forge estBodyOD / estHeadOD)"
                              : fmt("measured 1x outlines on pool %016llX (%d helm, skirt and layer values not drawn yet keep the estimates)", (unsigned long long)hash, undrawn);
   if (estimate) hash = 0;
+  static uint32_t keepTab[12][36][3];
+  if (keep) { std::memcpy(keepTab, gear::shapeTable(), sizeof keepTab); m.start = keepTab; }
   gear::ShapeSolve S = gear::solveShapes(m);
   // (INTEGRATE silhouettes i1) C18a holds the board set and the worlds' windows hard on the REAL figures (each alloy's own
   // details: its shoulder shape, crest, collar; its people's head), which the model only estimates: measure the solved
@@ -928,7 +933,7 @@ int solveCmd(int argc, char** argv) {
       // (silhouettes i2) from round 4 on, start from the best table so far: the passes move the twins' cells, not the world
       static uint32_t startTab[12][36][3];
       std::memcpy(startTab, best.table, sizeof startTab);
-      m.start = round >= 3 ? startTab : nullptr;
+      m.start = round >= 3 ? startTab : keep ? keepTab : nullptr;
       S = gear::solveShapes(m);
     }
     S = best;   // the round with the fewest real twins

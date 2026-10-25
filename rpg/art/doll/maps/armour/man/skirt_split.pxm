@@ -133,6 +133,34 @@ regions
 |.RR...........RR..
 |.RRRR........RRRR.
 
+view D key rest origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mppppm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|...RRRR...
+|..........
+
+view D key rest origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
+
 view D key flare origin 9 0 when forge-starfall replace
 |.vyvyzvyvvxwvwwvv.
 |.vxvyxvyvvxwvwwvv.
@@ -154,6 +182,34 @@ regions
 |..................
 |.RR...........RR..
 |.RRRR........RRRR.
+
+view D key idle origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mppppm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|...RRRR...
+|..........
+
+view D key idle origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
 
 # (INTEGRATE silhouettes i2) STARFALL side: the waist lame's lower row gilt (R), the T6 hero's trim where the shield hides its front
 view R key rest origin 5 1 when forge-starfall replace

@@ -546,6 +546,16 @@ void regionsOf(const HumanLook& L, const std::string& g, DollRecipe& r) {
       set(Region::Boot, Slot::Metal); set(Region::Shin, Slot::Metal); set(Region::Knee, Slot::Metal);
     }
   }
+  // (forge fix i1, the owner: "a single-hue alloy tint wipes out the mix of materials: keep leather straps, cloth and skin in
+  // their own colours") a culture alloy's figure keeps a leather foot under its alloy greaves and cops, and a leather glove
+  // under a gauntlet's alloy cuff (the flare) below T5: the alloy reads as plate on a man, not a painted doll
+  {
+    const ShapeUse su = shapeUseOf(L);
+    if (su.body) {
+      if (L.boots >= 3 || L.tier[HumanLook::TIER_BOOTS] >= 4) set(Region::Boot, Slot::Leather);
+      if (L.gloves >= 2 && L.tier[HumanLook::TIER_BODY] <= 4) set(Region::Hand, Slot::Leather);
+    }
+  }
 }
 
 void flagsOf(const HumanLook& L, DollRecipe& r) {
@@ -640,6 +650,8 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
       if (r.shape[a]) flagS(std::string(kPre[a]) + forge::shapeName(a, r.shape[a]));
     const ShapeUse su = shapeUseOf(L);
     if (su.body) flag("alloyshape");
+    // (forge fix i1) KNAPPED's obsidian: glassy specular streaks across its facets (the compositor's glass pass)
+    if (L.metalKind == 7 && armourOf(L) && L.tier[HumanLook::TIER_BODY]) flag("glass");
     if (su.body && shieldOf(L)) flag("alloyface");
     if ((su.bodyBase == forge::B_FURNACE && armourOf(L)) || (L.sheen == 6 && L.tier[HumanLook::TIER_BODY] >= 4 && su.bodyBase == forge::B_ALLOY))
       flag("glowseams");

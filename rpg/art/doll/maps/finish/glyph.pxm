@@ -61,53 +61,53 @@ view D key glyph7x7 origin 0 0
 |......!
 
 view D key glyph7x9 origin 0 0
-|kk:.:kk
+|..:.:..
 |:!!.!!:
 |.......
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|ggg!ggg
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|...!...
 
 view D key glyph5x8 origin 0 0
-|k:.:k
-|k!.!k
-|g!.!g
-|g!.!g
-|g!.!g
-|g!.!g
-|g!.!g
-|gg!gg
+|.:.:.
+|.!.!.
+|.!.!.
+|.!.!.
+|.!.!.
+|.!.!.
+|.!.!.
+|..!..
 
 view D key glyph5x7 origin 0 0
-|k:.:k
-|k!.!k
-|g!.!g
-|g!.!g
-|g!.!g
-|g!.!g
-|gg!gg
+|.:.:.
+|.!.!.
+|.!.!.
+|.!.!.
+|.!.!.
+|.!.!.
+|..!..
 
 view D key glyph4x8 origin 0 0
-|k!kk
-|!k!k
-|ggg!
-|!gg!
-|g!g!
-|g!g!
-|g!g!
-|gggg
+|.!..
+|!.!.
+|...!
+|!..!
+|.!.!
+|.!.!
+|.!.!
+|....
 
 view D key glyph4x7 origin 0 0
-|k!kk
-|!k!k
-|ggg!
-|!gg!
-|g!g!
-|g!g!
-|gggg
+|.!..
+|!.!.
+|...!
+|!..!
+|.!.!
+|.!.!
+|....
 
 view D key glyph6x5 origin 0 0
 |..^:..
@@ -192,14 +192,14 @@ view D key glyph9x10 origin 0 0
 |....:....
 
 view D key glyph7x8 origin 0 0
-|kk:.:kk
+|..:.:..
 |:!!.!!:
 |.......
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|ggg!ggg
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|...!...
 
 view D key glyph9x12 origin 0 0
 |.........
@@ -326,26 +326,26 @@ view D key glyph5x1 origin 0 0
 |!!.!!
 
 view D key glyph7x10 origin 0 0
-|kk:.:kk
+|..:.:..
 |:!!.!!:
 |.......
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|gg!.!gg
-|ggg!ggg
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|..!.!..
+|...!...
 
 view D key glyph8x8 origin 0 0
-|kkk:.:kk
-|kkk!.!kk
-|ggg!.!gg
-|ggg!.!gg
-|ggg!.!gg
-|ggg!.!gg
-|ggg!.!gg
-|gggg!ggg
+|...:.:..
+|...!.!..
+|...!.!..
+|...!.!..
+|...!.!..
+|...!.!..
+|...!.!..
+|....!...
 
 view D key glyph2x6 origin 0 0
 |k:

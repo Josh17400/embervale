@@ -21,42 +21,26 @@ legend O metal2 2
 legend n accent 1
 legend o accent 2
 legend p accent 3
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (forge fix i2, MATERIAL; the owner: "Mythic lost in 1 px speckle") one long jagged crack a 12 x 9 cell, its runs 3-5 px
+# with diagonal jogs, so the T6 runes burn along a few long fissures instead of a dash in every 8 x 6 cell.
 
 view D key rest origin 0 0
-|.=......
-|.=......
-|..====..
-|......=.
-|==....==
-|........
+|..=.........
+|..=.........
+|...==.......
+|.....=......
+|.....=====..
+|.........=..
+|=.........=.
+|.=.........=
+|.=..........
 regions
-|.N......
-|.N......
-|..NNNN..
-|......N.
-|NN....NN
-|........
+|..N.........
+|..N.........
+|...NN.......
+|.....N......
+|.....NNNNN..
+|.........N..
+|N.........N.
+|.N.........N
+|.N..........

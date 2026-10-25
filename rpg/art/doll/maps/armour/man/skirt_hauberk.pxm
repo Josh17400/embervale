@@ -14,50 +14,112 @@ z 10
 view D key rest origin 0 0
 |.
 
-view D key rest origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
-|vwwwwwwwvwwwwwwv
+view D key rest origin 9 0 when !form-mail replace
+|.vyzyyyyyyxxxwwwv.
+|.vxxxxxxwwwwwwwwv.
+|.vwwwwwvvvwwwwwvv.
+|.vyyxxwv..vyyxxwv.
+|.vyyxxwv..vyyxxwv.
+|.vvvvvvv..vvvvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
-|................
-|.NNNNNNN.NNNNNN.
-|.RRRRRRR.RRRRRR.
+|..................
+|..................
+|..NNNNNN..NNNNNN..
+|..................
+|..RRRRR....RRRRR..
+|..................
+
+view D key rest origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mppppm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|...RRRR...
+|..........
+
+view D key rest origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
 
 view D key flare origin 0 0
 |.
 
-view D key flare origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
-|vwwwwwwwvwwwwwwv
+view D key flare origin 9 0 when !form-mail replace
+|.vyzyyyyyyxxxwwwv.
+|.vxxxxxxwwwwwwwwv.
+|.vwwwwvvvvvwwwwvv.
+|.vyyxwv....vyyxwv.
+|.vyxxwv....vyxxwv.
+|.vvvvvv....vvvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
-|................
-|.NNNNNNN.NNNNNN.
-|.RRRRRRR.RRRRRR.
+|..................
+|..................
+|..NNNNN....NNNNN..
+|..................
+|..RRRR......RRRR..
+|..................
 
 view D key idle origin 0 0
 |.
 
-view D key idle origin 8 0 when !form-mail replace
-|vyyyzyyxxxwwwwwv
-|vwwwwwwwwwwwwwwv
-|vyyyyyyxxxwwwwwv
-|vwwwwwwwvwwwwwwv
-|vwwwwwwwvwwwwwwv
+view D key idle origin 9 0 when !form-mail replace
+|.vyzyyyyyyxxxwwwv.
+|.vxxxxxxwwwwwwwwv.
+|.vwwwwwvvvwwwwwvv.
+|.vyyxxwv..vyyxxwv.
+|.vyyxxwv..vyyxxwv.
+|.vvvvvvv..vvvvvvv.
 regions
-|.NNNNNNNNNNNNNN.
-|.NNNNNNNNNNNNNN.
-|................
-|.NNNNNNN.NNNNNN.
-|.RRRRRRR.RRRRRR.
+|..................
+|..................
+|..NNNNNN..NNNNNN..
+|..................
+|..RRRRR....RRRRR..
+|..................
+
+view D key idle origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mppppm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|...RRRR...
+|..........
+
+view D key idle origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mpom..mpom
+|mppm..mppm
+|.mm....mm.
+regions
+|..........
+|..........
+|..........
+|..........
+|.RR....RR.
+|..........
 
 view R key rest origin 0 0
 |.

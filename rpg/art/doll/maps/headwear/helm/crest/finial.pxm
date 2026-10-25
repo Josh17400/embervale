@@ -82,6 +82,24 @@ mark socket 3 0
 |vyxwwv
 |.vxwv.
 
+# (HELMS forge-fix i1) the yield moved ahead of the sheen views: the first replacing view that holds wins, so a pale,
+# matte, dark, burnished or iridescent alloy on another helm family wore the finial through it
+# (FORGE-HEAD i2) crest yield: drawn only on cone onion; any other alloy helm family wears no finial crest
+view D key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view U key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view R key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view L key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view L key lie when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
 view D key rest origin 2 3 when sheen-pale replace
 mark socket 2 0
 |..vv..
@@ -286,19 +304,3 @@ mark socket 2 0
 |vzyxv
 |.vxv.
 |..v..
-
-# (FORGE-HEAD i2) crest yield: drawn only on cone onion; any other alloy helm family wears no finial crest
-view D key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
-|.
-
-view U key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
-|.
-
-view R key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
-|.
-
-view L key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
-|.
-
-view L key lie when alloyshape,!helmfam-cone,!helmfam-onion replace
-|.
