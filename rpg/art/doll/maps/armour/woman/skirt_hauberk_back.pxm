@@ -1,0 +1,152 @@
+# armour/<body>/skirt_hauberk_back: the hauberk's lower courses and hem behind the legs (layer back).
+# Generated from the FORGE-LIMBS skirt templates (gen_skirts2.py, skirts_def.py; iteration 2: the D view serves U, `tags anyfacing`); Format: rpg/art/doll/doll.h.
+use person
+body woman
+role overlay skirt.hauberk
+layer back
+anchor hip
+keys hang
+tags anyfacing
+z 10
+
+view D key rest origin 0 0
+|.
+
+view D key rest origin 8 -5 when !form-mail replace
+|vwwwwwwwwwwwwwwv
+|vvvvvvvvvvvvvvvv
+regions
+|.RRRRRRRRRRRRRR.
+|................
+
+view D key flare origin 0 0
+|.
+
+view D key flare origin 9 -5 when !form-mail replace
+|vwwwwwwwwwwwwwwwwv
+|vvvvvvvvvvvvvvvvvv
+regions
+|.RRRRRRRRRRRRRRRR.
+|..................
+
+view D key idle origin 0 0
+|.
+
+view D key idle origin 8 -5 when !form-mail replace
+|vwwwwwwwwwwwwwwv
+|vvvvvvvvvvvvvvvv
+regions
+|.RRRRRRRRRRRRRR.
+|................
+
+view R key rest origin 0 0
+|.
+
+view R key rest origin 7 -3 when !form-mail replace
+|vyyyyyxxwwwwwv
+|vwwwwwwwwwwwwv
+|vyyyyyyxxxxxxv
+|vvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNN.
+|.NNNNNNNNNNNN.
+|.RRRRRRRRRRRR.
+|..............
+
+view R key wide origin 0 0
+|.
+
+view R key wide origin 8 -3 when !form-mail replace
+|.vyyyyyxxxwwwwwv
+|.vwwwwwwwwwwwwwv
+|vyyyyyyyxxxxxxxv
+|vvvvvvvvvvvvvvvv
+regions
+|..NNNNNNNNNNNNN.
+|..NNNNNNNNNNNNN.
+|.RRRRRRRRRRRRRR.
+|................
+
+view R key flare origin 0 0
+|.
+
+view R key flare origin 10 -3 when !form-mail replace
+|..vyyyyyxxwwwwwwv
+|..vwwwwwwwwwwwwwv
+|vyyyyyyyyxxxxxxxv
+|vvvvvvvvvvvvvvvvv
+regions
+|...NNNNNNNNNNNNN.
+|...NNNNNNNNNNNNN.
+|.RRRRRRRRRRRRRRR.
+|.................
+
+view R key idle origin 0 0
+|.
+
+view R key idle origin 7 -3 when !form-mail replace
+|vyyyyyxxwwwwwv
+|vwwwwwwwwwwwwv
+|vyyyyyyxxxxxxv
+|vvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNN.
+|.NNNNNNNNNNNN.
+|.RRRRRRRRRRRR.
+|..............
+
+view L key rest origin 0 0
+|.
+
+view L key rest origin 7 -3 when !form-mail replace
+|vzyyyyxxwwwwwv
+|vwwwwwwwwwwwwv
+|vyyyyyyxxxxxxv
+|vvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNN.
+|.NNNNNNNNNNNN.
+|.RRRRRRRRRRRR.
+|..............
+
+view L key wide origin 0 0
+|.
+
+view L key wide origin 8 -3 when !form-mail replace
+|vzyyyyyxxxwwwwv.
+|vwwwwwwwwwwwwwv.
+|vyyyyyyyxxxxxxxv
+|vvvvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNNN..
+|.NNNNNNNNNNNNN..
+|.RRRRRRRRRRRRRR.
+|................
+
+view L key flare origin 0 0
+|.
+
+view L key flare origin 7 -3 when !form-mail replace
+|vzyyyyyyxxwwwwv..
+|vwwwwwwwwwwwwwv..
+|vyyyyyyyyxxxxxxxv
+|vvvvvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNNN...
+|.NNNNNNNNNNNNN...
+|.RRRRRRRRRRRRRRR.
+|.................
+
+view L key idle origin 0 0
+|.
+
+view L key idle origin 7 -3 when !form-mail replace
+|vzyyyyxxwwwwwv
+|vwwwwwwwwwwwwv
+|vyyyyyyxxxxxxv
+|vvvvvvvvvvvvvv
+regions
+|.NNNNNNNNNNNN.
+|.NNNNNNNNNNNN.
+|.RRRRRRRRRRRR.
+|..............

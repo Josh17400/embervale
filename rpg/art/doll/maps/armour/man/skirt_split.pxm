@@ -1,0 +1,221 @@
+# armour/<body>/skirt_split: SPLIT, a coat skirt in two long smooth panels parted at the front: this part is
+# the waist over the hips; the panels' tails to the ankle are skirt_split_back (layer back, behind the legs).
+# Generated from the FORGE-LIMBS skirt templates (gen_skirts2.py, skirts_def.py; iteration 2: the D view serves U, `tags anyfacing`); Format: rpg/art/doll/doll.h.
+# (INTEGRATE silhouettes i2) STARFALL (forge-starfall) gilds the lower edge of the tails facing D and the waist lame's lower row
+# facing R and L (its glint cell kept): the T6 hero's trim where the shield hides the front (C12 b).
+# Facing R and L at rest and idle the back panel's edge drops one pixel behind the hip, so the tunic hem does not peek
+# between the waist lame and the tails (B8: f5_star idle 49 colours).
+# (INTEGRATE silhouettes i3) Facing R and L at rest and idle the waist lame has a third, shadowed row one pixel wider
+# than the two above: the A3 tunic's hem no longer peeks between the lame and the trousers (C14: teal against purple, 6
+# luma apart, on the re-solved FROSTSTEEL), and it reaches the near thigh's front edge, so no 1 px leg sliver is left
+# beside it in the walk (B11). Facing L the view's origin moves a column (6 1) for the extra pixel at the back.
+use person
+body man
+role overlay skirt.split
+layer hangFront
+anchor hip
+keys hang
+tags anyfacing
+z 10
+
+view D key rest origin 9 0
+|.vyyyzyyvvxwwwwwv.
+|.vxxxxxxvvxwwwwwv.
+|vxxxxxv....vwwwwwv
+|vyyyyv......vxxxxv
+regions
+|..NNNNNN..NNNNNN..
+|..................
+|..................
+|.RRRR........RRRR.
+
+view D key flare origin 9 0
+|.vyyyzyyvvxwwwwwv.
+|.vxxxxxxvvxwwwwwv.
+|vxxxxxv....vwwwwwv
+|vyyyyv......vxxxxv
+regions
+|..NNNNNN..NNNNNN..
+|..................
+|..................
+|.RRRR........RRRR.
+
+view D key idle origin 9 0
+|.vyyyzyyvvxwwwwwv.
+|.vxxxxxxvvxwwwwwv.
+|vxxxxxv....vwwwwwv
+|vyyyyv......vxxxxv
+regions
+|..NNNNNN..NNNNNN..
+|..................
+|..................
+|.RRRR........RRRR.
+
+view R key rest origin 5 1
+|xxxxxxxxxx
+|vyzxxxxxxv
+|vwwwwwwwwwv
+regions
+|NNNNNNNNNN
+|..........
+|..........
+
+view R key wide origin 5 1
+|xxxxxxxxxx
+|vyzxxxxxxv
+regions
+|NNNNNNNNNN
+|..........
+
+view R key flare origin 5 1
+|xxxxxxxxxx
+|vyzxxxxxxv
+regions
+|NNNNNNNNNN
+|..........
+
+view R key idle origin 5 1
+|xxxxxxxxxx
+|vyzxxxxxxv
+|vwwwwwwwwwv
+regions
+|NNNNNNNNNN
+|..........
+|..........
+
+view L key rest origin 6 1
+|.xxxxxxxxxx
+|.vxxxxxxwwv
+|vwwwwwwwwwv
+regions
+|.NNNNNNNNNN
+|...........
+|...........
+
+view L key wide origin 5 1
+|xxxxxxxxxx
+|vxxxxxxwwv
+regions
+|NNNNNNNNNN
+|..........
+
+view L key flare origin 5 1
+|xxxxxxxxxx
+|vxxxxxxwwv
+regions
+|NNNNNNNNNN
+|..........
+
+view L key idle origin 6 1
+|.xxxxxxxxxx
+|.vxxxxxxwwv
+|vwwwwwwwwwv
+regions
+|.NNNNNNNNNN
+|...........
+|...........
+
+view L key lie origin 5 1
+|xxxxxxxxxx
+|vxxxxxxwwv
+regions
+|NNNNNNNNNN
+|..........
+
+view D key rest origin 9 0 when forge-starfall replace
+|.vyvyzvyvvxwvwwvv.
+|.vxvyxvyvvxwvwwvv.
+|vxxvyxv....vvwwvwv
+|vyyyyv......vxxxxv
+regions
+|..N.NN.N..NN.NN...
+|..................
+|.RR...........RR..
+|.RRRR........RRRR.
+
+view D key flare origin 9 0 when forge-starfall replace
+|.vyvyzvyvvxwvwwvv.
+|.vxvyxvyvvxwvwwvv.
+|vxxvyxv....vvwwvwv
+|vyyyyv......vxxxxv
+regions
+|..N.NN.N..NN.NN...
+|..................
+|.RR...........RR..
+|.RRRR........RRRR.
+
+view D key idle origin 9 0 when forge-starfall replace
+|.vyvyzvyvvxwvwwvv.
+|.vxvyxvyvvxwvwwvv.
+|vxxvyxv....vvwwvwv
+|vyyyyv......vxxxxv
+regions
+|..N.NN.N..NN.NN...
+|..................
+|.RR...........RR..
+|.RRRR........RRRR.
+
+# (INTEGRATE silhouettes i2) STARFALL side: the waist lame's lower row gilt (R), the T6 hero's trim where the shield hides its front
+view R key rest origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vyzxxxxxxv
+|vwwwwwwwwwv
+regions
+|NNNNNNNNNN
+|.R.RRRRRR.
+|..........
+
+view R key wide origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vyzxxxxxxv
+regions
+|NNNNNNNNNN
+|.R.RRRRRR.
+
+view R key flare origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vyzxxxxxxv
+regions
+|NNNNNNNNNN
+|.R.RRRRRR.
+
+view R key idle origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vyzxxxxxxv
+|vwwwwwwwwwv
+regions
+|NNNNNNNNNN
+|.R.RRRRRR.
+|..........
+
+view L key rest origin 6 1 when forge-starfall replace
+|.xxxxxxxxxx
+|.vxxxxxxwwv
+|vwwwwwwwwwv
+regions
+|.NNNNNNNNNN
+|..RRRRRRRR.
+|...........
+
+view L key wide origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vxxxxxxwwv
+regions
+|NNNNNNNNNN
+|.RRRRRRRR.
+
+view L key flare origin 5 1 when forge-starfall replace
+|xxxxxxxxxx
+|vxxxxxxwwv
+regions
+|NNNNNNNNNN
+|.RRRRRRRR.
+
+view L key idle origin 6 1 when forge-starfall replace
+|.xxxxxxxxxx
+|.vxxxxxxwwv
+|vwwwwwwwwwv
+regions
+|.NNNNNNNNNN
+|..RRRRRRRR.
+|...........

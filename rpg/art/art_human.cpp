@@ -4966,6 +4966,7 @@ uint64_t HumanLook::key() const {
     if (forgeKit) mx(0xF0E6E1000000000Full ^ forgeKit);
     if (alloyRank) mx(0xF0E6E2000000000Full ^ alloyRank);
     if (forgeGuise) mx(0xF0E6E3000000000Full ^ forgeGuise);
+    if (forgeShape) mx(0xF0E6E40000000000ull ^ forgeShape);   // (forge round 2) the silhouette
   }
   return k;
 }

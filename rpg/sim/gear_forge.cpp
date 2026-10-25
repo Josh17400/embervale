@@ -2,7 +2,11 @@
 #include "rpg/sim/gear_forge.h"
 #include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <cstdio>
 #include <functional>
+#include <initializer_list>
+#include <unordered_map>
 #include <vector>
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/sim/gear_ladder.h"
@@ -400,7 +404,7 @@ ForgePick alloyPick(const cult::Culture& c, int alloyIndex) {
   // the styles to stay apart from: the culture's earlier alloys (7, two silhouette axes), the metal word's hero (5), every
   // hero (4); the heroes on the alloy's own family
   std::vector<ForgeStyle> earlier;
-  for (int j = 0; j < alloyIndex; j++) earlier.push_back(alloyStyle(c, j));
+  for (int j = 0; j < alloyIndex; j++) earlier.push_back(alloyPick(c, j).style);   // (round 1's picks: the round-1 bodies)
   const int wordBase = wordHeroBase(X.word);
   struct Target { uint8_t ax[F::AX_COUNT]; int need; bool sil; int kind; };   // kind 0 culture, 1 word hero, 2 hero
   std::vector<Target> targets;
@@ -517,7 +521,18 @@ ForgePick alloyPick(const cult::Culture& c, int alloyIndex) {
   return P;
 }
 
-ForgeStyle alloyStyle(const cult::Culture& c, int alloyIndex) { return alloyPick(c, alloyIndex).style; }
+// (forge round 2, contracts 3c.1) a culture alloy's style is its details: the shoulder's shape inside the table key's mass,
+// the crest on a socketed family, the collar; the cut, edge, limb and fittings retired (0). Before the table is solved (the
+// bootstrap build) round 1's picks stand
+ForgeStyle alloyStyle(const cult::Culture& c, int alloyIndex) {
+  if (alloyIndex < 0 || alloyIndex >= (int)c.arms.alloys.size()) return ForgeStyle{};
+  const uint32_t k = tableKey(std::clamp((int)c.archetype, 0, 11), forgeSchool6(c), shapeRank(alloyIndex));
+  if (!k) return alloyPick(c, alloyIndex).style;
+  const AlloyDetails d = alloyDetails(c, alloyIndex, shapeOfKey(k));
+  ForgeStyle s;
+  s.base = F::B_ALLOY; s.shoulder = d.shoulder; s.crest = d.crest; s.collar = d.collar;
+  return s;
+}
 
 ForgeStyle forgeOf(const Item& it, const cult::Culture* maker) {
   const uint8_t mk = metalKindOf(it);
@@ -600,7 +615,7 @@ uint16_t alloyGuise(const cult::Culture& c, int alloyIndex) {
   }
   F::Guise g;
   for (int i = 0; i <= alloyIndex; i++) {
-    const ForgeStyle s = alloyStyle(c, i);
+    const ForgeStyle s = alloyPick(c, i).style;   // (round 1's picks: the guise is round 1's body)
     // (the Heartland's universal materials wear their hero styles' own helms, doll_resolve styleKitOf's kHelm: there the
     // alloy only keeps off its metal word's hero helm, by the code; the T4 hero's everyday alloy keeps an open face, C12)
     static const uint8_t kHeroHelm[F::B_COUNT] = {0, 0, 0, 9, 2, 1, 12, 8, 3, 4, 0};
@@ -648,6 +663,746 @@ uint16_t alloyGuise(const cult::Culture& c, int alloyIndex) {
     if (rank == 2) g.cloak = (uint8_t)((s.collar == 1 || s.collar == 11 || s.collar == 12) ? 2 : 3);
   }
   return F::packGuise(g);
+}
+
+}  // namespace gear
+
+// ======================================================================== (forge round 2) the silhouette (contracts 3c.1)
+namespace gear {
+
+namespace {
+#include "rpg/sim/gear_forge_shapes.inc"   // kShapeTable[12][36][3], kShapePoolHash (rpg_test --forge-solve; never hand-edited)
+
+void toSx(const Shape& s, uint8_t v[F::SX_COUNT]) {
+  v[F::SX_HELM] = s.helm; v[F::SX_SKIRT] = s.skirt; v[F::SX_MASS] = s.mass; v[F::SX_LAYER] = s.layer; v[F::SX_ARM] = s.arm; v[F::SX_MOTIF] = s.motif;
+}
+Shape fromSx(const uint8_t v[F::SX_COUNT]) {
+  Shape s;
+  s.helm = v[F::SX_HELM]; s.skirt = v[F::SX_SKIRT]; s.mass = v[F::SX_MASS]; s.layer = v[F::SX_LAYER]; s.arm = v[F::SX_ARM]; s.motif = v[F::SX_MOTIF];
+  return s;
+}
+bool latticeCell(const cult::Culture& c, int& ci, int& cj) {
+  const uint64_t id = c.id, k = id >> 60;
+  if (!((k == 1 && (id & 0xFFFFFFFFull) == 0) || k == 2)) return false;
+  ci = (int)((id >> 46) & 0x3FFF); cj = (int)((id >> 32) & 0x3FFF);
+  if (ci >= 8192) ci -= 16384;
+  if (cj >= 8192) cj -= 16384;
+  return true;
+}
+int peopleRow(const cult::Culture& c) { return std::clamp((int)c.archetype, 0, 11); }
+}  // namespace
+
+uint32_t packShape(const Shape& s) {
+  uint8_t v[F::SX_COUNT];
+  toSx(s, v);
+  bool any = false;
+  for (uint8_t x : v) any |= x != 0;
+  return any ? F::packShapeAxes(v) : 0u;
+}
+Shape unpackShape(uint32_t p) { uint8_t v[F::SX_COUNT]; F::unpackShapeAxes(p, v); return fromSx(v); }
+uint32_t shapeKey(const Shape& s) { return (uint32_t)s.helm | (uint32_t)s.skirt << 8 | (uint32_t)s.mass << 16 | (uint32_t)s.layer << 24; }
+Shape shapeOfKey(uint32_t k) {
+  Shape s;
+  s.helm = (uint8_t)(k & 255u); s.skirt = (uint8_t)(k >> 8 & 255u); s.mass = (uint8_t)(k >> 16 & 255u); s.layer = (uint8_t)(k >> 24 & 255u);
+  return s;
+}
+int keyAxesApart(const Shape& a, const Shape& b) { return (a.helm != b.helm) + (a.skirt != b.skirt) + (a.mass != b.mass) + (a.layer != b.layer); }
+int shapeRank(int alloyIndex) { return std::clamp(alloyIndex, 0, 2); }
+
+int forgeSchool6(const cult::Culture& c) {
+  int ci = 0, cj = 0;
+  if (latticeCell(c, ci, cj)) return posmod(ci, 6) + 6 * posmod(cj, 6);
+  const int s = (int)c.seed - 1;
+  return posmod(s * 12 + peopleRow(c) + 6 * (s >= 0 ? s / 3 : 0), 36);
+}
+
+std::string describeShape(const Shape& s) {
+  if (!packShape(s)) return "none";
+  auto nm = [](int a, int v) { return v ? std::string(F::shapeName(a, v)) : std::string("-"); };
+  return nm(F::SX_HELM, s.helm) + " " + nm(F::SX_SKIRT, s.skirt) + " " + nm(F::SX_MASS, s.mass) + " " + nm(F::SX_LAYER, s.layer) + " | " +
+         nm(F::SX_ARM, s.arm) + " " + nm(F::SX_MOTIF, s.motif);
+}
+
+Shape heroShape(int base, const cult::Culture* people) {
+  static const uint8_t k[F::B_COUNT][F::SX_COUNT] = {
+      {0, 0, 0, 0, 0, 0},
+      {F::H_HOOD, F::SK_HAUBERK, F::MS_ROUND, F::LY_NONE, F::AR_CLOSE, 0},      // HOMESPUN
+      {F::H_CAP, F::SK_STRIPS, F::MS_DROP, F::LY_NONE, F::AR_CLOSE, 0},         // TANNER'S
+      {F::H_CRESTED, F::SK_STRIPS, F::MS_ROUND, F::LY_NONE, F::AR_CLOSE, 0},    // FOUNDRY
+      {F::H_KETTLE, F::SK_TASSETS, F::MS_BROAD, F::LY_NONE, F::AR_CLOSE, 0},    // WROUGHT
+      {F::H_CONE, F::SK_TASSETS, F::MS_TALL, F::LY_NONE, F::AR_CLOSE, 0},       // ARMOURER'S
+      {F::H_ONION, F::SK_TASSETS, F::MS_ROUND, F::LY_NONE, F::AR_CLOSE, 0},     // PARADE
+      {F::H_MASK, F::SK_TASSETS, F::MS_TALL, F::LY_NONE, F::AR_CLOSE, 0},       // KNAPPED
+      {F::H_FURNACE, F::SK_TASSETS, F::MS_BROAD, F::LY_NONE, F::AR_HEAVY, 0},   // FURNACE
+      {F::H_CRYSTAL, F::SK_SPLIT, F::MS_TALL, F::LY_NONE, F::AR_CLOSE, 0},      // STARFALL
+      {F::H_LADDER, F::SK_TASSETS, F::MS_TALL, F::LY_CAPE, F::AR_CLOSE, 0}};    // MYTHIC
+  if (base < 1 || base >= F::B_COUNT) return Shape{};
+  Shape s = fromSx(k[base]);
+  if (people && people->archetype != cult::Archetype::Heartland) {
+    const int hf = (int)people->arms.helm[0];
+    using H = cult::HelmForm;
+    const bool signature = hf == (int)H::Horned || hf == (int)H::ConicalAventail || hf == (int)H::Masked || hf == (int)H::Winged;
+    if (base >= F::B_TANNER && base <= F::B_ARMOURER) {
+      s.helm = (uint8_t)F::helmFamOfForm(hf);
+      using B = cult::BodyArm;
+      const cult::ArmsStyle& A = people->arms;
+      B form = A.body[0];
+      if (base == F::B_TANNER) form = (A.body[1] == B::Padded || A.body[1] == B::Leather) ? A.body[1] : ((A.body[0] == B::Padded || A.body[0] == B::Leather) ? A.body[0] : B::Leather);
+      s.skirt = (uint8_t)F::skirtOfBodyArm((int)form);
+    } else if (signature && base != F::B_MYTHIC) {
+      s.helm = (uint8_t)F::helmFamOfForm(hf);
+    }
+  }
+  return s;
+}
+
+namespace {
+const uint32_t (*g_shapeOverride)[36][3] = nullptr;   // (INTEGRATE silhouettes i1) the solver's candidate table, test only
+}
+void setShapeTableOverride(const uint32_t (*t)[36][3]) { g_shapeOverride = t; }
+uint32_t tableKey(int people, int school, int rank) {
+  if (people < 0 || people >= 12 || school < 0 || school >= 36 || rank < 0 || rank > 2) return 0;
+  if (g_shapeOverride) return g_shapeOverride[people][school][rank];
+  return kShapeTable[people][school][rank];
+}
+const uint32_t (*shapeTable())[36][3] { return g_shapeOverride ? g_shapeOverride : kShapeTable; }
+uint64_t shapeTablePoolHash() { return kShapePoolHash; }
+
+// ---------------------------------------------------------------- the details (contracts 3c.1)
+namespace {
+// STYLE_P2 28.5's root words: roots, then the shoulder shapes, crests, motifs, arm and collars they ask for
+struct RootDetail { const char* roots; const char* shoulder; const char* crest; const char* motif; const char* arm; const char* collar; };
+const RootDetail kRootDetails[] = {
+    {"RIME FROST", "crystal scale", "spike", "bands", "heavy", "high"},
+    {"STORM WIND SKY", "flared", "wings", "chevron", "", ""},
+    {"WOLF LION JAGUAR", "pelt fur", "", "disc", "", "ruff"},
+    {"PEAT CRAG OAK LOCK", "slab vented", "brow finial", "bands keel", "heavy", "riveted"},
+    {"THORN BRIAR ARROW", "shard flared", "spike", "chevron", "", "angular"},
+    {"STAG", "layered leaf", "horns", "chevron", "", ""},
+    {"CROWN AUREL SOL SUN DAWN", "lobed", "crown fin", "rays disc", "", "flared"},
+    {"LEGION GUILD COIN", "plate slab", "comb", "bands straps disc", "", ""},
+    {"EAGLE FALCON QUETZ HERON CRANE", "winged flared feather", "wings fin", "keel rays", "", ""},
+    {"SAND DUNE MIST REED EEL", "lobed flap", "finial", "bands plain", "wide", "coif stand"},
+    {"DRAGON", "shard scale", "horns", "bib", "", "angular"},
+    {"JADE PEARL AMBER MOON", "cop lobed", "finial", "disc", "", "high"},
+    {"TIDE LEAF", "lobed leaf", "fin", "chevron", "", ""},
+    {"HORSE", "layered", "", "disc", "", ""},
+    {"STAR SPIRE", "crystal", "spire crown", "rays keel", "", ""},
+};
+// the hidden peoples' words (the masterwork): motif, shoulder, crest, collar
+struct HiddenDetail { const char* word; const char* motif; const char* shoulder; const char* crest; const char* collar; };
+const HiddenDetail kHiddenDetails[6] = {
+    {"VEIL", "bib", "", "", "coif"}, {"WHORL", "rays", "lobed", "finial", ""}, {"TIDE", "chevron", "layered", "fin", ""},
+    {"PEARL", "disc", "cop", "finial", ""}, {"SHARD", "chevron", "shard", "shards", ""}, {"WRACK", "keel", "", "spike", "angular"}};
+bool hasWord(const char* list, const char* w) {
+  for (const std::string& x : words(list)) if (x == w) return true;
+  return false;
+}
+const char* const kMetalWords[6] = {"BRONZE", "BRASS", "IRON", "STEEL", "SILVER", "GLASS"};
+}  // namespace
+
+std::string alloyRoot(const std::string& name) {
+  for (const char* mw : kMetalWords) {
+    const size_t k = std::strlen(mw);
+    if (name.size() > k && name.compare(name.size() - k, k, mw) == 0) {
+      const std::string pre = name.substr(0, name.size() - k);
+      for (const RootDetail& r : kRootDetails) if (hasWord(r.roots, pre.c_str())) return pre;
+      return "";
+    }
+  }
+  return "";
+}
+
+AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& key) {
+  AlloyDetails D;
+  if (alloyIndex < 0 || alloyIndex >= (int)c.arms.alloys.size()) return D;
+  const cult::Alloy& A = c.arms.alloys[(size_t)alloyIndex];
+  const int rank = shapeRank(alloyIndex);
+  const int word = alloyMetalWord(A, rank);
+  const int sheen = std::clamp((int)A.sheen, 0, 7);
+  const int a1 = peopleRow(c), a2 = std::clamp((int)c.archetype2, 0, 11);
+  const bool iso = c.isolated && a2 != a1;
+  uint32_t seed = fnv(2166136261u, A.name);
+  std::vector<std::string> reagents;
+  for (const cult::Ingredient& g : A.recipe) if (g.ore < 0) reagents.push_back(g.reagent);
+  const std::string root = alloyRoot(A.name);
+  const RootDetail* rd = nullptr;
+  for (const RootDetail& r : kRootDetails) if (!root.empty() && hasWord(r.roots, root.c_str())) rd = &r;
+  if (rd) D.root = root;
+  const HiddenDetail* hd = nullptr;
+  if (c.hidden && rank == 2)
+    for (const HiddenDetail& h : kHiddenDetails) {
+      const size_t k = std::strlen(h.word);
+      if (A.name.size() >= k && A.name.compare(A.name.size() - k, k, h.word) == 0) hd = &h;
+    }
+  // the culture's earlier alloys (the walk prefers another motif and another arm for each)
+  std::vector<AlloyDetails> earlier;
+  for (int j = 0; j < alloyIndex; j++) earlier.push_back(alloyDetails(c, j, shapeOfKey(tableKey(a1, forgeSchool6(c), shapeRank(j)))));
+  auto jitter = [&](int axis, int v) { return (int)(mix(seed ^ (uint32_t)axis * 0x9E3779B9u ^ (uint32_t)v * 0x85EBCA6Bu) % 17u); };
+  // a menu axis of the silhouette (arm, motif): the people's menu (both for an isolated family), the root's and the hidden
+  // word's asks first, the sheen's filter on the motif
+  auto pickShapeAxis = [&](int axis, const char* rootAsk, const char* hidAsk) -> uint8_t {
+    struct C { uint8_t v; long s; };
+    std::vector<C> cs;
+    for (int pass = 0; pass < (iso ? 2 : 1); pass++) {
+      uint8_t vals[8]; int wts[8];
+      const int n = F::shapeMenu(pass ? a2 : a1, axis, vals, wts, nullptr, 8);
+      for (int i = 0; i < n; i++) {
+        bool dup = false;
+        for (C& x : cs) if (x.v == vals[i]) { dup = true; x.s = std::max(x.s, (long)wts[i] * (pass ? 13 : 16) / 16); }
+        if (!dup) cs.push_back(C{vals[i], (long)wts[i] * (pass ? 13 : 16) / 16});
+      }
+    }
+    if (axis == F::SX_MOTIF) {   // the sheen's filter (STYLE_P2 28.7): banded BANDS; iridescent BIB BANDS CHEVRON; glowing seam-rich
+      const char* filt = sheen == (int)cult::Sheen::Banded ? "bands" : sheen == (int)cult::Sheen::Iridescent ? "bib bands chevron" :
+                         sheen == (int)cult::Sheen::Glowing ? "bands chevron keel rays" : nullptr;
+      if (filt) {
+        std::vector<C> kept;
+        for (const C& x : cs) if (hasWord(filt, F::shapeName(axis, x.v))) kept.push_back(x);
+        if (kept.empty()) kept.push_back(C{(uint8_t)F::shapeValueOf(axis, words(filt)[0].c_str()), 200});
+        cs = kept;
+      }
+    }
+    for (C& x : cs) {
+      const char* w = F::shapeName(axis, x.v);
+      if (hidAsk && *hidAsk && hasWord(hidAsk, w)) x.s += 4000;
+      if (rootAsk && *rootAsk && hasWord(rootAsk, w)) x.s += 2000;
+      for (const AlloyDetails& e : earlier) if ((axis == F::SX_MOTIF ? e.motif : e.arm) == x.v) x.s -= 300;
+      x.s += jitter(axis + 16, x.v);
+    }
+    std::stable_sort(cs.begin(), cs.end(), [](const C& p, const C& q) { return p.s > q.s; });
+    return cs.empty() ? (uint8_t)1 : cs[0].v;
+  };
+  D.arm = pickShapeAxis(F::SX_ARM, rd ? rd->arm : "", "");
+  D.motif = pickShapeAxis(F::SX_MOTIF, rd ? rd->motif : "", hd ? hd->motif : "");
+  // a ForgeStyle axis (shoulder, crest, collar): its candidates scored by round 1's boosts, the root's and hidden word's asks
+  auto scoreStyle = [&](int axis, const std::vector<uint8_t>& cands, const char* rootAsk, const char* hidAsk) -> uint8_t {
+    long best = -1;
+    uint8_t pick = 0;
+    for (size_t i = 0; i < cands.size(); i++) {
+      const uint8_t v = cands[i];
+      const char* w = F::valueName(axis, v);
+      long s = 256 - (long)i * 24;
+      s = s * boost(kWordBoost[word], axis, w) / 256;
+      s = s * boost(kSheenBoost[sheen], axis, w) / 256;
+      s = s * boost(kRankBoost[rank], axis, w) / 256;
+      for (const std::string& r : reagents)
+        for (const Reagent& rg : kReagent) if (r.find(rg.key) != std::string::npos) s = s * boost(rg.list, axis, w) / 256;
+      for (const Orn& o : kOrn) if (c.arms.ornament & o.bit) s = s * boost(o.list, axis, w) / 256;
+      if (hidAsk && *hidAsk && hasWord(hidAsk, w)) s += 4000;
+      if (rootAsk && *rootAsk && hasWord(rootAsk, w)) s += 2000;
+      s += jitter(axis, v);
+      if (s > best) { best = s; pick = v; }
+    }
+    return pick;
+  };
+  {
+    uint8_t ms[5];
+    const int n = F::massShapes(key.mass, ms);
+    std::vector<uint8_t> cands(ms, ms + n);
+    // the MANTLE in the people's own hide (STYLE_P2 28.5): the SunTemple's feathers and pelt first
+    if (key.mass == F::MS_MANTLE && a1 == (int)cult::Archetype::SunTemple) std::reverse(cands.begin(), cands.end());
+    D.shoulder = n ? scoreStyle(F::AX_SHOULDER, cands, rd ? rd->shoulder : "", hd ? hd->shoulder : "") : 0;
+  }
+  if (F::helmSocket(key.helm)) {
+    std::vector<uint8_t> cands;
+    // the crests a family's socket takes (the CRESTED family's comb is the crest; the kabuto a crescent, a disc or horns)
+    static const char* const kFamCrest[F::H_COUNT] = {"", "spike finial knife ridge horns wings", "brow finial spike", "", "comb fin horns wings crown",
+                                                      "", "comb knife fin ridge", "finial spike", "", "", "", "comb ridge", "comb spike",
+                                                      "horns fin crown", "comb knife", "spike finial", "crown", "", "", "", "", ""};
+    const char* fam = kFamCrest[key.helm < F::H_COUNT ? key.helm : 0];
+    auto add = [&](const std::string& w) {
+      const int v = F::valueOf(F::AX_CREST, w.c_str());
+      if (v > 0 && hasWord(fam, w.c_str()) && std::find(cands.begin(), cands.end(), (uint8_t)v) == cands.end()) cands.push_back((uint8_t)v);
+    };
+    if (hd) for (const std::string& w : words(hd->crest)) add(w);
+    if (rd) for (const std::string& w : words(rd->crest)) add(w);
+    for (const std::string& w : words(kVocab[a1].ax[F::AX_CREST])) add(w);
+    if (iso) for (const std::string& w : words(kVocab[a2].ax[F::AX_CREST])) add(w);
+    for (const std::string& w : words(fam)) add(w);   // (the family's own when the people's menu has none of them)
+    D.crest = cands.empty() ? 0 : scoreStyle(F::AX_CREST, cands, rd ? rd->crest : "", hd ? hd->crest : "");
+    // (silhouettes i2, the blind panel: "spike-top cones: Froststeel, Thorniron, Thornsteel...") a culture's second alloy with
+    // the same root never repeats its crest: the next crest its family's socket takes (the root still sets its shoulder,
+    // motif, arm and collar)
+    for (int guard = 0; guard < 8 && D.crest; guard++) {
+      bool dup = false;
+      for (const AlloyDetails& e : earlier) dup |= e.crest == D.crest;
+      if (!dup) break;
+      cands.erase(std::remove(cands.begin(), cands.end(), D.crest), cands.end());
+      if (cands.empty()) { D.crest = 0; break; }
+      D.crest = scoreStyle(F::AX_CREST, cands, "", hd ? hd->crest : "");
+    }
+  }
+  {
+    std::vector<uint8_t> cands;
+    auto add = [&](const std::string& w) {
+      const int v = F::valueOf(F::AX_COLLAR, w.c_str());
+      if (v > 0 && std::find(cands.begin(), cands.end(), (uint8_t)v) == cands.end()) cands.push_back((uint8_t)v);
+    };
+    if (hd) for (const std::string& w : words(hd->collar)) add(w);
+    if (rd) for (const std::string& w : words(rd->collar)) add(w);
+    for (const std::string& w : words(kVocab[a1].ax[F::AX_COLLAR])) add(w);
+    if (iso) for (const std::string& w : words(kVocab[a2].ax[F::AX_COLLAR])) add(w);
+    D.collar = scoreStyle(F::AX_COLLAR, cands, rd ? rd->collar : "", hd ? hd->collar : "");
+  }
+  return D;
+}
+
+Shape alloyShape(const cult::Culture& c, int alloyIndex) {
+  if (alloyIndex < 0 || alloyIndex >= (int)c.arms.alloys.size()) return Shape{};
+  const uint32_t k = tableKey(peopleRow(c), forgeSchool6(c), shapeRank(alloyIndex));
+  if (!k) return Shape{};
+  Shape s = shapeOfKey(k);
+  const AlloyDetails d = alloyDetails(c, alloyIndex, s);
+  s.arm = d.arm; s.motif = d.motif;
+  return s;
+}
+
+Shape shapeOf(const Item& it, const cult::Culture* maker) {
+  const ForgeStyle st = forgeOf(it, maker);
+  if (!packForge(st)) return Shape{};
+  if (st.base == F::B_ALLOY) {
+    if (it.mat == Mat::Alloy && maker && it.alloy >= 1 && it.alloy <= maker->arms.alloys.size()) return alloyShape(*maker, it.alloy - 1);
+    return Shape{};
+  }
+  return heroShape(st.base, maker);
+}
+
+// ---------------------------------------------------------------- the board set (contracts 3c.1, STYLE_P2 28.10)
+std::vector<BoardCulture> forgeBoardSet() {
+  std::vector<BoardCulture> v;
+  for (uint32_t sd = 1; sd <= 3; sd++)
+    for (int p = 0; p < 12; p++) {
+      const bool owner = sd == (p == 6 || p == 7 ? 2u : 1u);   // the owner's board: seed 1, the Marsh and Jade seed 2
+      v.push_back(BoardCulture{p, sd, owner});
+    }
+  v.push_back(BoardCulture{7, 5, true});   // the owner's Jade seed 5 (JAONBRASS, DRAGONSTEEL, UNSHISILVER)
+  return v;
+}
+const char* const* forgeTwinGroups(int* n) {
+  static const char* const k[] = {"KISTEEL JAONBRASS DRAGONSTEEL UHABRASS GREBRASS STAGBRONZE", "BRIARSTEEL GRESSTEEL THAERGLASS",
+                                  "SUNBRONZE BAKOSTEEL SLAURIRON JAGUARIRON MIKASTEEL",
+                                  "ASIRON PASABRONZE THORNIRON UNSHISILVER ANIBRASS CRANESILVER LAVISILVER",
+                                  "FROSTSTEEL SANDSTEEL PAPIRON GWESTEEL ENKHOBRASS", "ROLSTEEL IKOSILVER"};
+  *n = (int)(sizeof(k) / sizeof(k[0]));
+  return k;
+}
+
+// ---------------------------------------------------------------- the solver
+std::vector<std::pair<int, Shape>> materialKeys(int people) {
+  std::vector<std::pair<int, Shape>> out;
+  for (uint32_t sd = 1; sd <= 8; sd++) {
+    const cult::Culture c = cult::Atlas::make((cult::Archetype)std::clamp(people, 0, 11), sd);
+    for (int b = F::B_HOMESPUN; b < F::B_COUNT; b++) {
+      const Shape s = heroShape(b, &c);
+      bool dup = false;
+      for (const auto& o : out) if (o.first == b && shapeKey(o.second) == shapeKey(s)) dup = true;
+      if (!dup) out.push_back({b, s});
+    }
+  }
+  return out;
+}
+
+ShapeModel estimateModel() {
+  ShapeModel m;
+  auto ax = [](const Shape& s, uint8_t v[F::SX_COUNT]) { toSx(s, v); v[F::SX_ARM] = 0; v[F::SX_MOTIF] = 0; };
+  m.body = [ax](int, const Shape& a, const Shape& b) { uint8_t x[F::SX_COUNT], y[F::SX_COUNT]; ax(a, x); ax(b, y); return F::estBodyOD(x, y); };
+  m.bodyX = [ax](int pa, const Shape& a, int pb, const Shape& b) {
+    uint8_t x[F::SX_COUNT], y[F::SX_COUNT]; ax(a, x); ax(b, y);
+    return F::estBodyOD(x, y) + (pa != pb ? 0.02 : 0.0);   // two peoples' kits differ a little in their own forms
+  };
+  m.head = [](int a, int b) { return F::estHeadOD(a, b); };
+  m.material = [ax](int people, const Shape& a, int base) {
+    const cult::Culture c = cult::Atlas::make((cult::Archetype)std::clamp(people, 0, 11), 1);
+    uint8_t x[F::SX_COUNT], y[F::SX_COUNT]; ax(a, x); ax(heroShape(base, &c), y);
+    return F::estBodyOD(x, y) + 0.02;   // a hero style's own drawing (its cut and hang) adds to its outline
+  };
+  return m;
+}
+
+namespace {
+struct KeyCand { uint32_t key; Shape s; double score; };
+// the board set's cells: the kit cultures of seeds 1..3 and the owner's Jade seed 5 (contracts 3c.1, forge round 2)
+std::vector<std::pair<int, int>> boardCells() {
+  std::vector<std::pair<int, int>> v;
+  for (int sd = 1; sd <= 3; sd++)
+    for (int p = 0; p < 12; p++) { cult::Culture c; c.archetype = (cult::Archetype)p; c.seed = (uint32_t)sd; c.id = 0; v.push_back({p, forgeSchool6(c)}); }
+  { cult::Culture c; c.archetype = cult::Archetype::Jade; c.seed = 5; c.id = 0; v.push_back({7, forgeSchool6(c)}); }
+  return v;
+}
+bool flavourHas(int rank, int axis, int v) {
+  const std::string w = std::string(F::shapeAxisName(axis)) + ":" + F::shapeName(axis, v);
+  for (const std::string& x : words(F::shapeRankFlavour(rank))) if (x == w) return true;
+  return false;
+}
+}  // namespace
+
+std::vector<std::string> checkShapeTable(const uint32_t (*t)[36][3], const ShapeModel& m) {
+  std::vector<std::string> out;
+  char b[256];
+  std::vector<std::vector<std::pair<int, Shape>>> mats(12);
+  for (int p = 0; p < 12; p++) mats[(size_t)p] = materialKeys(p);
+  std::unordered_map<uint32_t, int> owner;
+  for (int p = 0; p < 12; p++)
+    for (int s = 0; s < 36; s++) {
+      const uint32_t* k = t[p][s];
+      for (int r = 0; r < 3; r++) {
+        const Shape x = shapeOfKey(k[r]);
+        const char* pn = cult::archetypeName((cult::Archetype)p);
+        if (!k[r]) { std::snprintf(b, sizeof b, "rule 1: %s school %d rank %d: no key", pn, s, r); out.push_back(b); continue; }
+        const bool menu = F::inShapeMenu(p, F::SX_HELM, x.helm) && F::inShapeMenu(p, F::SX_SKIRT, x.skirt) && F::inShapeMenu(p, F::SX_MASS, x.mass) &&
+                          F::inShapeMenu(p, F::SX_LAYER, x.layer) && (x.layer != F::LY_CAPE || r == 2);
+        if (!menu) { std::snprintf(b, sizeof b, "rule 1: %s school %d rank %d: %s outside the menu", pn, s, r, describeShape(x).c_str()); out.push_back(b); }
+        auto it = owner.find(k[r]);
+        if (it != owner.end() && it->second != s) {
+          std::snprintf(b, sizeof b, "rule 3: %s school %d rank %d: %s also in school %d", pn, s, r, describeShape(x).c_str(), it->second); out.push_back(b);
+        } else owner[k[r]] = s;
+        for (const auto& mk : mats[(size_t)p]) {
+          const double od = m.material(p, x, mk.first);
+          if (keyAxesApart(x, mk.second) < 2 || od < 0.06) {
+            std::snprintf(b, sizeof b, "rule 4: %s school %d rank %d: %s vs %s (%s): %d axes, body OD %.3f", pn, s, r, describeShape(x).c_str(),
+                          F::valueName(F::AX_BASE, mk.first), describeShape(mk.second).c_str(), keyAxesApart(x, mk.second), od);
+            out.push_back(b);
+            break;
+          }
+        }
+      }
+      for (int i = 0; i < 3; i++)
+        for (int j = i + 1; j < 3; j++) {
+          const Shape x = shapeOfKey(k[i]), y = shapeOfKey(k[j]);
+          const int body = (x.skirt != y.skirt) + (x.mass != y.mass) + (x.layer != y.layer);
+          const double od = m.body(p, x, y);
+          if (x.helm == y.helm || body < 2 || od < 0.08) {
+            std::snprintf(b, sizeof b, "rule 2: %s school %d ranks %d %d: %s vs %s (helm %s, %d body axes, body OD %.3f)", cult::archetypeName((cult::Archetype)p), s, i,
+                          j, describeShape(x).c_str(), describeShape(y).c_str(), x.helm == y.helm ? "shared" : "apart", body, od);
+            out.push_back(b);
+          }
+        }
+    }
+  return out;
+}
+
+namespace {
+// (silhouettes i3) helm families that read alike at true 1x (the blind panel's groups)
+bool helmAlike(int a, int b) {
+  if (a == b) return true;
+  auto in = [&](std::initializer_list<int> g) {
+    bool x = false, y = false;
+    for (int v : g) { x |= v == a; y |= v == b; }
+    return x && y;
+  };
+  return in({F::H_WARHAT, F::H_KABUTO, F::H_KETTLE}) || in({F::H_HORNED, F::H_WINGED}) || in({F::H_CONE, F::H_VEIL, F::H_ONION}) ||
+         in({F::H_GREAT, F::H_SNOUT, F::H_MASK});
+}
+}  // namespace
+ShapeSolve solveShapes(const ShapeModel& m) {
+  ShapeSolve S;
+  // the candidates per people and rank: inside its menus (rule 1), two axes and a body OD 0.06 off each material (rule 4)
+  std::vector<KeyCand> cand[12][3];
+  for (int p = 0; p < 12; p++) {
+    const auto mats = materialKeys(p);
+    uint8_t hv[8], sv[8], mv[8], lv[8];
+    int hw[8], sw[8], mw[8], lw[8];
+    bool hs[8], ss[8], msx[8], ls[8];
+    const int nh = F::shapeMenu(p, F::SX_HELM, hv, hw, hs, 8), ns = F::shapeMenu(p, F::SX_SKIRT, sv, sw, ss, 8);
+    const int nm = F::shapeMenu(p, F::SX_MASS, mv, mw, msx, 8), nl = F::shapeMenu(p, F::SX_LAYER, lv, lw, ls, 8);
+    for (int a = 0; a < nh; a++)
+      for (int b = 0; b < ns; b++)
+        for (int c = 0; c < nm; c++)
+          for (int d = 0; d < nl; d++) {
+            Shape s;
+            s.helm = hv[a]; s.skirt = sv[b]; s.mass = mv[c]; s.layer = lv[d];
+            bool ok = true;
+            for (const auto& mk : mats) if (keyAxesApart(s, mk.second) < 2 || m.material(p, s, mk.first) < 0.06) { ok = false; break; }
+            if (!ok) continue;
+            for (int r = 0; r < 3; r++) {
+              if (s.layer == F::LY_CAPE && r != 2) continue;
+              double sc = std::log((double)hw[a]) + std::log((double)sw[b]) + std::log((double)mw[c]) + std::log((double)lw[d]);
+              int fl = flavourHas(r, F::SX_SKIRT, s.skirt) + flavourHas(r, F::SX_MASS, s.mass) + flavourHas(r, F::SX_LAYER, s.layer);
+              sc += 0.4 * fl;
+              if (r == 2) sc += 0.6 * ((hs[a] ? 1 : 0) + (ss[b] ? 1 : 0) + (msx[c] ? 1 : 0) + (ls[d] ? 1 : 0));   // the signature on most masterworks
+              // (silhouettes i2, the blind panel: "a crown on a mid-tier hauberk muddles the ladder: a crown should mean high
+              // rank") the CROWN helm leans to the masterwork
+              if (s.helm == F::H_CROWN && r < 2) sc -= 1.5;
+              cand[p][r].push_back(KeyCand{shapeKey(s), s, sc});
+            }
+          }
+    for (int r = 0; r < 3; r++) std::stable_sort(cand[p][r].begin(), cand[p][r].end(), [](const KeyCand& x, const KeyCand& y) { return x.score > y.score; });
+  }
+  // the processing order: the board set's cells first (C18a holds them hard), then every school's cells
+  const std::vector<std::pair<int, int>> board = boardCells();
+  std::vector<std::pair<int, int>> order = board;
+  // then the peoples with the fewest candidates first (the Heartland's three skirts and masses), every school in turn
+  std::vector<int> byTight(12);
+  for (int p = 0; p < 12; p++) byTight[(size_t)p] = p;
+  std::stable_sort(byTight.begin(), byTight.end(), [&](int a, int b) { return cand[a][0].size() < cand[b][0].size(); });
+  for (int p : byTight)
+    for (int s = 0; s < 36; s++)
+      if (std::find(order.begin(), order.end(), std::make_pair(p, s)) == order.end()) order.push_back({p, s});
+  auto isBoard = [&](int p, int s) { return std::find(board.begin(), board.end(), std::make_pair(p, s)) != board.end(); };
+  // (silhouettes i2) the owner's round-1 board (37 alloys side by side): its cells, for the helm families' spread
+  std::vector<std::pair<int, int>> ownerCells;
+  for (const BoardCulture& bc : forgeBoardSet())
+    if (bc.owner) { cult::Culture c; c.archetype = (cult::Archetype)bc.people; c.seed = bc.seed; c.id = 0; ownerCells.push_back({bc.people, forgeSchool6(c)}); }
+  auto isOwner = [&](int p, int s) { return std::find(ownerCells.begin(), ownerCells.end(), std::make_pair(p, s)) != ownerCells.end(); };
+  // C18c's windows (soft): worlds 1..6, the 6 x 6 windows at cells 0..5 and 3..8: each window's (people, school) cells and
+  // its alloy count; no body outline on more than 4 % and no helm family on more than 20 % of a window's alloys
+  struct Win { std::vector<std::pair<int, int>> cells; int alloys = 0; };
+  std::vector<Win> wins;
+  std::vector<int> winsOf[12][36];
+  for (uint64_t w = 1; w <= 6; w++) {
+    cult::Atlas at(w);
+    for (int o : {0, 3}) {
+      Win W;
+      for (int cj = o; cj < o + 6; cj++)
+        for (int ci = o; ci < o + 6; ci++) {
+          const cult::Culture& c = at.family(ci, cj);
+          W.cells.push_back({peopleRow(c), forgeSchool6(c)});
+          W.alloys += (int)std::min<size_t>(c.arms.alloys.size(), 3);
+        }
+      for (const auto& c : W.cells) winsOf[c.first][c.second].push_back((int)wins.size());
+      wins.push_back(W);
+    }
+  }
+  // the state: each key's school (a key owned by one school: rule 3) with a count of its uses
+  std::unordered_map<uint32_t, std::pair<int, int>> owner;
+  bool set[12][36] = {};
+  int helmCount[12][F::H_COUNT] = {}, bodyCount[12][512] = {}, valueUse[12][F::SX_COUNT][16] = {};
+  auto bodyIx = [](const Shape& s) { return (s.skirt & 7) | (s.mass & 7) << 3 | (s.layer & 7) << 6; };
+  auto apply = [&](int p, int s, int sign) {
+    for (int r = 0; r < 3; r++) {
+      const uint32_t k = S.table[p][s][r];
+      if (!k) continue;
+      const Shape x = shapeOfKey(k);
+      auto& o = owner[k];
+      if (sign > 0) { o.first = s; o.second++; } else if (--o.second <= 0) owner.erase(k);
+      helmCount[p][x.helm] += sign;
+      bodyCount[p][bodyIx(x)] += sign;
+      valueUse[p][F::SX_HELM][x.helm] += sign; valueUse[p][F::SX_SKIRT][x.skirt] += sign;
+      valueUse[p][F::SX_MASS][x.mass] += sign; valueUse[p][F::SX_LAYER][x.layer] += sign;
+    }
+  };
+  // the twin test (rule 5): body OD under 0.05 and head OD under 0.10
+  // (INTEGRATE silhouettes i1) a pair the real figures measured as twins (rpg_test --forge-solve's C18a passes) is one
+  auto known = [&](int pa, const Shape& a, int pb, const Shape& b) { return m.knownTwin && m.knownTwin(pa, a, pb, b); };
+  auto twin = [&](int pa, const Shape& a, int pb, const Shape& b) {
+    return known(pa, a, pb, b) || (m.head(a.helm, b.helm) < 0.10 && m.bodyX(pa, a, pb, b) < 0.05);
+  };
+  auto adjacent = [](int s, int t) {
+    const int x = s % 6, y = s / 6, u = t % 6, v = t / 6;
+    const int dx = std::min(posmod(x - u, 6), posmod(u - x, 6)), dy = std::min(posmod(y - v, 6), posmod(v - y, 6));
+    return dx + dy == 1 || (dx == 1 && dy == 1);
+  };
+  struct Near { int q; Shape s; double w; bool board; int t = 0, rr = 0; bool owner = false; };
+  std::vector<Near> nearKeys;
+  auto gatherNear = [&](int p, int s, bool boardCell) {
+    nearKeys.clear();
+    (void)p;
+    for (int q = 0; q < 12; q++)
+      for (int t = 0; t < 36; t++) {
+        if (!set[q][t] || (t == s && q == p)) continue;
+        const bool bt = boardCell && isBoard(q, t), at = t != s && adjacent(s, t);
+        // (C18a over the windows: every two cultures of a window meet there; a twin between far cells is allowed twice a world)
+        bool wt = false;
+        if (!bt && !at && t != s)
+          for (int wi : winsOf[p][s]) {
+            for (const auto& cell : wins[(size_t)wi].cells) if (cell.first == q && cell.second == t) { wt = true; break; }
+            if (wt) break;
+          }
+        if (!bt && !at && !wt) continue;
+        for (int rr = 0; rr < 3; rr++)
+          if (const uint32_t k = S.table[q][t][rr]) nearKeys.push_back(Near{q, shapeOfKey(k), bt ? 80.0 : at ? 10.0 : 6.0, bt, t, rr, bt && isOwner(q, t)});
+      }
+  };
+  auto keyPenalty = [&](int p, int s, int r, const KeyCand& c, bool boardCell) -> double {
+    double pen = 0;
+    // spread: a helm family on more than 25 % of a people's 108 keys, a body outline on more than 4 % (4 of 108)
+    if (helmCount[p][c.s.helm] >= 20) pen += 0.5 * (helmCount[p][c.s.helm] - 19);
+    if (bodyCount[p][bodyIx(c.s)] >= 3) pen += 1.5 * (bodyCount[p][bodyIx(c.s)] - 2);
+    for (int a : {(int)F::SX_HELM, (int)F::SX_SKIRT, (int)F::SX_MASS, (int)F::SX_LAYER}) {
+      const int v = a == F::SX_HELM ? c.s.helm : a == F::SX_SKIRT ? c.s.skirt : a == F::SX_MASS ? c.s.mass : c.s.layer;
+      if (valueUse[p][a][v] == 0) pen -= 0.3;   // every menu value used
+    }
+    // twins against the keys already placed: the board set's, then the adjacent schools'
+    int boardBody = 0;
+    for (const Near& n : nearKeys) {
+      // the board set's pairs on their real figures where the model measures them (C18a composes the real alloys)
+      const bool tw = known(p, c.s, n.q, n.s) ||
+                      (n.board && m.boardBody && boardCell
+                           ? m.head(c.s.helm, n.s.helm) < 0.10 && m.boardBody(p, s, r, c.s, n.q, n.t, n.rr, n.s) < 0.05
+                           : twin(p, c.s, n.q, n.s));
+      if (tw) pen += known(p, c.s, n.q, n.s) ? std::max(n.w, 40.0) : n.w;
+      if (n.board && n.s.skirt == c.s.skirt && n.s.mass == c.s.mass && n.s.layer == c.s.layer) boardBody++;
+    }
+    // C18c over the board set: no body outline on more than 4 % of its alloys (3 of about 100)
+    if (boardBody >= 3) pen += 8.0 * (boardBody - 2);
+    // (silhouettes i2, the blind panel on the owner's 37: "five winged helms, four veils, three war hats") on the owner's board
+    // a helm family serves two alloys at most where the menus allow (16 families for 37), and two that share one stand
+    // apart on all three body axes; over the whole board set a family serves 8 of about 108 at most
+    // (silhouettes i3, the blind panel: "Papiron, Kisteel, Unshisilver and Pasabronze the same wide hat; horned and winged
+    // the same two prongs; Gressteel = Slauriron even at 8x") families that read alike at 1x count as one: a wide brim
+    // (warhat, kabuto, kettle), two prongs (horned, winged), a pointed dome (cone, veil, onion), a closed bucket (great,
+    // snout, mask), and any two the pool measures under head OD 0.16; two alike on the owner's board stand apart on all
+    // three body axes
+    if (boardCell) {
+      double ownHelm = 0;
+      int boardHelm = 0;
+      for (const Near& n : nearKeys) {
+        if (!n.board) continue;
+        const bool same = n.s.helm == c.s.helm, like = same || helmAlike(n.s.helm, c.s.helm) || m.head(n.s.helm, c.s.helm) < 0.16;
+        if (!like) continue;
+        if (same) boardHelm++;
+        if (n.owner && isOwner(p, s)) {
+          ownHelm += same ? 1.0 : 0.6;
+          const int apart = (n.s.skirt != c.s.skirt) + (n.s.mass != c.s.mass) + (n.s.layer != c.s.layer);
+          if (apart < 3) pen += same ? 14.0 : 7.0;
+          if (apart < 2) pen += same ? 20.0 : 10.0;
+        }
+      }
+      if (ownHelm > 0.0) pen += 2.5 * ownHelm * ownHelm;
+      if (boardHelm >= 8) pen += 1.0 * (boardHelm - 7);
+    }
+    // and over the worlds' windows
+    for (int wi : winsOf[p][s]) {
+      const Win& W = wins[(size_t)wi];
+      int body = 0, helm = 0;
+      for (const auto& cell : W.cells) {
+        if ((cell.first == p && cell.second == s) || !set[cell.first][cell.second]) continue;
+        for (int rr = 0; rr < 3; rr++) {
+          const uint32_t k = S.table[cell.first][cell.second][rr];
+          if (!k) continue;
+          const Shape x = shapeOfKey(k);
+          if (x.skirt == c.s.skirt && x.mass == c.s.mass && x.layer == c.s.layer) body++;
+          if (x.helm == c.s.helm) helm++;
+        }
+      }
+      if (body + 1 > (int)(0.04 * W.alloys)) pen += 4.0 * (body + 1 - (int)(0.04 * W.alloys));
+      if (helm + 1 > (int)(0.20 * W.alloys) - 1) pen += 1.0 * (helm + 2 - (int)(0.20 * W.alloys));
+    }
+    (void)r;
+    return pen;
+  };
+  auto solveCell = [&](int p, int s) -> bool {
+    const bool bc = isBoard(p, s);
+    gatherNear(p, s, bc);
+    std::vector<KeyCand> top[3];
+    for (int r = 0; r < 3; r++) {
+      for (const KeyCand& c : cand[p][r]) {
+        auto it = owner.find(c.key);
+        if (it != owner.end() && it->second.first != s) continue;   // rule 3: owned by another school
+        bool boardEqual = false;   // C16u: no two board-set alloys share a key (a same-school culture of another people too)
+        for (const Near& n : nearKeys) if (n.board && shapeKey(n.s) == c.key) boardEqual = true;
+        if (boardEqual) continue;
+        KeyCand x = c;
+        x.score -= keyPenalty(p, s, r, c, bc);
+        top[r].push_back(x);
+      }
+      std::stable_sort(top[r].begin(), top[r].end(), [](const KeyCand& x, const KeyCand& y) { return x.score > y.score; });
+    }
+    for (size_t N : {(size_t)40, (size_t)160, (size_t)100000}) {
+      double best = -1e18;
+      uint32_t bk[3] = {};
+      const size_t n0 = std::min(N, top[0].size()), n1 = std::min(N, top[1].size()), n2 = std::min(N, top[2].size());
+      for (size_t i = 0; i < n0; i++)
+        for (size_t j = 0; j < n1; j++) {
+          const KeyCand &x = top[0][i], &y = top[1][j];
+          if (x.s.helm == y.s.helm || x.key == y.key || known(p, x.s, p, y.s)) continue;
+          if ((x.s.skirt != y.s.skirt) + (x.s.mass != y.s.mass) + (x.s.layer != y.s.layer) < 2 || m.body(p, x.s, y.s) < 0.08) continue;
+          if (x.score + y.score + (n2 ? top[2][0].score : 0) <= best) break;
+          for (size_t k = 0; k < n2; k++) {
+            const KeyCand& z = top[2][k];
+            const double sc = x.score + y.score + z.score;
+            if (sc <= best) break;
+            if (z.s.helm == x.s.helm || z.s.helm == y.s.helm || z.key == x.key || z.key == y.key || known(p, x.s, p, z.s) || known(p, y.s, p, z.s)) continue;
+            if ((x.s.skirt != z.s.skirt) + (x.s.mass != z.s.mass) + (x.s.layer != z.s.layer) < 2 || m.body(p, x.s, z.s) < 0.08) continue;
+            if ((y.s.skirt != z.s.skirt) + (y.s.mass != z.s.mass) + (y.s.layer != z.s.layer) < 2 || m.body(p, y.s, z.s) < 0.08) continue;
+            best = sc; bk[0] = x.key; bk[1] = y.key; bk[2] = z.key;
+          }
+        }
+      if (bk[0]) {
+        for (int r = 0; r < 3; r++) S.table[p][s][r] = bk[r];
+        return true;
+      }
+    }
+    return false;
+  };
+  if (m.start)   // (silhouettes i2) a warm start: every cell holds the given table's keys, its counts applied
+    for (int p = 0; p < 12; p++)
+      for (int s = 0; s < 36; s++)
+        if (m.start[p][s][0]) { for (int r = 0; r < 3; r++) S.table[p][s][r] = m.start[p][s][r]; set[p][s] = true; apply(p, s, +1); }
+  // (silhouettes i2) the hero's ladder kit (the Heartland seed 7 culture: lt4, lt5, the guards, the royals and the king judged
+  // by C3, B11 and C12 on their shipped helms and hair) keeps its shipped keys: a re-solve never moves the judged ladder's art
+  const int pinP = (int)cult::Archetype::Heartland, pinS = forgeSchool6(kitCulture(cult::Archetype::Heartland, 7));
+  {
+    const uint32_t (*shipped)[36][3] = kShapeTable;
+    if (shipped[pinP][pinS][0]) {
+      if (set[pinP][pinS]) apply(pinP, pinS, -1);
+      for (int r = 0; r < 3; r++) S.table[pinP][pinS][r] = shipped[pinP][pinS][r];
+      set[pinP][pinS] = true;
+      apply(pinP, pinS, +1);
+    }
+  }
+  for (int pass = 0; pass < 5; pass++)
+    for (const auto& c : order) {
+      const int p = c.first, s = c.second;
+      if (p == pinP && s == pinS && set[p][s]) continue;
+      if (set[p][s]) { apply(p, s, -1); set[p][s] = false; }
+      const uint32_t keep[3] = {S.table[p][s][0], S.table[p][s][1], S.table[p][s][2]};
+      if (solveCell(p, s)) { set[p][s] = true; apply(p, s, +1); }
+      else if (keep[0]) { for (int r = 0; r < 3; r++) S.table[p][s][r] = keep[r]; set[p][s] = true; apply(p, s, +1); }
+      else if (pass == 4) {
+        char b[160];
+        std::snprintf(b, sizeof b, "hard: %s school %d: no key triple holds rules 1-4", cult::archetypeName((cult::Archetype)p), s);
+        S.log.push_back(b);
+        S.hardFails++;
+      }
+    }
+  // the soft summary: twins (board set, adjacent schools, all)
+  for (int p = 0; p < 12; p++)
+    for (int s = 0; s < 36; s++)
+      for (int q = 0; q < 12; q++)
+        for (int t = 0; t < 36; t++) {
+          if (t < s || (t == s && q <= p)) continue;
+          if (t == s && !(isBoard(p, s) && isBoard(q, t))) continue;
+          for (int r = 0; r < 3; r++)
+            for (int rr = 0; rr < 3; rr++) {
+              const uint32_t a = S.table[p][s][r], b = S.table[q][t][rr];
+              if (!a || !b || !twin(p, shapeOfKey(a), q, shapeOfKey(b))) continue;
+              S.twins++;
+              if (isBoard(p, s) && isBoard(q, t)) S.twinsBoard++;
+              if (adjacent(s, t)) S.twinsAdjacent++;
+            }
+        }
+  const std::vector<std::string> bad = checkShapeTable(S.table, m);
+  for (const std::string& x : bad) S.log.push_back(x);
+  S.hardFails = (int)bad.size();
+  char b[200];
+  std::snprintf(b, sizeof b, "solve: %d hard failures; twins %d (board set %d, adjacent schools %d)", S.hardFails, S.twins, S.twinsBoard, S.twinsAdjacent);
+  S.log.push_back(b);
+  return S;
+}
+
+std::string shapeTableInc(const ShapeSolve& s, uint64_t poolHash, const std::string& how) {
+  std::string o;
+  char b[96];
+  o += "// GENERATED by rpg_test --forge-solve (docs/P2C_CONTRACTS.md 3c.1): the shape table, kShapeTable[people][school][rank]\n";
+  o += "// = helm | skirt << 8 | mass << 16 | layer << 24 (art::doll::forge SX_* values). NEVER hand-edit: re-solve.\n";
+  o += "// " + how + "\n";
+  std::snprintf(b, sizeof b, "static const uint64_t kShapePoolHash = 0x%016llXull;\n", (unsigned long long)poolHash);
+  o += b;
+  o += "static const uint32_t kShapeTable[12][36][3] = {\n";
+  for (int p = 0; p < 12; p++) {
+    o += "    {   // " + std::string(cult::archetypeName((cult::Archetype)p)) + "\n";
+    for (int sc = 0; sc < 36; sc++) {
+      std::snprintf(b, sizeof b, "%s{0x%08Xu, 0x%08Xu, 0x%08Xu}%s", sc % 4 == 0 ? "        " : " ", s.table[p][sc][0], s.table[p][sc][1], s.table[p][sc][2],
+                    sc == 35 ? "" : ",");
+      o += b;
+      if (sc % 4 == 3 || sc == 35) o += "\n";
+    }
+    o += p == 11 ? "    }\n" : "    },\n";
+  }
+  o += "};\n";
+  return o;
 }
 
 }  // namespace gear

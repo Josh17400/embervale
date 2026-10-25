@@ -1,0 +1,47 @@
+# cloak/halfcape_front: the half-cape's drape over the LEFT shoulder (FORGE-MANTLE, round 2; contracts 3c): facing down
+# the cloth falls over the left shoulder and upper arm, from a brooch at the throat, its front edge one diagonal
+# fold; facing left it wraps the near shoulder (a large pauldron keeps its profile: the drape falls from behind it);
+# facing right and up the far side shows nothing (the back part covers it). Rigid, under the head (head z -5); a pauldron
+# draws over it (D41). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role cloak halfcape
+layer head
+anchor neck
+keys cloakfront
+z -5
+legend Q cloak 0
+legend R cloak 1
+legend S cloak 2
+legend T cloak 3
+legend U cloak 4
+
+view U key rest origin 0 0 layer head
+|.
+
+view D key rest origin -1 3 layer head
+|.QQQQ.....
+|QPOSSQQ...
+|QRSSSSSQQ.
+|.QRSSTSSSQ
+|..QRSTSRSQ
+|...QRTSRSQ
+|....QRSRTQ
+|.....QRRTQ
+|......QRRQ
+|.......QQQ
+
+view R key rest origin 0 0
+|.
+
+view L key rest origin 4 3
+|.QQQQQ...
+|QPOSSSQQ.
+|QSSSSSSSQ
+|.QSSSSRSQ
+|.QSSTSRSQ
+|..QSTSRSQ
+|..QRTSRSQ
+|...QRSRSQ
+|....QRRRQ
+|.....QQQQ

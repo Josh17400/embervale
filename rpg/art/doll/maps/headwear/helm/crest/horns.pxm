@@ -81,3 +81,19 @@ view L key lie origin 5 3
 |.fjhf..
 |..fjhf.
 |...vfff
+
+# (FORGE-HEAD i2) crest yield: drawn only on kabuto; any other alloy helm family wears no horns crest
+view D key rest when alloyshape,!helmfam-kabuto replace
+|.
+
+view U key rest when alloyshape,!helmfam-kabuto replace
+|.
+
+view R key rest when alloyshape,!helmfam-kabuto replace
+|.
+
+view L key rest when alloyshape,!helmfam-kabuto replace
+|.
+
+view L key lie when alloyshape,!helmfam-kabuto replace
+|.

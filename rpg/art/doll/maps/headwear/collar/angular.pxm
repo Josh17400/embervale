@@ -1,6 +1,7 @@
 # headwear/collar/angular: the forge collar `angular` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # KNAPPED: standing shards of black glass beside the jaw and a sawtooth of points round the neck, each lit on its left facet.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.angular
 layer neck
@@ -45,8 +46,6 @@ view D key rest origin 6 2
 |z...........v
 |vz.........vw
 |vzv.......vxv
-|vyzv.v.v.vxwv
-|vyyzvzvxvxwwv
 |vyyyyxxxxwwwv
 |.vvvvvvvvvvv.
 
@@ -54,8 +53,6 @@ view U key rest origin 6 2
 |z...........v
 |vz.........vw
 |vzv.......vxv
-|vyzv.v.v.vxwv
-|vyyzvzvxvxwwv
 |vyyyyxxxxwwwv
 |.vvvvvvvvvvv.
 
@@ -63,8 +60,6 @@ view R key rest origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyzv.v.vvxv
-|vyyzvzvxvwv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -72,8 +67,6 @@ view L key rest origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vxvv.v.vyzv
-|vwvxvzvyyzv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -81,8 +74,6 @@ view L key lie origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vxvv.v.vyzv
-|vwvxvzvyyzv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -90,8 +81,6 @@ view R key flow origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyzv.v.vvxv
-|vyyzvzvxvwv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -99,8 +88,6 @@ view R key flow2 origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyzv.v.vvxv
-|vyyzvzvxvwv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -108,8 +95,6 @@ view L key flow origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vxvv.v.vyzv
-|vwvxvzvyyzv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
@@ -117,7 +102,5 @@ view L key flow2 origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vxvv.v.vyzv
-|vwvxvzvyyzv
 |vyyyyxxxwwv
 |.vvvvvvvvv.

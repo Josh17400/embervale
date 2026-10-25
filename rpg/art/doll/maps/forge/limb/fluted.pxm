@@ -15,34 +15,12 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i2) fluted: rows only (a column period on a 2-3 px limb read as a checker): a lit rim and a shade
+# row every fifth row, the limb's own planes between.
 
 view D key rest origin 0 0
-|^^
-|+:
-|+:
-|+:
-|+:
+|+
+|.
+|.
+|.
+|:

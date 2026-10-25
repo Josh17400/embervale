@@ -1,6 +1,7 @@
 # headwear/collar/rolled: the forge collar `rolled` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # HOMESPUN: a fat stuffed roll round the neck in the gambeson's cloth: lit on its upper left, sagging into shadow, a quilting tuck every three.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.rolled
 layer neck
@@ -44,62 +45,53 @@ legend o cloak 4
 view D key rest origin 6 1
 |.55.......55.
 |5985555555765
-|5998998987765
 |5887887876665
 |.55555555555.
 
 view U key rest origin 6 1
 |.55.......55.
 |5985555555765
-|5998998987765
 |5887887876665
 |.55555555555.
 
 view R key rest origin 5 1
 |55.......55
 |59855555765
-|59989989876
 |58878878766
 |.555555555.
 
 view L key rest origin 5 1
 |55.......55
 |57655555985
-|99899898765
 |88788787665
 |.555555555.
 
 view L key lie origin 5 1
 |55.......55
 |57655555985
-|99899898765
 |88788787665
 |.555555555.
 
 view R key flow origin 5 1
 |55.......55
 |59855555765
-|59989989876
 |58878878766
 |.555555555.
 
 view R key flow2 origin 5 1
 |55.......55
 |59855555765
-|59989989876
 |58878878766
 |.555555555.
 
 view L key flow origin 5 1
 |55.......55
 |57655555985
-|99899898765
 |88788787665
 |.555555555.
 
 view L key flow2 origin 5 1
 |55.......55
 |57655555985
-|99899898765
 |88788787665
 |.555555555.

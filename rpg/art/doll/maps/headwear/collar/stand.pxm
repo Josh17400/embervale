@@ -1,6 +1,7 @@
 # headwear/collar/stand: the forge collar `stand` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # TANNER'S: a soft leather stand collar rising beside the jaw, open in a laced V at the throat (one cross of lacing).
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.stand
 layer neck
@@ -45,7 +46,6 @@ view D key rest origin 6 2
 |.f.........f.
 |fif.......fhf
 |fijf.....fhgf
-|fiihf.i.fhggf
 |fiiihfhfhhggf
 |.fffffffffff.
 
@@ -53,7 +53,6 @@ view U key rest origin 6 2
 |.f.........f.
 |fif.......fhf
 |fijf.....fhgf
-|fiihf.i.fhggf
 |fiiihfhfhhggf
 |.fffffffffff.
 
@@ -61,7 +60,6 @@ view R key rest origin 5 2
 |ff.........
 |fif......f.
 |fiif....fhf
-|fiihf.ifhgf
 |fiiihhfhhgf
 |.fffffffff.
 
@@ -69,7 +67,6 @@ view L key rest origin 5 2
 |.........ff
 |.f......fif
 |fhf....fiif
-|fhgfi.fiihf
 |fhhgfiiihhf
 |.fffffffff.
 
@@ -77,7 +74,6 @@ view L key lie origin 5 2
 |.........ff
 |.f......fif
 |fhf....fiif
-|fhgfi.fiihf
 |fhhgfiiihhf
 |.fffffffff.
 
@@ -85,7 +81,6 @@ view R key flow origin 5 2
 |ff.........
 |fif......f.
 |fiif....fhf
-|fiihf.ifhgf
 |fiiihhfhhgf
 |.fffffffff.
 
@@ -93,7 +88,6 @@ view R key flow2 origin 5 2
 |ff.........
 |fif......f.
 |fiif....fhf
-|fiihf.ifhgf
 |fiiihhfhhgf
 |.fffffffff.
 
@@ -101,7 +95,6 @@ view L key flow origin 5 2
 |.........ff
 |.f......fif
 |fhf....fiif
-|fhgfi.fiihf
 |fhhgfiiihhf
 |.fffffffff.
 
@@ -109,6 +102,5 @@ view L key flow2 origin 5 2
 |.........ff
 |.f......fif
 |fhf....fiif
-|fhgfi.fiihf
 |fhhgfiiihhf
 |.fffffffff.

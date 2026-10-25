@@ -10,6 +10,7 @@
 use person
 body man
 role armour mail
+role overlay skirt.hauberk
 layer hangFront
 anchor hip
 keys hang

@@ -14,31 +14,9 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i1) ribbed: 2 px lit ribs over a 1 px dark gap, period 3.
 
 view D key rest origin 0 0
+|+
 |+
 |=

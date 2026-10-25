@@ -175,6 +175,10 @@ struct HumanLook {
   // (P2c forge i3) the worn culture alloy's guise (art::doll::forge::Guise packed: helm, skirt, cloak, shoulder size; 0 none):
   // gear::alloyGuise. Derived, never saved; key() at rig 2 only when set
   uint16_t forgeGuise = 0;
+  // (P2c forge round 2, contracts 3c.1) the worn armour's SILHOUETTE (art::doll::forge shape axes packed: helm bits 0-4,
+  // skirt 5-7, mass 8-10, layer 11-13, arm 14-15, motif 16-19, bit 31 set; 0 none: round 1's pixels): gear::shapeOf per
+  // worn piece (the helm piece the helm family, the body piece the rest). Derived, never saved; key() at rig 2 only when set
+  uint32_t forgeShape = 0;
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

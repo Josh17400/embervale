@@ -1,6 +1,7 @@
 # headwear/collar/flared: the forge collar `flared` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # PARADE: a gorget flaring up and out beside the jaw, steel with a gilt rim and a gilt scalloped foot (parcel-gilt).
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.flared
 layer neck
@@ -44,80 +45,62 @@ legend o cloak 4
 view D key rest origin 6 2
 |P...........P
 |PJ.........JN
-|JPJ.......JNJ
 |JPPJJJJJJJNNJ
 |vzyyyyyxxxxwv
-|JPJPJPJNJNJNJ
-|.J.J.J.J.J.J.
+|.vvvvvvvvvvv.
 
 view U key rest origin 6 2
 |P...........P
 |PJ.........JN
-|JPJ.......JNJ
 |JPPJJJJJJJNNJ
 |vzyyyyyxxxxwv
-|JPJPJPJNJNJNJ
-|.J.J.J.J.J.J.
+|.vvvvvvvvvvv.
 
 view R key rest origin 5 2
 |P..........
 |PJ........J
-|JPJ......JN
 |JPPJJJJJJNJ
 |vzyyyyxxxwv
-|JPJPJNJNJNJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view L key rest origin 5 2
 |..........P
 |J........JP
-|NJ......JPJ
 |JNJJJJJJPPJ
 |vzyyyyxxxwv
-|JNJNJNJPJPJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view L key lie origin 5 2
 |..........P
 |J........JP
-|NJ......JPJ
 |JNJJJJJJPPJ
 |vzyyyyxxxwv
-|JNJNJNJPJPJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view R key flow origin 5 2
 |P..........
 |PJ........J
-|JPJ......JN
 |JPPJJJJJJNJ
 |vzyyyyxxxwv
-|JPJPJNJNJNJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view R key flow2 origin 5 2
 |P..........
 |PJ........J
-|JPJ......JN
 |JPPJJJJJJNJ
 |vzyyyyxxxwv
-|JPJPJNJNJNJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view L key flow origin 5 2
 |..........P
 |J........JP
-|NJ......JPJ
 |JNJJJJJJPPJ
 |vzyyyyxxxwv
-|JNJNJNJPJPJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.
 
 view L key flow2 origin 5 2
 |..........P
 |J........JP
-|NJ......JPJ
 |JNJJJJJJPPJ
 |vzyyyyxxxwv
-|JNJNJNJPJPJ
-|.J.J.J.J.J.
+|.vvvvvvvvv.

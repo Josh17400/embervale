@@ -63,7 +63,7 @@ seed 7
 +0.3 expect doll covered
 +0.0 expect doll forge alloy
 +0.0 expect doll forge shoulder=lobed
-+0.0 expect doll forge crest=spike
++0.0 expect doll forge crest=crown
 +0.1 zoom near
 +0.3 shot p2c_forge_jade_glowing.png
 +0.1 zoom normal

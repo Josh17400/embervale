@@ -15,33 +15,10 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i1) splinted: three lit rows and a dark binding row.
 
 view D key rest origin 0 0
-|==
-|+=
-|+=
-|+=
+|=
+|+
+|+
+|+

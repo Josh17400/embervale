@@ -166,9 +166,20 @@ int expandCmd(int argc, char** argv) {
       for (const std::string& f : b.r.flags)
         if (f.rfind("forge-", 0) == 0 || f.rfind("shoulder-", 0) == 0 || f.rfind("cut-", 0) == 0 || f.rfind("edge-", 0) == 0 || f.rfind("collar-", 0) == 0 ||
             f.rfind("limb-", 0) == 0 || f.rfind("fit-", 0) == 0 || f.rfind("crest-", 0) == 0 || f.rfind("boss-", 0) == 0 || f.rfind("rim-", 0) == 0 ||
-            f.rfind("glimb-", 0) == 0 || f.rfind("blimb-", 0) == 0 || f.rfind("form-", 0) == 0 || f.rfind("blademetal-", 0) == 0)
+            f.rfind("glimb-", 0) == 0 || f.rfind("blimb-", 0) == 0 || f.rfind("form-", 0) == 0 || f.rfind("blademetal-", 0) == 0 ||
+            f.rfind("helmfam-", 0) == 0 || f.rfind("skirt-", 0) == 0 || f.rfind("mass-", 0) == 0 || f.rfind("layer-", 0) == 0 ||
+            f.rfind("arm-", 0) == 0 || f.rfind("motif-", 0) == 0 || f == "alloyshape" || f == "alloyface" || f == "glowseams")
           ff += (ff.empty() ? "" : " ") + f;
       if (!ff.empty()) std::printf("         forge flags: %s\n", ff.c_str());
+    }
+    // (forge round 2) the silhouette: the look's, as the resolver applied it, and what the pool does not draw yet
+    if (b.L.forgeShape) {
+      gear::Shape ap;
+      ap.helm = b.r.shape[0]; ap.skirt = b.r.shape[1]; ap.mass = b.r.shape[2]; ap.layer = b.r.shape[3]; ap.arm = b.r.shape[4]; ap.motif = b.r.shape[5];
+      std::printf("         shape: %s (applied: %s)\n", gear::describeShape(gear::unpackShape(b.L.forgeShape)).c_str(), gear::describeShape(ap).c_str());
+      std::string fm;
+      for (const std::string& m : b.r.forgeMissing) fm += (fm.empty() ? "" : "; ") + m;
+      if (!fm.empty()) std::printf("         shape not drawn yet: %s\n", fm.c_str());
     }
     const std::vector<doll::Missing> miss = doll::dollMissing(b.L);
     if (!miss.empty()) std::printf("         missing (%d): %s\n", (int)miss.size(), miss[0].what().c_str());
@@ -336,6 +347,11 @@ double c14Look(Line& g, const Built& b, int facing) {
   // (P2c forge i2) a dark sheen's tell is a blackened body (STYLE_P2 28.7: step 2 at 90 luma or less, C17) whose selout edge
   // is its own step 1 (kept 10 under the body): its lit edge reads by that step and the near-white glint, not 40 over shade
   if (b.L.sheen == 3 && b.L.forge[HumanLook::TIER_BODY]) want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
+  // (forge round 2, STYLE_P2 28.4 and 28.8) KNAPPED's black glass and FURNACE's char are the darkest armours by design (the
+  // body at 60 luma or less, C17's dark glass): they read on dark ground by their hard glints and their glow, so their edge
+  // is held to their own step 1, as the dark sheen's
+  if ((b.L.metalKind == 7 || b.L.metalKind == 8) && b.L.forge[HumanLook::TIER_BODY])
+    want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
   if (lit < want) g.bad(b.tag + fmt(" %c: the lit top-left edge %.0f luma, %.0f over the darkest day ground (%.0f wanted: 40 over, or A3's own)", "DURL"[facing], lit, lit - luma(kDarkGround), want - luma(kDarkGround)));
   else g.ok();
   return lit;
@@ -406,18 +422,24 @@ void gateC12(Line& g, const std::vector<Built>& looks) {
         // the weapon and the cloak: their trim is drawn in their own colours where the maps mark no R (the sword's guard,
         // the noble cloak's hem: P2b views, ADD-only); a ceiling still holds
         if ((s == 3 || s == 6) && !rich[t].trim[s]) { g.ok(); continue; }
+        // (forge round 2, D41) the pauldrons draw over the cloak's front: the cloak shows less of its plain inside, so its hem
+        // (the trim) is a larger share of what shows; the ceiling a third higher
+        if (s == 6) bd.hi = std::max(bd.hi, 0.30);
         if (sh < bd.lo - 1e-9 || sh > bd.hi + 1e-9)
-          g.bad(fmt("b: lt%d %c slot %d (T%d) trim %.1f %% (band %.0f-%.0f %%)", t, fc, s, tt, sh * 100, bd.lo * 100, bd.hi * 100));
+          g.bad(fmt("b: lt%d %c slot %d (T%d) trim %.1f %% (band %.0f-%.0f %%; %d of %d gear px)", t, fc, s, tt, sh * 100, bd.lo * 100, bd.hi * 100, rich[t].trim[s], rich[t].px[s]));
         else g.ok();
       }
       if (t < 5 && rich[t].glow) g.bad(fmt("b: lt%d %c: %d glow pixel(s) below T5", t, fc, rich[t].glow));
       else if (t >= 5 && !rich[t].glow) g.bad(fmt("b: lt%d %c: no glow pixel at T%d (gems, runes)", t, fc, t));
       else g.ok();
       if (t >= 2 && t <= 5) {
-        if (rich[t].step4 < rich[t - 1].step4 - 1) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
+        // (silhouettes i2) a culture alloy's styled body (its round-2 metal read: one to three glints, STYLE_P2 28.8, the
+        // blind panel's "1-2 px highlight specks") holds 3 glints or more instead of the tier below's count, and 75 % of its colours
+        const bool alloyBody = line[t]->r.has("alloyshape");
+        if (alloyBody ? rich[t].step4 < 3 : rich[t].step4 < rich[t - 1].step4 - 1) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
         else g.ok();
         // (i2) leather and a teal cap to grey mail is a step up in fewer colours: 80 % of the tier below, at least
-        if (rich[t].colours * 5 < rich[t - 1].colours * 4) g.bad(fmt("b: lt%d %c: colours fall %d -> %d", t, fc, rich[t - 1].colours, rich[t].colours));
+        if (alloyBody ? rich[t].colours * 4 < rich[t - 1].colours * 3 : rich[t].colours * 5 < rich[t - 1].colours * 4) g.bad(fmt("b: lt%d %c: colours fall %d -> %d", t, fc, rich[t - 1].colours, rich[t].colours));
         else g.ok();
       }
     }
@@ -578,6 +600,8 @@ void gateC13(Line& g, const std::vector<Built>& looks) {
       const char* pn = part == RigPart::Loco ? "LOCO" : "DRAWN";
       // (P2c forge, D28) a glowing alloy's seams glow steady from T4: a glow plane at T4 only with the glowing sheen
       if (top == 4 && b.L.sheen == 6) { g.ok(); continue; }
+      // (forge round 2, D40) emberforged glows wherever it is worn: its seams at every tier ("glowseams")
+      if (top < 5 && b.r.has("glowseams")) { g.ok(); continue; }
       if (top < 5) { if (gb) g.bad(b.tag + fmt(" %s: a glow plane below T5", pn)); else g.ok(); continue; }
       if (gb * 4 > sh.bytes()) g.bad(b.tag + fmt(": glow plane %.1f KB over 25 %% of the atlas's %.1f KB", gb / 1024.0, sh.bytes() / 1024.0)); else g.ok();
       int worstBright = 0, worstSoft = 0, leastSoft = 1 << 30, frames = 0;

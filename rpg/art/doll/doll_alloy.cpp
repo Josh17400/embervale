@@ -274,7 +274,139 @@ int alloyFamilyMetal(int fam) {
 }
 const char* alloyFamilyName(int f) { return f >= 0 && f < kAlloyFams ? kAlloyFam[f].name : "?"; }
 int alloyFamilyOf(uint32_t light, uint8_t sheen, int skipMask) { return famNearest(light, sheen, skipMask); }
-void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]) { famRamp(fam, sheen, out); }
+// (forge round 2, C17's round-2 terms; STYLE_P2 28.8) the read at 1x: warm metals (Lab hue 20-110 at step 2) turn their lit
+// plane 15 degrees or more toward the gold (Lab hue 92; one within 8 of it stays) and keep steps 2-3 out of the skin box
+// (HSV hue 5-45, Lab chroma 25-60, luma 110-210); greens and sages (Lab hue 110-200) keep a cold lit plane, half the body's
+// chroma or less
+namespace {
+double hsvHue(uint32_t c) {
+  const double r = chR(c) / 255.0, g = chG(c) / 255.0, b = chB(c) / 255.0;
+  const double mx = std::max({r, g, b}), mn = std::min({r, g, b});
+  if (mx - mn < 1e-9) return 0;
+  double h = mx == r ? std::fmod((g - b) / (mx - mn), 6.0) : mx == g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+  h *= 60.0;
+  return h < 0 ? h + 360.0 : h;
+}
+double labHue(const Lab& l) { return std::fmod(std::atan2(l.b, l.a) * 57.29578 + 360.0, 360.0); }
+double arc(double a, double b) { return std::fabs(std::fmod(a - b + 540.0, 360.0) - 180.0); }
+bool inSkinBox(uint32_t c) {
+  const Lab l = toLab(c);
+  const double h = hsvHue(c), C = std::hypot(l.a, l.b), y = luma(c);
+  return h >= 5.0 && h <= 45.0 && C >= 25.0 && C <= 60.0 && y >= 110.0 && y <= 210.0;
+}
+void round2Read(uint32_t r[5], int sheen = -1) {
+  auto lch = [](uint32_t c, double& L, double& C, double& H) { const Lab l = toLab(c); L = l.L; C = std::hypot(l.a, l.b); H = labHue(l); };
+  for (int i = 2; i <= 3; i++) {
+    double L, C, H;
+    lch(r[i], L, C, H);
+    // the body darkens out of the box (its hue, the family's identity, kept), the lit plane pales (loses chroma); then the
+    // hue turns toward the gold
+    // (silhouettes i2, the blind panel: "Jaonbrass and Uhabrass dark chocolate, read as leather") a warm metal turns toward the
+    // gold first (10 degrees at most: a copper stays coppery, C15c neighbours apart), so it leaves the box as brass, not as a darkened brown
+    const bool warmHue = H >= 20.0 && H < 92.0 && C >= 12.0;
+    for (int it = 0; it < 5 && warmHue && inSkinBox(r[i]); it++) { H = hueTurn(H, 92.0, 2.0); r[i] = fromLab(lchLab(L, C, H)) | 0xFF000000u; }
+    for (int it = 0; it < 48 && inSkinBox(r[i]); it++) {
+      if (it < 24) { if (i == 2 && luma(r[2]) < 150.0) L -= 1.0; else C *= 0.93; }   // (a pale body keeps its light: it pales)
+      else H = hueTurn(H, 95.0, 3.0);
+      r[i] = fromLab(lchLab(L, C, H)) | 0xFF000000u;
+    }
+  }
+  const Lab s2 = toLab(r[2]);
+  const double c2 = std::hypot(s2.a, s2.b), h2 = labHue(s2);
+  const bool warm = h2 >= 20.0 && h2 < 110.0 && c2 >= 12.0, green = h2 >= 110.0 && h2 <= 200.0 && c2 >= 8.0;
+  {   // the lit plane stays paler in colour than the body it lights (C17: 60 % of its chroma at most)
+    double L, C, H;
+    lch(r[3], L, C, H);
+    if (c2 >= 6.0 && C > 0.56 * c2) r[3] = fromLab(lchLab(L, 0.56 * c2, H)) | 0xFF000000u;
+  }
+  if (warm) {
+    // (silhouettes i2, the blind panel: "Jaonbrass, Uhabrass, Enkhobrass: dark chocolate or muddy taupe, read as leather")
+    // the body and its shadow turn 15 degrees toward the gold-olive (STYLE_P2 28.8: "shadows brown-olive"), and the lit
+    // plane stands 35 luma over the body: a brass, never a hide
+    for (int i = 1; i <= 1; i++) {   // (the shadow only: the body keeps the family's hue, C15c's neighbours stay apart)
+      double L, C, H;
+      lch(r[i], L, C, H);
+      if (H >= 45.0 && H < 92.0) r[i] = fromLab(lchLab(L, C, hueTurn(H, 92.0, 15.0))) | 0xFF000000u;   // (a copper red under 45 keeps its hue)
+    }
+    // (toward white: the light loses its colour as it climbs, so it never climbs into the skin box nor clips its hue)
+    for (int it = 0; it < 30 && luma(r[3]) < luma(r[2]) + 35.0 && luma(r[3]) < 235.0; it++) {
+      const uint32_t c = r[3];
+      auto ch = [&](int v) { return v + (255 - v) * 6 / 100; };
+      const uint32_t n = 0xFF000000u | (uint32_t)ch(c & 255) | (uint32_t)ch(c >> 8 & 255) << 8 | (uint32_t)ch(c >> 16 & 255) << 16;
+      if (inSkinBox(n)) break;
+      r[3] = n;
+    }
+  }
+  if (warm) {
+    double L, C, H;
+    lch(r[3], L, C, H);
+    const double want = std::max(5.0, arc(h2, 92.0) - 18.0);
+    for (int it = 0; it < 60 && arc(labHue(toLab(r[3])), 92.0) > want; it++) { H = hueTurn(H, 92.0, 2.0); r[3] = fromLab(lchLab(L, C, H)) | 0xFF000000u; }
+    r[3] = fromLab(lchLab(L, C, H)) | 0xFF000000u;
+  }
+  if (green) {
+    const Lab n2 = toLab(r[2]);
+    const double c2n = std::hypot(n2.a, n2.b);
+    double L, C, H;
+    lch(r[3], L, C, H);
+    if (C > 0.48 * c2n) r[3] = fromLab(lchLab(L, 0.48 * c2n, H)) | 0xFF000000u;
+  }
+  // (silhouettes i3, the blind panel's metal lens: "Uhabrass, Jaonbrass flat browns; Enkhobrass maroon, a cloth coat;
+  // Anibrass cream, Sandsteel plaster; Mikasteel, Bakosteel, Ikosilver green cloth; too many teals") metal at true 1x:
+  // a brass is bright (a dark warm body climbs
+  // to L 44 and turns toward the gold), and a pale body sinks to L 64 so its polish (the lit plane and the glint) reads
+  {
+    const Lab b = toLab(r[2]);
+    const double cb = std::hypot(b.a, b.b), hb = labHue(b);
+    // (a dark sheen keeps its dark body: blackened and glowing metals are dark by design)
+    const bool darkSheen = sheen == 3 || sheen == 6;
+    if (!darkSheen && hb >= 55.0 && hb < 110.0 && cb >= 12.0 && b.L < 38.0) {   // (a copper or red bronze under 45 keeps its depth: C15f)
+      const double dl = 0.6 * (44.0 - b.L);   // (most of the way: the dark warm families keep their order, C15f)
+      for (int i = 1; i <= 3; i++) {
+        double L, C, H;
+        lch(r[i], L, C, H);
+        r[i] = fromLab(lchLab(std::min(96.0, L + dl * (i == 1 ? 0.5 : 1.0)), C, H >= 40.0 && H < 88.0 ? hueTurn(H, 88.0, 12.0) : H)) | 0xFF000000u;
+      }
+    }
+    if (b.L > 66.0 && cb >= 8.0 && cb < 34.0 && hb >= 40.0 && hb < 120.0) {   // (cream, bone, plaster: a neutral silver keeps its light)
+      const double dl = b.L - 64.0;
+      uint32_t t[3] = {r[0], r[1], r[2]};
+      for (int i = 1; i <= 2; i++) { double L, C, H; lch(t[i], L, C, H); t[i] = fromLab(lchLab(L - dl * (i == 1 ? 1.4 : 1.0), C * 1.1, H)) | 0xFF000000u; }
+      if (!inSkinBox(t[2])) { r[1] = t[1]; r[2] = t[2]; }   // (never down into the skin box: a pale brass stays pale)
+    }
+    // the polish: the lit plane 30 L over the body and the glint near white on every metal
+    const Lab b2 = toLab(r[2]);
+    { double L, C, H; lch(r[3], L, C, H); if (L < b2.L + 30.0) r[3] = fromLab(lchLab(std::min(95.0, b2.L + 30.0), C, H)) | 0xFF000000u; }
+    { double L, C, H; lch(r[4], L, C, H); if (L < 93.0) r[4] = fromLab(lchLab(93.0, C, H)) | 0xFF000000u; }
+  }
+  // (silhouettes i2) the lit plane out of the skin box after the turns above (it pales: chroma falls, hue and light kept)
+  for (int it = 0; it < 24 && inSkinBox(r[3]); it++) {
+    double L, C, H;
+    lch(r[3], L, C, H);
+    r[3] = fromLab(lchLab(L, C * 0.9, H)) | 0xFF000000u;
+  }
+  // (silhouettes i2) the dark core holds after the moves above (step 1 at 45 % of step 3's luma or less)
+  for (int it = 0; it < 30 && luma(r[1]) > 0.445 * luma(r[3]); it++) {
+    double L, C, H;
+    lch(r[1], L, C, H);
+    r[1] = fromLab(lchLab(L - 1.0, C, H)) | 0xFF000000u;
+  }
+}
+}  // namespace
+void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]) { famRamp(fam, sheen, out); round2Read(out, sheen); }
+void metalRound2(uint32_t r[5], int sheen) { round2Read(r, sheen); }
+bool metalRead2(const uint32_t r[5], std::string* why) {
+  char b[200];
+  const Lab s2 = toLab(r[2]), s3 = toLab(r[3]);
+  const double c2 = std::hypot(s2.a, s2.b), c3 = std::hypot(s3.a, s3.b), h2 = labHue(s2), h3 = labHue(s3);
+  const bool warm = h2 >= 20.0 && h2 < 110.0 && c2 >= 12.0, green = h2 >= 110.0 && h2 <= 200.0 && c2 >= 8.0;
+  const char* bad = nullptr;
+  if (warm && arc(h3, 92.0) > std::max(8.0, arc(h2, 92.0) - 15.0) + 1.5) bad = "warm: the lit plane under 15 degrees toward the gold";
+  else if (green && c3 > 0.5 * c2 + 0.5) bad = "green: the lit plane over half the body's chroma";
+  else if (inSkinBox(r[2]) || inSkinBox(r[3])) bad = "a lit step in the skin box (hue 5-45, chroma 25-60, luma 110-210)";
+  if (bad && why) { std::snprintf(b, sizeof b, "%s (hue %.0f %.0f, chroma %.0f %.0f)", bad, h2, h3, c2, c3); *why = b; }
+  return !bad;
+}
 bool metalTest(const uint32_t r[5], std::string* why) {
   char b[160];
   const double l0 = luma(r[0]), l1 = luma(r[1]), l3 = luma(r[3]), l4 = luma(r[4]);

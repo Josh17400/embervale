@@ -5,7 +5,10 @@
 // Pure integer functions (FORGE-DOLL). The value lists and the hero styles' table: rpg/art/doll/doll_forge.h.
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <string>
+#include <utility>
+#include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/items.h"
 
@@ -59,5 +62,86 @@ int wordHeroBase(int metalWord);
 // people's own helm where it is drawn; a culture's alloys never share a helm; the skirt by the edge pick, the shoulders and
 // the cloak by the rank (the masterwork cloaked, its shoulders large)
 uint16_t alloyGuise(const cult::Culture& c, int alloyIndex);
+
+// ======================================================================== (forge round 2) the silhouette (contracts 3c.1)
+// Six axes read at 1x with the colour off (art::doll::forge SX_*; 1-based values, 0 unset): the helm family, the skirt, the
+// shoulder mass, the over-layer, the arm bulk and the chest motif. A culture alloy's KEY (helm, skirt, mass, layer) comes
+// from the solved shape table (rpg/sim/gear_forge_shapes.inc, written by rpg_test --forge-solve), its arm and motif (and
+// ForgeStyle's shoulder, crest and collar) from the alloy's own name and data (the details). Pure, integer, no RNG stream.
+struct Shape { uint8_t helm = 0, skirt = 0, mass = 0, layer = 0, arm = 0, motif = 0; };
+uint32_t packShape(const Shape& s);   // HumanLook::forgeShape's packing (0 for an all-zero shape)
+Shape unpackShape(uint32_t p);
+uint32_t shapeKey(const Shape& s);    // helm | skirt << 8 | mass << 16 | layer << 24: the uniqueness key (arm, motif aside)
+Shape shapeOfKey(uint32_t key);       // the key's four axes (arm, motif 0)
+int keyAxesApart(const Shape& a, const Shape& b);   // of helm, skirt, mass, layer (0..4)
+// the forge school on the 6 x 6 tiling: posmod(ci, 6) + 6 posmod(cj, 6) for a lattice culture (a dialect its family's
+// cell); a kit culture (Atlas::make, gear::kitCulture) ((seed - 1) * 12 + archetype + 6 * ((seed - 1) / 3)) mod 36: the 12
+// peoples at seeds 1..3 take 36 different schools (contracts 3c.1), and a later seed's people another people's school
+int forgeSchool6(const cult::Culture& c);
+int shapeRank(int alloyIndex);        // 0 everyday, 1 warriors', 2 masterwork (index 2 and up)
+// a material's silhouette (STYLE_P2 28.4's table; base art::doll::forge::B_*); people (may be null: the Heartland kit):
+// outside the Heartland TANNER'S..ARMOURER'S take the people's own helm and its body form's hang, and every hero helm over a
+// people's signature helm form (horned, conical, masked, winged) keeps the people's
+Shape heroShape(int base, const cult::Culture* people);
+// the solved table's key for a people (cult::Archetype), school (0..35) and rank (0..2); 0 when the table is empty
+uint32_t tableKey(int people, int school, int rank);
+// a culture alloy's silhouette: the table's key for its people (an isolated or hidden family its first archetype's row),
+// school and rank, plus the details' arm and motif
+Shape alloyShape(const cult::Culture& c, int alloyIndex);
+// a worn piece's silhouette: a Mythic metal piece the MYTHIC's, an alloy its maker's alloyShape, else its material's
+// heroShape (cloth padded HOMESPUN); all 0 for a piece with no armour look
+Shape shapeOf(const Item& it, const cult::Culture* maker);
+// "kabuto split drop sash | wide bib" ("none" for an unset shape)
+std::string describeShape(const Shape& s);
+// the details (contracts 3c.1): the name's root word (kRootDetails), the hidden word, then round 1's scores; the shoulder's
+// shape inside the key's mass, the crest on a socketed family, the collar; cut, edge, limb and fittings 0
+struct AlloyDetails { uint8_t arm = 0, motif = 0, shoulder = 0, crest = 0, collar = 0; std::string root; };
+AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& key);
+// the root word an alloy's name carries ("" none): its prefix before the metal word, when it is one of STYLE_P2 28.5's roots
+std::string alloyRoot(const std::string& name);
+
+// the board set (contracts 3c.1; STYLE_P2 28.10): the 12 peoples' kit cultures at seeds 1..3 (owner: the owner's round-1
+// board, seed 1 and the Marsh and Jade seed 2) and the owner's Jade seed 5; and the owner's round-1 twin groups (names)
+struct BoardCulture { int people = 0; uint32_t seed = 1; bool owner = false; };
+std::vector<BoardCulture> forgeBoardSet();
+const char* const* forgeTwinGroups(int* n);
+
+// ---------------------------------------------------------------- the solver (rpg_test --forge-solve, --forge-shapes)
+// The outline model the rules read: a body OD between two keys on a people's T4 man kit (skirt, mass, layer: the arm and
+// motif aside), the same across two peoples' kits (the board set's twins), a head OD between two families, and a body OD
+// between a key and one of the people's material styles. The design estimates (art::doll::forge estBodyOD / estHeadOD) when
+// rpg_test has no pool to measure.
+struct ShapeModel {
+  std::function<double(int people, const Shape& a, const Shape& b)> body;
+  std::function<double(int peopleA, const Shape& a, int peopleB, const Shape& b)> bodyX;
+  std::function<double(int helmA, int helmB)> head;
+  std::function<double(int people, const Shape& a, int base)> material;
+  // (optional) a board-set pair on the real figures: cell (people, school, rank) wearing key a against cell (q, t, rr) wearing b
+  std::function<double(int p, int s, int r, const Shape& a, int q, int t, int rr, const Shape& b)> boardBody;
+  // (optional, INTEGRATE silhouettes i1) pairs measured as twins on the real figures (C18a) after an earlier solve: true holds
+  std::function<bool(int peopleA, const Shape& a, int peopleB, const Shape& b)> knownTwin;
+  bool measured = false;
+  // (optional, silhouettes i2) a table to start from (the solver's passes then move only what the rules and the known twins
+  // ask: the measured rounds converge instead of starting over); nullptr starts empty
+  const uint32_t (*start)[36][3] = nullptr;
+};
+ShapeModel estimateModel();
+// a people's material keys (heroShape of every base on that people's kit cultures, seeds 1..8: its helm forms and body forms)
+std::vector<std::pair<int, Shape>> materialKeys(int people);
+struct ShapeSolve {
+  uint32_t table[12][36][3] = {};
+  int hardFails = 0, twins = 0, twinsBoard = 0, twinsAdjacent = 0;
+  std::vector<std::string> log;   // the hard failures (people and school) and the soft summary
+};
+ShapeSolve solveShapes(const ShapeModel& m);
+// rules 1-4 (contracts 3c.1) on a table: one line per failure
+std::vector<std::string> checkShapeTable(const uint32_t (*t)[36][3], const ShapeModel& m);
+const uint32_t (*shapeTable())[36][3];   // the compiled table (gear_forge_shapes.inc)
+// (INTEGRATE silhouettes i1, test only) tableKey and shapeTable read this table instead while set (nullptr: the compiled one):
+// rpg_test --forge-solve measures a candidate table's real figures (C18a) before writing it
+void setShapeTableOverride(const uint32_t (*t)[36][3]);
+uint64_t shapeTablePoolHash();           // the pool hash the compiled table was solved on (0: design estimates)
+// the .inc text for a table (deterministic)
+std::string shapeTableInc(const ShapeSolve& s, uint64_t poolHash, const std::string& how);
 
 }  // namespace gear

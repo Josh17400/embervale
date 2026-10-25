@@ -15,33 +15,10 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i1) faceted: a glass facet per 4 rows: the hard lit edge, the lit face, the plane, its shade (rows only: a 3 px limb takes no diagonal).
 
 view D key rest origin 0 0
-|^+
-|+.
-|.:
-|:=
+|^
+|+
+|.
+|:

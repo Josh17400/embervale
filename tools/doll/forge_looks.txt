@@ -51,10 +51,26 @@ nroyal   woman  npc=heartland:guard:2:7,palette=look                            
 nking    man    npc=heartland:king:0:7,palette=look                                         stay,walk
 ncapt_hl man    npc=highland:captain:1:1,palette=look                                       stay,walk
 ncapt_jd man    npc=jade:captain:1:5,palette=look                                           stay,walk
-# (forge i3) the guises' heads in motion (gear::alloyGuise): the turban helm, the jingasa, the coif, the great helm, the mask
-g_dune1  man    kit=dune:4:1,alloy=1,palette=look                                          stay,walk,run,didle,hit1,hurt,fall,lying
-g_mars2  man    kit=marsh:4:2,alloy=2,palette=look                                         stay,walk,run,didle,hit1,hurt,fall,lying
-g_hl2    man    kit=highland:4:1,alloy=2,palette=look                                      stay,walk,run,didle,hit1,hurt,fall,lying
-g_fj1    man    kit=fjordfolk:4:1,alloy=1,palette=look                                     stay,walk,run,didle,hit1,hurt,fall,lying
-g_step1  man    kit=steppe:4:1,alloy=1,palette=look                                        stay,walk,run,didle,hit1,hurt,fall,lying
-g_sylv1w woman  kit=sylvan:4:1,alloy=1,palette=look                                        stay,walk,run,didle,hit1,hurt,fall,lying
+# (forge i3) the guises' heads in motion; (forge round 2) restated as the silhouettes (contracts 3c.1, STYLE_P2 28.10):
+# first light Highland seed 1 (THORNIRON GWESTEEL THORNSTEEL, the masterwork at T5) and Jade seed 5 (JAONBRASS DRAGONSTEEL;
+# the plan's "seed 3" is the owner's board's seed 5); Jade seed 2's CRANESILVER and Starspire seed 1's AMIORSTEEL on the
+# woman at T5; the HORNED (Fjordfolk 1 ILSILVER), ONION (Dune 1 FALCONSILVER), PLUMED (Steppe 1 TOTESILVER) masterworks and a
+# SunTemple CAPE (seed 3 CHASTEEL). Keys and details: rpg_test --forge-shapes
+g_dune1  man    kit=dune:5:1,alloy=3,palette=look                                           stay,walk,run,didle,hit1,hurt,fall,lying
+g_mars2  man    kit=marsh:4:2,alloy=2,palette=look                                          stay,walk,run,didle,hit1,hurt,fall,lying
+g_hl2    man    kit=highland:4:1,alloy=2,palette=look                                       stay,walk,run,didle,hit1,hurt,fall,lying
+g_fj1    man    kit=fjordfolk:5:1,alloy=3,palette=look                                      stay,walk,run,didle,hit1,hurt,fall,lying
+g_step1  man    kit=steppe:5:1,alloy=3,palette=look                                         stay,walk,run,didle,hit1,hurt,fall,lying
+g_sylv1w woman  kit=sylvan:4:1,alloy=1,palette=look                                         stay,walk,run,didle,hit1,hurt,fall,lying
+g_hl1    man    kit=highland:4:1,alloy=1,palette=look                                       stay,walk,run,didle,hit1,hurt,fall,lying
+g_hl3    man    kit=highland:5:1,alloy=3,palette=look                                       stay,walk,run,didle,hit1,hurt,fall,lying
+g_jd3a   man    kit=jade:4:5,alloy=1,palette=look                                           stay,walk,run,didle,hit1,hurt,fall,lying
+g_jd3b   man    kit=jade:4:5,alloy=2,palette=look                                           stay,walk,run,didle,hit1,hurt,fall,lying
+g_jd2w   woman  kit=jade:5:2,alloy=3,palette=look                                           stay,walk,run,didle,hit1,hurt,fall,lying
+g_star3  woman  kit=starspire:5:1,alloy=3,palette=look                                      stay,walk,run,didle,hit1,hurt,fall,lying
+g_sun1   man    kit=suntemple:5:3,alloy=3,palette=look                                      stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov1w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:sash+arm:wide                     stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov2w  woman  kit=imperial:4:1,alloy=2,palette=look,shieldForm=9,weapon=0,shape=arm:heavy+layer:sash                                stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov3w  woman  kit=imperial:4:1,alloy=1,palette=look,shape=skirt:strips                                 stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard                        stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell                         stay,walk,run,didle,hit1,hurt,fall,lying

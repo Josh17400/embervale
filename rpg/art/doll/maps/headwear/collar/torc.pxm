@@ -1,6 +1,7 @@
 # headwear/collar/torc: the forge collar `torc` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # FOUNDRY: a thick cast ring round the neck, rounded and bright, its two big knobbed terminals meeting at the throat.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.torc
 layer neck
@@ -44,62 +45,53 @@ legend o cloak 4
 view D key rest origin 6 1
 |vv.........vv
 |vzv.......vxv
-|.vzvv...vvxv.
 |..vyzv.vzxv..
 |...vvv.vvv...
 
 view U key rest origin 6 1
 |vv.........vv
 |vzv.......vxv
-|.vzvv...vvxv.
 |..vyzv.vzxv..
 |...vvv.vvv...
 
 view R key rest origin 5 1
 |vv.......v.
 |vzv.....vxv
-|.vzvv.vvxv.
 |..vyzvzxwv.
 |...vvvvvv..
 
 view L key rest origin 5 1
 |.v.......vv
 |vxv.....vzv
-|.vxvv.vvzv.
 |.vzxwvyzv..
 |..vvvvvv...
 
 view L key lie origin 5 1
 |.v.......vv
 |vxv.....vzv
-|.vxvv.vvzv.
 |.vzxwvyzv..
 |..vvvvvv...
 
 view R key flow origin 5 1
 |vv.......v.
 |vzv.....vxv
-|.vzvv.vvxv.
 |..vyzvzxwv.
 |...vvvvvv..
 
 view R key flow2 origin 5 1
 |vv.......v.
 |vzv.....vxv
-|.vzvv.vvxv.
 |..vyzvzxwv.
 |...vvvvvv..
 
 view L key flow origin 5 1
 |.v.......vv
 |vxv.....vzv
-|.vxvv.vvzv.
 |.vzxwvyzv..
 |..vvvvvv...
 
 view L key flow2 origin 5 1
 |.v.......vv
 |vxv.....vzv
-|.vxvv.vvzv.
 |.vzxwvyzv..
 |..vvvvvv...

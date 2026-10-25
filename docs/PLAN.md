@@ -1813,6 +1813,21 @@ hand-designed armour style, and every culture alloy a style picked from a drawn 
 restated), production, waves, the judge's focus and the risks. Art direction: docs/STYLE_P2.md 28; data:
 docs/P2C_CONTRACTS.md 3c.
 
+**Re-planned again on 2026-10-24 (alloy silhouettes: the forge slice's round 2).** The owner, on the forge pack
+(%TEMP%\claude\emb_P2c\forge\owner): the ten materials now differ by shape (keep them), but the 37 culture alloys share
+one body and differ only by helm (about seven helm types), so in greyscale and at true 1x they are the same knight
+recoloured; the cut, edge, limb and fitting traits are 1-2 px texture noise, a busy checker; Emberforged reads as red
+plastic, Obsidian as grey iron, Steel and Starmetal as the same open cone; about a third of the alloys read as cloth,
+clay, leather or skin; the iridescent sheen is invisible; the Mythic face is crowded; shoulders vanish at T5 and in side
+views; collars cover the chest; sword, shield and boots are the same on every alloy. Measured on the round-1 looks: the
+Highland alloys' bodies differ by 3-4 % of their outline pixels at 1x and their helms by 11-18 %. What changed: "Forge
+styles" (the silhouette layer; culture alloys take their outline from a solved shape table and their details from their
+own data; the round-2 items), In and out, gates C16 (restated: outline at 1x, head and body apart, plus motif and noise),
+C17 (restated: the read at 1x) and C18 (new: 1x silhouettes over the board set and worlds 1..6), constants "forge:
+silhouettes", decisions D35-D41, "The forge slice" round 2 (five areas, first light, the gate), production, waves, the
+judge's focus and the risks. Art direction: docs/STYLE_P2.md 28 (restated); data: docs/P2C_CONTRACTS.md 3c (restated).
+The C16 edge-structure term is retired: it rewarded 1 px texture, and the art bent to it (the checker).
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -1993,19 +2008,20 @@ all look the same it kinda not too fun". VISION 15.11 promised it: each culture'
 for armour and weapons". How each style looks: docs/STYLE_P2.md 28. The data and the pick rule: docs/P2C_CONTRACTS.md
 3c. This part says what a forge style is, which ones exist, and how they sit on the game and the ladder.
 
-**Four layers make a piece**, each owned by one rule:
+**Five layers make a piece** (round 2), each owned by one rule:
 
 | layer | decides | from | in this re-plan |
 |---|---|---|---|
-| form | what it is (mail, scale, lamellar, plate...; the helm and shield shapes) | the maker people (ArmsStyle; the ladder's table) | unchanged |
-| forge style | how it was made: shoulder shape, helm crest, the plates' cut, the hem's edge, collar, limbs, fittings | the material (a hero style) or the culture alloy (the kit and the pick rule) | new |
+| form | what it is (mail, scale, lamellar, plate...; the people's own helm and shield shapes) | the maker people (ArmsStyle; the ladder's table) | unchanged |
+| silhouette | the outline and big shapes read at 1x with the colour off: helm family, skirt, shoulder mass, over-layer, arm bulk, chest motif | the material (its hero style, STYLE_P2 28.4) or the culture alloy (the shape table, contracts 3c) | new in round 2 |
+| details | shoulder shape inside its mass, the crest or plume, the collar, the over-layer's pattern (round 1's cuts, edges, limb tiles and fittings retired on alloys) | the hero style, or the alloy's name and data (the detail rule) | restated in round 2 |
 | tier | how fine: finish, dial sizes, the living finish | the item's band and rarity | unchanged; the finish lands in the style's own rims, panels, sockets and seams |
-| ramp | the colour | the metal | unchanged but for C17's metal read and C15f's spread |
+| ramp | the colour | the metal | unchanged but for C17's metal read at 1x and C15f's spread |
 
-The style picks the shape, the tier the size. A Jade lancer in his people's warriors' STEEL and in its glowing masterwork
-wears Jade lamellar at T4 and at T5, one with layered shoulders, staggered plates and a fin on the helm, the other with
-winged shoulders, lacing bands whose seams glow and a crown, and the masterwork's shoulders are bigger and its finish
-finer.
+The silhouette picks the outline, the tier the size. A Jade lancer in his people's everyday brass, its warriors' dragon
+steel and its glowing masterwork is three figures: a wide war hat over a laced bell skirt and long layered sode; a horned
+kabuto over a split skirt with a sash across a scaled bib; a winged helm, a horo cape and wide sleeves whose seams
+glow, with the masterwork's shoulders bigger and its finish finer.
 
 **It changes no game rule** (as the ladder). A style is derived from what an item already carries: its material, its alloy
 (name, recipe, sheen, rank) and its maker culture. No item field, no SAVE_VER bump, no RNG draw in the loot rolls or the
@@ -2021,36 +2037,41 @@ census, no balance change; rig 1 never sees it (the field enters key() at rig 2 
 | WROUGHT | iron (3) | band 2 | hammered bands and rivets, boxy | the square slabs and the bands |
 | ARMOURER'S | steel (4) | band 3 (on mail: a fluted breastplate over it) | clean fluted plate | the standing guards' notches and the flutes |
 | PARADE | gilded (5, the heartland's band 4) | band 4 | steel embossed and parcel-gilt | the petals and the crown |
-| KNAPPED | obsidian (7, band 5) | band 5 | flaked black glass, all angles | the shards |
-| FURNACE | emberforged (8, band 6) | band 6 | vented furnace plate, the heaviest | the flat tops and the vents |
-| STARFALL | starmetal (9, band 7) | band 7 | crystal, slim and tall | the points and the spire |
-| MYTHIC | Mythic tempering (11), on any metal | Mythic rarity | blackened, cracked with fire | the flames off the shoulders and crown |
+| KNAPPED | obsidian (7, band 5) | band 5 | flaked black glass, all angles; round 2: near-black violet glass with hard white glints (it read as grey iron) | the shards |
+| FURNACE | emberforged (8, band 6) | band 6 | vented furnace plate, the heaviest; round 2: a domed grille helm, a barrel chest, black iron lit from inside by glowing seams, a round shield (it read as a red plastic box) | the glowing vents and grille |
+| STARFALL | starmetal (9, band 7) | band 7 | crystal, slim and tall; round 2: the closed crystal helm and a long split skirt (it was ARMOURER'S open-cone twin) | the spire and the long panels |
+| MYTHIC | Mythic tempering (11), on any metal | Mythic rarity | blackened, cracked with fire; round 2: a clean face | the flames off the shoulders and crown |
 
 Every two hero styles differ on every axis but, for a few pairs, the fittings (STYLE_P2 28.4's table), so C16a has room.
 Leather and cloth keep D23 (they rise by rarity); bone and wood make no armour (gear.cpp matFor); metalKind 6 (jade) is
 legacy and never set. A Legendary piece keeps its material's style with T6's finish; only the Mythic changes style.
 
-**Culture alloys: the kit and the pick rule.** A culture has 1-3 alloys (priors.cpp makeAlloys: the everyday BRONZE, BRASS
-or IRON; the warriors' STEEL or SILVER; the masterwork STEEL, SILVER, GLASS or IRON; a hidden people's masterwork VEIL,
-WHORL, TIDE, PEARL, SHARD or WRACK), generated per world, so their styles cannot be drawn one by one. Each alloy takes
-seven picks from the drawn kit (STYLE_P2 28.3) by a fixed rule (contracts 3c):
-1. **The people's vocabulary** (STYLE_P2 28.5) is the menu: only shapes that people would make. An isolated family takes
-   both its archetypes' menus; a hidden word puts its own picks first.
-2. **Scores** from the alloy's own data: the metal word (BRONZE and BRASS cast and rounded, IRON banded and square, STEEL
-   fluted and flared, SILVER smooth and lobed, GLASS faceted and pointed); the sheen (each has a structural tell it must
-   show: STYLE_P2 28.7); the rank (everyday plain, warriors' martial, masterwork elaborate); the recipe's reagents (ash and
-   char scored or vented; glass, quartz and dust faceted or ribbed; salt and rime serrated; oil, resin, sap, lacquer and
-   amber smooth with inlay; bone and horn spiked; stone star-riveted; lime and clay cast); and the people's ornament bits
-   (scallops, tassels, studs, rivets, fur trim, filigree).
-3. **A seed** from the alloy's name and recipe breaks ties: the same alloy always looks the same, and a family's dialects
-   (which copy its alloys) share it.
-4. **The forge school**: the family's culture cell on a 3 x 3 tiling (the dialect swaps' rule: neighbours never share a
-   label) rotates the secondary picks, so two neighbouring families of one people pick apart.
-5. **Distinctness, enforced**: a culture's alloys pairwise d 7 or more of 13 (shoulder 3, cut 3, crest 2, edge 2, collar
-   1, limb 1, fittings 1), with two of the silhouette axes (shoulder, crest, edge, collar) different; an alloy against
-   every hero style d 4 or more, and against its metal word's (BRONZE and BRASS FOUNDRY, IRON WROUGHT, STEEL ARMOURER'S,
-   SILVER PARADE, GLASS KNAPPED) 5 or more; same-rank alloys of neighbouring families 5 or more. A collision walks to the
-   next candidate in a fixed order. C16 then measures the drawn result with the colour removed.
+**Culture alloys: the outline from the shape table, the details from the alloy (round 2).** A culture has 1-3 alloys
+(priors.cpp makeAlloys: the everyday BRONZE, BRASS or IRON; the warriors' STEEL or SILVER; the masterwork STEEL, SILVER,
+GLASS or IRON; a hidden people's masterwork VEIL, WHORL, TIDE, PEARL, SHARD or WRACK), generated per world, so they cannot
+be drawn one by one. Round 1 gave each seven texture picks on one body; the owner saw one knight under seven helmets.
+Round 2 (contracts 3c, STYLE_P2 28.3 and 28.5):
+1. **The silhouette kit**: six axes drawn once and composed: helm family (16, plus four hero-only), skirt (6), shoulder
+   mass (6), over-layer (6), arm bulk (4), chest motif (8). An alloy's **key** is helm family, skirt, mass and over-layer.
+2. **The shape table gives the key**: one key per people (12), forge school (the culture's cell on a 6 x 6 tiling: 36)
+   and rank (3), 1,296 in all, solved once by `rpg_test --forge-solve` from STYLE_P2 28.5's menus and the drawn 1x
+   outlines, and compiled into the game. Hard rules: every key inside its people's menu and rank; a culture's three keys
+   have three helm families and two or more of skirt, mass and over-layer apart (a measured body outline 8 % apart);
+   keys of different schools are never equal, so no two alloys in any 6 x 6 block of cultures share a helm family and a
+   body outline (every block holds 36 different schools); every key two axes and a 6 % body outline off its people's
+   material styles. Soft, in order: no drawn twins between schools (neighbouring schools first); the spread (every menu
+   value used, no helm family on more than 25 % of a people's keys); the menus' weights and the rank flavour.
+3. **The alloy's own data dresses it**: arm bulk, chest motif, the shoulder's shape inside its mass, the crest or plume
+   on the helm family, the collar and the over-layer's pattern come from the name's root word first (DRAGON horns, scale
+   bib and shard shoulders; CRANE a tall fin; FROST crystal points; STYLE_P2 28.5's root table), then the hidden word,
+   then round 1's scores (metal word, sheen, rank, reagents, ornament) seeded by the name. The same alloy always looks the
+   same; a family's dialects share it.
+4. **Kit cultures** (the boards and the looks file, Atlas::make) take school ((seed - 1) x 12 + people) mod 36, so the 12
+   peoples at seeds 1..3 (108 alloys: the owner's 37 among them) never share a key. Isolated families take their first
+   archetype's row (their details both menus); hidden peoples their archetype's row (the hidden word in the details).
+5. **Retired on culture alloys**: the cut tiles, edge stamps, limb tiles and fittings (their data stays 0). The hero
+   styles keep their own drawings, redrawn only where a pattern is finer than 2 px.
+C16 and C18 then measure the drawn result at 1x with the colour removed.
 
 **Universal materials in a people's form.** Leather, bronze, iron and steel look the same in every people (the player
 learns them), re-cut inside the people's form: a Jade iron piece is Jade lamellar in WROUGHT's bands with slab shoulders.
@@ -2067,7 +2088,9 @@ creases and the Mythic's cracks glow).
 
 **Slots.** The body's style dresses the torso, skirt, shoulders, collar and sleeves; the helm's its crest and brow; the
 shield's its boss and rim; gloves and boots their own limb cut on hands and feet. A mixed kit mixes styles (D31). A weapon
-keeps its form and its own metal (D30); weapon styles come later (D34).
+keeps its form and its own metal (D30); weapon styles come later (D34). Round 2: the body piece's silhouette sets the
+skirt, shoulder mass, over-layer, arm bulk and chest motif, the helm piece's its helm family; the shield takes the
+alloy's tint and the boots its trim (D39).
 
 **People.** Census fighters wear the style of the material their rank gives (bandits and militia HOMESPUN or TANNER'S, the
 watch and soldiers their band's metal). Captains, the royal guard, jarls and story knights wear their realm's best alloy
@@ -2084,6 +2107,22 @@ below the masterwork, and kings the masterwork (D29), so every kingdom's officer
 | the T5 front is a gold mass that hides the face | PARADE is parcel-gilt (steel planes, gold relief and rims, D33); the open helm framed by a dark lining | gold 35 % or less of the T5 gear pixels facing D; C14's face line; the eyes, nose and mouth show |
 | the Mythic's crown crowds the face | the flame crown lifted on a dark brow band | one clear row above the eyes; no flame pixel within 2 rows of the eye row or beside the face's columns |
 | blades take the armour's metal | every held weapon's metal drawn in Slot::Blade from its own item (A3's sword map too, D30); `blademetal-<kind>` flags | the blade's ramp equals bladeKind's on every held frame of the forge looks |
+
+**The owner's round-2 items** (2026-10-24, the forge pack), closed by round 2 of the forge slice:
+
+| item | the fix | the check |
+|---|---|---|
+| the 37 alloys share one body and differ only by helm; twins: Kisteel / Jaonbrass / Dragonsteel / Uhabrass / Grebrass / Stagbronze (wide conical hat), Briarsteel / Gressteel / Thaerglass (hood, like Homespun), Sunbronze / Bakosteel / Slauriron / Jaguariron / Mikasteel (beret, like Gilded), Asiron / Pasabronze / Thorniron / Unshisilver / Anibrass / Cranesilver / Lavisilver (closed great helm), Froststeel / Sandsteel / Papiron / Gwesteel / Enkhobrass (open sallet), Rolsteel / Ikosilver (like Iron) | the silhouette kit and the shape table (above); 16 helm families drawn as metal helms (the borrowed hood, turban and conical heads retired) | C16o, C16d, C16u, C18; the `twins` board; the blind twin hunt (step 11) |
+| cut, edge, limb and fitting traits are 1-2 px noise, a checker on torso and limbs | retired on alloys; big 2-4 px chest motifs; hero styles redrawn only where finer than 2 px | C16n; C16m; the judge at 1x and 3x |
+| Emberforged reads as flat red plastic, a box | FURNACE re-shaped (domed grille helm, barrel chest, rounded vented shoulders, heavy vambraces, round shield), a soft char ramp, the seams glowing at every tier (D40) | C17 glow (8 px or more at T4); C16o head against WROUGHT and ARMOURER'S; the judge's read |
+| Obsidian reads as grey iron | KNAPPED in near-black violet glass, 3-4 px facets with hard lit edges, two to four hard glints | C17 dark and glass (body median 50 luma or less, lit hue 200-290 degrees) |
+| Steel and Starmetal are both pointed open cones | STARFALL: the CRYSTAL helm and a long SPLIT skirt | C16o: ARMOURER'S vs STARFALL head OD 0.15, body OD 0.06 |
+| about a third read as cloth, clay, leather or skin (Thorniron, Froststeel, Uhabrass, Jaonbrass, Enkhobrass, Papiron, Anibrass, Cranesilver and Unshisilver's sage helms as green skin, Vensteel, Briarsteel) | the checker gone; big lit planes with hard glints; warm metals to gold, greens cold; closed helms with a visor band and breaths (STYLE_P2 28.8) | C17's round-2 terms, the list as report rows; the blind metal read (step 11) |
+| the iridescent sheen is invisible | two hues in 2-3 px bands on the skirt and motif, the lit plane turned 40 degrees | C17 iridescent (two hue groups 40 degrees apart, 20 % each) |
+| the Mythic face is crowded by speckle and the crown | no crackle, rune or glow pixel in the face opening; the crown on a dark brow band | the face box test (C14's face line; no gear pixel inside the face box but the helm's lining) |
+| shoulders hidden at T5 and in side views | pauldrons over the cape front and surcoat (D41); near pauldrons 2 px past the arm's line in R and L | C3 (pauldron visible: 6 px or more of it on every T5 and side idle frame) |
+| collars cover the torso's cuts | collars 2 rows or less below the neck line, never over the motif | C3f (collar rows); C16m's torso box |
+| sword, shield and boots the same on every alloy | the shield's field tinted toward the alloy and its rim and boss in it; the boots' cops, greaves and toes in it; the boards' kits carry the people's weapon forged of the alloy (D39) | the `alloys1x` board; the judge |
 
 ### In and out
 
@@ -2118,9 +2157,13 @@ below the masterwork, and kings the masterwork (D29), so every kingdom's officer
 - **Forge styles** (re-plan 2026-10-24): ten hero styles for the materials and a drawn kit (shoulder, crest, cut, edge,
   collar, limb, fittings) for every culture alloy, picked by a fixed rule from the alloy's data; the metal and sheen read;
   the colour spread; the officers' realm alloys; blades in their own metal; the forge slice before production.
+- **Alloy silhouettes** (round 2, 2026-10-24): the silhouette kit (16 helm families and four hero helms, six skirts, six
+  shoulder masses, six over-layers, four arm bulks, eight chest motifs) on both bodies; the shape table and the detail
+  rule; the four hero fixes (FURNACE, KNAPPED, STARFALL, the Mythic face); the metal read at 1x; pauldrons over capes and
+  in side views; shields and boots in their alloy; gates C16 (restated), C17 (restated) and C18.
 - Every remaining human draw path on the doll. Then the flip: rig 2 is the only rig, v1 people and the procedural rig are
   deleted, and art_hash and the goldens are re-recorded once.
-- Gates C1-C14, and playtests T4-T7.
+- Gates C1-C18, and playtests T4-T7.
 
 **OUT**
 - The humanoid monsters (skeleton, draugr, goblin), the creatures, the village animals, and the props the P2c judge lists
@@ -2139,6 +2182,10 @@ below the masterwork, and kings the masterwork (D29), so every kingdom's officer
 - Weapon forge styles (D34): in P2c a weapon keeps its form and draws its own metal. A new armour form, or a new torso
   outline for a style (styles re-cut the people's forms). Any change to the alloy generator: rpg/culture/** is read only,
   and styles come from the alloys as they are. Forge styles on item icons (D22).
+- Round 2: weapon shapes per alloy (D34 stands: the boards' weapon only takes the alloy's metal); 1 px texture on any
+  armour; any change to the six approved hero styles beyond redrawing a pattern finer than 2 px; a new torso outline (the
+  outline changes through skirts, shoulders, over-layers, sleeves and helms); a new colour slot; any change to the arm,
+  leg, head, hair or beard maps; capes on everyday or warriors' alloys (D38).
 
 ### Inventory: what the game puts on people (code read 2026-10-23)
 
@@ -2312,8 +2359,9 @@ form9 means no shield.
 | C13 the living finish | Over 4.4 s stepped at 60 Hz (deterministic): the pulse period 2.2 s (a T5 gem 3.3 s) within 0.05 s; the spark every 3.3 s, 0.33 s from grip to tip; 3 motes or fewer, life 1.0 s; no glow pixel's light changes by more than 0.25 between two steps, and nothing toggles faster than 2 Hz (the spark's run aside); 32 animated pixels or fewer a figure-frame (ladder i2: was 24); glints (white step 4 and the spark) 3 or fewer; two actors' phases 0.15 cycle or more apart for 95 % of id pairs; glow plane bytes 25 % or less of their atlas; the city frame within baseline + 0.3 ms with 8 T6 figures; nothing drawn at rig 1 | `--doll-ladder --finish`; EMB_TIMING; the judge at 1x |
 | C14 value | On every composed idle frame of every matrix look, touching materials (cloth 1, cloth 2, accent, leather, metal, hair, skin, cloak, field, head) differ by 18 luma or more at step 2 (the face, and pixels inside one material, aside); the figure's lit top-left edge stands 40 luma or more over the darkest day ground; plate's step 3 and step 1 stand 60 luma or more apart | `--doll --gates` C14 |
 | C15 alloys (alloys i1-i3; recorded by the forge re-plan) | **a**, every family under every sheen passes metalTest; **b**, a people's alloys 22.5 dE or more apart on the mid step; **c**, same rank and same metal word between neighbouring peoples 12 or more, different metals 8 or more; **d**, icon and doll agree; **e**, the family's metal is its name's; **f** (forge re-plan), the spread: no dE-10 ball holds more than 3 of the 96 families, and each slot's 12 families span 3 or more hue sextants | `--doll --gates` C15; `--doll-ladder` |
-| C16 forge styles | With the colour removed (one neutral ramp for every material slot; skin, hair and face kept), the same figure but its style, idle D and R and the walk's passing frame R. **a**, the ten hero styles pairwise (and, in production, each people's materials): silhouette XOR 4 % or more of the union in D or R, and the edge-structure distance (1 minus the Jaccard of step-edge pixels over the gear box) 0.30 or more. **b**, a culture's alloys pairwise (every people; seeds 1..64 at the data level, 1..8 drawn): XOR 3 % or more in a facing and edge distance 0.25 or more. **c**, same-rank alloys of neighbouring families (worlds 1..6, as C15c) and an alloy against its metal word's hero style: edge distance 0.15 or more, or XOR 2 % or more. **d**, data: the pick rule's distances (7 or more inside a culture with two silhouette axes apart; 4 to every hero style, 5 to its metal word's; 5 to neighbours). **s**, silhouettes: the hero styles filled black (gear on one body, no weapon) pairwise XOR 4 % or more in D or R. The thresholds are set by eye at the forge slice and recorded (process) | `rpg_test --doll-forge [--worlds 1..6]` (line C16); `--doll --gates` |
-| C17 metal and sheen read | On every composed idle frame (D, R) of every forge look and of every family x sheen on its people's T4 kit, the Metal pixels: step 3 over step 1 by 60 luma (plate) or 45 (scale, lamellar, mail); the lit plane's chroma 0.6 x step 2's or less, and step 3 at least step 2 + 22 luma; step 1 at 0.45 x step 3's luma or less; 1-3 step-4 pixels from T2; steps 2-3 at dE 20 or more off the skin ramp and 15 or more off the look's leather and cloth. The sheen's tell: glowing, 6 or more lit glow pixels on its seams from T4; iridescent, steps 1-3 turn 40 degrees of hue or more and 2 or more hue rows show; banded, rows 15 luma apart or more; pale, step 2 at 150 luma or more; dark, step 2 at 90 or less with a near-white glint; burnished, a warm metal's lights 15 degrees or more toward gold; matte, no step-4 run over 1 px; bright, a step-4 run of 2 px. The six named alloys are report rows | `rpg_test --doll-forge` (line C17); `--doll --gates` |
+| C16 forge styles (round 2 restated) | Composed at 1x (the frame as the game draws it, no scaling), the colour removed (ComposeOpts::grey) and the weapon, shield and back items left out (ComposeOpts::noHeld): idle D, idle R and the walk's passing frame R. Masks are the figure's opaque pixels aligned on the pivot and split at the neck anchor into the HEAD (above) and the BODY (below); OD = the XOR over the union of two masks, per part, averaged over the three frames. **o, outline**: a culture's alloys pairwise (every people, seeds 1..8 drawn) body OD 0.08 or more with no frame under 0.05, and head OD 0.10 or more; an alloy against each material style of its people (its metal word's included) body OD 0.06 or more, or head OD 0.15 or more with body OD 0.04 or more; ARMOURER'S against STARFALL body 0.06 and head 0.15, FURNACE against WROUGHT and ARMOURER'S head 0.15 (round 1 measured the Highland alloys' bodies at 0.03-0.04 and their heads at 0.11-0.18: they must FAIL). **m, motif**: on the 1x greyscale blurred by a 2 x 2 box, a motif other than PLAIN keeps a luma range (p90 - p10) of 40 or more inside the torso box, and two alloys of a culture whose motifs differ differ by 10 luma or more (mean) there. **n, noise**: on every forge look's idle frames, 1 px features (a gear pixel whose step is above, or below, all four of its same-slot neighbours; glints aside) are 3 % or fewer of the gear pixels; a checker tile laid on a plate torso must FAIL. **a**, the ten hero styles pairwise: round 1's recorded thresholds held, the four fixed pairs as o. **s**, the hero silhouettes filled black: as round 1. **d, data**: inside a culture the helm families differ and two or more of skirt, mass and over-layer differ; every alloy two or more of the four key axes off every material style of its people; the shape table's keys of different schools never equal (rules 1-4 of contracts 3c). **u, unique**: no two alloys share a key (helm family, skirt, mass, over-layer) over the board set (12 peoples x seeds 1..3: 108 alloys, the owner's 37 among them) or over any world's 6 x 6 window (worlds 1..6, cells 0..5 and 3..8; dialects with their families). The round-1 edge-structure term is retired (it rewarded 1 px texture). The thresholds are planned values: the judge sets them by eye in round 1 and records them (process) | `rpg_test --doll-forge [--worlds 1..6]` (d, u); `--doll --gates` (o, m, n, a, s) |
+| C17 metal and sheen read (round 2 restated) | On every composed idle frame (D, R) at 1x of every forge look, every board-set alloy and every family x sheen on its people's T4 kit, the Metal pixels: round 1's terms (step 3 over step 1 by 60 luma for plate, 45 for scale, lamellar and mail; the lit plane's chroma 0.6 x step 2's or less and step 3 at least step 2 + 22 luma; step 1 at 0.45 x step 3's luma or less; 1-3 glints from T2, 2-4 for dark and glass; steps 2-3 at dE 20 or more off the skin ramp and 15 off the look's leather and cloth) and round 2's: **planes**, 55 % or more of the metal pixels in 2 x 2 same-step blocks, and a lit plane of 4 px or more on the top-left of the torso, each shoulder, the helm and the skirt; **warm**, a warm metal's lit plane 15 degrees or more toward gold and its steps 2-3 outside the skin box (hue 5-45 degrees, chroma 25-60, luma 110-210); **green**, a green or sage metal's lit plane at 0.5 x the body's chroma or less; **visor**, every closed helm (GREAT, MASK, SNOUT, a lowered SALLET, FURNACE, CRYSTAL) shows a band of step 0-1 pixels 2 px or more tall across the eye row; the sheen tells: glowing and FURNACE 8 or more glow pixels on seams at T4; iridescent, two hue groups 40 degrees or more apart each holding 20 % or more of the metal pixels, in bands 2 px tall or more; dark and glass (KNAPPED), the body's luma median 50 or less and the lit plane's hue 200-290 degrees; banded, pale, burnished, matte and bright as round 1. The six named alloys and the round-2 list (THORNIRON FROSTSTEEL UHABRASS JAONBRASS ENKHOBRASS PAPIRON ANIBRASS CRANESILVER UNSHISILVER VENSTEEL BRIARSTEEL) are report rows | `rpg_test --doll-forge` (ramps); `--doll --gates` (drawn) |
+| C18 1x silhouettes (round 2, new) | Every culture alloy of the board set (12 peoples x seeds 1..3) and of worlds 1..6 (each 6 x 6 window's families: about 100 alloys a world) composed on its people's kit at its tier (T4; masterworks T5), masks as C16. **a, no twins**: no pair in the board set, inside a culture or between neighbouring cells with body OD under 0.05 AND head OD under 0.10; over a whole window 0 is the target and at most 2 pairs a world are allowed, only between cells 3 or more apart, each recorded. **b**, a culture's alloys body OD 0.08 or more. **c, spread**: no helm family on more than 20 % and no body outline (skirt, mass, over-layer) on more than 4 % of a scope's alloys. The report lists each scope's 10 nearest pairs (neighbours' too), the OD histograms and every alloy's key and details. Selftest: the round-1 alloys (the guise forced, forgeShape 0) FAIL a and b | `rpg_test --doll-forge --silhouettes [--worlds 1..6] [--report]` |
 
 **Restated by the ladder re-plan (2026-10-23):**
 - **B1** compares the figure: the doll composes without effects, and A3's Fx colours (#7FA8D8 #C9E6F4 #FFFDF4) are left
@@ -2340,6 +2388,21 @@ form9 means no shield.
 - **C12a**: T2 to T3 differs in 25 % or more of the union of the gear pixels, and its outline is 6 % or more bigger (the
   sidegrade). **C12b**: PARADE's gilt relief counts with the gilding ornament, outside the trim share (25.2 allows it).
 - **C15f** (new, in the C15 row above).
+
+**Restated by the forge round 2 (2026-10-24):**
+- **C16** and **C17** (the rows above); **C18** (new). C16b's and C16c's round-1 drawn terms (XOR 3 % in a facing, edge
+  distance 0.25 / 0.15) become C16o's; C16g (the guise heads) is retired with the guise.
+- **C1** adds the silhouette parts to source F and `--scope forge` (every helm family, skirt, sleeve, motif and over-layer
+  a forge look or a board-set alloy asks for; a sleeve key the clips name and the map lacks is listed); source L now draws
+  the peoples' horned, plumed, aventail and winged helms (they fell back to the spangenhelm), so C12 is re-measured on
+  those kits.
+- **C3** adds: skirts on the hip anchor and clear of the boots' lowest 6 rows (W-lines), sleeves on their arm in every
+  key they have, motifs inside the torso's pixels, a pauldron showing 6 px or more on every T5 and side idle frame (D41),
+  the sash and scarf ends never crossing the face; **C3f** extends W4 and HEAD to the over-layers and the hang lines to
+  the skirts (SPLIT and BELL panels swing with the hang keys, never through a leg).
+- **B8**: one over-layer a figure (tabard, sash and scarf share Accent; capes take Cloak), so the 48 holds.
+- **B10**: capes only on masterworks (T5 and up: D19's atlases); a bell skirt and a cape never together; side views
+  widen 2 columns or less (horns, wings, a sallet's tail, a kabuto's flare).
 
 ### Constants that interact (budgets and timing)
 
@@ -2378,6 +2441,14 @@ form9 means no shield.
 | forge: distances | d out of 13 (shoulder 3, cut 3, crest 2, edge 2, collar 1, limb 1, fittings 1); a people's menu holds about 1,700 (Marsh, Jade, Sylvan) to 5,200 (Fjordfolk) combinations against at most 3 alloys, 9 schools and 10 hero styles | 7 or more inside a culture, 4 to every hero style (5 to its metal word's), 5 to neighbours: always solvable; the walk stops at 64 steps |
 | forge: the pool | today 1,411,047 B (1.35 MiB: 499 parts, 12,709 views, 111 B a view). The slice's kit: shoulders 12 shapes x 2 sizes x 2 sides x 12 views = 576 views (about 55 KB), crests 14 x 8 = 112 (8 KB), collars 12 x 5 = 60 (5 KB), torso overlays and the plackart about 110 (13 KB), tiles, edges and fittings about 200 small views (6 KB), shield bosses and rims about 100 (5 KB): about 0.09 MB. Production adds the small sizes, the other forms' overlays and the rest: about 0.08 MB | the forge slice lands near 1.45 MiB, inside D21's 1.75. Production (actions about 0.26 MB, the weapon library 0.07, the remaining forms, helms, shields and postures about 0.2, the kit 0.08) lands near 2.1 MiB: over D21 (D27) |
 | forge: atlases | shoulders, crests and edges add 2 columns or rows at most on some frames: LOCO and RUN about + 2-3 % | B10 per look; T5-T6 within D19 |
+| silhouettes: the figure at 1x | an idle R frame with its gear, weapon and shield is about 470-490 px (measured on the round-1 looks), of which about 340 px lie below the neck (the body) and about 150 px above (the head) | a body OD of 0.08 is about 27 px of the body's union; 0.05 about 17 px |
+| silhouettes: what each axis is worth | a skirt change about 25-50 px of the body (a BELL or SPLIT against TASSETS most); an over-layer change about 10-20 px facing D and 20-50 px facing R (a CAPE most, a SASH least); a mass change about 8-24 px (BROAD or MANTLE against NONE most); an arm change about 6-12 px; a helm family change about 15-40 px of the head | a culture's alloys need two of skirt, mass and over-layer apart (body OD about 0.10-0.20 when the skirt is one of them); one weak axis alone (a SASH, a ROUND against NONE) is a twin by C18a, so the solver uses the measured ODs |
+| silhouettes: skirt lengths (man; the woman 1 row less) | rows below the belt line: TASSETS 6, STRIPS 7 (notches 1 px every 3), HAUBERK 9, SPLIT 11 (the front split 1 px), BELL 9 (2-3 px past the hips each side at the hem), NONE 1 | the boots' lowest 6 rows always read (B12; C3's W-lines); SPLIT and BELL panels swing 1 px with the hang keys wide and flare |
+| silhouettes: shoulder masses | past the 16 px shoulder line: ROUND 1-2 out, 1 up; BROAD 3 out, flat; TALL 2 out, 2-3 up (never past the head box's top 4 rows, never within 2 px of the face); DROP 2 out, 4-5 rows down the upper arm; MANTLE 2 out, 2 up, over the collar | the tier caps the size (T4 one over the people's, T5 masterwork one more) and each mass's sizes keep their areas within 10 % (C12c); side views keep today's pauldron widths + 1 |
+| silhouettes: over-layers | TABARD 6-8 px wide, its hem 2 rows past or above the skirt's; SASH 2 px, its knot's ends 3-4 rows; HALFCAPE over the left shoulder to the waist; CAPE to the calf, 4-6 px behind in R / L (masterworks); SCARF ends 4-6 px streaming in the walk and run | one over-layer a figure: tabard, sash and scarf in Accent (4 colours), capes in Cloak (5): the guard's 45 colours + 0 (B8 48) |
+| silhouettes: arms, motifs, helms | HEAVY 1 px proud each side of the forearm + a 1 px cuff flare; WIDE a 1-2 px droop from the elbow. Motif units 2-4 px inside the torso box (about 12 x 9 px on the man), below the collar's 2 rows. Helm families inside the head box +- 1 column but horns, wings and a kabuto's flare (3 px past the box), plumes and spires (to F-37) and a sallet's tail (3 px behind in R / L) | LOCO and RUN + 2-4 % on the widest families; RUN 68 KB for plumed and crested as today; T5-T6 within D19 |
+| silhouettes: the table | 12 peoples x 36 schools x 3 ranks = 1,296 keys; a people's menu holds about 6 helms x 3-4 skirts x 4 masses x 4 over-layers = 290-380 keys, of which it needs 108 (36 schools x 3); keys of different schools never equal | about a third of each menu used, so the vocabulary weights still steer; the solve runs in rpg_test in seconds (about 4,000 composes and 1 million mask pairs) |
+| forge: the pool (round 2) | 1,682,612 B (1.605 MiB) at forge i3. Adds: 13 helm maps about 130 views (20 KB); STRIPS, SPLIT and BELL skirts on both bodies and the woman's hauberk about 150 views (15 KB); WIDE and HEAVY sleeves, both sides and bodies, loco, drawn and sword keys about 400 views (25 KB); motifs about 100 views (10 KB); the sash and the woman's tabard about 110 views (10 KB); the half-cape about 60 views (8 KB); shoulder sizes and side views about 60 views (6 KB); the hero fixes about 50 views (6 KB): about + 100 KB. Retired: the forge cut, edge, limb and fit tiles (94 views, about 6 KB) | about 1.70 MiB, inside D21's 1.75 MiB (1,835,008 B) with about 50 KB to spare. Over it, in order: the sleeves' action keys draw the close arm, the skirts' sit, floor, kneel and ride keys use the key fallback, the motifs' lie views go, the half-cape reuses the cape's views. Production's 2.1 MiB question (D27) is unchanged |
 
 ### Decisions taken by default (confirm or overrule)
 
@@ -2464,6 +2535,35 @@ The forge re-plan (2026-10-24) adds:
   less), not solid gold. It fixes the T5 gold mass.
 - **D34. Weapon styles later**: in P2c a weapon keeps its form and draws its own metal. Per-material blades (a bronze leaf
   blade, a knapped obsidian edge, a starmetal crystal fuller) are a later step; VISION 15.11 asks for them too.
+
+The forge round 2 (2026-10-24, alloy silhouettes) adds:
+- **D35. Culture alloys differ by silhouette, not texture** (restates D24 and D25 for culture alloys): six silhouette
+  axes (helm family, skirt, shoulder mass, over-layer, arm bulk, chest motif) read at 1x with the colour off; round 1's
+  seven picks shrink to details (the shoulder's shape, the crest, the collar), and the cuts, edges, limb tiles and
+  fittings are retired on alloys. Still no new torso outline: the outline changes through skirts, shoulders, over-layers,
+  sleeves and helms.
+- **D36. Outline by place, details by name** (the owner's call): an alloy's helm family, skirt, shoulder mass and
+  over-layer come from a solved table by people, forge school (the culture's cell on a 6 x 6 grid) and rank, so no two
+  alloys in any 6 x 6 block of cultures, or on the boards, share them; the alloy's own name (its root word first), metal,
+  sheen and reagents choose the details, so a DRAGONSTEEL wears horns, a scale bib and shard shoulders on whatever
+  outline its place gives. The alternative, the name choosing the outline, cannot promise no look-alikes in a region.
+- **D37. Sixteen helm families** for the alloys (cone, kettle, war hat, great helm, mask, crested, onion, veil, horned,
+  winged, sallet, snout, kabuto, morion, plumed, crown) and four hero-only (hood, cap, furnace, crystal), all drawn as
+  metal helms; the borrowed cloth heads (the coif, turban, jingasa and veil drawn in Metal) are retired. The peoples'
+  undrawn forms (horned, plumed, aventail, winged) are drawn at last, so the ladder's kits stop falling back to the
+  spangenhelm and C1 closes those values.
+- **D38. Over-layers are cloth in the people's colour**, one a figure (tabard, sash and scarf in Accent; half-cape and
+  cape in Cloak); on a culture alloy's body the over-layer replaces the ladder's cape dial and the T5 surcoat, and the T5
+  and T6 finish lands on its hem; full capes only on masterworks (T5 and up, inside D19's atlases). The hero styles keep
+  the ladder's cape and surcoat.
+- **D39. The whole figure belongs to the alloy (lightly)**: the shield's field tinted 30 % toward the alloy (its rim and
+  boss already in it); the boots' cops, greaves and toe caps in the alloy from T4 when the boots are of it; the boards'
+  kits wear the alloy on every piece and carry the people's weapon forged of it (the blade in the alloy, D30). Weapon
+  shapes per alloy stay later (D34).
+- **D40. Emberforged glows wherever it is worn**: D28's steady seam light (from T4 for glowing alloys) extends to FURNACE
+  at every tier, breathing from T5, so emberforged reads as hot iron and never as red paint.
+- **D41. Shoulders stay on top**: a pauldron draws over a cape's front and the T5 surcoat, and the near pauldron reaches
+  2 px or more past the arm's line in the side views.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -3004,6 +3104,182 @@ verify only their items):
     descriptions names 8 or more of the 10 correctly; every open item closed.
 12. The owner's sign-off on the forge pack. It also settles D13-D34 (D27 before wave 2).
 
+**Round 2 (2026-10-24: alloy silhouettes).** Round 1 (iterations 1-3, "Forge slice results") closed the materials; the
+owner sent the alloys back (the round-2 items under "Forge styles"). Round 2 locks the silhouette kit, the shape table
+and the material fixes before any production map. Round 1's art areas (FORGE-PLATE, FORGE-SHOULDERS, FORGE-HELM,
+FORGE-MARKS) are closed; their files pass to the areas below. STYLE_P2 28.10 lists the look and the owner pack.
+
+**Looks** (tools/doll/forge_looks.txt keeps every round-1 line; FORGE-DOLL adds, through `shape=` and `alloyShape=`, and
+records `rpg_test --expand-looks` beside the file):
+
+| tag | body | tier | the kit | it proves |
+|---|---|---|---|---|
+| g_hl1, g_hl2, g_hl3 | man | T4 (T5 for the masterwork) | Highland seed 1's THORNIRON, GWESTEEL, THORNSTEEL on the Highland kit (first light) | a culture's alloys as three figures; THORNIRON reads as metal |
+| g_jd3a, g_jd3b | man | T4 | Jade seed 3's JAONBRASS and DRAGONSTEEL (first light) | the "wide conical hat" twins parted; DRAGONSTEEL draconic by its details |
+| g_jd2w | woman | T5 | Jade seed 2's masterwork CRANESILVER | the sage helm with its visor band (no green face); the silhouette on her |
+| g_star3 | woman | T5 | Starspire seed 1's iridescent masterwork AMIORSTEEL | the iridescent bands at 1x |
+| g_fj1, g_dune1, g_step1, g_sun1 | man | T4-T5 | one alloy each with HORNED, ONION, PLUMED and the feather CAPE | the new families and over-layers moving |
+| fm_ember, fm_obsid, fm_star, fm_steel, fm_myth (kept) | man | T4, T6 | as round 1 | the four fixes |
+| every round-1 line | | | | nothing regresses |
+
+The board set (12 peoples x seeds 1..3) is composed by the boards and C18 straight from the cultures; it needs no lines.
+
+**Clips**, in four facings: idle, walk, run, the drawn idle, hit 1, hurt, the fall and lying for the g_* looks; the
+round-1 looks keep theirs.
+
+**Areas** (5, files disjoint; contracts 1, round 2). Art areas edit only their maps, preview on isolated pools
+(`%TEMP%\claude\emb_P2c\forge2\<area>\doll\`, exes g1 and later), and propose menu, table and key changes in their reports;
+FORGE-DOLL owns every code, table, clip and gate change and merges the maps at each integration. **First light**: the
+five first-light alloys (g_hl1-3, g_jd3a, g_jd3b) and FURNACE (fm_ember) finished end to end by all four art areas, in
+colour, greyscale and black silhouette, before any other value; FORGE-TORSO reviews them as wholes. They are the
+round-2 style slice. Then every other value, then the board set, then the worlds.
+
+- **FORGE-DOLL** (engineer; a hard-systems area: engineer-high where the workflow allows, escalate after two failed
+  attempts; BDIR build-p2c-forge).
+  - Files: as round 1, plus rpg/sim/gear_forge_shapes.inc (generated by `rpg_test --forge-solve`; never hand-edited).
+  - Core:
+    - exe g1 in the first working block: forgeShape and Shape; the value lists and flags; the roles (`helm fam.<v>`,
+      `overlay skirt.<form>`, `overlay sleeve.<bulk>`, `overlay motif.<v>`, `overlay sash`, `cloak halfcape`); the compose
+      rules (the skirt replaces the hang, sleeves, the motif at torso z 3 with the key fallback, pauldrons over capes,
+      iridescent bands, glow seams, `alloyface` and the boots, ComposeOpts::noHeld); the macros `shape=` and `alloyShape=`;
+      the boards `alloys1x`, `silhouette:alloys`, `twins`, `world:<w>`, `shapes:<axis>`, `shapes:<people>`; a first table
+      from design estimates, with `--forge-shapes --people highland,jade --seeds 1..3` published so the artists know the
+      first-light keys;
+    - the shape table (contracts 3c.1): kShapeVocab exactly as STYLE_P2 28.5, `--forge-solve` on the measured 1x outlines
+      (rules 1-4 hard, rule 5 soft), `--forge-shapes --check`; re-solved on each integrated pool; the details (kRootDetails,
+      the hidden words, round 1's scores re-pointed; cut, edge, limb and fit 0 on alloys); heroShape and the hero fixes in
+      styleKitOf (FURNACE's helm and round shield; STARFALL's crystal helm and SPLIT); D29's officers through alloyShape;
+    - the ramps: C17's round-2 terms in the alloy model and on the composed figure (warm metals to gold and out of the
+      skin box; greens cold; KNAPPED's dark glass; FURNACE's soft char and its glow, D40; the iridescent Metal 2 turned 60
+      degrees; the visor check); the round-2 list as report rows;
+    - the gates: C16 o, m, n, a, s, d, u; C17 restated; C18 (`--silhouettes`, FORGE_SIL_OUT); C1, C3 and C3f's round-2
+      terms; B8 and B10's notes; the selftests (the round-1 alloys FAIL C16o and C18; a checker tile FAILs C16n; two equal
+      keys FAIL C16u; a sage closed helm without its band FAILs the visor term; a one-hue iridescent FAILs C17);
+    - the owner pack (`owner_pack.py --forge2`: STYLE_P2 28.10's ten items, every image 8,000 px or less);
+      tools/scripts/p2c_forge.txt (the hero in three alloys beside the watch; a Highland and a Jade captain);
+      witness/p2c_forge restated to the table (recorded);
+    - integration at every iteration: the art roots merged, gen/doll_pool.cpp regenerated with pxc, the table re-solved,
+      every gate run.
+  - Depth: a `forge:<tag>` board turning one look through its people's alloys; the `world:<w>` board with each culture's
+    name and key under its silhouette.
+  - Delight: the smith's sheet: every alloy with its name, lore line, key and details ("DRAGONSTEEL: horned kabuto, split
+    skirt, drop shoulders, sash; wide sleeves, scale bib").
+  - Done:
+    - `node tools/doll/pxc.mjs --check` is clean;
+    - `rpg_test --doll --gates --parity` exits 0: B1 16 / 16 at 0 px, B8 0, B10 within budget (T5-T6 within D19), B11
+      limbs, B11 wear and B12 0, C3-C6 0, C12-C17 0 with C12a, every selftest ALL CAUGHT;
+    - `rpg_test --doll-forge --worlds 1..6 --report` 0 failures (C15f, C16d, C16u, C17 ramps) and `--doll-forge
+      --silhouettes --worlds 1..6 --report` 0 failures (C18); `--forge-shapes --check` 0;
+    - `--doll-coverage --scope forge` and `--scope ladder` find nothing missing; `rpg_test --doll --motion --limbs-looks
+      tools/doll/forge_looks.txt --report` 0 failures;
+    - p2c_forge.txt 0 failures; witness p2c_forge, p2c_ladder and p2c_slice pass; the owner pack builds;
+    - the pool is 1.75 MiB (1,835,008 B) or less;
+    - rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0, `--arms` unchanged); the full
+      `rpg_test` ALL OK; save_test ALL OK; WSL clang 18 `--doll --gates` and `--doll-forge` give MSVC's numbers (no memcmp
+      on padded structs; paths through EMB_SOURCE_DIR).
+- **FORGE-HEAD** (artist, at xhigh effort).
+  - Files: maps/headwear/helm/**, maps/headwear/collar/**, maps/shield/**.
+  - Core:
+    - the 13 new or redrawn metal helm families (WARHAT, ONION, VEIL, HORNED, WINGED, SALLET, SNOUT, KABUTO, MORION,
+      PLUMED, CROWN, FURNACE, CRYSTAL) in D U R L and lie, each its own outline at 1x (STYLE_P2 28.3), `mark crown` on
+      every view and `mark socket` where a crest or plume sits, R P G N W marked, lit top-left; the `fam.<v>` role lines
+      on nasal, kettle, greathelm, masked and crested; HORNED, PLUMED, VEIL and WINGED also serving form5, form6, form7
+      and form10;
+    - every closed family's visor band (2 px dark across the eye row) and breaths or grille; no smooth sage dome;
+    - the crests and plumes on the families with sockets (the kabuto's crescent, disc and horns; PLUMED's horsetail and
+      feather fan; crown points; small horns and wings), reusing crest/*.pxm where they fit;
+    - the Mythic face: the flame crown on a dark brow band, one clear row above the eyes, no flame or speckle in the face
+      box; the T5 open helm's dark lining kept; C12's lt5 D helm trim (8.8 %) closed;
+    - the collars cut to 2 rows below the neck line, never over the chest;
+    - shields: FURNACE's round shield with a glowing boss (G); `alloyface` checked on every shape the board's kits carry
+      (`when alloyface` field views only if the tint alone does not read).
+  - Depth: the peoples' touches on shared families (a Fjord spectacle guard on CONE, a Sylvan's antlers on HORNED, a
+    heron plume on Marsh PLUMED).
+  - Delight: the CRYSTAL spire taking the T6 breath; the KABUTO's crescent catching a glint on the walk's bob.
+  - Done: C3b and C3e 0 on every forge frame (families ride the head exactly; horns, wings and flares inside their reach);
+    every family inside F-37; the visor term on every closed family; on the `shapes:helm` sheet every two families 0.10
+    or more head OD apart, FURNACE against KETTLE and CONE and CRYSTAL against CONE 0.15 or more; B8 0; LOCO 128 and RUN
+    64 KB or less (68 for plumed and crested; T5-T6 within D19); the judge names every family at 1x on the phone from its
+    black silhouette.
+- **FORGE-TORSO** (artist, at xhigh effort; the look lead).
+  - Files: maps/armour/man/{plate, mail, scale, lamellar, leather, padded, tabard, sash}.pxm, maps/armour/woman/{plate,
+    mail, leather, padded, tabard, sash}.pxm and any new woman torso, maps/armour/motif/** (new), maps/armour/tiles/**,
+    maps/forge/**, maps/finish/**.
+  - Core:
+    - the eight chest motifs on both bodies (D U R L; run, runl and lie where the key fallback misreads; a drawing per
+      form family where one does not fit), 2-4 px planes lit top-left, R P G N marked, below the collar's rows;
+    - the sash on both bodies and the woman's tabard (tabard.pxm's z 3 to 4);
+    - the hero fixes on the torso: FURNACE's barrel chest and glowing vent rows (N), KNAPPED's 3-4 px facets with hard lit
+      edges, STARFALL's ribs 2 px wide with 1 px gaps, the Mythic's cracks as 2-4 px seams, ARMOURER'S flutes as 2 px pairs;
+    - the checker gone: the forge cut, limb, fit and edge tiles out of the alloys' path (deleted, or kept at 2 px for the
+      hero styles), every torso view the forge looks show free of 1 px features (C16n);
+    - C12's open plate items (lt5's step-4 metal falls, lt4 R trim 5.3 %, lt6 R trim 9.2 %);
+    - the look lead: composes every first-light figure and every board alloy with the other areas' pieces, files asks to
+      them, and signs each people's row as a whole in greyscale at 1x.
+  - Depth: the BEAST and CRESCENT motifs; the motif's T5 gem in its socket.
+  - Delight: a DISC catching one warm glint as the body turns.
+  - Done: C16m and C16n pass on every forge look; C3a 0 for the torso, motif and sash parts; C4 on both bodies; C14
+    (plate 60 luma; the face line); B8 0; LOCO and RUN within budget; the judge reads every motif at 1x and each hero fix
+    as its STYLE_P2 28.4 line, in colour and in greyscale.
+- **FORGE-LIMBS** (artist, at xhigh effort).
+  - Files: maps/armour/{man,woman}/*_hang.pxm, skirt_*.pxm (new), sleeve_*.pxm (new), mail_sleeve_*.pxm, mail_stride.pxm.
+  - Core:
+    - the skirts STRIPS, SPLIT and BELL on both bodies and the woman's HAUBERK (keys rest, wide, flare, idle, lie, drawn in
+      D U R L; hangBack views where a panel passes behind the legs); `role overlay skirt.tassets` on both plate_hang maps
+      and `skirt.hauberk` on the man's mail_hang; lengths as the constants; SPLIT and BELL panels swinging with the hang
+      keys and never through a leg; R (the hem) and N (lame joins, the belt seam) marked; one band per lame for the
+      iridescent alternation;
+    - STARFALL's long SPLIT in narrow ribbed panels (`when forge-starfall` views) and FURNACE's stepped tassets kept;
+    - the sleeves WIDE and HEAVY, both sides and both bodies, in every key of the loco arms, the drawn keys and the
+      sword's action keys (the mail sleeve maps as the template), R (the cuff) marked;
+    - round 1's hang edge views (edge-strips, edge-cusped, edge-stepped...) kept for the hero styles only.
+  - Depth: the spear's and bow's action keys for the sleeves; the skirts' own sit, kneel and ride views.
+  - Delight: the SPLIT panels parting on the run's flare; a WIDE sleeve lifting a pixel on the wind-up.
+  - Done: B11 limbs, B11 wear and B12 0 on every forge look in every skirt and sleeve (the boots' lowest 6 rows always
+    read); C3a and C3f 0 for the skirts and sleeves; `--scope forge` lists no sleeve key the forge clips name; on the
+    `shapes:skirt` sheet every two skirts 0.05 or more body OD apart; B8 0; LOCO and RUN within budget; the judge reads
+    every skirt and sleeve at 1x in the walk at game speed.
+- **FORGE-MANTLE** (artist).
+  - Files: maps/armour/shared/**; maps/cloak/** (ADD only); maps/neck/** (ADD only).
+  - Core:
+    - the six shoulder masses each one outline at 1x (STYLE_P2 28.3 and the constants: BROAD flat and 3 px out, TALL 2-3
+      px up, DROP 4-5 rows down the upper arm, ROUND 1-2 px, MANTLE soft over the collar): the existing shapes re-cut in
+      the sizes the tiers reach; the leaf shape for DROP (round 1's `--scope forge` gap); the fur MANTLE with its pelt and
+      feather variants;
+    - every mass visible in the side views (the near pauldron 2 px or more past the arm's line in R and L) and over the
+      T5 surcoat and cape fronts (D41's layer rule; `when` cut-outs on the cape and noble fronts where needed);
+    - the half-cape (cloak/halfcape.pxm and halfcape_front.pxm: over the left shoulder to the waist, asymmetric facing D
+      and U; keys hang and cloakfront);
+    - the scarf over armour (neck `when` views where a gorget hides it; the ends streaming 4-6 px in the walk and run).
+  - Depth: the jaguar pelt's 2 px spots; the scarf's ends lifting on the run.
+  - Delight: a horsetail on a DROP shoulder swinging behind; the MANTLE's fur ruffling a pixel in the walk.
+  - Done: C3 (pauldrons ride the lean, the bob and the swings; 6 px or more of pauldron on every T5 and side idle frame)
+    and W4 0 on every forge look; C3f for the half-cape and the scarf; on the `shapes:mass` sheet every two masses 0.03 or
+    more body OD apart and the half-cape 0.04 off NONE facing D; B10 RUN within budget; B8 0; the judge names each mass
+    and over-layer at 1x on the phone.
+
+**The forge slice gate, round 2** (the judge states its whole protocol in round 1, tests from the boards and the start
+village as a player meets them, at most 4 rounds; fix rounds verify only their items):
+1. Coverage: C1 sources F and L; `--scope forge` and `--scope ladder` nothing missing.
+2. B1 16 / 16 at 0 px on the figure.
+3. Motion: B11 limbs, B11 wear and B12 at 0 on every forge look, skirts and sleeves included.
+4. Gear: C3 a-f at 0 with the round-2 parts (families on the head, skirts on the hip, sleeves on the arms, motifs in the
+   torso, pauldrons over capes and in the side views).
+5. C4, C5, C6; C12 (with the re-measured kits), C13, C14.
+6. C15 a-f.
+7. C16 o, m, n, a, s, d and u (thresholds set by eye in round 1 and recorded; the art is never bent to fit a check).
+8. C17 restated, the six named and the round-2 list as rows.
+9. C18 over the board set and worlds 1..6.
+10. B8 at 0 (48 + 3 glow); B10 within budget (T5-T6 within D19); the pool 1.75 MiB or less.
+11. Rig 1 unchanged; the full rpg_test and save_test ALL OK; WSL clang 18 `--doll --gates` passes.
+12. The look review at 1x on the phone and at 3x and 8x, in colour, greyscale and black silhouette (STYLE_P2 28.10's
+    acceptance), and three blind tests by an `eyes` agent: (a) the twin hunt: the 37 board alloys in greyscale at 1x
+    (shown at 3x), shuffled and unlabelled: no pair named the same armour; (b) each people's alloys as black silhouettes,
+    shuffled, against their key descriptions: 90 % or more matched; (c) the metal read: the 37 in colour at 1x on grass:
+    every one named metal (cloth only on an over-layer). Round 1's materials blind match still 8 of 10 or better. Every
+    round-2 item closed.
+13. The owner's sign-off on the round-2 pack. It also settles D13-D41 (D27 before wave 2).
+
 ### Production areas (wave 2) and the flip (wave 3)
 
 Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
@@ -3043,6 +3319,15 @@ forge slice:
 - **SHIELDS**: bosses and rims by style on every shape.
 - **FINISH**: the tier finish fitted to every style; the hidden words' tiles.
 - **WEAPONS**: blade styles only if the owner brings D34 forward.
+
+Round 2 (alloy silhouettes) restates that list for culture alloys: **DOLL-C** owns the silhouette kit at scale (the
+skirts, sleeves, motifs and over-layers on every form family; the census's shapes), C16 o-u and C18 over source L and
+every people's materials and alloys, and the shape table re-solved on the production pool (files add
+rpg/sim/gear_forge_shapes.inc); **ARMOUR-M and ARMOUR-W** every motif on every form, the sleeves in every action family's
+arm keys and the skirts' posture keys (sit, kneel, ride); **ARMOUR-X** every mass in every size and side view (no cut,
+limb or edge tiles for alloys); **HELMS** every helm family's lie and T5-T6 views and each people's touches; **SHIELDS**
+`alloyface` on every shape; **FINISH** the tier finish on skirts, motifs and over-layers; **SWITCH** the shapes in the
+paperdoll, portraits and loot previews.
 
 - **DOLL-C** (engineer-high).
   - Files: rpg/art/doll/*.h, *.cpp, gen/**; clips/{loco, death, postures, kin_youth, kin_child}.clip; tools/doll/**;
@@ -3185,6 +3470,13 @@ forge slice:
      the other eight hero styles, then the alloys and the open items.
    - Then the forge slice gate: the judge, at most 4 rounds.
    - Then the forge pack, and the owner's sign-off (D13-D34; D27 before wave 2).
+   - **Round 2** (alloy silhouettes, 2026-10-24; round 1 ran iterations 1-3 and its pack went back): FORGE-DOLL publishes
+     exe g1 in its first working block (forgeShape, the roles, the compose rules, the macros, the boards and a first
+     table). The four art areas (FORGE-HEAD, FORGE-TORSO, FORGE-LIMBS, FORGE-MANTLE) start at once on isolated pools:
+     first light (Highland seed 1's three alloys, Jade seed 3's JAONBRASS and DRAGONSTEEL, FURNACE) end to end, then every
+     other value, then the board set and the worlds. FORGE-DOLL integrates and re-solves the table at each iteration (no
+     barrier but first light's look review). Then the round-2 gate (the judge, at most 4 rounds), the round-2 pack and the
+     owner's sign-off (D13-D41; D27 before wave 2).
 5. **Wave 2, production.** All 14 areas start at once after the forge sign-off. DOLL-C and FOLK-SIM-C publish their
    contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
 6. **The barrier**: every area delivered, then C1, C3-C6, C8 and C12-C17 green at rig 2, then the owner's go on the flip
@@ -3216,7 +3508,14 @@ forge slice:
      colour removed (the `forgegrey` board and the blind match); a culture's alloys apart from each other and from their
      metal's hero style, each inside its people's look; metal reading as metal and every sheen showing; the ladder a new
      armour at each step and still climbing; faces clear under T5 and the Mythic crown; blades in their own metal;
-     nothing that reads as a recolour.
+     nothing that reads as a recolour;
+   - **the alloy silhouettes** (round 2): the 37 board alloys at true 1x on the phone, in greyscale and as black
+     silhouettes first, then in colour: every alloy of a people a different figure from the neck down, no two alloys of
+     the board or of a world window the same figure, the round-1 twin groups parted; each people's row reading as one
+     people; every alloy plainly metal (no wool, clay, leather or green skin), the iridescent and glowing tells visible;
+     no 1 px texture anywhere on armour; FURNACE hot iron, KNAPPED black glass, STARFALL and ARMOURER'S apart in outline,
+     the Mythic face clean; shoulders on top of capes and in the side views; shields and boots belonging to the alloy;
+     the skirts and sleeves moving with the walk and run at game speed without crossing a leg.
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
@@ -3263,6 +3562,24 @@ forge slice:
   before the rest.
 - **A hero style collides with a people's signature** (STARFALL beside Starspire's crystal): the d 4 rule against every
   hero style, and the forms and helms still differ.
+- **Round 2: the solve cannot meet a hard rule** for some people and school: it fails loudly and names them; relax in
+  this order and record it: rule 4's body OD 0.06 to 0.05, then rule 2's "two of skirt, mass and over-layer" to "one, with
+  a body OD of 0.10"; rule 3 (keys of different schools never equal) is never relaxed. A menu too short to solve is a
+  planner ruling (a value added to that people's menu).
+- **Round 2: a value does not read at 1x** (a SASH lost on a tabarded people, ROUND against NONE): the value's measured
+  OD enters the solve, so the table stops leaning on it, and the look lead may ask the planner to drop or merge it; the
+  check never overrules the eye.
+- **Round 2: the drawn twins survive distinct keys**: C18 names them; the solve forbids that pair and re-runs; if the
+  drawings themselves are too close, the drawing is changed, never the threshold.
+- **Round 2: the sleeve volume** (about 400 views): the mail sleeve maps are the template, the sword's keys come first,
+  the spear's and bow's are depth, and a missing key draws the close arm (listed, never a hole).
+- **Round 2: long skirts and capes against the motion gates and budgets**: hem lengths keep the boots' lowest 6 rows;
+  SPLIT and BELL swing only with the hang keys; capes only on masterworks (D19's atlases); a BELL never with a CAPE.
+- **Round 2: over-layers hide the metal** (a tabard over the chest): C17 reads the metal that shows (helm, shoulders,
+  skirt, arms), and the table keeps a cloth over-layer off a people's everyday alloy where its menu allows.
+- **Round 2: the table makes a people look random**: the menus are the people's (STYLE_P2 28.5), the weights and rank
+  flavour steer a third-used menu, and the judge reads every people's row as one people.
+- **Round 2: the pool** (about 1.70 MiB estimated): the fallbacks in the constants' order before any budget question.
 
 ### Process (the owner's rules for P2c)
 
@@ -3547,3 +3864,29 @@ torso, told apart by colour", "the jade alloys are one armour six times", "Ember
 - **Open** (art, unchanged from i2): C12 6 (lt5 D helm trim 8.8 %, lt5 step-4 metal falls 25 -> 16 D and 15 -> 6 R, lt4 R trim
   5.3 %, lt6 R trim 9.2 %, imp3 vs fjord3 outline 7 %); `--scope forge` 8 looks missing edge.plain, limb.plain, pauldron leaf,
   cut.smooth. The bodies under the alloys are still one torso (the body forms differ little at 1x): FORGE-PLATE's.
+
+**Round 2, iteration 1 (FORGE-DOLL, 2026-10-24)**: exes g1 and g2 published (bin/LATEST.txt); the silhouette data, roles, compose rules, macros, boards, the measured shape table and the gates C16 o m n d u, C17 round 2, C18 are in (contracts 8, "FORGE-DOLL, forge round 2, iteration 1"). On the repo pool of 16:20 (art in flight): --doll-forge 0, --forge-shapes --check 0, C18a 19 / C18b 1 / C18c 0, C16o 5, C16m 23, C16n 9, C17 74 (glow seams and iridescent bands wait on N marks and skirts/motifs), C3 11, C12 6, C13 4, B10 8, B11 limbs 48 and wear 270; the pool 1,883,531 B is over D21's 1,835,008. Rig 1 unchanged; rpg_test and save_test ALL OK; WSL clang matches. Renders: %TEMP%\claude\emb_P2c\silhouette\areas\FORGE-DOLL\i1.
+
+
+**Round 2, iteration 2 (FORGE-DOLL, 2026-10-24; the i1 blind panel)**: exe g3 (bin/LATEST.txt; contracts 8, "FORGE-DOLL, forge
+round 2, iteration 2"). The shape table spreads the helm families over the owner's 37 (no family on more than 3; i1 had five
+winged and four veils), the CROWN leans to masterworks, a culture's later alloy never repeats a crest, the measured rounds
+warm-start (24 rounds; C18a 1 kept pair), the hero's Heartland s7 kit keeps its shipped keys (its judged ladder art). FURNACE
+black iron with glowing crack lines, KNAPPED's lit facet cold violet, bronze olive-gold, warm alloys' shadows to olive and a
+whitened lit plane, iridescent bands on every piece, the Mythic's glow specks dark, the T1 quilt's red ties and wear stamps
+tone-on-tone. Measured on the repo pool 56405ff104ec61bb (embedded): --doll --gates 6 failure lines (B11 limbs 43, B11 wear 2,
+C3 11, C12 4, C16o 4, C16m 10; C13, C14, C17 now pass); --doll-forge --worlds 1..6 0; --silhouettes 2 lines (C18a 1, C18b 7);
+--forge-shapes --check 0; coverage ladder 0; full rpg_test and save_test ALL OK; art_hash 317eef6efe4d8229, village-art 65/0,
+--anim 0, --arms ALL OK; WSL clang 18 --doll --gates and --doll-forge match MSVC line for line. Renders:
+%TEMP%/claude/emb_P2c/silhouette/areas/FORGE-DOLL/i2/boards.
+
+**FORGE-DOLL forge round 2, iteration 3 (2026-10-24; exe g4).** The i2 blind panel's code items: look-alike helm
+families (wide brim, two prongs, pointed dome, closed bucket) count together on the owner's 37 and must differ on the body
+(contracts 8, iteration 3); brasses climb toward the gold, cream and plaster bodies sink, every metal has a lit plane 30 L
+over its body and a near-white glint; iridescent bands turn away from pink; FURNACE a red-black char with a heat halo;
+the Mythic's 1 px glitter filtered; the forge boards' legend shows the six silhouette axes. Integrated the art areas'
+round-3 maps: pool ac4b6df4b1c03bbc (1,816,582 B), table re-solved (0 hard, C18a 0). --doll --gates --parity 0,
+--doll-forge 0, --silhouettes 0, --forge-shapes --check 0, coverage forge and ladder 0, --motion 0, full rpg_test and
+save_test ALL OK, art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, --arms ALL OK, p2c_forge.txt 0, witness
+p2c_forge / p2c_ladder / p2c_slice ok, WSL clang 18 matches. Renders:
+%TEMP%/claude/emb_P2c/silhouette/areas/FORGE-DOLL/i3.

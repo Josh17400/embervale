@@ -252,7 +252,7 @@
      "state.player.sprite.doll.covered",
      "state.player.sprite.doll.forge.base == 'alloy'",
      "state.player.sprite.doll.forge.shoulder == 'lobed'",
-     "state.player.sprite.doll.forge.crest == 'spike'"
+     "state.player.sprite.doll.forge.crest == 'crown'"
     ]
    }
   ]

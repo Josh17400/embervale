@@ -18,6 +18,7 @@
 # (LADDER-ARMOUR polish i1, P5) Highland (furtrim,studs): the belted plaid (a tartan kilt from the belt, the sash
 # over the left shoulder); Marsh (tassels): a fringed leather mantle and a tasselled hem.
 # (LADDER-ARMOUR polish i2) mail as lit planes with a sparse ring dot (mailfix.py), as the man's hauberk
+# (FORGE-TORSO round 2 i2) facing L the belt wraps a pixel further (C3a: a 1 px pocket beside the shield on the fall).
 use person
 body woman
 role armour mail
@@ -641,7 +642,7 @@ view L key rest origin 8 -1
 |.vyvxyyxwxwwwv
 |..vyyyyxxxwvv.
 |..vyyywxxwwv..
-|..fihhhhhggf..
+|..fihhhhhggff.
 |..vyxyyxwxxwwv
 |.vyyyyxxxxwwv.
 |vyxyyywxxwwwv.

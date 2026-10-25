@@ -12,6 +12,7 @@
 use person
 body adult
 role helm band1
+role helm fam.cap
 layer headwear
 anchor head
 keys rest

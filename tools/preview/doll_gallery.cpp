@@ -36,6 +36,9 @@
 //                 doll_finish_<tag>_strip_3x.png and doll_finish_<tag>_<day|night>_fNN.png (3x; owner_pack.py makes the GIFs)
 //   (P2c forge) forge[:t5|:woman|:alloys|:metalread|:ladder|:<tag,...>]   each look's forge style (tools/doll/forge_looks.txt),
 //                 idle D and R and the walk's passing frame, on grass, dark ground and in greyscale, with its seven picks
+//   (forge round 2) alloys1x  silhouette:alloys  twins  world:<w>  shapes:<axis>  shapes:<people>: the silhouette boards
+//                 (the board set at true 1x in colour, greyscale and black; the owner's round-1 twins before and now; a world's
+//                 6 x 6 window with its nearest pairs; every value of an axis; a people's materials beside its alloys)
 //   (alloys i1) alloys      every people's alloys on the T5 plate figure (idle D, R), named, with the family: alloys_8x.png
 //     metals      bronze iron steel gilded obsidian emberforged starmetal Mythic on the same figure: metals_8x.png
 //   --looks FILE (default tools/doll/ladder_looks.txt) --tag <tag>: a looks-file line (its macros, fields and palette)
@@ -1413,7 +1416,7 @@ void forgeSheet(const std::string& dir, const std::string& name, const std::stri
   if (g_looksFile == "tools/doll/ladder_looks.txt") g_looksFile = "tools/doll/forge_looks.txt";
   namespace F = art::doll::forge;
   const int bands = mode == 0 ? 3 : 1;
-  const int colW = 3 * 34 + 14, bandH = 60, top = 14 + 9 * 9;
+  const int colW = 3 * 34 + 14, bandH = 60, top = 14 + 10 * 9;
   Board b((int)es.size() * colW + 12, top + bands * bandH + 8);
   if (mode == 0) darkGround(b, top + bandH, top + 2 * bandH);
   const int greyFrom = mode == 0 ? top + 2 * bandH : (mode == 1 ? top : 1 << 30);
@@ -1439,14 +1442,24 @@ void forgeSheet(const std::string& dir, const std::string& name, const std::stri
     std::string base = L.forge[art::HumanLook::TIER_BODY] ? F::valueName(F::AX_BASE, ax[0]) : "no style";
     for (char& ch : base) ch = (char)std::toupper((unsigned char)ch);
     b.text(x0, 23, base + (L.topTier() ? " T" + std::to_string(L.topTier()) : std::string()), rgba(250, 214, 120));
-    static const char* const kAx[8] = {"", "SH", "CR", "CT", "ED", "CO", "LI", "FI"};
-    for (int a = 1; a < F::AX_COUNT; a++) {
-      int v = ax[a];
-      if (a == F::AX_CUT) v = r.forgeAx[art::HumanLook::TIER_BODY][F::AX_CUT];   // the cut on the family it draws
-      if (a == F::AX_CREST) v = r.forgeAx[art::HumanLook::TIER_HELM][F::AX_CREST];
-      std::string w = v ? F::valueName(a, v) : "-";
-      for (char& ch : w) ch = (char)std::toupper((unsigned char)ch);
-      b.text(x0, 23 + a * 9, std::string(kAx[a]) + " " + w, rgba(214, 226, 240));
+    // (silhouettes i3: the panel read round 1's retired CT/ED/LI/FI columns, blank by design, as "the body never changes")
+    // the six silhouette axes as applied (contracts 3c.1), then the shoulder's shape and the crest (the details)
+    {
+      uint8_t sx[F::SX_COUNT];
+      F::unpackShapeAxes(L.forgeShape, sx);
+      static const char* const kSx[F::SX_COUNT] = {"HELM", "SKIRT", "MASS", "LAYER", "ARM", "MOTIF"};
+      int row = 1;
+      for (int a = 0; a < F::SX_COUNT; a++, row++) {
+        std::string w = L.forgeShape && sx[a] ? F::shapeName(a, sx[a]) : "-";
+        for (char& ch : w) ch = (char)std::toupper((unsigned char)ch);
+        b.text(x0, 23 + row * 9, std::string(kSx[a]) + " " + w, rgba(214, 226, 240));
+      }
+      for (int a : {(int)F::AX_SHOULDER, (int)F::AX_CREST}) {
+        const int v = a == F::AX_CREST ? r.forgeAx[art::HumanLook::TIER_HELM][F::AX_CREST] : ax[a];
+        std::string w = v ? F::valueName(a, v) : "-";
+        for (char& ch : w) ch = (char)std::toupper((unsigned char)ch);
+        b.text(x0, 23 + row++ * 9, std::string(a == F::AX_CREST ? "CREST " : "SHAPE ") + w, rgba(170, 182, 196));
+      }
     }
     if (mode == 2) {   // the gear filled black (no weapon): the probe's owners
       for (int k = 0; k < 2; k++) {
@@ -1520,6 +1533,302 @@ void boardAlloyStyles(const std::string& dir, const std::string& arg) {
   forgeSheet(dir, "doll_alloystyles_" + people + "_" + std::to_string(seed), up + " SEED " + std::to_string(seed) + ": EACH ALLOY ON THE T4 KIT BESIDE ITS METAL WORD'S HERO STYLE", es, 0);
 }
 // (forge i3) specs:<label>=<spec>;<label>=<spec>...: any looks specs side by side in the forge sheet (design previews)
+// ---------------------------------------------------------------- (forge round 2, FORGE-DOLL) the silhouette boards
+// STYLE_P2 28.10's board set and kit, contracts 3c.1. Every alloy on its people's kit at its tier (T4; the masterwork T5;
+// gear::alloyKitLook), idle D, idle R and the walk's passing frame R at TRUE 1x, written as three sheets (colour on grass
+// and dark ground, greyscale, black silhouettes with nothing held: C18's masks) at 1x, 3x and 8x (8x only when 8000 px or
+// less). Under each figure its name and key (helm skirt mass layer, 3 letters each).
+//   alloys1x           the board set: every people's alloys at seeds 1..3 (a row per people) and the owner's Jade seed 5
+//   silhouette:alloys  the same, black silhouettes only (the gear and the body: the C18 masks)
+//   twins              the owner's round-1 twin groups, each member before (round 1: the guise, no silhouette) and now
+//   world:<w>          world w's 6 x 6 window of families (cells 0..5), each alloy a black silhouette with its name and key;
+//                      the 10 nearest pairs (C18's OD) ringed and numbered
+//   shapes:<axis>      every value of an axis (helm skirt mass layer arm motif) on one figure (the Heartland T4 kit in an
+//                      alloy, the other axes fixed), colour, greyscale and black
+//   shapes:<people>    that people's materials (its T1-T3 kits and steel) beside its alloys at seeds 1..3, greyscale and black
+namespace F2 = art::doll::forge;
+std::string shapeAbbrev(const gear::Shape& s) {
+  auto ab = [](int axis, int v) {
+    if (!v) return std::string("---");
+    std::string w = F2::shapeName(axis, v);
+    for (char& ch : w) ch = (char)std::toupper((unsigned char)ch);
+    if (w == "NONE") return std::string("-");
+    return w.substr(0, 3);
+  };
+  return ab(F2::SX_HELM, s.helm) + " " + ab(F2::SX_SKIRT, s.skirt) + " " + ab(F2::SX_MASS, s.mass) + " " + ab(F2::SX_LAYER, s.layer);
+}
+struct ShapeEntry { std::string label, sub; art::HumanLook L; bool pal = true; bool gap = false; };
+enum ShapeMode { SM_COLOUR, SM_GREY, SM_BLACK };
+const struct { int fc; Clip c; int i; } kTrio[3] = {{0, Clip::Idle, 0}, {2, Clip::Idle, 0}, {2, Clip::Walk, 1}};
+const int kTrioPitch = 22;
+// a look's three frames (idle D, idle R, walk R) at 1x with their feet on g0, from x
+void drawTrio(Board& b, const ShapeEntry& e, int x, int g0, ShapeMode m, int frames = 3) {
+  doll::DollRecipe r = doll::resolve(e.L);
+  if (!e.pal) r.ramps = doll::a3Palette(e.L.body == 1 ? 1 : 0);
+  doll::ComposeOpts op;
+  op.grey = m != SM_COLOUR;
+  op.noHeld = m == SM_BLACK;
+  const RigSheet s = doll::compose(r, RigPart::Loco, &op);
+  for (int k = 0; k < frames; k++) {
+    int px, py;
+    const Canvas f = rigpv::frameCanvas(s, kTrio[k].fc, kTrio[k].c, 0, kTrio[k].i, px, py);
+    if (f.w <= 0) continue;
+    const int cx = x + 10 + k * kTrioPitch;
+    if (m == SM_BLACK) {
+      for (int y = 0; y < f.h; y++)
+        for (int xx = 0; xx < f.w; xx++)
+          if (f.get(xx, y) >> 24) b.c.set(cx - px + xx, g0 - py + y, rgba(18, 16, 22));
+      continue;
+    }
+    shadow(b, cx, g0, std::min(20, std::max(10, f.w - 4)));
+    b.put(f, cx - px, g0 - py);
+  }
+}
+void paperFill(Board& b, int y0, int y1, uint32_t col) {
+  for (int y = std::max(0, y0); y < y1 && y < b.c.h; y++)
+    for (int x = 0; x < b.c.w; x++) b.c.set(x, y, col);
+}
+void greyFill(Board& b) {
+  for (int y = 0; y < b.c.h; y++)
+    for (int x = 0; x < b.c.w; x++) {
+      const uint32_t p = b.c.get(x, y);
+      const int l = (int)(0.299 * (p & 255) + 0.587 * (p >> 8 & 255) + 0.114 * (p >> 16 & 255));
+      b.c.set(x, y, rgba(l, l, l));
+    }
+}
+void saveScaled(const Board& b, const std::string& dir, const std::string& name) {
+  savePng(b.c, dir + "/" + name + "_1x.png", 1);
+  if (std::max(b.c.w, b.c.h) * 3 <= 8000) savePng(b.c, dir + "/" + name + "_3x.png", 3);
+  if (std::max(b.c.w, b.c.h) * 8 <= 8000) savePng(b.c, dir + "/" + name + "_8x.png", 8);
+}
+// rows of entries (a row label each), one sheet per mode
+void shapeGrid(const std::string& dir, const std::string& name, const std::string& title, const std::vector<std::string>& rowLabels,
+               const std::vector<std::vector<ShapeEntry>>& rows, std::initializer_list<ShapeMode> modes, int frames = 3) {
+  size_t cols = 1;
+  for (const auto& r : rows) cols = std::max(cols, r.size());
+  const int cellW = frames * kTrioPitch + 10, rowH = 64, lab = 64, top = 14;
+  for (ShapeMode m : modes) {
+    Board b(lab + (int)cols * cellW + 8, top + (int)rows.size() * rowH + 4);
+    if (m == SM_BLACK) paperFill(b, 0, b.c.h, rgba(232, 228, 216));
+    else {
+      for (size_t ri = 0; ri < rows.size(); ri++) if (ri & 1) darkGround(b, top + (int)ri * rowH, top + (int)(ri + 1) * rowH);
+      if (m == SM_GREY) greyFill(b);
+    }
+    const uint32_t ink = m == SM_BLACK ? rgba(40, 36, 44) : rgba(255, 250, 230), dim = m == SM_BLACK ? rgba(96, 90, 104) : rgba(214, 226, 240);
+    static const char* const kMode[3] = {"COLOUR", "GREYSCALE", "BLACK SILHOUETTES (NOTHING HELD)"};
+    b.text(4, 3, title + " - " + kMode[m], ink);
+    for (size_t ri = 0; ri < rows.size(); ri++) {
+      const int y0 = top + (int)ri * rowH;
+      b.text(4, y0 + 24, rowLabels[ri].substr(0, 10), ink);
+      for (size_t ci = 0; ci < rows[ri].size(); ci++) {
+        const ShapeEntry& e = rows[ri][ci];
+        if (e.gap) continue;
+        const int x = lab + (int)ci * cellW;
+        b.text(x + 2, y0 + 1, e.label.substr(0, (size_t)(cellW / 6)), m == SM_BLACK ? ink : rgba(250, 214, 120));
+        b.text(x + 2, y0 + 9, e.sub.substr(0, (size_t)(cellW / 6)), dim);
+        drawTrio(b, e, x, y0 + rowH - 6, m, frames);
+      }
+    }
+    static const char* const kSfx[3] = {"", "_grey", "_black"};
+    saveScaled(b, dir, name + kSfx[m]);
+  }
+}
+ShapeEntry alloyEntry(const cult::Culture& c, int i, int who = 0) {
+  ShapeEntry e;
+  e.L = gear::alloyKitLook(a3Look(who), c, i);
+  e.label = c.arms.alloys[(size_t)i].name;
+  e.sub = shapeAbbrev(gear::alloyShape(c, i));
+  return e;
+}
+// the round-1 body of an alloy (STYLE_P2 28.10's "before"): the guise forced, round 1's picks, no silhouette
+ShapeEntry roundOneEntry(const cult::Culture& c, int i) {
+  ShapeEntry e = alloyEntry(c, i);
+  e.L.forgeShape = 0;
+  e.L.forgeGuise = gear::alloyGuise(c, i);
+  const uint64_t pk = gear::packForge(gear::alloyPick(c, i).style);
+  for (int s : {(int)art::HumanLook::TIER_BODY, (int)art::HumanLook::TIER_HELM, (int)art::HumanLook::TIER_SHIELD, (int)art::HumanLook::TIER_GLOVES,
+                (int)art::HumanLook::TIER_BOOTS})
+    if (e.L.forge[s]) e.L.forge[s] = pk;
+  e.sub = "ROUND 1";
+  return e;
+}
+void boardAlloys1x(const std::string& dir, bool blackOnly) {
+  std::vector<std::string> labels;
+  std::vector<std::vector<ShapeEntry>> rows;
+  for (int p = 0; p < 12; p++) {
+    labels.push_back(kPeopleName[p]);
+    std::vector<ShapeEntry> row;
+    for (uint32_t sd = 1; sd <= 3; sd++) {
+      const cult::Culture& c = gear::kitCulture((cult::Archetype)p, sd);
+      for (int i = 0; i < (int)c.arms.alloys.size(); i++) row.push_back(alloyEntry(c, i));
+    }
+    rows.push_back(row);
+  }
+  {
+    labels.push_back("JADE S5");
+    std::vector<ShapeEntry> row;
+    const cult::Culture& c = gear::kitCulture(cult::Archetype::Jade, 5);
+    for (int i = 0; i < (int)c.arms.alloys.size(); i++) row.push_back(alloyEntry(c, i));
+    rows.push_back(row);
+  }
+  if (blackOnly) shapeGrid(dir, "doll_silhouette_alloys", "THE BOARD SET: SEEDS 1..3 AND THE OWNER'S JADE 5, IDLE D, IDLE R, WALK R, TRUE 1X", labels, rows, {SM_BLACK});
+  else shapeGrid(dir, "doll_alloys1x", "THE BOARD SET: SEEDS 1..3 AND THE OWNER'S JADE 5, IDLE D, IDLE R, WALK R, TRUE 1X", labels, rows, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
+void boardTwins(const std::string& dir) {
+  int ng = 0;
+  const char* const* groups = gear::forgeTwinGroups(&ng);
+  std::vector<std::string> labels;
+  std::vector<std::vector<ShapeEntry>> before, now;
+  for (int g = 0; g < ng; g++) {
+    std::vector<ShapeEntry> rb, rn;
+    std::string list = groups[g];
+    size_t a = 0;
+    while (a < list.size()) {
+      size_t e = list.find(' ', a);
+      if (e == std::string::npos) e = list.size();
+      const std::string nm = list.substr(a, e - a);
+      a = e + 1;
+      for (const gear::BoardCulture& bc : gear::forgeBoardSet()) {
+        if (!bc.owner) continue;
+        const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
+        for (int i = 0; i < (int)c.arms.alloys.size(); i++)
+          if (c.arms.alloys[(size_t)i].name == nm) { rb.push_back(roundOneEntry(c, i)); rb.back().label = nm; rn.push_back(alloyEntry(c, i)); }
+      }
+    }
+    labels.push_back("GROUP " + std::to_string(g + 1));
+    before.push_back(rb);
+    now.push_back(rn);
+  }
+  std::vector<std::string> l2;
+  std::vector<std::vector<ShapeEntry>> both;
+  for (int g = 0; g < ng; g++) {
+    l2.push_back(labels[(size_t)g] + " R1");
+    both.push_back(before[(size_t)g]);
+    l2.push_back(labels[(size_t)g] + " NOW");
+    both.push_back(now[(size_t)g]);
+  }
+  shapeGrid(dir, "doll_twins", "THE OWNER'S ROUND-1 TWINS: EACH GROUP BEFORE (ROUND 1) AND NOW", l2, both, {SM_COLOUR, SM_BLACK});
+}
+void boardShapesAxis(const std::string& dir, const std::string& axisName) {
+  const int axis = F2::shapeAxisOf(axisName.c_str());
+  const int n = F2::shapeCount(axis);
+  static const char* const kBase[F2::SX_COUNT] = {"cone", "tassets", "round", "none", "close", "plain"};
+  std::vector<ShapeEntry> row;
+  for (int v = 1; v <= n; v++) {
+    if (axis == F2::SX_HELM && v > F2::H_ALLOY_LAST) break;
+    ShapeEntry e;
+    e.L = a3Look(0);
+    std::string spec = "kit=heartland:4:1,alloy=2,palette=look,shape=";
+    for (int a = 0; a < F2::SX_COUNT; a++) spec += std::string(a ? "+" : "") + F2::shapeAxisName(a) + ":" + (a == axis ? F2::shapeName(a, v) : kBase[a]);
+    doll::applyLookSpec(e.L, spec);
+    std::string up = F2::shapeName(axis, v);
+    for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+    e.label = up;
+    const doll::DollRecipe r = doll::resolve(e.L);
+    e.sub = r.shape[axis] == v || (axis == F2::SX_ARM && v <= F2::AR_BARE) ? "DRAWN" : "NOT DRAWN";
+    row.push_back(e);
+  }
+  if (axis == F2::SX_HELM)   // the hero-only families on their materials
+    for (const char* m : {"cloth", "leather", "ember", "starmetal"}) {
+      ShapeEntry e;
+      e.L = a3Look(0);
+      doll::applyLookSpec(e.L, std::string("hero=1,kit=heartland:4:7,mat=") + m + ",palette=look");
+      e.label = m == std::string("cloth") ? "HOOD" : m == std::string("leather") ? "CAP" : m == std::string("ember") ? "FURNACE" : "CRYSTAL";
+      e.sub = "HERO";
+      row.push_back(e);
+    }
+  std::string up = axisName;
+  for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+  shapeGrid(dir, "doll_shapes_" + axisName, "THE KIT: EVERY " + up + " ON ONE FIGURE (HEARTLAND T4 IN AN ALLOY)", {up}, {row}, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
+void boardShapesPeople(const std::string& dir, const std::string& people) {
+  cult::Archetype ar;
+  if (!gear::peopleOf(people, ar)) return;
+  std::vector<ShapeEntry> mats, alloys;
+  for (int t = 1; t <= 3; t++) {
+    ShapeEntry e;
+    e.L = a3Look(0);
+    doll::applyLookSpec(e.L, "kit=" + people + ":" + std::to_string(t) + ":1,palette=look");
+    static const char* const kT[4] = {"", "T1 KIT", "T2 KIT", "T3 KIT"};
+    e.label = kT[t];
+    e.sub = gear::describeForge(gear::unpackForge(e.L.forge[art::HumanLook::TIER_BODY])).substr(0, 10);
+    mats.push_back(e);
+  }
+  for (const char* m : {"leather", "bronze", "iron", "steel"}) {
+    ShapeEntry e;
+    e.L = a3Look(0);
+    doll::applyLookSpec(e.L, "kit=" + people + ":4:1,palette=look,mat=" + m + ",forgeKit=0");
+    e.L.forgeKit = 0;
+    std::string up = m;
+    for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+    e.label = up;
+    e.sub = "MATERIAL";
+    mats.push_back(e);
+  }
+  for (uint32_t sd = 1; sd <= 3; sd++) {
+    const cult::Culture& c = gear::kitCulture(ar, sd);
+    for (int i = 0; i < (int)c.arms.alloys.size(); i++) alloys.push_back(alloyEntry(c, i));
+  }
+  std::string up = people;
+  for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+  shapeGrid(dir, "doll_shapes_" + people, up + ": ITS MATERIALS BESIDE ITS ALLOYS (SEEDS 1..3)", {"MATERIALS", "ALLOYS"}, {mats, alloys}, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
+void boardWorld(const std::string& dir, const std::string& arg) {
+  const int w = std::atoi(arg.c_str() + arg.find(':') + 1);
+  cult::Atlas at((uint64_t)std::max(1, w));
+  struct A { const cult::Culture* c; int idx, ci, cj; doll::Outline o; int x = 0, y = 0; };
+  std::vector<A> as;
+  for (int cj = 0; cj < 6; cj++)
+    for (int ci = 0; ci < 6; ci++) {
+      const cult::Culture& c = at.family(ci, cj);
+      for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
+        A a{&c, i, ci, cj, {}};
+        a.o = doll::outlineOf(doll::resolve(gear::alloyKitLook(a3Look(0), c, i)));
+        as.push_back(std::move(a));
+      }
+    }
+  // the 10 nearest pairs: body OD under 0.05 and head OD under 0.10 is a twin (C18a); nearest by body / 0.05 + head / 0.10
+  struct P { size_t a, b; double s, body, head; };
+  std::vector<P> ps;
+  for (size_t i = 0; i < as.size(); i++)
+    for (size_t j = i + 1; j < as.size(); j++) {
+      const doll::OutlineOD d = doll::outlineDistance(as[i].o, as[j].o);
+      ps.push_back(P{i, j, d.body / 0.05 + d.head / 0.10, d.body, d.head});
+    }
+  std::sort(ps.begin(), ps.end(), [](const P& x, const P& y) { return x.s < y.s; });
+  const int cellW = 3 * 46 + 6, rowH = 78, top = 14;
+  Board b(6 * cellW + 8, top + 6 * rowH + 12 * 8 + 8);
+  paperFill(b, 0, b.c.h, rgba(232, 228, 216));
+  const uint32_t ink = rgba(40, 36, 44);
+  b.text(4, 3, "WORLD " + std::to_string(w) + ": THE 6 X 6 WINDOW (CELLS 0..5), EVERY ALLOY BLACK, NOTHING HELD, TRUE 1X", ink);
+  for (A& a : as) {
+    const int x0 = 4 + a.ci * cellW + a.idx * 46, y0 = top + a.cj * rowH;
+    a.x = x0; a.y = y0;
+    if (a.idx == 0) b.text(4 + a.ci * cellW, y0 + 1, std::string(cult::archetypeName(a.c->archetype)).substr(0, 9), rgba(120, 60, 40));
+    ShapeEntry e;
+    e.L = gear::alloyKitLook(a3Look(0), *a.c, a.idx);
+    drawTrio(b, e, x0 - 4, y0 + rowH - 22, SM_BLACK, 2);
+    b.text(x0, y0 + rowH - 19, a.c->arms.alloys[(size_t)a.idx].name.substr(0, 7), ink);
+    const gear::Shape s = gear::alloyShape(*a.c, a.idx);
+    b.text(x0, y0 + rowH - 11, shapeAbbrev(s).substr(0, 7), rgba(96, 90, 104));
+  }
+  static const uint32_t kRing[10] = {rgba(220, 40, 40), rgba(230, 120, 20), rgba(200, 170, 0), rgba(40, 160, 60), rgba(30, 140, 200),
+                                     rgba(90, 70, 210), rgba(200, 50, 170), rgba(120, 80, 40), rgba(0, 150, 150), rgba(140, 140, 140)};
+  for (size_t k = 0; k < ps.size() && k < 10; k++) {
+    for (size_t q : {ps[k].a, ps[k].b}) {
+      const A& a = as[q];
+      for (int i = 0; i < 46; i++) { b.c.set(a.x - 3 + i, a.y + 10 + (int)k % 3, kRing[k]); b.c.set(a.x - 3 + i, a.y + rowH - 3 - (int)k % 3, kRing[k]); }
+      b.text(a.x + 34, a.y + 12, std::to_string(k + 1), kRing[k]);
+    }
+    char line[160];
+    std::snprintf(line, sizeof line, "%zu %s/%s - %s/%s BODY %.3f HEAD %.3f", k + 1, cult::archetypeName(as[ps[k].a].c->archetype),
+                  as[ps[k].a].c->arms.alloys[(size_t)as[ps[k].a].idx].name.c_str(), cult::archetypeName(as[ps[k].b].c->archetype),
+                  as[ps[k].b].c->arms.alloys[(size_t)as[ps[k].b].idx].name.c_str(), ps[k].body, ps[k].head);
+    b.text(4, top + 6 * rowH + (int)k * 8, line, kRing[k]);
+  }
+  saveScaled(b, dir, "doll_world_" + std::to_string(w));
+}
+
 void boardSpecs(const std::string& dir, const std::string& arg) {
   std::vector<ForgeEntry> es;
   size_t i = arg.find(':') + 1;
@@ -1633,6 +1942,17 @@ int main(int argc, char** argv) {
     else if (b.rfind("specs:", 0) == 0) boardSpecs(dir, b);
     else if (b == "metalread") boardForge(dir, "forge:metalread");
     else if (b == "families") boardFamilies(dir);
+    else if (b == "alloys1x") boardAlloys1x(dir, false);
+    else if (b == "silhouette:alloys") boardAlloys1x(dir, true);
+    else if (b == "twins") boardTwins(dir);
+    else if (b.rfind("world:", 0) == 0) boardWorld(dir, b);
+    else if (b.rfind("shapes:", 0) == 0) {
+      const std::string w = b.substr(7);
+      cult::Archetype ar;
+      if (gear::peopleOf(w, ar)) boardShapesPeople(dir, w);
+      else if (art::doll::forge::shapeAxisOf(w.c_str()) >= 0) boardShapesAxis(dir, w);
+      else std::printf("doll_gallery: shapes: unknown axis or people %s\n", w.c_str());
+    }
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

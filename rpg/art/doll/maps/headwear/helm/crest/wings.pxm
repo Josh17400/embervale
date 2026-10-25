@@ -84,3 +84,19 @@ view L key lie origin 2 3
 |.vyyxxwv..
 |.vxwwvv...
 |..vvv.....
+
+# (FORGE-HEAD i2) crest yield: drawn only on no alloy family; any other alloy helm family wears no wings crest
+view D key rest when alloyshape replace
+|.
+
+view U key rest when alloyshape replace
+|.
+
+view R key rest when alloyshape replace
+|.
+
+view L key rest when alloyshape replace
+|.
+
+view L key lie when alloyshape replace
+|.

@@ -624,7 +624,11 @@ std::vector<SliceAtlas> sliceAtlases() {
       if (b.p == RigPart::Run && polearm) { base += 14; d19 += 14; }
       // (P2c forge, PLAN constants "forge: atlases") a styled body's shoulders, crest and edges add a column or row on some
       // frames: its LOCO and RUN may use 3 % more (measured i2: fm_star RUN 68.2 of 68 with its crest, jade3 LOCO 138.6 of 136)
-      if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forge[HumanLook::TIER_BODY]) { base *= 1.03; d19 *= 1.03; }
+      // (INTEGRATE silhouettes i1, measured) a round-2 silhouette (forgeShape: a skirt 6-11 rows below the belt, wide or heavy
+      // sleeves, a mantle or half-cape) widens the side run frames by 2-4 columns: fm_star RUN 77.0, a_fj2 75.2, lt4 74.0 KB,
+      // so its LOCO and RUN may use 14 % more (STARFALL's crystal helm over its long split skirt the most: fm_star 77.0 of 68 crested)
+      if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forgeShape) { base *= 1.14; d19 *= 1.14; }
+      else if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forge[HumanLook::TIER_BODY]) { base *= 1.03; d19 *= 1.03; }
       v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, d19) : base, base});
     }
   }

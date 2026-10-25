@@ -116,3 +116,19 @@ regions
 |...............
 |....R.R.R.R.R.R
 |...............
+
+# (FORGE-HEAD i2) crest yield: drawn only on kettle; any other alloy helm family wears no brow crest
+view D key rest when alloyshape,!helmfam-kettle replace
+|.
+
+view U key rest when alloyshape,!helmfam-kettle replace
+|.
+
+view R key rest when alloyshape,!helmfam-kettle replace
+|.
+
+view L key rest when alloyshape,!helmfam-kettle replace
+|.
+
+view L key lie when alloyshape,!helmfam-kettle replace
+|.

@@ -1,0 +1,177 @@
+# armour/<body>/skirt_bell: BELL, a kusazuri of two lacquered lames flaring from the belt to 5 px past the
+# hips each side, a metal-2 lacing row between the lames (N: one iridescent band a lame), R on the hem lip;
+# its dark rim continues behind the legs (skirt_bell_back), so the lampshade outline reads beside the boots.
+# Generated from the FORGE-LIMBS skirt templates (gen_skirts2.py, skirts_def.py; iteration 2: the D view serves U, `tags anyfacing`); Format: rpg/art/doll/doll.h.
+use person
+body woman
+role overlay skirt.bell
+layer hangFront
+anchor hip
+keys hang
+tags anyfacing
+z 10
+
+view D key rest origin 11 0
+|..vwwyyzyyxxxwwwwwwv..
+|..vOOOOOONNNNNNNNNNv..
+|.vxxxxxxxxxxxwwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxxv
+regions
+|...NNNNNNNNNNNNNNNN...
+|...NNNNNNNNNNNNNNNN...
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+
+view D key flare origin 12 0
+|...vwwyyzyyxxxwwwwwwv...
+|...vOOOOOONNNNNNNNNNv...
+|..vxxxxxxxxxxxwwwwwwwv..
+|vyyyyyyyyyyyxxxxxxxxxxxv
+regions
+|....NNNNNNNNNNNNNNNN....
+|....NNNNNNNNNNNNNNNN....
+|........................
+|.RRRRRRRRRRRRRRRRRRRRRR.
+
+view D key idle origin 11 0
+|..vwwyyzyyxxxwwwwwwv..
+|..vOOOOOONNNNNNNNNNv..
+|.vxxxxxxxxxxxwwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxxv
+regions
+|...NNNNNNNNNNNNNNNN...
+|...NNNNNNNNNNNNNNNN...
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+
+view D key kneel origin 11 0
+|..vwwyyzyyxxxwwwwwwv..
+|..vOOOOOONNNNNNNNNNv..
+|.vxxxxxxxxxxxwwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxxv
+regions
+|...NNNNNNNNNNNNNNNN...
+|...NNNNNNNNNNNNNNNN...
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+
+view R key rest origin 10 0
+|..vwwyyzyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view R key wide origin 10 0
+|..vwwyyzyyxxxwwwwv...
+|..vOOOOOONNNNNNNNv...
+|.vxxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN....
+|...NNNNNNNNNNNNNN....
+|.....................
+|.RRRRRRRRRRRRRRRRRRR.
+
+view R key flare origin 12 0
+|...vwwwyyzxxxwwwwwwv..
+|...vOOOOONNNNNNNNNNv..
+|.vxxxxxxxxxxxwwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxxv
+regions
+|....NNN..........NN...
+|....NNNNNNNNNNNNNNN...
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+
+view R key idle origin 10 0
+|..vwwyyzyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view R key kneel origin 10 0
+|..vwwyyzyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view L key rest origin 10 0
+|..vwwzyyyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view L key wide origin 11 0
+|...vwwzyyyxxxwwwwwv..
+|...vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxv
+regions
+|....NN..........NN...
+|....NNNNNNNNNNNNNN...
+|.....................
+|.RRRRRRRRRRRRRRRRRRR.
+
+view L key flare origin 10 0
+|..vwwzyyyyxxxwwwwwv...
+|..vOOOOOONNNNNNNNNv...
+|.vxxxxxxxxxxxwwwwwwwv.
+|vyyyyyyyyyyxxxxxxxxxxv
+regions
+|...NN..........NNN....
+|...NNNNNNNNNNNNNNN....
+|......................
+|.RRRRRRRRRRRRRRRRRRRR.
+
+view L key idle origin 10 0
+|..vwwzyyyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view L key kneel origin 10 0
+|..vwwzyyyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+
+view L key lie origin 10 0
+|..vwwzyyyxxxwwwwwv..
+|..vOOOOONNNNNNNNNv..
+|.vxxxxxxxxxxwwwwwwv.
+|vyyyyyyyyyxxxxxxxxxv
+regions
+|...NN..........NN...
+|...NNNNNNNNNNNNNN...
+|....................
+|.RRRRRRRRRRRRRRRRRR.

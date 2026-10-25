@@ -286,3 +286,19 @@ mark socket 2 0
 |vzyxv
 |.vxv.
 |..v..
+
+# (FORGE-HEAD i2) crest yield: drawn only on cone onion; any other alloy helm family wears no finial crest
+view D key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view U key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view R key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view L key rest when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.
+
+view L key lie when alloyshape,!helmfam-cone,!helmfam-onion replace
+|.

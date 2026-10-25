@@ -57,6 +57,7 @@
 #endif
 
 std::string dollSliceLooksText();   // (test_doll_arms.cpp: the slice looks file, embedded)
+std::string dollForgeLooksText();   // (test_doll_forge.cpp: tools/doll/forge_looks.txt, embedded)
 
 namespace wear {
 namespace {
@@ -872,6 +873,12 @@ void w1Look(const doll::DollRecipe& r, const std::vector<int>& gaits, const Repo
           if (qi != pi && Pl.parts[(size_t)qi].channel == p.channel && Pl.s(Pl.parts[(size_t)qi].name).rfind("arms/adult/action/", 0) == 0 &&
               drawsView(P::viewOf(Pl.parts[(size_t)qi], k.facing, key)) && !(hide && (*hide)(qi, k.facing, key))) sibling = true;
       if (sibling) continue;
+      // (INTEGRATE silhouettes i1, contracts 3c.1) a chest motif's rest view serves every torso key it has no view for (the
+      // compositor's key fallback, clipped to the torso): drawn, not a hole
+      bool motifRest = false;
+      for (const P::RoleRec& rr : p.roles)
+        if (rr.cat == (uint8_t)doll::Role::Overlay && Pl.s(rr.value).rfind("motif.", 0) == 0) motifRest = true;
+      if (motifRest && P::viewOf(p, k.facing, I.rest) && !(hide && (*hide)(pi, k.facing, I.rest))) continue;
       // (P2c, INTEGRATE i1) `tags anyfacing` (the weapon library): D's view serves every facing, as the compositor draws it
       if (I.anyfacing != 0xFFFF && std::find(p.tags.begin(), p.tags.end(), I.anyfacing) != p.tags.end() && P::viewOf(p, 0, key) &&
           !(hide && (*hide)(pi, 0, key))) continue;
@@ -1086,8 +1093,9 @@ std::vector<WLook> buildMatrix() {
   add("M6", "pose_child", 0, "age=1,weapon=0", "carry,play");
   // (P2c, INTEGRATE i1) the slice looks (tools/doll/slice_looks.txt, embedded in test_doll_arms.cpp): the armour, helms,
   // shield and the spear / bow carriers judged on their moving side frames, so their parts are covered (COVER)
-  {
-    std::string t = dollSliceLooksText();
+  // (silhouettes i2, B11 wear COVER) the forge looks' coverage figures (g_cov*: the woman's wide and heavy sleeves) too
+  for (int src = 0; src < 2; src++) {
+    std::string t = src == 0 ? dollSliceLooksText() : dollForgeLooksText();
     size_t a = 0;
     while (a < t.size()) {
       size_t e = t.find('\n', a);
@@ -1099,11 +1107,12 @@ std::vector<WLook> buildMatrix() {
       { size_t i = 0; while (i < line.size()) { while (i < line.size() && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r')) i++; size_t j = i;
           while (j < line.size() && line[j] != ' ' && line[j] != '\t' && line[j] != '\r') j++; if (j > i) w.push_back(line.substr(i, j - i)); i = j; } }
       if (w.size() < 3) continue;
+      if (src == 1 && w[0].rfind("g_cov", 0) != 0) continue;
       std::string gaits;
       for (const std::string& g : splitc(w.size() > 3 ? w[3] : std::string("walk,run"), ','))
         if (g == "walk" || g == "run" || g == "dwalk" || g == "drun") gaits += (gaits.empty() ? "" : ",") + g;
       if (gaits.empty()) gaits = "walk,run";
-      add("P2c", "slice_" + w[0], w[1] == "woman" ? 1 : 0, w[2] == "-" ? std::string() : w[2], gaits.c_str());
+      add("P2c", (src == 0 ? "slice_" : "forge_") + w[0], w[1] == "woman" ? 1 : 0, w[2] == "-" ? std::string() : w[2], gaits.c_str());
     }
   }
   return m;

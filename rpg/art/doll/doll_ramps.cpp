@@ -356,7 +356,7 @@ uint32_t mixHash(uint32_t h, uint32_t v) { h ^= v + 0x9E3779B9u + (h << 6) + (h 
 const uint32_t kMetalKind[12][5] = {
     {0x201C31, 0x525C7A, 0x95A2BC, 0xD5DEEA, 0xFFFFFF},   // 0 legacy: A3's steel
     {0x2C1621, 0x5B3129, 0x8D5536, 0xBF8249, 0xE7B672},   // 1 leather (A3's)
-    {0x24100A, 0x864620, 0xAA6222, 0xE6C69C, 0xFFF0C8},   // (forge C17: the lit plane cream, the light loses the orange)
+    {0x24140A, 0x5A3E10, 0x8C6A1E, 0xE8D8A8, 0xFFF6DC},   // (silhouettes i2, the blind panel: "Bronze brown with weak specular, drifts toward leather": the body olive-gold, 8 degrees off the leather's orange-brown)   // (round 2: the body under the skin box, C17)   // (forge C17: the lit plane cream, the light loses the orange)
       // 2 bronze (alloys i2: an orange body and a hard cream glint; i1's peach top read as skin)
     {0x16141A, 0x52525C, 0x7E7C86, 0xC0BCBA, 0xE6E2DA},   // (forge C17: a hard lit plane over the core; iron keeps the warm grey)
       // 3 iron (C14's edge step and body; alloys i3: a DULL lit plane, a mid grey where steel's is near-white: "iron and steel the same grey at 1x")
@@ -364,9 +364,9 @@ const uint32_t kMetalKind[12][5] = {
     {0x3A2A08, 0x6E5410, 0xC8A020, 0xF6E6A6, 0xFFFAE4},   // (forge C17: a pale gilt plane, the core deeper)
       // 5 gilded (alloys i3: a lemon gold, apart from the bronze's orange at game scale; its body 18 luma under the skin)
     {0x0E2A22, 0x1F5A46, 0x3E9474, 0x7CC8A0, 0xD0F4E0},   // 6 jade
-    {0x0A0810, 0x54506A, 0x6E6888, 0xC2BED2, 0xF6F2FF},   // (forge C17: the black glass's lit facet near-white)
+    {0x0A0810, 0x181424, 0x2A2440, 0x82808F, 0xF2F6FF},   // (silhouettes i2: the lit facet violet-cold #82808F (C17: its chroma 60 % of the body's), not i1's grey #868596 that read as dark iron) (forge round 2, STYLE_P2 28.4 KNAPPED: near-black violet glass, cold lit facets, hard white glints)
       // 7 obsidian (alloys i2: black glass, a near-white glint; the violet read as cloth)
-    {0x1A0806, 0x6E2016, 0xB0321C, 0xF0DC9C, 0xFFF8D8},   // (forge i3: the panel read the cream lit plane as "painted clay",
+    {0x120C0E, 0x2A1614, 0x4A2622, 0x786A5E, 0xFFD8A8},   // (silhouettes i3, the blind panel: "a cold iron stove": the char holds its heat, a red-black body under a warm lit plane) (silhouettes i2: black iron, i1's taupe #887868 lit plane read as clay; the heat is the seams') (forge round 2, STYLE_P2 28.4 FURNACE: soft char, the heat only in the seams' Glow; i3:
       // the face plate as skin: a forge-dark red body, the lit plane a yellow straw heat (C17 keeps its chroma under 60 % of the body: an orange went pink), the glint white-hot)
       // 8 emberforged (alloys i2: redder, a yellow-hot glint, apart from bronze)
     {0x1C2A4C, 0x3E5CA0, 0x8CB2F2, 0xCCE4FF, 0xFFFFFF},   // (forge C17: the core under the crystal plane)
@@ -378,7 +378,7 @@ const uint32_t kMetalKind[12][5] = {
     {0x0C080E, 0x3C3846, 0x625E70, 0xB0AEB4, 0xFFF0E0},   // (forge C17: the blackened steel's lit edge neutral)
    
 };
-const uint32_t kGlowOf[12] = {0xBFE4FF, 0xFFC860, 0xFFC860, 0xBFE4FF, 0xBFE4FF, 0xFFD060, 0x7CF0B0, 0xC890FF, 0xFF7A3A, 0xD8ECFF, 0xBFE4FF, 0xFF6828};
+const uint32_t kGlowOf[12] = {0xBFE4FF, 0xFFC860, 0xFFC860, 0xBFE4FF, 0xBFE4FF, 0xFFD060, 0x7CF0B0, 0xC890FF, 0xFF7A24, 0xD8ECFF, 0xBFE4FF, 0xFF6828};   // (round 2: ember #FF7A24)
 // ---- (alloys i1) the culture alloys' metal families: doll_alloy.cpp (in rpg_doll, so the gear ladder links without the painters)
 // (ladder i2) the glow is LIGHT: bright and saturated in its own hue (a grey or a tint, e.g. an alloy's pale light key,
 // would read as more metal: the panel saw "a few white sparkle pixels"), and it parts from the gold trim it sits beside
@@ -632,6 +632,9 @@ DollRamps rampsOf(const HumanLook& L) {
     // leather's browns") a leather wearer's metal is his fittings, the boss, the blade: plain iron (the leather has its own slot)
     else if (mk) metalRamp(mk, R.c[(int)Slot::Metal]);
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal][i] |= 0xFF000000u;
+    // (forge round 2, C17; STYLE_P2 28.8) the read at 1x: warm metals to gold and out of the skin box, greens cold (the alloy
+    // model's own rule; first, so the partings from the skin and the hair below see the moved ramp)
+    if (L.forge[HumanLook::TIER_BODY] && mk == 10) metalRound2(R.c[(int)Slot::Metal], L.sheen);
     // (alloys i1, C14) an alloy's lit body parts from the skin it touches (a warm copper or brass at the skin's value read
     // as bare arms): its mid step moves darker, the glint and the core kept, until 18 luma apart
     // (P2c forge) every metal (the forge looks wear each band metal on the same face: starmetal's body sat on the skin, steel's
@@ -750,6 +753,41 @@ DollRamps rampsOf(const HumanLook& L) {
         break;
       }
     }
+    // (forge round 2) and again after the moves above (the skin's and the hair's partings, the lit edge): the read holds
+    if (L.forge[HumanLook::TIER_BODY] && mk == 10) {
+      metalRound2(R.c[(int)Slot::Metal], L.sheen);
+      // the body still parts from the hair it touches (C14: 18 luma): away from it, the lit plane kept 22 over
+      uint32_t* M = R.c[(int)Slot::Metal];
+      const double hr = luma(R.c[(int)Slot::Hair][2]), sk = luma(R.c[(int)Slot::Skin][2]);
+      // (silhouettes i3) and from the second cloth it touches (C14: the brass lift and the polish moved bodies after its parting)
+      const double c2l = luma(R.c[(int)Slot::Cloth2][2]);
+      auto clash = [&](uint32_t c) { return std::fabs(luma(c) - hr) < 18.0 || std::fabs(luma(c) - sk) < 18.0 || std::fabs(luma(c) - c2l) < 18.0; };
+      if (clash(M[2]))
+        for (double k : {L.sheen == 7 ? 1.03 : 0.96, L.sheen == 7 ? 0.96 : 1.03}) {   // darker first (out of the skin box), else lighter; a pale body lighter first
+          uint32_t c = M[2], c3 = M[3];
+          bool ok = false;
+          for (int it = 0; it < 40; it++) {
+            c = scaleRgb(c, k);
+            if (k > 1.0) while (luma(c3) - luma(c) < 22.0 && luma(c3) < 244.0) c3 = scaleRgb(c3, 1.02);   // the lit plane climbs with it
+            if (luma(c3) - luma(c) < 22.0 || luma(c) < luma(M[1]) + 8.0) break;
+            if (!clash(c)) { ok = true; break; }
+          }
+          if (ok) {   // (silhouettes i3) never into the skin box (C17 round 2): a move that breaks the read is not taken
+            uint32_t t[5] = {M[0], M[1], c, c3, M[4]};
+            if (!metalRead2(t, nullptr) && metalRead2(M, nullptr)) continue;
+            M[2] = c; M[3] = c3; break;
+          }
+        }
+      // the lit plane paler in colour than the moved body (C17: 60 % of its chroma at most)
+      for (int it = 0; it < 30; it++) {
+        const Lab b2 = toLab(M[2]);
+        Lab b3 = toLab(M[3]);
+        const double c2 = std::hypot(b2.a, b2.b), c3 = std::hypot(b3.a, b3.b);
+        if (c2 < 6.0 || c3 <= 0.56 * c2) break;
+        b3.a *= 0.9; b3.b *= 0.9;
+        M[3] = fromLab(b3) | 0xFF000000u;
+      }
+    }
     // the blade: its own metal (bladeKind; a Mythic blade white-hot), the armour's when they match
     const int bk = std::clamp((int)L.bladeKind, 0, 11);
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];
@@ -773,10 +811,19 @@ DollRamps rampsOf(const HumanLook& L) {
     // kept), so the row cut's alternate rows (and the trim) shift hue across the plates; read in shape by the rows
     if (mk == 10 && L.sheen == 5) {
       const uint32_t* M = R.c[(int)Slot::Metal];
+      // (silhouettes i3, the blind panel: "Amiorsteel's pink and blue stripes read as a painted clown costume") the turn goes
+      // the way that lands away from the pinks and reds (an oil sheen: blue to teal, gold to green), at a gentler chroma
+      double turn = 110.0;
+      {
+        const Lab m2 = toLab(M[2]);
+        const double h0 = std::atan2(m2.b, m2.a) * 57.29578;
+        auto pinkness = [](double h) { h = std::fmod(h + 720.0, 360.0); const double d = std::min(std::fabs(h - 15.0), 360.0 - std::fabs(h - 15.0)); return d; };
+        if (pinkness(h0 - 110.0) > pinkness(h0 + 110.0)) turn = -110.0;
+      }
       for (int i = 0; i < 5; i++) {
         Lab l = toLab(M[i]);
-        const double c = std::hypot(l.a, l.b), h = std::atan2(l.b, l.a) + 70.0 * 0.01745329;
-        const double cc = std::max(c, i >= 1 && i <= 3 ? 14.0 : c);   // a pale silver turns visibly
+        const double c = std::hypot(l.a, l.b), h = std::atan2(l.b, l.a) + turn * 0.01745329;   // (INTEGRATE silhouettes i1: 110, so a dark iron or a pale glass reads 40 HSV degrees off)
+        const double cc = i >= 1 && i <= 3 ? std::clamp(c * 0.8, 16.0, 22.0) : c;   // a pale silver turns visibly, a vivid one stays gentle
         l.a = cc * std::cos(h); l.b = cc * std::sin(h);
         R.c[(int)Slot::Metal2][i] = fromLab(l) | 0xFF000000u;
       }
@@ -833,7 +880,10 @@ DollRamps rampsOf(const HumanLook& L) {
       if (styled && std::fabs(luma(R.c[(int)S::Cloth1][2]) - luma(R.c[(int)S::Hair][2])) < 18.0) { if (!part(S::Cloth1, {S::Hair, S::Metal}, false)) part(S::Cloth1, {S::Hair}, false); }
       part(S::Leather, {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin}, false);   // (i2) and the skin: the archer's jerkin read as bare skin
       // (forge i2: and the metal, where a lighter trouser can clear it too; else as before)
+      // (silhouettes i3, C14: a_fj2's trousers 15 luma off the brass they hang under, once the brass climbed) the metal before
+      // the leather: darker trousers that clear the metal and the hair come next
       if (!styled || (!part(S::Cloth2, {S::Cloth1, S::Leather, S::Hair, S::Metal}, true, kTrouserFloor) &&
+                      !part(S::Cloth2, {S::Cloth1, S::Hair, S::Metal}, false, kTrouserFloor) && !part(S::Cloth2, {S::Leather, S::Hair, S::Metal}, true, kTrouserFloor) &&
                       !part(S::Cloth2, {S::Cloth1, S::Leather, S::Hair}, true, kTrouserFloor) &&
                       !part(S::Cloth2, {S::Cloth1, S::Leather, S::Hair}, false, kTrouserFloor) &&
                       !part(S::Cloth2, {S::Hair}, false, kTrouserFloor) && !part(S::Cloth2, {}, false, 0))) {   // (the dE off the metal kept)
@@ -842,7 +892,14 @@ DollRamps rampsOf(const HumanLook& L) {
         part(S::Cloth2, {S::Cloth1, S::Leather, S::Hair}, true, kTrouserFloor);
         styled = was;
       }
-      if (!part(S::Accent, {S::Cloth1, S::Metal, S::Hair, S::Leather}, false) && styled) part(S::Accent, {S::Metal, S::Hair}, false);   // (forge i2: the tabard off the armour first)
+      // (forge round 2: a styled alloy's tabard, sash and scarf lie on bare arms and the neck too: and the skin)
+      // (silhouettes i2, C14: mr_1's sash 2 luma off the shirt it crosses) the shirt kept before the leather and the hair
+      if (!part(S::Accent, {S::Cloth1, S::Metal, S::Hair, S::Leather, S::Skin}, false) && !part(S::Accent, {S::Cloth1, S::Metal, S::Hair, S::Leather}, false) && styled) {
+        part(S::Accent, {S::Metal, S::Hair}, false);
+        // the shirt it crosses (a sash on a bare-armed alloy) when the hair could not be cleared with it
+        if (std::fabs(luma(R.c[(int)S::Accent][2]) - luma(R.c[(int)S::Cloth1][2])) < 18.0 && L.forgeShape && !part(S::Accent, {S::Cloth1, S::Metal, S::Leather}, false))
+          part(S::Accent, {S::Metal, S::Hair}, false);
+      }   // (forge i2: the tabard off the armour first)
       // (forge i2, C14: the king's and the Jade masterwork's tabard sat 12-17 luma off the cloak, a Jade alloy 2 off it) when
       // no cloak clears all five, the accent moves off the cloak, else the cloak clears the two it lies on most (metal, accent)
       if (!part(S::Cloak, {S::Metal, S::Hair, S::Accent, S::Cloth1, S::Leather}, false))

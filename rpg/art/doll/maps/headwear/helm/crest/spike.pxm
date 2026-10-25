@@ -81,3 +81,19 @@ view L key lie origin 4 3
 |..vxwwv..
 |vzyzxzwwv
 |.vvvvvvv.
+
+# (FORGE-HEAD i2) crest yield: drawn only on cone snout; any other alloy helm family wears no spike crest
+view D key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.
+
+view U key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.
+
+view R key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.
+
+view L key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.
+
+view L key lie when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.

@@ -60,6 +60,8 @@ struct LadderKit {
 bool peopleOf(const std::string& name, cult::Archetype& out);   // fjordfolk highland heartland imperial dune steppe marsh jade
                                                                  // river suntemple sylvan starspire
 LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::string& wpn, int rarity, uint32_t seed);
+// the kit's culture (Atlas::make(people, seed) with a test id 0x1ADD...: items carry it, the lookup resolves it); memoised
+const cult::Culture& kitCulture(cult::Archetype people, uint32_t seed);
 
 // ---- the looks macros (contracts 3b), installed as art::doll's LookSpecHook so every looks reader (rpg_test --limbs,
 // the gates' matrices, doll_gallery --look, script_p2c) takes them: hero=1 heroine=1 kit=<people>:<tier>[:<seed>] wpn=
@@ -68,6 +70,9 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
 // the plain fields in the order written, then the tiers.
 void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad);
 void installLadderMacros();   // idempotent (also done at static init where the linker keeps this file)
+// (forge round 2) a culture's alloy (0-based) on that people's kit (a kit culture's own seed, else seed 1's forms), every
+// metal piece in the alloy, worn over base (the A3 hero or heroine) at tier (0: T4, the masterwork T5): the boards and C18
+art::HumanLook alloyKitLook(const art::HumanLook& base, const cult::Culture& c, int alloyIndex, int tier = 0);
 // every field of L that differs from a default HumanLook, as a looks spec (`k=v,...`; rpg_test --expand-looks)
 std::string describeLook(const art::HumanLook& L);
 

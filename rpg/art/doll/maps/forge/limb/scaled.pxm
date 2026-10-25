@@ -15,33 +15,10 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i1) scaled: a scale row per 4 rows, its lit cap and its dark edge (rows only).
 
 view D key rest origin 0 0
-|++
-|+.
-|..
-|:=
+|+
+|.
+|.
+|=

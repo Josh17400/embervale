@@ -23,7 +23,8 @@ inline const char* const* axisList(int axis, int* n) {
   static const char* const kBase[] = {"alloy", "homespun", "tanner", "foundry", "wrought", "armourer", "parade", "knapped", "furnace",
                                       "starfall", "mythic"};
   static const char* const kShoulder[] = {"plate", "fur", "scale", "roll", "flap", "cop", "slab", "flared", "lobed", "shard", "vented",
-                                          "crystal", "flame", "layered", "winged", "leaf"};
+                                          "crystal", "flame", "layered", "winged", "leaf",
+                                          "pelt", "feather"};   // (forge round 2: the MANTLE's pelt and feathers, STYLE_P2 28.3)
   static const char* const kCrest[] = {"ridge", "comb", "knife", "brow", "crown", "shards", "chimney", "spire", "fin", "finial", "spike",
                                        "horns", "wings", "flame"};
   static const char* const kCut[] = {"smooth", "fluted", "keeled", "banded", "faceted", "muscled", "ribbed", "vented", "embossed",
@@ -222,6 +223,235 @@ inline Guise unpackGuise(uint16_t p) {
   if (!(p >> 15)) return g;
   g.helm = (uint8_t)(p & 15u); g.skirt = (uint8_t)(p >> 4 & 7u); g.cloak = (uint8_t)(p >> 7 & 3u); g.pauldron = (uint8_t)(p >> 9 & 7u);
   return g;
+}
+
+// ======================================================================================== (forge round 2) the silhouette
+// docs/P2C_CONTRACTS.md 3c.1, docs/STYLE_P2.md 28.3 and 28.5. Six axes read at 1x with the colour off, drawn once and
+// composed: the helm family (the helm piece), the skirt, the shoulder mass, the over-layer, the arm bulk and the chest motif
+// (the body piece). Every list is 1-based (0: unset) and APPEND ONLY (flags `helmfam-<v>` `skirt-<v>`... and the parts' role
+// values key on the words). HumanLook::forgeShape packs them (helm bits 0-4, skirt 5-7, mass 8-10, layer 11-13, arm 14-15
+// stored as arm - 1 (0: close, so an unset arm reads as the close arm), motif 16-19, bit 31 set); compare packed values,
+// never memcmp a struct.
+enum ShapeAxis : int { SX_HELM, SX_SKIRT, SX_MASS, SX_LAYER, SX_ARM, SX_MOTIF, SX_COUNT };
+enum HelmFam : int { H_UNSET, H_CONE, H_KETTLE, H_WARHAT, H_GREAT, H_MASK, H_CRESTED, H_ONION, H_VEIL, H_HORNED, H_WINGED, H_SALLET,
+                     H_SNOUT, H_KABUTO, H_MORION, H_PLUMED, H_CROWN, H_HOOD, H_CAP, H_FURNACE, H_CRYSTAL, H_LADDER, H_COUNT };
+constexpr int H_ALLOY_LAST = H_CROWN;   // cone..crown: the alloys' families; hood cap furnace crystal: hero-only; ladder: T5-T6
+enum SkirtV : int { SK_UNSET, SK_NONE, SK_TASSETS, SK_STRIPS, SK_HAUBERK, SK_SPLIT, SK_BELL, SK_COUNT };
+enum MassV : int { MS_UNSET, MS_NONE, MS_ROUND, MS_BROAD, MS_TALL, MS_DROP, MS_MANTLE, MS_COUNT };
+enum LayerV : int { LY_UNSET, LY_NONE, LY_TABARD, LY_SASH, LY_HALFCAPE, LY_CAPE, LY_SCARF, LY_COUNT };
+enum ArmV : int { AR_UNSET, AR_CLOSE, AR_BARE, AR_WIDE, AR_HEAVY, AR_COUNT };
+enum MotifV : int { MO_UNSET, MO_PLAIN, MO_DISC, MO_STRAPS, MO_BANDS, MO_CHEVRON, MO_KEEL, MO_BIB, MO_RAYS, MO_BEAST, MO_CRESCENT, MO_COUNT };
+
+inline const char* const* shapeList(int axis, int* n) {
+  static const char* const kHelm[] = {"cone", "kettle", "warhat", "great", "mask", "crested", "onion", "veil", "horned", "winged", "sallet",
+                                      "snout", "kabuto", "morion", "plumed", "crown", "hood", "cap", "furnace", "crystal", "ladder"};
+  static const char* const kSkirt[] = {"none", "tassets", "strips", "hauberk", "split", "bell"};
+  static const char* const kMass[] = {"none", "round", "broad", "tall", "drop", "mantle"};
+  static const char* const kLayer[] = {"none", "tabard", "sash", "halfcape", "cape", "scarf"};
+  static const char* const kArm[] = {"close", "bare", "wide", "heavy"};
+  static const char* const kMotif[] = {"plain", "disc", "straps", "bands", "chevron", "keel", "bib", "rays", "beast", "crescent"};
+#define EMB_SHAPE_N(a) (int)(sizeof(a) / sizeof(a[0]))
+  switch (axis) {
+    case SX_HELM: *n = EMB_SHAPE_N(kHelm); return kHelm;
+    case SX_SKIRT: *n = EMB_SHAPE_N(kSkirt); return kSkirt;
+    case SX_MASS: *n = EMB_SHAPE_N(kMass); return kMass;
+    case SX_LAYER: *n = EMB_SHAPE_N(kLayer); return kLayer;
+    case SX_ARM: *n = EMB_SHAPE_N(kArm); return kArm;
+    case SX_MOTIF: *n = EMB_SHAPE_N(kMotif); return kMotif;
+    default: *n = 0; return nullptr;
+  }
+#undef EMB_SHAPE_N
+}
+inline int shapeCount(int axis) { int n = 0; shapeList(axis, &n); return n; }
+inline const char* shapeName(int axis, int v) {   // "" for 0 or out of range
+  int n = 0;
+  const char* const* l = shapeList(axis, &n);
+  return l && v >= 1 && v <= n ? l[v - 1] : "";
+}
+inline int shapeValueOf(int axis, const char* w) {   // -1: no such word
+  int n = 0;
+  const char* const* l = shapeList(axis, &n);
+  for (int i = 0; l && i < n; i++) if (!std::strcmp(l[i], w)) return i + 1;
+  return -1;
+}
+inline const char* shapeAxisName(int axis) {
+  static const char* const k[SX_COUNT] = {"helm", "skirt", "mass", "layer", "arm", "motif"};
+  return axis >= 0 && axis < SX_COUNT ? k[axis] : "";
+}
+inline int shapeAxisOf(const char* w) {
+  for (int a = 0; a < SX_COUNT; a++) if (!std::strcmp(shapeAxisName(a), w)) return a;
+  return -1;
+}
+inline uint32_t packShapeAxes(const uint8_t v[SX_COUNT]) {
+  const uint32_t arm = v[SX_ARM] >= 1 ? (uint32_t)(v[SX_ARM] - 1) & 3u : 0u;
+  return (v[SX_HELM] & 31u) | (v[SX_SKIRT] & 7u) << 5 | (v[SX_MASS] & 7u) << 8 | (v[SX_LAYER] & 7u) << 11 | arm << 14 |
+         (v[SX_MOTIF] & 15u) << 16 | 1u << 31;
+}
+inline void unpackShapeAxes(uint32_t p, uint8_t v[SX_COUNT]) {
+  for (int a = 0; a < SX_COUNT; a++) v[a] = 0;
+  if (!(p >> 31)) return;
+  v[SX_HELM] = (uint8_t)(p & 31u); v[SX_SKIRT] = (uint8_t)(p >> 5 & 7u); v[SX_MASS] = (uint8_t)(p >> 8 & 7u);
+  v[SX_LAYER] = (uint8_t)(p >> 11 & 7u); v[SX_ARM] = (uint8_t)((p >> 14 & 3u) + 1); v[SX_MOTIF] = (uint8_t)(p >> 16 & 15u);
+}
+// a closed family (STYLE_P2 28.2: a dark visor band 2 px or more across the eye row, a breath slot or grille below it)
+inline bool helmClosed(int h) { return h == H_GREAT || h == H_MASK || h == H_SNOUT || h == H_FURNACE || h == H_CRYSTAL; }
+// a family whose map carries a crest or plume socket (the details' crest sits there; contracts 3c.1)
+inline bool helmSocket(int h) {
+  return h == H_CONE || h == H_KETTLE || h == H_GREAT || h == H_CRESTED || h == H_ONION || h == H_SALLET || h == H_SNOUT ||
+         h == H_KABUTO || h == H_MORION || h == H_PLUMED || h == H_CROWN || h == H_WARHAT;
+}
+
+// ---------------------------------------------------------------- kShapeVocab: STYLE_P2 28.5 exactly
+// Per people (cult::Archetype order) and axis, the menu in typical-first order (the first the heaviest, each next 13/16 of
+// the one before); '*' marks the people's signature (a value no other people wears, or wears only by its own hand)
+struct ShapeVocab { const char* ax[SX_COUNT]; };
+inline const ShapeVocab& shapeVocab(int people) {
+  static const ShapeVocab k[12] = {
+      {{"*horned cone veil kettle mask crested", "hauberk split none", "mantle round drop broad", "cape halfcape scarf none", "bare heavy close",
+        "bands disc bib keel"}},                                                                                                // Fjordfolk
+      {{"kettle veil cone snout morion sallet", "*strips hauberk none", "broad mantle round none", "*sash halfcape cape none", "bare close heavy",
+        "straps bands disc plain"}},                                                                                            // Highland
+      {{"*great sallet snout crown cone kettle", "tassets hauberk none", "tall broad round", "*tabard cape halfcape none", "heavy close",
+        "keel disc rays plain"}},                                                                                               // Heartland
+      {{"*crested mask winged crown plumed kettle", "*strips tassets none", "broad drop round tall", "*halfcape cape sash none",
+        "close bare heavy", "bands disc rays keel"}},                                                                           // Imperial
+      {{"*onion veil mask cone plumed winged", "*split hauberk bell none", "round drop tall none", "sash *scarf halfcape none", "*wide bare heavy",
+        "disc rays bands chevron"}},                                                                                            // Dune
+      {{"*plumed cone veil mask onion", "split bell strips none", "*drop mantle round broad", "scarf halfcape sash none", "close wide heavy",
+        "bib disc straps chevron"}},                                                                                            // Steppe
+      {{"warhat kettle cone mask crested plumed", "strips split bell none", "drop none round broad", "halfcape scarf sash none", "bare close wide",
+        "bands chevron bib plain"}},                                                                                            // Marsh
+      {{"*kabuto warhat mask crested winged crown", "*bell split tassets none", "*drop tall round none", "tabard sash cape none",
+        "*wide heavy close", "bib disc bands chevron"}},                                                                        // Jade
+      {{"sallet *morion kettle cone great snout", "tassets hauberk split none", "broad round tall none", "tabard sash halfcape none",
+        "heavy close wide", "keel bands disc straps"}},                                                                         // River
+      {{"plumed *mask winged crown crested", "*bell strips split none", "tall round mantle none", "*cape halfcape sash none", "bare heavy close",
+        "*rays disc chevron bands"}},                                                                                           // SunTemple
+      {{"winged crested horned mask crown plumed", "split bell strips none", "drop tall round none", "cape halfcape scarf none", "close bare wide",
+        "chevron keel rays plain"}},                                                                                            // Sylvan
+      {{"winged *crown crested plumed mask sallet", "split bell tassets none", "*tall round drop none", "cape halfcape scarf none",
+        "close wide heavy", "rays disc chevron keel"}},                                                                         // Starspire
+  };
+  return k[people >= 0 && people < 12 ? people : 2];
+}
+// a people's menu on an axis as values (1-based) with weights (the first 256, each next x13/16) and signature marks;
+// returns the count
+inline int shapeMenu(int people, int axis, uint8_t* vals, int* weights, bool* star, int cap) {
+  const char* s = shapeVocab(people).ax[axis];
+  int n = 0, w = 256;
+  char word[24];
+  for (const char* p = s; *p && n < cap;) {
+    while (*p == ' ') p++;
+    if (!*p) break;
+    bool st = false;
+    if (*p == '*') { st = true; p++; }
+    int k = 0;
+    while (*p && *p != ' ' && k < 23) word[k++] = *p++;
+    word[k] = 0;
+    const int v = shapeValueOf(axis, word);
+    if (v > 0) { vals[n] = (uint8_t)v; if (weights) weights[n] = w; if (star) star[n] = st; n++; w = w * 13 / 16; }
+  }
+  return n;
+}
+inline bool inShapeMenu(int people, int axis, int v) {
+  uint8_t vals[8];
+  const int n = shapeMenu(people, axis, vals, nullptr, nullptr, 8);
+  for (int i = 0; i < n; i++) if (vals[i] == v) return true;
+  return false;
+}
+// the rank flavour (STYLE_P2 28.5: weights, not walls): the everyday plain, the warriors' martial, the masterwork elaborate;
+// a x1.5 on the listed values ("axis:word"). Only the CAPE is held to masterworks (PLAN D38: a wall, not a weight)
+inline const char* shapeRankFlavour(int rank) {
+  static const char* const k[3] = {
+      "layer:none layer:tabard mass:round mass:none skirt:tassets skirt:strips skirt:hauberk",
+      "mass:broad mass:drop mass:tall layer:sash layer:halfcape skirt:split skirt:bell",
+      "mass:mantle mass:tall layer:cape layer:halfcape skirt:bell skirt:split"};
+  return k[rank >= 0 && rank < 3 ? rank : 0];
+}
+// the shoulder's shape inside its mass (the details; contracts 3c.1 kMassShapes): the round-1 shoulder values (AX_SHOULDER,
+// 1-based) each mass may draw, typical first
+inline int massShapes(int mass, uint8_t out[5]) {
+  // shoulder values: 1 plate 2 fur 3 scale 4 roll 5 flap 6 cop 7 slab 8 flared 9 lobed 10 shard 11 vented 12 crystal 13 flame
+  // 14 layered 15 winged 16 leaf 17 pelt 18 feather
+  static const uint8_t k[MS_COUNT][5] = {{0}, {0}, {6, 9, 4, 0, 0}, {7, 11, 1, 0, 0}, {15, 8, 12, 10, 13}, {14, 3, 5, 16, 0}, {2, 17, 18, 0, 0}};
+  int n = 0;
+  if (mass > 0 && mass < MS_COUNT) for (int i = 0; i < 5 && k[mass][i]; i++) out[n++] = k[mass][i];
+  return n;
+}
+// the mass a round-1 shoulder value belongs to (MS_NONE for 0)
+inline int massOfShoulder(int sh) {
+  for (int m = MS_ROUND; m < MS_COUNT; m++) {
+    uint8_t s[5];
+    const int n = massShapes(m, s);
+    for (int i = 0; i < n; i++) if (s[i] == sh) return m;
+  }
+  return MS_NONE;
+}
+// a body form's own hang as a skirt value (cult::BodyArm: Padded Leather Mail Scale Lamellar Brigandine Plate Leaf): the
+// materials' skirt where the style keeps the form's hang
+inline int skirtOfBodyArm(int bodyArm) {
+  static const uint8_t k[8] = {SK_HAUBERK, SK_STRIPS, SK_HAUBERK, SK_HAUBERK, SK_HAUBERK, SK_TASSETS, SK_TASSETS, SK_TASSETS};
+  return bodyArm >= 0 && bodyArm < 8 ? k[bodyArm] : SK_TASSETS;
+}
+// a people's helm form (cult::HelmForm: Nasal Kettle GreatHelm Spangen Horned Plumed ConicalAventail Masked Crested Winged) as
+// a family
+inline int helmFamOfForm(int helmForm) {
+  static const uint8_t k[10] = {H_CONE, H_KETTLE, H_GREAT, H_CONE, H_HORNED, H_PLUMED, H_VEIL, H_MASK, H_CRESTED, H_WINGED};
+  return helmForm >= 0 && helmForm < 10 ? k[helmForm] : H_CONE;
+}
+
+// ---------------------------------------------------------------- design estimates (g1's first solve; contracts 3c.1)
+// The outline difference two values make at 1x, in pixels of the figure's opaque mask (idle D, idle R and the walk's passing
+// frame R averaged), from PLAN's constants ("silhouettes: what each axis is worth"). The measured solve (rpg_test
+// --forge-solve on the delivered pool) replaces them.
+inline int estAxisPx(int axis, int a, int b) {
+  if (a == b) return 0;
+  if (a > b) { const int t = a; a = b; b = t; }
+  switch (axis) {
+    case SX_SKIRT: {   // none tassets strips hauberk split bell
+      static const uint8_t k[7][7] = {{0}, {0, 0, 22, 26, 36, 46, 50}, {0, 0, 0, 12, 22, 34, 36}, {0, 0, 0, 0, 18, 28, 30},
+                                      {0, 0, 0, 0, 0, 16, 22}, {0, 0, 0, 0, 0, 0, 20}, {0}};
+      return k[a][b];
+    }
+    case SX_MASS: {    // none round broad tall drop mantle
+      static const uint8_t k[7][7] = {{0}, {0, 0, 10, 22, 18, 16, 24}, {0, 0, 0, 12, 12, 12, 16}, {0, 0, 0, 0, 14, 16, 14},
+                                      {0, 0, 0, 0, 0, 18, 16}, {0, 0, 0, 0, 0, 0, 18}, {0}};
+      return k[a][b];
+    }
+    case SX_LAYER: {   // none tabard sash halfcape cape scarf (a tabard and a sash lie inside the outline: a few hem pixels)
+      static const uint8_t k[7][7] = {{0}, {0, 0, 4, 2, 18, 36, 8}, {0, 0, 0, 4, 18, 34, 10}, {0, 0, 0, 0, 18, 34, 8},
+                                      {0, 0, 0, 0, 0, 22, 18}, {0, 0, 0, 0, 0, 0, 32}, {0}};
+      return k[a][b];
+    }
+    case SX_ARM: {     // close bare wide heavy
+      static const uint8_t k[5][5] = {{0}, {0, 0, 1, 8, 6}, {0, 0, 0, 8, 6}, {0, 0, 0, 0, 8}, {0}};
+      return k[a][b];
+    }
+    default: return 0;
+  }
+}
+// a family's outline features (px): rise over the head box, flare past it each side, brim, face cover, tail behind
+inline void helmFeatures(int h, int f[5]) {
+  static const int8_t k[H_COUNT][5] = {
+      {0, 0, 0, 0, 0}, {3, 0, 0, 2, 0}, {1, 0, 2, 0, 0}, {2, 0, 4, 0, 0}, {1, 0, 0, 10, 0}, {1, 0, 0, 10, 1}, {3, 0, 0, 0, 1},
+      {5, 0, 0, 0, 0}, {3, 1, 0, 6, 4}, {3, 3, 0, 0, 0}, {3, 2, 0, 0, 0}, {1, 0, 0, 4, 3}, {2, 0, 0, 8, 2}, {1, 3, 0, 0, 1},
+      {4, 0, 2, 0, 3}, {5, 0, 0, 0, 1}, {3, 1, 0, 0, 0}, {1, 1, 0, 3, 2}, {1, 0, 0, 0, 0}, {2, 1, 0, 10, 0}, {6, 1, 0, 10, 0},
+      {2, 0, 0, 2, 0}};
+  for (int i = 0; i < 5; i++) f[i] = k[h >= 0 && h < H_COUNT ? h : 0][i];
+}
+inline double estHeadOD(int a, int b) {
+  if (a == b) return 0.0;
+  int fa[5], fb[5];
+  helmFeatures(a, fa); helmFeatures(b, fb);
+  static const int w[5] = {6, 8, 6, 3, 4};
+  int px = 8;   // two families always differ in their dome's own line
+  for (int i = 0; i < 5; i++) px += w[i] * (fa[i] > fb[i] ? fa[i] - fb[i] : fb[i] - fa[i]);
+  return px / (110.0 + px * 0.5);
+}
+inline double estBodyOD(const uint8_t a[SX_COUNT], const uint8_t b[SX_COUNT]) {
+  int px = 0;
+  for (int ax : {(int)SX_SKIRT, (int)SX_MASS, (int)SX_LAYER, (int)SX_ARM}) px += estAxisPx(ax, a[ax], b[ax]);
+  return px / (260.0 + px * 0.5);
 }
 
 }  // namespace forge

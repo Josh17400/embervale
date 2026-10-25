@@ -19,18 +19,15 @@ legend O metal2 2
 legend n accent 1
 legend o accent 2
 legend p accent 3
+# (FORGE-TORSO round 2 i1) round: scale arcs 2 px wide, period 4 (round 2: no dots).
 
 view D key rest origin 0 0
 |....
-|:..:
-|.==.
 |....
-|.::.
 |=..=
+|.==.
 regions
 |....
-|N..N
-|.NN.
 |....
-|.NN.
 |N..N
+|.NN.

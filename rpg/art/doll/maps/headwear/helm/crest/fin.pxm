@@ -86,3 +86,19 @@ mark socket 3 1
 |.vzyyyxxwwvvv
 |.........vzyv
 |..........vv.
+
+# (FORGE-HEAD i2) crest yield: drawn only on crested great kabuto; any other alloy helm family wears no fin crest
+view D key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.
+
+view U key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.
+
+view R key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.
+
+view L key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.
+
+view L key lie when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.

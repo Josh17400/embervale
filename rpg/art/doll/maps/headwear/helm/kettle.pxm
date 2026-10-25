@@ -7,6 +7,7 @@
 use person
 body adult
 role helm form2
+role helm fam.kettle
 layer headwear
 anchor head
 keys rest
@@ -137,6 +138,149 @@ regions
 |....RRRRRRRRRRRR.....
 |..R..............R...
 |...RRRRRRRRRRRRRR....
+
+# (FORGE-HEAD i2) family views (forge round 2, STYLE_P2 28.2-28.3): kettle;
+# drawn only on a forge look whose helm family is this one (`helmfam-kettle`). Written by FORGE-HEAD tools/emit2.py.
+view D key rest origin 2 1 when helmfam-kettle replace
+mark crown 9 0
+mark socket 9 0
+|-------vvvvvv-------
+|-----vvyzyxxxvv-----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|---vyyyyyxxxxwwwv---
+|.vyyyyyyxxxxxxwwwwv.
+|.vyvwwwwwwwwwwwwvwv.
+|.vvv............vvv.
+regions
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....RRRRRRRRRRRR....
+|..RRRRRRRRRRRRRRRR..
+|....................
+|....................
+
+view U key rest origin 2 1 when helmfam-kettle replace
+mark crown 9 0
+mark socket 9 0
+|-------vvvvvv-------
+|-----vvyzyxxxvv-----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|----vyyyyxxxxwwv----
+|---vyyyyyxxxxwwwv---
+|.vyyyyyyxxxxxxwwwwv.
+|.vyvwwwwwwwwwwwwvwv.
+|.vvv............vvv.
+regions
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....................
+|....RRRRRRRRRRRR....
+|..RRRRRRRRRRRRRRRR..
+|....................
+|....................
+
+view R key rest origin 3 1 when helmfam-kettle replace
+mark crown 10 0
+mark socket 10 0
+|--------vvvvvv-------
+|------vvyzyxxxvv-----
+|-----vyyyyxxxxwwv----
+|-----vyyyyxxxxwwv----
+|-----vyyyyxxxxwwv----
+|-----vyyyyxxxxwwv----
+|-----vyyyyxxxxwwv----
+|----vyyyyyxxxxwwwv---
+|..vyyyyyyxxxxxxwwwwv.
+|..vyvwwwwwwwwwwwwvwv.
+|..vvv............vvv.
+regions
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....RRRRRRRRRRRR....
+|...RRRRRRRRRRRRRRRR..
+|.....................
+|.....................
+
+view L key rest origin 2 1 when helmfam-kettle replace
+mark crown 10 0
+mark socket 10 0
+|-------vvvvvv--------
+|-----vvxxxwzwvv------
+|----vyyxxxxwwwwv-----
+|----vyyxxxxwwwwv-----
+|----vyyxxxxwwwwv-----
+|----vyyxxxxwwwwv-----
+|----vyyxxxxwwwwv-----
+|---vyyyxxxxwwwwwv----
+|.vyyyyxxxxxxwwwwwwv..
+|.vyvyyyyyyyyyyyyvwv..
+|.vvv............vvv..
+regions
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|....RRRRRRRRRRRR.....
+|..RRRRRRRRRRRRRRRR...
+|.....................
+|.....................
+
+# (FORGE-HEAD i2) family views end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # (Marsh) the drooping brim, the wrap, the tassels
 view D key rest when tassels replace

@@ -88,3 +88,19 @@ mark socket 2 1
 |..vzyxwv..
 |.....vzxv.
 |.......vxv
+
+# (FORGE-HEAD i2) crest yield: drawn only on cone crested; any other alloy helm family wears no knife crest
+view D key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.
+
+view U key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.
+
+view R key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.
+
+view L key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.
+
+view L key lie when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.

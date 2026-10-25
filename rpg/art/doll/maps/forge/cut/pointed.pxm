@@ -19,18 +19,15 @@ legend O metal2 2
 legend n accent 1
 legend o accent 2
 legend p accent 3
+# (FORGE-TORSO round 2 i1) pointed: 2 px V seams, period 8 x 4 (round 2: no 1 px diagonal).
 
 view D key rest origin 0 0
-|=...
-|.=.=
-|..=.
-|..=.
-|.=.=
-|=...
+|==....==
+|.==..==.
+|..====..
+|...==...
 regions
-|N...
-|.N.N
-|..N.
-|..N.
-|.N.N
-|N...
+|NN....NN
+|.NN..NN.
+|..NNNN..
+|...NN...

@@ -1,0 +1,200 @@
+# armour/<body>/skirt_hauberk: HAUBERK, a straight mail skirt in metal-2 courses (N between) with a front
+# slit, on a body that is not mail (a mail torso draws its own knee skirt: the base views are empty); its
+# lower courses hang behind the legs to mid-shin (skirt_hauberk_back), a straight column to 1x.
+# Generated from the FORGE-LIMBS skirt templates (gen_skirts2.py, skirts_def.py; iteration 2: the D view serves U, `tags anyfacing`); Format: rpg/art/doll/doll.h.
+use person
+body woman
+role overlay skirt.hauberk
+layer hangFront
+anchor hip
+keys hang
+tags anyfacing
+z 10
+
+view D key rest origin 0 0
+|.
+
+view D key rest origin 8 0 when !form-mail replace
+|vyyyzyyxxxwwwwwv
+|vwwwwwwwwwwwwwwv
+|vyyyyyyxxxwwwwwv
+|vwwwwwwwvwwwwwwv
+regions
+|.NNNNNNNNNNNNNN.
+|.NNNNNNNNNNNNNN.
+|................
+|.RRRRRRR.RRRRRR.
+
+view D key flare origin 0 0
+|.
+
+view D key flare origin 8 0 when !form-mail replace
+|vyyyzyyxxxwwwwwv
+|vwwwwwwwwwwwwwwv
+|vyyyyyyxxxwwwwwv
+|vwwwwwwwvwwwwwwv
+regions
+|.NNNNNNNNNNNNNN.
+|.NNNNNNNNNNNNNN.
+|................
+|.RRRRRRR.RRRRRR.
+
+view D key idle origin 0 0
+|.
+
+view D key idle origin 8 0 when !form-mail replace
+|vyyyzyyxxxwwwwwv
+|vwwwwwwwwwwwwwwv
+|vyyyyyyxxxwwwwwv
+|vwwwwwwwvwwwwwwv
+regions
+|.NNNNNNNNNNNNNN.
+|.NNNNNNNNNNNNNN.
+|................
+|.RRRRRRR.RRRRRR.
+
+view D key kneel origin 0 0
+|.
+
+view D key kneel origin 8 0 when !form-mail replace
+|vyyyzyyxxxwwwwwv
+|vwwwwwwwwwwwwwwv
+|vyyyyyyxxxwwwwwv
+|vwwwwwwwvwwwwwwv
+regions
+|.NNNNNNNNNNNNNN.
+|.NNNNNNNNNNNNNN.
+|................
+|.RRRRRRR.RRRRRR.
+
+view R key rest origin 0 0
+|.
+
+view R key rest origin 6 0 when !form-mail replace
+|vyyzyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view R key wide origin 0 0
+|.
+
+view R key wide origin 6 0 when !form-mail replace
+|vyyzyyxxwwwwv
+|vwwwwwwwwwwwv
+|vyyyyyyxxxxxv
+regions
+|...........N.
+|.NNNNNNNNNNN.
+|.RRRRRRRRRRR.
+
+view R key flare origin 0 0
+|.
+
+view R key flare origin 6 0 when !form-mail replace
+|vyyzyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view R key idle origin 0 0
+|.
+
+view R key idle origin 6 0 when !form-mail replace
+|vyyzyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view R key kneel origin 0 0
+|.
+
+view R key kneel origin 6 0 when !form-mail replace
+|vyyzyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view L key rest origin 0 0
+|.
+
+view L key rest origin 6 0 when !form-mail replace
+|vzyyyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view L key wide origin 0 0
+|.
+
+view L key wide origin 7 0 when !form-mail replace
+|vwzyyyxxwwwwv
+|vwwwwwwwwwwwv
+|vyyyyyyxxxxxv
+regions
+|.N...........
+|.NNNNNNNNNNN.
+|.RRRRRRRRRRR.
+
+view L key flare origin 0 0
+|.
+
+view L key flare origin 6 0 when !form-mail replace
+|vzyyyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view L key idle origin 0 0
+|.
+
+view L key idle origin 6 0 when !form-mail replace
+|vzyyyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view L key kneel origin 0 0
+|.
+
+view L key kneel origin 6 0 when !form-mail replace
+|vzyyyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.
+
+view L key lie origin 0 0
+|.
+
+view L key lie origin 6 0 when !form-mail replace
+|vzyyyxxwwwwv
+|vwwwwwwwwwwv
+|vyyyyyxxxxxv
+regions
+|............
+|.NNNNNNNNNN.
+|.RRRRRRRRRR.

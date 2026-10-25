@@ -121,3 +121,19 @@ regions
 |RRRRRRRRRRRRR.
 |RRRRRGGRRRRRRR
 |.RRRRRRRRRRRR.
+
+# (FORGE-HEAD i2) crest yield: drawn only on crown kabuto; any other alloy helm family wears no crown crest
+view D key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.
+
+view U key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.
+
+view R key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.
+
+view L key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.
+
+view L key lie when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.

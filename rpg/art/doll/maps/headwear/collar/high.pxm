@@ -1,6 +1,7 @@
 # headwear/collar/high: the forge collar `high` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # STARFALL: a high standing collar in two rows, its plates rising to crystal points beside the jaw, open in a V at the front.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.high
 layer neck
@@ -46,7 +47,6 @@ view D key rest origin 6 3
 |zv.........vx
 |yzv.......vxw
 |vyzv.....vxwv
-|vyyzvvvvvxwwv
 |vyyyyyxxxxwwv
 |.vvvvvvvvvvv.
 
@@ -55,7 +55,6 @@ view U key rest origin 6 3
 |zv.........vx
 |yzv.......vxw
 |vyzv.....vxwv
-|vyyzvvvvvxwwv
 |vyyyyyxxxxwwv
 |.vvvvvvvvvvv.
 
@@ -64,7 +63,6 @@ view R key rest origin 5 3
 |zv.........
 |yzv......vx
 |vyzv....vxw
-|vyyzvvvvxwv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -73,7 +71,6 @@ view L key rest origin 5 3
 |.........vz
 |xv......vyz
 |xwv....vyzv
-|vxwvvvvyyzv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -82,7 +79,6 @@ view L key lie origin 5 3
 |.........vz
 |xv......vyz
 |xwv....vyzv
-|vxwvvvvyyzv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -91,7 +87,6 @@ view R key flow origin 5 3
 |zv.........
 |yzv......vx
 |vyzv....vxw
-|vyyzvvvvxwv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -100,7 +95,6 @@ view R key flow2 origin 5 3
 |zv.........
 |yzv......vx
 |vyzv....vxw
-|vyyzvvvvxwv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -109,7 +103,6 @@ view L key flow origin 5 3
 |.........vz
 |xv......vyz
 |xwv....vyzv
-|vxwvvvvyyzv
 |vyyyyxxxxwv
 |.vvvvvvvvv.
 
@@ -118,6 +111,5 @@ view L key flow2 origin 5 3
 |.........vz
 |xv......vyz
 |xwv....vyzv
-|vxwvvvvyyzv
 |vyyyyxxxxwv
 |.vvvvvvvvv.

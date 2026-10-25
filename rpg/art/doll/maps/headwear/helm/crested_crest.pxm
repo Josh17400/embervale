@@ -99,473 +99,161 @@ view U key rest when forge-tanner,!helm.t5,!helm.t6 replace
 view U key up when forge-tanner,!helm.t5,!helm.t6 replace
 |.
 
-view D key breeze when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-ridge,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-comb,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-knife,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-brow,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-crown,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-shards,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-chimney,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-spire,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-fin,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-finial,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-spike,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-horns,!helm.t5,!helm.t6 replace
-|.
 
-view D key breeze when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view D key rest when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view D key up when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view L key breeze when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view L key rest when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view L key up when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view R key breeze when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view R key rest when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view R key up when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view U key breeze when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view U key rest when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
-view U key up when crest-wings,!helm.t5,!helm.t6 replace
-|.
 
 # (FORGE-HELM i2 plume_yield.py) (end)
 

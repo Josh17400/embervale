@@ -1,6 +1,7 @@
 # headwear/collar/gorget: the forge collar `gorget` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # ARMOURER'S: a plate gorget in two lames, wide to the pauldrons: a rolled lit rim, a dark seam, the lower lame lit along its top.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.gorget
 layer neck
@@ -44,71 +45,53 @@ legend o cloak 4
 view D key rest origin 6 1
 |.vv.......vv.
 |vzzvvvvvvvxwv
-|vzzyyyyyxxxwv
-|vvvvvvvvvvvvv
 |vyyyyyxxxxwwv
 |.vvvvvvvvvvv.
 
 view U key rest origin 6 1
 |.vv.......vv.
 |vzzvvvvvvvxwv
-|vzzyyyyyxxxwv
-|vvvvvvvvvvvvv
 |vyyyyyxxxxwwv
 |.vvvvvvvvvvv.
 
 view R key rest origin 5 1
 |vv.......v.
 |vzvvvvvvvwv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view L key rest origin 5 1
 |.v.......vv
 |vwvvvvvvvzv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view L key lie origin 5 1
 |.v.......vv
 |vwvvvvvvvzv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view R key flow origin 5 1
 |vv.......v.
 |vzvvvvvvvwv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view R key flow2 origin 5 1
 |vv.......v.
 |vzvvvvvvvwv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view L key flow origin 5 1
 |.v.......vv
 |vwvvvvvvvzv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.
 
 view L key flow2 origin 5 1
 |.v.......vv
 |vwvvvvvvvzv
-|vzzyyyyxxwv
-|vvvvvvvvvvv
 |vyyyyxxxwwv
 |.vvvvvvvvv.

@@ -273,6 +273,16 @@ struct DollRecipe {
   uint8_t forgeAx[8][8] = {};
   int armourFam = -1;
   uint8_t sheen = 0;                 // (forge i2) the armour's sheen (HumanLook::sheen: cult::Sheen + 1; 0 none): the glint pass
+  // (forge round 2, contracts 3c.1) the silhouette as the resolver applied it (art::doll::forge SX_* values: helm skirt mass
+  // layer arm motif; 0 an axis not applied), the values the pool does not draw yet ("helm fam.kabuto (man)": rpg_test
+  // --doll-coverage --scope forge lists them; the figure draws today's part meanwhile, never a hole), and the compose rules'
+  // switches: D41's pauldrons over a cloak's front and the T5 surcoat (layer head z -4), the iridescent bands on the skirt and
+  // the motif, the hang dropped under a styled skirt
+  uint8_t shape[6] = {};
+  std::vector<std::string> forgeMissing;
+  bool pauldronTop = false;
+  bool irisBands = false;
+  bool dropHang = false;
   DollRecipe() { for (uint8_t& r : region) r = 0xFF; for (auto& f : fin) for (uint8_t& x : f) x = 0xFF; }
   bool has(const char* flag) const;
 };
@@ -340,6 +350,8 @@ struct ComposeOpts {
   // Plume, Field, Device, Glow) in one neutral ramp (#202020 #555555 #8C8C8C #C8C8C8 #F4F4F4); skin, hair, eyes, face and
   // ink kept: shape with the colour removed (C16, the grey boards)
   bool grey = false;
+  // (forge round 2, contracts 3c.1) no held weapon, shield, sheath or back item: the outline masks of C16o and C18
+  bool noHeld = false;
 };
 // (P2c forge) the neutral ramp ComposeOpts::grey draws every material slot in, and whether a slot takes it
 extern const uint32_t kGreyRamp[5];
@@ -350,6 +362,16 @@ DollRamps greyRamps(const DollRamps& r);   // r with every material slot in kGre
 // Death: Fall and Lying. Empty when the pool has no clip for the body set.
 RigSheet compose(const HumanLook& look, RigPart part);
 RigSheet compose(const DollRecipe& r, RigPart part, const ComposeOpts* opts = nullptr);
+// (forge round 2, contracts 3c.1; PLAN C16o, C18) the 1x outline masks (doll_outline.cpp): the figure composed as the game
+// draws it (LOCO), grey and with nothing held, at idle D, idle R and the walk's passing frame R; each frame's opaque pixels
+// (m: 1 opaque, w x h, its top-left x0, y0 from the pivot) and its neck row (the head box's bottom, pivot-relative: the head
+// above it, the body from it). OD: the XOR over the union per part, averaged over the three frames (and the smallest frame's)
+struct OutlineFrame { int x0 = 0, y0 = 0, w = 0, h = 0, neck = 0; std::vector<uint8_t> m; };
+struct Outline { OutlineFrame f[3]; bool ok = false; };
+Outline outlineOf(const DollRecipe& r);
+struct OutlineOD { double head = 0, body = 0, bodyMin = 0, headMin = 0; };
+OutlineOD outlineDistance(const Outline& a, const Outline& b);
+int outlinePixels(const Outline& o, bool head);   // the opaque pixels of the head (or body) over the three frames
 RigSheet composePosture(const HumanLook& look, Posture p, uint8_t variant);
 RigSheet composePosture(const DollRecipe& r, Posture p, uint8_t variant);
 // (P2c SLICE-DOLL) what one frame of a part's clip is made of (rpg_test --limbs strips, doll_gallery): the clip frame the
@@ -447,6 +469,10 @@ bool metalTest(const uint32_t r[5], std::string* why = nullptr);
 // (P2c forge, C17; STYLE_P2 28.8) the metal read: a near-black core (step 1 <= 45 % of step 3's luma), a hard pale lit plane
 // (step 3 >= step 2 + 22 luma, <= 60 % of its chroma), a glint (step 4 luma >= 196), the lit steps 20 dE off the skin, never pink
 bool metalRead(const uint32_t r[5], uint32_t skin, std::string* why = nullptr);
+// (forge round 2, C17's round-2 terms; STYLE_P2 28.8) warm metals' lit plane 15 degrees or more toward the gold and steps 2-3
+// out of the skin box (HSV hue 5-45, Lab chroma 25-60, luma 110-210); greens' lit plane half the body's chroma or less
+bool metalRead2(const uint32_t r[5], std::string* why = nullptr);
+void metalRound2(uint32_t r[5], int sheen = -1);   // moves a ramp until metalRead2 holds (the body darker, the lit plane paler, then toward gold)
 
 // ---------------------------------------------------------------- the pool
 // the embedded pool (gen/doll_pool.cpp) is used unless a tool loads another; every cache keyed on the pool is cleared

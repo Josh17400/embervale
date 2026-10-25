@@ -1,0 +1,365 @@
+# cloak/halfcape: the HALF-CAPE (FORGE-MANTLE, round 2; STYLE_P2 28.3's over-layer HALFCAPE, contracts 3c `role cloak
+# halfcape`): a short cape over the LEFT shoulder to the waist, in the Cloak colour (the paludamentum, a plaid half-cape,
+# a reed or fur cape by the people's colour). Asymmetric: facing down it hangs behind the left side, its outer edge lower;
+# facing up it covers the back's left half from under the pauldron, its hem rising inward; facing right and left it is a
+# narrow cloth 3-4 px behind the back. Vertical folds, a slanted hem. It rides the hang channel (keys derived by
+# FORGE-MANTLE gen/halfcape2.py from the rest drawings: wide kicks the hem back, flare lifts and streams it). Finish: R the hem is its
+# lowest row of T. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role cloak halfcape
+layer cloakBack
+anchor neck
+keys hang
+sway 2
+legend Q cloak 0
+legend R cloak 1
+legend S cloak 2
+legend T cloak 3
+legend U cloak 4
+
+view D key rest origin 0 2
+|QQQQQQQ.....
+|QSSSSSSQQ...
+|QSSSSSSSSQ..
+|QSSSSSSSSSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRTQ
+|QRRRSSSSTRTQ
+|QQQQRRRRTRTQ
+|....QQQQRRTQ
+|........QQRQ
+|..........QQ
+
+view D key idle origin 0 2
+|QQQQQQQ.....
+|QSSSSSSQQ...
+|QSSSSSSSSQ..
+|QSSSSSSSSSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRTQ
+|QRRRSSSSTRTQ
+|QQQQRRRRTRTQ
+|....QQQQRRTQ
+|........QQRQ
+|..........QQ
+
+view D key wide origin 0 2
+|QQQQQQQ.....
+|QSSSSSSQQ...
+|QSSSSSSSSQ..
+|QSSSSSSSSSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRTQ
+|QRRRSSSSTRTQ
+|QQQQRRRRTRTQ
+|....QQQQRRTQ
+|........QQRQ
+|..........QQ
+
+view D key flare origin 0 2
+|QQQQQQQ.....
+|QSSSSSSQQ...
+|QSSSSSSSSQ..
+|QSSSSSSSSSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRTQ
+|QRRRSSSSTRTQ
+|QQQQRRRRTRTQ
+|....QQQQRRTQ
+|..........QQ
+
+view D key lie origin 0 2
+|QQQQQQQ.....
+|QSSSSSSQQ...
+|QSSSSSSSSQ..
+|QSSSSSSSSSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTSQ.
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRSQ
+|QSSSSSSSTRTQ
+|QRRRSSSSTRTQ
+|QQQQRRRRTRTQ
+|....QQQQRRTQ
+|........QQRQ
+|..........QQ
+
+view U key rest origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+view U key idle origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+view U key wide origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+view U key flare origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QQQ..........
+
+view U key lie origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+view R key rest origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key idle origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key wide origin 11 2
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTSQ.
+|..QTRTRQ.
+|..QTRRQ..
+|..QRQQ...
+|..QQ.....
+
+view R key flare origin 11 2
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|..QTSSSQ.
+|..QTRSSQ.
+|..QTRSSQ.
+|..QTRSSQ.
+|..QTRTSQ.
+|..QTRTSQ.
+|..QTRTSQ.
+|..QTRTRQ.
+|..QTRRQ..
+|..QQ.....
+
+view R key lie origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view L key rest origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key idle origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key wide origin -3 2
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QSTRSQ..
+|.QRTRSQ..
+|..QRRSQ..
+|...QQRQ..
+|.....QQ..
+
+view L key flare origin -3 2
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|.QSSSSQ..
+|.QSSRSQ..
+|.QSSRSQ..
+|.QSSRSQ..
+|.QSTRSQ..
+|.QSTRSQ..
+|.QSTRSQ..
+|.QRTRSQ..
+|..QRRSQ..
+|.....QQ..
+
+view L key lie origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ

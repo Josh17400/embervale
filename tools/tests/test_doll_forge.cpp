@@ -28,6 +28,10 @@
 #include "rpg/sim/gear_ladder.h"
 #include "tools/tests/tests.h"
 
+int dollShapeGates(bool report, std::vector<std::string>& printed, const std::vector<std::pair<std::string, art::HumanLook>>& forgeLooks);
+int forgeShapeData(int w0, int w1, int s0, int s1, bool report, bool selftest, std::vector<std::string>& printed);
+int forgeSilhouettes(int w0, int w1, bool report, bool selftest, std::vector<std::string>& printed);
+
 namespace dollforge {
 
 const char* kForgeLooks =   // (P2c forge) tools/doll/forge_looks.txt (tools/doll/embed_looks.py writes it)
@@ -79,7 +83,28 @@ const char* kForgeLooks =   // (P2c forge) tools/doll/forge_looks.txt (tools/dol
     "nroyal   woman  npc=heartland:guard:2:7,palette=look  stay,walk,run,didle,hit1,fall,lying\n"
     "nking    man    npc=heartland:king:0:7,palette=look  stay,walk\n"
     "ncapt_hl man    npc=highland:captain:1:1,palette=look  stay,walk\n"
-    "ncapt_jd man    npc=jade:captain:1:5,palette=look  stay,walk\n";
+    "ncapt_jd man    npc=jade:captain:1:5,palette=look  stay,walk\n"
+    "g_dune1  man    kit=dune:5:1,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_mars2  man    kit=marsh:4:2,alloy=2,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_hl2    man    kit=highland:4:1,alloy=2,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_fj1    man    kit=fjordfolk:5:1,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_step1  man    kit=steppe:5:1,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_sylv1w woman  kit=sylvan:4:1,alloy=1,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_hl1    man    kit=highland:4:1,alloy=1,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_hl3    man    kit=highland:5:1,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_jd3a   man    kit=jade:4:5,alloy=1,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_jd3b   man    kit=jade:4:5,alloy=2,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_jd2w   woman  kit=jade:5:2,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_star3  woman  kit=starspire:5:1,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_sun1   man    kit=suntemple:5:3,alloy=3,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_cov1w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:sash+arm:wide  stay,walk,run,didle,hit1,hurt,fall,"
+    "lying\n"
+    "g_cov2w  woman  kit=imperial:4:1,alloy=2,palette=look,shieldForm=9,weapon=0,shape=arm:heavy+layer:sash  stay,walk,run,didle,hit1,hurt,fall,"
+    "lying\n"
+    "g_cov3w  woman  kit=imperial:4:1,alloy=1,palette=look,shape=skirt:strips  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard  stay,walk,run,didle,hit1,hurt,fall,"
+    "lying\n"
+    "g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell  stay,walk,run,didle,hit1,hurt,fall,lying\n";
 std::string dollForgeLooksTextLocal() { return kForgeLooks; }
 
 namespace F = art::doll::forge;
@@ -222,23 +247,33 @@ void neighbourGates(int w0, int w1, Line& c, int* histo) {
 
 int forgeCmd(int argc, char** argv) {
   int w0 = 1, w1 = 6, s0 = 1, s1 = 64;
-  bool selftest = false;
+  bool selftest = false, silhouettes = false;
   for (int i = 2; i < argc; i++) {
     if (!std::strcmp(argv[i], "--worlds") && i + 1 < argc) range(argv[++i], w0, w1);
     else if (!std::strcmp(argv[i], "--seeds") && i + 1 < argc) range(argv[++i], s0, s1);
     else if (!std::strcmp(argv[i], "--report")) g_report = true;
     else if (!std::strcmp(argv[i], "--selftest")) selftest = true;
+    else if (!std::strcmp(argv[i], "--silhouettes")) silhouettes = true;
+    else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) {
+      std::string err;
+      if (!art::doll::loadPoolFile(argv[++i], &err)) { std::printf("FAIL: --pool %s\n", err.c_str()); return 1; }
+    }
   }
-  Line h{"C16h hero styles"}, b{"C16b culture alloys"}, c{"C16c neighbours"}, d{"C16d alloy vs heroes"};
+  // (forge round 2) --silhouettes: C18 alone (the drawn outlines over the board set and the worlds' windows)
+  if (silhouettes) {
+    const int was = art::rigVersion();
+    art::setRigVersion(2);
+    std::vector<std::string> printed;
+    const int f = forgeSilhouettes(w0, w1, g_report, selftest, printed);
+    for (const std::string& l : printed) std::printf("%s\n", l.c_str());
+    std::printf("doll-forge --silhouettes: %d failure(s)\n", f);
+    art::setRigVersion(was);
+    return f ? 1 : 0;
+  }
+  // (forge round 2) C16b, C16c, round 1's C16d and C16g are retired (the texture distances and the guise heads): the
+  // silhouette's data lines C16d and C16u stand in their place (test_doll_shapes.cpp forgeShapeData)
+  Line h{"C16h hero styles"};
   heroPairs(h);
-  cultureGates(s0, s1, b, d);
-  int histo[14] = {};
-  neighbourGates(w0, w1, c, histo);
-  if (g_report) {
-    std::printf("  C16c distance histogram (same-rank neighbours):");
-    for (int i = 0; i <= 13; i++) std::printf(" %d:%d", i, histo[i]);
-    std::printf("\n");
-  }
   // C17 at the ramp level: every family under every sheen, the band metals, against A3's skin (and the darkest the game
   // draws) ; the six named alloys as their own rows
   Line m{"C17 metal read (ramps)"}, mn{"C17 the six named"};
@@ -251,6 +286,7 @@ int forgeCmd(int argc, char** argv) {
         std::string why;
         bool ok = true;
         for (uint32_t sk : skins) ok = ok && art::doll::metalRead(r, sk, &why);
+        if (ok) ok = art::doll::metalRead2(r, &why);   // (forge round 2) warm to gold, greens cold, out of the skin box
         if (!ok) m.bad(fmt("%s %s: %s", art::doll::alloyFamilyName(f), kSheen[sh - 1], why.c_str()));
         else m.ok();
       }
@@ -279,6 +315,28 @@ int forgeCmd(int argc, char** argv) {
       std::string why;
       if (!art::doll::metalRead(r, skins[0], &why)) mn.bad(fmt("%s: %s", c.arms.alloys[(size_t)n.idx].name.c_str(), why.c_str()));
       else mn.ok();
+    }
+  }
+  // (forge round 2) the owner's round-2 list (STYLE_P2 28.8: read as cloth, clay, leather or skin) as report rows: each on its
+  // real culture, family and sheen, the round-1 and round-2 terms
+  Line m2{"C17 the round-2 list"};
+  {
+    const char* const kList = " THORNIRON FROSTSTEEL UHABRASS JAONBRASS ENKHOBRASS PAPIRON ANIBRASS CRANESILVER UNSHISILVER VENSTEEL BRIARSTEEL ";
+    for (const gear::BoardCulture& bc : gear::forgeBoardSet()) {
+      if (!bc.owner) continue;
+      const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
+      const std::vector<uint8_t> fam = gear::alloyFamilies(c);
+      for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
+        const std::string nm = c.arms.alloys[(size_t)i].name;
+        if (!std::strstr(kList, (" " + nm + " ").c_str())) continue;
+        const gear::AlloyKeys k = gear::alloyKeys(c, i);
+        uint32_t r[5];
+        art::doll::alloyRamp(fam[(size_t)i], k.sheen, r);
+        std::string why;
+        const bool ok = art::doll::metalRead(r, rgba(0xE9, 0xA0, 0x77), &why) && art::doll::metalRead2(r, &why);
+        if (g_report) std::printf("    C17 round-2 row %-12s %-16s %s\n", nm.c_str(), art::doll::alloyFamilyName(fam[(size_t)i]), ok ? "metal" : why.c_str());
+        if (!ok) m2.bad(nm + ": " + why); else m2.ok();
+      }
     }
   }
   // C15f (the forge re-plan: the alloy panel's clusters of pale silvers, mints, slates and teals): no dE-10 ball (round any
@@ -319,40 +377,13 @@ int forgeCmd(int argc, char** argv) {
       std::printf("\n");
     }
   }
-  // C16g (forge i3; the panel: "about 20 of the 37 alloys wear the same kettle helm"): a culture's alloys each in its own
-  // guise head, of another shape at 1x (the open domed helms, nasal kettle spangen crested, are one shape); over every
-  // people and seed no head shape wears more than 40 % of the alloys
-  Line gg{"C16g alloy heads"};
-  {
-    auto shape = [](int h) { return (h == 1 || h == 2 || h == 4 || h == 9) ? 1 : h == 14 ? 11 : h; };
-    int histo[16] = {}, total = 0;
-    for (int a = 0; a < (int)cult::Archetype::COUNT; a++)
-      for (int sd = s0; sd <= s1; sd++) {
-        const cult::Culture cu = cult::Atlas::make((cult::Archetype)a, (uint32_t)sd);
-        const int n = (int)cu.arms.alloys.size();
-        std::vector<art::doll::forge::Guise> gs;
-        for (int i = 0; i < n; i++) gs.push_back(art::doll::forge::unpackGuise(gear::alloyGuise(cu, i)));
-        for (int i = 0; i < n; i++) {
-          if (!gs[(size_t)i].helm) { gg.bad(fmt("%s s%d %d: no head", cult::archetypeName((cult::Archetype)a), sd, i + 1)); continue; }
-          histo[shape(gs[(size_t)i].helm)]++; total++;
-          bool clash = false;
-          for (int j = 0; j < i; j++) if (shape(gs[(size_t)j].helm) == shape(gs[(size_t)i].helm)) clash = true;
-          if (clash) gg.bad(fmt("%s s%d: %s shares its head shape", cult::archetypeName((cult::Archetype)a), sd, cu.arms.alloys[(size_t)i].name.c_str()));
-          else gg.ok();
-        }
-      }
-    for (int k = 0; k < 16; k++) {
-      if (!histo[k]) continue;
-      if (histo[k] * 100 > total * 40) gg.bad(fmt("head %d on %d of %d alloys", k, histo[k], total)); else gg.ok();
-    }
-    if (g_report) {
-      std::printf("  C16g head shapes (1 open dome, 3 great helm, 8 mask, 11 coif or aventail, 12 turban, 13 jingasa):");
-      for (int k = 0; k < 16; k++) if (histo[k]) std::printf(" %d:%d", k, histo[k]);
-      std::printf(" of %d\n", total);
-    }
-  }
   int fails = 0;
-  for (Line* l : {&h, &b, &c, &d, &gg, &m, &mn, &sp}) { l->print(); fails += l->fails; }
+  for (Line* l : {&h, &m, &mn, &m2, &sp}) { l->print(); fails += l->fails; }
+  {
+    std::vector<std::string> printed;
+    fails += forgeShapeData(w0, w1, std::min(s0, 64), std::min(s1, 64), g_report, selftest, printed);
+    for (const std::string& l : printed) std::printf("%s\n", l.c_str());
+  }
   if (selftest) {
     // a style against itself must fail C16b; a hero style copied as an alloy must fail C16d
     int caught = 0;
@@ -364,10 +395,8 @@ int forgeCmd(int argc, char** argv) {
     const uint32_t clay[5] = {rgba(0x3A, 0x24, 0x18), rgba(0x7A, 0x4A, 0x30), rgba(0xA8, 0x6A, 0x48), rgba(0xC8, 0x8A, 0x64),
                               rgba(0xE0, 0xA8, 0x80)};
     if (!art::doll::metalRead(clay, rgba(0xE9, 0xA0, 0x77))) caught++;
-    // (forge i3) an unset guise has no head: C16g's "no head" must catch it
-    if (!art::doll::forge::unpackGuise(art::doll::forge::packGuise(art::doll::forge::Guise{})).helm) caught++;
-    std::printf("  C16 C17 data selftest: %s\n", caught == 4 ? "ALL CAUGHT" : "MISSED");
-    if (caught != 4) fails++;
+    std::printf("  C16 C17 data selftest: %s\n", caught == 3 ? "ALL CAUGHT" : "MISSED");
+    if (caught != 3) fails++;
   }
   std::printf("doll-forge: %d failure(s)\n", fails);
   return fails ? 1 : 0;
@@ -585,7 +614,9 @@ std::string c17Look(const GLook& g, int facing, bool* sheenChecked = nullptr) {
   int bodyMetal = 0;
   for (size_t k = 0; k < p.code.size(); k++) {
     const int o = p.owner[k];
-    if (p.code[k] >= 2 && o >= 0 && doll::codeSlot(p.code[k]) == doll::Slot::Metal &&
+    // (INTEGRATE silhouettes i3) the lit metal only (steps 1-4): a plate whose only visible pixels are its step-0 edge beside a
+    // tabard (UHABRASS: tabard, no shoulders) shows no metal plane to glint; its helm and greaves carry the glints
+    if (p.code[k] >= 2 && o >= 0 && doll::codeSlot(p.code[k]) == doll::Slot::Metal && doll::codeStep(p.code[k]) >= 1 &&
         (p.items[(size_t)o].has(doll::Role::Armour) || p.items[(size_t)o].has(doll::Role::Pauldron) ||
          (r.guiseHead && p.items[(size_t)o].has(doll::Role::Headwear)))) bodyMetal++;
   }
@@ -596,6 +627,53 @@ std::string c17Look(const GLook& g, int facing, bool* sheenChecked = nullptr) {
     if (doll::deltaE76(M[st], r.ramps.c[(int)doll::Slot::Skin][2]) < 20.0f) return fmt("metal step %d within 20 dE of the skin", st);
     for (doll::Slot s : {doll::Slot::Leather, doll::Slot::Cloth1, doll::Slot::Cloth2})
       if (doll::deltaE76(M[st], r.ramps.c[(int)s][st]) < 15.0f) return fmt("metal step %d within 15 dE of %s", st, doll::slotName(s));
+  }
+  // (forge round 2) the round-2 terms: warm to gold and out of the skin box, greens cold (the composed ramp)
+  {
+    std::string why;
+    if (!doll::metalRead2(M, &why)) return "round 2: " + why;
+  }
+  // KNAPPED's dark glass: the body's luma median 50 or less, the lit plane's hue 200-290 degrees (HSV)
+  if (g.L.metalKind == 7) {
+    std::vector<double> lum;
+    for (size_t k = 0; k < p.code.size(); k++) {
+      const int o = p.owner[k];
+      if (p.code[k] >= 2 && o >= 0 && doll::codeSlot(p.code[k]) == doll::Slot::Metal && p.items[(size_t)o].has(doll::Role::Armour))
+        lum.push_back(lumaOf(r.ramps.c[(int)doll::Slot::Metal][doll::codeStep(p.code[k])]));
+    }
+    std::sort(lum.begin(), lum.end());
+    const double med = lum.empty() ? 0 : lum[lum.size() / 2];
+    const uint32_t c3 = M[3];
+    const double R = (c3 & 255) / 255.0, G = (c3 >> 8 & 255) / 255.0, B = (c3 >> 16 & 255) / 255.0, mx = std::max({R, G, B}), mn = std::min({R, G, B});
+    double h = mx - mn < 1e-9 ? 0 : mx == R ? std::fmod((G - B) / (mx - mn), 6.0) : mx == G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
+    h = h * 60.0 < 0 ? h * 60.0 + 360.0 : h * 60.0;
+    if (med > 50.0 || h < 200.0 || h > 290.0) return fmt("dark glass: body median %.0f luma (50), lit hue %.0f (200-290)", med, h);
+  }
+  // FURNACE and a glowing alloy: 8 glow pixels or more on the seams at T4 (D28, D40)
+  if ((g.r.has("glowseams")) && top == 4 && glow < 8) return fmt("glow seams: %d glow pixels at T4 (8)", glow);
+  // iridescent: two hue groups 40 degrees or more apart, each 20 % or more of the metal pixels (Metal and Metal 2 bands)
+  if (g.L.sheen == 5 && g.r.irisBands && metal + m2 > 0) {
+    // (on the body's armour: the torso, its skirt, its motif; the helm, shield and limbs carry their own single hue)
+    int bm = 0, b2 = 0;
+    for (size_t k = 0; k < p.code.size(); k++) {
+      const int o = p.owner[k];
+      if (p.code[k] < 2 || o < 0 || !(p.items[(size_t)o].has(doll::Role::Armour) || p.items[(size_t)o].has(doll::Role::Overlay))) continue;
+      const doll::Slot sl = doll::codeSlot(p.code[k]);
+      if (sl == doll::Slot::Metal) bm++;
+      else if (sl == doll::Slot::Metal2) b2++;
+    }
+    const double share = bm + b2 ? (double)b2 / (double)(bm + b2) : 0.0;
+    if (share < 0.2 || share > 0.8 || m2rows.size() < 2) return fmt("iridescent: the second hue on %.0f %% of the metal (20-80), %zu rows", share * 100, m2rows.size());
+    // two hue groups 40 degrees or more apart (the body's and Metal 2's mid steps, HSV hue)
+    auto hue = [](uint32_t c) {
+      const double R = (c & 255) / 255.0, G = (c >> 8 & 255) / 255.0, B = (c >> 16 & 255) / 255.0, mx = std::max({R, G, B}), mn = std::min({R, G, B});
+      if (mx - mn < 1e-6) return 0.0;
+      double h = mx == R ? std::fmod((G - B) / (mx - mn), 6.0) : mx == G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
+      h *= 60.0;
+      return h < 0 ? h + 360.0 : h;
+    };
+    const double dh = std::fabs(std::fmod(hue(M[2]) - hue(r.ramps.c[(int)doll::Slot::Metal2][2]) + 540.0, 360.0) - 180.0);
+    if (dh < 40.0) return fmt("iridescent: the two hues %.0f degrees apart (40)", dh);
   }
   // the sheen's tell (HumanLook::sheen = cult::Sheen + 1)
   if (sheenChecked) *sheenChecked = true;
@@ -617,7 +695,7 @@ int dollForgeGatesImpl(bool report, std::vector<std::string>& printed) {
   const int was = art::rigVersion();
   art::setRigVersion(2);
   const std::vector<GLook> looks = forgeLooks();
-  Line a{"C16a hero styles"}, s{"C16s silhouettes"}, b{"C16b alloys drawn"}, c{"C16c vs metal word"}, m17{"C17 metal and sheen"},
+  Line a{"C16a hero styles"}, s{"C16s silhouettes"}, m17{"C17 metal and sheen"},
        c1f{"C1 source F"}, c12{"C12a T2 to T3"}, blade{"C17 blades"}, st{"C16 C17 selftests"};
   static const char* const kHero[10] = {"fm_home", "fm_tan", "fm_bronze", "fm_iron", "fm_steel", "fm_gilt", "fm_obsid", "fm_ember", "fm_star", "fm_myth"};
   // C1 source F: every forge look resolves with nothing missing
@@ -640,32 +718,8 @@ int dollForgeGatesImpl(bool report, std::vector<std::string>& printed) {
       const double sx = std::max(gearXor(A->r, B->r, 0), gearXor(A->r, B->r, 2));
       if (sx < 0.04) s.bad(fmt("%s vs %s: gear silhouette XOR %.1f %% (4)", kHero[i], kHero[j], sx * 100)); else s.ok();
     }
-  // C16b drawn: a culture's alloys pairwise on its T4 kit, every people, seeds 1..8 (XOR 3 % in a facing, edge 0.25)
-  for (int pe = 0; pe < 12; pe++)
-    for (int sd = 1; sd <= 8; sd++) {
-      const cult::Culture C = cult::Atlas::make((cult::Archetype)pe, (uint32_t)sd);
-      const int n = (int)C.arms.alloys.size();
-      std::vector<GLook> al;
-      for (int k = 1; k <= n; k++) al.push_back(glook(fmt("%s%d.%d", kPeople[pe], sd, k), 0, fmt("kit=%s:4:%d,alloy=%d,palette=look", kPeople[pe], sd, k)));
-      for (int i = 0; i < n; i++)
-        for (int j = i + 1; j < n; j++) {
-          const Pair p = comparePair(al[(size_t)i].r, al[(size_t)j].r);
-          if (std::max(p.xorD, p.xorR) < 0.03 || p.edge < 0.25)
-            b.bad(fmt("%s s%d %s vs %s: XOR %.1f %% (3), edge %.2f (0.25)", kPeople[pe], sd, C.arms.alloys[(size_t)i].name.c_str(),
-                      C.arms.alloys[(size_t)j].name.c_str(), std::max(p.xorD, p.xorR) * 100, p.edge));
-          else b.ok();
-        }
-      // C16c: each alloy against its metal word's hero style on the same kit (edge 0.15 or XOR 2 %)
-      for (int i = 0; i < n; i++) {
-        const int w = gear::alloyMetalWord(C.arms.alloys[(size_t)i], std::min(i, 2));
-        const GLook h = glook("w", 0, fmt("kit=%s:4:%d,alloy=%d,forge=%s,palette=look", kPeople[pe], sd, i + 1, F::valueName(F::AX_BASE, gear::wordHeroBase(w))));
-        const Pair p = comparePair(al[(size_t)i].r, h.r);
-        if (p.edge < 0.15 && std::max(p.xorD, p.xorR) < 0.02)
-          c.bad(fmt("%s s%d %s vs %s: edge %.2f, XOR %.1f %%", kPeople[pe], sd, C.arms.alloys[(size_t)i].name.c_str(), F::valueName(F::AX_BASE, gear::wordHeroBase(w)),
-                    p.edge, std::max(p.xorD, p.xorR) * 100));
-        else c.ok();
-      }
-    }
+  // (forge round 2) C16b and C16c (round 1's texture distances) are retired: C16o, C16m, C16n and the visor term
+  // (test_doll_shapes.cpp dollShapeGates) measure the outline at 1x with the colour removed
   // C17: every forge look (D, R), and every family x sheen on its people's T4 kit
   for (const GLook& g : looks)
     for (int fc : {0, 2}) {
@@ -746,13 +800,25 @@ int dollForgeGatesImpl(bool report, std::vector<std::string>& printed) {
       for (int i = 0; i < 5; i++) clay.r.ramps.c[(int)doll::Slot::Metal][i] = cl[i];
       if (!c17Look(clay, 0).empty()) caught++;
     }
-    if (caught == 2) st.ok(); else st.bad(fmt("%d of 2 caught", caught));
-    printed.push_back(fmt("  C16 C17 selftest: %s", caught == 2 ? "ALL CAUGHT" : "MISSED"));
+    // (forge round 2) a one-hue iridescent (Metal 2 the body's own ramp) must FAIL C17
+    {
+      GLook one = glook("one", 1, "kit=starspire:5:1,alloy=3,palette=look");
+      for (int i = 0; i < 5; i++) one.r.ramps.c[(int)doll::Slot::Metal2][i] = one.r.ramps.c[(int)doll::Slot::Metal][i];
+      if (!c17Look(one, 0).empty()) caught++;
+      else printed.push_back("  selftest MISSED: a one-hue iridescent passes C17");
+    }
+    if (caught == 3) st.ok(); else st.bad(fmt("%d of 3 caught", caught));
+    printed.push_back(fmt("  C16 C17 selftest: %s", caught == 3 ? "ALL CAUGHT" : "MISSED"));
   }
   int fails = 0;
-  for (Line* l : {&c1f, &a, &s, &b, &c, &m17, &blade, &c12, &st}) {
+  for (Line* l : {&c1f, &a, &s, &m17, &blade, &c12, &st}) {
     printed.push_back(fmt("%s %-24s %4d checks, %4d failed%s%s", l->fails ? "FAIL:" : "ok   ", l->id.c_str(), l->checks, l->fails, l->fails ? "; first: " : "", l->first.c_str()));
     fails += l->fails ? 1 : 0;
+  }
+  {   // (forge round 2) C16o, C16m, C16n, the visor term
+    std::vector<std::pair<std::string, art::HumanLook>> fl;
+    for (const GLook& g : looks) fl.push_back({g.tag, g.L});
+    fails += dollShapeGates(report, printed, fl);
   }
   art::setRigVersion(was);
   return fails;
@@ -931,11 +997,54 @@ int dollForgeCoverage(int argc, char** argv) {
   };
   std::map<std::string, int> missing;
   int total = 0, clean = 0;
+  // (forge round 2) the silhouette: every value the resolver could not apply (r.forgeMissing), and a sleeve part's keys the
+  // forge clips name for its arm channel (no key fallback: a missing key draws the close arm)
+  auto shapeMissing = [&](const doll::DollRecipe& r, std::vector<std::string>& mine) {
+    for (const std::string& m : r.forgeMissing) mine.push_back(m);
+    const uint16_t armR = P.strId("armR"), armL = P.strId("armL");
+    for (int pi : r.parts) {
+      const doll::pool::PartRec& p = P.parts[(size_t)pi];
+      std::string sv;
+      for (const doll::pool::RoleRec& rr : p.roles)
+        if (rr.cat == (uint8_t)doll::Role::Overlay && P.s(rr.value).rfind("sleeve.", 0) == 0) sv = P.s(rr.value);
+      if (sv.empty()) continue;
+      for (uint8_t part : {(uint8_t)art::RigPart::Loco, (uint8_t)art::RigPart::Run, (uint8_t)art::RigPart::Drawn, (uint8_t)art::RigPart::Action})
+        for (const doll::pool::ClipRec* c : doll::pool::clipsOf(r.bodyKey, part, r.family, -1, &r))
+          for (uint16_t fi = 0; fi < c->nFrames; fi++) {
+            const doll::pool::FrameRec& fr = P.frames[c->firstFrame + fi];
+            for (const doll::pool::KeyRec& k : fr.keys) {
+              if (k.channel != p.channel || (k.channel != armR && k.channel != armL) || k.key == P.ids.dash) continue;
+              const int facing = (fr.turn || c->clip == (uint8_t)art::Clip::Lying) ? 3 : c->facing;
+              if (!doll::pool::viewOf(p, facing, k.key))
+                mine.push_back(sv + " (" + doll::bodySetName(r.body) + ") " + P.s(p.name) + " " + "DURL"[facing & 3] + " key " + P.s(k.key));
+            }
+          }
+    }
+  };
+  for (const gear::BoardCulture& bc : gear::forgeBoardSet()) {
+    const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
+    for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
+      total++;
+      art::HumanLook L;
+      L.hair = art::Hair::Short; L.hairVar = 2; L.weapon = 1;
+      L = gear::alloyKitLook(L, c, i);
+      const doll::DollRecipe r = doll::resolve(L);
+      std::vector<std::string> mine;
+      for (const doll::Missing& x : doll::dollMissing(L)) mine.push_back(x.what());
+      shapeMissing(r, mine);
+      std::sort(mine.begin(), mine.end());
+      mine.erase(std::unique(mine.begin(), mine.end()), mine.end());
+      if (mine.empty()) { clean++; continue; }
+      for (const std::string& m : mine) missing[m]++;
+      if (report) std::printf("    board %s: %d missing; first %s\n", c.arms.alloys[(size_t)i].name.c_str(), (int)mine.size(), mine[0].c_str());
+    }
+  }
   for (const dollforge::GLook& g : dollforge::forgeLooks()) {
     total++;
     std::vector<std::string> mine;
     for (const doll::Missing& x : doll::dollMissing(g.L)) mine.push_back(x.what());
     const doll::DollRecipe& r = g.r;
+    shapeMissing(r, mine);
     const doll::BodySet body = r.body;
     const uint8_t* b = r.forgeAx[art::HumanLook::TIER_BODY];
     if (g.L.forge[art::HumanLook::TIER_BODY] && r.armourFam >= 0) {
@@ -947,12 +1056,12 @@ int dollForgeCoverage(int argc, char** argv) {
         const std::string v = F::valueName(F::AX_CUT, b[F::AX_CUT]);
         if (!overlayDrawn("cut." + v, body) && !whenDrawn("cut-" + v, body)) mine.push_back("cut." + v + " (" + doll::bodySetName(body) + ")");
       }
-      if (b[F::AX_EDGE] && !overlayDrawn(std::string("edge.") + F::valueName(F::AX_EDGE, b[F::AX_EDGE]), body) &&
+      if (b[F::AX_EDGE] && std::strcmp(F::valueName(F::AX_EDGE, b[F::AX_EDGE]), "plain") && !overlayDrawn(std::string("edge.") + F::valueName(F::AX_EDGE, b[F::AX_EDGE]), body) &&
           !whenDrawn(std::string("edge-") + F::valueName(F::AX_EDGE, b[F::AX_EDGE]), body))
         mine.push_back(std::string("edge.") + F::valueName(F::AX_EDGE, b[F::AX_EDGE]));
       if (b[F::AX_FIT] && !overlayDrawn(std::string("fit.") + F::valueName(F::AX_FIT, b[F::AX_FIT]), body))
         mine.push_back(std::string("fit.") + F::valueName(F::AX_FIT, b[F::AX_FIT]));
-      if (b[F::AX_LIMB] && !overlayDrawn(std::string("limb.") + F::valueName(F::AX_LIMB, b[F::AX_LIMB]), body))
+      if (b[F::AX_LIMB] && std::strcmp(F::valueName(F::AX_LIMB, b[F::AX_LIMB]), "plain") && !overlayDrawn(std::string("limb.") + F::valueName(F::AX_LIMB, b[F::AX_LIMB]), body))
         mine.push_back(std::string("limb.") + F::valueName(F::AX_LIMB, b[F::AX_LIMB]));
     }
     const uint8_t* h = r.forgeAx[art::HumanLook::TIER_HELM];
@@ -961,7 +1070,7 @@ int dollForgeCoverage(int argc, char** argv) {
       mine.push_back(std::string("crest.") + F::valueName(F::AX_CREST, h[F::AX_CREST]));
     for (int sl : {(int)art::HumanLook::TIER_GLOVES, (int)art::HumanLook::TIER_BOOTS}) {
       const int lv = r.forgeAx[sl][F::AX_LIMB];
-      if (lv && !overlayDrawn(std::string("limb.") + F::valueName(F::AX_LIMB, lv), body)) mine.push_back(std::string("limb.") + F::valueName(F::AX_LIMB, lv));
+      if (lv && std::strcmp(F::valueName(F::AX_LIMB, lv), "plain") && !overlayDrawn(std::string("limb.") + F::valueName(F::AX_LIMB, lv), body)) mine.push_back(std::string("limb.") + F::valueName(F::AX_LIMB, lv));
     }
     std::sort(mine.begin(), mine.end());
     mine.erase(std::unique(mine.begin(), mine.end()), mine.end());

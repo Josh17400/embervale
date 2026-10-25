@@ -307,7 +307,17 @@ struct Item {
   int ax = 0, ay = 0;     // the anchor's canvas position
   int tx = 0, ty = 0;     // the pattern tile's origin: the neck's rest point moved by this item's own anchor
   const ViewRec* clip = nullptr;   // (P2c forge) the key fallback: a rest overlay clipped to this key view's opaque pixels
+  bool clipTorso = false;          // (forge round 2) a motif's rest view serving a torso key: clipped to the torso armour's view
+  bool iris = false;               // (forge round 2) a skirt or motif on an iridescent alloy: its metal in alternating bands
+  bool irisRows = false;           // (INTEGRATE silhouettes i1) the body armour's bands: every 2 drawn rows (its seams ignored)
+  bool noErase = false;            // (forge round 2, D41) a pauldron lifted over the cloak's front: its erase cells cut nothing
 };
+// (forge round 2) a part serving `role overlay <prefix>...` (skirt., motif., sleeve.)
+bool overlayPrefix(const Pool& P, const PartRec& p, const char* prefix) {
+  for (const RoleRec& rr : p.roles)
+    if (rr.cat == (uint8_t)Role::Overlay && P.s(rr.value).rfind(prefix, 0) == 0) return true;
+  return false;
+}
 struct Tile { const ViewRec* v = nullptr; Slot on = Slot::Cloth1; };
 // (P2c) a region tile (`tags tile` + `on-region <R>`): repeated over those regions' pixels on every part that marks them
 // (ladder) fin: a finish tile's FIN_TILE_* bit; fit / stamp: LADDER-FINISH's placements (`tags fit`: the view <prefix><w>x<h>
@@ -553,6 +563,9 @@ const ViewRec* forgeView(const Pool& P, const ViewRec& v, const std::vector<Forg
           const uint8_t tc = T->cells[(size_t)ty * T->w + tx];
           if (tc < 2) continue;
           if (codeSlot(tc) == Slot::Ink) c = code(codeSlot(c), std::clamp(codeStep(c) + codeStep(tc) - 2, 1, 4));
+          // (silhouettes i2, the blind panel: "T1 padded: red dots read as a rash or blood") a quilt's ties sit in the
+          // cloth's own shade (its seam step), never a second hue on the cream
+          else if (codeSlot(tc) == Slot::Accent && codeSlot(c) == Slot::Cloth3) c = code(Slot::Cloth3, std::max(1, codeStep(c) - 2));
           else c = tc;
           const uint8_t tr = treg ? T->regions[(size_t)ty * T->w + tx] : 0;
           if (tr) {
@@ -622,11 +635,51 @@ thread_local int g_screenMode = 0;
 // plumed helm: doll_resolve.cpp), every part drawing its rest key that has a `breeze` view draws that instead (the cloak's
 // hem out a pixel, the crest's tail lifted). The panel saw nothing move on the top tiers; the art was drawn, no clip named it.
 thread_local bool g_breeze = false;
+// (forge round 2, D41) the falls and the lying figures keep their pauldrons on the arm layer (a fall's arms fly past the
+// cloak, and a lifted shoulder closed 1-2 px pockets against the helm: C3a)
+thread_local bool g_deathPart = false;
 // (P2c forge i2; PLAN C17, STYLE_P2 28.8: "a near-white glint"; the blind panel: "armour fill is 1-px dither noise instead
 // of the reference's clean planes") the glints on a styled body's armour and pauldrons: 1 to 3 step-4 clusters from T2. The
 // cut tiles' lit rows and the mail and scale units left 4-7 scattered step-4 specks (noise at 1x); to T4 the three nearest
 // the top-left light keep their glint, the rest drop to the lit plane (step 3; T5-T6 keep the finish's sparkle, C12b). A figure with none (bronze, the ember, the
 // Mythic: their lit planes stop at step 3) takes one on its upper-left lit plane. Styled figures only (forge[] is rig 2's)
+// (INTEGRATE silhouettes i1, STYLE_P2 28.2 "no 1 px texture at 1x"; the owner: "a busy checker on torso and limbs") on a
+// forge-styled figure, a gear pixel of a grey slot whose step (1-3) sits above or below all of its 3-4 same-slot gear
+// neighbours (outlines and seams aside) takes their middle step: one pass, read from a copy. Glints (step 4) are the
+// glint pass's, after this
+void despecklePass(const DollRecipe& r, FrameOut& o) {
+  bool anyStyled = r.shape[0] || r.shape[1] || r.shape[2] || r.shape[3];
+  for (int t = 0; t < HumanLook::TIER_SLOTS && !anyStyled; t++)
+    for (int a = 0; a < 8; a++) anyStyled |= r.forgeAx[t][a] != 0;
+  if (!anyStyled || o.bx1 < o.bx0) return;
+  const int x0 = std::max(1, o.bx0), x1 = std::min(CW - 2, o.bx1), y0 = std::max(1, o.by0), y1 = std::min(CH - 2, o.by1);
+  static thread_local std::vector<uint8_t> src;
+  src = o.code;
+  auto gear = [&](size_t k) { return (g_bodyPiece[k] & 2) != 0 && src[k] >= 2; };
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      const size_t k = (size_t)y * CW + x;
+      if (!gear(k)) continue;
+      const uint8_t c = src[k];
+      const Slot s = codeSlot(c);
+      const int st = codeStep(c);
+      if (st == 0 || st == 4 || !greySlot(s)) continue;
+      int above = 0, below = 0, n = 0, sum = 0;
+      int steps[4];
+      for (size_t k2 : {k - 1, k + 1, k - (size_t)CW, k + (size_t)CW}) {
+        const uint8_t c2 = src[k2];
+        if (!gear(k2) || codeSlot(c2) != s || codeStep(c2) == 0) continue;
+        steps[n++] = codeStep(c2);
+        sum += codeStep(c2);
+        if (st > codeStep(c2)) above++;
+        if (st < codeStep(c2)) below++;
+      }
+      if (n < 3 || (above != n && below != n)) continue;
+      std::sort(steps, steps + n);
+      o.code[k] = code(s, std::min(3, steps[n / 2]));
+      (void)sum;
+    }
+}
 void glintPass(const DollRecipe& r, FrameOut& o) {
   bool styled = false, anyStyled = false;
   for (int a = 0; a < 8; a++) styled |= r.forgeAx[HumanLook::TIER_BODY][a] != 0;
@@ -640,7 +693,7 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
   // (INTEGRATE forge i2, C17: the Highland plaid, the Marsh mantle and the Sylvan kit carry under 12 px of body metal, so
   // the sheen's tell never drew) `wide`: the sheen and glow fallbacks below may use any metal of the figure (helm, shield)
   bool wide = false;
-  auto body = [&](int x, int y) { return wide || g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)] != 0; };
+  auto body = [&](int x, int y) { return wide || (g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)] & 1) != 0; };
   auto metalAt = [&](int x, int y, int step) {
     const uint8_t c = at(x, y);
     return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) == step && body(x, y);
@@ -697,7 +750,7 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
   // a glowing alloy's seams from T4 (D28): where the form's drawing marks few seams (N: the lamellar and scale units
   // carry none), its armour's dark seams light instead: a step-1 metal pixel between two lighter metal pixels (above and
   // below, or left and right), the first 10 down the plates
-  if (r.sheen == 6 && r.pieceTier[HumanLook::TIER_BODY] >= 4 && r.pieceTier[HumanLook::TIER_BODY] <= 5) {
+  if ((r.sheen == 6 || r.has("glowseams")) && r.pieceTier[HumanLook::TIER_BODY] >= 4 && r.pieceTier[HumanLook::TIER_BODY] <= 5) {
     int glow = 0;
     for (int y = 0; y < h; y++)
       for (int x = 0; x < w; x++) { const uint8_t c = at(x, y); if (c >= 2 && codeSlot(c) == Slot::Glow && codeStep(c) >= 2) glow++; }
@@ -719,15 +772,15 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
       const uint8_t c = at(x, y);
       return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Glow) && codeStep(c) >= 1 && body(x, y);
     };
-    for (int y = 0; y < h && glow < 6; y++)
-      for (int x = 0; x < w && glow < 6; x++)
+    for (int y = 0; y < h && glow < 8; y++)
+      for (int x = 0; x < w && glow < 8; x++)
         if (metalAt(x, y, 1) && metalAny(x - 1, y) && metalAny(x + 1, y) && metalAny(x, y - 1) && metalAny(x, y + 1)) {
           at(x, y) = code(Slot::Glow, 2);
           glow++;
         }
     // (INTEGRATE forge i2, C17: the Sylvan kit's body carries too little plate for six) the seam line runs on the widest
     // body row, then on the widest row of any metal (the helm's band, the shield's face)
-    for (int pass = 0; pass < 2 && glow < 6; pass++) {
+    for (int pass = 0; pass < 2 && glow < 8; pass++) {
       if (pass) wide = true;
       int by = -1, bn = 0;
       for (int y = 0; y < h; y++) {
@@ -738,6 +791,117 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
       for (int x = 0, k = 0; by >= 0 && x < w && glow < 10; x++)
         if (metalAt(x, by, 2) && (k++ & 1) == 0) { at(x, by) = code(Slot::Glow, 2); glow++; }
     }
+    // (INTEGRATE silhouettes i1, C17: a tabard or a small plate leaves the seam line short of 8) then every other step 1-2
+    // metal pixel down the body, none beside a glow pixel already lit (a seam's dots, never a blob)
+    auto glowNear = [&](int x, int y) {
+      for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+          if (x + dx < 0 || y + dy < 0 || x + dx >= w || y + dy >= h) continue;
+          const uint8_t c = at(x + dx, y + dy);
+          if (c >= 2 && codeSlot(c) == Slot::Glow) return true;
+        }
+      return false;
+    };
+    const bool wasWide = wide;
+    for (int pass = 0; pass < 2 && glow < 8; pass++) {
+      wide = wasWide || pass == 1;
+      for (int y = 0; y < h && glow < 8; y++)
+        for (int x = 0; x < w && glow < 8; x++)
+          if ((metalAt(x, y, 1) || metalAt(x, y, 2)) && !glowNear(x, y)) { at(x, y) = code(Slot::Glow, 2); glow++; }
+    }
+    wide = wasWide;
+  }
+  // (silhouettes i2, STYLE_P2 28.4 FURNACE "the red is heat in the cracks") the furnace's dark seams glow on every metal piece
+  // (helm, plates, shoulders, skirt): a step-1 metal pixel between two lighter metal pixels, above and below or left and
+  // right, to 26 glow pixels in all; the seam's ends (one lit neighbour pair only) stay dark so the cracks taper
+  if (r.has("furnace")) {
+    const bool was = wide;
+    wide = true;
+    int glow = 0;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) { const uint8_t c = at(x, y); if (c >= 2 && codeSlot(c) == Slot::Glow && codeStep(c) >= 2) glow++; }
+    auto lit = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 2;
+    };
+    // a vent: a dark pixel under a brighter metal lip, metal (or glow) on all four sides (inside the plates, never the rim)
+    auto anyMetal = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Glow);
+    };
+    auto lipAbove = [&](int x, int y) {
+      if (!anyMetal(x - 1, y) || !anyMetal(x + 1, y) || !anyMetal(x, y - 1) || !anyMetal(x, y + 1)) return false;
+      const uint8_t c = at(x, y), u = at(x, y - 1);
+      return codeSlot(u) == Slot::Metal && codeStep(u) > codeStep(c) && codeStep(u) >= 2;
+    };
+    std::vector<int> seam;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+        if ((metalAt(x, y, 1) || metalAt(x, y, 0)) && ((lit(x, y - 1) && lit(x, y + 1)) || (lit(x - 1, y) && lit(x + 1, y)) || lipAbove(x, y))) seam.push_back(y * w + x);
+    // cracks, never specks: a seam pixel with a seam neighbour (a run of 2 or more) first; lone ones only while under 8
+    {
+      std::vector<int> runs, lone;
+      for (int q : seam) {
+        bool nb = false;
+        for (int o : {q - 1, q + 1, q - w, q + w}) nb |= std::find(seam.begin(), seam.end(), o) != seam.end() && (o / w == q / w || o % w == q % w);
+        (nb ? runs : lone).push_back(q);
+      }
+      seam = runs;
+      for (size_t i = 0; i < lone.size() && (int)seam.size() + glow < 8; i++) seam.push_back(lone[i]);
+      std::sort(seam.begin(), seam.end());
+    }
+    // whole cracks spread down the figure (helm to skirt): the seam lines (4-connected), every k-th line until 26 pixels
+    std::vector<std::vector<int>> lines;
+    {
+      std::vector<char> used(seam.size(), 0);
+      for (size_t i = 0; i < seam.size(); i++) {
+        if (used[i]) continue;
+        std::vector<int> ln{seam[i]};
+        used[i] = 1;
+        for (size_t k = 0; k < ln.size(); k++)
+          for (size_t j = 0; j < seam.size(); j++)
+            if (!used[j] && std::abs(seam[j] % w - ln[k] % w) + std::abs(seam[j] / w - ln[k] / w) == 1) { used[j] = 1; ln.push_back(seam[j]); }
+        lines.push_back(ln);
+      }
+    }
+    // the body's plates first (the barrel chest's vents, the skirt's joins: 18 pixels), then the helm, shield and limbs
+    auto onBody = [&](const std::vector<int>& ln) {
+      for (int q : ln) if (g_bodyPiece[(size_t)(y0 + q / w) * CW + (x0 + q % w)] & 1) return true;
+      return false;
+    };
+    for (int grp = 0; grp < 2; grp++) {
+      std::vector<const std::vector<int>*> g;
+      int total = 0;
+      for (const auto& ln : lines) if (onBody(ln) == (grp == 0)) { g.push_back(&ln); total += (int)ln.size(); }
+      const int cap = grp == 0 ? std::min(26, glow + 18) : 26;
+      const int room = std::max(0, cap - glow);
+      if (!room || g.empty()) continue;
+      const size_t step = (size_t)std::max(1, (total + room - 1) / room);
+      for (size_t i = 0; i < g.size() && glow < cap; i += step)
+        for (int q : *g[i]) if (glow < cap) { at(q % w, q / w) = code(Slot::Glow, 2); glow++; }
+    }
+    // (silhouettes i3, the blind panel: "a cold iron stove with lit vents, no red-orange gradient") the heat bleeds into the
+    // iron: a shadow or body metal pixel under or beside a glowing crack takes the glow's dark step (a red ember edge), the
+    // pixel below first (heat rises from the vent's lip), 16 pixels at most, so each crack reads hot-cored, red-rimmed
+    {
+      std::vector<int> halo;
+      auto glow2 = [&](int x, int y) {
+        if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        const uint8_t c = at(x, y);
+        return c >= 2 && codeSlot(c) == Slot::Glow && codeStep(c) >= 2;
+      };
+      for (int pass = 0; pass < 2; pass++)
+        for (int y = 0; y < h; y++)
+          for (int x = 0; x < w; x++) {
+            if (!(metalAt(x, y, 1) || metalAt(x, y, 2))) continue;
+            const bool hit = pass == 0 ? glow2(x, y - 1) : (glow2(x - 1, y) || glow2(x + 1, y) || glow2(x, y + 1));
+            if (hit && std::find(halo.begin(), halo.end(), y * w + x) == halo.end()) halo.push_back(y * w + x);
+          }
+      for (size_t i = 0; i < halo.size() && i < 16; i++) at(halo[i] % w, halo[i] / w) = code(Slot::Glow, 1);
+    }
+    wide = was;
   }
   // the sheen's glint (STYLE_P2 28.7): matte, no step-4 run over 1 px on any metal (a run drops to its first pixel); bright,
   // the top glint a 2 px run (its right or left lit neighbour lifted)
@@ -872,14 +1036,29 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       const ViewRec& w = P.views[wi];
       if ((w.flags & 1) && w.facing == vf && w.key == key && condHolds(r, P.s(w.when))) { v = &w; break; }
     }
+    // (forge round 2, contracts 3c.1) a chest motif's rest view serves every torso key it has no view for (clipped below to
+    // the torso armour's opaque pixels): the motif lives inside the torso and moves with it
+    bool motifFallback = false;
+    if (!v && key != I.rest && !forceKey && overlayPrefix(P, p, "motif.")) {
+      v = viewOf(p, vf, I.rest, 0);
+      motifFallback = v != nullptr;
+    }
     if (!v) continue;
     Item it;
     it.part = &p; it.view = v; it.z = p.z; it.order = pi;
+    it.clipTorso = motifFallback;
+    it.iris = r.irisBands && (overlayPrefix(P, p, "skirt.") || overlayPrefix(P, p, "motif.") || overlayPrefix(P, p, "sleeve."));
+    // (silhouettes i2, C17: the second hue on 11-14 % of the Heartland and Jade kits' metal, the seams too sparse to part the
+    // lames) every iridescent piece alternates in 2-row bands: a two-tone figure at 1x
+    it.irisRows = it.iris;
     it.layer = v->layer != kNone8 ? v->layer : p.layer;
     if (v->layer == kNone8 && p.side && (it.layer == (int)Layer::ArmNear || it.layer == (int)Layer::ArmFar))
       it.layer = (int)((p.side == 1 && facing == 3) || (p.side == 2 && facing == 2) ? Layer::ArmFar : Layer::ArmNear);
     // (P2c) a weapon placed by angle lies on held (front) or heldBack (back) unless its view names a layer
     if (heldPart && f.weapon != -32768 && v->layer == kNone8) it.layer = (int)(f.front ? Layer::Held : Layer::HeldBack);
+    // (forge round 2, D41) shoulders stay on top: on a look with a cloak or the T5 surcoat the near pauldron draws on layer head
+    // z -4, over the cloak's front (head z -5) and the surcoat, under the head
+    if (r.pauldronTop && !f.turn && !g_deathPart && it.layer == (int)Layer::ArmNear && partHasRoleCat(p, Role::Pauldron)) { it.layer = (int)Layer::Head; it.z = -4; it.noErase = true; }
     it.anchor = (Anchor)(v->anchor != kNone8 ? v->anchor : p.anchor);
     // a turned frame's screen items (drawn level on the ground after the turn) are the views that NAME `anchor pivot`
     // (the drops, the shield's lie); a part anchored at the pivot by default (the legs, the sword) turns with the body
@@ -887,6 +1066,12 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     const bool screenItem = v->anchor != kNone8 && (Anchor)v->anchor == Anchor::Pivot;
     if (g_screenMode && (screenItem != (g_screenMode == 2))) continue;
     it.garment = (it.layer == (int)Layer::Torso || it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront) && partIsGarment(p);
+    // (INTEGRATE silhouettes i1, STYLE_P2 28.7) the iridescent bands run across all the body armour (torso, hang, mail sleeves), so the
+    // sheen reads at 1x on a figure whose motif or skirt is small (the owner: "iridescent sheen invisible")
+    // (silhouettes i2, C17: the Heartland and Jade kits' second hue at 11-14 %, their metal mostly helm and shoulders) the
+    // shoulders and the helm carry the bands too
+    if (r.irisBands && !it.iris && (partHasRoleCat(p, Role::Armour) || partHasRoleCat(p, Role::Pauldron) || partHasRoleCat(p, Role::Helm)))
+      it.iris = it.irisRows = true;
     items.push_back(it);
     // the optional regions (`when` overlays) of this view whose condition holds
     for (uint32_t wi : p.whenViews) {
@@ -915,6 +1100,12 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
         ov.sub = (int)(wi - p.firstView) + 1;
         items.push_back(ov);
       }
+  }
+  // (forge round 2) the motif fallback's clip: the torso armour's view of this frame
+  for (Item& it : items) {
+    if (!it.clipTorso) continue;
+    for (const Item& o : items)
+      if (!o.sub && o.layer == (int)Layer::Torso && partHasRoleCat(*o.part, Role::Armour)) { it.clip = o.view; break; }
   }
   std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
     if (a.layer != b.layer) return a.layer < b.layer;
@@ -1007,8 +1198,11 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   auto paint = [&](const Item& it, bool handOnly) {
     const ViewRec* vp = it.view;
     // (forge i3) a culture alloy's metal head (DollRecipe::guiseHead) is its armour too: the glints and the sheen's tell may sit on it
-    const uint8_t bodyPiece = (partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
-                               (r.guiseHead && partHasRoleCat(*it.part, Role::Headwear))) ? 1 : 0;
+    // (INTEGRATE silhouettes i1) bit 2: any gear piece (armour, helm, pauldron, overlay) for the despeckle pass
+    const uint8_t bodyPiece = (uint8_t)(((partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
+                                          (r.guiseHead && partHasRoleCat(*it.part, Role::Headwear))) ? 1 : 0) |
+                                        ((partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
+                                          partHasRoleCat(*it.part, Role::Helm) || partHasRoleCat(*it.part, Role::Overlay)) ? 2 : 0));
     // (P2c forge) the cut tiles and edge stamps laid into the body's armour and pauldron views (a `when` overlay keyed on a
     // forge flag is the style's own drawing: no tile over it; edges only on the base views)
     if (!ftiles.empty() && !handOnly && partTierSlot(it.order) == HumanLook::TIER_BODY) {
@@ -1099,6 +1293,28 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           }
       }
     }
+    // (forge round 2, contracts 3c.1) the iridescent bands: a skirt's or motif's metal alternates Metal and Metal 2 per band
+    // between its N seams (every 3 drawn rows where none is marked)
+    static thread_local std::vector<uint8_t> irisBand;
+    if (it.iris) {
+      irisBand.assign(v.h, 0);
+      bool seams = false;
+      if (hasReg && !it.irisRows)
+        for (size_t k = 0; k < v.regions.size() && !seams; k++) seams = v.regions[k] == (uint8_t)Region::Seam && v.cells[k] >= 2;
+      uint8_t b = 0;
+      int top = -1;
+      for (int y = 0; y < v.h; y++) {
+        bool any = false, seamRow = false;
+        for (int x = 0; x < v.w; x++) {
+          const size_t k = (size_t)y * v.w + x;
+          if (v.cells[k] >= 2) any = true;
+          if (hasReg && v.regions[k] == (uint8_t)Region::Seam && v.cells[k] >= 2) seamRow = true;
+        }
+        if (any && top < 0) top = y;
+        irisBand[(size_t)y] = b;
+        if (seams ? seamRow : (top >= 0 && (y - top) % (it.irisRows ? 2 : 3) == (it.irisRows ? 1 : 2))) b ^= 1;
+      }
+    }
     for (int y = 0; y < v.h; y++) {
       int ys[2] = {y, INT32_MIN};
       if (stretch) {
@@ -1123,6 +1339,8 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           if (fs != 0xFF) c = code((Slot)fs, codeStep(c));
         }
         if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
+        // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
+        if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
         if (toMetal && c >= 2) {
           const Slot qs = codeSlot(c);
           if (qs == Slot::Head || qs == Slot::Cloth1 || qs == Slot::Cloth2 || qs == Slot::Cloth3 || qs == Slot::Linen || qs == Slot::Leather)
@@ -1176,7 +1394,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             if (tsl == Slot::Ink && (rt.fin || rt.forge)) nk = std::clamp(ck + tk - 2, rt.stamp ? 0 : 1, 4);   // (ladder) ink moves the step by k - 2
             else if (rt.fin && (rt.stamp || tsl == Slot::Glow)) nk = tk;                          // stamps and light write their step
             else nk = tk == 2 ? ck : tk == 1 ? std::max(1, ck - 1) : tk == 3 ? std::min(4, ck + 1) : tk;
-            c = code(tsl == Slot::Ink ? codeSlot(c) : tsl, nk);
+            // (silhouettes i2, the blind panel: "T1 padded: red 1-2 px dots read as a rash or blood") the wear stamps darn and
+            // fray in the garment's own colour (its step), never in a second hue
+            const bool toneOnTone = rt.fin == FIN_TILE_WEAR && tsl != Slot::Glow;
+            c = code(tsl == Slot::Ink || toneOnTone ? codeSlot(c) : tsl, toneOnTone ? std::clamp(nk, 1, 3) : nk);
             break;
           }
         for (int yi = 0; yi < 2; yi++) {
@@ -1187,6 +1408,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             const int X = it.ax + dx - v.ox + sx, Y = it.ay + ys[yi] - v.oy;
             if (X < 0 || Y < 0 || X >= CW || Y >= CH) continue;
             if (c == kErase) {
+              if (it.noErase) continue;
               if (heldPx[(size_t)Y * CW + X] && !heldMark && helmErase) continue;
               o.code[(size_t)Y * CW + X] = 0;
               g_bodyPiece[(size_t)Y * CW + X] = 0;
@@ -1230,7 +1452,67 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       paint(items[(size_t)gripLFrom], true);
     }
   }
+  despecklePass(r, o);
   glintPass(r, o);
+  // (silhouettes i2, the blind panel: "Mythic: a fire-sparkle soup of bright 1-2 px specks, the face only just readable";
+  // C13's bright-pixel budget) on the Mythic a glow speck (a blob of 1-2 pixels) goes dark: the fire lives
+  // in the cracks and the rims, never as speckle
+  if (r.has("mythic") && o.bx1 >= o.bx0) {
+    static thread_local std::vector<uint8_t> src;
+    src = o.code;
+    auto glowAt = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= CW || y >= CH) return false;
+      const uint8_t c = src[(size_t)y * CW + x];
+      return c >= 2 && codeSlot(c) == Slot::Glow;
+    };
+    // a glow blob of 1 or 2 pixels (8-connected) is a speck: it goes dark (the cracks and rims are longer)
+    static thread_local std::vector<uint8_t> seen;
+    seen.assign((size_t)CW * CH, 0);
+    std::vector<int> blob, st;
+    for (int y = o.by0; y <= o.by1; y++)
+      for (int x = o.bx0; x <= o.bx1; x++) {
+        if (!glowAt(x, y) || seen[(size_t)y * CW + x]) continue;
+        blob.clear(); st.assign(1, y * CW + x);
+        seen[(size_t)y * CW + x] = 1;
+        while (!st.empty() && blob.size() < 3) {
+          const int q = st.back(); st.pop_back();
+          blob.push_back(q);
+          for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++) {
+              const int nx = q % CW + dx, ny = q / CW + dy;
+              if ((dx || dy) && glowAt(nx, ny) && !seen[(size_t)ny * CW + nx]) { seen[(size_t)ny * CW + nx] = 1; st.push_back(ny * CW + nx); }
+            }
+        }
+        if (blob.size() + st.size() > 2) continue;
+        bool held = false;
+        for (int q : blob) held |= heldPx[(size_t)q] != 0;
+        if (!held) for (int q : blob) o.code[(size_t)q] = code(Slot::Metal, 1);
+      }
+    // (silhouettes i3, the blind panel: "the crackle and flame finish is 1 px glitter noise all over the body, yellow-orange
+    // speckles floating off the crown") a lone metal or glow pixel whose four neighbours all share one other code takes that
+    // code (the plates read as planes; the cracks, 2 px and longer, stay), and a figure pixel with no figure neighbour (a
+    // floating spark) is cleared
+    src = o.code;
+    auto codeAt = [&](int x, int y) -> uint8_t { return x < 0 || y < 0 || x >= CW || y >= CH ? 0 : src[(size_t)y * CW + x]; };
+    for (int y = o.by0; y <= o.by1; y++)
+      for (int x = o.bx0; x <= o.bx1; x++) {
+        const size_t q = (size_t)y * CW + x;
+        const uint8_t c = src[q];
+        if (c < 2 || heldPx[q]) continue;
+        const Slot s = codeSlot(c);
+        int nb = 0;
+        for (int dy = -1; dy <= 1; dy++)
+          for (int dx = -1; dx <= 1; dx++) nb += (dx || dy) && codeAt(x + dx, y + dy) >= 2;
+        if (!nb && (s == Slot::Glow || s == Slot::Metal || s == Slot::Metal2)) { o.code[q] = 0; continue; }
+        if (s != Slot::Metal && s != Slot::Metal2 && s != Slot::Glow) continue;
+        if (codeStep(c) == 0) continue;
+        const uint8_t u = codeAt(x, y - 1), d = codeAt(x, y + 1), l = codeAt(x - 1, y), rr = codeAt(x + 1, y);
+        if (u == d && d == l && l == rr && u != c && u >= 2 && codeStep(u) != 0) {
+          const Slot us = codeSlot(u);
+          if (us == Slot::Metal || us == Slot::Metal2 || us == Slot::Glow) o.code[q] = u;
+        }
+      }
+  }
 }
 
 // A3's selout over a w x h code buffer: an outline pixel (step 0 of a lit slot) whose outward edge faces the top-left
@@ -1435,11 +1717,24 @@ DollRamps greyRamps(const DollRamps& r) {
 }
 RigSheet compose(const DollRecipe& rIn, RigPart part, const ComposeOpts* opts) {
   const ComposeOpts op = opts ? *opts : ComposeOpts{};
+  struct DeathFlag { DeathFlag(bool v) { g_deathPart = v; } ~DeathFlag() { g_deathPart = false; } } deathFlag(part == RigPart::Death);
   // (P2c forge) the neutral-ramp compose: every material slot in one grey ramp (the shape with the colour removed)
   DollRecipe greyR;
   if (op.grey) { greyR = rIn; greyR.ramps = greyRamps(rIn.ramps); }
-  const DollRecipe& r0 = op.grey ? greyR : rIn;
+  const DollRecipe& r00 = op.grey ? greyR : rIn;
   const Pool& P = get();
+  // (forge round 2) noHeld: no held weapon, shield, sheath or back item (the outline masks of C16o and C18)
+  DollRecipe bareR;
+  if (op.noHeld) {
+    bareR = r00;
+    bareR.parts.erase(std::remove_if(bareR.parts.begin(), bareR.parts.end(), [&](int pi) {
+                        const PartRec& p = P.parts[(size_t)pi];
+                        return partHasRoleCat(p, Role::Held) || partHasRoleCat(p, Role::Shield) || partHasRoleCat(p, Role::Sheath) ||
+                               partHasRoleCat(p, Role::Fx);
+                      }),
+                      bareR.parts.end());
+  }
+  const DollRecipe& r0 = op.noHeld ? bareR : r00;
   // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the flag `run` while the RUN part composes: a long carried tool (the staff) draws
   // its run carry there (`when run replace`: held close and upright, so the run's frames stay inside B10's 64 KB)
   DollRecipe runR;
@@ -1516,6 +1811,7 @@ const FrameRec* pickFrame(const DollRecipe& r0, RigPart part, int facing, Clip c
 }  // namespace
 
 FrameInfo frameInfo(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i) {
+  struct DeathFlag { DeathFlag(bool v) { g_deathPart = v; } ~DeathFlag() { g_deathPart = false; } } deathFlag(part == RigPart::Death);
   FrameInfo out;
   const Pool& P = get();
   DollRecipe r;
@@ -1532,6 +1828,7 @@ FrameInfo frameInfo(const DollRecipe& r0, RigPart part, int facing, Clip clip, i
 }
 
 FrameProbe probeFrame(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i, bool finish) {
+  struct DeathFlag { DeathFlag(bool v) { g_deathPart = v; } ~DeathFlag() { g_deathPart = false; } } deathFlag(part == RigPart::Death);
   FrameProbe out;
   const Pool& P = get();
   DollRecipe r;

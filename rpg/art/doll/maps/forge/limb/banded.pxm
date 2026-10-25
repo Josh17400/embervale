@@ -15,32 +15,10 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# (FORGE-TORSO round 2 i1) banded: a 2 px lit band, its turn and a dark seam, period 4 (round 2: never 1 px rows).
 
 view D key rest origin 0 0
 |+
-|.
+|+
+|:
 |=

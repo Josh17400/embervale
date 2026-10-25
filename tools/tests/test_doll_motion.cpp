@@ -1311,7 +1311,12 @@ int gapCols(const JLook& L, const JFrame& f, const std::set<int>& cols) {
     bool below = false, behind = false;
     for (auto& k : body) if (k.first == u) { if (k.second > hb) { below = true; mb = std::min(mb, k.second); } else behind = true; }
     if (!below) { if (!behind) n++; continue; }
-    for (int y = hb + 1; y < mb; y++) if (!raw.count({u, y})) { n++; break; }
+    for (int y = hb + 1; y < mb; y++)
+      if (!raw.count({u, y})) {
+        n++;
+        if (std::getenv("EMB_HEAD_DEBUG")) std::printf("    HEAD gap: col %d, head bottom %d, body top %d, clear at %d\n", u, hb, mb, y);
+        break;
+      }
   }
   return n;
 }

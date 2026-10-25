@@ -1,6 +1,7 @@
 # headwear/collar/coif: the forge collar `coif` (STYLE_P2 28.3, contracts 3c: overlay collar.<v>, anchor neck, rigid)
 # A mail hood's edge under the helm: rows of rings round the neck (lit and dark alternating), a scalloped lower edge.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
+# (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
 body adult
 role overlay collar.coif
 layer neck
@@ -44,62 +45,53 @@ legend o cloak 4
 view D key rest origin 6 1
 |vvvvvvvvvvvvv
 |vyxyxyxyxwxwv
-|vxwxwxwxwwwwv
 |vyxyxyxyxwxwv
 |v.v.v.v.v.v.v
 
 view U key rest origin 6 1
 |vvvvvvvvvvvvv
 |vyxyxyxyxwxwv
-|vxwxwxwxwwwwv
 |vyxyxyxyxwxwv
 |v.v.v.v.v.v.v
 
 view R key rest origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view L key rest origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view L key lie origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view R key flow origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view R key flow2 origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view L key flow origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v
 
 view L key flow2 origin 5 1
 |vvvvvvvvvvv
 |vyxyxyxwxwv
-|vxwxwxwwwwv
 |vyxyxyxwxwv
 |v.v.v.v.v.v

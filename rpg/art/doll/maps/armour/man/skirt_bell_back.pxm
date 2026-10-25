@@ -1,0 +1,87 @@
+# armour/<body>/skirt_bell_back: BELL's underside and rim behind the legs (layer back), two rows below the lip.
+# Generated from the FORGE-LIMBS skirt templates (gen_skirts2.py, skirts_def.py; iteration 2: the D view serves U, `tags anyfacing`); Format: rpg/art/doll/doll.h.
+use person
+body man
+role overlay skirt.bell
+layer back
+anchor hip
+keys hang
+tags anyfacing
+z 10
+
+view D key rest origin 11 -5
+|vxxxxxxwwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNNN.
+|......................
+
+view D key flare origin 12 -5
+|vxxxxxxwwwwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNNNNN.
+|........................
+
+view D key idle origin 11 -5
+|vxxxxxxwwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNNN.
+|......................
+
+view R key rest origin 10 -5
+|vxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNN.
+|....................
+
+view R key wide origin 10 -5
+|vxxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNN.
+|.....................
+
+view R key flare origin 12 -5
+|vxxxxxxwwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNNN.
+|......................
+
+view R key idle origin 10 -5
+|vxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNN.
+|....................
+
+view L key rest origin 10 -5
+|vxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNN.
+|....................
+
+view L key wide origin 11 -5
+|vxxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNN.
+|.....................
+
+view L key flare origin 10 -5
+|vxxxxxxwwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNNNN.
+|......................
+
+view L key idle origin 10 -5
+|vxxxxxwwwwwwwwwwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|.NNNNNNNNNNNNNNNNNN.
+|....................
