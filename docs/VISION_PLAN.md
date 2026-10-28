@@ -5104,3 +5104,5 @@ with that last answer.
     recruit's reason to come (befriended, helped, or a regular at the inn). Joining never befriends them, so a raid
     captive who joined as Rescued may have none, though their farewell says "YOU KNOW WHERE TO FIND ME". The plan keeps
     the rule; counting the kept record as a reason to come would be a small new rule.
+    **Ruled 2026-10-28: items 8, 9 and 10 confirmed as written (owner: "sounds good").** Level reads as "nothing
+    they earned resets"; an angry sellsword keeps his anger and wants the apology; return keeps today's reasons to come.
