@@ -42,47 +42,69 @@ legend m cloak 2
 legend n cloak 3
 legend o cloak 4
 
-view D key rest origin 5 3
-mark socket 5 1
+view D key rest origin 5 4
+mark socket 5 2
 |.....vv.....
-|.v..vzwv..v.
-|vzv.vzxv.vxv
-|.vzvyzxwvxv.
-|..vyyxxwwv..
-|...vvvvvv...
+|....vzyv....
+|.vv.vzyv.vv.
+|vyxvvyyxvyxv
+|vyxvyyyxvxwv
+|.vxvyyxxwwv.
+|..vvvvvvvv..
 
-view U key rest origin 5 3
-mark socket 5 1
+view U key rest origin 5 4
+mark socket 5 2
 |.....vv.....
-|.v..vzwv..v.
-|vzv.vzxv.vxv
-|.vzvyzxwvxv.
-|..vyyxxwwv..
-|...vvvvvv...
+|....vzyv....
+|.vv.vzyv.vv.
+|vyxvvyyxvyxv
+|vyxvyyyxvxwv
+|.vxvyyxxwwv.
+|..vvvvvvvv..
 
-view R key rest origin 6 3
-mark socket 6 1
+view R key rest origin 6 4
+mark socket 6 2
 |......vv.....
-|..v..vzwv..v.
-|.vzv.vzxv.vxv
-|..vzvyzxwvxv.
-|...vyyxxwwv..
-|....vvvvvv...
+|.....vzyv....
+|..vv.vzyv.vv.
+|.vyxvvyyxvyxv
+|.vyxvyyyxvxwv
+|..vxvyyxxwwv.
+|...vvvvvvvv..
 
-view L key rest origin 6 3
-mark socket 6 1
+view L key rest origin 6 4
+mark socket 6 2
 |.....vv......
-|.v..vzwv..v..
-|vxv.vzxv.vzv.
-|.vxvyzxwvzv..
-|..vyyxxwwv...
-|...vvvvvv....
+|....vxzv.....
+|.vv.vxzv.vv..
+|vyxvyxxvvyxv.
+|vwyvyxxxvyxv.
+|.vwwyyxxvyv..
+|..vvvvvvvv...
 
-view L key lie origin 6 3
-mark socket 6 1
+view L key lie origin 6 4
+mark socket 6 2
 |.....vv......
-|.v..vzwv..v..
-|vxv.vzxv.vzv.
-|.vxvyzxwvzv..
-|..vyyxxwwv...
-|...vvvvvv....
+|....vxzv.....
+|.vv.vxzv.vv..
+|vyxvyxxvvyxv.
+|vwyvyxxxvyxv.
+|.vwwyyxxvyv..
+|..vvvvvvvv...
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
+|.

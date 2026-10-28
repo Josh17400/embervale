@@ -89,6 +89,43 @@ mark socket 2 1
 |.....vzxv.
 |.......vxv
 
+# (FORGE-HEAD envelope r1) the cone's backswept blade (TILSTEEL)
+
+view D key rest origin 2 4 when helmfam-cone replace
+|..v..
+|.vzv.
+|.vyv.
+|.vyv.
+|..v..
+
+view U key rest origin 2 4 when helmfam-cone replace
+|..v..
+|.vzv.
+|.vyv.
+|.vyv.
+|..v..
+
+view R key rest origin 9 4 when helmfam-cone replace
+|vv.........
+|vzvv.......
+|.vyzvvv....
+|..vvyyxvv..
+|....vvvxwv.
+
+view L key rest origin 1 4 when helmfam-cone replace
+|.........vv
+|.......vvyv
+|....vvvyxv.
+|..vvyxxvv..
+|.vxyvvv....
+
+view L key lie origin 1 4 when helmfam-cone replace
+|.........vv
+|.......vvyv
+|....vvvyxv.
+|..vvyxxvv..
+|.vxyvvv....
+
 # (FORGE-HEAD i2) crest yield: drawn only on cone crested; any other alloy helm family wears no knife crest
 view D key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
 |.
@@ -103,4 +140,21 @@ view L key rest when alloyshape,!helmfam-cone,!helmfam-crested replace
 |.
 
 view L key lie when alloyshape,!helmfam-cone,!helmfam-crested replace
+|.
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
 |.

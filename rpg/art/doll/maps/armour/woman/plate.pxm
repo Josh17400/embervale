@@ -1202,7 +1202,7 @@ view R key rest origin 6 -1
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1248,7 +1248,7 @@ view R key rest origin 6 -1 when armour.t6 replace
 |..JHDDDDDDDJ.
 |..-JIHDDDDJ..
 |..-JHHDDDJJ..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..JHIHDDDDDJ.
 |.JHIHDDDDDDJ.
 regions
@@ -1271,7 +1271,7 @@ view R key rest origin 6 -1 when armour.t5 replace
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fNOOOOOPf..
+|..fNOOOOOOf..
 |..moponnnnnm.
 |.moponnnnnnm.
 regions
@@ -1294,7 +1294,7 @@ view R key idle origin 6 -1
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1340,7 +1340,7 @@ view R key idle origin 6 -1 when armour.t6 replace
 |..JHDDDDDDDJ.
 |..-JIHDDDDJ..
 |..-JHHDDDJJ..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..JHIHDDDDDJ.
 |.JHIHDDDDDDJ.
 regions
@@ -1363,7 +1363,7 @@ view R key idle origin 6 -1 when armour.t5 replace
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fNOOOOOPf..
+|..fNOOOOOOf..
 |..moponnnnnm.
 |.moponnnnnnm.
 regions
@@ -1385,7 +1385,7 @@ view R key run origin 6 -1
 |..vzyxwwwwwv.
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1427,7 +1427,7 @@ view R key run origin 6 -1 when armour.t6 replace
 |..JXIHDDDDDJ.
 |..JHDDDDDDDJ.
 |..-JIHDDDDJ..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..JHIHDDDDDJ.
 |.JHIHDDDDDDJ.
 regions
@@ -1448,7 +1448,7 @@ view R key run origin 6 -1 when armour.t5 replace
 |..vzyxwwwwwv.
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
-|..fNOOOOOPf..
+|..fNOOOOOOf..
 |..moponnnnnm.
 |.moponnnnnnm.
 regions
@@ -1469,7 +1469,7 @@ view R key runl origin 6 -1
 |.vzyxwwwwwv..
 |.vxwwwwwwwv..
 |.-vyxwwwwv...
-|.fghhhhhPf...
+|.fghhhhhOf...
 |.vxyxwwwwwv..
 |vxyxwwwwwwv..
 regions
@@ -1511,7 +1511,7 @@ view R key runl origin 6 -1 when armour.t6 replace
 |.JXIHDDDDDJ..
 |.JHDDDDDDDJ..
 |.-JIHDDDDJ...
-|.fghhhhhPf...
+|.fghhhhhOf...
 |.JHIHDDDDDJ..
 |JHIHDDDDDDJ..
 regions
@@ -1532,7 +1532,7 @@ view R key runl origin 6 -1 when armour.t5 replace
 |.vzyxwwwwwv..
 |.vxwwwwwwwv..
 |.-vyxwwwwv...
-|.fNOOOOOPf...
+|.fNOOOOOOf...
 |.moponnnnnm..
 |moponnnnnnm..
 regions
@@ -1554,7 +1554,7 @@ view R key drawn origin 6 -1
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1600,7 +1600,7 @@ view R key drawn origin 6 -1 when armour.t6 replace
 |..JHDDDDDDDJ.
 |..-JIHDDDDJ..
 |..-JHHDDDJJ..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..JHIHDDDDDJ.
 |.JHIHDDDDDDJ.
 regions
@@ -1623,7 +1623,7 @@ view R key drawn origin 6 -1 when armour.t5 replace
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fNOOOOOPf..
+|..fNOOOOOOf..
 |..moponnnnnm.
 |.moponnnnnnm.
 regions
@@ -1646,7 +1646,7 @@ view R key swing origin 6 -1
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1692,7 +1692,7 @@ view R key swing origin 6 -1 when armour.t6 replace
 |..JHDDDDDDDJ.
 |..-JIHDDDDJ..
 |..-JHHDDDJJ..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..JHIHDDDDDJ.
 |.JHIHDDDDDDJ.
 regions
@@ -1715,7 +1715,7 @@ view R key swing origin 6 -1 when armour.t5 replace
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fNOOOOOPf..
+|..fNOOOOOOf..
 |..moponnnnnm.
 |.moponnnnnnm.
 regions
@@ -1738,7 +1738,7 @@ view R key lie origin 6 -1
 |..vxwwwwwwwv.
 |..-vyxwwwwv..
 |..-vxxwwwvv..
-|..fghhhhhPf..
+|..fghhhhhOf..
 |..vxyxwwwwwv.
 |.vxyxwwwwwwv.
 regions
@@ -1761,7 +1761,7 @@ view L key rest origin 7 -1
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -1807,7 +1807,7 @@ view L key rest origin 7 -1 when armour.t6 replace
 |.JDDDDDDDDJ..
 |..JIHHDDDJ-..
 |..JHHDDDJJ-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.JHIHDDDDDJ..
 |.JHIHDDDDDDJ.
 regions
@@ -1830,7 +1830,7 @@ view L key rest origin 7 -1 when armour.t5 replace
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPOOOOONf..
+|..fOOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
 regions
@@ -1853,7 +1853,7 @@ view L key idle origin 7 -1
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -1899,7 +1899,7 @@ view L key idle origin 7 -1 when armour.t6 replace
 |.JDDDDDDDDJ..
 |..JIHHDDDJ-..
 |..JHHDDDJJ-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.JHIHDDDDDJ..
 |.JHIHDDDDDDJ.
 regions
@@ -1922,7 +1922,7 @@ view L key idle origin 7 -1 when armour.t5 replace
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPOOOOONf..
+|..fOOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
 regions
@@ -1944,7 +1944,7 @@ view L key run origin 7 -1
 |.vzyyxwwwwv..
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -1986,7 +1986,7 @@ view L key run origin 7 -1 when armour.t6 replace
 |.JXIIHDDDDJ..
 |.JDDDDDDDDJ..
 |..JIHHDDDJ-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.JHIHDDDDDJ..
 |.JHIHDDDDDDJ.
 regions
@@ -2007,7 +2007,7 @@ view L key run origin 7 -1 when armour.t5 replace
 |.vzyyxwwwwv..
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
-|..fPOOOOONf..
+|..fOOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
 regions
@@ -2028,7 +2028,7 @@ view L key runl origin 7 -1
 |.vzyyxwwwwv..
 |.vwwwwwwwwv..
 |...vyxxwwwv-.
-|...fPhhhhhgf.
+|...fOhhhhhgf.
 |..vxyxwwwwwv.
 |..vxyxwwwwwwv
 regions
@@ -2070,7 +2070,7 @@ view L key runl origin 7 -1 when armour.t6 replace
 |.JXIIHDDDDJ..
 |.JDDDDDDDDJ..
 |...JIHHDDDJ-.
-|...fPhhhhhgf.
+|...fOhhhhhgf.
 |..JHIHDDDDDJ.
 |..JHIHDDDDDDJ
 regions
@@ -2091,7 +2091,7 @@ view L key runl origin 7 -1 when armour.t5 replace
 |.vzyyxwwwwv..
 |.vwwwwwwwwv..
 |...vyxxwwwv-.
-|...fPOOOOONf.
+|...fOOOOOONf.
 |..moponnnnnm.
 |..moponnnnnnm
 regions
@@ -2113,7 +2113,7 @@ view L key drawn origin 7 -1
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -2159,7 +2159,7 @@ view L key drawn origin 7 -1 when armour.t6 replace
 |.JDDDDDDDDJ..
 |..JIHHDDDJ-..
 |..JHHDDDJJ-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.JHIHDDDDDJ..
 |.JHIHDDDDDDJ.
 regions
@@ -2182,7 +2182,7 @@ view L key drawn origin 7 -1 when armour.t5 replace
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPOOOOONf..
+|..fOOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
 regions
@@ -2205,7 +2205,7 @@ view L key swing origin 7 -1
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -2251,7 +2251,7 @@ view L key swing origin 7 -1 when armour.t6 replace
 |.JDDDDDDDDJ..
 |..JIHHDDDJ-..
 |..JHHDDDJJ-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.JHIHDDDDDJ..
 |.JHIHDDDDDDJ.
 regions
@@ -2274,7 +2274,7 @@ view L key swing origin 7 -1 when armour.t5 replace
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPOOOOONf..
+|..fOOOOOONf..
 |.moponnnnnm..
 |.moponnnnnnm.
 regions
@@ -2297,7 +2297,7 @@ view L key lie origin 7 -1
 |.vwwwwwwwwv..
 |..vyxxwwwv-..
 |..vxxwwwvv-..
-|..fPhhhhhgf..
+|..fOhhhhhgf..
 |.vxyxwwwwwv..
 |.vxyxwwwwwwv.
 regions
@@ -2671,11 +2671,11 @@ regions
 view D key rest origin 8 -1 when cut-ribbed
 |................
 |................
-|....zyvyxvxw....
 |....yyvyxvxw....
-|....vyvyxvwv....
-|....vyvyxvwv....
-|....vwvxwvvv....
+|....yyvyxvww....
+|....vyvxxvwv....
+|....vxvxwvwv....
+|....vwvwwvvv....
 |................
 |................
 |................
@@ -2693,11 +2693,11 @@ regions
 view U key rest origin 8 -1 when cut-ribbed
 |................
 |................
-|....zyvyxvxw....
 |....yyvyxvxw....
-|....vyvyxvwv....
-|....vyvyxvwv....
-|....vwvxwvvv....
+|....yyvyxvww....
+|....vyvxxvwv....
+|....vxvxwvwv....
+|....vwvwwvvv....
 |................
 |................
 |................
@@ -2715,7 +2715,7 @@ regions
 view R key rest origin 6 -1 when cut-ribbed
 |.............
 |.............
-|..vzyvyxvxv..
+|..vyyvyxvxv..
 |..vyyvyxvxwv.
 |..vyyvyxvwwv.
 |...vyvyxvwv..
@@ -2737,7 +2737,7 @@ regions
 view R key run origin 6 -1 when cut-ribbed
 |.............
 |.............
-|..vzyvyxvxv..
+|..vyyvyxvxv..
 |..vyyvyxvxwv.
 |..vyyvyxvwwv.
 |...vyvyxvwv..
@@ -2759,7 +2759,7 @@ regions
 view R key runl origin 6 -1 when cut-ribbed
 |.............
 |.............
-|..vzyyyxvwv..
+|..vyyyyxvwv..
 |.vyyvyxvvwv..
 |.vyyvyxvwwv..
 |..vyvyxvwv...
@@ -2781,7 +2781,7 @@ regions
 view L key rest origin 7 -1 when cut-ribbed
 |.............
 |.............
-|...vyvxwvwzv.
+|...vyvxwvwwv.
 |..vyyvxwvwwv.
 |..vyyvxwvwwv.
 |...vyvywvwv..
@@ -2804,7 +2804,7 @@ regions
 view L key run origin 7 -1 when cut-ribbed
 |.............
 |.............
-|...vyvxwvwzv.
+|...vyvxwvwwv.
 |..vyyvxwvwwv.
 |..vyyvxwvwwv.
 |...vyvxwvwv..
@@ -2826,7 +2826,7 @@ regions
 view L key runl origin 7 -1 when cut-ribbed
 |.............
 |.............
-|...vyvxwvwzv.
+|...vyvxwvwwv.
 |..vyyvxwvwwv.
 |..vyyvxwvwwv.
 |....vyyxvvwv.
@@ -2848,11 +2848,11 @@ regions
 view D key rest origin 8 -1 when cut-faceted
 |................
 |................
-|....zyyxvwxw....
-|....yzyvvwxw....
-|....vyzvxxwv....
-|....vxvzxwwv....
-|....vvvyxwvv....
+|....zzyyxvww....
+|....yyyxvwwy....
+|....xyxvwwwy....
+|....xxvwwwyy....
+|....vvwyyyyv....
 |................
 |................
 |................
@@ -2870,11 +2870,11 @@ regions
 view U key rest origin 8 -1 when cut-faceted
 |................
 |................
-|....zyyxvwxw....
-|....yzyvvwxw....
-|....vyzvxxwv....
-|....vxvzxwwv....
-|....vvvyxwvv....
+|....zzyyxvww....
+|....yyyxvwwy....
+|....xyxvwwwy....
+|....xxvwwwyy....
+|....vvwyyyyv....
 |................
 |................
 |................
@@ -2892,11 +2892,11 @@ regions
 view R key rest origin 6 -1 when cut-faceted
 |.............
 |.............
-|..vzyyxvwwv..
-|..vyzyvvxxwv.
-|..vyyzvwxwwv.
-|...vxvzxwwv..
-|...vvvyxwvv..
+|..vzzyyxvwv..
+|..vyyyxvwwyv.
+|..vxyxvwwwyv.
+|...vxvwwyyv..
+|...vvwyyyvv..
 |.............
 |.............
 |.............
@@ -2914,10 +2914,10 @@ regions
 view R key run origin 6 -1 when cut-faceted
 |.............
 |.............
-|..vzyyxvwwv..
-|..vyzyvvxxwv.
-|..vyyzvwxwwv.
-|...vvvzxwwv..
+|..vzzyyxvwv..
+|..vyyyxvwwyv.
+|..vxyxvwwwyv.
+|...vxvwwyyv..
 |.............
 |.............
 |.............
@@ -2936,10 +2936,10 @@ regions
 view R key runl origin 6 -1 when cut-faceted
 |.............
 |.............
-|..vzyyxvvwv..
-|.vyzyvwxxwv..
-|.vyyzvwxwwv..
-|..vvvzxwwv...
+|..vzzyyxvwv..
+|.vyyyxvwwyv..
+|.vxyxvwwwyv..
+|..vxvwwyyv...
 |.............
 |.............
 |.............
@@ -2958,11 +2958,11 @@ regions
 view L key rest origin 7 -1 when cut-faceted
 |.............
 |.............
-|...vyyvvwwzv.
-|..vyxyyvwzwv.
-|..vyxxyvzxwv.
-|...vyyxzvxv..
-|...vvyxwvvv..
+|...vyzzyxvwv.
+|..vyyyxvwyyv.
+|..vxyxvwwwyv.
+|...vxvwwyyv..
+|...vvwyyyvv..
 |.............
 |.............
 |.............
@@ -2981,10 +2981,10 @@ regions
 view L key run origin 7 -1 when cut-faceted
 |.............
 |.............
-|...vyyvvwwzv.
-|..vyxyyvwzwv.
-|..vyxxxvzwwv.
-|...vyyxzvvv..
+|...vyzzyxvwv.
+|..vyyyxvwyyv.
+|..vxyxvwwwyv.
+|...vxvwyyvv..
 |.............
 |.............
 |.............
@@ -3003,10 +3003,10 @@ regions
 view L key runl origin 7 -1 when cut-faceted
 |.............
 |.............
-|...vyyvvwwzv.
-|..vyxyyvwzwv.
-|..vyxxyvzwwv.
-|....vyyxzvvv.
+|...vyzzyxvwv.
+|..vyyyxvwyyv.
+|..vxyxvwwwyv.
+|....vxvwyyvv.
 |.............
 |.............
 |.............

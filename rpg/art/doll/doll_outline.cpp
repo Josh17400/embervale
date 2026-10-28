@@ -87,5 +87,37 @@ int outlinePixels(const Outline& o, bool head) {
   return n;
 }
 
+// (P2c envelope) the measures `expect doll envelope` and Witness read (rpg_test --doll-envelope measures the same way)
+EnvelopeMeasure measureEnvelope(const HumanLook& L) {
+  EnvelopeMeasure m;
+  m.tier = L.topTier();
+  const DollRecipe r = resolve(L);
+  ComposeOpts o;
+  o.noHeld = true;
+  for (int fc : {0, 2}) {
+    o.onlyFacing = fc;
+    const RigSheet sh = compose(r, RigPart::Loco, &o);
+    const FrameRect* f = sh.frame(fc, fc == 0 ? Clip::Walk : Clip::Idle, 0, 0);
+    if (!f) continue;
+    for (int y = 0; y < f->h; y++)
+      for (int x = 0; x < f->w; x++) m.area += (sh.atlas.get(f->x + x, f->y + y) >> 24) != 0;
+  }
+  const FrameProbe p = probeFrame(r, RigPart::Loco, 0, Clip::Idle, 0, 0, true);
+  if (p.ok) {
+    int mn = 1 << 20, mx = -1, top = 1 << 20;
+    for (int y = 0; y < p.h; y++)
+      for (int x = 0; x < p.w; x++) {
+        const int k = y * p.w + x, ow = p.owner[(size_t)k];
+        if (p.code[(size_t)k] < 2 || ow < 0 || (size_t)ow >= p.items.size()) continue;
+        const FrameProbe::It& it = p.items[(size_t)ow];
+        if (it.has(Role::Pauldron)) { mn = std::min(mn, x); mx = std::max(mx, x); }
+        if (it.has(Role::Helm) || it.has(Role::Headwear)) top = std::min(top, y);
+      }
+    if (mx >= 0) m.shoulders = 16 + std::max(0, p.headX - mn) + std::max(0, mx - (p.headX + 15));
+    if (top < (1 << 20)) m.rows = (p.py - (L.body == 1 ? 30 : 31)) - top;
+  }
+  return m;
+}
+
 }  // namespace doll
 }  // namespace art

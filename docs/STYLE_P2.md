@@ -169,7 +169,7 @@ at F-22); the face 6 px from the ear to the nose tip, the nose 1 px proud; chest
 may reach 18 px (2 px past each ear). Hair rises 2 px at most above the crown (F-33 man, F-32 woman). Behind the head in
 side views, up to 4 px. Long hair falls to the shoulders at the sides and to F-9 down the back; braids and tails hang to
 F-9 in front (A3's braid ends there). Headwear may rise to F-35; crests, plumes and horns to F-37 (markers sit 4 px over
-the frame's own top: section 17).
+the frame's own top: section 17). Since 2026-10-27 the head grows by the gear's tier: T4 F-37, T5 F-39, T6 F-41 (section 29.3).
 
 **Kids** (painted natively; P2a's numbers kept): youth 26 (head 12: the adult head box; torso 6, legs 7; shoulders 12),
 child 21 (head 11, rounder; torso 5, legs 5; shoulders 10).
@@ -932,7 +932,8 @@ far-leg-whole leg the owner approved.
   mouth always show. The nasal bar covers the nose pixel only and the cheek guards cover the cheek columns, never an eye.
   **Closed helms** (great helm, masked) hide the face to an eye slit: a 1 px dark line on the eye row whose top-left end
   the finishing pass lights.
-- Crests, plumes and horsetails are in the plume slot (plumeColor) and rise to F-37 at most. The crest dial (1-4) is
+- Crests, plumes and horsetails are in the plume slot (plumeColor) and rise to F-37 at most through T4 (T5 F-39, T6
+  F-41: 29.3). The crest dial (1-4) is
   optional regions inside one map. A plume bobs a pixel behind the walk's bob (the delight). Horns and wings use the
   metal or horn ramps.
 - Each helm masks the hair it hides (`-` cells). Long lengths, braids and tails below the rim still show, so a woman in an
@@ -955,7 +956,7 @@ far-leg-whole leg the owner approved.
 ### 25.6 Pauldrons, skirts, gloves and boots
 
 - **Pauldrons** sit on the shoulder cap at the shoulder anchors. Small, medium and large reach 1, 2 and 3 px past the
-  16 px shoulder line on each side. There are three families: *plate* (plate, brigandine, leaf: one lit ridge and a
+  16 px shoulder line on each side (since 2026-10-27 great, T5, and legend, T6, reach 5 and 6 px: 29.3). There are three families: *plate* (plate, brigandine, leaf: one lit ridge and a
   glint), *fur and leather* (padded, leather: matte, a fur edge with the fur trim ornament) and *scale* (mail, scale,
   lamellar: two rows of units). On the near side they sit over the arm and on the far side behind it. They ride the lean
   and the bob exactly and lift a pixel on overhead wind-ups.
@@ -1304,21 +1305,25 @@ Late gear moves quietly, as light over the drawn frame (no extra frames, no new 
 - **Motes** (T6): 1 px sparks in the glow colour, three alive at most, born on the glow pixels every 0.45 s, rising 8 px
   over 1.0 s as they fade.
 - **The cloak and plume stir** (T5-T6): on the idle's breathe frame the cloak's hem swings out a pixel and the plume
-  lifts; in the run the cloak's flare is a pixel wider.
+  lifts; in the run the cloak's flare is a pixel wider. (Restated 2026-10-27, 29.5: the hem swings 1 px at T5 and 2 px
+  at T6, on the walk's passing frames too, and the plume sways a pixel behind the walk's bob.)
 - **Mythic**: the ember-tempered metal, the white-hot blade and the flame that hugs the silhouette (M8b's aura on doll
   frames: light only within 3 px of the outline).
-- **Readable, never noisy**: 32 animated pixels a figure at most (ladder i2: was 24); no pixel's light jumps by more than a quarter between
+- **Readable, never noisy**: the light within contracts 6b's caps (as built: 128 sprite-bright and 320 soft pixels a
+  figure-frame; the "32 animated pixels" of ladder i2 is stale) and the drawn stir within 29.5's counts; no pixel's light jumps by more than a quarter between
   two 60 Hz frames; nothing blinks faster than twice a second (the spark's run aside); two wearers never pulse in step.
   If it reads as noise at 1x, it is wrong.
 
 ### 27.8 Ladder don'ts
 
 - No broken, torn or ugly T1 gear: worn means mended and whole; no holes in a silhouette.
-- No new torso, helm or skirt shape for a tier: tiers are finish and dials (a material's shape is its forge style: 28).
+- No new torso for a tier: the body and its torso outline never change (a material's shape is its forge style: 28).
+  Restated 2026-10-27 (29): every tier of a line wears its own helm family, and the gear's outline grows by tier inside
+  the envelope (shoulders, head, cloak and a 1 px skirt flare at T5-T6).
 - No people borrowing another people's forms at any tier.
 - No trim inside a plane (but rivet rows); no etching or filigree that reads as dither; no glow below T5 (but white
   glints).
-- No animation that blinks, strobes or moves the silhouette; no light wider than the figure plus 3 px (Mythic's flame
+- No animation that blinks or strobes, and none that moves the silhouette but the drawn stir and sway (29.5); no light wider than the figure plus 3 px (Mythic's flame
   aside).
 - No kit whose touching materials share a value.
 
@@ -1475,7 +1480,9 @@ the Mythic face). Each first line in italics is what the judge and the blind pan
    quilted skirt with a rolled hem and one frayed notch at T1. It sags a pixel under the belt. Signature: the bulge and the
    roll. (As drawn.)
 2. **TANNER'S** (leather). *Laced and stitched hide.* The leather cap, a laced front, flap shoulders, a dagged skirt of
-   square tabs, a stand collar, laced bracers. Matte, one shine. Signature: the tabbed skirt and the flaps. (As drawn.)
+   square tabs, a stand collar, laced bracers. Matte, one shine. Signature: the tabbed skirt and the flaps. (As drawn.) On
+   the hero lines' T2 the cap is the soft cap, 3 rows up, and a short cloth mantle with a tabbed hem and its hood thrown
+   back as a cowl takes the flaps' place (29.3, PLAN D55).
 3. **FOUNDRY** (bronze). *Cast and rounded, a statue's armour.* The crested helm with its comb, a muscled cuirass (the
    curves are plane changes), rolled rims, strips hanging from the rolled waist, cop shoulders, a torc, a round shield.
    Warm, soft-edged. Signature: the strips, the discs and the comb. (As drawn.)
@@ -1604,7 +1611,7 @@ their details from the metal word, sheen, rank, reagents and ornament as in roun
 |---|---|---|
 | matte | a dull plane, no step-4 run longer than 1 px, a hard step under the lit plane | any; plain hems |
 | bright | a 2 px step-4 run on the ridge of the torso or a shoulder | KEEL, PLAIN, DISC |
-| dark | a blackened body (step 2 at 90 luma or less), one or two near-white glints | CHEVRON, KEEL; TALL shoulders |
+| dark | a blackened body (step 2 at 90 luma or less), one or two near-white glints; on bronze and brass the antique read instead (29.6, PLAN D52: black recesses, the body at luma 95-125, a gold lit plane) | CHEVRON, KEEL; TALL shoulders |
 | banded | rows 15 luma or more apart, 2-3 rows each | BANDS; TASSETS, STRIPS, BELL |
 | iridescent | two hues in 2-3 px bands: the skirt's lames and the motif's plates alternate Metal and Metal 2 (its hue turned 60 degrees or more), and the lit plane turns 40 degrees off the shadow. At 1x a two-tone figure, never a shimmer of 1 px rows (round 1's tell was invisible) | BIB, BANDS, CHEVRON; BELL, SPLIT, TASSETS |
 | glowing | its seams glow from T4, steady (PLAN D28), and breathe from T5: the motif's joins, the skirt's lame joins, vents; 8 glow pixels or more at T4 | BANDS, CHEVRON, KEEL, RAYS |
@@ -1685,6 +1692,212 @@ value matches their craft.
 a people a different figure at 1x in greyscale; no two alloys of the board or of a world window the same figure; every
 alloy plainly metal; the four fixes read as their lines; the ladder a new armour at each step. Then the owner's sign-off,
 which also settles PLAN D24-D41. After it, this section records the measured numbers and every later part matches.
+
+## 29. The envelope: 32 px people, gear that grows (planner, 2026-10-27; binding on every P2c art area)
+
+The owner chose 32 px after seeing A3's hero at T1 and T6 and the T3 guard drawn properly at 40 px beside the same three at
+32 px under this envelope: "32 to me personally feels and looks the best" (docs/ref/envelope holds the 32 px figures and the
+owner's sheets). The same answers ask that starting armour be simple and not bulky, that better armour be more detailed,
+more dynamic and bulkier, that every alloy always get its own helmet, that nothing be compressed, and that the existing
+armour, much of it "really cool", be built on and never dropped. docs/PLAN.md "The envelope" holds the arithmetic, the A
+table's checks and the areas; docs/P2C_CONTRACTS.md 3d the data. This section restates 4 and 25.4 (the head's height),
+25.6 (pauldron sizes), 27.7 (the stir), 27.8 (helms by tier) and 28.7 (dark warm metals).
+
+### 29.1 The feel
+
+Gear tells the climb in outline before it tells it in colour. The boy who leaves home is the body's own shape: bareheaded,
+his hair the top of his outline, a quilted coat that bulges a pixel, nothing past his shoulders, plain but whole (the fair
+test's T1). A few hours later a soft cap sits on his head and a short mantle with its hood thrown back on his shoulders: a
+traveller. The soldier wears plates that show past his arms and a short cape. The officer's shoulders are broad, his crest
+stands up and a cloak hangs to his calves. The champion is another figure: great pauldrons, a plume that sways a beat
+behind his step, a long cloak whose edges show beside his legs and trail behind him when he turns. The legend is nearly
+twice the boy's area: a winged helm with a tall fin, pauldrons almost two tiles across, the cloak stirring when he stands
+still, the runes breathing. Every step is a new helm. A king beside him looks smaller. Under all of it is the same 32 px
+body, walking and fighting exactly as the owner approved. Rich means big shapes, clear light and quiet movement; hair-thin
+lines blur at 1x and are never the richness.
+
+### 29.2 The body is locked
+
+- The man is 32 px and the woman 31 (crown F-31 / F-30), the youth 26, the child 21, elves + 1: section 3's grid, the 16 x
+  14 head box, the anchors and every clip are fixed. Armour never redraws a leg, an arm's line, a boot, a face or the torso's
+  outline, and the owner's motion rules hold under every tier: short legs at full thickness, no skinny ankles, flat feet.
+- One size for everyone. The hero, companions, captains and kings in the same gear are the same size; a legend is big
+  because of what it wears. Never a hero body, never stretch rows.
+- Everything bigger is built on the body: the shoulders, the head (helm, crest, plume), the cloak, the skirt's flare, the
+  sleeves.
+
+### 29.3 The tier envelope (shape language)
+
+| tier | shoulders across | head: rows above the crown | head: columns past the head box | cloak | area vs T1 |
+|---|---|---|---|---|---|
+| T1 Scrap | 16: no pauldrons | the hero lines bareheaded; 2 for any other T1 hood or soft cap | 0 (a drawn brim 1) | none | 1.00 |
+| T2 Common | 18 (small, or the short mantle) | 3: a soft cap; a drawn crest or plume to F-37 as today | 0 (a drawn brim 1) | none | 1.10 |
+| T3 Sturdy | 20 (medium) | 4; a drawn crest or plume to F-37 as today | 1 | the people's cape, never beside the legs facing D | 1.20 |
+| T4 Fine | 22 (large) | 6 (F-37) | 1 | a cape or the travel cloak | 1.35 |
+| T5 Masterwork | 26 (great) | 8 (F-39) | 2 | the long cloak | 1.55 |
+| T6 Legendary | 28 (legend) | 10 (F-41) | 2 | the long cloak, stirring | 1.70 |
+
+Horns, wings, the kabuto's flare, the war hat's brim, the morion's points and the sallet's tail may reach 3 px past the head
+box at any tier. Areas are minimums, each tier at least 5 points of T1 over the one below; the others are caps.
+
+- **T1 Scrap: the body's own outline.** No pixel more than 1 px outside the bare body's outline facing D or R (the quilting's
+  bulge, a rolled hem); the hero lines bareheaded, the hair the head's outline (the fair test's T1, PLAN D54), and any other
+  T1 look's hood or soft cap inside the hair's 2-row rise; no pauldron, crest, plume or cape. Its detail is the stitched
+  patch and the frayed notch, never bulk.
+- **T2 Common**: small shoulder caps or a short mantle (1 px past the shoulder line), a soft helm up to 3 rows, clean edges.
+  The hero lines' T2 (TANNER'S, PLAN D55): a soft leather cap 3 rows up with a rolled brim and one shine, the hair's fringe
+  under it; a short mantle in the people's coat colour, a value step darker than the leather, over the shoulders to the
+  elbow, its hem dagged in 2 px square tabs; its hood thrown back as a cowl, a soft roll round the neck facing D and a lump
+  behind the nape facing R and L. The head now sits in a collar of cloth and the shoulders have a soft, tabbed edge; nothing
+  metal, nothing past 18 px. The cap stays small (under T3's head area / 1.05) so the helm keeps growing from T3.
+- **T3 Sturdy**: medium plates (2 px past), the people's metal helm up to 4 rows (its drawn crest as today), the people's
+  short cape: its edges show beside the arms and the coat facing D down to the hem, never beside the legs; it may hang to
+  the calf behind and trails 1-2 px behind facing R and L. The fair test's T3 guard is the picture (PLAN D57): a kettle hat
+  with its finial, round steel pauldrons, the red cape at both sides.
+- **T4 Fine**: large plates (3 px past), the crest to F-37, a cape or the travel cloak; the alloy's whole silhouette.
+- **T5 Masterwork**: great pauldrons (5 px past: 26 across); the head to 8 rows with a plume that sways; the long cloak to the
+  ankle, showing 2 px beside each leg facing D and trailing 6-8 px behind facing R and L; the skirt flaring 1 px more.
+- **T6 Legendary**: legend pauldrons (6 px past: 28 across); the head to 10 rows (a winged helm and its fin, a crown, a
+  crystal spire); the cloak stirring 2 px; the runes breathing. At least 1.70 times T1's area, and always more than T5.
+- **Bulk in big shapes.** A great pauldron is one big lit dome or slab with a ridge and a dark rim, not stripes of gilt; a
+  long cloak is two or three folds of 2-3 px with a lit edge, not a texture; a tall fin is a 2 px blade with a lit side. 2 px
+  stays the smallest mark (28.2).
+- **Masses keep their character as they grow**: BROAD flat-topped and square; TALL upswept 3-4 px over the shoulder top,
+  never within 2 px of the face and never past the head box's top 4 rows; DROP hanging 5-6 rows down the upper arm; ROUND a
+  disc; MANTLE soft fur, pelt or feathers. Each size's area stays within 10 % of the plate family's (C12c).
+- **Composition.** The face and the chest stay the focal point: the bigger the frame (shoulders, cloak, helm), the clearer
+  the face it holds. Pauldrons never rise above the ear row; the cloak never covers the legs facing D (2 px beside them at
+  most) and never crosses the face; a plume leans back, never over the face; the bulk sits on the shoulders and behind the
+  body, so the figure reads broad-shouldered and grounded, never a blob or a floating cape.
+- **Surfaces meet with intent** (28.2): a great pauldron sits over the cloak's front and the surcoat with a dark seam under
+  its rim; the long cloak hangs from behind the pauldrons, never from the neck over them; the flared skirt keeps its belt
+  seam; the helm's growth rises from its own crown, never a separate shape floating above it.
+- **The woman**: the same widths, one row lower (her head to F-32 .. F-40); her cloak and skirt follow her hem rules
+  (section 14).
+- A drawing bigger than a lower tier's cap is kept and serves the tiers it fits (29.7).
+
+### 29.4 Helmets: one per tier, one per alloy
+
+- **Every tier of a line wears its own helm family.** The Heartland hero's road: T1 bareheaded, T2 the soft leather cap over
+  the hooded mantle, T3 the nasal helm with its knife comb, T4 the Heartland alloy's helm, T5 a plumed great helm or armet with a gilt rim, T6 a winged
+  or crowned helm with a tall fin and a glowing brow rune or eye slit (docs/ref/envelope's T6: the winged helm, open on the
+  face), the Mythic the T6 helm in black steel, gold and fire (29.6) with its flame crown on a dark brow band. The artists
+  choose inside the rule: consecutive heads differ in outline at 1x, and from T3 the head grows every step (so T2's soft
+  cap stays small).
+- **Every alloy its own head**: its helm family (the shape table) plus a variant and a crest. Variants are bold outlines of
+  one family (the war hat's jingasa, great kasa and gat; the fix round's plumed, winged and veil variants), each its own read
+  at 1x in greyscale. A variant belongs to the alloy (its people, rank and name), never to the body's mass: Papiron wears the
+  great kasa, Jaonbrass the gat, Cranesilver the jingasa (PLAN D51). Each people keeps its own menu (28.5).
+- **Faces clear** (28.2): an open helm frames the face with its dark lining and sits its rim on the brow row however big it
+  grows; a closed helm carries the 2 px visor band and a breath slot or grille. The quick mock's white dome crushing the face
+  to the eyes is the counter-example.
+- **Heights and widths by tier** (restating 4 and 25.4): every helm-layer pixel within T1 2, T2 3, T3 4, T4 6 (F-37), T5 8
+  (F-39) and T6 10 (F-41) rows above the crown (a drawn crest or plume at T2-T3 to F-37, as today); the shell inside the head
+  box at T1-T2 (a drawn brim 1 px past), 1 px past at T3-T4 and 2 at T5-T6; the flares (horns, wings, the kabuto's flare, the
+  war hat's brim, the morion's points, the sallet's tail) up to 3 px past at any tier.
+
+### 29.5 Motion at T5-T6
+
+- **T5**: the gem breathes (27.7); the long cloak's hem swings out 1 px on the idle's breathe frame and on the walk's passing
+  frames; the plume sways a pixel behind the walk's bob and lifts a pixel in the run.
+- **T6**: as T5, with the hem swinging 2 px; the runes breathe, the edge sweep runs and the motes rise (27.7, contracts 6b).
+- **Quiet**: cloth in a breeze, never a flag in a storm. Nothing blinks or strobes; the stir is drawn (`breeze` views on
+  existing frames), never new frames. Counts: drawn motion 8-32 px a figure-frame at T5 and 16-48 at T6 on looks with a cloak
+  or a plume (a 12-16 px hem swinging 2 px is about 30 px; a plume's sway 6-10); the light as built (128 sprite-bright and
+  320 soft pixels a figure-frame).
+
+### 29.6 Materials that must read (the owner review's A items)
+
+Each is judged at true 1x in colour and in greyscale; PLAN's A table holds the checks. Hex values are direction (about), the
+families' ramps and C17 decide the exact steps.
+- **Brass and bronze** (A1 UHABRASS, A2 JAONBRASS, A3 ENKHOBRASS): brass is yellow metal that throws light. Everyday brass about
+  #2A1E06 core, #5E4A12 shadow, #A08A1C body, #F0E0A0 lit, #FFF8DC glint; antique brass (the dark sheen, PLAN D52) about
+  #1A1204, #3A2C0A, #7E6618, #E6DAA8, #FFF6D8: the black is in the recesses and the gold on every plane's top-left. Brass
+  covers the figure: the helm, the shoulders or the skirt's lames, the arms; a cloth over-layer in the people's colour covers a
+  quarter of the gear at most, and no fur mantle hangs off the back as a sack. A brass hat is lacquered metal: a lit gold top
+  plane, a dark underside, one glint; never straw or felt. **The body is brass too** (PLAN D58): ENKHOBRASS's torso is a brass
+  lamellar coat, rows of small plates (each row a hard gold lit top row over a dark row, black lacing gaps every 3-4 px), its
+  bib a brass plate with a gold plane and a near-white glint, the skirt's lames lit gold; the people's blue lives only on the
+  deel's collar and front edge, the cuffs and a sash. A brass hat over a blue cloth coat is the counter-example.
+- **Obsidian** (A4, KNAPPED): black volcanic glass (28.4's ramp: #0E0B14 #1D1828 #3B3554, lit facets #7C7AA8, speculars #F2F6FF).
+  Facets are 3-4 px planes, each lit top-left with a hard 1 px edge; two to four speculars are short hard bars or diamonds of
+  2-3 px on facet edges, like light on a window; along the lower-right inside edge of the big facets a cold rim at the lit
+  step shows light passing through, one unbroken run of 3 px or more on the torso (PLAN D59). The mask's face plate is one
+  dark glass plane with its lit edge and two eye holes, in every facing: seen from the side its lower face stays dark, and a
+  pale bar never crosses it (the light goes to the crown's shards or a shoulder facet). No 1 px streaks anywhere.
+- **The Mythic** (A5): the line's T6 tempered, never a step sideways: **black, gold and fire** (PLAN D60). Polished black steel
+  whose darkness lives only in the recesses (about #16121A #2A2430, a body near #5A5266) and whose lit planes are bright (a
+  cool steel near #C8C0D4, a 2 x 2 plane or larger on every piece, glint #FFF4E0); the T6 gold generous and bright on the
+  helm's brow band and the fin's edge, the pauldrons' rims and the cuirass's keel; ember on the top-left edges and in 2-4 px
+  cracks, 2 px wide on the big plates (the Glow slot: #FF7A24 #FFC060); the T6 helm family, never a plain dome; the flame
+  crown tall and bright on its dark brow band; the long cloak deep crimson with an ember-lit hem; the face clean in every
+  facing with the fire's light at its peak; the shield's device clean, fire only on its rim. Beside the pale T6 it must look
+  like more light, not less: more lit pixels, more gold, more contrast, and never much darker overall (its mean value within
+  a tenth of T6's). A dark grey knight with a few orange specks is the counter-example.
+- **Starmetal** (A6, STARFALL): cut crystal and starlight. The CRYSTAL helm in two planes (lit and shadow) with a 2 px dark
+  visor band under a lit rim, and its cheek wings; narrow ribs 2 px wide with dark gaps; the SPLIT skirt's narrow panels; the
+  iridescent tell: Metal violet and Metal 2 ice-cyan alternating in 2-3 px bands across every big plate and across its lit
+  plane too, so the light itself turns from violet to cyan (PLAN D61). The bands must read as colour at 1x: violet about
+  #3A3466 #5A4FA8 #8E84D8 #E8E8FF and cyan about #2E5A78 #2E86B4 #6CC4E8 #E8FAFF, never two near-whites side by side. Deep
+  indigo in the gaps between the ribs, under the rims and in the recesses (a fifth of the metal or more) keeps it from
+  reading as a pale ghost. The hero's T6 wears starmetal too; T5 and T6 starmetal part by size, helm (the plumed great helm
+  under a gilt rim against the winged helm and its fin) and the T6's living finish.
+- **Glass alloys** (A7 THAERGLASS, every GLASS alloy): **glass is dark with light at its edges** (PLAN D62). A jewel-dark body
+  (Thaerglass about #0A2420 #14463C #1E6A58, lit #7FD8C0, specular #F0FFF8): more than half of the glass (the outline
+  aside) at its shadow and body steps, the lit plane a small top-left facet on each piece, and the light again on the far side, a rim at the lit step
+  along the lower-right inside edge of each convex piece in one unbroken run (3 px or more) with a dark core between it and
+  the lit plane, bright enough to see at 1x; 2-4 hard speculars as short diagonal bars or diamonds; never a pale patch (a
+  lit block of 12 px or more), which is what makes enamel or jade. River silver frames it: bright silver (Metal 2) only on the
+  rims, the seams and the brow band, so the green reads as panes set in silver. Its glowing seams in its own light, steady
+  from T4 and breathing at T5. Its wings are two straight glass blades, 2-3 px wide, 5-7 px long, swept up and back to a
+  hard point, dark down the middle and lit on both edges; never lobed, notched, veined or round-tipped like a leaf or a
+  feather.
+- **Heavy plate** (A8): planes, not dashes. A lit plane is a 2 x 2 block or larger; a glint is 1-2 px at a corner or a ridge,
+  three a figure at most; the side and walk views get the idle's care, so the light never breaks into scattered pixels as the
+  body turns and steps.
+
+### 29.7 Keep what's drawn
+
+- Every drawn map, view and size stays in the tree and keeps its meaning: the owner likes a lot of it. Growth ADDs sizes and
+  views; a drawing too big for a lower tier's cap serves the higher tiers; an A fix repaints its own view; the forge tiles
+  retired on alloys stay as files.
+- Build on the approved figures: the six hero styles, the first-light alloys, the ladder's T1-T4 and the fix round's helm
+  variants are where every bigger piece starts, not something to replace.
+
+### 29.8 Envelope don'ts
+
+- No bigger body, no figure scaled alone, no stretch rows.
+- No piece past its tier's envelope; no T6 smaller than T5; no starter gear past the body's outline.
+- No helm family on two tiers of one line; no two of the owner's 37 with one head; no variant picked by the body's mass.
+- No hair-thin line as richness; no 1 px streaks, speckle or broken dashes on glass or plate.
+- No cloak over the face or across the legs facing D; no pauldron above the ear row; no plume over the face.
+- No chocolate brass, no ghost crystal, no Mythic darker than its T6.
+- No brass hat over a cloth coat; no glass that reads as enamel or jade (no dark body, big pale patches); no glass wings
+  shaped like leaves; no iridescence made of two near-whites; no light across a mask's face.
+- No T1 helm on the hero lines (the fair test's T1 is bareheaded); no T2 cap so big that T3's helm stops growing.
+- No colour left in a greyscale board: every pixel, the hair, skin and eyes included, turns to its value (PLAN D63).
+- No compression and no deleted map.
+
+### 29.9 The envelope slice (first light) and the owner pack
+
+- **First light**: the hero's T5 and T6 and the T3 guard rebuilt as doll parts to docs/ref/envelope's 32 px drawings
+  (f32_hero_t6_idle / walk, f32_guard_t3d_idle / walk), in colour, greyscale and black silhouette, then on the phone frame
+  at NEAR in the start village beside the watch. They are the envelope's style slice: every later T4-T6 piece matches their
+  craft. The T3 guard is the village watch in the T3d's gear (PLAN D57): the kettle hat with its finial, round steel
+  pauldrons 20 px across, the red cape showing at both sides down to the coat's hem (the drawing's sides beside the legs
+  are the T5 long cloak's and stop at the hem).
+- **The owner pack** (every image 8,000 px or less on its long side):
+  1. The hero's T1-T6 and the Mythic, and the heroine's, at 1x, 3x and 8x, in colour, greyscale and black; a growth strip
+     with the caps as faint guides at 8x and each tier's area ratio.
+  2. The phone at NEAR (2556 x 1179, D 6) in the start village at 11:00 and 22:00: the hero at T1, T3 and T6 beside the
+     watch, a captain and the king.
+  3. The owner's 37 heads, greyscale, 1x and 4x, with their head keys.
+  4. Each A item before and after at 1x, 3x and 8x, in colour and greyscale.
+  5. The T5 and T6 stir and sway as 3x GIFs at game speed.
+  6. The gates table with the envelope's numbers and the measured areas.
+  7. The first-launch captures (the phone at D 6, Safari at D 5, desktop at D 3).
+- **Acceptance**: measured first (PLAN's envelope gate), then the judge's look review and the blind tests, then the owner's
+  sign-off (PLAN D42-D65; round 4's items in PLAN "The envelope fix round").
 
 ---
 

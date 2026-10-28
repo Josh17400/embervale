@@ -604,7 +604,7 @@ uint32_t hashBirth(uint32_t seed, long long k) {
 }
 }  // namespace
 
-void figureLights(const Figure& F, std::vector<Light>& out) {
+static void figureLightsRaw(const Figure& F, std::vector<Light>& out) {
   if (F.topTier < 5) {
     // (P2c forge, D28) the glowing sheen's tell from T4: its seams lit, steady (the breath, halo and aura are T5's and T6's)
     if (F.topTier == 4 && F.steady && F.glow)
@@ -769,6 +769,51 @@ void figureLights(const Figure& F, std::vector<Light>& out) {
       }
       starAt(0.9f);
     }
+  }
+}
+
+// (P2c envelope integration r1) the light budget by construction: the envelope lets T6 silhouettes grow (28 px legend
+// pauldrons, winged helms), and the rim and the Mythic's crown fire grow with the outline. A frame's sprite-bright pixels
+// (light over kSoftMax, or a glow pixel) stay within kMaxAnimated less the particles' cores (the Mythic's embers, 2 px each,
+// or the T6 motes): past it the weakest bright pixels that are not glow pixels step down to kSoftMax (soft light, the same
+// hue, a few percent dimmer), so the cap holds for any drawing and nothing pops (the order is by strength, frame to frame).
+void figureLights(const Figure& F, std::vector<Light>& out) {
+  const size_t first = out.size();
+  figureLightsRaw(F, out);
+  if (F.topTier < 5) return;
+  const int budget = kMaxAnimated - (F.mythic ? kMaxEmbers * 2 : kMaxMotes);
+  auto key = [](float x, float y) { return ((int)y + 512) * 1024 + ((int)x + 512); };
+  std::vector<int> glowKeys;
+  if (F.glow) for (const GlowPx& g : *F.glow) glowKeys.push_back(key((float)g.x, (float)g.y));
+  std::sort(glowKeys.begin(), glowKeys.end());
+  auto isGlow = [&](int k) { return std::binary_search(glowKeys.begin(), glowKeys.end(), k); };
+  // the brightest light on each non-glow pixel over kSoftMax
+  std::vector<std::pair<float, int>> bright;   // (strength, pixel)
+  std::vector<int> brightGlow;
+  for (size_t i = first; i < out.size(); i++) {
+    const Light& q = out[i];
+    for (int yy = 0; yy < (int)q.h; yy++)
+      for (int xx = 0; xx < (int)q.w; xx++) {
+        const int k = key(q.x + xx, q.y + yy);
+        if (isGlow(k)) { brightGlow.push_back(k); continue; }
+        if (q.a > kSoftMax) bright.push_back({q.a, k});
+      }
+  }
+  std::sort(brightGlow.begin(), brightGlow.end());
+  const int nGlow = (int)(std::unique(brightGlow.begin(), brightGlow.end()) - brightGlow.begin());
+  std::sort(bright.begin(), bright.end(), [](const auto& a, const auto& b) { return a.second != b.second ? a.second < b.second : a.first > b.first; });
+  std::vector<std::pair<float, int>> px;       // one entry a pixel: its strongest light
+  for (const auto& b : bright) if (px.empty() || px.back().second != b.second) px.push_back(b);
+  const int over = nGlow + (int)px.size() - budget;
+  if (over <= 0) return;
+  std::sort(px.begin(), px.end(), [](const auto& a, const auto& b) { return a.first != b.first ? a.first < b.first : a.second < b.second; });
+  std::vector<int> dim;
+  for (int i = 0; i < over && i < (int)px.size(); i++) dim.push_back(px[(size_t)i].second);
+  std::sort(dim.begin(), dim.end());
+  for (size_t i = first; i < out.size(); i++) {
+    Light& q = out[i];
+    if (q.a <= kSoftMax || q.w != 1 || q.h != 1) continue;
+    if (std::binary_search(dim.begin(), dim.end(), key(q.x, q.y))) q.a = kSoftMax;
   }
 }
 

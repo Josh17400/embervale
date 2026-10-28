@@ -8,6 +8,7 @@
 #pragma once
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 
 namespace art {
 namespace doll {
@@ -294,6 +295,60 @@ inline void unpackShapeAxes(uint32_t p, uint8_t v[SX_COUNT]) {
   v[SX_LAYER] = (uint8_t)(p >> 11 & 7u); v[SX_ARM] = (uint8_t)((p >> 14 & 3u) + 1); v[SX_MOTIF] = (uint8_t)(p >> 16 & 15u);
 }
 // a closed family (STYLE_P2 28.2: a dark visor band 2 px or more across the eye row, a breath slot or grille below it)
+// (P2c envelope, contracts 3d, D51) a helm family's VARIANT (0 = the family's base drawing, 1..7): HumanLook::forgeShape bits
+// 20-22 (bit 31 still marks a set value). The head key is (family, variant, crest). The fix round's `when helmfam-<v>,<mass>`
+// views are re-keyed `when helmfam-<v>,variant-<n>` with their pixels unchanged; the numbering, in each map's order:
+//   warhat 1 the great kasa, 2 the gat | great 1 the barrel, 2 the sugarloaf | crested 1 the burgonet | crown 1 the sun crown |
+//   plumed 1 the centurion, 2 the fountain, 3 the mohawk, 4 the fall | snout 1 the hounskull on a mail bell, 2 the tall
+//   hounskull, 3 the rondel bascinet | veil 1 the spire, 2 the turban | winged 1 the eagle, 2 the fin, 3 the messenger |
+//   kabuto 1 the crescent kabuto | onion 1 the kulah (tools/doll/rekey_variants.mjs re-keys the maps, crest placements too)
+// and new drawings the owner's board asks for (FORGE-HEAD): horned 1, crown 2-3, morion 1.
+inline uint32_t shapeVariant(uint32_t p) { return p >> 31 ? (p >> 20) & 7u : 0u; }
+inline uint32_t withShapeVariant(uint32_t p, int v) { return p ? (p & ~(7u << 20)) | ((uint32_t)(v & 7) << 20) : p; }
+inline uint32_t headKeyOf(int helm, int variant, int crest) { return (uint32_t)(helm & 31) | (uint32_t)(variant & 7) << 5 | (uint32_t)(crest & 255) << 8; }
+// the variants a family's key may name (drawn or asked of FORGE-HEAD; `--doll-coverage --scope envelope` lists the undrawn)
+inline int helmVariantCount(int h) {
+  switch (h) {
+    case H_WARHAT: case H_GREAT: case H_VEIL: return 2;
+    case H_CRESTED: case H_HORNED: case H_MORION: case H_KABUTO: case H_ONION: return 1;
+    case H_CROWN: case H_SNOUT: case H_WINGED: return 3;
+    case H_PLUMED: return 4;
+    default: return 0;
+  }
+}
+// the variant the fix round's mass keys drew (the re-key's translation, and every look that is not a culture alloy's helm:
+// the hero styles' plumed and winged helms keep the views their mass picked, so no approved pixel moves). alloyBody: the
+// `alloyshape` flag (most of the fix round's views asked for it)
+inline int legacyHelmVariant(int h, int mass, bool alloyBody) {
+  auto in = [&](std::initializer_list<int> ms) { for (int m : ms) if (m == mass) return true; return false; };
+  switch (h) {
+    case H_PLUMED:
+      if (mass == MS_ROUND) return 1;
+      if (mass == MS_DROP) return 4;
+      if (alloyBody && in({MS_NONE, MS_MANTLE})) return 2;
+      if (alloyBody && in({MS_BROAD, MS_TALL})) return 3;
+      return 0;
+    case H_WINGED:
+      if (mass == MS_TALL) return 2;
+      if (alloyBody && in({MS_NONE, MS_MANTLE})) return 1;
+      if (alloyBody && in({MS_ROUND, MS_DROP})) return 3;
+      return 0;
+    default: break;
+  }
+  if (!alloyBody) return 0;
+  switch (h) {
+    case H_WARHAT: return in({MS_BROAD, MS_TALL}) ? 1 : in({MS_NONE, MS_MANTLE}) ? 2 : 0;
+    case H_GREAT: return in({MS_NONE, MS_ROUND, MS_MANTLE}) ? 1 : in({MS_BROAD, MS_TALL, MS_DROP}) ? 2 : 0;
+    case H_CRESTED: return in({MS_NONE, MS_MANTLE}) ? 1 : 0;
+    case H_CROWN: return in({MS_NONE, MS_MANTLE, MS_TALL}) ? 1 : 0;
+    case H_SNOUT: return in({MS_NONE, MS_MANTLE}) ? 1 : in({MS_TALL, MS_DROP}) ? 2 : in({MS_BROAD, MS_ROUND}) ? 3 : 0;
+    case H_VEIL: return in({MS_DROP, MS_TALL}) ? 1 : in({MS_NONE, MS_ROUND, MS_BROAD, MS_MANTLE}) ? 2 : 0;
+    case H_KABUTO: return in({MS_BROAD, MS_DROP}) ? 1 : 0;
+    case H_ONION: return in({MS_NONE, MS_ROUND, MS_BROAD, MS_MANTLE}) ? 1 : 0;
+    default: return 0;
+  }
+}
+
 inline bool helmClosed(int h) { return h == H_GREAT || h == H_MASK || h == H_SNOUT || h == H_FURNACE || h == H_CRYSTAL; }
 // a family whose map carries a crest or plume socket (the details' crest sits there; contracts 3c.1)
 inline bool helmSocket(int h) {

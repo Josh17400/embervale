@@ -1,0 +1,33 @@
+# P2c ZOOM (PLAN wave 1d, D47): desktop and iPad first launches stay NORMAL (only a phone starts at NEAR).
+#   embervale.exe --script tools/scripts/p2c_zoom.txt     (p2c_zoom_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 hour 11
++0.3 expect zoom normal
++0.0 expect screen d0 3
++0.0 expect screen want 3
+# ---- the desktop default window as a first launch
++0.1 firstlaunch desktop 1440x810
++0.3 expect zoom normal
++0.0 expect screen d0 3
++0.0 expect screen want 3
++0.0 expect screen world 3
++0.0 expect screen ui 480 270
++0.0 shot p2c_zoom_desktop_first.png
+# ---- a desktop 1920x1080
++0.1 firstlaunch desktop 1920x1080
++0.3 expect zoom normal
++0.0 expect screen want 5
+# ---- an iPad in landscape (a coarse pointer, but its short side is 820 points)
++0.1 firstlaunch tablet 2360x1640
++0.3 expect zoom normal
++0.0 expect screen d0 7
++0.0 expect screen want 7
++0.0 expect screen world 7
+# ---- a desktop's chosen NEAR is kept
++0.1 firstlaunch desktop 1440x810
++0.2 zoom near
++0.2 relaunch desktop 1440x810
++0.3 expect zoom near
++0.0 expect screen want 4
++0.5 quit

@@ -697,9 +697,15 @@ uint32_t packShape(const Shape& s) {
   toSx(s, v);
   bool any = false;
   for (uint8_t x : v) any |= x != 0;
-  return any ? F::packShapeAxes(v) : 0u;
+  return any ? F::withShapeVariant(F::packShapeAxes(v), s.variant) : 0u;
 }
-Shape unpackShape(uint32_t p) { uint8_t v[F::SX_COUNT]; F::unpackShapeAxes(p, v); return fromSx(v); }
+Shape unpackShape(uint32_t p) {
+  uint8_t v[F::SX_COUNT];
+  F::unpackShapeAxes(p, v);
+  Shape s = fromSx(v);
+  s.variant = (uint8_t)F::shapeVariant(p);
+  return s;
+}
 uint32_t shapeKey(const Shape& s) { return (uint32_t)s.helm | (uint32_t)s.skirt << 8 | (uint32_t)s.mass << 16 | (uint32_t)s.layer << 24; }
 Shape shapeOfKey(uint32_t k) {
   Shape s;
@@ -811,6 +817,61 @@ std::string alloyRoot(const std::string& name) {
     }
   }
   return "";
+}
+
+// ---------------------------------------------------------------- (P2c envelope, D51) the heads
+namespace {
+enum { CR_RIDGE = 1, CR_COMB, CR_KNIFE, CR_BROW, CR_CROWN, CR_SHARDS, CR_CHIMNEY, CR_SPIRE, CR_FIN, CR_FINIAL, CR_SPIKE, CR_HORNS, CR_WINGS };
+// the owner's 37 (the review sheet's board): families as shipped at df2a155; the look-alikes of B9-B15 parted by a variant or
+// a crest only (Grebrass / Slauriron, Cranesilver / Jaonbrass, Gwesteel / Vensteel, Uhabrass / Thaerglass, Kisteel /
+// Dragonsteel (the crescent kabuto kept), the crown trio, Ilsilver / Sunbronze, Froststeel / Stagbronze); the hat swap undone (Papiron the great kasa,
+// Jaonbrass the gat, Cranesilver the jingasa). New drawings asked of FORGE-HEAD: horned 1, crown 2 and 3, morion 1.
+const BoardHead kBoardHeads[] = {
+    {"ASIRON", F::H_VEIL, 2, 0, 0x01060408u},          {"FROSTSTEEL", F::H_HORNED, 0, 0, 0x06060109u},     {"ILSILVER", F::H_CONE, 0, CR_FINIAL, 0x05020501u},
+    {"THORNIRON", F::H_SNOUT, 1, CR_SPIKE, 0x0106010Cu}, {"GWESTEEL", F::H_MORION, 0, CR_COMB, 0x0303040Eu}, {"THORNSTEEL", F::H_SALLET, 0, CR_RIDGE, 0x0306030Bu},
+    {"GREBRASS", F::H_GREAT, 1, CR_COMB, 0x02020204u},  {"GRESSTEEL", F::H_CROWN, 1, CR_CROWN, 0x02040110u}, {"PASABRONZE", F::H_PLUMED, 1, CR_FINIAL, 0x0102030Fu},
+    {"SOLSTEEL", F::H_WINGED, 0, 0, 0x0303020Au},       {"SUNBRONZE", F::H_CONE, 0, CR_SPIKE, 0x03040101u}, {"SANDSTEEL", F::H_VEIL, 1, 0, 0x03050608u},
+    {"FALCONSILVER", F::H_ONION, 0, CR_SPIKE, 0x04040607u}, {"ENKHOBRASS", F::H_ONION, 1, CR_FINIAL, 0x06030107u}, {"TILSTEEL", F::H_CONE, 0, CR_KNIFE, 0x04030301u},
+    {"TOTESILVER", F::H_PLUMED, 4, CR_SPIKE, 0x0605050Fu}, {"STAGBRONZE", F::H_HORNED, 1, 0, 0x01020309u}, {"BRIARSTEEL", F::H_CROWN, 3, CR_CROWN, 0x06010610u},
+    {"THAERGLASS", F::H_WINGED, 3, 0, 0x0502050Au},     {"SLAURIRON", F::H_GREAT, 2, CR_COMB, 0x03010504u}, {"ROLSTEEL", F::H_SNOUT, 3, CR_SPIKE, 0x0403050Cu},
+    {"VENSTEEL", F::H_MORION, 1, CR_KNIFE, 0x0404010Eu}, {"JAGUARIRON", F::H_CROWN, 2, CR_CROWN, 0x01060310u}, {"IKOSILVER", F::H_CRESTED, 0, CR_COMB, 0x04020506u},
+    {"HAMISTEEL", F::H_WINGED, 2, 0, 0x0404060Au},      {"ANIBRASS", F::H_PLUMED, 2, CR_FINIAL, 0x0401020Fu}, {"LAVISILVER", F::H_SALLET, 0, CR_COMB, 0x0601060Bu},
+    {"AMIORSTEEL", F::H_CRESTED, 0, CR_KNIFE, 0x06040206u}, {"PAPIRON", F::H_WARHAT, 1, 0, 0x06010303u}, {"MIKASTEEL", F::H_PLUMED, 3, CR_SPIKE, 0x0303010Fu},
+    {"BAKOSTEEL", F::H_CRESTED, 0, CR_FIN, 0x01050106u}, {"UHABRASS", F::H_WINGED, 1, 0, 0x0205010Au},   {"KISTEEL", F::H_KABUTO, 0, CR_HORNS, 0x0304050Du},
+    {"CRANESILVER", F::H_WARHAT, 0, 0, 0x05020503u},    {"JAONBRASS", F::H_WARHAT, 2, 0, 0x02050603u},    {"DRAGONSTEEL", F::H_KABUTO, 1, CR_HORNS, 0x0105020Du},
+    {"UNSHISILVER", F::H_CROWN, 0, CR_CROWN, 0x03020510u}};
+bool g_legacyVariant = false;
+}  // namespace
+
+const BoardHead* boardHeads(int* n) { *n = (int)(sizeof(kBoardHeads) / sizeof(kBoardHeads[0])); return kBoardHeads; }
+const BoardHead* boardHead(const std::string& alloyName) {
+  for (const BoardHead& b : kBoardHeads) if (alloyName == b.name) return &b;
+  return nullptr;
+}
+uint32_t headKey(const Shape& s, int crest) { return F::headKeyOf(s.helm, s.variant, F::helmSocket(s.helm) ? crest : 0); }
+void setLegacyVariantRule(bool on) { g_legacyVariant = on; }
+bool metalRuleBreaks(const Shape& s) {
+  return (s.mass == F::MS_NONE && s.layer == F::LY_TABARD) || (s.mass == F::MS_MANTLE && (s.layer == F::LY_TABARD || s.layer == F::LY_HALFCAPE));
+}
+bool warmEverydayCell(int people, int school) {
+  static bool built = false;
+  static bool warm[12][36] = {};
+  if (!built) {
+    built = true;
+    auto mark = [&](const cult::Culture& c) {
+      if (c.arms.alloys.empty()) return;
+      const int w = alloyMetalWord(c.arms.alloys[0], 0);
+      if (w == 0 || w == 1) warm[std::clamp((int)c.archetype, 0, 11)][forgeSchool6(c)] = true;
+    };
+    for (int p = 0; p < 12; p++)
+      for (uint32_t sd = 1; sd <= 64; sd++) mark(cult::Atlas::make((cult::Archetype)p, sd));
+  }
+  return people >= 0 && people < 12 && school >= 0 && school < 36 && warm[people][school];
+}
+uint32_t alloyHeadKey(const cult::Culture& c, int alloyIndex) {
+  const Shape s = alloyShape(c, alloyIndex);
+  const AlloyDetails d = alloyDetails(c, alloyIndex, s);
+  return headKey(s, d.crest);
 }
 
 AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& key) {
@@ -949,6 +1010,26 @@ AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& k
     if (iso) for (const std::string& w : words(kVocab[a2].ax[F::AX_COLLAR])) add(w);
     D.collar = scoreStyle(F::AX_COLLAR, cands, rd ? rd->collar : "", hd ? hd->collar : "");
   }
+  // (P2c envelope, D51) the helm's variant follows the alloy, never another axis: the owner's 37 from kBoardHeads (their crest
+  // too); every other alloy from its people, rank and name (a culture's later alloy on the same family preferring a variant
+  // its earlier ones lack). The legacy rule (the fix round's mass keys) only for C16k's stability selftest
+  const int nv = F::helmVariantCount(key.helm);
+  if (g_legacyVariant) D.variant = (uint8_t)F::legacyHelmVariant(key.helm, key.mass, true);
+  else if (const BoardHead* bh = boardHead(A.name)) {
+    D.variant = bh->helm == key.helm ? bh->variant : 0;
+    if (bh->helm == key.helm && F::helmSocket(key.helm)) D.crest = bh->crest;
+  } else if (nv > 0) {
+    const uint32_t h = mix(fnv(2166136261u, A.name) ^ (uint32_t)a1 * 0x27D4EB2Du ^ (uint32_t)rank * 0x165667B1u);
+    int v = (int)(h % (uint32_t)(nv + 1));
+    for (int guard = 0; guard <= nv; guard++) {
+      bool dup = false;
+      for (int j = 0; j < alloyIndex; j++)
+        if (shapeOfKey(tableKey(a1, forgeSchool6(c), shapeRank(j))).helm == key.helm && earlier[(size_t)j].variant == v) dup = true;
+      if (!dup) break;
+      v = (v + 1) % (nv + 1);
+    }
+    D.variant = (uint8_t)v;
+  }
   return D;
 }
 
@@ -958,7 +1039,7 @@ Shape alloyShape(const cult::Culture& c, int alloyIndex) {
   if (!k) return Shape{};
   Shape s = shapeOfKey(k);
   const AlloyDetails d = alloyDetails(c, alloyIndex, s);
-  s.arm = d.arm; s.motif = d.motif;
+  s.arm = d.arm; s.motif = d.motif; s.variant = d.variant;
   return s;
 }
 
@@ -1071,6 +1152,12 @@ std::vector<std::string> checkShapeTable(const uint32_t (*t)[36][3], const Shape
           }
         }
       }
+      // (P2c envelope, contracts 3d; A1-A3) rule 5, the metal rule: a bronze or brass everyday alloy shows its metal
+      if (k[0] && warmEverydayCell(p, s) && metalRuleBreaks(shapeOfKey(k[0]))) {
+        std::snprintf(b, sizeof b, "rule 5: %s school %d rank 0 (a bronze or brass everyday alloy): %s", cult::archetypeName((cult::Archetype)p), s,
+                      describeShape(shapeOfKey(k[0])).c_str());
+        out.push_back(b);
+      }
       for (int i = 0; i < 3; i++)
         for (int j = i + 1; j < 3; j++) {
           const Shape x = shapeOfKey(k[i]), y = shapeOfKey(k[j]);
@@ -1083,6 +1170,19 @@ std::vector<std::string> checkShapeTable(const uint32_t (*t)[36][3], const Shape
           }
         }
     }
+  // (P2c envelope, D51) rule 6: the owner's 37 wear their helm families as shipped (kBoardHeads)
+  for (const BoardCulture& bc : forgeBoardSet()) {
+    if (!bc.owner) continue;
+    const cult::Culture oc = cult::Atlas::make((cult::Archetype)bc.people, bc.seed);
+    for (int i = 0; i < (int)oc.arms.alloys.size() && i < 3; i++) {
+      const BoardHead* bh = boardHead(oc.arms.alloys[(size_t)i].name);
+      const uint32_t k = t[bc.people][forgeSchool6(oc)][shapeRank(i)];
+      if (bh && k && shapeOfKey(k).helm != bh->helm) {
+        std::snprintf(b, sizeof b, "rule 6: %s wears %s (pinned %s)", bh->name, F::shapeName(F::SX_HELM, shapeOfKey(k).helm), F::shapeName(F::SX_HELM, bh->helm));
+        out.push_back(b);
+      }
+    }
+  }
   return out;
 }
 
@@ -1299,12 +1399,32 @@ ShapeSolve solveShapes(const ShapeModel& m) {
     (void)r;
     return pen;
   };
+  // (P2c envelope, D51) the owner's 37 keep their helm families as shipped at df2a155 (kBoardHeads), pinned as the hero's kit
+  uint8_t pinHelm[12][36][3] = {};
+  uint32_t pinKey[12][36][3] = {};
+  bool pinKeyBad[12][36][3] = {};
+  for (const BoardCulture& bc : forgeBoardSet()) {
+    if (!bc.owner) continue;
+    const cult::Culture oc = cult::Atlas::make((cult::Archetype)bc.people, bc.seed);
+    for (int i = 0; i < (int)oc.arms.alloys.size() && i < 3; i++)
+      if (const BoardHead* bh = boardHead(oc.arms.alloys[(size_t)i].name)) {
+        const int sc = forgeSchool6(oc), rk = shapeRank(i);
+        pinHelm[bc.people][sc][rk] = bh->helm;
+        pinKey[bc.people][sc][rk] = bh->key;
+        pinKeyBad[bc.people][sc][rk] = rk == 0 && warmEverydayCell(bc.people, sc) && metalRuleBreaks(shapeOfKey(bh->key));
+      }
+  }
   auto solveCell = [&](int p, int s) -> bool {
     const bool bc = isBoard(p, s);
     gatherNear(p, s, bc);
     std::vector<KeyCand> top[3];
     for (int r = 0; r < 3; r++) {
       for (const KeyCand& c : cand[p][r]) {
+        // (envelope, D51; the owner's B answers pending) the 37 keep their df2a155 keys whole: families, bodies and colours stay
+        // (C16k parts their heads by a variant or a crest only); the helm alone is pinned when the whole key breaks a hard rule
+        if (pinKey[p][s][r] && c.key != pinKey[p][s][r] && !(pinKeyBad[p][s][r] && c.s.helm == pinHelm[p][s][r])) continue;
+        if (pinHelm[p][s][r] && c.s.helm != pinHelm[p][s][r]) continue;   // (envelope) the 37's helm families pinned
+        if (r == 0 && warmEverydayCell(p, s) && metalRuleBreaks(c.s)) continue;   // (envelope, A1-A3) the metal rule
         auto it = owner.find(c.key);
         if (it != owner.end() && it->second.first != s) continue;   // rule 3: owned by another school
         bool boardEqual = false;   // C16u: no two board-set alloys share a key (a same-school culture of another people too)

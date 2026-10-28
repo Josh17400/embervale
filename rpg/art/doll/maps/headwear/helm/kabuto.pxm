@@ -202,7 +202,7 @@ regions
 # the crescent kabuto: a wide crescent maedate, the fukigaeshi flaps turned back, the neck guard flared to the shoulders.
 # Written by the HELMS area tools/d2.py (D R drawn; U is D with the face details dropped; L is R mirrored and re-lit).
 # the crescent kabuto (drop, broad)
-view D key rest origin 2 1 when helmfam-kabuto,alloyshape,!mass-none,!mass-round,!mass-tall,!mass-mantle replace
+view D key rest origin 2 1 when helmfam-kabuto,variant-1 replace
 mark crown 9 4
 mark socket 9 3
 |-vv--..........--vv-
@@ -239,7 +239,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 1 when helmfam-kabuto,alloyshape,!mass-none,!mass-round,!mass-tall,!mass-mantle replace
+view U key rest origin 2 1 when helmfam-kabuto,variant-1 replace
 mark crown 9 4
 mark socket 9 3
 |-vv--..........--vv-
@@ -276,7 +276,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 1 when helmfam-kabuto,alloyshape,!mass-none,!mass-round,!mass-tall,!mass-mantle replace
+view R key rest origin 3 1 when helmfam-kabuto,variant-1 replace
 mark crown 10 4
 mark socket 19 0
 |.................--vv-
@@ -313,7 +313,7 @@ regions
 |......................
 |......................
 
-view L key rest origin 3 1 when helmfam-kabuto,alloyshape,!mass-none,!mass-round,!mass-tall,!mass-mantle replace
+view L key rest origin 3 1 when helmfam-kabuto,variant-1 replace
 mark crown 11 4
 mark socket 2 0
 |-vv--.................

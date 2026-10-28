@@ -51,6 +51,24 @@ view D key laced origin 0 0
 |OOO
 |OOO
 
+# (envelope r1, FORGE-MATERIAL; A6) the vertical cuts (STARFALL's ribs, the fluted plate): 3-row bands across the ribs,
+# so each rib changes hue course by course (the lit plane turning), never a 1 px column of the second hue.
+view D key ribbed origin 0 0
+|OOOOO
+|OOOOO
+|OOOOO
+|.....
+|.....
+|.....
+
+view D key fluted origin 0 0
+|OOOO
+|OOOO
+|OOOO
+|....
+|....
+|....
+
 view D key staggered origin 0 0
 |OOOOOO
 |OOOOOO
@@ -59,7 +77,10 @@ view D key staggered origin 0 0
 |......
 |......
 
+# (envelope r1, FORGE-MATERIAL; A6 "bands 2 px tall or more") any other cut: two rows turned, two kept (a 2-row band per
+# 4 rows: the two hues part at 1x; a 1-row band read as a hairline).
 view D key rest origin 0 0
+|O
 |O
 |.
 |.

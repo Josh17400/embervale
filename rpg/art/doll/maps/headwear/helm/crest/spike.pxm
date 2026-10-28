@@ -82,37 +82,74 @@ view L key lie origin 4 3
 |vzyzxzwwv
 |.vvvvvvv.
 
+# (FORGE-HEAD envelope r1) the cone's needle (SUNBRONZE)
+
+view D key rest origin 2 4 when helmfam-cone replace
+|..vv..
+|.vzxv.
+|.vyxv.
+|vzyxwv
+|.vyxv.
+
+view U key rest origin 2 4 when helmfam-cone replace
+|..vv..
+|.vzxv.
+|.vyxv.
+|vzyxwv
+|.vyxv.
+
+view R key rest origin 2 4 when helmfam-cone replace
+|..vv..
+|.vzxv.
+|.vyxv.
+|vzyxwv
+|.vyxv.
+
+view L key rest origin 3 4 when helmfam-cone replace
+|..vv..
+|.vyyv.
+|.vyxv.
+|vxyxyv
+|.vyxv.
+
+view L key lie origin 3 4 when helmfam-cone replace
+|..vv..
+|.vyyv.
+|.vyxv.
+|vxyxyv
+|.vyxv.
+
 # (HELMS forge-fix i2) begin crest yield (forge fix 2): this crest steps aside on these helm outlines
 # the tall hounskull: its own point is the crest (a spike on it read as a second horn)
-view D key rest when helmfam-snout,mass-tall replace
+view D key rest when helmfam-snout,variant-2 replace
 |.
 
-view U key rest when helmfam-snout,mass-tall replace
+view U key rest when helmfam-snout,variant-2 replace
 |.
 
-view R key rest when helmfam-snout,mass-tall replace
+view R key rest when helmfam-snout,variant-2 replace
 |.
 
-view L key rest when helmfam-snout,mass-tall replace
+view L key rest when helmfam-snout,variant-2 replace
 |.
 
-view L key lie when helmfam-snout,mass-tall replace
+view L key lie when helmfam-snout,variant-2 replace
 |.
 
 # the same, the drop shoulders
-view D key rest when helmfam-snout,mass-drop replace
+view D key rest when helmfam-snout,variant-2,mass-drop replace
 |.
 
-view U key rest when helmfam-snout,mass-drop replace
+view U key rest when helmfam-snout,variant-2,mass-drop replace
 |.
 
-view R key rest when helmfam-snout,mass-drop replace
+view R key rest when helmfam-snout,variant-2,mass-drop replace
 |.
 
-view L key rest when helmfam-snout,mass-drop replace
+view L key rest when helmfam-snout,variant-2,mass-drop replace
 |.
 
-view L key lie when helmfam-snout,mass-drop replace
+view L key lie when helmfam-snout,variant-2,mass-drop replace
 |.
 
 # (HELMS forge-fix i2) end
@@ -131,4 +168,21 @@ view L key rest when alloyshape,!helmfam-cone,!helmfam-snout replace
 |.
 
 view L key lie when alloyshape,!helmfam-cone,!helmfam-snout replace
+|.
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
 |.

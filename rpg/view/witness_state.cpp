@@ -213,6 +213,10 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       j.end_array();
       if (!v.p2b.dollPart.empty()) j.field("part", v.p2b.dollPart);
       dollGear(j, P.look);   // (P2c) what the doll puts on the hero
+      {   // (P2c envelope, contracts 7) the hero's envelope measures (rig 2's doll)
+        const art::doll::EnvelopeMeasure em = art::doll::measureEnvelope(P.look);
+        j.key("envelope").begin_object().field("tier", em.tier).field("shoulders", em.shoulders).field("rows", em.rows).field("area", em.area).end_object();
+      }
       j.end_object();
     }
     j.end_object();

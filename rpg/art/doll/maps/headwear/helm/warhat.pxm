@@ -178,7 +178,7 @@ regions
 # keep the base dome.
 # Written by the HELMS area tools/d2.py (D R drawn; U is D with the face details dropped; L is R mirrored and re-lit).
 # the great kasa (broad, tall)
-view D key rest origin 4 3 when helmfam-warhat,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view D key rest origin 4 3 when helmfam-warhat,variant-1 replace
 mark crown 11 0
 mark socket 11 0
 |.........--vv--.........
@@ -186,11 +186,11 @@ mark socket 11 0
 |.......--vzyyxv--.......
 |.....---vzyyyxvv---.....
 |...---vvzyyyyxwvvv---...
-|.---vvyzyyyyyxxwvwvv---.
-|--vvyyzyyyyyyxxxwvwwvv--
-|vvzyyzyyyyyyyxxxxwvwwwvv
-|vyyxxxxxxxxxxwwwwwwwwwwv
-|.vvvvvvvvvvvvvvvvvvvvvv.
+|..--vvyzyyyyyxxwvwvv--..
+|.-vvyyzyyyyyyxxxwvwwvv-.
+|.vzyyzyyyyyyyxxxxwvwwwv.
+|.vyxxxxxxxxxxwwwwwwwwwv.
+|..vvvvvvvvvvvvvvvvvvvv..
 regions
 |........................
 |...........GG...........
@@ -200,10 +200,10 @@ regions
 |........................
 |........................
 |........................
-|.RRRRRRRRRRRRRRRRRRRRRR.
+|..RRRRRRRRRRRRRRRRRRRR..
 |........................
 
-view U key rest origin 4 3 when helmfam-warhat,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view U key rest origin 4 3 when helmfam-warhat,variant-1 replace
 mark crown 11 0
 mark socket 11 0
 |.........--vv--.........
@@ -211,11 +211,11 @@ mark socket 11 0
 |.......--vyyxwv--.......
 |.....---vyyxxxwv---.....
 |...---vvyyyxxxxwvv---...
-|.---vvyyyyxxxxxxwwvv---.
-|--vvyyyyyyxxxxxxxwwwvv--
-|vvyyyyyyyxxxxxxxxwwwwwvv
-|vyyyyyyyyxxxxxxxxwwwwwwv
-|.vvvvvvvvvvvvvvvvvvvvvv.
+|..--vvyyyyxxxxxxwwvv--..
+|.-vvyyyyyyxxxxxxxwwwvv-.
+|.vyyyyyyyxxxxxxxxwwwwwv.
+|.vyyyyyyyxxxxxxxxwwwwwv.
+|..vvvvvvvvvvvvvvvvvvvv..
 regions
 |........................
 |...........GG...........
@@ -225,10 +225,10 @@ regions
 |........................
 |........................
 |........................
-|.RRRRRRRRRRRRRRRRRRRRRR.
+|..RRRRRRRRRRRRRRRRRRRR..
 |........................
 
-view R key rest origin 5 3 when helmfam-warhat,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view R key rest origin 5 3 when helmfam-warhat,variant-1 replace
 mark crown 12 0
 mark socket 12 0
 |..........--vv--.........
@@ -236,11 +236,11 @@ mark socket 12 0
 |........--vzyyxv--.......
 |......---vzyyyxvv---.....
 |....---vvzyyyyxwvvv---...
-|..---vvyzyyyyyxxwvwvv---.
-|---vvyyzyyyyyyxxxwvwwvv--
-|vvvzyyzyyyyyyyxxxxwvwwwvv
-|vvyyxxxxxxxxxxwwwwwwwwwwv
-|..vvvvvvvvvvvvvvvvvvvvvv.
+|...--vvyzyyyyyxxwvwvv--..
+|..-vvyyzyyyyyyxxxwvwwvv-.
+|..vzyyzyyyyyyyxxxxwvwwwv.
+|..vyxxxxxxxxxxwwwwwwwwwv.
+|...vvvvvvvvvvvvvvvvvvvv..
 regions
 |.........................
 |............GG...........
@@ -250,10 +250,10 @@ regions
 |.........................
 |.........................
 |.........................
-|..RRRRRRRRRRRRRRRRRRRRRR.
+|...RRRRRRRRRRRRRRRRRRRR..
 |.........................
 
-view L key rest origin 4 3 when helmfam-warhat,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view L key rest origin 4 3 when helmfam-warhat,variant-1 replace
 mark crown 12 0
 mark socket 12 0
 |.........--vv--..........
@@ -261,11 +261,11 @@ mark socket 12 0
 |.......--vxwwyv--........
 |.....---vvxwwwyv---......
 |...---vvvyxwwwwyvv---....
-|.---vvyvyxxwwwwwywvv---..
-|--vvyyvyxxxwwwwwwywwvv---
-|vvyyyvyxxxxwwwwwwwywwyvvv
-|vyyyyyyyyyyxxxxxxxxxxwwvv
-|.vvvvvvvvvvvvvvvvvvvvvv..
+|..--vvyvyxxwwwwwywvv--...
+|.-vvyyvyxxxwwwwwwywwvv-..
+|.vyyyvyxxxxwwwwwwwywwyv..
+|.vyyyyyyyyyxxxxxxxxxxwv..
+|..vvvvvvvvvvvvvvvvvvvv...
 regions
 |.........................
 |...........GG............
@@ -275,11 +275,37 @@ regions
 |.........................
 |.........................
 |.........................
-|.RRRRRRRRRRRRRRRRRRRRRR..
+|..RRRRRRRRRRRRRRRRRRRR...
 |.........................
 
 # the gat (none, mantle)
-view D key rest origin 2 3 when helmfam-warhat,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+# (FORGE-HEAD envelope r2, tools2/brass.py) A1-A3: on a dark sheen (the antique brasses) this outline takes a metal shading: a narrow lit band and specular streak, the mid-step body, a shadowed quarter, a glint on the brim's lip
+view D key rest origin 2 3 when helmfam-warhat,variant-2,sheen-dark replace
+mark crown 9 0
+mark socket 9 0
+|..----vvvvvvvv------
+|..---vyzyxxxwwv-----
+|..---vyzyxxxwwv-----
+|..---vyzyxxxwwvmn---
+|-----vyzyxxxwwvnom--
+|-----vvyzxxwwvvmon--
+|-----vyzyxxxwwvvvm--
+|vvvvvvyzyxxxwwvvvvvv
+|vyyzzxxxxxxxxxxwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|....................
+|....................
+|....................
+|....................
+|....................
+|......RRRRRRRR......
+|....................
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+|....................
+
+view D key rest origin 2 3 when helmfam-warhat,variant-2 replace
 mark crown 9 0
 mark socket 9 0
 |..----vvvvvvvv------
@@ -287,7 +313,7 @@ mark socket 9 0
 |..---vzyyyyxxwv-----
 |..---vyyyyyxxwvmn---
 |-----vyyyyyxxwvnom--
-|-----vvxxxxwwvvmon--
+|-----vvyyyywwvvmon--
 |-----vyyyyyxxwvvvm--
 |vvvvvvyyyyyxxwvvvvvv
 |vzzyyyyyyyyxxxxwwwwv
@@ -304,18 +330,18 @@ regions
 |.RRRRRRRRRRRRRRRRRR.
 |....................
 
-view U key rest origin 2 3 when helmfam-warhat,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view U key rest origin 2 3 when helmfam-warhat,variant-2,sheen-dark replace
 mark crown 9 0
 mark socket 9 0
 |------vvvvvvvv----..
-|-----vzyyyxxxwv---..
-|-----vyyyyxxxwv---..
-|---nmvyyyxxxwwv---..
-|--monvyyyxxxwwv-----
-|--nomvyyyxxxwwv-----
-|--nmvvyyyxxxwwv-----
-|vvvvvyyyxxxxxxwvvvvv
-|vyyyyyyyxxxxxxwwwwwv
+|-----vyzyxxxwwv---..
+|-----vyzyxxxwwv---..
+|---nmvyzyxxxwwv---..
+|--monvyzyxxxwwv-----
+|--nomvyzyxxxwwv-----
+|--nmvvyzyxxxwwv-----
+|vvvvvyzzyxxxwwwvvvvv
+|vyyzzxxxxxxxxxxwwwwv
 |.vvvvvvvvvvvvvvvvvv.
 regions
 |....................
@@ -329,7 +355,57 @@ regions
 |.RRRRRRRRRRRRRRRRRR.
 |....................
 
-view R key rest origin 3 3 when helmfam-warhat,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view U key rest origin 2 3 when helmfam-warhat,variant-2 replace
+mark crown 9 0
+mark socket 9 0
+|------vvvvvvvv----..
+|-----vzyyyyxxwv---..
+|-----vyyyyyxxwv---..
+|---nmvyyyyyxwwv---..
+|--monvyyyyyxwwv-----
+|--nomvyyyyyxwwv-----
+|--nmvvyyyyyxwwv-----
+|vvvvvyyyyyyxxxwvvvvv
+|vyyyyyyyyyyxxxwwwwwv
+|.vvvvvvvvvvvvvvvvvv.
+regions
+|....................
+|....................
+|....................
+|....................
+|....................
+|......RRRRRRRR......
+|....................
+|....................
+|.RRRRRRRRRRRRRRRRRR.
+|....................
+
+view R key rest origin 3 3 when helmfam-warhat,variant-2,sheen-dark replace
+mark crown 10 0
+mark socket 10 0
+|-------vvvvvvvv----..
+|------vyzyxxxwwv---..
+|------vyzyxxxwwv---..
+|---nm-vyzyxxxwwv---..
+|---onmvyzyxxxwwv-----
+|---monvvyzxxwwvv-----
+|---mnvvyzyxxxwwv-----
+|vvvvvvvyzyxxxwwvvvvvv
+|vvyyzzxxxxxxxxxxwwwwv
+|..vvvvvvvvvvvvvvvvvv.
+regions
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|.......RRRRRRRR......
+|.....................
+|.....................
+|..RRRRRRRRRRRRRRRRRR.
+|.....................
+
+view R key rest origin 3 3 when helmfam-warhat,variant-2 replace
 mark crown 10 0
 mark socket 10 0
 |-------vvvvvvvv----..
@@ -337,7 +413,7 @@ mark socket 10 0
 |------vzyyyyxxwv---..
 |---nm-vyyyyyxxwv---..
 |---onmvyyyyyxxwv-----
-|---monvvxxxxwwvv-----
+|---monvvyyyxwwvv-----
 |---mnvvyyyyyxxwv-----
 |vvvvvvvyyyyyxxwvvvvvv
 |vvzzyyyyyyyyxxxxwwwwv
@@ -354,7 +430,32 @@ regions
 |..RRRRRRRRRRRRRRRRRR.
 |.....................
 
-view L key rest origin 2 3 when helmfam-warhat,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view L key rest origin 2 3 when helmfam-warhat,variant-2,sheen-dark replace
+mark crown 10 0
+mark socket 10 0
+|..----vvvvvvvv-------
+|..---vyzyxxxwwv------
+|..---vyzyxxxwwv------
+|..---vyzyxxxwwv-mn---
+|-----vyzyxxxwwvmno---
+|-----vvyzxxwwvvnom---
+|-----vyzyxxxwwvvnm---
+|vvvvvvyzyxxxwwvvvvvvv
+|vyyzzxxxxxxxxxxwwwwvv
+|.vvvvvvvvvvvvvvvvvv..
+regions
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|......RRRRRRRR.......
+|.....................
+|.....................
+|.RRRRRRRRRRRRRRRRRR..
+|.....................
+
+view L key rest origin 2 3 when helmfam-warhat,variant-2 replace
 mark crown 10 0
 mark socket 10 0
 |..----vvvvvvvv-------
@@ -362,7 +463,7 @@ mark socket 10 0
 |..---vyxxwwwwyv------
 |..---vyxxwwwwwv-mn---
 |-----vyxxwwwwwvmno---
-|-----vvyyxxxxvvnom---
+|-----vvyyyyyyvvnom---
 |-----vyxxwwwwwvvnm---
 |vvvvvvyxxwwwwwvvvvvvv
 |vyyyyxxxxwwwwwwwwyyvv

@@ -19,6 +19,250 @@ legend S accent 2
 legend T accent 3
 legend U accent 4
 
+# >>> BODY envelope fix round 1: the T3 cape (D57) >>>
+# The people's cape at T3 (D57, STYLE_P2 29.3; envelope fix round 1, BODY tools/capet3.py): to the coat's hem, facing D its
+# edges 1-2 px beside the pauldrons and the arms, never beside the legs; facing R / L it falls back from the shoulders
+# to 1-2 columns behind the head at the hip. `!walk` keeps the walk on its own drape (the side walk's kick is P2b's).
+view D key rest origin 12 2 when cloak.t3,!cloak.t5 replace
+|........QQQQQQQQ........
+|......QQTTSSSSRRQQ......
+|....QTTSSSSSSSSSSRRQ....
+|..QTTSSSSSSSSSSSSSRRQ...
+|.QTTTRRRRRRRRRRRRRRSRRQ.
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSSRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSSRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTTTTTTTSSSSSSSSSSSRRRQ
+|.QQQQQQQQQQQQQQQQQQQQQQ.
+
+view U key rest origin 11 2 layer cloakFront when cloak.t3,!cloak.t5 replace
+|.......QQQQQQQQ.......
+|.....QQTUUTTSSRQQ.....
+|...QQTTTTTTSSSSSRRQ...
+|..QTTTTTTSSSSSSSSSRQ..
+|.QTTTTTSSSSSSSSSRRRRQ.
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSRRRQRRRQ
+|QTTTTTTTTTTTTTSRRRRRRQ
+|.QQQQQQQQQQQQQQQQQQQQ.
+
+view D key idle origin 12 2 when cloak.t3,!cloak.t5 replace
+|........QQQQQQQQ........
+|......QQTTSSSSRRQQ......
+|....QTTSSSSSSSSSSRRQ....
+|..QTTSSSSSSSSSSSSSRRQ...
+|.QTTTRRRRRRRRRRRRRRSRRQ.
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSSRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSSRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTTTTTTTSSSSSSSSSSSRRRQ
+|.QQQQQQQQQQQQQQQQQQQQQQ.
+
+view U key idle origin 11 2 layer cloakFront when cloak.t3,!cloak.t5 replace
+|.......QQQQQQQQ.......
+|.....QQTUUTTSSRQQ.....
+|...QQTTTTTTSSSSSRRQ...
+|..QTTTTTTSSSSSSSSSRQ..
+|.QTTTTTSSSSSSSSSRRRRQ.
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSRRRQRRRQ
+|QTTTTTTTTTTTTTSRRRRRRQ
+|.QQQQQQQQQQQQQQQQQQQQ.
+
+view D key wide origin 12 2 when cloak.t3,!cloak.t5 replace
+|........QQQQQQQQ........
+|......QQTTSSSSRRQQ......
+|....QTTSSSSSSSSSSRRQ....
+|..QTTSSSSSSSSSSSSSRRQ...
+|.QTTTRRRRRRRRRRRRRRSRRQ.
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSSRRQ
+|QTTSSRRRRRRRRRRRRRRSRRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTSSRRRRRRRRRRRRRRSSRRQ
+|QTTTSRRRRRRRRRRRRRRSRRRQ
+|QTTTTTTTTSSSSSSSSSSSRRRQ
+|.QQQQQQQQQQQQQQQQQQQQQQ.
+
+view U key wide origin 11 2 layer cloakFront when cloak.t3,!cloak.t5 replace
+|.......QQQQQQQQ.......
+|.....QQTUUTTSSRQQ.....
+|...QQTTTTTTSSSSSRRQ...
+|..QTTTTTTSSSSSSSSSRQ..
+|.QTTTTTSSSSSSSSSRRRRQ.
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTTSRTTSSRSSSRRRRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSSRTTSSRSSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTTSRRTTSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSSRRQRRRQ
+|QTTSSRRTSSSRRSRRRQRRRQ
+|QTTTTTTTTTTTTTSRRRRRRQ
+|.QQQQQQQQQQQQQQQQQQQQ.
+
+view R key rest origin 9 1 when cloak.t3,!cloak.t5,!walk,!woman replace
+|.....QQQQ.......
+|....QTTSRQQQQQQ.
+|...QTSSSRQRRRRRQ
+|..QTSSSSRRRRRRRQ
+|..QTSSSRSRRRRRRQ
+|.QTSSSRSRRRRRRRQ
+|.QTSSRSSRRRRRRRQ
+|QTTSSRSSRRRRRRRQ
+|QTSSSRSSRRRRRRRQ
+|QTSSRSSSRRRRRRRQ
+|QTSSRSSRRRRRRRRQ
+|QTSRSSSRRRRRRRRQ
+|QTSRSSRRRRRRRRRQ
+|QTTTTTSSSSSSSSSQ
+|.QQQQQQQQQQQQQQ.
+
+view L key rest origin 7 1 when cloak.t3,!cloak.t5,!walk,!woman replace
+|.......QQQQ.....
+|.QQQQQQRSSSQ....
+|QRRRRRQRSSSSQ...
+|QRRRRRRRSSSSSQ..
+|QRRRRRRSRSSSSQ..
+|QRRRRRRRSRSSSSQ.
+|QRRRRRRRSSRSSSQ.
+|QRRRRRRRSSRSSSSQ
+|QRRRRRRRSSRSSSSQ
+|QRRRRRRRSSSRSSSQ
+|QRRRRRRRRSSRSSSQ
+|QRRRRRRRRSSSRSSQ
+|QRRRRRRRRRSSRSSQ
+|QSSSSSSSSSSSSSSQ
+|.QQQQQQQQQQQQQQ.
+
+view R key rest origin 9 1 when cloak.t3,!cloak.t5,!walk,woman replace
+|......QQQQ......
+|.....QTTSRQQQQQQ
+|....QTSSSRQRRRRR
+|...QTSSSSRRRRRRR
+|...QTSSSRSRRRRRR
+|..QTSSSRSRRRRRRR
+|..QTSSRSSRRRRRRR
+|.QTTSSRSSRRRRRRR
+|.QTSSSRSSRRRRRRR
+|.QTSSRSSSRRRRRRR
+|.QTSSRSSRRRRRRRR
+|.QTSRSSSRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTTTTTSSSSSSSSS
+|..QQQQQQQQQQQQQQ
+
+view L key rest origin 7 1 when cloak.t3,!cloak.t5,!walk,woman replace
+|......QQQQ......
+|QQQQQQRSSSQ.....
+|RRRRRQRSSSSQ....
+|RRRRRRRSSSSSQ...
+|RRRRRRSRSSSSQ...
+|RRRRRRRSRSSSSQ..
+|RRRRRRRSSRSSSQ..
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSSRSSSQ.
+|RRRRRRRRSSRSSSQ.
+|RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
+|SSSSSSSSSSSSSSQ.
+|QQQQQQQQQQQQQQ..
+
+view R key idle origin 9 1 when cloak.t3,!cloak.t5,!walk,!woman replace
+|.....QQQQ.......
+|....QTTSRQQQQQQ.
+|...QTSSSRQRRRRRQ
+|..QTSSSSRRRRRRRQ
+|..QTSSSRSRRRRRRQ
+|.QTSSSRSRRRRRRRQ
+|.QTSSRSSRRRRRRRQ
+|QTTSSRSSRRRRRRRQ
+|QTSSSRSSRRRRRRRQ
+|QTSSRSSSRRRRRRRQ
+|QTSSRSSRRRRRRRRQ
+|QTSRSSSRRRRRRRRQ
+|QTSRSSRRRRRRRRRQ
+|QTTTTTSSSSSSSSSQ
+|.QQQQQQQQQQQQQQ.
+
+view L key idle origin 7 1 when cloak.t3,!cloak.t5,!walk,!woman replace
+|.......QQQQ.....
+|.QQQQQQRSSSQ....
+|QRRRRRQRSSSSQ...
+|QRRRRRRRSSSSSQ..
+|QRRRRRRSRSSSSQ..
+|QRRRRRRRSRSSSSQ.
+|QRRRRRRRSSRSSSQ.
+|QRRRRRRRSSRSSSSQ
+|QRRRRRRRSSRSSSSQ
+|QRRRRRRRSSSRSSSQ
+|QRRRRRRRRSSRSSSQ
+|QRRRRRRRRSSSRSSQ
+|QRRRRRRRRRSSRSSQ
+|QSSSSSSSSSSSSSSQ
+|.QQQQQQQQQQQQQQ.
+
+view R key idle origin 9 1 when cloak.t3,!cloak.t5,!walk,woman replace
+|......QQQQ......
+|.....QTTSRQQQQQQ
+|....QTSSSRQRRRRR
+|...QTSSSSRRRRRRR
+|...QTSSSRSRRRRRR
+|..QTSSSRSRRRRRRR
+|..QTSSRSSRRRRRRR
+|.QTTSSRSSRRRRRRR
+|.QTSSSRSSRRRRRRR
+|.QTSSRSSSRRRRRRR
+|.QTSSRSSRRRRRRRR
+|.QTSRSSSRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTTTTTSSSSSSSSS
+|..QQQQQQQQQQQQQQ
+
+view L key idle origin 7 1 when cloak.t3,!cloak.t5,!walk,woman replace
+|......QQQQ......
+|QQQQQQRSSSQ.....
+|RRRRRQRSSSSQ....
+|RRRRRRRSSSSSQ...
+|RRRRRRSRSSSSQ...
+|RRRRRRRSRSSSSQ..
+|RRRRRRRSSRSSSQ..
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSSRSSSQ.
+|RRRRRRRRSSRSSSQ.
+|RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
+|SSSSSSSSSSSSSSQ.
+|QQQQQQQQQQQQQQ..
+
+# <<< BODY envelope fix round 1 <<<
+
 view D key rest origin 10 2
 |......QQQQQQQQ......
 |....QQTTSSSSRRQQ....
@@ -114,6 +358,22 @@ view R key idle origin 10 1
 |QTTTTTTSSSSSSSSQ
 |.QQQQQQQQQQQQQQ.
 
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view R key idle origin 10 1 when !cloak.t5,!walk replace
+|....QQQQ........
+|....QTSRQQQQQQQ.
+|....QTSRQRRRRRRQ
+|....QTSRRRRRRRRQ
+|....QTRSRRRRRRRQ
+|....QTRSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTTSSSSSSSSQ
+|....QQQQQQQQQQQ.
+
+
 view L key idle origin 5 1
 |........QQQQ....
 |.QQQQQQQRSSSQ...
@@ -126,6 +386,22 @@ view L key idle origin 5 1
 |QRRRRRRRSSSRSSSQ
 |QSSSSSSSSTTTTTTQ
 |.QQQQQQQQQQQQQQ.
+
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view L key idle origin 5 1 when !cloak.t5,!walk replace
+|........QQQQ....
+|.QQQQQQQRSSQ....
+|QRRRRRRQRSSQ....
+|QRRRRRRRRSSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRRSSSQ....
+|QSSSSSSSSTTQ....
+|.QQQQQQQQQQQ....
+
 
 view D key wide origin 10 2
 |......QQQQQQQQ......
@@ -495,6 +771,22 @@ view R key rest origin 10 1 when woman,walk replace
 |..QTTTTSSSSSSSSQ
 |...QQQQQQQQQQQQ.
 
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view R key rest origin 10 1 when !cloak.t5,!walk replace
+|....QQQQ........
+|....QTSRQQQQQQQ.
+|....QTSRQRRRRRRQ
+|....QTSRRRRRRRRQ
+|....QTRSRRRRRRRQ
+|....QTRSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTSSRRRRRRRQ
+|....QTTSSSSSSSSQ
+|....QQQQQQQQQQQ.
+
+
 # (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the drape's back edge 3 px in, inside her
 # narrower body (B11 W8: the man's drape stood 2-4 columns past her box); the front edge and the hood as his.
 view L key rest origin 5 1 when woman,walk replace
@@ -509,3 +801,34 @@ view L key rest origin 5 1 when woman,walk replace
 |QRRRRRRRSSSRQ...
 |QSSSSSSSSTTTQ...
 |.QQQQQQQQQQQ....
+
+# (FORGE-DOLL envelope r3, W8) the man's side walk facing L: the cape one column shorter behind (it trailed 3 columns past
+# the T3 mail's box on the walk's passing frames, T3 allows 2); the column before the back outline goes
+view L key rest origin 5 1 when walk,!woman replace
+|........QQQQ...
+|.QQQQQQQRSSQ...
+|QRRRRRRQRSSSQ..
+|QRRRRRRRRSSSSQ.
+|QRRRRRRRSRSSSQ.
+|QRRRRRRRSRSSSQ.
+|QRRRRRRRSSRSSSQ
+|QRRRRRRRSSRSSSQ
+|QRRRRRRRSSSRSSQ
+|QSSSSSSSSTTTTTQ
+|.QQQQQQQQQQQQQQ
+
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view L key rest origin 5 1 when !cloak.t5,!walk replace
+|........QQQQ....
+|.QQQQQQQRSSQ....
+|QRRRRRRQRSSQ....
+|QRRRRRRRRSSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSRSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRRSSSQ....
+|QRRRRRRRSSSQ....
+|QSSSSSSSSTTQ....
+|.QQQQQQQQQQQ....
+

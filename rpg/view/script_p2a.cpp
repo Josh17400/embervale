@@ -14,6 +14,7 @@
 //   expect corpse <n> [minAge] [maxAge]     at least n dead humans within 20 tiles, dead for minAge..maxAge s
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include "rpg/sim/anim.h"
@@ -232,5 +233,35 @@ bool expCorpse(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("expect:corpse", "expect corpse <n> [minAge] [maxAge]: at least n dead humans within 20 tiles, dead minAge..maxAge s (P2a)", expCorpse);
+
+// ---- (P2c ZOOM, added) the first-launch default: phones start at NEAR (screen.h launchAs)
+//   firstlaunch phone|tablet|desktop [WxH]   a first launch on that device (no settings file), the window resized to
+//                                            W x H device px (omitted: kept): the zoom by the device, NEAR on a phone
+//   relaunch phone|tablet|desktop [WxH]      a later launch: the settings as they stand (a chosen zoom is kept)
+//   expect worldlayer <w> <h>                the world layer's size in world px (e.g. 426 197 on a first-launch iPhone)
+bool cmdLaunch(ScriptCtx& c, bool fresh) {
+  const std::string dev = Ops::lower(c.arg(1));
+  const int d = screen::deviceArg(dev.c_str());
+  const char* name = fresh ? "firstlaunch" : "relaunch";
+  if (d < 0) { c.fail(std::string(name) + ": phone|tablet|desktop [WxH] (got '" + c.arg(1) + "')"); return true; }
+  int w = 0, h = 0;
+  if (!c.arg(2).empty() && std::sscanf(c.arg(2).c_str(), "%dx%d", &w, &h) != 2) { c.fail(std::string(name) + ": the window as WxH (got '" + c.arg(2) + "')"); return true; }
+  Pix* pix = Ops::pix(c.view);
+  if (!pix) { c.fail(std::string(name) + ": no window"); return true; }
+  screen::launchAs(*pix, d, w, h, fresh);
+  return true;
+}
+bool cmdFirstLaunch(ScriptCtx& c) { return cmdLaunch(c, true); }
+bool cmdRelaunch(ScriptCtx& c) { return cmdLaunch(c, false); }
+EMB_SCRIPT_CMD("firstlaunch", "firstlaunch phone|tablet|desktop [WxH]: a first launch on that device, no settings file (P2c: NEAR on a phone)", cmdFirstLaunch);
+EMB_SCRIPT_CMD("relaunch", "relaunch phone|tablet|desktop [WxH]: a later launch on that device, the settings kept (P2c: a chosen zoom wins)", cmdRelaunch);
+
+bool expWorldLayer(ScriptCtx& c) {
+  const Pix::Layer& l = Ops::worldLayer(c.view);
+  const int w = std::atoi(c.arg(2).c_str()), h = std::atoi(c.arg(3).c_str());
+  if (l.w != w || l.h != h) c.fail("expect worldlayer " + c.arg(2) + " " + c.arg(3) + ": the world layer is " + std::to_string(l.w) + " x " + std::to_string(l.h));
+  return true;
+}
+EMB_SCRIPT_CMD("expect:worldlayer", "expect worldlayer <w> <h>: the world layer's size in world px (P2c)", expWorldLayer);
 
 }  // namespace

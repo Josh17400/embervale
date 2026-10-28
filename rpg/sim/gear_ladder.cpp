@@ -346,6 +346,15 @@ int weaponTypeOf(const std::string& w) {
 }
 }  // namespace
 
+// (P2c envelope r3) the kit's look dial that no item carries: the T3 cape (the cloak's tier 3, so the cape's T3 views draw);
+// wearGear's own dials stand otherwise
+static void applyKitDials(art::HumanLook& L, const LadderKit& K, int tier) {
+  if (K.cape && !L.cloak) {
+    L.cape = true;
+    if (!L.tier[art::HumanLook::TIER_CLOAK]) L.tier[art::HumanLook::TIER_CLOAK] = (uint8_t)std::clamp(tier, 1, 6);
+  }
+}
+
 LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::string& wpn, int rarity, uint32_t seed) {
   LadderKit k;
   k.culture = kitCulture(people, seed);
@@ -482,6 +491,9 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
     const size_t m = k.cloak.name.find("MANTLE");
     if (m != std::string::npos) k.cloak.name.replace(m, 6, "CLOAK");
   }
+  // (P2c envelope r3, C12f ladder lines) T3 wears the people's cape (PLAN's T3 row: "the people's cape, to the waist"; the
+  // fair test's T3 guard): a people with a long cloak (cape dial 2) has its travel cloak above, one with none bears none
+  k.cape = tier == 3 && !k.hasCloak && (A.cape == 1 || heart);
   if (k.hasCloak && !k.cloak.tint) k.cloak.tint = (C->heraldry.field ? C->heraldry.field : (A.cloth ? A.cloth : 0)) | 0xFF000000u;
   return k;
 }
@@ -556,9 +568,23 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
   if (!kit.empty()) {
     const std::vector<std::string> f = split(kit, ':');
     cult::Archetype a = cult::Archetype::Heartland;
+    // (envelope fix round, D64) kit=<people>:<tier>[m]:<seed>: `m` (tier 6 only) is the Mythic, the same look as
+    // kit=<people>:6:<seed>,rarity=mythic; any other suffix or a malformed tier is an error naming the tag (the parser read
+    // "6m" as 6 and silently dropped the m)
+    int t = 0;
+    bool tierOk = f.size() >= 2 && !f[1].empty();
+    if (tierOk) {
+      size_t i = 0;
+      while (i < f[1].size() && f[1][i] >= '0' && f[1][i] <= '9') i++;
+      const std::string suf = f[1].substr(i);
+      t = i ? (int)std::strtol(f[1].substr(0, i).c_str(), nullptr, 10) : -1;
+      if (!i || t < 1 || t > 6) tierOk = false;
+      else if (suf == "m") { if (t != 6) tierOk = false; else if (rarity < 0) rarity = 5; else if (rarity != 5) tierOk = false; }
+      else if (!suf.empty()) tierOk = false;
+    }
     if (f.size() < 2 || !peopleOf(f[0], a)) addBad("kit");
+    else if (!tierOk) addBad("kit=" + kit + " (tier 1-6, `m` only on 6)");
     else {
-      const int t = (int)std::strtol(f[1].c_str(), nullptr, 10);
       const uint32_t seed = f.size() >= 3 ? (uint32_t)std::strtoul(f[2].c_str(), nullptr, 10) : 1u;
       LadderKit K = ladderKit(a, t, L.body, wpn, rarity, seed);
       // (alloys i1) alloy=N (1-based): every metal piece of the kit in the people's alloy N (the alloys board)
@@ -568,6 +594,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       L.outfit = art::Outfit::Tunic;   // appearanceLook's start: the shirt under the kit
       L.weapon = 0; L.shield = false; L.backItem = 0;
       wearGear(L, K.worn(), K.lookup());
+      applyKitDials(L, K, t);
       // the scarf through T3 (contracts 3b): from T4 the gorget and the great helm cover it
       if (hero >= 0 && L.tier[art::HumanLook::TIER_BODY] >= 4) L.neck = 0;
       // (ladder i2) the hero's crest and plume in his own colour (the kit's maker device green read as "a sprig", on the
@@ -792,6 +819,7 @@ art::HumanLook alloyKitLook(const art::HumanLook& base, const cult::Culture& c, 
   L.outfit = art::Outfit::Tunic;
   L.weapon = 0; L.shield = false; L.backItem = 0;
   wearGear(L, K.worn(), K.lookup());
+  applyKitDials(L, K, t);
   return L;
 }
 

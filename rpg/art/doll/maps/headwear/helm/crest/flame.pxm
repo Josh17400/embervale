@@ -86,3 +86,36 @@ mark socket 5 0
 |FUTSUUTSTF.
 |vwwvvvvwwv.
 |vxxwwxxwwv.
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+# (FORGE-HEAD envelope r1) the Mythic T6 crested draws its flame crown in the helm (on the brow band): the crest steps aside
+view D key rest when helm.t6,mythic,!alloyshape replace
+|.
+
+view L key lie when helm.t6,mythic,!alloyshape replace
+|.
+
+view L key rest when helm.t6,mythic,!alloyshape replace
+|.
+
+view R key rest when helm.t6,mythic,!alloyshape replace
+|.
+
+view U key rest when helm.t6,mythic,!alloyshape replace
+|.

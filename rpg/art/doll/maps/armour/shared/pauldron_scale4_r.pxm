@@ -33,15 +33,15 @@ regions
 
 view D key rest origin 4 3 layer headwear when shoulder-scale replace
 |....vvvv
-|..vvyxxv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxywv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|vxwxwxv.
+|..vvzyyv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyyxv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|vwwwwwv.
 |.vvvvv..
 regions
 |........
@@ -75,15 +75,15 @@ regions
 
 view D key up origin 4 4 layer headwear when shoulder-scale replace
 |....vvvv
-|..vvyxxv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxywv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|vxwxwxv.
+|..vvzyyv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyyxv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|vwwwwwv.
 |.vvvvv..
 regions
 |........
@@ -117,15 +117,15 @@ regions
 
 view D key lie origin 4 3 when shoulder-scale replace
 |....vvvv
-|..vvyxxv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxywv
-|.vyxyxxv
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|vxwxwxv.
+|..vvzyyv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyyxv
+|.vyyxxwv
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|vwwwwwv.
 |.vvvvv..
 regions
 |........
@@ -159,15 +159,15 @@ regions
 
 view U key rest origin 3 3 layer headwear when shoulder-scale replace
 |vvvv....
-|vyxxvv..
-|vyxyxxv.
-|vxwxwxwv
-|vxyxywv.
-|vyxyxxv.
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|.vxwxwxv
+|vzyyvv..
+|vyyxxwv.
+|vwwwwwwv
+|vyyyyxv.
+|vyyxxwv.
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|.vwwwwwv
 |..vvvvv.
 regions
 |........
@@ -201,15 +201,15 @@ regions
 
 view U key up origin 3 4 layer headwear when shoulder-scale replace
 |vvvv....
-|vyxxvv..
-|vyxyxxv.
-|vxwxwxwv
-|vxyxywv.
-|vyxyxxv.
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|.vxwxwxv
+|vzyyvv..
+|vyyxxwv.
+|vwwwwwwv
+|vyyyyxv.
+|vyyxxwv.
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|.vwwwwwv
 |..vvvvv.
 regions
 |........
@@ -243,15 +243,15 @@ regions
 
 view U key lie origin 3 3 when shoulder-scale replace
 |vvvv....
-|vyxxvv..
-|vyxyxxv.
-|vxwxwxwv
-|vxyxywv.
-|vyxyxxv.
-|vxwxwxwv
-|.vxyxyv.
-|.vyxyxv.
-|.vxwxwxv
+|vzyyvv..
+|vyyxxwv.
+|vwwwwwwv
+|vyyyyxv.
+|vyyxxwv.
+|vwwwwwwv
+|.vyyyxv.
+|.vyyxwv.
+|.vwwwwwv
 |..vvvvv.
 regions
 |........
@@ -285,15 +285,15 @@ regions
 
 view R key rest origin 6 3 layer headwear when shoulder-scale replace
 |...vvvvvv.
-|..vxyxyxxv
-|.vyxyxyxxv
-|vxwxwxwxwv
-|.vxyxyxywv
-|.vyxyxyxxv
-|vxwxwxwxwv
-|.vxyxyxywv
-|.vyxyxyxv.
-|vxwxwxwxv.
+|..vzyyyyxv
+|.vyyxxxxwv
+|vwwwwwwwwv
+|.vyyyyyyxv
+|.vyyxxxxwv
+|vwwwwwwwwv
+|.vyyyyyyxv
+|.vyyxxxwv.
+|vwwwwwwwv.
 |.vvvvvvv..
 regions
 |..........
@@ -327,15 +327,15 @@ regions
 
 view R key up origin 6 4 layer headwear when shoulder-scale replace
 |...vvvvvv.
-|..vxyxyxxv
-|.vyxyxyxxv
-|vxwxwxwxwv
-|.vxyxyxywv
-|.vyxyxyxxv
-|vxwxwxwxwv
-|.vxyxyxywv
-|.vyxyxyxv.
-|vxwxwxwxv.
+|..vzyyyyxv
+|.vyyxxxxwv
+|vwwwwwwwwv
+|.vyyyyyyxv
+|.vyyxxxxwv
+|vwwwwwwwwv
+|.vyyyyyyxv
+|.vyyxxxwv.
+|vwwwwwwwv.
 |.vvvvvvv..
 regions
 |..........
@@ -363,11 +363,11 @@ regions
 
 view R key lie origin 6 3 when shoulder-scale replace
 |...vvvvvv.
-|..vxyxyxxv
-|.vyxyxyxxv
-|vxwxwxwxwv
-|.vxyxyxywv
-|.vyxyxyxxv
+|..vzyyyyxv
+|.vyyxxxxwv
+|vwwwwwwwwv
+|.vyyyyyyxv
+|.vyyxxxxwv
 |vvvvvvvvvv
 regions
 |..........
@@ -395,14 +395,14 @@ regions
 
 view L key rest origin 2 3 when shoulder-scale replace
 |.vvvvvv...
-|vwxwxwwv..
-|vxwxwxwwv.
+|vxxxxxwv..
+|vxxwwwwwv.
 |vwwwwwwwwv
-|vwxwxwxwv.
-|vxwxwxwwv.
+|vxxxxxxwv.
+|vxxwwwwwv.
 |vwwwwwwwwv
-|vwxwxwxwv.
-|.vxwxwxwv.
+|vxxxxxxwv.
+|.vxxwwwwv.
 |..vvvvvvv.
 regions
 |..........
@@ -433,14 +433,14 @@ regions
 
 view L key up origin 2 4 when shoulder-scale replace
 |.vvvvvv...
-|vwxwxwwv..
-|vxwxwxwwv.
+|vxxxxxwv..
+|vxxwwwwwv.
 |vwwwwwwwwv
-|vwxwxwxwv.
-|vxwxwxwwv.
+|vxxxxxxwv.
+|vxxwwwwwv.
 |vwwwwwwwwv
-|vwxwxwxwv.
-|.vxwxwxwv.
+|vxxxxxxwv.
+|.vxxwwwwv.
 |..vvvvvvv.
 regions
 |..........

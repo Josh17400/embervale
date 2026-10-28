@@ -2781,6 +2781,16 @@ void View::drawWorld(Game& g) {
         sy = a.useY * 16.0f + (!f.ok || f.front ? 15.6f : 14.4f);
       }
     }
+    // (P2c envelope, contracts 3d: the doorway draw order) a figure whose feet stand in an interior door's tile (DoorH: the
+    // frame, its jambs and the lintel over the cap row) sorts before that door for the whole tile, so the jambs draw over a
+    // top tier's pauldrons and cloak (a T6 is 28 px across, the opening 16) until the feet leave the tile (rig 2 only)
+    if (art::rigVersion() >= 2 && m.kind == MapKind::Interior && a.human && a.st != AState::Dead && a.posture == art::Posture::None) {
+      const int ftx = (int)std::floor(a.p.x / 16.0f), fty = (int)std::floor(a.p.y / 16.0f);
+      if (m.in(ftx, fty)) {
+        const int dp = m.propAt(ftx, fty);
+        if (dp && (Prop)(dp - 1) == Prop::DoorH) sy = std::min(sy, fty * 16.0f + 14.9f);
+      }
+    }
     list.push_back({sy, 3, i, 0, 0});
   }
   // (P1b ENGINE lane) a wagon escort's hand cart (kind 13: idx = story::Engine::walkers_ index), sorted by its own

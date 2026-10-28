@@ -1,0 +1,146 @@
+[
+ {
+  "name": "p2c envelope: the hero's T1-T6 each inside its tier's caps (kEnvelope: shoulders 16/18/20/22/26/28 px across, the helm 2/3/4/6/8/10 rows over the crown) on the doll at rig 2",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ]
+    ]
+   },
+   {
+    "at": 0.4,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:1:7"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 1",
+     "state.player.sprite.doll.envelope.shoulders <= 16",
+     "state.player.sprite.doll.envelope.rows <= 2"
+    ]
+   },
+   {
+    "at": 0.75,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:2:7"
+     ]
+    ]
+   },
+   {
+    "at": 0.95,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 2",
+     "state.player.sprite.doll.envelope.shoulders <= 18",
+     "state.player.sprite.doll.envelope.rows <= 3"
+    ]
+   },
+   {
+    "at": 1.1,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:3:7"
+     ]
+    ]
+   },
+   {
+    "at": 1.3,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 3",
+     "state.player.sprite.doll.envelope.shoulders <= 20",
+     "state.player.sprite.doll.envelope.rows <= 4"
+    ]
+   },
+   {
+    "at": 1.45,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:4:7"
+     ]
+    ]
+   },
+   {
+    "at": 1.65,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 4",
+     "state.player.sprite.doll.envelope.shoulders <= 22",
+     "state.player.sprite.doll.envelope.rows <= 6"
+    ]
+   },
+   {
+    "at": 1.8,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:5:7"
+     ]
+    ]
+   },
+   {
+    "at": 2.0,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 5",
+     "state.player.sprite.doll.envelope.shoulders <= 26",
+     "state.player.sprite.doll.envelope.rows <= 8"
+    ]
+   },
+   {
+    "at": 2.15,
+    "call": [
+     [
+      "ladderkit",
+      "hero=1,kit=heartland:6:7"
+     ]
+    ]
+   },
+   {
+    "at": 2.35,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.envelope.tier == 6",
+     "state.player.sprite.doll.envelope.shoulders <= 28",
+     "state.player.sprite.doll.envelope.rows <= 10"
+    ]
+   }
+  ]
+ }
+]

@@ -623,6 +623,7 @@ thread_local std::vector<Item> g_items;   // the last composed frame's items (fr
 thread_local std::vector<int16_t>* g_probeOwner = nullptr;
 // (P2c forge i2) the pixels the body's armour and pauldrons wrote last (the glint pass reads them)
 thread_local std::vector<uint8_t> g_bodyPiece;
+thread_local std::vector<uint8_t> g_depthPx;   // (envelope r2) 1 where a held, back or fx item drew the pixel (C19's off-figure)
 thread_local std::vector<uint8_t>* g_probeRegion = nullptr;
 thread_local int g_probeGrip = -1, g_probeGripL = -1;
 // (P2c SLICE-DOLL i2) a turned frame's screen-space items: a view placed at the pivot (`anchor pivot`: the corpse's spear
@@ -680,6 +681,30 @@ void despecklePass(const DollRecipe& r, FrameOut& o) {
       (void)sum;
     }
 }
+// (P2c envelope, A8) a lone lit pixel on any metal of the figure (a step-3 pixel with no lit 4-neighbour: a broken 1 px dash on
+// a plate, a greave, a gauntlet) is noise at 1x: it takes the body (step 2)
+void loneLitPass(FrameOut& o) {
+  if (o.bx1 < o.bx0) return;
+  const int x0 = o.bx0, y0 = o.by0, w = o.bx1 - o.bx0 + 1, h = o.by1 - o.by0 + 1;
+  auto at = [&](int x, int y) -> uint8_t& { return o.code[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  // (envelope r2 integration, A8) a lit pixel is propped up only by its own depth: a greave's 1 px dash beside the back
+  // skirt's lit hem or the spear's blade is still a lone dash on the figure (C19 reads the figure without them)
+  auto heldAt = [&](int x, int y) { return !g_depthPx.empty() && g_depthPx[(size_t)(y0 + y) * CW + (x0 + x)] != 0; };
+  auto lit = [&](int x, int y, bool held) {
+    if (x < 0 || y < 0 || x >= w || y >= h || heldAt(x, y) != held) return false;
+    const uint8_t c = at(x, y);
+    return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2) && codeStep(c) >= 3;
+  };
+  std::vector<int> lone;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      const uint8_t c = at(x, y);
+      if (c < 2 || codeStep(c) != 3 || (codeSlot(c) != Slot::Metal && codeSlot(c) != Slot::Metal2)) continue;
+      const bool hd = heldAt(x, y);
+      if (!lit(x - 1, y, hd) && !lit(x + 1, y, hd) && !lit(x, y - 1, hd) && !lit(x, y + 1, hd)) lone.push_back(y * w + x);
+    }
+  for (int q : lone) at(q % w, q / w) = code(codeSlot(at(q % w, q / w)), 2);
+}
 void glintPass(const DollRecipe& r, FrameOut& o) {
   bool styled = false, anyStyled = false;
   for (int a = 0; a < 8; a++) styled |= r.forgeAx[HumanLook::TIER_BODY][a] != 0;
@@ -724,6 +749,12 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
       }
       cl.push_back(std::move(c));
     }
+  // (P2c envelope, A8) a lone lit pixel on any metal of the figure (a step-3 pixel with no lit 4-neighbour: a broken 1 px
+  // dash on a plate, a greave, a gauntlet) is noise at 1x: it takes the body (step 2). Highlights are clean planes of 2 x 2
+  // or more, glints the step-4 clusters
+  {
+    loneLitPass(o);
+  }
   int metalAll = 0;
   for (int y = 0; y < h; y++)
     for (int x = 0; x < w; x++) { const uint8_t c = at(x, y); if (c >= 2 && codeSlot(c) == Slot::Metal) metalAll++; }
@@ -731,7 +762,10 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
   const bool soft = !bodyStyled || metal + (int)cl.size() < 12;   // (a soft kit: only the sheen's tell, on any metal)
   if (soft) wide = true;
   // (T5-T6 keep their sparkle: the living finish's gold and its glints climb with the tier, C12b; the cap holds to T4)
-  if (!soft && cl.size() > 3 && r.pieceTier[HumanLook::TIER_BODY] <= 4) {
+  // (P2c envelope, A8: "glint noise on heavy plate") three short hard glints a figure at every tier and frame: the T5-T6
+  // living finish keeps its sparkle in its own light (the runes, the edge sweep, the motes: render.cpp), never as more step-4
+  // specks on the plates
+  if (!soft && cl.size() > 3) {
     std::stable_sort(cl.begin(), cl.end(), [](const Cl& a, const Cl& b) { return a.key < b.key; });
     for (size_t i = 3; i < cl.size(); i++)
       for (int q : cl[i].px) at(q % w, q / w) = code(Slot::Metal, 3);
@@ -921,27 +955,6 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
   // (forge fix i1, the owner: "Obsidian reads as black cloth or lacquer: needs glassy specular streaks") KNAPPED's glass: up to
   // four diagonal streaks (rising to the right, 45 degrees, the lit facet's step 3, 3-4 px long) across the body's dark facets
   // (step 1-2 metal runs of 3 or more along the diagonal), 7 px apart: the light slides across glass, it does not sit on it
-  if (r.has("glass")) {
-    const bool was = wide;
-    wide = true;   // (the helm's and the shoulders' facets too: KNAPPED's torso facets are narrow)
-    auto dark = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && (metalAt(x, y, 2) || metalAt(x, y, 1)); };
-    int streaks = 0;
-    for (int c0 = 6; c0 < w + h && streaks < 4; c0 += 7) {
-      // the longest run of dark facet pixels along x + y = c0 (from the lower left up to the upper right)
-      int bestS = -1, bestN = 0;
-      for (int y = std::min(h - 1, c0), n = 0, s0 = -1; y >= 0 && c0 - y < w; y--) {
-        const int x = c0 - y;
-        if (dark(x, y)) { if (!n) s0 = y; n++; if (n > bestN) { bestN = n; bestS = s0; } }
-        else n = 0;
-      }
-      if (bestN < 3) continue;
-      // the streak in the run's middle, 3 px (4 on a run of 7 or more)
-      const int len = bestN >= 7 ? 4 : 3, start = bestS - (bestN - len) / 2;
-      for (int k = 0; k < len; k++) { const int y = start - k, x = c0 - y; if (dark(x, y)) at(x, y) = code(Slot::Metal, 3); }
-      streaks++;
-    }
-    wide = was;
-  }
   // the sheen's glint (STYLE_P2 28.7): matte, no step-4 run over 1 px on any metal (a run drops to its first pixel); bright,
   // the top glint a 2 px run (its right or left lit neighbour lifted)
   auto metal4 = [&](int x, int y) { const uint8_t c = at(x, y); return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) == 4; };
@@ -986,8 +999,721 @@ void glintPass(const DollRecipe& r, FrameOut& o) {
       }
     }
   }
+
 }
 
+// (P2c envelope, A8: "glint noise on heavy plate") after the glint pass, on every frame of a styled figure (a soft one too):
+// the figure's step-4 metal in three glints at most, then no lone lit pixel
+void glintCapPass(const DollRecipe& r, FrameOut& o) {
+  bool anyStyled = false;
+  for (int t = 0; t < HumanLook::TIER_SLOTS; t++)
+    for (int a = 0; a < 8; a++) anyStyled |= r.forgeAx[t][a] != 0;
+  // (envelope r2 integration, A8 "glint noise on heavy plate") the plain heavy plate (T5-T6, no forge style: the hero line's
+  // own e5 / e6) is cleaned of lone lit dashes too; its drawn art keeps everything else
+  if (!anyStyled && r.pieceTier[HumanLook::TIER_BODY] >= 5) { loneLitPass(o); return; }
+  if (!anyStyled || o.bx1 < o.bx0) return;
+  const int x0 = o.bx0, y0 = o.by0, w = o.bx1 - o.bx0 + 1, h = o.by1 - o.by0 + 1;
+  auto at = [&](int x, int y) -> uint8_t& { return o.code[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  struct Cl { int key; std::vector<int> px; };
+  // (P2c envelope, A8: "3 a figure at most, in every facing and frame") the figure's step-4 metal (Metal and Metal 2: the
+  // plates, the helm, the trim, the greaves) in three glints at most: the largest (the bright sheen's 2 px run) and then those
+  // nearest the top-left light keep step 4, the rest take the lit plane (step 3). Every frame, a soft one too (a back view
+  // under the long cloak shows little body plate, and its helm, trim and greaves still glint)
+  {
+    auto m4 = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2) && codeStep(c) == 4;
+    };
+    std::vector<int> seen((size_t)w * h, 0);
+    std::vector<Cl> all;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (!m4(x, y) || seen[(size_t)y * w + x]) continue;
+        Cl c{1 << 30, {}};
+        std::vector<int> st{y * w + x};
+        seen[(size_t)y * w + x] = 1;
+        while (!st.empty()) {
+          const int q = st.back(); st.pop_back();
+          c.px.push_back(q);
+          c.key = std::min(c.key, (q / w) * 2 + q % w);
+          for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++) {
+              const int nx = q % w + dx, ny = q / w + dy;
+              if (!m4(nx, ny) || seen[(size_t)ny * w + nx]) continue;
+              seen[(size_t)ny * w + nx] = 1;
+              st.push_back(ny * w + nx);
+            }
+        }
+        // the body armour's own glints first (C17: 1-3 on the armour), then the helm's, the trim's and the greaves'
+        // (the plates' own Metal before the gold trim's Metal 2: C17 counts the armour's Metal glints)
+        bool onBody = false, metal1 = false;
+        for (int q : c.px) {
+          onBody |= (g_bodyPiece[(size_t)(y0 + q / w) * CW + (x0 + q % w)] & 1) != 0;
+          metal1 |= codeSlot(at(q % w, q / w)) == Slot::Metal;
+        }
+        if (!onBody) c.key += 1 << 20;
+        if (!metal1) c.key += 1 << 19;
+        all.push_back(std::move(c));
+      }
+    if (all.size() > 3) {
+      // which three stay: the body armour's own first (C17: 1-3 on the armour), a horizontal 2 px run first among them (the
+      // bright sheen's tell), then the larger (the T5-T6 sparkle keeps its pixels: C12b); then the helm's, the trim's, the greaves
+      auto run2 = [&](const Cl& c) {
+        for (int q : c.px) for (int q2 : c.px) if (q2 == q + 1 && q / w == q2 / w) return true;
+        return false;
+      };
+      std::stable_sort(all.begin(), all.end(), [&](const Cl& a, const Cl& b) {
+        const bool ra = run2(a), rb = run2(b), ba = a.key < (1 << 20), bb = b.key < (1 << 20), ma = (a.key & (1 << 19)) == 0, mb = (b.key & (1 << 19)) == 0;
+        if (ba != bb) return ba;
+        if (ma != mb) return ma;
+        if (ra != rb) return ra;
+        if (a.px.size() != b.px.size()) return a.px.size() > b.px.size();
+        return a.key < b.key;
+      });
+      std::vector<char> keep(all.size(), 0);
+      for (size_t i = 0; i < all.size() && i < 3; i++) keep[i] = 1;
+      // the bright sheen's 2 px run stays wherever it was laid (a plate with no lit pair lays it on the helm or the shield)
+      if (!run2(all[0]) && !run2(all[1]) && !run2(all[2]))
+        for (size_t i = 3; i < all.size(); i++) if (run2(all[i])) { keep[2] = 0; keep[i] = 1; break; }
+      for (size_t i = 0; i < all.size(); i++)
+        if (!keep[i]) for (int q : all[i].px) at(q % w, q / w) = code(codeSlot(at(q % w, q / w)), 3);
+    }
+  }
+  // (A8) and again after the glints moved: a glint taken down to a lone step-3 pixel takes the body too
+  // a lone lit pixel on any metal of the figure (a step-3 pixel with no lit 4-neighbour: a broken 1 px
+  // dash on a plate, a greave, a gauntlet) is noise at 1x: it takes the body (step 2). Highlights are clean planes of 2 x 2
+  // or more, glints the step-4 clusters
+  {
+    loneLitPass(o);
+  }
+}
+// (P2c envelope r2, FORGE-MATERIAL prototype; PLAN A4/A7, D53) THE GLASS PASS: obsidian and every GLASS alloy render as glass,
+// not lit iron. Per metal piece (a 4-connected run of Metal steps 1-4 inside its step-0 outline): the light stays only on
+// the piece's TOP-LEFT edge (a lit band 1 px deep: the facet's hard edge), the inside of the plane goes to the dark glass body
+// (step 2), the LOWER-RIGHT inside edge of each piece of 12 px or more takes the cold rim (step 3: light through the glass),
+// and the two or three largest pieces (body armour first) take ONE hard specular each: a 2 px step-4 bar on the lit edge.
+// Every older step-4 pixel on the glass goes, so the glints are exactly these bars (2-6 px, 2-3 a figure, one off the helm).
+void glassPass(const DollRecipe& r, FrameOut& o) {
+  if (!r.has("glass") || o.bx1 < o.bx0) return;
+  // (envelope r3, FORGE-MATERIAL; A7) a GLASS alloy's Metal 2 (its second hue: Thaerglass's shoulders) is glass too; obsidian's
+  // Metal 2 is the gold trim and stays metal
+  // (envelope fix round, FORGE-MATERIAL; D62) a GLASS alloy's Metal 2 is now its river SILVER (the rims, seams and brow band
+  // set round the panes): it stays metal, as obsidian's gold trim does; the leather of its harness still grows in the glass
+  const bool alloyGlass = !r.has("metal-obsidian");
+  const bool glass2 = false;
+  const int x0 = o.bx0, y0 = o.by0, w = o.bx1 - o.bx0 + 1, h = o.by1 - o.by0 + 1;
+  auto at = [&](int x, int y) -> uint8_t& { return o.code[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  // (D59) W7's face box + 1 px (the head anchor's 16 x 14 box: x 2-13, y 4-13): no glass light there in any facing, so a
+  // mask's lower face is one dark plane and no lit bar or specular crosses the face
+  const int fhx = CPX + o.anchors[(int)Anchor::Head].x, fhy = CPY + o.anchors[(int)Anchor::Head].y;
+  auto face = [&](int x, int y) { const int X = x0 + x, Y = y0 + y; return X >= fhx + 2 && X <= fhx + 13 && Y >= fhy + 4 && Y <= fhy + 13; };
+  auto gslot = [&](uint8_t c) { return c >= 2 && codeStep(c) >= 1 && (codeSlot(c) == Slot::Metal || (glass2 && codeSlot(c) == Slot::Metal2)); };
+  auto glass = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && gslot(at(x, y)); };
+  // the planes: a piece is a run of steps 2-4 (the drawn step-1 shadow lines part the lames and facets, as the outline does)
+  auto plane = [&](int x, int y) { return glass(x, y) && codeStep(at(x, y)) >= 2; };
+  // (envelope r3, A7) a GLASS alloy's body is glass all through: the leather of its armour and shoulder pieces (Thaerglass's
+  // sylvan cut is a leather harness) is grown in the glass (Metal, its step kept); obsidian keeps its leather straps
+  if (alloyGlass)
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        uint8_t& c = at(x, y);
+        if (c >= 2 && codeSlot(c) == Slot::Leather && codeStep(c) >= 1 && (g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)] & 1)) c = code(Slot::Metal, codeStep(c));
+      }
+  std::vector<int> lab((size_t)w * h, -1);
+  struct Pc { std::vector<int> px; int x0, y0, x1, y1; bool body; Slot slot; };
+  std::vector<Pc> pcs;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      if (!plane(x, y) || lab[(size_t)y * w + x] >= 0) continue;
+      const Slot sl = codeSlot(at(x, y));
+      Pc pc{{}, x, y, x, y, false, sl};
+      std::vector<int> st{y * w + x};
+      lab[(size_t)y * w + x] = (int)pcs.size();
+      while (!st.empty()) {
+        const int q = st.back(); st.pop_back();
+        pc.px.push_back(q);
+        const int qx = q % w, qy = q / w;
+        pc.x0 = std::min(pc.x0, qx); pc.x1 = std::max(pc.x1, qx); pc.y0 = std::min(pc.y0, qy); pc.y1 = std::max(pc.y1, qy);
+        pc.body |= (g_bodyPiece[(size_t)(y0 + qy) * CW + (x0 + qx)] & 1) != 0;
+        const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (const auto& e : d) {
+          const int nx = qx + e[0], ny = qy + e[1];
+          if (plane(nx, ny) && codeSlot(at(nx, ny)) == sl && lab[(size_t)ny * w + nx] < 0) { lab[(size_t)ny * w + nx] = (int)pcs.size(); st.push_back(ny * w + nx); }
+        }
+      }
+      pcs.push_back(std::move(pc));
+    }
+  auto in = [&](int x, int y, int id) { return x >= 0 && y >= 0 && x < w && y < h && lab[(size_t)y * w + x] == id; };
+  auto put = [&](int x, int y, int s) { at(x, y) = code(codeSlot(at(x, y)), s); };
+  for (int id = 0; id < (int)pcs.size(); id++) {
+    const Pc& pc = pcs[(size_t)id];
+    const bool big = pc.px.size() >= 4 && pc.y1 - pc.y0 >= 1;
+    const int mx = (pc.x0 + pc.x1 + 1) / 2, my = (pc.y0 + pc.y1 + 1) / 2;
+    const int litX = pc.x0 + (pc.x1 - pc.x0) * 3 / 5;                    // the edge light fades out past three fifths of the width
+    std::vector<uint8_t> nst(pc.px.size()), rim(pc.px.size(), 0);
+    for (size_t i = 0; i < pc.px.size(); i++) {
+      const int x = pc.px[i] % w, y = pc.px[i] / w;
+      const int st = codeStep(at(x, y));
+      const bool top = !in(x, y - 1, id), lft = !in(x - 1, y, id), rgt = !in(x + 1, y, id), bot = !in(x, y + 1, id);
+      // black glass is dark: the light is a LINE on the top edge from the lit corner (and down the left edge of a big plane's
+      // upper half), never the whole facet
+      const bool lit = pc.y1 - pc.y0 >= 2 && ((top && x <= litX) || (lft && y <= my && pc.px.size() >= 20));   // a thin lame stays dark glass
+      int s = st == 3 ? (lit ? 3 : 2) : st;                              // the inside dark glass (glints kept)
+      const bool deep = pc.px.size() >= 20, rgt2 = rgt || (deep && !in(x + 2, y, id)), bot2 = bot || (deep && !in(x, y + 2, id));
+      if (big && st < 4 && !top && ((rgt2 && y >= my) || (bot2 && x >= mx))) { s = 3; rim[i] = 1; }   // 2 px deep on a big plane   // the cold rim (D53): the edge light through the glass
+      nst[i] = (uint8_t)s;
+    }
+    // (envelope r3, A4/A7) THE REFLECTION: a 2 px diagonal band (rising to the right) across each plane of 14 px or more, two
+    // fifths of the way in from the lit corner: light lying ACROSS the glass, the tell that it is glass and not lacquer or cloth
+    if (pc.px.size() >= 20 && pc.x1 - pc.x0 >= 4 && pc.y1 - pc.y0 >= 4) {
+      const int span = (pc.x1 - pc.x0) + (pc.y1 - pc.y0);
+      const int c0 = pc.x0 + pc.y0 + std::max(2, span * 2 / 5);
+      for (size_t i = 0; i < pc.px.size(); i++) {
+        const int x = pc.px[i] % w, y = pc.px[i] / w, c = x + y;
+        if ((c == c0 || c == c0 + 1) && nst[i] <= 2) { nst[i] = 3; rim[i] = 2; }
+      }
+    }
+    // no pinched pixel: a dark pixel whose piece neighbours are all lit joins the light (the band beside the lit edge)
+    {
+      std::vector<int> idx((size_t)w * h, -1);
+      for (size_t i = 0; i < pc.px.size(); i++) idx[(size_t)pc.px[i]] = (int)i;
+      std::vector<size_t> up;
+      for (size_t i = 0; i < pc.px.size(); i++) {
+        if (nst[i] > 2) continue;
+        const int x = pc.px[i] % w, y = pc.px[i] / w;
+        int n = 0, lit = 0;
+        const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (const auto& e : d)
+          if (in(x + e[0], y + e[1], id)) { n++; lit += nst[(size_t)idx[(size_t)((y + e[1]) * w + x + e[0])]] >= 3; }
+        if (n >= 2 && lit == n) up.push_back(i);
+      }
+      for (size_t i : up) nst[i] = 3;
+    }
+    // the glass stays DARK: at most two fifths of a piece lit (steps 3-4); the rim and the glints stay, the edge light nearest
+    // the lit corner stays, the farthest goes first (a pale glass's facet read as white plaster when it was all light)
+    if (pc.px.size() >= 6) {
+      std::vector<std::pair<int, size_t>> lit;
+      int n4 = 0;
+      for (size_t i = 0; i < pc.px.size(); i++) {
+        if (nst[i] == 4) n4++;
+        else if (nst[i] == 3 && !rim[i]) lit.push_back({(pc.px[i] % w - pc.x0) + (pc.px[i] / w - pc.y0), i});
+      }
+      int nr = 0;
+      for (uint8_t q : rim) nr += q;
+      const int cap = (int)pc.px.size() * 9 / 20 - n4 - nr;
+      std::stable_sort(lit.begin(), lit.end());
+      for (size_t k = (size_t)std::max(0, cap); k < lit.size(); k++) nst[lit[k].second] = 2;
+    }
+    for (size_t i = 0; i < pc.px.size(); i++) put(pc.px[i] % w, pc.px[i] / w, nst[i]);
+  }
+  // the cold rim on the WHOLE body piece too (the step-1 shadow lines included: the r2 rule): its lower-right inside edge
+  {
+    std::vector<int> lab2((size_t)w * h, -1);
+    int nid = 0;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (!glass(x, y) || lab2[(size_t)y * w + x] >= 0) continue;
+        const Slot sl = codeSlot(at(x, y));
+        std::vector<int> px, st{y * w + x};
+        int ax0 = x, ay0 = y, ax1 = x, ay1 = y;
+        lab2[(size_t)y * w + x] = nid;
+        while (!st.empty()) {
+          const int q = st.back(); st.pop_back(); px.push_back(q);
+          const int qx = q % w, qy = q / w;
+          ax0 = std::min(ax0, qx); ax1 = std::max(ax1, qx); ay0 = std::min(ay0, qy); ay1 = std::max(ay1, qy);
+          const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+          for (const auto& e : d) {
+            const int nx = qx + e[0], ny = qy + e[1];
+            if (glass(nx, ny) && codeSlot(at(nx, ny)) == sl && lab2[(size_t)ny * w + nx] < 0) { lab2[(size_t)ny * w + nx] = nid; st.push_back(ny * w + nx); }
+          }
+        }
+        if (px.size() >= 8 && ax1 - ax0 >= 2 && ay1 - ay0 >= 2) {
+          const int mx = (ax0 + ax1 + 1) / 2, my = (ay0 + ay1 + 1) / 2;
+          auto in2 = [&](int xx, int yy) { return xx >= 0 && yy >= 0 && xx < w && yy < h && lab2[(size_t)yy * w + xx] == nid; };
+          std::vector<int> set;
+          for (int q : px) {
+            const int qx = q % w, qy = q / w;
+            const bool tl = !in2(qx - 1, qy) || !in2(qx, qy - 1), br = !in2(qx + 1, qy) || !in2(qx, qy + 1);
+            if (br && !tl && codeStep(at(qx, qy)) < 3 && (qx >= mx || qy >= my) && (g_bodyPiece[(size_t)(y0 + qy) * CW + (x0 + qx)] & 1)) set.push_back(q);
+          }
+          for (int q : set) put(q % w, q / w, 3);
+        }
+        nid++;
+      }
+  }
+  // (D59) the face box goes dark: every glass pixel there at step 3-4 (the edge light, the reflection band, an older glint)
+  // takes the dark glass body (step 2)
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++)
+      if (face(x, y) && at(x, y) >= 2 && codeStep(at(x, y)) >= 3 && (glass(x, y) || codeSlot(at(x, y)) == Slot::Metal2)) put(x, y, 2);
+  // the trim's own step-4 points (the filigree's lit scroll ends) take its lit plane: on glass the speculars are the bars only
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      const uint8_t c = at(x, y);
+      if (!alloyGlass && c >= 2 && codeSlot(c) == Slot::Metal2 && codeStep(c) == 4) at(x, y) = code(Slot::Metal2, 3);   // (a GLASS alloy's silver keeps its glint)
+    }
+  // the speculars: the glint pass's glints stay where they are (C17: 1-3 on the armour); a 1 px one grows into a 2 px bar
+  // along its piece (a matte sheen keeps its single point, C17); a cluster over 6 px keeps its first 6; with fewer than two,
+  // the largest pieces (body armour first) take a 2 px bar at the first lit-edge pair nearest the top-left light
+  const bool matte = r.sheen == 1;
+  auto m4 = [&](int x, int y) { return glass(x, y) && codeStep(at(x, y)) == 4; };
+  int groups = 0;
+  {
+    std::vector<char> seen((size_t)w * h, 0);
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (!m4(x, y) || seen[(size_t)y * w + x]) continue;
+        std::vector<int> g, st{y * w + x};
+        seen[(size_t)y * w + x] = 1;
+        while (!st.empty()) {
+          const int q = st.back(); st.pop_back(); g.push_back(q);
+          for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++) {
+              const int nx = q % w + dx, ny = q / w + dy;
+              if (m4(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+            }
+        }
+        groups++;
+        // (envelope fix r2, DOLL; D62 "short diagonal bars or diamonds") on a GLASS alloy a cluster keeps 3 px at most, laid
+        // as the diagonal: its 2 px nearest the top-left and a tail one row down and left (r4's 6 px straight bar across
+        // a_thaer's chest facing R read as a mouth under the seam's glow dots: the face the judge saw); obsidian keeps 6
+        if (alloyGlass && g.size() > 3) {
+          std::sort(g.begin(), g.end(), [&](int a, int b) { return (a % w + a / w) != (b % w + b / w) ? (a % w + a / w) < (b % w + b / w) : a < b; });
+          for (size_t i = 2; i < g.size(); i++) put(g[i] % w, g[i] / w, 3);
+          const int tx = g[0] % w - 1, ty = g[0] / w + 1;
+          if (in(tx, ty, lab[(size_t)g[0]]) && !face(tx, ty)) put(tx, ty, 4);
+          g.resize(2);
+        }
+        for (size_t i = 6; i < g.size(); i++) put(g[i] % w, g[i] / w, 3);
+        if (g.size() != 1 || matte) continue;
+        const int gx = g[0] % w, gy = g[0] / w, id = lab[(size_t)g[0]];
+        bool grown = false;
+        for (int dx : {1, -1})
+          if (!grown && in(gx + dx, gy, id) && codeStep(at(gx + dx, gy)) >= 2) { put(gx + dx, gy, 4); grown = true; }
+        for (int dy : {1, -1})
+          if (!grown && in(gx, gy + dy, id) && codeStep(at(gx, gy + dy)) >= 2) { put(gx, gy + dy, 4); grown = true; }
+        if (!grown) { put(gx, gy, 3); groups--; }
+      }
+  }
+  std::vector<int> order;
+  for (int id = 0; id < (int)pcs.size(); id++) if (pcs[(size_t)id].px.size() >= 10) order.push_back(id);
+  std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+    if (pcs[(size_t)a].body != pcs[(size_t)b].body) return pcs[(size_t)a].body;
+    return pcs[(size_t)a].px.size() > pcs[(size_t)b].px.size();
+  });
+  for (int id : order) {
+    if (groups >= 3) break;
+    bool has4 = false;
+    for (int q : pcs[(size_t)id].px) has4 |= codeStep(at(q % w, q / w)) == 4;
+    if (has4) continue;
+    int bx = -1, by = -1, bk = 1 << 30;
+    for (int q : pcs[(size_t)id].px) {
+      const int x = q % w, y = q / w;
+      if (!in(x + 1, y, id) || codeStep(at(x, y)) < 2 || codeStep(at(x, y)) > 3 || codeStep(at(x + 1, y)) < 2 || codeStep(at(x + 1, y)) > 3) continue;
+      if (face(x, y) || face(x + 1, y) || face(x - 1, y + 1)) continue;   // (D59) never a specular on the face
+      if (in(x, y - 1, id) && in(x + 1, y - 1, id)) continue;          // on the top edge
+      const int k = (y - pcs[(size_t)id].y0) * 2 + (x - pcs[(size_t)id].x0) + (x == pcs[(size_t)id].x0 ? 3 : 0);
+      if (k < bk) { bk = k; bx = x; by = y; }
+    }
+    if (bx < 0) continue;
+    put(bx, by, 4);
+    if (!matte) {
+      put(bx + 1, by, 4);
+      // a big plane's specular is a hard diagonal (the light lying across the facet): its tail one row down and left
+      if (pcs[(size_t)id].body && pcs[(size_t)id].px.size() >= 30 && in(bx - 1, by + 1, id) && codeStep(at(bx - 1, by + 1)) <= 2) put(bx - 1, by + 1, 4);
+    }
+    groups++;
+  }
+  // (envelope fix round, FORGE-MATERIAL; D62 "no pale patch") on a GLASS alloy no connected step 3-4 region of its metal
+  // (Metal and the silver) reaches 12 px: the light is a small top-left facet, a rim line and 2-6 px glints, never a pale
+  // plane (the enamel and jade tell). A region of 12 or more keeps its rim pixels (step 3 within 2 px of the outline at the
+  // lower right) and its glints longest and gives back the pixels farthest from its top-left corner first; a rim alone that
+  // still runs 12 or more is cut in its middle
+  if (alloyGlass) {
+    auto anyM = [&](int x, int y) { if (x < 0 || y < 0 || x >= w || y >= h) return false; const uint8_t c = at(x, y); return c >= 2 && codeStep(c) >= 1 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2); };
+    auto litM = [&](int x, int y) { return anyM(x, y) && codeStep(at(x, y)) >= 3; };
+    auto rimLike = [&](int x, int y) {
+      if (codeStep(at(x, y)) != 3) return false;
+      for (int d = 1; d <= 2; d++)
+        for (int e = 0; e < 3; e++) {
+          const int nx = x + (e != 1 ? d : 0), ny = y + (e != 0 ? d : 0);
+          if (nx >= w || ny >= h || at(nx, ny) < 2 || codeStep(at(nx, ny)) == 0) return true;
+        }
+      return false;
+    };
+    for (int pass = 0; pass < 32; pass++) {
+      bool any = false;
+      std::vector<char> seen((size_t)w * h, 0);
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+          if (seen[(size_t)y * w + x] || !litM(x, y)) continue;
+          std::vector<int> g, st{y * w + x};
+          seen[(size_t)y * w + x] = 1;
+          int rx0 = x, ry0 = y;
+          while (!st.empty()) {
+            const int q = st.back(); st.pop_back(); g.push_back(q);
+            rx0 = std::min(rx0, q % w); ry0 = std::min(ry0, q / w);
+            const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (const auto& e : d) {
+              const int nx = q % w + e[0], ny = q / w + e[1];
+              if (litM(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+            }
+          }
+          if (g.size() < 12) continue;
+          any = true;
+          // the order to give back: plain lit first (farthest from the top-left first), then rims, never the glints unless alone
+          std::vector<std::pair<int, int>> order;
+          for (int q : g) {
+            const int qx = q % w, qy = q / w, st4 = codeStep(at(qx, qy)) == 4;
+            const int cls = st4 ? 2 : rimLike(qx, qy) ? 1 : 0;
+            order.push_back({cls * 1000 - ((qx - rx0) + (qy - ry0)), q});
+          }
+          std::sort(order.begin(), order.end());
+          const size_t drop = g.size() - 11;
+          if (order[drop - 1].first < 1000) { for (size_t i = 0; i < drop && order[i].first < 1000; i++) put(order[i].second % w, order[i].second / w, 2); }
+          else put(g[g.size() / 2] % w, g[g.size() / 2] / w, 2);   // a rim alone: cut it
+        }
+      if (!any) break;
+    }
+  }
+  // (envelope fix round, FORGE-MATERIAL; D59 / D62 "the rim as one run of 3 px or more") every convex body piece (a
+  // 4-connected run of glass, steps 1-4, of 12 px or more on the armour or a shoulder) carries its light-through-the-glass as
+  // ONE run: where its longest rim run is under 3 px, the longest chain of its lower-right inside edge (a pixel whose right or
+  // lower neighbour is the outline, a drawn line or the ground, past the piece's middle) takes step 3 for up to 5 px, its
+  // up-left neighbour kept dark glass (steps 1-2: the core the rim reads against). Never in the face box.
+  // (envelope fix r2, DOLL; D62 "on the helm, the torso and each shoulder") the helm is the third part: r4's helm rim came
+  // only from the drawn map (a_thaer's dome drawn at step 1 with a step-2 right edge: the glass tell 0 px on the helm), so the
+  // run is now laid on the helm too, down the dome's right side below its upper third (the
+  // wings above are their own blades; the dome narrows to the brow band, so its lower half alone held 2 px)
+  for (int part = 0; part < 3; part++) {   // the torso (armour + chest motif), the shoulders and the helm apart: each its own run
+    std::vector<int> lab3((size_t)w * h, -1);
+    int nid = 0;
+    auto gl = [&](int x, int y) {
+      if (!glass(x, y)) return false;
+      const uint8_t b = g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)];
+      return part == 0 ? (b & 4) != 0 : part == 1 ? ((b & 1) && !(b & 4) && !(b & 16)) : (b & 16) != 0;
+    };
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (!gl(x, y) || lab3[(size_t)y * w + x] >= 0) continue;
+        std::vector<int> px, st{y * w + x};
+        lab3[(size_t)y * w + x] = nid;
+        int ax0 = x, ax1 = x, ay0 = y, ay1 = y;
+        while (!st.empty()) {
+          const int q = st.back(); st.pop_back(); px.push_back(q);
+          const int qx = q % w, qy = q / w;
+          ax0 = std::min(ax0, qx); ax1 = std::max(ax1, qx); ay0 = std::min(ay0, qy); ay1 = std::max(ay1, qy);
+          const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+          for (const auto& e : d) {
+            const int nx = qx + e[0], ny = qy + e[1];
+            if (gl(nx, ny) && lab3[(size_t)ny * w + nx] < 0) { lab3[(size_t)ny * w + nx] = nid; st.push_back(ny * w + nx); }
+          }
+        }
+        const int id3 = nid++;
+        if ((int)px.size() < (part == 0 ? 6 : 12)) continue;
+        const int mx = (ax0 + ax1 + 1) / 2, my = (ay0 + ay1 + 1) / 2;
+        auto in3 = [&](int xx, int yy) { return xx >= 0 && yy >= 0 && xx < w && yy < h && lab3[(size_t)yy * w + xx] == id3; };
+        auto edgeBR = [&](int xx, int yy) {   // within 2 px right, down or diagonally down-right: the outline, a line or the ground
+          for (int d = 1; d <= 2; d++)
+            for (int e = 0; e < 3; e++) {
+              const int nx = xx + (e != 1 ? d : 0), ny = yy + (e != 0 ? d : 0);
+              if (nx >= w || ny >= h || at(nx, ny) < 2 || codeStep(at(nx, ny)) == 0) return true;
+            }
+          return false;
+        };
+        auto core = [&](int xx, int yy) { return (in3(xx - 1, yy) && codeStep(at(xx - 1, yy)) <= 2) || (in3(xx - 1, yy - 1) && codeStep(at(xx - 1, yy - 1)) <= 2); };
+        auto cand = [&](int xx, int yy) { return in3(xx, yy) && !face(xx, yy) && codeStep(at(xx, yy)) <= 3 && edgeBR(xx, yy) && (part == 2 ? (xx >= mx && yy >= ay0 + (ay1 - ay0) / 3) : (xx >= mx || yy >= my)) && (in3(xx - 1, yy) || in3(xx, yy - 1)); };
+        // the longest chain of candidates, and the longest run already lit: a 4-connected run (envelope fix r2: r4 counted
+        // every lit candidate of a chain, so a staircase of diagonal step-3 pixels on a_thaer's dome counted 4 and the run was
+        // skipped, then the lone-pixel rule below took each of them back: the helm's glass tell 0 px)
+        std::vector<int> chain;
+        std::vector<char> seen((size_t)w * h, 0);
+        for (int q : px) {
+          const int qx = q % w, qy = q / w;
+          if (seen[(size_t)q] || !cand(qx, qy)) continue;
+          std::vector<int> c, s2{q};
+          seen[(size_t)q] = 1;
+          while (!s2.empty()) {
+            const int z = s2.back(); s2.pop_back(); c.push_back(z);
+            const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (const auto& e : d) {
+              const int nx = z % w + e[0], ny = z / w + e[1];
+              if (nx >= 0 && ny >= 0 && nx < w && ny < h && !seen[(size_t)ny * w + nx] && cand(nx, ny)) { seen[(size_t)ny * w + nx] = 1; s2.push_back(ny * w + nx); }
+            }
+          }
+          if (c.size() > chain.size()) chain = c;
+        }
+        auto litc = [&](int xx, int yy) { return cand(xx, yy) && codeStep(at(xx, yy)) == 3 && core(xx, yy); };
+        int best = 0;
+        std::fill(seen.begin(), seen.end(), (char)0);
+        for (int q : px) {
+          if (seen[(size_t)q] || !litc(q % w, q / w)) continue;
+          int n = 0;
+          std::vector<int> s2{q};
+          seen[(size_t)q] = 1;
+          while (!s2.empty()) {
+            const int z = s2.back(); s2.pop_back(); n++;
+            const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (const auto& e : d) {
+              const int nx = z % w + e[0], ny = z / w + e[1];
+              if (nx >= 0 && ny >= 0 && nx < w && ny < h && !seen[(size_t)ny * w + nx] && litc(nx, ny)) { seen[(size_t)ny * w + nx] = 1; s2.push_back(ny * w + nx); }
+            }
+          }
+          best = std::max(best, n);
+        }
+        if (best >= 3 || chain.size() < 3) continue;
+        // from the chain's pixel nearest the lower-right corner, 5 px at most grown along the chain (one 4-connected run)
+        {
+          const int far = *std::max_element(chain.begin(), chain.end(), [&](int a, int b) { return (a % w + a / w) < (b % w + b / w); });
+          std::vector<int> run{far}, fr{far};
+          std::vector<char> inC((size_t)w * h, 0), took((size_t)w * h, 0);
+          for (int z : chain) inC[(size_t)z] = 1;
+          took[(size_t)far] = 1;
+          while (!fr.empty() && run.size() < 5) {
+            std::vector<int> nx;
+            for (int z : fr) {
+              const int d[4][2] = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
+              for (const auto& e : d) {
+                const int xx = z % w + e[0], yy = z / w + e[1];
+                if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                const int q = yy * w + xx;
+                if (inC[(size_t)q] && !took[(size_t)q] && run.size() < 5) { took[(size_t)q] = 1; run.push_back(q); nx.push_back(q); }
+              }
+            }
+            fr = nx;
+          }
+          chain = run;
+        }
+        for (int z : chain) {
+          const int zx = z % w, zy = z / w;
+          put(zx, zy, 3);
+          if (in3(zx - 1, zy) && codeStep(at(zx - 1, zy)) == 3 && std::find(chain.begin(), chain.end(), z - 1) == chain.end()) put(zx - 1, zy, 2);
+        }
+      }
+  }
+  // (envelope fix round, FORGE-MATERIAL; D62 "no pale patch") on a GLASS alloy no connected step 3-4 region of its metal
+  // (Metal and the silver) reaches 12 px: the light is a small top-left facet, a rim line and 2-6 px glints, never a pale
+  // plane (the enamel and jade tell). A region of 12 or more keeps its rim pixels (step 3 within 2 px of the outline at the
+  // lower right) and its glints longest and gives back the pixels farthest from its top-left corner first; a rim alone that
+  // still runs 12 or more is cut
+  if (alloyGlass) {
+    auto anyM = [&](int x, int y) { if (x < 0 || y < 0 || x >= w || y >= h) return false; const uint8_t c = at(x, y); return c >= 2 && codeStep(c) >= 1 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2); };
+    auto litM = [&](int x, int y) { return anyM(x, y) && codeStep(at(x, y)) >= 3; };
+    auto rimLike = [&](int x, int y) {
+      if (codeStep(at(x, y)) != 3) return false;
+      for (int d = 1; d <= 2; d++)
+        for (int e = 0; e < 3; e++) {
+          const int nx = x + (e != 1 ? d : 0), ny = y + (e != 0 ? d : 0);
+          if (nx >= w || ny >= h || at(nx, ny) < 2 || codeStep(at(nx, ny)) == 0) return true;
+        }
+      return false;
+    };
+    for (int pass = 0; pass < 32; pass++) {
+      bool any = false;
+      std::vector<char> seen((size_t)w * h, 0);
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+          if (seen[(size_t)y * w + x] || !litM(x, y)) continue;
+          std::vector<int> g, st{y * w + x};
+          seen[(size_t)y * w + x] = 1;
+          int rx0 = x, ry0 = y;
+          while (!st.empty()) {
+            const int q = st.back(); st.pop_back(); g.push_back(q);
+            rx0 = std::min(rx0, q % w); ry0 = std::min(ry0, q / w);
+            const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (const auto& e : d) {
+              const int nx = q % w + e[0], ny = q / w + e[1];
+              if (litM(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+            }
+          }
+          if (g.size() < 12) continue;
+          any = true;
+          std::vector<std::pair<int, int>> order;   // plain lit first (farthest from the top-left first), then rims, glints last
+          for (int q : g) {
+            const int qx = q % w, qy = q / w, st4 = codeStep(at(qx, qy)) == 4;
+            const int cls = st4 ? 2 : rimLike(qx, qy) ? 1 : 0;
+            order.push_back({cls * 1000 - ((qx - rx0) + (qy - ry0)), q});
+          }
+          std::sort(order.begin(), order.end());
+          const size_t drop = g.size() - 11;
+          if (order[drop - 1].first < 1000) { for (size_t i = 0; i < drop; i++) put(order[i].second % w, order[i].second / w, 2); }
+          else { std::sort(g.begin(), g.end()); put(g[g.size() / 2] % w, g[g.size() / 2] / w, 2); }   // a rim alone: cut it
+        }
+      if (!any) break;
+    }
+  }
+  // no lone lit pixel (a step-3 pixel with no lit 4-neighbour takes the body)
+  std::vector<int> lone;
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      if (!glass(x, y) || codeStep(at(x, y)) != 3) continue;
+      int n = 0;
+      for (int k = 0; k < 4; k++) {
+        static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+        if (glass(x + dx[k], y + dy[k]) && codeStep(at(x + dx[k], y + dy[k])) >= 3) n++;
+      }
+      if (!n) lone.push_back(y * w + x);
+    }
+  for (int q : lone) put(q % w, q / w, 2);
+  // (envelope fix r2, DOLL; D62 "the glowing seams") on a GLASS alloy a seam is a line of light: a glass pixel between two
+  // seam pixels (Glow, left and right or above and below) burns with them, so a dotted seam (r4: 1 px glow dots 2 px apart
+  // across a_thaer's chest facing R, read as two eyes) reads as one seam. Never in the face box
+  if (alloyGlass) {
+    auto gw = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && at(x, y) >= 2 && codeSlot(at(x, y)) == Slot::Glow; };
+    std::vector<std::pair<int, uint8_t>> fill;
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (!glass(x, y) || face(x, y)) continue;
+        if (gw(x - 1, y) && gw(x + 1, y)) fill.push_back({y * w + x, at(x - 1, y)});
+        else if (gw(x, y - 1) && gw(x, y + 1)) fill.push_back({y * w + x, at(x, y - 1)});
+      }
+    for (const auto& f : fill) at(f.first % w, f.first / w) = code(Slot::Glow, std::min(2, codeStep(f.second)));
+  }
+}
+// (envelope fix round, FORGE-MATERIAL; D61) STARMETAL's bands as SEEN: the torso (the armour and its chest motif, bit 4 of the
+// body-piece mask) re-banded on the composed frame, 2 metal rows of violet (Metal) then 2 of cyan (Metal 2) counted down the
+// rows that show torso metal (a belt or a collar over the chest skips its rows, so the bands stay 2 rows tall where the plate
+// shows: the per-part bands of r3 fell under the collar and read as one hue, C19 A6 1 band). Steps kept; the glint too.
+// (envelope fix round, FORGE-MATERIAL; D60 "fire ... in 2-4 px cracks (Glow)", "dark metal, bright fire") the MYTHIC's
+// burning seams: the drawn shadow lines INSIDE its body armour and shoulders (Metal step 1 with no outline or background
+// 4-neighbour: the recesses between the plates) burn, Glow step 2 with a step-3 hot point every third pixel of a run, where
+// they run 3 px or more (4-connected); shorter recess lines and every line above the torso's top row + 1 stay black (W7's
+// face box and the helm are never lit). So the black plate is parted by fire, its lit planes polished silver over it.
+void mythicFirePass(const DollRecipe& r, FrameOut& o) {
+  if (!(r.has("mythic") || r.has("metal-mythic")) || o.bx1 < o.bx0) return;
+  const int x0 = o.bx0, y0 = o.by0, w = o.bx1 - o.bx0 + 1, h = o.by1 - o.by0 + 1;
+  auto at = [&](int x, int y) -> uint8_t& { return o.code[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  auto bp = [&](int x, int y) { return g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)]; };
+  int top = h;
+  for (int y = 0; y < h && top == h; y++)
+    for (int x = 0; x < w; x++) if (at(x, y) >= 2 && (bp(x, y) & 4)) { top = y; break; }
+  auto seam = [&](int x, int y) {
+    if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1 || y <= top + 1) return false;
+    const uint8_t c = at(x, y);
+    if (c < 2 || codeSlot(c) != Slot::Metal || codeStep(c) != 1 || !(bp(x, y) & 1)) return false;
+    const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (const auto& e : d) if (at(x + e[0], y + e[1]) < 2) return false;   // inside the figure (a drawn step-0 line beside it is the plate's edge)
+    return true;
+  };
+  std::vector<char> seen((size_t)w * h, 0);
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      if (seen[(size_t)y * w + x] || !seam(x, y)) continue;
+      std::vector<int> px, st{y * w + x};
+      seen[(size_t)y * w + x] = 1;
+      while (!st.empty()) {
+        const int q = st.back(); st.pop_back(); px.push_back(q);
+        const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (const auto& e : d) {
+          const int nx = q % w + e[0], ny = q / w + e[1];
+          if (seam(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+        }
+      }
+      if (px.size() < 3) continue;
+      std::sort(px.begin(), px.end());
+      for (size_t i = 0; i < px.size(); i++) at(px[i] % w, px[i] / w) = code(Slot::Glow, i % 3 == 1 ? 3 : 2);
+    }
+  // (envelope fix r2, DOLL; D60 "polished black steel whose lit planes are bright ... a 2 x 2 plane or larger on every piece,
+  // against near-black recesses") the black body (Metal step 2, luma under 170 since r2: r4's #C6CAD6 body was silver, so the
+  // A5 selftest's pressed-dark Mythic still counted as lit) is polished: each plane of the body armour, the shoulders and the
+  // helm (a 4-connected run of Metal steps 2-3 of 4 px or more) takes its lit step on the 70 % of it nearest its top-left
+  // corner (the light's side), as one clean diagonal-edged plane; the recesses (step 1), the fire and the glints are kept,
+  // and W7's face box + 1 px is never lit
+  {
+    const int fhx = CPX + o.anchors[(int)Anchor::Head].x - x0, fhy = CPY + o.anchors[(int)Anchor::Head].y - y0;
+    auto face = [&](int x, int y) { return x >= fhx + 2 && x <= fhx + 13 && y >= fhy + 4 && y <= fhy + 13; };
+    auto pl = [&](int x, int y) {
+      if (x < 0 || y < 0 || x >= w || y >= h || face(x, y)) return false;
+      const uint8_t c = at(x, y);
+      return c >= 2 && codeSlot(c) == Slot::Metal && (codeStep(c) == 2 || codeStep(c) == 3) && (bp(x, y) & 17);
+    };
+    // the darkness only in the recesses: a step-1 AREA (every pixel of a 2 x 2 block of Metal step 1 on the armour, the
+    // shoulders or the helm) is a plate's shadow side, not a recess line: it joins the plate (step 2) before the polish
+    {
+      auto d1 = [&](int x, int y) {
+        if (x < 0 || y < 0 || x >= w || y >= h || face(x, y)) return false;
+        const uint8_t c = at(x, y);
+        return c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) == 1 && (bp(x, y) & 17);
+      };
+      std::vector<int> area;
+      for (int y = 0; y + 1 < h; y++)
+        for (int x = 0; x + 1 < w; x++)
+          if (d1(x, y) && d1(x + 1, y) && d1(x, y + 1) && d1(x + 1, y + 1))
+            for (int q : {y * w + x, y * w + x + 1, (y + 1) * w + x, (y + 1) * w + x + 1}) area.push_back(q);
+      for (int q : area) at(q % w, q / w) = code(Slot::Metal, 2);
+    }
+    std::fill(seen.begin(), seen.end(), (char)0);
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        if (seen[(size_t)y * w + x] || !pl(x, y)) continue;
+        std::vector<int> px, st{y * w + x};
+        seen[(size_t)y * w + x] = 1;
+        int ax = x, ay = y;
+        while (!st.empty()) {
+          const int q = st.back(); st.pop_back(); px.push_back(q);
+          ax = std::min(ax, q % w); ay = std::min(ay, q / w);
+          const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+          for (const auto& e : d) {
+            const int nx = q % w + e[0], ny = q / w + e[1];
+            if (pl(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+          }
+        }
+        if (px.size() < 4) continue;
+        std::sort(px.begin(), px.end(), [&](int a, int b) {
+          const int da = (a % w - ax) + (a / w - ay), db = (b % w - ax) + (b / w - ay);
+          return da != db ? da < db : a < b;
+        });
+        const size_t lit = std::max<size_t>(4, px.size() * 70 / 100);
+        for (size_t i = 0; i < px.size(); i++) at(px[i] % w, px[i] / w) = code(Slot::Metal, i < lit ? 3 : 2);
+      }
+  }
+}
+void starBandPass(const DollRecipe& r, FrameOut& o) {
+  if (!r.irisBands || !r.has("metal-starmetal") || o.bx1 < o.bx0) return;
+  // the torso-metal rows (top to bottom): each row's plain metal pixels and its drawn trim (bit 8: kept in its own slot)
+  struct Row { int y, plain, trim1, trim2; };
+  std::vector<Row> rows;
+  for (int y = o.by0; y <= o.by1; y++) {
+    Row rw{y, 0, 0, 0};
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      const uint8_t c = o.code[(size_t)y * CW + x];
+      const uint8_t b = g_bodyPiece[(size_t)y * CW + x];
+      if (c < 2 || !(b & 4) || codeStep(c) < 1 || (codeSlot(c) != Slot::Metal && codeSlot(c) != Slot::Metal2)) continue;
+      if (b & 8) (codeSlot(c) == Slot::Metal ? rw.trim1 : rw.trim2)++;
+      else rw.plain++;
+    }
+    if (rw.plain + rw.trim1 + rw.trim2) rows.push_back(rw);
+  }
+  // the phase (0-3) whose 2-row bands, with the trim where it is drawn, give the most alternating runs (C19 A6's count)
+  auto runs = [&](int ph) {
+    int n = 0, last = 0, len = 0, cur = 0;
+    for (size_t i = 0; i <= rows.size(); i++) {
+      int lab = 0;
+      if (i < rows.size()) {
+        const bool two = (((int)i + ph) / 2) & 1;
+        const int m1 = rows[i].trim1 + (two ? 0 : rows[i].plain), m2 = rows[i].trim2 + (two ? rows[i].plain : 0);
+        lab = m1 > m2 ? 1 : m2 > m1 ? 2 : 0;
+      }
+      if (i < rows.size() && lab == cur) { len++; continue; }
+      if (cur && len >= 2 && cur != last) { n++; last = cur; }
+      cur = lab; len = 1;
+    }
+    return n;
+  };
+  int best = 0, bestN = -1;
+  for (int ph = 0; ph < 4; ph++) { const int n = runs(ph); if (n > bestN) { bestN = n; best = ph; } }
+  for (size_t i = 0; i < rows.size(); i++) {
+    const Slot to = ((((int)i + best) / 2) & 1) ? Slot::Metal2 : Slot::Metal;
+    const int y = rows[i].y;
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      uint8_t& c = o.code[(size_t)y * CW + x];
+      const uint8_t b = g_bodyPiece[(size_t)y * CW + x];
+      if (c < 2 || (b & 12) != 4 || codeStep(c) < 1 || codeStep(c) == 4 || (codeSlot(c) != Slot::Metal && codeSlot(c) != Slot::Metal2)) continue;   // the glints stay in the body's Metal (C17)
+      c = code(to, codeStep(c));
+    }
+  }
+}
 void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o, const std::vector<int>* onlyParts = nullptr,
                   const char* forceKey = nullptr, bool (*keep)(const PartRec&) = nullptr) {
   const Pool& P = get();
@@ -1063,7 +1789,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       if (heldPart && !named && f.weapon != -32768) key = I.angle[angleIndex(f.weapon)];
     }
     if (key == 0xFFFF) continue;
-    if (g_breeze && key == I.rest && !forceKey) {
+    // (FORGE-LIMBS proto r3) the stir also replaces a named `idle` key: the woman's idle clip names hang=idle (her dress
+    // hang's own idle view), so her hang-channel parts (cloak, hangs, skirts) never drew `rest` and never stirred (C13)
+    const uint16_t kIdleKey = g_breeze ? P.strId("idle") : (uint16_t)0xFFFF;
+    if (g_breeze && (key == I.rest || (kIdleKey != 0xFFFF && key == kIdleKey)) && !forceKey) {
       const uint16_t kBreeze = P.strId("breeze");
       if (kBreeze != 0xFFFF && viewOf(p, facing, kBreeze, 0)) key = kBreeze;
     }
@@ -1217,6 +1946,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   // hair, head and face but never the haft or head of a polearm passing behind the helm
   static thread_local std::vector<uint8_t> heldPx;
   heldPx.assign((size_t)CW * CH, 0);
+  g_depthPx.assign((size_t)CW * CH, 0);
   // (ladder i2) heldPx marks the pixels a helm's erase may NOT clear: a helm's box clears hair, head, face, beard and ears
   // (LADDER-ARMS's ask); the haft and head of a polearm, a scarf's tail, a collar passing behind the helm stay
   auto isHeld = [&](const PartRec& p) {
@@ -1244,7 +1974,9 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     const uint8_t bodyPiece = (uint8_t)(((partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
                                           (r.guiseHead && partHasRoleCat(*it.part, Role::Headwear))) ? 1 : 0) |
                                         ((partHasRoleCat(*it.part, Role::Armour) || partHasRoleCat(*it.part, Role::Pauldron) ||
-                                          partHasRoleCat(*it.part, Role::Helm) || partHasRoleCat(*it.part, Role::Overlay)) ? 2 : 0));
+                                          partHasRoleCat(*it.part, Role::Helm) || partHasRoleCat(*it.part, Role::Overlay)) ? 2 : 0) |
+                                        ((partHasRoleCat(*it.part, Role::Armour) || P.s(it.part->name).find("armour/motif/") != std::string::npos) ? 4 : 0) |
+                                        (partHasRoleCat(*it.part, Role::Helm) ? 16 : 0));   // (envelope fix r2) bit 16: the helm (D62's helm rim)
     // (P2c forge) the cut tiles and edge stamps laid into the body's armour and pauldron views (a `when` overlay keyed on a
     // forge flag is the style's own drawing: no tile over it; edges only on the base views)
     if (!ftiles.empty() && !handOnly && partTierSlot(it.order) == HumanLook::TIER_BODY) {
@@ -1258,6 +1990,9 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     }
     const ViewRec& v = *vp;
     const uint8_t heldMark = isHeld(*it.part) ? 1 : 0;
+    const uint8_t depthMark = partHasRoleCat(*it.part, Role::Held) ? 2 : (partHasRoleCat(*it.part, Role::Shield) || partHasRoleCat(*it.part, Role::Sheath) ||
+                               it.layer == (int)Layer::Back || it.layer == (int)Layer::HeldBack || it.layer == (int)Layer::FxBack ||
+                               it.layer == (int)Layer::Fx) ? 1 : 0;   // (2: a held weapon)
     // only a helm's erase spares held gear (its box clears hair round the dome); every other part's erase cuts as drawn
     bool helmErase = false;
     for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Helm || rr.cat == (uint8_t)Role::Headwear) helmErase = true;
@@ -1275,6 +2010,13 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     bool toMetal = false;
     if (r.guiseHead)
       for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Headwear) toMetal = true;
+    // (envelope fix round, D58) a brass or bronze everyday alloy (resolver flag `brassbody`): the torso armour and the chest
+    // motif (armour/motif/) in the alloy's brass: their cloth and trim (Accent) cells; leather straps keep their leather (forge fix i1)
+    bool brassBody = false;
+    if (r.has("brassbody")) {
+      for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Armour) brassBody = true;
+      if (overlayPrefix(P, *it.part, "motif.")) brassBody = true;
+    }
     // (P2c ladder) LADDER-FINISH's placements on this view: the P box (fit tiles) and the W / G blobs (stamp tiles)
     struct Place { const ViewRec* v = nullptr; int ox = 0, oy = 0; };
     static thread_local std::vector<Place> fitAt;
@@ -1412,9 +2154,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
         if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
         // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
         if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
-        if (toMetal && c >= 2) {
+        if ((toMetal || brassBody) && c >= 2) {
           const Slot qs = codeSlot(c);
-          if (qs == Slot::Head || qs == Slot::Cloth1 || qs == Slot::Cloth2 || qs == Slot::Cloth3 || qs == Slot::Linen || qs == Slot::Leather)
+          if (qs == Slot::Head || qs == Slot::Cloth1 || qs == Slot::Cloth2 || qs == Slot::Cloth3 || qs == Slot::Linen || (toMetal && qs == Slot::Leather) ||
+              (brassBody && qs == Slot::Accent))
             c = code(Slot::Metal, codeStep(c));
         }
         // (P2c) a region tile over this region's pixels (outlines kept): ink keeps the slot; step 2 keeps the step, 1 / 3 move
@@ -1483,6 +2226,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
               if (heldPx[(size_t)Y * CW + X] && !heldMark && helmErase) continue;
               o.code[(size_t)Y * CW + X] = 0;
               g_bodyPiece[(size_t)Y * CW + X] = 0;
+              g_depthPx[(size_t)Y * CW + X] = 0;
               if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = -1; (*g_probeRegion)[(size_t)Y * CW + X] = 0; }
               continue;
             }
@@ -1498,7 +2242,8 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
               if (tc >= 2) w = code(codeSlot(tc), codeStep(c));
             }
             o.code[(size_t)Y * CW + X] = w;
-            g_bodyPiece[(size_t)Y * CW + X] = bodyPiece;
+            g_bodyPiece[(size_t)Y * CW + X] = (uint8_t)(bodyPiece | (rg == (uint8_t)Region::Trim ? 8 : 0));   // (envelope fix round) bit 8: the drawn trim (R)
+            g_depthPx[(size_t)Y * CW + X] = depthMark;
             heldPx[(size_t)Y * CW + X] = heldMark;
             if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = (int16_t)(&it - items.data()); (*g_probeRegion)[(size_t)Y * CW + X] = rg; }
             if (X < o.bx0) o.bx0 = X;
@@ -1525,6 +2270,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   }
   despecklePass(r, o);
   glintPass(r, o);
+  glintCapPass(r, o);
+  glassPass(r, o);
+  starBandPass(r, o);
+  mythicFirePass(r, o);
   // (forge fix i2, B8 and STYLE_P2 "no 1 px speckle") a round-2 silhouette lays a shoulder mass, a skirt and an over-layer
   // the art drew apart; where two of them meet at a corner a single pixel can be left floating clear of the figure (mr_4's
   // drop shoulders over its tabard, a pixel off the arm's corner on some frames). A figure pixel with no figure neighbour
@@ -1575,6 +2324,42 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
         for (int q : blob) held |= heldPx[(size_t)q] != 0;
         if (!held) for (int q : blob) o.code[(size_t)q] = code(Slot::Metal, 1);
       }
+    // (envelope r2 integration, C19 A5 "lone glow px") a glow pixel that touches the rest of the fire only at a corner is a
+    // speck at 1x too (a diagonal stair of single pixels): the fire runs in 4-connected cracks and rims, the stair goes dark
+    // the shield's sunburst rays (diagonal pairs of single glow pixels) thicken into bent 3 px rays instead: the corner
+    // pixel between a pair, if it is drawn plate (not outline), takes the fire, so the ray stays and is 4-connected
+    {
+      src = o.code;
+      for (int y = o.by0; y <= o.by1; y++)
+        for (int x = o.bx0; x <= o.bx1; x++) {
+          const size_t q = (size_t)y * CW + x;
+          if (!glowAt(x, y) || g_depthPx[q] != 1) continue;
+          auto glowNow = [&](int gx, int gy) { const uint8_t c = o.code[(size_t)gy * CW + gx]; return c >= 2 && codeSlot(c) == Slot::Glow; };
+          bool joined = false;
+          for (int dy : {1, -1})
+            for (int dx : {1, -1}) {
+              if (joined || !glowAt(x + dx, y + dy)) continue;
+              if (glowNow(x - 1, y) || glowNow(x + 1, y) || glowNow(x, y - 1) || glowNow(x, y + 1)) { joined = true; continue; }
+              const int cx[2] = {x, x + dx}, cy[2] = {y + dy, y};   // the two corner pixels between the pair
+              for (int k = 0; k < 2 && !joined; k++) {
+                const size_t c = (size_t)cy[k] * CW + cx[k];
+                const uint8_t cc = o.code[c];
+                if (cc >= 2 && codeStep(cc) != 0 && g_depthPx[c] == 1 && codeSlot(cc) != Slot::Glow) { o.code[c] = src[q]; joined = true; }
+              }
+            }
+        }
+    }
+    {
+      src = o.code;
+      std::vector<int> stair;
+      for (int y = o.by0; y <= o.by1; y++)
+        for (int x = o.bx0; x <= o.bx1; x++) {
+          const size_t q = (size_t)y * CW + x;
+          if (!glowAt(x, y) || g_depthPx[q] == 2) continue;   // (the shield too; a held blade keeps its own fire, C17 blades)
+          if (!glowAt(x - 1, y) && !glowAt(x + 1, y) && !glowAt(x, y - 1) && !glowAt(x, y + 1)) stair.push_back((int)q);
+        }
+      for (int q : stair) o.code[(size_t)q] = code(Slot::Metal, 1);
+    }
     // (silhouettes i3, the blind panel: "the crackle and flame finish is 1 px glitter noise all over the body, yellow-orange
     // speckles floating off the crown") a lone metal or glow pixel whose four neighbours all share one other code takes that
     // code (the plates read as planes; the cracks, 2 px and longer, stay), and a figure pixel with no figure neighbour (a

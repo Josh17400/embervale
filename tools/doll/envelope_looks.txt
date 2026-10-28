@@ -1,0 +1,37 @@
+# P2c envelope looks (docs/PLAN.md "The envelope update"; docs/P2C_CONTRACTS.md 3d, 7): tag who spec gaits. FORGE-DOLL.
+# The hero's and heroine's lines (e1-e6, e6m, e1w-e6w: the Heartland kit, seed 7, T1-T6 and the Mythic), the village watch at
+# its own tier and at T3 (the fair test's guard), a captain (T4) and the king (T5), the A defects' looks (A1-A3 on their
+# peoples' T4 kits, A7-A8 masterworks at T5; Papiron and Cranesilver for A2's head distances) and the forge lines A4-A6 read.
+# Expanded fields: rpg_test --expand-looks tools/doll/envelope_looks.txt (recorded in tools/doll/envelope_looks.expanded.txt).
+# (envelope fix round, D57) eg3 is the watch at T3 (npc + tier=3): the resolver gives the village watch at T3 the fair test's T3d kit (doll_resolve watchT3: the kettle with its finial, the cop at medium, 20 px across, the cape shown, the round shield); r3's pauldron=4 retired.
+#tag     who    spec                                                                        gaits
+e1       man    hero=1,kit=heartland:1:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e2       man    hero=1,kit=heartland:2:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e3       man    hero=1,kit=heartland:3:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e4       man    hero=1,kit=heartland:4:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e5       man    hero=1,kit=heartland:5:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e6       man    hero=1,kit=heartland:6:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e6m      man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e1w      woman  heroine=1,kit=heartland:1:7,palette=look                                    stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e2w      woman  heroine=1,kit=heartland:2:7,palette=look                                    stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e3w      woman  heroine=1,kit=heartland:3:7,palette=look                                    stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e4w      woman  heroine=1,kit=heartland:4:7,palette=look                                    stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e5w      woman  heroine=1,kit=heartland:5:7,palette=look                                    stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+e6w      woman  heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A,palette=look        stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+eg0      man    npc=heartland:guard:0:7,palette=look                                        stay,walk,run,didle,hit1,fall,lying
+eg3      man    npc=heartland:guard:0:7,tier=3,palette=look                                 stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+ecapt    man    npc=heartland:captain:1:7,palette=look                                      stay,walk,run
+eking    man    npc=heartland:king:0:7,palette=look                                         stay,walk,run
+a_uha    man    kit=jade:4:2,alloy=1,palette=look                                           stay,walk,run
+a_jaon   man    kit=jade:4:5,alloy=1,palette=look                                           stay,walk,run
+a_enkho  man    kit=steppe:4:1,alloy=1,palette=look                                         stay,walk,run
+a_papir  man    kit=marsh:4:2,alloy=1,palette=look                                          stay,walk,run
+a_crane  man    kit=jade:5:2,alloy=3,palette=look                                           stay,walk,run
+a_thaer  man    kit=sylvan:5:1,alloy=3,palette=look                                         stay,walk,run
+a_thorn  man    kit=highland:5:1,alloy=3,palette=look                                       stay,walk,run
+a_ilsil  man    kit=fjordfolk:5:1,alloy=3,palette=look                                      stay,walk,run
+fm_obsid man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=obsidian,palette=look       stay,walk,run,didle,hit1,hurt,fall,lying
+f5_obsid man    hero=1,kit=heartland:5:7,mat=obsidian,palette=look                          stay,walk
+fm_myth  man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,didle,hit1,hurt,fall,lying
+fm_star  man    hero=1,kit=heartland:4:7,pauldron=3,skirt=3,mat=starmetal,palette=look      stay,walk,run,didle,hit1,hurt,fall,lying
+f5_star  man    hero=1,kit=heartland:5:7,mat=starmetal,palette=look                         stay,walk

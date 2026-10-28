@@ -1,0 +1,67 @@
+# forge/glass/spec: the glass speculars (envelope r1, FORGE-MATERIAL; PLAN "The envelope" A4 and A7, D53; P2C_CONTRACTS 3d
+# "D53's glass"). A STAMP set for the compose glass pass (FORGE-DOLL): KNAPPED's obsidian (metalKind 7) and every GLASS
+# alloy (alloyFamilyMetal 5). Absolute metal steps (4 the white-violet hot point, 3 the lit flank): each specular is a hard
+# 2-3 px diagonal bar rising to the right with its lit flank under it, so it reads as light lying ON a facet's edge, never
+# a 1 px streak (the old pass's 1 px diagonals made the A4 "mask of white streaks"). The pass places ONE stamp per facet of
+# 4 px or more (a connected step 1-2 metal plane), its origin on the facet's top-left lit edge, 2-4 a figure, one or more
+# off the helm; never inside W7's face box + 1 px nor on a helm's face plate. Pick by the facet's size:
+#   bar2    facets 4-8 px    (a 2 px hot bar; group 2 px of step 4)
+#   bar3    facets 9-20 px   (a 3 px hot bar on a 2 px flank)
+#   kite    facets over 20 px, the torso's and the shield's big planes (a 4-point glint: 3 px hot, a 3 px flank)
+#   edge2   a facet whose top-left is its outline corner (a 2 px horizontal hot run on the lit edge; the helm's crown)
+# The slide ("Delight: one specular sliding along an obsidian facet as the body turns"): the pass moves the stamp's origin
+# along the facet's top edge by the frame's facing and walk phase (D 0, R +1, walk frames +1 on the pass frames), so the
+# glint travels as the body turns; it is the same stamp, never a new pixel pattern.
+# The rim (D53's second light): `rim` keys, laid by the pass along the 1-2 px inside the step-0 outline at the lower right
+# of each convex metal piece of 12 px or more, are runs of step 3 with a step-2 core up-left of them: rimH a bottom edge,
+# rimV a right edge, rimC the lower-right corner. The pass may cut a rim to the piece's run (never shorter than 2 px).
+# (envelope r3, FORGE-MATERIAL) THE PASS AS BUILT (P2C_CONTRACTS 3d "D53's glass"; FORGE-DOLL owns doll_compose.cpp glassPass,
+# the r3 request is MATERIAL/r3/forge_doll_request_r3.patch): planes are runs of steps 2-4 (the drawn step-1 lines part
+# the lames); a GLASS alloy's Metal 2 and its armour leather are glass too (obsidian keeps its gold trim and straps); the
+# light is a LINE on a plane's top edge out to three fifths of its width (the left edge of a 20 px plane's upper half);
+# the inside dark glass; the cold rim 1 px (2 px on a 20 px plane) at the lower right; ONE 2 px diagonal reflection
+# band across every plane of 20 px or more; at most 45 % of a plane lit (rim, band, glints kept); 3 speculars a figure.
+# These stamps stay the drawn reference for the speculars' shapes (bar2 bar3 kite edge2 rimH rimV rimC).
+use person
+body adult
+role overlay glass.spec
+legend 4 metal 4
+legend 3 metal 3
+legend 2 metal 2
+tags tile overlay stamp
+
+view D key bar2 origin 0 1
+|.4
+|43
+
+view D key bar3 origin 0 2
+|..4
+|.43
+|43.
+
+view D key kite origin 1 1
+|.4.
+|443
+|.3.
+
+view D key edge2 origin 0 0
+|44
+|33
+
+view D key rimH origin 0 1
+|222
+|333
+
+view D key rimV origin 1 0
+|23
+|23
+|23
+
+view D key rimC origin 2 2
+|..3
+|223
+|333
+
+view D key rest origin 0 1
+|.4
+|43

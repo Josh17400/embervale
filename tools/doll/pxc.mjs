@@ -73,6 +73,7 @@ function defaultChannel(layer, side) {
   return 'rest';
 }
 const POOL_VERSION = 3;   // 2: views carry flags (replace), frames carry turn and at; 3 (P2c): clips carry a `when` condition
+const POOL_BUDGET = 2621440;   // (P2c envelope, D46) 2.5 MiB, no compression (D48): art::doll::kPoolBudget
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
 const CACHE_VERSION = 8;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts; 7: P2c tags; 8: forge tiles
 
@@ -1047,7 +1048,7 @@ function report(c) {
   for (const x of c.warnings) console.log(`  warning ${x.where}: ${x.msg}${x.draft ? ' (draft)' : ''}`);
   const { pk } = c;
   console.log(`pool: ${c.parts.length} parts, ${pk.views} views, ${pk.marks} marks, ${c.bodySets.length} body sets, ${c.clips.length} clips, ${pk.frames} frames`);
-  console.log(`pool: ${pk.opaquePx} opaque px in ${pk.cellCount} cells; ${pk.pool.length} bytes (${(pk.pool.length / 1048576).toFixed(3)} MB of the 1.0 MB budget); pixel data ${pk.blobBytes} bytes; ${Math.max(1, Math.ceil(pk.pool.length / CHUNK))} chunk(s); hash ${pk.hash}`);
+  console.log(`pool: ${pk.opaquePx} opaque px in ${pk.cellCount} cells; ${pk.pool.length} bytes (${(pk.pool.length / 1048576).toFixed(3)} MiB of the ${(POOL_BUDGET / 1048576).toFixed(1)} MiB budget: ${pk.pool.length <= POOL_BUDGET ? 'within' : 'OVER'}); pixel data ${pk.blobBytes} bytes; ${Math.max(1, Math.ceil(pk.pool.length / CHUNK))} chunk(s); hash ${pk.hash}`);
   console.log(`generated source: ${(Buffer.byteLength(c.src) / 1048576).toFixed(2)} MB; compiled in ${c.ms.toFixed(0)} ms (${c.parsed} of ${c.files} maps parsed, the rest from the cache)`);
 }
 
@@ -1080,12 +1081,12 @@ function once() {
   if (opt.check) {
     const have = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') : '';
     if (have !== c.src) { console.error(`pxc --check: ${path.relative(REPO, OUT)} is stale: run node tools/doll/pxc.mjs`); return 1; }
-    if (!opt.quiet) console.log(`pxc --check: ${path.relative(REPO, OUT)} is up to date (${c.parts.length} parts, ${c.pk.pool.length} bytes, hash ${c.pk.hash})`);
+    if (!opt.quiet) console.log(`pxc --check: ${path.relative(REPO, OUT)} is up to date (${c.parts.length} parts, ${c.pk.pool.length} bytes of the ${POOL_BUDGET} B budget${c.pk.pool.length > POOL_BUDGET ? ': OVER' : ''}, hash ${c.pk.hash})`);
     if (opt.bin) writeOutputs({ ...c, src: null }, opt.bin);
     return 0;
   }
   writeOutputs(c, opt.bin);
-  if (!opt.quiet) console.log(`pxc: ${c.parts.length} parts, ${c.pk.views} views, ${c.clips.length} clips -> ${opt.cpp ? path.relative(REPO, OUT) : '(no source)'}${opt.bin ? ' and ' + opt.bin : ''} (${c.pk.pool.length} bytes, hash ${c.pk.hash}; ${c.ms.toFixed(0)} ms, ${c.parsed} of ${c.files} maps parsed)`);
+  if (!opt.quiet) console.log(`pxc: ${c.parts.length} parts, ${c.pk.views} views, ${c.clips.length} clips -> ${opt.cpp ? path.relative(REPO, OUT) : '(no source)'}${opt.bin ? ' and ' + opt.bin : ''} (${c.pk.pool.length} bytes of the ${POOL_BUDGET} B budget${c.pk.pool.length > POOL_BUDGET ? ': OVER' : ''}, hash ${c.pk.hash}; ${c.ms.toFixed(0)} ms, ${c.parsed} of ${c.files} maps parsed)`);
   return 0;
 }
 

@@ -27,6 +27,7 @@
 //     tip pixel on blades, the lit edge toward the top-left, no orphans, the grip origin on the haft, lengths +-1 px
 // Each gate has a selftest that feeds it synthetic defects: `--selftest` prints "<gate> selftest: ALL CAUGHT" or names
 // what slipped through.
+#include "rpg/art/doll/doll_envelope.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -303,8 +304,28 @@ int holesInGear(const doll::FrameProbe& p, std::string* why) {
   }
   return holes;
 }
-// b: the helm on the head
-std::string helmCheck(const doll::FrameProbe& p) {
+// b: the helm on the head. (P2c envelope, C3b by tier; PLAN "The envelope", kEnvelope) T0-T4 keep today's rules exactly:
+// a plume to F-37, every other helm pixel inside the head box + 1 column and 1 row. T5-T6 read the envelope as C12f
+// measures it, from the head anchor (so the bob, a hurt or a fall never counts): rows over the crown (a crest or plume part,
+// or the plume slot: ornRows; the shell: rows) and columns past the 16 px head box (horns, wings, flares, brims, tails and
+// the crest parts: flare; the shell: side).
+int crownOffsetArms(int who) {   // the crown (F-31, the woman F-30) less the head anchor's row, at the A3 figure's idle D
+  static int off[2] = {9999, 9999};
+  who = who ? 1 : 0;
+  if (off[who] == 9999) {
+    HumanLook L = who ? a3Woman() : a3Hero();
+    L.weapon = 0;
+    const doll::FrameProbe f = doll::probeFrame(doll::resolve(L), art::RigPart::Loco, 0, art::Clip::Idle, 0, 0);
+    off[who] = f.ok ? (f.py - (who ? 30 : 31)) - f.headY : 0;
+  }
+  return off[who];
+}
+bool helmOrnPart(const std::string& n) { return n.find("helm/crest/") != std::string::npos || n.find("_crest") != std::string::npos || n.find("_plume") != std::string::npos; }
+bool helmFlarePart(const std::string& n) {
+  for (const char* w : {"horn", "wing", "kabuto", "warhat", "morion", "sallet", "kettle", "leathercap"}) if (n.find(w) != std::string::npos) return true;
+  return false;
+}
+std::string helmCheck(const doll::FrameProbe& p, int helmTier = 0, int who = 0) {
   if (p.turn) return "";
   int helmItem = -1;
   for (size_t i = 0; i < p.items.size(); i++)
@@ -320,6 +341,17 @@ std::string helmCheck(const doll::FrameProbe& p) {
       const doll::FrameProbe::It* it = itemAt(p, k);
       if (!opaque(p, k) || !it || !isHelm(*it)) continue;
       const bool plume = slotAt(p, k) == doll::Slot::Plume;
+      if (helmTier >= 5) {
+        const art::doll::TierEnvelope& e = art::doll::envelopeOf(helmTier);
+        const bool orn = plume || helmOrnPart(it->part);
+        const int up = p.headY + crownOffsetArms(who) - y;
+        const int col = x < p.headX ? p.headX - x : x > p.headX + 15 ? x - (p.headX + 15) : 0;
+        if (up > (orn ? e.ornRows : e.rows)) return fmt("%s: %s %d rows over the crown (T%d: %d)", it->part.c_str(), orn ? "crest or plume" : "helm", up, helmTier, orn ? e.ornRows : e.rows);
+        const int cap = (orn || helmFlarePart(it->part)) ? e.flare : e.side;
+        if (col > cap) return fmt("%s: helm pixel %d columns past the head box (T%d: %d)", it->part.c_str(), col, helmTier, cap);
+        if (!orn && col <= 1) top[(size_t)x] = std::min(top[(size_t)x], y);   // the rim: the shell over the head box + 1, as T0-T4
+        continue;
+      }
       if (plume) { if (y - p.py < -37) return fmt("%s: plume pixel at F%d (F-37 at most)", it->part.c_str(), y - p.py); continue; }
       if (x < p.headX - 1 || x > p.headX + 16) return fmt("%s: helm pixel %d columns outside the head box", it->part.c_str(), x < p.headX - 1 ? p.headX - 1 - x : x - p.headX - 16);
       if (y < p.headY - 1) return fmt("%s: helm pixel %d rows over the head box", it->part.c_str(), p.headY - 1 - y);
@@ -554,7 +586,7 @@ void gateC3(Line& g, const std::vector<Look>& looks) {
         const std::string nm = frameName(l.tag, f);
         std::string why;
         if (holesInGear(p, &why)) g.bad("C3a " + nm + ": " + why); else g.ok();
-        const std::string hb = helmCheck(p);
+        const std::string hb = helmCheck(p, b.L.tier[HumanLook::TIER_HELM], b.L.body == 1);
         if (!hb.empty()) g.bad("C3b " + nm + ": " + hb); else g.ok();
         if (hasShield) {
           const doll::FrameProbe bare = doll::probeFrame(noShield, part, f.facing, f.clip, f.variant, f.i);
@@ -888,6 +920,22 @@ int selftestC3(bool report) {
     q = p;
     fill(q, h, 25, 2, 25, 2, doll::Slot::Plume);   // F-56: above F-37
     expect(!helmCheck(q).empty(), "a plume above F-37");
+    q = p;
+    fill(q, h, 25, q.py - 38, 25, q.py - 38, doll::Slot::Plume);   // F-38: past T4's F-37
+    expect(!helmCheck(q, 4).empty(), "a plume at F-38 on a T4 helm (F-37 cap)");
+    {   // T5-T6 read kEnvelope from the head anchor: the crown at headY + the A3 offset
+      const int crown = p.headY + crownOffsetArms(0);
+      q = p;
+      fill(q, h, 25, crown - 8, 25, crown - 8, doll::Slot::Plume);
+      expect(helmCheck(q, 5).empty(), "a plume 8 rows over the crown on a T5 helm (ornRows 8) reads clean");
+      expect(!helmCheck(q, 4).empty() || crown - 8 >= q.py - 37, "the same plume on a T4 helm (F-37)");
+      q = p;
+      fill(q, h, 25, crown - 11, 25, crown - 11, doll::Slot::Plume);
+      expect(!helmCheck(q, 6).empty(), "a plume 11 rows over the crown on a T6 helm (ornRows 10)");
+      q = p;
+      fill(q, h, 20 + 15 + 3, 12, 20 + 15 + 3, 12);   // the shell 3 columns past the box
+      expect(!helmCheck(q, 6).empty(), "a T6 helm shell 3 columns past the head box (side 2)");
+    }
     q = p;
     const int hair = addItem(q, "hair/adult/tousled", doll::Role::Hair, A::Head, doll::Layer::HairFront);
     fill(q, hair, 26, 8, 26, 8, doll::Slot::Hair);

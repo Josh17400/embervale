@@ -394,6 +394,32 @@ void round2Read(uint32_t r[5], int sheen = -1) {
 }
 }  // namespace
 void alloyRamp(int fam, uint8_t sheen, uint32_t out[5]) { famRamp(fam, sheen, out); round2Read(out, sheen); }
+// (P2c envelope, D52) antique brass and bronze (the dark sheen on a warm metal): the black in the recesses, never the body.
+// Hues kept; step 2 at luma 104-116 (D52: 95-125), step 1 at 42 or less (45), the core 24 or less, step 3 a pale gold at luma
+// 214 or more (175; over the skin box's 210) at half the body's chroma at most, the glint a warm white (STYLE_P2 29.6)
+void antiqueRamp(uint32_t r[5]) {
+  auto lchOf = [](uint32_t c, double& L, double& C, double& H) { const Lab l = toLab(c); L = l.L; C = std::hypot(l.a, l.b); H = labHue(l); };
+  auto mk = [](double L, double C, double H) { return fromLab(lchLab(std::clamp(L, 0.0, 100.0), std::max(0.0, C), H)) | 0xFF000000u; };
+  double L[5], C[5], H[5];
+  for (int i = 0; i < 5; i++) lchOf(r[i], L[i], C[i], H[i]);
+  const double c2 = std::max(C[2], 40.0);
+  double l = L[2];
+  r[2] = mk(l, c2, H[2]);
+  for (int it = 0; it < 120 && luma(r[2]) < 104.0; it++) { l += 0.5; r[2] = mk(l, c2, H[2]); }
+  for (int it = 0; it < 120 && luma(r[2]) > 116.0; it++) { l -= 0.5; r[2] = mk(l, c2, H[2]); }
+  double l1 = std::min(L[1], l - 20.0);
+  r[1] = mk(l1, std::min(C[1], 0.8 * c2), H[1]);
+  for (int it = 0; it < 120 && luma(r[1]) > 42.0; it++) { l1 -= 0.5; r[1] = mk(l1, std::min(C[1], 0.8 * c2), H[1]); }
+  double l0 = std::min(L[0], l1 - 8.0);
+  r[0] = mk(l0, std::min(C[0], 14.0), H[0]);
+  for (int it = 0; it < 120 && luma(r[0]) > 24.0; it++) { l0 -= 0.5; r[0] = mk(l0, std::min(C[0], 14.0), H[0]); }
+  double l3 = std::max(L[3], l + 30.0);
+  const double c3 = std::min(C[3], 0.5 * c2);
+  r[3] = mk(l3, c3, H[3]);
+  for (int it = 0; it < 120 && luma(r[3]) < 214.0 && l3 < 99.0; it++) { l3 += 0.5; r[3] = mk(l3, c3, H[3]); }
+  r[4] = mk(std::max(L[4], 97.0), std::min(C[4], 10.0), 92.0);
+  for (int it = 0; it < 30 && luma(r[4]) < 240.0; it++) { double a, b2, c; lchOf(r[4], a, b2, c); r[4] = mk(a + 0.5, b2 * 0.9, c); }
+}
 void metalRound2(uint32_t r[5], int sheen) { round2Read(r, sheen); }
 // (forge fix i1, ENGINE; the owner's silhouette pack: "reads as cloth, leather or skin, not metal": UHABRASS, JAONBRASS (a
 // dark brass drawn #643B00, chocolate), ENKHOBRASS (#533839, maroon cloth), IKOSILVER, BAKOSTEEL, MIKASTEEL (dark greens
@@ -431,6 +457,11 @@ void metalCharacter(uint32_t r[5], int sheen, int metal) {
     const double l3 = std::max(L[3], std::min(93.0, lb + (dark ? 44.0 : 34.0)));
     t[3] = mk(l3, 0.54 * cb, hueTurn(hb, 95.0, 24.0));
     t[4] = mk(std::max(L[4], 96.0), 8.0, 95.0);
+    // (P2c envelope, D52; the owner review's A1-A3: "Uhabrass, Jaonbrass, Enkhobrass read as leather or cloth") ANTIQUE
+    // brass under the dark sheen: the black lives in the recesses, never in the body. Step 2 at luma 95-125 at the gold hue,
+    // step 1 at 45 or less, step 3 at 175 or more (a hard pale gold lit plane), the glint warm white (STYLE_P2 29.6: about
+    // #1A1204 #3A2C0A #7E6618 #E6DAA8 #FFF6D8)
+    if (sheen == 3) antiqueRamp(t);   // (P2c envelope, D52) antique brass and bronze
     // out of the skin box: the body darker (a dark sheen's) or more golden, never back to brown
     for (int it = 0; it < 30 && (inSkinBox(t[2]) || inSkinBox(t[3])); it++) {
       double l, c, h;
@@ -469,7 +500,8 @@ void metalCharacter(uint32_t r[5], int sheen, int metal) {
   }
   // the sheens' tells and the metal read hold: a dark body stays at luma 88 or less (it darkens, its colour kept), the core
   // under 45 % of the lit plane, the lit plane 22 luma over the body and at most 56 % of its chroma
-  for (int it = 0; it < 40 && dark && luma(t[2]) > 86.0; it++) { double l, c, h; lch(t[2], l, c, h); t[2] = mk(l - 1.0, c, h); }
+  // (D52) antique brass and bronze keep their gold body: the blackened tell is the cold metals'
+  for (int it = 0; it < 40 && dark && !warm && luma(t[2]) > 86.0; it++) { double l, c, h; lch(t[2], l, c, h); t[2] = mk(l - 1.0, c, h); }
   // a pale body stays whitened (step 2 at 150 luma or more: the pale sheen's tell), its colour paling as it climbs
   for (int it = 0; it < 40 && sheen == 7 && luma(t[2]) < 152.0; it++) { double l, c, h; lch(t[2], l, c, h); t[2] = mk(l + 1.0, c * 0.97, h); }
   for (int it = 0; it < 40 && luma(t[1]) > 0.44 * luma(t[3]); it++) { double l, c, h; lch(t[1], l, c, h); t[1] = mk(l - 1.0, c, h); }

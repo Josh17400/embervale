@@ -59,6 +59,15 @@ std::vector<int> g_levels;    // the allowed D, FAR first
 int g_envZoom = 0;            // EMB_ZOOM: an absolute D (0: none)
 bool g_witnessFree = false;   // (Witness) a reset asked for a window / safe area / mode: the fit runs unpinned
 bool g_fakeSafeDev = false;   // (Witness) g_fakeIns are device px (EMB_SAFE gives points)
+// (P2c ZOOM, CHARACTER_SIZE 7 (c)) phones start at NEAR: while the settings file holds no zoom choice (no file, or a
+// version-1 file) the zoom follows the device on every fit: NEAR on a phone, NORMAL anywhere else. The first save
+// writes the value in use, and from then on the file's value wins. Never for a pinned (Witness) or scripted run (no
+// settings path), so Witness and scripts stay NORMAL.
+bool g_zoomFirst = false;
+bool g_coarse = false;        // a coarse pointer: touchUI (iOS, Android) or the web's (pointer: coarse)
+float g_devDensity = 0;       // EMB_DEVICE=touch@<d>: the device px per point to judge the short side with (0: the window's)
+int g_devForce = -1;          // EMB_DEVICE=desktop|phone|tablet / the firstlaunch command: the device class (-1: measured)
+constexpr int kPhoneShortPt = 500;   // a phone: a coarse pointer and a short side under this many points (CSS px)
 
 // EMBS file: version 1 = 8 bytes (mode, border, hud); version 2 (P2a) = 10 bytes (+ zoom + 1, ring)
 void load() {
@@ -76,11 +85,22 @@ void load() {
   if (b[4] == 2) {   // a version-1 file keeps the new fields' defaults
     g_set.zoom = std::clamp((int)b[8] - 1, kZoomMin, kZoomMax);
     g_set.ring = b[9] != 0;
+    g_zoomFirst = false;   // the player's zoom is saved: it wins over the phone default
   }
+}
+
+// (P2c ZOOM) a phone: a coarse pointer and the window's short side under kPhoneShortPt points. An iPad (768+ points)
+// and every desktop (a fine pointer) are not phones
+bool isPhone(int pw, int ph, float density) {
+  if (g_devForce >= 0) return g_devForce == DevicePhone;
+  if (!g_coarse) return false;
+  const float d = g_devDensity > 0 ? g_devDensity : std::max(0.01f, density);
+  return std::min(pw, ph) / d < (float)kPhoneShortPt;
 }
 
 void save() {
   if (g_path.empty()) return;   // scripted runs: defaults, never written
+  g_zoomFirst = false;          // (P2c ZOOM) the zoom in use is written, so it is the player's from now on
   unsigned char b[10] = {'E', 'M', 'B', 'S', 2, (unsigned char)g_set.mode, (unsigned char)g_set.border,
                          (unsigned char)(g_set.hud < 0 ? 255 : g_set.hud), (unsigned char)(g_set.zoom + 1), (unsigned char)(g_set.ring ? 1 : 0)};
   std::string tmp = g_path + ".tmp";
@@ -121,6 +141,21 @@ void safeInsets(SDL_Window* win, int ww, int wh, int out[4]) {
     out[3] = std::max(0, wh - (r.y + r.h));
   }
 #endif
+}
+
+// the window resized to w x h device px: SDL sizes it in points, so a high-density display divides; one correction pass
+void resizeWindow(Pix& pix, int w, int h) {
+  SDL_Window* win = pix.window();
+  if (!win) return;
+  int pw = 0, ph = 0, ww = 0, wh = 0;
+  SDL_SetWindowSize(win, w, h);
+  SDL_SyncWindow(win);
+  SDL_GetWindowSizeInPixels(win, &pw, &ph);
+  SDL_GetWindowSize(win, &ww, &wh);
+  if ((pw != w || ph != h) && pw > 0 && ph > 0 && ww > 0 && wh > 0) {
+    SDL_SetWindowSize(win, (int)std::lround(w * (double)ww / pw), (int)std::lround(h * (double)wh / ph));
+    SDL_SyncWindow(win);
+  }
 }
 
 // (P2a) the world scale numbers for a device height (the whole window behind the notch, inside the BORDER)
@@ -204,6 +239,7 @@ void fit(Pix& pix, int pw, int ph, float density, const int insPt[4]) {
   if (!integer && g_set.mode == Fill) s = std::min(aw / W, ah / H);
   const int offX = (int)std::lround(bpx + (aw - W * s) / 2), offY = (int)std::lround(bpx + (ah - H * s) / 2);
   worldFit((int)ah);
+  if (g_zoomFirst) g_set.zoom = isPhone(pw, ph, density) ? 1 : 0;   // (P2c ZOOM) no saved choice: NEAR on a phone
   presentBoth(pix, W, H, s, offX, offY, (int)bpx, (int)bpx, (int)aw, (int)ah);
   int L, T, R, B;
   if (manual) L = T = R = B = (int)m;
@@ -226,13 +262,14 @@ void fit(Pix& pix, int pw, int ph, float density, const int insPt[4]) {
                 pw, ph, density, insPt[0], insPt[1], insPt[2], insPt[3], g_set.border, buf, L, T, R, B, offX, offY);
     std::printf("screen: world D0 %d, levels", g_d0);   // (P2a)
     for (int d : g_levels) std::printf(" %d", d);
-    std::printf(", in use %d (zoom %d)\n", worldScale(), g_set.zoom);
+    std::printf(", in use %d (zoom %d%s)\n", worldScale(), g_set.zoom, g_zoomFirst ? ", device default" : "");
   }
 }
 }  // namespace
 
 void init(Pix& pix, const std::string& settingsPath, bool touch, bool pinned) {
   g_pinned = pinned;
+  g_zoomFirst = false;
   // (P2a) test hook: EMB_ZOOM=<D> an absolute world scale (EMB_RIG is read by rpg/main.cpp before the first bake)
   if (const char* e = std::getenv("EMB_ZOOM")) g_envZoom = std::clamp(std::atoi(e), 0, 16);
   if (pinned) {   // (Witness) nothing read, nothing written: the defaults, and fit() keeps the design canvas
@@ -250,8 +287,25 @@ void init(Pix& pix, const std::string& settingsPath, bool touch, bool pinned) {
 #ifdef __EMSCRIPTEN__
   coarse = coarse || emb_coarse_pointer() != 0;
 #endif
+  // (P2c test hook) EMB_DEVICE=phone|tablet|desktop (the device class, whatever the window) or touch[@<density>] | mouse
+  // (the pointer, and the device px per point the short side is measured in): the device a desktop run stands in for,
+  // as a first launch. Without EMB_SETTINGS_FILE such a run never reads or writes the player's settings file.
+  // e.g. EMB_DEVICE=phone --window 2556x1179 (or EMB_DEVICE=touch@3) is a first-launch iPhone 15 Pro: NEAR, D 6
+  bool deviceHook = false;
+  if (const char* e = std::getenv("EMB_DEVICE"); e && *e) {
+    deviceHook = true;
+    const int dev = deviceArg(e);
+    if (dev >= 0) { g_devForce = dev; coarse = dev != DeviceDesktop; }
+    else {
+      coarse = std::strncmp(e, "touch", 5) == 0;
+      if (coarse && e[5] == '@') g_devDensity = (float)std::max(0.0, std::atof(e + 6));
+    }
+    if (!std::getenv("EMB_SETTINGS_FILE")) g_path.clear();
+  }
+  g_coarse = coarse;
   g_set = Settings();
   g_set.mode = coarse ? Fill : PixelPerfect;   // phones fill the screen; a desktop keeps whole pixels
+  g_zoomFirst = !g_path.empty() || deviceHook;   // (P2c ZOOM) cleared by load() when the file holds a zoom
   load();
   // test hooks (screen-fit screenshots on a desktop): EMB_SCREEN=fill|pixel, EMB_BORDER=0..12, EMB_HUD=-1..12, and
   // EMB_SAFE=l,t,r,b (a phone's safe-area insets in points, e.g. 59,0,59,21 for a landscape iPhone 15 Pro)
@@ -304,6 +358,7 @@ void set(const Settings& s) {
   if (n.mode == g_set.mode && n.border == g_set.border && n.hud == g_set.hud && n.zoom == g_set.zoom && n.ring == g_set.ring) return;
   g_set = n;
   g_dirty = true;
+  g_zoomFirst = false;   // (P2c ZOOM) the zoom in use is the player's now (saved below, or kept for a scripted run)
   save();
 }
 
@@ -348,6 +403,32 @@ const char* zoomName(int offset) {
   }
 }
 
+int deviceArg(const char* name) {
+  if (!name) return -1;
+  if (!std::strcmp(name, "desktop")) return DeviceDesktop;
+  if (!std::strcmp(name, "phone")) return DevicePhone;
+  if (!std::strcmp(name, "tablet")) return DeviceTablet;
+  return -1;
+}
+
+void launchAs(Pix& pix, int device, int w, int h, bool fresh) {
+  if (g_pinned && !g_witnessFree) return;   // (Witness) the pinned canvas: the harness's own reset sizes the screen
+  if (w > 0 && h > 0) resizeWindow(pix, w, h);
+  g_devForce = std::clamp(device, (int)DeviceDesktop, (int)DeviceTablet);
+  g_coarse = g_devForce != DeviceDesktop;
+  if (fresh) {   // no settings file: the defaults, the mode by the pointer (EMB_SCREEN still wins, as at start)
+    const Settings keep = g_set;
+    g_set = Settings();
+    g_set.mode = g_coarse ? Fill : PixelPerfect;
+    if (const char* e = std::getenv("EMB_SCREEN")) g_set.mode = (e[0] == 'p' || e[0] == 'P') ? PixelPerfect : Fill;
+    g_set.border = keep.border;   // (EMB_BORDER / EMB_HUD runs keep theirs)
+    g_set.hud = keep.hud;
+    g_zoomFirst = true;
+  }
+  g_dirty = true;
+  frame(pix);
+}
+
 void witnessScreen(Pix& pix, int w, int h, const int* safeDevicePx, int mode, int zoom, bool keepZoom) {
   SDL_Window* win = pix.window();
   const int keptZoom = g_set.zoom;
@@ -355,22 +436,13 @@ void witnessScreen(Pix& pix, int w, int h, const int* safeDevicePx, int mode, in
   g_set = Settings();
   g_set.zoom = keepZoom ? keptZoom : std::clamp(zoom, kZoomMin, kZoomMax);
   g_set.ring = keepZoom ? keptRing : true;
+  g_zoomFirst = false;   // (P2c) a reset's zoom is the one asked for (a launchAs from the last test does not carry over)
+  g_devForce = -1;
   g_fakeSafe = false;
   g_fakeSafeDev = false;
   g_witnessFree = w > 0 && h > 0;
   int want[2] = {g_witnessFree ? w : 960, g_witnessFree ? h : 540};
-  if (win) {
-    // the window in device px: SDL sizes it in points, so a high-density display divides; one correction pass
-    int pw = 0, ph = 0, ww = 0, wh = 0;
-    SDL_SetWindowSize(win, want[0], want[1]);
-    SDL_SyncWindow(win);
-    SDL_GetWindowSizeInPixels(win, &pw, &ph);
-    SDL_GetWindowSize(win, &ww, &wh);
-    if ((pw != want[0] || ph != want[1]) && pw > 0 && ph > 0 && ww > 0 && wh > 0) {
-      SDL_SetWindowSize(win, (int)std::lround(want[0] * (double)ww / pw), (int)std::lround(want[1] * (double)wh / ph));
-      SDL_SyncWindow(win);
-    }
-  }
+  if (win) resizeWindow(pix, want[0], want[1]);
   if (g_witnessFree) {
     g_set.mode = mode == PixelPerfect ? PixelPerfect : Fill;
     if (safeDevicePx) { g_fakeSafe = true; g_fakeSafeDev = true; std::memcpy(g_fakeIns, safeDevicePx, sizeof g_fakeIns); }

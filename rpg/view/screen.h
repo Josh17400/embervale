@@ -23,6 +23,12 @@
 // zoom and the PLAYER RING live in the settings file (EMBS version 2; a version-1 file loads its fields and the new
 // ones' defaults). Test hooks: EMB_ZOOM=<D> (an absolute world scale), EMB_RIG=1|2 (the human rig, art::setRigVersion;
 // read by rpg/main.cpp before the first sheet is baked).
+// P2c (CHARACTER_SIZE 7 (c)): a PHONE starts at NEAR. While the settings file holds no zoom (first launch, or a
+// version-1 file) the zoom is NEAR on a phone (a coarse pointer: touchUI on iOS / Android or the web's pointer: coarse,
+// and a window short side under 500 points / CSS px) and NORMAL elsewhere (desktop, iPad); the first save writes it and
+// the saved value wins from then on. Witness (pinned) and scripted runs (no settings path) stay NORMAL. Test hook:
+// EMB_DEVICE=touch[@<device px per point>] | mouse, e.g. EMB_DEVICE=touch@3 --window 2556x1179 with a fresh
+// EMB_SETTINGS_FILE is a first-launch iPhone 15 Pro (D0 5, NEAR = D 6, world 426 x 197).
 // Phase A: the numbers are computed and reported; LENS presents the world layer at worldScale() (engine/pix.h layers).
 #pragma once
 #include <string>
@@ -67,6 +73,12 @@ const char* zoomName(int offset);   // "FAR", "NORMAL", "NEAR", "CLOSE"
 // absent (keep = false, zoom = 0: NORMAL) or carried over from the last run (keep = true: as a restart reads the
 // settings file). w <= 0: back to the pinned 480 x 270 design canvas in the 960 x 540 window.
 void witnessScreen(Pix& pix, int w, int h, const int* safeDevicePx, int mode, int zoom, bool keepZoom);
+// ---- (P2c tests) a launch on a device class: the window resized to w x h device px (w <= 0: kept) and the class
+// forced (as EMB_DEVICE does). fresh: a first launch (no settings file: the defaults, the zoom by the device: NEAR on
+// a phone); otherwise a relaunch that reads the settings as they stand (a saved zoom wins). Pinned Witness runs: no-op.
+enum Device : int { DeviceDesktop = 0, DevicePhone = 1, DeviceTablet = 2 };
+int deviceArg(const char* name);   // "desktop" | "phone" | "tablet" -> Device, else -1
+void launchAs(Pix& pix, int device, int w, int h, bool fresh);
 // (tests) the D0 / zoom-level rule for a device height (no window): what defaultWorldScale / zoomLevels give there
 int d0ForHeight(int h);
 std::vector<int> levelsForHeight(int h);

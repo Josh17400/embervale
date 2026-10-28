@@ -68,7 +68,8 @@ uint16_t alloyGuise(const cult::Culture& c, int alloyIndex);
 // shoulder mass, the over-layer, the arm bulk and the chest motif. A culture alloy's KEY (helm, skirt, mass, layer) comes
 // from the solved shape table (rpg/sim/gear_forge_shapes.inc, written by rpg_test --forge-solve), its arm and motif (and
 // ForgeStyle's shoulder, crest and collar) from the alloy's own name and data (the details). Pure, integer, no RNG stream.
-struct Shape { uint8_t helm = 0, skirt = 0, mass = 0, layer = 0, arm = 0, motif = 0; };
+struct Shape { uint8_t helm = 0, skirt = 0, mass = 0, layer = 0, arm = 0, motif = 0;
+               uint8_t variant = 0; };   // (P2c envelope, D51) the helm family's variant (0 the base drawing; forgeShape bits 20-22)
 uint32_t packShape(const Shape& s);   // HumanLook::forgeShape's packing (0 for an all-zero shape)
 Shape unpackShape(uint32_t p);
 uint32_t shapeKey(const Shape& s);    // helm | skirt << 8 | mass << 16 | layer << 24: the uniqueness key (arm, motif aside)
@@ -95,7 +96,22 @@ Shape shapeOf(const Item& it, const cult::Culture* maker);
 std::string describeShape(const Shape& s);
 // the details (contracts 3c.1): the name's root word (kRootDetails), the hidden word, then round 1's scores; the shoulder's
 // shape inside the key's mass, the crest on a socketed family, the collar; cut, edge, limb and fittings 0
-struct AlloyDetails { uint8_t arm = 0, motif = 0, shoulder = 0, crest = 0, collar = 0; std::string root; };
+struct AlloyDetails { uint8_t arm = 0, motif = 0, shoulder = 0, crest = 0, collar = 0; std::string root;
+                      uint8_t variant = 0; };   // (P2c envelope) the helm's variant (the owner's 37: kBoardHeads)
+// (P2c envelope, contracts 3d, D51) the head key: helm | variant << 5 | crest << 8 (a crest only on a socketed family)
+uint32_t headKey(const Shape& s, int crest);
+// the owner's 37 board alloys' heads: the helm family as shipped at df2a155 (pinned in the solve), its variant and crest
+struct BoardHead { const char* name; uint8_t helm, variant, crest; uint32_t key; };   // key: the whole shape key at df2a155 (pinned)
+const BoardHead* boardHeads(int* n);
+const BoardHead* boardHead(const std::string& alloyName);   // null: not on the owner's board
+// (P2c envelope) an alloy's head key as the doll draws it (table helm + details' variant and crest); the variant rule can be
+// swapped for the stability selftest (legacy: the fix round's mass-keyed variant, which C16k's stability test must FAIL)
+uint32_t alloyHeadKey(const cult::Culture& c, int alloyIndex);
+void setLegacyVariantRule(bool on);
+// (P2c envelope, contracts 3d; A1-A3) the shape table's metal rule: a bronze or brass everyday alloy (rank 0) never pairs
+// mass NONE with layer TABARD, nor a fur MANTLE with layer TABARD or HALFCAPE
+bool metalRuleBreaks(const Shape& s);
+bool warmEverydayCell(int people, int school);   // some culture (seeds 1..64, the board set) has a bronze or brass rank-0 alloy here
 AlloyDetails alloyDetails(const cult::Culture& c, int alloyIndex, const Shape& key);
 // the root word an alloy's name carries ("" none): its prefix before the metal word, when it is one of STYLE_P2 28.5's roots
 std::string alloyRoot(const std::string& name);

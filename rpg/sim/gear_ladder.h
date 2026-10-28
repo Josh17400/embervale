@@ -54,6 +54,9 @@ struct LadderKit {
   Item weapon, bow, staff, armor, helmet, shield, gloves, boots, cloak;
   bool hasWeapon = false, hasBow = false, hasStaff = false, hasArmor = false, hasHelmet = false, hasShield = false, hasGloves = false,
        hasBoots = false, hasCloak = false;
+  // (P2c envelope r3, PLAN "The envelope" T3 row) the people's cape to the waist at T3 (a look dial, not an item: L.cape and
+  // the cloak's tier 3)
+  bool cape = false;
   WornGear worn() const;
   CultureLookup lookup() const;   // resolves culture.id (only valid while this kit lives)
 };

@@ -87,6 +87,48 @@ mark socket 3 1
 |.........vzyv
 |..........vv.
 
+# (FORGE-HEAD envelope r1) the crested helm dorsal fin (BAKOSTEEL)
+
+view D key rest origin 1 4 when helmfam-crested replace
+|.v.
+|vzv
+|vyv
+|vyv
+|vxv
+|.v.
+
+view U key rest origin 1 4 when helmfam-crested replace
+|.v.
+|vzv
+|vyv
+|vyv
+|vxv
+|.v.
+
+view R key rest origin 9 4 when helmfam-crested replace
+|.v...v.......
+|vzv.vzv..v...
+|vyzvvyzvvzv..
+|.vyzzyyzzyxvv
+|..vyyxxxxxwwv
+|...vvvvvvvvv.
+
+view L key rest origin 3 4 when helmfam-crested replace
+|.......v...v.
+|...v..vyv.vyv
+|..vzvvyxvvyxv
+|vvyzzzxxyyxv.
+|vxxyyywwxxv..
+|.vvvvvvvvv...
+
+view L key lie origin 3 4 when helmfam-crested replace
+|.......v...v.
+|...v..vyv.vyv
+|..vzvvyxvvyxv
+|vvyzzzxxyyxv.
+|vxxyyywwxxv..
+|.vvvvvvvvv...
+
 # (FORGE-HEAD i2) crest yield: drawn only on crested great kabuto; any other alloy helm family wears no fin crest
 view D key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
 |.
@@ -101,4 +143,21 @@ view L key rest when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto 
 |.
 
 view L key lie when alloyshape,!helmfam-crested,!helmfam-great,!helmfam-kabuto replace
+|.
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
 |.

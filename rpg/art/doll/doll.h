@@ -281,6 +281,10 @@ struct DollRecipe {
   // the motif, the hang dropped under a styled skirt
   uint8_t shape[6] = {};
   std::vector<std::string> forgeMissing;
+  // (P2c envelope, contracts 3d) the envelope's fallbacks (a pauldron size 6 -> 5 -> 4 a shape lacks; `--doll-coverage --scope
+  // envelope` lists them; never a hole) and the helm's variant as applied (0 the base drawing)
+  std::vector<std::string> envelopeMissing;
+  uint8_t helmVariant = 0;
   bool pauldronTop = false;
   bool irisBands = false;
   bool dropHang = false;
@@ -372,6 +376,12 @@ struct Outline { OutlineFrame f[3]; bool ok = false; };
 Outline outlineOf(const DollRecipe& r);
 struct OutlineOD { double head = 0, body = 0, bodyMin = 0, headMin = 0; };
 OutlineOD outlineDistance(const Outline& a, const Outline& b);
+// (P2c envelope, contracts 3d) a look's envelope measures (doll_outline.cpp; `expect doll envelope`, Witness
+// player.sprite.doll.envelope): its tier (the figure's highest piece), the area (opaque pixels with ComposeOpts::noHeld on
+// the walk's frame 0 facing D and the idle facing R), the shoulders across facing D (16 + the pauldrons' reach past the head
+// box's 16 columns) and the helm's rows over the crown (F-31 man, F-30 woman; -1 none)
+struct EnvelopeMeasure { int tier = 0, area = 0, shoulders = 16, rows = -1; };
+EnvelopeMeasure measureEnvelope(const HumanLook& look);
 int outlinePixels(const Outline& o, bool head);   // the opaque pixels of the head (or body) over the three frames
 RigSheet composePosture(const HumanLook& look, Posture p, uint8_t variant);
 RigSheet composePosture(const DollRecipe& r, Posture p, uint8_t variant);
@@ -479,6 +489,7 @@ void metalRound2(uint32_t r[5], int sheen = -1);   // moves a ramp until metalRe
 // cyan-white light (never khaki or lime), near-neutral greys turned to steel (never plaster), a blackened body under a hard
 // specular plane; the glint warm-white on warm metals, cold-white on cool ones (metalRead and metalRead2 still hold)
 void metalCharacter(uint32_t r[5], int sheen = -1, int metal = -1);   // metal: alloyFamilyMetal (0 bronze 1 brass 2 iron 3 steel 4 silver 5 glass)
+void antiqueRamp(uint32_t r[5]);   // (P2c envelope, D52) antique brass and bronze: the dark sheen on a warm metal (doll_alloy.cpp)
 
 // ---------------------------------------------------------------- the pool
 // the embedded pool (gen/doll_pool.cpp) is used unless a tool loads another; every cache keyed on the pool is cleared

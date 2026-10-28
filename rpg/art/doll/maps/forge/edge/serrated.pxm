@@ -35,9 +35,11 @@ tags tile overlay edge on-edge:hem
 
 
 
+# (envelope r1, FORGE-MATERIAL; A4 "no 1 px streak anywhere") the knapped tooth 4 px: a 2 px lit lip (never one lit pixel
+# every 3 px along the hem, which read as a dotted white line on the obsidian), its body, a 2 px tip.
 view D key rest origin 1 2
-|...
-|...
-|yxv
-|xv.
-|v..
+|....
+|....
+|yyxv
+|xxv.
+|vv..

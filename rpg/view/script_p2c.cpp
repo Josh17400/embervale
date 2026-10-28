@@ -15,7 +15,9 @@
 //                                       back tabard, as Witness's player.sprite.doll.gear); the other `expect doll ...`
 //                                       checks are P2b's (script_p2b.cpp), handed on unchanged
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -27,6 +29,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear_ladder.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/view.h"   // (envelope fix r2) View::settleBakes and draw: what `settle` waits on
 
 namespace {
 
@@ -281,6 +284,19 @@ bool expDollGear(ScriptCtx& c) {
     if (have != value) c.fail("expect doll forge " + want + ": the hero's is '" + have + "'");
     return true;
   }
+  // (P2c envelope) `expect doll envelope <field>=<value>`: tier, shoulders, rows (the helm over the crown), area (noHeld px)
+  if (c.arg(2) == "envelope") {
+    const std::string want = c.arg(3);
+    const size_t eq = want.find('=');
+    if (eq == std::string::npos) { c.fail("expect doll envelope <tier|shoulders|rows|area>=<n>"); return true; }
+    const art::doll::EnvelopeMeasure m = art::doll::measureEnvelope(c.game.pl().look);
+    const std::string f = want.substr(0, eq);
+    const int v = std::atoi(want.c_str() + eq + 1);
+    const int have = f == "tier" ? m.tier : f == "shoulders" ? m.shoulders : f == "rows" ? m.rows : f == "area" ? m.area : -9999;
+    if (have == -9999) c.fail("expect doll envelope: unknown field " + f + " (tier shoulders rows area)");
+    else if (have != v) c.fail("expect doll envelope " + want + ": the hero's is " + std::to_string(have));
+    return true;
+  }
   if (c.arg(2) != "gear") return otherExpDoll(c);
   const std::string want = c.arg(3);
   const size_t eq = want.find('=');
@@ -305,5 +321,39 @@ int registerGear() {
   return n;
 }
 const int kGearReg = registerGear();
+
+// (envelope fix round, D65; the packager: phone_NEAR_t1 showed a square block of forest beside the hero) a capture after
+// `skill clearing` waits for the world to be still: the terrain chunks under the cleared props are re-baked in the background
+// and a stale chunk stays on screen until its bake lands (terrain.cpp), so the shot 0.8 s after the clearing caught the old
+// canopy floor in one chunk's square. settle [max s] [gap s]: every `gap` seconds (0.5) the world is drawn (the hero hidden,
+// the UI as set; a draw takes the finished bakes in and queues what it newly needs) after View::settleBakes; the world is
+// still when two such draws `gap` apart both found no terrain bake in flight, `max` seconds at most (3). It never fails the
+// script. (envelope fix r2, DOLL; the judge's round 4: r1 compared whole canvases, and a living scene (the grass and flowers
+// swaying, the critters, the water) is never pixel-still, so every settle timed out at 3.0 s; the bakes are what a capture
+// after `skill clearing` waits for, so the bakes are what it now asks after.) Logs what it waited
+bool cmdSettle(ScriptCtx& c) {
+  static int line = -1;
+  static float last = -1;
+  static int idleRuns = 0;
+  const float maxS = c.arg(1).empty() ? 3.0f : (float)std::atof(c.arg(1).c_str());
+  const float gap = c.arg(2).empty() ? 0.5f : (float)std::atof(c.arg(2).c_str());
+  if (c.waited == 0 || line != c.line) { line = c.line; last = -1; idleRuns = 0; }
+  if (last >= 0 && c.waited - last < gap) return false;
+  last = c.waited;
+  // settleBakes returns at once when no bake is queued or being painted, and sleeps 1 ms a turn while one is: a return in
+  // under half a millisecond is a world with nothing in flight
+  const auto t0 = std::chrono::steady_clock::now();
+  c.view.settleBakes();
+  const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  const bool wasHidden = c.view.p2a.hidePlayer;
+  c.view.p2a.hidePlayer = true;
+  c.view.draw(c.game, false);
+  c.view.p2a.hidePlayer = wasHidden;
+  idleRuns = ms < 0.5 ? idleRuns + 1 : 0;
+  if (idleRuns >= 2) { std::printf("settle: still after %.1f s (no terrain bake in flight on two draws %.1f s apart)\n", c.waited, gap); return true; }
+  if (c.waited >= maxS) { std::printf("settle: not still after %.1f s (shooting anyway; last wait on the bakes %.1f ms)\n", c.waited, ms); return true; }
+  return false;
+}
+const int kSettleReg = registerScriptExt(ScriptExt{"settle", "settle [max s] [gap s]: wait until two world draws gap s apart (0.5) find no terrain bake in flight, max s at most (3), the hero hidden (D65: a capture after `skill clearing`; test only)", cmdSettle, 10.0f});
 
 }  // namespace

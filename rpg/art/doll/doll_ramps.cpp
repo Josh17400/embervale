@@ -347,6 +347,17 @@ void setHex(uint32_t dst[5], const uint32_t src[5]) { for (int i = 0; i < 5; i++
 constexpr double kTrouserFloor = 52.0;   // A3's trouser body #33304E (MOTION_P2 14)
 constexpr double kTrouserBody = 101.0;   // the lit trouser body over the game's grass (luma 89 + 12; run fix i1)
 
+#define MYTH_M {0x060508, 0x42465A, 0x565C70, 0xD8DCE6, 0xFFF4E4}   // (envelope fix r2) black steel: selout/recess 70, body 91, lit 220
+#define GLASS_L {5.0, 12.0, 20.0, 74.0, 96.0}
+#define GLASS_C {6.0, 22.0, 32.0, 12.0, 5.0}
+#define GLOW_GL {22.0, 40.0, 66.0, 86.0, 98.0}
+#define GLOW_GC {22.0, 38.0, 54.0, 44.0, 8.0}
+#define GLASS_SILVER {0x12161C, 0x3A444E, 0x6C7882, 0xB4C0C8, 0xFFFFFF}
+#define MYTH_F {0x4A1206, 0xC8501A, 0xFFC060, 0xFFE8A8, 0xFFFBEA}
+#define OBS_T {0x0A0810, 0x1A1230, 0x3A2E64, 0x726C98, 0xF4F2FF}
+#define MYTH_G {0x3A2006, 0x8A5A12, 0xF0B634, 0xFFDA6A, 0xFFF6CC}
+#define STAR_V {0x100C2C, 0x4C46A4, 0x7266CE, 0xBCB4F2, 0xFFFFFF}
+#define STAR_C {0x0A1C30, 0x1E5E8C, 0x2E86B4, 0x8AD4F0, 0xFFFFFF}
 uint32_t mixHash(uint32_t h, uint32_t v) { h ^= v + 0x9E3779B9u + (h << 6) + (h >> 2); return h; }
 
 // ---- (P2c ladder, contracts 3b; STYLE_P2 25.2, 27.3) the metals a piece is drawn in (HumanLook::metalKind) and their glow
@@ -364,7 +375,7 @@ const uint32_t kMetalKind[12][5] = {
     {0x3A2A08, 0x6E5410, 0xC8A020, 0xF6E6A6, 0xFFFAE4},   // (forge C17: a pale gilt plane, the core deeper)
       // 5 gilded (alloys i3: a lemon gold, apart from the bronze's orange at game scale; its body 18 luma under the skin)
     {0x0E2A22, 0x1F5A46, 0x3E9474, 0x7CC8A0, 0xD0F4E0},   // 6 jade
-    {0x0A0810, 0x241A40, 0x1E1A2E, 0x84808F, 0xF2F6FF},   // (forge fix i1, the owner: "black cloth or lacquer": the lit edge (step 1) a VIOLET rim light over the black glass, the facet colder)   // (silhouettes i2: the lit facet violet-cold #82808F (C17: its chroma 60 % of the body's), not i1's grey #868596 that read as dark iron) (forge round 2, STYLE_P2 28.4 KNAPPED: near-black violet glass, cold lit facets, hard white glints)
+    {0x0A0810, 0x120C22, 0x2C1C56, 0x8680A8, 0xF4F2FF},   // (envelope r3, FORGE-MATERIAL, A4: the violet lives in the near-black glass BODY (luma 39, chroma 40), the lit edge a cold lavender (C17: 57 % of its chroma), so the edge light reads violet against black glass)   // (forge fix i1, the owner: "black cloth or lacquer": the lit edge (step 1) a VIOLET rim light over the black glass, the facet colder)   // (silhouettes i2: the lit facet violet-cold #82808F (C17: its chroma 60 % of the body's), not i1's grey #868596 that read as dark iron) (forge round 2, STYLE_P2 28.4 KNAPPED: near-black violet glass, cold lit facets, hard white glints)
       // 7 obsidian (alloys i2: black glass, a near-white glint; the violet read as cloth)
     {0x100A0C, 0x2B1614, 0x49201D, 0x897267, 0xFFE2A8},   // (forge fix i1: a darker char body, the lit plane a warm heat-lit rim, so the seams burn on it)   // (silhouettes i3, the blind panel: "a cold iron stove": the char holds its heat, a red-black body under a warm lit plane) (silhouettes i2: black iron, i1's taupe #887868 lit plane read as clay; the heat is the seams') (forge round 2, STYLE_P2 28.4 FURNACE: soft char, the heat only in the seams' Glow; i3:
       // the face plate as skin: a forge-dark red body, the lit plane a yellow straw heat (C17 keeps its chroma under 60 % of the body: an orange went pink), the glint white-hot)
@@ -830,7 +841,12 @@ DollRamps rampsOf(const HumanLook& L) {
       // flat brown or green plane, a hide or a felt. Blackened metal reads by its planes: the shadow (step 1) sinks to 60 %
       // of the body's luma and loses some colour (a cold near-black core, not a second brown), so each plate is a dark core,
       // a body and the hard pale light. (C14's dark-sheen edge is its own step 1: the lit edge follows it.)
-      if (L.sheen == 3) {   // (the glowing sheen keeps C14's lit edge: its seams, not its core, are its tell)
+      // (P2c envelope, D52) on bronze and brass the dark sheen is ANTIQUE (black recesses, a gold body at luma 95-125, a hard
+      // pale lit plane): the last word on a warm metal's ramp, after the partings above (the blackened rule below is the cold
+      // metals'; C17 reads D52 on bronze and brass)
+      const int mw = alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen));
+      if (L.sheen == 3 && (mw == 0 || mw == 1)) antiqueRamp(M);
+      else if (L.sheen == 3) {   // (the glowing sheen keeps C14's lit edge: its seams, not its core, are its tell)
         const double want = 0.6 * luma(M[2]);
         Lab s1 = toLab(M[1]);
         for (int it = 0; it < 40 && luma(fromLab(s1) | 0xFF000000u) > want && s1.L > 8.0; it++) { s1.L -= 1.0; s1.a *= 0.985; s1.b *= 0.985; }
@@ -925,10 +941,78 @@ DollRamps rampsOf(const HumanLook& L) {
         if (metalRead2(t, nullptr) && metalRead(t, R.c[(int)Slot::Skin][2], nullptr) == metalRead(M, R.c[(int)Slot::Skin][2], nullptr)) M[i] = n;
       }
     }
+    // (P2c envelope r2, FORGE-MATERIAL prototype; PLAN A6) STARFALL's starmetal body (T4 up) is iridescent crystal: Metal 2 the
+    // sea-glass cyan turned 75 degrees from the lavender star-white, laid in 2-row bands over armour, shoulders and helm by the
+    // resolver's irisBands (the trim takes it too: one crystal harness)
+    if (mk == 9 && L.tier[HumanLook::TIER_BODY] >= 4) {   // (envelope r3, A6: the T5-T6 crystal too)
+      // (envelope fix round, FORGE-MATERIAL; D61) the crystal as COLOUR: a violet ramp (Metal) and an ice-cyan ramp (Metal 2),
+      // steps 2-3 saturated (CIE chroma 28 or more), steps 0-1 a deep indigo (the dark core between the ribs and under the
+      // rims), step 4 the white specular; never two near-whites (r3's #C0B8EC / #BDF2EC read as plain pale steel)
+      static const uint32_t kStarV[5] = STAR_V;
+      static const uint32_t kStar2[5] = STAR_C;
+      setHex(R.c[(int)Slot::Metal], kStarV);
+      setHex(R.c[(int)Slot::Metal2], kStar2);
+      for (int i = 0; i < 5; i++) { R.c[(int)Slot::Metal][i] |= 0xFF000000u; R.c[(int)Slot::Metal2][i] |= 0xFF000000u; }
+    }
+    // (envelope fix round, FORGE-MATERIAL; D60) the MYTHIC: polished BLACK steel (steps 0-2 near-black, the darkness only in the
+    // body and the recesses) whose lit plane is a bright cool steel (step 3 luma 175 or more) under a warm white-hot glint, and
+    // its gold (Metal 2) generous and bright (steps 2-4 at luma 175 / 200 / 235: the brow band, the fin's edge, the rims and the
+    // keel read as light, not ochre). r3's mid-grey body (#625E70, luma 102 after the skin parting) read "darker and less rich
+    // than plain T6"
+    if (mk == 11 || L.mythic) {
+      static const uint32_t kMyth[5] = MYTH_M;
+      static const uint32_t kMythGold[5] = MYTH_G;
+      setHex(R.c[(int)Slot::Metal], kMyth);
+      setHex(R.c[(int)Slot::Metal2], kMythGold);
+      for (int i = 0; i < 5; i++) { R.c[(int)Slot::Metal][i] |= 0xFF000000u; R.c[(int)Slot::Metal2][i] |= 0xFF000000u; }
+      // the flame crown (Plume) tall and bright: #FFC060 tongues (step 2), near-white tips (3-4) over a hot orange root (1)
+      static const uint32_t kMythFlame[5] = MYTH_F;
+      setHex(R.c[(int)Slot::Plume], kMythFlame);
+      for (int i = 0; i < 5; i++) R.c[(int)Slot::Plume][i] |= 0xFF000000u;
+    }
+    // (envelope fix round 2, FORGE-MATERIAL; D59) OBSIDIAN's grey steel trim (a neutral Metal 2: the gorget's rim and the
+    // collar under the chin) takes the black glass's own trim: a dark violet plane with a cold lavender lit line, so facing R
+    // and L the lower face and the gorget below it read as one dark plane (r4: a #B4BAC8 bar crossed under the chin). A
+    // coloured trim (f5's gold) stays
+    if (mk == 7) {
+      const Lab t2 = toLab(R.c[(int)Slot::Metal2][2]);
+      if (std::hypot(t2.a, t2.b) < 12.0) {
+        static const uint32_t kObsT[5] = OBS_T;
+        setHex(R.c[(int)Slot::Metal2], kObsT);
+        for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal2][i] |= 0xFF000000u;
+      }
+    }
+    // (envelope fix round, FORGE-MATERIAL; D62) every GLASS alloy (alloyFamilyMetal 5) is DARK glass with light at its edges:
+    // its own hue kept (Thaerglass's teal-green), steps 0-2 jewel-dark (step 2 about #14463C on the green, CIE L 26), step 3
+    // the bright jewel light (CIE L 74, the rim and the small lit facet: 80+ luma over step 2, so the rim shows at 1x), step 4
+    // a near-white glint; Metal 2 the river SILVER of the rims, seams and brow band (neutral, cool), never a second glass.
+    // r3's ramp (#1C6E5B body, #C9F3F4 light) was a mid teal under a near-white plane: enamel and jade at 1x
+    // (the PALE sheen keeps its frosted body, C17's pale tell: step 2 at 150 luma or more; the IRIDESCENT keeps its turned
+    // second hue in Metal 2, C17's 40 degrees, and takes the dark glass in Metal only)
+    if (mk == 10 && L.sheen != 7 && (L.alloyFam || L.armourTint) && alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen)) == 5) {
+      uint32_t* G = R.c[(int)Slot::Metal];
+      const Lab b2 = toLab(G[2]);
+      const double hh = std::atan2(b2.b, b2.a);
+      static const double kGL[5] = GLASS_L, kGC[5] = GLASS_C;
+      for (int i = 0; i < 5; i++) { Lab l; l.L = kGL[i]; l.a = kGC[i] * std::cos(hh); l.b = kGC[i] * std::sin(hh); G[i] = fromLab(l) | 0xFF000000u; }
+      static const uint32_t kRiver[5] = GLASS_SILVER;
+      if (L.sheen != 5) {
+        setHex(R.c[(int)Slot::Metal2], kRiver);
+        for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal2][i] |= 0xFF000000u;
+      }
+    }
     // Glow: the glow colour, else the gem colour, else the metal's own
     {
       const uint32_t g0 = L.glowColor ? L.glowColor : L.gemColor ? L.gemColor : (mk == 10 && L.armourTint ? L.armourTint : hex(kGlowOf[mk]));
       rampA3(glowLight(g0, topR >= 5 && !L.mythic && mk != 11, L.mythic != 0 || mk == 11), Material::Metal, R.c[(int)Slot::Glow]);
+    }
+    // (envelope fix round 2, FORGE-MATERIAL; D62 depth "Thaerglass's seams breathing in its own green light") a GLASS alloy's
+    // seams glow in the glass's own hue (a bright jewel light), never a second colour (r4: cyan #00A4E1 beads on the green)
+    if (mk == 10 && L.sheen != 7 && L.sheen != 5 && (L.alloyFam || L.armourTint) && alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen)) == 5) {
+      const Lab b2 = toLab(R.c[(int)Slot::Metal][2]);
+      const double hh = std::atan2(b2.b, b2.a);
+      static const double kWL[5] = GLOW_GL, kWC[5] = GLOW_GC;
+      for (int i = 0; i < 5; i++) { Lab l; l.L = kWL[i]; l.a = kWC[i] * std::cos(hh); l.b = kWC[i] * std::sin(hh); R.c[(int)Slot::Glow][i] = fromLab(l) | 0xFF000000u; }
     }
     // (forge fix i1, the owner: "Emberforged has no hot-metal glow") emberforged's seams are molten: a red rim (1), an orange
     // body (2), a white-hot core (3: the compositor's crack centres), the glint near white
@@ -1004,6 +1088,11 @@ DollRamps rampsOf(const HumanLook& L) {
         if (std::fabs(luma(R.c[(int)S::Accent][2]) - luma(R.c[(int)S::Cloth1][2])) < 18.0 && L.forgeShape && !part(S::Accent, {S::Cloth1, S::Metal, S::Leather}, false))
           part(S::Accent, {S::Metal, S::Hair}, false);
       }   // (forge i2: the tabard off the armour first)
+      // (P2c envelope, D52: antique brass climbed to luma 95-125 and took the tabard's room) a styled alloy's tabard on bare
+      // arms off the skin it touches before the shirt and the leather it covers
+      if (styled && L.forgeShape && std::fabs(luma(R.c[(int)S::Accent][2]) - luma(R.c[(int)S::Skin][2])) < 18.0 &&
+          !part(S::Accent, {S::Skin, S::Metal, S::Hair, S::Leather}, false) && !part(S::Accent, {S::Skin, S::Metal, S::Leather}, false))
+        if (!part(S::Accent, {S::Skin, S::Leather}, false)) part(S::Accent, {S::Skin, S::Metal}, false);
       // (forge i2, C14: the king's and the Jade masterwork's tabard sat 12-17 luma off the cloak, a Jade alloy 2 off it) when
       // no cloak clears all five, the accent moves off the cloak, else the cloak clears the two it lies on most (metal, accent)
       if (!part(S::Cloak, {S::Metal, S::Hair, S::Accent, S::Cloth1, S::Leather}, false))

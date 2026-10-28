@@ -20,10 +20,14 @@ legend O metal2 2
 # every glove and greave, zebra stripes that read as quilted cloth) a glass facet a 4 x 6 cell: a "/" specular streak (+2)
 # with its lit flank (+1) on the upper left, a flat dark plane, the lower right a step down (on obsidian the violet rim).
 
+# (envelope r1, FORGE-MATERIAL; A4 "no 1 px streak anywhere", A8) the facet as planes, rows only: a 2 x 2 lit face at
+# the top left (+1: the light's facet), two rows of dark glass, a 2 x 2 shade at the lower right (-1), so a 2-3 px greave
+# reads lit block / black glass / shade block, never a "/" of single pixels; the specular is the glass pass's stamp
+# (maps/forge/glass), placed by the compositor on facets of 4 px or more.
 view D key rest origin 0 0
-|.+^.
-|+^..
-|^...
+|++..
+|++..
 |....
-|...:
+|....
+|..::
 |..::

@@ -1,0 +1,57 @@
+# P2c ZOOM (PLAN wave 1d, D47; CHARACTER_SIZE 7 (c)): a PHONE's first launch starts at NEAR. Each `firstlaunch phone WxH`
+# is a first launch (no settings file) on a phone window of that size in device px; `relaunch` reads the settings as they
+# stand (a zoom the player chose wins). The iPhone 15 Pro Home Screen app (2556x1179): D0 5, NEAR D 6, the world 426 x 197;
+# Safari (2556x1020): D 5; iPhone 11 (1792x828) and SE (1334x750): D 4; a saved FAR kept on a phone.
+#   embervale.exe --script tools/scripts/p2c_zoom_phone.txt     (p2c_zoom_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 hour 11
+# a scripted run without a settings file stays NORMAL until a launch is simulated
++0.3 expect zoom normal
++0.0 expect screen want 5
+# ---- the iPhone 15 Pro Home Screen app
++0.1 firstlaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen d0 5
++0.0 expect screen want 6
++0.0 expect screen world 6
++0.0 expect worldlayer 426 197
++0.0 shot p2c_zoom_phone_15pro_first.png
+# ---- Safari (the toolbars take 159 px)
++0.1 firstlaunch phone 2556x1020
++0.3 expect zoom near
++0.0 expect screen d0 4
++0.0 expect screen want 5
++0.0 expect screen world 5
+# ---- iPhone 11 and SE
++0.1 firstlaunch phone 1792x828
++0.3 expect zoom near
++0.0 expect screen d0 3
++0.0 expect screen want 4
++0.0 expect screen world 4
++0.1 firstlaunch phone 1334x750
++0.3 expect zoom near
++0.0 expect screen want 4
++0.0 expect screen world 4
+# ---- never chosen: a relaunch is still a phone with no saved zoom (NEAR); turning the phone keeps it
++0.1 firstlaunch phone 2556x1179
++0.2 relaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen want 6
+# ---- a saved FAR is kept on the next launch
++0.1 zoom far
++0.3 expect zoom far
++0.0 expect screen want 4
++0.1 relaunch phone 2556x1179
++0.3 expect zoom far
++0.0 expect screen want 4
++0.0 expect screen world 4
++0.0 shot p2c_zoom_phone_15pro_savedfar.png
+# ---- a saved NORMAL is kept too (the player stepped back from NEAR)
++0.1 firstlaunch phone 2556x1179
++0.2 zoom normal
++0.2 relaunch phone 2556x1179
++0.3 expect zoom normal
++0.0 expect screen want 5
++0.5 quit

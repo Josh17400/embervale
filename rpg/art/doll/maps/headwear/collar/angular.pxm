@@ -2,6 +2,9 @@
 # KNAPPED: standing shards of black glass beside the jaw and a sawtooth of points round the neck, each lit on its left facet.
 # Written by the FORGE-HELM area's tools/gen.py from src/ (the hand-drawn D U R views; L is R re-lit). Format: rpg/art/doll/doll.h.
 # (FORGE-HEAD i1, tools/collar.py) cut to 2 rows below the neck line (STYLE_P2 28.3): it no longer lays over the chest motif.
+# (FORGE-HEAD envelope r2) facing L the lit row starts a step darker: the head hides its neighbours there, leaving a lone 1 px glint (C19 A8)
+# (envelope fix round, HEAD, D59) the band under the jaw one dark glass plane (steps 1-2) in every facing, lit only at its
+# top-left end: the pale bar no longer crosses the lower face facing R / L; the light stays on the standing shards
 body adult
 role overlay collar.angular
 layer neck
@@ -46,61 +49,61 @@ view D key rest origin 6 2
 |z...........v
 |vz.........vw
 |vzv.......vxv
-|vyyyyxxxxwwwv
+|vyyxxwwwwwwwv
 |.vvvvvvvvvvv.
 
 view U key rest origin 6 2
 |z...........v
 |vz.........vw
 |vzv.......vxv
-|vyyyyxxxxwwwv
+|vyyxxwwwwwwwv
 |.vvvvvvvvvvv.
 
 view R key rest origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyyyyxxxwwv
+|vyxwwwwwwwv
 |.vvvvvvvvv.
 
 view L key rest origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vyyyyxxxwwv
+|vxwwwwwwwwv
 |.vvvvvvvvv.
 
 view L key lie origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vyyyyxxxwwv
+|vxwwwwwwwwv
 |.vvvvvvvvv.
 
 view R key flow origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyyyyxxxwwv
+|vyxwwwwwwwv
 |.vvvvvvvvv.
 
 view R key flow2 origin 5 2
 |z..........
 |vz........v
 |vzv......vw
-|vyyyyxxxwwv
+|vyxwwwwwwwv
 |.vvvvvvvvv.
 
 view L key flow origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vyyyyxxxwwv
+|vxwwwwwwwwv
 |.vvvvvvvvv.
 
 view L key flow2 origin 5 2
 |..........z
 |v........zv
 |wv......vzv
-|vyyyyxxxwwv
+|vxwwwwwwwwv
 |.vvvvvvvvv.

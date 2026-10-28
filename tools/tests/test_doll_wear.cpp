@@ -48,6 +48,7 @@
 #include <unordered_map>
 #include <vector>
 #include "rpg/art.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_internal.h"
 #include "tools/tests/tests.h"
@@ -301,6 +302,7 @@ struct FD {
   bool run = false;
   bool posture = false;   // a walking posture's side frame (B11 wear judges its load: W5 attached, W7 face clear)
   int lean = 0, hipX = 0, bob = 0, neckX = 0;
+  int cloakBack = 2;   // (P2c envelope, W8 by tier) the cloak's back reach: kEnvelope[the cloak's tier].cloakBack (T5-T6 8)
   int plant0 = INT32_MIN, plant1 = INT32_MIN;
   std::map<std::string, std::string> keys;
   Grid g[kKinds];
@@ -363,6 +365,7 @@ Shot shootLook(const doll::DollRecipe& full, const std::vector<int>& gaits) {
         FD f;
         f.facing = fc; f.gait = gait; f.i = i;
         f.run = gait >= 0 && kGaits[gait].run;
+        f.cloakBack = doll::envelopeOf(full.has("cloak.t6") ? 6 : full.has("cloak.t5") ? 5 : 0).cloakBack;
         for (int k = 0; k < kKinds; k++) if (need[k]) { f.g[k] = gridOf(sh[k], fc, clip, variant, i); f.has[k] = true; }
         f.neckX = neckXOf(full, fc);
         if (const P::FrameRec* fr = clipFrame(full, rp, fc, clip, variant, i)) {
@@ -682,7 +685,8 @@ void frameChecks(const FD& f, const FD& idle, const Report& rep) {
     // (P2c ladder i2) the cloak's back may trail 2 columns behind a walking or running body (the bar's 1 was calibrated on
     // P2b's travellers; the ladder's cloaks hang off a backplate and large pauldrons, and by eye at 8x the noble and travel
     // cloaks' 2-column trail facing L reads as cloth swinging behind, never as a slab off the body); the front, 1
-    const int cMax = cw == "cloakB" ? 2 : 1;
+    // (P2c envelope, W8 by tier) the long cloak of a T5-T6 cloak trails up to 8 columns behind (kEnvelope); the front 1
+    const int cMax = cw == "cloakB" ? f.cloakBack : 1;
     const bool badC = cc > cMax || cr > 0, badN = nc > nm || nr > ir;
     std::string why;
     if (badC) why = fmt("%s %d column(s), %d row(s) past the body's box (%d, 0)", cw.c_str(), cc, cr, cMax);

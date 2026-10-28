@@ -6,8 +6,10 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <set>
 #include <unordered_map>
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
 
@@ -140,6 +142,75 @@ bool shieldOf(const HumanLook& L) {
 }
 // (P2c forge, contracts 3c) shoulder: the body style's shape (doll_forge.h's shoulder value, 0 the family's own): that shape
 // at the dial's size, else its nearest drawn size, then the form family's shape (today's rule), then none
+std::vector<std::string>* g_envMissing = nullptr;   // (P2c envelope) the recipe being resolved: its envelopeMissing
+// (P2c envelope) a pauldron value's width across facing D: 16 + the reach of its parts' facing-D rest views past the 16 px
+// shoulder line (the right part's shoulder anchor sits 1 px inside the line's left end, the left part's 1 px inside its right
+// end; measured on the pool, cached per pool)
+int pauldronAcross(const std::string& v) {
+  const pool::Pool& P = pool::get();
+  static const void* poolAt = nullptr;
+  static size_t poolParts = 0, poolViews = 0;
+  static std::unordered_map<std::string, int> cache;
+  if (poolAt != (const void*)&P || poolParts != P.parts.size() || poolViews != P.views.size()) {
+    cache.clear(); poolAt = &P; poolParts = P.parts.size(); poolViews = P.views.size();
+  }
+  auto it = cache.find(v);
+  if (it != cache.end()) return it->second;
+  const uint16_t rest = P.strId("rest");
+  int reachR = 0, reachL = 0;
+  for (int pi : P.partsWithRole(Role::Pauldron, v)) {
+    const pool::PartRec& pr = P.parts[(size_t)pi];
+    for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews && vi < P.views.size(); vi++) {
+      const pool::ViewRec& w = P.views[vi];
+      if (w.facing != 0 || w.when != 0 || w.key != rest || w.cells.empty()) continue;
+      int mn = 1 << 20, mx = -1;
+      for (int y = 0; y < w.h; y++)
+        for (int x = 0; x < w.w; x++) if (w.cells[(size_t)y * w.w + x] >= 2) { mn = std::min(mn, x); mx = std::max(mx, x); }
+      if (mx < 0) continue;
+      if (pr.side == 1) reachR = std::max(reachR, w.ox - mn - 1);
+      else if (pr.side == 2) reachL = std::max(reachL, mx - w.ox - 1);
+    }
+  }
+  const int across = 16 + std::max(0, reachR) + std::max(0, reachL);
+  cache[v] = across;
+  return across;
+}
+// (envelope fix round, D55; the judge's round 3: the hero's T2 measured 1.05 of T1 and read as T1's silhouette) the hero lines'
+// T2 kit: TANNER'S at T2 on the Heartland's kit wears the soft cap (the leather cap's T2 drawing), the short hooded mantle (the
+// pauldron shape `capelet` at size 2) and its hood thrown back (the neck piece `cowl`); each falls back to today's leather cap,
+// flap2 and no neck piece until drawn, listed in envelopeMissing (rpg_test --doll-coverage --scope envelope)
+bool t2Kit(const HumanLook& L) {
+  return L.forgeKit && L.tier[HumanLook::TIER_BODY] == 2 && L.forge[HumanLook::TIER_BODY] && (L.forge[HumanLook::TIER_BODY] & 0xFF) == forge::B_TANNER;
+}
+// (envelope fix round, D57; the judge's round 3: eg3 measured shoulders 18, no cape, 1.05 of eg0) the village watch at T3 wears
+// the fair test's T3d kit (docs/ref/envelope f32_guard_t3d): a guard's coat (Outfit::Guard) at body tier 3 outside the forge kits
+bool watchT3(const HumanLook& L) {
+  return L.outfit == Outfit::Guard && L.tier[HumanLook::TIER_BODY] == 3 && !L.forge[HumanLook::TIER_BODY] && !L.civil;
+}
+// a `when` condition word some view of the pool keys on (a T2 view drawn into an existing part)
+bool poolKeysOn(const char* word) {
+  const pool::Pool& P = pool::get();
+  static const void* at = nullptr;
+  static size_t nv = 0;
+  static std::unordered_map<std::string, bool> cache;
+  if (at != (const void*)&P || nv != P.views.size()) { cache.clear(); at = &P; nv = P.views.size(); }
+  const auto it = cache.find(word);
+  if (it != cache.end()) return it->second;
+  bool any = false;
+  for (const pool::ViewRec& v : P.views) {
+    if (!v.when) continue;
+    const std::string& c = P.s(v.when);
+    for (size_t a = 0; a <= c.size() && !any;) {
+      size_t b = c.find(',', a);
+      if (b == std::string::npos) b = c.size();
+      if (c.compare(a, b - a, word) == 0 && b - a == std::strlen(word)) any = true;
+      a = b + 1;
+    }
+    if (any) break;
+  }
+  cache[word] = any;
+  return any;
+}
 std::string pauldronOf(const HumanLook& L, int shoulder = 0) {
   if (L.pauldron < 2) return "";   // 0 the band's own (none drawn yet), 1 none
   const char* a = armourOf(L);
@@ -151,16 +222,45 @@ std::string pauldronOf(const HumanLook& L, int shoulder = 0) {
   const pool::Pool& P = pool::get();
   // (forge i2) a culture's masterwork alloy is worked elaborate (STYLE_P2 28.5's rank): its shoulders a size larger
   const bool master = L.alloyRank == 3 && (L.forge[HumanLook::TIER_BODY] & 0xFF) == 0 && L.forge[HumanLook::TIER_BODY] && !L.forgeGuise;
-  const int want = std::min<int>(L.pauldron + (master ? 1 : 0), 4);
+  int want = std::min<int>(L.pauldron + (master ? 1 : 0), 4);
+  // (P2c envelope, contracts 3d, D49) the body's tier caps the shoulders: at T1-T4 the dial's size at most the tier's (T2
+  // small, T3 medium, T4 large); at T5-T6 a body with shoulder plates asks for the great (5) and the legend (6) size. Each
+  // drawing's MEASURED width (its facing-D rest views: 16 + the reach past the shoulder line each side) is checked against
+  // kEnvelope's shoulders. A fallback (6 -> 5 -> 4) is listed in the
+  // recipe's envelopeMissing; never a hole. Untiered looks keep the dial (row 0). The size is nominal: a drawing wider than
+  // its size's reach is listed (and C12f fails the look) until it is redrawn, never swapped for a smaller one here.
+  const int tb = L.tier[HumanLook::TIER_BODY];
+  const bool tiered = tb >= 1 && tb <= 6;
+  const int capSize = tiered ? envelopeOf(tb).pauldron : 4;
+  const int capAcross = tiered ? envelopeOf(tb).shoulders : 99;
+  if (tiered && tb >= 5) want = capSize;
+  else if (tiered) want = std::min(want, capSize);
   auto nearest = [&](const char* shape) -> std::string {
-    for (int d : {0, 1, -1, 2, -2}) {
+    // the size asked, then smaller, then larger up to the cap
+    static const int kOrder[] = {0, -1, 1, -2, 2, -3, -4};
+    for (int d : kOrder) {
       const int sz = want + d;
-      if (sz < 2 || sz > 4) continue;
+      if (sz < 2 || sz > 6 || sz > std::max(capSize, 2)) continue;
       const std::string v = std::string(shape) + "." + std::to_string(sz);
-      if (!P.partsWithRole(Role::Pauldron, v).empty()) return v;
+      if (P.partsWithRole(Role::Pauldron, v).empty()) continue;
+      if (g_envMissing) {
+        if (d) g_envMissing->push_back("pauldron " + std::string(shape) + "." + std::to_string(want) + " -> ." + std::to_string(sz));
+        // a drawing wider than its tier's shoulders (C12f fails it): FORGE-MANTLE redraws it to its size's reach (contracts
+        // 3d: sizes 2-6 reach 1 / 2 / 3 / 5 / 6 px past the line); listed, the figure keeps it meanwhile
+        if (pauldronAcross(v) > capAcross) g_envMissing->push_back("pauldron " + v + " drawn " + std::to_string(pauldronAcross(v)) + " px across (T" + std::to_string(tb) + ": " + std::to_string(capAcross) + ")");
+      }
+      return v;
     }
     return "";
   };
+  if (watchT3(L)) {   // (D57) round steel pauldrons, the cop, at medium (20 px across)
+    const std::string v = nearest("cop");
+    if (!v.empty()) return v;
+  }
+  if (t2Kit(L)) {   // (D55) the short hooded mantle: 18 px across, its own size 2 drawing; today's flap2 until drawn
+    if (!P.partsWithRole(Role::Pauldron, "capelet.2").empty()) return "capelet.2";
+    if (g_envMissing) g_envMissing->push_back("pauldron capelet.2 (T2 kit, D55) -> today's shoulders");
+  }
   if (shoulder > 0) {
     const std::string v = nearest(forge::valueName(forge::AX_SHOULDER, shoulder));
     if (!v.empty()) return v;
@@ -356,7 +456,12 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   if (!famHelm.empty()) { need(Role::Helm, famHelm); r.shape[forge::SX_HELM] = (uint8_t)forge::shapeValueOf(forge::SX_HELM, famHelm.c_str() + 4); }
   else if (sk.hw) { need(Role::Headwear, kHeadwear[sk.hw]); r.guiseHead = true; }
   else if (sk.helm == -2) need(Role::Headwear, "hood");
-  else if (sk.helm == -1) need(Role::Helm, drawnBand(1));
+  else if (sk.helm == -1 && t2Kit(L) && drawnFor(Role::Helm, "softcap", r.body)) need(Role::Helm, "softcap");   // (D55) its own part
+  else if (sk.helm == -1) {
+    need(Role::Helm, drawnBand(1));
+    // (D55) the soft cap drawn as the leather cap's views `when softcap` (flagsOf); neither drawn: listed
+    if (t2Kit(L) && g_envMissing && !poolKeysOn("softcap") && !poolKeysOn("forge-tanner")) g_envMissing->push_back("helm softcap (T2 kit, D55) -> the leather cap");
+  }
   else if (sk.helm > 0) need(Role::Helm, drawnForm(Role::Helm, sk.helm));
   else if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : drawnBand(hb));
   else if (L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));
@@ -445,7 +550,12 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // (P2c forge) the body style's limb tile, where drawn, takes the material's place on the sleeves
   if (const char* t = sleeveTileOf(L))
     if (!forgeLimbBody && !pool::get().partsWithRole(Role::Overlay, t).empty()) need(Role::Overlay, t);
-  if (L.neck) need(Role::Neck, neckName(L.neck));
+  // (envelope fix round, D55) the T2 kit's hood thrown back: the cowl in the scarf's place, once drawn for the body
+  if (t2Kit(L) && drawnFor(Role::Neck, "cowl", r.body)) need(Role::Neck, "cowl");
+  else {
+    if (t2Kit(L) && g_envMissing) g_envMissing->push_back(std::string("neck cowl (T2 kit, D55; ") + bodySetName(r.body) + ")");
+    if (L.neck) need(Role::Neck, neckName(L.neck));
+  }
   if (L.jewellery & 2) need(Role::Neck, "torc");
   if (L.amulet) need(Role::Neck, "amulet");
   // the head
@@ -578,6 +688,11 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   if (const int hw = headwearOf(L)) flag(kHeadwear[hw]);
   if (L.hood) flag("hood");
   if (styleKitOf(L, r).helm == -2 && !L.hood) flag("hood");   // (forge i2) HOMESPUN's hood in the helm's place
+  if (t2Kit(L)) {   // (envelope fix round, D55) the T2 kit's pieces as flags: the leather cap's `when softcap` views, and any view of
+    // another part that makes room for the mantle or the cowl
+    if (styleKitOf(L, r).helm == -1) flag("softcap");
+    flag("t2kit");
+  }
   if (const int ghw = styleKitOf(L, r).hw) if (!headwearOf(L)) flag(kHeadwear[ghw]);   // (forge i3) the guise's metal head
   if (L.beard && L.body == 0) flag("beard");
   if (L.age == 1 || L.age == 2) flag("kid");
@@ -650,9 +765,22 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
       if (r.shape[a]) flagS(std::string(kPre[a]) + forge::shapeName(a, r.shape[a]));
     const ShapeUse su = shapeUseOf(L);
     if (su.body) flag("alloyshape");
+    // (P2c envelope, contracts 3d, D51) the helm's variant: a culture alloy's from its forgeShape (the board's 37: kBoardHeads),
+    // every other look the variant its mass drew in the fix round (no approved pixel moves); views key `helmfam-<v>,variant-<n>`
+    if (r.shape[forge::SX_HELM]) {
+      const int v = su.helm ? (int)forge::shapeVariant(L.forgeShape) : forge::legacyHelmVariant(r.shape[forge::SX_HELM], r.shape[forge::SX_MASS], su.body);
+      r.helmVariant = (uint8_t)v;
+      if (v > 0) flagS("variant-" + std::to_string(v));
+    }
     // (forge fix i1) KNAPPED's obsidian: glassy specular streaks across its facets (the compositor's glass pass)
-    if (L.metalKind == 7 && armourOf(L) && L.tier[HumanLook::TIER_BODY]) flag("glass");
+    if ((L.metalKind == 7 || (L.metalKind == 10 && (L.alloyFam || L.armourTint) && alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen)) == 5)) && armourOf(L) && L.tier[HumanLook::TIER_BODY]) flag("glass");
     if (su.body && shieldOf(L)) flag("alloyface");
+    // (envelope fix round, D58; the packager: A3 ENKHOBRASS's torso read blue cloth, only the helm brass) a brass or bronze
+    // everyday alloy's torso armour and chest motif paint in Metal: the compositor moves their cloth, trim and leather cells to
+    // the alloy's brass (the people's blue stays on cloth: the collar, the cuffs, the sash, the scarf)
+    if (L.metalKind == 10 && L.alloyRank <= 1 && armourOf(L) && L.tier[HumanLook::TIER_BODY] &&
+        (L.alloyFam || L.armourTint) && alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen)) <= 1)
+      flag("brassbody");
     if ((su.bodyBase == forge::B_FURNACE && armourOf(L)) || (L.sheen == 6 && L.tier[HumanLook::TIER_BODY] >= 4 && su.bodyBase == forge::B_ALLOY))
       flag("glowseams");
     // (silhouettes i2, the blind panel: "Emberforged: hot orange only on the visor slits and the boss, 3 % of its pixels; a clay
@@ -841,6 +969,20 @@ HumanLook ladderLook(const HumanLook& L) {
     if (E.skirt && E.skirt < 4) E.skirt = 4;
     if (E.pauldron >= 2 && E.pauldron < 4) E.pauldron = 4;
   }
+  // (envelope fix round, D57) the village watch at T3: the T3d's kit is the watch's issue at that rank, so his own kit's helm,
+  // shield and shoulder steps (kitVar above) give way to it: the kettle hat at T3 (HEAD's T3 kettle views: the lit dome, the
+  // brim 1 px past, the finial crest 3 rows over the crown), the cop at medium (pauldronOf), the people's cape worn (its T3
+  // views show beside the arms, BODY's `when cloak.t3`), the round shield where he bears one
+  if (watchT3(L)) {
+    E.helmet = true;
+    E.helmForm = 2;   // cult::HelmForm::Kettle + 1
+    if (!E.helmStyle) E.helmStyle = 2;
+    E.tier[HumanLook::TIER_HELM] = 3;
+    E.pauldron = 3;
+    if (shieldOf(E)) { E.shieldForm = 1;   /* cult::ShieldForm::Round + 1 */ if (E.tier[HumanLook::TIER_SHIELD] < 3) E.tier[HumanLook::TIER_SHIELD] = 3; }
+    if (!E.cloak && !E.cape) E.cape = true;
+    if (E.cape && !E.cloak) E.tier[HumanLook::TIER_CLOAK] = 3;
+  }
   const int thE = E.tier[HumanLook::TIER_HELM];   // the helm's tier after the fighter's own kit
   if (tb == 1) { E.pauldron = std::min<uint8_t>(E.pauldron, 1); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 2); }
   else if (tb == 2) { E.pauldron = std::min<uint8_t>(E.pauldron, 2); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 3); }
@@ -920,6 +1062,7 @@ DollRecipe resolve(const HumanLook& L0) {
   // (P2c ladder) the effective dials by tier (the look as given at no tier)
   const HumanLook L = ladderLook(L0);
   DollRecipe r;
+  struct EnvGuard { explicit EnvGuard(std::vector<std::string>* v) { g_envMissing = v; } ~EnvGuard() { g_envMissing = nullptr; } } envGuard(&r.envelopeMissing);
   r.body = bodySetOf(L);
   r.bodyKey = bodySetName(r.body);
   if (L.age == 3 && (r.body == BodySet::Man || r.body == BodySet::Woman)) r.bodyKey += ".elder";
@@ -1006,6 +1149,13 @@ DollRecipe resolve(const HumanLook& L0) {
     r.pauldronTop = cloak || L.tier[HumanLook::TIER_BODY] >= 5;
     const ShapeUse su = shapeUseOf(L);
     r.irisBands = su.body && L.sheen == 5;
+    // (P2c envelope r2, FORGE-MATERIAL prototype; PLAN A6) STARFALL's starmetal is iridescent crystal: its armour, shoulders and
+    // helm alternate the lavender star-white (Metal) and a turned sea-glass cyan (Metal 2) in 2-row bands, the lit planes
+    // 70+ degrees apart, so the crystal shifts colour course by course at 1x (C17's iridescent term)
+    if (L.metalKind == 9 && armourOf(L) && L.tier[HumanLook::TIER_BODY] >= 4) {   // (envelope r3, A6: T5-T6 starmetal too)
+
+      r.irisBands = true;
+    }
     // D39: the shield's field mixed 30 % toward the body metal's step 2 (its rim and boss already in the metal)
     if (r.has("alloyface"))
       for (int i = 1; i < 5; i++) {

@@ -60,6 +60,8 @@ SWING_F0, SWING_N, SWING_AT = 70, 54, 1.30   # hit 1 from a stand: 0.13 s of idl
 def motion_suite():
     """The Witness suite: (panel name, test list). Each panel = a camhold run + its hideplayer twin (the crop masks)."""
     tests, panels = [], []
+    # (envelope fix round, D65) the clearing's stale-chunk square cannot reach these shots: a Witness run bakes every terrain chunk
+    # inline (render.cpp), and the first shot is 0.6 s or more after the clearing; the phone and desktop scripts `settle`
     base = [["weather", "clear"], ["skill", "kit", "sword", "none"], ["skill", "clearing", 12], ["ui", 0], ["ring", 0]]
 
     def add(name, look, extra, inp, f0, n):
@@ -778,6 +780,128 @@ def forge2_main(a):
     return 0 if not miss else 1
 
 
+# ---- (P2c envelope fix round; PLAN "The envelope fix round", D63-D65) python tools/doll/owner_pack.py --envelope [--bdir build]
+# [--pool f] [--out DIR] [--assemble-only] [--keep-work]: the envelope's owner pack, from the game: doll_gallery's envelope
+# boards (the hero's and heroine's ladders, the guard, the A defects; colour, greyscale and black) and the owner's 37 heads,
+# rpg_test --doll --limbs on tools/doll/envelope_looks.txt, the gates, and the phone at NEAR (tools/scripts/
+# p2c_envelope_phone.txt: every shot after `skill clearing` settles, D65). Default DIR %LOCALAPPDATA%/Temp/claude/emb_P2c/
+# envelope/owner_pack. Greyscale means greyscale (D63): every grey image is each pixel's luma (Rec. 601), the hair, skin, eyes and
+# face included, and every grey file written is checked R = G = B (a coloured pixel fails the pack). The files:
+#   01 the ladder, hero and heroine (T1-T6 and the Mythic), 3x, colour over greyscale   02 the T1-T2-T3 step at 1x and 8x, greyscale
+#   03 the T3 guard (eg0, eg3) beside the fair test's f32_guard_t3d at 1x and 8x   04 the A defects, colour and greyscale
+#   05 the owner's 37 heads   06 the phone at NEAR (T1, T2, T3, T6)   07 the gates
+ENV_BOARDS = ['envelope:hero', 'envelope:heroine', 'envelope:guard', 'envelope:adefects', 'heads:owner37']
+
+
+def env_grey(img):
+    """Each pixel's luma (Rec. 601: 0.299 R + 0.587 G + 0.114 B), every pixel included (D63)."""
+    a = np.asarray(img.convert('RGB')).astype(np.float64)
+    l = np.clip(np.rint(a[..., 0] * 0.299 + a[..., 1] * 0.587 + a[..., 2] * 0.114), 0, 255).astype(np.uint8)
+    return Image.fromarray(np.dstack([l, l, l]), 'RGB')
+
+
+def env_grey_bad(path):
+    """The pixels of a written grey file whose R, G and B differ (D63: 0)."""
+    a = np.asarray(Image.open(path).convert('RGB')).astype(np.int16)
+    return int(np.count_nonzero((a[..., 0] != a[..., 1]) | (a[..., 0] != a[..., 2])))
+
+
+def env_capture(bdir, work, pool):
+    for d in ('', 'boards', 'limbs'):
+        os.makedirs(os.path.join(work, d), exist_ok=True)
+    slot = ['bash', os.path.join(REPO, 'tools', 'slot.sh')]
+    gal, rt = os.path.join(REPO, bdir, 'doll_gallery.exe'), os.path.join(REPO, bdir, 'rpg_test.exe')
+    pl = ['--pool', pool] if pool else []
+    looks = os.path.join(REPO, 'tools', 'doll', 'envelope_looks.txt')
+    run(slot + [gal, os.path.join(work, 'boards')] + pl + ENV_BOARDS, os.path.join(work, 'gallery.log'), cwd=REPO)
+    run(slot + [rt, '--doll', '--limbs', os.path.join(work, 'limbs'), '--limbs-looks', looks] + pl, os.path.join(work, 'limbs.log'), cwd=REPO)
+    run(slot + [rt, '--doll', '--gates', '--parity', '--report'] + pl, os.path.join(work, 'gates.log'), cwd=REPO)
+    run(slot + [rt, '--doll-envelope', '--report', '--selftest'] + pl, os.path.join(work, 'envelope.log'), cwd=REPO)
+    run(slot + [rt, '--doll-adefects', '--report', '--selftest'] + pl, os.path.join(work, 'adefects.log'), cwd=REPO)
+    run(slot + [rt, '--doll-coverage', '--scope', 'envelope'] + pl, os.path.join(work, 'coverage.log'), cwd=REPO)
+    exe = os.path.join(REPO, bdir, 'embervale.exe')
+    if os.path.exists(exe) and not pool:
+        run(slot + [exe, '--script', os.path.join(REPO, 'tools', 'scripts', 'p2c_envelope_phone.txt')], os.path.join(work, 'phone.log'), cwd=work)
+
+
+def env_frame(work, tag, gait, facing, i=0):
+    cells, _ = p2c_frames(work, tag, gait, facing)
+    return cells[min(i, len(cells) - 1)] if cells else p2c_load(work, 'limbs/%s_%s_%s.png' % (tag, gait, facing))
+
+
+def env_row(work, tags, k, bg=(84, 120, 64)):
+    """idle D and idle R of each look side by side, at k (a whole number), on grass"""
+    cells = []
+    for t in tags:
+        pair = stack([env_frame(work, t, 'stay', 'D'), env_frame(work, t, 'stay', 'R')], 2, vertical=False, bg=bg)
+        cells.append(titled(scale(pair, k), t))
+    return stack(cells, 6 * k, vertical=False)
+
+
+def env_assemble(work, out):
+    os.makedirs(out, exist_ok=True)
+    made, grey_bad = [], []
+
+    def put(name, img):
+        img = forge_fit(img)
+        assert max(img.width, img.height) <= FORGE_MAX
+        path = os.path.join(out, name)
+        img.save(path)
+        made.append(name)
+        if '_grey' in name:
+            n = env_grey_bad(path)
+            if n:
+                grey_bad.append('%s: %d px' % (name, n))
+
+    B = lambda n: p2c_load(work, os.path.join('boards', n))
+    hero = stack([B('doll_envelope_hero_3x.png'), B('doll_envelope_heroine_3x.png')], 8)
+    put('01_ladder_3x.png', stack([hero, env_grey(hero)], 8))
+    put('01_ladder_3x_grey.png', env_grey(hero))
+    trio = ['e1', 'e2', 'e3', 'e1w', 'e2w', 'e3w']
+    put('02_t1_t2_t3_1x_grey.png', env_grey(env_row(work, trio, 1)))
+    put('02_t1_t2_t3_8x.png', env_row(work, trio, 8))
+    put('02_t1_t2_t3_8x_grey.png', env_grey(env_row(work, trio, 8)))
+    refdir = os.path.join(REPO, 'docs', 'ref', 'envelope')
+    ref = [load(os.path.join(refdir, n)) for n in ('f32_guard_t3d_idle.png', 'f32_guard_t3d_walk.png') if os.path.exists(os.path.join(refdir, n))]
+    for k in (1, 8):
+        g = env_row(work, ['eg0', 'eg3'], k)
+        parts = [g] + [titled(scale(r, k), 'fair test f32_guard_t3d') for r in ref]
+        put('03_guard_%dx.png' % k, stack(parts, 8 * k, vertical=False))
+    ad = B('doll_envelope_adefects_3x.png')
+    put('04_adefects_3x.png', ad)
+    put('04_adefects_3x_grey.png', env_grey(ad))
+    put('05_heads37_3x.png', B('doll_heads_owner37_3x.png'))
+    shots = [n for n in ('phone_NEAR_t1.png', 'phone_NEAR_t2.png', 'phone_NEAR_t3.png', 'phone_NEAR_t6_guards.png') if os.path.exists(os.path.join(work, n))]
+    if shots:
+        put('06_phone_NEAR.png', stack([titled(load(os.path.join(work, n)), n) for n in shots], 8))
+    else:
+        P2C_MISSING.append('phone_NEAR_*.png')
+    lines = []
+    for lg in ('gates.log', 'envelope.log', 'adefects.log', 'coverage.log', 'gallery.log'):
+        q = os.path.join(work, lg)
+        if os.path.exists(q):
+            lines += [lg + ':'] + [ln.rstrip() for ln in open(q, encoding='utf-8', errors='replace')
+                                    if ln.startswith(('ok', 'FAIL', '  C12f', '  pool', 'doll', '  envelope'))][:80]
+        else:
+            P2C_MISSING.append(lg)
+    put('07_gates.png', forge_text(lines))
+    return made, grey_bad
+
+
+def env_main(a):
+    out = os.path.abspath(a.out if a.out_set else os.path.join(os.environ.get('LOCALAPPDATA', '/tmp'), 'Temp', 'claude', 'emb_P2c', 'envelope', 'owner_pack'))
+    work = os.path.join(out, 'work')
+    if not a.assemble_only:
+        env_capture(a.bdir, work, a.pool)
+    made, grey_bad = env_assemble(work, out)
+    if not a.keep_work:
+        shutil.rmtree(work, ignore_errors=True)
+    miss = sorted(set(P2C_MISSING))
+    print('owner pack (envelope): %d files in %s; %d missing input(s)%s' % (len(made), out, len(miss), (': ' + ', '.join(miss[:12])) if miss else ''))
+    print('grey check (D63): ' + ('R = G = B on every grey file' if not grey_bad else 'FAIL ' + '; '.join(grey_bad)))
+    return 0 if not miss and not grey_bad else 1
+
+
 def main():
     ap = argparse.ArgumentParser(description='the P2b owner pack from the game (STYLE_P2 19 item 6)')
     ap.add_argument('--forge2', action='store_true', help='the P2c forge round 2 pack (alloy silhouettes, STYLE_P2 28.10)')
@@ -788,6 +912,7 @@ def main():
     ap.add_argument('--assemble-only', action='store_true', help='reuse DIR/work (no game runs)')
     ap.add_argument('--keep-work', action='store_true', help='keep DIR/work (the raw shots and captures)')
     ap.add_argument('--p2c', action='store_true', help='the P2c style slice pack (STYLE_P2 26): 11 boards')
+    ap.add_argument('--envelope', action='store_true', help='the P2c envelope pack (PLAN "The envelope fix round"; D63 true greyscale)')
     a = ap.parse_args()
     a.out_set = any(x == '--out' or x.startswith('--out=') for x in sys.argv[1:])
     if a.p2c:
@@ -796,6 +921,8 @@ def main():
         return forge_main(a)
     if a.forge2:
         return forge2_main(a)
+    if a.envelope:
+        return env_main(a)
     out = os.path.abspath(a.out)
     work = os.path.join(out, 'work')
     if not a.assemble_only:

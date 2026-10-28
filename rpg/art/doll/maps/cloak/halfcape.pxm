@@ -297,6 +297,26 @@ view R key rest origin 8 2
 |QRQQ..
 |QQ....
 
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view R key rest origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+
 view R key idle origin 8 2
 |..QQQQ
 |.QSSSQ
@@ -313,6 +333,26 @@ view R key idle origin 8 2
 |QTRRQ.
 |QRQQ..
 |QQ....
+
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view R key idle origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
 
 view R key wide origin 11 2
 |.....QQQQ
@@ -381,6 +421,26 @@ view L key rest origin -3 2
 |..QQRQ
 |....QQ
 
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view L key rest origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+
 view L key idle origin -3 2
 |QQQQ..
 |QSSSQ.
@@ -397,6 +457,26 @@ view L key idle origin -3 2
 |.QRRSQ
 |..QQRQ
 |....QQ
+
+# (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
+# the full drape for the long-cloak tiers)
+view L key idle origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
 
 view L key wide origin -3 2
 |QQQQ.....
@@ -447,3 +527,143 @@ view L key lie origin -3 2
 |.QRRSQ
 |..QQRQ
 |....QQ
+
+# (FORGE-MANTLE, envelope) breeze: the rest views with the hem stirred (T5 1,1,1 px from the last row up; `cloak.t6` 2,2,1,1).
+
+view D key breeze origin 1 2
+|.QQQQQQQ......
+|.QSSSSSSQQ....
+|.QSSSSSSSSQ...
+|.QSSSSSSSSSSQ.
+|.QSSSSSSSTSTQ.
+|.QSSSSSSSTSTQ.
+|.QSSSSSSSTRSRQ
+|.QSSSSSSSTRSRQ
+|.QSSSSSSSTRSRQ
+|.QSSSSSSSTRSRQ
+|.QSSSSSSSTRTRQ
+|.QRRRSSSSTRTRQ
+|QQQQRRRRTRTRQ.
+|....QQQQRRTRQ.
+|........QQRSQ.
+|..........QSQ.
+regions
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+|..............
+
+view D key breeze origin 2 2 when cloak.t6 replace
+|..QQQQQQQ......
+|..QSSSSSSQQ....
+|..QSSSSSSSSQ...
+|..QSSSSSSSSSSQ.
+|..QSSSSSSSTSTQ.
+|..QSSSSSSSTSTQ.
+|..QSSSSSSSTRSRQ
+|..QSSSSSSSTRSRQ
+|..QSSSSSSSTRSRQ
+|..QSSSSSSSTRSRQ
+|..QSSSSSSSTRTRQ
+|..QRRRSSSSTRTRQ
+|.QQQQRRRRTRTRQ.
+|.....QQQQRRTRQ.
+|........QQRSQ..
+|..........QSQ..
+regions
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+|...............
+
+view R key breeze origin 9 2
+|...QQQQ
+|..QSSSQ
+|.QSSSSQ
+|.QTSSSQ
+|.QTSSSQ
+|.QTRSSQ
+|.QTRSSQ
+|.QTRSSQ
+|.QTRTSQ
+|.QTRTSQ
+|.QTRTSQ
+|QTRTRQ.
+|QTRRQ..
+|QRQQ...
+|QQ.....
+
+view R key breeze origin 10 2 when cloak.t6 replace
+|....QQQQ
+|...QSSSQ
+|..QSSSSQ
+|..QTSSSQ
+|..QTSSSQ
+|..QTRSSQ
+|..QTRSSQ
+|..QTRSSQ
+|..QTRTSQ
+|..QTRTSQ
+|..QTRTSQ
+|.QTRTRQ.
+|.QTRRQ..
+|QRQQ....
+|QQ......
+
+view L key breeze origin -3 2
+|QQQQ...
+|QSSSQ..
+|QSSSSQ.
+|QSSSSQ.
+|QSSSSQ.
+|QSSRSQ.
+|QSSRSQ.
+|QSSRSQ.
+|QSTRSQ.
+|QSTRSQ.
+|QSTRSQ.
+|.QRTRSQ
+|..QRRSQ
+|...QQRQ
+|.....QQ
+
+view L key breeze origin -3 2 when cloak.t6 replace
+|QQQQ....
+|QSSSQ...
+|QSSSSQ..
+|QSSSSQ..
+|QSSSSQ..
+|QSSRSQ..
+|QSSRSQ..
+|QSSRSQ..
+|QSTRSQ..
+|QSTRSQ..
+|QSTRSQ..
+|.QRTRSQ.
+|..QRRSQ.
+|....QQRQ
+|......QQ

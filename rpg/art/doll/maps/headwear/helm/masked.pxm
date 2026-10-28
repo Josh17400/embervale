@@ -352,3 +352,110 @@ regions
 |.....................
 
 # (FORGE-HEAD i2) family views end
+
+
+# (FORGE-HEAD envelope r1) A4: the knapped mask helm: big glass facets, the face plate one dark plane, no 1 px seam
+
+# (FORGE-HEAD envelope r2, tools2/knapped2.py) A4: the face opens from the eyes to the chin between glass cheek plates; three knapped facets and one 2 px specular (C19 A4)
+# (FORGE-HEAD envelope r3) A4: the profile face open from the eye band to the chin (the front cheek plate gone: the judge saw the side views bury the face), and a 2 x 2 specular low on the bowl under the shard crest (D R L), the glass tell that survives the glint limiter
+# (envelope fix round 2, HEAD, bevor.py) D59: the knapped mask's R and L views carry a black-glass bevor under the chin (two rows of step-1 glass, lit only at its top-left end, its bottom outline over the shoulder line): the gorget, cloak-edge and pauldron trims no longer show as a pale bar below the face
+view D key rest origin 2 1 when forge-knapped replace
+mark crown 9 3
+|--------------------
+|--------------------
+|--------------------
+|-------vvvvvv-------
+|-----vvzzyxxwvv-----
+|----vyyyyvxxxwwv----
+|---vyyyyyvxxxwwwv---
+|---vyzzyvxxxxwwwv---
+|---vxzzvxxxxwwwwv---
+|--vyyyyxxxxxxwwwwv--
+|-vyyv..........vxwv-
+|-vyxv..........vxwv-
+|-vxxv..........vwwv-
+|-vxwv..........vwwv-
+|-vwwv..........vwwv-
+|-vvvv..........vvvv-
+
+view U key rest origin 2 1 when forge-knapped replace
+mark crown 9 3
+|--------------------
+|--------------------
+|--------------------
+|-------vvvvvv-------
+|-----vvzzyyxxwvv----
+|----vyyyyyyxxwwwv---
+|---vyyyyyyxxxwwwwv--
+|---vyyyyyxxxwwwwwv--
+|---vxyyyxxxwwwwwwv--
+|--vxxxxxxxwwwwwwwwv-
+|--vyyyyxxxxxxxwwwv--
+|--vxxxxxwwwwwwwwwv--
+|-vyyyyxxxxxxxxwwwwv-
+|-vxxxxxwwwwwwwwwwwv-
+|-vwwwwwwwwwwwwwwwwv-
+|-vvvvvvvvvvvvvvvvvv-
+
+view R key rest origin 3 1 when forge-knapped replace
+mark crown 10 3
+|---------------------
+|---------------------
+|---------------------
+|--------vvvvvv-------
+|------vvzzyyxxwvv----
+|-----vyyyyyyxxwwwv---
+|----vyyyyyyxxxwwwwv--
+|----vyzzyyxxxwwwwwv--
+|----vxzzyxxxwwwwwwv--
+|---vxxxxxxxwwwwwwwwv-
+|---vyyyxxwwv.........
+|---vwxxxwwwv.........
+|---vyyxxxwwv.........
+|---vxxxxxxwv.........
+|---vvvvvvvvv.........
+|...vxwwwwwwwwwwwv....
+|....vwwwwwwwwwwv.....
+|.....vvvvvvvvvv......
+
+view L key rest origin 2 1 when forge-knapped replace
+mark crown 10 3
+|---------------------
+|---------------------
+|---------------------
+|-------vvvvvv--------
+|----vvxyzzxxyvv------
+|---vxxxyyzxxxxyv-----
+|--vxxxxyyyxxxxxxv----
+|--vxxxxxzzwxxxxxv----
+|--vxxxxxzzwwxxxwv----
+|-vxxxxxxxxwwwwwwwv---
+|.........vwwwwxxxv---
+|.........vwwwwwwwv---
+|.........vwwwwwxxv---
+|.........vwwwwwwwv---
+|.........vvvvvvvvv---
+|....vxwwwwwwwwwwwv...
+|.....vwwwwwwwwwwv....
+|......vvvvvvvvvv.....
+
+view L key lie origin 2 1 when forge-knapped replace
+mark crown 10 3
+|---------------------
+|---------------------
+|---------------------
+|-------vvvvvv--------
+|----vvxyzzxxyvv------
+|---vxxxyzzxxxxyv-----
+|--vxxxxyyyxxxxxxv----
+|--vxxxxxzzwxxxxxv----
+|--vxxxxxzzwwxxxwv----
+|-vxxxxxxxxwwwwwwwv---
+|.........vwwwwxxxv---
+|.........vwwwwwwwv---
+|.........vwwwwwxxv---
+|.........vwwwwwwwv---
+|.........vvvvvvvvv---
+|....vxwwwwwwwwwwwv...
+|.....vwwwwwwwwwwv....
+|......vvvvvvvvvv.....

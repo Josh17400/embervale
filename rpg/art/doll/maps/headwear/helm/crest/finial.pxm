@@ -82,6 +82,62 @@ mark socket 3 0
 |vyxwwv
 |.vxwv.
 
+# (FORGE-HEAD envelope r1) the cone orb and horsetail (ILSILVER)
+
+view D key rest origin 2 4 when helmfam-cone replace
+|.vvvv.
+|vzyyxv
+|vyyxwv
+|.vxwv.
+|..vv..
+
+view U key rest origin 2 4 when helmfam-cone replace
+|.vvvv.
+|vzyxwv
+|vyxwwv
+|.FTSF.
+|.FTRF.
+|.FSRF.
+|.FSRF.
+|.FRRF.
+|..FF..
+
+view R key rest origin 8 4 when helmfam-cone replace
+|......vvvv..
+|....FFvzyxv.
+|...FTSvyxwv.
+|..FTSRFvxv..
+|.FTSRF..v...
+|.FSRF.......
+|FSRF........
+|FSRF........
+|FRF.........
+|.FF.........
+
+view L key rest origin 3 4 when helmfam-cone replace
+|..vvvv......
+|.vyzzvFF....
+|.vxyzvRSF...
+|..vyvFRRSF..
+|...v..FRRSF.
+|.......FRRF.
+|........FRRF
+|........FRRF
+|.........FRF
+|.........FF.
+
+view L key lie origin 3 4 when helmfam-cone replace
+|..vvvv......
+|.vyzzvFF....
+|.vxyzvRSF...
+|..vyvFRRSF..
+|...v..FRRSF.
+|.......FRRF.
+|........FRRF
+|........FRRF
+|.........FRF
+|.........FF.
+
 # (HELMS forge-fix i1) the yield moved ahead of the sheen views: the first replacing view that holds wins, so a pale,
 # matte, dark, burnished or iridescent alloy on another helm family wore the finial through it
 # (FORGE-HEAD i2) crest yield: drawn only on cone onion; any other alloy helm family wears no finial crest
@@ -304,3 +360,20 @@ mark socket 2 0
 |vzyxv
 |.vxv.
 |..v..
+
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
+|.

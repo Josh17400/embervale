@@ -218,7 +218,7 @@ regions
 # fore-and-aft brush over the crown, its tail down the back; the fall: a heavy plume over one side to the shoulder.
 # Written by the HELMS area tools/d2.py (D R drawn; U is D with the face details dropped; L is R mirrored and re-lit).
 # the centurion (round)
-view D key rest origin 2 4 when helmfam-plumed,mass-round replace
+view D key rest origin 2 4 when helmfam-plumed,variant-1 replace
 mark crown 9 0
 mark socket 9 0
 |------QQQQQQQQ------
@@ -257,7 +257,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 4 when helmfam-plumed,mass-round replace
+view U key rest origin 2 4 when helmfam-plumed,variant-1 replace
 mark crown 9 0
 mark socket 9 0
 |------QQQQQQQQ------
@@ -296,7 +296,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 4 when helmfam-plumed,mass-round replace
+view R key rest origin 3 4 when helmfam-plumed,variant-1 replace
 mark crown 10 0
 mark socket 10 0
 |......---------......
@@ -335,7 +335,7 @@ regions
 |.....................
 |.....................
 
-view L key rest origin 2 4 when helmfam-plumed,mass-round replace
+view L key rest origin 2 4 when helmfam-plumed,variant-1 replace
 mark crown 10 0
 mark socket 10 0
 |......---------......
@@ -375,7 +375,7 @@ regions
 |.....................
 
 # the fountain (none, mantle)
-view D key rest origin 2 4 when helmfam-plumed,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view D key rest origin 2 4 when helmfam-plumed,variant-2 replace
 mark crown 9 0
 mark socket 9 0
 |-----QQQQQQQQQQ-----
@@ -414,7 +414,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 4 when helmfam-plumed,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view U key rest origin 2 4 when helmfam-plumed,variant-2 replace
 mark crown 9 0
 mark socket 9 0
 |-----QQQQQQQQQQ-----
@@ -453,7 +453,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 4 when helmfam-plumed,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view R key rest origin 3 4 when helmfam-plumed,variant-2 replace
 mark crown 10 0
 mark socket 10 0
 |..-----QQQQQQQ-----..
@@ -492,7 +492,7 @@ regions
 |.....................
 |.....................
 
-view L key rest origin 2 4 when helmfam-plumed,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view L key rest origin 2 4 when helmfam-plumed,variant-2 replace
 mark crown 10 0
 mark socket 10 0
 |..-----QQQQQQQ-----..
@@ -532,7 +532,7 @@ regions
 |.....................
 
 # the mohawk (broad, tall)
-view D key rest origin 2 5 when helmfam-plumed,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view D key rest origin 2 5 when helmfam-plumed,variant-3 replace
 mark crown 9 0
 mark socket 9 0
 |......---QQ---......
@@ -573,7 +573,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 5 when helmfam-plumed,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view U key rest origin 2 5 when helmfam-plumed,variant-3 replace
 mark crown 9 0
 mark socket 9 0
 |......---QQ---......
@@ -614,7 +614,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 5 when helmfam-plumed,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view R key rest origin 3 5 when helmfam-plumed,variant-3 replace
 mark crown 10 0
 mark socket 10 0
 |.....................
@@ -659,7 +659,7 @@ regions
 |.....................
 |.....................
 
-view L key rest origin 2 5 when helmfam-plumed,alloyshape,!mass-none,!mass-round,!mass-drop,!mass-mantle replace
+view L key rest origin 2 5 when helmfam-plumed,variant-3 replace
 mark crown 10 0
 mark socket 10 0
 |.....................
@@ -705,7 +705,7 @@ regions
 |.....................
 
 # the fall (drop)
-view D key rest origin 2 4 when helmfam-plumed,mass-drop replace
+view D key rest origin 2 4 when helmfam-plumed,variant-4 replace
 mark crown 9 0
 mark socket 9 0
 |-----QQQQQ-----.....
@@ -744,7 +744,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 4 when helmfam-plumed,mass-drop replace
+view U key rest origin 2 4 when helmfam-plumed,variant-4 replace
 mark crown 9 0
 mark socket 9 0
 |-----QQQQQ-----.....
@@ -783,7 +783,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 4 when helmfam-plumed,mass-drop replace
+view R key rest origin 3 4 when helmfam-plumed,variant-4 replace
 mark crown 10 0
 mark socket 10 0
 |....------QQQQQ-----.
@@ -822,7 +822,7 @@ regions
 |.....................
 |.....................
 
-view L key rest origin 2 4 when helmfam-plumed,mass-drop replace
+view L key rest origin 2 4 when helmfam-plumed,variant-4 replace
 mark crown 10 0
 mark socket 10 0
 |.-----QQQQQ------....

@@ -125,7 +125,7 @@ int shapesCmd(int argc, char** argv) {
   if (!check) return 0;
   const std::vector<std::string> bad = tableCheck();
   for (size_t i = 0; i < bad.size() && i < 40; i++) std::printf("  %s\n", bad[i].c_str());
-  std::printf("forge-shapes --check: %zu failure(s) (rules 1-4)\n", bad.size());
+  std::printf("forge-shapes --check: %zu failure(s) (rules 1-6)\n", bad.size());
   return bad.empty() ? 0 : 1;
 }
 
@@ -311,6 +311,17 @@ int visorRows(const doll::FrameProbe& p) {
     }
     rows = dark >= 5 ? rows + 1 : 0;
     best = std::max(best, rows);
+    if (std::getenv("EMB_VISOR_DEBUG")) {
+      std::string row;
+      for (int x = p.headX; x <= p.headX + 15; x++) {
+        const int k = p.at(x, y);
+        if (k < 0 || p.code[(size_t)k] < 2) { row += " ."; continue; }
+        const int o = p.owner[(size_t)k];
+        const bool helm = o >= 0 && p.items[(size_t)o].has(doll::Role::Helm);
+        row += fmt(" %c%d", helm ? (doll::greySlot(doll::codeSlot(p.code[(size_t)k])) ? 'g' : 'c') : 'o', doll::codeStep(p.code[(size_t)k]));
+      }
+      std::printf("      visor dy %2d dark %2d:%s\n", dy, dark, row.c_str());
+    }
   }
   return best;
 }

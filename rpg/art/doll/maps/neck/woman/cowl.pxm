@@ -1,0 +1,66 @@
+# neck/woman/cowl: the T2 mantle's hood thrown back (neck cowl; D55, STYLE_P2 29.3): a soft roll 2-3 px thick round the
+# neck facing D that closes the gap between the jaw and the shoulders, in the coat colour (cloth1) with its fold lit
+# behind the ear facing R; the hood's lump behind the nape is drawn on the capelet (it lies over the mantle). Worn with
+# pauldron capelet.2. Written by BODY tools/mantle.py (envelope fix round 1); re-run it, never hand-edit.
+# Format: rpg/art/doll/doll.h.
+use person
+body woman
+role neck cowl
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 7 3
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+
+view U key rest origin 6 2
+|..55555555..
+|.5899988765.
+|.5555555555.
+
+view R key rest origin 7 2
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+
+view R key flow origin 7 2
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+
+view R key flow2 origin 7 2
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+
+view L key rest origin 4 2
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+
+view L key flow origin 4 2
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+
+view L key flow2 origin 4 2
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+
+view L key lie origin 4 2
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+

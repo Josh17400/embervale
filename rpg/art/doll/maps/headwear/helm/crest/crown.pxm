@@ -124,51 +124,51 @@ regions
 
 # (HELMS forge-fix i2) begin crest yield (forge fix 2): this crest steps aside on these helm outlines
 # the sun crown (none): its rays are the crown
-view D key rest when helmfam-crown,mass-none replace
+view D key rest when helmfam-crown,variant-1 replace
 |.
 
-view U key rest when helmfam-crown,mass-none replace
+view U key rest when helmfam-crown,variant-1 replace
 |.
 
-view R key rest when helmfam-crown,mass-none replace
+view R key rest when helmfam-crown,variant-1 replace
 |.
 
-view L key rest when helmfam-crown,mass-none replace
+view L key rest when helmfam-crown,variant-1 replace
 |.
 
-view L key lie when helmfam-crown,mass-none replace
+view L key lie when helmfam-crown,variant-1 replace
 |.
 
 # the sun crown (mantle): its rays are the crown
-view D key rest when helmfam-crown,mass-mantle replace
+view D key rest when helmfam-crown,variant-1,mass-mantle replace
 |.
 
-view U key rest when helmfam-crown,mass-mantle replace
+view U key rest when helmfam-crown,variant-1,mass-mantle replace
 |.
 
-view R key rest when helmfam-crown,mass-mantle replace
+view R key rest when helmfam-crown,variant-1,mass-mantle replace
 |.
 
-view L key rest when helmfam-crown,mass-mantle replace
+view L key rest when helmfam-crown,variant-1,mass-mantle replace
 |.
 
-view L key lie when helmfam-crown,mass-mantle replace
+view L key lie when helmfam-crown,variant-1,mass-mantle replace
 |.
 
 # the sun crown (tall): its rays are the crown
-view D key rest when helmfam-crown,mass-tall replace
+view D key rest when helmfam-crown,variant-1,mass-tall replace
 |.
 
-view U key rest when helmfam-crown,mass-tall replace
+view U key rest when helmfam-crown,variant-1,mass-tall replace
 |.
 
-view R key rest when helmfam-crown,mass-tall replace
+view R key rest when helmfam-crown,variant-1,mass-tall replace
 |.
 
-view L key rest when helmfam-crown,mass-tall replace
+view L key rest when helmfam-crown,variant-1,mass-tall replace
 |.
 
-view L key lie when helmfam-crown,mass-tall replace
+view L key lie when helmfam-crown,variant-1,mass-tall replace
 |.
 
 # (HELMS forge-fix i2) end
@@ -187,4 +187,130 @@ view L key rest when alloyshape,!helmfam-crown,!helmfam-kabuto replace
 |.
 
 view L key lie when alloyshape,!helmfam-crown,!helmfam-kabuto replace
+|.
+
+
+# (FORGE-HEAD envelope r2, tools2/crown5.py) T5: the parade crown steps down to a low circlet with a jewelled socket, so the
+# T5 plume stands clear above it (the judge read the crown + fan as a beret); a crown in front of the plume's stem.
+view D key rest when helm.t5,!alloyshape replace
+|..............
+|......JJ......
+|.JJ..JQQJ..JJ.
+|JQPJJPPOONJNNJ
+|JQQPPPTSOONNNJ
+|.JJJJJJJJJJJJ.
+regions
+|..............
+|......RR......
+|.RR..RRRR..RR.
+|RRRRRRRRRRRRRR
+|RRRRRRGGRRRRRR
+|.RRRRRRRRRRRR.
+
+view U key rest when helm.t5,!alloyshape replace
+|..............
+|......JJ......
+|.JJ..JPOJ..JJ.
+|JPPJJPPOONJNNJ
+|JPPPPPOOONNNNJ
+|.JJJJJJJJJJJJ.
+regions
+|..............
+|......RR......
+|.RR..RRRR..RR.
+|RRRRRRRRRRRRRR
+|RRRRRRRRRRRRRR
+|.RRRRRRRRRRRR.
+
+view R key rest when helm.t5,!alloyshape replace
+|..............
+|.......JJ.....
+|..JJ..JQQJ..JJ
+|.JQPJJPQONJJNN
+|JQQQPPPTSONNNJ
+|.JJJJJJJJJJJJ.
+regions
+|..............
+|.......RR.....
+|..RR..RRRR..RR
+|.RRRRRRRRRRRRR
+|RRRRRRRGGRRRRR
+|.RRRRRRRRRRRR.
+
+view L key rest when helm.t5,!alloyshape replace
+|..............
+|.....JJ.......
+|JJ..JQQJ..JJ..
+|NNJJQQPJJJPQJ.
+|JQQQPPPTSONNNJ
+|.JJJJJJJJJJJJ.
+regions
+|..............
+|.....RR.......
+|RR..RRRR..RR..
+|RRRRRRRRRRRRR.
+|RRRRRGGRRRRRRR
+|.RRRRRRRRRRRR.
+
+view L key lie when helm.t5,!alloyshape replace
+|..............
+|.....JJ.......
+|JJ..JQQJ..JJ..
+|NNJJQQPJJJPQJ.
+|JQQQPPPTSONNNJ
+|.JJJJJJJJJJJJ.
+regions
+|..............
+|.....RR.......
+|RR..RRRR..RR..
+|RRRRRRRRRRRRR.
+|RRRRRGGRRRRRRR
+|.RRRRRRRRRRRR.
+
+# (FORGE-HEAD envelope r1) the T6 winged helm: its fin is the crest; the forge crest steps aside (the Mythic keeps its flame)
+view D key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key lie when helm.t6,!alloyshape,!mythic replace
+|.
+
+view L key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view R key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+view U key rest when helm.t6,!alloyshape,!mythic replace
+|.
+
+
+# (FORGE-HEAD envelope r1) the jaguar helm and the briar crown carry their own crown: the crest steps aside
+view D key rest when helmfam-crown,variant-2 replace
+|.
+
+view L key lie when helmfam-crown,variant-2 replace
+|.
+
+view L key rest when helmfam-crown,variant-2 replace
+|.
+
+view R key rest when helmfam-crown,variant-2 replace
+|.
+
+view U key rest when helmfam-crown,variant-2 replace
+|.
+
+view D key rest when helmfam-crown,variant-3 replace
+|.
+
+view L key lie when helmfam-crown,variant-3 replace
+|.
+
+view L key rest when helmfam-crown,variant-3 replace
+|.
+
+view R key rest when helmfam-crown,variant-3 replace
+|.
+
+view U key rest when helmfam-crown,variant-3 replace
 |.

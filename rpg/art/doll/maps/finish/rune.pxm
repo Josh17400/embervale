@@ -20,12 +20,18 @@ legend g glow 1
 tags tile overlay
 on-region N
 
+# (envelope r2, FORGE-MATERIAL; PLAN A5 "no flame, rim, glow, ember or speck pixel in W7's face box + 1 px", C19 A5) the seam
+# between the beats keeps its DRAWN step (was g = Glow 1 on every N cell): the ember collar's N cells under the chin and the
+# helm's brow seam sat inside the face box + 1 and glowed in every frame (fm_myth D: 2 glow px on the face), and Glow 1 on
+# a diagonal seam drew 4-lone glow staircases. The light is now the 2 px beats alone, (x + 2y) mod 8 < 2 as before: the
+# rune still breathes along rows, columns and both diagonals; the dark seam reads as the engraving it lights. C13: lt6 /
+# lt6m soft light stays over its floor (measured with --doll --gates; no C13 line moved).
 view D key rest origin 0 0
-|!!gggggg!!gggggg
-|gggggg!!gggggg!!
-|gggg!!gggggg!!gg
-|gg!!gggggg!!gggg
-|!!gggggg!!gggggg
-|gggggg!!gggggg!!
-|gggg!!gggggg!!gg
-|gg!!gggggg!!gggg
+|!!......!!......
+|......!!......!!
+|....!!......!!..
+|..!!......!!....
+|!!......!!......
+|......!!......!!
+|....!!......!!..
+|..!!......!!....

@@ -12,8 +12,10 @@ on-region N
 legend g glow 2
 legend ! glow 3
 
+# (envelope r1, FORGE-MATERIAL; A7, B8 "never a checker") the seam's bright beads as 2 px runs: a horizontal seam reads
+# g!!g, a vertical one ! ! g g, so the glass's seams pulse in short bars, never a checker of single sparks.
 view D key rest origin 0 0
-|ggg!
-|g!gg
-|ggg!
-|g!gg
+|g!!g
+|g!!g
+|gggg
+|gggg

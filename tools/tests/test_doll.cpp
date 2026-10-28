@@ -96,6 +96,7 @@
 #include <string>
 #include <vector>
 #include "rpg/art.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_internal.h"   // (B6) withPosture, the pool's part roles
 #include "rpg/culture/culture.h"
@@ -121,6 +122,8 @@ int dollLadderGates(bool report, std::vector<std::string>& printed);   // test_d
 int dollLadderCoverage(int argc, char** argv);   // test_doll_ladder.cpp: --doll-coverage --scope ladder (C1 source L)
 int dollForgeGates(bool report, std::vector<std::string>& printed);   // test_doll_forge.cpp: C16 a b c s, C17, C1 F, C12a
 int dollForgeCoverage(int argc, char** argv);   // test_doll_forge.cpp: --doll-coverage --scope forge
+int dollEnvelopeGates(bool report, std::vector<std::string>& printed);   // test_doll_envelope.cpp: C12f C3b C13 B10 by tier, C19
+int dollEnvelopeCoverage(int argc, char** argv);   // test_doll_envelope.cpp: --doll-coverage --scope envelope
 namespace {
 
 using art::HumanLook;
@@ -590,7 +593,7 @@ std::vector<SliceAtlas> sliceAtlases() {
     r.ramps = lookPal ? doll::rampsOf(L) : doll::a3Palette(L.body == 1 ? 1 : 0);
     const bool fights = L.weapon >= 1 && L.weapon <= 8 && !L.civil;
     // (P2c ladder, D19) T5-T6 looks may use LOCO 160, RUN 80 and DRAWN 320 KB (reported beside the base budget)
-    const bool top = L.topTier() >= 5;
+    (void)0;   // (P2c envelope) B10 by tier below (kEnvelope)
     // (ladder i2, integration) two shape allowances, measured: a crest or plume stands 2-3 rows over the helm in every run
     // frame (24 frames: about 4 KB), so a crested look's RUN may use 68 KB; a polearm falls with its wearer, a 40-45 px
     // shaft across the fall and lying frames, so a polearm look's DEATH may use 56 KB. D19 (T5-T6) stays above both
@@ -606,21 +609,26 @@ std::vector<SliceAtlas> sliceAtlases() {
             nm.find("held/weapons/halberd") != std::string::npos) polearm = true;
       }
     }
-    struct B { RigPart p; double kb, d19; const char* n; };
-    for (const B& b : {B{RigPart::Loco, 128, 160, "LOCO"}, B{RigPart::Run, 64, 80, "RUN"}, B{RigPart::Drawn, 256, 320, "DRAWN"},
-                       B{RigPart::Action, 512, 512, "ACTION"}, B{RigPart::Death, 52, 52, "DEATH"}}) {
+    // (P2c envelope, B10 by tier: D46, kEnvelope) the figure's highest piece picks the row: T1-T3 and untiered 128 / 64 / 256 /
+    // 512 / 52, T4 160 / 80 / 320, T5-T6 200 / 100 / 400 with ACTION and DEATH measured on e6 x 1.1 (the cap until then); the
+    // per-item allowances add on top as before (a crest or plume RUN + 4, a polearm LOCO + 8, RUN + 14, DEATH + 4)
+    const int tt = L.topTier();
+    struct B { RigPart p; int atlas; const char* n; };
+    for (const B& b : {B{RigPart::Loco, 0, "LOCO"}, B{RigPart::Run, 1, "RUN"}, B{RigPart::Drawn, 2, "DRAWN"}, B{RigPart::Action, 3, "ACTION"},
+                       B{RigPart::Death, 4, "DEATH"}}) {
       if ((b.p == RigPart::Drawn || b.p == RigPart::Action) && !fights) continue;
       const RigSheet sh = doll::compose(r, b.p);
-      double base = b.kb;
-      if (b.p == RigPart::Run && crest) base = 68;
-      if (b.p == RigPart::Death && polearm) base = 56;
+      double base = doll::envelopeAtlasKB(0, b.atlas);
+      const double tierKB = doll::envelopeAtlasKB(tt, b.atlas);
+      if (b.p == RigPart::Run && crest) base += 4;
+      if (b.p == RigPart::Death && polearm) base += 4;
       // (polish i1 integration, measured) the polearm's upright carry in front of the body (the Jade glaive fix, P5) makes
       // the R / L loco frames 2-4 rows taller: jade3 127.5 -> 130.3 KB, knight 121.5 -> 127.5 KB, so a polearm LOCO may use 136
-      if (b.p == RigPart::Loco && polearm) base = 136;
+      if (b.p == RigPart::Loco && polearm) base += 8;
       // (polish i2 integration, measured) the polearm's side run carries the haft 45 deg forward through the fist with the head
       // clear of the helm (the Jade glaive fix, P5): jade3 RUN 64 -> 76.5, knight 68 -> 80.9, lt6w 77.2 -> 89.2 KB, so a polearm
       // RUN may use its base (and D19) + 14 KB
-      double d19 = b.d19;
+      double d19 = tierKB + (base - doll::envelopeAtlasKB(0, b.atlas));   // the tier's row with the same allowances
       if (b.p == RigPart::Run && polearm) { base += 14; d19 += 14; }
       // (P2c forge, PLAN constants "forge: atlases") a styled body's shoulders, crest and edges add a column or row on some
       // frames: its LOCO and RUN may use 3 % more (measured i2: fm_star RUN 68.2 of 68 with its crest, jade3 LOCO 138.6 of 136)
@@ -629,7 +637,7 @@ std::vector<SliceAtlas> sliceAtlases() {
       // so its LOCO and RUN may use 14 % more (STARFALL's crystal helm over its long split skirt the most: fm_star 77.0 of 68 crested)
       if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forgeShape) { base *= 1.14; d19 *= 1.14; }
       else if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forge[HumanLook::TIER_BODY]) { base *= 1.03; d19 *= 1.03; }
-      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, d19) : base, base});
+      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, tt >= 4 ? std::max(base, d19) : base, base});
     }
   }
   return v;
@@ -788,7 +796,8 @@ void gateAtlas(Gate& g) {   // B10
     if (fs.empty()) g.ok();
   }
   const doll::PoolStats ps = doll::poolStats();
-  if (ps.bytes > 1.75 * 1024 * 1024) g.bad(fmt("the pool %.2f MB (1.75: D21)", ps.bytes / 1048576.0)); else g.ok();
+  // (P2c envelope, C8: D46, no compression D48) the pool 2.5 MiB (doll::kPoolBudget)
+  if (ps.bytes > doll::kPoolBudget) g.bad(fmt("the pool %.0f B (%.0f: 2.5 MiB, D46)", (double)ps.bytes, (double)doll::kPoolBudget)); else g.ok();
 }
 void gateRamps(Gate& g) {   // the generator within delta E 6 per step of A3's 14 hand ramps (given their bases)
   float worst = 0;
@@ -1874,6 +1883,9 @@ int dollCmd(int argc, char** argv) {
     std::vector<std::string> forgeLines;
     gateFails += dollForgeGates(g_report, forgeLines);   // (P2c forge) C16 a b c s, C17, C1 source F, C12a restated
     for (const std::string& l : forgeLines) std::printf("%s\n", l.c_str());
+    std::vector<std::string> envLines;
+    gateFails += dollEnvelopeGates(g_report, envLines);   // (P2c envelope) C12f, C3b and B10 by tier, C13 drawn motion, C19
+    for (const std::string& l : envLines) std::printf("%s\n", l.c_str());
   }
   art::setRigVersion(was);
   const int bad = g_contract + gateFails;
@@ -2230,6 +2242,7 @@ int coverageCmd(int argc, char** argv) {
   for (int i = 1; i + 1 < argc; i++) {
     if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "ladder")) return dollLadderCoverage(argc, argv);
     if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "forge")) return dollForgeCoverage(argc, argv);
+    if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "envelope")) return dollEnvelopeCoverage(argc, argv);
   }
   bool gates = false, all = false;
   uint64_t a = 1, b = 3;

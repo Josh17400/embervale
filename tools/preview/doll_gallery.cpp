@@ -1412,6 +1412,29 @@ std::vector<ForgeEntry> forgeTags(const std::string& set) {
   }
   return v;
 }
+// (envelope fix round, D63: the packager saw the grey boards keep the hair red) greyscale means greyscale: a grey board's
+// rows turn every pixel into its luma (Rec. 601) after everything is drawn on them (the figures' hair, skin, eyes and face
+// and the labels included), and the check counts any pixel there whose R, G and B differ (main exits 1 on any)
+int g_greyBad = 0;
+void greyRows(Canvas& c, int y0) {
+  for (int y = std::max(0, y0); y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      const uint32_t p = c.get(x, y);
+      const int l = (int)(0.299 * (p & 255) + 0.587 * (p >> 8 & 255) + 0.114 * (p >> 16 & 255) + 0.5);
+      c.set(x, y, (p & 0xFF000000u) | (uint32_t)l | (uint32_t)l << 8 | (uint32_t)l << 16);
+    }
+}
+int greyCheck(const Canvas& c, int y0, const std::string& name) {
+  int bad = 0;
+  for (int y = std::max(0, y0); y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      const uint32_t p = c.get(x, y);
+      if ((p & 255) != (p >> 8 & 255) || (p & 255) != (p >> 16 & 255)) bad++;
+    }
+  if (bad) { std::printf("FAIL: grey board %s: %d px whose R, G and B differ (D63)\n", name.c_str(), bad); g_greyBad++; }
+  else std::printf("ok    grey board %s: R = G = B on every pixel\n", name.c_str());
+  return bad;
+}
 void forgeSheet(const std::string& dir, const std::string& name, const std::string& title, const std::vector<ForgeEntry>& es, int mode) {
   if (g_looksFile == "tools/doll/ladder_looks.txt") g_looksFile = "tools/doll/forge_looks.txt";
   namespace F = art::doll::forge;
@@ -1496,6 +1519,7 @@ void forgeSheet(const std::string& dir, const std::string& name, const std::stri
       }
     }
   }
+  if (greyFrom < b.c.h) { greyRows(b.c, greyFrom); greyCheck(b.c, greyFrom, name); }
   savePng(b.c, dir + "/" + name + "_1x.png", 1);
   savePng(b.c, dir + "/" + name + "_3x.png", 3);
   if (std::max(b.c.w, b.c.h) * 8 <= 8000) savePng(b.c, dir + "/" + name + "_8x.png", 8);
@@ -1630,6 +1654,7 @@ void shapeGrid(const std::string& dir, const std::string& name, const std::strin
       }
     }
     static const char* const kSfx[3] = {"", "_grey", "_black"};
+    if (m == SM_GREY) { greyRows(b.c, 0); greyCheck(b.c, 0, name + kSfx[m]); }
     saveScaled(b, dir, name + kSfx[m]);
   }
 }
@@ -1673,6 +1698,107 @@ void boardAlloys1x(const std::string& dir, bool blackOnly) {
   }
   if (blackOnly) shapeGrid(dir, "doll_silhouette_alloys", "THE BOARD SET: SEEDS 1..3 AND THE OWNER'S JADE 5, IDLE D, IDLE R, WALK R, TRUE 1X", labels, rows, {SM_BLACK});
   else shapeGrid(dir, "doll_alloys1x", "THE BOARD SET: SEEDS 1..3 AND THE OWNER'S JADE 5, IDLE D, IDLE R, WALK R, TRUE 1X", labels, rows, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
+// (P2c envelope, contracts 7) envelope:<hero|heroine|guard>[:grey|:black]: a line's tiers side by side on one baseline at 1x
+// (saved scaled), the tier and the area ratio (noHeld, walk D frame 0 + idle R, of the line's T1) under each; the looks from
+// tools/doll/envelope_looks.txt (or --looks F)
+int envelopeArea(const art::HumanLook& L) {
+  doll::DollRecipe r = doll::resolve(L);
+  doll::ComposeOpts o;
+  o.noHeld = true;
+  int n = 0;
+  for (int fc : {0, 2}) {
+    o.onlyFacing = fc;
+    const art::RigSheet sh = doll::compose(r, art::RigPart::Loco, &o);
+    const art::FrameRect* f = sh.frame(fc, fc == 0 ? Clip::Walk : Clip::Idle, 0, 0);
+    if (!f) continue;
+    for (int y = 0; y < f->h; y++)
+      for (int x = 0; x < f->w; x++) n += (sh.atlas.get(f->x + x, f->y + y) >> 24) != 0;
+  }
+  return n;
+}
+// (envelope fix round, D55) a look's helm pixels, idle D + idle R (C12f's head measure): the growth strip prints T2's budget
+int envelopeHeadPx(const art::HumanLook& L) {
+  const doll::DollRecipe r = doll::resolve(L);
+  int n = 0;
+  for (int fc : {0, 2}) {
+    const doll::FrameProbe p = doll::probeFrame(r, art::RigPart::Loco, fc, Clip::Idle, 0, 0, true);
+    for (size_t k = 0; p.ok && k < p.code.size(); k++) {
+      if (p.code[k] < 2) continue;
+      const int o = p.owner[k];
+      if (o >= 0 && (size_t)o < p.items.size() && (p.items[(size_t)o].has(doll::Role::Helm) || p.items[(size_t)o].has(doll::Role::Headwear))) n++;
+    }
+  }
+  return n;
+}
+void boardEnvelope(const std::string& dir, const std::string& b) {
+  std::string line = b.substr(9);
+  ShapeMode only = SM_COLOUR;
+  bool one = false;
+  if (line.size() > 5 && line.compare(line.size() - 5, 5, ":grey") == 0) { line.resize(line.size() - 5); only = SM_GREY; one = true; }
+  if (line.size() > 6 && line.compare(line.size() - 6, 6, ":black") == 0) { line.resize(line.size() - 6); only = SM_BLACK; one = true; }
+  std::vector<std::string> tags;
+  if (line == "hero") tags = {"e1", "e2", "e3", "e4", "e5", "e6", "e6m"};
+  else if (line == "heroine") tags = {"e1w", "e2w", "e3w", "e4w", "e5w", "e6w"};
+  else if (line == "guard") tags = {"eg0", "eg3", "ecapt", "eking", "e6"};
+  else if (line == "adefects") tags = {"a_uha", "a_jaon", "a_enkho", "a_papir", "a_crane", "fm_obsid", "f5_obsid", "fm_myth", "fm_star", "f5_star", "a_thaer", "a_thorn", "a_ilsil"};
+  else { std::printf("doll_gallery: envelope:<hero|heroine|guard|adefects>\n"); return; }
+  if (g_looksFile == "tools/doll/ladder_looks.txt") g_looksFile = "tools/doll/envelope_looks.txt";
+  const std::vector<FileLook> fl = readLooksFile();
+  std::vector<ShapeEntry> row;
+  int area1 = 0;
+  for (const std::string& t : tags)
+    for (const FileLook& f : fl) {
+      if (f.tag != t) continue;
+      ShapeEntry e;
+      e.L = a3Look(f.who);
+      bool pal = false;
+      doll::applyLookSpec(e.L, f.spec, &pal);
+      e.pal = pal;
+      const int a = envelopeArea(e.L);
+      if (!area1) area1 = a;
+      char sub[64];
+      std::snprintf(sub, sizeof sub, "T%d %.2f", e.L.topTier(), area1 ? (double)a / area1 : 0.0);
+      e.label = t;
+      e.sub = sub;
+      row.push_back(e);
+    }
+  // (envelope fix round, D55; the delight) the T2 head budget under T2: its helm pixels and T3's / 1.05 (C12f's head step)
+  if ((line == "hero" || line == "heroine") && row.size() >= 3) {
+    const int h2 = envelopeHeadPx(row[1].L), h3 = envelopeHeadPx(row[2].L);
+    char sub[64];
+    std::snprintf(sub, sizeof sub, "%s H%d/%d", row[1].label.c_str(), h2, h3 * 100 / 105);   // the label's line has the room
+    row[1].label = sub;
+  }
+  std::string up = line;
+  for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+  const std::string title = "THE ENVELOPE: " + up + " (TIER, AREA OF THE FIRST), IDLE D, IDLE R, WALK R, TRUE 1X";
+  if (one) shapeGrid(dir, "doll_envelope_" + line, title, {up}, {row}, {only});
+  else shapeGrid(dir, "doll_envelope_" + line, title, {up}, {row}, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
+// (P2c envelope, C16k) heads:owner37: the owner's 37 board alloys, a row per culture, each with its head key (family, variant,
+// crest) under it; colour, greyscale and black
+void boardHeads(const std::string& dir) {
+  std::vector<std::string> labels;
+  std::vector<std::vector<ShapeEntry>> rows;
+  for (const gear::BoardCulture& bc : gear::forgeBoardSet()) {
+    if (!bc.owner) continue;
+    const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
+    std::vector<ShapeEntry> row;
+    for (int i = 0; i < (int)c.arms.alloys.size() && i < 3; i++) {
+      ShapeEntry e = alloyEntry(c, i);
+      const gear::Shape s = gear::alloyShape(c, i);
+      const gear::AlloyDetails d = gear::alloyDetails(c, i, s);
+      char sub[64];
+      std::snprintf(sub, sizeof sub, "%s V%d %s", F2::shapeName(F2::SX_HELM, s.helm), s.variant, d.crest ? F2::valueName(F2::AX_CREST, d.crest) : "-");
+      e.sub = sub;
+      for (char& ch : e.sub) ch = (char)std::toupper((unsigned char)ch);
+      row.push_back(e);
+    }
+    labels.push_back(std::string(kPeopleName[bc.people]) + " S" + std::to_string(bc.seed));
+    rows.push_back(row);
+  }
+  shapeGrid(dir, "doll_heads_owner37", "THE OWNER'S 37: A HEAD EACH (FAMILY, VARIANT, CREST), TRUE 1X", labels, rows, {SM_COLOUR, SM_GREY, SM_BLACK});
 }
 void boardTwins(const std::string& dir) {
   int ng = 0;
@@ -1945,6 +2071,8 @@ int main(int argc, char** argv) {
     else if (b == "alloys1x") boardAlloys1x(dir, false);
     else if (b == "silhouette:alloys") boardAlloys1x(dir, true);
     else if (b == "twins") boardTwins(dir);
+    else if (b.rfind("envelope:", 0) == 0) boardEnvelope(dir, b);
+    else if (b == "heads:owner37" || b == "heads") boardHeads(dir);
     else if (b.rfind("world:", 0) == 0) boardWorld(dir, b);
     else if (b.rfind("shapes:", 0) == 0) {
       const std::string w = b.substr(7);
@@ -1955,5 +2083,5 @@ int main(int argc, char** argv) {
     }
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
-  return 0;
+  return g_greyBad ? 1 : 0;   // (D63) a grey board with a coloured pixel fails the run
 }

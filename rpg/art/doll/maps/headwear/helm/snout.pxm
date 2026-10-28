@@ -206,7 +206,7 @@ regions
 # the rondel bascinet: a round skull, a short blunt snout with one slit band, a riveted disc at each ear.
 # Written by the HELMS area tools/d2.py (D R drawn; U is D with the face details dropped; L is R mirrored and re-lit).
 # the hounskull on a mail bell (none, mantle)
-view D key rest origin 2 1 when helmfam-snout,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view D key rest origin 2 1 when helmfam-snout,variant-1 replace
 mark crown 9 0
 mark socket 9 0
 |.....----vv----.....
@@ -243,7 +243,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 1 when helmfam-snout,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view U key rest origin 2 1 when helmfam-snout,variant-1 replace
 mark crown 9 0
 mark socket 9 0
 |.....----vv----.....
@@ -280,7 +280,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 1 when helmfam-snout,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view R key rest origin 3 1 when helmfam-snout,variant-1 replace
 mark crown 10 0
 mark socket 10 0
 |......----vv----......
@@ -317,7 +317,7 @@ regions
 |......................
 |......................
 
-view L key rest origin 3 1 when helmfam-snout,alloyshape,!mass-round,!mass-broad,!mass-tall,!mass-drop replace
+view L key rest origin 3 1 when helmfam-snout,variant-1 replace
 mark crown 11 0
 mark socket 11 0
 |......----vv----......
@@ -355,7 +355,7 @@ regions
 |......................
 
 # the tall hounskull (tall, drop)
-view D key rest origin 2 4 when helmfam-snout,alloyshape,!mass-none,!mass-round,!mass-broad,!mass-mantle replace
+view D key rest origin 2 4 when helmfam-snout,variant-2 replace
 mark crown 9 0
 mark socket 9 0
 |......---vv---......
@@ -394,7 +394,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 4 when helmfam-snout,alloyshape,!mass-none,!mass-round,!mass-broad,!mass-mantle replace
+view U key rest origin 2 4 when helmfam-snout,variant-2 replace
 mark crown 9 0
 mark socket 9 0
 |......---vv---......
@@ -433,7 +433,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 4 when helmfam-snout,alloyshape,!mass-none,!mass-round,!mass-broad,!mass-mantle replace
+view R key rest origin 3 4 when helmfam-snout,variant-2 replace
 mark crown 5 0
 mark socket 5 0
 |...--vv----...........
@@ -472,7 +472,7 @@ regions
 |......................
 |......................
 
-view L key rest origin 3 4 when helmfam-snout,alloyshape,!mass-none,!mass-round,!mass-broad,!mass-mantle replace
+view L key rest origin 3 4 when helmfam-snout,variant-2 replace
 mark crown 16 0
 mark socket 16 0
 |...........----vv--...
@@ -512,7 +512,7 @@ regions
 |......................
 
 # the rondel bascinet (broad, round)
-view D key rest origin 2 1 when helmfam-snout,alloyshape,!mass-none,!mass-tall,!mass-drop,!mass-mantle replace
+view D key rest origin 2 1 when helmfam-snout,variant-3 replace
 mark crown 9 2
 mark socket 9 2
 |.....----------.....
@@ -549,7 +549,7 @@ regions
 |....................
 |....................
 
-view U key rest origin 2 1 when helmfam-snout,alloyshape,!mass-none,!mass-tall,!mass-drop,!mass-mantle replace
+view U key rest origin 2 1 when helmfam-snout,variant-3 replace
 mark crown 9 2
 mark socket 9 2
 |.....----------.....
@@ -586,7 +586,7 @@ regions
 |....................
 |....................
 
-view R key rest origin 3 1 when helmfam-snout,alloyshape,!mass-none,!mass-tall,!mass-drop,!mass-mantle replace
+view R key rest origin 3 1 when helmfam-snout,variant-3 replace
 mark crown 11 2
 mark socket 11 2
 |......----------......
@@ -623,7 +623,7 @@ regions
 |......................
 |......................
 
-view L key rest origin 3 1 when helmfam-snout,alloyshape,!mass-none,!mass-tall,!mass-drop,!mass-mantle replace
+view L key rest origin 3 1 when helmfam-snout,variant-3 replace
 mark crown 10 2
 mark socket 10 2
 |......----------......

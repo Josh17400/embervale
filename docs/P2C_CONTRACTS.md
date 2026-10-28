@@ -11,6 +11,9 @@ rule (3c) and test hooks (7); FORGE-DOLL is the code owner in wave 1c.
 **The forge round 2 (2026-10-24, alloy silhouettes)** restates 3c (the silhouette, the shape table, the details; the
 texture picks retired on culture alloys) and adds round 2's ownership (1), freezes (2) and hooks (7); FORGE-DOLL stays the
 code owner.
+**The envelope (2026-10-27, the owner's 32 px lock)** adds wave 1d's ownership (1) and freezes (2), the tier envelope, the
+pauldron sizes, the head key, the ramps' antique and glass rules and the A-defect data (3d), and its hooks (7); FORGE-DOLL
+stays the code owner.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -44,6 +47,25 @@ code owner.
 | FORGE-TORSO (artist; the look lead) | maps/armour/man/{plate,mail,scale,lamellar,leather,padded,tabard,sash}.pxm, maps/armour/woman/{plate,mail,leather,padded,tabard,sash}.pxm (and any new woman torso), maps/armour/motif/** (new), maps/armour/tiles/**, maps/forge/**, maps/finish/** |
 | FORGE-LIMBS (artist) | maps/armour/{man,woman}/*_hang.pxm, skirt_*.pxm (new), sleeve_*.pxm (new), mail_sleeve_*.pxm, mail_stride.pxm |
 | FORGE-MANTLE (artist) | maps/armour/shared/**; maps/cloak/** (ADD only: new files and `when` views); maps/neck/** (ADD only) |
+
+| area | files (wave 1d, the envelope; round 2's areas are closed and their files pass here) |
+|---|---|
+| FORGE-DOLL (engineer-high) | as round 2: rpg/art/doll/*.h, *.cpp (with doll_envelope.h, new, and the ramps), gen/** (pxc output at integration), clips/** (ADD only), maps/legend/** (ADD only); tools/doll/** (pxc.mjs, envelope_looks.txt, forge_looks.txt, owner_pack.py, alloys/**); art_human.h (HumanLook ADD) and art_human.cpp's key() only; rpg/art/art_fx.*; rpg/sim/gear_forge.*, gear_forge_shapes.inc (generated), gear_ladder.*, gear_look.* (ADD only), looks.cpp (rankTiers only); rpg/view/render.cpp (the glow pass and finish light, the rig-2 cache, the doorway draw order), witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp, test_forge_ramps.cpp, test_doll_envelope.cpp (new), doll_motion.h; tools/preview/doll_gallery.cpp; CMakeLists.txt (new test files only); tools/scripts/p2c_forge*, p2c_envelope* (new); witness/p2c_forge, p2c_envelope (new); this file's section 8; PLAN "Envelope results" |
+| FORGE-HEAD (artist-xhigh) | maps/headwear/helm/**, maps/headwear/collar/**, maps/shield/** |
+| FORGE-MANTLE (artist) | maps/armour/shared/**; maps/cloak/** (ADD: new files, views, `when` and `breeze` views; P2b's existing views keep their pixels); maps/neck/** (ADD only) |
+| FORGE-TORSO (artist-xhigh; the look lead) | maps/armour/man/{plate,mail,scale,lamellar,leather,padded,tabard,sash}.pxm, maps/armour/woman/{plate,mail,leather,padded,tabard,sash}.pxm (and any new woman torso), maps/armour/motif/**, maps/armour/tiles/** |
+| FORGE-LIMBS (artist-xhigh) | maps/armour/{man,woman}/*_hang.pxm, skirt_*.pxm, sleeve_*.pxm, mail_sleeve_*.pxm, mail_stride.pxm |
+| FORGE-MATERIAL (artist-xhigh; the A4-A8 lead) | maps/forge/** (with maps/forge/glass/**, new), maps/finish/** |
+| ZOOM (engineer) | rpg/view/screen.cpp, screen.h, script_p2a.cpp (ADD only); tools/scripts/p2c_zoom*.txt (new); witness/p2c_zoom.witness.json (new) |
+
+| area | files (wave 1d fix round, before the envelope judge's round 4; PLAN "The envelope fix round", D54-D65; the wave 1d areas above are closed and their files pass here) |
+|---|---|
+| DOLL (engineer-high) | FORGE-DOLL's files above, with tools/doll/envelope_looks.txt, owner_pack.py, tools/scripts/p2c_envelope* and the capture scripts |
+| HEAD (artist-xhigh) | maps/headwear/helm/**, maps/headwear/collar/**, maps/shield/** |
+| BODY (artist-xhigh; the round's look lead) | maps/armour/** (shared, man, woman, motif, tiles, the hangs, skirts and sleeves); maps/cloak/** (ADD: new files, views, `when` views; P2b's existing views keep their pixels); maps/neck/** (ADD only) |
+| MATERIAL (artist-xhigh; the A4-A7 lead) | maps/forge/**, maps/finish/** |
+
+Nobody else edits these in wave 1d. docs/ref/envelope (the owner-picked 32 px figures) is the planner's and read only.
 
 Wave 2 ownership is in docs/PLAN.md "Production areas". Art areas never build: they compile isolated pools and use the
 published exes (section 7).
@@ -79,6 +101,14 @@ hero styles keep their pixels (HOMESPUN, TANNER'S, FOUNDRY, WROUGHT, ARMOURER'S 
 and only FURNACE, KNAPPED, STARFALL and the Mythic's face change; the ladder's tiers, dials and finish table are unchanged
 (a styled alloy's over-layer takes the cape dial's and the T5 surcoat's place: D38); tabard.pxm's z moves from 3 to 4
 (no composed pixel changes: nothing else sits at torso z 3-4).
+
+**The envelope (2026-10-27)** keeps all of this and adds: the bodies (every adult and kid body set), the head box (16 x 14),
+the anchors, B1's frames, B2's heights and every clip number are frozen for good (D42: no figure is scaled alone); no map
+file, view or size is deleted or emptied and no view changes its meaning (D49): areas ADD sizes 5-6, `when <slot>.t5` /
+`.t6`, `cloak.t5`, `breeze` and `variant-<n>` views (the fix round's `<mass>`-keyed helm variants are re-keyed with their
+pixels unchanged); an A fix repaints its own view in place and names it in its report; P2b's cloak and neck views keep their
+pixels (`--freeze-check` 0 for every untiered look); loot, rarity, pacing and lookTier's table are unchanged (the owner's
+answers are pending); rig 1 is frozen; rpg/culture is read only.
 
 ## 3. The resolver's P2c vocabulary (`role <category> <value>`, doll_resolve.cpp)
 
@@ -317,6 +347,118 @@ std::string describeShape(const Shape&);   // "kabuto split drop sash | wide bib
 - **Macros** `mat=`, `forge=<base>`, `style=<axis>:<value>[+...]`, `alloyStyle=<people>:<seed>:<n>`, `alloy=N`,
   `forgeBody=0x..`..`forgeBack=`.
 
+## 3d. The tier envelope in data (re-plan 2026-10-27; STYLE_P2 29, PLAN "The envelope")
+
+- **doll_envelope.h** (rpg/art/doll, new; FORGE-DOLL; pure constexpr, integer, no RNG; read at rig 2 only):
+
+```
+struct TierEnvelope {
+  uint8_t shoulders;             // px across facing D: 16 + the pauldrons' reach past the shoulder line, both sides (0: no cap)
+  uint8_t rows, ornRows;         // head: every helm-layer pixel / a drawn crest or plume (plume slot), rows above the crown
+  uint8_t side, brim, flare;     // columns past the 16 px head box: the shell / a drawn brim / horns, wings, flares, brims, tails
+  uint8_t pauldron;              // the resolver's size clamp: 0 none, 2 small, 3 medium, 4 large, 5 great, 6 legend (0 row 0: the dial)
+  uint8_t cloak;                 // 0 none, 1 the people's cape, 2 a cape or the travel cloak, 3 the long cloak
+  uint8_t cloakSideD, cloakBack; // px past each leg facing D (cap); columns past the body's box behind facing R / L (W8)
+  uint8_t skirtFlare, stir;      // extra px past the hips; the cloak's breeze swing in px
+  uint8_t movedMin, movedMax;    // drawn motion px a figure-frame (C13; looks with a cloak or a plume)
+  uint16_t area;                 // x100 of the line's T1 (C12f); 0: no ladder
+  uint16_t loco, run, drawn, action, death, posture;   // B10 KB; 0 = measured on e6 (T5-T6 action, death, posture)
+};
+constexpr TierEnvelope kEnvelope[7] = {
+  // shld rows orn side brim flare paul cloak sideD back sflare stir mvMin mvMax area loco run drawn action death posture
+  {  0,  4,  6,  1,  1,  3,  0,  3,  0,  2,  0,  0,  0,  0,   0, 128,  64, 256, 512, 52, 64 },  // 0 untiered: today's rules
+  { 16,  2,  2,  0,  1,  3,  0,  0,  0,  2,  0,  0,  0,  0, 100, 128,  64, 256, 512, 52, 64 },  // T1
+  { 18,  3,  6,  0,  1,  3,  2,  0,  0,  2,  0,  0,  0,  0, 110, 128,  64, 256, 512, 52, 64 },  // T2
+  { 20,  4,  6,  1,  1,  3,  3,  1,  0,  2,  0,  0,  0,  0, 120, 128,  64, 256, 512, 52, 64 },  // T3
+  { 22,  6,  6,  1,  1,  3,  4,  2,  0,  2,  0,  0,  0,  0, 135, 160,  80, 320, 512, 52, 64 },  // T4
+  { 26,  8,  8,  2,  2,  3,  5,  3,  2,  8,  1,  1,  8, 32, 155, 200, 100, 400,   0,  0,  0 },  // T5
+  { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400,   0,  0,  0 },  // T6
+};
+constexpr int kAreaStep = 5;                       // each tier's area >= the tier below's + 5 (x100 of T1)
+constexpr uint32_t kPoolBudget = 2621440;          // 2.5 MiB (D46); pxc.mjs prints it
+constexpr int kMeasuredCap[3] = {716, 72, 89};     // T5-T6 ACTION, DEATH, POSTURE KB: e6 measured x 1.1, never above these
+const TierEnvelope& envelopeOf(int tier);          // 0..6
+std::string describeEnvelope();                    // rpg_test --envelope: the table as PLAN "The envelope" prints it
+```
+
+  FORGE-DOLL writes e6's measured ACTION, DEATH and POSTURE (x 1.1, capped) into the T5-T6 rows at the first integration
+  and records them in section 8; a 0 left there makes the gate use the cap.
+- **Which tier reads which column**: shoulders, pauldron, skirtFlare and area by TIER_BODY; rows, ornRows, side, brim and flare
+  by TIER_HELM; cloak, cloakSideD, cloakBack and stir by TIER_CLOAK; B10 and moved by the figure's highest tier (the
+  `tier1..tier6` flags); a look with no tier reads row 0. The woman reads the same rows; her crown is F-30.
+- **Measures** (C12f, C3b, W8; shared helpers in doll_outline.cpp): area = opaque pixels of the composed frame with
+  ComposeOpts::noHeld on the walk's frame 0 facing D and the idle facing R; shoulders = 16 + the reach of the pauldron parts'
+  pixels past the shoulder anchors' 16 px line facing D (16 with none); head = helm-layer pixels relative to the head anchor
+  (rows from the crown row; columns from the head box); T1's outline = the T1 frame's mask against the same body's bare
+  (shirt) mask dilated by 1 px, the hood's rows inside the hair's 2-row rise exempt; cloak = cloak-layer pixels past each leg's
+  outer column facing D and past the body's box facing R / L.
+- **The resolver** (doll_resolve): pauldron size = min(the dial's size, kEnvelope[tierBody].pauldron) at T1-T4; at T5-T6 a body
+  with shoulder plates wears size 5 / 6 (replacing alloys i3's "always the large"), falling back 6 to 5 to 4 where a shape
+  lacks the size (each fallback in `DollRecipe::forgeMissing` and `--doll-coverage --scope envelope`; never a hole); crest
+  regions by the helm's tier (T1 none, T2 crest1-2, T3 and up the dial); T5-T6 cloaks need the noble cloak's `when cloak.t5`
+  views (the long length) and `breeze` views; T5-T6 bodies use the hangs' and skirts' `when armour.t5` flare views where
+  drawn (the base view where not, listed).
+- **Pauldron sizes** (APPEND): `pauldron <shape>.5` (great) and `.6` (legend): maps/armour/shared/pauldron_<shape>5_{l,r}.pxm
+  and ..6.. (FORGE-MANTLE); pxc mirrors the size words; sizes 2-4 keep their meaning.
+- **The head key** (D51): `gear::Shape` ADDs `variant` (0 = the family's base drawing, 1..7); `HumanLook::forgeShape` bits 20-22
+  hold it (bit 31 still marks a set value; compare packed values, never memcmp). `uint32_t headKey(const Shape&, int crest)` =
+  helm | variant << 5 | crest << 8. Flag `variant-<n>` on the helm piece; a family's variant views key on
+  `helmfam-<v>,variant-<n>` (`replace`), never on a body axis; a family declares its count (`role helm fam.<v> variants <n>`)
+  and pxc checks each variant has its D U R L and lie views. The pick (alloyDetails): the owner's 37 from `kBoardHeads`
+  (gear_forge.cpp: name, family as shipped at df2a155 (pinned in the solve), variant, crest; PAPIRON warhat kasa, JAONBRASS
+  warhat gat, CRANESILVER warhat jingasa); every other alloy from `kHelmVariantPref[people][family]` (doll_forge.h), then the
+  name's hash, a culture's later alloy preferring a variant its earlier ones lack. The solve keeps C16k (hard on the 37 and
+  inside every culture) and passes the stability test.
+- **The ramps** (doll_ramps.cpp, doll_alloy.cpp): D52's antique rule in metalCharacter for a warm metal (alloyFamilyMetal 0-1,
+  or a warm body) under the dark sheen: step 2 luma 95-125 at a brass or bronze hue, step 1 at 45 or less, step 3 at 175 or
+  more, the glint warm white; metalRead, metalRead2 and C15 still hold. D53's glass for KNAPPED (metalKind 7) and GLASS alloys
+  (alloyFamilyMetal 5): the compose glass pass lays step 3 along the 1-2 px inside the step-0 outline at the lower right of
+  each convex metal piece (a connected metal region of 12 px or more) and FORGE-MATERIAL's speculars (maps/forge/glass/*.pxm,
+  `tags stamp`) at the top-left of facets of 4 px or more; never inside W7's face box + 1 px or on a helm's face plate.
+  Starmetal (metalKind 9) takes the iridescent bands (Metal 2 turned 60 degrees or more, a band per 2-3 rows between N seams).
+- **The Mythic's light off the face**: the view's finish light (render.cpp: the rim, the crown, the tongues, the embers;
+  section 6b) and the compose speck rules skip W7's face box + 1 px; `art::finish::litFrame(look, frame, t)` (the view's own
+  code, deterministic) gives C19's A5 row the frame at the breath's peak.
+- **C19's terms** (`rpg_test --doll-adefects`): gear pixels = the frame's pixels outside the Skin, Hair, Eyes and Face slots and
+  step 0; metal = Metal + Metal 2; lit share = steps 3-4 of the metal; the rows and selftests as PLAN's A table and C19.
+  - **The torso** (D56, the round-3 scope the judge accepted): every torso term (A3's brass share, A4's glass rim, A6's
+    bands, A7's glass tell) counts the Armour parts and the `armour/motif/` parts together on the frame composed from
+    `noHeldRecipe` (no Held, Shield, Sheath or Fx part); helm and shoulder terms read their own parts on the full frame.
+    Thresholds as PLAN's A table.
+  - **Round 4 adds** (each with a selftest that a bad frame trips; idle D and idle R unless named; PLAN D58-D62):
+    A3: the torso's Metal 50 % or more of its pixels and its cloth slots (Cloth1-3, Linen, Accent) 30 % or less. A4: the
+    torso rim as one run of 3 px or more (a run = 4-connected step-3 rim pixels); no step 3-4 run of 2 px or more on a helm
+    face plate or inside W7's face box + 1 px facing R or L. A5 (on gear pixels): lit (luma 170 or more) + Glow pixels 1.15
+    or more of its T6's (e6 for e6m and fm_myth); their mean luma 0.90 or more of its T6's; warm light (Glow pixels, plus pixels
+    at hue 20-60 degrees, chroma 30 or more and luma 170 or more: the gold and the fire) 15 % or more of the gear pixels;
+    the helm's luma p90 - p10 100 or more. A6: on the torso facing D, 3 or more alternating runs of
+    rows whose metal is mostly Metal or mostly Metal 2, each 2 rows or more and 4 px wide or more; step 1 20 % or more of
+    the metal; Metal and Metal 2 steps 2 and 3 at CIE chroma 28 or more (the hueChroma helper). A7: glass (the metal of a
+    GLASS alloy, step 0 excluded) 55 % or more at steps 1-2 and 25 % or less at step 3; the rim one run of 3 px or more
+    on the helm, the torso and each shoulder; Metal step 3's luma 80 or more over step 2's; no 4-connected step 3-4 region
+    of the glass of 12 px or more (a pale patch).
+- **The T2 kit** (D55; the hero lines' TANNER'S at T2): the helm is the leather cap's T2 drawing (a `variant-<n>` of the
+  family or a T2 view key, as HEAD and DOLL agree), its helm pixels (idle D + idle R) under T3's / 1.05 on the same line
+  (C12f's existing head step; DOLL prints the budget in `--doll-envelope --report`); the pauldron shape `capelet` (APPEND:
+  `pauldron capelet.2`, maps/armour/shared/pauldron_capelet2_{l,r}.pxm, size 2 only, counted by the shoulders measure); the
+  neck value `cowl` (APPEND to the neck vocabulary: maps/neck/{man,woman}/cowl.pxm). Until drawn, each falls back to
+  today's leather cap, flap2 and no neck piece, listed by `--doll-coverage --scope envelope`.
+- **The T3 guard** (D57; C12f, `--doll-envelope`): eg3's area 1.20 or more of e1's and 1.10 or more of eg0's (C12f's
+  measure); its shoulders 20; its cape 1 px or more past each arm's outer column on 6 rows or more above the legs' top
+  facing D, and 1 column or more behind the body's box facing R. The watch's T3 kit: its kettle hat with the finial
+  crest, the cop shape at size 3, the people's cape with its T3 views (`when cloak.t3`, ADD), the round shield where
+  the kit has one. A selftest trips each term.
+- **Kit tags** (D64): `kit=<people>:<tier>[m]:<seed>`; `m` with tier 6 = `rarity=mythic`; any other suffix or tier is an
+  error naming the tag (the looks loader, `ladderkit` and `p2cline` share the parser).
+- **Grey boards** (D63): doll_gallery's `:grey` and owner_pack.py's greyscale write luma (0.299 R + 0.587 G + 0.114 B) on every
+  pixel, every slot included; a check (DOLL names it in section 8 and wires it into the gallery's board run) fails on any
+  grey-board pixel whose R, G and B differ.
+- **Captures** (D65): a script that runs `skill clearing` shoots only after two frames 0.5 s apart are identical (3 s at
+  most); phone and owner-pack captures re-shot so.
+- **The shape table's metal rule** (A1-A3, gear_forge's solve; hard): a bronze or brass everyday alloy (rank 0) never pairs
+  mass NONE with layer TABARD, nor a fur MANTLE with layer TABARD or HALFCAPE; the solve re-runs with rules 1-4 hard,
+  C16o, C16u and C18 at 0 and the 37's helm families pinned.
+
 ## 4. Parts: anchors, layers, channels, keys
 
 | part | role | anchor | layer | channel: keys |
@@ -476,6 +618,21 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   FORGE-DOLL publishes exe g1 (`rpg_test_g1.exe`, `doll_gallery_g1.exe` in `%TEMP%\claude\emb_P2c\bin`, LATEST.txt) with
   forgeShape, the flags, roles and compose rules of 3c.1, a first table, the macros and the boards within its first
   working block; the artists preview with `shape=` from g1 on.
+- **The envelope's hooks** (wave 1d): tools/doll/envelope_looks.txt (e1-e6, e6m, e1w-e6w, eg0, eg3, ecapt, eking, a_uha,
+  a_jaon, a_enkho, a_thaer, a_thorn, a_ilsil; the forge lines fm_obsid, f5_obsid, fm_myth, fm_star, f5_star); `rpg_test
+  --envelope` (prints kEnvelope); `rpg_test --doll-envelope [--looks F] [--report] [--selftest]` (C12f, C3b and W8 by tier,
+  B10 by tier, C13's drawn motion; the lines also in `--doll --gates`); `rpg_test --doll-adefects [--looks F] [--report]
+  [--selftest]` (C19; also in `--doll --gates`); `--doll-forge` adds C16k; `--doll-coverage --scope envelope` (sizes 5-6,
+  tier views, `cloak.t5` and breeze views, variants). doll_gallery boards: `envelope:<line>` (hero, heroine, guard: T1-T6 on
+  one baseline at 1x, 3x and 8x; `:grey`, `:black`; the caps as faint guides at 8x and the area ratio under each),
+  `heads:owner37` (the 37 heads, greyscale, 1x and 4x, with their head keys), `adefects` (A1-A8 before and after; the before
+  from `--pool-before P`), `stir:<tag>` (a T5-T6 look's breeze frames and a 3x GIF). Script: `ladderkit` as before; `expect
+  doll envelope <field>=<value>` (tier, shoulders, rows, area); Witness `player.sprite.doll.envelope` {tier, shoulders, rows,
+  area}. Artists' roots `%TEMP%\claude\emb_P2c\env\<area>\doll\`; FORGE-DOLL publishes exe e1 (`rpg_test_e1.exe`,
+  `doll_gallery_e1.exe` in `%TEMP%\claude\emb_P2c\bin`, LATEST.txt) in its first working block; until then the artists
+  preview with g4 and the `tier=` and `pauldron=` macros. ZOOM: `EMB_DEVICE=phone|tablet|desktop` (read only for the
+  first-launch default, when no settings file exists) and the script command `firstlaunch <device>` (re-runs the first-launch
+  default as that device, ignoring the settings file), with the existing `expect zoom` and `expect screen want|world`.
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 
@@ -1027,3 +1184,86 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   village-art 65 / 0; --anim 0; --arms ALL OK; tools/scripts/p2c_forge.txt 0 failures and witness p2c_forge, p2c_ladder,
   p2c_slice ok (the Jade s5 masterwork, UNSHISILVER on the new table, expects crest=crown, not spike); WSL clang 18
   --doll --gates and --doll-forge 0, as MSVC; owner pack --forge2: 31 files, every image 8000 px or less.
+
+### FORGE-DOLL, envelope iteration 1 (2026-10-27; exe e1: the envelope's data, gates and code, wave 1d first block)
+
+- **doll_envelope.h** (new): `kEnvelope[7]`, `kAreaStep`, `kPoolBudget` (2,621,440), `kMeasuredCap`, `kHeadOdStep` 0.10,
+  `kHeadAreaStepPct` 5, `envelopeOf`, `envelopeAtlasKB`, `describeEnvelope` (`rpg_test --envelope`). The T5-T6 ACTION, DEATH
+  and POSTURE stay 0 (the cap 716 / 72 / 89): e6 today measures ACTION 123.6, DEATH 43.7 KB, which x 1.1 would sit UNDER the
+  T1-T3 row (512 / 52); they are measured again on e6 at first light (its envelope art) and never set below the T1-T3 row.
+- **The resolver**: pauldron size = min(dial (+1 masterwork), kEnvelope.pauldron) at T1-T4; T5-T6 ask for size 5 / 6 with the
+  fallback 6 -> 5 -> 4 (nothing drawn at 5-6 yet, so T5-T6 still wear 4; `DollRecipe::envelopeMissing`, listed by
+  `--doll-coverage --scope envelope`, NOT forgeMissing so forge coverage keeps its scope). Sizes are nominal: a drawing
+  measured wider than its tier's shoulders (pauldronAcross: the facing-D rest views past the head box's 16 columns) is listed
+  and C12f fails the look; it is never swapped for a smaller size (that hid C3a holes at T4). Today: flared3 22 px (T3 cap 20),
+  slab4 24 px (T4 cap 22) -> FORGE-MANTLE redraws to the sizes' reach (2 / 3 px).
+- **The head key** (D51): `gear::Shape::variant`, forgeShape bits 20-22 (`forge::shapeVariant`, `withShapeVariant`,
+  `headKeyOf`, `helmVariantCount`, `legacyHelmVariant`), `gear::headKey`, `alloyHeadKey`, `kBoardHeads` (name, family, variant,
+  crest, the whole df2a155 key). The resolver flags `variant-<n>` (a culture alloy's from forgeShape; every other look the
+  variant its mass drew, so no approved pixel moves). The maps are still mass-keyed: **tools/doll/rekey_variants.mjs**
+  (`--root DIR --write`) re-keys `when helmfam-<v>,<mass terms>` to `when helmfam-<v>,variant-<n>` (helm and crest maps, 105
+  views, pixels unchanged; a duplicate keeps its mass terms so pxc's one-view rule holds). FORGE-HEAD runs it on its root; until
+  then the hat swap and the board's partings exist only in the data. New drawings asked: horned 1 (STAGBRONZE), crown 2
+  (JAGUARIRON), crown 3 (BRIARSTEEL), morion 1 (VENSTEEL). Variant numbers: doll_forge.h's comment.
+- **The board's heads** (kBoardHeads): PAPIRON warhat 1 (the great kasa), JAONBRASS warhat 2 (the gat), CRANESILVER warhat 0;
+  SLAURIRON great 2 (sugarloaf) vs GREBRASS great 1; UHABRASS winged 1 (eagle) vs THAERGLASS winged 3; SUNBRONZE crest spike vs
+  ILSILVER finial; DRAGONSTEEL kabuto 1 (its crescent, kept) vs KISTEEL 0; the crown trio 1 / 2 / 3 and UNSHISILVER 0. Pairwise
+  distinct (C16k data 0).
+- **The solve**: the 37's whole df2a155 keys pinned (only their helm when the whole key breaks a hard rule), rule 5 (the metal
+  rule: a bronze or brass rank-0 alloy never NONE+TABARD nor MANTLE+TABARD/HALFCAPE; `warmEverydayCell` over seeds 1..64) and
+  rule 6 (the 37's helm families) in `--forge-shapes --check`. Re-solved on the repo pool (--keep): 53 of 1,296 keys moved, none
+  of the 37 (diff: only SUNBRONZE's crest), 0 hard, C18a 0.
+- **Ramps** (D52): `antiqueRamp` (doll_alloy.cpp) on a warm metal under the dark sheen, last in rampsOf's metal block; C17's dark
+  term reads D52 on bronze and brass; a styled alloy's tabard re-parts from the skin when the brass took its room.
+- **Compose** (A8): glintPass's lone-lit rule (a metal step-3 pixel with no lit 4-neighbour takes step 2) and the new
+  `glintCapPass` (every frame of a styled figure, soft ones too: step-4 metal in 3 clusters, a horizontal 2 px run first, then the
+  body's, the larger first; then the lone rule again).
+- **render.cpp**: a rig-2 figure whose feet stand in a DoorH tile sorts before the door (the jambs over its pauldrons). The
+  overhang over an interior partition's wall face needs a per-blit clip (engine/pix: not FORGE-DOLL's file): asked.
+- **Gates**: `--doll-envelope` (C12f envelope, C12f ladder lines, C3b by tier, C13 drawn motion = a frame against its breeze
+  views via compose, B10 by tier), `--doll-adefects` (C19 A1-A8), `--doll-heads` and C16k in `--doll-forge` (data, a head each,
+  heads apart at 1x, stability), all with selftests; the envelope and C19 lines in `--doll --gates`. B10 by tier in the matrix
+  (envelopeAtlasKB + the allowances), W8 by the cloak's tier, C8 2.5 MiB, pxc prints the real budget. `measureEnvelope`
+  (doll_outline.cpp) for `expect doll envelope <tier|shoulders|rows|area>=<n>` and Witness `player.sprite.doll.envelope`.
+- **Boards** (doll_gallery): `envelope:<hero|heroine|guard|adefects>[:grey|:black]`, `heads:owner37`. Scripts:
+  tools/scripts/p2c_envelope.txt, witness/p2c_envelope.witness.json. Looks: tools/doll/envelope_looks.txt (+ a_papir, a_crane
+  for A2's distances), embedded by embed_looks.py.
+- **Not yet** (next block): `role helm fam.<v> variants <n>` in pxc, the 8x caps guides and the stir GIF boards, the
+  `adefects` before/after board (`--pool-before`), owner_pack --envelope, the glass and iridescent and Mythic-light passes
+  (waiting on FORGE-MATERIAL's spec), the skirt-flare term of C12f.
+
+### DOLL, envelope fix round, r1 (2026-10-28; D54-D65; exe r4a then the integrated r4 build in build-p2c-env4)
+
+- **T2 kit** (D55; `doll_resolve` `t2Kit(L)`: forgeKit, body T2, base TANNER): `pauldronOf` asks `capelet.2` first (else today's
+  shoulders, listed `pauldron capelet.2 (T2 kit, D55) -> today's shoulders`); `needsOf` puts `neck cowl` in the scarf's place
+  once drawn for the body (else the scarf, listed); the helm is a `role helm softcap` part where drawn, else the leather cap
+  (HEAD drew its T2 views as `when helm.t2,!helm.t3,!bow,forge-tanner replace` ahead of the old T2 views); flags `softcap`, `t2kit`.
+- **The watch at T3** (D57; `watchT3(L)`: Outfit::Guard, body T3, no forge kit): `ladderLook` sets the kettle (helmForm 2) at helm
+  T3, pauldron 3, the round shield (shieldForm 1) at shield T3 where he bears one, and the cape worn at cloak T3; `pauldronOf`
+  asks the cop at medium first. eg3 is `npc=heartland:guard:0:7,tier=3` (r3's `pauldron=4` retired).
+- **A3** (D58; trace): facing D the torso box (armour + motif) was already all Metal (50 px); the blue and tan came from (a) the
+  lamellar's `when sheen-dark,alloyshape replace` view existing for key `rest` only, so the idle (key `idle`), run and swing R
+  views show the old open front with the tunic (Cloth1 #28728C, its Leather belt) under it (BODY's map), (b) the scarf
+  (layer-scarf, Accent = trimColor #40679B: cloth, allowed), (c) the BIB's Accent cells. Code: the flag `brassbody` (a brass or
+  bronze everyday alloy: metalKind 10, alloyRank 0-1, alloyFamilyMetal 0-1, armoured) makes the compositor paint the torso
+  armour's and the chest motif's cloth and Accent cells in Metal (leather straps keep their leather, forge fix i1).
+- **C12f guard** (D57): `guardRule` (eg3 >= 1.20 of e1 and 1.10 of eg0 by C12f's measure, shoulders >= 20, the cape outside
+  every other pixel of its row on >= 6 rows each side above the legs facing D, >= 1 column behind facing R); constants
+  kGuardOverHeroT1 120, kGuardOverOwnTier 110, kGuardShoulders 20, kGuardCapeRowsD 6, kGuardCapeBackR 1 (doll_envelope.h);
+  printed `C12f guard eg3: ...`; the T2 head budget printed per line (`T2 head budget: N px now, M or less`). Selftests 10.
+- **C19 round 4** (D56, D58-D62): FORGE-MATERIAL's reference rows (`r4Obsidian`, `r4Mythic`, `r4Star`, `r4Glass`, `rimRun`,
+  `faceBox`, `starBands`, `litStat`) merged; A3's torso box term (`torsoMix`: Metal >= 50 %, Cloth1-3 + Linen + Accent <= 30 %,
+  idle D and R, noHeld); 13 new selftests, each a bad frame (C19 selftests 19). D56's scope is the `torsoPx` comment.
+- **D63**: doll_gallery `greyRows` (luma, every pixel, labels included, after everything is drawn) on every grey sheet
+  (shapeGrid's SM_GREY, the forge sheets' grey band) and `greyCheck` (prints `ok / FAIL: grey board <name>`; the run exits 1 on
+  any coloured pixel). owner_pack.py `--envelope` writes greys with `env_grey` and fails on any grey file with R != G != B.
+- **D64**: `applyLadderSpec` parses `kit=<people>:<tier>[m]:<seed>` strictly (`6m` = rarity mythic; `5m`, `6x`, `m`, `9`, or
+  `6m` with another rarity: an error naming the tag). `--doll-envelope` line `D64 kit tags` checks the two spellings' describeLook.
+- **D65**: script command `settle [max s] [gap s]` (script_p2c.cpp: the world drawn with the hero hidden every gap, until two
+  draws are identical, max at most; logs; never fails) after every `skill clearing` in p2c_envelope.txt and the new
+  p2c_envelope_phone.txt; p2c_envelope_seam.txt is the repro without `clearing`. Finding: the straight-edged block beside the
+  hero at seed 7 (-140, -432) is in the game itself (no clearing: at 0.8 s, after settle and at 6 s), so it is a terrain bug for
+  the owner, not a capture artefact; a living scene is never still, so `settle` shoots at its 3 s cap.
+- **Tools**: `rpg_test --doll-recipe <tag>[,..] [--map] [--looks f] [--pool f]` (needs, parts, flags, fallbacks, measures; --map the
+  idle D / R slot-and-step grid with the part under each pixel); `owner_pack.py --envelope`; doll_gallery's growth strip labels
+  T2 with its head pixels and budget (`E2 H160/229`).

@@ -28,6 +28,22 @@ else:
     p.write_text(s[:i] + body + s[j:], encoding='utf-8', newline='\n')
     print('embed_looks: %d looks embedded' % len(lines))
 
+# (P2c envelope, FORGE-DOLL) tools/doll/envelope_looks.txt as tools/tests/test_doll_envelope.cpp kEnvelopeLooks
+esrc = (ROOT / 'tools/doll/envelope_looks.txt').read_text(encoding='utf-8').splitlines()
+elines = [l for l in esrc if l.strip() and not l.startswith('#')]
+ebody = ("const char* kEnvelopeLooks =   // (P2c envelope) tools/doll/envelope_looks.txt (tools/doll/embed_looks.py writes it)\n"
+         + '\n'.join(cstr(l) for l in elines) + ';\n')
+ep = ROOT / 'tools/tests/test_doll_envelope.cpp'
+es = ep.read_text(encoding='utf-8')
+ei = es.index('const char* kEnvelopeLooks ='); ej = es.index(';\n', ei) + 2
+if '--check' in sys.argv:
+    eok = es[ei:ej] == ebody
+    print('embed_looks (envelope): ' + ('in step' if eok else 'STALE: run python tools/doll/embed_looks.py'))
+    if not eok: sys.exit(1)
+else:
+    ep.write_text(es[:ei] + ebody + es[ej:], encoding='utf-8', newline='\n')
+    print('embed_looks: %d envelope looks embedded' % len(elines))
+
 # (P2c forge, FORGE-DOLL) tools/doll/forge_looks.txt as tools/tests/test_doll_forge.cpp kForgeLooks (the gates' matrix adds
 # its tags that the ladder file lacks: test_doll_arms.cpp dollSliceLooksText)
 fsrc = (ROOT / 'tools/doll/forge_looks.txt').read_text(encoding='utf-8').splitlines()

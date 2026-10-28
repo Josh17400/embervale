@@ -31,6 +31,7 @@
 int dollShapeGates(bool report, std::vector<std::string>& printed, const std::vector<std::pair<std::string, art::HumanLook>>& forgeLooks);
 int forgeShapeData(int w0, int w1, int s0, int s1, bool report, bool selftest, std::vector<std::string>& printed);
 int forgeSilhouettes(int w0, int w1, bool report, bool selftest, std::vector<std::string>& printed);
+int dollHeadGates(bool report, bool selftest, std::vector<std::string>& printed);   // test_doll_envelope.cpp: C16k
 
 namespace dollforge {
 
@@ -102,8 +103,7 @@ const char* kForgeLooks =   // (P2c forge) tools/doll/forge_looks.txt (tools/dol
     "g_cov2w  woman  kit=imperial:4:1,alloy=2,palette=look,shieldForm=9,weapon=0,shape=arm:heavy+layer:sash  stay,walk,run,didle,hit1,hurt,fall,"
     "lying\n"
     "g_cov3w  woman  kit=imperial:4:1,alloy=1,palette=look,shape=skirt:strips  stay,walk,run,didle,hit1,hurt,fall,lying\n"
-    "g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard  stay,walk,run,didle,hit1,hurt,fall,"
-    "lying\n"
+    "g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard  stay,walk,run,didle,hit1,hurt,fall,lying\n"
     "g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell  stay,walk,run,didle,hit1,hurt,fall,lying\n";
 std::string dollForgeLooksTextLocal() { return kForgeLooks; }
 
@@ -382,6 +382,8 @@ int forgeCmd(int argc, char** argv) {
   {
     std::vector<std::string> printed;
     fails += forgeShapeData(w0, w1, std::min(s0, 64), std::min(s1, 64), g_report, selftest, printed);
+    // (P2c envelope, contracts 3d) C16k: a head each (the owner's 37 apart, every culture's alloys apart, the stability test)
+    fails += dollHeadGates(g_report, true, printed);
     for (const std::string& l : printed) std::printf("%s\n", l.c_str());
   }
   if (selftest) {
@@ -680,7 +682,20 @@ std::string c17Look(const GLook& g, int facing, bool* sheenChecked = nullptr) {
   switch (g.L.sheen) {
     case 1: if (maxRun4 > 1) a = "matte: a step-4 run over 1 px"; break;
     case 2: if (maxRun4 < 2) a = "bright: no step-4 run of 2 px"; break;
-    case 3: if (l2 > 90.0 || lumaOf(M[4]) < 196.0) a = "dark: step 2 over 90 luma or no near-white glint"; break;
+    case 3: {
+      // (P2c envelope, C17 restated: D52) on bronze and brass the dark sheen reads ANTIQUE: black recesses (step 1 at 45 or
+      // less), the body at luma 95-125, a hard lit plane (step 3 at 175 or more), a glint; the cold metals keep the blackened body
+      const int fam = g.L.alloyFam ? g.L.alloyFam - 1 : doll::alloyFamilyOf(g.L.armourTint, g.L.sheen);
+      const int mw = doll::alloyFamilyMetal(fam);
+      if (g.L.armourTint && (mw == 0 || mw == 1)) {
+        static std::string why;
+        if (l2 < 95.0 || l2 > 125.0 || l1 > 45.0 || l3 < 175.0 || lumaOf(M[4]) < 196.0) {
+          why = fmt("dark (antique, D52): step 1 %.0f (45), step 2 %.0f (95-125), step 3 %.0f (175), glint %.0f (196)", l1, l2, l3, lumaOf(M[4]));
+          a = why.c_str();
+        }
+      } else if (l2 > 90.0 || lumaOf(M[4]) < 196.0) a = "dark: step 2 over 90 luma or no near-white glint";
+      break;
+    }
     case 6: if (top >= 4 && glow < 6) a = "glowing: under 6 lit glow pixels from T4"; break;
     case 7: if (l2 < 150.0) a = "pale: step 2 under 150 luma"; break;
     case 5: if (m2rows.size() < 2) a = "iridescent: under 2 rows of the second hue"; break;

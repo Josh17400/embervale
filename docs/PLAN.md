@@ -1828,6 +1828,25 @@ silhouettes", decisions D35-D41, "The forge slice" round 2 (five areas, first li
 judge's focus and the risks. Art direction: docs/STYLE_P2.md 28 (restated); data: docs/P2C_CONTRACTS.md 3c (restated).
 The C16 edge-structure term is retired: it rewarded 1 px texture, and the art bent to it (the checker).
 
+**Re-planned again on 2026-10-27 (the size lock and the tier envelope).** The owner, on the character size study
+(%TEMP%\claude\emb_P2c\size\CHARACTER_SIZE.md) and its one-day fair test of 40 px people drawn in A3's own proportions
+beside the same three figures at 32 px under the envelope (%TEMP%\claude\emb_P2c\size\fair\owner; the 32 px figures and the
+owner's sheets are copied to docs/ref/envelope): "32 to me personally feels and looks the best". With it stand the owner's
+answers to the study: no compression; always a different helmet; starting armour simple and not bulky, better armour more
+detailed, more dynamic and bulkier; every alloy and material its own style; late gear animated; and the existing armour
+(much of it "really cool") built on, never dropped. What changed: "The envelope" (new: the 32 px lock, the tier envelope as
+data the gates read, a helm per tier and a head per alloy, T5-T6 motion, budgets, phones at NEAR, no compression, the drawn
+armour kept, and the review sheet's eight A defects, each with the look it must have and its check), "The envelope update"
+(new: wave 1d, seven areas, first light, the gate and the judge's protocol), gates C12f, C16k and C19 (new) and the restated
+B10, B11 wear (W8), C3b, C8, C12c, C13, C16n and C17, the constants, decisions D42-D53, the waves, the judge's focus and the
+risks. Art direction: docs/STYLE_P2.md 29 (4, 25.4, 25.6, 27.7, 27.8 and 28.7 restated); data: docs/P2C_CONTRACTS.md 3d.
+The review sheet's B taste calls (%TEMP%\claude\emb_P2c\review\review.md, section B) and the loot and rarity rules wait for
+the owner: nothing here redesigns them beyond what the envelope, an A fix or the helmet ruling needs ("The envelope" lists
+every touch). Revised after the envelope judge's round 3 (2026-10-27): D54-D65 and "The envelope fix round" (T1
+bareheaded as in the fair test; T2 a soft cap over a short hooded mantle; eg3's target and its measure's reference; C19's
+torso scope recorded; A3-A7's looks and their pixel proofs; true greyscale boards; the `6m` kit tag; the capture seam).
+Nothing else in the plan changed.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -2124,6 +2143,189 @@ below the masterwork, and kings the masterwork (D29), so every kingdom's officer
 | collars cover the torso's cuts | collars 2 rows or less below the neck line, never over the motif | C3f (collar rows); C16m's torso box |
 | sword, shield and boots the same on every alloy | the shield's field tinted toward the alloy and its rim and boss in it; the boots' cops, greaves and toes in it; the boards' kits carry the people's weapon forged of the alloy (D39) | the `alloys1x` board; the judge |
 
+### The envelope: 32 px people, gear that grows (re-plan 2026-10-27)
+
+The size study weighed four ways to make room for bulkier, more detailed top gear: only the hero bigger, everyone at 40
+or 48 px, the camera one step closer on phones, or the 32 px body kept while better armour grows past it. The fair test
+drew A3's hero at T1 and T6 and the T3 guard at 40 px in A3's own proportions, beside the same three at 32 px under this
+envelope; the owner picked 32. This part locks that choice and the study's section 7 (its agreed plan). How it looks:
+docs/STYLE_P2.md 29. The data: docs/P2C_CONTRACTS.md 3d. The areas, the gate and the judge's protocol: "The envelope
+update" below.
+
+**The owner's rulings (binding):**
+1. People stay 32 px: the man 32, the woman 31, the youth 26, the child 21, elves + 1. Never scale only the player: no
+   hero body, no stretch rows, no 40 or 48 px set. The body, its head box (16 x 14), the anchors, the clips and every walk
+   and run number are unchanged, so B1 (16 / 0 at 0 px) and B2 (288 / 0) hold.
+2. Starting armour is simple and not bulky; better armour is more detailed, more dynamic and bulkier: the tier envelope.
+3. Every alloy always gets its own helmet, and every tier of a gear line its own helm family.
+4. No compression; the pool budget is about 2.5 MiB.
+5. A lot of the existing armour is really cool: build on it. No drawn map or view is deleted or dropped.
+6. The rags-to-riches ladder holds, late gear is animated, and every material and alloy keeps its own style (D24-D41).
+
+**How it should feel.** On a phone at the new first-launch zoom (NEAR), the hero leaves home a slim figure whose outline is
+the body's own: bareheaded, a quilted coat, nothing past the shoulders, plain but whole (the fair test's T1, D54). Each
+upgrade visibly takes more room: a soft cap and a short mantle with its hood thrown back (D55); then a soldier's plates and
+a short cape; then an officer's broad shoulders, a standing crest and a cloak; then a champion's great pauldrons, a long
+cloak whose edges show beside the legs and a plume that sways a beat
+behind the step; and at the top a legend nearly twice the area of the boy who left home, under a winged helm with a tall
+fin, the cloak stirring as he stands, the runes breathing. Every step is a new helm. Beside a king the T6 hero is plainly
+the bigger legend. Under all of it is the same 32 px body, walking and fighting exactly as the owner approved. Rich means
+big shapes, clear light and quiet movement; hair-thin lines blur at 1x and are never the richness.
+
+**The tier envelope** (the study's 7.1; a man facing D; the woman has the same widths one row lower, her crown at F-30).
+The numbers are data (`art::doll::kEnvelope`, contracts 3d): every gate that uses one reads it, and `rpg_test --envelope`
+prints the table for the judge to compare with this one. Caps hold on every look; the ladder lines must also meet the
+area ladder.
+
+| tier | shoulders across (body's tier) | head: rows above the crown (helm's tier) | head: columns past the 16 px head box | cloak (cloak's tier) | area vs the line's T1 |
+|---|---|---|---|---|---|
+| T1 | 16: no pauldrons | 2: the cap for any T1 hood or soft cap; the hero lines' T1 is bareheaded (D54) | 0 (a drawn brim 1: the kettle) | none | 1.00 |
+| T2 | 18 or less (the hero lines: the short hooded mantle, D55) | 3 (F-34): a soft cap; a drawn crest or plume to F-37, as today | 0 (a drawn brim 1) | none | 1.10 or more (the hero lines aim at 1.12-1.15, D55) |
+| T3 | 20 or less | 4 (F-35); a drawn crest or plume to F-37, as today | 1 | the people's cape: beside the arms and the coat facing D, never beside the legs (D57) | 1.20 or more |
+| T4 | 22 or less | 6 (F-37) | 1 | a cape or the travel cloak | 1.35 or more |
+| T5 | 26 or less | 8 (F-39) | 2 | the long cloak: 2 px past each leg facing D, 6-8 px behind facing R / L | 1.55 or more |
+| T6 | 28 or less | 10 (F-41) | 2 | as T5, and it stirs 2 px | 1.70 or more |
+
+- Horns, wings, the kabuto's flare, the war hat's brim, the morion's points and the sallet's tail may reach 3 columns past
+  the head box at any tier where they are drawn (as today; a drawing past that is redrawn to it, never the cap moved).
+- Each tier's area is the tier below's + 0.05 or more (of T1's), so T6 can never again be smaller than T5 (today, the
+  hero's front walk frame 0 with weapon and shield: T1 463 px, T3 539 (1.16), T5 674 (1.46), T6 649 (1.40)). The fair
+  test's T6 drawn under the envelope measured 1.88-1.90 (28 x 41 px, 918 px) and its T3 guard 1.20-1.21 (25 x 35).
+- T1 stays inside the bare body's outline + 1 px facing D and R (the quilting's bulge, a rolled hem), and the hero lines'
+  T1 is bareheaded (D54; another T1 look's hood or soft cap stays inside the hair's 2-row rise): the starter is never bulky.
+- T5-T6 skirts may flare 1 px more past the hips; HEAVY vambraces stay 1 px proud; the face rules of STYLE_P2 28.2 stand.
+- Measured (C12f): area = the figure's opaque pixels without the weapon, shield, sheath and back items (ComposeOpts::noHeld)
+  on the walk's frame 0 facing D and the idle facing R, each line against its own T1 (the hero against the hero, the
+  heroine against the heroine). Shoulders = 16 + the near and far pauldrons' reach past the shoulder line facing D. Head =
+  every pixel of the helm layer (shell, crest, plume, horns, wings) measured from the head anchor, so the bob never counts.
+- The resolver keeps every look inside its caps: the pauldron size by the body's tier (T2 small, T3 medium, T4 large, T5
+  great, T6 legend), the crest regions by the helm's tier, the cloak by the cloak's tier. A drawing past a lower tier's cap
+  is kept and serves the tiers whose cap fits it (D49).
+
+**Helmets** (the ruling "always a different helmet"; D44, D51):
+- **Every tier of a gear line wears its own helm family.** The Heartland hero's road (the artists choose inside the rule):
+  T1 bareheaded (D54: the fair test's T1), T2 TANNER'S soft cap over the short hooded mantle (D55), T3 the nasal helm
+  with its knife comb (ARMOURER'S), T4 the Heartland alloy's family (its pinned s7 key), T5 a plumed great helm or armet
+  with a gilt rim (PARADE's T5 helm), T6 a winged or crowned helm with a tall fin and a glowing brow rune or eye slit
+  (docs/ref/envelope's T6: the winged helm, open on the face), the Mythic the T6 helm in black steel, gold and fire (D60),
+  its flame crown on a dark brow band. Measured: consecutive tiers' heads 0.10 head OD or more apart (C16o's head masks;
+  planned, set by eye in round 1), and from T3 to T6 each tier's head area 5 % or more over the tier below (T3's over
+  T2's included: T2's soft cap stays inside T3's head area / 1.05, D55).
+- **Every alloy its own head**: its helm family (the shape table, D36) plus a **variant** and a **crest** (details). The head
+  key is (family, variant, crest). No two of the owner's 37 board alloys share one, and no two alloys of one culture (hard:
+  C16k); the board set and each world window report their repeats, never between neighbouring schools. Each people keeps
+  its own menu (STYLE_P2 28.5).
+- **A variant follows the alloy, never another axis** (D51). The fix round keyed the war hat's variants on the body's mass,
+  so the re-solve swapped Papiron's and Jaonbrass's hats (the review's A2-A3 note). Now the owner's 37 keep their helm
+  families as shipped at df2a155 (pinned in the solve, as the hero's s7 kit is) and take their variants and crests from a
+  board table; every other alloy takes its variant from its own people, rank and name. Papiron wears the great kasa (its
+  people's reed hat), Jaonbrass the gat, Cranesilver the jingasa.
+- C16k's "a head each" parts the review's head look-alikes on the owner's board (B9-B15: Grebrass and Slauriron,
+  Cranesilver and Jaonbrass, Gwesteel and Vensteel, Uhabrass and Thaerglass, Kisteel and Dragonsteel, the spiky-crown trio,
+  the shape lens's pairs) by a variant or a crest only: their families, bodies and colours stay, and the owner's B answers can still re-pick them.
+- STYLE_P2 27.8 is restated: "no new helm shape for a tier" no longer applies to helms; "no new torso" holds for the body
+  only; the gear's outline grows by tier inside the envelope.
+
+**Movement at T5-T6** (the "dynamic" of the ruling; D45):
+- T5: the gem breathes (STYLE_P2 27.7); the long cloak's hem stirs 1 px on the idle's breathe frame and on the walk's
+  passing frames; the plume sways a pixel behind the walk's bob.
+- T6: as T5, the hem stirs 2 px; the runes breathe, the edge sweep runs and the motes rise (contracts 6b as built).
+- Measured (C13 restated): the light caps stand as built (contracts 6b, polish i3: 128 sprite-bright and 320 soft-light
+  pixels a figure-frame; the C13 row's "32 animated pixels" and the study's "32 to 48" predate polish i1 and were stale);
+  the drawn motion (pixels that differ between a frame and its `breeze` view) is 8-32 a figure-frame at T5 and 16-48 at T6
+  on looks with a cloak or a plume, so the stir shows and stays quiet; nothing blinks or strobes (light 0.25 or less per
+  1/60 s; nothing toggles faster than 2 Hz).
+
+**Budgets** (no compression; D46):
+- The pool gate is 2.5 MiB (2,621,440 B). pxc.mjs prints the real budget (it still says "1.0 MB").
+- B10 by tier (the figure's highest piece): T1-T3 and untiered looks LOCO 128 / RUN 64 / DRAWN 256 / ACTION 512 / DEATH 52
+  / POSTURE 64 KB; T4 160 / 80 / 320 (D19's old numbers), with ACTION 512, DEATH 52, POSTURE 64; T5-T6 200 / 100 / 400, and
+  ACTION, DEATH and POSTURE set at the first measured T6 look (e6) x 1.1, never above 1.4 x the T1-T3 values (716, 72 and 89
+  KB), recorded in kEnvelope. The per-item allowances add on top as today (a crest or plume RUN + 4, a polearm LOCO + 8, RUN
+  + 14, DEATH + 4).
+- The rig-2 atlas cache stays 16 MB (render.cpp) unless the capital sweep at 15:00 evicts an on-screen look; then 20 MB,
+  still inside C8's 24 MB people budget.
+- embervale.wasm within P2c's start + 2.0 MB (D27's figure), measured at the flip.
+
+**Phones start at NEAR** (the study's (c); D47): on a phone (a touch-first screen whose short side is under 500 logical
+px: CSS px on the web, points in an iOS build), a first launch (no settings file) takes ZOOM NEAR (Settings::zoom + 1).
+Desktop, iPad, Witness and scripts keep NORMAL; a saved choice is kept as today; D0 and the P2a table do not change, so L1-L5
+hold. The iPhone 15 Pro app window (2556 x 1179) draws at D 6 (426 x 197 world px, 26.6 x 12.3 tiles; a man 192 device px,
+16.3 % of the height); Safari's 2556 x 1020 at D 5; the iPhone 11 (1792 x 828) and SE (1334 x 750) at D 4; desktop 1440 x
+810 stays at D 3.
+
+**No compression** (D48): the pool stays the RLE planes it is, with byte-identical planes stored once (pxc's lossless plane
+sharing since df2a155; no pixel changes). No deflate, LZ or zstd pass on the pool or the binary, no palette or pixel
+reduction, and no view, key, frame or size dropped to save bytes. Going over 2.5 MiB is the owner's question, never a quiet
+art cut: the round-2 constants' "over it, in order" fallbacks are retired.
+
+**Keep the existing armour** (D49): every drawn map, view and size stays in the tree and keeps its meaning. Growth ADDs:
+pauldron sizes 5 (great) and 6 (legend) beside 2-4, `when <slot>.t5` / `.t6` views for the bigger helms and the skirt's
+flare, the long cloak's `when cloak.t5` views, `breeze` views and `variant-<n>` re-keys. A drawing too big for a lower
+tier's cap serves the tiers whose cap fits it. The A fixes repaint their own views in place. The forge tiles retired on
+alloys in round 2 stay as files. The approved figures (the six hero styles, the first-light alloys, the ladder's T1-T4, the
+fix round's helm variants) are where every bigger piece starts.
+
+**The A defects** (the owner review sheet's section A, %TEMP%\claude\emb_P2c\review\review.md; fixed in this update: D50).
+Each look is measured on the composed idle D, the idle R and the walk's frame 1 facing R at 1x (noHeld unless named) in its
+envelope or forge look, then read blind by three `eyes` lenses (metal, style, naive) at 1x shown at 3x on grass, in colour.
+"Gear pixels" are the figure's pixels outside skin, hair, eyes, the face and the step-0 outline; "metal" is Metal and Metal
+2. Thresholds marked planned are set by eye in round 1 on the approved hero styles and recorded; the art is never bent to a
+number.
+
+| item | what it must look like | the check (gate C19's row; then the blind read) | lead (with) |
+|---|---|---|---|
+| A1 UHABRASS (Jade seed 2, the everyday brass, dark sheen) | a Jade brass officer: brass on the helm, on the shoulders or the skirt's lames, and on the arms; antique brass (black recesses, a hard gold lit plane on every piece), never a brown coat; its cloth over-layer a quarter of the gear at most; no mantle "sack" behind in the side views; its body no longer Jaonbrass's | metal 35 % or more of the gear pixels on each frame (planned); steps 3-4 22 % or more of the metal (planned); a lit plane of 4 px or more on the helm, on the torso or skirt and on each shoulder present; C17's warm term (the lit plane 15 degrees or more toward gold, steps 2-3 outside the skin box); D52's antique rule (step 2 at luma 95-125, step 1 at 45 or less, step 3 at 175 or more); over-layer, mantle and pelt 25 % or less of the gear pixels; facing R / L nothing but a masterwork's cape more than 3 px behind the torso's back line; body OD to JAONBRASS 0.08 or more. Blind: all three lenses name metal (brass, gold or bronze); none says leather, cloth, felt, robe or fur | FORGE-DOLL (ramp, table, details) with FORGE-HEAD, FORGE-MANTLE, FORGE-TORSO |
+| A2 JAONBRASS (Jade seed 5, the everyday brass) | as A1; its hat lacquered brass (a lit gold top plane, a dark underside, a glint), never straw; it wears the gat and Papiron the great kasa (the swap undone, D51) | A1's checks; the helm 6 px or more of steps 3-4 on its top-left; head keys as the board table (`heads:owner37`); head OD to PAPIRON and to CRANESILVER 0.15 or more. Blind as A1 | FORGE-DOLL with FORGE-HEAD |
+| A3 ENKHOBRASS (Steppe seed 1, the everyday brass, dark sheen) | a steppe brass rider: the helm brass (a lit gold dome, a near-white glint, a dark band below), never a brown felt cowboy hat; arms plated or sleeved (bare only beside a shoulder mass); its fur and half-cape never the main read | A1's checks; the helm as A2's; fur, pelt and cloth 25 % or less of the gear pixels. Blind as A1 | FORGE-DOLL with FORGE-HEAD, FORGE-MANTLE |
+| A4 OBSIDIAN (KNAPPED: fm_obsid, f5_obsid, every obsidian piece) | black volcanic glass: near-black violet facets of 3-4 px, each lit top-left with a hard edge; 2-4 hard speculars of 2-3 px on facet edges; a cold rim at the lit step along the lower-right inside edge of the big facets (light through glass, D53); the mask's face plate one dark glass plane with its lit edge and two eye holes; no 1 px streak anywhere | in the head box 2 or fewer 1 px features (C16n's, glints counted) and no step-4 pixel on the eye row +-1 but one glint; C16n 3 % or less on the body; 2-4 step-4 groups of 2-6 px each, one or more off the helm; 3 px or more of step 3 along the torso's lower-right inside edge (2 or more on each shoulder and the helm) with steps 0-2 between it and the lit plane; C17 dark and glass (body median 50 or less, lit hue 200-290). Blind: two of three name glass, obsidian or crystal; none lacquer, cloth, grey iron or noise | FORGE-MATERIAL (with FORGE-DOLL's glass pass, FORGE-TORSO's facets, FORGE-HEAD's mask) |
+| A5 MYTHIC (fm_myth, e6m, every Mythic) | the line's T6 tempered, never a step sideways: its T6 helm family (never a plain dome) in blackened steel with ember-lit edges and gold, the flame crown on a dark brow band, the face open and clean in every facing, the shield's device clean with fire only on its rim; richer than T6 because its light is fire | with the living finish at its peak (the view's lit frames: rim, crown, tongues, embers): no flame, rim, glow, ember or speck pixel in W7's face box + 1 px in D, R, L and the walk R; C16n 3 % or less on helm, torso and shield with the light included; 0 lone glow pixels; area at its line's T6 or more and head area at T6's or more; the helm's luma range (p90 - p10) 70 or more; colours and lit pixels (luma 170 or more, or Glow) at T6's or more. Blind: beside its T6, unlabelled, all three pick the Mythic as the higher rung; none says darker, duller or muddier | FORGE-MATERIAL (with FORGE-DOLL's finish light and speck rules, FORGE-HEAD's helm and shield) |
+| A6 STARMETAL (STARFALL: fm_star, f5_star; the hero's T6 line wears it) | cut crystal and starlight: the CRYSTAL helm in two lit planes with a 2 px dark visor band under a lit rim, and its cheek wings; narrow ribs with dark gaps; the SPLIT skirt's narrow panels; iridescent bands (Metal and Metal 2 alternating in 2-3 px bands, the lit plane turned 40 degrees or more); a dark core, never a pale ghost or bucket | C17's iridescent term on starmetal (two hue groups 40 degrees or more apart, each 20 % or more of the metal, in bands 2 px tall or more); the metal's luma p90 - p10 60 or more; step 1 at 45 % of step 3's luma or less; C16m 40 or more in the torso box; C17's visor on the CRYSTAL helm and two lit planes of 4 px or more on it. Blind: two of three name crystal, starmetal or iridescent; none ghost, bucket, snowman or flat | FORGE-MATERIAL (with FORGE-DOLL's ramp and bands, FORGE-HEAD's helm, FORGE-TORSO's ribs, FORGE-LIMBS' skirt) |
+| A7 THAERGLASS (Sylvan seed 1 masterwork, glowing; every GLASS alloy) | green glass grown round river silver: a jewel-dark body lit twice (the top-left lit plane and a thin rim at the lit step along the lower-right inside edge of each convex piece, D53), 2-4 hard speculars; its glowing seams lit (steady from T4, breathing at T5); the winged helm's wings glass blades lit on both edges, never a teal felt cap | the glass tell on the helm, the torso and each shoulder (3 px or more of step 3 on the lower-right inside edge, a step 1-2 core between it and the lit plane); 2-4 speculars of 2-6 px; C17's glow 8 px or more on seams (T4); at T5 12 px or more of soft light at the breath's peak. Blind: two of three name glass or crystal; none felt, cloth or plain teal | FORGE-MATERIAL (with FORGE-DOLL's glass pass and ramp, FORGE-HEAD's wings) |
+| A8 glint noise on heavy plate (THORNSTEEL, ILSILVER, the T6 lines, the SPLIT skirt) | highlights as clean planes (2 x 2 or more) and short hard glints (1-2 px at a plate's corner or ridge, 3 a figure at most) in every facing and frame, the side and walk frames most | C16n (1 px features 3 % or less of the gear pixels) on every LOCO and RUN frame (idle, walk, run; D U R L) of the forge, ladder and envelope looks and the board's plate alloys, not only the idles; 3 or fewer step-4 groups a figure-frame; no lone 1 px run of step 3-4 on a plate piece outside them. The judge at 8x on R and walk | FORGE-MATERIAL (with FORGE-DOLL's glint pass, FORGE-LIMBS' skirt_split and hangs, FORGE-TORSO's plates) |
+
+- **Round 4 restates five rows** (the round-3 judge and the packager; D56-D62; every threshold above stands and the rows
+  only add): the torso terms of A4 and A7 count the armour and chest motif parts on the frame without held items (D56, the
+  round-3 scope); A3's torso is brass lamellar, its torso box 50 % or more brass and 30 % or less cloth (D58); A4's rim is
+  one run of 3 px or more and the mask's lower face stays dark facing R / L (D59); A5 is black, gold and fire, its lit
+  pixels plus Glow 1.15 or more of its T6's, its mean luma 0.90 or more of its T6's, warm light 15 % or more of the gear
+  and the helm's range 100 or more (D60); A6 shows 3 or more alternating bands on the torso, 20 % or more of its metal at
+  steps 0-1 and both ramps at chroma 28 or more (D61); A7 proves glass by its pixels: 55 % or more at steps 0-2, the rim
+  one run of 3 px or more on the helm, the torso and each shoulder, step 3's luma 80 or more over step 2's, no pale patch
+  of 12 px or more and the wings straight blades lit on both edges (D62).
+- The A2 swap fix and B1: undoing the swap gives Papiron the great kasa and moves the gat (B1's "Victorian top hat") to
+  Jaonbrass. B1 is the owner's call; if the owner rejects the gat, Jaonbrass takes the base jingasa and C16k re-checks the 37.
+- The other B items are touched only by the envelope or an A fix: B7 and B12 (the Mythic and Thaerglass change by A5 and
+  A7; Gilded's helm and Uhabrass's helm family do not), B19 (only Uhabrass's and Jaonbrass's bodies part, by A1), the head
+  look-alikes by C16k's variant or crest (above), and every T5 masterwork grows by the envelope. The fix video's "?" label
+  (Heartland seed 1, alloy 3) is a FORGE-DOLL depth item.
+- **Loot and rarity rules are untouched** (the owner's answers are pending): lookTier's band x rarity table, the floors, the
+  shop caps, the drop rolls and attunement stay; the envelope dresses whatever tier the rules give.
+
+**In and out (this update)**:
+- IN: the envelope on every T1-T6 piece (hero styles, culture alloys, census ranks); pauldron sizes 5 and 6 for every shape a
+  T5-T6 look reaches; a helm per tier on the hero lines and a head per alloy on the owner's 37; the T5-T6 long cloak, skirt
+  flare, stir and sway; the eight A fixes; the restated gates and budgets; phones at NEAR; the doorway draw order (depth).
+- OUT: a bigger body (40 or 48 px) or any figure scaled alone; new torso outlines; new colour slots or a B8 change (48 + 3
+  glow stands); weapon styles (D34); loot, rarity, pacing and balance; the B taste calls beyond the listed touches; rig 1
+  (frozen until the flip); compression.
+
+**Constants (the envelope's arithmetic)**:
+
+| constant | value | arithmetic |
+|---|---|---|
+| the body and the canvas | man 32, woman 31; head box 16 x 14; canvas 160 x 136, pivot (80, 104) | a T6 head at F-41 tops at canvas row 63; a 28 px T6 with its cloak 8 px behind and a shield stays under 50 px wide: every tier fits the canvas |
+| shoulders | sizes 2 / 3 / 4 / 5 / 6 reach 1 / 2 / 3 / 5 / 6 px past the 16 px shoulder line each side: 18 / 20 / 22 / 26 / 28 across (T2-T6) | each mass keeps its character at every size (BROAD flat, TALL upswept, DROP hanging, ROUND a disc, MANTLE soft); each size's area within 10 % of the plate family's (C12c) |
+| head | rows 2 / 3 / 4 / 6 / 8 / 10 above the crown: F-33 .. F-41 (man), F-32 .. F-40 (woman) | T4's 6 rows are today's F-37 crest cap and T2-T3 keep today's drawn crests to F-37, so nothing drawn today breaks; T5-T6 add 2 and 4 rows |
+| area ladder | 1.00 / 1.10 / 1.20 / 1.35 / 1.55 / 1.70 of the line's T1 (noHeld) | today's hero T1 is about 420 px without weapon and shield (463 with them; FORGE-DOLL records it in wave A), so a T6 needs about 715 px or more; the fair test's T6 (shoulders 28, the head 9 rows up, the long cloak) reached 1.88 with its shield |
+| top atlases | T5-T6 LOCO 200, RUN 100, DRAWN 400 KB | today's T5-T6 within D19's 160 / 80 / 320; + 4-6 shoulder columns (+ 18-27 % facing D and U), + 2-4 head rows (+ 5-10 %), the cloak 6-8 px behind (+ 15-20 % facing R and L): LOCO about 128 x 1.36 x 1.10 = 192 KB with a shield, RUN about 96, DRAWN about 384 |
+| pool | 2.5 MiB (2,621,440 B) | 1,383,460 B at df2a155 (697 parts, 17,076 views; 573 KB pixels, 810 KB records). The envelope adds pauldron sizes 5-6 (about 20 shapes x 2 sides x 12 views x 2 sizes = 960 views, about 0.10 MB), T5-T6 helm views and the 37's variants (about 0.05), the long cloak and breeze views (about 0.04), skirt flares (about 0.03) and the A stamps (0.01): about 1.6 MB; production adds about 0.5 MB: about 2.1 MB, 0.4 MB under the gate |
+| people textures | 24 MB in the capital at 15:00 (C8); the rig-2 cache 16 MB | P2c's estimate 19.4 MB + a capital's few T5-T6 looks under the envelope (6 x about 0.3 MB more = 1.8 MB): about 21.2 MB |
+| phone zoom | NEAR = D0 + 1 on a phone's first launch | 2556 x 1179: D0 = (1179 + 120) / 240 = 5, NEAR 6: 426 x 197 world px; a man 32 x 6 = 192 device px (16.3 %), a T6 with its fin (41 rows) 246 device px; an art pixel 0.33 mm |
+| doors | one-tile doorways 16 px; T6 shoulders 28 px | a T6 overhangs a jamb by up to 6 px a side: the jamb draws over the pauldron and cloak in a doorway (depth) |
+| motion | drawn motion T5 8-32, T6 16-48 px a figure-frame; light 128 bright / 320 soft (as built) | a 12-16 px hem swinging 2 px changes about 24-32 px; a plume's sway 6-10 px: 48 at T6 |
+| aggro at NEAR | the view's half-height 98 px on the phone | foes notice at 100-130 px and archers shoot from 150: more aggro starts off-screen than at NORMAL (118); the danger pips already mark it |
+
 ### In and out
 
 **IN**
@@ -2404,6 +2606,50 @@ form9 means no shield.
 - **B10**: capes only on masterworks (T5 and up: D19's atlases); a bell skirt and a cape never together; side views
   widen 2 columns or less (horns, wings, a sallet's tail, a kabuto's flare).
 
+**Restated by the envelope (2026-10-27)** (the numbers live in kEnvelope, contracts 3d; the table is in "The envelope"):
+- **B10** by tier: the figure's highest piece picks the row (T1-T3 and untiered 128 / 64 / 256 / 512 / 52 / 64 KB; T4 160 /
+  80 / 320 / 512 / 52 / 64; T5-T6 200 / 100 / 400, and ACTION, DEATH and POSTURE measured on e6 x 1.1, at most 716 / 72 /
+  89); the per-item allowances add on top (a crest or plume RUN + 4, a polearm LOCO + 8, RUN + 14, DEATH + 4). It restates
+  D19's row. The three ladder RUN failures at df2a155 (77.2-77.6 KB) are T4 looks: they are re-measured under T4's row; any
+  look still over is fixed in its art or atlas.
+- **B11 wear W8**: a cloak's back may pass the body's box by 2 columns (T1-T4 and untiered, as ladder i2) or by 8 (T5-T6,
+  the long cloak); its front by 1; never a row.
+- **C3b** by the helm's tier: the shell within kEnvelope's columns of the head box (T1-T2 0, a drawn brim 1; T3-T4 1; T5-T6
+  2); horns, wings, the kabuto's flare, the war hat's brim, the morion's points and the sallet's tail within 3; every
+  helm-layer pixel (the plume slot too) within kEnvelope's rows above the crown (T1 2, T2 3, T3 4, T4 6, T5 8, T6 10; a
+  drawn crest or plume at T2-T3 to 6, today's F-37); untiered looks keep today's F-35 and F-37.
+- **C8**: the pool 2.5 MiB (2,621,440 B; D46); the atlases by tier (B10); people 24 MB or less in the capital at 15:00;
+  embervale.wasm within P2c's start + 2.0 MB.
+- **C12c**: on the envelope's lines C12f's strict rise replaces "never shrinks by more than 2 %"; elsewhere C12c stands,
+  with "T6 at T5's area or more" added.
+- **C12f** (new, the envelope): on every look, the shoulders (16 + the pauldrons' reach both sides, facing D), the head
+  (rows and columns as C3b), the cloak (facing D 2 px or less past each leg; facing R / L kEnvelope's back columns or
+  less) and the skirt's flare inside the pieces' tiers' caps; T1 inside the bare body's outline + 1 px facing D and R (the
+  hood inside the hair's 2-row rise); on each ladder line (this update: e1-e6 and e6m, e1w-e6w; production: every people's
+  kit, source L, seeds 1..3) the area (noHeld; the walk's frame 0 facing D and the idle facing R) at kEnvelope's ratio of
+  the line's T1 or more, each tier 0.05 or more over the tier below, the Mythic at its T6's or more; from T3 to T6 each
+  head's area 5 % or more over the tier below, and consecutive heads 0.10 head OD apart (planned; set by eye in round 1 and
+  recorded). Selftests: today's e6 (smaller than e5) FAILs; a T2 with large pauldrons FAILs; a T5 cloak 10 px behind
+  FAILs. `rpg_test --doll-envelope [--looks F] [--report] [--selftest]`; a line in `--doll --gates`.
+- **C13**: the light as built (contracts 6b: 128 sprite-bright and 320 soft-light pixels a figure-frame; this table's "32
+  animated pixels" was stale); drawn motion (pixels differing between a frame and its breeze view) 8-32 at T5 and 16-48 at
+  T6 on looks with a cloak or a plume, the cloak's hem stirring 1 px at T5 and 2 px at T6; nothing toggles faster than 2 Hz.
+- **C16k** (new, heads): the head keys (family, variant, crest; contracts 3d) of the owner's 37 pairwise different, and their
+  heads 0.10 head OD or more apart at 1x in greyscale (planned; set by eye in round 1); every culture's alloys' head keys
+  different (seeds 1..64 at the data level); the board set and each world window (worlds 1..6) list their repeated head
+  keys, never between neighbouring schools. Selftests: two of the 37 forced to one key FAIL; the stability test (the table
+  re-solved with one owner's alloy moved to another mass keeps every owner's head key) FAILs a variant keyed on the mass.
+  In `rpg_test --doll-forge`.
+- **C16n**: on every LOCO and RUN frame (idle, walk, run; D U R L) of the forge, ladder and envelope looks and the board's
+  plate alloys (A8), not only the idles.
+- **C17**: the dark term reads D52's antique rule on bronze and brass; starmetal takes the iridescent term (A6); KNAPPED and
+  GLASS alloys take the glass tell (D53).
+- **C19** (new, the A-defect reads): the eight rows of "The envelope"'s A table on their looks (tools/doll/envelope_looks.txt),
+  each with a selftest: a chocolate brass ramp on a mass-less tabarded body FAILs A1-A3; a mask face plate with 1 px streaks
+  FAILs A4; a speck in the Mythic's face box at the breath's peak FAILs A5; a one-hue starmetal FAILs A6; a one-sided glass
+  FAILs A7; a 1 px broken dash on a plate's walk frame FAILs A8. `rpg_test --doll-adefects [--looks F] [--report]
+  [--selftest]`; a line in `--doll --gates`.
+
 ### Constants that interact (budgets and timing)
 
 | constant | value | arithmetic |
@@ -2449,6 +2695,13 @@ form9 means no shield.
 | silhouettes: arms, motifs, helms | HEAVY 1 px proud each side of the forearm + a 1 px cuff flare; WIDE a 1-2 px droop from the elbow. Motif units 2-4 px inside the torso box (about 12 x 9 px on the man), below the collar's 2 rows. Helm families inside the head box +- 1 column but horns, wings and a kabuto's flare (3 px past the box), plumes and spires (to F-37) and a sallet's tail (3 px behind in R / L) | LOCO and RUN + 2-4 % on the widest families; RUN 68 KB for plumed and crested as today; T5-T6 within D19 |
 | silhouettes: the table | 12 peoples x 36 schools x 3 ranks = 1,296 keys; a people's menu holds about 6 helms x 3-4 skirts x 4 masses x 4 over-layers = 290-380 keys, of which it needs 108 (36 schools x 3); keys of different schools never equal | about a third of each menu used, so the vocabulary weights still steer; the solve runs in rpg_test in seconds (about 4,000 composes and 1 million mask pairs) |
 | forge: the pool (round 2) | 1,682,612 B (1.605 MiB) at forge i3. Adds: 13 helm maps about 130 views (20 KB); STRIPS, SPLIT and BELL skirts on both bodies and the woman's hauberk about 150 views (15 KB); WIDE and HEAVY sleeves, both sides and bodies, loco, drawn and sword keys about 400 views (25 KB); motifs about 100 views (10 KB); the sash and the woman's tabard about 110 views (10 KB); the half-cape about 60 views (8 KB); shoulder sizes and side views about 60 views (6 KB); the hero fixes about 50 views (6 KB): about + 100 KB. Retired: the forge cut, edge, limb and fit tiles (94 views, about 6 KB) | about 1.70 MiB, inside D21's 1.75 MiB (1,835,008 B) with about 50 KB to spare. Over it, in order: the sleeves' action keys draw the close arm, the skirts' sit, floor, kneel and ride keys use the key fallback, the motifs' lie views go, the half-cape reuses the cape's views. Production's 2.1 MiB question (D27) is unchanged |
+
+**Restated by the envelope (2026-10-27):** the rows "the body" (locked: D42), "pool" and "pool (D21)" (2.5 MiB, no
+compression: D46, D48), "top-tier atlases (D19)" (by tier: D46), "the living finish" (C13's light as built, 128 / 320; the
+drawn motion 8-32 at T5 and 16-48 at T6), "forge: shoulders" and "silhouettes: shoulder masses" (sizes 5 and 6 at T5-T6:
+5 and 6 px past the shoulder line), "forge: crests" and "silhouettes: arms, motifs, helms" (heights by tier: F-37 at T4,
+F-39 at T5, F-41 at T6) and "forge: the pool (round 2)" (its "over it, in order" art cuts retired: D48). The envelope's own
+arithmetic is the constants table in "The envelope".
 
 ### Decisions taken by default (confirm or overrule)
 
@@ -2564,6 +2817,175 @@ The forge round 2 (2026-10-24, alloy silhouettes) adds:
   at every tier, breathing from T5, so emberforged reads as hot iron and never as red paint.
 - **D41. Shoulders stay on top**: a pauldron draws over a cape's front and the T5 surcoat, and the near pauldron reaches
   2 px or more past the arm's line in the side views.
+
+The envelope re-plan (2026-10-27) adds:
+- **D42. People stay 32 px** (the owner, after the 40 px fair test): the man 32, the woman 31, the youth 26, the child 21,
+  elves + 1; the body, its head box, anchors and clips are locked, and no figure is ever scaled alone (no hero body, no
+  stretch rows, no 40 or 48 px set). The size study's options (a) and (b) are closed.
+- **D43. The tier envelope is data**: `art::doll::kEnvelope` (doll_envelope.h, contracts 3d) holds the study's 7.1 caps, the
+  area ladder, the cloak extents, the motion counts and the budgets by tier; every gate that uses a number reads it, and
+  `rpg_test --envelope` prints it for the judge to compare with "The envelope". Gear grows past the body by tier; the body
+  never changes.
+- **D44. A helm per tier, a head per alloy** (restates STYLE_P2 27.8 for helms): every tier of a gear line wears its own
+  helm family; every alloy has its own head key (family, variant, crest), and neither the owner's 37 nor any culture's
+  alloys share one. "No new torso" still holds for the body.
+- **D45. T5-T6 move more**: the long cloak stirs 1 px at T5 and 2 px at T6 on the idle's breathe frame and the walk's passing
+  frames, the plume sways a pixel behind the walk's bob, and the light is 27.7's and contracts 6b's. C13's light caps stand
+  as built (128 sprite-bright, 320 soft a figure-frame); drawn motion 8-32 px at T5 and 16-48 at T6; nothing blinks.
+- **D46. Budgets** (answers D27 with D48): the pool gate is 2.5 MiB (2,621,440 B); B10 by tier (T1-T3 128 / 64 / 256, T4 160 /
+  80 / 320, T5-T6 200 / 100 / 400 KB; T5-T6 ACTION, DEATH and POSTURE from the first measured T6 look x 1.1, at most 716 / 72
+  / 89 KB); embervale.wasm within P2c's start + 2.0 MB; the rig-2 atlas cache 16 MB unless the capital sweep evicts an
+  on-screen look (then 20 MB, inside C8's 24 MB). It restates D11, D19 and D21.
+- **D47. Phones start at NEAR**: a first launch on a phone (touch-first, the screen's short side under 500 logical px) takes
+  ZOOM NEAR; desktop, iPad, Witness and scripts keep NORMAL, a saved choice stays, and D0 and the P2a table do not change.
+- **D48. No compression** (the owner): the pool stays plain RLE planes with byte-identical planes stored once (pxc since
+  df2a155: lossless, no pixel changes); no deflate, LZ or zstd, no palette or pixel reduction, no view, key, frame or size
+  dropped to save bytes. Over the budget is the owner's question. The round-2 constants' "over it, in order" art cuts are
+  retired.
+- **D49. The drawn armour is kept** (the owner): no map file, view or size is deleted or emptied, and no view changes its
+  meaning; growth ADDs (pauldron sizes 5 and 6, tier views, the long cloak, breeze views, variant re-keys); a drawing larger
+  than a lower tier's cap serves the tiers whose cap fits it; the A fixes repaint their own views in place.
+- **D50. The A defects are fixed now; the B calls wait**: the eight A items of the owner review sheet are fixed to the looks
+  and checks of "The envelope" (gate C19 and the blind reads); the B items change only where the envelope, an A fix or the
+  helmet ruling (C16k) touches them, as listed there.
+- **D51. A variant follows the alloy**: a helm family's drawn variants are a detail chosen from the alloy's own data (its
+  people, rank and name), never from another axis; the owner's 37 keep their helm families as shipped at df2a155 (pinned in
+  the solve, as the hero's s7 kit is) and take their variants and crests from a board table, so a re-solve cannot swap two
+  hats. The fix round's swap is undone: Papiron wears the great kasa (its people's reed hat), Jaonbrass the gat,
+  Cranesilver the jingasa.
+- **D52. Warm metals' dark sheen is antique** (restates STYLE_P2 28.7's dark row and C17's dark term for bronze and brass):
+  the darkness lives in the recesses (step 1 at luma 45 or less) and a low body (step 2 at luma 95-125) under a hard gold lit
+  plane (step 3 at 175 or more) on every piece; a dark brass is never a chocolate coat.
+- **D53. Glass reads as glass**: KNAPPED's obsidian and every alloy whose metal word is GLASS show their light twice (the
+  top-left lit plane and a step-3 rim along the lower-right inside edge of each convex piece) and 2-4 hard speculars of 2-6
+  px on facet edges, never 1 px streaks and never on a face plate; starmetal (STARFALL) takes the iridescent tell.
+
+The envelope's round-3 judge (2026-10-27; .tmp/judge/env_r3, harness .tmp/judge/r3_env_gates.sh; renders
+%TEMP%\claude\emb_P2c\envelope\r3) failed five items and the packager added six notes. Round 4 is the last judge round;
+"The envelope fix round" below holds the areas. These rule them:
+- **D54. T1 is bareheaded** (the judge's item 2): the owner picked 32 px from the fair test, whose T1 hero (f32_hero_t1)
+  wears no helm, so the hero lines' T1 (e1, e1w) is bareheaded and the hair is the head's outline. "The envelope", its
+  helmets and STYLE_P2 29.1, 29.3 and 29.4 are restated. kEnvelope's T1 row keeps its 2-row cap for any other T1 look given
+  a hood or a soft cap (no number moves), and HOMESPUN's cloth hood stays a drawn map for those looks (D49). The hood's
+  rows on the hero's road become T2's soft-cap allowance (D55).
+- **D55. T2 grows by a soft cap and a short hooded mantle** (item 1: the hero's T2 measures 1.05 of T1 against the gate's
+  1.10, and T1 and T2 read as one silhouette). The hero lines' T2 (TANNER'S) wears:
+  - **the soft cap**: TANNER'S leather cap drawn anew as a soft cap 3 rows above the crown (F-34; the woman F-33), a rolled
+    brim 1 px past the head box at most, a lit top-left plane and one shine, over the hair's capped view (a 2-3 px fringe
+    shows). Its helm pixels (idle D + idle R) stay under T3's head area / 1.05, so C12f's head step holds and the head
+    grows from T3 as planned: 229 px on the hero and 224 on the heroine at r3 (T3 241 and 236; today's cap 222);
+  - **the short mantle**: cloth in the people's coat colour (the hero's teal), a value step darker than the leather, over
+    both shoulders to the elbow; 18 px across facing D (1 px past the shoulder line each side, T2's cap), its hem dagged in
+    2 px square tabs (TANNER'S tabbed signature), facing R / L 3 px or less behind the back and down to the shoulder blades.
+    It is the pauldron shape `capelet` at size 2, so C12f's shoulders measure counts it, and it is never a cape: it ends at
+    the elbow and the shoulder blades;
+  - **its hood thrown back**: a cowl, a soft roll 2-3 px thick round the neck facing D that closes the gap between the jaw
+    and the shoulders, and a 3-4 px lump behind the nape facing R / L (the neck piece `cowl`, ADD);
+  - TANNER'S jerkin, belt and boots as drawn; no bracer, skirt or arm outline changes (D3's arm axes stand).
+  Measured: the hero's T2 area 1.10 or more of T1 (the gate; it aims at 1.12-1.15) and on both lines 0.05 of T1 or more
+  under T3 (the ladder step, read the other way); nothing past 18 px or F-34; no metal. The estimate is about +50-60 px
+  on today's 850 (the cowl about 13 facing D and 14 facing R, the mantle about 9 and 12); if the first preview falls
+  short, the mantle drops one row and the cowl thickens a pixel before anything else grows. It reads at 1x as a traveller: the
+  head sits in a collar of cloth and the shoulders get a soft, tabbed edge; T3's helm, plates and cape then make a soldier.
+- **D56. C19's torso terms read the torso as drawn** (round 3; the judge accepted it as scope; recorded here): A4's glass
+  rim and A7's glass tell on the torso count the armour parts and the chest motif parts (armour/motif/) together, on the
+  frame composed without the held weapon, shield, sheath and Fx (noHeld's recipe), because facing D a shield covers the
+  chest and the term asks after the torso's own glass. The helm and shoulder terms read their own parts on the full frame.
+  Every threshold is unchanged (3 px). The A table, contracts 3d and the code comment say so.
+- **D57. The T3 guard (eg3) is the fair test's T3d in gear** (item 3; docs/ref/envelope f32_guard_t3d_idle / walk; round 3
+  measured shoulders 18, no cape, 1.05 of eg0). eg0 and eg3 stay the village watch the player meets at seed 7
+  (npc=heartland:guard:0:7) at its own tier (T2) and at T3; the face, hair and beard are the person's and not the target.
+  At T3 the watch wears the T3d's gear:
+  - **the kettle hat** at T3: a lit steel dome, its brim 1 px past the head box, the finial 3 rows above the crown (F-34,
+    the kettle's finial crest), inside T3's 4 rows;
+  - **round steel pauldrons** (the cop shape, the ROUND mass) at medium size: 20 px across facing D (2 px past the shoulder
+    line each side), lit top-left with a dark rim;
+  - **the watch's red cape** (the people's cape, the tabard's red darkened): it hangs from behind the pauldrons; facing D
+    its edges show 1-3 px beside the arms and the coat from the shoulders to the coat's hem and never beside the visible
+    legs (T3's cloakSideD 0: the drawing's ankle-length sides are the T5 long cloak's mark, so the caps hold and the cape's
+    sides stop at the hem); behind the body it may hang to the calf; facing R / L it trails 1-2 columns behind the back
+    down its length (cloakBack 2);
+  - its round shield with the gold device where the watch's T3 kit carries a round one (held: no area).
+  The T3 cape is worn today (cape=1) but hidden on every T3 look (e3, e3w and eg3 measure cloak D 0, back 0): the T3 torso
+  and pauldrons cover it. Today's kettle at T3 has also lost its brim (eg3: brim 0 columns). The cape's T3 views are drawn
+  to show (ADD), on the watch and the hero lines alike;
+  on the hero lines T3 stays 0.05 of T1 or more under T4 (e4 1.36 and e4w 1.44 at r3), the cape's length behind being the
+  lever (it may stop at the hem); T4 does not grow in this round.
+  Measured with C12f's measure (noHeld, the walk's frame 0 facing D + the idle R): eg3 1.20 or more of e1 (the fair test's
+  own figure: its sheet's caption reads "guard(d) 1.20-1.21" against the hero's T1, and "guard real 0.98") and 1.10 or
+  more of eg0 (the envelope's T2-to-T3 step, 1.20 / 1.10); shoulders 20; the cape 1 px or more beside each arm on 6 rows
+  or more facing D and 1 column or more behind the back facing R. Round 3's "1.20 of eg0" took the caption's reference
+  for the guard's own; these two replace it. No gate number moves.
+- **D58. A3 ENKHOBRASS wears brass, not blue cloth** (the packager: the torso is still blue cloth and only the helm brass):
+  its torso is a brass lamellar coat: rows of small plates, each row a 2 px band (a hard gold lit top row over a dark
+  row), black lacing gaps every 3-4 px; the BIB motif a brass plate with a gold lit plane and a near-white glint; the
+  skirt's lames lit gold. The people's blue is only cloth: the deel's collar and front edge, the cuffs and a sash. A brass
+  or bronze everyday alloy's torso armour and chest motif paint in Metal (the alloy's brass), never in a cloth or trim
+  slot: today a_enkho's torso shows tan cloth and the people's blue (#40679B, its trim and device colour) where brass
+  should be, and DOLL traces which pieces and slots paint it. C19 A3 adds the torso box (armour + motif, noHeld; idle D
+  and R): brass 50 % or more of its pixels, cloth 30 % or less. Blind: all three name brass, bronze or gold for the body,
+  not only the hat.
+- **D59. A4 OBSIDIAN's two misses** (item 4): the torso's rim reaches 3 px or more (f5_obsid measures 2) as one run along
+  the lower-right inside edge of the torso region (armour + motif, noHeld) with steps 0-2 between it and the lit plane;
+  facing R / L the mask's lower face (the face plate below the eye holes) is one dark glass plane (steps 1-2) lit only
+  along its top-left outline: no lit bar, specular or step 3-4 run of 2 px or more crosses it. The glass pass and the
+  specular stamps skip W7's face box + 1 px and every face plate in every facing; the pale bar moves to the crown's shards
+  or a shoulder facet. Thresholds unchanged.
+- **D60. A5 MYTHIC is black, gold and fire, richer and brighter than T6** (the review sheet and the packager: "darker and
+  less rich than plain T6"; on the r3 boards, whole figures, its mean luma is 90 against e6's 122 and its lit pixels 19 %
+  against 33 %). The T6's shapes
+  (its helm family with the fin, the legend pauldrons, the long cloak) in polished black steel whose lit planes are bright:
+  a cool steel lit step at luma 175 or more, a 2 x 2 plane or larger on every piece, against near-black recesses; the T6
+  gold generous and bright (the helm's brow band and the fin's edge, the pauldrons' rims, the cuirass's keel; its steps
+  3-4 at luma 190 or more); fire on the top-left edges and in 2-4 px cracks (Glow, 2 px wide on the big plates); the flame
+  crown tall and bright (#FFC060 tongues, near-white tips) on its dark brow band; the long cloak deep crimson with an
+  ember-lit hem; the face and the shield's device clean. The darkness lives only in the recesses. C19 A5 adds, on idle D
+  and idle R, on the gear pixels: lit pixels (luma 170 or more) plus Glow 1.15 or more of e6's; their mean luma 0.90 or
+  more of e6's; warm light (Glow, and gold or fire at luma 170 or more; contracts 3d) 15 % or more of the gear pixels;
+  the helm's luma p90 - p10 100 or more (it was 70). The face, speck, lone-glow and area terms stand. Blind as A5.
+- **D61. A6 STARMETAL shows its bands and its dark core** (the packager: the iridescence is faint, and T5 starmetal looks
+  like the plain T6): Metal (violet) and Metal 2 (ice-cyan) alternate in 2-3 px bands across every big plate and across
+  its lit plane (the lit plane splits into a violet band and a cyan band), at steps saturated enough to read as colour
+  (about #5A4FA8 and #8E84D8 violet, #2E86B4 and #6CC4E8 cyan for steps 2-3; never two near-whites); deep indigo steps
+  0-1 in the gaps between the ribs, under the rims and in the recesses; white speculars; the CRYSTAL helm as A6. C19 A6
+  adds: 3 or more alternating Metal / Metal 2 bands on the torso box facing D (armour + motif, noHeld), each 2 rows tall
+  and 4 px wide or more; step 1 20 % or more of the metal (the outline excluded); both ramps' steps 2 and 3 at chroma 28 or
+  more. T5 and T6:
+  the hero's T6 is STARFALL, so f5_star and e6 share the metal by design and part by the envelope (26 / 28 px, 1.55 /
+  1.70), the helm family (T5 the plumed great helm with PARADE's gilt rim, T6 the winged helm and its fin) and the finish
+  (T5 the gem breathes; T6 the runes, the edge sweep, the motes and the 2 px stir). Blind: shown f5_star beside e6, all
+  three name e6 the higher rung.
+- **D62. A7 THAERGLASS, and every GLASS alloy: the pixels that prove glass** (item 5: it reads as green enamel or jade,
+  its lower-right rim is invisible at 1x and its wings read as leaves). Glass is dark with light at its edges:
+  - a jewel-dark body: 55 % or more of the glass pixels (the outline excluded) at steps 1-2 (step 2 a deep bottle green,
+    about #14463C); the lit plane (step 3) a small top-left facet on each piece, 25 % or less; speculars (step 4) 2-4 groups
+    of 2-6 px, short diagonal bars or diamonds on facet edges;
+  - light out of the far side: the step-3 rim along the lower-right inside edge of each convex piece in one run of 3 px
+    or more on the helm, the torso (D56) and each shoulder, a core of steps 1-2 2 px wide or more between it and the lit
+    plane, and step 3's luma 80 or more over step 2's so the rim shows at 1x;
+  - no pale patch: no connected step 3-4 region of 12 px or more on the glass (the enamel and jade tell);
+  - river silver: Metal 2 (a bright silver) only on the pieces' rims and seams and the helm's brow band, so the green reads
+    as panes set in silver; the glowing seams as A7;
+  - the wings: two glass blades, each 2-3 px wide and 5-7 px long, swept up and back to a hard 1 px point, straight
+    edged, a dark core with lit pixels on both edges (the top edge steps 3-4, the lower inside edge the step-3 rim); never
+    lobed, notched, veined or round-tipped (the leaf and feather tells).
+  C19 A7 adds the step shares, the rim runs, the rim contrast and the pale-patch rule (the round-3 terms stand); the judge
+  reads the wings at 8x. Blind: two of three name glass or crystal; none says enamel, jade, felt, cloth, leaves or plain
+  teal.
+- **D63. Greyscale means greyscale** (the packager: the grey boards keep the hair red): every `:grey` board and every
+  greyscale image of the owner pack turns every pixel into its luma (Rec. 601), the hair, skin, eyes and face included; a
+  test checks R = G = B on every pixel of a grey board, and the judge's greyscale reads use these.
+- **D64. A kit tag renders what it says** (the packager: `kit=heartland:6m` renders the Starmetal T6, because the parser
+  read "6m" as 6 and dropped the m): `kit=<people>:<tier>[m]:<seed>`, where m (tier 6 only) is the Mythic, the same look as
+  `kit=<people>:6:<seed>,rarity=mythic`; any other suffix or a malformed tier is an error naming the tag, never a silent
+  fallback. `--expand-looks` gives the two spellings the same fields (a test).
+- **D65. The ground seam is a capture artefact** (the packager: phone_NEAR_t1.png shows a square, straight-edged block of
+  forest beside the hero): the capture script runs `skill clearing 16` (every prop within 16 tiles of the hero removed)
+  and shoots about 0.8 s later; phone_NEAR_t3.png, shot about 3 s later at the same spot, shows plain grass, so the block
+  is the canopy still being redrawn after the props went. Every capture (the phone script, owner_pack.py's base, Witness
+  boards) waits after `clearing` until two shots 0.5 s apart are identical (3 s at most), and phone_NEAR_t1 is re-shot.
+  DOLL runs one repro without `clearing` (a new game at seed 7, the hero walked to the spot): a block there is logged for
+  the owner as a game bug outside the envelope, never fixed in this round.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -3280,6 +3702,359 @@ village as a player meets them, at most 4 rounds; fix rounds verify only their i
     round-2 item closed.
 13. The owner's sign-off on the round-2 pack. It also settles D13-D41 (D27 before wave 2).
 
+### The envelope update (wave 1d; the owner signs it off before production)
+
+The forge slice locked every material's and alloy's style; the envelope update locks their size by tier on the 32 px body,
+a helm per tier and a head per alloy, and the A fixes, before any production map. STYLE_P2 29.9 lists the look and the
+owner pack. The reference is the owner's pick: docs/ref/envelope (the fair test's 32 px row: f32_hero_t6_idle / walk and
+f32_guard_t3d_idle / walk drawn under the envelope, f32_hero_t1, today's T6 and T3 beside them, the 8x sheet,
+figures_side_by_side_6x.png and phone_32_NEAR.png).
+
+**Looks** (tools/doll/envelope_looks.txt; FORGE-DOLL writes the lines and records `rpg_test --expand-looks` beside the file):
+
+| tag | body | the kit | it proves |
+|---|---|---|---|
+| e1 .. e6, e6m | man, the A3 hero | the Heartland kit (seed 7) at T1-T6 and the Mythic: the size study's lt lines | six figures from slim to bulky, T6 over T5, a helm per tier |
+| e1w .. e6w | woman, the A3 heroine | the same; e6w with the runed spear | the envelope on her |
+| eg0, eg3 | man | the Heartland village watch (npc=heartland:guard:0:7) at its own tier (T2) and at T3 in the fair test's T3d gear (D57) | the T3 guard the owner saw |
+| ecapt, eking | man | a Heartland captain (T4) and the king (T5) | rank by size; a T6 beside a king |
+| a_uha, a_jaon, a_enkho | man | UHABRASS (jade:2:1), JAONBRASS (jade:5:1), ENKHOBRASS (steppe:1:1) on their peoples' T4 kits | A1-A3 |
+| a_thaer, a_thorn, a_ilsil | man | THAERGLASS (sylvan:1:3), THORNSTEEL (highland:1:3), ILSILVER (fjordfolk:1:3) at T5 | A7, A8 |
+| fm_obsid, f5_obsid, fm_myth, fm_star, f5_star | man | the forge lines, kept | A4-A6 |
+| every forge and ladder line, and the board set | | | the caps hold everywhere; nothing regresses |
+
+**Clips**, in four facings: idle, walk, run, the drawn idle, hit 1, hurt, the fall and lying for e1-e6, e6m, e1w-e6w and
+eg3; idle, walk and run for the A looks; the forge and ladder looks keep theirs.
+
+**Areas** (7, files disjoint; contracts 1, wave 1d; round 2's areas are closed and their files pass here). Art areas edit
+only their maps, preview on isolated pools (`%TEMP%\claude\emb_P2c\env\<area>\doll\`: pxc --root DIR --no-cpp --bin X.pool,
+then rpg_test --doll --pool X.pool --limbs OUT --limbs-looks LOOKS.txt and the doll_gallery boards; exe e1 and later, g4
+until e1), design by eye at true 1x and 3x, then 8x and greyscale, and propose code, table, clip and key changes in their
+reports; FORGE-DOLL owns every code, table, clip and gate change and merges the maps at each integration. Builds go through
+`tools/slot.sh cmd //c "set BDIR=<dir>&& tools\\build.bat <target>" < /dev/null` (5 heavy processes on the machine at most;
+each engineer and judge its own BDIR; only the integrator builds `build`). Nobody kills a running Embervale.exe or makes a
+state-changing git operation.
+
+**First light** (the envelope's style slice): the hero's T5 and T6 (e5, e6) and the T3 guard (eg3) rebuilt as doll parts
+to docs/ref/envelope's 32 px drawings, end to end by FORGE-HEAD, FORGE-MANTLE, FORGE-TORSO and FORGE-LIMBS, in colour,
+greyscale and black silhouette, then at 1x on the phone frame at NEAR in the start village beside the watch; FORGE-TORSO
+signs them as wholes. Every later T4-T6 piece matches their craft. In parallel from the first hour: the A fixes (A1-A3
+FORGE-DOLL with FORGE-HEAD, FORGE-MANTLE and FORGE-TORSO; A4-A8 FORGE-MATERIAL with the owners of the views) and ZOOM.
+
+- **FORGE-DOLL** (engineer-high; a hard-systems area; BDIR build-p2c-env).
+  - Files: as round 2 (contracts 1): rpg/art/doll/*.h, *.cpp (with doll_envelope.h, new, and the ramps in doll_ramps.cpp
+    and doll_alloy.cpp), gen/** (pxc's output at integration, never hand-edited), clips/** (ADD only), maps/legend/** (ADD
+    only); tools/doll/** (pxc.mjs, envelope_looks.txt, forge_looks.txt, owner_pack.py, alloys/**); art_human.h (HumanLook
+    ADD) and art_human.cpp's key() only; rpg/art/art_fx.h/.cpp; rpg/sim/gear_forge.*, gear_forge_shapes.inc (generated),
+    gear_ladder.*, gear_look.* (ADD only), looks.cpp (rankTiers only); rpg/view/render.cpp (the glow pass and the finish
+    light, the rig-2 cache, the doorway draw order), witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp,
+    test_forge_ramps.cpp, test_doll_envelope.cpp (new), doll_motion.h; tools/preview/doll_gallery.cpp; CMakeLists.txt (new
+    test files only); tools/scripts/p2c_forge*, p2c_envelope* (new); witness/p2c_forge, p2c_envelope (new); contracts 8
+    (append); "Envelope results" (append).
+  - Core:
+    - exe e1 in the first working block (about half a day): doll_envelope.h (kEnvelope, contracts 3d) and `rpg_test
+      --envelope`; the resolver's clamps by tier and the pauldron sizes 5 and 6 with their fallback (6 to 5 to 4, listed by
+      `--doll-coverage --scope envelope`, never a hole); the `when <slot>.t5 / .t6`, `cloak.t5` and `breeze` needs; the
+      variant axis of the head key (D51: forgeShape bits 20-22, `variant-<n>` flags, `kBoardHeads` for the 37, the people's
+      preferences and the name for the rest; the resolver accepts the fix round's `<mass>`-keyed views until FORGE-HEAD
+      re-keys them); envelope_looks.txt; the boards `envelope:<line>`, `heads:owner37`, `adefects` and `stir:<tag>`; the
+      restated gates reading kEnvelope (B10, W8, C3b, C12f, C13's drawn motion) and the new C16k and C19, every one with its
+      selftest; the pool gate at 2.5 MiB and pxc's budget line;
+    - the gates failing at df2a155, fixed without loosening: B8's 70 orphan pixels (g_jd3b idle: traced to the map or the
+      compose pass that makes them and fixed there, or routed to the map's owner), C16o's 8 culture pairs (the solve; a pair
+      it cannot part goes to the planner), B10's 7 (re-measured under the tier rows; any still over is an art or atlas fix);
+    - A1-A3: D52's antique rule in the warm ramps and the lit share; the shape table's metal rule (contracts 3d: a bronze
+      or brass everyday alloy never pairs mass NONE with a TABARD, nor a fur MANTLE with a TABARD or a HALFCAPE; hard; the
+      table re-solved with C16o, C16u, C18 and `--forge-shapes --check` still 0 and the 37's helm families pinned); UHABRASS
+      and JAONBRASS bodies parted; the war hat variants assigned by the board table;
+    - the passes the material fixes need, to FORGE-MATERIAL's specs: the glass pass re-done (D53: the lower-right inside rim
+      and FORGE-MATERIAL's speculars only on facets of 4 px or more, never inside W7's face box + 1 or on a face plate), the
+      glint pass on every frame (A8: 3 groups at most on every LOCO and RUN frame, no 1 px dash), starmetal's iridescent
+      bands (A6), the Mythic's finish light and specks kept out of the face box at the breath's peak (A5), with
+      `art::finish::litFrame` for C19;
+    - integration at every iteration: the art roots merged, gen/doll_pool.cpp regenerated with pxc, the table re-solved,
+      every gate run; the T5-T6 ACTION, DEATH and POSTURE budgets set from the first measured e6 and recorded.
+  - Depth: the doorway draw order (render.cpp: a one-tile doorway's jambs draw over a T5-T6 pauldron and cloak where they
+    overlap); the capital sweep at 15:00 with the census's T4-T5 officers and three T6 companions (cache evictions counted;
+    20 MB only if an on-screen look is evicted); the fix video's "?" label (owner_pack.py).
+  - Delight: the `envelope:hero` board as a growth strip: the six figures on one baseline, their caps as faint guides at 8x
+    and each tier's area ratio printed under it.
+  - Done:
+    - `node tools/doll/pxc.mjs --check` clean; the pool 2,621,440 B or less, and pxc prints that budget;
+    - `rpg_test --envelope` prints "The envelope"'s table exactly (with the measured T5-T6 ACTION, DEATH, POSTURE);
+    - `rpg_test --doll --gates --parity` exits 0: B1 16 / 16 at 0 px, B2 288 / 0, B8 0, B10 by tier, B11 limbs, B11 wear (W8
+      by tier) and B12 0, C3 (C3b by tier) to C6 0, C12 (with C12f) to C17 0, C19 0, every selftest ALL CAUGHT;
+    - `rpg_test --doll-forge --worlds 1..6 --report` 0 (C16k with it); `--doll-forge --silhouettes --worlds 1..6 --report`
+      0; `--forge-shapes --check` 0;
+    - `--doll-coverage --scope forge`, `--scope ladder` and `--scope envelope` find nothing missing; `rpg_test --doll
+      --motion --limbs-looks tools/doll/forge_looks.txt --report` and the same on envelope_looks.txt 0;
+    - tools/scripts/p2c_forge.txt and p2c_envelope.txt 0 failures; witness p2c_forge, p2c_ladder, p2c_slice and p2c_envelope
+      pass; `owner_pack.py --envelope` builds STYLE_P2 29.9's pack, every image 8,000 px or less;
+    - rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229, `city_gallery --village-art-check` 65 / 0, `rpg_test --anim` 0,
+      `--arms` ALL OK); the full rpg_test and save_test ALL OK; WSL clang 18 in ~/emb gives MSVC's numbers on `--doll --gates
+      --parity`, `--doll-forge --worlds 1..6` and `--doll-forge --silhouettes --worlds 1..6` (no rsync --delete outside it,
+      no untracked file wiped).
+- **FORGE-HEAD** (artist-xhigh).
+  - Files: maps/headwear/helm/**, maps/headwear/collar/**, maps/shield/**.
+  - Core:
+    - the hero's helm line T1-T6 and the Mythic, a family per tier ("The envelope"'s helmets), T5 and T6 first, to the fair
+      test's T6 (the winged helm open on the face, its tall fin to F-40 or F-41, a glowing brow rune), each inside its tier's
+      rows and columns;
+      the heroine wears the same maps (D10);
+    - the T5-T6 sizes of the families the owner's 37 masterworks wear (`when helm.t5` views: up to 2 more rows and 1 more
+      column a side), plumes swaying a pixel behind the walk's bob (`breeze` views on the passing frames);
+    - the head key: each of the owner's 37 its own head (family, variant, crest), the fix round's `<mass>`-keyed variants
+      re-keyed to `variant-<n>` with their pixels unchanged; the war hat's great kasa, gat and jingasa kept (Papiron the kasa,
+      Jaonbrass the gat, Cranesilver the jingasa); the kasa's brim brought to 3 px past the head box at T4 (its 4 px droop a
+      `helm.t5` view if wanted); a variant or a crest added where two of the 37 share a key (B9-B15), never a family
+      changed;
+    - A2-A3's hats in metal: the war hat variants and the onion as lacquered brass (a lit gold top plane of 6 px or more, a
+      dark underside, a glint), never straw or felt; A1's winged helm in brass (wings lit on their top edges, never cloth
+      ears);
+    - A4's mask face plate (one dark glass plane, its lit edge, two eye holes, no streak), A5's Mythic helm (the T6 family
+      blackened, ember-lit edges, the flame crown on its dark brow band, the face box clear) and the Mythic's shield (a clean
+      device, fire only on the rim), A6's CRYSTAL helm (two lit planes, the visor band under a lit rim, the cheek wings), A7's
+      wings as glass blades: each to FORGE-MATERIAL's spec.
+  - Depth: every people's helm per tier on its T1-T6 kit, started on the first-light peoples (Heartland, Highland, Jade).
+  - Delight: the T6 fin catching the breath's light; the plume lifting a pixel on the run.
+  - Done: C3b by tier 0 (rows, columns, flares) and C3e 0 on every envelope, forge and ladder frame; C16k 0; the hero lines'
+    heads 0.10 head OD apart tier to tier with their area rising from T3 to T6 (C12f); C17's visor on every closed family;
+    C19's A1-A7 head terms pass; B8 0; LOCO and RUN within the tier rows; the judge names every tier's helm on the hero line
+    and tells all 37 heads apart at 1x on the phone in greyscale.
+- **FORGE-MANTLE** (artist).
+  - Files: maps/armour/shared/**; maps/cloak/** (ADD: files, views, `when` and `breeze` views; P2b's existing views keep
+    their pixels); maps/neck/** (ADD only).
+  - Core:
+    - pauldron sizes 5 (great, T5: 5 px past the shoulder line) and 6 (legend, T6: 6 px past) for every shape a T5-T6 look
+      reaches (the hero's lines and the owner's 37 masterworks first), both sides, keys rest, up and lie in D U R L, riding
+      the lean, the bob and the swings; each mass keeps its character at the new sizes (BROAD flat and square, TALL upswept
+      3-4 px and never within 2 px of the face, DROP hanging 5-6 rows, ROUND a disc, MANTLE soft); first the hero's T5 and T6
+      shoulders to the fair test's T6;
+    - the long cloak for T5-T6 (the noble cloak's `when cloak.t5` views: to the ankle, 2 px past each leg facing D, 6-8 px
+      behind facing R / L; its lie view under its corpse), its `breeze` views (the hem 1 px at T5, 2 px at T6, on the idle's
+      breathe frame and the walk's passing frames) and the run's flare; the T3 cape and the T4 travel cloak checked inside
+      their caps;
+    - A1's mantle "sack": a MANTLE or half-cape on an everyday alloy 3 px or less behind the back facing R / L, its fur in
+      2-4 px tufts with a lit edge; A3's fur never the main read.
+  - Depth: the doorway look of a T6 under a jamb (with FORGE-DOLL); the cloak's sit and ride drapes at the new length.
+  - Delight: the long cloak's hem lifting as the hero turns from R to D.
+  - Done: C3 (pauldrons ride the lean, the bob and the swings; 6 px or more of pauldron on every T5 and side idle frame) and
+    W4 0 on every envelope and forge look; W8 by tier 0; C12f's shoulder caps on every look; C13's drawn motion inside 8-32
+    (T5) and 16-48 (T6); C19's A1 and A3 mantle terms; B10 by tier; B8 0; the judge names every mass at its T5 and T6 size
+    and sees the cloak stir at game speed.
+- **FORGE-TORSO** (artist-xhigh; the look lead).
+  - Files: maps/armour/man/{plate, mail, scale, lamellar, leather, padded, tabard, sash}.pxm, maps/armour/woman/{plate, mail,
+    leather, padded, tabard, sash}.pxm and any new woman torso, maps/armour/motif/**, maps/armour/tiles/**.
+  - Core:
+    - the T5-T6 surcoats and motifs inside the body's torso outline (no new torso: the bulk comes from shoulders, cloak,
+      helm and skirt), first on e5 and e6 to the fair test's T6;
+    - A1-A3's bodies: the brass shows (the over-layer cut so it covers a quarter of the gear at most, the BIB and other motifs
+      in brass with a hard gold lit plane), UHABRASS and JAONBRASS parted;
+    - A4's facets (3-4 px planes, hard lit edges, room for the lower-right inside rim), A6's ribs (2 px with dark gaps,
+      banded for the iridescence), A8's plate R and walk views as clean planes (no 1 px dash);
+    - the look lead: composes first light and the hero lines with the other areas' pieces, files asks, and signs the hero's
+      T1-T6, the heroine's and the owner's 37 as wholes in greyscale at 1x.
+  - Depth: the woman's T5-T6 surcoat; the motif's T5 gem in its socket.
+  - Delight: the T6 surcoat's hem catching the rim light as the body turns.
+  - Done: C16m and C16n (every LOCO and RUN frame) on every forge and envelope look; C3a 0 for the torso, motif and sash
+    parts; C4 on both bodies; C14; C19's A1-A4, A6 and A8 torso terms; B8 0; B10 by tier; the judge reads the hero's six
+    tiers as six figures from slim to bulky and each A fix as its line, in colour and in greyscale.
+- **FORGE-LIMBS** (artist-xhigh).
+  - Files: maps/armour/{man,woman}/*_hang.pxm, skirt_*.pxm, sleeve_*.pxm, mail_sleeve_*.pxm, mail_stride.pxm.
+  - Core:
+    - the T5-T6 skirt flare (`when armour.t5` views: 1 px more past the hips, the panels swinging with the hang keys and
+      never through a leg; the legs' full thickness and the boots' lowest 6 rows always show), first on e5 and e6;
+    - heavy and wide sleeves in the bigger keys (HEAVY's cuff 1 px proud as before; WIDE's droop kept);
+    - A8: the SPLIT skirt's R and walk views and every plate hang's as clean planes; A6: the SPLIT panels' bands (one band a
+      lame for the iridescence); A1-A3: the brass skirts' lames lit gold, never a flat brown field.
+  - Depth: the spear's and bow's action keys for the sleeves; the skirts' own sit, kneel and ride views.
+  - Delight: the SPLIT panels parting a pixel wider on the T6 run.
+  - Done: B11 limbs, B11 wear and B12 0 on every envelope and forge look in every skirt and sleeve; C3a and C3f 0 for the
+    skirts and sleeves; C12f's skirt flare inside its caps; C19's A1-A3, A6 and A8 skirt terms; B8 0; B10 by tier; the judge
+    reads every skirt in the walk at game speed with short, full legs and flat feet.
+- **FORGE-MATERIAL** (artist-xhigh; the material lead for A4-A8, each flagged in three rounds or more).
+  - Files: maps/forge/** (with maps/forge/glass/**, new), maps/finish/**.
+  - Core:
+    - the material reads A4-A8 ("The envelope"'s table): for each, the spec (where the light goes, which stamps, which views
+      change and how), the stamps and tiles drawn here, and asks to the owners of the views and passes (FORGE-DOLL,
+      FORGE-HEAD, FORGE-TORSO, FORGE-LIMBS), each answered inside the same iteration;
+    - the glass speculars and rim runs (maps/forge/glass/**: 2-3 px diagonal bars and diamonds, `tags stamp`, for KNAPPED
+      and every GLASS alloy); the Mythic's cracks as 2-4 px seams (forge/cut/crackled) and its flame edge (forge/edge/flame)
+      with no speck; the iridescent band tile (forge/sheen/iridescent) for starmetal's lames; the glowing seam tile
+      (forge/sheen/glowing); the glint (finish/glint), rune and glyph tiles (finish/rune, finish/glyph) re-cut so no 1 px dash
+      survives on a plate;
+    - the line review: the A looks at 1x, 3x and 8x, colour and greyscale, on grass and on dark ground, before and after.
+  - Depth: the hidden words' tiles (round 2's depth) where an A fix leaves room.
+  - Delight: one specular sliding along an obsidian facet as the body turns.
+  - Done: C19's A4-A8 rows pass on their looks; C16n on every LOCO and RUN frame of the A looks; every stamp and tile B8 0 (no
+    orphans, periods 2 px or more, never a checker); the blind reads of A4-A8 pass as the table says.
+- **ZOOM** (engineer).
+  - Files: rpg/view/screen.cpp, screen.h, script_p2a.cpp (ADD only); tools/scripts/p2c_zoom*.txt (new);
+    witness/p2c_zoom.witness.json (new).
+  - Core: NEAR as the first-launch default on phones (D47): the platform check in screen.cpp (the web build: the coarse
+    pointer, emb_coarse_pointer, and the screen's short side under 500 CSS px; an iOS build: SDL_PLATFORM_IOS and the short
+    side under 500 points; never desktop or iPad), applied only when no settings file exists and saved like any choice; the
+    test hook EMB_DEVICE=phone|tablet|desktop (read only for the first-launch default) and the script command `firstlaunch
+    <device>`; tools/scripts/p2c_zoom.txt and p2c_zoom_phone.txt; witness/p2c_zoom.
+  - Depth: none needed; the zoom's settings row and the web page's rotate hint stay as they are.
+  - Delight: none needed.
+  - Done: p2c_zoom_phone.txt 0 failures (the 2556 x 1179 window as a phone's first launch: `expect zoom near`, `expect screen
+    want 6`, the world layer 426 x 197; 2556 x 1020 at D 5; 1792 x 828 and 1334 x 750 at D 4; a saved FAR kept on a phone);
+    p2c_zoom.txt 0 failures (desktop 1440 x 810 first launch NORMAL at D 3; an iPad 2360 x 1640 NORMAL); witness p2a_lens
+    and p2a_lens_lane unchanged and passing (L1-L5 and the rest); p2a_lead_lens.txt and p2a_lead_lens_phone.txt 0 failures;
+    witness/p2c_zoom records the phone's first launch; rig 1 unchanged; the full rpg_test ALL OK.
+
+**The envelope gate (the judge's protocol)**: the judge states this whole protocol in round 1, tests from the state a player
+starts in, measures before it looks, and reruns every area's Done with the area's own commands (an agent's word passes
+nothing). At most 4 rounds; fix rounds verify only their items (the owner's rule: one full regression per update); a code
+item that fails twice goes to engineer-high, a visual item that fails three times to artist-xhigh.
+1. **The start**: a new game at seed 7, rig 2; the phone window 2556 x 1179 as a phone's first launch (EMB_DEVICE=phone, no
+   settings file): ZOOM NEAR at D 6; the desktop 1440 x 810: NORMAL at D 3.
+2. **Measure**: every area's Done above, then the gates table (B1, B2, B8, B10 by tier, B11 limbs, wear and B12, C1 sources
+   F, L and envelope, C3-C6, C12 with C12f, C13, C14, C15, C16 with C16k, C17, C18, C19), the pool, `rpg_test --envelope`
+   against "The envelope"'s table, rig 1, the full rpg_test, save_test and WSL clang.
+3. **Look at true 1x on the phone at NEAR**, greyscale first, then colour, at game speed in the walk, the run and hit 1:
+   the hero's e1-e6 and e6m, then the heroine's e1w-e6w: six figures from slim to bulky; every tier a new helm; faces clear;
+   T1 bareheaded, plain but whole and inside the body's outline (D54); the T6 beside the king (eking) the bigger legend; the
+   guard eg3 in the fair test's T3d gear (D57); the T5-T6 cloak stirring and the plume swaying, quiet, never blinking. Then
+   3x, then 8x (hip to boot in
+   the walk; nothing crossing a face, a leg or the weapon; short legs at full thickness, flat feet).
+4. **The owner's 37** at 1x on the phone, then the `heads:owner37` sheet: 37 different heads, each its people's.
+5. **The A fixes**: each A look before and after at 1x, 3x and 8x, in colour and greyscale, on grass and on dark ground;
+   its C19 row; then its blind read.
+6. **Blind tests** by `eyes` agents (three lenses: metal, style, naive; images shuffled and unlabelled; 1x shown at 3x unless
+   named): (a) tier order: the hero's six tiers and the heroine's in greyscale: each lens orders them with at most one
+   adjacent swap, and all three put T6 last; (b) heads: the 37 heads cropped at 1x (4x display, greyscale): no two named the
+   same helmet; (c) the A reads (the table's blind column); (d) the legend: the T6 hero beside the king and a T5 champion:
+   all three name the T6 the strongest.
+7. **The phone**: the first-launch captures (2556 x 1179 at D 6, 2556 x 1020 at D 5, 1440 x 810 at D 3); the danger pips on
+   aggro outside the view; L1-L5.
+8. **Verdict**: PASS, or FAIL items, each with a repro command, the measured number, the threshold and the check that will
+   pass it. Thresholds marked planned are set by eye in round 1 and recorded; a check that contradicts an eye-approved frame
+   is re-tuned with the judge's ruling and recorded, never the art bent.
+9. Then `owner_pack.py --envelope` (STYLE_P2 29.9) and the owner's sign-off (D42-D65). Production (wave 2) follows at the
+   new envelope.
+
+### The envelope fix round (round 4: the round-3 FAIL items and the packager's notes; D54-D65)
+
+Round 3 (2026-10-27) failed: (1) the hero's T2 at 1.05 of T1; (2) the T1 helm in the docs; (3) eg3 against the fair test's
+T3d; (4) A4's torso rim and the mask facing R; (5) A7's glass read. The packager added A3's blue torso, A5 darker than T6,
+A6's faint bands, the grey boards' colour, the `6m` kit tag and the ground seam. Round 4 is the last judge round. Four fix
+areas, files disjoint (contracts 1, "wave 1d fix round"); the rules of "The envelope update" stand: art areas edit only their
+maps and preview on isolated pools (`%TEMP%\claude\emb_P2c\env4\<area>\doll\`, the r3 exe until DOLL publishes r4a);
+DOLL owns every code, table, kit, clip and gate change and merges the maps; builds through `tools/slot.sh cmd //c "set
+BDIR=<dir>&& tools\\build.bat <target>" < /dev/null` (5 heavy processes at most; each area its own BDIR; only the
+integrator builds `build`); nobody kills a running Embervale.exe or makes a state-changing git operation; rig 1 never
+changes; no gate is loosened; every drawn map, view and size stays (D49). Design by eye at true 1x and 3x, then 8x and
+greyscale: clean 2-4 px planes, short legs at full thickness, no skinny ankles. Images 8,000 px or less.
+
+- **HEAD** (artist-xhigh).
+  - Files: maps/headwear/helm/**, maps/headwear/collar/**, maps/shield/**.
+  - Core:
+    - T2's soft cap on both bodies (D55): the leather cap drawn anew for T2 (a `variant-<n>` of the family or a T2 view, as
+      HEAD and DOLL agree; today's cap views keep their pixels), 3 rows above the crown, the brim 1 px past at most, its
+      helm pixels under T3's head area / 1.05 (229 hero, 224 heroine at r3; DOLL prints the live budget);
+    - eg3's kettle at T3 (D57): the lit dome, the brim 1 px past, the finial 3 rows above the crown;
+    - A7: THAERGLASS's winged variant's wings as two straight glass blades lit on both edges (D62), its views repainted in
+      place;
+    - A4: the masked helm's R and L views, the mask's lower face one dark plane lit only on its top-left outline (D59);
+    - A5: the Mythic helm (D60): the T6 family in black steel with bright lit planes, the gold brow band and fin edge, the
+      flame crown bright on its dark band; the Mythic shield's device clean, fire on its rim only;
+    - A6: f5_star's plumed great helm banded in starmetal under PARADE's gilt rim; the CRYSTAL helm's two planes and visor
+      band (D61).
+  - Depth: the soft cap's single shine at its top-left; the finial a 2 px lit knob, never a 1 px spike.
+  - Delight: the soft cap's peak lifting a pixel on the run.
+  - Done: C12f's ladder head terms 0 on both lines (T3's head 5 % over T2's, OD 0.10); C3b and C3e 0 on e2, e2w, eg3,
+    a_thaer, f5_obsid, fm_obsid, fm_myth, e6m, fm_star and f5_star; C19's A4 and A7 head terms (the helm's rim run); C16k 0;
+    B8 0; the judge at 8x: the wings two straight blades, the mask's lower face dark facing R and L, every tier a new helm.
+- **BODY** (artist-xhigh; the look lead for the round).
+  - Files: maps/armour/** (shared, man, woman, motif, tiles, the hangs, skirts and sleeves), maps/cloak/** (ADD: new files,
+    views, `when` views; P2b's views keep their pixels), maps/neck/** (ADD only).
+  - Core:
+    - T2's short hooded mantle (D55): `pauldron_capelet2_{l,r}.pxm` (new shape, keys rest, up and lie in D U R L, riding the
+      lean, the bob and the swings) and `neck/{man,woman}/cowl.pxm` (new), both in the people's coat colour, the mantle 18
+      px across with its 2 px dagged hem, the cowl closing the jaw-to-shoulder gap;
+    - the T3 people's cape shown (D57): views for T3 (`when cloak.t3` or the tier's own key, ADD) whose edges show beside
+      the arms and the coat facing D down to the hem and never beside the legs, 1-2 columns behind facing R / L, to the
+      calf behind; on eg3, e3 and e3w, its length behind trimmed if a hero line's T3 comes within 0.05 of its T4;
+    - eg3's round pauldrons at medium size reaching 2 px past each side (cop3 checked, or drawn to its size's reach);
+    - A3's torso (D58): the brass lamellar rows and the BIB in brass, the skirt's lames lit gold, blue only on cloth;
+    - the pieces the materials need: A4's torso keeps its lower-right inside edge as glass (no dark seam over it); A6's ribs
+      and the SPLIT panels one band a lame; A7's torso and pauldron pieces with room for the rim and no pale patch of 12 px
+      or more (D62);
+    - the look lead: composes e1-e3 and e1w-e3w, eg0 and eg3 with HEAD's pieces and signs the T1 to T3 step as wholes in
+      greyscale at 1x.
+  - Depth: the mantle's dagged hem swinging a pixel on the walk's passing frames, drawn inside the keys.
+  - Delight: the cowl's fold catching the light behind the ear facing R.
+  - Done: C12f 0 (the hero's T2 1.10 or more, aiming at 1.12-1.15; T2 0.05 or more under T3 on both lines; T2's shoulders
+    18 with the mantle; eg3's shoulders 20, its cape seen, 1.20 of e1 and 1.10 of eg0, D57); C3, C3a and W4 0 (the mantle
+    and the cape ride the lean, the bob and the swings; nothing crosses a face, a leg or the weapon); B11 limbs, wear and
+    B12 0; W8 0; C19 A3's torso term; B8 0; B10 by tier; the judge reads T1, T2 and T3 as three figures in greyscale.
+- **MATERIAL** (artist-xhigh; the material lead for A4-A7).
+  - Files: maps/forge/**, maps/finish/**.
+  - Core: the surfaces of D59-D62: for each, the spec (where the light goes, which steps, which stamps), the stamps and
+    tiles drawn here (glass speculars as 2-3 px bars and diamonds placed only on facets of 4 px or more and never on a face
+    plate; the rim run; the silver rim lines; the iridescent band tile in the deeper violet and cyan; the Mythic's crack
+    seams and flame edge 2 px wide with no speck; its gold rims as hard planes), the ramp numbers for DOLL (the Mythic's lit
+    steps, starmetal's chroma and dark steps, the glass alloys' dark steps), and asks to HEAD, BODY and DOLL answered in the
+    same iteration; the line review at 1x, 3x and 8x, colour and greyscale, on grass and on dark ground, before and after.
+  - Depth: Thaerglass's seams breathing in its own green light at T5.
+  - Delight: one specular sliding along an obsidian facet as the body turns.
+  - Done: C19 A4-A7 0 with the round-4 terms; C16n on every LOCO and RUN frame of the A looks; every stamp and tile B8 0
+    (no orphans, periods 2 px or more, never a checker); the blind reads of A4-A7 pass (A5 beside e6, A6's f5_star beside
+    e6).
+- **DOLL** (engineer-high; BDIR build-p2c-env4).
+  - Files: FORGE-DOLL's (contracts 1, wave 1d), with tools/doll/envelope_looks.txt, owner_pack.py, tools/scripts/p2c_envelope*
+    and the capture scripts.
+  - Core (the first block, about half a day, then exe r4a for the previews):
+    - kits: the hero lines' T2 (TANNER'S at T2: the soft cap, the pauldron shape `capelet` at size 2, the neck `cowl`, each
+      falling back to today's cap, flap2 and no neck until drawn, listed by `--doll-coverage --scope envelope`); eg3's line
+      and the watch's T3 kit (the kettle with its finial crest, round pauldrons at medium reaching 20, the cape's T3 views,
+      the round shield where the kit has one); the `cowl` value in the neck vocabulary; A3's torso slots (a brass or
+      bronze everyday alloy's torso armour and chest motif paint in Metal, the people's blue only on cloth: trace and fix
+      the pieces or the slot mapping that paint a_enkho's torso tan and blue, D58);
+    - ramps, to MATERIAL's numbers: the Mythic (metalKind 11: the lit step at luma 175 or more, the gold's steps 3-4 at 190
+      or more), starmetal (both ramps' steps 2-3 at chroma 28 or more, steps 0-1 deep indigo), Thaerglass and the GLASS
+      alloys (steps 1-2 jewel-dark, step 3's luma 80 or more over step 2's); C14, C15, C17 and metalRead still 0;
+    - passes: the glass pass's rim as one run along each convex piece's lower-right inside edge (the torso region is armour
+      + motif) and every specular off W7's face box + 1 px and the face plates in every facing (D59); starmetal's bands
+      across the lit plane (D61); the Mythic's finish light kept off the face;
+    - gates, each with its selftest and no threshold loosened: D57's guard terms in C12f; the round-4 C19 terms of D58,
+      D60, D61 and D62; D56's scope in contracts 3d and the code comment;
+    - D63's grey boards, D64's kit tag, D65's capture waits and the re-shot phone captures;
+    - integration at every iteration: the art roots merged, gen/doll_pool.cpp regenerated with pxc (never hand-edited),
+      every gate run, the boards and the owner pack rebuilt; "Envelope results" appended (both lines' areas per tier; e1,
+      eg0 and eg3; the T2 head budget; C19 per A row before and after; the pool).
+  - Depth: the `envelope:guard` board carries f32_guard_t3d beside eg3 at 1x and 8x.
+  - Delight: the growth strip prints the T2 head budget under T2.
+  - Done: `rpg_test --doll --gates --parity` 0 (C12f ladder lines 0, C19 0 with the round-4 terms, every selftest ALL
+    CAUGHT); `--doll-envelope` and `--doll-heads` 0; `--doll-forge --worlds 1..6` and `--silhouettes --worlds 1..6` 0;
+    `--forge-shapes --check` 0; `--doll-forge-drawn` 0; the coverage scopes 0 missing; `node tools/doll/pxc.mjs --check`
+    clean and the pool 2,621,440 B or less; rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim`
+    0); the full rpg_test and save_test ALL OK; WSL clang 18 equal on the gates; every grey board R = G = B; `--expand-looks`
+    of `kit=heartland:6m:7` equal to `kit=heartland:6:7,rarity=mythic`; phone_NEAR_t1 re-shot with no straight-edged block,
+    and the repro without `clearing` reported.
+
+**Waves**: all four start at hour 0 (the art on isolated pools); DOLL integrates as the art lands, with no barrier but the
+integration build; then the verifier gate (the round-3 harness as r4 plus the new terms); then the judge's round 4.
+
+**The judge's round 4** (the round-1 protocol stands; a fix round verifies its items, plus the cheap harness for
+regressions):
+1. `sh .tmp/judge/r3_env_gates.sh` with OUT=.tmp/judge/env_r4: every line 0, rig 1 unchanged.
+2. Item 1: C12f ladder lines 0; the hero's T2 1.10 or more of T1 and both lines' T2 0.05 or more under T3; then e1 beside e2
+   at true 1x in greyscale on the phone at NEAR: two silhouettes (a bare head on a slim neck; a soft cap sitting in a cowl
+   over a tabbed mantle).
+3. Item 2: PLAN "The envelope" (table and helmets) and STYLE_P2 29.1, 29.3 and 29.4 say bareheaded; e1 and e1w are.
+4. Item 3: D57's numbers; eg3 beside f32_guard_t3d at 1x and 8x: the kettle's finial, the round pauldrons, the red cape at
+   both sides above the hem.
+5. Item 4: C19 A4 0 on fm_obsid and f5_obsid; the mask's lower face dark facing R and L at 8x; the blind read.
+6. Item 5: C19 A7 0 with D62's terms; the rim seen on the lower right at 1x; the wings at 8x; the blind read; D56 recorded.
+7. The packager's notes: A3 (its torso term; the blind read names brass for the body), A5 (D60's terms; beside e6), A6
+   (D61's terms; f5_star beside e6), the grey boards (R = G = B), the kit tag, the re-shot phone_NEAR_t1.
+8. Verdict: PASS, or FAIL items each with a repro, the number, the threshold and the check. An item still failing after
+   round 4 goes into the owner pack as an open item with its numbers, never a loosened gate. Then `owner_pack.py
+   --envelope` and the owner's sign-off.
+
 ### Production areas (wave 2) and the flip (wave 3)
 
 Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
@@ -3477,11 +4252,24 @@ paperdoll, portraits and loot previews.
      other value, then the board set and the worlds. FORGE-DOLL integrates and re-solves the table at each iteration (no
      barrier but first light's look review). Then the round-2 gate (the judge, at most 4 rounds), the round-2 pack and the
      owner's sign-off (D13-D41; D27 before wave 2).
-5. **Wave 2, production.** All 14 areas start at once after the forge sign-off. DOLL-C and FOLK-SIM-C publish their
-   contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
-6. **The barrier**: every area delivered, then C1, C3-C6, C8 and C12-C17 green at rig 2, then the owner's go on the flip
-   pack.
-7. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
+5. **Wave 1d, the envelope** (re-plan 2026-10-27: the owner picked 32 px on the fair test; it builds on the round-2 forge
+   fixes at df2a155).
+   - FORGE-DOLL publishes exe e1 in its first working block (about half a day): kEnvelope and `--envelope`, the restated and
+     new gates (C12f, C16k, C19) with their selftests, the clamps, the pauldron sizes 5-6 and their fallback, the variant
+     axis, envelope_looks.txt and the boards; it fixes the gates failing at df2a155 (B8 70, C16o 8, B10 7). ZOOM runs at the
+     same time (hours) and delivers alone.
+   - The four art areas and FORGE-MATERIAL start at once on isolated pools (by eye from the docs and docs/ref/envelope, with
+     g4 until e1): first light (the hero's T5 and T6 and the T3 guard) and the A fixes in parallel, then every other T4-T6
+     piece. FORGE-DOLL integrates at every iteration; the only barrier is first light's look review.
+   - Then a verifier gate, the envelope gate (the judge, at most 4 rounds), the envelope pack and the owner's sign-off
+     (D42-D65; the B calls and the loot answers come separately). Production (wave 2) starts at the new envelope after it.
+   - Round 3 failed five items: "The envelope fix round" (HEAD, BODY, MATERIAL, DOLL in parallel from hour 0, D54-D65)
+     runs before the judge's round 4, the last.
+6. **Wave 2, production.** All 14 areas start at once after the forge sign-off and the envelope's (wave 1d). DOLL-C and
+   FOLK-SIM-C publish their contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
+7. **The barrier**: every area delivered, then C1, C3-C6, C8, C12-C17 and C19 green at rig 2, then the owner's go on the
+   flip pack.
+8. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
    - The web build (EMBERVALE_WITNESS=OFF) and its size.
@@ -3516,6 +4304,13 @@ paperdoll, portraits and loot previews.
      no 1 px texture anywhere on armour; FURNACE hot iron, KNAPPED black glass, STARFALL and ARMOURER'S apart in outline,
      the Mythic face clean; shoulders on top of capes and in the side views; shields and boots belonging to the alloy;
      the skirts and sleeves moving with the walk and run at game speed without crossing a leg.
+   - **the envelope** (re-plan 2026-10-27): the hero's and the heroine's T1-T6 and the Mythic at true 1x on the phone at
+     NEAR, greyscale first, at game speed in the walk, the run and hit 1: six figures from slim to bulky, T6 the biggest,
+     every tier a new helm, faces clear; T1 bareheaded and T2 a soft cap over a hooded mantle (D54, D55); the T3 guard in
+     the fair test's T3d gear (D57); a T6 beside a king the bigger legend; the T5-T6 cloak and plume stirring quietly; the
+     owner's 37 with 37 different heads; the eight A fixes reading as their lines (brass, black glass, the Mythic a step up
+     in light, crystal, glass, clean plate; D58-D62); the phone's first launch at NEAR. The protocol is "The envelope gate"
+     in "The envelope update"; round 4's items are in "The envelope fix round".
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
@@ -3579,7 +4374,30 @@ paperdoll, portraits and loot previews.
   skirt, arms), and the table keeps a cloth over-layer off a people's everyday alloy where its menu allows.
 - **Round 2: the table makes a people look random**: the menus are the people's (STYLE_P2 28.5), the weights and rank
   flavour steer a third-used menu, and the judge reads every people's row as one people.
-- **Round 2: the pool** (about 1.70 MiB estimated): the fallbacks in the constants' order before any budget question.
+- **Round 2: the pool** (about 1.70 MiB estimated): restated by the envelope (D46, D48): the gate is 2.5 MiB, and going
+  over it is the owner's question, never an art cut.
+- **The envelope against motion** (great pauldrons in the swings, the long cloak through a leg): pauldrons ride the shipped
+  anchors (C3, W4); the cloak's hem stays above the soles and off the legs (the W-lines, W8 by tier); a size that fails in a
+  swing keeps the size below in that key (listed, never a hole).
+- **Budgets with bigger T5-T6 looks**: B10 by tier measured on e6 in wave A; the pool after production about 2.1 MB of 2.5;
+  over it is the owner's question (D48), never an art cut.
+- **The 37 heads cannot all part by variant and crest**: C16k fails loudly and names the pair; FORGE-HEAD draws a variant
+  (ADD), the threshold never moves; changing a family of the 37 is a planner ruling (it touches a B call).
+- **A1-A3 fail again** (four ramp-only rounds have failed): this round fixes the figure (the metal's share, the table's hard
+  rule, the hats in metal) as well as the ramp, with C19's rows and the blind read as the bar; two failed rounds send the
+  item to the planner for a key change (another mass or over-layer for the brasses), not a fifth ramp tweak.
+- **A people cannot reach the area ladder inside its own style** (the Highland, with no plate pauldrons): its kits' ladder
+  is reported in this update and hard at production; a people that cannot reach a ratio with its own forms (sash, plume,
+  mantle, cape, skirt flare) gets a planner ruling recorded per people, never a quiet threshold.
+- **Today's approved T1 misses W1's outline + 1 px by a pixel**: the T1 was approved by eye; the margin is recorded with the
+  judge's ruling and the art is not bent.
+- **The doorway overlap** (28 px T6 shoulders in 16 px doorways): the draw order (depth); until it lands a T6 overlaps a jamb
+  by up to 6 px a side.
+- **NEAR shows 17 % less of the world**: more aggro starts off-screen; the danger pips already mark it; zooming out is one
+  tap and is remembered.
+- **The un-swap moves the gat to Jaonbrass** (B1's "top hat"): the owner's B1 answer decides; the fallback is the jingasa.
+- **The fair test's figures were not doll parts**: first light rebuilds them on the shipped anchors and layers; where a pixel
+  cannot be placed the doll's rules win and FORGE-TORSO records the difference beside the reference.
 
 ### Process (the owner's rules for P2c)
 
@@ -3890,3 +4708,45 @@ round-3 maps: pool ac4b6df4b1c03bbc (1,816,582 B), table re-solved (0 hard, C18a
 save_test ALL OK, art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, --arms ALL OK, p2c_forge.txt 0, witness
 p2c_forge / p2c_ladder / p2c_slice ok, WSL clang 18 matches. Renders:
 %TEMP%/claude/emb_P2c/silhouette/areas/FORGE-DOLL/i3.
+
+### Envelope results (FORGE-DOLL fills at the envelope gate)
+
+(Re-plan 2026-10-27: "The envelope" and "The envelope update" above. Record per iteration: the pool's size and hash;
+`rpg_test --envelope`; the hero's and the heroine's area, shoulders, head rows and cloak extents per tier, without and with
+weapon and shield (beside the size study's 463 / 539 / 674 / 649); the measured T5-T6 ACTION, DEATH and POSTURE budgets; C16k
+over the 37 and the board set; C19 per A row, before and after; the thresholds the judge set by eye; the gates; rig 1; ZOOM's
+screens.)
+
+- **e1 (FORGE-DOLL, 2026-10-27, wave 1d first block; contracts 8 "FORGE-DOLL, envelope iteration 1").** Pool unchanged
+  (1,383,460 B of 2,621,440, db084b6c25aa269f; pxc --check clean, prints the 2.5 MiB budget). The "gates failing at HEAD"
+  (B8 70, C16o 8, B10 7) do not reproduce: a fresh build of df2a155 on the study's cur.pool (byte-identical to the repo pool)
+  gives 0 / 0 / 0; the study's gates.txt came from an exe older than df2a155's code. `--envelope` prints kEnvelope as the table
+  above. Measured (noHeld, walk D frame 0 + idle R): hero T1..T6 810 / 803 / 868 / 1092 / 1157 / 1117 px (1.00 / 0.99 / 1.07 /
+  1.35 / 1.43 / 1.38: T6 under T5), heroine 728 / 774 / 830 / 1038 / 1109 / 1088 (T6 under T5); heads T3-T6 0.19-0.29 head OD
+  apart but T4 and T5 smaller than the tier below; shoulders T3 22 (flared3), T4 24 (slab4),
+  T5-T6 19-20 (size 4: 5 and 6 not drawn); the T5-T6 cloak 3 px past a leg facing D (cap 2). Gates at e1 (MSVC = WSL clang 18):
+  every existing gate green (B1 16/0, B2 288/0, B8 0, B10 0, C3 0, C12 0, C14 0, C16o 0, C17 0, B11 0, B12 0; --doll-forge-drawn 0;
+  --silhouettes 0; --forge-shapes --check 0 (rules 1-6); coverage forge 0 / ladder 0; --motion 0; art_hash 317eef6efe4d8229,
+  village-art 65 / 0, --anim 0); the new gates fail on art not redrawn yet, as planned: C12f envelope 22, C12f ladder lines 17,
+  C3b by tier 1 (eg0's helm 1 column), C13 drawn motion 11 (stir 0-22 px), C16k heads apart 13 pairs (variants not re-keyed or
+  drawn yet), C19 A1 4 / A2 7 / A3 1 / A4 16 / A5 6 / A6 3 / A7 3 / A8 29 (was 352 before the A8 compose rules); B10 by tier
+  (env) 0; every selftest caught (C12f 4/4, C19 6/6, C16k 2/2); coverage envelope 31 values not drawn. T5-T6 ACTION, DEATH and
+  POSTURE left at the cap: e6 measures 123.6 / 43.7 KB today, which x 1.1 would undercut the T1-T3 row; measured again on e6's
+  envelope art. Script p2c_envelope 0 failures; witness p2c_envelope 28 / 2 (T3 22 and T4 24 px across), p2c_forge and
+  p2c_ladder pass.
+- **fix round r1 (DOLL, 2026-10-28; D54-D65; contracts 8 "DOLL, envelope fix round, r1").** Integration iteration 1 (BODY's
+  capelet2, cowl and cape views, HEAD's maps, FORGE-MATERIAL's code prototype 3-way merged with no conflict): pool 1,511,166 B of
+  2,621,440 (c848fa00bb495ea6). Measured (C12f: noHeld, walk D frame 0 + idle R): hero T1..T6 808 / 930 / 1049 / 1095 / 1283 /
+  1447 px (1.00 / 1.15 / 1.30 / 1.36 / 1.59 / 1.79; r3 T2 850, 1.05), heroine 728 / 885 / 996 / 1046 / 1253 / 1412 (1.00 / 1.22 /
+  1.37 / 1.44 / 1.72 / 1.94); T2's shoulders 18, head rows 3; the T2 head budget 160 px against 229 (hero) and 224 (heroine);
+  eg3 1024 px (1.27 of e1's 808, 1.19 of eg0's 859; r3 1.05 of eg0), shoulders 20, its cape beside the arms on 11 / 11 rows
+  facing D and 2 columns behind facing R, head rows 3 (the finial). C12f ladder lines 0 (r3: 1), C12f envelope 0, C3b 0,
+  `--doll-envelope` 0, coverage envelope 0 values not drawn, D64 0, every selftest caught (C12f 10/10, C19 19/19). C19 before
+  (r3) / after: A1 0/0, A2 0/0, A3 0/0 (with the torso term), A4 2/0, A5 0/1 (lit + glow 1.00 of e6's, 1.15), A6 0/2 (2 bands, 3),
+  A7 0/2 (the helm's glass tell 0), A8 0/0. Still failing while the areas iterate: C3 gear 6 (BODY's leather maps: the archer's
+  gripping hand hidden facing U at draw and release; reverting BODY's maps clears it), C12a T2 to T3 1 (lt2 to lt3 R outline +2.0
+  %, 6 wanted: T2 grew), C14 1 (lt6w hair against the starmetal, 11 luma apart), C17 100 (fm_myth's metal read, the Mythic's ramp),
+  --doll-forge-drawn (C17, C12a). Rig 1 unchanged (art_hash 317eef6efe4d8229, village-art 65 / 0, --anim 0). Grey boards R = G = B
+  (r3's hero grey board: 5,235 coloured pixels). The phone re-shot with `settle`: the straight-edged block beside the hero at seed 7
+  stays, and the repro with no `clearing` shows it at 0.8 s, after settling and at 6 s: a terrain bug for the owner, outside the
+  envelope (D65), not a capture artefact.
