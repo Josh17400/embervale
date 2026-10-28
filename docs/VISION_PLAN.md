@@ -1342,9 +1342,10 @@ struct Companion {
   - Level tracks player level − 1, so there is no grind.
   - Power comes from gear (the same paper doll as yours) and from **skills unlocked by bond, not XP**. For the warrior: Taunt
     at bond 20, Shield Wall at 50, Last Stand at 80.
-    *(Ruled 2026-10-28, 15.26: a companion's own kit is made once, when they join, and stays theirs while they live, and
-    what you give them stays yours. They wear a gift only if it is better than what they wear. If they die, everything
-    they carry drops where they fell.)*
+    *(Ruled 2026-10-28, 15.26: a companion's own kit is made once, when they first join, and stays theirs while they
+    live, and what you give them stays yours. They wear a gift only if it is better than what they wear. If they die,
+    everything they carry drops where they fell. If they leave and come back, they come back as themselves, with their
+    bond, their kit and their history: "they arent new".)*
   - Bond grows with time together (+1 per day) and with approval.
 - **Personality and approval:**
   - Player deeds carry tags, from a deed event bus on top of `Ev`: helped refugees, spared, killed civilians, stole, joined
@@ -2155,7 +2156,8 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
       - undead carry old makers' metals only inside ruins and shrines;
       - a commission is seeded by the smith and the restock period, never the hero's purse;
       - a companion's kit never reaches the hero's pack while they live; at their death it drops once, as ordinary
-        gear capped like any find (15.26).
+        gear capped like any find, and a companion who leaves and comes back brings the same kit, never a second one
+        (15.26).
     - *Measured:* the balance sim gains `rpg_test --ladder-pace`, which P2c builds on today's rules. It runs beside
       `--metrics` and `--power-curve` and reports the band, metal, look tier and rarity each pacing stage rolls, plus the
       relic share of an assumed hour.
@@ -3125,20 +3127,25 @@ remove or change the meaning of what is listed here):
   theirs while they live, and what you give them is yours.** The owner: "we probably will need to allow for players to
   give their companions better armor than what they start with though, so maybe you can't take their defaults but you
   can give them better armor and they will equip what's better." The same day the owner settled the two points the plan
-  had read for itself: "Made once, and if they die they drop everything" (items 1, 5 and 6). These are planned rules for
-  the armour rules update after P2c DONE, not P2c work. docs/ARMOUR_SPAWN_RARITY.md section 6 has the detail.
+  had read for itself: "Made once, and if they die they drop everything" (items 1, 5 and 6). Then the owner answered the
+  four points left to confirm (15.37 items 4-7), and reversed the plan's reading of a companion who comes back: "well if
+  they re join they should stay at the level they left, and shouldnt get treated as a new join since they arent new."
+  (item 8). These are planned rules for the armour rules update after P2c DONE, not P2c work.
+  docs/ARMOUR_SPAWN_RARITY.md section 6 has the detail.
   1. **Their kit.** It is made once, when they join (ruled: "Made once"), in their own people's make, so a later recruit
      starts higher on the metal ladder. Every piece carries IF_KIT.
      - It is never remade as they level: the hero's gifts are the only way up.
      - Its item level is the place's danger, as today, capped at the hero's level + 4 like any find, and its rarity rolls
        with the hero as the finder, so the luck gate (15.37's ruling 6) reads the hero. A death drops the kit as
        ordinary gear (5), so it may hold nothing a find there could not. At the join this costs the companion nothing:
-       level sync already uses a piece at no more than the hero's level + 3 (effLevel, gear.cpp:36).
+       level sync already uses a piece at no more than the hero's level + 3 (effLevel, gear.cpp:36). Ruled: "that works
+       for me".
      - While they live, the hero can't take a kit piece into the pack by any road (TAKE BACK, a swap or a parting), and
        can't sell it or break it down.
      - TAKE BACK on a kit piece is greyed, with their line ("THAT'S MINE. I CAME WITH IT.").
-     - A companion who parts and later joins again is a new join: their record starts again, bond included, and the kit
-       that left with them is made again from the same seed. Nothing doubles.
+     - A companion who parts while living and later comes back is the same companion (ruled: "they arent new"). They
+       come back in the kit they left in, which is never made again, with their level and their record (8). The plan had
+       read a return as a new join, with the kit made again from its seed; the owner reversed it.
   2. **Giving.** The hero may give any piece they can wear: armour, a weapon, a ring or an amulet.
      - They wear it only if it is better than what they wear in that slot. "Better" means gear::powerScore at their level
        (party::levelFor, the level PartyOps::body syncs their gear to) more than 3 % over the worn piece's. That is the
@@ -3153,8 +3160,9 @@ remove or change the meaning of what is listed here):
      the slot empty if they had none. Only what the hero gave can come back.
   5. **Parting and death.**
      - At every parting (dismissed, unpaid, or leaving in anger), they hand every gift back into the hero's pack at that
-       moment, with their line and an alert naming the count. The pack has no gear cap (Game::addItem).
-     - Their own kit, and the potions and food they were given, leave with them.
+       moment, with their line and an alert naming the count, and put their own stowed piece back on in each slot a
+       gift held, so they leave in their own kit. The pack has no gear cap (Game::addItem).
+     - Their own kit, and the potions and food they were given, leave with them and come back with them (8).
      - A companion sent home is still a member, and their gifts can be taken back from the party page.
      - **At death they drop everything** (ruled: "if they die they drop everything"). Everything they carry (their kit,
        worn and stowed, the hero's gifts, and their belongings) drops on the ground where they fell, as the game's own
@@ -3166,15 +3174,55 @@ remove or change the meaning of what is listed here):
      - Where they fell is the body that went down: their party body, or for a death in their census life on the hero's
        map, their census body. A death off the hero's map (a companion at home carried off in a raid whose rescue then
        fails) has no ground to drop on, so what they carried is lost with them.
+     - Ruled, the pile's rules and the raid at home with them: "yep thats good".
   6. **The grave holds no keepsake.** Everything they had lies where they fell, so the grave is laid with nothing to
      take, and IF_KEEPSAKE is not added. The grave stays as the remembrance (15.6.2): their people's stone with their
      weapon laid on it (a look, not the item), the epitaph, flowers and words, their kin's grief and the party page's
      roll of the fallen. None of these reads the keepsake. A grave laid before the update keeps what it holds and its
      one keepsake, as today. A sellsword's inn slot still retires when he dies (MERC_FALLEN), and a census companion dies
-     once, so each kit can drop only once.
-  7. **Sellswords.** A dismissed or unpaid sellsword waits a week before he can be rehired: dismissal sets the hire mark to
-     that day instead of erasing it. A rehire makes his kit again from his seed. The old kit left with him, so nothing
-     doubles.
+     once, so each kit can drop only once. The one-time find that is left is accepted: "thats fine if someone wants to
+     farm that way they can but there are defintly better avenues to make money".
+  7. **Sellswords.** A sellsword who parts while living (dismissed, unpaid or angry) waits a week before he can be
+     rehired: every such parting sets his hire mark to that day, where today dismissal erases it and an angry leave leaves
+     it at his hire day. A rehire brings back the same man, with his record and the kit he left with (8), for a day's
+     wage up front, as any hire. Nothing is made again, so nothing doubles.
+  8. **Leaving and coming back** (ruled: "well if they re join they should stay at the level they left, and shouldnt get
+     treated as a new join since they arent new.").
+     - **Today a parting forgets them.** partyDismiss removes the whole record (party_game.cpp:914-922): bond, approval,
+       memories, flags, the personal quest's state, the horse and the id go with the pack. An unpaid sellsword, a
+       personal quest's farewell and a sellsword's angry leave go the same way. Asked again, they are built anew with
+       their kit made again (party_recruit.cpp:359-375). Only a census companion who leaves in anger is kept, as
+       State::Left, until the apology.
+     - **Where they wait.** Their record waits whole in a new saved roll of the party block, `Party::parted`, beside the
+       fallen, in a member's saved form so it comes back as after a load. The census can't hold it: it is rebuilt from
+       seeds and saves only a few flags per resident. A census companion is found again by their npc id, a sellsword by
+       his inn and slot. Their body lives on as today: a census companion in their own life at home, a sellsword at his
+       inn table once his week is out, in the kit he left with. Those with nowhere to be met again (the animal, a saga's
+       ally, a stranger rescued with no census home) go as today.
+     - **What comes back.** The same id, so their personal quest finds them again; their bond and the skills it opened;
+       approval, memories, flags, days, kills and talk; the horse the hero bought them; and their kit, worn as they left,
+       with the potions and food they were given. The kit is never made again. Bond does not grow for the days away. The
+       alert reads "JOINS YOU AGAIN."
+     - **Their level** is never stored: it tracks the hero's, one below (section 9: "Level tracks player level − 1"). It
+       can't fall while they are away, so they come back at the hero's level less one, never below the level they left
+       at, and their kit keeps the item levels it was made at ("Made once"). The plan reads "stay at the level they left"
+       as "nothing they earned resets" (15.37 item 8).
+     - **Whether they come** is unchanged: a census companion needs what any recruit needs (alive, of age, off duty,
+       room, and a reason to come: befriended, helped, or a regular at the inn), and a sellsword his week, room and wage.
+       Joining never befriends them, so a raid captive who joined as Rescued may have no reason left (15.37 item 10).
+     - **Angry leaves.** A census companion who left in anger comes back as today, by the apology, refused the first
+       time and taken on a later day, which lifts approval to at least -30. No bond bar applies, and bond is untouched.
+       A sellsword who left in anger keeps his record, angry, so his table says "YOU OWE ME AN APOLOGY FIRST" until the
+       same apology is made there (15.37 item 9).
+     - **Death while away** is a census death, as today: their kin grieve, nothing drops, no grave is laid, and their
+       record leaves the roll.
+     - **Old saves.** Anyone dismissed before the update joins anew, once. A companion travelling in an old save hands
+       back all their gear as gifts at their first parting (it has no IF_KIT), so if they come back holding no kit piece,
+       their kit is made then, once.
+     - **Size.** MAX_PARTED 32; a record is at most about 1.2 KB, so a full roll adds at most about 38 KB to a save.
+       MAX_RECORDS (8) still counts only members, so parting still frees a place. Past 32 partings, the friend parted
+       longest ago is forgotten. The party block steps to version 5 and still reads 4, so save_v23 loads; SAVE_VER 23
+       holds.
   - **The old exploit, closed.**
     - *The path today.* partyEquip calls partyUnequip on a filled slot, and partyUnequip calls addItem
       (party_game.cpp:871, 888). Any gift for a filled slot therefore drops their kit piece into the hero's pack, where
@@ -3188,6 +3236,9 @@ remove or change the meaning of what is listed here):
       IF_KIT cleared. As a second lock, Game::sell and CraftOps::studyable refuse IF_KIT.
     - *Old saves.* A kit made before the update has no IF_KIT, so it counts as a gift, once. That is accepted: there is no
       SAVE_VER change, and a gift can't be told from a kit in an old save.
+    - *A parting forgot them.* A dismissed companion asked again was built anew, which reset an unhappy companion's
+      approval and dropped MF_QUEST_DONE, so a finished personal quest could be offered again (party_talk.cpp:200). The
+      parted roll (8) keeps the record, which closes both, and a kit made again at a higher cap after the hero levels.
   - **Checked by** `rpg_test --companion` (CI). Its cases:
     - TAKE BACK refused on a kit piece;
     - a worse or equal gift declined, with both packs unchanged;
@@ -3199,12 +3250,22 @@ remove or change the meaning of what is listed here):
       tile of where they fell (item seeds and counts compared), with no IF_KIT on any dropped piece, nothing added to
       the hero's pack, and a grave with nothing to take;
     - the kit's item level at most the hero's level + 4, on every recruit path;
-    - the hire mark, and MERC_FALLEN after a sellsword's death (his slot never stands again);
-    - a seeded fuzz of give, take back, swap, dismiss, leave, rehire and death over seeds 1..20 that never puts an IF_KIT
-      item in the hero's pack or on the ground.
+    - the hire mark set on every living parting of a sellsword, his slot empty for 7 days from it, and MERC_FALLEN after
+      his death (his slot never stands again);
+    - leaving and coming back (8), for a census companion asked back at home and a sellsword dismissed, unpaid or angry
+      and rehired after his week, with the hero 10 levels higher in between: their level the hero's less one and never
+      below the level they left at, with every kit piece at its old item level; the same kit seeds in the same slots,
+      with IF_KIT, and no kit made again; the same bond, skills, id, approval, memories and flags, with no bond for the
+      days away; the gifts back in the hero's pack exactly once;
+    - an angry census companion's record kept through the apology (approval lifted to -30, nothing else changed); an
+      angry sellsword answering ANGRY at his table until his apology;
+    - the parted roll through a save and load, save_v23 loading with an empty roll; a parted census companion's death
+      removing their record, with no pile and no grave;
+    - a seeded fuzz of give, take back, swap, dismiss, leave, rehire, rejoin and death over seeds 1..20 that never puts an
+      IF_KIT item in the hero's pack or on the ground, and never makes a kit twice.
     `--loot-sources` gains kit and fallen-companion rows. Witness plays it once: give a companion a worse piece and then
-    a better one, take it back, dismiss them, and read the pack; then lose a companion in a fight and gather what they
-    drop.
+    a better one, take it back, dismiss them, and read the pack; ask them back at their home and read their page (the
+    same bond, skills and kit); then lose a companion in a fight and gather what they drop.
 
 ### 15.27 M8b "Treasure": the loot overhaul (owner, 2026-10-12)
 
@@ -3269,9 +3330,9 @@ The owner, in their words: "items need to have effects if they have a rarity. im
   - The proposal's model gives about 0.4 Legendaries before level 20 and 0.2 Mythics before 30 for a dungeon-goer. Today's
     whole-step bypass (gear.cpp's rarityAllowedTop) gives 0.9 and 0.5. `--ladder-pace` measures it.
 - **Item 2's audit grows** with the new sources: war spoils, relics, companion kits and a fallen companion's pile (15.28).
-- **Item 5, "companions use the same rules":** a kit rolls as a find, in their own people's make. It is made once, when
-  they join, with its item level capped at the hero's level + 4 and its rarity rolled with the hero as the finder,
-  because a death drops it as ordinary gear (15.26).
+- **Item 5, "companions use the same rules":** a kit rolls as a find, in their own people's make. It is made once, at
+  their first join, with its item level capped at the hero's level + 4 and its rarity rolled with the hero as the
+  finder, because a death drops it as ordinary gear. A companion who leaves and comes back brings it back (15.26).
 
 ### 15.28 M8b "Treasure" phase A (lead, 2026-10-12): the loot contracts
 
@@ -4885,11 +4946,12 @@ with the re-plan and are settled at the P2b slice sign-off from the owner pack.
 ### 15.37 Armour spawning, alloys and rarity (owner, 2026-10-28): the rulings, and the armour rules update (planned)
 
 The owner asked how armour should spawn and how the advanced alloys should work with rarity. The proposal is
-**docs/ARMOUR_SPAWN_RARITY.md** (revision 3 of 2026-10-25, approved as revision 4; revision 5 adds the owner's
-follow-up on companions). It holds the design, with file:line citations at df2a155. On its twelve questions the owner
-answered "Defaults is good" on 2026-10-28, which accepts every recommended default, and amended question 11
-(companions). Later that day the owner settled the plan's two companion readings: "Made once, and if they die they drop
-everything". This section is the index. Each ruling is written into the section it changes.
+**docs/ARMOUR_SPAWN_RARITY.md** (revision 3 of 2026-10-25, approved as revision 4; revisions 5 and 6 add the owner's
+follow-up and answers on companions). It holds the design, with file:line citations at df2a155. On its twelve questions
+the owner answered "Defaults is good" on 2026-10-28, which accepts every recommended default, and amended question 11
+(companions). Later that day the owner settled the plan's two companion readings, "Made once, and if they die they drop
+everything", and then answered the four companion points left to confirm, ruling that a companion who comes back is
+the same companion (items 4-7 below). This section is the index. Each ruling is written into the section it changes.
 
 **The rule:** where you are decides the metal, luck decides the finish, old places hold the old makers' metals, and
 every metal keeps its own helmet.
@@ -4901,6 +4963,7 @@ every metal keeps its own helmet.
 - A ruin in any land can hold a black glass breastplate.
 - A companion arrives in their own people's kit, and the hero can do better by them. If they fall, everything they
   carried lies where they fell.
+- A friend who leaves and comes back is the same friend: their bond, their kit and their story come back with them.
 
 | # | ruling (2026-10-28) | ships in | written into |
 |---|---|---|---|
@@ -4914,7 +4977,7 @@ every metal keeps its own helmet.
 | 8 | a crafted alloy draws T4 or more; a masterwork draws T5 only from band 4 | P2c (looks) | 15.11, 15.36 |
 | 9 | far-land folk one step finer without alloys; bandit chiefs T2 (T3 far); two-alloy kings per D38 | P2c (looks) | 15.36 |
 | 10 | war spoils: soldiers 10 %, captains 50 % (Uncommon or better), 3 a siege, capped by the hero's level | the rules update | 15.9, 15.28 |
-| 11 | companions (amended): their kit is made once and stays theirs while they live; a gift stays the hero's and is worn only if better; at death they drop everything where they fell, the kit as ordinary gear, and the grave keeps no keepsake (the owner's follow-up, the same day) | the rules update | 9, 15.6, 15.9, 15.19, 15.26, 15.27, 15.28 |
+| 11 | companions (amended): their kit is made once and stays theirs while they live; a gift stays the hero's and is worn only if better; at death they drop everything where they fell, the kit as ordinary gear, and the grave keeps no keepsake (the owner's follow-up, the same day); a companion who leaves and comes back keeps their level, kit and record (the owner's answers, the same day) | the rules update | 9, 15.6, 15.9, 15.19, 15.26, 15.27, 15.28 |
 | 12 | looks inside P2c; the rules as their own update after P2c DONE, with their own full test run | - | here, 15.36 |
 
 **The armour rules update (planned; not P2c and not P2c's wave 2).** It starts after P2c is DONE, as its own update with:
@@ -4932,24 +4995,29 @@ Its files are disjoint from P2d's.
   - optionally, the everyday alloy's lore line "HARDER THAN STEEL, AND CHEAPER TO POUR" (the same pick, so no culture
     changes).
 - **OUT:**
-  - a SAVE_VER bump (23 holds) and new item fields;
+  - a SAVE_VER bump (23 holds) and new item fields (the party block's own version steps to 5 for the parted roll, and
+    still reads 4);
   - changes to the alloy generator;
   - leathers above band 1 (PLAN.md D23), alloy move quirks and weapon styles (D34);
   - a third alloy for two-alloy peoples, deferred until the playtests;
   - a relic's own colour per slot (D15, the owner's later call);
-  - kits that remake themselves as companions level (ruled 2026-10-28: "Made once").
+  - kits that remake themselves as companions level or come back (ruled 2026-10-28: "Made once"; "they arent new").
 - **Areas** (one owner per file):
   - **LOOT** (engineer-high): gear.{h,cpp}, items.{h,cpp}, game_rpg.cpp, story.cpp, story_game.cpp. It publishes the item
     flags, the DropSource fields and the shared "better" rule first.
-  - **PARTY-WAR** (engineer): party_game.cpp, banter.cpp (the companions' gear lines only), craft_game.cpp, war_game.cpp,
-    game.h.
+  - **PARTY** (engineer-high): party_game.cpp, party.{h,cpp}, party_recruit.cpp, party_talk.cpp, banter.cpp (the
+    companions' gear lines and their cry on coming back only). Split from PARTY-WAR on 2026-10-28, because leaving and
+    coming back adds the party block, the recruit paths and the apology at a sellsword's table.
+  - **WAR-CRAFT** (engineer): craft_game.cpp, war_game.cpp, game.h (the spoils counter's bits).
   - **UI** (engineer): loot_paint.h, hud.cpp, paperdoll.cpp (the card's metal row, the HUD's metal word, and the party
     page's greyed TAKE BACK, decline note and arrow at the companion's level).
-  - **TEST** (engineer): test_loot_sources.cpp, test_loot.cpp, test_party.cpp, test_wards.cpp, and the file that holds
-    P2c's `--ladder-pace`.
-  - Wave 1 is LOOT's contract block. Then PARTY-WAR, UI and TEST run in parallel.
+  - **TEST** (engineer): test_loot_sources.cpp, test_loot.cpp, test_party.cpp, test_wards.cpp, the file that holds
+    P2c's `--ladder-pace`, and two hooks in script_party.cpp for the script sweep and Witness: `party snap <name>` and
+    `expect party same <name>` (id, bond, approval, memories, and the kit's seeds by slot).
+  - Wave 1 is LOOT's contract block. Then PARTY, WAR-CRAFT, UI and TEST run in parallel.
   - Core: the IN list. Depth: a companion declines a piece their vocation never uses. Delight: the party page marks the
-    pieces the hero lent.
+    pieces the hero lent and lists the friends you parted from and where they wait; a parted sellsword waits at his
+    table in the kit he left with.
 - **Done** (the judge measures from a new game and from save_v23; ARMOUR_SPAWN_RARITY.md section 9 has the full lists):
   - `rpg_test --ladder-pace --worlds 1..20 --report` passes its fail list:
     - no rarer piece drawn plainer;
@@ -4964,12 +5032,14 @@ Its files are disjoint from P2d's.
     - `--metrics`, `--foes` and `--arms`;
     - `--companion` (15.26's cases and fuzz);
     - `--wards` (the spoils counter);
-    - save_test (save_v23 loads, and the new bits round-trip);
+    - save_test (save_v23 loads, its party block with an empty parted roll, and the new bits round-trip);
     - `rpg_test --seeds 1..20`, the script sweep and Witness.
   - The judge plays:
     - an explorer finds an old maker's piece in a ruin by band 4;
     - no shop sells a masterwork outside the exceptions;
     - a companion takes a better gift, declines a worse one, and hands it back when dismissed;
+    - the same companion, asked back at their home after the hero has gained levels, comes back with the same bond,
+      skills and kit (`expect party same`), and a sellsword rehired after his week the same;
     - a fallen companion's kit, gifts and belongings lie where they fell, and the hero gathers them;
     - the playtests watch whether the everyday alloy reads as a step down after steel.
 
@@ -4989,8 +5059,9 @@ wave 2. The VISION part is written above.
 - docs/P2C_CONTRACTS.md: HumanLook's `epic` bit, census::Rank's `far` field, and the Mythic-alloy and relic-helm paths.
 - D27 is already closed by D46 and D48.
 
-**For the owner to confirm** (the plan proceeds on these readings). The owner answered the first two on 2026-10-28:
-"Made once, and if they die they drop everything".
+**For the owner to confirm** (the plan proceeds on these readings). On 2026-10-28 the owner answered items 1 and 2 ("Made
+once, and if they die they drop everything"), then items 4-7 the same day. Item 3 is still open, and items 8-10 are new
+with that last answer.
 1. "Their kit climbs with them" is read as "made at their level when they join", so a later recruit starts higher on the
    ladder, and the hero's gifts carry them after that. **Ruled 2026-10-28: "Made once."** The kit is made when they join
    and never remade as they level; gifts are the only way up (15.26).
@@ -5004,11 +5075,32 @@ wave 2. The VISION part is written above.
    recruits in a D-30 town and lets the companion die would gather item-level-30 gear rolled past ruling 6's gate. The
    companion's strength at the join is unchanged, because level sync already caps how they use a piece. Reading "their
    level" as the companion's own level (one below the hero's) would close it too, but would dress a band-1 villager in
-   alloy.
+   alloy. **Ruled 2026-10-28: "that works for me".** The cap and the hero as the finder stand (15.26).
 5. (2026-10-28) The pile keeps the ground loot's own rules: it lies 240 s and is gone when the hero changes map or loads,
    because ground loot is never saved. A death off the hero's map (a companion at home carried off by raiders whose
-   rescue fails) has no ground, so what they carried is lost. A longer-lived pile would be a new rule.
+   rescue fails) has no ground, so what they carried is lost. A longer-lived pile would be a new rule. **Ruled
+   2026-10-28: "yep thats good".** The 240 s, the map change and the load, and the raid at home all stand (15.26).
 6. (2026-10-28) Hire-and-let-die now pays once per sellsword: a warrior's Common kit sells for about 2.5 times his first
    day's wage (*model*: 176 gold against a 70-gold hire at a D-10 inn). MERC_FALLEN retires his slot for good, so it
    never repeats; a census companion's kit costs no gold but a friend. The plan accepts this as a one-time find per
-   companion.
+   companion. **Ruled 2026-10-28, accepted: "thats fine if someone wants to farm that way they can but there are
+   defintly better avenues to make money".**
+7. (2026-10-28) A companion who parts and later joins again is a new join: their record starts again, bond included,
+   and the kit that left with them is made again from its seed. Nothing doubles. **Reversed 2026-10-28: "well if they
+   re join they should stay at the level they left, and shouldnt get treated as a new join since they arent new."** A
+   companion who parts while living and later comes back keeps their level, the kit they left in (never made again) and
+   their record: bond, approval, memories and history. The record waits in the party block's new parted roll. Gifts
+   still come back to the hero at the parting (15.26 rule 8).
+8. (2026-10-28, from item 7) A companion's level is never stored: it tracks the hero's, one below (section 9: "Level
+   tracks player level − 1"). So "stay at the level they left" is read as "nothing they earned resets": they come back
+   at the hero's level less one, never below where they left, with their bond, the skills it opened and their kit as
+   it was. A level frozen while they are away would need a stored level and a catch-up rule, and would bring them back
+   weaker than a stranger hired that day.
+9. (2026-10-28, from item 7) A sellsword who left in anger now keeps his record, his anger included, and rehired as he
+   is he would walk out again at the next deed. So his inn table says "YOU OWE ME AN APOLOGY FIRST" until the census
+   companion's apology (refused once, taken on a later day) is made there. Today he is simply rehired with a clean
+   slate once his slot stands again.
+10. (2026-10-28, from item 7) Whether a friend agrees to come back keeps today's rules: a census companion still needs a
+    recruit's reason to come (befriended, helped, or a regular at the inn). Joining never befriends them, so a raid
+    captive who joined as Rescued may have none, though their farewell says "YOU KNOW WHERE TO FIND ME". The plan keeps
+    the rule; counting the kept record as a reason to come would be a small new rule.
