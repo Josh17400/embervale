@@ -1045,6 +1045,12 @@ name, coloured by `D − playerLevel` (≤ 0 green, ≤ 4 yellow, ≤ 10 red, ot
 - **Band names are culture material words.** A heartland culture calls bands 1 to 7 Iron, Steel, Gilded, Jade, Obsidian,
   Emberforged and Starmetal (today's six names plus one). A Qasri culture might say "copper, bronze, sunsteel…". The band
   of `iLvl` decides the tint ramp, as `tierTint` does today.
+  - **Ruled 2026-10-28 (owner; 15.37): two ladders of metal words.** Each people names its own:
+    - leather or bronze in band 1, iron in 2 and steel in 3;
+    - from band 4, its everyday alloy, then its warriors' alloy in 5, then its masterwork in 6-7.
+    Gilded, Obsidian, Emberforged and Starmetal are the old makers' metals: relics of old places, the same in every land,
+    at bands 4, 5, 6 and 7. So gilded is band 4, not band 3, and "Jade" names a people, not a band. A relic's card reads
+    "OLD MAKERS' WORK", and "Heartland" leaves the UI, because a heartland-born hero's people have alloys of their own.
 
 | Band | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|
@@ -1096,6 +1102,10 @@ Each legendary gets a culture-phonology name ("Hrothgar's Oath", "The Salt Widow
 event, a unique tint and glow on the paper doll, and an icon. **Attunement** limits legendaries equipped at once: 1 at
 level 10, 2 at level 25, 3 at level 40.
 
+*(Ruled 2026-10-28, 15.37: on the drawn figure a Legendary keeps its own metal's colour, outline and helmet, and its glow
+is T6's finish (lit, breathing runes, motes and the edge spark). Its gold stays on the name, the frame, the icon border and
+the light on the ground, never as a tint on the metal.)*
+
 ### 7.4 Player power and the XP curve
 - **Per level:** +1.5 % damage (today 4 %, which compounds with gear into about 16× at level 50) and +4 HP. The level-up
   choice of +12 health, magicka or stamina stays.
@@ -1120,6 +1130,14 @@ fails if same-band trash falls outside 3 to 5 hits or same-band death time falls
 4. **Shops stock by local band, never by player level.** This fixes today's leak in `shopStock`
    (`lvl = max(plLevel, site level)`). Merchants top out at Rare, and capitals offer Epic at reputation Honoured.
    Legendaries are never sold, except by the hidden-kingdom focus vendor.
+   *(Ruled 2026-10-28, 15.37 Q7; planned for the armour rules update after P2c):*
+   - Shelves and smiths' commissions also stop at a people's warriors' alloy, with two exceptions:
+     - a capital smith of that people who trusts the hero with his patterns may forge the masterwork on commission from
+       band 6;
+     - hidden-kingdom smiths follow the band rule.
+   - The masterwork is otherwise earned: from band-6 drops or the hero's own forge.
+   - The focus vendor stays as built: it sells its tradition's focus as a Rare piece at the hero's level + 2
+     (magic_learn.cpp). So no Legendary is ever sold, and the exception above is retired.
 5. **Quest rewards scale with the quest's danger, not the player.** This fixes `makeOffer`'s `max(home.level, plLevel)` and
    `completeQuest`'s `randomLoot(plLevel + 1)`.
 6. Legendary attunement (§7.3) and tradition slots (§6.3).
@@ -1324,6 +1342,8 @@ struct Companion {
   - Level tracks player level − 1, so there is no grind.
   - Power comes from gear (the same paper doll as yours) and from **skills unlocked by bond, not XP**. For the warrior: Taunt
     at bond 20, Shield Wall at 50, Last Stand at 80.
+    *(Ruled 2026-10-28, 15.26: a companion's own kit stays theirs, and what you give them stays yours. They wear a gift
+    only if it is better than what they wear.)*
   - Bond grows with time together (+1 per day) and with approval.
 - **Personality and approval:**
   - Player deeds carry tags, from a deed event bus on top of `Ev`: helped refugees, spared, killed civilians, stole, joined
@@ -2119,6 +2139,23 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
     (merchant gold limits, saturation).
   - A balance sim (bot playthroughs measuring gold/hour and gear tier over 1, 5, 20 and 50 hours) gates every economy change against
     target curves.
+  - **Ruled 2026-10-28 (owner; 15.37), planned for the armour rules update after P2c DONE:**
+    - *Great gear is earned.* Shelves and commissions stop at a people's warriors' alloy (7.5 rule 4). The masterwork
+      comes from band-6 drops, the hero's forge, a trusting capital smith or a hidden-kingdom smith.
+    - *Luck beats the gate a little, never a lot* (option b; 15.27).
+    - *War pays a soldier's wage, not a fortune.* At a siege where the hero holds a War quest:
+      - enemy soldiers drop a piece 10 % of the time, and captains 50 % (Uncommon or better);
+      - the cap is 3 a siege, kept in the War quest's saved flags so a reload or a fresh wave can't reset it;
+      - each piece rolls like a body at the siege's danger, with the hero's level as the cap;
+      - joining by a service order alone pays none.
+    - *No faucets:*
+      - summons, raised thralls and decoys drop nothing;
+      - undead carry old makers' metals only inside ruins and shrines;
+      - a commission is seeded by the smith and the restock period, never the hero's purse;
+      - a companion's kit never reaches the hero's pack (15.26).
+    - *Measured:* the balance sim gains `rpg_test --ladder-pace`, which P2c builds on today's rules. It runs beside
+      `--metrics` and `--power-curve` and reports the band, metal, look tier and rarity each pacing stage rolls, plus the
+      relic share of an assumed hour.
 - **Roadmap placement:**
   - the quest engine and story quests land with M4 (kingdoms give stories their actors);
   - campaigns arrive with M4/M12, the first campaign ships as soon as the engine exists;
@@ -2192,6 +2229,29 @@ bridge (`rpg/world/settlement.cpp` via `classicTownStamp`) are placeholders for 
 - **Culture secrets are discoverable knowledge:** a player can learn a culture's alloy recipes and its armour and weapon
   making by earning trust and apprenticing with a master smith, from lore in ruins (journals, moulds), by slowly breaking
   down pieces at a forge, or by stealing from guarded workshops (at the cost of that culture's goodwill).
+- **Ruled 2026-10-28 (owner; 15.37): where you are decides the metal, luck decides the finish.** These are planned rules
+  for the armour rules update after P2c DONE, except the crafted looks, which are look only and ship in P2c.
+  - **Alloys in order.** From band 4 each people's alloys come in rank:
+    - the everyday alloy at band 4, the warriors' alloy at 5, and the masterwork at 6-7;
+    - a two-alloy people keeps its warriors' alloy from band 5;
+    - an alloy is never weaker than its band's step;
+    - crafting caps follow the rank: everyday band 4, warriors' band 5, masterwork band 6.
+  - **The old makers' metals.** GILDED (band 4), OBSIDIAN (5), EMBERFORGED (6) and STARMETAL (7) are relics of old places,
+    the same in every land.
+    - From band 4, about half the metal gear in old places is a relic: ruin and shrine hoards and caches, caches at
+      wonders, ruins and shrines, and undead and bosses inside ruins and shrines. All of a world boss's and a dragon
+      lair's hoard is relics.
+    - The target is about 1 armour find in 8. `--ladder-pace` fails outside 8-20 % of metal armour drops in its assumed
+      hour, and the "half" is the knob.
+    - A relic carries no people's id. It wears its hero style (PARADE, KNAPPED, FURNACE, STARFALL), and its card reads
+      "OLD MAKERS' WORK: OBSIDIAN (2 OF 4)".
+    - A relic is exactly as strong as a floored alloy of its band, so choosing one is taste, not power.
+  - **Crafted looks** (P2c, look only). A crafted alloy draws T4 or more. A masterwork draws T5 only from band 4, so in an
+    old save a masterwork forged in bands 1-3 drops one look step.
+  - **The metal explained.** The card's maker row names the rank ("HIGHLAND WORK: GWESTEEL, WARRIORS' METAL (2 OF 3)"),
+    and the HUD names the piece's own metal.
+  - Still later, and not ruled now: leathers above band 1, alloy move quirks (1.4), per-material weapon shapes and a
+    third alloy for two-alloy peoples.
 
 ### 15.12 Needs-driven citizens (owner, 2026-10-05). This upgrades section 10 for M5.
 
@@ -2568,6 +2628,20 @@ named the editor of, never rename, remove or change the meaning of what is liste
 - Tests and scripts: `rpg_test --gear [--seeds]` (CI): the 7.x formulas, the item layout, the crafting chain and
   secrets, regional ores, harpy / golem spawn. Script commands (rpg/view/script_gear.cpp): `gear6`, `kit6`, `stuff`,
   `elite`, `expect gearlook`; `tools/scripts/m6_lead_gear.txt`.
+- **Ruled 2026-10-28 (owner; 15.37), planned for the armour rules update after P2c DONE.** These contracts gain the
+  following. There is no SAVE_VER bump: 23 holds, and only free bits of bytes already saved are used. There is no new
+  random draw beyond the commission seed and the spoils roll.
+  - `items.h`: IF_KIT (16) and IF_KEEPSAKE (32).
+  - `gear.h`:
+    - `DropSource::relicPct`, runtime only and never saved;
+    - the relic decision, which hashes draws the roll has already made;
+    - the relic slot table: body 40, helm 25, shield 15, gloves 10, boots 10, never a cloak;
+    - matFor by alloy rank, with the band-step strength floor and crafting caps by rank;
+    - the "better" rule shared by the compare arrow and companions (15.26).
+  - A companion's kit is made by makeGearC with their culture's data.
+  - storyLoot passes the hook's people, and chests in town buildings take the town's maker.
+  - For war spoils, spawnMan sets `Actor::dropD` and `culture` on siege soldiers, and the counter lives in two free bits of
+    the War quest's saved flags.
 
 ### 15.20 M6b "Sagas": the story, mission and campaign generator (owner, 2026-10-08/09)
 
@@ -3043,6 +3117,67 @@ remove or change the meaning of what is listed here):
   panel, a banter line on a night road. Script commands (rpg/view/script_party.cpp): `party recruit|cmd|deed|down|kill|
   revive|near|talk|approval|bond|stats`, `expect party members|with|fallen|state|approval|near|banter|share`;
   `tools/scripts/m8_lead_party.txt`.
+- **Ruled 2026-10-28 (owner; the armour proposal's question 11 with the owner's amendment; 15.37): a companion's kit is
+  theirs, and what you give them is yours.** The owner: "we probably will need to allow for players to give their
+  companions better armor than what they start with though, so maybe you can't take their defaults but you can give them
+  better armor and they will equip what's better." These are planned rules for the armour rules update after P2c DONE,
+  not P2c work. docs/ARMOUR_SPAWN_RARITY.md section 6 has the detail.
+  1. **Their kit.** It is made when they join, at their level, in their own people's make, so a later recruit starts
+     higher on the metal ladder. Every piece carries IF_KIT.
+     - It is not remade as they level: better gear is the hero's to give.
+     - The hero can't take a kit piece into the pack by any road (TAKE BACK, a swap, a parting or a grave), and can't sell
+       it or break it down.
+     - TAKE BACK on a kit piece is greyed, with their line ("THAT'S MINE. I CAME WITH IT.").
+  2. **Giving.** The hero may give any piece they can wear: armour, a weapon, a ring or an amulet.
+     - They wear it only if it is better than what they wear in that slot. "Better" means gear::powerScore at their level
+       (party::levelFor, the level PartyOps::body syncs their gear to) more than 3 % over the worn piece's. That is the
+       compare arrow's rule (lootp::verdict), moved into gear so the sim and the arrow share it.
+     - An empty slot always takes the piece. Within 3 % is a tie, and they keep their own.
+     - Otherwise they decline in their own voice (a gear line in banter.cpp, at the M7b speech bar), and nothing leaves
+       the hero's pack.
+     - The party page's arrow is read at their level, so a green arrow promises they will take it.
+  3. **A worn gift.** Their own piece for that slot is stowed with them: it stays in their pack, unworn, with IF_KIT kept,
+     and never goes to the hero. A gift displaced by a better gift goes back to the hero.
+  4. **Taking it back.** A gift stays the hero's. TAKE BACK returns it, and they put their stowed piece back on, or leave
+     the slot empty if they had none. Only what the hero gave can come back.
+  5. **Parting and death.**
+     - At every parting (dismissed, unpaid, or leaving in anger), they hand every gift back into the hero's pack at that
+       moment, with their line and an alert naming the count. The pack has no gear cap (Game::addItem).
+     - Their own kit, and the potions and food they were given, leave with them.
+     - A companion sent home is still a member, and their gifts can be taken back from the party page.
+     - At death, gifts come back the same way, before the grave is laid. They are never belongings and never the
+       keepsake.
+  6. **The keepsake** is their first kit piece, usually the weapon. Taking it clears IF_KIT and sets IF_KEEPSAKE: it can be
+     worn or given, but never sold or broken down. There is one per fallen companion (GF_KEEPSAKE). A sellsword's inn slot
+     retires when he dies (MERC_FALLEN), so rehiring can't farm keepsakes.
+  7. **Sellswords.** A dismissed or unpaid sellsword waits a week before he can be rehired: dismissal sets the hire mark to
+     that day instead of erasing it. A rehire makes his kit again from his seed. The old kit left with him, so nothing
+     doubles.
+  - **The old exploit, closed.**
+    - *The path today.* partyEquip calls partyUnequip on a filled slot, and partyUnequip calls addItem
+      (party_game.cpp:871, 888). Any gift for a filled slot therefore drops their kit piece into the hero's pack, where
+      Game::sell sells it and the smith's CR_STUDY breaks it down for the people's patterns. TAKE BACK on the party page
+      does the same directly. Also, partyDismiss drops the hero's gifts along with the member, and a death makes them
+      belongings.
+    - *The fix.* partyEquip reads the verdict first, so a decline moves nothing. On accept it never calls partyUnequip:
+      a worn IF_KIT piece is stowed in place (only `eq` moves), and a worn gift goes back to the hero.
+    - *One door.* Every move from a companion to the hero goes through one door that refuses IF_KIT: TAKE BACK, the gift
+      swap, every parting and a death. As a second lock, Game::sell and CraftOps::studyable refuse IF_KIT and IF_KEEPSAKE.
+    - *Old saves.* A kit made before the update has no IF_KIT, so it counts as a gift, once. That is accepted: there is no
+      SAVE_VER change, and a gift can't be told from a kit in an old save.
+  - **Checked by** `rpg_test --companion` (CI). Its cases:
+    - TAKE BACK refused on a kit piece;
+    - a worse or equal gift declined, with both packs unchanged;
+    - a better gift worn, with the kit stowed;
+    - a gift taken back, with the kit re-worn;
+    - a gift-for-gift swap;
+    - each kind of parting, and a death, returning exactly the gifts (item seeds compared);
+    - the keepsake's flags;
+    - the hire mark;
+    - a seeded fuzz of give, take back, swap, dismiss, leave, rehire and death over seeds 1..20 that never puts an IF_KIT
+      item in the hero's pack.
+    `--loot-sources` gains kit and keepsake rows. Witness plays it once: give a companion a worse piece and then a better
+    one, take it back, dismiss them, and read the pack.
 
 ### 15.27 M8b "Treasure": the loot overhaul (owner, 2026-10-12)
 
@@ -3086,6 +3221,28 @@ The owner, in their words: "items need to have effects if they have a rarity. im
    - Affixes and item level are saved (bump SAVE_VER and regenerate the fixtures; old items load as item level from the player's level at load).
    - Companions use the same rules.
    - Balance gates (`--metrics`, `--power-curve`, `--foes`, `--arms`, `--companion`) stay green. Item power must not break the time-to-kill bands.
+
+**Ruled 2026-10-28 (owner; 15.37).** The armour proposal keeps this section and sharpens it.
+- **One channel each** (item 1; question 3; looks, inside P2c).
+  - Rarity's colours stay everywhere item 1 lists them: the name, frame, icon border, loot light, paper doll screen,
+    shop, chest and forge.
+  - On the drawn figure, rarity never tints the metal. It shows as finish in the piece's own metal:
+    - a Rare wears the next tier's trim, plus the glyph at T5;
+    - an Epic is one tier finer and bulkier; a band-1 Epic adds trim, and an Epic at the T5 cap adds the glyph and an
+      unlit gold inlay;
+    - a Legendary is T6, with lit runes, motes and the edge spark;
+    - the flame is the Mythic's.
+  - Common may match Uncommon, and each step above reads finer at 1x.
+- **"A little, never a lot"** (item 4; question 6, option b; planned for the armour rules update after P2c DONE).
+  - Ordinary finds wait for their floors: Epic 12, Legendary 20, Mythic 30.
+  - Luck (hoards, caches, bosses and named foes, best in a harder place) still lifts a find one step at any level up to
+    Epic. It lifts to Legendary only from level 17, and to Mythic only from 27.
+  - Campaign finales stay ungated: always a Legendary, with a Mythic chance from level 20. The dragon's two named
+    Legendaries stay a set piece.
+  - The proposal's model gives about 0.4 Legendaries before level 20 and 0.2 Mythics before 30 for a dungeon-goer. Today's
+    whole-step bypass (gear.cpp's rarityAllowedTop) gives 0.9 and 0.5. `--ladder-pace` measures it.
+- **Item 2's audit grows** with the new sources: war spoils, relics, companion kits and keepsakes (15.28).
+- **Item 5, "companions use the same rules":** a kit rolls as a find at their level, in their own people's make (15.26).
 
 ### 15.28 M8b "Treasure" phase A (lead, 2026-10-12): the loot contracts
 
@@ -3136,6 +3293,16 @@ remove or change the meaning of what is listed here):
   test"). Script commands (rpg/view/script_loot.cpp): `lootdrop <kind> [rarity N|name] [ilvl N] [n K]`, `lootroll <n>
   [level L] [D d] [rank r] [src s]` (pieces laid outside the pickup pull), `expect lootvalid`, `expect lootpickups
   <n>`; `gear6` takes rarity 0-5; `tools/scripts/m8b_lead_loot.txt`.
+- **Ruled 2026-10-28 (owner; 15.37), planned for the armour rules update after P2c DONE:**
+  - `rarityAllowedTop` takes option (b): the luck lift stays one step above the level gate's top, but it reaches Legendary
+    only from level 17 and Mythic only from 27. CampaignFinale stays ungated.
+  - War spoils roll as `LootSrc::Body`, with D the siege's level, `playerLevel` the hero's and `culture` the soldier's
+    people. A captain adds an elite's luck and `atLeast` Uncommon.
+  - `dropLoot` skips actors with magicTag MT_SUMMON or MT_DECOY.
+  - `--loot-sources` adds WAR SPOILS, RELIC, kit and keepsake rows. A source the game uses that the audit never ran still
+    fails.
+  - The `--loot` goldens are re-recorded once, because new band-4+ pieces get new names and strength. The random stream is
+    unchanged.
 
 ### 15.29 M9 "Arcana & Mastery": magic plus a learn-by-use skill and perk system for everything (owner, 2026-10-12)
 
@@ -4516,6 +4683,59 @@ P2c DONE gates:
 | C9 art_hash and golden_village_art | re-recorded once, with before / after pairs |
 | C10 playtests: T4 fighter ("fight bandits with each weapon family: does each swing look different?"), T5 outfitter ("as a man, then as a woman (the `female` reset), buy and equip leather, mail and plate and take a shot after each"), T6 watch ("find guards in three peoples' towns and soldiers of two realms"): every goal met by 2 of 3; notes triaged | PASS |
 
+**Ruled 2026-10-28 (owner; the armour proposal's questions 3, 4, 5, 8, 9 and 12; 15.37): the look-only parts ship inside
+P2c.** These are owner rulings, so docs/PLAN.md takes them up. Its wave-2 line "Not in wave 2: the loot proposal's twelve
+questions" predates the answers. PLAN.md places them in P2c's waves and decides the how. Every part:
+- is look only: no rule, no item field, no save change and no new draw;
+- leaves wearGear's, census::dress's and gearIcon's outputs unchanged;
+- belongs to the P2c area that already owns its files (docs/ARMOUR_SPAWN_RARITY.md section 8);
+- fits in about 0-15 KB of pool, inside D70.
+
+The parts:
+- **The marks** (Q3).
+  - A band-1 Epic wears trim, a Rare at T5 adds the glyph, and an Epic held at the T5 cap adds the glyph and an unlit gold
+    inlay. HumanLook gains an `epic` bit per slot (rig 2's key only).
+  - Each step reads finer at 1x than the one below, with no new light or motion. A T5 Epic with its marks still reads
+    below T6 in D61's blind read. `--doll-ladder` checks the invariant.
+  - (DOLL-C; FINISH)
+- **Every metal keeps its helmet** (Q4).
+  - A Mythic culture-alloy piece is drawn as its alloy (helm family, outline and colour). On top it wears the ember seams
+    and rims, the ember collar and the flame crown, seated on its own helm with no flame within 2 rows of the eye row.
+  - The black MYTHIC look (A5) stays for Mythic bronze, iron, steel and the relics. D32 is restated for culture alloys.
+    HELMS seats the crown on every alloy helm family that lacks a crest socket.
+  - Gilded wears PARADE's onion helm and starmetal STARFALL's crystal helm at T5-T6, in tier views with the tier's finish.
+    So the hero's road shows the onion helm at T5 and the crystal helm at T6. This replaces the envelope's plumed great
+    helm and winged helm there, and D61's "part by the helm family", which D66 left waiting on this question.
+  - D44's measures still bind: consecutive tiers 0.10 head OD apart, and head area 5 % or more over the tier below. The
+    family's tier views meet them, as D68 does.
+  - The great helm and the winged helm stay drawn (D49). D68's open point closes: a Legendary keeps its metal's helm
+    family.
+  - (DOLL-C; HELMS)
+- **Bulk on the old makers' ladder** (Q5, "grow it").
+  - Obsidian draws one shoulder size above gilded.
+  - Starmetal's crystal shoulders are the largest shoulder mass at every tier they draw. STARFALL keeps its crystal helm,
+    slim ribbed waist and long split skirt, so it reads broad above and slim below.
+  - Each relic band reads bulkier than the band below (front walk f0, opaque px).
+  - All of this stays inside kEnvelope's tier caps (D43), and growth ADDs sizes and views (D49). A cap that blocks a step
+    goes to the planner with its numbers (D67).
+  - (DOLL-C; ARMOUR-X)
+- **Crafted looks** (Q8). An alloy draws T4 or more, and a masterwork draws T5 only from band 4. This restates the
+  ladder's signed line "a masterwork alloy is T5 at least". (DOLL-C)
+- **Far lands** (Q9; band 4 and up).
+  - Bandits draw T2, and soldiers and the village watch T3, with no alloy. This is the regional lift FOLK-SIM-C already
+    builds.
+  - Bandit chiefs draw T2 at home and T3 far, in the plate they already wear; only the ladder's tier field changes. That
+    line is in game.cpp, which no wave-2 area owns, so the P2c planner assigns it.
+  - A two-alloy realm's king wears the warriors' alloy at T5, with crest, gold, gem and the finish on his over-layer's
+    hem, and no surcoat or full cape (D38).
+  - (FOLK-SIM-C; DOLL-C)
+- **Checks:**
+  - `--doll-ladder` (the invariant);
+  - `--doll-coverage` source L for the far-land tiers, Mythic alloys and relic helms;
+  - a relic band that is not bulkier than the band below fails;
+  - C14's face line on every crown seat.
+  Old saves change in looks only. The rules wait for P2c DONE (15.37).
+
 #### P2d "Proportion" (was P2c)
 
 Unchanged in content: the creatures and village animals re-proportioned to the 32 px people, and every prop the P2c judge
@@ -4632,3 +4852,115 @@ with the re-plan and are settled at the P2b slice sign-off from the owner pack.
    74 px/s. The alternative is A3's walk at its natural stride, which puts the hero at 3.9 cycles a second.
 5. **Sheathed weapons out of combat**: A3's sword at the hip with the hand on the hilt, drawn while fighting; legendary and
    Mythic hilts glint. The alternative keeps P2a's weapon in hand at all times.
+
+### 15.37 Armour spawning, alloys and rarity (owner, 2026-10-28): the rulings, and the armour rules update (planned)
+
+The owner asked how armour should spawn and how the advanced alloys should work with rarity. The proposal is
+**docs/ARMOUR_SPAWN_RARITY.md** (revision 3 of 2026-10-25, approved as revision 4). It holds the design, with file:line
+citations at df2a155. On its twelve questions the owner answered "Defaults is good" on 2026-10-28, which accepts every
+recommended default, and amended question 11 (companions). This section is the index. Each ruling is written into the
+section it changes.
+
+**The rule:** where you are decides the metal, luck decides the finish, old places hold the old makers' metals, and
+every metal keeps its own helmet.
+
+**How it should feel:**
+- Starting armour is plain and slim, and every step up is more detailed, more alive and bulkier.
+- Each land has its metal, and a lucky find is the same metal, finer. Because no roll spends the next land's reveal, a
+  new land's shop window is always new.
+- A ruin in any land can hold a black glass breastplate.
+- A companion arrives in their own people's kit, and the hero can do better by them.
+
+| # | ruling (2026-10-28) | ships in | written into |
+|---|---|---|---|
+| 1 | each people's alloys in order (everyday band 4, warriors' 5, masterwork 6-7), never weaker than the band; crafting caps by rank | the rules update | 15.11 |
+| 2 | gilded, obsidian, emberforged and starmetal are old-place relics from band 4, about 1 armour find in 8 | the rules update | 7.2, 15.11 |
+| 3 | rarity is finish in the piece's own metal, with marks at the top; its colours stay on names, frames and ground light | P2c (looks) | 7.3, 15.27, 15.36 |
+| 4 | every metal keeps its helmet: a Mythic alloy keeps its alloy; gilded and starmetal keep their own helms at T5-T6 | P2c (looks) | 15.36 |
+| 5 | grow starmetal (the largest shoulders), obsidian one size over gilded | P2c (looks) | 15.36 |
+| 6 | option (b): luck lifts to Legendary only from level 17 and to Mythic only from 27; campaign finales aside | the rules update | 15.9, 15.27, 15.28 |
+| 7 | shelves and commissions stop at the warriors' alloy; a trusting capital smith and hidden-kingdom smiths excepted | the rules update | 7.5, 15.9 |
+| 8 | a crafted alloy draws T4 or more; a masterwork draws T5 only from band 4 | P2c (looks) | 15.11, 15.36 |
+| 9 | far-land folk one step finer without alloys; bandit chiefs T2 (T3 far); two-alloy kings per D38 | P2c (looks) | 15.36 |
+| 10 | war spoils: soldiers 10 %, captains 50 % (Uncommon or better), 3 a siege, capped by the hero's level | the rules update | 15.9, 15.28 |
+| 11 | companions (amended): their kit stays theirs; a gift stays the hero's and is worn only if better | the rules update | 9, 15.26 |
+| 12 | looks inside P2c; the rules as their own update after P2c DONE, with their own full test run | - | here, 15.36 |
+
+**The armour rules update (planned; not P2c and not P2c's wave 2).** It starts after P2c is DONE, as its own update with:
+- its own areas;
+- a verifier gate;
+- one full regression at its integration (the owner's rule: once per update, and fix rounds verify only their fixes);
+- judge rounds, at most 4.
+Its files are disjoint from P2d's.
+- **IN:**
+  - rulings 1, 2, 6, 7, 10 and 11;
+  - the metal explained on the card and the HUD (15.11);
+  - saga loot and building chests given a maker;
+  - no loot from summons, thralls or decoys;
+  - the commission seeded per smith and restock;
+  - optionally, the everyday alloy's lore line "HARDER THAN STEEL, AND CHEAPER TO POUR" (the same pick, so no culture
+    changes).
+- **OUT:**
+  - a SAVE_VER bump (23 holds) and new item fields;
+  - changes to the alloy generator;
+  - leathers above band 1 (PLAN.md D23), alloy move quirks and weapon styles (D34);
+  - a third alloy for two-alloy peoples, deferred until the playtests;
+  - a relic's own colour per slot (D15, the owner's later call);
+  - kits that remake themselves as companions level.
+- **Areas** (one owner per file):
+  - **LOOT** (engineer-high): gear.{h,cpp}, items.{h,cpp}, game_rpg.cpp, story.cpp, story_game.cpp. It publishes the item
+    flags, the DropSource fields and the shared "better" rule first.
+  - **PARTY-WAR** (engineer): party_game.cpp, banter.cpp (the companions' gear lines only), craft_game.cpp, war_game.cpp,
+    game.h.
+  - **UI** (engineer): loot_paint.h, hud.cpp, paperdoll.cpp (the card's metal row, the HUD's metal word, and the party
+    page's greyed TAKE BACK, decline note and arrow at the companion's level).
+  - **TEST** (engineer): test_loot_sources.cpp, test_loot.cpp, test_party.cpp, test_wards.cpp, and the file that holds
+    P2c's `--ladder-pace`.
+  - Wave 1 is LOOT's contract block. Then PARTY-WAR, UI and TEST run in parallel.
+  - Core: the IN list. Depth: a companion declines a piece their vocation never uses. Delight: the party page marks the
+    pieces the hero lent.
+- **Done** (the judge measures from a new game and from save_v23; ARMOUR_SPAWN_RARITY.md section 9 has the full lists):
+  - `rpg_test --ladder-pace --worlds 1..20 --report` passes its fail list:
+    - no rarer piece drawn plainer;
+    - every alloy dropping at its band, at its band's strength or more;
+    - no shelf or commission masterwork outside the exceptions;
+    - relics only from band 4, only from old places and never with a people's id, at 8-20 % of metal armour drops in the
+      assumed hour;
+    - no Legendary below level 17 and no Mythic below 27 outside campaign finales and the dragon's hoard.
+  - These stay green:
+    - `--loot-sources` (with the new rows) and `--loot`;
+    - `--power-curve` (same-band trash in 3-5 hits; the best allowed rarity 2.5 or more);
+    - `--metrics`, `--foes` and `--arms`;
+    - `--companion` (15.26's cases and fuzz);
+    - `--wards` (the spoils counter);
+    - save_test (save_v23 loads, and the new bits round-trip);
+    - `rpg_test --seeds 1..20`, the script sweep and Witness.
+  - The judge plays:
+    - an explorer finds an old maker's piece in a ruin by band 4;
+    - no shop sells a masterwork outside the exceptions;
+    - a companion takes a better gift, declines a worse one, and hands it back when dismissed;
+    - the playtests watch whether the everyday alloy reads as a step down after steel.
+
+**Docs still to write to the answers.** This is the proposal's doc batch, for the P2c planner, who owns these files during
+wave 2. The VISION part is written above.
+- docs/PLAN.md:
+  - "a masterwork alloy is T5 at least" (Q8);
+  - the T6 row's "level 20 at the earliest" (Q6: 17 by luck once the rules update lands, 20 for ordinary finds);
+  - the shop and focus-vendor lines (Q7);
+  - D32 restated for culture alloys, and A5 limited to the MYTHIC style (Q4);
+  - the hero road's T5-T6 helms, D61's parting and D66 item 2 (Q4, Q5);
+  - one statement of gilded's tier (band 4: T4 as found, T5 as an Epic) in place of "PARADE (T5), STARFALL (T6)";
+  - the wave-2 line "Not in wave 2: the loot proposal's twelve questions" (Q12);
+  - an owner for the bandit chiefs' line in game.cpp.
+- docs/STYLE_P2.md: "the Heartland's T5 is gilded", 28.4's PARADE and STARFALL helm lines (Q4), and STARFALL's and
+  KNAPPED's shoulder lines (Q5).
+- docs/P2C_CONTRACTS.md: HumanLook's `epic` bit, census::Rank's `far` field, and the Mythic-alloy and relic-helm paths.
+- D27 is already closed by D46 and D48.
+
+**For the owner to confirm** (the plan proceeds on these readings):
+1. "Their kit climbs with them" is read as "made at their level when they join", so a later recruit starts higher on the
+   ladder, and the hero's gifts carry them after that. Kits that remake themselves at each band would be one more rule
+   for the update.
+2. Gifts come back to the hero at a companion's death as well as at every parting, so a fallen friend's grave holds only
+   their own things and the keepsake.
+3. Where the rules update sits in the roadmap: before, beside or after P2d. Its files are disjoint from P2d's.
