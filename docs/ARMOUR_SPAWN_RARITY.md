@@ -1,14 +1,16 @@
-# Armour spawning and alloys with rarity (approved 2026-10-28; revision 4)
+# Armour spawning and alloys with rarity (approved 2026-10-28; revision 5)
 
 **Approved by the owner on 2026-10-28.** The owner answered the twelve questions in section 11 with "Defaults is good",
 so every recommended default stands, including option (b) for question 6 and "grow it" for question 5. The owner amended
 question 11 so the hero can give a companion better gear: "we probably will need to allow for players to give their
 companions better armor than what they start with though, so maybe you can't take their defaults but you can give them
 better armor and they will equip what's better". Section 6 carries the amended design. The rulings are recorded in
-docs/VISION_PLAN.md 15.37, and in each section a ruling changes (7.2, 7.3, 7.5, 9, 15.9, 15.11, 15.19, 15.26, 15.27,
-15.28 and 15.36's P2c). Question 12 decides the timing. The look-only parts (Batch A) ship inside P2c. The rules
+docs/VISION_PLAN.md 15.37, and in each section a ruling changes (7.2, 7.3, 7.5, 9, 15.6, 15.9, 15.11, 15.19, 15.26,
+15.27, 15.28 and 15.36's P2c). Question 12 decides the timing. The look-only parts (Batch A) ship inside P2c. The rules
 (Batch B) are their own update after P2c is DONE, with their own full regression: they are planned rules, not work for
-P2c's wave 2. "Revision 4" below lists what the answers changed in this document.
+P2c's wave 2. "Revision 4" below lists what the answers changed in this document. The same day the owner settled the two
+companion points the plan had read for itself ("Made once, and if they die they drop everything"), and "Revision 5" lists
+what that changed.
 
 This design was written read-only on p2c-slice (df2a155), dated 2026-10-25. The owner asked how armour should spawn and
 how the advanced alloys should work with rarity. Revision 3 answers a rules-compliance review against
@@ -16,7 +18,7 @@ docs/VISION_PLAN.md, docs/PLAN.md and the owner's rulings of 2026-10-25. Revisio
 with the code, the player's eye, the economy). Section 12 logs what was taken and what was not. Every review item was
 checked against the repo before it was applied. Claims about today's game cite file:line at df2a155. P2c's wave 2 is
 editing some of the cited files, so check a line before relying on it. Numbers marked *model* come from scripts that copy
-gear.cpp's rules (`loot_model.py`, `luck_gate.py` and `luck_hours.py` in
+gear.cpp's rules (`loot_model.py`, `luck_gate.py`, `luck_hours.py` and revision 5's `kit_value.py` in
 `C:\Users\joshu\AppData\Local\Temp\claude\C--Users-joshu\1979ea42-238a-4969-bda8-d76ab6bf2de5\scratchpad\`, outside the
 repo). They are not playtest results. Once P2c's `rpg_test --ladder-pace` exists, it replaces them as the measure. The
 owner summary (%TEMP%\claude\emb_P2c\loot\OWNER_SUMMARY.md, outside the repo) is the plain-language version.
@@ -34,6 +36,37 @@ world bosses hold the old makers' metals: gilded parade steel, black obsidian gl
 They are the same in every land, and they form a ladder of their own that ends on the biggest shoulders in the game. A
 hero who braves a harder place finds the next land's metal early. Because no roll swaps the metal, a new land's shop
 window is always new.
+
+## Revision 5: the owner's follow-up on companions (2026-10-28)
+
+Revision 4 left two companion points as the plan's own readings (docs/VISION_PLAN.md 15.37). The owner settled both:
+"Made once, and if they die they drop everything".
+- **Made once (ruled).** A companion's kit is made once, when they join. It is never remade as they level, and the
+  hero's gifts are the only way up.
+- **A death drops everything (ruled).** This replaces revision 4's death rule, under which gifts came back to the hero's
+  pack and the grave kept one keepsake. When a companion dies, everything they carry (their kit, worn and stowed, the
+  hero's gifts, and their belongings, such as the potions and food they were given) drops where they fell, as a pile the
+  hero can pick up. The pile is the game's own ground loot, the Pickup that a body's loot already uses
+  (game_rpg.cpp:217-221; game.h:245-254), and it keeps that loot's rules. It flies to the hero within 40 px and is taken
+  at 9 px (game.cpp:1710-1732), and it lies for 240 s (game.cpp:1734). It is never saved, so changing map or loading
+  clears it (game.cpp:83, 1946). Each kit piece drops without IF_KIT, as ordinary gear that sells and breaks down.
+- **Partings while they live are unchanged.** Dismissed, unpaid or leaving in anger, a companion hands every gift back
+  into the hero's pack, and their kit leaves with them.
+- **The grave holds no keepsake.** Everything they had lies where they fell, so nothing is laid with the grave to take.
+  The grave itself stays, because it carries the remembrance (VISION 15.6.2): their people's stone with their weapon
+  laid on it (a look, party_game.cpp:218; party_graves.cpp:166), the epitaph, flowers and words, their kin's grief
+  (party_game.cpp:229) and the party page's roll of the fallen. None of these reads the keepsake. Only the grave's
+  "TAKE SOMETHING" choice (party_talk.cpp:443) and the roll's "A KEEPSAKE TAKEN" mark (paperdoll.cpp:708) do, and both
+  stay quiet on a grave laid with nothing. IF_KEEPSAKE leaves Batch B. A grave laid before Batch B keeps what it holds
+  and its one keepsake, as today.
+- **The kit is capped like a find.** A dropped kit is ordinary gear now, so its item level is capped at the hero's
+  level + 4 and its rarity rolls with the hero as the finder. Today a kit takes the place's danger and rolls rarity at
+  that level (party_recruit.cpp:290, 374, 404; party_game.cpp:95). Left so, a level-10 hero who recruits in a D-30 town
+  and lets the companion die would pick up item-level-30 gear rolled past question 6's gate.
+- **The farming guards hold.** A sellsword's inn slot retires for good when he dies (MERC_FALLEN, party_game.cpp:240),
+  the inn never stands him again (party_recruit.cpp:125), and the mark is saved (game_rpg.cpp:2659-2660, 2824). A census
+  companion dies once. So each kit can drop once.
+- Sections 3, 5, 6, 8, 9, 11 and 12 follow it.
 
 ## Revision 4: the owner's answers (2026-10-28)
 
@@ -56,9 +89,9 @@ What revision 4 changes:
 - **Section 6, companions:** the owner's amendment, ruled as follows. The kit stays theirs. A given piece is worn only if
   it is better, by the compare arrow's own rule read at the companion's level, and a tie keeps their own. A declined piece
   never leaves the hero's pack. A worn gift stows their own piece with them. TAKE BACK returns a gift and puts their own
-  piece back on. At every parting, and at death, gifts come back to the hero; they never become belongings or the
-  keepsake. The swap leak (partyEquip -> partyUnequip -> addItem) is closed by one checked door. Sections 3, 5, 8 and 9
-  follow it.
+  piece back on. At every parting, gifts come back to the hero. (Revision 4 also sent gifts back at death and kept one
+  keepsake at the grave. Revision 5 replaces that: a death drops everything where they fell.) The swap leak
+  (partyEquip -> partyUnequip -> addItem) is closed by one checked door. Sections 3, 5, 8 and 9 follow it.
 - **Section 7, under the P2c envelope.** The envelope was signed off on 2026-10-28, after this proposal was written
   (docs/PLAN.md D42-D70), and it sets the how:
   - Question 4's relic helms replace the envelope's hero-road helms at T5 and T6 (the plumed great helm and the winged
@@ -281,8 +314,8 @@ than the one below. `--doll-ladder` and `--ladder-pace` check it (section 9).
 | your forge | the bench's danger, capped by the metal (craft.cpp:357-359) | a skill roll, Epic at most (craft.cpp:325-335) | the recipe's people | none |
 | a quest | the quest's danger (game_rpg.cpp:961-965) | half the time an item, Uncommon to Epic (game_rpg.cpp:960, 975-976) | the giver's people | none |
 | a saga or campaign | the story's danger | Uncommon or better; a campaign finale gives a Legendary (story.cpp:108-131) | the hook's people (new; today none: story.cpp:163-167) | none |
-| a companion's kit | their level when they join (party_game.cpp:91) | as a find at their level (party_game.cpp:95-97) | their own people (new; today an id with no data) | none; the kit stays theirs and never reaches the hero's pack (section 6) |
-| a fallen companion's grave | as it was made | as it was made | as it was made | none: one keepsake from their own belongings (party_game.cpp:213, 739-744); a kit piece becomes a keepsake that can be worn, never sold or broken down (new); gear the hero gave them comes back to the hero at death and is never a belonging (revision 4) |
+| a companion's kit | made once, when they join (ruled in revision 5): the place's danger, as today (party_game.cpp:91; party_recruit.cpp:290, 374, 404), capped at your level + 4 like any find (new) | as a find with you as the finder, so question 6's gate reads you (new; today rolled at the kit's own level, party_game.cpp:95-97) | their own people (new; today an id with no data) | none; the kit stays theirs while they live and never reaches your pack as kit (section 6) |
+| a fallen companion's pile (revision 5) | as each piece was made | as made | as made | none: everything they carried (their kit, worn and stowed, your gifts and their belongings) lies where they fell as ground loot (game_rpg.cpp:217-221), each kit piece without IF_KIT; the grave holds nothing to take (section 6) |
 | war spoils (new) | a body roll: D the siege's level, your level the finder's, so the +4 cap holds | body odds, gated by your level; a captain an elite's luck and Uncommon or better | the soldier's realm's people | none |
 | a hidden land's mage (the focus vendor) | your level + 2 (magic_learn.cpp:441) | Rare | the tradition's people | none: a focus, not armour; untouched |
 
@@ -433,9 +466,15 @@ warriors' alloy and their king the masterwork, while the land's drops come in it
   - The fix: skip dropLoot for magicTag MT_SUMMON and MT_DECOY (magic.h:293-294). A plausible faucet, not run.
 - **Undead relics only in old places.** Undead count as relic sources only inside ruins and shrines, never in dens, which
   refill after 3 days (game.cpp:2326).
-- **Companion kits and commissions.** A companion's kit never enters the hero's pack. What the hero gives stays the
-  hero's and comes back, so only a gift ever can. A dismissed sellsword waits a week, and a commission is one piece per
-  restock (section 6).
+- **Companion kits and commissions.** A companion's kit never enters the hero's pack while they live. What the hero
+  gives stays the hero's and comes back at a parting. At a death everything they carried drops where they fell, the kit
+  as ordinary gear (revision 5), and each kit can drop only once: a dead sellsword's inn slot retires for good
+  (MERC_FALLEN, party_game.cpp:240; party_recruit.cpp:125), and a census companion dies once. The kit's item level is
+  capped at the hero's level + 4 and its rarity rolls with the hero as the finder, so the pile holds nothing a find there
+  could not. What is left is a one-time find per companion. A warrior sellsword's Common kit sells for about 2.5 times
+  his first day's wage (*model*: 176 gold against a 70-gold hire at a D-10 inn), and a healer's for less than his wage.
+  A census companion's kit costs no gold, but the friend is gone for good and their kin grieve. A dismissed sellsword
+  waits a week, and a commission is one piece per restock (section 6).
 - **Kept as today.** Easy land pays poorly (gear.cpp:188, 230). Each chest is looted once (game_rpg.cpp:307-308). Shelves
   restock every 2 days, with a capped purse (game_rpg.cpp:2091; gear.cpp:294-297; gear.h:274-275).
 
@@ -466,11 +505,21 @@ warriors' alloy and their king the masterwork, while the land's drops come in it
 - **The owner's amendment (2026-10-28):** "we probably will need to allow for players to give their companions better
   armor than what they start with though, so maybe you can't take their defaults but you can give them better armor and
   they will equip what's better." Ruled:
-  1. **Their kit.** It is made when they join, at their level, in their own people's make, so it climbs the metal ladder
-     the way any find does: a companion who joins in band-4 lands arrives in their people's everyday alloy. Every piece
-     carries IF_KIT. It is not remade as they level, because better gear is the hero's to give. No kit piece can reach the
-     hero's pack, whether by TAKE BACK, a swap, a parting or a grave, and none can be sold or broken down. TAKE BACK on a
-     kit piece is greyed, with the companion's line ("THAT'S MINE. I CAME WITH IT.").
+  1. **Their kit.** It is made once, when they join (ruled in revision 5: "Made once"), in their own people's make, so it
+     climbs the metal ladder the way any find does: a companion who joins in band-4 lands, with a hero near that band,
+     arrives in their people's everyday alloy. Every piece carries IF_KIT.
+     - It is never remade as they level, because better gear is the hero's to give.
+     - Its item level is the place's danger, as today, capped at the hero's level + 4 like any find. Its rarity rolls
+       with the hero as the finder: DropSource playerLevel is the hero's level, not the kit's own. A death drops the kit
+       as ordinary gear (5), so it may hold nothing a find there could not. At the join this costs the companion
+       nothing, because level sync already uses a piece at no more than their level + 4 (effLevel, gear.cpp:36), which
+       is the hero's + 3.
+     - While they live, no kit piece can reach the hero's pack, whether by TAKE BACK, a swap or a parting, and none can
+       be sold or broken down. TAKE BACK on a kit piece is greyed, with the companion's line ("THAT'S MINE. I CAME WITH
+       IT.").
+     - A companion who parts and later joins again is a new join. Their record starts again, bond included
+       (party_recruit.cpp:359-373), and the kit that left with them is made again at that join, from the same seed.
+       Nothing doubles.
   2. **Giving.** The hero offers any piece the companion can wear: armour, a weapon, a ring or an amulet.
      - They wear it only if it is better than what they wear in that slot. "Better" is measured: gear::powerScore at their
        level (party::levelFor, the level their gear is synced to in PartyOps::body) more than 3 % over the worn piece's.
@@ -490,16 +539,31 @@ warriors' alloy and their king the masterwork, while the land's drops come in it
        at that moment, and an alert names how many. The pack has no cap on gear (Game::addItem).
      - Their kit, and the potions and food they were given, leave with them.
      - A companion sent home is still a member, and the hero can take gifts back from the party page.
-     - At death, gifts come back to the hero the same way, before the grave is laid. They are never belongings and never
-       the keepsake.
-  6. **The keepsake** is their first kit piece, usually the weapon. Taking it clears IF_KIT and sets IF_KEEPSAKE: the hero
-     may wear it or give it, never sell it or break it down. There is one keepsake per fallen companion (GF_KEEPSAKE), and a
-     sellsword's inn slot retires for good when he dies (party_game.cpp:240), so it cannot be farmed by rehiring.
+     - **At death they drop everything** (ruled in revision 5: "if they die they drop everything"). Everything they
+       carry (their kit, worn and stowed, the hero's gifts, and their belongings) drops on the ground where they fell, as
+       the game's own ground loot: one Pickup per item (game.h:245-254), laid as a body's loot is (game_rpg.cpp:217-221).
+       It keeps that loot's rules. It flies to the hero within 40 px and is taken at 9 px (game.cpp:1710-1732), a potion
+       waits while the belt is full (game.cpp:1715-1722), and it lies for 240 s (game.cpp:1734). It is never saved, so it
+       is gone once the hero changes map (clearNonPlayer, game.cpp:1946) or loads (game.cpp:83). Each kit piece drops
+       without IF_KIT, as ordinary gear that sells and breaks down. Nothing goes into the hero's pack at the death itself.
+     - Where they fell is the body that went down. That is their party body when they bleed out or are struck down
+       (party_game.cpp:398, 543), or, for a death in their census life on the hero's map, their census body, which drops
+       nothing of its own (game_rpg.cpp:190). A downed companion carried through a door dies on the hero's map too
+       (party_move.cpp:276-285). Only a death off the hero's map has no ground: a companion at home carried off in a raid
+       (life_raids.cpp:31-38) whose rescue then fails (quests.cpp:1501-1502). What they carried is lost with them.
+  6. **The grave** holds no keepsake. Everything they had lies where they fell, so `belongings` stays empty and the grave
+     offers nothing to take (the choice already hides itself, party_talk.cpp:443). The grave keeps the rest of the
+     remembrance: their people's stone with their weapon laid on it (a look, party_game.cpp:218), the epitaph, flowers
+     and words, their kin's grief (party_game.cpp:229) and the party page's roll of the fallen. A sellsword's inn slot
+     still retires for good when he dies (party_game.cpp:240; the inn skips it, party_recruit.cpp:125), and a census
+     companion dies once, so no kit can be farmed by letting its owner die again.
   7. **Sellswords.** Dismissal, an unpaid sellsword's leaving included, sets the hire mark to that day instead of erasing
      it (party_game.cpp:919), so the week's wait applies (party_recruit.cpp:125). A rehire makes the same kit again from
      his seed. The old kit left with him, so nothing doubles.
-- **The fix in code** (Batch B). Two item flags use free bits of the flags byte, which is already saved (items.h:111;
-  items.cpp:297, 309): IF_KIT (16) and IF_KEEPSAKE (32).
+- **The fix in code** (Batch B). One item flag uses a free bit of the flags byte, which is already saved (items.h:111;
+  items.cpp:297, 309): IF_KIT (16). Revision 4's IF_KEEPSAKE (32) is dropped in revision 5, since no grave keeps one.
+  - **PartyOps::kit** (party_game.cpp:88-122) caps the item level at the hero's level + 4 (:91) and rolls rarity with
+    DropSource playerLevel the hero's level (:95). Every recruit path keeps passing the level it passes today.
   - **partyEquip** (party_game.cpp:858-878):
     - It reads the verdict first. A decline returns false with the companion's line, and nothing moves.
     - On accept it no longer calls partyUnequip, which is the leak at :871.
@@ -509,14 +573,18 @@ warriors' alloy and their king the masterwork, while the land's drops come in it
     - TAKE BACK (partyUnequip, called from paperdoll.cpp's party page), which then re-wears the stowed kit piece of that
       slot;
     - the gift-for-gift swap;
-    - every parting (partyDismiss, and the angry leave in PartyOps::leave);
-    - a death (PartyOps::dieForGood, before `belongings` is filled).
-  - **The grave** (partyGraveAct, act 2) takes the first IF_KIT belonging as the keepsake. It clears IF_KIT and sets
-    IF_KEEPSAKE.
+    - every parting (partyDismiss, and the angry leave in PartyOps::leave).
+  - **A death** (PartyOps::dieForGood) moves nothing into the hero's pack. In place of `f.belongings = m.inv`
+    (party_game.cpp:213), and after the grave record reads their look (:218), it lays their whole pack on the ground.
+    That is one Pickup per item at the body that went down, set round it by a hash of each item's seed so there is no
+    new random draw, each with IF_KIT cleared. With no body on the hero's map it lays nothing.
+  - **The grave** (partyGraveAct, act 2) is unchanged. It acts only on a grave from an old save that still holds
+    belongings.
   - Selling (Game::sell, game_rpg.cpp:2303) and breaking down (CraftOps::studyable, craft_game.cpp:100-105, 226-253)
-    refuse both flags, which is the second lock.
+    refuse IF_KIT, which is the second lock.
   - **Old saves.** A kit made before Batch B has no IF_KIT, so it counts as a gift, once. This is accepted: in an old save
-    a gift can't be told from a kit, and locking every worn piece would trap the hero's own gifts.
+    a gift can't be told from a kit, and locking every worn piece would trap the hero's own gifts. A grave laid before
+    Batch B keeps its belongings, and its one keepsake works as today (party_game.cpp:739-744).
 
 **Crafting.**
 - Crafted gear keeps the bench's danger as its level, capped by the metal's rank (craft.cpp:357-359).
@@ -713,25 +781,24 @@ rounds verify only their fixes), then judge rounds (at most 4). Section 9 lists 
 | relics: DropSource.relicPct (runtime, never saved: gear.h:37-38), the decision and the relic slot table | gear.h:58-72; gear.cpp:1058-1092; items.cpp:206-214 |
 | the luck gate, if question 6 changes it | gear.cpp:151-161 (rarityAllowedTop) |
 | the relic shares at each source; no loot from summons and decoys; building chests take the town's maker | game_rpg.cpp: dropLoot 189-300, openChest 302-393, chestSource 395-436 |
-| the shelf cap and its exemptions; selling refuses IF_KIT and IF_KEEPSAKE | game_rpg.cpp:2090-2116, 2303 |
-| IF_KIT and IF_KEEPSAKE | items.h:111 |
+| the shelf cap and its exemptions; selling refuses IF_KIT | game_rpg.cpp:2090-2116, 2303 |
+| IF_KIT (revision 5: no IF_KEEPSAKE) | items.h:111 |
 | saga loot's maker | story.cpp:163-167 (callers 626-633; story_game.cpp:56-58) |
-| companions (revision 4: the owner's amendment, section 6): their people's make; IF_KIT on the kit; partyEquip's verdict first (a decline moves nothing), the kit stowed in place, a displaced gift back to the hero; the one door that refuses IF_KIT (TAKE BACK, the swap, every parting, a death); TAKE BACK of a gift re-wears the stowed kit piece; gifts handed back at dismissal, an unpaid sellsword's leaving, an angry leave and death; the keepsake; the week's wait | party_game.cpp:88-122, 191-260, 734-748, 858-922 |
+| companions (revisions 4 and 5: the owner's amendment and follow-up, section 6): their people's make; the kit made once, its item level capped at the hero's level + 4 and its rarity rolled with the hero as the finder; IF_KIT on the kit; partyEquip's verdict first (a decline moves nothing), the kit stowed in place, a displaced gift back to the hero; the one door that refuses IF_KIT (TAKE BACK, the swap, every parting); TAKE BACK of a gift re-wears the stowed kit piece; gifts handed back at dismissal, an unpaid sellsword's leaving and an angry leave; at a death, their whole pack laid on the ground where they fell with IF_KIT cleared, and the grave laid with nothing to take; the week's wait | party_game.cpp:88-122, 191-260, 858-922 |
 | the "better" rule shared by the sim and the compare arrow (powerScore more than 3 % over the worn piece's, at a given level) | gear.h / gear.cpp (moved from lootp::verdict) |
 | the companions' gear lines: the decline, the kit refusal, the hand-back at parting, putting their own piece back on | banter.cpp (a gear line beside cryLine) |
-| commissions: the cap and its exemptions, the seed; breaking down refuses both flags | craft_game.cpp:100-105, 181-260 |
+| commissions: the cap and its exemptions, the seed; breaking down refuses IF_KIT | craft_game.cpp:100-105, 181-260 |
 | war spoils: dropD and culture in spawnMan; the roll and the counter in warKill | war_game.cpp:278-299, 892-930; game.h:351-352 |
 | the card's metal row; the HUD's metal word; on the party page, TAKE BACK greyed on a kit piece, the decline shown as the companion's line, and the compare arrow read at the companion's level (rarity colours untouched) | loot_paint.h:500-506; hud.cpp:416; paperdoll.cpp (the party page: partyPageKey and the GEAR list) |
 | optional: the everyday alloy's lore line "HARDER THAN TRADE BRONZE, CHEAPER THAN STEEL" becomes "HARDER THAN STEEL, AND CHEAPER TO POUR" (the same pick, so no culture changes) | priors.cpp:928-929 |
-| `--ladder-pace` gains the relic, metal-rank and spoils rows; `--loot-sources` gains WAR SPOILS, RELIC, kit and keepsake rows | tools/tests/test_ladder_pace.cpp (P2c's), test_loot_sources.cpp |
+| `--ladder-pace` gains the relic, metal-rank and spoils rows; `--loot-sources` gains WAR SPOILS, RELIC, kit and fallen-companion rows | tools/tests/test_ladder_pace.cpp (P2c's), test_loot_sources.cpp |
 
 **What stays.**
 - The rarity odds, floors and luck (gear.cpp:85-220), unless question 6 changes the gate.
 - Item levels (gear.cpp:226-241). Affixes, powers and attunement.
 - The alloy generator (priors.cpp:933-1010) and every forge style's drawing.
 - The item layout (items.cpp:289-321) and SAVE_VER 23 (game_rpg.cpp:2404). A bump would refuse every existing save
-  (game_rpg.cpp:2357-2360). IF_KIT, IF_KEEPSAKE and the spoils counter use only free bits in bytes that are already
-  saved.
+  (game_rpg.cpp:2357-2360). IF_KIT and the spoils counter use only free bits in bytes that are already saved.
 - Loot rolls make no new random draw. The commission seed and the spoils roll are the only new streams.
 
 **Old saves.**
@@ -744,7 +811,8 @@ rounds verify only their fixes), then judge rounds (at most 4). Section 9 lists 
   - Epic pieces in bands 1, 6 and 7, and Rare pieces at T5, gain their marks;
   - people in far lands step up a tier, and bandit chiefs draw T2.
 - In Batch B, the HUD shows each piece's own metal. A kit made before the change has no IF_KIT flag, so it counts as a
-  gift once: it can be taken back, and it is handed back at a parting.
+  gift once: it can be taken back, and it is handed back at a parting. A grave laid before the change keeps its
+  belongings and its one keepsake, as today.
 
 **Risks.**
 - **Power.**
@@ -803,22 +871,27 @@ that run is Batch B's baseline. Batch B adds its rows.
   - Legendary or Mythic appears below the level question 6 settles, outside a campaign finale or the dragon's hoard.
 
 **The full audits** (VISION 15.27.2 and 15.27.5: VISION_PLAN.md:3067, 3088). All stay green:
-- `--loot-sources`: every source in real games passes lootValid, with new rows for WAR SPOILS and RELIC, and checks
-  that a kit piece never reaches the hero's pack and a keepsake never sells. A source the game uses but the audit never
-  exercised fails (test_loot_sources.cpp:1-15);
+- `--loot-sources`: every source in real games passes lootValid, with new rows for WAR SPOILS and RELIC, a kit row, and
+  a row for a fallen companion's pile (revision 5: no IF_KIT on it, and no kit piece over the hero's level + 4 at the
+  join).
+  It checks that an IF_KIT piece never reaches the hero's pack. A source the game uses but the audit never exercised
+  fails (test_loot_sources.cpp:1-15);
 - `--loot` (the gate per level band, power curves, determinism) and `--power-curve`;
 - `--metrics`, the balance sim; `--foes` (elites, named uniques, world bosses); `--arms` (culture kits and looks);
-- `--companion` (revision 4) covers:
+- `--companion` (revisions 4 and 5) covers:
   - TAKE BACK refused on a kit piece;
   - a worse or equal gift declined, with both packs unchanged;
   - a better gift worn, with the kit stowed;
   - TAKE BACK of a gift, which re-wears the kit piece;
   - a gift-for-gift swap returning the first gift;
-  - dismissal, an unpaid sellsword, an angry leave and a death each returning exactly the gifts (item seeds compared);
-  - the keepsake's flags;
-  - the hire mark on dismissal;
+  - dismissal, an unpaid sellsword and an angry leave each returning exactly the gifts (item seeds compared);
+  - a death dropping exactly what they carried, kit worn and stowed, gifts and belongings, as ground loot within a tile
+    of where they fell (item seeds and counts compared), with no IF_KIT on any dropped piece, nothing added to the
+    hero's pack, and a grave with nothing to take;
+  - the kit's item level at most the hero's level + 4, on every recruit path;
+  - the hire mark on dismissal, and MERC_FALLEN after a sellsword's death (his slot never stands again);
   - a seeded fuzz of give, take back, swap, dismiss, leave, rehire and death over seeds 1..20 that never puts an IF_KIT
-    item in the hero's pack.
+    item in the hero's pack or on the ground.
 - `--wards`, the sieges, with the spoils counter;
 - `--doll-ladder` with the invariant, and `--doll-coverage` source L for the far-land tiers, Mythic alloys and relic
   helmets;
@@ -915,7 +988,9 @@ quirks") and leathers above band 1 (D23) stay for later.
     **Answered 2026-10-28: yes, amended**: "we probably will need to allow for players to give their companions better armor
     than what they start with though, so maybe you can't take their defaults but you can give them better armor and they
     will equip what's better." The kit stays theirs; a gift is worn only if better, can be taken back, and comes back at
-    every parting and at death (section 6; the rules update after P2c).
+    every parting (section 6; the rules update after P2c). **Followed up the same day:** "Made once, and if they die
+    they drop everything." The kit is never remade, and a death drops all they carry where they fell, the kit as
+    ordinary gear (revision 5).
 12. **Timing.** Should the look-only parts ship inside P2c's production: the marks, the helmets, the bulk, the crafting
     looks, and the far-land and chief tiers? The rules would follow as their own batch after P2c is DONE, with their own
     full regression and the loot and balance audits (`--loot-sources`, `--ladder-pace`, `--power-curve`, `--metrics`,
@@ -928,11 +1003,34 @@ quirks") and leathers above band 1 (D23) stay for later.
 The tags give each point's source review: R is revision 3's rules-compliance review; F (fit with the code), P (the
 player's eye) and E (the economy) are revision 2's reviews.
 
+**Revision 5 (2026-10-28): the owner's follow-up on companions**
+- **Ruled, in the owner's words:** "Made once, and if they die they drop everything" (2026-10-28). It settles the two
+  points revision 4 left as the plan's readings (docs/VISION_PLAN.md 15.37).
+- **Made once.** The reading (the kit made when they join, never remade as they level) is now a ruling.
+- **They drop everything.** It replaces revision 4's death rule (gifts back to the pack, one keepsake at the grave). A
+  death lays all they carry where they fell through the existing ground loot (Pickup, game.h:245-254, laid as dropLoot
+  lays a body's, game_rpg.cpp:217-221) under its despawn rules (240 s, game.cpp:1734; never saved and cleared at a map
+  change, game.cpp:1946). Kit pieces drop without IF_KIT, as ordinary gear. Partings while they live are unchanged.
+- **The keepsake goes; the grave stays.** No other system reads the keepsake. Grief comes from Life::residentDied
+  (party_game.cpp:229), the retired inn slot from MERC_FALLEN (party_game.cpp:240), and the stone, the weapon laid on
+  it, the epitaph and the flowers from the Fallen record. IF_KEEPSAKE leaves Batch B, and old graves keep their keepsake.
+- **Found while ruling it:**
+  - Today a kit takes the place's danger as its item level and rolls rarity at that level (party_recruit.cpp:290, 374,
+    404; party_game.cpp:95). Once kits drop, that would hand a low-level hero high-level gear past question 6's gate. So
+    the kit is capped at the hero's level + 4 and rolls with the hero as the finder. This takes revision 2's E item
+    ("gate a kit's level on the hero's level + 4"), declined while kits could not reach the pack.
+  - MERC_FALLEN still retires a dead sellsword's slot (party_game.cpp:240; game_internal.h:348), the inn skips it
+    (party_recruit.cpp:125), and Game::marks is saved (game_rpg.cpp:2659-2660, 2824). Hire-and-let-die therefore pays
+    once per slot: about 2.5 times a warrior's first day's wage (*model*, kit_value.py).
+  - A death off the hero's map (a companion at home carried off in a raid whose rescue fails: life_raids.cpp:31-38,
+    quests.cpp:1501-1502) has no ground to drop on, so what they carried is lost. Every other death has a body on the
+    hero's map, a carried one included (party_move.cpp:276-285).
+
 **Revision 4 (2026-10-28): the owner's answers** ("Defaults is good", with question 11 amended)
 - **The amendment, ruled.** The kit stays theirs, and a gift stays the hero's. A gift is worn only if better, by the
   compare arrow's rule at the companion's level; a tie keeps their own and a worse piece is declined. A worn gift stows
-  the kit. TAKE BACK returns a gift and re-wears the kit. Gifts come back at every parting and at death. The swap leak is
-  closed by one door that refuses IF_KIT (section 6).
+  the kit. TAKE BACK returns a gift and re-wears the kit. Gifts come back at every parting, and also at death until
+  revision 5 replaced that. The swap leak is closed by one door that refuses IF_KIT (section 6).
 - **Found while ruling it:** today partyDismiss drops the hero's gifts with the member (party_game.cpp:914-922), and at
   death gifts become belongings with one keepsake (loop 5, section 6). The companion page's compare arrow reads at the
   hero's level, not the companion's (paperdoll.cpp, "at their level: the hero's"), so it moves to the companion's
@@ -995,12 +1093,13 @@ player's eye) and E (the economy) are revision 2's reviews.
   (PLAN.md:2545-2549, D36). Relics and the top-tier marks come first. Revisit after the playtests.
 - **P: each relic piece keeps its own colour on its own slot.** Deferred. One armour metal is a palette-budget decision
   (PLAN.md:2490-2491, D15; the 48-colour cap, STYLE_P2.md:1278), so it is the owner's call later.
-- **E: gate a kit's level on the hero's level + 4.** Declined. Once kit pieces cannot reach the hero's pack, their level
-  shapes only the companion's own strength, which follows their level by design (party_recruit.cpp:290). The keepsake is
-  one piece per fallen companion and can never be sold.
+- **E: gate a kit's level on the hero's level + 4.** Declined in revisions 2-4: while kit pieces could not reach the
+  hero's pack, their level shaped only the companion's own strength (party_recruit.cpp:290). **Taken in revision 5**,
+  because a death now drops the kit as ordinary gear (section 6).
 - **F: design and gate T3 alloy looks.** Declined. Steel at T3 is what PLAN plans, and it needs no new art.
 - **F and E: decide spoils once, on the siege's outcome.** Declined. The War quest already pays an item on completion
   (game_rpg.cpp:960, 978).
 - **P: forbid forging a masterwork below band 4.** Declined. It would lock a learned recipe behind travel.
-- **R option not taken: drop the keepsake when only kit pieces remain.** Declined. A fallen friend's sword is the
-  keepsake players expect. IF_KEEPSAKE takes away its gold and recipe value instead, and deaths bound it.
+- **R option not taken: drop the keepsake when only kit pieces remain.** Declined in revisions 3-4. Overtaken in
+  revision 5: the owner ruled that a death drops everything, so there is no keepsake, and a fallen friend's sword lies
+  where they fell with the rest.
