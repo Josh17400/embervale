@@ -1,0 +1,69 @@
+# P2c production, SWITCH: the world's draw paths on the doll at rig 2, v1Draws 0 (C2's measure, the view side): the start
+# village's folk and guards, a rider (the Ride frame per horse frame), the fallen lying by their own baseline (a body behind
+# the grass under it, in front over it), a market town, a bandit camp, a war camp, a harbour, and the capital's crowd at
+# 15:00 (C8: people 24 MB or less, the atlas cache's evictions in the log: `pos` and Witness state.screen.rigEvictions).
+# Every shot after a move waits with `settle`.
+#   embervale.exe --script tools/scripts/p2c_world.txt         (p2c_world_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
+# ---- the start village: every body on the doll
++0.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_village.png
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_village_near.png
++0.1 zoom normal
+# ---- the fallen: two bandits cut down beside the hero, lying on the doll (sorted by their own baseline)
++0.1 skill foe bandit 2 0 unaware
++0.0 skill foe bandit -2 1 unaware
++0.3 killnear 6
++1.0 expect menu v1 0
++0.0 zoom near
++0.3 shot p2c_world_fallen.png
++0.1 zoom normal
+# ---- a rider: the hero's horse (a stable at the homestead), the Ride frame stepping with the horse's cells
++0.1 goto shrine
++0.5 home lot medium
++0.1 home fence
++0.1 home place stable 2 2
++0.1 home ride
++0.1 expect home riding 1
++0.1 walk east 0.8
++0.3 expect menu v1 0
++0.0 shot p2c_world_ride_east.png
++0.3 walk south 0.8
++0.3 shot p2c_world_ride_south.png
++0.5 home dismount
+# ---- a market town
++0.3 goto market
++1.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_market.png
+# ---- a bandit camp
++0.3 goto camp
++1.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_camp.png
+# ---- a harbour
++0.3 sea port
++1.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_harbour.png
+# ---- the capital at 15:00 (C8): its crowd on the doll
++0.3 goto capital
++1.5 hour 15
++3.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_capital.png
++0.1 zoom near
++0.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_capital_near.png

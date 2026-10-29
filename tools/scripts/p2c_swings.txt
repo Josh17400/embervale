@@ -1,0 +1,318 @@
+# P2c production, SWITCH (C5 in game; C10 T4's setup): every weapon family's swings on the doll at rig 2: the hero armed by
+# `ladderkit hero=1,kit=heartland:4:7,wpn=<family>` (the hero line's T4 kit) (covered on the doll, never v1), each blow of the combo (hits 1-3: windup, strike, follow)
+# frozen with `pose` facing right and facing down, the block, the roll, the cast and the bow's draw and release; then a live
+# combo with the greatsword (its finisher's impact: the camera nudge). Seed 7, the start village, NEAR.
+#   embervale.exe --script tools/scripts/p2c_swings.txt        (p2c_swings_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 zoom near
+# ---- sword
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=sword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup sword 0 1
++0.1 shot p2c_swings_sword_r_h1_windup.png
++0.1 pose strike sword 0 1
++0.1 shot p2c_swings_sword_r_h1_strike.png
++0.1 pose follow sword 0 1
++0.1 shot p2c_swings_sword_r_h1_follow.png
++0.1 pose windup sword 1 1
++0.1 shot p2c_swings_sword_r_h2_windup.png
++0.1 pose strike sword 1 1
++0.1 shot p2c_swings_sword_r_h2_strike.png
++0.1 pose follow sword 1 1
++0.1 shot p2c_swings_sword_r_h2_follow.png
++0.1 pose windup sword 2 1
++0.1 shot p2c_swings_sword_r_h3_windup.png
++0.1 pose strike sword 2 1
++0.1 shot p2c_swings_sword_r_h3_strike.png
++0.1 pose follow sword 2 1
++0.1 shot p2c_swings_sword_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup sword 0 1
++0.1 shot p2c_swings_sword_d_h1_windup.png
++0.1 pose strike sword 0 1
++0.1 shot p2c_swings_sword_d_h1_strike.png
++0.1 pose follow sword 0 1
++0.1 shot p2c_swings_sword_d_h1_follow.png
++0.1 pose windup sword 1 1
++0.1 shot p2c_swings_sword_d_h2_windup.png
++0.1 pose strike sword 1 1
++0.1 shot p2c_swings_sword_d_h2_strike.png
++0.1 pose follow sword 1 1
++0.1 shot p2c_swings_sword_d_h2_follow.png
++0.1 pose windup sword 2 1
++0.1 shot p2c_swings_sword_d_h3_windup.png
++0.1 pose strike sword 2 1
++0.1 shot p2c_swings_sword_d_h3_strike.png
++0.1 pose follow sword 2 1
++0.1 shot p2c_swings_sword_d_h3_follow.png
++0.1 pose block sword 0 1
++0.1 shot p2c_swings_sword_block.png
++0.1 pose roll sword 0 2
++0.1 shot p2c_swings_sword_roll.png
++0.1 pose off
+# ---- greatsword
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=greatsword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup greatsword 0 1
++0.1 shot p2c_swings_greatsword_r_h1_windup.png
++0.1 pose strike greatsword 0 1
++0.1 shot p2c_swings_greatsword_r_h1_strike.png
++0.1 pose follow greatsword 0 1
++0.1 shot p2c_swings_greatsword_r_h1_follow.png
++0.1 pose windup greatsword 1 1
++0.1 shot p2c_swings_greatsword_r_h2_windup.png
++0.1 pose strike greatsword 1 1
++0.1 shot p2c_swings_greatsword_r_h2_strike.png
++0.1 pose follow greatsword 1 1
++0.1 shot p2c_swings_greatsword_r_h2_follow.png
++0.1 pose windup greatsword 2 1
++0.1 shot p2c_swings_greatsword_r_h3_windup.png
++0.1 pose strike greatsword 2 1
++0.1 shot p2c_swings_greatsword_r_h3_strike.png
++0.1 pose follow greatsword 2 1
++0.1 shot p2c_swings_greatsword_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup greatsword 0 1
++0.1 shot p2c_swings_greatsword_d_h1_windup.png
++0.1 pose strike greatsword 0 1
++0.1 shot p2c_swings_greatsword_d_h1_strike.png
++0.1 pose follow greatsword 0 1
++0.1 shot p2c_swings_greatsword_d_h1_follow.png
++0.1 pose windup greatsword 1 1
++0.1 shot p2c_swings_greatsword_d_h2_windup.png
++0.1 pose strike greatsword 1 1
++0.1 shot p2c_swings_greatsword_d_h2_strike.png
++0.1 pose follow greatsword 1 1
++0.1 shot p2c_swings_greatsword_d_h2_follow.png
++0.1 pose windup greatsword 2 1
++0.1 shot p2c_swings_greatsword_d_h3_windup.png
++0.1 pose strike greatsword 2 1
++0.1 shot p2c_swings_greatsword_d_h3_strike.png
++0.1 pose follow greatsword 2 1
++0.1 shot p2c_swings_greatsword_d_h3_follow.png
++0.1 pose block greatsword 0 1
++0.1 shot p2c_swings_greatsword_block.png
++0.1 pose roll greatsword 0 2
++0.1 shot p2c_swings_greatsword_roll.png
++0.1 pose off
+# ---- axe
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=axe
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup axe 0 1
++0.1 shot p2c_swings_axe_r_h1_windup.png
++0.1 pose strike axe 0 1
++0.1 shot p2c_swings_axe_r_h1_strike.png
++0.1 pose follow axe 0 1
++0.1 shot p2c_swings_axe_r_h1_follow.png
++0.1 pose windup axe 1 1
++0.1 shot p2c_swings_axe_r_h2_windup.png
++0.1 pose strike axe 1 1
++0.1 shot p2c_swings_axe_r_h2_strike.png
++0.1 pose follow axe 1 1
++0.1 shot p2c_swings_axe_r_h2_follow.png
++0.1 pose windup axe 2 1
++0.1 shot p2c_swings_axe_r_h3_windup.png
++0.1 pose strike axe 2 1
++0.1 shot p2c_swings_axe_r_h3_strike.png
++0.1 pose follow axe 2 1
++0.1 shot p2c_swings_axe_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup axe 0 1
++0.1 shot p2c_swings_axe_d_h1_windup.png
++0.1 pose strike axe 0 1
++0.1 shot p2c_swings_axe_d_h1_strike.png
++0.1 pose follow axe 0 1
++0.1 shot p2c_swings_axe_d_h1_follow.png
++0.1 pose windup axe 1 1
++0.1 shot p2c_swings_axe_d_h2_windup.png
++0.1 pose strike axe 1 1
++0.1 shot p2c_swings_axe_d_h2_strike.png
++0.1 pose follow axe 1 1
++0.1 shot p2c_swings_axe_d_h2_follow.png
++0.1 pose windup axe 2 1
++0.1 shot p2c_swings_axe_d_h3_windup.png
++0.1 pose strike axe 2 1
++0.1 shot p2c_swings_axe_d_h3_strike.png
++0.1 pose follow axe 2 1
++0.1 shot p2c_swings_axe_d_h3_follow.png
++0.1 pose block axe 0 1
++0.1 shot p2c_swings_axe_block.png
++0.1 pose roll axe 0 2
++0.1 shot p2c_swings_axe_roll.png
++0.1 pose off
+# ---- mace
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=mace
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup mace 0 1
++0.1 shot p2c_swings_mace_r_h1_windup.png
++0.1 pose strike mace 0 1
++0.1 shot p2c_swings_mace_r_h1_strike.png
++0.1 pose follow mace 0 1
++0.1 shot p2c_swings_mace_r_h1_follow.png
++0.1 pose windup mace 1 1
++0.1 shot p2c_swings_mace_r_h2_windup.png
++0.1 pose strike mace 1 1
++0.1 shot p2c_swings_mace_r_h2_strike.png
++0.1 pose follow mace 1 1
++0.1 shot p2c_swings_mace_r_h2_follow.png
++0.1 pose windup mace 2 1
++0.1 shot p2c_swings_mace_r_h3_windup.png
++0.1 pose strike mace 2 1
++0.1 shot p2c_swings_mace_r_h3_strike.png
++0.1 pose follow mace 2 1
++0.1 shot p2c_swings_mace_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup mace 0 1
++0.1 shot p2c_swings_mace_d_h1_windup.png
++0.1 pose strike mace 0 1
++0.1 shot p2c_swings_mace_d_h1_strike.png
++0.1 pose follow mace 0 1
++0.1 shot p2c_swings_mace_d_h1_follow.png
++0.1 pose windup mace 1 1
++0.1 shot p2c_swings_mace_d_h2_windup.png
++0.1 pose strike mace 1 1
++0.1 shot p2c_swings_mace_d_h2_strike.png
++0.1 pose follow mace 1 1
++0.1 shot p2c_swings_mace_d_h2_follow.png
++0.1 pose windup mace 2 1
++0.1 shot p2c_swings_mace_d_h3_windup.png
++0.1 pose strike mace 2 1
++0.1 shot p2c_swings_mace_d_h3_strike.png
++0.1 pose follow mace 2 1
++0.1 shot p2c_swings_mace_d_h3_follow.png
++0.1 pose block mace 0 1
++0.1 shot p2c_swings_mace_block.png
++0.1 pose roll mace 0 2
++0.1 shot p2c_swings_mace_roll.png
++0.1 pose off
+# ---- spear
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=spear
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup spear 0 1
++0.1 shot p2c_swings_spear_r_h1_windup.png
++0.1 pose strike spear 0 1
++0.1 shot p2c_swings_spear_r_h1_strike.png
++0.1 pose follow spear 0 1
++0.1 shot p2c_swings_spear_r_h1_follow.png
++0.1 pose windup spear 1 1
++0.1 shot p2c_swings_spear_r_h2_windup.png
++0.1 pose strike spear 1 1
++0.1 shot p2c_swings_spear_r_h2_strike.png
++0.1 pose follow spear 1 1
++0.1 shot p2c_swings_spear_r_h2_follow.png
++0.1 pose windup spear 2 1
++0.1 shot p2c_swings_spear_r_h3_windup.png
++0.1 pose strike spear 2 1
++0.1 shot p2c_swings_spear_r_h3_strike.png
++0.1 pose follow spear 2 1
++0.1 shot p2c_swings_spear_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup spear 0 1
++0.1 shot p2c_swings_spear_d_h1_windup.png
++0.1 pose strike spear 0 1
++0.1 shot p2c_swings_spear_d_h1_strike.png
++0.1 pose follow spear 0 1
++0.1 shot p2c_swings_spear_d_h1_follow.png
++0.1 pose windup spear 1 1
++0.1 shot p2c_swings_spear_d_h2_windup.png
++0.1 pose strike spear 1 1
++0.1 shot p2c_swings_spear_d_h2_strike.png
++0.1 pose follow spear 1 1
++0.1 shot p2c_swings_spear_d_h2_follow.png
++0.1 pose windup spear 2 1
++0.1 shot p2c_swings_spear_d_h3_windup.png
++0.1 pose strike spear 2 1
++0.1 shot p2c_swings_spear_d_h3_strike.png
++0.1 pose follow spear 2 1
++0.1 shot p2c_swings_spear_d_h3_follow.png
++0.1 pose block spear 0 1
++0.1 shot p2c_swings_spear_block.png
++0.1 pose roll spear 0 2
++0.1 shot p2c_swings_spear_roll.png
++0.1 pose off
+# ---- dagger
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=dagger
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup dagger 0 1
++0.1 shot p2c_swings_dagger_r_h1_windup.png
++0.1 pose strike dagger 0 1
++0.1 shot p2c_swings_dagger_r_h1_strike.png
++0.1 pose follow dagger 0 1
++0.1 shot p2c_swings_dagger_r_h1_follow.png
++0.1 pose windup dagger 1 1
++0.1 shot p2c_swings_dagger_r_h2_windup.png
++0.1 pose strike dagger 1 1
++0.1 shot p2c_swings_dagger_r_h2_strike.png
++0.1 pose follow dagger 1 1
++0.1 shot p2c_swings_dagger_r_h2_follow.png
++0.1 pose windup dagger 2 1
++0.1 shot p2c_swings_dagger_r_h3_windup.png
++0.1 pose strike dagger 2 1
++0.1 shot p2c_swings_dagger_r_h3_strike.png
++0.1 pose follow dagger 2 1
++0.1 shot p2c_swings_dagger_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup dagger 0 1
++0.1 shot p2c_swings_dagger_d_h1_windup.png
++0.1 pose strike dagger 0 1
++0.1 shot p2c_swings_dagger_d_h1_strike.png
++0.1 pose follow dagger 0 1
++0.1 shot p2c_swings_dagger_d_h1_follow.png
++0.1 pose windup dagger 1 1
++0.1 shot p2c_swings_dagger_d_h2_windup.png
++0.1 pose strike dagger 1 1
++0.1 shot p2c_swings_dagger_d_h2_strike.png
++0.1 pose follow dagger 1 1
++0.1 shot p2c_swings_dagger_d_h2_follow.png
++0.1 pose windup dagger 2 1
++0.1 shot p2c_swings_dagger_d_h3_windup.png
++0.1 pose strike dagger 2 1
++0.1 shot p2c_swings_dagger_d_h3_strike.png
++0.1 pose follow dagger 2 1
++0.1 shot p2c_swings_dagger_d_h3_follow.png
++0.1 pose block dagger 0 1
++0.1 shot p2c_swings_dagger_block.png
++0.1 pose roll dagger 0 2
++0.1 shot p2c_swings_dagger_roll.png
++0.1 pose off
+# ---- the staff's cast and the bow's draw and release
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=staff
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose cast staff 0 0
++0.1 shot p2c_swings_staff_cast0.png
++0.1 pose cast staff 0 1
++0.1 shot p2c_swings_staff_cast1.png
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=bow
++0.3 expect doll covered
++0.1 pose draw bow 0 2
++0.1 shot p2c_swings_bow_draw.png
++0.1 pose release bow 0 0
++0.1 shot p2c_swings_bow_release.png
++0.1 pose off
+# ---- a live combo with the greatsword: three blows, the finisher's impact nudges the camera 2 px and back
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=greatsword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 key j
++0.25 key j
++0.25 key j
++0.12 shot p2c_swings_live_gs.png
++0.6 expect menu v1 0

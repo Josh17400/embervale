@@ -288,6 +288,10 @@ struct DollRecipe {
   bool pauldronTop = false;
   bool irisBands = false;
   bool dropHang = false;
+  // (P2c wave 2, DOLL-C; contracts 3) the production vocabulary's fallbacks: a sheath, a carried back item, a library weapon or an
+  // effect the pool does not draw yet ("sheath dagger -> none", "held greatsword.broad -> sword.broad"): `--doll-coverage --scope
+  // envelope` lists them; the figure wears the fallback meanwhile, never a hole
+  std::vector<std::string> vocabMissing;
   DollRecipe() { for (uint8_t& r : region) r = 0xFF; for (auto& f : fin) for (uint8_t& x : f) x = 0xFF; }
   bool has(const char* flag) const;
 };

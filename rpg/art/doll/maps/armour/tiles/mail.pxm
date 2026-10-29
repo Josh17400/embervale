@@ -1,0 +1,14 @@
+# armour/tiles/mail: riveted mail on the mail sleeve (U, the `mail` form; ARMOUR-X wave 2, STYLE_P2 25.2): rows of rings
+# read as a lit row over a shadow row with a dark ring-gap every 4 px, the rows offset by 2 (a brick, never a checker);
+# at 1x a fine woven grey, the arm's own light running through it. Format: rpg/art/doll/doll.h; `on-region` contracts 4.
+use person
+body adult
+role overlay mail
+tags tile overlay
+on-region U
+
+view D key rest origin 0 0
+|xxxw
+|wxww
+|xwxx
+|wwwx

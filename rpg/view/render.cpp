@@ -12,6 +12,8 @@
 #include "rpg/art/art_city.h"
 #include "rpg/art/art_parts.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_envelope.h"
+#include "rpg/art/art_party.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/deco.h"
 #include "rpg/sim/foes.h"
@@ -841,7 +843,8 @@ constexpr double kRigBakeMs = 1.2;
 #else
 const double kRigBakeMs = std::getenv("EMB_WEBSIM") ? 1.2 : 2.0;
 #endif
-constexpr double kRigCapMB = 16.0;
+// (P2c SWITCH, C8) 16 MB unless the capital sweep at 15:00 evicts an on-screen look (then 20 MB, inside the 24 MB people
+// budget): View::rigCapMB_ (EMB_RIG_CAP_MB overrides it for the measurement)
 constexpr float kStreamR = 34.0f * 16.0f;   // the stream radius (px): folk inside it are baked before they are seen
 }  // namespace
 
@@ -853,11 +856,11 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
   // (P2b VIEW-B) per-part coverage: rig2Covers holds LOCO and DEATH (and ACTION for the armed); the RUN and an unarmed
   // body's ACTION are drawn only where the doll covers them too (else the caller's next part: the walk, the idle), so a
   // part with a missing map never shows a hole
-  if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(L, part)) return r;
+  if ((part == art::RigPart::Run || part == art::RigPart::Action || part == art::RigPart::Drawn) && !art::doll::dollCovers(L, part)) return r;
   const uint64_t k = rigKey(L, part, child);
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
-    if (!witness && !rigBakeBudget()) {   // over this frame's budget: queued, nearest first next frame
+    if (!witness && !rigBakeNow_ && !rigBakeBudget()) {   // over this frame's budget: queued, nearest first next frame (a menu figure bakes now)
       bool queued = false;
       for (const RigJob& j : rigQueue_) if (j.part == part && j.child == child && j.look.key() == L.key()) queued = true;
       if (!queued) { RigJob j; j.look = L; j.part = part; j.child = child; j.d2 = 0; rigQueue_.insert(rigQueue_.begin(), j); }
@@ -883,7 +886,8 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
       }
     }
     // (polish i1) a T6 look keeps each frame's silhouette: the aura breathes round it, the edge sweep stays on the piece
-    if (L.topTier() >= 6 && e.sheet.atlas.w > 0) {
+    // (P2c SWITCH) and a Mythic wearer's at any tier: its flame hugs the doll frame (C7)
+    if ((L.topTier() >= 6 || L.mythic || (L.glow && L.glowColor == 0xFF2868FFu)) && e.sheet.atlas.w > 0) {
       e.masks.reserve(e.sheet.frames.size());
       for (const art::FrameRect& f : e.sheet.frames) e.masks.push_back(art::finish::maskOf(e.sheet.atlas, f.x, f.y, f.w, f.h));
     }
@@ -892,6 +896,10 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     rigBakeFrameMs_ += ms;
     lensStats.rigBaked++;
+    // (P2c SWITCH, C8) an atlas baked again after the cap evicted it: the cache was too small for what is on screen
+    if (rigEvicted_.erase(k)) lensStats.rigRebakes++;
+    if (part == art::RigPart::Action) lensStats.actionMsMax = std::max(lensStats.actionMsMax, ms);
+    if (std::getenv("EMB_TIMING")) std::printf("rig atlas baked: part %d %.3f ms\n", (int)part, ms);
   }
   it->second.used = t_;
   r.tex = &it->second.tex;
@@ -908,6 +916,11 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
 // after the lighting (drawWeather's tail). Rig 2 only.
 void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                              float x2, float y2, float pivX, float pivY, float alpha, bool strike) {
+  queueLivingFinishId(a.id, L, rt, f, an, x2, y2, pivX, pivY, alpha, strike, false);
+}
+// (P2c SWITCH) the same by the figure's id; `menu`: a menu figure (its motes in the figure's own frame, no world camera)
+void View::queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+                               float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu) {
   if (!art::finish::enabled() || !rt.ready() || alpha <= 0.02f) return;
   const int top = L.topTier();
   const bool steady = top == 4 && L.sheen == 6;   // (P2c forge, D28) a glowing alloy's seams from T4, steady
@@ -915,7 +928,7 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
   const art::RigSheet& S = *rt.sheet;
   const size_t fi = (size_t)(&f - S.frames.data());
   if (fi >= S.frames.size()) return;
-  const float phase = art::finish::actorPhase((uint32_t)a.id);
+  const float phase = art::finish::actorPhase((uint32_t)id);
   std::vector<art::finish::GlowPx> gpx;
   if (fi < S.glow.first.size()) S.glow.each(fi, [&](int gx, int gy, uint32_t c) { gpx.push_back({gx, gy, c}); });
   uint32_t hot = 0;
@@ -941,17 +954,32 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
   {
     std::vector<art::finish::Light> lights;
     art::finish::figureLights(F, lights);
-    for (const art::finish::Light& q : lights) push(q, x2, y2);
+    // (P2c SWITCH, C7: "the Mythic aura hugs doll frames, alpha only within 3 px of the silhouette") a light whose pixel
+    // stands more than kAuraReach px off the frame's silhouette is not drawn: a flame tongue's tip (6b draws them 1-4.5 px
+    // tall) stops at 3 px. The motes and embers below are particles, not the aura: they rise free.
+    constexpr int kAuraReach = 3;
+    for (const art::finish::Light& q : lights) {
+      if (F.mask) {
+        const int cx = (int)std::floor(q.x + q.w * 0.5f), cy = (int)std::floor(q.y + q.h * 0.5f);
+        bool near = false;
+        for (int j = -kAuraReach; j <= kAuraReach && !near; j++)
+          for (int i = -kAuraReach; i <= kAuraReach && !near; i++) near = F.mask->at(cx + i, cy + j);
+        if (!near) continue;
+      }
+      push(q, x2, y2);
+    }
   }
+  finishAuraEnd_ = beasts::finish.size();   // the aura's lights end here (the particles and the gleam follow)
   if (top < 6) { beasts::finishFigures++; return; }   // (T4 steady and T5: no motes, no gleam)
   // the motes / embers: world space (view px + the camera), so the camera's motion never drags them along
   {
-    art::finish::Particles& ps = finishParts_[a.id];
-    const float wx = x2 + std::floor(cam_.x + 0.5f), wy = y2 + std::floor(cam_.y + 0.5f);
-    art::finish::particlesStep(ps, (uint32_t)a.id * 2654435761u + 0x5EEDu, t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
+    art::finish::Particles& ps = finishParts_[id];
+    const float cx = menu ? 0.0f : std::floor(cam_.x + 0.5f), cy = menu ? 0.0f : std::floor(cam_.y + 0.5f);
+    const float wx = x2 + cx, wy = y2 + cy;
+    art::finish::particlesStep(ps, (uint32_t)id * 2654435761u + 0x5EEDu, t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
     std::vector<art::finish::Light> lights;
     art::finish::particleLights(ps, t_, hot, lights);
-    for (const art::finish::Light& q : lights) push(q, -std::floor(cam_.x + 0.5f), -std::floor(cam_.y + 0.5f));
+    for (const art::finish::Light& q : lights) push(q, -cx, -cy);
   }
   // (ladder i3) the gleam: the figure's own pixels added back through a slanted band sweeping across it
   {
@@ -968,6 +996,217 @@ void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigT
   (void)pivX; (void)pivY;
   beasts::finishFigures++;
 }
+// ---- (P2c SWITCH) the menus on the doll (rig 2; PLAN C7, "The envelope in production": menu frames sized for the T6
+// envelope, the living finish and the stir in every draw path). Rig 1 never reaches these: every menu keeps its v1 draw.
+namespace {
+// the T6 envelope round the pivot (doll_envelope.h): the fin at F-41, 28 px shoulders (14 a side), the long cloak 8 px
+// behind the body's box (8 + 8 a side facing R / L); the feet's row under the pivot
+constexpr int kEnvUp = 41, kEnvDown = 1;
+int envSide() { const auto& e6 = art::doll::envelopeOf(6); return std::max<int>(e6.shoulders / 2, 8 + e6.cloakBack); }
+// the menu figure's own id for its phase and motes (never an actor's: actors count up from 0)
+int menuFigId(int where, int id) { return -(100000 + where * 64 + (id & 63)); }
+}  // namespace
+
+int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int want, bool swing) {
+  if (art::rigVersion() < 2 || !art::rig2Covers(L)) return 0;
+  const uint64_t k = L.key() ^ (swing ? 0x5A1C6E0011ull : 0x3E7B0022ull);
+  auto it = menuBoxes_.find(k);
+  if (it == menuBoxes_.end()) {
+    if (menuBoxes_.size() > 64) menuBoxes_.clear();
+    MenuBox b;
+    b.u = kEnvUp; b.d = kEnvDown; b.l = b.r = envSide();
+    auto take = [&](art::RigPart part) {
+      if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(L, part)) return;
+      rigBakeNow_ = true;
+      const RigTex rt = rigTex(L, part);
+      rigBakeNow_ = false;
+      if (!rt.ready()) return;
+      for (const art::FrameRect& f : rt.sheet->frames) {
+        b.l = std::max<int>(b.l, f.px); b.r = std::max<int>(b.r, f.w - f.px);
+        b.u = std::max<int>(b.u, f.py); b.d = std::max<int>(b.d, f.h - f.py);
+      }
+    };
+    take(art::RigPart::Loco);
+    if (swing) { take(art::RigPart::Run); take(art::RigPart::Action); }
+    it = menuBoxes_.emplace(k, b).first;
+  }
+  const MenuBox& b = it->second;
+  const float fx = std::floor(feetX), fy = std::floor(feetY);
+  int s = std::max(1, want);
+  for (; s > 1; s--)
+    if (fx - b.l * s >= st.x && fx + b.r * s <= st.x + st.w && fy - b.u * s >= st.y && fy + b.d * s <= st.y + st.h) break;
+  return s;
+}
+
+// the blows facing `facing` (windup, strike, follow; the combo's three variants) stand inside the stage at this multiple
+bool View::menuSwingFits(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int scale, int facing) {
+  if (art::rigVersion() < 2 || !art::rig2Covers(L) || !art::doll::dollCovers(L, art::RigPart::Action)) return false;
+  rigBakeNow_ = true;
+  const RigTex rt = rigTex(L, art::RigPart::Action);
+  rigBakeNow_ = false;
+  if (!rt.ready()) return false;
+  const float fx = std::floor(feetX), fy = std::floor(feetY);
+  for (art::Clip c : {art::Clip::Windup, art::Clip::Strike, art::Clip::Follow})
+    for (int v = 0; v < 3; v++)
+      for (int i = 0; i < rt.sheet->count(facing, c, v); i++) {
+        const art::FrameRect* f = rt.sheet->frame(facing, c, v, i);
+        if (!f) continue;
+        const float x0 = fx - f->px * scale, y0 = fy - f->py * scale;
+        if (x0 < st.x || y0 < st.y || x0 + f->w * scale > st.x + st.w || y0 + f->h * scale > st.y + st.h) return false;
+      }
+  return true;
+}
+
+bool View::drawMenuDoll(const art::HumanLook& L, int where, int facing, MenuGait gait, float feetX, float feetY, int scale, const MenuStage& st,
+                        float alpha, int topRows, int id) {
+  if (art::rigVersion() < 2 || !art::rig2Covers(L) || scale < 1 || !pix_) return false;
+  Pix& P = *pix_;
+  facing = std::clamp(facing, 0, 3);
+  const int fid = menuFigId(where, id);
+  const float own = art::finish::actorPhase((uint32_t)fid);   // a figure's own breath, out of step with the next
+  auto get = [&](art::RigPart part) {
+    rigBakeNow_ = true;
+    const RigTex r = rigTex(L, part);
+    rigBakeNow_ = false;
+    return r;
+  };
+  RigTex rt;
+  art::RigPart part = art::RigPart::Loco;
+  art::Clip clip = art::Clip::Idle;
+  int variant = 0, fi = 0;
+  auto idle = [&]() {
+    part = art::RigPart::Loco; clip = art::Clip::Idle; variant = 0;
+    rt = get(part);
+    // neutral and breathe alternate 0.55 s (the breathe frame carries the T5-T6 stir: the breeze views); a 0.12 s blink
+    // every 4.4 s when the clip has one (anim.cpp's idle)
+    const float t = t_ + own * 1.1f;
+    fi = (int)(t / 0.55f) & 1;
+    if (rt.ready() && rt.sheet->count(facing, clip, 0) > 2 && std::fmod(t_ + own * 4.4f, 4.4f) < 0.12f) fi = 2;
+  };
+  switch (gait) {
+    case MenuGait::Idle: idle(); break;
+    case MenuGait::Walk:   // on the spot at the walk's pace (about 9 frames a second)
+      part = art::RigPart::Loco; clip = art::Clip::Walk; rt = get(part);
+      if (rt.ready()) fi = (int)(t_ * 9.0f) % std::max(1, rt.sheet->count(facing, clip, 0));
+      break;
+    case MenuGait::Run:    // the RUN part's cycle where the doll covers it, else the walk a little quicker
+      if (art::doll::dollCovers(L, art::RigPart::Run)) { part = art::RigPart::Run; clip = art::Clip::Walk; rt = get(part); }
+      if (!rt.ready()) { part = art::RigPart::Loco; clip = art::Clip::Walk; rt = get(part); }
+      if (rt.ready()) fi = (int)(t_ * 12.0f) % std::max(1, rt.sheet->count(facing, clip, 0));
+      break;
+    case MenuGait::Swing: {   // a blow every 1.6 s (windup 2 x 0.12 s, strike 2 x 0.07, follow 2 x 0.10), the combo's
+                              // three variants in turn, the idle between
+      if (!art::doll::dollCovers(L, art::RigPart::Action)) { idle(); break; }
+      if (menuSwingT0_ < 0 || menuSwingT0_ > t_) menuSwingT0_ = t_;
+      const float u = std::fmod(t_ - menuSwingT0_, 1.6f);
+      const int v = (int)((t_ - menuSwingT0_) / 1.6f) % 3;
+      if (u >= 0.58f) { idle(); break; }
+      variant = v;
+      if (u < 0.24f) { clip = art::Clip::Windup; fi = (int)(u / 0.12f); }
+      else if (u < 0.38f) { clip = art::Clip::Strike; fi = (int)((u - 0.24f) / 0.07f); }
+      else { clip = art::Clip::Follow; fi = (int)((u - 0.38f) / 0.10f); }
+      part = art::RigPart::Action;
+      rt = get(part);
+      if (!rt.ready() || !rt.sheet->frame(facing, clip, variant, fi)) idle();
+      break;
+    }
+  }
+  if (!rt.ready()) return false;
+  const art::FrameRect* f = rt.sheet->frame(facing, clip, variant, fi);
+  if (!f) { idle(); f = rt.ready() ? rt.sheet->frame(facing, clip, variant, fi) : nullptr; }
+  if (!f) return false;
+  const art::RigAnchors* an = rt.sheet->anchorsOf(facing, clip, variant, fi);
+  const float s = (float)scale;
+  const float x0 = std::floor(feetX) - f->px * s, y0 = std::floor(feetY) - f->py * s;
+  // topRows > 0 (a dialogue's head-and-shoulders): the frame cut to the stage's rows (the breath moves inside the cut)
+  int r0 = 0, rows = f->h;
+  if (topRows > 0) {
+    r0 = std::clamp((int)std::ceil((st.y - y0) / s - 1e-3f), 0, (int)f->h);
+    rows = std::clamp((int)std::floor((st.y + st.h - y0) / s + 1e-3f), r0, (int)f->h);
+  }
+  if (rows > r0) P.blitEx(*rt.tex, f->x, f->y + r0, f->w, rows - r0, x0, y0 + r0 * s, f->w * s, (rows - r0) * s, false, Color(1, 1, 1, alpha));
+  MenuFigure mf;
+  mf.where = where; mf.rig = 2; mf.scale = scale; mf.x = x0; mf.y = y0 + r0 * s; mf.w = (int)(f->w * scale); mf.h = (rows - r0) * scale;
+  mf.part = (int)part; mf.clip = (int)clip; mf.frame = fi; mf.facing = facing; mf.tier = L.topTier(); mf.stage = st;
+  mf.cropped = st.w > 0 && (x0 < st.x - 0.01f || mf.y < st.y - 0.01f || x0 + mf.w > st.x + st.w + 0.01f || mf.y + mf.h > st.y + st.h + 0.01f);
+  // the living finish on the menu figure: the world's own lights (queued against the frame's top-left), drawn here at
+  // the figure's multiple, additively (no night pass in a menu). The furthest lit pixel off the silhouette is recorded.
+  const size_t n0 = beasts::finish.size();
+  queueLivingFinishId(fid, L, rt, *f, an, 0, 0, (float)f->px, (float)f->py, alpha, clip == art::Clip::Strike, true);
+  if (beasts::finish.size() > n0) {
+    const size_t fiAll = (size_t)(f - rt.sheet->frames.data());
+    const art::finish::Mask* mk = rt.masks && fiAll < rt.masks->size() ? &(*rt.masks)[fiAll] : nullptr;
+    int far = -1;
+    const size_t auraEnd = finishAuraEnd_;
+    for (size_t i = n0; i < beasts::finish.size(); i++) {
+      const beasts::Finish& q = beasts::finish[i];
+      if (q.y >= rows || q.y + q.h <= r0) continue;   // outside a dialogue's cut
+      const float h = std::min(q.h, (float)rows - q.y);
+      if (q.t) P.blitEx(*q.t, q.sx, q.sy, q.sw, std::max(1, (int)std::ceil(h * q.sh / std::max(1e-3f, q.h))), x0 + q.x * s, y0 + q.y * s, q.w * s, h * s, false, q.c, 1);
+      else P.rectAdd(x0 + q.x * s, y0 + q.y * s, q.w * s, h * s, q.c);
+      mf.lights++;
+      if (!mk || q.t || q.c.a <= 0.02f || i >= auraEnd) continue;   // (the aura's lights only: motes rise free)
+      // the light's pixels' distance from the silhouette (Chebyshev, frame px; 0 on the figure)
+      for (int yy = (int)std::floor(q.y); yy < (int)std::ceil(q.y + h); yy++)
+        for (int xx = (int)std::floor(q.x); xx < (int)std::ceil(q.x + q.w); xx++) {
+          int d = 0;
+          if (!mk->at(xx, yy)) {
+            d = 99;
+            for (int r = 1; r <= 8 && d == 99; r++)
+              for (int j = -r; j <= r && d == 99; j++)
+                for (int i2 = -r; i2 <= r; i2++)
+                  if ((std::abs(j) == r || std::abs(i2) == r) && mk->at(xx + i2, yy + j)) { d = r; break; }
+          }
+          far = std::max(far, d);
+        }
+    }
+    beasts::finish.resize(n0);
+    mf.auraOut = far;
+  }
+  menuFigs.push_back(mf);
+  return true;
+}
+
+void View::noteMenuV1(int where, float x, float y, int w, int h, const MenuStage& st) {
+  v1Draws++;
+  MenuFigure mf;
+  mf.where = where; mf.rig = 1; mf.x = x; mf.y = y; mf.w = w; mf.h = h; mf.stage = st;
+  mf.cropped = st.w > 0 && (x < st.x - 0.01f || y < st.y - 0.01f || x + w > st.x + st.w + 0.01f || y + h > st.y + st.h + 0.01f);
+  menuFigs.push_back(mf);
+}
+
+// a party portrait's living finish: the bust's glow pixels (portraitGlow_, kept when the bust was cut from the doll frame)
+// breathing with the wearer's phase, each with its 4-neighbour halo
+void View::portraitFinish(uint32_t memberId, float x, float y, float scale, float alpha, int sx, int sy, int sw, int sh) {
+  if (art::rigVersion() < 2 || !art::finish::enabled() || !pix_) return;
+  auto lk = portraitLook_.find(memberId);
+  if (lk == portraitLook_.end() || lk->second.second < 5) return;
+  auto it = portraitGlow_.find(lk->second.first);
+  if (it == portraitGlow_.end() || it->second.empty()) return;
+  const art::finish::Pulse pu = art::finish::pulseOf(lk->second.second);
+  const float ph = art::finish::actorPhase((uint32_t)memberId);
+  auto up = [](uint32_t v) { return (float)(v + (255u - v) * 55u / 100u) / 255.0f; };
+  auto isGlow = [&](int gx, int gy) {
+    for (const art::finish::GlowPx& o : it->second) if (o.x == gx && o.y == gy) return true;
+    return false;
+  };
+  auto inSrc = [&](int px, int py) { return px >= sx && py >= sy && px < sx + sw && py < sy + sh; };
+  static const int d4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  for (const art::finish::GlowPx& g : it->second) {
+    if (!inSrc(g.x, g.y)) continue;
+    const float a = art::finish::pixelLight(pu, t_, ph, g.x, g.y) * alpha;
+    if (a <= 0.01f) continue;
+    const Color c(up(g.c & 255u), up(g.c >> 8 & 255u), up(g.c >> 16 & 255u), a);
+    pix_->rectAdd(x + (g.x - sx) * scale, y + (g.y - sy) * scale, scale, scale, c);
+    const Color hc(c.r, c.g, c.b, a * art::finish::kHalo);
+    for (const auto& d : d4) {
+      const int nx = g.x + d[0], ny = g.y + d[1];
+      if (!inSrc(nx, ny) || isGlow(nx, ny)) continue;
+      pix_->rectAdd(x + (nx - sx) * scale, y + (ny - sy) * scale, scale, scale, hc);
+    }
+  }
+}
+
 // a v2 posture atlas (art::humanPosture2: the posture's frames as clip Idle, variant 0, in four facings), cached with the
 // v2 atlases and baked within the same budget; not ready while the painters do not cover the look
 View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant) {
@@ -976,7 +1215,7 @@ View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t v
   const uint64_t k = ew::mix64(L.key() ^ 0x9051E2ull ^ ((uint64_t)p + 1) << 40 ^ (uint64_t)variant << 52);
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
-    if (!witness && !rigBakeBudget()) return r;   // next frame (drawn v1 meanwhile)
+    if (!witness && !rigBakeNow_ && !rigBakeBudget()) return r;   // next frame (drawn v1 meanwhile; a body on screen bakes now)
     const auto t0 = std::chrono::steady_clock::now();
     RigEntry e;
     // (P2b VIEW-B) per-part coverage: a posture the doll does not cover for this look (a map missing in its legs, arms,
@@ -995,12 +1234,17 @@ View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t v
 // (P2a LENS) a rider (the hero's or a companion's) on v2: the Ride posture's frame for the facing, its hip anchor on
 // the saddle's seat point (hipX, hipY: screen px; v1's seat line), else its pivot on v1's feet point (pivX, pivY);
 // never flipped. False (draw v1) until the painters cover the look. The blit is recorded for the night lift.
-bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost) {
+bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost,
+                       int horseFrame, int riderId) {
   const RigTex rt = rigPoseTex(L, art::Posture::Ride, 0);
   if (!rt.ready()) return false;
-  const art::FrameRect* f = rt.sheet->frame(facing, art::Clip::Idle, 0, 0);
+  // (P2c SWITCH) the Ride frame per horse frame: the posture's frames step with the horse's cell (its gait's own beat),
+  // the hip anchor of that frame on the saddle's seat point of that cell
+  const int n = std::max(1, rt.sheet->count(facing, art::Clip::Idle, 0));
+  const int ri = ((horseFrame % n) + n) % n;
+  const art::FrameRect* f = rt.sheet->frame(facing, art::Clip::Idle, 0, ri);
   if (!f) return false;
-  const art::RigAnchors* an = rt.sheet->anchorsOf(facing, art::Clip::Idle, 0, 0);
+  const art::RigAnchors* an = rt.sheet->anchorsOf(facing, art::Clip::Idle, 0, ri);
   float x, y;
   if (an && an->hipX != art::kNoAnchor && an->hipY != art::kNoAnchor) { x = hipX - (f->px + an->hipX); y = hipY - (f->py + an->hipY); }
   else { x = pivX - f->px; y = pivY - f->py; }
@@ -1008,6 +1252,9 @@ bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hi
   if (blend == 0) pix_->recordBlits(&liftRecs_);
   pix_->blitEx(*rt.tex, f->x, f->y, f->w, f->h, x, y, (float)f->w, (float)f->h, false, c, blend);
   pix_->recordBlits(nullptr);
+  // (P2c SWITCH) a T5-T6 rider's living finish (the posture atlas keeps no glow plane: the aura, rim and sweep from the
+  // frame's anchors; masks only where the LOCO atlas keeps them)
+  if (blend == 0 && riderId >= 0 && L.topTier() >= 5) queueLivingFinishId(riderId, L, rt, *f, an, x, y, x + f->px, y + f->py, c.a, false, false);
   if (ghost) { ghost->t = rt.tex; ghost->sx = f->x; ghost->sy = f->y; ghost->w = f->w; ghost->h = f->h; ghost->flip = false; ghost->x = x; ghost->y = y; }
   return true;
 }
@@ -1043,7 +1290,7 @@ void View::rigBakeQueue(const Game& g) {
       // (P2b VIEW-B) a part joins the queue only where the doll covers it (rigTex would draw the fallback anyway)
       auto want = [&](art::RigPart part, float bias = 0) {
         if (rigTex_.count(rigKey(a.look, part, child))) return;
-        if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(a.look, part)) return;
+        if ((part == art::RigPart::Run || part == art::RigPart::Action || part == art::RigPart::Drawn) && !art::doll::dollCovers(a.look, part)) return;
         RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2 + bias;
         q.push_back(j);
       };
@@ -1053,6 +1300,9 @@ void View::rigBakeQueue(const Game& g) {
       const bool fighting = a.hostile && (a.aggro || d2 < 200.0f * 200.0f);
       if (animMayRun(a) && (a.player || a.gait || a.moveV > art::doll::kGaitSwitch * 0.6f || fighting)) want(art::RigPart::Run, 64.0f * 64.0f);
       if (a.player || fighting) want(art::RigPart::Action);
+      // (P2c SWITCH) the DRAWN part (the drawn idle, walk and run) beside ACTION once a fighter has aggro: a guard who
+      // draws on the hero steps forward on the doll's drawn frames, never the sheathed walk with a blade in the air
+      if (a.player || (fighting && a.aggro)) want(art::RigPart::Drawn, 32.0f * 32.0f);
       // a fighter in the fray may fall: its DEATH baked beforehand, so the fall's first frame is the doll's (after the
       // nearer LOCO and ACTION atlases)
       if (a.player || (fighting && a.aggro)) want(art::RigPart::Death, 96.0f * 96.0f);
@@ -1076,15 +1326,18 @@ void View::trimRigCaches() {
   double b = 0;
   for (const auto& kv : rigTex_) b += (double)kv.second.tex.w * kv.second.tex.h * 4;
   lensStats.rigMB = b / (1024.0 * 1024.0);
-  if (lensStats.rigMB <= kRigCapMB) return;
+  if (lensStats.rigMB <= rigCapMB()) return;
   std::vector<std::pair<float, uint64_t>> age;
   for (const auto& kv : rigTex_) age.push_back({kv.second.used, kv.first});
   std::sort(age.begin(), age.end());
   for (const auto& a : age) {
-    if (b <= kRigCapMB * 0.75 * 1024.0 * 1024.0 || t_ - a.first < 4.0f) break;
+    if (b <= rigCapMB() * 0.75 * 1024.0 * 1024.0 || t_ - a.first < 4.0f) break;
     auto it = rigTex_.find(a.second);
     if (it == rigTex_.end()) continue;
     b -= (double)it->second.tex.w * it->second.tex.h * 4;
+    lensStats.rigEvictions++;
+    if (rigEvicted_.size() > 4096) rigEvicted_.clear();
+    rigEvicted_.insert(a.second);
     dropLiftMask(it->second.tex);   // (a later texture may reuse the pointer)
     pix_->destroy(it->second.tex);
     if (it->second.glowTex.t) pix_->destroy(it->second.glowTex);
@@ -2110,6 +2363,28 @@ void View::update(Game& g, float dt) {
   }
   shake_ = std::max(0.0f, shake_ - dt * 12);
   shakeOff_ = shake_ > 0.1f && !camHeld ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
+  // (P2c SWITCH, delight) the camera nudge on a heavy finisher's impact (AnimPick::impact: hit 3 of the greatsword, axe and
+  // mace, FOLK-SIM-C's flag): the view leans 2 px the way the blow lands and settles back on a half sine over 0.18 s, a
+  // little shorter or longer each time (never a shake, never lockstep with the swing's frames). The hero's own blows and a
+  // foe's landing within 64 px of the hero; rig 2 only, never while the camera is held.
+  if (art::rigVersion() >= 2 && g.mode == Mode::Play && !camHeld) {
+    const Actor& pl = g.pl();
+    bool hit = false;
+    Vec2 dir;
+    auto faceDir = [](int f) { return f == 0 ? Vec2(0, 1) : f == 1 ? Vec2(0, -1) : f == 2 ? Vec2(1, 0) : Vec2(-1, 0); };
+    for (const Actor& a : g.actors) {
+      if (!(a.player || a.human) || a.st != AState::Strike) continue;
+      if (!a.player && len2(a.p - pl.p) > 64.0f * 64.0f) continue;
+      if (animPick(g, a, 2).impact) { hit = true; dir = faceDir(a.face); if (a.player) break; }
+    }
+    if (hit && !nudgeWas_) { nudgeT_ = 0; nudgeDir_ = dir; nudgeLen_ = 0.16f + 0.04f * (float)((hash32((uint32_t)(t_ * 1000.0f)) % 100u) / 100.0f); }
+    nudgeWas_ = hit;
+    if (nudgeT_ >= 0) {
+      nudgeT_ += dt;
+      if (nudgeT_ >= nudgeLen_) nudgeT_ = -1;
+      else shakeOff_ += nudgeDir_ * (2.0f * std::sin(3.14159265f * nudgeT_ / nudgeLen_));
+    }
+  }
   for (size_t i = 0; i < parts_.size();) {
     Particle& q = parts_[i];
     q.life -= dt;
@@ -2766,6 +3041,19 @@ void View::drawWorld(Game& g) {
     const Actor& a = g.actors[i];
     if (a.p.x < cam.x - 80 || a.p.x > cam.x + Pix::W + 80 || a.p.y < cam.y - 40 || a.p.y > cam.y + Pix::H + 80) continue;
     float sy = a.p.y + (a.fly ? 60.0f : 0.0f) - (a.st == AState::Dead ? 8.0f : 0.0f);
+    // (P2c SWITCH) rig 2: a fallen body on the doll sorts by its own baseline (the lying frame's lowest row, the fall's
+    // frame while it topples), so tall grass and a loose horse standing in front of it draw over it and those behind under
+    // it (v1's fixed 8 px lift was the v1 corpse cell's). From the cached DEATH atlas only: nothing is baked for a sort.
+    if (a.human && a.st == AState::Dead && art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
+      auto dt = rigTex_.find(rigKey(a.look, art::RigPart::Death, a.role == Role::Child));
+      if (dt != rigTex_.end() && !dt->second.sheet.empty()) {
+        const AnimPick k = animPick(g, a, 2);
+        const art::RigSheet& S = dt->second.sheet;
+        const art::FrameRect* f = S.frame(std::clamp(a.face, 0, 3), k.clip, k.variant, k.frame);
+        if (!f) f = S.frame(0, k.clip, k.variant, k.frame);
+        if (f) sy = a.p.y + (float)(f->h - f->py) - 1.0f;
+      }
+    }
     // (M6 fixer r3, review: "flying harpies draw under tree canopies and bushes") a hovering flyer is over the
     // undergrowth and the near crowns: it sorts as if it stood almost two tiles further down
     if (a.flying && !a.fly && a.st != AState::Dead) sy += 28.0f;

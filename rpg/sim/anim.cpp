@@ -83,9 +83,47 @@ namespace {
 // a frame by the share of the state gone: the first frame until `split` of the duration, then the second
 uint8_t twoFrames(float t, float dur, float split) { return (uint8_t)(t < split * std::max(1e-3f, dur) ? 0 : 1); }
 
-bool sheathable(const Actor& a) {   // the resolver's sheathed kinds (doll_resolve.cpp needsOf: sword, axe, dagger, mace)
-  const uint8_t w = a.look.weapon;
-  return w == 1 || w == 2 || w == 5 || w == 6;
+// the facing from a to b (0 down, 1 up, 2 right, 3 left: Actor::face), by the larger axis
+int facingTo(Vec2 d) {
+  if (std::fabs(d.x) >= std::fabs(d.y)) return d.x >= 0 ? 2 : 3;
+  return d.y >= 0 ? 0 : 1;
+}
+bool opposite(int f, int g) { return (f ^ 1) == g; }   // D<->U, R<->L
+
+// the nearest live hostile inside the body's aggro radius (nullptr: none)
+const Actor* threatOf(const Game& g, const Actor& a) {
+  const float r = std::max(0.0f, a.aggroR);
+  float best = r * r;
+  const Actor* out = nullptr;
+  for (const Actor& b : g.actors) {
+    if (b.id == a.id || b.st == AState::Dead || b.indoors) continue;
+    if (!factionsHostile(a.faction, b.faction) && !(a.player && b.hostile)) continue;
+    const float d2 = len2(b.p - a.p);
+    if (d2 <= best) { best = d2; out = &b; }
+  }
+  return out;
+}
+
+// (P2c) a fighter drawn by a threat, standing, turns to face it: a quarter turn after its own reaction, a half turn through
+// the side facing nearer the threat. The age of the threat is the drawn clock's turn window (animStep: a fresh threat sets
+// drawnT = kTurnBase + kTurnWin, which runs down to kTurnBase and then holds kThreatHold), so nothing new is kept on the Actor.
+int restFacing(const Game& g, const Actor& a, bool drawn) {
+  if (!drawn || a.player || a.st != AState::Idle || a.drawnT <= 0) return a.face;
+  const Actor* t = threatOf(g, a);
+  if (!t) return a.face;
+  const Vec2 d = t->p - a.p;
+  const int want = facingTo(d);
+  if (want == a.face) return want;
+  // the turn window counts down from kTurnBase + kTurnWin to kTurnBase (animStep); past it the body has turned
+  const float age = a.drawnT > kTurnBase ? kTurnBase + kTurnWin - a.drawnT : kTurnWin;
+  const float react = kTurnReact + kTurnSpread * own(a, 7);
+  if (age < react) return a.face;
+  if (opposite(want, a.face) && age < react + kTurnStep) {
+    // through the side facing nearer the threat (a body turning from D to U looks over the shoulder the threat is on)
+    if (want == 0 || want == 1) return d.x >= 0 ? 2 : 3;
+    return d.y >= 0 ? 0 : 1;
+  }
+  return want;
 }
 
 AnimPick pickV2(const Game& g, const Actor& a) {
@@ -96,6 +134,18 @@ AnimPick pickV2(const Game& g, const Actor& a) {
   k.frames = 1;
   k.drawn = animDrawn(a);
   k.part = art::RigPart::Action;   // (P2b) every clip but the sheathed idle / walk / hurt, the run and the fall
+  k.carry = (uint8_t)animCarry(a.look);
+  k.face = (uint8_t)std::clamp(a.face, 0, 3);
+  const bool xbow = bow && animCrossbow(a.look);
+  // (P2c) the block flash: the sword's parry or a shield bearer's parry shows Block for kBlockShow s over whatever the body
+  // was doing (raise 30, impact 50, brace 70 ms); a fall or a roll keeps its own frames
+  if (a.blockT > 0 && a.st != AState::Dead && a.st != AState::Roll) {
+    const float e = std::max(0.0f, kBlockShow - a.blockT);
+    k.clip = art::Clip::Block; k.frames = 3; k.t = e;
+    k.frame = (uint8_t)(e < kBlockRaise ? 0 : e < kBlockRaise + kBlockImpact ? 1 : 2);
+    k.drawn = animDrawable(a.look) || k.drawn;
+    return k;
+  }
   auto swingVariant = [&](bool afterStrike) -> uint8_t {
     if (a.player) return (uint8_t)std::clamp(a.combo, 0, art::RIG_VARIANTS - 1);
     // foes never combo: the blows go round the three variants (ai.cpp counts them as the windup ends), folk by person
@@ -124,10 +174,15 @@ AnimPick pickV2(const Game& g, const Actor& a) {
     }
     case AState::Roll:   // crouch, tuck, over, rise: 0.085 s each over the sim's 0.34 s roll
       k.clip = art::Clip::Roll; k.frames = 4; k.frame = (uint8_t)std::clamp((int)(a.stT / 0.085f), 0, 3);
+      // (P2c) a shield bearer's roll is the bash: the shield leads the tuck (variant 1; a roll drawn without it serves)
+      if (animBash(a)) { k.bash = true; k.variant = 1; }
       break;
     case AState::Windup: {
       const float dur = animWindupTime(g, a);
-      if (bow) {   // nock, chest, cheek over the draw
+      if (xbow) {   // (P2c) the crossbow's aim: raise, then the sight held to the shot
+        k.clip = art::Clip::Draw; k.variant = kXbowAimVariant; k.frames = kXbowAimFrames; k.xbow = (uint8_t)AnimXbow::Aim;
+        k.frame = twoFrames(a.stT, dur, 0.40f);
+      } else if (bow) {   // nock, chest, cheek over the draw
         k.clip = art::Clip::Draw; k.frames = 3; k.frame = (uint8_t)std::clamp((int)(a.stT / std::max(1e-3f, dur) * 3.0f), 0, 2);
       } else {
         k.clip = art::Clip::Windup; k.frames = 2; k.frame = twoFrames(a.stT, dur, 0.45f); k.variant = swingVariant(false);
@@ -135,18 +190,41 @@ AnimPick pickV2(const Game& g, const Actor& a) {
       break;
     }
     case AState::Strike:
-      if (bow) {   // the release shows 0.08 s, then the bow comes down
+      if (xbow) {   // (P2c) the shot 0.08 s, then the crank over the rest of the strike and the recover
+        const float crank = std::max(1e-3f, animStrikeTime(g, a) - kXbowShoot + animRecoverTime(g, a));
+        if (a.stT < kXbowShoot) { k.clip = art::Clip::Release; k.variant = kXbowShootVariant; k.frames = 1; k.xbow = (uint8_t)AnimXbow::Shoot; }
+        else {
+          k.clip = art::Clip::Draw; k.variant = kXbowCrankVariant; k.frames = kXbowCrankFrames; k.xbow = (uint8_t)AnimXbow::Crank;
+          k.frame = (uint8_t)std::clamp((int)((a.stT - kXbowShoot) / crank * kXbowCrankFrames), 0, kXbowCrankFrames - 1);
+        }
+      } else if (bow) {   // the release shows 0.08 s, then the bow comes down
         if (a.stT < 0.08f) { k.clip = art::Clip::Release; k.frames = 1; }
-        else { k.clip = art::Clip::Idle; k.frames = 3; }
+        else { k.clip = art::Clip::Idle; k.frames = 3; k.part = art::RigPart::Drawn; k.variant = 1; }   // (P2c) the drawn idle
       } else {
         k.clip = art::Clip::Strike; k.frames = 2; k.frame = twoFrames(a.stT, animStrikeTime(g, a), 0.40f); k.variant = swingVariant(true);
+        // (P2c) the heavy finisher's impact: hit 3 of the greatsword, the axe and the mace, its first kImpactShow s
+        const bool heavy = k.family == art::Family::Greatsword || k.family == art::Family::Axe || k.family == art::Family::Mace;
+        k.impact = heavy && k.variant == 2 && a.stT < kImpactShow;
       }
       break;
     case AState::Recover:
-      if (bow) { k.clip = art::Clip::Idle; k.frames = 3; }
+      if (xbow) {   // (P2c) the crank goes on through the recover
+        const float st = std::max(0.0f, animStrikeTime(g, a) - kXbowShoot);
+        const float crank = std::max(1e-3f, st + animRecoverTime(g, a));
+        k.clip = art::Clip::Draw; k.variant = kXbowCrankVariant; k.frames = kXbowCrankFrames; k.xbow = (uint8_t)AnimXbow::Crank;
+        k.frame = (uint8_t)std::clamp((int)((st + a.stT) / crank * kXbowCrankFrames), 0, kXbowCrankFrames - 1);
+      } else if (bow) { k.clip = art::Clip::Idle; k.frames = 3; k.part = art::RigPart::Drawn; k.variant = 1; }
       else { k.clip = art::Clip::Follow; k.frames = 2; k.frame = twoFrames(a.stT, animRecoverTime(g, a), 0.50f); k.variant = swingVariant(true); }
       break;
     case AState::Cast: {
+      if (a.player && xbow) {   // (P2c) the hero's bolt leaves at once: the shot, then the crank (kXbowCrankFrame a frame)
+        if (a.stT < kXbowShoot) { k.clip = art::Clip::Release; k.variant = kXbowShootVariant; k.frames = 1; k.xbow = (uint8_t)AnimXbow::Shoot; }
+        else {
+          k.clip = art::Clip::Draw; k.variant = kXbowCrankVariant; k.frames = kXbowCrankFrames; k.xbow = (uint8_t)AnimXbow::Crank;
+          k.frame = (uint8_t)std::clamp((int)((a.stT - kXbowShoot) / kXbowCrankFrame), 0, kXbowCrankFrames - 1);
+        }
+        break;
+      }
       if (a.player && bow) {   // the hero's shot leaves at once (shootArrow): the release, then nocking the next
         if (a.stT < 0.08f) { k.clip = art::Clip::Release; k.frames = 1; }
         else { k.clip = art::Clip::Draw; k.frames = 3; k.frame = 0; }
@@ -186,6 +264,8 @@ AnimPick pickV2(const Game& g, const Actor& a) {
       // (P2b) the drawn idle is the ACTION part's variant 1; sheathed (or nothing to sheathe), LOCO's variant 0
       k.part = k.drawn ? art::RigPart::Drawn : art::RigPart::Loco;   // (P2c) the DRAWN part
       k.variant = (uint8_t)(k.drawn ? 1 : 0);
+      // (P2c depth) a fighter drawn by a threat turns to face it
+      k.face = (uint8_t)restFacing(g, a, k.drawn);
       break;
     }
   }
@@ -313,8 +393,33 @@ bool animMayRun(const Actor& a) {
   const art::doll::BodySet b = art::doll::bodySetOf(a.look);
   return b != art::doll::BodySet::Child && a.look.age != 3;   // elders never run; children run in the Play posture
 }
+AnimCarry animCarry(const art::HumanLook& L) {
+  const uint8_t w = L.weapon;
+  if (w == 0) return AnimCarry::None;
+  if (w >= 10 || (L.civil && w != 3 && w != 4)) return AnimCarry::Tool;   // ledger, scroll, horn; the smith's hammer
+  switch (w) {
+    case 1: case 2: case 5: case 6: return AnimCarry::Sheathed;
+    case 3: return AnimCarry::Slung;            // the hunter's bow too (the resolver keeps the hunter's carried bow apart)
+    case 4: case 8: case 9: return AnimCarry::Upright;
+    case 7: return AnimCarry::Back;
+    default: return AnimCarry::Tool;
+  }
+}
+bool animCrossbow(const art::HumanLook& L) { return L.weapon == 3 && L.bowForm == 4; }   // cult::BowKind::Crossbow + 1
+bool animBash(const Actor& a) {
+  const art::HumanLook& L = a.look;
+  if (!(L.shield || L.shieldStyle || L.shieldForm) || L.shieldForm == 9) return false;   // form 9: no shield (the hero's: shieldStyle)
+  const art::Family f = art::familyOf(L);
+  return f == art::Family::Unarmed || f == art::Family::Dagger || f == art::Family::Sword || f == art::Family::Axe ||
+         f == art::Family::Mace || f == art::Family::Spear;   // a shield in use (two-handers and bows sling it)
+}
+bool animDrawable(const art::HumanLook& L) {
+  if (L.civil) return false;
+  const uint8_t w = L.weapon;
+  return w >= 1 && w <= 8;
+}
 bool animDrawn(const Actor& a) {
-  if (!sheathable(a)) return false;
+  if (!animDrawable(a.look)) return false;
   if (!kSheatheOn) return true;
   return a.drawnT > 0 || a.st == AState::Windup || a.st == AState::Strike || a.st == AState::Recover;
 }
@@ -348,14 +453,22 @@ void animStep(const Game& g, Actor& a, float moved, float dt) {
       a.gait = (uint8_t)want;
     }
   } else if (a.st != AState::Hurt) a.gait = 0;   // a stand, a swing or a fall ends the run (a stagger keeps it)
-  // the drawn clock: a swing holds it kDrawnHold s, a hostile in reach kThreatHold s; then it runs down
-  if (sheathable(a)) {
+  // the drawn clock: a swing holds it kDrawnHold s, a hostile in reach kThreatHold s; then it runs down. (P2c) A fresh
+  // threat (the weapon was put away) starts the clock kTurnWin over kThreatHold: the window a standing fighter turns in
+  if (animDrawable(a.look)) {
     if (a.st == AState::Windup || a.st == AState::Strike || a.st == AState::Recover) a.drawnT = kDrawnHold;
-    else {
+    else if (a.drawnT > kTurnBase) {   // the turn window: then the threat's hold (the hold also when the threat has gone)
+      a.drawnT -= dt;
+      if (a.drawnT <= kTurnBase) a.drawnT = kThreatHold;
+      else if (!threatened(g, a)) a.drawnT = kThreatHold;
+    } else {
+      const bool wasOut = a.drawnT > 0;
       a.drawnT = std::max(0.0f, a.drawnT - dt);
-      if (a.drawnT < kThreatHold && threatened(g, a)) a.drawnT = kThreatHold;
+      if (a.drawnT < kThreatHold && threatened(g, a)) a.drawnT = wasOut ? kThreatHold : kTurnBase + kTurnWin;
     }
   } else a.drawnT = 0;
+  // (P2c) the block flash runs down (visual only)
+  if (a.blockT > 0) a.blockT = a.blockT - dt > 1e-4f ? a.blockT - dt : 0.0f;   // (whole steps: 0.15 s is 9 at 60 Hz)
 }
 
 AnimPick animPick(const Game& g, const Actor& a, int rigVersion) {
@@ -381,6 +494,7 @@ int AnimOps::spawnBandit(Game& g, Vec2 p, int weapon) {
     }
   return -1;
 }
+void AnimOps::makeLook(Game& g, Actor& a, Role r, Rng& rr) { g.makeLook(a, r, rr); }
 void AnimOps::damage(Game& g, int actorIndex, float dmg) {
   if (actorIndex < 0 || actorIndex >= (int)g.actors.size()) return;
   g.damage(g.actors[(size_t)actorIndex], dmg, g.actors[(size_t)actorIndex].p + Vec2(-8, 0), 0);

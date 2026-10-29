@@ -113,7 +113,7 @@ regions
 |....................
 
 view R key flare origin 12 -1
-|....vyyxxwwv....vxv
+|....vyyxxwwv....vv.
 |...vxxxwwwv.....vwv
 |..vwwwwwwvv.....vwv
 |..vyyxxwwv......vxv
@@ -367,7 +367,7 @@ regions
 |.....................
 
 view R key flare origin 13 -1 when forge-starfall replace
-|....vwyvyv.....vvwwv.
+|....vwyvyv.....vvwv..
 |....vyxvv......vvwwv.
 |...vvyxvv......vvwwv.
 |..vxvyxv.......vvwwv.

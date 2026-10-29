@@ -44,6 +44,25 @@ else:
     ep.write_text(es[:ei] + ebody + es[ej:], encoding='utf-8', newline='\n')
     print('embed_looks: %d envelope looks embedded' % len(elines))
 
+# (P2c wave 2, DOLL-C) tools/doll/arms_looks.txt (tools/doll/arms_looks.py writes it) as tools/tests/test_doll_arms.cpp kArmsLooks:
+# the production matrices M8-M12 (`rpg_test --doll-arms --matrix arms`)
+asrc = (ROOT / 'tools/doll/arms_looks.txt').read_text(encoding='utf-8').splitlines()
+alines = [l for l in asrc if l.strip() and not l.startswith('#')]
+abody = ("const char* kArmsLooks =   // (P2c wave 2, DOLL-C) tools/doll/arms_looks.txt: the matrices M8-M12 (tools/doll/embed_looks.py writes it)\n"
+         + '\n'.join(cstr(l) for l in alines) + ';\n')
+ap = ROOT / 'tools/tests/test_doll_arms.cpp'
+asx = ap.read_text(encoding='utf-8')
+ai = asx.index('const char* kArmsLooks =')
+# the block ends at the first ';' that closes a string (the placeholder carries a comment after its ';')
+aj = asx.index('\n', re.search(r'"\s*;', asx[ai:]).end() + ai) + 1
+if '--check' in sys.argv:
+    aok = asx[ai:aj] == abody
+    print('embed_looks (arms): ' + ('in step' if aok else 'STALE: run python tools/doll/embed_looks.py'))
+    if not aok: sys.exit(1)
+else:
+    ap.write_text(asx[:ai] + abody + asx[aj:], encoding='utf-8', newline='\n')
+    print('embed_looks: %d matrix looks (M8-M12) embedded' % len(alines))
+
 # (P2c forge, FORGE-DOLL) tools/doll/forge_looks.txt as tools/tests/test_doll_forge.cpp kForgeLooks (the gates' matrix adds
 # its tags that the ladder file lacks: test_doll_arms.cpp dollSliceLooksText)
 fsrc = (ROOT / 'tools/doll/forge_looks.txt').read_text(encoding='utf-8').splitlines()

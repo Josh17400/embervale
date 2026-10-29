@@ -1,0 +1,87 @@
+# arms/adult/action/onehand/unarmed_l: the lead (left) fist up in the unarmed guard (P2c ACTIONS-1H)
+use person
+body adult
+role arms std
+layer held
+anchor shoulderL
+keys armL
+side L
+z 1
+
+view R key un_og origin 1 4 layer armFar
+mark gripL 11 1
+mark handL 11 1
+|..........qsrq
+|.........hqrrq
+|........hgfqq.
+|.......7gff...
+|.77777766f....
+|766666665.....
+|.6555555......
+regions
+|..........HHHH
+|.........CHHHH
+|........CCCHH.
+|.......FCCC...
+|.UUUUUUFFC....
+|UUUUUUUFF.....
+|.UUUUUUU......
+
+view D key un_og origin 6 4 layer armNear
+mark gripL 4 1
+mark handL 4 1
+|...qtsq.
+|...qsrq.
+|...fqqf.
+|..8ihgf.
+|587hg887
+|87777776
+|55555666
+regions
+|...HHHH.
+|...HHHH.
+|...CHHC.
+|..FCCCC.
+|UFFCCUUU
+|UFUUUUUU
+|UUUUUUUU
+
+view U key un_og origin 1 4 layer armNear
+mark gripL 3 1
+mark handL 3 1
+|..qtsq..
+|..qsrq..
+|.fiqq...
+|.fhhh5..
+|888hh755
+|87777775
+|76655555
+regions
+|..HHHH..
+|..HHHH..
+|.CCHH...
+|.CCCCF..
+|UUUCCFFU
+|UUUUUUFU
+|UUUUUUUU
+
+view L key un_og origin 9 4 layer armNear
+mark gripL 1 1
+mark handL 1 1
+|qtsq.......
+|qssq.......
+|.qqhf......
+|..ihf......
+|..ih5.5887.
+|..577887776
+|..57777666.
+|...55555...
+regions
+|HHHH.......
+|HHHH.......
+|.HHCC......
+|..CCC......
+|..CCF.UUUU.
+|..FFFUUUUUU
+|..FFUUUUUU.
+|...UUUUU...

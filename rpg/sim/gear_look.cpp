@@ -442,3 +442,12 @@ art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
   }
   return l;
 }
+
+// (P2c FOLK-SIM-C) a census look changed after makeLook (spawnHuman's bandit chief in plate and cape, questSpawned's named
+// chief): the ladder's fields from scratch at the rank's tier (ladder and forge fields only; rig 1 never reads them)
+void retierLook(art::HumanLook& L, int tier, const cult::Culture* realm) {
+  for (int s = 0; s < art::HumanLook::TIER_SLOTS; s++) { L.tier[s] = 0; L.forge[s] = 0; }
+  L.rare = 0; L.metalKind = 0; L.bladeKind = 0; L.mythic = 0; L.floor = 0; L.kitVar = 0; L.alloyFam = 0;
+  L.forgeKit = 0; L.alloyRank = 0; L.forgeGuise = 0; L.forgeShape = 0;
+  gear::rankTiers(L, tier, true, realm);
+}

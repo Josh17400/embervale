@@ -1,0 +1,28 @@
+# P2c production, SWITCH (C8's view lines): the capital sweep at 15:00 on the phone at rig 2: the capital's crowd with the
+# census's T4-T5 officers (the city's guard and captains as the census dresses them) and three T6 companions beside the hero,
+# a walk round the square at NEAR and NORMAL; Witness / the log read the people MB (24 or less), the rig-2 atlas cache (MB,
+# its cap) and the evictions (an atlas evicted and baked again = an on-screen look the 16 MB cap could not hold). Run with
+# --perf and EMB_TIMING=1 for the frame times:
+#   EMB_TIMING=1 embervale.exe --perf --script tools/scripts/p2c_world_sweep.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.0 rig 2
++0.0 expect rig 2
++0.1 firstlaunch phone 2556x1179
++0.1 goto capital
++1.5 hour 15
++0.1 party recruit 3
++0.5 compkit kit=heartland:6:3
++0.5 log P2C_SWEEP START
++0.0 walk east 3
++3.2 walk north 3
++3.2 walk west 3
++3.2 walk south 3
++3.2 zoom normal
++0.0 walk east 3
++3.2 walk west 3
++3.2 log P2C_SWEEP END
++0.0 expect menu v1 0
++0.0 shot p2c_world_sweep.png

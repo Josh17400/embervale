@@ -1,0 +1,90 @@
+# P2c production, SWITCH (C4 in game; C10 T5's setup): the hero equipped for real (gear bands, a culture's kit, single pieces)
+# on the doll at rig 2, man and woman, every look covered (`expect doll covered`: never a v1 figure), a shot at NEAR after
+# each: the bands 1 leather .. 7 emberforged, three peoples' kits (kit6), a T4-T6 piece by piece. The menus (EQUIP) show the
+# same look on the doll (p2c_menus). Seed 7, the start village; shots wait on `settle` after `skill clearing`.
+#   embervale.exe --script tools/scripts/p2c_gear.txt          (p2c_gear_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 zoom near
+# ---- the man: the bands
++0.1 strip
++0.3 expect doll covered
++0.0 settle 3 0.5
++0.0 shot p2c_gear_m_bare.png
++0.1 gear 1
++0.3 expect doll covered
++0.0 settle 3 0.5
++0.0 shot p2c_gear_m_b1.png
++0.1 gear 2
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b2.png
++0.1 gear 3
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b3.png
++0.1 gear 4
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b4.png
++0.1 gear 5
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b5.png
++0.1 gear 6
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b6.png
++0.1 gear 7
++0.3 expect doll covered
++0.0 shot p2c_gear_m_b7.png
+# ---- three peoples' kits (kit6 here: the start village's own; then two archetypes)
++0.1 kit6 here sword
++0.3 expect doll covered
++0.0 shot p2c_gear_m_kit_here.png
++0.1 armskit here mat steel
++0.3 expect doll covered
++0.0 shot p2c_gear_m_arms_here.png
+# ---- the woman: the same bands (C10 T5: leather, mail, plate)
++0.1 female 1
++0.1 strip
++0.3 expect doll covered
++0.0 shot p2c_gear_w_bare.png
++0.1 gear 1
++0.3 expect doll covered
++0.0 shot p2c_gear_w_b1.png
++0.1 gear 3
++0.3 expect doll covered
++0.0 shot p2c_gear_w_b3.png
++0.1 gear 5
++0.3 expect doll covered
++0.0 shot p2c_gear_w_b5.png
++0.1 gear 7
++0.3 expect doll covered
++0.0 shot p2c_gear_w_b7.png
++0.1 kit6 here sword
++0.3 expect doll covered
++0.0 shot p2c_gear_w_kit_here.png
+# ---- the ladder's top in game, piece by piece (ladderkit: the hero line's T4-T6)
++0.1 female 0
++0.1 ladderkit lt4
++0.3 expect doll tier 4
++0.0 expect doll covered
++0.0 shot p2c_gear_lt4.png
++0.1 ladderkit lt5
++0.3 expect doll tier 5
++0.0 expect doll covered
++0.0 shot p2c_gear_lt5.png
++0.1 ladderkit lt6
++0.3 expect doll tier 6
++0.0 expect doll covered
++0.0 shot p2c_gear_lt6.png
++0.1 ladderkit lt6w
++0.3 expect doll covered
++0.0 shot p2c_gear_lt6w.png
++0.0 expect menu v1 0

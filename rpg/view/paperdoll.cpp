@@ -73,7 +73,7 @@ void relayout(int W, int H) {
 
 // armed: the row a tap picked; (M8b) peek: a pack piece was picked by hand (a key or a tap), so its card and the compare
 // against the worn piece float over the doll until the slot changes
-struct PState { int slot = 3, cand = 0, scroll = 0, face = -1, armed = -1; float hold = 0; bool peek = false; } S;
+struct PState { int slot = 3, cand = 0, scroll = 0, face = -1, armed = -1; float hold = 0; bool peek = false; int shown = -1; float turnT = 0; } S;
 
 std::vector<std::string> wrapD(const std::string& s, int maxChars);   // (below, with the PARTY page)
 std::string fitTextD(const std::string& s, float w);
@@ -236,6 +236,37 @@ const Tex& dollTex(Pix& P, const art::HumanLook& Lw) {
 }
 }  // namespace
 
+// (P2c SWITCH) the hero's look with pack piece `idx` worn in its slot (the loot preview): Game::recalcStats' dressing
+// (rpg/sim/player.cpp) with that one slot swapped, and the sworn realm's tabard
+art::HumanLook previewLook(Game& g, int idx) {
+  auto at = [&](int i) -> const Item* { return i >= 0 && i < (int)g.inv.size() ? &g.inv[(size_t)i] : nullptr; };
+  const cult::Culture* home = g.app.homeland && g.world.src ? &g.world.src->culture(g.app.homeland) : nullptr;
+  art::HumanLook L = appearanceLook(g.app, home);
+  WornGear wg;
+  wg.weapon = at(g.eqWeapon); wg.bow = at(g.eqBow); wg.staff = at(g.eqStaff); wg.armor = at(g.eqArmor); wg.helmet = at(g.eqHelmet);
+  wg.shield = at(g.eqShield); wg.ring = at(g.eqRing); wg.amulet = at(g.eqAmulet); wg.gloves = at(g.eqGloves); wg.boots = at(g.eqBoots);
+  wg.cloak = at(g.eqCloak);
+  if (const Item* it = at(idx)) {
+    switch (it->kind) {
+      case ItemKind::Weapon: wg.weapon = it; break;
+      case ItemKind::Bow: wg.bow = it; break;
+      case ItemKind::Staff: wg.staff = it; break;
+      case ItemKind::Armor: wg.armor = it; break;
+      case ItemKind::Helmet: wg.helmet = it; break;
+      case ItemKind::Shield: wg.shield = it; break;
+      case ItemKind::Ring: wg.ring = it; break;
+      case ItemKind::Amulet: wg.amulet = it; break;
+      case ItemKind::Gloves: wg.gloves = it; break;
+      case ItemKind::Boots: wg.boots = it; break;
+      case ItemKind::Cloak: wg.cloak = it; break;
+      default: break;
+    }
+  }
+  wearGear(L, wg, [&g](uint64_t id) -> const cult::Culture* { return id && g.world.src ? &g.world.src->culture(id) : nullptr; });
+  RiseViewOps::dressHero(g, L);
+  return L;
+}
+
 void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   (void)x; (void)y; (void)w; (void)h;
   Pix& P = *pix_;
@@ -252,6 +283,23 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   int frame = 1 + ((int)(t_ * 5.0f) & 3);
   art::HumanLook heroLook = g.pl().look;
   RiseViewOps::dressHero(g, heroLook);   // (M12) the sworn realm's tabard and the rank's mark (render_rise.cpp)
+  // (P2c SWITCH) rig 2: the doll's own frame at the largest whole multiple (3x at most) the T6 envelope stands in on the
+  // stage, the idle breathing (the stir on its breathe frame), the living finish on it; the turn eases through the
+  // facing between (never a flip from left to right in one frame)
+  const MenuStage stage{kDollCX - 55, kTopY + 1, 110, kDollFootY + 6 - (kTopY + 1)};
+  const int dsc = menuDollScale(heroLook, stage, kDollCX, kDollFootY, 3);
+  if (dsc > 0) {
+    if (S.shown < 0 || S.shown > 3) S.shown = face;
+    if (S.shown != face) {
+      S.turnT += 1.0f / 60.0f;
+      if (S.turnT >= 0.07f) { S.turnT = 0; S.shown = (S.shown ^ face) == 1 ? (S.shown >= 2 ? 0 : 2) : face; }
+    } else {
+      S.turnT = 0;
+    }
+    P.rect(std::floor(kDollCX - 4 * dsc - 1), kDollFootY, (float)(8 * dsc + 2), 2, Color(0.02f, 0.01f, 0.03f, 0.55f));
+    P.rect(std::floor(kDollCX - 3 * dsc), kDollFootY + 2, (float)(6 * dsc), 1, Color(0.02f, 0.01f, 0.03f, 0.35f));
+    drawMenuDoll(heroLook, kMenuPaperdoll, S.shown, MenuGait::Idle, kDollCX, kDollFootY, dsc, stage);
+  } else {
   const Tex& t = dollTex(*pix_, heroLook);
   // (M8b fixer r3, review: "the portrait is blown up to ~10 screen px per sprite pixel and reads as muddy noise") 3x:
   // nearer the icons' scale beside it, the figure's pixels stay readable, with a drop shadow under the feet
@@ -261,6 +309,8 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   mythicAuraAt(g.pl().look, frame, face == 3 ? 2 : face, face == 3, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, sc);
   P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, kDollCX - art::HUMAN_W * sc / 2,
            kDollFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
+  noteMenuV1(kMenuPaperdoll, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), stage);
+  }
   button(kDollCX - 52, kDollFootY + 8, 28, 24, "<", false);
   button(kDollCX + 24, kDollFootY + 8, 28, 24, ">", false);
   P.text(kDollCX, kDollFootY + 16, "TURN", 1, kDimC, 1);
@@ -408,7 +458,28 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
     // a notch pointing at the picked row
     const float ny = std::clamp(kListY + (float)(S.cand - S.scroll) * kRowH + 6, py + 6, py + ph - 14);
     for (int k = 0; k < 4; k++) P.rect(px + pw + (float)k, ny + (float)k, 1, 9 - 2.0f * (float)k, Color(0.55f, 0.45f, 0.28f));
-    itemCard(g, g.inv[(size_t)c[S.cand]], px + 7, py + 7, pw - 14, py + ph - 5, true, eq >= 0 && !wearingHot ? &g.inv[(size_t)eq] : nullptr, wearingHot);
+    // (P2c SWITCH) rig 2, the loot preview: beside the card's words (their column narrowed), the hero on the doll wearing
+    // the picked piece (its shape, its tier's finish), at a whole multiple (2x where the card is 260 px wide or more),
+    // standing in the T6 envelope's room (44 rows x 34 columns a multiple)
+    int lsc = 0;
+    art::HumanLook pl;
+    MenuStage lst;
+    if (art::rigVersion() >= 2) {
+      pl = previewLook(g, c[S.cand]);
+      const int want = pw - 14 >= 260 ? 2 : 1;
+      lst = MenuStage{px + pw - 7 - 34.0f * want, py + 7, 34.0f * want, 44.0f * want + 2};
+      lsc = menuDollScale(pl, lst, std::floor(lst.x + lst.w / 2), lst.y + lst.h - 2, want);
+    }
+    const float cw = lsc > 0 ? pw - 14 - lst.w - 4 : pw - 14;
+    itemCard(g, g.inv[(size_t)c[S.cand]], px + 7, py + 7, cw, py + ph - 5, true, eq >= 0 && !wearingHot ? &g.inv[(size_t)eq] : nullptr, wearingHot);
+    if (lsc > 0) {
+      const float fx = std::floor(lst.x + lst.w / 2), fy = lst.y + lst.h - 2;
+      P.rect(lst.x, lst.y, lst.w, lst.h, Color(0.03f, 0.025f, 0.04f, 0.7f));
+      P.frame(lst.x - 1, lst.y - 1, lst.w + 2, lst.h + 2, Color(0.3f, 0.24f, 0.15f));
+      P.rect(std::floor(fx - 4 * lsc - 1), fy, (float)(8 * lsc + 2), 1, Color(0.02f, 0.01f, 0.03f, 0.6f));
+      drawMenuDoll(pl, kMenuLoot, S.shown >= 0 ? S.shown : 0, MenuGait::Idle, fx, fy, lsc, lst);
+      P.text(fx, lst.y + lst.h + 4, "AS WORN", 1, kDimC, 1);
+    }
   }
 }
 
@@ -449,6 +520,9 @@ void View::paperdollKey(Game& g, int key) {
 void View::paperdollTap(Game& g, Vec2 p) {
   relayout(Pix::W, Pix::H);   // (tap() has pushed the menu's box)
   clampCand(g);
+  // (P2c SWITCH, delight) rig 2: the doll turns to the side of the last tap (the left column, the right column and the
+  // pack beside it), easing through the facing between; the slow turn takes over again 5 s later
+  if (art::rigVersion() >= 2 && p.y >= kTopY && p.y < kDollFootY + 6) { S.face = p.x < kDollCX ? 3 : 2; S.hold = 5; }
   for (int i = 0; i < kNSlots; i++)
     if (inR(p, slotX(i) - 2, slotY(i) - 2, kBox + 4, kBox + 4)) { pickSlot(g, i); audio_->play(Sfx::MenuMove); return; }
   // (M8b) a tap on the compare card (not on a slot under it) puts it away
@@ -620,6 +694,7 @@ void View::drawPartyPage(Game& g) {
     const Tex& pt = portraitTex(g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 0, 0, art::PORTRAIT_W, art::PORTRAIT_H, x + 1, y + 1, (float)art::PORTRAIT_W, (float)art::PORTRAIT_H, false,
              dim ? Color(0.6f, 0.6f, 0.66f, 0.85f) : Color(1, 1, 1, 1));
+    portraitFinish(m.id, x + 1, y + 1, 1, dim ? 0.5f : 1.0f);
     P.frame(x, y, L.chipS, L.chipS, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
   }
   if (n == 0) P.text(18, L.chipY + 9, "NO ONE TRAVELS WITH YOU NOW", 1, kDimC);
@@ -757,11 +832,18 @@ void View::drawPartyPage(Game& g) {
     static const int order[4] = {0, 2, 1, 3};
     const int face = order[turn];
     const int frame = 0;   // idle: standing, both feet on the stage
+    // (P2c SWITCH) rig 2: the companion on the doll (breathing, the living finish) at the largest whole multiple the
+    // stage holds under its numbers (the T6 envelope's room kept)
+    const MenuStage pst{L.stageX + 1, L.stageY + 32, L.stageW - 2, L.figFootY + 4 - (L.stageY + 32)};
+    const int psc = menuDollScale(look, pst, L.figCX, L.figFootY, (int)L.figScale);
+    if (!(psc > 0 && drawMenuDoll(look, kMenuParty, face, MenuGait::Idle, L.figCX, L.figFootY, psc, pst, 1.0f, 0, (int)m.id))) {
     const Tex& t = dollTex(*pix_, look);
     const float sc = L.figScale;
     mythicAuraAt(look, frame, face == 3 ? 2 : face, face == 3, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, sc);
     P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, L.figCX - art::HUMAN_W * sc / 2,
              L.figFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
+    noteMenuV1(kMenuParty, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), pst);
+    }
   }
   P.text(L.figCX, L.figFootY + 8, "LEVEL " + std::to_string(party::levelFor(g.plLevel)), 1, kDimC, 1);
   {   // (fixer M8 r2) < TURN > at the stage's foot, and what their gear makes of them at its head (as the hero's EQUIP)

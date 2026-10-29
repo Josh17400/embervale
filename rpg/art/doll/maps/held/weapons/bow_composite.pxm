@@ -1,0 +1,568 @@
+# held/weapons/bow_composite: the composite bow (bow form 3, `held bow.composite`): 20 px, horn on the belly (the lit stave in horn), the tips curled forward (P2c wave 2, WEAPONS). Drafted from the self bow (held/weapons/bow_self: the same grip,
+# string states, facings and origins on the bow hand gripL) and checked at 12x: STYLE_P2 11 / 25.7. Format: doll.h.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+body adult
+role held bow.composite
+layer held
+anchor gripL
+keys held
+
+
+view R key carry origin 5 10
+mark tip 0 0
+|.f....
+|X.j...
+|X.j...
+|X..j..
+|X...j.
+|X...j.
+|X...j.
+|X....j
+|X....j
+|X....g
+|X....g
+|X....g
+|X....h
+|X....h
+|X...h.
+|X...h.
+|X..h..
+|X..h..
+|X.h...
+|X.h...
+|.f....
+
+view L key carry origin 0 10
+mark tip 5 0
+|....f.
+|...j.X
+|...j.X
+|..j..X
+|.j...X
+|.j...X
+|.j...X
+|j....X
+|j....X
+|g....X
+|g....X
+|g....X
+|h....X
+|h....X
+|.h...X
+|.h...X
+|..h..X
+|..j..X
+|...j.X
+|...j.X
+|....f.
+
+view D key carry origin 2 10
+mark tip 0 0
+|f.....
+|WYjf..
+|WYjf..
+|WfYjf.
+|WfYjf.
+|W.fYjf
+|W.fYjf
+|WfYjhf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|WfXjf.
+|W.fXjf
+|W.fXjf
+|WfXjf.
+|WfXjf.
+|WXjf..
+|WXjf..
+|f.....
+
+view U key carry origin 3 10 layer held
+mark tip 5 0
+|.....f
+|..fjYW
+|..fjYW
+|.fjYfW
+|.fjYfW
+|fjYf.W
+|fjYf.W
+|fjYh.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fjXf.W
+|fjXf.W
+|fjXf.W
+|.fjXfW
+|.fjXfW
+|..fjXW
+|..fjXW
+|.....f
+
+view R key nock origin 6 10
+mark tip 1 0
+|..f....
+|.X.j...
+|.X.j...
+|.X..j..
+|.X...j.
+|X....j.
+|X....j.
+|X.....j
+|X.....j
+|X.....g
+|X.....g
+|X.....g
+|X.....h
+|X.....h
+|X....h.
+|X....h.
+|.X..h..
+|.X..h..
+|.X.h...
+|.X.h...
+|..f....
+
+view L key nock origin 0 10
+mark tip 5 0
+|....f..
+|...j.X.
+|...j.X.
+|..j..X.
+|.j...X.
+|.j....X
+|.j....X
+|j.....X
+|j.....X
+|g.....X
+|g.....X
+|g.....X
+|h.....X
+|h.....X
+|.h....X
+|.h....X
+|..h..X.
+|..j..X.
+|...j.X.
+|...j.X.
+|....f..
+
+view D key nock origin 3 10
+mark tip 1 0
+|.f.....
+|.WYjf..
+|.WYjf..
+|.WfYjf.
+|.WfYjf.
+|.W.fYjf
+|.W.fYjf
+|W.fYjhf
+|W..hhgf
+|W..hhgf
+|W..hhgf
+|W..hhgf
+|W.fXjf.
+|W..fXjf
+|.W.fXjf
+|.WfXjf.
+|.WfXjf.
+|.WXjf..
+|.WXjf..
+|.f.....
+
+view U key nock origin 3 10 layer held
+mark tip 5 0
+|.....f.
+|..fjYW.
+|..fjYW.
+|.fjYfW.
+|.fjYfW.
+|fjYf.W.
+|fjYf.W.
+|fjYh..W
+|fhgg..W
+|fhgg..W
+|fhgg..W
+|fhgg..W
+|fjXf..W
+|fjXf..W
+|fjXf.W.
+|.fjXfW.
+|.fjXfW.
+|..fjXW.
+|..fjXW.
+|.....f.
+
+view R key draw origin 9 10
+mark tip 3 0
+|....f.....
+|...X.j....
+|...X.j....
+|..X...j...
+|..X....j..
+|.X......j.
+|.X......j.
+|.X......j.
+|.X.......j
+|X........g
+|X........g
+|X........g
+|.X.......h
+|.X......h.
+|.X......h.
+|.X......h.
+|..X....h..
+|..X...h...
+|...X.h....
+|...X.h....
+|....f.....
+
+view L key draw origin 0 10
+mark tip 6 0
+|.....f....
+|....j.X...
+|....j.X...
+|...j...X..
+|..j....X..
+|.j......X.
+|.j......X.
+|.j......X.
+|j.......X.
+|g........X
+|g........X
+|g........X
+|h.......X.
+|.h......X.
+|.h......X.
+|.h......X.
+|..h....X..
+|...j...X..
+|....j.X...
+|....j.X...
+|.....f....
+
+view D key draw origin 4 10
+mark tip 2 0
+|..f.....
+|..WYjf..
+|..WYjf..
+|..WfYjf.
+|.W.fYjf.
+|.W..fYjf
+|W...fYjf
+|W..fYjhf
+|W...hhgf
+|W...hhgf
+|W...hhgf
+|W...hhgf
+|W..fXjf.
+|W...fXjf
+|.W..fXjf
+|.W.fXjf.
+|..WfXjf.
+|..WXjf..
+|..WXjf..
+|..f.....
+
+view U key draw origin 3 10 layer held
+mark tip 5 0
+|.....f..
+|..fjYW..
+|..fjYW..
+|.fjYfW..
+|.fjYf.W.
+|fjYf..W.
+|fjYf...W
+|fjYh...W
+|fhgg...W
+|fhgg...W
+|fhgg...W
+|fhgg...W
+|fjXf...W
+|fjXf...W
+|fjXf..W.
+|.fjXf.W.
+|.fjXfW..
+|..fjXW..
+|..fjXW..
+|.....f..
+
+view R key full origin 11 9
+mark tip 5 0
+|......f.....
+|.....X.j....
+|....X..j....
+|....X...j...
+|...X.....j..
+|..X.......j.
+|..X.......j.
+|.X.........j
+|.X.........g
+|X..........g
+|.X.........g
+|.X.........h
+|..X.......h.
+|..X.......h.
+|...X.....h..
+|....X...h...
+|....X..h....
+|.....X.h....
+|......f.....
+
+view L key full origin 0 9
+mark tip 6 0
+|.....f......
+|....j.X.....
+|....j..X....
+|...j...X....
+|..j.....X...
+|.j.......X..
+|.j.......X..
+|j.........X.
+|g.........X.
+|g..........X
+|g.........X.
+|h.........X.
+|.h.......X..
+|.h.......X..
+|..h.....X...
+|...h...X....
+|....j..X....
+|....j.X.....
+|.....f......
+
+view D key full origin 5 10
+mark tip 3 0
+|...f.....
+|...WYjf..
+|...WYjf..
+|..W.fYjf.
+|.W..fYjf.
+|.W...fYjf
+|W....fYjf
+|W...fYjhf
+|W....hhgf
+|W....hhgf
+|W....hhgf
+|W....hhgf
+|W...fXjf.
+|W....fXjf
+|.W...fXjf
+|.W..fXjf.
+|..W.fXjf.
+|...WXjf..
+|...WXjf..
+|...f.....
+
+view U key full origin 3 10 layer held
+mark tip 5 0
+|.....f...
+|..fjYW...
+|..fjYW...
+|.fjYf.W..
+|.fjYf..W.
+|fjYf...W.
+|fjYf....W
+|fjYh....W
+|fhgg....W
+|fhgg....W
+|fhgg....W
+|fhgg....W
+|fjXf....W
+|fjXf....W
+|fjXf...W.
+|.fjXf..W.
+|.fjXf.W..
+|..fjXW...
+|..fjXW...
+|.....f...
+
+view R key release origin 6 10
+mark tip 1 0
+|..f....
+|.X.j...
+|.X.j...
+|.X..j..
+|.X...j.
+|.XW..j.
+|.X...j.
+|.XW...j
+|.X....j
+|.XW...g
+|.X....g
+|.XW...g
+|.X....h
+|.XW...h
+|.X...h.
+|.X...h.
+|.X..h..
+|.X..h..
+|.X.h...
+|.X.h...
+|..f....
+
+view L key release origin 0 10
+mark tip 5 0
+|....f..
+|...j.X.
+|...j.X.
+|..j..X.
+|.j...X.
+|.j...XW
+|.j...X.
+|j....XW
+|j....X.
+|g....XW
+|g....X.
+|g....XW
+|h....X.
+|h....XW
+|.h...X.
+|.h...X.
+|..h..X.
+|..j..X.
+|...j.X.
+|...j.X.
+|....f..
+
+view D key release origin 4 10
+mark tip 2 0
+|..f.....
+|.WfYjf..
+|.WfYjf..
+|.W.fYjf.
+|.W.fYjf.
+|.WV.fYjf
+|.W..fYjf
+|.WVfYjhf
+|.W..hhgf
+|.WV.hhgf
+|.W..hhgf
+|.WV.hhgf
+|.W.fXjf.
+|.WV.fXjf
+|.W..fXjf
+|.W.fXjf.
+|.W.fXjf.
+|.WfXjf..
+|.WfXjf..
+|..f.....
+
+view U key release origin 3 10 layer held
+mark tip 5 0
+|.....f..
+|..fjYfW.
+|..fjYfW.
+|.fjYf.W.
+|.fjYf.W.
+|fjYf..WV
+|fjYf..W.
+|fjYh..WV
+|fhgg..W.
+|fhgg..WV
+|fhgg..W.
+|fhgg..WV
+|fjXf..W.
+|fjXf..WV
+|fjXf..W.
+|.fjXf.W.
+|.fjXf.W.
+|..fjXfW.
+|..fjXfW.
+|.....f..
+
+view L key drop origin 5 -6 anchor pivot
+mark tip 0 0
+|fWWWWWWWWWWWWWWWWWWWf
+|fYYj.............jYYf
+|.fjYYj.........jYYjf.
+|..ffjYYYYhhgYYYYjff..
+
+view R key low origin 11 10
+mark tip 18 0
+|................f
+|..............XXj
+|.............X..j
+|............X...j
+|...........X...j.
+|.........XX...j..
+|........X.....j..
+|......XX.....j...
+|.....X...........
+|....X.......j....
+|...X.......g.....
+|.XX....h.hh......
+|fhh.hhh.hh.......
+|...h..h..........
+
+view L key low origin 5 10
+mark tip 0 0
+|f................
+|jXX..............
+|j..X.............
+|j...X............
+|.j...X...........
+|..j...XX.........
+|..j.....X........
+|...j.....XX......
+|...........X.....
+|....j.......X....
+|.....g.......X...
+|......jj.j....XX.
+|.......jj.jjj.jjf
+|..........j..j...
+
+view D key low origin 2 10
+mark tip 0 0
+|f.....
+|WYjf..
+|WYjf..
+|WfYjf.
+|WfYjf.
+|W.fYjf
+|W.fYjf
+|WfYjhf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|W.hhgf
+|WfXjf.
+|W.fXjf
+|W.fXjf
+|WfXjf.
+|WfXjf.
+|WXjf..
+|WXjf..
+|f.....
+
+view U key low origin 3 10 layer held
+mark tip 5 0
+|.....f
+|..fjYW
+|..fjYW
+|.fjYfW
+|.fjYfW
+|fjYf.W
+|fjYf.W
+|fjYh.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fhgg.W
+|fjXf.W
+|fjXf.W
+|fjXf.W
+|.fjXfW
+|.fjXfW
+|..fjXW
+|..fjXW
+|.....f
+

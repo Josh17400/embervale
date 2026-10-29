@@ -51,6 +51,7 @@
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_internal.h"
+#include "rpg/sim/gear_forge.h"
 #include "tools/tests/tests.h"
 #if __has_include("tools/tests/doll_motion.h")
 #include "tools/tests/doll_motion.h"
@@ -59,6 +60,7 @@
 
 std::string dollSliceLooksText();   // (test_doll_arms.cpp: the slice looks file, embedded)
 std::string dollForgeLooksText();   // (test_doll_forge.cpp: tools/doll/forge_looks.txt, embedded)
+std::string dollArmsLooksText();    // (test_doll_arms.cpp: tools/doll/arms_looks.txt, embedded; M8-M12)
 
 namespace wear {
 namespace {
@@ -1098,8 +1100,20 @@ std::vector<WLook> buildMatrix() {
   // (P2c, INTEGRATE i1) the slice looks (tools/doll/slice_looks.txt, embedded in test_doll_arms.cpp): the armour, helms,
   // shield and the spear / bow carriers judged on their moving side frames, so their parts are covered (COVER)
   // (silhouettes i2, B11 wear COVER) the forge looks' coverage figures (g_cov*: the woman's wide and heavy sleeves) too
-  for (int src = 0; src < 2; src++) {
-    std::string t = src == 0 ? dollSliceLooksText() : dollForgeLooksText();
+  // (P2c wave 2 round 2, DOLL-C) every armour form plain (no kit: its own hang, no forge skirt over it) on both bodies, and every
+  // carried weapon's sheath or back item (contracts 3: sheath dagger axe mace greatsword quiver bowback staffback), so a part
+  // the production areas add is judged on its moving side frames the day it lands (COVER)
+  for (int b = 0; b < 2; b++) {
+    for (int f = 1; f <= 8; f++)
+      add("P2c", fmt("cover_form%d_%s", f, bodyName[b]), b, (b ? tw + "," : std::string()) + fmt("outfit=5,armorStyle=3,bodyForm=%d,weapon=0,palette=look", f), "walk,run");
+    for (int wpn : {2, 3, 5, 6, 7, 8})
+      add("P2c", fmt("cover_wpn%d_%s", wpn, bodyName[b]), b, (b ? tw + "," : std::string()) + fmt("outfit=3,armorStyle=1,bodyForm=2,weapon=%d,palette=look", wpn), "walk,run");
+    add("P2c", fmt("cover_back_%s", bodyName[b]), b, (b ? tw + "," : std::string()) + "outfit=3,armorStyle=1,bodyForm=2,weapon=1,backItem=3,palette=look", "walk,run");
+  }
+  // (P2c wave 2 round 2, DOLL-C; the judge's w2 r1 COVER armour/man/brigandine, brigandine_hang, leaf_hang) and M8's T4 looks
+  // of build 0: every armour form on both bodies, so each form's parts are judged on their moving side frames
+  for (int src = 0; src < 3; src++) {
+    std::string t = src == 0 ? dollSliceLooksText() : src == 1 ? dollForgeLooksText() : dollArmsLooksText();
     size_t a = 0;
     while (a < t.size()) {
       size_t e = t.find('\n', a);
@@ -1112,11 +1126,12 @@ std::vector<WLook> buildMatrix() {
           while (j < line.size() && line[j] != ' ' && line[j] != '\t' && line[j] != '\r') j++; if (j > i) w.push_back(line.substr(i, j - i)); i = j; } }
       if (w.size() < 3) continue;
       if (src == 1 && w[0].rfind("g_cov", 0) != 0) continue;
+      if (src == 2 && !(w[0].rfind("m8_", 0) == 0 && (w[0].find("_mb0_t4") != std::string::npos || w[0].find("_wb0_t4") != std::string::npos))) continue;
       std::string gaits;
       for (const std::string& g : splitc(w.size() > 3 ? w[3] : std::string("walk,run"), ','))
         if (g == "walk" || g == "run" || g == "dwalk" || g == "drun") gaits += (gaits.empty() ? "" : ",") + g;
       if (gaits.empty()) gaits = "walk,run";
-      add("P2c", (src == 0 ? "slice_" : "forge_") + w[0], w[1] == "woman" ? 1 : 0, w[2] == "-" ? std::string() : w[2], gaits.c_str());
+      add("P2c", (src == 0 ? "slice_" : src == 1 ? "forge_" : "arms_") + w[0], w[1] == "woman" ? 1 : 0, w[2] == "-" ? std::string() : w[2], gaits.c_str());
     }
   }
   return m;
@@ -1671,6 +1686,31 @@ int wearCmd(int argc, char** argv) {
 }
 
 }  // namespace
+// (P2c wave 2 r4, DOLL-C) the shape-table cells (people * 108 + school * 3 + rank) the freeze manifest's looks read: each
+// matrix look whose tag the manifest holds, expanded and resolved with gear::tableKey recorded (rpg_test --forge-frozen)
+std::vector<int> frozenLookCells(const char* manifest) {
+  std::set<std::string> tags;
+  if (FILE* f = std::fopen(manifest, "r")) {
+    char line[512];
+    while (std::fgets(line, sizeof line, f)) {
+      if (line[0] == '#') continue;
+      char t[160];
+      if (std::sscanf(line, "%159s", t) == 1) tags.insert(t);
+    }
+    std::fclose(f);
+  }
+  std::vector<int> cells;
+  for (const WLook& w : matrix("")) {
+    if (!tags.count(w.tag)) continue;
+    gear::setTableKeyRecorder(&cells);
+    const Parsed p = parse(w);
+    (void)recipeOf(p);
+    gear::setTableKeyRecorder(nullptr);
+  }
+  std::sort(cells.begin(), cells.end());
+  cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+  return cells;
+}
 }  // namespace wear
 
 RPG_TEST_CMD("--doll-wear", "P2b B11 wear, the look matrix, freeze and the M7 B10 watch [--pool f] [--matrix FILTER | --looks f] [--report] [--frames dir] [--selftest] [--freeze-write f | --freeze-check f] [--b10] [--list] [--kb]", wear::wearCmd);

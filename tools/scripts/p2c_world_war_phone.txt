@@ -1,0 +1,24 @@
+# p2c_world_war as a phone's first launch (EMB_DEVICE phone, no settings file: NEAR at D 6 on 2556 x 1179); the same checks.
+#   embervale.exe --script tools/scripts/p2c_world_war_phone.txt     (p2c_world_war_phone_*.png)
+phone
+seed 2
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.1 rig 2
++0.0 expect rig 2
++0.1 firstlaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen want 6
++0.5 realm siege 0
++0.3 expect realm besieged 0
++0.5 expect war camp
++0.1 war goto camp
++0.1 war at 1 3
++4.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_war_phone_camp.png
++0.1 war goto captain def
++1.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_war_phone_captain.png

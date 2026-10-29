@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include "engine/audio.h"
+#include "rpg/sim/anim.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
@@ -338,6 +339,7 @@ float SkillOps::takenMul(Game& g, int attacker, float dmg) {
     const bool perk = P(g, Skill::Sword, SW_PARRY);
     if (p.st == AState::Strike || (perk && p.st == AState::Windup)) {
       word(g, p.p + Vec2(0, -26), (int)rgba(220, 230, 255), 0, "PARRY");
+      p.blockT = kBlockShow;   // (P2c FOLK-SIM-C) the block flash (visual only: anim.h)
       g.sfx((int)Sfx::Block, p.p, 1.2f);
       g.emit(Ev::Sparkle, (p.p + atk->p) * 0.5f + Vec2(0, -8));
       if (!perk) dmg *= 0.6f;
@@ -358,6 +360,8 @@ float SkillOps::takenMul(Game& g, int attacker, float dmg) {
   if (w == Weight::Heavy && P(g, Skill::HeavyArmour, HV_JUGGERNAUT)) m *= 0.9f;
   // ---- the shield
   if (g.eqShield >= 0) {
+    // (P2c FOLK-SIM-C) a blow met on the shield from the front shows the block flash (visual only: anim.h kBlockShow)
+    if (melee && p.st != AState::Roll && p.st != AState::Dead && animBash(p) && dot(norm(atk->p - p.p), p.aim) > 0.2f) p.blockT = kBlockShow;
     if (P(g, Skill::Block, BL_WALL)) m *= 0.9f;
     if (P(g, Skill::Block, BL_BULWARK)) m *= 0.8f;
     if (!melee && P(g, Skill::Block, BL_DEFLECT)) m *= 0.5f;

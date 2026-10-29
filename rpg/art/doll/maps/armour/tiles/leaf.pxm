@@ -1,0 +1,14 @@
+# armour/tiles/leaf: overlapping leaf plates on the leaf form's sleeve (U, the `leaf` form, Sylvan; ARMOUR-X wave 2): each
+# plate 3 px wide, its tip pointing down, lit on its left over a dark midrib, the rows offset (STYLE_P2 28.4).
+# Format: rpg/art/doll/doll.h; `on-region` contracts 4.
+use person
+body adult
+role overlay leaf
+tags tile overlay
+on-region U
+
+view D key rest origin 0 0
+|yxw...
+|.xw...
+|...yxw
+|....xw

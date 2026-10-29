@@ -1,0 +1,98 @@
+[
+ {
+  "name": "t4a",
+  "persona": "fighter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T4 (fighter). Find bandits (a bandit camp, or bandits on the roads near the start village OSLARS) and fight them with each weapon family you can get: sword, axe, mace, spear, a greatsword, a dagger, the bow and a staff (the smith and the shops sell them; the pack starts with a sword). For each family take a play shot mid-swing and say: does each swing look different from the others (the arc, how the body moves, where the weapon goes)? Note anything broken (a weapon floating off the hand, a blade through the head, a figure that changes size or style mid-fight, a body that pops) with a shot. The goal is met when you have fought with at least four families and said for each how its swing looks different."
+ },
+ {
+  "name": "t4b",
+  "persona": "fighter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T4 (fighter). Find bandits (a bandit camp, or bandits on the roads near the start village OSLARS) and fight them with each weapon family you can get: sword, axe, mace, spear, a greatsword, a dagger, the bow and a staff (the smith and the shops sell them; the pack starts with a sword). For each family take a play shot mid-swing and say: does each swing look different from the others (the arc, how the body moves, where the weapon goes)? Note anything broken (a weapon floating off the hand, a blade through the head, a figure that changes size or style mid-fight, a body that pops) with a shot. The goal is met when you have fought with at least four families and said for each how its swing looks different."
+ },
+ {
+  "name": "t4c",
+  "persona": "fighter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T4 (fighter). Find bandits (a bandit camp, or bandits on the roads near the start village OSLARS) and fight them with each weapon family you can get: sword, axe, mace, spear, a greatsword, a dagger, the bow and a staff (the smith and the shops sell them; the pack starts with a sword). For each family take a play shot mid-swing and say: does each swing look different from the others (the arc, how the body moves, where the weapon goes)? Note anything broken (a weapon floating off the hand, a blade through the head, a figure that changes size or style mid-fight, a body that pops) with a shot. The goal is met when you have fought with at least four families and said for each how its swing looks different."
+ },
+ {
+  "name": "t5a",
+  "persona": "outfitter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T5 (outfitter). As a man, buy and equip leather armour, then mail, then plate (the smith and the shops; you start with 30 gold, so sell what you find or take what bandits drop), and take a play shot after each. Then use the `female` reset (a woman hero) and do the same: leather, mail, plate, a shot after each. Open the EQUIP page after each change and say whether the figure there wears the same armour as in the world. The goal is met when you have six shots (three armours on each body) and said for each whether the armour reads as itself (leather, mail, plate) and fits the body."
+ },
+ {
+  "name": "t5b",
+  "persona": "outfitter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T5 (outfitter). As a man, buy and equip leather armour, then mail, then plate (the smith and the shops; you start with 30 gold, so sell what you find or take what bandits drop), and take a play shot after each. Then use the `female` reset (a woman hero) and do the same: leather, mail, plate, a shot after each. Open the EQUIP page after each change and say whether the figure there wears the same armour as in the world. The goal is met when you have six shots (three armours on each body) and said for each whether the armour reads as itself (leather, mail, plate) and fits the body."
+ },
+ {
+  "name": "t5c",
+  "persona": "outfitter",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T5 (outfitter). As a man, buy and equip leather armour, then mail, then plate (the smith and the shops; you start with 30 gold, so sell what you find or take what bandits drop), and take a play shot after each. Then use the `female` reset (a woman hero) and do the same: leather, mail, plate, a shot after each. Open the EQUIP page after each change and say whether the figure there wears the same armour as in the world. The goal is met when you have six shots (three armours on each body) and said for each whether the armour reads as itself (leather, mail, plate) and fits the body."
+ },
+ {
+  "name": "t6a",
+  "persona": "watch",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T6 (watch). Find guards in three different peoples' towns (travel to the nearest towns and a city) and soldiers of two realms (a war camp, a patrol on a road, a capital's guard), and for each take a play shot and say how they are armed and armoured (the weapon, the shield, the helmet, the armour) and whether you can tell the peoples and realms apart by their gear. The goal is met when you have shots of guards of three peoples and soldiers of two realms, each described."
+ },
+ {
+  "name": "t6b",
+  "persona": "watch",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T6 (watch). Find guards in three different peoples' towns (travel to the nearest towns and a city) and soldiers of two realms (a war camp, a patrol on a road, a capital's guard), and for each take a play shot and say how they are armed and armoured (the weapon, the shield, the helmet, the armour) and whether you can tell the peoples and realms apart by their gear. The goal is met when you have shots of guards of three peoples and soldiers of two realms, each described."
+ },
+ {
+  "name": "t6c",
+  "persona": "watch",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T6 (watch). Find guards in three different peoples' towns (travel to the nearest towns and a city) and soldiers of two realms (a war camp, a patrol on a road, a capital's guard), and for each take a play shot and say how they are armed and armoured (the weapon, the shield, the helmet, the armour) and whether you can tell the peoples and realms apart by their gear. The goal is met when you have shots of guards of three peoples and soldiers of two realms, each described."
+ },
+ {
+  "name": "t7a",
+  "persona": "ladder",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T7 (ladder). Start a new game and play the first hour as you like. Then use the `ladderkit` reset for tiers 1 to 6 (one after another) and take a play shot at each. Say whether the first kit (tier 1) looks okay for a beginner (simple, not bulky) and whether each tier is a clear step up from the one before (bigger, richer, a different helmet each time, tier 6 the most impressive, with its light and its cloak moving). The goal is met when you have six shots and judged each step."
+ },
+ {
+  "name": "t7b",
+  "persona": "ladder",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T7 (ladder). Start a new game and play the first hour as you like. Then use the `ladderkit` reset for tiers 1 to 6 (one after another) and take a play shot at each. Say whether the first kit (tier 1) looks okay for a beginner (simple, not bulky) and whether each tier is a clear step up from the one before (bigger, richer, a different helmet each time, tier 6 the most impressive, with its light and its cloak moving). The goal is met when you have six shots and judged each step."
+ },
+ {
+  "name": "t7c",
+  "persona": "ladder",
+  "minutes": 12,
+  "wallMinutes": 36,
+  "seed": 7,
+  "goal": "P2c T7 (ladder). Start a new game and play the first hour as you like. Then use the `ladderkit` reset for tiers 1 to 6 (one after another) and take a play shot at each. Say whether the first kit (tier 1) looks okay for a beginner (simple, not bulky) and whether each tier is a clear step up from the one before (bigger, richer, a different helmet each time, tier 6 the most impressive, with its light and its cloak moving). The goal is met when you have six shots and judged each step."
+ }
+]

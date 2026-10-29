@@ -13,6 +13,9 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/art/art_rise.h"
 #include "rpg/art/art_rig.h"
+#include "rpg/art/doll/doll_forge.h"
+#include "rpg/sim/gear.h"
+#include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
@@ -181,6 +184,9 @@ constexpr uint8_t kGarbApron = 1, kGarbSmock = 2, kGarbJerkin = 3, kGarbDress = 
                   kGarbKilt = 8, kGarbGown = 9, kGarbRags = 10,
                   kGarbKaftan = 11, kGarbWrap = 12, kGarbPoncho = 13;
 }  // namespace
+
+int rankTier(Role r, const Rank& rank);
+void rankSlots(art::HumanLook& L, Role r);
 
 // The doll's look fields from their own hash stream (after every existing draw, so no other look moves): the head type by
 // people, sex and culture; nose and brows; marks; the hair style within the drawn family; the beard's style; neckwear for
@@ -816,22 +822,62 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
   // ---- (P2c ladder, PLAN "People"; STYLE_P2 27.6) rank is a tier: bandits and pirates T1; the village watch and soldiers
   //      T2; the capital watch, heralds, envoys and warlords T3; captains, the royal guard and jarls T4; kings T5. The
   //      ladder's own fields only, no draw (rig 1 never reads them).
-  {
-    int t = 0;
-    switch (r) {
-      case Role::Bandit: case Role::Pirate: t = 1; break;
-      case Role::Soldier: t = 2; break;
-      case Role::Guard: t = rank.royal ? 4 : rank.capital ? 3 : 2; break;
-      case Role::Herald: case Role::Envoy: case Role::Warlord: t = 3; break;
-      case Role::Captain: case Role::Jarl: t = 4; break;
-      case Role::King: t = 5; break;
-      default: break;
-    }
-    gear::rankTiers(L, t, true, &owner);   // (P2c forge, D29) the realm: its officers' alloy
+  gear::rankTiers(L, rankTier(r, rank), true, &owner);   // (P2c forge, D29) the realm: its officers' alloy
+  rankSlots(L, r);
+}
+
+// (P2c ladder, PLAN "People") the rank's tier: bandits, militia and pirates T1; the village watch and soldiers T2; the capital
+// watch, heralds, envoys and warlords T3; captains, the royal guard, jarls and story knights T4; kings T5 (0: no rank)
+int rankTier(Role r, const Rank& rank) {
+  switch (r) {
+    case Role::Bandit: case Role::Pirate: return 1;
+    case Role::Soldier: return 2;
+    case Role::Guard: return rank.royal ? 4 : rank.capital ? 3 : 2;
+    case Role::Herald: case Role::Envoy: case Role::Warlord: return 3;
+    case Role::Captain: case Role::Jarl: return 4;
+    case Role::King: return 5;
+    default: return 0;
+  }
+}
+
+// (P2c FOLK-SIM-C, the envelope per slot; STYLE_P2 29.3) the slots a rank's look reads by: ladder fields only (no draw, no
+// v1 field). The herald's padded coat (the resolver's padded under the tabard) wears the padded style, so the watch's T3 kit
+// (kettle, cop and cape: doll_resolve watchT3) never reaches him: no mail, no helm, only the cape and the horn. A cloak or
+// cape the role wears takes the body's tier (rankTiers: every worn slot), so the cloak row of kEnvelope is the rank's.
+// The king's regalia (PLAN FOLK-SIM-C "kings T5 with great pauldrons and the long cloak"; D38: one over-layer a figure, full
+// capes on masterworks): his masterwork's over-layer is the cape, so the noble cloak he wears (makeLook: cloak 3 in the
+// kingdom's colour) is the long cloak at T5 instead of giving way to a sash, a tabard, a scarf or the half-cape.
+void rankSlots(art::HumanLook& L, Role r) {
+  using H = art::HumanLook;
+  if (r == Role::Herald && L.tier[H::TIER_BODY] && !L.bodyForm && !L.armorStyle && !(L.helmet || L.helmStyle || L.helmForm))
+    L.forge[H::TIER_BODY] = gear::packForge(gear::baseStyle(0, cult::BodyArm::Padded));
+  if (r == Role::King && L.cloak && L.forgeShape && L.tier[H::TIER_BODY] >= 5) {
+    gear::Shape sh = gear::unpackShape(L.forgeShape);
+    sh.layer = (uint8_t)art::doll::forge::LY_CAPE;
+    L.forgeShape = gear::packShape(sh);
   }
 }
 
 }  // namespace census
+
+// (P2c ladder, PLAN "People" depth; STYLE_P2 27.6) far, dangerous lands field finer men: soldiers, bandits and the watch (the
+// village and the capital watch, not the royal guard) one tier finer where the place's danger is band 4 or more (its level
+// 25 and up: gear::bandOf). Nothing more of the loot proposal's question 9. Ladder fields only (rankTiers again at the lifted
+// tier: the same slots, the realm's alloy if the lift reaches T4), no draw.
+// danger: the home settlement's level, else the zone's where the man stands (a patrol, a war band on the road: spawnMan sets
+// Actor::p before makeLook)
+static void liftRank(const World& world, art::HumanLook& L, Role r, const census::Rank& rank, int home, const cult::Culture* realm, Vec2 p) {
+  int danger = 0;
+  if (home >= 0 && home < (int)world.sites.size()) danger = world.sites[(size_t)home].level;
+  else if (p.x > 0 || p.y > 0) danger = world.zoneLevel((int)(p.x / TILE), (int)(p.y / TILE));
+  if (danger <= 0 || gear::bandOf(danger) < 4) return;
+  const bool lifts = r == Role::Soldier || r == Role::Bandit || (r == Role::Guard && !rank.royal);
+  if (!lifts) return;
+  const int t = census::rankTier(r, rank);
+  if (t <= 0) return;
+  gear::rankTiers(L, std::min(6, t + 1), true, realm);
+  census::rankSlots(L, r);
+}
 
 void Game::makeLook(Actor& a, Role r, Rng& rr) {
   const uint64_t entry = rr.s;   // the person's seed (read, never drawn): the culture stream starts from it
@@ -952,6 +998,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     if (PC) {
       const uint64_t s = entry ^ ((uint64_t)(uint32_t)(a.slot + 1) << 24) ^ a.realm ^ PC->id;
       census::dress(L, a.name, r, female, *PC, KC ? *KC : *PC, s, rank);
+      liftRank(world, L, r, rank, home, KC ? KC : PC, a.p);   // (P2c ladder depth) soldiers a tier finer in band-4 lands
       if (r == Role::Herald) { L.tabardColor = K.color; L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = K.color2 ? (K.color2 | 0xFF000000u) : K.color; L.cut = 0; L.pattern = 0; }
     }
     if (r == Role::Soldier) a.name = "SOLDIER";
@@ -995,6 +1042,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
   if (C) {
     const uint64_t s = entry ^ ((uint64_t)(uint32_t)(a.site + 1) << 40) ^ ((uint64_t)(uint32_t)(a.bldg + 1) << 20) ^ (uint64_t)(uint32_t)a.slot ^ C->id;
     census::dress(L, a.name, r, female, *C, owner ? *owner : *C, s, rank);
+    liftRank(world, L, r, rank, home, owner ? owner : C, a.p);   // (P2c ladder depth) the watch and bandits a tier finer in band-4 lands
     // (M6) whose arms they wear: a guard its owner's, a bandit the land's own (their loot is that culture's make)
     if (r == Role::Guard || r == Role::King || r == Role::Jarl) a.culture = owner ? owner->id : C->id;
     else if (r == Role::Bandit) a.culture = C->id;

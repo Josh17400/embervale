@@ -1,0 +1,77 @@
+# P2c production, SWITCH (docs/PLAN.md "Production areas", C7): every menu figure on the doll at rig 2, at a whole multiple,
+# uncropped (the T6 envelope's room), with the living finish and the Mythic's flame hugging the doll frame (within 3 px).
+# Seed 7, the start village. The paperdoll (EQUIP) at T1, T6 and the Mythic; the HERO sheet; the PARTY page and the party
+# column's portraits; a companion's dialogue; then the character creator from the title (idle, walk, run and a swing).
+# Witness reads the same figures (state.menus; witness/p2c_switch.witness.json).
+#   embervale.exe --script tools/scripts/p2c_menus.txt          (p2c_menus_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
+# ---- the paperdoll: T1 (the slim starter), T6 (the legend: fin, great shoulders, the long cloak), the Mythic
++0.1 ladderkit lt1
++0.3 menu 5
++0.6 expect menu paperdoll doll
++0.0 expect menu paperdoll uncropped
++0.0 shot p2c_menus_doll_t1.png
++0.1 key Escape
++0.1 ladderkit lt6
++0.3 menu 5
++0.6 expect menu paperdoll uncropped
++0.0 expect menu paperdoll lights
++0.0 shot p2c_menus_doll_t6.png
+# the turn eases through the facing between: ] steps the slow ring by hand
++0.1 key ]
++0.3 expect menu paperdoll uncropped
++0.0 shot p2c_menus_doll_t6_r.png
++0.1 key ]
++0.3 shot p2c_menus_doll_t6_u.png
++0.1 key Escape
++0.1 ladderkit lt6m
++0.3 menu 5
++0.6 expect menu paperdoll uncropped
++0.0 expect menu paperdoll aura 3
++0.0 shot p2c_menus_doll_mythic.png
++0.1 key Escape
++0.1 ladderkit lt4
++0.3 menu 5
++0.5 expect menu paperdoll doll
++0.0 shot p2c_menus_doll_t4.png
++0.1 key Escape
+# ---- the loot preview: real gear in the pack (gear 3: a steel set; gear 5: a jade set on top, a sword: the axe waits on ACTIONS-2H), a pack piece picked:
+# the compare card, and under it the hero on the doll wearing the picked piece
++0.1 gear 3
++0.1 gear 5
++0.3 menu 5
++0.3 lootsel doll 3 0
++0.5 expect menu loot doll
++0.0 expect menu loot uncropped
++0.0 shot p2c_menus_loot_body.png
++0.1 lootsel doll 0 0
++0.5 expect menu loot uncropped
++0.0 shot p2c_menus_loot_helm.png
++0.1 key Escape
+# ---- the HERO sheet
++0.1 menu 3
++0.5 expect menu hero doll
++0.0 expect menu hero uncropped
++0.0 shot p2c_menus_hero.png
++0.1 key Escape
+# ---- companions: the PARTY page, the portraits in the party column, a dialogue's speaker
++0.1 party recruit 2
++0.6 menu 6
++0.6 expect menu party doll
++0.0 expect menu party uncropped
++0.0 shot p2c_menus_party.png
++0.1 key Escape
++0.5 shot p2c_menus_portraits.png
+# (a dialogue shows its speaker only on a screen 540 UI px wide or more: the _phone twin checks it)
++0.1 party talk 0
++0.8 expect mode dialogue
++0.0 shot p2c_menus_dialogue.png
++0.1 key Escape
++0.3 expect menu v1 0

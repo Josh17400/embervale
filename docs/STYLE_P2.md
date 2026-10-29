@@ -1897,7 +1897,33 @@ families' ramps and C17 decide the exact steps.
   6. The gates table with the envelope's numbers and the measured areas.
   7. The first-launch captures (the phone at D 6, Safari at D 5, desktop at D 3).
 - **Acceptance**: measured first (PLAN's envelope gate), then the judge's look review and the blind tests, then the owner's
-  sign-off (PLAN D42-D65; round 4's items in PLAN "The envelope fix round").
+  sign-off (PLAN D42-D65; round 4's items in PLAN "The envelope fix round"). Signed off on 2026-10-28: "I like the
+  climb, you can begin" (PLAN D66).
+
+### 29.10 The envelope in production (planner, 2026-10-28; binding on every wave-2 art area)
+
+The owner signed the climb off on the hero's lines. Production gives every people the same climb in its own forms: at
+arm's length on a phone, a Fjordfolk, a Jade or a Highland line reads as six figures from slim to bulky, each step a new
+helmet, the way the hero's does, and still reads as its people at every tier. PLAN "The envelope in production" holds the
+measured gaps and the levers; PLAN D67-D69 the rules.
+- **T1**: the body's own outline (29.3), whatever the people. **T2**: the people's small caps or, where its people wears
+  none, the short mantle in its coat colour with its own hem (TANNER'S tabs; a fringe for the Marsh, a fur edge for the
+  Fjordfolk, a plaid band for the Highland), and a soft helm inside 3 rows that stays smaller than the T3 helm. **T3**: the
+  people's medium plates or, without them, the people's cape, whose sides stop at the coat's hem facing D. **T4**: large
+  plates and the alloy's whole silhouette, its crest to F-37; a culture alloy wears no cape (PLAN D38), so its bulk is
+  shoulders, helm and skirt. **T5**: great shoulders, the head to 8 rows, the long cloak where the key has a cape, else the
+  key's own loud axis grown (a plume, a bell skirt's flare, a mantle). **T6**: legend shoulders, the cloak stirring 2 px,
+  and the legend view of the T5 helm: the same family grown from its own crown into a taller fin, crown points, wings or a
+  spire, a different helmet at 1x (PLAN D68).
+- **Every mass at every size keeps its character** (29.3): a great slab is still flat and square, a great DROP still
+  hangs in lames, a legend MANTLE is still soft fur; a size never becomes another mass.
+- **Cloaks by tier**: the people's cape and the travel cloak stop at the hem facing D at T3-T4; the long cloak shows 2 px
+  past each leg facing D and 6-8 px behind facing R / L at T5-T6 and always hangs from behind the pauldrons.
+- **The A materials on every piece**: every obsidian piece is black glass lit twice, every glass alloy jewel-dark with a
+  rim, every Mythic black, gold and fire with a clean face, every starmetal piece banded violet and cyan, every plate piece
+  in clean planes, every warm everyday alloy brass that throws light (29.6), whatever form or tier carries it.
+- **Actions carry the envelope**: great pauldrons ride every swing (lifting a pixel on overhead wind-ups), the long cloak
+  swings behind and never through a leg, the T6 helm stays on the head through the blow, the fall and the lying frame.
 
 ---
 

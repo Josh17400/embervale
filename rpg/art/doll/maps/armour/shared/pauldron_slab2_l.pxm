@@ -23,6 +23,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) D rest: 2 px reach -> 1 at T2
+view D key rest origin 2 2 layer headwear when armour.t2,!armour.t3 replace
+|vvvvv
+|vyzyv
+|vyyxv
+|vwwwv
+|vvvv.
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view D key up origin 2 3 layer headwear
 |vvvvvv
@@ -36,6 +50,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) D up: 2 px reach -> 1 at T2
+view D key up origin 2 3 layer headwear when armour.t2,!armour.t3 replace
+|vvvvv
+|vyzyv
+|vyyxv
+|vwwwv
+|vvvv.
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view D key lie origin 2 2
 |vvvvvv
@@ -49,6 +77,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) D lie: 2 px reach -> 1 at T2
+view D key lie origin 2 2 when armour.t2,!armour.t3 replace
+|vvvvv
+|vyzyv
+|vyyxv
+|vwwwv
+|vvvv.
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view U key rest origin 3 2 layer headwear
 |vvvvvv
@@ -62,6 +104,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) U rest: 2 px reach -> 1 at T2
+view U key rest origin 2 2 layer headwear when armour.t2,!armour.t3 replace
+|vvvvv
+|vzywv
+|vyxwv
+|vwwwv
+|.vvvv
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view U key up origin 3 3 layer headwear
 |vvvvvv
@@ -75,6 +131,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) U up: 2 px reach -> 1 at T2
+view U key up origin 2 3 layer headwear when armour.t2,!armour.t3 replace
+|vvvvv
+|vzywv
+|vyxwv
+|vwwwv
+|.vvvv
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view U key lie origin 3 2
 |vvvvvv
@@ -88,6 +158,20 @@ regions
 |.PPPP.
 |.NNNN.
 |......
+# (ARMOUR-X wave 2, fitcap.py) U lie: 2 px reach -> 1 at T2
+view U key lie origin 2 2 when armour.t2,!armour.t3 replace
+|vvvvv
+|vzywv
+|vyxwv
+|vwwwv
+|.vvvv
+regions
+|.....
+|.RRR.
+|.PPP.
+|.NNN.
+|.....
+
 
 view R key rest origin 4 2
 |.vvvv.

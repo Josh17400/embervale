@@ -689,6 +689,7 @@ void View::draw(Game& g, bool hasSave) {
   hasSave_ = hasSave;
   v1DrawsLast = v1Draws;   // (P2a) people frames drawn from v1 sheets last frame
   v1Draws = 0;
+  menuFigs.clear();        // (P2c SWITCH) the menu figures drawn this frame (Witness state.menus)
   P.begin(Color(0, 0, 0));
   // (P2a) the WORLD layer (engine/pix.h): every world pixel a whole D x D block of device px; the world view is Pix::W x
   // Pix::H in here (View::viewW / viewH outside)
@@ -2237,10 +2238,17 @@ void View::drawMenu(Game& g) {
       P.rect(H.sx, H.sy, H.sw, H.sh, Color(0.03f, 0.025f, 0.04f, 0.55f));
       P.frame(H.sx, H.sy, H.sw, H.sh, Color(0.3f, 0.24f, 0.15f));
       heroStage(P, light_, H.pcx, H.footY, H.scale / 5.0f);
+      // (P2c SWITCH) rig 2: the hero on the doll at the largest whole multiple the stage holds (the T6 envelope's room),
+      // walking on the spot facing down as the v1 sheet did, with the living finish
+      const MenuStage hst{H.sx + 1, H.sy + 14, H.sw - 2, H.footY + 4 - (H.sy + 14)};   // under the LEVEL UP line, over the buttons
+      const int hsc = menuDollScale(p.look, hst, H.pcx, H.footY, std::max(1, (int)H.scale));
+      if (!(hsc > 0 && drawMenuDoll(p.look, kMenuHero, 0, MenuGait::Walk, H.pcx, H.footY, hsc, hst))) {
       const Tex& t = humanTex(p.look);
       const int frame = 1 + ((int)(t_ * 5.0f) & 3);
       P.blitEx(t, frame * art::HUMAN_W, 0, art::HUMAN_W, art::HUMAN_H, H.pcx - art::HUMAN_W * H.scale / 2, H.footY - (art::HUMAN_H - 1) * H.scale,
                art::HUMAN_W * H.scale, art::HUMAN_H * H.scale);
+      noteMenuV1(kMenuHero, H.pcx - art::HUMAN_W * H.scale / 2, H.footY - (art::HUMAN_H - 1) * H.scale, (int)(art::HUMAN_W * H.scale), (int)(art::HUMAN_H * H.scale), hst);
+      }
       if (g.perkPts > 0) {
         P.textS(H.pcx, H.sy + 6, "LEVEL UP! CHOOSE A STAT", 1, kGold, 1);
         for (int i = 0; i < 3; i++) {
@@ -2311,11 +2319,32 @@ void View::drawDialogue(Game& g) {
     P.blitEx(light_, 0, 0, 64, 64, px - 8, py - 6, pw + 16, ph + 10, false, Color(1, 0.72f, 0.4f, 0.22f), 1);
     for (const Actor& a : g.actors)
       if (a.id == d.actor) {
+        // (P2c SWITCH) rig 2: the speaker's doll frame (idle, facing down; the frame centred, a shield or a blade inside the stage) at 1x or 2x: the whole figure when the stage
+        // holds it at that multiple, else from the head down (never past the frame), its living finish on it
+        const MenuStage dst{px + 1, py + 1, pw - 2, ph - 2};
+        bool v2 = false;
+        if (art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
+          rigBakeNow_ = true;
+          const RigTex lt = rigTex(a.look, art::RigPart::Loco);
+          rigBakeNow_ = false;
+          const art::FrameRect* f0 = lt.ready() ? lt.sheet->frame(0, art::Clip::Idle, 0, 0) : nullptr;
+          if (f0) {
+            const int dsc = f0->w * 2 <= (int)pw - 4 ? 2 : 1;
+            const int rows = std::min<int>(f0->h, (int)std::floor((ph - 4) / dsc));
+            // the frame's top on the stage's top edge + 1 when cut (drawMenuDoll cuts it at the stage), else the feet
+            // 1 px over its floor
+            const float feetY = rows < f0->h ? py + 2 + (float)f0->py * dsc : py + ph - 2 - (float)(f0->h - f0->py) * dsc;
+            if (rows > 4) v2 = drawMenuDoll(a.look, kMenuDialogue, 0, MenuGait::Idle, std::floor(px + pw / 2 - (f0->w / 2.0f - f0->px) * dsc), feetY, dsc, dst, 1.0f, 1, a.id);
+          }
+        }
+        if (!v2) {
         const Tex& t = humanTex(a.look);
         const float sc = 2.0f, hw = art::HUMAN_W * sc;
         // (M5) a short stage (a long option list) shows the speaker from the head down, never past the frame
         const float srcH = std::min((float)art::HUMAN_H, std::floor((ph - 4) / sc)), hh = srcH * sc;
         if (srcH > 4) P.blitEx(t, art::HUMAN_W, 0, art::HUMAN_W, srcH, px + (pw - hw) / 2, py + ph - hh - 2, hw, hh);
+        if (srcH > 4) noteMenuV1(kMenuDialogue, px + (pw - hw) / 2, py + ph - hh - 2, (int)hw, (int)hh, dst);
+        }
       }
     P.frame(px, py, pw, ph, Color(0.55f, 0.45f, 0.28f));
     P.frame(px + 1, py + 1, pw - 2, ph - 2, Color(0.22f, 0.18f, 0.12f));

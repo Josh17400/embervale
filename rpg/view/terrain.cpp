@@ -6252,9 +6252,14 @@ void View::travelArrive(Game& g) {
   for (const Actor& a : g.actors) {
     if (!a.human || a.p.x < cam.x - 96 || a.p.x > cam.x + VW + 96 || a.p.y < cam.y - 96 || a.p.y > cam.y + VH + 128) continue;
     const bool child = a.role == Role::Child;   // (M5) children's sheets are keyed apart (render.cpp childBody)
-    if (humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0))) continue;
+    // (P2c SWITCH) rig 2: a look the doll covers is drawn from its LOCO atlas, never the v1 sheet: that is what the
+    // arrival paints ahead (a v1 sheet baked here would only sit in the people budget unused)
+    const bool v2 = art::rigVersion() >= 2 && art::rig2Covers(a.look);
+    if (v2 ? rigTex_.count(ew::mix64(a.look.key() ^ ((uint64_t)art::RigPart::Loco + 1) * 0x9E3779B97F4A7C15ull ^ (child ? 0x2C41D2ull : 0))) != 0
+           : humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0)) != 0) continue;
     if (st ? spent() > kArriveBudget * 0.75 : spent() > 8.0) { ready = false; break; }
-    humanTex(a.look, child);
+    if (v2) { rigBakeNow_ = true; (void)rigTex(a.look, art::RigPart::Loco, child); rigBakeNow_ = false; }
+    else humanTex(a.look, child);
   }
   // without threads: the incremental bake pump, last, with what is left of about 16 ms (at least 6)
   if (st) pumpBake(std::max(2.0, kArriveBudget - spent()));

@@ -1731,12 +1731,68 @@ int envelopeHeadPx(const art::HumanLook& L) {
   }
   return n;
 }
+// (P2c wave 2, DOLL-C) envelope:people:<people>[:grey|:black]: source L's lines of one people (gear::ladderKit, kit=<people>:<t>:<s>
+// on A3's hero and heroine), man and woman x seeds 1..3 a row each, T1-T6 and the Mythic on one baseline at 1x (saved 3x and 8x);
+// under each look its area as a multiple of the row's T1 (C12f's measure) and its helm pixels with the step over the tier below
+void boardEnvelopePeople(const std::string& dir, const std::string& people, ShapeMode only, bool one) {
+  std::vector<std::string> labels;
+  std::vector<std::vector<ShapeEntry>> rows;
+  for (int who = 0; who < 2; who++)
+    for (int sd = 1; sd <= 3; sd++) {
+      std::vector<ShapeEntry> row;
+      int a1 = 0, prevH = 0, a6 = 0;
+      for (int t = 1; t <= 7; t++) {
+        ShapeEntry e;
+        e.L = a3Look(who);
+        bool pal = false;
+        char spec[96];
+        if (t <= 6) std::snprintf(spec, sizeof spec, "kit=%s:%d:%d,palette=look", people.c_str(), t, sd);
+        else std::snprintf(spec, sizeof spec, "kit=%s:6m:%d,palette=look", people.c_str(), sd);
+        std::string bad;
+        doll::applyLookSpec(e.L, spec, &pal, nullptr, &bad);
+        if (!bad.empty()) { std::printf("doll_gallery: envelope:people:%s: %s\n", people.c_str(), bad.c_str()); return; }
+        e.pal = pal;
+        const int a = envelopeArea(e.L), h = envelopeHeadPx(e.L);
+        if (t == 1) a1 = a;
+        if (t == 6) a6 = a;
+        char lab[48], sub[48];
+        if (t <= 6) std::snprintf(lab, sizeof lab, "T%d %.2f%s", t, a1 ? (double)a / a1 : 0.0, t >= 2 && t <= 6 && a1 && t > 1 ? "" : "");
+        else std::snprintf(lab, sizeof lab, "M %.2f%s", a1 ? (double)a / a1 : 0.0, a < a6 ? "<T6" : "");
+        if (t >= 3 && t <= 6 && prevH) std::snprintf(sub, sizeof sub, "H%d %+d%%", h, (h - prevH) * 100 / prevH);
+        else std::snprintf(sub, sizeof sub, "H%d", h);
+        if (t <= 6) prevH = h;
+        e.label = lab;
+        e.sub = sub;
+        row.push_back(e);
+      }
+      // T2's head budget on T2's label line: under T3's / 1.05
+      if (row.size() >= 3) {
+        const int h2 = envelopeHeadPx(row[1].L), h3 = envelopeHeadPx(row[2].L);
+        row[1].sub = "H" + std::to_string(h2) + "/" + std::to_string(h3 * 100 / 105);
+      }
+      labels.push_back(std::string(who ? "WOMAN S" : "MAN S") + std::to_string(sd));
+      rows.push_back(row);
+    }
+  std::string up = people;
+  for (char& ch : up) ch = (char)std::toupper((unsigned char)ch);
+  const std::string title = "THE CLIMB: " + up + " (AREA / T1; HELM PX AND STEP; M THE MYTHIC), IDLE D, IDLE R, WALK R, TRUE 1X";
+  if (one) shapeGrid(dir, "doll_envelope_people_" + people, title, labels, rows, {only});
+  else shapeGrid(dir, "doll_envelope_people_" + people, title, labels, rows, {SM_COLOUR, SM_GREY, SM_BLACK});
+}
 void boardEnvelope(const std::string& dir, const std::string& b) {
   std::string line = b.substr(9);
   ShapeMode only = SM_COLOUR;
   bool one = false;
   if (line.size() > 5 && line.compare(line.size() - 5, 5, ":grey") == 0) { line.resize(line.size() - 5); only = SM_GREY; one = true; }
   if (line.size() > 6 && line.compare(line.size() - 6, 6, ":black") == 0) { line.resize(line.size() - 6); only = SM_BLACK; one = true; }
+  if (line.rfind("people:", 0) == 0) {
+    const std::string p = line.substr(7);
+    if (p == "all") {
+      for (const char* q : {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple", "sylvan", "starspire"})
+        boardEnvelopePeople(dir, q, only, one);
+    } else boardEnvelopePeople(dir, p, only, one);
+    return;
+  }
   std::vector<std::string> tags;
   if (line == "hero") tags = {"e1", "e2", "e3", "e4", "e5", "e6", "e6m"};
   else if (line == "heroine") tags = {"e1w", "e2w", "e3w", "e4w", "e5w", "e6w"};

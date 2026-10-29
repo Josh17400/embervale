@@ -4,9 +4,11 @@
 // The ANIM lane owns this file from here: at rig 2, where art::rig2Covers(look), it draws the v2 atlas frame by its pivot
 // (View::rigTex; never flipped) and the family effects (art::Fx::SwingArc...) timed by the family's pace.
 #include <algorithm>
+#include <unordered_set>
 #include <chrono>
 #include <cmath>
 #include "rpg/art/art_holders2.h"
+#include "rpg/art/doll/doll.h"
 #include "rpg/art/art_sea.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/gear_look.h"
@@ -248,6 +250,12 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       }
     }
   }
+  // (P2c SWITCH) a body on the doll is never drawn from a v1 sheet while its atlas waits in the queue: its LOCO atlas (the
+  // last fallback of every clip: one facing's bake p95 0.385 ms) bakes now, over the frame's budget if it must; the other
+  // parts keep the queue and fall back to LOCO's frames meanwhile. (The arrival bakes a city's crowd ahead: terrain.cpp.)
+  // (a crowd met at once, e.g. the rig switched under a city square: past 8 ms of bakes in one frame the rest wait a frame
+  // on the queue and draw v1 meanwhile, counted in v1Draws)
+  if (v2Look && !posing) { (void)rigBakeBudget(); rigBakeNow_ = witness || rigBakeFrameMs_ < 8.0; (void)rigTex(look, art::RigPart::Loco, child); rigBakeNow_ = false; }
   if (v2Look && !posing) {
     AnimPick k = animPick(g, a, 2);
     art::HumanLook lookP = look;
@@ -255,7 +263,9 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       k.clip = p2a.poseClip; k.variant = (uint8_t)p2a.poseVariant; k.frame = (uint8_t)p2a.poseFrame;
       if (p2a.poseFamily != art::familyOf(look)) lookP.weapon = weaponOfFamily(p2a.poseFamily);
     }
-    const int facing = std::clamp(a.face, 0, 3);
+    // (P2c SWITCH, FOLK-SIM-C's ask) the facing the pick draws (a drawn fighter at rest turns to its threat through the
+    // side facing, never a flip); the hero and a frozen pose keep Actor::face
+    const int facing = std::clamp(a.player ? a.face : (int)k.face, 0, 3);
     RigTex rt;
     const art::FrameRect* fr2 = nullptr;
     const art::RigAnchors* an = nullptr;
@@ -369,7 +379,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (v2Look) {
         const uint64_t sk = ew::mix64(look.key() ^ 0x51EE92ull ^ ((uint64_t)bk << 40) ^ ((uint64_t)(kit + 1) << 48) ^ ((uint64_t)(sf & 1) << 60));
         auto it = rigTex_.find(sk);
-        if (it == rigTex_.end() && (witness || rigBakeBudget())) {
+        if (it == rigTex_.end()) {   // (P2c SWITCH) on screen: baked now, never a v1 sleeper while it waits
           const auto t0 = std::chrono::steady_clock::now();
           RigEntry e;
           const Canvas sc = art::sleeper2(look, bk, kit, sf & 1);
@@ -408,7 +418,10 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     // (P2a ANIM) rig 2: the posture's v2 frame (humanPosture2: clip Idle variant 0, four native facings; the generic
     // sleeper one), its pivot on at2 (seatFit2's floor under the hips; standing postures the feet), never flipped
     if (!drawn && v2Look) {
+      (void)rigBakeBudget();
+      rigBakeNow_ = witness || rigBakeFrameMs_ < 8.0;   // (P2c SWITCH) on screen: baked now (8 ms a frame at most), never a v1 posture while it waits
       const RigTex rt = rigPoseTex(look, pz, variant);
+      rigBakeNow_ = false;
       if (rt.ready()) {
         int fc = std::clamp(a.face, 0, 3);
         const art::FrameRect* f2 = rt.sheet->frame(fc, art::Clip::Idle, 0, pf);
@@ -422,6 +435,11 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
                      false, Color(1, 1, 1, alpha));
           }
           drawV2(*rt.tex, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), at2, alpha, false, fi, fc, true);
+          // (P2c SWITCH) the living finish on a T5-T6 body in a posture too (seated, kneeling, at work)
+          if (look.topTier() >= 4 && a.st != AState::Dead) {
+            const float px2 = std::floor(at2.x - cam.x + 0.5f), py2 = std::floor(at2.y - cam.y + 0.5f);
+            queueLivingFinish(a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
+          }
           if (a.player) heroSprite.part = 4;
           m5Count_.posed++;
           return;
@@ -481,6 +499,16 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     }
   }
   if (!drawn) { P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, alpha)); v1Draws++; }
+  // (P2c SWITCH) EMB_V1LOG=1: each look drawn from a v1 sheet at rig 2, once, with why (the doll's first missing part, or
+  // the posture the doll does not cover): the coverage gaps the world still shows
+  if (!drawn && art::rigVersion() >= 2 && std::getenv("EMB_V1LOG")) {
+    static std::unordered_set<uint64_t> seen;
+    if (seen.insert(look.key() ^ (uint64_t)pzA * 0x9E37ull).second) {
+      std::string why = v2Look ? "posture " + std::to_string((int)pzA) + (art::doll::dollCoversPosture(look, pzA) ? " not baked yet" : " not covered by the doll") : "";
+      if (!v2Look) for (const art::doll::Missing& mm : art::doll::dollMissing(look)) { why = mm.what(); break; }
+      std::printf("v1 draw: actor %d role %d %s (%s)\n", a.id, (int)a.role, a.player ? "hero" : "", why.c_str());
+    }
+  }
   if (!drawn) drawnHead_[a.id] = DrawnHead{at.x, y + cam.y, t_};
   if (a.player) {
     ghost.t = &t; ghost.fr = fr; ghost.row = row; ghost.flip = flip; ghost.x = x; ghost.y = y;

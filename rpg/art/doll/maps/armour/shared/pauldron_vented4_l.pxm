@@ -30,6 +30,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) D rest: 4 px reach -> 3 at T4
+view D key rest origin 3 2 layer headwear when armour.t4,!armour.t5 replace
+|.vvvvv..
+|.vyzyyv.
+|vyzyyyxv
+|vwwwwwwv
+|vyyyyxxv
+|vwwwwwwv
+|vyxxxxwv
+|vvvvvvv.
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view D key up origin 3 3 layer headwear
 |..vvvvv..
@@ -49,6 +69,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) D up: 4 px reach -> 3 at T4
+view D key up origin 3 3 layer headwear when armour.t4,!armour.t5 replace
+|.vvvvv..
+|.vyzyyv.
+|vyzyyyxv
+|vwwwwwwv
+|vyyyyxxv
+|vwwwwwwv
+|vyxxxxwv
+|vvvvvvv.
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view D key lie origin 3 2
 |..vvvvv..
@@ -68,6 +108,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) D lie: 4 px reach -> 3 at T4
+view D key lie origin 3 2 when armour.t4,!armour.t5 replace
+|.vvvvv..
+|.vyzyyv.
+|vyzyyyxv
+|vwwwwwwv
+|vyyyyxxv
+|vwwwwwwv
+|vyxxxxwv
+|vvvvvvv.
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view U key rest origin 5 2 layer headwear
 |..vvvvv..
@@ -87,6 +147,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) U rest: 4 px reach -> 3 at T4
+view U key rest origin 4 2 layer headwear when armour.t4,!armour.t5 replace
+|..vvvvv.
+|.vzyywv.
+|vzyyyxwv
+|vwwwwwwv
+|vyyyxxwv
+|vwwwwwwv
+|vxxxxwwv
+|.vvvvvvv
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view U key up origin 5 3 layer headwear
 |..vvvvv..
@@ -106,6 +186,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) U up: 4 px reach -> 3 at T4
+view U key up origin 4 3 layer headwear when armour.t4,!armour.t5 replace
+|..vvvvv.
+|.vzyywv.
+|vzyyyxwv
+|vwwwwwwv
+|vyyyxxwv
+|vwwwwwwv
+|vxxxxwwv
+|.vvvvvvv
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view U key lie origin 5 2
 |..vvvvv..
@@ -125,6 +225,26 @@ regions
 |.NNNNNNN.
 |.........
 |.........
+# (ARMOUR-X wave 2, fitcap.py) U lie: 4 px reach -> 3 at T4
+view U key lie origin 4 2 when armour.t4,!armour.t5 replace
+|..vvvvv.
+|.vzyywv.
+|vzyyyxwv
+|vwwwwwwv
+|vyyyxxwv
+|vwwwwwwv
+|vxxxxwwv
+|.vvvvvvv
+regions
+|........
+|..RRRR..
+|.RRRRRR.
+|.NNNNNN.
+|.PPPPPP.
+|.NNNNNN.
+|........
+|........
+
 
 view R key rest origin 6 3
 |..vvvvv..

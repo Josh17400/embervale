@@ -1,0 +1,749 @@
+# headwear/helm/greathelm_legend: the GREAT family grown at T5-T6
+# (HELMS wave 2, round 1; PLAN D44 D68, STYLE_P2 29.4 / 29.10) the T5-T6 growth of the helm family `fam.great` on a culture
+# alloy, drawn from the helm's own crown mark (placed on the head anchor at each variant's mark), so every variant keeps its outline and grows from its own
+# crown: T5 a heraldic horsehair fan (a drawn fin raised tall); T6 between heraldic gilt wings.
+# Written by the HELMS area tools/grow.py from src/designs.py (D and R drawn; U is D; L is R mirrored and re-lit; lie = L).
+# The `!crest-<v>` terms step aside for the crests drawn on this family: a drawn crest grows itself (helm/crest/*.pxm).
+use person
+body adult
+role helm fam.great
+layer headwear
+anchor head
+keys hatpose
+z 1
+tags overlay
+legend X glow 3
+legend W glow 4
+legend J metal2 0
+legend Q metal2 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+view D key rest origin 0 0
+|.
+view U key rest origin 0 0
+|.
+view R key rest origin 0 0
+|.
+view L key rest origin 0 0
+|.
+view L key lie origin 0 0
+|.
+view D key breeze origin 0 0
+|.
+view U key breeze origin 0 0
+|.
+view D key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv.......vv.......vv
+|vPvv....vzxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvyxvvv......
+view D key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvvvvvv......
+view D key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view D key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|vv...FF.FFFF.FF...vv
+|vPvvFTTFTTSSFRRFvvNv
+|vPPOFTTSSSSSRRRFOONv
+|vPPPOFTSSSSSRRFOONNv
+|.vPPPFTTSSSSRRFONNv.
+|..vvPPFTSSSRRFNNvv..
+|....vvPFTSSRFNvv....
+|......vvPPOOvv......
+view D key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|vv...FF.FFFF.FF...vv
+|vPvvFTTFTTSSFRRFvvNv
+|vPPOFTTSSSSSRRRFOONv
+|vPPPOFTSSSSSRRFOONNv
+|.vPPPFTTSSSSRRFONNv.
+|..vvPPFTSSSRRFNNvv..
+|....vvPFTSSRFNvv....
+|......vvPPOOvv......
+view D key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|.......F....F.......
+|vv.....TF..FR.....vv
+|vPvv....FTRF....vvNv
+|vPPOvv..vPOv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view D key rest origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view D key rest origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view D key rest origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+view D key rest origin -2 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|.FF.FFFF.FF.
+|FTTFTTSSFRRF
+|FTTSSSSSRRRF
+|.FTSSSSSRRF.
+|.FTTSSSSRRF.
+|..FTSSSRRF..
+|...FTSSRF...
+|...vPPOOv...
+view D key rest origin -2 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|.FF.FFFF.FF.
+|FTTFTTSSFRRF
+|FTTSSSSSRRRF
+|.FTSSSSSRRF.
+|.FTTSSSSRRF.
+|..FTSSSRRF..
+|...FTSSRF...
+|...vPPOOv...
+view D key rest origin -5 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|F....F
+|TF..FR
+|.FTRF.
+|.vPOv.
+view U key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv.......vv.......vv
+|vPvv....vzxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvyxvvv......
+view U key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvvvvvv......
+view U key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view U key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|vv...FF.FFFF.FF...vv
+|vPvvFTTFTTSSFRRFvvNv
+|vPPOFTTSSSSSRRRFOONv
+|vPPPOFTSSSSSRRFOONNv
+|.vPPPFTTSSSSRRFONNv.
+|..vvPPFTSSSRRFNNvv..
+|....vvPFTSSRFNvv....
+|......vvPPOOvv......
+view U key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|vv...FF.FFFF.FF...vv
+|vPvvFTTFTTSSFRRFvvNv
+|vPPOFTTSSSSSRRRFOONv
+|vPPPOFTSSSSSRRFOONNv
+|.vPPPFTTSSSSRRFONNv.
+|..vvPPFTSSSRRFNNvv..
+|....vvPFTSSRFNvv....
+|......vvPPOOvv......
+view U key rest origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|.......F....F.......
+|vv.....TF..FR.....vv
+|vPvv....FTRF....vvNv
+|vPPOvv..vPOv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view U key rest origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view U key rest origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view U key rest origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+view U key rest origin -2 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|.FF.FFFF.FF.
+|FTTFTTSSFRRF
+|FTTSSSSSRRRF
+|.FTSSSSSRRF.
+|.FTTSSSSRRF.
+|..FTSSSRRF..
+|...FTSSRF...
+|...vPPOOv...
+view U key rest origin -2 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|.FF.FFFF.FF.
+|FTTFTTSSFRRF
+|FTTSSSSSRRRF
+|.FTSSSSSRRF.
+|.FTTSSSSRRF.
+|..FTSSSRRF..
+|...FTSSRF...
+|...vPPOOv...
+view U key rest origin -5 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|F....F
+|TF..FR
+|.FTRF.
+|.vPOv.
+view R key rest origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|..vv......vv
+|..vPvv..vvzv
+|..vPPOvvyyxv
+|..vPvvyyyxxv
+|..vvyyyxxwwv
+|vvyyyxxxwwv.
+|vxxxwwwwvv..
+|.vvvvvvv....
+view R key rest origin 1 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|..........vv
+|.vv.....vvzv
+|.vPvv.vvyyxv
+|.vPPvvyyyxxv
+|.vvvyyyxxwwv
+|vvyyyxxxwwv.
+|vxxxwwwwvv..
+|.vvvvvvv....
+view R key rest origin 0 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.......vv
+|vv...vvzv
+|vPvvvyyxv
+|vvvxxwwv.
+|vPPPOOv..
+|.vPPPOOv.
+|..vvPPOv.
+|....vvv..
+view R key rest origin 0 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|vv....FFF..
+|vPvv.FTTSF.
+|vPPOvFTTSRF
+|vPPPOFTSSRF
+|.vPPPFTSSRF
+|..vvPPFTSRF
+|....vvFTSRF
+|......vPOv.
+view R key rest origin 0 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|vv.....FFF..
+|vPvv..FTTSF.
+|vPPOvvFTTSRF
+|vPPPOOFTSSRF
+|.vPPPOFTSSRF
+|..vvPPOFTSRF
+|....vvvFTSRF
+|.......vPOv.
+view R key rest origin 0 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|....FF....
+|vv..FTF...
+|vPvvvFTRF.
+|vPPOvvvPOv
+|vPPPOOv...
+|.vPPPOOv..
+|..vvPPOv..
+|....vvv...
+view R key rest origin 2 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|..........vv
+|........vvzv
+|......vvyyxv
+|....vvyyyxxv
+|..vvyyyxxwwv
+|vvyyyxxxwwv.
+|vxxxwwwwvv..
+|.vvvvvvv....
+view R key rest origin 1 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|..........vv
+|........vvzv
+|......vvyyxv
+|....vvyyyxxv
+|..vvyyyxxwwv
+|vvyyyxxxwwv.
+|vxxxwwwwvv..
+|.vvvvvvv....
+view R key rest origin -1 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|......vv
+|....vvzv
+|..vvyyxv
+|vvxxwwv.
+view R key rest origin -5 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|.FFF..
+|FTTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTSRF
+|.vPOv.
+view R key rest origin -6 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|.FFF..
+|FTTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTSRF
+|.vPOv.
+view R key rest origin -4 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|FF....
+|FTF...
+|.FTRF.
+|..vPOv
+view L key rest origin -6 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv......vv..
+|vzvv..vvNv..
+|vxwwvvONNv..
+|vxxwwwvvNv..
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key rest origin -5 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|vv..........
+|vzvv.....vv.
+|vxwwvv.vvNv.
+|vxxwwwvvNNv.
+|vyyxxwwwvvv.
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key rest origin -7 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|vv.......
+|vzvv...vv
+|vxwwvvvNv
+|.vyyxxvvv
+|..vOONNNv
+|.vOONNNv.
+|.vONNvv..
+|..vvv....
+view L key rest origin -5 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|..FFF....vv
+|.FSRRF.vvNv
+|FTSRRFvONNv
+|FTSSRFONNNv
+|FTSSRFNNNv.
+|FTSRFNNvv..
+|FTSRFvv....
+|.vONv......
+view L key rest origin -4 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|..FFF.....vv
+|.FSRRF..vvNv
+|FTSRRFvvONNv
+|FTSSRFOONNNv
+|FTSSRFONNNv.
+|FTSRFONNvv..
+|FTSRFvvv....
+|.vONv.......
+view L key rest origin -6 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|....FF....
+|...FRF..vv
+|.FTRFvvvNv
+|vONvvvONNv
+|...vOONNNv
+|..vOONNNv.
+|..vONNvv..
+|...vvv....
+view L key rest origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv..........
+|vzvv........
+|vxwwvv......
+|vxxwwwvv....
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key rest origin -5 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|vv..........
+|vzvv........
+|vxwwvv......
+|vxxwwwvv....
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key rest origin -7 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|vv......
+|vzvv....
+|vxwwvv..
+|.vyyxxvv
+view L key rest origin -5 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|..FFF.
+|.FSRRF
+|FTSRRF
+|FTSSRF
+|FTSSRF
+|FTSRF.
+|FTSRF.
+|.vONv.
+view L key rest origin -4 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|..FFF.
+|.FSRRF
+|FTSRRF
+|FTSSRF
+|FTSSRF
+|FTSRF.
+|FTSRF.
+|.vONv.
+view L key rest origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|....FF
+|...FRF
+|.FTRF.
+|vONv..
+view L key lie origin -6 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv......vv..
+|vzvv..vvNv..
+|vxwwvvONNv..
+|vxxwwwvvNv..
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key lie origin -5 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|vv..........
+|vzvv.....vv.
+|vxwwvv.vvNv.
+|vxxwwwvvNNv.
+|vyyxxwwwvvv.
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key lie origin -7 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|vv.......
+|vzvv...vv
+|vxwwvvvNv
+|.vyyxxvvv
+|..vOONNNv
+|.vOONNNv.
+|.vONNvv..
+|..vvv....
+view L key lie origin -5 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|..FFF....vv
+|.FSRRF.vvNv
+|FTSRRFvONNv
+|FTSSRFONNNv
+|FTSSRFNNNv.
+|FTSRFNNvv..
+|FTSRFvv....
+|.vONv......
+view L key lie origin -4 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|..FFF.....vv
+|.FSRRF..vvNv
+|FTSRRFvvONNv
+|FTSSRFOONNNv
+|FTSSRFONNNv.
+|FTSRFONNvv..
+|FTSRFvvv....
+|.vONv.......
+view L key lie origin -6 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|....FF....
+|...FRF..vv
+|.FTRFvvvNv
+|vONvvvONNv
+|...vOONNNv
+|..vOONNNv.
+|..vONNvv..
+|...vvv....
+view L key lie origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv..........
+|vzvv........
+|vxwwvv......
+|vxxwwwvv....
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key lie origin -5 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|vv..........
+|vzvv........
+|vxwwvv......
+|vxxwwwvv....
+|vyyxxwwwvv..
+|.vyyxxxwwwvv
+|..vvyyyyxxxv
+|....vvvvvvv.
+view L key lie origin -7 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|vv......
+|vzvv....
+|vxwwvv..
+|.vyyxxvv
+view L key lie origin -5 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|..FFF.
+|.FSRRF
+|FTSRRF
+|FTSSRF
+|FTSSRF
+|FTSRF.
+|FTSRF.
+|.vONv.
+view L key lie origin -4 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|..FFF.
+|.FSRRF
+|FTSRRF
+|FTSSRF
+|FTSSRF
+|FTSRF.
+|FTSRF.
+|.vONv.
+view L key lie origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|....FF
+|...FRF
+|.FTRF.
+|vONv..
+view D key breeze origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv.......vv.......vv
+|vPvv....vzxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvyxvvv......
+view D key breeze origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvvvvvv......
+view D key breeze origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view D key breeze origin 3 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|.vv....FF.FFFF.FF..vv.
+|.vPvvFTTFTTSSFRRFvvNv.
+|.vPPOFTTSSSSSRRRFOONv.
+|.vPPPOFTSSSSSRRFOONNv.
+|..vPPPFTTSSSSRRFONNv..
+|...vvPPFTSSSRRFNNvv...
+|.....vvPFTSSRFNvv.....
+|.......vvPPOOvv.......
+view D key breeze origin 3 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|.vv....FF.FFFF.FF..vv.
+|.vPvvFTTFTTSSFRRFvvNv.
+|.vPPOFTTSSSSSRRRFOONv.
+|.vPPPOFTSSSSSRRFOONNv.
+|..vPPPFTTSSSSRRFONNv..
+|...vvPPFTSSSRRFNNvv...
+|.....vvPFTSSRFNvv.....
+|.......vvPPOOvv.......
+view D key breeze origin 3 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|.........F....F.......
+|.vv.....TF..FR.....vv.
+|.vPvv....FTRF....vvNv.
+|.vPPOvv..vPOv..vvOONv.
+|.vPPPOOv......vOOONNv.
+|..vPPPOOv....vOOONNv..
+|...vvPPOOvvvvOONNvv...
+|.....vvPPOOOONNvv.....
+|.......vvvvvvvv.......
+view D key breeze origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view D key breeze origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view D key breeze origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+view D key breeze origin -1 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|...FF.FFFF.FF.
+|.FTTFTTSSFRRF.
+|.FTTSSSSSRRRF.
+|..FTSSSSSRRF..
+|..FTTSSSSRRF..
+|...FTSSSRRF...
+|....FTSSRF....
+|....vPPOOv....
+view D key breeze origin -1 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|...FF.FFFF.FF.
+|.FTTFTTSSFRRF.
+|.FTTSSSSSRRRF.
+|..FTSSSSSRRF..
+|..FTTSSSSRRF..
+|...FTSSSRRF...
+|....FTSSRF....
+|....vPPOOv....
+view D key breeze origin -4 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|..F....F
+|.TF..FR.
+|..FTRF..
+|..vPOv..
+view U key breeze origin 2 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|vv.......vv.......vv
+|vPvv....vzxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvyxvvv......
+view U key breeze origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv.vyxv.vOOONNv
+|.vPPPOOvvyxvvOOONNv.
+|..vvPPOOvyxvOONNvv..
+|....vvPPvyxvNNvv....
+|......vvvvvvvv......
+view U key breeze origin 2 6 when helm.t6,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.........vv.........
+|vv......vzxv......vv
+|vPvv....vyxv....vvNv
+|vPPOvv..vyxv..vvOONv
+|vPPPOOv......vOOONNv
+|.vPPPOOv....vOOONNv.
+|..vvPPOOvvvvOONNvv..
+|....vvPPOOOONNvv....
+|......vvvvvvvv......
+view U key breeze origin 3 5 when helm.t6,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|.vv....FF.FFFF.FF..vv.
+|.vPvvFTTFTTSSFRRFvvNv.
+|.vPPOFTTSSSSSRRRFOONv.
+|.vPPPOFTSSSSSRRFOONNv.
+|..vPPPFTTSSSSRRFONNv..
+|...vvPPFTSSSRRFNNvv...
+|.....vvPFTSSRFNvv.....
+|.......vvPPOOvv.......
+view U key breeze origin 3 5 when helm.t6,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|.vv....FF.FFFF.FF..vv.
+|.vPvvFTTFTTSSFRRFvvNv.
+|.vPPOFTTSSSSSRRRFOONv.
+|.vPPPOFTSSSSSRRFOONNv.
+|..vPPPFTTSSSSRRFONNv..
+|...vvPPFTSSSRRFNNvv...
+|.....vvPFTSSRFNvv.....
+|.......vvPPOOvv.......
+view U key breeze origin 3 6 when helm.t6,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|.........F....F.......
+|.vv.....TF..FR.....vv.
+|.vPvv....FTRF....vvNv.
+|.vPPOvv..vPOv..vvOONv.
+|.vPPPOOv......vOOONNv.
+|..vPPPOOv....vOOONNv..
+|...vvPPOOvvvvOONNvv...
+|.....vvPPOOOONNvv.....
+|.......vvvvvvvv.......
+view U key breeze origin -6 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view U key breeze origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-1,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+|vyxv
+view U key breeze origin -6 6 when helm.t5,alloyshape,helmfam-great,variant-2,crest-fin replace
+|.vv.
+|vzxv
+|vyxv
+|vyxv
+view U key breeze origin -1 5 when helm.t5,alloyshape,helmfam-great,!variant-1,!variant-2,!crest-fin replace
+|...FF.FFFF.FF.
+|.FTTFTTSSFRRF.
+|.FTTSSSSSRRRF.
+|..FTSSSSSRRF..
+|..FTTSSSSRRF..
+|...FTSSSRRF...
+|....FTSSRF....
+|....vPPOOv....
+view U key breeze origin -1 5 when helm.t5,alloyshape,helmfam-great,variant-1,!crest-fin replace
+|...FF.FFFF.FF.
+|.FTTFTTSSFRRF.
+|.FTTSSSSSRRRF.
+|..FTSSSSSRRF..
+|..FTTSSSSRRF..
+|...FTSSSRRF...
+|....FTSSRF....
+|....vPPOOv....
+view U key breeze origin -4 6 when helm.t5,alloyshape,helmfam-great,variant-2,!crest-fin replace
+|..F....F
+|.TF..FR.
+|..FTRF..
+|..vPOv..

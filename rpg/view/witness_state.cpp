@@ -236,7 +236,11 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     const float sp = P.st == AState::Walk ? (len(P.vel) > 0.5f ? len(P.vel) : P.speed) : len(P.vel);
     j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
         .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn).field("part", animPartName(k.part))
-        .field("speed", r2(sp)).field("gait", sp > art::doll::kGaitSwitch ? "run" : "walk").end_object();
+        .field("speed", r2(sp)).field("gait", sp > art::doll::kGaitSwitch ? "run" : "walk")
+        // (P2c SWITCH, FOLK-SIM-C's pick pieces for the judge) carry, the crossbow, the shield bash, the finisher's impact,
+        // the facing drawn and the block's flash
+        .field("carry", (int)k.carry).field("xbow", (int)k.xbow).field("bash", k.bash).field("impact", k.impact).field("face", (int)k.face)
+        .field("blockT", r2(P.blockT)).end_object();
   }
   j.end_object();
 
@@ -258,7 +262,8 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.end_array().end_object();
     j.field("zoom", ss.zoom).field("zoomName", screen::zoomName(ss.zoom)).field("ring", ss.ring)
         .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
-        .field("v1Draws", v.v1Draws).field("peopleMB", r2(v.peopleMB())).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
+        .field("v1Draws", v.v1Draws).field("peopleMB", r2(v.peopleMB())).field("rigMB", r2(v.lensStats.rigMB)).field("rigCapMB", r2(v.rigCapMB()))
+        .field("rigEvictions", v.lensStats.rigEvictions).field("rigRebakes", v.lensStats.rigRebakes).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
     j.end_object();
     // (Witness 0.7.1) the layers in screen pixels, so measure scale / doctor read each one at its own scale: the world
     // layer (integer D) and the UI layer (its fit scale); rect [x, y, w, h]
@@ -269,6 +274,19 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.key("layers").begin_array();
     layer("world", wl);
     layer("ui", ul);
+    j.end_array();
+    // (P2c SWITCH) the menu figures drawn last frame (C7): where, the rig they came from, the whole multiple, the rect and
+    // the stage on the UI layer (UI px), cropped (the rect leaves its stage), the furthest finish light off the silhouette
+    // (auraOut, px; -1 none), the lights drawn, the doll part / clip / frame / facing and the look's top tier
+    static const char* const kWhere[] = {"paperdoll", "creator", "hero", "party", "dialogue", "portrait", "loot"};
+    j.key("menus").begin_array();
+    for (const View::MenuFigure& f : v.menuFigs) {
+      j.begin_object().field("where", f.where >= 0 && f.where < View::kMenuWhereN ? kWhere[f.where] : "?").field("rig", f.rig).field("scale", f.scale)
+          .key("rect").begin_array().value(r2(f.x)).value(r2(f.y)).value(f.w).value(f.h).end_array()
+          .key("stage").begin_array().value(r2(f.stage.x)).value(r2(f.stage.y)).value(r2(f.stage.w)).value(r2(f.stage.h)).end_array()
+          .field("cropped", f.cropped).field("auraOut", f.auraOut).field("lights", f.lights).field("part", f.part).field("clip", f.clip)
+          .field("frame", f.frame).field("facing", f.facing).field("tier", f.tier).end_object();
+    }
     j.end_array();
   }
 
@@ -385,7 +403,8 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     if (a.human) {   // (P2a) what a person shows, and how long the dead have lain
       const AnimPick k = animPick(g, a);
       j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
-          .field("frame", (int)k.frame).field("frames", (int)k.frames).end_object();
+          .field("frame", (int)k.frame).field("frames", (int)k.frames).field("carry", (int)k.carry).field("xbow", (int)k.xbow).field("bash", k.bash)
+          .field("impact", k.impact).field("face", (int)k.face).field("blockT", r2(a.blockT)).end_object();
     }
     if (a.st == AState::Dead) j.key("corpse").begin_object().field("age", r2(a.stT)).end_object();
     if (a.human && !animal) {   // (P2b) the doll covers this person (rig 2 draws the doll), else the first value it lacks

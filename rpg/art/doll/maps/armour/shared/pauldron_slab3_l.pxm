@@ -23,6 +23,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) D rest: 3 px reach -> 2 at T3
+view D key rest origin 3 2 layer headwear when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vyzyyxv
+|vyyyxxv
+|vyxxxv.
+|vvvvv..
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view D key up origin 3 3 layer headwear
 |vvvvvvvv
@@ -36,6 +50,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) D up: 3 px reach -> 2 at T3
+view D key up origin 3 3 layer headwear when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vyzyyxv
+|vyyyxxv
+|vyxxxv.
+|vvvvv..
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view D key lie origin 3 2
 |vvvvvvvv
@@ -49,6 +77,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) D lie: 3 px reach -> 2 at T3
+view D key lie origin 3 2 when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vyzyyxv
+|vyyyxxv
+|vyxxxv.
+|vvvvv..
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view U key rest origin 4 2 layer headwear
 |vvvvvvvv
@@ -62,6 +104,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) U rest: 3 px reach -> 2 at T3
+view U key rest origin 3 2 layer headwear when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vzyyxwv
+|vyyxxwv
+|.vxxxwv
+|..vvvvv
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view U key up origin 4 3 layer headwear
 |vvvvvvvv
@@ -75,6 +131,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) U up: 3 px reach -> 2 at T3
+view U key up origin 3 3 layer headwear when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vzyyxwv
+|vyyxxwv
+|.vxxxwv
+|..vvvvv
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view U key lie origin 4 2
 |vvvvvvvv
@@ -88,6 +158,20 @@ regions
 |.PPPPPP.
 |........
 |........
+# (ARMOUR-X wave 2, fitcap.py) U lie: 3 px reach -> 2 at T3
+view U key lie origin 3 2 when armour.t3,!armour.t4 replace
+|vvvvvvv
+|vzyyxwv
+|vyyxxwv
+|.vxxxwv
+|..vvvvv
+regions
+|.......
+|.RRRRR.
+|.PPPPP.
+|.......
+|.......
+
 
 view R key rest origin 6 3
 |.vvvvvv.

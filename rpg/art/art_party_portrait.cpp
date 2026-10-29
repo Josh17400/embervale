@@ -10,6 +10,9 @@
 // Same conventions as every sprite: top-left light, 3-5 tone ramps, a 1 px darkened-neighbour outline, transparent
 // ground, deterministic.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_fx.h"
+#include "rpg/art/art_rig.h"
+#include "rpg/art/doll/doll.h"
 
 namespace art {
 
@@ -828,6 +831,70 @@ Canvas portraitRaw(const HumanLook& look, int mood) {
 Canvas portraitSprite(const HumanLook& look, int mood) {
   Canvas c = portraitRaw(look, mood);
   outline(c);
+  return c;
+}
+
+// (P2c SWITCH) rig 2: the bust cut from the doll's own frame (A3's face: LOCO idle facing down, as the game draws it), so
+// the portrait wears what the figure wears (every helm family, the shapes, the ladder's finish) in the doll's pixels. The
+// head box centred, its crown 3-6 rows from the top (a tall crest or plume above that is cut: the full figure stands on
+// the party page), the shoulders and chest under it. Moods on the doll's own pixels: 1 hurt (paler skin, a cut on the
+// cheek), 2 downed (the colour drained, as the painted bust), 3 glad (the skin a little warmer). `glow` takes the bust's
+// glow-plane pixels (T5-T6: the view breathes them). An empty canvas at rig 1 or when the doll does not cover the look.
+Canvas portraitDoll(const HumanLook& look, int mood, std::vector<finish::GlowPx>* glow) {
+  if (glow) glow->clear();
+  if (rigVersion() < 2 || !rig2Covers(look)) return Canvas();
+  doll::ComposeOpts one;
+  one.onlyFacing = 0;
+  const RigSheet s = doll::compose(doll::resolve(look), RigPart::Loco, &one);
+  const FrameRect* f = s.frame(0, Clip::Idle, 0, 0);
+  if (!f || s.atlas.w <= 0) return Canvas();
+  const RigAnchors* an = s.anchorsOf(0, Clip::Idle, 0, 0);
+  int hx = f->w / 2 - 5, hy = 2, hw = 10, hh = 11;
+  if (an && an->headX != kNoAnchor && an->headY != kNoAnchor && an->headW > 0) { hx = an->headX + f->px; hy = an->headY + f->py; hw = an->headW; hh = an->headH; }
+  // the rows of headwear over the crown (the frame's top is the figure's highest pixel)
+  const int over = std::max(0, hy);
+  const int crownRow = std::clamp(over, 3, 6);
+  const int top = hy - crownRow, left = hx + hw / 2 - PORTRAIT_W / 2;
+  Canvas c(PORTRAIT_W, PORTRAIT_H);
+  for (int y = 0; y < PORTRAIT_H; y++)
+    for (int x = 0; x < PORTRAIT_W; x++) {
+      const int fx = left + x, fy = top + y;
+      if (fx < 0 || fy < 0 || fx >= f->w || fy >= f->h) continue;
+      c.set(x, y, s.atlas.get(f->x + fx, f->y + fy));
+    }
+  if (glow) {
+    const size_t fi = (size_t)(f - s.frames.data());
+    s.glow.each(fi, [&](int gx, int gy, uint32_t col) {
+      const int bx = gx - left, by = gy - top;
+      if (bx >= 0 && by >= 0 && bx < PORTRAIT_W && by < PORTRAIT_H) glow->push_back({bx, by, col});
+    });
+  }
+  // the skin: the head box's pixels warm in hue (r over g over b), neither ink nor metal
+  auto skin = [&](uint32_t p) {
+    const int r = (int)chR(p), g = (int)chG(p), b = (int)chB(p);
+    return chA(p) && r > g && g > b && r - b > 40 && r > 110;
+  };
+  const int faceX = an && an->faceX != kNoAnchor ? an->faceX + f->px - left : PORTRAIT_W / 2 - 4;
+  const int faceY = an && an->faceY != kNoAnchor ? an->faceY + f->py - top : crownRow + 4;
+  if (mood == 1) {
+    for (int y = 0; y < PORTRAIT_H; y++)
+      for (int x = 0; x < PORTRAIT_W; x++) if (skin(c.get(x, y))) c.set(x, y, mix(c.get(x, y), rgba(236, 226, 220), 0.22f));
+    const int cx = faceX + 7, cy = faceY + 4;
+    if (skin(c.get(cx, cy))) c.set(cx, cy, rgba(150, 30, 26));
+    if (skin(c.get(cx + 1, cy + 1))) c.set(cx + 1, cy + 1, rgba(190, 44, 36));
+  } else if (mood == 2) {
+    for (int y = 0; y < c.h; y++)
+      for (int x = 0; x < c.w; x++) {
+        const uint32_t p = c.get(x, y);
+        if (!chA(p)) continue;
+        const int l = (int)(luma(p) * 255);
+        c.set(x, y, mix(p, rgba(std::min(255, l * 9 / 10 + 8), std::min(255, l * 9 / 10 + 10), std::min(255, l + 18)), 0.62f));
+      }
+    if (glow) glow->clear();   // the downed: no living light
+  } else if (mood == 3) {
+    for (int y = 0; y < PORTRAIT_H; y++)
+      for (int x = 0; x < PORTRAIT_W; x++) if (skin(c.get(x, y))) c.set(x, y, mix(c.get(x, y), rgba(250, 170, 130), 0.12f));
+  }
   return c;
 }
 

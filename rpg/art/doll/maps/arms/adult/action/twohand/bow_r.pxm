@@ -372,3 +372,362 @@ regions
 |HHHCCC.
 |.HH....
 
+# (P2c wave 2, ACTIONS-2H) the crossbow's keys: bw_xlow (the drawn idle, walk and run: low across the hips), bw_xcrank
+# (the nose down, the right hand winding), bw_xaim (the stock at the shoulder), bw_xshot (the prod snaps: the body a
+# pixel back). The left fist holds the fore-stock (gripL: held bow.crossbow), the right the stock's wrist.
+
+view R key bw_xlow origin 5 0 layer held
+mark grip 7 6
+mark handR 7 6
+|.....5555
+|..5558775
+|558777655
+|5776665..
+|55777hf..
+|..55hhqq.
+|....fftsq
+|......srq
+|......qq.
+regions
+|.....UUUU
+|..UUUUUUU
+|UUUUUUUUU
+|UUFUUUU..
+|UFFFFCC..
+|..FFCCHH.
+|....CCHHH
+|......HHH
+|......HH.
+
+view L key bw_xlow origin 9 0 layer armNear
+mark grip 7 6
+mark handR 7 6
+|.....5555
+|..5556665
+|556666655
+|5666665..
+|55666gf..
+|..55ggqq.
+|....ffrrq
+|......rrq
+|......qq.
+regions
+|.....UUUU
+|..UUUUUUU
+|UUUUUUUUU
+|UUFUUUU..
+|UFFFFCC..
+|..FFCCHH.
+|....CCHHH
+|......HHH
+|......HH.
+
+view D key bw_xlow origin 4 0 layer held
+mark grip 8 6
+mark handR 8 6
+|...555.....
+|...575.....
+|..5875.....
+|..5765.....
+|.5875......
+|.5768ffqtsq
+|58777hhqsrq
+|57766fffqq.
+|.5555......
+regions
+|...UUU.....
+|...UUU.....
+|..UUUU.....
+|..UUUU.....
+|.UUUU......
+|.UUUFCCHHHH
+|UUUFFCCHHHH
+|UUFFFCCCHH.
+|.UFFF......
+
+view U key bw_xlow origin 5 0
+mark grip 1 6
+mark handR 1 6
+|....555...
+|....575...
+|....5775..
+|....5775..
+|.....5775.
+|qtsqf8775.
+|qsrqh77775
+|.qqff67765
+|.....5555.
+regions
+|....UUU...
+|....UUU...
+|....UUUU..
+|....UUUU..
+|.....UUUU.
+|HHHHCFUUU.
+|HHHHCFFUUU
+|.HHCCFFFUU
+|.....FFFU.
+
+view R key bw_xaim origin -1 3 layer held
+mark grip 2 1
+mark handR 2 1
+|.qq......
+|.tsqf....
+|.srqhf...
+|5qqhh75..
+|57777775.
+|557777775
+|..5555565
+|.......5.
+regions
+|.HH......
+|.HHHC....
+|.HHHCC...
+|UHHCCFF..
+|UUUUUFFF.
+|UUUUUUUFU
+|..UUUUUUU
+|.......U.
+
+view L key bw_xaim origin 9 3 layer held
+mark grip 6 1
+mark handR 6 1
+|.....qq..
+|....frrq.
+|...fhrrq.
+|..56gqq55
+|.56666665
+|566666655
+|5655555..
+|.5.......
+regions
+|.....HH..
+|....CHHH.
+|...CCHHH.
+|..FFCHHUU
+|.FFFUUUUU
+|UFUUUUUUU
+|UUUUUUU..
+|.U.......
+
+view D key bw_xaim origin 1 1 layer held
+mark grip 5 1
+mark handR 5 1
+|....qtsq
+|555.qsrq
+|575.fqq.
+|5775ihf.
+|.577hgf.
+|.57775..
+|..5775..
+|..5775..
+|...565..
+|....5...
+regions
+|....HHHH
+|UUU.HHHH
+|UUU.CHH.
+|UUUUCCC.
+|.UUUCCC.
+|.UUUFF..
+|..UUFF..
+|..UUFF..
+|...UUU..
+|....U...
+
+view U key bw_xaim origin 5 1
+mark grip 1 1
+mark handR 1 1
+|qtsq...
+|qsrq555
+|fqq.575
+|fhh5775
+|fhh875.
+|.57775.
+|.5775..
+|.5775..
+|.575...
+|..5....
+regions
+|HHHH...
+|HHHHUUU
+|CHH.UUU
+|CCCUUUU
+|CCCUUU.
+|.FFUUU.
+|.FFUU..
+|.FFUU..
+|.UUU...
+|..U....
+
+view R key bw_xshot origin -1 3 layer held
+mark grip 1 1
+mark handR 1 1
+|qqff.....
+|tsqhf5...
+|srqhh755.
+|qq8877775
+|577777775
+|55555555.
+regions
+|HHCC.....
+|HHHCCF...
+|HHHCCFFF.
+|HHUUFFFFU
+|UUUUUUUUU
+|UUUUUUUU.
+
+view L key bw_xshot origin 3 3 layer held
+mark grip 1 1
+mark handR 1 1
+|qqff.....
+|rrqgf5...
+|rrqgg655.
+|qq6666665
+|566666665
+|55555555.
+regions
+|HHCC.....
+|HHHCCF...
+|HHHCCFFF.
+|HHUUFFFFU
+|UUUUUUUUU
+|UUUUUUUU.
+
+view D key bw_xshot origin 1 2 layer held
+mark grip 5 1
+mark handR 5 1
+|....qtsq
+|....qsrq
+|555.fqq.
+|5775ihf.
+|5777ihf.
+|.577775.
+|..57775.
+|...5775.
+|....575.
+|.....5..
+regions
+|....HHHH
+|....HHHH
+|UUU.CHH.
+|UUUUCCC.
+|UUUUCCC.
+|.UUUUFF.
+|..UUUFF.
+|...UUFF.
+|....UUU.
+|.....U..
+
+view U key bw_xshot origin 5 2
+mark grip 1 1
+mark handR 1 1
+|qtsq...
+|qsrq...
+|fqq.555
+|fhg5875
+|fhg8765
+|578765.
+|57765..
+|5775...
+|575....
+|.5.....
+regions
+|HHHH...
+|HHHH...
+|CHH.UUU
+|CCCUUUU
+|CCCUUUU
+|FFUUUU.
+|FFUUU..
+|FFUU...
+|UUU....
+|.U.....
+
+view R key bw_xcrank origin 2 0 layer held
+mark grip 1 3
+mark handR 1 3
+|...555...
+|...575...
+|qtsq775..
+|qsrq775..
+|.qqhh775.
+|.ffh7775.
+|...557775
+|.....5765
+|......55.
+regions
+|...UUU...
+|...UUU...
+|HHHHUUU..
+|HHHHUUU..
+|.HHCCUUU.
+|.CCCFFUU.
+|...FFFFUU
+|.....FFUU
+|......UU.
+
+view L key bw_xcrank origin 6 0 layer armNear
+mark grip 7 3
+mark handR 7 3
+|...555....
+|...565....
+|..5666qrrq
+|..566hqrrq
+|.566hggqq.
+|.5666gff..
+|566655....
+|5665......
+|.55.......
+regions
+|...UUU....
+|...UUU....
+|..UUUUHHHH
+|..UUUCHHHH
+|.UUUCCCHH.
+|.UUFFCCC..
+|UUFFFF....
+|UUFF......
+|.UU.......
+
+view D key bw_xcrank origin 5 0 layer held
+mark grip 7 3
+mark handR 7 3
+|....555...
+|...5875...
+|..5876qtsq
+|.5876iqsrq
+|5876hhgqq.
+|57776ff...
+|57555.....
+|.5........
+regions
+|....UUU...
+|...UUUU...
+|..UUUUHHHH
+|.UUUUCHHHH
+|UUUUCCCHH.
+|UUFFFCC...
+|UUFFF.....
+|.U........
+
+view U key bw_xcrank origin 3 0
+mark grip 1 3
+mark handR 1 3
+|..555....
+|..5775...
+|qtsq775..
+|qsrq7775.
+|.qqhh7775
+|..ff77775
+|....55575
+|.......5.
+regions
+|..UUU....
+|..UUUU...
+|HHHHUUU..
+|HHHHUUUU.
+|.HHCCUUUU
+|..CCFFFUU
+|....FFFUU
+|.......U.

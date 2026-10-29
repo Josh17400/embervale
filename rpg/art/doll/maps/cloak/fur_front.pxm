@@ -35,6 +35,42 @@ view R key rest origin 8 2
 |.fhhgghhggff..
 |..ffffffff....
 
+# (ARMOUR-X wave 2 r4, variant.py fit) t34 `!armour.t1,!woman` (from `cloak.t1,!cloak.t3`)
+view R key rest origin 8 2 when cloak.t3,!cloak.t5,!armour.t1,!woman replace
+|....fff.......
+|.....fiff..ff.
+|....fihhhffhgf
+|....fhhhhhhggf
+|.....fhhggff..
+|......ffff....
+
+# (ARMOUR-X wave 2 r4, collar.py) R T3-T4: the collar's back 1 column(s) trimmed (C12f cap 2)
+# (ARMOUR-X wave 2 r4, variant.py fit) t34 `form-leaf` 1 col(s) toward the body
+view R key rest origin 6 2 when cloak.t3,!cloak.t5,form-leaf replace
+|..ffff.......
+|fiijhhff..ff.
+|fijiihhhffhgf
+|fiihhhhhhhggf
+|fhhgghhggff..
+|.ffffffff....
+
+view R key rest origin 7 2 when cloak.t3,!cloak.t5 replace
+|..ffff.......
+|fiijhhff..ff.
+|fijiihhhffhgf
+|fiihhhhhhhggf
+|fhhgghhggff..
+|.ffffffff....
+# (ARMOUR-X wave 2, cloakx.py) R rest when cloak.t1,!cloak.t3
+view R key rest origin 8 2 when cloak.t1,!cloak.t3 replace
+|....fff.......
+|.....fiff..ff.
+|....fihhhffhgf
+|....fhhhhhhggf
+|.....fhhggff..
+|......ffff....
+
+
 view L key rest origin 5 2
 |.......ffff...
 |.ff..ffhhhggf.
@@ -43,8 +79,44 @@ view L key rest origin 5 2
 |..ffiihhiihhf.
 |....ffffffff..
 
+# (ARMOUR-X wave 2 r4, variant.py fit) t34 `!armour.t1,!woman` (from `cloak.t1,!cloak.t3`)
+view L key rest origin 5 2 when cloak.t3,!cloak.t5,!armour.t1,!woman replace
+|.......fff....
+|.ff..ffgf.....
+|fihffhhhgf....
+|fiihhhhhhf....
+|..ffiihhf.....
+|....ffff......
+
+# (ARMOUR-X wave 2 r4, collar.py) L T3-T4: the collar's back 1 column(s) trimmed (C12f cap 2)
+# (ARMOUR-X wave 2 r4, variant.py fit) t34 `form-leaf` 1 col(s) toward the body
+view L key rest origin 6 2 when cloak.t3,!cloak.t5,form-leaf replace
+|.......ffff..
+|.ff..ffhhhggf
+|fihffhhhgghgf
+|fiihhhhhhhggf
+|..ffiihhiihhf
+|....ffffffff.
+
+view L key rest origin 5 2 when cloak.t3,!cloak.t5 replace
+|.......ffff..
+|.ff..ffhhhggf
+|fihffhhhgghgf
+|fiihhhhhhhggf
+|..ffiihhiihhf
+|....ffffffff.
+
 # (INTEGRATION 2026-10-23, `walk`: the walk clips only) her walk's passing frames (hang=rest): the back edge 1 px in, inside her
 # narrower body (B11 W8: the man's stood 1-4 columns past her box); the front edge as his.
+# (ARMOUR-X wave 2, cloakx.py) L rest when cloak.t1,!cloak.t3
+view L key rest origin 5 2 when cloak.t1,!cloak.t3 replace
+|.......fff....
+|.ff..ffgf.....
+|fihffhhhgf....
+|fiihhhhhhf....
+|..ffiihhf.....
+|....ffff......
+
 view L key rest origin 5 2 when woman,walk replace
 |.......fff....
 |.ff..ffhhhgf..

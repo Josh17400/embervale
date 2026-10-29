@@ -1,0 +1,82 @@
+# P2c flip pack (SWITCH; PLAN "The flip (wave 3)": the owner's go is given on these pairs): before / after at rig 1 and rig 2
+# of the same moment: every menu: EQUIP (the paperdoll, a T6 hero and a pack piece picked: the loot preview), HERO, PARTY, the party column's portraits, a dialogue's speaker. Captures after `skill clearing` or a move wait with `settle` (D65); every image is the window
+# (1440 x 810; the _phone twin 2556 x 1179), under 8,000 px. Run once per build; nothing here fails on the art.
+#   embervale.exe --script tools/scripts/p2c_menus_flip.txt     (p2c_menus_flip_<screen>_rig1.png / _rig2.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 zoom normal
++0.1 gear 3
++0.1 gear 5
++0.1 party recruit 2
++0.6 menu 5
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_rig2.png
++0.1 lootsel doll 3 0
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_loot_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_loot_rig2.png
++0.1 key Escape
++0.3 menu 3
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_hero_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_hero_rig2.png
++0.1 key Escape
++0.3 menu 6
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_party_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_party_rig2.png
++0.1 key Escape
++0.5 ui 1
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_portraits_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_portraits_rig2.png
++0.1 party talk 0
++0.8 expect mode dialogue
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_dialogue_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_dialogue_rig2.png
++0.1 key Escape
++0.3 ladderkit lt6
++0.3 menu 5
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_t6_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_menus_flip_equip_t6_rig2.png

@@ -1325,6 +1325,71 @@ void glassPass(const DollRecipe& r, FrameOut& o) {
     }
     groups++;
   }
+  // (wave 2 int2, C17 "1-3 on the armour") the glints already laid on the helm, the greaves and the silver fill the three
+  // before the loop above reaches a body piece, and a glass body made only of narrow facets (the shard and crystal shoulders'
+  // spikes under a tabard: no plane of 10 px with a lit top-edge pair) never qualifies for a bar: then the body piece with
+  // the most lit pixels takes ONE specular at its lit pixel nearest the top-left light (a 2 px pair when the facet allows
+  // and the sheen is not matte), and the figure's farthest glint off the body goes to the lit plane so three stay at most
+  {
+    auto bodyAt = [&](int x, int y) { return (g_bodyPiece[(size_t)(y0 + y) * CW + (x0 + x)] & 1) != 0; };
+    bool body4 = false;
+    for (int y = 0; y < h && !body4; y++)
+      for (int x = 0; x < w && !body4; x++) body4 = m4(x, y) && bodyAt(x, y);
+    int best = -1, bestN = 0;
+    for (int id = 0; !body4 && id < (int)pcs.size(); id++) {
+      if (!pcs[(size_t)id].body) continue;
+      int n = 0;
+      for (int q : pcs[(size_t)id].px) n += codeStep(at(q % w, q / w)) >= 2 && !face(q % w, q / w);
+      if (n > bestN) { bestN = n; best = id; }
+    }
+    if (best >= 0 && bestN >= 2) {
+      int bx = -1, by = -1, bk = 1 << 30;
+      for (int q : pcs[(size_t)best].px) {
+        const int x = q % w, y = q / w;
+        if (codeStep(at(x, y)) < 2 || face(x, y)) continue;
+        const int k = (y - pcs[(size_t)best].y0) * 2 + (x - pcs[(size_t)best].x0);
+        if (k < bk) { bk = k; bx = x; by = y; }
+      }
+      if (bx >= 0) {
+        put(bx, by, 4);
+        if (!matte) {
+          if (in(bx + 1, by, best) && codeStep(at(bx + 1, by)) >= 2 && !face(bx + 1, by)) put(bx + 1, by, 4);
+          else if (in(bx, by + 1, best) && codeStep(at(bx, by + 1)) >= 2 && !face(bx, by + 1)) put(bx, by + 1, 4);
+        }
+        // the cap: every step-4 cluster of the figure's metal (Metal and Metal 2, 8-connected); over three, the off-body
+        // clusters farthest from the top-left light take step 3
+        auto any4 = [&](int x, int y) {
+          if (x < 0 || y < 0 || x >= w || y >= h) return false;
+          const uint8_t c = at(x, y);
+          return c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2) && codeStep(c) == 4;
+        };
+        struct G4 { int key; bool body; std::vector<int> px; };
+        std::vector<G4> gs;
+        std::vector<char> seen((size_t)w * h, 0);
+        for (int y = 0; y < h; y++)
+          for (int x = 0; x < w; x++) {
+            if (!any4(x, y) || seen[(size_t)y * w + x]) continue;
+            G4 g{1 << 30, false, {}};
+            std::vector<int> st{y * w + x};
+            seen[(size_t)y * w + x] = 1;
+            while (!st.empty()) {
+              const int q = st.back(); st.pop_back(); g.px.push_back(q);
+              g.key = std::min(g.key, (q / w) * 2 + q % w);
+              g.body |= bodyAt(q % w, q / w);
+              for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++) {
+                  const int nx = q % w + dx, ny = q / w + dy;
+                  if (any4(nx, ny) && !seen[(size_t)ny * w + nx]) { seen[(size_t)ny * w + nx] = 1; st.push_back(ny * w + nx); }
+                }
+            }
+            gs.push_back(std::move(g));
+          }
+        std::stable_sort(gs.begin(), gs.end(), [](const G4& a, const G4& b) { return a.body != b.body ? !a.body : a.key > b.key; });
+        for (size_t i = 0; i < gs.size() && gs.size() - i > 3 && !gs[i].body; i++)
+          for (int q : gs[i].px) at(q % w, q / w) = code(codeSlot(at(q % w, q / w)), 3);
+      }
+    }
+  }
   // (envelope fix round, FORGE-MATERIAL; D62 "no pale patch") on a GLASS alloy no connected step 3-4 region of its metal
   // (Metal and the silver) reaches 12 px: the light is a small top-left facet, a rim line and 2-6 px glints, never a pale
   // plane (the enamel and jade tell). A region of 12 or more keeps its rim pixels (step 3 within 2 px of the outline at the

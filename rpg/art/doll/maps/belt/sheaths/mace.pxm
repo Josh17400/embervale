@@ -1,0 +1,34 @@
+# belt/sheaths/mace: the keys of `sheath mace` the belt map held/civil/hammer.pxm (rest kick lag sit) does not draw, P2c wave 2
+# WEAPONS: `drawn` (the weapon is in hand: the belt is empty) and `lie` (under the body): both draw nothing, so the
+# drawn and death clips find their key on the sheath channel.
+use person
+body adult
+role sheath mace
+layer belt
+anchor hip
+keys sheath
+
+view D key drawn origin 0 0
+|.
+
+view D key lie origin 0 0
+|.
+
+view U key drawn origin 0 0
+|.
+
+view U key lie origin 0 0
+|.
+
+view R key drawn origin 0 0
+|.
+
+view R key lie origin 0 0
+|.
+
+view L key drawn origin 0 0
+|.
+
+view L key lie origin 0 0
+|.
+

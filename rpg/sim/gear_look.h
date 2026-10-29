@@ -48,3 +48,9 @@ art::IconLook gearIcon(const Item& it, const cult::Culture* maker);
 // (alloys i1) gearIcon without the rig-2 doll metal (IconLook::dollMetal / alloyFam): the culture's own alloy keys, which
 // gear::alloyKeys reads to pick each people's families
 art::IconLook gearIconKeys(const Item& it, const cult::Culture* maker);
+
+// (P2c FOLK-SIM-C) a census look whose role fields changed after Game::makeLook (game.cpp spawnHuman's bandit chief: plate,
+// helm and cape; quests.cpp questSpawned's named chief): clears the ladder's derived fields and sets the rank's tiers again
+// (gear::rankTiers: every worn slot at `tier`, the metal, the forge style; realm: the officers' alloy at T4+, may be null).
+// PLAN "People": a bandit chief is T2. Ladder fields only (rig 1 untouched).
+void retierLook(art::HumanLook& L, int tier, const cult::Culture* realm);

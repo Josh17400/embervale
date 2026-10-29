@@ -1,0 +1,111 @@
+# legs/adult/action/body/std: the adult legs of the roll (ACTIONS-BODY, P2c wave 2; STYLE_P2 25.8 item 8; MOTION_P2 7):
+# GENERATED from the area's grids. rlcrouch (the crouch, bob 5: the thighs level, the knee forward, flat boots by `put`),
+# rltuck / rlover (composed in the left view and laid down by the clip's turn: the knees drawn up to the chest).
+# The rise and the cast stand on the loco legs (buckle, stance, lunge, drawn). Regions T K S B O. Format: doll.h.
+use person
+body adult
+role legs std
+layer legs
+anchor pivot
+keys legs
+stamps boots_adult
+
+view R key rlcrouch origin 5 6
+put K0n 1 0
+|..1222222221...
+|.13333334443...
+|.12333333443...
+|..1222fiihhf...
+|.......fhhgf...
+|...............
+|...............
+regions
+|..TTTTTTTTTT...
+|.TTTTTTTTKKK...
+|.TTTTTTTTKKK...
+|..TTTTSSSSSS...
+|.......SSSSS...
+|...............
+|...............
+
+view L key rltuck origin 7 6
+|..122221...
+|.14433321..
+|.143333321.
+|.fihhf3331.
+|fihhggf122.
+|fhhgggf.11.
+|KKKKKKK....
+regions
+|..TTTTTT...
+|.KKTTTTTT..
+|.KKTTTTTTT.
+|.SSSSSTTTT.
+|BBBBBBBTTT.
+|BBBBBBB.TT.
+|OOOOOOO....
+
+view L key rlover origin 7 6
+|..122221...
+|.14433321..
+|.143333321.
+|.fihhf3331.
+|fihhggf122.
+|fhhgggf.11.
+|KKKKKKK....
+regions
+|..TTTTTT...
+|.KKTTTTTT..
+|.KKTTTTTTT.
+|.SSSSSTTTT.
+|BBBBBBBTTT.
+|BBBBBBB.TT.
+|OOOOOOO....
+
+view L key rlcrouch origin 10 6
+put K0n -2 0
+|...1222222221...
+|...13333334443..
+|...12333333443..
+|...fiihhf1222...
+|...fhhgf........
+|................
+|................
+regions
+|...TTTTTTTTTT...
+|...KKKTTTTTTTT..
+|...KKKTTTTTTTT..
+|...SSSSSSTTTT...
+|...SSSSS........
+|................
+|................
+
+view D key rlcrouch origin 8 5
+|.1222221.1222221.
+|14433321.13334321
+|.fiihhf...fiihhf.
+|.fhhhgf...fhhggf.
+|fjihhgf...fhhgggf
+|KKKKKKK...KKKKKKK
+regions
+|.TTTTTTT.TTTTTTT.
+|KKKKKKKK.KKKKKKKK
+|.SSSSSS...SSSSSS.
+|.BBBBBB...BBBBBB.
+|BBBBBBB...BBBBBBB
+|OOOOOOO...OOOOOOO
+
+view U key rlcrouch origin 8 5
+|.1222221.1222221.
+|14333321.13333321
+|.fhhhgf...fhhggf.
+|.fhhhgf...fhhggf.
+|fhhhhgf...fhhgggf
+|KKKKKKK...KKKKKKK
+regions
+|.TTTTTTT.TTTTTTT.
+|KKKKKKKK.KKKKKKKK
+|.SSSSSS...SSSSSS.
+|.BBBBBB...BBBBBB.
+|BBBBBBB...BBBBBBB
+|OOOOOOO...OOOOOOO

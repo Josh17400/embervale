@@ -16,8 +16,34 @@ side L
 
 view D key rest origin 2 7 layer headwear
 |.......vv
-|......vyv
-|..vv.vyyv
+|....vvvyv
+|..vvvvyyv
+|.vyxvvyxv
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|vxwwxxwv.
+|vyyyxxwv.
+|.vxxwwwv.
+|..vvvvv..
+regions
+|.........
+|.......P.
+|..P...PP.
+|..PP..PP.
+|.........
+|.PPP.PP..
+|.PP......
+|.NNNN....
+|.RRRR....
+|.........
+|.........
+
+# (ARMOUR-X r2) D rest under a horned helm: the spikes 2 px lower (C3a)
+view D key rest origin 2 7 layer headwear when helmfam-horned replace
+|.........
+|.........
+|..vvvvyyv
 |.vyxvvyxv
 |vvvvvvvvv
 |vyyyxxywv
@@ -41,8 +67,34 @@ regions
 
 view D key up origin 2 8 layer headwear
 |.......vv
-|......vyv
-|..vv.vyyv
+|....vvvyv
+|..vvvvyyv
+|.vyxvvyxv
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|vxwwxxwv.
+|vyyyxxwv.
+|.vxxwwwv.
+|..vvvvv..
+regions
+|.........
+|.......P.
+|..P...PP.
+|..PP..PP.
+|.........
+|.PPP.PP..
+|.PP......
+|.NNNN....
+|.RRRR....
+|.........
+|.........
+
+# (ARMOUR-X r2) D up under a horned helm: the spikes 2 px lower (C3a)
+view D key up origin 2 8 layer headwear when helmfam-horned replace
+|.........
+|.........
+|..vvvvyyv
 |.vyxvvyxv
 |vvvvvvvvv
 |vyyyxxywv
@@ -66,8 +118,34 @@ regions
 
 view D key lie origin 2 7
 |.......vv
-|......vyv
-|..vv.vyyv
+|....vvvyv
+|..vvvvyyv
+|.vyxvvyxv
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|vxwwxxwv.
+|vyyyxxwv.
+|.vxxwwwv.
+|..vvvvv..
+regions
+|.........
+|.......P.
+|..P...PP.
+|..PP..PP.
+|.........
+|.PPP.PP..
+|.PP......
+|.NNNN....
+|.RRRR....
+|.........
+|.........
+
+# (ARMOUR-X r2) D lie under a horned helm: the spikes 2 px lower (C3a)
+view D key lie origin 2 7 when helmfam-horned replace
+|.........
+|.........
+|..vvvvyyv
 |.vyxvvyxv
 |vvvvvvvvv
 |vyyyxxywv
@@ -91,8 +169,8 @@ regions
 
 view U key rest origin 6 7 layer headwear
 |vv.......
-|vyv......
-|vyyv.vv..
+|vyvvv....
+|vyyvvvv..
 |vyxvvyxv.
 |vvvvvvvvv
 |vyyyxxywv
@@ -100,7 +178,33 @@ view U key rest origin 6 7 layer headwear
 |.vxwwxxwv
 |.vyyyxxwv
 |.vxxwwwv.
-|..vvvvv..
+|..vvvvvv.
+regions
+|.........
+|.P.......
+|.PP...P..
+|.PP..PP..
+|.........
+|.PPP.PP..
+|.PP......
+|..NNNN...
+|..RRRR...
+|.........
+|.........
+
+# (ARMOUR-X r2) U rest under a horned helm: the spikes 2 px lower (C3a)
+view U key rest origin 6 7 layer headwear when helmfam-horned replace
+|.........
+|.........
+|vyyvvvv..
+|vyxvvyxv.
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|.vxwwxxwv
+|.vyyyxxwv
+|.vxxwwwv.
+|..vvvvvv.
 regions
 |.........
 |.P.......
@@ -116,8 +220,8 @@ regions
 
 view U key up origin 6 8 layer headwear
 |vv.......
-|vyv......
-|vyyv.vv..
+|vyvvv....
+|vyyvvvv..
 |vyxvvyxv.
 |vvvvvvvvv
 |vyyyxxywv
@@ -125,7 +229,33 @@ view U key up origin 6 8 layer headwear
 |.vxwwxxwv
 |.vyyyxxwv
 |.vxxwwwv.
-|..vvvvv..
+|..vvvvvv.
+regions
+|.........
+|.P.......
+|.PP...P..
+|.PP..PP..
+|.........
+|.PPP.PP..
+|.PP......
+|..NNNN...
+|..RRRR...
+|.........
+|.........
+
+# (ARMOUR-X r2) U up under a horned helm: the spikes 2 px lower (C3a)
+view U key up origin 6 8 layer headwear when helmfam-horned replace
+|.........
+|.........
+|vyyvvvv..
+|vyxvvyxv.
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|.vxwwxxwv
+|.vyyyxxwv
+|.vxxwwwv.
+|..vvvvvv.
 regions
 |.........
 |.P.......
@@ -141,8 +271,8 @@ regions
 
 view U key lie origin 6 7
 |vv.......
-|vyv......
-|vyyv.vv..
+|vyvvv....
+|vyyvvvv..
 |vyxvvyxv.
 |vvvvvvvvv
 |vyyyxxywv
@@ -150,7 +280,33 @@ view U key lie origin 6 7
 |.vxwwxxwv
 |.vyyyxxwv
 |.vxxwwwv.
-|..vvvvv..
+|..vvvvvv.
+regions
+|.........
+|.P.......
+|.PP...P..
+|.PP..PP..
+|.........
+|.PPP.PP..
+|.PP......
+|..NNNN...
+|..RRRR...
+|.........
+|.........
+
+# (ARMOUR-X r2) U lie under a horned helm: the spikes 2 px lower (C3a)
+view U key lie origin 6 7 when helmfam-horned replace
+|.........
+|.........
+|vyyvvvv..
+|vyxvvyxv.
+|vvvvvvvvv
+|vyyyxxywv
+|vyyxwwxwv
+|.vxwwxxwv
+|.vyyyxxwv
+|.vxxwwwv.
+|..vvvvvv.
 regions
 |.........
 |.P.......

@@ -28,6 +28,24 @@ regions
 |...PPP..
 |...NNN..
 |........
+# (ARMOUR-X wave 2, fitcap.py) D rest: 3 px reach -> 2 at T3
+view D key rest origin 3 5 layer headwear when armour.t3,!armour.t4 replace
+|vv.....
+|vv.....
+|.vvvvvv
+|.vxxxyv
+|..vyyv.
+|..vxxv.
+|..vxyv.
+regions
+|.......
+|.......
+|.......
+|..PPPP.
+|...PP..
+|...NN..
+|.......
+
 
 view D key up origin 4 6 layer headwear
 |vv......
@@ -45,6 +63,24 @@ regions
 |...PPP..
 |...NNN..
 |........
+# (ARMOUR-X wave 2, fitcap.py) D up: 3 px reach -> 2 at T3
+view D key up origin 3 6 layer headwear when armour.t3,!armour.t4 replace
+|vv.....
+|vv.....
+|.vvvvvv
+|.vxxxyv
+|..vyyv.
+|..vxxv.
+|..vxyv.
+regions
+|.......
+|.......
+|.......
+|..PPPP.
+|...PP..
+|...NN..
+|.......
+
 
 view D key lie origin 4 5
 |vv......
@@ -62,6 +98,24 @@ regions
 |...PPP..
 |...NNN..
 |........
+# (ARMOUR-X wave 2, fitcap.py) D lie: 3 px reach -> 2 at T3
+view D key lie origin 3 5 when armour.t3,!armour.t4 replace
+|vv.....
+|vv.....
+|.vvvvvv
+|.vxxxyv
+|..vyyv.
+|..vxxv.
+|..vxyv.
+regions
+|.......
+|.......
+|.......
+|..PPPP.
+|...PP..
+|...NN..
+|.......
+
 
 view U key rest origin 2 3 layer headwear
 |....vv
@@ -77,6 +131,22 @@ regions
 |...P..
 |......
 |.RRR..
+# (ARMOUR-X wave 2, fitcap.py) U rest: 3 px reach -> 2 at T3
+view U key rest origin 2 3 layer headwear when armour.t3,!armour.t4 replace
+|...vv
+|...vv
+|vvvyv
+|vxxxv
+|.xxwv
+|vvvvv
+regions
+|....R
+|....P
+|...P.
+|...P.
+|.....
+|RRR..
+
 
 view U key up origin 2 4 layer headwear
 |....vv
@@ -92,6 +162,22 @@ regions
 |...P..
 |......
 |.RRR..
+# (ARMOUR-X wave 2, fitcap.py) U up: 3 px reach -> 2 at T3
+view U key up origin 2 4 layer headwear when armour.t3,!armour.t4 replace
+|...vv
+|...vv
+|vvvyv
+|vxxxv
+|.xxwv
+|vvvvv
+regions
+|....R
+|....P
+|...P.
+|...P.
+|.....
+|RRR..
+
 
 view U key lie origin 2 3
 |....vv
@@ -107,6 +193,22 @@ regions
 |...P..
 |......
 |.RRR..
+# (ARMOUR-X wave 2, fitcap.py) U lie: 3 px reach -> 2 at T3
+view U key lie origin 2 3 when armour.t3,!armour.t4 replace
+|...vv
+|...vv
+|vvvyv
+|vxxxv
+|.xxwv
+|vvvvv
+regions
+|....R
+|....P
+|...P.
+|...P.
+|.....
+|RRR..
+
 
 view R key rest origin 6 3 layer headwear
 |vv........

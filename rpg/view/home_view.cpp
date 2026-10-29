@@ -497,16 +497,18 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   int sdx = 0, sdy = 0;   // the saddle's seat point (from the hooves' row at the cell's centre column)
   art::saddleSeat(row, fr, sdx, sdy);
   if (flip) { dx = -dx; sdx = -sdx; }
-  const Tex* rt = poseTex(a.look, art::Posture::Ride);
-  const Tex& rider = rt ? *rt : humanTex(a.look);
   const float rx = std::floor(fx + dx - art::HUMAN_W / 2.0f), ry = std::floor(fy + dy - art::HUMAN_H + 2 + art::postureInfo(art::Posture::Ride).dy);
-  const int rfr = rt ? 0 : 0;
+  const int rfr = 0;
   // (P2a LENS) at rig 2 a covered look rides on v2 (the Ride posture's frame, its hip anchor on the saddle's seat
   // point); the body's blits are recorded for the night lift (the horse's are not)
   RideGhost g2;
   bool v2 = false;
   auto body = [&](Color c, int blend) {
-    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2)) { v2 = true; return; }
+    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) { v2 = true; return; }
+    // (P2c SWITCH) the v1 rider only when the doll did not draw it (no v1 sheet baked behind a rig-2 rider)
+    const Tex* rt = poseTex(a.look, art::Posture::Ride);
+    const Tex& rider = rt ? *rt : humanTex(a.look);
+    if (blend == 0) v1Draws++;
     if (blend == 0) P.recordBlits(&liftRecs_);
     P.blitEx(rider, rfr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
     P.recordBlits(nullptr);
@@ -540,7 +542,7 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
     parts_.push_back(q);
   }
   if (v2) rideGhost_ = g2;
-  else { rideGhost_.t = &rider; rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
+  else { const Tex* rt = poseTex(a.look, art::Posture::Ride); rideGhost_.t = rt ? rt : &humanTex(a.look); rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
   if (a.player) {   // (P2b integration) the hero as drawn, for Witness (state.player.sprite): the rider's frame, not stale
     HeroSprite& hs = heroSprite;   // (drawHumanBody, which fills it on foot, is not called for the rider)
     hs = HeroSprite();

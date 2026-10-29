@@ -29,11 +29,13 @@ constexpr TierEnvelope kEnvelope[7] = {
   { 18,  3,  6,  0,  1,  3,  2,  0,  0,  2,  0,  0,  0,  0, 110, 128,  64, 256, 512, 52, 64 },  // T2
   { 20,  4,  6,  1,  1,  3,  3,  1,  0,  2,  0,  0,  0,  0, 120, 128,  64, 256, 512, 52, 64 },  // T3
   { 22,  6,  6,  1,  1,  3,  4,  2,  0,  2,  0,  0,  0,  0, 135, 160,  80, 320, 512, 52, 64 },  // T4
-  { 26,  8,  8,  2,  2,  3,  5,  3,  2,  8,  1,  1,  8, 32, 155, 200, 100, 400,   0,  0,  0 },  // T5
-  { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400,   0,  0,  0 },  // T6
+  { 26,  8,  8,  2,  2,  3,  5,  3,  2,  8,  1,  1,  8, 32, 155, 200, 100, 400, 512, 59, 74 },  // T5
+  { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400, 512, 59, 74 },  // T6
 };
 constexpr int kAreaStep = 5;                       // each tier's area >= the tier below's + 5 (x100 of T1)
 constexpr uint32_t kPoolBudget = 2621440;          // 2.5 MiB (D46); pxc.mjs prints it
+// (integrator, wave 2 int3, D70) T5-T6 ACTION DEATH POSTURE from e6: 400.9 / 53.3 / 66.5 KB x 1.1 = 441 / 59 / 74, ACTION raised
+// to the T1-T3 row's 512 (never under it)
 constexpr int kMeasuredCap[3] = {716, 72, 89};     // T5-T6 ACTION, DEATH, POSTURE KB: e6 measured x 1.1, never above these
 constexpr double kHeadOdStep = 0.10;               // consecutive heads of a line (C12f) and the 37's heads (C16k): planned
 constexpr int kHeadAreaStepPct = 5;                // T3..T6: each head's area >= the tier below's + 5 %
@@ -45,6 +47,23 @@ constexpr int kGuardOverOwnTier = 110;
 constexpr int kGuardShoulders = 20;
 constexpr int kGuardCapeRowsD = 6;
 constexpr int kGuardCapeBackR = 1;
+
+// (P2c wave 2, DOLL-C; PLAN "The envelope in production") a per-people ruling on C12f's climb over source L: a people's line
+// that still misses with every lever drawn goes to the planner, and only a ruling recorded in PLAN (named in `plan`) lets
+// it stand; `rpg_test --doll-envelope --scope ladder` prints such a line as ruled, never as a pass. `people` is the kit
+// name (heartland ...), `term` the failing term's prefix as the gate prints it ("T5 area", "T2 head", "T4-T5 head OD" ...),
+// `body` 0 man / 1 woman / -1 both. None recorded yet: the sentinel row ends the table.
+struct EnvelopeRuling { const char* people; int body; const char* term; const char* plan; };
+constexpr EnvelopeRuling kEnvelopeRulings[] = {
+    {nullptr, -1, nullptr, nullptr},
+};
+
+// (P2c wave 2 r3, DOLL-C) rpg_test's what-if knob for the planner's C12f ruling (`--doll-envelope --scope ladder --what-if
+// <names>`): the resolver reads it in ladderLook; 0 (always, outside that command) changes nothing. Bits: 1 t4large (a T4
+// body with shoulder mass wears the large size, the envelope's "T4 large"), 2 t3nocape (no D69 cape at T3: the floor of
+// the cape-length lever), 4 t4cloak (a T4 body with no over-layer cloak wears the travel cloak: the table's "a cape or the
+// travel cloak", which D69 forbids), 8 t2cap (the owner's switch: T2 only capped, measured as T2 = max(T2, T1 x 1.10)).
+inline int& envelopeWhatIf() { static int v = 0; return v; }
 
 inline const TierEnvelope& envelopeOf(int tier) { return kEnvelope[tier >= 0 && tier <= 6 ? tier : 0]; }
 // B10's KB for a figure whose highest piece is `tier` (atlas: 0 LOCO 1 RUN 2 DRAWN 3 ACTION 4 DEATH 5 POSTURE); a 0 left in

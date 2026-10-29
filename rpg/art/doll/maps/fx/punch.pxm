@@ -1,0 +1,81 @@
+# fx/punch: the Punch Star (the fists' effect, `fx punch`; core #FFF0C0, body #FFC878, rim #F08A3C): the star at
+# the fist at full reach with two short speed lines; the follow a ring opening out.
+# Tones (contracts 4, STYLE_P2 25.10): C edge (fx 0), B body (fx 1), A core (fx 2) are A3's three; S (fx 3) and T (fx 4)
+# are the family's accents (named below). art_fx draws the map in the family's own ramp (STYLE_P2 6's named colours) and the
+# finisher (hit 3) in the #FFE6A0 tint. a1 is the impact (the strike frame: full width), a2 the follow's first frame
+# (thinning, debris falling); nothing on later frames. Side views drawn facing right, L mirrored (FX carry no light); U is
+# D mirrored a row higher, behind the body. Pivot-relative: every pixel above the sole row (y -1 or higher), inside the
+# figure's box plus the family's reach (rig(2).reach).
+# Format: rpg/art/doll/doll.h. (P2c wave 2, FX round 1)
+use person
+body adult
+role fx punch
+layer fx
+anchor pivot
+keys fx
+legend S fx 3
+legend T fx 4
+
+view R key a1 origin -4 21 layer fx
+|.......C...
+|.......B...
+|CBB...BAB..
+|....CBAAABC
+|.CB...BAB..
+|.......B...
+|.......C...
+
+view L key a1 origin 14 21 layer fx
+|...C.......
+|...B.......
+|..BAB...BBC
+|CBAAABC....
+|..BAB...BC.
+|...B.......
+|...C.......
+
+view D key a1 origin 7 18 layer fx
+|...C...
+|...B...
+|..BAB..
+|CBAAABC
+|..BAB..
+|...B...
+|...C...
+
+view U key a1 origin -1 19 layer fxBack
+|...C...
+|...B...
+|..BAB..
+|CBAAABC
+|..BAB..
+|...B...
+|...C...
+
+view R key a2 origin -10 20 layer fx
+|..C..
+|..B..
+|CBBBC
+|..B..
+|..C..
+
+view L key a2 origin 14 20 layer fx
+|..C..
+|..B..
+|CBBBC
+|..B..
+|..C..
+
+view D key a2 origin 6 17 layer fx
+|..C..
+|..B..
+|CBBBC
+|..B..
+|..C..
+
+view U key a2 origin -2 18 layer fxBack
+|..C..
+|..B..
+|CBBBC
+|..B..
+|..C..

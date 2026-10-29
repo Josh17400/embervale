@@ -39,10 +39,12 @@ view D key 2x3 origin 0 0
 |33
 |30
 
+# (FINISH wave 2 r3) 3x3 a cabochon in the 2x2 / 3x2 language: the white point top-left, the Glow 3 body, a Glow 2
+# shade on the bottom-right corner. The r2 star's four device-blue corners inside the pale socket read as a die face at 1x-3x.
 view D key 3x3 origin 0 0
-|k3k
-|313
-|k3k
+|133
+|333
+|330
 
 view D key rest origin 0 0
 |1

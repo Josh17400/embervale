@@ -1,0 +1,14 @@
+# armour/tiles/rivets: the brigandine's rivet heads on its sleeve (U, the `brigandine` form; ARMOUR-X wave 2): a metal-2
+# head with its shadow under it on a 4 x 4 grid, offset each row (the plates under the cloth read as a studded jack).
+# Format: rpg/art/doll/doll.h; `on-region` contracts 4.
+use person
+body adult
+role overlay rivets
+tags tile overlay
+on-region U
+
+view D key rest origin 0 0
+|.O..
+|.N..
+|...O
+|...N

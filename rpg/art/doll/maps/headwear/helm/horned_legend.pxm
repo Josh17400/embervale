@@ -1,0 +1,189 @@
+# headwear/helm/horned_legend: the HORNED family grown at T5-T6
+# (HELMS wave 2, round 1; PLAN D44 D68, STYLE_P2 29.4 / 29.10) the T5-T6 growth of the helm family `fam.horned` on a culture
+# alloy, drawn from the helm's own crown mark (placed on the head anchor at each variant's mark), so every variant keeps its outline and grows from its own
+# crown: T5 a fore-aft horsehair crest between the horns; T6 the crest between heraldic gilt wings.
+# Written by the HELMS area tools/grow.py from src/designs.py (D and R drawn; U is D; L is R mirrored and re-lit; lie = L).
+# The `!crest-<v>` terms step aside for the crests drawn on this family: a drawn crest grows itself (helm/crest/*.pxm).
+use person
+body adult
+role helm fam.horned
+layer headwear
+anchor head
+keys hatpose
+z 1
+tags overlay
+legend X glow 3
+legend W glow 4
+legend J metal2 0
+legend Q metal2 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+view D key rest origin 0 0
+|.
+view U key rest origin 0 0
+|.
+view R key rest origin 0 0
+|.
+view L key rest origin 0 0
+|.
+view L key lie origin 0 0
+|.
+view D key breeze origin 0 0
+|.
+view U key breeze origin 0 0
+|.
+view D key rest origin 2 7 when helm.t6,alloyshape,helmfam-horned replace
+|.........vv.........
+|........vQOv........
+|vv......FFFF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOFTSSRFOOONNv.
+|..vvPPOFTSSRFONNvv..
+|....vvPPFTRFNNvv....
+|......vvvPOvvv......
+view D key rest origin -5 5 when helm.t5,alloyshape,helmfam-horned replace
+|.FFFF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|.FTRF.
+|.vPOv.
+view U key rest origin 2 7 when helm.t6,alloyshape,helmfam-horned replace
+|.........vv.........
+|........vQOv........
+|vv......FFFF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOFTSSRFOOONNv.
+|..vvPPOFTSSRFONNvv..
+|....vvPPFTRFNNvv....
+|......vvvPOvvv......
+view U key rest origin -5 5 when helm.t5,alloyshape,helmfam-horned replace
+|.FFFF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|.FTRF.
+|.vPOv.
+view R key rest origin 1 7 when helm.t6,alloyshape,helmfam-horned replace
+|.............vv.
+|...........vvQv.
+|.vv......vvPPOv.
+|.vPvv..vvPPPOOv.
+|.vPPOFFFFFFFFNv.
+|.vPFFTTTTTTSSFF.
+|.vFTTSSSSSSSSRRF
+|vPFTSSSSSSSSRRRF
+|vOFSSSSSSSSRRRRF
+|.vFSSRFvPOvFRRRF
+|..FSRF......FRRF
+|..FFF........FF.
+|..F.............
+view R key rest origin -1 3 when helm.t5,alloyshape,helmfam-horned replace
+|...FFFFFFFF...
+|.FFTTTTTTSSFF.
+|FTTSSSSSSSSRRF
+|FTSSSSSSSSRRRF
+|FSSSSSSSSRRRRF
+|FSSRFvPOvFRRRF
+|FSRF......FRRF
+|FFF........FF.
+|F.............
+view L key rest origin -1 7 when helm.t6,alloyshape,helmfam-horned replace
+|.vv.............
+|.vQvv...........
+|.vONNvv......vv.
+|.vOONNNvv..vvNv.
+|.vPFFFFFFFFONNv.
+|.FFSSRRRRRRFFNv.
+|FTTSSSSSSSSRRFv.
+|FTTTSSSSSSSSRFNv
+|FTTTTSSSSSSSSFOv
+|FTTTFvONvFTSSFv.
+|FTTF......FTSF..
+|.FF........FFF..
+|.............F..
+view L key rest origin -1 3 when helm.t5,alloyshape,helmfam-horned replace
+|...FFFFFFFF...
+|.FFSSRRRRRRFF.
+|FTTSSSSSSSSRRF
+|FTTTSSSSSSSSRF
+|FTTTTSSSSSSSSF
+|FTTTFvONvFTSSF
+|FTTF......FTSF
+|.FF........FFF
+|.............F
+view L key lie origin -1 7 when helm.t6,alloyshape,helmfam-horned replace
+|.vv.............
+|.vQvv...........
+|.vONNvv......vv.
+|.vOONNNvv..vvNv.
+|.vPFFFFFFFFONNv.
+|.FFSSRRRRRRFFNv.
+|FTTSSSSSSSSRRFv.
+|FTTTSSSSSSSSRFNv
+|FTTTTSSSSSSSSFOv
+|FTTTFvONvFTSSFv.
+|FTTF......FTSF..
+|.FF........FFF..
+|.............F..
+view L key lie origin -1 3 when helm.t5,alloyshape,helmfam-horned replace
+|...FFFFFFFF...
+|.FFSSRRRRRRFF.
+|FTTSSSSSSSSRRF
+|FTTTSSSSSSSSRF
+|FTTTTSSSSSSSSF
+|FTTTFvONvFTSSF
+|FTTF......FTSF
+|.FF........FFF
+|.............F
+view D key breeze origin 3 7 when helm.t6,alloyshape,helmfam-horned replace
+|..........vv..........
+|.........vQOv.........
+|.vv.......FFFF.....vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOFTSSRFOOONNv..
+|...vvPPOFTSSRFONNvv...
+|.....vvPPFTRFNNvv.....
+|.......vvvPOvvv.......
+view D key breeze origin -4 5 when helm.t5,alloyshape,helmfam-horned replace
+|...FFFF.
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTRF..
+|..vPOv..
+view U key breeze origin 3 7 when helm.t6,alloyshape,helmfam-horned replace
+|..........vv..........
+|.........vQOv.........
+|.vv.......FFFF.....vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOFTSSRFOOONNv..
+|...vvPPOFTSSRFONNvv...
+|.....vvPPFTRFNNvv.....
+|.......vvvPOvvv.......
+view U key breeze origin -4 5 when helm.t5,alloyshape,helmfam-horned replace
+|...FFFF.
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTRF..
+|..vPOv..

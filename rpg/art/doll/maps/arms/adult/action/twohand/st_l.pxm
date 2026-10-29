@@ -1,0 +1,1299 @@
+# arms/adult/action/twohand/st_l: the staff's left arm (ACTIONS-2H; see staff.clip). Both fists 6-8 px apart on the haft line.
+use person
+body adult
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+z 1
+
+view R key st_guard origin 2 0 layer armNear
+mark gripL 6 2
+mark handL 6 2
+|...555...
+|..566qrrq
+|..566qrrq
+|.566hgqq.
+|.566ggf..
+|56665f...
+|5665.....
+|555......
+regions
+|...UUU...
+|..UUUHHHH
+|..UUUHHHH
+|.UUUCCHH.
+|.UUFCCC..
+|UUFFFC...
+|FUFF.....
+|UUF......
+
+view L key st_guard origin 5 0 layer held
+mark gripL 1 2
+mark handL 1 2
+|..555...
+|qtsq75..
+|qsrq75..
+|.qqh775.
+|.fhh775.
+|..f57775
+|....5775
+|.....555
+regions
+|..UUU...
+|HHHHUU..
+|HHHHUU..
+|.HHCUUU.
+|.CCCFUU.
+|..CFFFUU
+|....FFUU
+|.....FUU
+
+view D key st_guard origin 6 0 layer held
+mark gripL 1 4
+mark handL 1 4
+|.....555..
+|.....575..
+|.....5775.
+|qq...5775.
+|tsqff8775.
+|srqhh7875.
+|qqffh77775
+|....557765
+|......555.
+regions
+|.....UUU..
+|.....UUU..
+|.....UUUU.
+|HH...UUUU.
+|HHHCCFUUU.
+|HHHCCFUUU.
+|HHCCCFFUUU
+|....FFFFUU
+|......FUU.
+
+view U key st_guard origin 1 0
+mark gripL 10 4
+mark handL 10 4
+|555.........
+|575.........
+|5775........
+|5775.....qq.
+|.5775.5fftsq
+|.577758hhsrq
+|..57777gfqq.
+|..576555....
+|...55.......
+regions
+|UUU.........
+|UUU.........
+|UUUU........
+|UUUU.....HH.
+|.UUUU.FCCHHH
+|.UUUUFFCCHHH
+|..UUFFFCCHH.
+|..UUFFFF....
+|...UF.......
+
+view R key st_1a origin 1 0 layer armNear
+mark gripL 7 5
+mark handL 7 5
+|..555.....
+|..565.....
+|.5665.....
+|.5665.....
+|.565.fqrrq
+|5666fhqrrq
+|56666ggqq.
+|56655ff...
+|555.......
+regions
+|..UUU.....
+|..UUU.....
+|.UUUU.....
+|.UUUU.....
+|.UUU.CHHHH
+|UUUFCCHHHH
+|UUFFFCCHH.
+|UFFFFCC...
+|UUF.......
+
+view L key st_1a origin 7 0 layer held
+mark gripL 1 5
+mark handL 1 5
+|....555..
+|....575..
+|....5775.
+|....5775.
+|qtsq.575.
+|qsrqf8775
+|.qqh77775
+|..ff55775
+|......555
+regions
+|....UUU..
+|....UUU..
+|....UUUU.
+|....UUUU.
+|HHHH.UUU.
+|HHHHCFUUU
+|.HHCFFFUU
+|..CCFFFFU
+|......FUU
+
+view D key st_1a origin 11 0
+mark gripL 1 6
+mark handL 1 6
+|..........555
+|.........5875
+|.........5765
+|........5875.
+|..ff....5765.
+|qtsqf555765..
+|qsrqh77775...
+|.qqff55555...
+regions
+|..........UUU
+|.........UUUU
+|.........UUUU
+|........UUUU.
+|..CC....UUUU.
+|HHHHCFFFUUU..
+|HHHHCFFFUU...
+|.HHCCFFFUU...
+
+view U key st_1a origin 1 0
+mark gripL 11 6
+mark handL 11 6
+|555...........
+|5775..........
+|5775..........
+|.5775.........
+|.5775....ff...
+|..577555fiqtsq
+|...57777hhqsrq
+|...55555fffqq.
+regions
+|UUU...........
+|UUUU..........
+|UUUU..........
+|.UUUU.........
+|.UUUU....CC...
+|..UUUFFFCCHHHH
+|...UUFFFCCHHHH
+|...UUFFFCCCHH.
+
+view R key st_1b origin -1 1 layer armNear
+mark gripL 8 1
+mark handL 8 1
+|.......qq.
+|555...frrq
+|5665..frrq
+|5665.fhqq.
+|.56656ggf.
+|.5666665..
+|..56665...
+|...5665...
+|...555....
+regions
+|.......HH.
+|UUU...CHHH
+|UUUU..CHHH
+|UUUU.CCHH.
+|.UUUUFCCC.
+|.UUUUFFF..
+|..UUUFF...
+|...UUFF...
+|...UUU....
+
+view L key st_1b origin 10 1 layer held
+mark gripL 1 1
+mark handL 1 1
+|qq........
+|tsqf...555
+|srqf..5875
+|qqhhf.5765
+|.fhh75875.
+|..5778765.
+|...57765..
+|...5775...
+|....555...
+regions
+|HH........
+|HHHC...UUU
+|HHHC..UUUU
+|HHCCC.UUUU
+|.CCCFUUUU.
+|..FFFUUUU.
+|...FFUUU..
+|...FFUU...
+|....UUU...
+
+view D key st_1b origin 11 0
+mark gripL 1 2
+mark handL 1 2
+|..........555
+|qtsq.....5875
+|qsrqf...58765
+|.qqhh5558765.
+|.ffhh778765..
+|...f577765...
+|.....5565....
+|.......5.....
+regions
+|..........UUU
+|HHHH.....UUUU
+|HHHHC...UUUUU
+|.HHCCFFUUUUU.
+|.CCCCFFUUUU..
+|...CFFFUUU...
+|.....FFUU....
+|.......U.....
+
+view U key st_1b origin 1 0
+mark gripL 12 2
+mark handL 12 2
+|555............
+|5775.......qtsq
+|577755..5ffqsrq
+|.55777558hhgqq.
+|...577877gff...
+|....577655.....
+|.....555.......
+regions
+|UUU............
+|UUUU.......HHHH
+|UUUUUU..FCCHHHH
+|.UUUUUFFFCCCHH.
+|...UUUFFFCCC...
+|....UUFFFF.....
+|.....UUF.......
+
+view R key st_1s origin -1 1 layer armNear
+mark gripL 1 2
+mark handL 1 2
+|....5555.
+|qq5566665
+|rrqg66665
+|rrqf5555.
+|qq.......
+regions
+|....UUUU.
+|HHUUUUUUU
+|HHHCFFFFU
+|HHHCFFFF.
+|HH.......
+
+view L key st_1s origin 9 1 layer held
+mark gripL 7 2
+mark handL 7 2
+|.5555....
+|577785qq5
+|57777htsq
+|.5555fsrq
+|......qq.
+regions
+|.UUUU....
+|UUUUUUHHU
+|UFFFFCHHH
+|.FFFFCHHH
+|......HH.
+
+view D key st_1s origin 11 0 layer held
+mark gripL 1 3
+mark handL 1 3
+|..........555
+|.........5875
+|qqf.....58765
+|tsqf55.58765.
+|srqh7758765..
+|qqff777765...
+|....55555....
+regions
+|..........UUU
+|.........UUUU
+|HHC.....UUUUU
+|HHHCFF.UUUUU.
+|HHHCFFFUUUU..
+|HHCCFFFUUU...
+|....FFFUU....
+
+view U key st_1s origin 1 0
+mark gripL 10 9
+mark handL 10 9
+|555.........
+|575.........
+|5775........
+|5775........
+|.5775.......
+|.5775.......
+|..577555....
+|..57777hff..
+|...5557hhqq.
+|......5fftsq
+|.........srq
+|.........qq.
+regions
+|UUU.........
+|UUU.........
+|UUUU........
+|UUUU........
+|.UUUU.......
+|.UUUU.......
+|..UUFFFF....
+|..UUFFFCCC..
+|...FFFFCCHH.
+|......FCCHHH
+|.........HHH
+|.........HH.
+
+view R key st_1f origin 5 3 layer armNear
+mark gripL 5 1
+mark handL 5 1
+|....qrrq.
+|....qrrq.
+|...fgqq..
+|..5hgg655
+|..56g6665
+|.56666655
+|5666655..
+|56655....
+|.55......
+regions
+|....HHHH.
+|....HHHH.
+|...CCHH..
+|..FCCCUUU
+|..FFCUUUU
+|.FFFUUUUU
+|UFFUUUU..
+|UUUUU....
+|.UU......
+
+view L key st_1f origin 3 3 layer held
+mark gripL 3 1
+mark handL 3 1
+|..qtsq...
+|..qsrq...
+|..fqqf...
+|558hhh5..
+|5777h75..
+|55777775.
+|..5577775
+|....55765
+|......55.
+regions
+|..HHHH...
+|..HHHH...
+|..CHHC...
+|UUUCCCF..
+|UUUUCFF..
+|UUUUUFFF.
+|..UUUUFFU
+|....UUUUU
+|......FU.
+
+view D key st_1f origin 12 0 layer held
+mark gripL 1 4
+mark handL 1 4
+|...........555
+|.........55875
+|........587765
+|qqff555587655.
+|tsqh7777765...
+|srqg666755....
+|qqff5555......
+regions
+|...........UUU
+|.........UUUUU
+|........UUUUUU
+|HHCCFFFUUUUUU.
+|HHHCFFFUUUU...
+|HHHCFFFFUU....
+|HHCCFFFF......
+
+view U key st_1f origin 1 0
+mark gripL 10 10
+mark handL 10 10
+|555.........
+|5775........
+|5775........
+|.5775.......
+|.5775.......
+|..5775......
+|..577755....
+|...57777f...
+|....557hhf..
+|......5hhqq.
+|.......fftsq
+|.........srq
+|.........qq.
+regions
+|UUU.........
+|UUUU........
+|UUUU........
+|.UUUU.......
+|.UUUU.......
+|..UUUU......
+|..UUUFFF....
+|...UFFFFC...
+|....FFFCCC..
+|......FCCHH.
+|.......CCHHH
+|.........HHH
+|.........HH.
+
+view R key st_2a origin 3 0
+mark gripL 7 5
+mark handL 7 5
+|....555..
+|...5665..
+|..56665..
+|.56665...
+|56666hqq.
+|56666grrq
+|56666grrq
+|.5555fqq.
+regions
+|....UUU..
+|...UUUU..
+|..UUUUU..
+|.UUUUU...
+|UUUUUCHH.
+|UUFFFCHHH
+|UFFFFCHHH
+|.FFFFCHH.
+
+view L key st_2a origin 5 0
+mark gripL 1 5
+mark handL 1 5
+|..555....
+|..5775...
+|..57775..
+|...57775.
+|qqfi77775
+|tsqh77775
+|srqh77775
+|qqff5555.
+regions
+|..UUU....
+|..UUUU...
+|..UUUUU..
+|...UUUUU.
+|HHCCUUUUU
+|HHHCFFFUU
+|HHHCFFFFU
+|HHCCFFFF.
+
+view D key st_2a origin 7 0 layer held
+mark gripL 1 5
+mark handL 1 5
+|......555.
+|......575.
+|......575.
+|......5765
+|qqff..5775
+|tsqhf58775
+|srqhh77775
+|qqfff77775
+|.....55555
+regions
+|......UUU.
+|......UUU.
+|......UUU.
+|......UUUU
+|HHCC..UUUU
+|HHHCCFFUUU
+|HHHCCFFUUU
+|HHCCCFFFUU
+|.....FFFUU
+
+view U key st_2a origin 1 0
+mark gripL 10 5
+mark handL 10 5
+|555.........
+|575.........
+|5775........
+|5775........
+|.5775...fqq.
+|.577655fitsq
+|..57777hhsrq
+|..57665ffqq.
+|...555......
+regions
+|UUU.........
+|UUU.........
+|UUUU........
+|UUUU........
+|.UUUU...CHH.
+|.UUUUFFCCHHH
+|..UUFFFCCHHH
+|..UUFFFCCHH.
+|...UFF......
+
+view R key st_2b origin 0 0
+mark gripL 1 5
+mark handL 1 5
+|.5555.....
+|.566655...
+|.56666655.
+|..fhh66665
+|qrrqg66655
+|qrrqf555..
+|.qqf......
+regions
+|.UUUU.....
+|.UUUUUU...
+|.UUUUUUUU.
+|..CCCUUUUU
+|HHHHCFFFUU
+|HHHHCFFF..
+|.HHC......
+
+view L key st_2b origin 9 0
+mark gripL 8 5
+mark handL 8 5
+|.....5555..
+|...558775..
+|.55877665..
+|58776iif...
+|55777hhqtsq
+|..555fhqsrq
+|......ffqq.
+regions
+|.....UUUU..
+|...UUUUUU..
+|.UUUUUUUU..
+|UUUUUCCC...
+|UUFFFCCHHHH
+|..FFFCCHHHH
+|......CCHH.
+
+view D key st_2b origin 10 0 layer held
+mark gripL 1 5
+mark handL 1 5
+|.........555
+|.........575
+|........5875
+|........5765
+|qtsqf5.5875.
+|qsrqh758765.
+|.qqhh77775..
+|...f555765..
+|.......55...
+regions
+|.........UUU
+|.........UUU
+|........UUUU
+|........UUUU
+|HHHHCF.UUUU.
+|HHHHCFFUUUU.
+|.HHCCFFFUU..
+|...CFFFFUU..
+|.......FU...
+
+view U key st_2b origin 1 0
+mark gripL 12 5
+mark handL 12 5
+|555............
+|5775...........
+|57775..........
+|.57775.........
+|..5777555ffqtsq
+|...577777hhqsrq
+|....55555fffqq.
+regions
+|UUU............
+|UUUU...........
+|UUUUU..........
+|.UUUUU.........
+|..UUUUFFFCCHHHH
+|...UUUFFFCCHHHH
+|....UUFFFCCCHH.
+
+view R key st_2s origin 5 0 layer armNear
+mark gripL 7 7
+mark handL 7 7
+|.....5555.
+|...556665.
+|.55666655.
+|5666665...
+|566665....
+|.5566gff..
+|...5ggqrrq
+|....ffqrrq
+|......fqq.
+regions
+|.....UUUU.
+|...UUUUUU.
+|.UUUUUUUU.
+|UUUUUUU...
+|UUFFFF....
+|.FFFFCCC..
+|...FCCHHHH
+|....CCHHHH
+|......CHH.
+
+view L key st_2s origin 3 0 layer held
+mark gripL 1 7
+mark handL 1 7
+|5555.....
+|577755...
+|55777755.
+|..5777775
+|...587765
+|.ffi7655.
+|qtsqg5...
+|qsrqf....
+|.qq......
+regions
+|UUUU.....
+|UUUUUU...
+|UUUUUUUU.
+|..UUUUUUU
+|...FFFFUU
+|.CCCFFFF.
+|HHHHCF...
+|HHHHC....
+|.HH......
+
+view D key st_2s origin 9 0 layer held
+mark gripL 1 8
+mark handL 1 8
+|........555
+|........575
+|.......5875
+|.......5775
+|.......5765
+|.......575.
+|...f555875.
+|qtsqh77765.
+|qsrqg6555..
+|.qqff5.....
+regions
+|........UUU
+|........UUU
+|.......UUUU
+|.......UUUU
+|.......UUUU
+|.......UUU.
+|...CFFFUUU.
+|HHHHCFFFUU.
+|HHHHCFFFU..
+|.HHCCF.....
+
+view U key st_2s origin 1 3
+mark gripL 11 1
+mark handL 11 1
+|..........qtsq
+|.........fqsrq
+|........fihqq.
+|5555...58hgf..
+|5777555876f...
+|5577777775....
+|..5557775.....
+|.....5555.....
+regions
+|..........HHHH
+|.........CHHHH
+|........CCCHH.
+|UUUU...FFCCC..
+|UUUUUUUFFFC...
+|UUUUUUUFFF....
+|..UUUUUFF.....
+|.....UUUF.....
+
+view R key st_2f origin 5 0 layer armNear
+mark gripL 7 5
+mark handL 7 5
+|.....5555.
+|..5556665.
+|556666655.
+|5666665...
+|55666gqrrq
+|..555gqrrq
+|.....ffqq.
+regions
+|.....UUUU.
+|..UUUUUUU.
+|UUUUUUUUU.
+|UUFUUUU...
+|UFFFFCHHHH
+|..FFFCHHHH
+|.....CCHH.
+
+view L key st_2f origin 3 0 layer held
+mark gripL 1 5
+mark handL 1 5
+|5555.....
+|5777555..
+|557777755
+|..5677775
+|qtsq77655
+|qsrq555..
+|.qqf.....
+regions
+|UUUU.....
+|UUUUUUU..
+|UUUUUUUUU
+|..UUUUFUU
+|HHHHFFFFU
+|HHHHFFF..
+|.HHC.....
+
+view D key st_2f origin 8 0 layer held
+mark gripL 1 6
+mark handL 1 6
+|.......555
+|.......575
+|.......575
+|.......575
+|.......575
+|qtsqf..575
+|qsrqh55875
+|.qqhh77775
+|..fff55555
+regions
+|.......UUU
+|.......UUU
+|.......UUU
+|.......UUU
+|.......UUU
+|HHHHC..UUU
+|HHHHCFFUUU
+|.HHCCFFFUU
+|..CCCFFFUU
+
+view U key st_2f origin 1 3
+mark gripL 10 1
+mark handL 10 1
+|.........qq.
+|........ftsq
+|........fsrq
+|555....fiqq.
+|57755.58hf..
+|5777758765..
+|.55777875...
+|...557765...
+|.....555....
+regions
+|.........HH.
+|........CHHH
+|........CHHH
+|UUU....CCHH.
+|UUUUU.FFCC..
+|UUUUUUFFFF..
+|.UUUUUFFF...
+|...UUUUFF...
+|.....UUU....
+
+view R key st_3a origin 0 0
+mark gripL 7 5
+mark handL 7 5
+|.555......
+|.565......
+|.565......
+|5665......
+|56665fqrrq
+|56666gqrrq
+|56666gfqq.
+|566655....
+|5555......
+regions
+|.UUU......
+|.UUU......
+|.UUU......
+|UUUU......
+|UUUUFCHHHH
+|UUUFFCHHHH
+|UUFFFCCHH.
+|UUFFFF....
+|UUFF......
+
+view L key st_3a origin 8 0
+mark gripL 1 5
+mark handL 1 5
+|.....555.
+|.....575.
+|.....575.
+|.....5765
+|qtsq58775
+|qsrq78775
+|.qqh77775
+|...557775
+|.....5555
+regions
+|.....UUU.
+|.....UUU.
+|.....UUU.
+|.....UUUU
+|HHHHFUUUU
+|HHHHFFUUU
+|.HHCFFFUU
+|...FFFFUU
+|.....FFUU
+
+view D key st_3a origin 12 0
+mark gripL 1 2
+mark handL 1 2
+|...........555
+|qtsq.....55875
+|qsrqf5..587765
+|.qqhh75587655.
+|..ff7777765...
+|....555755....
+|.......5......
+regions
+|...........UUU
+|HHHH.....UUUUU
+|HHHHCF..UUUUUU
+|.HHCCFFUUUUUU.
+|..CCFFFFUUU...
+|....FFFUUU....
+|.......U......
+
+view U key st_3a origin 1 0
+mark gripL 12 2
+mark handL 12 2
+|555............
+|57755.....fqtsq
+|577775..5fiqsrq
+|.55777558hhgqq.
+|...5777776ff...
+|....556555.....
+|......5........
+regions
+|UUU............
+|UUUUU.....CHHHH
+|UUUUUU..FCCHHHH
+|.UUUUUUFFCCCHH.
+|...UUUFFFFCC...
+|....UUUFFF.....
+|......U........
+
+view R key st_3b origin -1 3
+mark gripL 11 1
+mark handL 11 1
+|..........qq.
+|.........frrq
+|........fhrrq
+|5555...5hgqq.
+|566655.56gf..
+|5566665665...
+|..55666665...
+|....55665....
+|......55.....
+regions
+|..........HH.
+|.........CHHH
+|........CCHHH
+|UUUU...FCCHH.
+|UUUUUU.FFCC..
+|UUUUUUUFFF...
+|..UUUUUFFF...
+|....UUUUF....
+|......UU.....
+
+view L key st_3b origin 13 3
+mark gripL 1 1
+mark handL 1 1
+|qq...........
+|tsqf.........
+|srqhf........
+|qqhhh5...5555
+|..fh75.558775
+|...5775877655
+|...57777655..
+|....57655....
+|.....55......
+regions
+|HH...........
+|HHHC.........
+|HHHCC........
+|HHCCCF...UUUU
+|..CCFF.UUUUUU
+|...FFFUUUUUUU
+|...FFFUUUUU..
+|....FUUUU....
+|.....UU......
+
+view D key st_3b origin 9 9
+mark gripL 1 1
+mark handL 1 1
+|qq.........
+|tsq........
+|srqf.......
+|qqhf.......
+|.fh75......
+|..575......
+|..5775.....
+|...57755...
+|...5577755.
+|.....577775
+|......55775
+|........555
+regions
+|HH.........
+|HHH........
+|HHHC.......
+|HHCC.......
+|.CCFF......
+|..FFF......
+|..FFFU.....
+|...FUUUU...
+|...UUUUUUU.
+|.....UUUUUU
+|......UUUUU
+|........UUU
+
+view U key st_3b origin 1 9
+mark gripL 9 1
+mark handL 9 1
+|........qq.
+|........tsq
+|.......fsrq
+|.......fqq.
+|......57hf.
+|......575..
+|.....5775..
+|...55775...
+|.5587755...
+|587765.....
+|57655......
+|555........
+regions
+|........HH.
+|........HHH
+|.......CHHH
+|.......CHH.
+|......FFCC.
+|......FFF..
+|.....UFFF..
+|...UUUUF...
+|.UUUUUUU...
+|UUUUUU.....
+|UUUUU......
+|UUU........
+
+view R key st_3s origin 4 0 layer armNear
+mark gripL 6 10
+mark handL 6 10
+|.....555
+|....5665
+|...56665
+|..56665.
+|.56665..
+|56665...
+|.5665...
+|.5666f..
+|..56ggf.
+|...fgqq.
+|....frrq
+|.....rrq
+|.....qq.
+regions
+|.....UUU
+|....UUUU
+|...UUUUU
+|..UUUUU.
+|.UUUUU..
+|UUUUU...
+|.FFFF...
+|.FFFFC..
+|..FFCCC.
+|...CCHH.
+|....CHHH
+|.....HHH
+|.....HH.
+
+view L key st_3s origin 8 0 layer held
+mark gripL 6 10
+mark handL 6 10
+|.....555
+|....5875
+|...58765
+|..58765.
+|.58765..
+|58765...
+|.5775...
+|.5777f..
+|..57hhf.
+|...fhqq.
+|....ftsq
+|.....srq
+|.....qq.
+regions
+|.....UUU
+|....UUUU
+|...UUUUU
+|..UUUUU.
+|.UUUUU..
+|UUUUU...
+|.FFFF...
+|.FFFFC..
+|..FFCCC.
+|...CCHH.
+|....CHHH
+|.....HHH
+|.....HH.
+
+view D key st_3s origin 8 0 layer held
+mark gripL 1 8
+mark handL 1 8
+|.......555
+|.......575
+|.......575
+|.......575
+|......5875
+|......5875
+|...f558775
+|qqfih77775
+|tsqhh6555.
+|srqff5....
+|qq........
+regions
+|.......UUU
+|.......UUU
+|.......UUU
+|.......UUU
+|......UUUU
+|......UUUU
+|...CFFFUUU
+|HHCCCFFFUU
+|HHHCCFFFU.
+|HHHCCF....
+|HH........
+
+view U key st_3s origin 1 0
+mark gripL 9 8
+mark handL 9 8
+|555........
+|575........
+|5775.......
+|5775.......
+|.575.......
+|.575.......
+|.577555f...
+|.57777hhqq.
+|..5557hhtsq
+|.....5ffsrq
+|........qq.
+regions
+|UUU........
+|UUU........
+|UUUU.......
+|UUUU.......
+|.UUU.......
+|.UUU.......
+|.UUUFFFC...
+|.UUFFFCCHH.
+|..UFFFCCHHH
+|.....FCCHHH
+|........HH.
+
+view R key st_3f origin -1 0 layer armNear
+mark gripL 1 10
+mark handL 1 10
+|555....
+|5665...
+|56665..
+|.56665.
+|..56665
+|...5665
+|..56665
+|.fh665.
+|fhgg5..
+|qqgf...
+|rrq....
+|rrq....
+|qq.....
+regions
+|UUU....
+|UUUU...
+|UUUUU..
+|.UUUUU.
+|..UUUUU
+|...UUUU
+|..FFFFU
+|.CCFFF.
+|CCCCF..
+|HHCC...
+|HHH....
+|HHH....
+|HH.....
+
+view L key st_3f origin 7 0 layer held
+mark gripL 5 10
+mark handL 5 10
+|....555
+|...5875
+|..58765
+|.58765.
+|58765..
+|5765...
+|57775..
+|.577hf.
+|..5hhhf
+|...fqqf
+|....tsq
+|....srq
+|....qq.
+regions
+|....UUU
+|...UUUU
+|..UUUUU
+|.UUUUU.
+|UUUUU..
+|UUUU...
+|UFFFF..
+|.FFFCC.
+|..FCCCC
+|...CHHC
+|....HHH
+|....HHH
+|....HH.
+
+view D key st_3f origin 10 0 layer held
+mark gripL 1 7
+mark handL 1 7
+|.........555
+|.........575
+|........5875
+|........5765
+|........575.
+|.......5875.
+|qqfff558765.
+|tsqhh77775..
+|srqff55555..
+|qq..........
+regions
+|.........UUU
+|.........UUU
+|........UUUU
+|........UUUU
+|........UUU.
+|.......UUUU.
+|HHCCCFFFUUU.
+|HHHCCFFFUU..
+|HHHCCFFFFU..
+|HH..........
+
+view U key st_3f origin 1 0
+mark gripL 10 7
+mark handL 10 7
+|555.........
+|575.........
+|5775........
+|5775........
+|.575........
+|.5775.......
+|.577855ffqq.
+|..57777hhtsq
+|..55555ffsrq
+|.........qq.
+regions
+|UUU.........
+|UUU.........
+|UUUU........
+|UUUU........
+|.UUU........
+|.UUUU.......
+|.UUUFFFCCHH.
+|..UUFFFCCHHH
+|..UFFFFCCHHH
+|.........HH.
+
+view R key st_blk origin 2 0 layer armNear
+mark gripL 8 8
+mark handL 8 8
+|...555.....
+|...565.....
+|..5665.....
+|..5665.....
+|.5665......
+|.5665......
+|.56665ff...
+|56666ggqrrq
+|.5555ggqrrq
+|.....fffqq.
+regions
+|...UUU.....
+|...UUU.....
+|..UUUU.....
+|..UUUU.....
+|.UUUU......
+|.UUUU......
+|.UUFFFCC...
+|UUFFFCCHHHH
+|.UFFFCCHHHH
+|.....CCCHH.
+
+view L key st_blk origin 7 0 layer held
+mark gripL 1 8
+mark handL 1 8
+|....555...
+|....575...
+|....5775..
+|....5775..
+|.....5775.
+|.....5775.
+|..ff58875.
+|qtsqh77765
+|qsrqg5555.
+|.qqff.....
+regions
+|....UUU...
+|....UUU...
+|....UUUU..
+|....UUUU..
+|.....UUUU.
+|.....UUUU.
+|..CCFFFUU.
+|HHHHCFFFUU
+|HHHHCFFFU.
+|.HHCC.....
+
+view D key st_blk origin 5 0 layer held
+mark gripL 1 1
+mark handL 1 1
+|qq..555
+|tsq.575
+|srqf875
+|qqhh875
+|.fh7765
+|.57775.
+|..5775.
+|..5775.
+|...555.
+regions
+|HH..UUU
+|HHH.UUU
+|HHHCUUU
+|HHCCUUU
+|.CCFUUU
+|.FFFUU.
+|..FFUU.
+|..FFUU.
+|...UUU.
+
+view U key st_blk origin 1 0
+mark gripL 9 1
+mark handL 9 1
+|555.....qq.
+|5775...ftsq
+|5775..fisrq
+|.577558hqq.
+|..577876f..
+|..577765...
+|...5775....
+|....55.....
+regions
+|UUU.....HH.
+|UUUU...CHHH
+|UUUU..CCHHH
+|.UUUUFFCHH.
+|..UUUFFFC..
+|..UUUFFF...
+|...UUFF....
+|....UU.....

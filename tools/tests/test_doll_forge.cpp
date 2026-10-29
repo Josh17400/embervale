@@ -1099,7 +1099,7 @@ int dollForgeCoverage(int argc, char** argv) {
   for (size_t i = 0; i < top.size() && i < 60; i++) std::printf("  missing x%d: %s\n", top[i].first, top[i].second.c_str());
   std::printf("%s C1 source F (forge)   %d looks, %d covered, %d with something missing\n", clean == total ? "ok   " : "FAIL:", total, clean, total - clean);
   art::setRigVersion(was);
-  return gates && clean != total ? 1 : 0;
+  return clean != total ? 1 : 0;   // (wave 2 r3) a printed FAIL always fails, --gates or not
 }
 
 RPG_TEST_CMD("--forge-mech", "P2c forge: the compositor's forge mechanisms on a test pool --pool f [--look spec]", dollforge::mechCmd);

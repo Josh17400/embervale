@@ -2036,6 +2036,9 @@ void posesOf(const Who& w, std::vector<PoseUse>& out) {
   out.clear();
   auto add = [&](Posture p, uint8_t v = 0) { out.push_back({p, v}); };
   for (Posture p : {Posture::Sit, Posture::SitEat, Posture::SitFloor, Posture::SitFloorEat, Posture::Eat, Posture::Wave, Posture::Pray}) add(p);
+  // (P2c wave 2 round 2, DOLL-C) a youth drinks (kin_youth's drink clips) and so toasts on a festival night (life_game: Cheer
+  // from SitDrink)
+  if (w.look.age == 2) for (Posture p : {Posture::SitDrink, Posture::SitFloorDrink, Posture::Drink, Posture::Cheer}) add(p);
   if (w.look.age == 1 || w.look.age == 2) { add(Posture::Play); add(Posture::Dance); return; }
   for (Posture p : {Posture::SitDrink, Posture::SitFloorDrink, Posture::Drink, Posture::Cheer, Posture::Dance}) add(p);
   if (w.who == 'H' || w.who == 'E') for (Posture p : {Posture::Kneel, Posture::Ride, Posture::Row, Posture::Downed}) add(p);
@@ -2099,6 +2102,9 @@ struct Reach {
   // parts wanted only by looks that P2c's scope holds back (armour, helms, shields, the action families: VISION_PLAN
   // 15.36 "Armour, helms, shields and the action families are P2c's"), with the first such look's P2c need
   std::map<int, std::string> why, wait;
+  // (P2c wave 2 round 2, DOLL-C) a posture the sim gives a body that the doll does not cover is drawn from a v1 sheet at rig 2
+  // (the judge: a youth dancing at play, v1Draws 1): counted by body and posture, a C1 failure (never only a dead-part reason)
+  std::map<std::string, int> poseV1;
   static bool p2cNeed(const doll::Missing& m) {
     if (m.role == doll::Role::Armour || m.role == doll::Role::Helm || m.role == doll::Role::Shield || m.role == doll::Role::Pauldron) return true;
     return m.role == doll::Role::Body && m.value.find("action") != std::string::npos;
@@ -2138,6 +2144,11 @@ struct Reach {
       if (!seenPose.insert(pk).second) continue;
       if (!doll::dollCoversPosture(w.look, u.p, u.v)) {   // drawn on v1 (render.cpp rigPoseTex)
         wanted(doll::withPosture(r, u.p, u.v), doll::dollMissingPosture(w.look, u.p, u.v), source, "posture drawn on v1");
+        {
+          const std::vector<doll::Missing> pm = doll::dollMissingPosture(w.look, u.p, u.v);
+          poseV1[std::string(doll::bodySetName(r.body)) + " posture " + std::to_string((int)u.p) + (u.v ? "." + std::to_string((int)u.v) : std::string()) +
+                 (pm.empty() ? std::string() : " (" + pm[0].what() + ")")]++;
+        }
         continue;
       }
       src[(size_t)s].poses++;
@@ -2357,7 +2368,14 @@ int coverageCmd(int argc, char** argv) {
     std::printf("  dead part: %s%s%s%s\n", dead[i].c_str(), g_report ? " (" : "", g_report ? why.c_str() : "", g_report ? ")" : "");
   }
   for (size_t i = 0; i < p2c.size() && g_report; i++) std::printf("  P2c part: %s\n", p2c[i].c_str());
-  if (gates && (share < 100.0 || !dead.empty())) { std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0)\n", share, dead.size()); return 1; }
+  int poseMiss = 0;
+  for (const auto& kv : reach.poseV1) poseMiss += kv.second;
+  std::printf("  postures drawn on v1: %d (%zu body x posture)\n", poseMiss, reach.poseV1.size());
+  for (const auto& kv : reach.poseV1) std::printf("  posture on v1 in %5d looks: %s\n", kv.second, kv.first.c_str());
+  if (gates && (share < 100.0 || !dead.empty() || poseMiss)) {
+    std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0), %d postures on v1 (0)\n", share, dead.size(), poseMiss);
+    return 1;
+  }
   return 0;
 }
 RPG_TEST_CMD("--doll-coverage", "P2b B6 doll coverage of a census [--seeds A..B] [--scope civil|all|ladder] [--gates] [--pool f] [--report]", coverageCmd);
@@ -2376,13 +2394,19 @@ int varietyCmd(int argc, char** argv) {
   std::set<int> heads[2];
   std::set<std::string> garments[2];
   int settlements = 0;
-  for (uint64_t s = a; s <= b; s++) {
+  // (P2c wave 2 round 2, DOLL-C) B7's "seen" counts (18 of 24 hair styles, all 9 beards, every head type and garment) are
+  // defined over the census of seeds 1..20 (VISION_PLAN 15.36 B7: `--doll-variety --seeds 1..20`): three villages hold 5
+  // of the 9 beards whatever the art does (the judge's w2 r1 item: "5 beards seen (9)" at 1..3, the same at w0). The
+  // per-settlement checks run on the seeds asked; the seen counts always run on 1..20 plus the seeds asked, never fewer
+  const uint64_t seenLo = std::min<uint64_t>(a, 1), seenHi = std::max<uint64_t>(b, 20);
+  for (uint64_t s = seenLo; s <= seenHi; s++) {
+    const bool own = s >= a && s <= b;   // the per-settlement checks: the seeds asked
     std::vector<Who> looks;
     censusA(s, looks, true);
     std::map<std::string, std::vector<const Who*>> bySite;
     for (const Who& w : looks) if (!w.site.empty()) bySite[w.site].push_back(&w);
     for (const auto& kv : bySite) {
-      settlements++;
+      if (own) settlements++;
       std::map<std::string, int> recipes;
       int adults = 0;
       for (const Who* w : kv.second) {
@@ -2404,20 +2428,106 @@ int varietyCmd(int argc, char** argv) {
       for (const auto& rc : recipes) largest = std::max(largest, rc.second);
       const int tier = kv.second.empty() ? 0 : kv.second[0]->tier;
       const int limit = tier == 0 ? 2 : std::max(2, (int)std::floor(adults * 0.03));
-      if (g_report) std::printf("  %s (%s): %d folk, %zu head recipes, largest group %d (limit %d)\n", kv.first.c_str(), tier == 0 ? "village" : tier == 1 ? "town" : "city", adults,
+      if (g_report && own) std::printf("  %s (%s): %d folk, %zu head recipes, largest group %d (limit %d)\n", kv.first.c_str(), tier == 0 ? "village" : tier == 1 ? "town" : "city", adults,
                                 recipes.size(), largest, limit);
+      if (!own) continue;
       if (largest > limit) g7.bad(kv.first + fmt(": %.0f folk share one head recipe (%.0f)", largest, limit)); else g7.ok();
     }
   }
-  std::printf("B7 variety (seeds %llu..%llu): %d settlements; %zu of 24 hair styles; %zu of 9 beards; head types man %zu woman %zu of 9; garments man %zu (13) woman %zu (14)\n",
-              (unsigned long long)a, (unsigned long long)b, settlements, styles.size(), beards.size(), heads[0].size(), heads[1].size(), garments[0].size(), garments[1].size());
+  std::printf("B7 variety (seeds %llu..%llu): %d settlements; seen over seeds %llu..%llu: %zu of 24 hair styles; %zu of 9 beards; head types man %zu woman %zu of 9; garments man %zu (13) woman %zu (14)\n",
+              (unsigned long long)a, (unsigned long long)b, settlements, (unsigned long long)seenLo, (unsigned long long)seenHi, styles.size(), beards.size(), heads[0].size(), heads[1].size(), garments[0].size(), garments[1].size());
   if (styles.size() < 18) g7.bad(fmt("%.0f hair styles seen (18 of 24)", (double)styles.size())); else g7.ok();
   if (beards.size() < 9) g7.bad(fmt("%.0f beards seen (9)", (double)beards.size())); else g7.ok();
   if (heads[0].size() < 9 || heads[1].size() < 9) g7.bad(fmt("head types seen: man %.0f, woman %.0f (9 each)", (double)heads[0].size(), (double)heads[1].size())); else g7.ok();
   if (garments[0].size() < 13 || garments[1].size() < 14) g7.bad(fmt("civilian garments seen: man %.0f (13), woman %.0f (14)", (double)garments[0].size(), (double)garments[1].size())); else g7.ok();
   std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g7.fails ? "FAIL:" : "ok   ", g7.id, g7.checks, g7.fails, g7.fails ? "; first: " : "", g7.first.c_str());
-  return gates && g7.fails ? 1 : 0;
+  // (P2c wave 2 round 2, DOLL-C) C11 fighters' faces (PLAN "Gates" C11; contracts: `--doll-variety` adds C11): no head recipe
+  // (type, nose, brows, beard, hair colour) on more than 2 of a settlement's watch (12 men as spawnHuman makes them, every
+  // settlement within 160 tiles of the start) or of a kingdom's squad of 8 soldiers (the folk sim's F17, on the seeds asked)
+  Gate g11{"C11 fighters' faces"};
+  int c11Men = 0, c11Worst = 0;
+  for (uint64_t seed = a; seed <= b; seed++) {
+    Game g(seed);
+    g.newEndlessGame(seed);
+    World& w = g.world;
+    auto recipe = [](const HumanLook& L) { return fmt("%.0f.%.0f.%.0f.%.0f", (double)L.head, (double)L.nose, (double)L.brow, (double)(L.beard ? L.beardStyle : 99)) + fmt(".%.0f", (double)L.hairColor); };
+    auto group = [&](const std::vector<HumanLook>& men, const std::string& where) {
+      std::map<std::string, int> n;
+      for (const HumanLook& L : men) n[recipe(L)]++;
+      int worst = 0;
+      std::string worstKey;
+      for (const auto& kv : n) if (kv.second > worst) { worst = kv.second; worstKey = kv.first; }
+      c11Men += (int)men.size();
+      c11Worst = std::max(c11Worst, worst);
+      if (worst > 2) g11.bad(fmt("seed %.0f ", (double)seed) + where + fmt(": %.0f men share ", (double)worst) + worstKey); else g11.ok();
+    };
+    const Site& home = w.sites[(size_t)w.startSite];
+    for (size_t si = 0; si < w.sites.size(); si++) {
+      const Site& s = w.sites[si];
+      if (s.type != SiteType::Village && s.type != SiteType::Town && s.type != SiteType::City) continue;
+      if (std::abs(s.r.cx() - home.r.cx()) > 160 || std::abs(s.r.cy() - home.r.cy()) > 160) continue;
+      std::vector<HumanLook> guards;
+      for (int k = 0; k < 12; k++) {
+        Actor x;
+        x.id = 96000 + k; x.human = true; x.npc = true; x.role = Role::Guard; x.site = (int)si; x.slot = 40 + k; x.bldg = -1;
+        if (s.kingdom >= 0) x.realm = w.kingdoms[(size_t)s.kingdom].id;
+        const uint64_t key = ((uint64_t)(x.site + 1) << 24) ^ ((uint64_t)(x.bldg + 1) << 12) ^ (uint64_t)x.slot;
+        Rng rr(hash32((uint32_t)key) ^ (uint32_t)seed);
+        HomeOps::makeLook(g, x, Role::Guard, rr);
+        guards.push_back(x.look);
+      }
+      group(guards, "the watch of " + s.name);
+    }
+    for (size_t ki = 0; ki < w.kingdoms.size() && ki < 8; ki++) {
+      std::vector<HumanLook> squad;
+      for (int k = 0; k < 8; k++) {
+        Actor x;
+        x.id = 95000 + k; x.human = true; x.npc = true; x.role = Role::Soldier; x.site = -1; x.bldg = -1; x.slot = 7000 + (int)ki * 16 + k;
+        x.realm = w.kingdoms[ki].id;
+        Rng rr(hash32((uint32_t)x.slot * 2654435761u ^ (uint32_t)x.realm ^ (uint32_t)(x.realm >> 32)) ^ (uint32_t)seed);
+        HomeOps::makeLook(g, x, Role::Soldier, rr);
+        squad.push_back(x.look);
+      }
+      group(squad, fmt("a squad of kingdom %.0f", (double)ki));
+    }
+  }
+  std::printf("C11 fighters' faces (seeds %llu..%llu): %d men in %d groups, largest shared head recipe %d (2)\n", (unsigned long long)a,
+              (unsigned long long)b, c11Men, g11.checks, c11Worst);
+  if (!g11.checks) g11.bad("no watch or squad measured");
+  std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g11.fails ? "FAIL:" : "ok   ", g11.id, g11.checks, g11.fails, g11.fails ? "; first: " : "", g11.first.c_str());
+  return (g7.fails || g11.fails) ? 1 : 0;   // (wave 2 r3) a printed FAIL always fails
 }
 RPG_TEST_CMD("--doll-variety", "P2b B7 variety per settlement [--seeds A..B] [--gates] [--report]", varietyCmd);
 
 }  // namespace
+
+// (P2c wave 2, DOLL-C) C1's census sources as distinct looks, for the envelope's caps on every look (`rpg_test --doll-envelope
+// --scope all`, test_doll_envelope.cpp): A the world and the start region's residents, B every culture x role x sex x age,
+// D the creator (first seed), E residents recruited with each vocation's weapon, G the creator in worn gear, K the roles
+// (Game::makeLook) and the towns; each distinct look once (lookKey)
+void dollCensusLooks(uint64_t a, uint64_t b, std::vector<std::pair<char, art::HumanLook>>& out) {
+  std::set<uint64_t> done;
+  auto add = [&](char src, const HumanLook& L) { if (done.insert(lookKey(L)).second) out.push_back({src, L}); };
+  for (uint64_t s = a; s <= b; s++) {
+    std::vector<Who> looks, extra;
+    censusA(s, looks, true);
+    censusB(s, looks);
+    if (s == a) censusD(s, looks);
+    censusK(s, extra);
+    size_t ci = 0;
+    for (const Who& w : looks) {
+      add(w.src, w.look);
+      if (w.src == 'A' && !w.site.empty() && w.look.age != 1 && w.look.age != 2) {
+        static const uint8_t voc[4] = {1, 2, 3, 4};
+        HumanLook e = w.look;
+        e.weapon = voc[ci++ % 4u];
+        add('E', e);
+      }
+      if (w.src == 'D') {
+        for (size_t gi = 0; gi < 2; gi++) add('G', gearLook(w.look, ci * 2 + gi));
+        ci++;
+      }
+    }
+    for (const Who& w : extra) add(w.src, w.look);
+  }
+}

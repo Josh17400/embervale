@@ -766,8 +766,11 @@ namespace {
 const uint32_t (*g_shapeOverride)[36][3] = nullptr;   // (INTEGRATE silhouettes i1) the solver's candidate table, test only
 }
 void setShapeTableOverride(const uint32_t (*t)[36][3]) { g_shapeOverride = t; }
+std::vector<int>* g_keyRecorder = nullptr;
+void setTableKeyRecorder(std::vector<int>* cells) { g_keyRecorder = cells; }
 uint32_t tableKey(int people, int school, int rank) {
   if (people < 0 || people >= 12 || school < 0 || school >= 36 || rank < 0 || rank > 2) return 0;
+  if (g_keyRecorder) g_keyRecorder->push_back(people * 108 + school * 3 + rank);
   if (g_shapeOverride) return g_shapeOverride[people][school][rank];
   return kShapeTable[people][school][rank];
 }
@@ -1419,11 +1422,17 @@ ShapeSolve solveShapes(const ShapeModel& m) {
     gatherNear(p, s, bc);
     std::vector<KeyCand> top[3];
     for (int r = 0; r < 3; r++) {
-      for (const KeyCand& c : cand[p][r]) {
+      // (wave 2 r4) a frozen rank: its signed-off key is a candidate even when the measured model no longer ranks it
+      std::vector<KeyCand> frozenCand;
+      const bool fr = m.frozen && m.frozen[p][s][r];
+      if (fr) frozenCand.push_back(KeyCand{m.frozen[p][s][r], shapeOfKey(m.frozen[p][s][r]), 0.0});
+      for (const KeyCand& c : fr ? frozenCand : cand[p][r]) {
         // (envelope, D51; the owner's B answers pending) the 37 keep their df2a155 keys whole: families, bodies and colours stay
         // (C16k parts their heads by a variant or a crest only); the helm alone is pinned when the whole key breaks a hard rule
-        if (pinKey[p][s][r] && c.key != pinKey[p][s][r] && !(pinKeyBad[p][s][r] && c.s.helm == pinHelm[p][s][r])) continue;
-        if (pinHelm[p][s][r] && c.s.helm != pinHelm[p][s][r]) continue;   // (envelope) the 37's helm families pinned
+        // (wave 2 r4) a signed-off look's cell keeps its signed-off key whole (it outranks the pins below: the freeze)
+        if (m.frozen && m.frozen[p][s][r]) { if (c.key != m.frozen[p][s][r]) continue; }
+        else if (pinKey[p][s][r] && c.key != pinKey[p][s][r] && !(pinKeyBad[p][s][r] && c.s.helm == pinHelm[p][s][r])) continue;
+        if (!(m.frozen && m.frozen[p][s][r]) && pinHelm[p][s][r] && c.s.helm != pinHelm[p][s][r]) continue;   // (envelope) the 37's helm families pinned
         if (r == 0 && warmEverydayCell(p, s) && metalRuleBreaks(c.s)) continue;   // (envelope, A1-A3) the metal rule
         auto it = owner.find(c.key);
         if (it != owner.end() && it->second.first != s) continue;   // rule 3: owned by another school
@@ -1482,9 +1491,23 @@ ShapeSolve solveShapes(const ShapeModel& m) {
       apply(pinP, pinS, +1);
     }
   }
+  // (P2c wave 2 r4, DOLL-C) the freeze's signed-off looks: a cell all of whose ranks they read keeps its signed-off keys whole
+  // and is never re-solved (a partly read cell solves its other ranks around the frozen one in solveCell)
+  bool frozenCell[12][36] = {};
+  if (m.frozen)
+    for (int p = 0; p < 12; p++)
+      for (int s = 0; s < 36; s++) {
+        if (!(m.frozen[p][s][0] && m.frozen[p][s][1] && m.frozen[p][s][2])) continue;
+        if (set[p][s]) apply(p, s, -1);
+        for (int r = 0; r < 3; r++) S.table[p][s][r] = m.frozen[p][s][r];
+        set[p][s] = true;
+        apply(p, s, +1);
+        frozenCell[p][s] = true;
+      }
   for (int pass = 0; pass < 5; pass++)
     for (const auto& c : order) {
       const int p = c.first, s = c.second;
+      if (frozenCell[p][s]) continue;
       if (p == pinP && s == pinS && set[p][s]) continue;
       if (set[p][s]) { apply(p, s, -1); set[p][s] = false; }
       const uint32_t keep[3] = {S.table[p][s][0], S.table[p][s][1], S.table[p][s][2]};

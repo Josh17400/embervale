@@ -1719,6 +1719,9 @@ int main(int argc, char** argv) {
         }
         if (!slow.empty()) std::printf("perf   worst step ms:%s\n", slow.c_str());
         std::printf("perf   draw avg %.2f ms worst %.2f ms | people textures %.1f MB\n", fpsN ? pacc.drawSum / fpsN : 0.0, pacc.drawWorst, view.peopleMB());   // (P2a)
+        if (art::rigVersion() >= 2)   // (P2c SWITCH, C8) the rig-2 atlas cache: its MB and cap, evictions, atlases baked again after one
+          std::printf("perf   rig2 cache %.1f MB cap %.0f | evictions %d rebakes %d | slowest ACTION atlas %.2f ms\n", view.lensStats.rigMB, view.rigCapMB(),
+                      view.lensStats.rigEvictions, view.lensStats.rigRebakes, view.lensStats.actionMsMax);
       }
       pacc.workSum = 0; pacc.workWorst = 0;
       pacc.drawSum = 0; pacc.drawWorst = 0;

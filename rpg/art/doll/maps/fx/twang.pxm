@@ -4,6 +4,9 @@
 # ahead of the bow in the arrow's line (its bright end leading). Facing down the arrow comes at the camera (a starburst
 # at the nock); facing up it flies away (a dash rising beside the head). The string's own blur is the bow's
 # `release` view. Drawn on the pivot at the release frame only (bw_rel); a2 (the follow) is empty.
+# (FX wave 2 r1) redrawn as the string's vibration lines for the release frame (STYLE_P2 25.10): a 3 px core flash on the
+# string at the nock, the body's long line ringing ahead of it and the edge's short lines either side; the dash and the
+# starburst are gone (the arrow is the game's projectile). Facing down / up the string is face on: lines both sides.
 # Format: rpg/art/doll/doll.h.
 use person
 body adult
@@ -13,48 +16,52 @@ anchor pivot
 keys fx
 
 # the pop on the string's middle (+9,-19) and the dash beyond the stave (facing left: the string at -9)
-view R key a1 origin -8 21
-|.C..........
-|.B..........
-|BAB....CBBBA
-|.B..........
-|.C..........
+view R key a1 origin -7 23
+|....B..
+|....B.C
+|C...B.C
+|C.A.B.C
+|C.A.B.C
+|C.A.B.C
+|C...B.C
+|....B.C
+|....B..
 
 view R key a2 origin 0 0
 |.
 
-view L key a1 origin 19 21
-|..........C.
-|..........B.
-|ABBBC....BAB
-|..........B.
-|..........C.
+view L key a1 origin 13 23
+|..B....
+|C.B....
+|C.B...C
+|C.B.A.C
+|C.B.A.C
+|C.B.A.C
+|C.B...C
+|C.B....
+|..B....
 
 view L key a2 origin 0 0
 |.
 
 # facing down: the arrow comes at the camera, a starburst on the nock (+5,-17)
-view D key a1 origin -2 20
-|C.....C
-|.B...B.
-|...B...
-|..BAB..
-|...B...
-|.B...B.
-|C.....C
+view D key a1 origin -3 19
+|B...B
+|B.A.B
+|B.A.B
+|B.A.B
+|C...C
 
 view D key a2 origin 0 0
 |.
 
 # facing up: the pop at the nock (-5,-15) and the dash rising away behind the head
-view U key a1 origin 7 21
-|..A..
-|..B..
-|..C..
-|.....
-|..C..
-|.BAB.
-|..C..
+view U key a1 origin 7 17
+|B...B
+|B.A.B
+|B.A.B
+|B.A.B
+|C...C
 
 view U key a2 origin 0 0
 |.

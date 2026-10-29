@@ -52,6 +52,46 @@ regions
 |.............
 |.............
 |.............
+# (ARMOUR-X wave 2, cloakx.py) D rest when cloak.t5
+view D key rest origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+# (ARMOUR-X wave 2, cloakx.py) D rest when cloak.t3,!cloak.t5
+view D key rest origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+
 
 view D key idle origin 0 2
 |QQQQQQQ......
@@ -87,6 +127,46 @@ regions
 |.............
 |.............
 |.............
+# (ARMOUR-X wave 2, cloakx.py) D idle when cloak.t5
+view D key idle origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+# (ARMOUR-X wave 2, cloakx.py) D idle when cloak.t3,!cloak.t5
+view D key idle origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+
 
 view D key wide origin 0 2
 |QQQQQQQ......
@@ -122,6 +202,46 @@ regions
 |.............
 |.............
 |.............
+# (ARMOUR-X wave 2, cloakx.py) D wide when cloak.t5
+view D key wide origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+# (ARMOUR-X wave 2, cloakx.py) D wide when cloak.t3,!cloak.t5
+view D key wide origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+
 
 view D key flare origin 0 2
 |QQQQQQQ......
@@ -155,6 +275,46 @@ regions
 |.............
 |.............
 |.............
+# (ARMOUR-X wave 2, cloakx.py) D flare when cloak.t5
+view D key flare origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+# (ARMOUR-X wave 2, cloakx.py) D flare when cloak.t3,!cloak.t5
+view D key flare origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+
 
 view D key lie origin 0 2
 |QQQQQQQ......
@@ -280,6 +440,25 @@ view U key lie origin 11 2 layer cloakFront
 |QRRQQ........
 |QQQ..........
 
+# (ARMOUR-X wave 2 r2, kneel_hc.py) U kneel: the rest drape; the long drape pools 3 rows
+view U key kneel origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
 view R key rest origin 8 2
 |..QQQQ
 |.QSSSQ
@@ -299,6 +478,66 @@ view R key rest origin 8 2
 
 # (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
 # the full drape for the long-cloak tiers)
+# (ARMOUR-X wave 2, cloakx.py) R rest when cloak.t5
+view R key rest origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|QRQQ.....
+|QQ.......
+
+# (ARMOUR-X wave 2, cloakx.py) R rest when cloak.t3,!cloak.t5,!walk
+# (ARMOUR-X wave 2 r3) R rest when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view R key rest origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key rest origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
 view R key rest origin 8 2 when !cloak.t5,cloak.t4,!walk replace
 |..QQQQ
 |.QSSSQ
@@ -336,6 +575,66 @@ view R key idle origin 8 2
 
 # (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
 # the full drape for the long-cloak tiers)
+# (ARMOUR-X wave 2, cloakx.py) R idle when cloak.t5
+view R key idle origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|.QTRRQ...
+|QRQQ.....
+|QQ.......
+
+# (ARMOUR-X wave 2, cloakx.py) R idle when cloak.t3,!cloak.t5,!walk
+# (ARMOUR-X wave 2 r3) R idle when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view R key idle origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key idle origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
 view R key idle origin 8 2 when !cloak.t5,cloak.t4,!walk replace
 |..QQQQ
 |.QSSSQ
@@ -370,6 +669,30 @@ view R key wide origin 11 2
 |..QTRRQ..
 |..QRQQ...
 |..QQ.....
+# (ARMOUR-X wave 2, cloakx.py) R wide when cloak.t5
+view R key wide origin 14 2 when cloak.t5 replace
+|........QQQQ
+|.......QSSSQ
+|......QSSSSQ
+|......QTSSSQ
+|......QTSSSQ
+|......QTRSSQ
+|......QTRSSQ
+|......QTRSSQ
+|......QTRTSQ
+|......QTRTSQ
+|.....QTRTSQ.
+|....QTRTRQ..
+|....QTRRQ...
+|....QTRRQ...
+|...QTRRQ....
+|...QTRRQ....
+|...QTRRQ....
+|...QTRRQ....
+|...QTRRQ....
+|..QRQQ......
+|..QQ........
+
 
 view R key flare origin 11 2
 |.....QQQQ
@@ -386,6 +709,30 @@ view R key flare origin 11 2
 |..QTRTRQ.
 |..QTRRQ..
 |..QQ.....
+# (ARMOUR-X wave 2, cloakx.py) R flare when cloak.t5
+view R key flare origin 14 2 when cloak.t5 replace
+|........QQQQ
+|.......QSSSQ
+|......QSSSSQ
+|......QTSSSQ
+|.....QTSSSQ.
+|.....QTRSSQ.
+|.....QTRSSQ.
+|.....QTRSSQ.
+|.....QTRTSQ.
+|.....QTRTSQ.
+|.....QTRTSQ.
+|....QTRTRQ..
+|....QTRTRQ..
+|....QTRTRQ..
+|...QTRTRQ...
+|...QTRTRQ...
+|...QTRTRQ...
+|...QTRTRQ...
+|...QTRTRQ...
+|..QTRRQ.....
+|..QQ........
+
 
 view R key lie origin 8 2
 |..QQQQ
@@ -423,6 +770,66 @@ view L key rest origin -3 2
 
 # (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
 # the full drape for the long-cloak tiers)
+# (ARMOUR-X wave 2, cloakx.py) L rest when cloak.t5
+view L key rest origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|.....QQRQ
+|.......QQ
+
+# (ARMOUR-X wave 2, cloakx.py) L rest when cloak.t3,!cloak.t5,!walk
+# (ARMOUR-X wave 2 r3) L rest when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view L key rest origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key rest origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
 view L key rest origin -3 2 when !cloak.t5,cloak.t4,!walk replace
 |QQQQ..
 |QSSSQ.
@@ -460,6 +867,66 @@ view L key idle origin -3 2
 
 # (P2c envelope R2, FORGE-MANTLE) below T5 the drape stays within 2 columns of the back (C12f cloak caps; D49 keeps
 # the full drape for the long-cloak tiers)
+# (ARMOUR-X wave 2, cloakx.py) L idle when cloak.t5
+view L key idle origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|...QRRSQ.
+|.....QQRQ
+|.......QQ
+
+# (ARMOUR-X wave 2, cloakx.py) L idle when cloak.t3,!cloak.t5,!walk
+# (ARMOUR-X wave 2 r3) L idle when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view L key idle origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key idle origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
 view L key idle origin -3 2 when !cloak.t5,cloak.t4,!walk replace
 |QQQQ..
 |QSSSQ.
@@ -494,6 +961,30 @@ view L key wide origin -3 2
 |..QRRSQ..
 |...QQRQ..
 |.....QQ..
+# (ARMOUR-X wave 2, cloakx.py) L wide when cloak.t5
+view L key wide origin -3 2 when cloak.t5 replace
+|QQQQ........
+|QSSSQ.......
+|QSSSSQ......
+|QSSSSQ......
+|QSSSSQ......
+|QSSRSQ......
+|QSSRSQ......
+|QSSRSQ......
+|QSTRSQ......
+|QSTRSQ......
+|.QSTRSQ.....
+|..QRTRSQ....
+|...QRRSQ....
+|...QRRSQ....
+|....QRRSQ...
+|....QRRSQ...
+|....QRRSQ...
+|....QRRSQ...
+|....QRRSQ...
+|......QQRQ..
+|........QQ..
+
 
 view L key flare origin -3 2
 |QQQQ.....
@@ -510,6 +1001,30 @@ view L key flare origin -3 2
 |.QRTRSQ..
 |..QRRSQ..
 |.....QQ..
+# (ARMOUR-X wave 2, cloakx.py) L flare when cloak.t5
+view L key flare origin -3 2 when cloak.t5 replace
+|QQQQ........
+|QSSSQ.......
+|QSSSSQ......
+|QSSSSQ......
+|.QSSSSQ.....
+|.QSSRSQ.....
+|.QSSRSQ.....
+|.QSSRSQ.....
+|.QSTRSQ.....
+|.QSTRSQ.....
+|.QSTRSQ.....
+|..QRTRSQ....
+|..QRTRSQ....
+|..QRTRSQ....
+|...QRTRSQ...
+|...QRTRSQ...
+|...QRTRSQ...
+|...QRTRSQ...
+|...QRTRSQ...
+|.....QRRSQ..
+|........QQ..
+
 
 view L key lie origin -3 2
 |QQQQ..
@@ -565,6 +1080,54 @@ regions
 |..............
 |..............
 
+# (ARMOUR-X wave 2, cloakx.py) D breeze when cloak.t6,cloak.t5
+view D key breeze origin 2 2 when cloak.t6,cloak.t5 replace
+|..QQQQQQQ......
+|..QSSSSSSQQ....
+|..QSSSSSSSSQ...
+|..QQSSSSSSSSSQ.
+|..QQSSSSSSTSTQ.
+|..QQQSSSSSSTSRQ
+|..QQQSSSSSSTSRQ
+|..QQQSSSSSSTSRQ
+|..QQQSSSSSTSRQ.
+|..QQQSSSSSTSRQ.
+|..QQQSSSSSTSRQ.
+|..QQQSSSSTSRSQ.
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQSSSSTSRQ..
+|..QQQRRRRRRTQ..
+|.....QQQQQQQ...
+
+# (ARMOUR-X wave 2, cloakx.py) D breeze when cloak.t5
+view D key breeze origin 1 2 when cloak.t5 replace
+|.QQQQQQQ.....
+|.QSSSSSSQQ...
+|.QSSSSSSSSQ..
+|.QSSSSSSSSSQ.
+|.QSSSSSSTSTQ.
+|.QQSSSSSSTSRQ
+|.QQSSSSSSTSRQ
+|.QQSSSSSSTSRQ
+|.QQSSSSSTSRQ.
+|.QQSSSSSTSRQ.
+|.QQSSSSSTSRQ.
+|.QQSSSSTSRSQ.
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQSSSSTSRQ..
+|.QQRRRRRRTQ..
+|...QQQQQQQ...
+
 view D key breeze origin 2 2 when cloak.t6 replace
 |..QQQQQQQ......
 |..QSSSSSSQQ....
@@ -600,6 +1163,77 @@ regions
 |...............
 |...............
 
+# (ARMOUR-X wave 2 r2, kneel_hc.py) D kneel: the rest drape; the long drape pools 3 rows
+view D key kneel origin 0 2
+|QQQQQQQ......
+|QSSSSSSQQ....
+|QSSSSSSSSQ...
+|QSSSSSSSSSSQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRTRQ
+|QRRRSSSSTRTRQ
+|QQQQRRRRTRTRQ
+|....QQQQRRTRQ
+|........QQRSQ
+|..........QSQ
+regions
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+
+view D key kneel origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+
+view D key kneel origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
 view R key breeze origin 9 2
 |...QQQQ
 |..QSSSQ
@@ -616,6 +1250,54 @@ view R key breeze origin 9 2
 |QTRRQ..
 |QRQQ...
 |QQ.....
+
+# (ARMOUR-X wave 2, cloakx.py) R breeze when cloak.t6,cloak.t5
+view R key breeze origin 13 2 when cloak.t6,cloak.t5 replace
+|.......QQQQ
+|......QSSSQ
+|.....QSSSSQ
+|.....QTSSSQ
+|.....QTSSSQ
+|.....QTRSSQ
+|.....QTRSSQ
+|.....QTRSSQ
+|.....QTRTSQ
+|.....QTRTSQ
+|.....QTRTSQ
+|....QTRTRQ.
+|....QTRRQ..
+|....QTRRQ..
+|...QTRRQ...
+|...QTRRQ...
+|..QTRRQ....
+|..QTRRQ....
+|.QTRRQ.....
+|QRQQ.......
+|QQ.........
+
+# (ARMOUR-X wave 2, cloakx.py) R breeze when cloak.t5
+view R key breeze origin 12 2 when cloak.t5 replace
+|......QQQQ
+|.....QSSSQ
+|....QSSSSQ
+|....QTSSSQ
+|....QTSSSQ
+|....QTRSSQ
+|....QTRSSQ
+|....QTRSSQ
+|....QTRTSQ
+|....QTRTSQ
+|....QTRTSQ
+|...QTRTRQ.
+|...QTRRQ..
+|...QTRRQ..
+|..QTRRQ...
+|..QTRRQ...
+|..QTRRQ...
+|..QTRRQ...
+|.QTRRQ....
+|QRQQ......
+|QQ........
 
 view R key breeze origin 10 2 when cloak.t6 replace
 |....QQQQ
@@ -634,6 +1316,96 @@ view R key breeze origin 10 2 when cloak.t6 replace
 |QRQQ....
 |QQ......
 
+# (ARMOUR-X wave 2 r2, kneel_hc.py) R kneel: the rest drape; the long drape pools 3 rows
+view R key kneel origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key kneel origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|.QTRRQ...
+|.QTRRQ...
+|QRQQ.....
+|QQ.......
+
+# (ARMOUR-X wave 2 r3) R kneel when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view R key kneel origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key kneel origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key kneel origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
 view L key breeze origin -3 2
 |QQQQ...
 |QSSSQ..
@@ -651,6 +1423,54 @@ view L key breeze origin -3 2
 |...QQRQ
 |.....QQ
 
+# (ARMOUR-X wave 2, cloakx.py) L breeze when cloak.t6,cloak.t5
+view L key breeze origin -3 2 when cloak.t6,cloak.t5 replace
+|QQQQ.......
+|QSSSQ......
+|QSSSSQ.....
+|QSSSSQ.....
+|QSSSSQ.....
+|QSSRSQ.....
+|QSSRSQ.....
+|QSSRSQ.....
+|QSTRSQ.....
+|QSTRSQ.....
+|QSTRSQ.....
+|.QRTRSQ....
+|..QRRSQ....
+|..QRRSQ....
+|...QRRSQ...
+|...QRRSQ...
+|....QRRSQ..
+|....QRRSQ..
+|.....QRRSQ.
+|.......QQRQ
+|.........QQ
+
+# (ARMOUR-X wave 2, cloakx.py) L breeze when cloak.t5
+view L key breeze origin -3 2 when cloak.t5 replace
+|QQQQ......
+|QSSSQ.....
+|QSSSSQ....
+|QSSSSQ....
+|QSSSSQ....
+|QSSRSQ....
+|QSSRSQ....
+|QSSRSQ....
+|QSTRSQ....
+|QSTRSQ....
+|QSTRSQ....
+|.QRTRSQ...
+|..QRRSQ...
+|..QRRSQ...
+|...QRRSQ..
+|...QRRSQ..
+|...QRRSQ..
+|...QRRSQ..
+|....QRRSQ.
+|......QQRQ
+|........QQ
+
 view L key breeze origin -3 2 when cloak.t6 replace
 |QQQQ....
 |QSSSQ...
@@ -667,3 +1487,891 @@ view L key breeze origin -3 2 when cloak.t6 replace
 |..QRRSQ.
 |....QQRQ
 |......QQ
+
+# (ARMOUR-X wave 2 r2, kneel_hc.py) L kneel: the rest drape; the long drape pools 3 rows
+view L key kneel origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key kneel origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|...QRRSQ.
+|...QRRSQ.
+|.....QQRQ
+|.......QQ
+
+# (ARMOUR-X wave 2 r3) L kneel when cloak.t3 on a form-plate back: the drape 2 columns behind its back
+view L key kneel origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key kneel origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key kneel origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) D sit: the kneel drape
+view D key sit origin 0 2
+|QQQQQQQ......
+|QSSSSSSQQ....
+|QSSSSSSSSQ...
+|QSSSSSSSSSSQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRTRQ
+|QRRRSSSSTRTRQ
+|QQQQRRRRTRTRQ
+|....QQQQRRTRQ
+|........QQRSQ
+|..........QSQ
+regions
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+
+view D key sit origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+
+view D key sit origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) U sit: the kneel drape
+view U key sit origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) R sit: the kneel drape
+view R key sit origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key sit origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|.QTRRQ...
+|.QTRRQ...
+|QRQQ.....
+|QQ.......
+
+view R key sit origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key sit origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key sit origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) L sit: the kneel drape
+view L key sit origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key sit origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|...QRRSQ.
+|...QRRSQ.
+|.....QQRQ
+|.......QQ
+
+view L key sit origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key sit origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key sit origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) D floor: the kneel drape; the long drape 2 rows shorter
+view D key floor origin 0 2
+|QQQQQQQ......
+|QSSSSSSQQ....
+|QSSSSSSSSQ...
+|QSSSSSSSSSSQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRTRQ
+|QRRRSSSSTRTRQ
+|QQQQRRRRTRTRQ
+|....QQQQRRTRQ
+|........QQRSQ
+|..........QSQ
+regions
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+
+view D key floor origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+
+view D key floor origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) U floor: the kneel drape; the long drape 2 rows shorter
+view U key floor origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) R floor: the kneel drape; the long drape 2 rows shorter
+view R key floor origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key floor origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|QRQQ.....
+|QQ.......
+
+view R key floor origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key floor origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key floor origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) L floor: the kneel drape; the long drape 2 rows shorter
+view L key floor origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key floor origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|.....QQRQ
+|.......QQ
+
+view L key floor origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key floor origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key floor origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) D ride: the kneel drape
+view D key ride origin 0 2
+|QQQQQQQ......
+|QSSSSSSQQ....
+|QSSSSSSSSQ...
+|QSSSSSSSSSSQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTSTQ.
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRSRQ
+|QSSSSSSSTRTRQ
+|QRRRSSSSTRTRQ
+|QQQQRRRRTRTRQ
+|....QQQQRRTRQ
+|........QQRSQ
+|..........QSQ
+regions
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+|.............
+
+view D key ride origin 0 2 when cloak.t5 replace
+|QQQQQQQ....
+|QSSSSSSQQ..
+|QSSSSSSSSQ.
+|QSSSSSSSSSQ
+|QSSSSSSTSTQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSSTSRQ
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSSTSRQ.
+|QSSSSTSRSQ.
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QSSSSTSRQ..
+|QRRRRRRTQ..
+|.QQQQQQQ...
+
+view D key ride origin 0 2 when cloak.t3,!cloak.t5 replace
+|QQQQQQQ........
+|QSSSSSSQQQ.....
+|QSSSSSSSSSQQ...
+|QSSSSSSSSSSTQ..
+|QSSSSSSSTSSTRQ.
+|QSSSSSSSTSTSRQ.
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QSSSSSSSTRSTRRQ
+|QRRRSSSSTRSTRRQ
+|QQQQRRRRTRTTRRQ
+|....QQQQQRRRRQ.
+|.........QQQQ..
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) U ride: the kneel drape
+view U key ride origin 11 2 layer cloakFront
+|.......QQQQQQ
+|......QSSSSSQ
+|.....QSSSSSSQ
+|....QSRSSSSSQ
+|..QQSSRSTSSSQ
+|.QRSTSRSTSSSQ
+|.QRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRSQ
+|QTRSTSRSTSRRQ
+|QTRSTSRSRRQQ.
+|QTRSTRRRQQ...
+|QTRRRQQQ.....
+|QRRQQ........
+|QQQ..........
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) R ride: the kneel drape
+view R key ride origin 8 2
+|..QQQQ
+|.QSSSQ
+|QSSSSQ
+|QTSSSQ
+|QTSSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRSSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTSQ
+|QTRTRQ
+|QTRRQ.
+|QRQQ..
+|QQ....
+
+view R key ride origin 11 2 when cloak.t5 replace
+|.....QQQQ
+|....QSSSQ
+|...QSSSSQ
+|...QTSSSQ
+|...QTSSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRSSQ
+|...QTRTSQ
+|...QTRTSQ
+|...QTRTSQ
+|..QTRTRQ.
+|..QTRRQ..
+|..QTRRQ..
+|.QTRRQ...
+|.QTRRQ...
+|QRQQ.....
+|QQ.......
+
+view R key ride origin 7 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key ride origin 6 2 when cloak.t3,!cloak.t5,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+view R key ride origin 8 2 when !cloak.t5,cloak.t4,!walk replace
+|..QQQQ
+|.QSSSQ
+|.QSSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTSSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTSQ
+|.QTTRQ
+|.QTRQ.
+|.QRQ..
+|.Q....
+
+# (ARMOUR-X wave 2 r4, seat_hc.py) L ride: the kneel drape
+view L key ride origin -3 2
+|QQQQ..
+|QSSSQ.
+|QSSSSQ
+|QSSSSQ
+|QSSSSQ
+|QSSRSQ
+|QSSRSQ
+|QSSRSQ
+|QSTRSQ
+|QSTRSQ
+|QSTRSQ
+|QRTRSQ
+|.QRRSQ
+|..QQRQ
+|....QQ
+
+view L key ride origin -3 2 when cloak.t5 replace
+|QQQQ.....
+|QSSSQ....
+|QSSSSQ...
+|QSSSSQ...
+|QSSSSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSSRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|QSTRSQ...
+|.QRTRSQ..
+|..QRRSQ..
+|..QRRSQ..
+|...QRRSQ.
+|...QRRSQ.
+|.....QQRQ
+|.......QQ
+
+view L key ride origin -2 2 when cloak.t3,!cloak.t5,!walk,form-plate replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key ride origin -1 2 when cloak.t3,!cloak.t5,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.
+
+view L key ride origin -3 2 when !cloak.t5,cloak.t4,!walk replace
+|QQQQ..
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSSSQ.
+|QSTSQ.
+|QSTSQ.
+|QSTSQ.
+|QRTSQ.
+|.QRSQ.
+|..QRQ.
+|....Q.

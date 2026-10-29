@@ -258,6 +258,7 @@ const Tex& View::houndTex(const party::Member& m, const Game& g) {
   if (it == partyTex_.end()) it = partyTex_.emplace(k, pix_->bake(art::houndSheet(L))).first;
   return it->second;
 }
+namespace art { Canvas portraitDoll(const HumanLook& look, int mood, std::vector<finish::GlowPx>* glow); }   // art_party_portrait.cpp (P2c SWITCH)
 const Tex& View::portraitTex(const Game& g, const party::Member& m, int mood) {
   const int mi = memberOf(g, m.id);
   const bool hound = m.voc == party::Vocation::Hound;
@@ -276,8 +277,21 @@ const Tex& View::portraitTex(const Game& g, const party::Member& m, int mood) {
     lk = look.key();
   }
   const uint64_t k = ptag(hound ? 0x22 : 0x23, lk * 31u + (uint64_t)mood);
+  if (!hound) portraitLook_[m.id] = std::make_pair(lk ^ (uint64_t)mood * 0x9E3779B97F4A7C15ull, look.topTier());
   auto it = partyTex_.find(k);
   if (it != partyTex_.end()) return it->second;
+  // (P2c SWITCH) rig 2: the bust cut from the doll's frame (art_party_portrait.cpp portraitDoll; its glow pixels kept for
+  // portraitFinish); the painted bust at rig 1 or for a look the doll does not cover yet
+  if (!hound && art::rigVersion() >= 2) {
+    std::vector<art::finish::GlowPx> gp;
+    const Canvas d = art::portraitDoll(look, mood, &gp);
+    if (d.w > 0) {
+      if (portraitGlow_.size() > 64) portraitGlow_.clear();
+      portraitGlow_[lk ^ (uint64_t)mood * 0x9E3779B97F4A7C15ull] = std::move(gp);
+      return partyTex_.emplace(k, pix_->bake(d)).first->second;
+    }
+    v1Draws++;   // a painted bust at rig 2 (Witness: v1Draws 0 at rig 2)
+  }
   const Canvas c = hound ? art::houndPortrait(houndLookOf(m, g), mood) : art::portraitSprite(look, mood);
   return partyTex_.emplace(k, pix_->bake(c)).first->second;
 }
@@ -474,6 +488,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     P.rect(x, y, s, s, Color(0.06f, 0.05f, 0.07f, 0.85f));
     P.rect(x + 2, y + 2, s - 4, s - 4, colU(mulc(vc, 0.35f), 0.85f));
     P.blitEx(pt, kFaceX, kFaceY, kFace, kFace, x + 2, y + 2, (float)kFace, (float)kFace, false, Color(0.62f, 0.62f, 0.68f, 0.85f));
+    portraitFinish(m.id, x + 2, y + 2, 1, 0.6f, kFaceX, kFaceY, kFace, kFace);
     P.frame(x, y, s, s, sel ? kGoldP : Color(0.40f, 0.33f, 0.22f, 0.9f));
     const bool home = m.state == party::State::Home;
     const char* const* bg = home ? kBadgeHome : kBadgeWait;
@@ -494,6 +509,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
   }
   P.rect(x + 3, y + 3, 9, 6, Color(1, 0.95f, 0.85f, downed ? 0.03f : 0.07f));
   P.blit(pt, x + 3, y + 3);
+  portraitFinish(m.id, x + 3, y + 3, 1);
   if (low) {   // the low-health pulse: a red wash over the bust and a beating frame
     const float k = 0.5f + 0.5f * std::sin(t_ * 9);
     P.rect(x + 3, y + 3, 24, 24, Color(0.9f, 0.1f, 0.08f, 0.10f + 0.12f * k));
@@ -667,6 +683,7 @@ void View::drawPartyHud(Game& g) {
       P.rect(ax + 3, ay + 2, 16, 16, Color(0.02f, 0.02f, 0.03f, a));
       P.rect(ax + 4, ay + 3, 14, 14, colU(mulc(vocColour(m.voc), 0.5f), a));
       P.blitEx(pt, kFaceX, kFaceY, kFace, kFace, ax + 4, ay + 3, (float)kFace, (float)kFace, false, Color(1, 1, 1, a));
+      portraitFinish(m.id, ax + 4, ay + 3, 1, a, kFaceX, kFaceY, kFace, kFace);
       P.frame(ax + 3, ay + 2, 16, 16, Color(kc.r, kc.g, kc.b, 0.9f * a));
       tx = ax + 24;
     }
@@ -912,6 +929,7 @@ void View::drawPartyRadial(Game& g) {
     P.blitEx(ht, 0, 0, ht.w, ht.h, std::floor(c.x - ht.w / 2.0f), std::floor(c.y - ht.h / 2.0f), (float)ht.w, (float)ht.h, false, Color(1, 1, 1, ease));
     const Tex& pt = portraitTex(g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 3, 1, 18, 18, std::floor(c.x - 9), std::floor(c.y - 10), 18, 18, false, Color(1, 1, 1, ease));
+    portraitFinish(m.id, std::floor(c.x - 9), std::floor(c.y - 10), 1, ease, 3, 1, 18, 18);
   }
   // the caption beside the ring: who, the chosen order, and what it means now
   {

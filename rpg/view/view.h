@@ -1,5 +1,7 @@
 // EMBERVALE presentation: sprite bank, terrain baking, world rendering, lighting, particles, HUD, menus, touch controls.
 #pragma once
+#include <cstdlib>
+#include <unordered_set>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
@@ -162,6 +164,35 @@ class View {
   // people frames drawn from v1 sheets (P2b gate B2): v1Draws counts during a draw and holds the last drawn frame's count
   // after it (what Witness reports); v1DrawsLast the frame before
   int v1Draws = 0, v1DrawsLast = 0;
+  // ---- (P2c SWITCH) the menus on the doll (rig 2; rig 1 draws every menu as before). Each menu figure drawn this frame
+  // (Witness state.menus): where (MenuWhere), the rig it came from, the whole multiple, its rect on the UI layer, the stage
+  // it stands on and whether the rect leaves it (C7: the T6 envelope uncropped), the furthest finish light from the
+  // silhouette (C7: the Mythic aura within 3 px; -1 none drawn), the part / clip / frame / facing, the look's top tier
+  enum MenuWhere { kMenuPaperdoll = 0, kMenuCreator, kMenuHero, kMenuParty, kMenuDialogue, kMenuPortrait, kMenuLoot, kMenuWhereN };
+  enum class MenuGait : uint8_t { Idle, Walk, Run, Swing };
+  struct MenuStage { float x = 0, y = 0, w = 0, h = 0; };
+  struct MenuFigure {
+    int where = 0, rig = 1, scale = 0, w = 0, h = 0, part = -1, clip = 0, frame = 0, facing = 0, tier = 0, auraOut = -1, lights = 0;
+    float x = 0, y = 0;
+    MenuStage stage;
+    bool cropped = false;
+  };
+  std::vector<MenuFigure> menuFigs;
+  // the largest whole multiple (at most want, at least 1) at which the T6 envelope (the fin at F-41, 28 px shoulders, the
+  // cloak 8 px behind) and the look's own menu frames stand inside the stage with their feet at feetY; 0 at rig 1 or when
+  // the doll does not cover the look (the caller draws v1)
+  int menuDollScale(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int want, bool swing = false);
+  // a doll frame at a whole multiple with its living finish (T5-T6, the Mythic's flame on its own frame), the stir on the
+  // idle's breathe frame; facing 0 D 1 U 2 R 3 L, never flipped. topRows > 0: only that many rows from the frame's top
+  // (a dialogue's head-and-shoulders). False at rig 1 or when the look is not covered (the caller draws v1, counted)
+  bool menuSwingFits(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int scale, int facing);
+  bool drawMenuDoll(const art::HumanLook& L, int where, int facing, MenuGait gait, float feetX, float feetY, int scale, const MenuStage& st,
+                    float alpha = 1.0f, int topRows = 0, int id = 0);
+  // a menu figure drawn from a v1 sheet (rig 1, or a look the doll does not cover yet): counted in v1Draws and listed
+  void noteMenuV1(int where, float x, float y, int w, int h, const MenuStage& st);
+  // (P2c SWITCH) a party portrait's living finish (its glow pixels pulsed, rig 2, T5-T6): after each blit of portraitTex
+  // (the bust's source rect sx, sy, sw, sh as blitted: a face crop draws the glow inside it only)
+  void portraitFinish(uint32_t memberId, float x, float y, float scale, float alpha = 1.0f, int sx = 0, int sy = 0, int sw = 24, int sh = 24);
   double peopleMB() const;            // the people textures alive (standing sheets, poses, sleepers, v2 atlases), MB
   // (Witness state.screen) the layers and the window as presented
   const Pix::Layer& worldLayerForTests() const { return pix_->worldLayer(); }
@@ -182,7 +213,9 @@ class View {
   // (P2b VIEW-B, added) px a person's drawn doll frame top lies above (+) or below (-) the 32 px reference crown the rig's
   // markerY / plateY / barY assume (a child, a seated body, a hat); 0 for a v1 figure or one not drawn lately
   float topLift(const Actor& a) const;
-  struct LensStats { int pips = 0; float ringA = 0; int liftFigs = 0; int rigQueued = 0, rigBaked = 0; double rigBakeMs = 0, rigMB = 0; };
+  struct LensStats { int pips = 0; float ringA = 0; int liftFigs = 0; int rigQueued = 0, rigBaked = 0; double rigBakeMs = 0, rigMB = 0;
+                     int rigEvictions = 0, rigRebakes = 0; double actionMsMax = 0; };   // (P2c SWITCH, C8) evicted / baked again after; the slowest ACTION atlas
+  double rigCapMB() const { const char* e = std::getenv("EMB_RIG_CAP_MB"); return e && std::atof(e) > 0 ? std::atof(e) : 16.0; }
   LensStats lensStats;
 
  private:
@@ -672,6 +705,21 @@ class View {
   // actor's phase, the edge spark, the motes; queued and drawn additively after the lighting (render.cpp)
   void queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                          float x2, float y2, float pivX, float pivY, float alpha, bool strike = false);
+  void queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+                           float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu);
+  bool rigBakeNow_ = false;
+  size_t finishAuraEnd_ = 0;   // (P2c SWITCH) where the last queued figure's aura lights end in the finish queue
+  float nudgeT_ = -1, nudgeLen_ = 0.18f;   // (P2c SWITCH) the camera nudge on a heavy finisher's impact: its clock (-1 off)
+  Vec2 nudgeDir_;
+  bool nudgeWas_ = false;
+  std::unordered_set<uint64_t> rigEvicted_;   // (P2c SWITCH) atlases the cap evicted (a later bake of one counts as a rebake)   // (P2c SWITCH) a menu figure's atlas bakes in the frame it is asked for (no v1 frame first)
+  // (P2c SWITCH) the box of a look's menu clips round the pivot (px: left, up, right, down), by look key x gait set
+  struct MenuBox { int l = 0, u = 0, r = 0, d = 0; };
+  std::unordered_map<uint64_t, MenuBox> menuBoxes_;
+  float menuSwingT0_ = -1;    // the creator preview's swing: when the current blow began
+  // (P2c SWITCH) a doll portrait's glow pixels (bust px) by look key, for portraitFinish
+  std::unordered_map<uint64_t, std::vector<art::finish::GlowPx>> portraitGlow_;
+  std::unordered_map<uint32_t, std::pair<uint64_t, int>> portraitLook_;   // member id -> (bust key, the look's top tier)
   // (polish i1) the living finish's world-space motes / embers, one set per actor id (dropped 2 s after its last draw)
   std::unordered_map<int, art::finish::Particles> finishParts_;
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
@@ -711,7 +759,7 @@ class View {
   bool rigBakeBudget();
   RigTex rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant);
   struct RideGhost;
-  bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost);
+  bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost, int horseFrame = 0, int riderId = -1);
   void rigBakeQueue(const Game& g);
   void trimRigCaches();
   void drawRing(const Game& g, const Actor& a, Vec2 cam);

@@ -16,6 +16,8 @@
 
 class Game;
 struct Actor;
+struct Rng;
+enum class Role : uint8_t;   // rpg/sim/world.h
 
 struct AnimPick {
   art::Clip clip = art::Clip::Idle;
@@ -32,8 +34,47 @@ struct AnimPick {
   //   Death   fall and lying
   art::RigPart part = art::RigPart::Loco;
   uint8_t gait = 0;      // 0 walk, 1 run (art::doll::Gait)
-  bool drawn = false;    // a sheathable weapon (sword, axe, dagger, mace / hammer) is in hand
+  bool drawn = false;    // a fighter's weapon is out (P2c: every weapon class; animDrawn), else it rides as `carry` says
+  // ---- (P2c FOLK-SIM-C, production; docs/P2C_CONTRACTS.md 6) the pick pieces the action areas and SWITCH draw on
+  uint8_t carry = 0;     // AnimCarry: how what is in hand rides out of a fight (none, sheathed, upright, slung, back, tool)
+  bool bash = false;     // Roll: a shield bearer's roll, the shield leading the tuck (Roll variant 1; falls back to 0)
+  bool impact = false;   // a heavy finisher's impact: the first kImpactShow s of hit 3's Strike (greatsword, axe, mace)
+  uint8_t xbow = 0;      // AnimXbow: the crossbow's state (aim Draw v1, shoot Release v1, crank Draw v2; bows keep v0)
+  uint8_t face = 0;      // the facing to draw (Actor::face; a drawn fighter at rest turns to face its threat)
 };
+// how a weapon rides when it is not drawn (STYLE_P2 25.7; PLAN "Sheaths and back items")
+enum class AnimCarry : uint8_t {
+  None,       // nothing in hand (unarmed)
+  Sheathed,   // sword, dagger: the scabbard; axe, mace: through the belt
+  Upright,    // spear, glaive, halberd, staff, the walking stick: carried upright in the right hand
+  Slung,      // bow (on the back with the quiver), crossbow (slung)
+  Back,       // greatsword: across the back
+  Tool,       // a civil trade's tool, ledger, scroll or horn: in hand at rest, never drawn
+};
+// the crossbow's states (AnimPick::xbow) and where their frames live: aim = Clip::Draw variant 1 (2 frames: raise, sight
+// held), shoot = Clip::Release variant 1 (1 frame, 80 ms), crank = Clip::Draw variant 2 (3 frames over the reload)
+enum class AnimXbow : uint8_t { None, Aim, Shoot, Crank };
+constexpr int kXbowAimVariant = 1, kXbowShootVariant = 1, kXbowCrankVariant = 2;
+constexpr int kXbowAimFrames = 2, kXbowCrankFrames = 3;
+constexpr float kXbowShoot = 0.08f;      // s the shoot frame shows (the bow's release)
+constexpr float kXbowCrankFrame = 0.11f; // s a crank frame shows on the hero's reload (a foe's crank fills its strike + recover)
+// (P2c) the block: a 0.15 s visual flash (no sim state but Actor::blockT) on the sword's parry and a shield bearer's
+// parry; Clip::Block, 3 frames: raise 30, impact 50, brace 70 ms (the owner, 2026-10-23)
+constexpr float kBlockShow = 0.15f;
+constexpr float kBlockRaise = 0.03f, kBlockImpact = 0.05f, kBlockBrace = 0.07f;
+// (P2c) the heavy finisher's impact window (s from the Strike's start; SWITCH's camera nudge and the impact flash)
+constexpr float kImpactShow = 0.07f;
+// (P2c) a fighter drawn by a threat turns to face it at rest: after a reaction of kTurnReact (+ up to kTurnSpread its own),
+// a quarter turn at once, a half turn through the side facing nearer the threat for kTurnStep
+constexpr float kTurnReact = 0.06f, kTurnSpread = 0.08f, kTurnStep = 0.10f;
+constexpr float kTurnWin = 0.35f;   // s of the turn window (animStep: a fresh threat sets Actor::drawnT to kTurnBase + kTurnWin,
+constexpr float kTurnBase = 1000.0f; // which runs down to kTurnBase and then holds kThreatHold: drawnT > kTurnBase marks it)
+// the carry of a look (what is in hand and whether it is a civil trade's)
+AnimCarry animCarry(const art::HumanLook& L);
+// the look holds a crossbow (weapon 3, bowForm crossbow)
+bool animCrossbow(const art::HumanLook& L);
+// the roll is a shield bearer's bash (shield worn and not slung: one-hand weapons, unarmed)
+bool animBash(const Actor& a);
 
 // what a human shows now. Non-humans (monsters, critters) get the Idle pick; the view keeps their own frame logic.
 AnimPick animPick(const Game& g, const Actor& a);
@@ -100,8 +141,12 @@ WalkTableRef animWalkTable(const Actor& a, int gait);
 int animWalkBegin(const Actor& a, int px);
 // the gait the actor may take (elders and children always walk; kRunOn)
 bool animMayRun(const Actor& a);
-// the sheathable weapon is drawn now (swing, threat, or kSheatheOn off)
+// the weapon is drawn now (swing, threat, or kSheatheOn off). (P2c) every weapon class a fighter holds: swords, axes,
+// daggers, maces, greatswords, spears, staffs and bows (crossbows too); never a civil trade's tool, the walking stick, the
+// ledger, scroll or horn, nor bare fists
 bool animDrawn(const Actor& a);
+// (P2c) the look's weapon may be drawn at all (animDrawn's class rule)
+bool animDrawable(const art::HumanLook& L);
 // rig 2, once per sim step after the body moved (Game::update): moved = the world px it travelled this step. Smooths the
 // drawn speed (Actor::moveV), picks the gait with the switch at 54 px/s (the walk clock re-phased onto the new table, so
 // the feet never jump a stride), and runs the drawn clock (Actor::drawnT: kDrawnHold after a swing state, kThreatHold
@@ -121,4 +166,6 @@ struct AnimOps {
   // (tests: rpg_test --anim) a bandit at p (weapon: an art id for its look, -1 its own), its actor index; damage an actor
   static int spawnBandit(Game& g, Vec2 p, int weapon);
   static void damage(Game& g, int actorIndex, float dmg);
+  // (P2c FOLK-SIM-C, tests: rpg_test --folk-sim, --ladder-pace) Game::makeLook as the spawners call it
+  static void makeLook(Game& g, Actor& a, Role r, Rng& rr);
 };

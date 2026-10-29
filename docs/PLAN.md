@@ -1847,6 +1847,16 @@ bareheaded as in the fair test; T2 a soft cap over a short hooded mantle; eg3's 
 torso scope recorded; A3-A7's looks and their pixel proofs; true greyscale boards; the `6m` kit tag; the capture seam).
 Nothing else in the plan changed.
 
+**Signed off on 2026-10-28 (the envelope) and restated for production.** The owner, on the envelope pack
+(%TEMP%\claude\emb_P2c\envelope\owner; pool 1,514,147 B, hash e3caafd055beef59; e25ea41 on branch p2c-slice; every gate green,
+MSVC and WSL clang 18 66 / 0): "I like the climb, you can begin." D42-D65 stand as written (D66). What changed: "Production
+areas (wave 2)" restated at the envelope ("The envelope in production": the rules every area follows, the climb measured on
+every people's line at e25ea41, the levers, how the areas work, the pool allowances; the 14 areas' briefs complete, with their
+files consolidated from the ladder, forge, round-2 and wave-1d restatements; "The production gate"), "Waves" 5-8, the judge's
+focus, decisions D66-D70 and the risks. Art direction: docs/STYLE_P2.md 29.10; data and hooks: docs/P2C_CONTRACTS.md 3d and 7.
+The B taste calls (review.md B1-B19) and the loot proposal's twelve questions (%TEMP%\claude\emb_P2c\loot\OWNER_SUMMARY.md,
+"Questions for you") still wait for the owner, and wave 3 (the flip) waits for the owner's go on the flip pack.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -2987,6 +2997,38 @@ The envelope's round-3 judge (2026-10-27; .tmp/judge/env_r3, harness .tmp/judge/
   DOLL runs one repro without `clearing` (a new game at seed 7, the hero walked to the spot): a block there is logged for
   the owner as a game bug outside the envelope, never fixed in this round.
 
+The owner's sign-off of the envelope (2026-10-28) and production at the envelope add:
+- **D66. The envelope is signed off** (the owner, on the envelope pack: "I like the climb, you can begin"): D42-D65 stand and
+  production (wave 2) starts at e25ea41. The pack's "still open" list is look notes, not gates: item 1 (THAERGLASS still
+  reads as enamel or jade at 1x), item 3 (ENKHOBRASS's brass dull at 1x; the onion helm seated loosely facing R) and item 6
+  (THORNSTEEL's side and walk glints) are worked where production's own work touches them (FINISH, HELMS, DOLL-C's ramp
+  inside D52); item 2 (T5 starmetal beside the plain T6: the loot proposal's questions 4 and 5), item 4 (the Mythic against
+  the pale T6: a taste call) and item 5 (UHABRASS's and JAONBRASS's bodies: B19) wait for the owner, as do the B calls and
+  the loot proposal's twelve questions. The ground block beside the start (D65's repro) stays a terrain bug for the owner.
+- **D67. The climb is measured on every people's line** (C12f at scale): source L's 72 kit lines (12 peoples x man and
+  woman x seeds 1..3), the hero lines and e6m carry the area ladder and the head terms, and every look of C1's sources the
+  caps. DOLL-C reports the per-people table ("The envelope in production") at every integration; it is hard at the barrier.
+  A line that still misses with every lever drawn goes to the planner with its numbers for a per-people ruling, recorded in
+  this plan (never a quiet threshold); a change to one of the owner's 37 keys is the owner's (the B calls).
+- **D68. T6 on a people's line wears the legend view of its T5 helm** (D44 at scale): on every people's kit line T5 and T6
+  are one masterwork alloy (ladderKit: Rare, then Legendary), so T6's helmet is that family's legend view (`when helm.t6`,
+  ADD), grown from its own crown (a tall fin, crown points, wings or a spire, inside 10 rows and 2 columns), 0.10 head OD or
+  more off T5 and 5 % or more bigger: a different helmet at 1x, as the owner asked ("always a different helmet"). Giving a
+  Legendary another family would change what a Legendary item looks like, which is the loot proposal's question 4
+  (pending), so it is not done. The hero lines keep their families (D44).
+- **D69. T2 and T3 grow on every people's line** (STYLE_P2 29.3 at scale): a T2 body wears its people's small caps (size 2
+  of its pauldron family) or, where its people's dial gives none, the short mantle (`capelet` at size 2: cloth in the
+  people's coat colour, its hem by the people's ornament: tabs, a fringe, a fur edge or a plaid band); the cowl stays
+  TANNER'S (the hero's hood). A T2 helm stays inside 3 rows and under its line's T3 head / 1.05 (a people's bigger leather
+  helm gets a `helm.t2` view inside that, ADD). A T3 body wears its people's medium plates or, where it has none, its
+  people's cape inside T3's caps. T4's culture alloy wears no cape (D38), so where the T3 cape makes T3 the bigger figure,
+  the cape's length behind is the lever (D57), never a cape on T4. The alternative (the peoples' area ladder starting at
+  T3, T2 only capped) is one switch in the resolver; the owner's call.
+- **D70. Wave 2's budgets**: the pool stays under 2,621,440 B with the per-area allowances of "The envelope in production"
+  (planning numbers: an area past its allowance reports it; nothing is cut, D48); B10's T5-T6 ACTION, DEATH and POSTURE are
+  written into kEnvelope from e6's full atlases at the first integration that has e6's actions (x 1.1, never under the
+  T1-T3 row, never over 716 / 72 / 89 KB) and recorded in contracts 8.
+
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It
@@ -4057,8 +4099,10 @@ regressions):
 
 ### Production areas (wave 2) and the flip (wave 3)
 
-Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
-slice's look and conventions, previews on isolated pools, and reruns the gates on its own looks before it delivers.
+Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slices' splits; this list is wave 2's). Every art area keeps the
+slices' look and conventions, previews on isolated pools, and reruns the gates on its own looks before it delivers. The
+three paragraphs below record what the ladder, the forge styles and round 2 added; since 2026-10-28 every item of theirs
+is folded into the area briefs after "The envelope in production", and those briefs are complete.
 
 **The ladder in production** (re-plan 2026-10-23). Every area keeps its list below and adds the ladder, matching the
 ladder slice:
@@ -4104,125 +4148,594 @@ limb or edge tiles for alloys); **HELMS** every helm family's lie and T5-T6 view
 `alloyface` on every shape; **FINISH** the tier finish on skirts, motifs and over-layers; **SWITCH** the shapes in the
 paperdoll, portraits and loot previews.
 
-- **DOLL-C** (engineer-high).
-  - Files: rpg/art/doll/*.h, *.cpp, gen/**; clips/{loco, death, postures, kin_youth, kin_child}.clip; tools/doll/**;
-    rpg/art/art_rig.h/.cpp, art_fx.h/.cpp; tools/tests/test_doll*.cpp, doll_motion.h, test_rig.cpp;
-    tools/preview/doll_gallery.cpp, doll_poses.cpp; docs/P2C_CONTRACTS.md 8.
+**The envelope in production** (restated 2026-10-28, after the owner signed the envelope off: "I like the climb, you can
+begin"; D66). Production starts at e25ea41 on branch p2c-slice: pool 1,514,147 B of 2,621,440 (718 parts, hash
+e3caafd055beef59), every gate green on MSVC and WSL clang 18, rig 1 unchanged (art_hash TOTAL 317eef6efe4d8229,
+`city_gallery --village-art-check` 65 / 0, `rpg_test --anim` 0). What the envelope asks of every area:
+- **The body is locked** (D42): no area changes a body, the head box, an anchor, a clip number or a walk or run line; B1 16 /
+  16 at 0 px and B2 288 / 0 hold. Gear grows past the body by tier, inside kEnvelope (contracts 3d).
+- **The caps on every look** (C12f, C3b and W8 by tier): every look of C1's sources (A-E, F, L), not only the envelope
+  lines: shoulders, head rows and columns, the cloak's sides and back, the skirt's flare.
+- **The climb on every people's line** (D67): C12f's area ladder (1.00 / 1.10 / 1.20 / 1.35 / 1.55 / 1.70 of the line's T1,
+  each tier 0.05 of T1 or more over the tier below), the head 5 % bigger each tier from T3 with consecutive heads 0.10 head
+  OD apart, and T2's head under T3's / 1.05, on all 72 kit lines of source L (12 peoples x man and woman x seeds 1..3) as
+  well as the hero lines and e6m. Reported from DOLL-C's first block, hard at the barrier.
+- **A different helmet every tier, a head per alloy** (D44, D51, D68): every tier of a line wears a different helmet at 1x;
+  every alloy has its own head key (C16k: hard on the owner's 37 and inside every culture at seeds 1..64; the board set and
+  the world windows report their repeats, never between neighbouring schools).
+- **T5-T6 move** (D45): the long cloak's hem and the plume stir on the idle's breathe frame and the walk's passing frames;
+  C13's drawn motion is 8-32 px at T5 and 16-48 at T6 on every T5-T6 look with a cloak or a plume, and nothing blinks.
+- **Budgets** (D46, D48, D70): the pool gate 2,621,440 B, no compression; B10 by tier (T1-T3 and untiered 128 / 64 / 256 /
+  512 / 52 / 64 KB; T4 160 / 80 / 320 / 512 / 52 / 64; T5-T6 200 / 100 / 400, with ACTION, DEATH and POSTURE written from
+  e6's full atlases, x 1.1, capped at 716 / 72 / 89); going over is the owner's question, never an art cut.
+- **Keep what is drawn** (D49): every map, view and size stays and keeps its meaning; growth ADDs sizes 5-6, `when
+  <slot>.t2` to `.t6` views, `cloak.t5`, `breeze` and `variant-<n>` views; an A fix repaints its own view and names it.
+- **The A fixes on every piece of their material** (D50, D52, D53, D56-D62): every KNAPPED piece reads as A4's glass, every
+  GLASS alloy as A7's, every Mythic as A5's (black, gold and fire, the face clean), every starmetal piece as A6's bands,
+  every plate piece as A8's planes, and every warm everyday alloy as A1-A3's brass. C19 stays green on its looks; the judge
+  reads the same materials across source L.
+- **Not in wave 2**: the B taste calls (review.md B1-B19: no key, family, body or colour of the owner's 37 changes for them);
+  the loot proposal's twelve questions (lookTier's table, the floors, shops, drops and attunement stay; nothing of the
+  proposal is built that this plan does not already list); weapon styles (D34); rig 1 (frozen until the flip); compression;
+  a bigger body; the flip itself.
+
+**The climb on every people's line, measured** (the planner, 2026-10-28, at e25ea41: `build/rpg_test.exe --doll-recipe
+<tags> --looks <file>` on kit=<people>:<tier>:<seed> for the 12 peoples, tiers 1-6, seeds 1..3, man and woman, with C12f's
+measure: noHeld, the walk's frame 0 facing D plus the idle facing R). The hero lines pass: they are the signed-off figures.
+Most of the peoples' lines do not, yet:
+
+| people | T2 | T3 | T4 | T5 | T6 |
+|---|---|---|---|---|---|
+| Heartland (seeds 1-3) | 1.16 [6] | 1.33 [6] | 1.20 [0] | 1.66 [6] | 1.86 [6] |
+| Fjordfolk | 1.02 [0] | 1.29 [6] | 1.30 [2] | 1.57 [3] | 1.59 [1] |
+| Highland | 1.02 [0] | 1.11 [0] | 1.27 [2] | 1.35 [0] | 1.35 [0] |
+| Imperial | 1.10 [3] | 1.33 [6] | 1.28 [1] | 1.44 [0] | 1.53 [1] |
+| Dune | 1.04 [0] | 1.15 [0] | 1.23 [1] | 1.39 [0] | 1.41 [0] |
+| Steppe | 1.03 [0] | 1.12 [1] | 1.30 [2] | 1.29 [1] | 1.29 [0] |
+| Marsh | 1.01 [0] | 1.12 [0] | 1.33 [2] | 1.39 [0] | 1.43 [0] |
+| Jade | 1.05 [1] | 1.12 [1] | 1.23 [2] | 1.40 [0] | 1.41 [0] |
+| River | 1.01 [0] | 1.17 [3] | 1.22 [0] | 1.36 [0] | 1.38 [0] |
+| Sun Temple | 1.05 [1] | 1.37 [6] | 1.33 [2] | 1.47 [2] | 1.52 [1] |
+| Sylvan | 1.07 [3] | 1.28 [6] | 1.38 [3] | 1.65 [4] | 1.69 [3] |
+| Starspire | 1.06 [3] | 1.42 [6] | 1.38 [4] | 1.59 [4] | 1.61 [2] |
+
+(Each cell is the median area of the people's 6 lines as a multiple of the line's T1; in brackets, how many of the 6 reach
+the tier's ratio. T1 measures 718-836 px.)
+- Lines at the ratio: T2 17 of 72, T3 41, T4 21, T5 20, T6 14. Steps under 0.05 of T1: T1-T2 on 36 lines, T2-T3 3, T3-T4
+  40, T4-T5 14, T5-T6 54. Heads: T2's over T3's / 1.05 on 43 lines; under the 5 % step T3-T4 on 17, T4-T5 on 52, T5-T6 on
+  56. Caps: a cloak past the legs facing D on 24 T3 looks (T4 2, T5 9, T6 8), past the back cap on 11; helm rows past the
+  cap on 4.
+- Why. At T5, 31 lines wear great pauldrons and the long cloak, 17 wear great pauldrons and no cloak (the key's over-layer
+  is not a cape: D38), 20 stay at 22 px because their shoulder shape has no size 5 yet (it falls back to 4), and 4 have no
+  shoulder mass. T6 is the same masterwork alloy as T5 (ladderKit: Rare, then Legendary), so today it adds only size 6
+  where drawn. T4's culture alloy wears no cape (D38) while T3 wears the people's cape. Most T2 kits show no shoulder piece,
+  and several peoples' leather helms (masked, plumed, crested) are bigger than their T3 helms.
+- **The levers, in order** (each brief names its own): data first (DOLL-C: T2's and T3's shoulders, D69; the T3 cape's
+  length behind where T3 comes within 0.05 of T4, D57's lever; sizes 5 and 6 asked for every shoulder shape); then the
+  drawings (ARMOUR-X: sizes 5 and 6 of every shoulder shape and size 2 where a T2 look reaches it, every cloak's T3-T4 views
+  inside the caps, the long cloak and its `breeze` views for every cloak a T5-T6 look wears; HELMS: every family's `helm.t5`
+  and `helm.t6` views using the tier's rows, T6's legend view (D68), T2 views inside 3 rows; ARMOUR-M and ARMOUR-W: the
+  T5-T6 skirt flare on every skirt). A line that still misses with every lever drawn (no envelopeMissing on its pieces, its
+  tier views drawn) goes to the planner with its numbers for a per-people ruling, recorded in this plan; never a quiet
+  threshold. Changing one of the owner's 37 keys is the owner's (the B calls).
+
+**How the areas work in wave 2**:
+- **Roots**: `%TEMP%\claude\emb_P2c\wave2\areas\<KEY>\doll\` (copies of rpg/art/doll/maps and clips at e25ea41, re-copied
+  from the tree after each integration); edit only your own globs there. Compile: `node tools/doll/pxc.mjs --root
+  <root>\doll --no-cpp --bin <root>\x.pool`.
+- **Exes**: DOLL-C builds BDIR build-proto and publishes immutable copies, `%TEMP%\claude\emb_P2c\bin\rpg_test_w<N>.exe` and
+  `doll_gallery_w<N>.exe` (LATEST.txt names the newest): w0 (e25ea41) at hour 0, w1 with its production hooks in its first
+  working block. After each integration the integrator publishes `rpg_test_int<N>.exe` and `doll_gallery_int<N>.exe`.
+  Preview with the newest copy, never with build-proto's exe while DOLL-C rebuilds it: `<exe> --doll --pool <root>\x.pool
+  --limbs <out> --limbs-looks <looks>`, the boards with `doll_gallery_<v>.exe <out> --pool <root>\x.pool ...`, and your
+  Done's gate commands with `--pool <root>\x.pool`.
+- **Builds**: `tools/slot.sh cmd //c "set BDIR=<own dir>&& tools\\build.bat <target>" < /dev/null` (5 heavy processes on the
+  machine at most): DOLL-C build-proto, FOLK-SIM-C build-p2c-folk, SWITCH build-p2c-switch, the judge build-judge-w2; only
+  the integrator builds `build`. Art areas never build. Code areas keep the tree compiling (an ADD-only API change lands
+  whole; a break is fixed by its owner first).
+- **The keys board**: an area that names keys other areas must draw writes them in its first iteration to
+  `%TEMP%\claude\emb_P2c\wave2\keys\<KEY>.txt` (channel, key, facings, family, the frames that use it) and keeps the file
+  current; the owners of the parts on that channel draw them (contracts 4's key agreement). The action areas name the arm,
+  sleeve, shield-arm (`sharm`), pauldron (`up` on overhead wind-ups), cloak and held keys. Until a part's view lands it falls
+  back (the close arm, the size below), listed by `--doll-coverage`, never a hole. Hooks in script_p2c.cpp and
+  witness_state.cpp are SWITCH's: ask in your report.
+- **Deliver**: copy only your files into the tree, re-copy a fresh root, compile and measure again, and write
+  `%TEMP%\claude\emb_P2c\wave2\areas\<KEY>\report.txt` (what changed; every Done command and its output; your pool delta
+  against w0 and against your allowance; strips at 1x, 3x and 8x, colour and greyscale; proposed lines for files you do not
+  own; asks). Never write gen/doll_pool.cpp, edit another area's file, build (art areas), kill a running Embervale.exe, make
+  a state-changing git operation, delete or empty a drawn map, view or size, or loosen a gate: a gate you think wrong goes in
+  the report with its numbers.
+- **The eye**: design at true 1x and 3x first, then 8x (hip to boot in the walk) and greyscale (R = G = B), then black
+  silhouette; commercial 16-bit quality (docs/ref/style_a3, docs/ref/envelope); clean 2-4 px planes, no 1 px speckle; the
+  owner's motion: short legs at full thickness, no skinny legs or ankles, flat feet that may angle. Screenshots and
+  iterations are never capped; images go to %TEMP% and are 8,000 px or less.
+- **Pool allowances** (D70; planning numbers, never cuts): ACTIONS-1H 110 KB, ACTIONS-2H 110, ACTIONS-BODY 40, WEAPONS 70,
+  ARMOUR-M 90, ARMOUR-W 90, ARMOUR-X 130, HELMS 100, SHIELDS 40, FX 20, FINISH 20, DOLL-C 30 (clips, legend): 850 KB on
+  e25ea41's 1,514 KB is about 2,364 KB, 257 KB (10 %) under the gate for integration and fixes (pxc's plane sharing usually
+  lands lower). An area past its allowance says so in its report; the integrator watches the total.
+- **In the Done lists** of the art areas, `$W` is `%TEMP%\claude\emb_P2c\wave2\areas\<KEY>` and `$X` the newest published
+  rpg_test copy (LATEST.txt); every `$X` command runs with EMB_RIG=2 and `--pool $W\x.pool`.
+- **Files in no list below**: the generated files are regenerated only by the integrator, with DOLL-C's generators
+  (gen/doll_pool.cpp by pxc; rpg/sim/gear_forge_shapes.inc by `--forge-solve`; clips/actions/{shield, sword_shield,
+  spear_carry}.clip and death.clip's generated end by tools/doll/p2c_clips.py; the embedded looks by embed_looks.py).
+  Everything else outside the lists (maps/head, hair, beard, wear, kin, the loco and pose arms and legs, headwear/cloth,
+  held/props, stamps; tools/scripts/p2c_zoom* and witness/p2c_zoom; rpg/culture/**; engine/**) is frozen in wave 2, and a
+  needed change is a planner ruling.
+
+- **DOLL-C** (engineer-high; BDIR build-proto; the doll's code owner).
+  - Files: rpg/art/doll/*.h, *.cpp, gen/** (pxc's output: the integrator regenerates it); clips/{loco, death, postures,
+    kin_youth, kin_child}.clip and the generated clips/actions/{shield, sword_shield, spear_carry}.clip; maps/legend/** (ADD
+    only); tools/doll/**; rpg/art/art_rig.h/.cpp, art_fx.h/.cpp; art_human.h (HumanLook ADD) and art_human.cpp's key()
+    only; rpg/sim/gear_ladder.*, gear_forge.*, gear_forge_shapes.inc (generated); tools/tests/test_doll*.cpp,
+    test_forge_ramps.cpp, doll_motion.h, test_rig.cpp; CMakeLists.txt (new test or source files only, on any area's ask);
+    tools/preview/doll_gallery.cpp, doll_poses.cpp; tools/scripts/p2c_{slice, ladder, forge, envelope, alloys, polish}*;
+    witness/p2c_{slice, ladder, forge, envelope}.witness.json; docs/P2C_CONTRACTS.md 8 (append). (The ladder's, the forge's
+    and round 2's additions and wave 1d's code-owner files, consolidated; render.cpp, witness_state.cpp, script_p2c.cpp,
+    gear_look.* and looks.cpp are SWITCH's and FOLK-SIM-C's in wave 2.)
+  - First block: w0 at hour 0 (build-proto at e25ea41, published); then w1 (about a day): tools/doll/arms_looks.txt (the
+    matrices below, embedded as the gates' matrix); `rpg_test --doll-envelope --scope ladder --seeds 1..3 [--report]` (C12f
+    over source L's 72 lines), `--doll-envelope --scope all --seeds 1..3` (the caps on every look of C1's sources) and
+    `--doll-ladder --finish --scope ladder --seeds 1..3` (C12-C13 over source L), each with a selftest; the per-people
+    report; the production vocabulary below with its fallbacks listed by `--doll-coverage`.
   - Core:
-    - the production resolver: every value, flag, region slot and tile of contracts 3, for every form and band;
-    - coverage sources C and E;
-    - the compositor at scale: the library, two hands, shields, pauldrons, clip conditions, turned rolls;
-    - effects from maps for the 9 families;
-    - the matrix families M8 (armour forms x bodies x builds), M9 (helms), M10 (shields x weapons), M11 (every weapon
-      sheathed, carried and drawn) and M12 (the heaviest kits: plate, large pauldrons, a tower shield, a spear or
-      greatsword, a cloak, a crested helm);
-    - the gates C1, C3, C6 and C11, and C8's atlas, bake and pool lines;
-    - death.clip's fall and drop lines for every family, and postures.clip's gear keys (Ride, Kneel, Downed, Sit,
-      Throne, Carry: D12);
-    - the bake queue for DRAWN and ACTION on aggro.
-  - Depth: `--doll-arms` reports with 12x crops of every failure.
-  - Delight: the gallery's `kit` board turning a look through every armour form in its four facings.
-  - Done: C1's harness, C3, C6 and C8 (atlas, bake, pool) green, B1-B12 green, `pxc --check` clean, the selftests ALL
-    CAUGHT, and rig 1 unchanged until the flip.
-- **FOLK-SIM-C** (engineer).
-  - Files: rpg/sim/gear_look.cpp/.h, looks.cpp, anim.h/.cpp, skills_game.cpp (the parry's blockT only), game.h (the
-    one field Actor::blockT); tools/tests/test_anim.cpp, test_folk_sim.cpp.
+    - the production resolver: every value, flag, region slot and tile of contracts 3 for every form and band; the
+      resolver gaps closed (shield form9 asks for no shield; pauldron dial 1 asks for none; backItem resolved; the quiver
+      on every bow fighter; the hunter's carried bow apart from a fighter's bow; the herald with FOLK-SIM-C); every weapon,
+      sheath and fx value the census and the gear rolls produce;
+    - coverage sources C (every gear.cpp roll per maker culture, worn through wearGear by a man and by a woman) and E
+      (companions of every vocation, story people, statues); C1 at 100 % over A-E, with F, L and the envelope scope;
+    - the compositor at scale: the library, two hands, shields, pauldrons, clip conditions, turned rolls; effects from maps
+      for the 9 families and the spark (art_fx);
+    - the matrices (tools/doll/arms_looks.txt): M8 (the 8 forms x both bodies x three builds at T1, T3, T4 and T6), M9
+      (every helm family and legacy form at its tiers x hair styles x bodies), M10 (shields x the one-hand families), M11
+      (every weapon sheathed, carried and drawn), M12 (the heaviest kits at T4 and at T6: plate, size 4 / size 6 of each
+      shoulder mass, a tower shield, a spear or a greatsword, the cape / the long cloak, a T4 crest at F-37 / a T6 helm at
+      F-41; both bodies);
+    - death.clip's fall and drop lines for every family (held=drop, shield=lie, the helm on, back items under the body,
+      the long cloak's lie view under its corpse) and postures.clip's gear keys (Ride, Kneel, Downed, Sit, Throne, Carry:
+      D12) at the T5-T6 sizes (the cloak's sit and ride drapes, great pauldrons on the throne);
+    - the envelope at scale: C12f over source L and on every look (above), reported at every integration (the table in
+      "The envelope in production", before and after); the data levers (D69's T2 and T3 shoulders; the T3 cape's length,
+      D57; sizes 5 and 6 asked for every shoulder shape, each fallback listed); kEnvelope's T5-T6 ACTION, DEATH and POSTURE
+      from e6's full atlases at the first integration that has them (D70); C16k at scale (every culture's head keys; the
+      variants the solve uses drawn, or listed by `--scope envelope`); the shape table re-solved on the production pool at
+      each integration with the owner's 37 keys pinned (rules 1-6 hard; C16o, C16u and C18 0);
+    - the ladder at scale: flags, dials, finish regions and tiles, ramps, and the Blade and Glow slots for every form,
+      helm, shield, weapon and role; C12-C14 over M8-M12 and source L; the living finish (art_fx: the glow plane inside
+      C8's people budget, the finish light, the Mythic's light off the face on every Mythic look, D60);
+    - the forge at scale: the kit's resolver (every form family's skirts, sleeves, motifs and over-layers; the census's
+      styles; C15f); C16 and C17 over source L and each people's materials and alloys (seeds 1..8 drawn, 1..64 at the data
+      level); C16 o-u and C18 over source L, the board set and worlds 1..6;
+    - the A fixes' passes on every piece of their material: the glass pass and the specular placement (A4, A7: D53, D59,
+      D62), the glint cap on every frame of every plate look (A8), starmetal's bands (A6, D61), `brassbody` and the antique
+      ramp on every warm everyday alloy (A1-A3: D52, D58); C19 0 on its looks;
+    - the gates C1, C3, C6 and C11, and C8's atlas, bake and pool lines; `doll::dollCovers(look, RigPart::Drawn)` for
+      SWITCH's DRAWN-on-aggro bake (render.cpp is SWITCH's).
+  - Depth: `--doll-arms` reports with 12x crops of every failure; the board `envelope:people:<people>` (both bodies' T1-T6
+    on one baseline at 1x, 3x and 8x, greyscale, each ratio and head step printed under it); the antique ramp brightened
+    inside D52's rule where ENKHOBRASS still reads as leather at 1x (the pack's open item 3).
+  - Delight: the gallery's `kit` board turning a look through every armour form in its four facings; the growth strip for
+    every people.
+  - Done (on the integrated tree, BDIR build-proto, EMB_RIG=2):
+    - `node tools/doll/pxc.mjs --check` clean; the pool 2,621,440 B or less, and pxc prints that budget;
+    - `build-proto/rpg_test.exe --doll --gates --parity` exits 0 (B1 16 / 16 at 0 px, B2 288 / 0, B8 0, B10 by tier, B11
+      limbs, B11 wear with W8 by tier, B12 0, C3 to C6 0 with C3b by tier, C12 to C17 0 with C12f and C13's drawn motion,
+      C19 0; every selftest ALL CAUGHT);
+    - `--doll-coverage --scope all --seeds 1..20 --gates` (C1: 100 %, 0 dead parts over A-E); `--doll-coverage --scope
+      ladder --seeds 1..3`, `--scope forge` and `--scope envelope` 0 missing;
+    - `--doll-envelope --scope ladder --seeds 1..3 --report` and `--doll-envelope --scope all --seeds 1..3` 0 (every line
+      still short under a ruling recorded in this plan); `--doll-envelope`, `--doll-adefects` and `--doll-heads` 0;
+    - `--doll-arms --looks tools/doll/arms_looks.txt --report` 0; `--doll-ladder --finish --report` and `--doll-ladder
+      --finish --scope ladder --seeds 1..3 --report` 0; `--doll-forge --worlds 1..6 --report` 0; `--doll-forge
+      --silhouettes --worlds 1..6 --report` 0; `--forge-shapes --check` 0; `--doll-forge-drawn` 0; `--doll-variety --seeds
+      1..3 --gates` 0; `--doll-wear --freeze-check %TEMP%\claude\emb_P2c\wave2\freeze_e25ea41.txt` 0 changed;
+    - `--envelope` prints "The envelope"'s table with the measured T5-T6 ACTION, DEATH and POSTURE;
+    - rig 1 unchanged: `build-proto/art_hash.exe` TOTAL 317eef6efe4d8229, `build-proto/city_gallery.exe
+      --village-art-check` 65 / 0, `rpg_test --anim` 0, `rpg_test --arms --seeds 1..3` ALL OK;
+    - WSL clang 18 gives MSVC's numbers on `--doll --gates --parity`, `--doll-envelope --scope ladder --seeds 1..3`,
+      `--doll-forge --worlds 1..6` and `--doll-forge --silhouettes --worlds 1..6`, built in DOLL-C's own WSL copy
+      (~/emb_dollc; ~/emb is the integrator's verify_batch copy; no rsync --delete outside the copy).
+- **FOLK-SIM-C** (engineer; BDIR build-p2c-folk).
+  - Files: rpg/sim/gear_look.cpp/.h, looks.cpp, anim.h/.cpp, skills_game.cpp (the parry's blockT only), game.h (the one
+    field Actor::blockT); tools/tests/test_anim.cpp, test_folk_sim.cpp.
+  - First block: the pick pieces land in the tree first (the drawn and carried state per weapon class, blockT, the
+    crossbow's states, the roll's bash flag, the heavy finisher's impact flag), with the rank tiers per slot, so the first
+    integration plays every family in game.
   - Core:
-    - the herald's padded coat and tabard;
+    - the herald's padded coat and tabard; every look that should ask for a tabard does (the watch, soldiers, heralds);
     - the drawn and carried state for every weapon class (spears and staffs carried; bows slung; foes, guards and
       companions drawn while a hostile is in aggro);
-    - blockT and kBlockShow wired to the parries;
+    - blockT and kBlockShow (0.15 s) wired to the sword's parry and a shield bearer's parry (a visual flash, no sim state);
     - the crossbow's pick (aim, shoot, crank) and the roll's bash flag;
-    - the census reaching C1's dead parts (the woman's culture cuts, the kids' wear and headwear, face paints, the
-      braided beard, the topknot, the turban), or a list for the planner to rule on;
+    - the census reaching C1's dead parts (the woman's culture cuts, the kids' wear and headwear, face paints, the braided
+      beard, the topknot, the turban), or a list for the planner to rule on;
     - fighters' faces under open helms (C11);
-    - the heavy finisher's impact flag (SWITCH's camera nudge).
+    - the heavy finisher's impact flag (SWITCH's camera nudge);
+    - the ladder: the rank tiers for every role, set per slot (body, helm, cloak, shield: TIER_BODY, TIER_HELM and
+      TIER_CLOAK, so kEnvelope's rows read right) for the census, makeLook and story knights, and companions through
+      wearGear; the regional lift exactly as this plan lists it (soldiers, bandits and the watch one tier finer in band-4
+      lands and beyond: nothing more of the loot proposal's question 9); `rpg_test --ladder-pace` (proposal 3: the tiers
+      shops stock and drops roll at each pacing stage, 1,000 rolls each);
+    - the forge: the officers' realm alloy (D29) for every role;
+    - the envelope: rank by size (a bandit T1 inside the body; the village watch T2 with small caps or the short mantle;
+      the capital watch T3 with the people's cape inside T3's caps; captains and the royal guard T4; kings T5 with great
+      pauldrons and the long cloak), so a late hero at T6 is the bigger legend beside any king; every census look inside
+      its caps.
   - Depth: guards turning to face the threat as they draw.
-  - Delight: a captain's crest a step taller than his men's.
-  - Done: `--anim --gates` green (A2 per family), `--folk-sim` green, C11 green, no balance test moved (p1b-engine,
-    skills, foes).
-- **ARMOUR-M** (artist-xhigh). Files: maps/armour/man/**.
-  - Core: the 8 forms on the man in every key the clips name (loco, run, drawn, actions, death, postures); the skirt
-    dials as hang families; the tabard; ornaments as optional regions (plumes, fur trim, gilding, studs, etching,
-    tassels, scallops, rivets, filigree); the M12 rank marks.
-  - Depth: the Ebony form's obsidian spikes as a `when` region.
-  - Delight: plate catching the lit edge as the body turns.
-  - Done: C3 and C4 (man), B11 and B12 on every man armour look, B8.
-- **ARMOUR-W** (artist-xhigh). Files: maps/armour/woman/**.
-  - Core: the same 8 forms cut to the woman (STYLE_P2 25.3) and her tabard.
+  - Delight: a captain's crest a step taller than his men's (inside T4's rows).
+  - Done (EMB_RIG=2, BDIR build-p2c-folk): `rpg_test --anim --gates` 0 (A2 per family) with A1 unchanged (rig 1's golden);
+    `--folk-sim --seeds 1..3` 0; `--doll-variety --seeds 1..3 --gates` 0 (C11); `--ladder-pace` prints the measured tiers
+    per pacing stage beside "The gear ladder"'s table; `--doll-envelope --scope all --seeds 1..3` with no census look past
+    its caps; `--doll-coverage --scope all --seeds 1..20` with the census's dead parts reached or listed; no balance test
+    moved (`--p1b-engine --seeds 1..5`, `--skills`, `--foes --seeds 1..3`, `--gear --seeds 1..3`, `--loot`,
+    `--loot-sources --seeds 1..3`, `--folk --seeds 1..5` pass with unchanged numbers); rig 1 unchanged (art_hash TOTAL
+    317eef6efe4d8229, village-art 65 / 0, `--arms --seeds 1..3` ALL OK).
+- **ARMOUR-M** (artist-xhigh).
+  - Files: maps/armour/man/** (the torsos, tabard and sash, the hangs, skirts, sleeves, mail sleeves and stride),
+    maps/armour/motif/man/**.
+  - Core:
+    - the 8 forms on the man (padded, leather, mail, scale, lamellar, brigandine, plate, leaf) in every key the clips name
+      (loco, run, drawn, actions, death, postures); each hero style's overlays and the plackart on every form (scale,
+      lamellar, brigandine and leaf included); the skirt dials as hang families; the tabard; ornaments as optional regions
+      (plumes, fur trim, gilding, studs, etching, tassels, scallops, rivets, filigree); the M12 rank marks;
+    - the finish regions R P G N W marked once in every base view (T1's wear spots, T5-T6's gems and seams);
+    - round 2: every chest motif on every form; the six skirts (TASSETS, STRIPS, HAUBERK, SPLIT, BELL, NONE) and the WIDE
+      and HEAVY sleeves in every action family's arm keys (the keys board) and the skirts' posture keys (sit, kneel, ride,
+      floor, lie);
+    - the envelope: the T5-T6 flare (`when armour.t5` views: 1 px more past the hips, the panels swinging with the hang keys
+      and never through a leg; the legs' full thickness and the boots' lowest 6 rows always show) on every skirt and plate
+      hang; the T5-T6 surcoat inside the torso outline (the bulk comes from shoulders, cloak, helm and skirt); every T1
+      torso inside the bare body + 1 px facing D and R;
+    - the A fixes on every form: A3's brass lamellar and BIB for every warm everyday alloy's torso (`brassbody` paints
+      Metal; draw the brass views in every key the form uses: the r1 trace found the lamellar's `when sheen-dark,alloyshape`
+      view for key `rest` only), A4's 3-4 px facets with room for the glass rim on every KNAPPED torso, A6's 2 px ribs
+      banded for starmetal, A7's glass room (no pale patch of 12 px or more), A8's clean planes in every plate R and walk
+      view (no 1 px dash).
+  - Depth: the Ebony form's obsidian spikes as a `when` region; the motif's T5 gem in its socket.
+  - Delight: plate catching the lit edge as the body turns; the SPLIT panels parting a pixel wider on the T6 run.
+  - Done: `node tools/doll/pxc.mjs --root $W\doll --no-cpp --bin $W\x.pool` 0 errors and no new craft warning on
+    armour/man or motif/man; `$X --doll --gates --parity`: C3 (a, f), C4 (man), B8, B10 by tier, B11 limbs, B11 wear and
+    B12 0 on the man's looks, C12, C16m, C16n (every LOCO and RUN frame) and C19's torso and skirt terms 0; `$X
+    --doll-envelope --scope ladder --seeds 1..3 --report` and `--scope all --seeds 1..3`: no skirt-flare, T1-outline or cap
+    failure on a man's look; `$X --doll-arms --looks tools/doll/arms_looks.txt --report` and `$X --doll --motion
+    --limbs-looks tools/doll/arms_looks.txt --report` 0 on the man's rows; `$X --doll-coverage --scope envelope` and
+    `--scope all --seeds 1..3`: no armour/man or motif/man view missing (an action key on the keys board without its sleeve
+    view counts); the judge: the man's 8 forms at T1, T3, T4 and T6 at 1x, 3x and 8x in colour and greyscale, every skirt in
+    the walk at game speed with short, full legs and flat feet, A3 and A8 on every form.
+- **ARMOUR-W** (artist-xhigh).
+  - Files: maps/armour/woman/** (the same pieces cut to her body), maps/armour/motif/woman/**.
+  - Core: ARMOUR-M's list cut to the woman (STYLE_P2 25.3: a waist one pixel narrower, the breastplate shaped by one step-1
+    row, her hem rules), her tabard and sash, her motifs, skirts and sleeves in every action key and posture key, the T5-T6
+    flare and surcoat one row lower (her head to F-32 .. F-40), and the A fixes on every form of hers.
   - Depth: her surcoat's split skirt in the run.
   - Delight: a gilded breastplate's ridge glint.
-  - Done: C3 and C4 (woman), B9 (armour pairs), B11, B12, B8, and the judge's fit review.
-- **ARMOUR-X** (artist). Files: maps/armour/shared/**, maps/armour/tiles/**.
-  - Core: pauldrons in 3 families x 3 sizes, both sides, all keys and builds; the material tiles (mail, scale, lamellar,
-    quilt, studs, rivets, leaf, lames, stitch).
-  - Depth: fur trim that ruffles a pixel in the run.
-  - Delight: horsetails on large pauldrons swinging behind.
-  - Done: C3 (pauldrons ride the lean, the bob and the swings), the tiles readable at 1x (the judge), B8.
-- **HELMS** (artist). Files: maps/headwear/helm/**.
-  - Core: the 12 shapes with crest, plume and horsetail regions, face and hair masks, and lying views where needed.
-  - Depth: the hair under open helms by style.
-  - Delight: plumes that bob on the walk.
-  - Done: C3b and C3e on every helm x hair style x body, and B8.
-- **SHIELDS** (artist). Files: maps/shield/**.
-  - Core: the 8 shapes and the legacy round in every key (rest, guard, block, bash, lie, back, ride), with field, device
-    and rim regions; the shield arm's keys for every family's shield-bearer frames.
+  - Done: as ARMOUR-M on the woman's looks and maps (armour/woman, motif/woman), plus B9 (armour pairs) in `$X --doll --gates
+    --parity`, and the judge's fit review (the heroine's line, a woman knight in every band, the woman's 8 forms at T1, T3,
+    T4 and T6).
+- **ARMOUR-X** (artist).
+  - Files: maps/armour/shared/**, maps/armour/tiles/**, maps/cloak/** (ADD: new files, views, `when` and `breeze` views;
+    P2b's views keep their pixels), maps/neck/** (ADD only).
+  - Core:
+    - pauldrons: every shoulder shape (cop, lobed, roll, slab, vented, plate, flared, winged, crystal, shard, flame,
+      layered, scale, flap, leaf, fur, pelt, feather, capelet) at every size a look reaches: small 2 (T2), medium 3, large 4,
+      great 5 (T5: 5 px past the 16 px shoulder line, 26 across) and legend 6 (T6: 6 px past, 28 across); both sides; keys
+      rest, up and lie in D U R L; every build (broad + 1, slim - 1); riding the lean, the bob and the swings; over a cape's
+      front with a dark seam under the rim; each mass keeping its character (BROAD flat and square, TALL upswept 3-4 px and
+      never within 2 px of the face or past the head box's top 4 rows, DROP hanging 5-6 rows, ROUND a disc, MANTLE soft fur,
+      pelt or feathers) and each size's area within 10 % of the plate family's (C12c). Missing at e25ea41: sizes 5 and 6 of
+      cop, flared, winged, layered, leaf, flap, scale, roll, vented, plate, feather and pelt; 5 of flame; 3 and 6 of fur;
+      6 of shard and slab; size 2 of every shape a T2 look reaches (`--doll-coverage --scope envelope` lists them);
+    - the material tiles (mail, scale, lamellar, quilt, studs, rivets, leaf, lames, stitch) readable at 1x, never a checker;
+    - cloaks: the people's cape at T3 and the cape or travel cloak at T4 inside their caps (facing D their edges beside the
+      arms and the coat down to the hem, never beside the legs; facing R / L 2 columns behind at most), for every cloak a
+      T3-T4 look wears (cape, fur, travel, halfcape: `when cloak.t3` / `.t4` views, ADD; 24 T3 looks show a cape beside the
+      legs today); the long cloak for T5-T6 (`when cloak.t5` views: to the ankle, 2 px past each leg facing D, 6-8 px behind
+      facing R / L; its lie view under its corpse; the run's flare) and its `breeze` views (the hem 1 px at T5, 2 px at T6,
+      on the idle's breathe frame and the walk's passing frames) for every cloak a T5-T6 look wears (noble, fur, cape,
+      halfcape, travel); the sit and ride drapes at the new lengths; a long cloak always hangs from behind the pauldrons;
+    - T2's short mantle (D69): the `capelet` at size 2 in the people's coat colour with its people's hem (TANNER'S tabs; a
+      fringe, a fur edge or a plaid band by the people's ornament: edge cells or `variant-<n>` views); the cowl kept on both
+      bodies;
+    - A1's mantle "sack" rule on every everyday alloy (3 px or less behind facing R / L), the fur in 2-4 px tufts with a lit
+      edge; A3's fur never the main read.
+  - Depth: fur trim that ruffles a pixel in the run; a T6 under a doorway's jamb (with SWITCH's draw order).
+  - Delight: horsetails on large pauldrons swinging behind; the long cloak's hem lifting as the hero turns from R to D.
+  - Done: pxc on `$W` 0 errors and no new craft warning on armour/shared, armour/tiles, cloak or neck; `$X --doll --gates
+    --parity`: C3 (pauldrons ride the lean, the bob and the swings; 6 px or more of pauldron on every T5 and side idle
+    frame), W4, W8 by tier, B8 and B10 by tier 0; `$X --doll-envelope --scope all --seeds 1..3`: no shoulder or cloak cap
+    failure; `$X --doll-envelope`: C13's drawn motion inside 8-32 (T5) and 16-48 (T6) on every T5-T6 look with a cloak; `$X
+    --doll-envelope --scope ladder --seeds 1..3 --report`: no line short for want of a size 5-6, a T2 shoulder piece or a
+    cloak view; `$X --doll-coverage --scope envelope`: no size 5 or 6 missing for a shape a T5-T6 look reaches, no size 2 for
+    a T2 look, no `cloak.t3`, `.t4`, `.t5` or `breeze` view missing for a cloak its tier wears; `$X --doll --motion
+    --limbs-looks tools/doll/arms_looks.txt --report` 0 (M12 at T4 and T6); the judge names every mass at sizes 4, 5 and 6
+    at 1x, sees the cloaks stir at game speed and never past the legs facing D, and reads the tiles at 1x.
+- **HELMS** (artist).
+  - Files: maps/headwear/helm/** (with helm/crest), maps/headwear/collar/**.
+  - Core:
+    - the 12 legacy shapes, the 16 families (cone, kettle, war hat, great helm, mask, crested, onion, veil, horned, winged,
+      sallet, snout, kabuto, morion, plumed, crown) and the four hero helms (hood, cap, furnace, crystal) with crest, plume
+      and horsetail regions, face and hair masks, lying views where the turn fails, the crown mark and every crest accent;
+      every collar (2 rows or less, never over the motif or an open helm's mouth); the finish regions (the brow band P, the
+      rim R, the brow socket G);
+    - a different helmet every tier: every family's tier views (`when helm.t5`, `helm.t6`, ADD) using the tier's rows (T5 8,
+      T6 10 above the crown; the shell 2 columns past the head box; flares 3) and grown from its own crown (a taller crest,
+      fin, plume, crown points, wings or a spire), so that on every people's line the head grows 5 % a tier from T3 and
+      consecutive heads part by 0.10 head OD; T6's legend view stands 0.10 head OD and 5 % area over its T5 view (D68); T2's
+      soft helms inside 3 rows and under their line's T3 head / 1.05 (a `helm.t2` view where a people's leather helm is
+      bigger: masked, plumed, crested); every T2-T4 helm inside C3b's columns (T1-T2 0 and a drawn brim 1; T3-T4 1);
+    - plumes and crests swaying a pixel behind the walk's bob (`breeze` views on the passing frames) on every plumed and
+      crested family at T5-T6;
+    - a head per alloy: every `variant-<n>` the head-key solve uses drawn (D U R L and lie; `role helm fam.<v> variants
+      <n>`), bold outlines of one family, each its own read at 1x in greyscale; the owner's 37 keep their heads
+      (kBoardHeads);
+    - the A fixes on every helm of their material: A2-A3's lacquered brass hats (a lit gold top plane of 6 px or more, a dark
+      underside, a glint) on every warm alloy's hat, A1's brass wings, A4's mask plate on every KNAPPED mask (one dark plane,
+      its lit edge, two eye holes, no light across the lower face facing R / L), A5's Mythic helm on every Mythic look's
+      family (black steel with bright lit planes, the gold brow band and fin edge, the flame crown on its dark band, the face
+      box clear), A6's CRYSTAL helm (two lit planes, the visor band under a lit rim, the cheek wings), A7's straight glass
+      wings on every winged GLASS alloy;
+    - faces clear: open helms frame the face with the dark lining on the brow row; closed helms carry the 2 px visor band
+      and a breath slot (C17's visor).
+  - Depth: the hair under open helms by style; every people's helm per tier on its T1-T6 kits; the onion helm seated on the
+    head facing R (the pack's open item 3).
+  - Delight: plumes that bob on the walk and lift a pixel on the run; the T6 fin catching the breath's light.
+  - Done: pxc on `$W` 0 errors, every `role helm fam.<v> variants <n>` with its D U R L and lie views (pxc's check); `$X
+    --doll --gates --parity`: C3b by tier, C3e, C17's visor, C19's head terms and B8 0, LOCO and RUN within the tier rows;
+    `$X --doll-envelope --scope ladder --seeds 1..3 --report`: every line's head terms 0 (T2 under T3 / 1.05; T3 to T6 5 %
+    up and 0.10 head OD apart); `--scope all --seeds 1..3`: no helm cap failure; `$X --doll-heads` and `$X --doll-forge
+    --worlds 1..6 --report`: C16k 0; `$X --doll-coverage --scope envelope`: no `helm.t5` or `.t6` view missing for a family a
+    T5-T6 look wears and no variant the solve uses undrawn; the judge names every tier's helmet on the hero lines and on
+    four peoples' lines at 1x in greyscale on the phone, and tells all 37 heads apart at 1x.
+- **SHIELDS** (artist).
+  - Files: maps/shield/**.
+  - Core: the 8 shapes and the legacy round in every key (rest, guard, block, bash, lie, back, ride), with field, device and
+    rim regions; the shield arm's keys (`sharm`) for every family's shield-bearer frames (the keys board: sword, axe, mace,
+    dagger and unarmed with a shield; block, the bash on the roll, hurt, fling, lie); the finish regions (a gilt rim at T5,
+    a gem boss, the device or boss glowing at T6); bosses and rims by forge style on every shape; `alloyface` (the field
+    tinted 30 % toward the alloy, D39) on every shape; A5's Mythic shield (a clean device, fire on the rim only) on every
+    shape a Mythic look carries. The envelope: shields are held (no area) but ride the bigger figures: clear of the long
+    cloak's front and of great pauldrons (facing L the shield stays below the ear row), inside the run box + 1.
   - Depth: devices drawn per culture.
-  - Delight: sparks when a mace meets a shield.
-  - Done: C3c, B10 LOCO and RUN with every shape (M12), B8.
-- **WEAPONS** (artist-xhigh). Files: maps/held/weapons/**, maps/held/civil/** (relabel only), maps/belt/sheaths/**,
-  maps/back/**.
-  - Core: every weapon at 16 angles with carry and drop views; the 8 blade, 3 polearm and 5 bow forms; the crossbow's
-    states; a sheath for every sheathed kind; the quiver, the bow and the staff on the back; legendary and Mythic glints.
+  - Delight: sparks when a mace meets a shield (with FX).
+  - Done: pxc on `$W` 0 errors; `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C3c 0 on every shape and family
+    (the origin on gripL, attached, behind the torso facing R, in front facing L and D, clear of the boots, inside the run box
+    + 1) and C3e's shield flat within 4 px; `$X --doll --gates --parity`: B8 0, B10 LOCO and RUN by tier with every shape on
+    M12 at T4 and T6, C19 A5's shield term; `$X --doll-coverage --scope all --seeds 1..3`: no shield or `sharm` key missing
+    that a clip names; the judge reads every shape's device and rim at 1x and `alloyface` on the board alloys.
+- **WEAPONS** (artist-xhigh).
+  - Files: maps/held/weapons/**, maps/held/civil/** (relabel only), maps/belt/sheaths/**, maps/back/**.
+  - Core: every weapon at 16 angles with carry and drop views (sword, axe, mace, dagger, greatsword, spear, staff, bow,
+    walking stick); the 8 blade, 3 polearm and 5 bow forms; the crossbow's states; a sheath for every sheathed kind (sword,
+    dagger, axe and mace through the belt, the greatsword across the back); the quiver, the bow and the staff on the back;
+    the finish regions on every weapon (R the guard and pommel, P the flat or fuller, G the pommel's socket, N the fuller:
+    T1 matte with an iron guard, T3 a brass guard, T4 an etched fuller, T5 a gold guard and a gem pommel, T6 rune inlay
+    and the edge sweep's path); blades drawn for Slot::Blade (D30); legendary and Mythic glints; C6's craft (the lit edge
+    top-left in every view, a tip mark and a bright tip pixel on blades, no doubled pixels or L-jaggies, the grip origin on
+    the haft, lengths per STYLE_P2 11 within 1 px; bows' D and U views 2 px at the grip with a 3-column curve). First each
+    family's base weapon at its 16 angles (axe.bearded, mace.flanged, dagger.straight, the greatsword, staff.plain, the
+    crossbow), so the action areas draw against real angles. The envelope: shapes unchanged (D34); the drop views flat
+    beside the near hand under the long cloak's lie view; the carry views clear of great pauldrons and the long cloak (a
+    spear's upright carry in front of a 28 px shoulder, inside B10's polearm allowance).
   - Depth: the culture hilts.
   - Delight: arrows visible in the quiver.
-  - Done: C6, C3d (with the action areas), B8.
-- **FX** (artist). Files: maps/fx/**.
-  - Core: the 9 family effects re-cut to A3's three tones, in side and down orientations, with the finisher tint.
+  - Done: pxc on `$W` 0 errors and pxc's craft clean on held/weapons, belt/sheaths and back; `$X --doll --gates --parity`: C6
+    0 and B8 0; `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C3d (with the action areas) and C3e (the drop
+    flat, its lowest pixel within 3 rows of the body's, within 6 px of the near hand) 0; `$X --doll-coverage --scope all
+    --seeds 1..20`: no `held <weapon>.<form>`, sheath or back value missing that the census or the gear rolls produce; the
+    judge's silhouette test (every class clear filled black at 1x on the phone) and blades in their own metal.
+- **FX** (artist).
+  - Files: maps/fx/**.
+  - Core: the 9 family effects (A3's arc re-cut, heavy, chop, smash, thrust, swish, punch, twang) and the block's spark,
+    re-cut to A3's three tones (edge, body, core) in side and down orientations, with the finisher tint (#FFE6A0); inside
+    the figure's box plus the reach and above the sole row; peaking on the impact frame and ending with the strike state
+    within a frame. The envelope does not grow an effect: its size follows the weapon's reach, never the gear.
   - Depth: chips and dust that fall with gravity over the follow.
-  - Delight: the impact sparks on metal.
-  - Done: C5's effect timing (with FOLK-SIM-C), B8, and the judge's read.
-- **ACTIONS-1H** (artist-xhigh). Files: maps/arms/adult/action/onehand/**, maps/legs/adult/action/onehand/**,
-  clips/actions/{unarmed, dagger, sword, axe, mace}.clip.
-  - Core: those families' three variants in four facings on both bodies, every form through the library; their guard
-    stances and drawn walk and run (`part drawn`); the sword's parry block.
-  - Depth: a parry pose; a shield bash on the roll.
-  - Delight: the impact flash and the camera nudge on heavy finishers.
-  - Done: C5 (these families), C3d, B11 on their drawn walk and run, B10 ACTION and DRAWN.
-- **ACTIONS-2H** (artist-xhigh). Files: maps/arms/adult/action/twohand/**, maps/legs/adult/action/twohand/**,
-  clips/actions/{greatsword, spear, staff, bow, crossbow}.clip.
-  - Core: those families' variants (glaive and halberd sweeps), the bow's draw and release on both bodies, the crossbow;
-    their guard stances and drawn walk and run.
+  - Delight: the impact sparks (#FFD87A) on metal.
+  - Done: pxc on `$W` 0 errors; `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C5's effect terms 0 with the
+    action areas; `rpg_test --anim --gates` (A2) on the integrated build with FOLK-SIM-C; `$X --doll --gates --parity`: B8 0;
+    the judge reads each family's effect at game speed (peaking on impact, three tones, the finisher tint on hit 3).
+- **FINISH** (artist-xhigh; the material lead).
+  - Files: maps/finish/**, maps/forge/** (with forge/glass) (wave 1d's FORGE-MATERIAL pairing).
+  - Core:
+    - the finish tiles for every material (cloth, leather, metal): wear (T1: a stitched patch, tarnish, a frayed notch; 6 %
+      of a piece at most), trim (T2-T6 edges), etching (T4), filigree in the twelve peoples' motifs (T5-T6), runes in the
+      peoples' glyphs (T6; the ladder table's last column), gem stamps; the living finish's sprites at scale (glint, mote);
+      the glow colour of every alloy checked on its people's T5-T6 kit;
+    - the forge: the tier finish fitted to every style (T3 brass on its rims, T4 etching in its panel, T5 gold rims,
+      filigree and the gem, T6 runes along its seams) on skirts, motifs and over-layers too; the hidden words' tiles (VEIL,
+      WHORL, TIDE, PEARL, SHARD, WRACK);
+    - the A materials on every piece: the glass speculars and rim runs (forge/glass: 2-3 px bars and diamonds on facets of
+      4 px or more, never on a face plate) for every KNAPPED piece and GLASS alloy; the Mythic's crack seams
+      (forge/cut/crackled) and flame edge (forge/edge/flame) 2 px wide with no speck on every form; the iridescent band tile
+      (forge/sheen/iridescent) for every starmetal piece; the glowing seam tile (forge/sheen/glowing); the glint, rune and
+      glyph tiles with no 1 px dash on a plate; the ramp numbers DOLL-C needs; asks to the views' owners answered in the same
+      iteration;
+    - the line review per people: each material's T4-T6 pieces at 1x, 3x and 8x, colour and greyscale, on grass and on dark
+      ground.
+  - Depth: the hidden peoples' strange finishes (hiddenLook's filigree and gilding); Thaerglass's seams breathing in its own
+    green light at T5; the glass alloys' read at 1x (the pack's open item 1) and THORNSTEEL's side and walk glints (item 6),
+    inside the A rows' rules.
+  - Delight: a Legendary's runes in its maker people's own script; one specular sliding along an obsidian facet as the body
+    turns.
+  - Done: pxc on `$W` 0 errors and every stamp and tile B8 0 (no orphans, periods 2 px or more, never a checker); `$X
+    --doll-ladder --finish --report` and `$X --doll-ladder --finish --scope ladder --seeds 1..3 --report`: C12b (trim share by
+    tier, glints, no glow below T5 but D28's seams) and C13 0; `$X --doll-adefects`: C19 A4-A8 0; `$X --doll --gates
+    --parity`: C16n on every LOCO and RUN frame of the A looks and the board's plate alloys, and C17's sheen tells (glowing 8
+    px or more at T4, the iridescent bands) 0; the judge's ladder review per people (T1-T6 boards, man and woman) and the
+    blind reads of A4-A7 on a production look of each material.
+- **ACTIONS-1H** (artist-xhigh).
+  - Files: maps/arms/adult/action/onehand/**, maps/legs/adult/action/onehand/**, clips/actions/{unarmed, dagger, sword, axe,
+    mace}.clip.
+  - Core: those families' three variants (windup, strike, follow) in four facings on both bodies, every form through the
+    library (`weapon=<deg>`); their guard stances and drawn walk and run (`part drawn`); the sword's parry block (raise;
+    impact with the 1 px recoil and `fx spark`; brace); the shield-bearer lines of every one-hand family (`when shield`, its
+    `sharm` keys on the keys board) in the family's own clip file (the sword's present shield lines are generated into
+    sword_shield.clip by DOLL-C's p2c_clips.py from sword.clip; a sword shield line written into sword.clip is retired from
+    the generator by DOLL-C at the same integration, so one line never exists twice); STYLE_P2 25.8's timing and beats (the loaded frame the family's strongest silhouette,
+    the impact with lunge legs and a 1-2 px lean, the follow 22.5-45 degrees past, the recover within 2 px of the guard, hit
+    3 the finisher: a stance 2 px wider, a deeper coil, the finisher tint, a held impact frame); left frames painted, never
+    the mirror, the weapon in the right hand; the keys board in the first iteration. The envelope: every frame carries T5-T6
+    gear (great and legend pauldrons ride the swings with `pauld=up` on overhead wind-ups; the long cloak never through a
+    leg, W8 by tier; the T6 helm inside C3b); B10 ACTION and DRAWN by tier on M12 at T4 and T6.
+  - Depth: a parry pose; a shield bash on the roll (with ACTIONS-BODY).
+  - Delight: the impact flash and the camera nudge on heavy finishers (SWITCH, on FOLK-SIM-C's impact flag).
+  - Done: pxc on `$W` 0 errors (its clips validated); `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C5 for
+    unarmed, dagger, sword, axe and mace (strike frames 25 % apart from every other family's, a family's three variants 25 %
+    apart, tip paths side-on: the sword's over the head, axe and mace down 10 px or more; left frames painted; block 3
+    frames), C3d and C3 on every action frame 0; `$X --doll --motion --limbs-looks tools/doll/arms_looks.txt --report`: B11
+    on the drawn walk and run 0; `$X --doll --gates --parity`: B10 ACTION and DRAWN by tier on M12 at T4 and T6, B8 0; `rpg_test
+    --anim --gates` A2 per family 0 on the integrated build (with FOLK-SIM-C); the judge: each family's three blows live and
+    frozen with `pose`, at 1x on the phone and at 12x.
+- **ACTIONS-2H** (artist-xhigh).
+  - Files: maps/arms/adult/action/twohand/**, maps/legs/adult/action/twohand/**, clips/actions/{greatsword, spear, staff,
+    bow, crossbow}.clip.
+  - Core: those families' variants (the glaive and halberd sweeps), the bow's draw (nock, chest, the cheek held) and release
+    on both bodies, the crossbow (aim, shoot, crank); their guard stances and drawn walk and run; the spear's windup in 2
+    frames leaning back 2 px or more and its strike leaning forward 3 px or more with the front foot planted; both fists on
+    the haft in every frame (greatsword 3 px apart, spear and staff 6-8; the off fist on the haft line within 1 px); the
+    spear's block (both arms, the haft high); the keys board in the first iteration. The envelope as ACTIONS-1H; a levelled
+    spear clear of the long cloak and great pauldrons; M12's spear and greatsword looks at T4 and T6 inside B10 by tier (the
+    polearm allowances).
   - Depth: the spear set against a charge (the guard, lowered).
   - Delight: the bowstring's twang frame.
-  - Done: C5, C3d, B11, B10 (M12 spear and greatsword looks).
-- **ACTIONS-BODY** (artist). Files: maps/arms/adult/action/body/**, maps/legs/adult/action/body/**,
-  clips/actions/common.clip.
-  - Core: the roll (turned crouch frames: STYLE_P2 25.8, item 8), the cast (gather, release; with a staff and empty
-    handed), and hurt variants with gear.
+  - Done: pxc on `$W` 0 errors; `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C5 (these families; the spear's
+    terms; the bow 3 + 1; the crossbow's states), C3d (two-handed) and C3 on every action frame 0; `$X --doll --motion
+    --limbs-looks tools/doll/arms_looks.txt --report`: B11 0; `$X --doll --gates --parity`: B10 by tier on M12's spear and
+    greatsword at T4 and T6, B8 0; `rpg_test --anim --gates` A2 0 on the integrated build; the judge as ACTIONS-1H, and the
+    archer's held full draw then the snap.
+- **ACTIONS-BODY** (artist).
+  - Files: maps/arms/adult/action/body/**, maps/legs/adult/action/body/**, clips/actions/common.clip.
+  - Core: the roll (crouch; the tuck turned a quarter toward the roll; over, the other quarter; rise: `turn=east|west
+    at=dx,dy`, so every garment and armour rolls without roll views; the shield leads the tuck as the bash), the cast (gather
+    with the glow between the hands, weight back; release; with a staff and empty handed), and hurt variants with gear (the
+    helm snaps back with the head, the shield arm drops a pixel). The envelope: the roll and the cast with T5-T6 gear (the
+    long cloak and great pauldrons turned in the tuck and over, never across the face); B10 ACTION by tier.
   - Depth: the cast's glow pixel lighting the face.
   - Delight: a shoulder roll that tucks the helm.
-  - Done: C5 (roll 4, cast 2 for every body), C3 on their frames, B8.
-- **SWITCH** (engineer-high).
+  - Done: pxc on `$W` 0 errors; `$X --doll-arms --looks tools/doll/arms_looks.txt --report`: C5's roll 4 and cast 2 for
+    every body and C3 on their frames 0; `$X --doll --gates --parity`: B8 0 and B10 ACTION by tier; the judge reads the roll
+    and the cast at game speed with M12's T6 kit.
+- **SWITCH** (engineer-high; BDIR build-p2c-switch).
   - Files in wave 2: rpg/view/** (render_anim, render, terrain, hud, party_hud, paperdoll, creator, loot_ui, home_view,
     party_view, render_sea, witness_state, script_p2c), rpg/art/art_party_portrait.cpp, rpg/main.cpp, web/**,
     tools/preview/** (but doll_gallery and doll_poses), tools/scripts/p2c_{gear, swings, menus, world}*.txt and
     p2c_playtests.txt, witness/p2c_switch.witness.json.
-  - Files in wave 3 (serial, every other area delivered): rpg/art/art_human.cpp/.h, art_life.cpp/.h, art_internal.h,
-    rpg/art/rig/**, art_monsters.cpp, art_items.cpp, art_rig.h/.cpp, CMakeLists.txt, tools/art_hash.cpp,
+  - Files in wave 3 (serial, every other area delivered, after the owner's go): rpg/art/art_human.cpp/.h, art_life.cpp/.h,
+    art_internal.h, rpg/art/rig/**, art_monsters.cpp, art_items.cpp, art_rig.h/.cpp, CMakeLists.txt, tools/art_hash.cpp,
     tools/tests/test_rig.cpp, test_anim.cpp, test_arms.cpp, tests/fixtures/golden_anim_v1.txt, golden_village_art.txt,
     .github/workflows/web.yml, and every script and Witness file that says `rig 1`.
-  - Core in wave 2 (behind rig 2):
-    - every remaining draw path on the doll: the paperdoll at whole multiples, the creator preview, the HUD hero, the
-      party list, portraits from A3's face, loot previews, statues through figureStill, the bather and swimmer crop
-      from doll frames, the Mythic aura per doll frame, the hidden-hero silhouette checked, the rider's Ride frame per
-      horse frame;
+  - Core in wave 2 (behind rig 2; deletes nothing):
+    - every remaining draw path on the doll: the paperdoll at whole multiples, the creator preview, the HUD hero, the party
+      list, portraits from A3's face, loot previews, statues through figureStill, the bather and swimmer crop from doll
+      frames, the Mythic aura per doll frame, the hidden-hero silhouette checked, the rider's Ride frame per horse frame;
+    - the ladder and the forge in every draw path: the living finish (the paperdoll at whole multiples, the party list,
+      portraits, the creator preview) and the shapes in the paperdoll, portraits and loot previews;
+    - the envelope in the view: menu frames sized for the T6 envelope (a T6 with its fin at F-41, 28 px shoulders and the
+      cloak 8 px behind, uncropped at whole multiples), the stir on the breathe frame in menus; the DRAWN atlas queued on
+      aggro beside ACTION (DOLL-C's dollCovers); the rig-2 atlas cache at 16 MB unless the capital sweep at 15:00 (the
+      census's T4-T5 officers and three T6 companions) evicts an on-screen look (then 20 MB, inside C8's 24 MB); the doorway
+      draw order kept; the glow pass and the finish light on every T5-T6 figure; the hooks DOLL-C and the art areas ask
+      (script_p2c, witness_state);
     - lying bodies sorting by their own baseline (tall grass, the loose horse);
-    - the p2c scripts with their `_phone` twins, witness/p2c_switch, and the C10 goals.
-  - Core in wave 3: the flip (above).
+    - the p2c scripts with their `_phone` twins (a phone's first launch: `firstlaunch phone`, NEAR at D 6), witness/p2c_switch
+      (v1Draws 0 at rig 2, coverage, menus) and the C10 goals (p2c_playtests.txt, T4-T7);
+    - the flip pack's capture scripts (before / after at rig 1 and rig 2 of the reference screens, the start village, a war
+      camp, a market, a harbour and every menu; every image 8,000 px or less) and the flip checklist (every file wave 3
+      touches) in its first report.
+  - Core in wave 3: the flip ("The flip (wave 3)"); not part of this run.
   - Depth: the creator preview animating idle, walk, run and a swing.
   - Delight: the paperdoll turning to the facing of the last tap; the camera nudge.
-  - Done: C2, C7, C9, the flip checklist, CI updated; then the integration below.
+  - Done (BDIR build-p2c-switch): `BDIR=build-p2c-switch tools/run_scripts.sh p2c_gear p2c_swings p2c_menus p2c_world` 0
+    failures (the `_phone` twins as a phone's first launch at NEAR); `node C:/Users/joshu/Documents/witness/bin/witness.js
+    test witness/p2c_switch.witness.json --cmd "build-p2c-switch/embervale --witness"` passes (v1Draws 0 at rig 2 over every
+    menu and draw path); C7 by the p2c_menus shots and the judge; C8's view lines (`tools/scripts/p2a_lead_perf.txt` with
+    EMB_TIMING=1: the city-arrival worst frame within baseline + 4 ms, View::draw at NORMAL within baseline + 10 %, one
+    facing's LOCO bake p95 0.385 ms or less, an ACTION atlas 6 ms or less; the capital sweep at 15:00 with people 24 MB or
+    less and the evictions counted); witness p2a_lens, p2a_lens_lane and p2c_zoom unchanged and passing; rig 1 unchanged
+    (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `rpg_test --arms --seeds 1..3` ALL OK); the flip checklist filed.
+
+**Integrating wave 2** (the integrator: the only one who builds `build` and regenerates the generated files; no
+state-changing git, the main session commits):
+1. Hour 0, before any area delivers: a fresh `tools/slot.sh cmd //c "set BDIR=build&& tools\\build.bat rpg_test" <
+   /dev/null` at e25ea41, then `build/rpg_test.exe --doll-wear --freeze-write %TEMP%\claude\emb_P2c\wave2\freeze_e25ea41.txt`.
+2. As areas deliver (no barrier; when two or more iterations are in, or about every 6 hours): every changed path (`git
+   status --short`, read only) belongs to exactly one area's globs (a stray path goes back to its owner, never merged);
+   `python tools/doll/p2c_clips.py`; `python tools/doll/embed_looks.py`; `node tools/doll/pxc.mjs` (gen/doll_pool.cpp, never
+   hand-edited: 0 errors, the pool 2,621,440 B or less); build rpg_test; `build/rpg_test.exe --forge-solve --out
+   rpg/sim/gear_forge_shapes.inc` (the owner's 37 keys pinned, rules 1-6 hard) and `build/rpg_test.exe --forge-shapes
+   --check` 0; `tools/slot.sh cmd //c "set BDIR=build&& tools\\build.bat" < /dev/null` (every target); the cheap harness
+   (`--doll --gates --parity`, `--doll-envelope --scope ladder --seeds 1..3 --report`, rig 1); publish
+   `rpg_test_int<N>.exe` and `doll_gallery_int<N>.exe` with LATEST.txt and the per-people table. At the first integration
+   with e6's actions in, DOLL-C writes kEnvelope's T5-T6 ACTION, DEATH and POSTURE (D70) and the integrator rebuilds.
+3. The barrier (every area delivered; EMB_RIG=2 but the rig-1 checks): `node tools/doll/pxc.mjs --check` clean and the pool
+   2,621,440 B or less; `build/rpg_test.exe --doll --gates --parity` 0 (B1-B12 with B10 and W8 by tier, C3-C6 with C3b by
+   tier, C12-C17 with C12f and C13's drawn motion, C19; every selftest ALL CAUGHT); C1 `--doll-coverage --scope all --seeds
+   1..20 --gates` (100 %, 0 dead parts) and `--scope ladder --seeds 1..3`, `--scope forge`, `--scope envelope` 0 missing;
+   `--doll-envelope --scope ladder --seeds 1..3 --report` and `--scope all --seeds 1..3` 0 (or under recorded rulings, D67);
+   `--doll-envelope`, `--doll-adefects`, `--doll-heads` 0; `--doll-arms --looks tools/doll/arms_looks.txt --report` 0;
+   `--doll-ladder --finish --report` and `--doll-ladder --finish --scope ladder --seeds 1..3 --report` 0; `--doll-forge
+   --worlds 1..6 --report`, `--doll-forge --silhouettes --worlds 1..6 --report`, `--forge-shapes --check` and
+   `--doll-forge-drawn` 0; `--doll --motion --limbs-looks tools/doll/<forge, ladder, envelope, arms>_looks.txt --report` 0;
+   `--doll-variety --seeds 1..3 --gates` 0; `--anim --gates` 0; `--doll-wear --freeze-check
+   %TEMP%\claude\emb_P2c\wave2\freeze_e25ea41.txt` 0 changed; `--envelope` equal to "The envelope"'s table with the measured
+   T5-T6 row; C8 (the pool, B10 by tier, `tools/scripts/p2a_lead_perf.txt` with EMB_TIMING=1, the capital sweep at 15:00
+   with people 24 MB or less); rig 1 (`build/art_hash.exe` TOTAL 317eef6efe4d8229, `build/city_gallery.exe
+   --village-art-check` 65 / 0, `rpg_test --anim` 0, `rpg_test --arms --seeds 1..3` ALL OK).
+4. The production regression, once at the barrier (the owner's rule: one full run per update): every CI command of
+   .github/workflows/web.yml on MSVC (the list verify_batch writes to ci_cmds.txt, each run as build/<command>); then `sh
+   C:/Users/joshu/AppData/Local/Temp/claude/C--Users-joshu/5673c178-5c4b-4daa-8a88-0029f5ad318a/scratchpad/verify_batch.sh
+   p2a_ p2b_ p2c_` (the MSVC build, the p2a, p2b and p2c scripts on Windows with 0 failures, every web.yml command on WSL
+   clang 18) ending `CLANG_FAILS=0`; the Witness tests p2c_slice, p2c_ladder, p2c_forge, p2c_envelope, p2c_zoom,
+   p2c_switch, p2b_doll, p2a_lens and p2a_lens_lane pass (`node C:/Users/joshu/Documents/witness/bin/witness.js test
+   witness/<name>.witness.json`). The full script sweep, Witness `test --repeat 2`, the web build and the C10 playtests stay
+   with the flip's one full regression (wave 3).
+5. Record in "Production results and the flip": the pool's size and hash; every area's delta against its allowance; every
+   gate line's numbers; the per-people table before and after, with any rulings; the measured T5-T6 row; rig 1; MSVC equal
+   to clang. Then the verifier gate and the wave-2 judge.
+6. After the judge's PASS: the flip pack (SWITCH's capture scripts, plus every people's T1-T6 line at 1x, 3x and 8x in
+   colour, greyscale and black, the families' blows and the 37 heads; every image 8,000 px or less) for the owner's go.
+
+**The production gate (the judge's protocol, wave 2)**: the judge states this whole protocol in round 1, tests from the state
+a player starts in, measures before it looks, and reruns every area's Done with the area's own commands (an agent's word
+passes nothing). At most 4 rounds; fix rounds verify only their items plus the cheap harness; a code item that fails twice
+goes to engineer-high, a visual item that fails three times to artist-xhigh; a failure the plan caused (a people's line the
+levers cannot lift, a pinned key, a budget the art cannot meet) is called structural and goes to the planner.
+1. **The start**: a new game at seed 7 at rig 2 (EMB_RIG=2: rig 1 stays the default until the flip); the phone window 2556 x
+   1179 as a phone's first launch (EMB_DEVICE=phone, no settings file: NEAR at D 6) and the desktop 1440 x 810 (NORMAL at
+   D 3).
+2. **Measure**: its round-1 harness `.tmp/judge/w2_gates.sh` (r3_env_gates.sh's lines plus the barrier's production lines),
+   the pool, `rpg_test --envelope` against "The envelope"'s table, rig 1, the integrator's verify_batch log (CLANG_FAILS=0),
+   then every area's Done.
+3. **Look at true 1x on the phone at NEAR**, greyscale first, then colour, at game speed, then 3x, 8x (hip to boot) and 12x
+   (impact frames frozen with `pose`): guards of three peoples (the Heartland watch and two others), soldiers of two realms,
+   bandits by family, the hero and a woman knight in every band; each family's three blows, the block, roll and cast, the
+   bow's draw and release and the crossbow; carry at rest and the guard; hurt, the fall and lying (the helm on, the shield
+   flat, the weapon beside the hand, under the grass); every material reading as itself; the woman's fit; nothing floating,
+   sliding, clipping, vanishing or crossing a face; short legs at full thickness, flat feet.
+4. **The climb on every people's line**: the 12 peoples' T1-T6 lines (man and woman) at NEAR, greyscale first: six figures
+   from slim to bulky, a different helmet every tier, faces clear, T1 inside the body, T2 small caps or the short mantle, T3
+   the people's cape stopping at the hem, T5-T6 great and legend shoulders and the long cloak or the key's own bulk, the
+   stir quiet and out of step; then the hero's and the heroine's lines and e6m as signed off; a T6 beside a king the bigger
+   legend; rank by size (a bandit, the village watch, the capital watch, a captain, a king); the 37 heads; the per-people
+   table and its rulings.
+5. **The ladder, the forge and the silhouettes** as signed off: six clear steps; T1 okay / mid; the finish as craft; every
+   material a different armour in colour and in greyscale; a culture's alloys apart; metal reading as metal with every
+   sheen's tell; blades in their own metal; no 1 px texture; the A materials on every piece of theirs at 1x.
+6. **Gear in motion**: T5-T6 gear in every action, the fall, lying and the postures (great pauldrons riding the swings, the
+   long cloak never through a leg, the T6 helm on the lying head); M12 at T4 and T6 at game speed.
+7. **Menus and world**: the paperdoll, creator preview, HUD hero, party list, portraits and loot previews at whole multiples
+   (the T6 envelope uncropped, the living finish and the stir); statues, riders, the bather crop, lying bodies under the
+   grass; v1Draws 0 at rig 2; the capital at 15:00 inside C8.
+8. **Blind tests** by `eyes` agents (three lenses: metal, style, naive; images shuffled and unlabelled; 1x shown at 3x unless
+   named): (a) tier order: the hero's and four random peoples' six tiers in greyscale: each lens orders them with at most one
+   adjacent swap and puts T6 last; (b) families: the strike frames of the 10 families as 1x black silhouettes: two of three
+   lenses name each weapon class; (c) heads: the 37 cropped at 1x (4x display, greyscale): no two named the same helmet; (d)
+   the legend: the T6 hero beside the king and a T5 champion: all three name the T6 the strongest; (e) the A reads on one
+   production look per material (the A table's blind column).
+9. **Verdict**: PASS, or FAIL items, each with a repro command, the measured number, the threshold and the check that will
+   pass it. Thresholds marked planned are set by eye in round 1 and recorded; a check that contradicts an eye-approved
+   frame is re-tuned with the judge's ruling and recorded, never the art bent. After PASS, the flip pack and the owner's go
+   (wave 3 is not part of this run).
 
 ### Waves
 
@@ -4265,11 +4778,19 @@ paperdoll, portraits and loot previews.
      (D42-D65; the B calls and the loot answers come separately). Production (wave 2) starts at the new envelope after it.
    - Round 3 failed five items: "The envelope fix round" (HEAD, BODY, MATERIAL, DOLL in parallel from hour 0, D54-D65)
      runs before the judge's round 4, the last.
-6. **Wave 2, production.** All 14 areas start at once after the forge sign-off and the envelope's (wave 1d). DOLL-C and
-   FOLK-SIM-C publish their contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
-7. **The barrier**: every area delivered, then C1, C3-C6, C8, C12-C17 and C19 green at rig 2, then the owner's go on the
-   flip pack.
-8. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
+   - Done: the fix round and the owner pack (2026-10-28; pool 1,514,147 B, hash e3caafd055beef59; every gate green, MSVC
+     and WSL clang 18 66 / 0), committed as e25ea41. The owner signed it off on 2026-10-28: "I like the climb, you can
+     begin" (D66).
+6. **Wave 2, production** (starts 2026-10-28 at e25ea41). All 14 areas start at once. DOLL-C publishes the e25ea41 exe (w0)
+   at hour 0 and its production hooks (w1: the matrices, C12f over every people's line and on every look, the vocabulary)
+   in its first working block; FOLK-SIM-C publishes its pick pieces in its first block; the action areas write the keys
+   board in their first iteration; WEAPONS lands each family's base weapon at 16 angles first. The integrator integrates
+   as areas deliver (no barrier but the integration build) and publishes each integrated exe. SWITCH ports the menus behind
+   rig 2 and deletes nothing yet. The briefs and the rules: "Production areas (wave 2)" and "The envelope in production".
+7. **The barrier**: every area delivered, then C1, C3-C6, C8, C12-C17 and C19 green at rig 2 (C12f over source L's 72 lines,
+   D67), the production regression (verify_batch ending CLANG_FAILS=0), the verifier gate, the wave-2 judge ("The
+   production gate", at most 4 rounds), then the flip pack and the owner's go on it.
+8. **Wave 3, the flip** (SWITCH, serial; not started before the owner's go), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
    - The web build (EMBERVALE_WITNESS=OFF) and its size.
@@ -4311,10 +4832,16 @@ paperdoll, portraits and loot previews.
      owner's 37 with 37 different heads; the eight A fixes reading as their lines (brass, black glass, the Mythic a step up
      in light, crystal, glass, clean plate; D58-D62); the phone's first launch at NEAR. The protocol is "The envelope gate"
      in "The envelope update"; round 4's items are in "The envelope fix round".
+   - **production at the envelope** (wave 2, 2026-10-28): the climb on every people's line, man and woman, at true 1x on
+     the phone at NEAR, greyscale first: six figures from slim to bulky, a different helmet every tier, faces clear, the
+     per-people table and its rulings (D67-D69); the signed-off hero lines unchanged; T5-T6 gear in every action, the fall,
+     lying and the postures; the A materials on every piece of theirs; menus at whole multiples with the T6 envelope
+     uncropped. The protocol is "The production gate" in "Production areas (wave 2)", and every area's Done lists its
+     commands.
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
-   seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
-   word passes nothing.
+   seed 7; until the flip at rig 2 through EMB_RIG=2, with the phone as a first launch at NEAR; after the flip, rig 2 by
+   default), and reruns every area's done with the area's own commands. An agent's word passes nothing.
 
 ### Risks and fallbacks
 
@@ -4398,6 +4925,24 @@ paperdoll, portraits and loot previews.
 - **The un-swap moves the gat to Jaonbrass** (B1's "top hat"): the owner's B1 answer decides; the fallback is the jingasa.
 - **The fair test's figures were not doll parts**: first light rebuilds them on the shipped anchors and layers; where a pixel
   cannot be placed the doll's rules win and FORGE-TORSO records the difference beside the reference.
+- **Production: the climb on the peoples' lines** (measured at e25ea41: T6 at 1.70 on 14 of 72 lines, T5-T6 steps short on
+  54): the levers in order (D69's T2 and T3 shoulders, the T3 cape's length, sizes 5-6 for every shape, the tier views of
+  every helm family with D68's legend view, the skirt flares, the long cloak for every cloak); DOLL-C's per-people table at
+  every integration shows what each lever moved; a line the levers cannot lift is a planner ruling recorded per people, and
+  a key of the owner's 37 is the owner's. Lines without a cape in their key (17 of 72 at T5) are the likeliest rulings.
+- **Production: T6 ACTION atlases near their cap**: a family's ACTION at T1-T3 is about 450 KB (sword) to 520 KB (spear); the
+  T6 envelope adds about 35-45 % (shoulders 28, the head 10 rows, the cloak 8 px behind facing R / L): about 610-650 KB for
+  the sword and about 730 KB for a T6 spear, against the 716 KB cap. M12 at T6 measures it at the first integration with the
+  actions in; an atlas fix comes first (per-frame crops, identical frames shared: no pixel changes), then the art; over the
+  cap is the owner's question (D46, D48), never a dropped frame.
+- **Production: cross-area keys at volume** (sleeves, the shield arm, `pauld=up`, cloak and held keys under 10 families):
+  the keys board in the action areas' first iteration, the coverage listing at every integration, and the fallback (the
+  close arm, the size below) listed, never a hole; the owners draw the missing views in the same wave.
+- **Production: the pool** (1,514,147 B at e25ea41; about 2,364 KB with every allowance spent): the allowances are watched at
+  every integration; going past 2,621,440 B is the owner's question (D48), never a quiet cut.
+- **Production: a generated file edited by hand, or two areas on one file**: only the integrator regenerates the generated
+  files (pxc, `--forge-solve`, p2c_clips.py, embed_looks.py), and every integration checks each changed path against
+  exactly one area's globs before it builds.
 
 ### Process (the owner's rules for P2c)
 
@@ -4580,6 +5125,29 @@ art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
 
 ### Production results and the flip (the integrator fills)
 
+(Wave 2 starts at e25ea41 on 2026-10-28: pool 1,514,147 B, hash e3caafd055beef59; the per-people baseline is in "The envelope
+in production". Record per integration: the pool's size and hash; every area's delta against its allowance; every gate
+line's numbers; the per-people table with any rulings; the measured T5-T6 ACTION, DEATH and POSTURE; rig 1; MSVC equal to
+WSL clang 18. The older entries below are the ladder's alloys iterations, kept where they were written.)
+
+**Wave 2 integration 4 (INTEGRATOR, 2026-10-29; every area's round 4; bin/rpg_test_int4.exe).** Pool 2,297,837 B, hash
+4475d3c53266351a (gate 2,621,440; pxc 0 errors). Shape table re-solved warm (0 hard, 1 line moved, rules 1-7 0).
+- Pipeline fix: step (b) `p2c_clips.py` had reverted three delivered files (spear_carry.clip's signed-off side carry,
+  DOLL-C's surgical sword_shield.clip fix, ACTIONS-2H's own `at=` steps in spear.clip), which put the spear haft over the
+  face (B11 W7 18). The files are restored as delivered, and the generator now writes through a ledger
+  (tools/doll/p2c_clips.ledger.json): a file edited since its last generation is KEPT, its generator text goes to
+  tools/doll/p2c_clips_out/, and the run exits 2. The three kept files need their edits moved into the generator (DOLL-C).
+- Area deltas against e25ea41 (allowance, KiB): ARMOUR-M +115,331 B (90: over by 23,171), ARMOUR-W +131,405 (90: over by
+  39,245), ARMOUR-X +156,752 (130: over by 23,632), HELMS +97,486 (100), SHIELDS +40,158 (40), WEAPONS +37,553 (70), FX
+  +5,254 (20), FINISH +11,890 (20), ACTIONS-1H +109,597 (110), ACTIONS-2H +108,134 (110), ACTIONS-BODY +15,524 (40),
+  DOLL-C -4 (30). The three armour overruns are the owner's call (D70). The pool gate still has 323,603 B headroom.
+- Gates: `--doll --gates --parity` 0 (52 ok; B10, B11 wear, C3 13865/0, C12f envelope 62/0 and ladder lines 20/0). Still
+  failing: C1 cov_all (163 dead parts, 12,360 child postures on v1: held=spoon or bread), C12f source L 391/391, C12f caps
+  7,642/19,682, arms C3 520 (shield C3a 329, staff C3d 148), C12 71/72, C13 9, C14 80, motion arms 30 (HEAD 18,
+  FARWIDTH 8, BOOT 4), freeze 7,665 changed. Passing: coverage ladder/forge/envelope, envelope, adefects, heads, forge,
+  silhouettes, shapes, drawn, motion forge/envelope/ladder, variety, anim, envelope table.
+- Rig 1: art_hash TOTAL 317eef6efe4d8229, village-art 65/0, --anim 0, --arms ALL OK. verify_batch: 68 scripts 0 failed,
+  CLANG_FAILS=0 (66 ok). Witness p2c_slice/ladder/forge/envelope/zoom/switch, p2b_doll, p2a_lens, p2a_lens_lane all pass.
 
 **Alloys iteration 1 (LADDER-DOLL, 2026-10-23).** Each culture alloy now draws as its own metal family. There are 16
 families, each with a dark core, a wide lit plane, a hard glint and a sheen model. A per-people table keeps a people's

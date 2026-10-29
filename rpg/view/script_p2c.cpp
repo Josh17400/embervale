@@ -116,6 +116,33 @@ bool cmdLadderKit(ScriptCtx& c) {
   if (!bad.empty()) c.fail("ladderkit: unknown " + bad);
   return true;
 }
+// (P2c SWITCH, C8's capital sweep) `compkit <spec>`: every companion in play dressed by a looks spec with the ladder macros
+// over their own look (e.g. kit=heartland:6:3: a T6 kit; the seed moves by one per companion so no two match); test only
+bool cmdCompKit(ScriptCtx& c) {
+  const std::string w = c.arg(1);
+  if (w.empty()) { c.fail("compkit <spec>"); return true; }
+  gear::installLadderMacros();
+  int n = 0;
+  for (Actor& a : c.game.actors) {
+    if (!a.comp || !a.human) continue;
+    std::string spec = w;
+    const size_t k = spec.find("kit=");
+    if (k != std::string::npos) {   // the kit's seed + n
+      const size_t e = spec.find(',', k), last = spec.rfind(':', e == std::string::npos ? spec.size() : e);
+      if (last != std::string::npos && last > k) {
+        const int seed = std::atoi(spec.substr(last + 1, (e == std::string::npos ? spec.size() : e) - last - 1).c_str()) + n;
+        spec = spec.substr(0, last + 1) + std::to_string(seed) + (e == std::string::npos ? std::string() : spec.substr(e));
+      }
+    }
+    std::string bad;
+    art::doll::applyLookSpec(a.look, spec, nullptr, nullptr, &bad);
+    if (!bad.empty()) { c.fail("compkit: unknown " + bad); return true; }
+    n++;
+  }
+  if (n == 0) c.fail("compkit: no companion in play");
+  return true;
+}
+EMB_SCRIPT_CMD("compkit", "compkit <spec>: every companion in play dressed by a looks spec with the ladder macros (P2c SWITCH, C8's sweep; test only)", cmdCompKit);
 EMB_SCRIPT_CMD("ladderkit", "ladderkit <ladder tag|spec>: the hero's look from the ladder slice (lt1..lt6, lt6m, lt6w, the flavour row, the census ranks) or a looks spec with the ladder macros (P2c ladder, test only)", cmdLadderKit);
 
 constexpr int kRowId = 940000;
@@ -354,6 +381,50 @@ bool cmdSettle(ScriptCtx& c) {
   if (c.waited >= maxS) { std::printf("settle: not still after %.1f s (shooting anyway; last wait on the bakes %.1f ms)\n", c.waited, ms); return true; }
   return false;
 }
+// (P2c SWITCH, C7) `expect menu ...` on the menu figures drawn last frame (View::menuFigs; Witness state.menus):
+//   expect menu v1 <n>                  people frames from v1 sheets last frame (View::v1Draws: world and menus) == n
+//   expect menu <where> doll            the figure at <where> (paperdoll creator hero party dialogue portrait loot) came from
+//                                       the doll (rig 2) at a whole multiple
+//   expect menu <where> uncropped       ... and stands inside its stage
+//   expect menu <where> scale <n>       ... at that multiple
+//   expect menu <where> aura <n>        no finish light further than n px off the figure's silhouette (the Mythic's flame, C7)
+//   expect menu <where> lights          the living finish drew on it (T5-T6)
+bool expMenu(ScriptCtx& c) {
+  const std::string what = c.arg(2), test = c.arg(3);
+  if (what == "v1") {
+    const int want = std::atoi(test.c_str());
+    if (c.view.v1Draws != want) c.fail("expect menu v1 " + test + ": " + std::to_string(c.view.v1Draws) + " people frames from v1 sheets last frame");
+    return true;
+  }
+  static const char* const kWhere[] = {"paperdoll", "creator", "hero", "party", "dialogue", "portrait", "loot"};
+  int where = -1;
+  for (int i = 0; i < View::kMenuWhereN; i++) if (what == kWhere[i]) where = i;
+  if (where < 0) { c.fail("expect menu <paperdoll|creator|hero|party|dialogue|portrait|loot|v1> ..."); return true; }
+  const View::MenuFigure* f = nullptr;
+  for (const View::MenuFigure& m : c.view.menuFigs) if (m.where == where) { f = &m; break; }
+  if (!f) { c.fail("expect menu " + what + ": no figure drawn there last frame"); return true; }
+  const std::string at = " (rig " + std::to_string(f->rig) + ", " + std::to_string(f->scale) + "x, " + std::to_string(f->w) + "x" + std::to_string(f->h) + ")";
+  if (test == "doll" || test.empty()) { if (f->rig < 2 || f->scale < 1) c.fail("expect menu " + what + " doll: drawn from a v1 sheet" + at); }
+  else if (test == "uncropped") { if (f->rig < 2 || f->cropped) c.fail("expect menu " + what + " uncropped: the figure leaves its stage" + at); }
+  else if (test == "scale") { if (f->scale != std::atoi(c.arg(4).c_str())) c.fail("expect menu " + what + " scale " + c.arg(4) + ": drawn" + at); }
+  else if (test == "aura") { if (f->auraOut > std::atoi(c.arg(4).c_str())) c.fail("expect menu " + what + " aura " + c.arg(4) + ": a light " + std::to_string(f->auraOut) + " px off the silhouette" + at); }
+  else if (test == "lights") { if (f->lights <= 0) c.fail("expect menu " + what + " lights: no living finish drawn" + at); }
+  else c.fail("expect menu <where> doll|uncropped|scale <n>|aura <n>|lights");
+  return true;
+}
+const int kMenuReg = registerScriptExt(ScriptExt{"expect:menu", "expect menu v1 <n> | <where> doll|uncropped|scale <n>|aura <n>|lights: the menu figures drawn last frame (P2c SWITCH, C7)", expMenu});
+
+// (P2c SWITCH) `drawframe`: one frame drawn now (Witness steps draw only for a shot: state.menus, the v1 count and the
+// hero's sprite are what the last drawn frame held); `creatoropen`: the character creator over the running game, as New
+// Adventure opens it (Game::beginCreator; test only)
+bool cmdDrawFrame(ScriptCtx& c) { c.view.draw(c.game, false); return true; }
+const int kDrawFrameReg = registerScriptExt(ScriptExt{"drawframe", "drawframe: draw one frame now (Witness: state.menus, v1Draws read the last drawn frame; P2c SWITCH, test only)", cmdDrawFrame});
+// `female 1|0`: the hero's body the woman's or the man's (as Witness's reset param female; the gear kept, the look redressed)
+bool cmdFemale(ScriptCtx& c) { c.game.app.female = c.arg(1) != "0"; AnimOps::refreshHero(c.game); return true; }
+const int kFemaleReg = registerScriptExt(ScriptExt{"female", "female 1|0: the hero's body the woman's or the man's, worn gear kept (P2c SWITCH, test only)", cmdFemale});
+bool cmdCreatorOpen(ScriptCtx& c) { c.game.beginCreator(); return true; }
+const int kCreatorReg = registerScriptExt(ScriptExt{"creatoropen", "creatoropen: the character creator over the game, as New Adventure opens it (P2c SWITCH, test only)", cmdCreatorOpen});
+
 const int kSettleReg = registerScriptExt(ScriptExt{"settle", "settle [max s] [gap s]: wait until two world draws gap s apart (0.5) find no terrain bake in flight, max s at most (3), the hero hidden (D65: a capture after `skill clearing`; test only)", cmdSettle, 10.0f});
 
 }  // namespace

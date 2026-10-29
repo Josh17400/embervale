@@ -30,6 +30,45 @@ view D key rest origin -1 3 layer head
 |.....QRRTQ
 |......QRRQ
 |.......QQQ
+# (ARMOUR-X wave 2, cloakx.py) D breeze when 
+view D key breeze origin -1 3 layer head
+|.QQQQ.....
+|QPOSSQQ...
+|QRSSSSSQQ.
+|.QRSSTSSSQ
+|..QRSTSRSQ
+|...QRTSRSQ
+|....QRSRTQ
+|.....QRRTQ
+|......QRRQ
+|.......QQQ
+# (ARMOUR-X wave 2, cloakx.py) D breeze when cloak.t6,cloak.t5
+view D key breeze origin -1 3 layer head when cloak.t6,cloak.t5 replace
+|.QQQQ.......
+|QPOSSQQ.....
+|QRSSSSSQQ...
+|.QRSSTSSSQ..
+|...QRSTSRSQ.
+|....QRTSRSQ.
+|......QRSRTQ
+|.......QRRTQ
+|........QRRQ
+|.........QQQ
+
+# (ARMOUR-X wave 2, cloakx.py) D breeze when cloak.t5
+view D key breeze origin -1 3 layer head when cloak.t5 replace
+|.QQQQ......
+|QPOSSQQ....
+|QRSSSSSQQ..
+|.QRSSTSSSQ.
+|..QRSTSRSQ.
+|...QRTSRSQ.
+|.....QRSRTQ
+|......QRRTQ
+|.......QRRQ
+|........QQQ
+
+
 
 view R key rest origin 0 0
 |.
@@ -45,3 +84,16 @@ view L key rest origin 4 3
 |...QRSRSQ
 |....QRRRQ
 |.....QQQQ
+# (ARMOUR-X wave 2, cloakx.py) L rest when cloak.t1,!cloak.t5
+view L key rest origin 4 3 when cloak.t1,!cloak.t5 replace
+|.QQQQ....
+|QPOSSSQ..
+|QSSSSSSQ.
+|.QSSSSSQ.
+|.QSSTSSQ.
+|..QSTSSQ.
+|..QRTSSQ.
+|...QRSSQ.
+|....QRRQ.
+|.....QQQ.
+

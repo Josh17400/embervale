@@ -399,10 +399,31 @@ void View::drawCreator(Game& g) {
   int face = S.face >= 0 && S.faceHold > 0 ? S.face : order[(int)(t_ / 2.2f) & 3];
   int row = face == 3 ? 2 : face;
   int frame = 1 + ((int)(t_ * 7.0f) & 3);
+  // (P2c SWITCH, depth) rig 2: the doll's own frames at the largest whole multiple the stage holds (the T6 envelope's
+  // room kept), showing what the body does: it breathes, walks, runs and swings (a sword in hand for the blow), in turn
+  const MenuStage stage{kLX + 2, kTabY + 28, kLW - 4, footY + 4 - (kTabY + 28)};
+  // one multiple for every gait (the figure never changes size): the body's own (idle, walk, run); the swing (a sword in
+  // hand, facing down toward the viewer, where the blows are narrowest) is shown only when its frames fit at it
+  art::HumanLook prev = lookOf(g);
+  const int dsc = menuDollScale(prev, stage, cx, footY, 5, true);
+  const float cyc = std::fmod(t_, 10.4f);
+  MenuGait gait = cyc < 2.6f ? MenuGait::Idle : cyc < 5.2f ? MenuGait::Walk : cyc < 7.4f ? MenuGait::Run : MenuGait::Swing;
+  int dface = face;
+  if (gait == MenuGait::Swing) {
+    art::HumanLook armed = prev;
+    if (armed.weapon == 0) armed.weapon = 1;   // the starter's sword for the swing
+    if (dsc > 0 && menuSwingFits(armed, stage, cx, footY, dsc, 0)) { prev = armed; dface = 0; }
+    else gait = MenuGait::Idle;
+  }
+  if (gait != MenuGait::Swing) menuSwingT0_ = -1;
+  if (dsc > 0 && drawMenuDoll(prev, kMenuCreator, dface, gait, cx, footY, dsc, stage)) {
+  } else {
   const Tex& tex = humanTex(lookOf(g));
   const float sc = 5;
   P.blitEx(tex, frame * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, cx - art::HUMAN_W * sc / 2,
            footY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
+  noteMenuV1(kMenuCreator, cx - art::HUMAN_W * sc / 2, footY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), stage);
+  }
   button(kLX + 6, kBotY - 32, 30, 24, "<", false);
   button(kLX + kLW - 36, kBotY - 32, 30, 24, ">", false);
   P.text(cx, kBotY - 24, "TURN", 1, kDimC, 1);

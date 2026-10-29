@@ -158,3 +158,47 @@ regions
 |.....................
 |.....................
 |.....................
+
+# (HELMS wave 2) begin T2: the T2 spangen (Steppe's leather T2): the soft cap inside the head box (C3b T2: 0 columns).
+view D key rest origin 2 1 when helm.t1,!helm.t3 replace
+|--------------------
+|--------------------
+|--------------------
+|-------ffiihf-------
+|-----ffiihhhggf-----
+|----fiihhhhhgggf----
+|....ffffffffffff....
+view U key rest origin 2 1 when helm.t1,!helm.t3 replace
+|--------------------
+|--------------------
+|--------------------
+|-------ffiihf-------
+|-----ffiihhhggf-----
+|----fiihhhhhgggf----
+|....ffffffffffff....
+view R key rest origin 3 1 when helm.t1,!helm.t3 replace
+|---------------------
+|---------------------
+|---------------------
+|--------ffiihf-------
+|------ffiihhhggf-----
+|-----fiihhhhhgggf----
+|....ffffffffffffff...
+view L key rest origin 2 1 when helm.t1,!helm.t3 replace
+|---------------------
+|---------------------
+|---------------------
+|-------fhggff--------
+|-----fiihhhggff------
+|----fiiihhhhhggf-----
+|...ffffffffffffff....
+view L key lie origin 2 1 when helm.t1,!helm.t3 replace
+|---------------------
+|---------------------
+|---------------------
+|-------fhggff--------
+|-----fiihhhggff------
+|----fiiihhhhhggf-----
+|...ffffffffffffff....
+# (HELMS wave 2) end T2
+

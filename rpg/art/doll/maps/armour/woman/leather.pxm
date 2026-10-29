@@ -1440,3 +1440,179 @@ regions
 |.................
 |.................
 |...RRRRRRRRRRR...
+
+# (ARMOUR-W wave 2 r3, gen_notch.py) a heavy or wide sleeve: her waist notch (the base view's '-' cells) closed with the
+# torso's own edge pixel, so no clear pocket stays between the sleeve, the pauldron and the torso (C3a).
+view D key rest origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key rest origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key idle origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key idle origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key run origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key run origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key runl origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key runl origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key drawn origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key drawn origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key swing origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key swing origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view D key lie origin 5 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view D key lie origin 5 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key rest origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key rest origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key idle origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key idle origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key run origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key run origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key runl origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key runl origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key drawn origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key drawn origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key swing origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key swing origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+view U key lie origin -4 -5 when arm-heavy
+|f
+|f
+|f
+|f
+
+view U key lie origin -4 -5 when arm-wide
+|f
+|f
+|f
+|f
+
+# (ARMOUR-W wave 2 r3, gen_shieldside.py) a shield flush against her side (the fall's first frame): the waist it walls in
+# is closed with the torso's own edge pixel (C3a); hidden under the shield arm in every other frame.
+view D key rest origin -5 -5 when shield,armour.t2
+|f
+|f

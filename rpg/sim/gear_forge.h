@@ -140,6 +140,9 @@ struct ShapeModel {
   // (optional, silhouettes i2) a table to start from (the solver's passes then move only what the rules and the known twins
   // ask: the measured rounds converge instead of starting over); nullptr starts empty
   const uint32_t (*start)[36][3] = nullptr;
+  // (optional, P2c wave 2 r4, DOLL-C) hard pins: a cell whose entry is nonzero keeps that key whole (the cells the freeze's
+  // signed-off looks read, at their signed-off keys: tools/doll/shape_frozen.txt); nullptr pins nothing
+  const uint32_t (*frozen)[36][3] = nullptr;
 };
 ShapeModel estimateModel();
 // a people's material keys (heroShape of every base on that people's kit cultures, seeds 1..8: its helm forms and body forms)
@@ -156,6 +159,9 @@ const uint32_t (*shapeTable())[36][3];   // the compiled table (gear_forge_shape
 // (INTEGRATE silhouettes i1, test only) tableKey and shapeTable read this table instead while set (nullptr: the compiled one):
 // rpg_test --forge-solve measures a candidate table's real figures (C18a) before writing it
 void setShapeTableOverride(const uint32_t (*t)[36][3]);
+// (P2c wave 2 r4, DOLL-C, test only) while set, every tableKey call adds its cell (people * 108 + school * 3 + rank): the
+// solver learns which cells the freeze's signed-off looks read
+void setTableKeyRecorder(std::vector<int>* cells);
 uint64_t shapeTablePoolHash();           // the pool hash the compiled table was solved on (0: design estimates)
 // the .inc text for a table (deterministic)
 std::string shapeTableInc(const ShapeSolve& s, uint64_t poolHash, const std::string& how);

@@ -223,3 +223,8 @@ regions
 |..RR....RR.RR....
 |..............RR.
 |.................
+
+# >>> ARMOUR-M wave 2 r4: shield flank (tools/shieldfill.py): the flank behind a shield, `when shield`
+
+view L key rest origin -8 -3 when shield,armour.t2
+|v

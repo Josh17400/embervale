@@ -1,0 +1,73 @@
+# P2c production, SWITCH: p2c_menus as a phone's first launch (EMB_DEVICE phone, no settings file: NEAR at D 6 on
+# 2556 x 1179): every menu figure on the doll at a whole multiple, uncropped, the living finish, the Mythic within 3 px;
+# the phone's wider UI shows a dialogue's speaker (540 UI px or more), so its figure is checked here too.
+#   embervale.exe --script tools/scripts/p2c_menus_phone.txt     (p2c_menus_phone_*.png)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 firstlaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen want 6
++0.1 ladderkit lt1
++0.3 menu 5
++0.6 expect menu paperdoll doll
++0.0 expect menu paperdoll uncropped
++0.0 shot p2c_menus_phone_doll_t1.png
++0.1 key Escape
++0.1 ladderkit lt6
++0.3 menu 5
++0.6 expect menu paperdoll uncropped
++0.0 expect menu paperdoll lights
++0.0 shot p2c_menus_phone_doll_t6.png
++0.1 key ]
++0.3 expect menu paperdoll uncropped
++0.0 shot p2c_menus_phone_doll_t6_r.png
++0.1 key ]
++0.3 shot p2c_menus_phone_doll_t6_u.png
++0.1 key Escape
++0.1 ladderkit lt6m
++0.3 menu 5
++0.6 expect menu paperdoll uncropped
++0.0 expect menu paperdoll aura 3
++0.0 shot p2c_menus_phone_doll_mythic.png
++0.1 key Escape
++0.1 ladderkit lt4
++0.3 menu 5
++0.5 expect menu paperdoll doll
++0.0 shot p2c_menus_phone_doll_t4.png
++0.1 key Escape
++0.1 gear 3
++0.1 gear 5
++0.3 menu 5
++0.3 lootsel doll 3 0
++0.5 expect menu loot doll
++0.0 expect menu loot uncropped
++0.0 shot p2c_menus_phone_loot_body.png
++0.1 lootsel doll 0 0
++0.5 expect menu loot uncropped
++0.0 shot p2c_menus_phone_loot_helm.png
++0.1 key Escape
++0.1 menu 3
++0.5 expect menu hero doll
++0.0 expect menu hero uncropped
++0.0 shot p2c_menus_phone_hero.png
++0.1 key Escape
++0.1 party recruit 2
++0.6 menu 6
++0.6 expect menu party doll
++0.0 expect menu party uncropped
++0.0 shot p2c_menus_phone_party.png
++0.1 key Escape
++0.5 shot p2c_menus_phone_portraits.png
++0.1 party talk 0
++0.8 expect mode dialogue
++0.0 expect menu dialogue doll
++0.0 expect menu dialogue uncropped
++0.0 shot p2c_menus_phone_dialogue.png
++0.1 key Escape
++0.3 expect menu v1 0

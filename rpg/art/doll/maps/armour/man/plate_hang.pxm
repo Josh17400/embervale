@@ -1216,17 +1216,17 @@ regions
 |..............
 
 view R key flare origin 6 -1 when armour.t6,mythic replace
-|vyxvxyyxwxyxv
+|vyxvxyyxwxyv.
 |vyxvyxwwvxyxv
 |vyxvvvvvvvyxv
 
 view R key flare origin 6 -1 when armour.t6 replace
-|JIHJxzyxwxIHJ
+|JIHJxzyxwxIH.
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
 
 view R key flare origin 6 -1 when armour.t5 replace
-|mpovxzyxwxnnm
+|mpovxzyxwxnm.
 |mpoxyxwwvxnnm
 |mpovvvvvvvnnm
 
@@ -1500,7 +1500,7 @@ regions
 |.RR.......RR.
 
 view L key rest origin 7 -1
-|.vxzyxwxxxwv.
+|.vxzyxwxxxwvv
 |vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
 regions
@@ -1947,7 +1947,7 @@ regions
 |.N...N...N...N
 |..............
 view L key rest origin 7 -1 when edge-strips
-|.vzzyyxxxxxv.
+|.vzzyyxxxxxvv
 |wvyxwvywwvxww
 |.............
 regions
@@ -2032,7 +2032,7 @@ regions
 |..RRR.RR..RR..
 |..............
 view L key rest origin 7 -1 when edge-cusped
-|.vyyyyxxxxxv.
+|.vyyyyxxxxxvv
 |vwzyxwzxwvyxv
 |.............
 regions
@@ -2233,7 +2233,7 @@ regions
 |..............
 |..............
 view L key rest origin 7 -1 when edge-stepped
-|.vyyyyxxxxxv.
+|.vyyyyxxxxxvv
 |vvxxvxwvwwvwv
 |.............
 regions

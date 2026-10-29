@@ -290,3 +290,35 @@ view U key kick origin 11 8
 |vxwv.f..........
 |.vv.fh..........
 |....fh..........
+
+# (WEAPONS, wave 2) `drawn` facing right and left (the bow's drawn clips name it: pxc's warning "key drawn: no view RL"):
+# the scabbard hangs as at rest, empty (its hilt is the hilt channel's: belt/sheaths/sword_hilt)
+view R key drawn origin 11 -2 layer back
+|....fhg
+|...fhgf
+|..fhgf.
+|.fhgf..
+|vxwv...
+|vvv....
+
+view L key drawn origin 5 -2
+|fghhgf..........
+|....fhhgf.......
+|........fhhgf...
+|..........fhhgf.
+|............vxwv
+|.............vv.
+
+# (WEAPONS, wave 2) `lie` (death.clip's lying frames name sheath=lie): the scabbard lies under the corpse, drawing nothing,
+# as the back items do (C3a / C1: "belt/sheaths/sword L key lie: no view")
+view D key lie origin 0 0
+|.
+
+view U key lie origin 0 0
+|.
+
+view R key lie origin 0 0
+|.
+
+view L key lie origin 0 0
+|.

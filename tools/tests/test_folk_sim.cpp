@@ -19,7 +19,10 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/gear_look.h"
+#include "rpg/sim/loot_ops.h"
+#include "rpg/world/source.h"
 #include "rpg/sim/life.h"
 #include "tools/tests/tests.h"
 
@@ -324,7 +327,7 @@ int folkSimCmd(int argc, char** argv) {
     }
     standStill(g, 1.0f);
     k = animPick(g, g.pl(), 2);
-    check(endF >= 0 && k.drawn && k.variant == 1 && k.part == art::RigPart::Action && k.clip == art::Clip::Idle, "F9 drawn after a swing",
+    check(endF >= 0 && k.drawn && k.variant == 1 && k.part == art::RigPart::Drawn && k.clip == art::Clip::Idle, "F9 drawn after a swing",
           fmt("1 s after: clip %s variant %d part %d drawn %d", art::clipName(k.clip), k.variant, (int)k.part, (int)k.drawn));
     standStill(g, 2.85f);   // 3.85 s after the swing: still drawn
     const bool still = animPick(g, g.pl(), 2).drawn;
@@ -332,12 +335,12 @@ int folkSimCmd(int argc, char** argv) {
     k = animPick(g, g.pl(), 2);
     check(still && !k.drawn && k.variant == 0 && k.part == art::RigPart::Loco, "F9 sheathed after 4 s",
           fmt("3.85 s drawn %d; 4.15 s drawn %d variant %d", (int)still, (int)k.drawn, k.variant));
-    // walking drawn: the ACTION part's walk variant 1; running drawn: the ACTION part's walk variant 2 (P2b fix r1, B10)
+    // walking drawn: the DRAWN part's walk variant 1; running drawn: its walk variant 2 (P2b fix r1, B10; P2c: RigPart::Drawn)
     tick(g, in);
     for (int f = 0; f < 40; f++) tick(g, Input());
     Run rr = walkEast(g, 1.0f, 0.5f);
     k = animPick(g, g.pl(), 2);
-    check(k.drawn && k.gait == 1 && k.part == art::RigPart::Action && k.variant == 2, "F9 drawn run", fmt("gait %d part %d variant %d", rr.gait, (int)k.part, k.variant));
+    check(k.drawn && k.gait == 1 && k.part == art::RigPart::Drawn && k.variant == 2, "F9 drawn run", fmt("gait %d part %d variant %d", rr.gait, (int)k.part, k.variant));
     // a hostile within the hero's aggro radius draws the sword; gone, it is sheathed kThreatHold later
     standStill(g, 4.5f);
     const int bi = AnimOps::spawnBandit(g, g.pl().p + Vec2(60, 0), -1);
@@ -415,11 +418,290 @@ int folkSimCmd(int argc, char** argv) {
     }
     check(styles.size() == 24 && beards.size() >= 9, "F12 hero styles", fmt("%zu of 24 hair styles, %zu of 9 beards", styles.size(), beards.size()));
   }
+
+  // ---- F13-F17 (P2c FOLK-SIM-C, production): the census on the ladder through Game::makeLook as the spawners call it
+  //      F13 the rank's tier on every slot a role wears (body, helm, shield, cloak): PLAN "People"
+  //      F14 the regional lift: soldiers, bandits and the watch a tier finer where the danger is band 4 (level 25+);
+  //          the royal guard, captains, kings untouched
+  //      F15 the herald: the padded coat (forge style) under the tabard, no helm, the cape at T3
+  //      F16 D29: captains, the royal guard and jarls (T4) in the realm's alloy below its masterwork, kings (T5) in it
+  //      F17 C11 fighters' faces: no head recipe (type, nose, brows, beard, hair colour) on more than 2 guards of a
+  //          settlement or 2 soldiers of a squad
+  {
+    using H = art::HumanLook;
+    int bad13 = 0, n13 = 0, bad14 = 0, n14 = 0, bad15 = 0, n15 = 0, bad16 = 0, n16 = 0;
+    std::string first13, first14, first15, first16;
+    int c11Worst = 0, c11Groups = 0, c11Guards = 0, c11Soldiers = 0;
+    std::string c11First;
+    for (uint64_t seed = sa; seed <= sb; seed++) {
+      Game g(seed);
+      g.newEndlessGame(seed);
+      World& w = g.world;
+      // a capital with its palace, and a village, of kingdoms that have them
+      int cap = -1, vil = -1, palace = -1;
+      for (size_t si = 0; si < w.sites.size(); si++) {
+        const Site& s = w.sites[si];
+        if (s.kingdom < 0 || !w.cultureOf((int)si)) continue;
+        if (s.capital && cap < 0) cap = (int)si;
+        if (s.type == SiteType::Village && vil < 0) vil = (int)si;
+      }
+      if (cap >= 0) {
+        w.ensureSiteRecords(cap);
+        for (size_t b = 0; b < w.over.bldgs.size(); b++)
+          if (w.over.bldgs[b].site == cap && (w.over.bldgs[b].type == art::Building::Palace || w.over.bldgs[b].type == art::Building::Barracks)) { palace = (int)b; break; }
+      }
+      if (cap < 0 || vil < 0) { std::printf("note: seed %llu has no capital or village with a kingdom\n", (unsigned long long)seed); continue; }
+      const ew::Gid kid = w.kingdoms[(size_t)w.sites[(size_t)cap].kingdom].id;
+      struct Who { Role r; int site; int bldg; bool realm; int want; const char* name; };
+      const Who who[] = {{Role::Bandit, vil, -1, false, 1, "bandit"},       {Role::Guard, vil, -1, false, 2, "village watch"},
+                         {Role::Guard, cap, -1, false, 3, "capital watch"}, {Role::Guard, cap, palace, false, 4, "royal guard"},
+                         {Role::Soldier, cap, -1, true, 2, "soldier"},      {Role::Captain, cap, -1, true, 4, "captain"},
+                         {Role::Herald, cap, -1, true, 3, "herald"},        {Role::Jarl, vil, -1, false, 4, "jarl"},
+                         {Role::King, cap, -1, false, 5, "king"},           {Role::Warlord, cap, -1, true, 3, "warlord"}};
+      auto make = [&](const Who& x, int k) {
+        Actor a;
+        a.id = 90000 + k; a.human = true; a.npc = true; a.role = x.r;
+        a.site = x.site; a.bldg = x.bldg; a.slot = 5000 + k; a.realm = x.realm ? kid : 0;
+        Rng rr(hash32((uint32_t)a.slot * 2654435761u ^ (uint32_t)seed));
+        AnimOps::makeLook(g, a, x.r, rr);
+        return a.look;
+      };
+      std::map<std::string, H> officer;
+      for (const Who& x : who) {
+        if (x.bldg == -1 && x.r == Role::Guard && x.want == 4) continue;
+        if (x.want == 4 && x.r == Role::Guard && palace < 0) continue;
+        for (int k = 0; k < 8; k++) {
+          const H L = make(x, k);
+          n13++;
+          const bool armour = L.tier[H::TIER_BODY] > 0;
+          std::string why;
+          if (!armour) why = "no body tier";
+          else if (L.tier[H::TIER_BODY] != x.want) why = fmt("body T%d", L.tier[H::TIER_BODY]);
+          else if ((L.helmet || L.helmStyle || L.helmForm) && L.tier[H::TIER_HELM] != x.want) why = fmt("helm T%d", L.tier[H::TIER_HELM]);
+          else if (L.shieldForm != 9 && (L.shield || L.shieldStyle || L.shieldForm) && L.tier[H::TIER_SHIELD] != x.want) why = fmt("shield T%d", L.tier[H::TIER_SHIELD]);
+          else if ((L.cloak || L.cape) && L.tier[H::TIER_CLOAK] != x.want) why = fmt("cloak T%d", L.tier[H::TIER_CLOAK]);
+          if (!why.empty()) { bad13++; if (first13.empty()) first13 = fmt("%s (T%d): %s", x.name, x.want, why.c_str()); }
+          if (k == 0) officer[x.name] = L;
+          if (x.r == Role::Herald) {
+            n15++;
+            const bool ok = L.forge[H::TIER_BODY] != 0 && !L.helmet && !L.helmStyle && !L.helmForm && L.cape && L.tier[H::TIER_CLOAK] == 3 &&
+                            L.outfit == art::Outfit::Guard;
+            if (!ok) { bad15++; if (first15.empty()) first15 = fmt("forge %llx helm %d/%d/%d cape %d cloak T%d", (unsigned long long)L.forge[H::TIER_BODY], (int)L.helmet, L.helmStyle, L.helmForm, (int)L.cape, L.tier[H::TIER_CLOAK]); }
+          }
+        }
+      }
+      // D29: the officers' alloy and the king's masterwork
+      {
+        const H* kg = officer.count("king") ? &officer["king"] : nullptr;
+        for (const char* o : {"captain", "royal guard", "jarl"}) {
+          if (!officer.count(o)) continue;
+          const H& L = officer[o];
+          n16++;
+          const bool ok = L.metalKind == 10 && L.alloyRank >= 1 && L.forge[H::TIER_BODY] && kg && kg->metalKind == 10 && kg->alloyRank >= L.alloyRank;
+          if (!ok) { bad16++; if (first16.empty()) first16 = fmt("%s metal %d rank %d; king metal %d rank %d", o, L.metalKind, L.alloyRank, kg ? kg->metalKind : -1, kg ? kg->alloyRank : -1); }
+        }
+      }
+      // the lift: the same men where the danger is level 30
+      {
+        const int lv0 = w.sites[(size_t)cap].level, lv1 = w.sites[(size_t)vil].level;
+        w.sites[(size_t)cap].level = 30; w.sites[(size_t)vil].level = 30;
+        for (const Who& x : who) {
+          if (x.want == 4 && x.r == Role::Guard && palace < 0) continue;
+          const bool lifts = x.r == Role::Soldier || x.r == Role::Bandit || (x.r == Role::Guard && x.want < 4);
+          const H L = make(x, 0);
+          n14++;
+          const int want = lifts ? x.want + 1 : x.want;
+          if (L.tier[H::TIER_BODY] != want) { bad14++; if (first14.empty()) first14 = fmt("%s at level 30: body T%d (T%d)", x.name, L.tier[H::TIER_BODY], want); }
+        }
+        w.sites[(size_t)cap].level = lv0; w.sites[(size_t)vil].level = lv1;
+      }
+      // C11: guards of each settlement in the start region, and squads of 8 soldiers of each kingdom
+      auto recipe = [](const H& L) {
+        return fmt("%d.%d.%d.%d.%08x", L.head, L.nose, L.brow, L.beard ? L.beardStyle : 99, L.hairColor);
+      };
+      auto group = [&](const std::vector<H>& men, const std::string& where) {
+        std::map<std::string, int> n;
+        for (const H& L : men) n[recipe(L)]++;
+        for (const auto& kv : n) {
+          c11Groups++;
+          if (kv.second > c11Worst) c11Worst = kv.second;
+          if (kv.second > 2 && c11First.empty()) c11First = fmt("%s: %d men share %s", where.c_str(), kv.second, kv.first.c_str());
+        }
+      };
+      const Site& home = w.sites[(size_t)w.startSite];
+      for (size_t si = 0; si < w.sites.size(); si++) {
+        const Site& s = w.sites[si];
+        if (s.type != SiteType::Village && s.type != SiteType::Town && s.type != SiteType::City) continue;
+        if (std::abs(s.r.cx() - home.r.cx()) > radius || std::abs(s.r.cy() - home.r.cy()) > radius) continue;
+        // the watch as spawnHuman makes it (a map spawn's slot, its key and Rng; the owner's realm): 12 men a settlement
+        std::vector<H> guards;
+        for (int k = 0; k < 12; k++) {
+          Actor a;
+          a.id = 96000 + k; a.human = true; a.npc = true; a.role = Role::Guard; a.site = (int)si; a.slot = 40 + k; a.bldg = -1;
+          if (s.kingdom >= 0) a.realm = w.kingdoms[(size_t)s.kingdom].id;
+          const uint64_t key = ((uint64_t)(a.site + 1) << 24) ^ ((uint64_t)(a.bldg + 1) << 12) ^ (uint64_t)a.slot;
+          Rng rr(hash32((uint32_t)key) ^ (uint32_t)seed);
+          AnimOps::makeLook(g, a, Role::Guard, rr);
+          guards.push_back(a.look);
+        }
+        c11Guards += (int)guards.size();
+        group(guards, "guards of " + s.name);
+      }
+      for (size_t ki = 0; ki < w.kingdoms.size() && ki < 8; ki++) {
+        std::vector<H> squad;
+        for (int k = 0; k < 8; k++) {
+          Actor a;
+          a.id = 95000 + k; a.human = true; a.npc = true; a.role = Role::Soldier; a.site = -1; a.bldg = -1; a.slot = 7000 + (int)ki * 16 + k;
+          a.realm = w.kingdoms[ki].id;
+          Rng rr(hash32((uint32_t)a.slot * 2654435761u ^ (uint32_t)a.realm ^ (uint32_t)(a.realm >> 32)) ^ (uint32_t)seed);
+          AnimOps::makeLook(g, a, Role::Soldier, rr);
+          squad.push_back(a.look);
+        }
+        c11Soldiers += (int)squad.size();
+        group(squad, fmt("a squad of kingdom %zu", ki));
+      }
+    }
+    check(bad13 == 0 && n13 > 0, "F13 rank tiers by slot", fmt("%d of %d looks off%s%s", bad13, n13, first13.empty() ? "" : "; first: ", first13.c_str()));
+    check(bad14 == 0 && n14 > 0, "F14 regional lift", fmt("%d of %d off%s%s", bad14, n14, first14.empty() ? "" : "; first: ", first14.c_str()));
+    check(bad15 == 0 && n15 > 0, "F15 herald padded", fmt("%d of %d heralds off%s%s", bad15, n15, first15.empty() ? "" : "; first: ", first15.c_str()));
+    check(bad16 == 0 && n16 > 0, "F16 officers' alloy (D29)", fmt("%d of %d officers off%s%s", bad16, n16, first16.empty() ? "" : "; first: ", first16.c_str()));
+    // F18: the bandit chief (spawnHuman: plate, helm and cape after makeLook) at T2 through retierLook
+    {
+      art::HumanLook L;
+      L.outfit = art::Outfit::Leather; L.armorStyle = 1; L.weapon = 2;
+      gear::rankTiers(L, 1, true, nullptr);
+      L.outfit = art::Outfit::Plate; L.helmet = true; L.cape = true;
+      retierLook(L, 2, nullptr);
+      check(L.tier[H::TIER_BODY] == 2 && L.tier[H::TIER_HELM] == 2 && L.tier[H::TIER_CLOAK] == 2 && L.tier[H::TIER_WEAPON] == 2, "F18 chief retier",
+            fmt("body T%d helm T%d cloak T%d weapon T%d (T2 each)", L.tier[H::TIER_BODY], L.tier[H::TIER_HELM], L.tier[H::TIER_CLOAK], L.tier[H::TIER_WEAPON]));
+    }
+    check(c11Worst <= 2 && c11Groups > 0, "F17 C11 fighters' faces", fmt("%d guards (12 a settlement), %d soldiers in squads of 8: largest group %d (2) over %d recipes%s%s", c11Guards, c11Soldiers, c11Worst, c11Groups, c11First.empty() ? "" : "; first: ", c11First.c_str()));
+  }
   art::setRigVersion(was);
   std::printf("folk-sim: %d checks, %d failed\n", g_checks, g_fails);
   return g_fails ? 1 : 0;
 }
 RPG_TEST_CMD("--folk-sim", "P2b FOLK-SIM: census looks, ages, garments, gait switch, walk tables, sheathed / drawn [--seeds A..B] [--radius R] [--pool F] [--report]",
              folkSimCmd);
+
+// ---------------------------------------------------------------- rpg_test --ladder-pace (P2c FOLK-SIM-C; PLAN "The gear
+// ladder", proposal 3: "no measured gear-over-time curve exists"). At each pacing stage of VISION 1.4 (level, hours, the top
+// of the danger band there) the look tiers (gear::lookTier) the shops stock (Game::shopStock: a smith's and a merchant's
+// shelf at a settlement of that danger, the days and shelves varied) and the drops roll (gear::rollDropC: an ordinary body,
+// a chest, a dungeon boss, the finder at the stage's level), 1,000 worn pieces each, printed beside PLAN's "When each tier
+// shows up" table. A measure, not a rule: nothing here changes a roll. Checks (the rules the ladder follows): a shop never
+// stocks T6 and never above T(band) with the Rare mark (one tier more with an Epic, the Honoured capital's cap); no T6
+// drops below level 20 from an ordinary body (the Legendary floor). Options: --seed S (default 1), --rolls N (1000), --top
+// (each stage at its band's top danger instead of its middle).
+int ladderPaceCmd(int argc, char** argv) {
+  uint64_t seed = 1;
+  int rolls = 1000;
+  for (int i = 1; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--seed") && i + 1 < argc) seed = std::strtoull(argv[++i], nullptr, 10);
+    else if (!std::strcmp(argv[i], "--rolls") && i + 1 < argc) rolls = std::max(50, std::atoi(argv[++i]));
+  }
+  g_fails = 0; g_checks = 0;
+  struct Stage { int level; float hours; int D; const char* where; };
+  // the danger: the middle of VISION 1.4's band at each stage (1-6, 6-12, 12-18, 16-22, 20-27, 25-32, 32-42, up to 60);
+  // --top uses the band's top (the frontier the player has just reached)
+  bool top = false;
+  for (int i = 1; i < argc; i++) if (!std::strcmp(argv[i], "--top")) top = true;
+  const Stage stages[] = {{5, 0.5f, top ? 6 : 4, "start kingdom"},          {10, 3, top ? 12 : 9, "neighbouring kingdoms"},
+                          {15, 7, top ? 18 : 15, "far side of the start culture"}, {20, 12, top ? 22 : 19, "2nd and 3rd culture families"},
+                          {25, 19, top ? 27 : 24, "edge of the continent"},  {30, 28, top ? 32 : 29, "a 2nd continent"},
+                          {40, 55, top ? 42 : 37, "far continents, the Mist"}, {50, 100, top ? 60 : 50, "anywhere"}};
+  // PLAN "When each tier shows up": the tier worn for most of each span of hours
+  auto planTier = [](float h) { return h < 3 ? 1 : h < 10 ? 2 : h < 25 ? 3 : h < 60 ? 4 : 5; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  World& w = g.world;
+  int si = -1;
+  for (int pass = 0; pass < 3 && si < 0; pass++)   // a town or city, else a village; never a capital (its Honoured Epic shelf)
+    for (size_t i = 0; i < w.sites.size() && si < 0; i++) {
+      const SiteType t = w.sites[i].type;
+      const bool kind = pass == 0 ? (t == SiteType::Town || t == SiteType::City) : pass == 1 ? t == SiteType::Village : true;
+      if (kind && !w.sites[i].capital && w.cultureOf((int)i)) si = (int)i;
+    }
+  if (si < 0) { std::printf("FAIL ladder-pace: no town with a culture in seed %llu\n", (unsigned long long)seed); return 1; }
+  const cult::Culture* cc = w.cultureOf(si);
+  if (cc && w.src) cc = &w.src->culture(cc->id);
+  auto worn = [](const Item& it) {
+    return it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow || it.kind == ItemKind::Staff || it.kind == ItemKind::Armor || it.kind == ItemKind::Helmet ||
+           it.kind == ItemKind::Shield || it.kind == ItemKind::Gloves || it.kind == ItemKind::Boots || it.kind == ItemKind::Cloak;
+  };
+  auto makerOf = [&](const Item& it) -> const cult::Culture* {
+    if (!it.culture || !w.src) return nullptr;
+    return &w.src->culture(it.culture);
+  };
+  struct Hist { int n = 0, t[7] = {}, rare = 0, flame = 0; void add(const gear::LookTier& lt) { n++; t[std::clamp<int>(lt.tier, 0, 6)]++; rare += lt.rare; flame += lt.flame; } };
+  auto row = [&](const Hist& h) {
+    std::string s;
+    for (int t = 1; t <= 6; t++) s += fmt(" %3d", h.n ? (int)std::lround(100.0 * h.t[t] / h.n) : 0);
+    s += fmt("  r%3d", h.n ? (int)std::lround(100.0 * h.rare / h.n) : 0);
+    return s;
+  };
+  auto mode = [](const Hist& h) { int b = 1; for (int t = 1; t <= 6; t++) if (h.t[t] > h.t[b]) b = t; return b; };
+  std::printf("ladder-pace (seed %llu, %d worn pieces a column; shelves of %s, a %s town): percent of pieces at T1..T6, r = the Rare mark\n",
+              (unsigned long long)seed, rolls, w.sites[(size_t)si].name.c_str(), cc ? cult::archetypeName(cc->archetype) : "?");
+  std::printf("  lvl  hours  D  | shops  T1  T2  T3  T4  T5  T6     | bodies T1  T2  T3  T4  T5  T6     | chests T1  T2  T3  T4  T5  T6     | bosses T1  T2  T3  T4  T5  T6     | PLAN worn  shop/body mode\n");
+  const int lv0 = w.sites[(size_t)si].level;
+  int shopT6 = 0, shopOver = 0, earlyT6 = 0;
+  std::string shopOverFirst;
+  for (const Stage& st : stages) {
+    Hist shop, body, chest, boss;
+    // the shelves: a smith's and a merchant's at a settlement of the stage's danger, day after day
+    w.sites[(size_t)si].level = st.D;
+    for (int day = 0, k = 0; shop.n < rolls && day < 20000; day += 2, k++) {
+      g.day = day;
+      Actor a;
+      a.id = 98000 + (k & 7); a.human = true; a.npc = true; a.site = si; a.bldg = -1; a.slot = 6000 + (k & 7);
+      a.role = (k & 1) ? Role::Merchant : Role::Smith;
+      for (const Item& it : LootOps::shopStock(g, a)) {
+        if (!worn(it) || shop.n >= rolls) continue;
+        const gear::LookTier lt = gear::lookTier(it, makerOf(it));
+        if (!lt.tier) continue;
+        shop.add(lt);
+        if (lt.tier >= 6) shopT6++;
+        // never above T(band) with the Rare mark (this town is no capital: its shelf's cap is Rare): the same piece at the
+        // shelf's top item level (D + the spread) and Rare (a masterwork alloy is T5 at any band: lookTier says so)
+        Item x = it;
+        x.ilvl = (uint8_t)std::min(gear::MAX_D, st.D + gear::SHOP_BAND_SPREAD);
+        x.rarity = Rarity::Rare;
+        const gear::LookTier capT = gear::lookTier(x, makerOf(it));
+        if (lt.tier > capT.tier) { shopOver++; if (shopOverFirst.empty()) shopOverFirst = fmt("D %d: T%d over T%d", st.D, lt.tier, capT.tier); }
+      }
+    }
+    // the drops: an ordinary body, a chest, a dungeon boss
+    Rng r(hash32((uint32_t)st.D * 7919u ^ (uint32_t)seed));
+    auto roll = [&](Hist& h, gear::LootSrc src, uint8_t rank, bool isChest) {
+      for (int tries = 0; h.n < rolls && tries < rolls * 400; tries++) {
+        gear::DropSource ds;
+        ds.D = st.D; ds.rank = rank; ds.chest = isChest; ds.src = src; ds.playerLevel = st.level; ds.culture = cc ? cc->id : 0;
+        const Item it = gear::rollDropC(r, ds, cc);
+        if (!worn(it)) continue;
+        const gear::LookTier lt = gear::lookTier(it, makerOf(it));
+        if (!lt.tier) continue;
+        h.add(lt);
+        if (src == gear::LootSrc::Body && rank == 0 && st.level < 20 && lt.tier >= 6) earlyT6++;
+      }
+    };
+    roll(body, gear::LootSrc::Body, 0, false);
+    roll(chest, gear::LootSrc::Chest, 0, true);
+    roll(boss, gear::LootSrc::Boss, 2, false);
+    std::printf("  %3d %6.1f %3d |      %s |      %s |      %s |      %s |   T%d      T%d/T%d\n", st.level, st.hours, st.D, row(shop).c_str(), row(body).c_str(),
+                row(chest).c_str(), row(boss).c_str(), planTier(st.hours), mode(shop), mode(body));
+  }
+  w.sites[(size_t)si].level = lv0;
+  std::printf("  PLAN \"When each tier shows up\": T1 hours 0-3, T2 3-10, T3 10-25, T4 25-60, T5 60-100, T6 earned from level 20 (bosses,\n"
+              "  hoards, finales; one piece from level 10, two at 25, three at 40 by attunement), never bought\n");
+  check(shopT6 == 0, "LP1 shops never T6", fmt("%d T6 pieces on the shelves", shopT6));
+  check(shopOver == 0, "LP2 shop tier cap", fmt("%d pieces above T(band) + Rare / Epic%s%s", shopOver, shopOverFirst.empty() ? "" : "; first: ", shopOverFirst.c_str()));
+  check(earlyT6 == 0, "LP3 no early Legendary", fmt("%d T6 pieces from ordinary bodies below level 20", earlyT6));
+  std::printf("ladder-pace: %d checks, %d failed\n", g_checks, g_fails);
+  return g_fails ? 1 : 0;
+}
+RPG_TEST_CMD("--ladder-pace", "P2c FOLK-SIM-C: the look tiers shops stock and drops roll at each pacing stage (VISION 1.4) beside PLAN's ladder table [--seed S] [--rolls N] [--top]",
+             ladderPaceCmd);
+
 
 }  // namespace

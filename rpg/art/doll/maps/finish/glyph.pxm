@@ -90,23 +90,25 @@ view D key glyph5x7 origin 0 0
 |.!.!.
 |..!..
 
+# (FINISH wave 2 r3) 4x8 / 4x7: ONE 2-wide stroke of light down the box's centre (a lobed pauldron's P and an edge-on
+# heater share these keys; the r2 drawings scattered 1 px specks over an irregular P: the judge's "noise" at 1x NEAR).
 view D key glyph4x8 origin 0 0
+|.::.
 |.!!.
-|!!.!
-|...!
-|!!.!
-|.!.!
-|.!.!
-|.!.!
+|.!!.
+|.!!.
+|.!!.
+|.!!.
+|....
 |....
 
 view D key glyph4x7 origin 0 0
-|.!..
-|!.!.
-|...!
-|!..!
-|.!.!
-|.!.!
+|.::.
+|.!!.
+|.!!.
+|.!!.
+|.!!.
+|....
 |....
 
 view D key glyph6x5 origin 0 0

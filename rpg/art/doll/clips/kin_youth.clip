@@ -293,3 +293,54 @@ f armL=hold armR=hold legs=idle torso=rest hang=rest expr=closed hairpose=lie bo
 clip idle L posture sleep
 f armL=hold armR=- legs=idle torso=rest hang=rest expr=closed hairpose=lie
 f armL=hold armR=- legs=idle torso=rest hang=rest expr=closed hairpose=lie bob=-1 head=0,1
+# ---- Dance and Cheer (DOLL-C, P2c wave 2 round 2): the youth was drawn from a v1 sheet at rig 2 when the sim gave it
+#      Dance (hopscotch at play, life_game playTag; the festival night) or Cheer (the festival toast from SitDrink). Dance:
+#      the turning step of the adult and the child, the arms up and out by turns, a hop on the planted beat (bob -2, the
+#      youth's legs have no hop view: the idle legs lifted whole); Cheer: the mug raised
+#      on wave2 (the adult mug's `raise` view floats off the youth's raised fist), a lift on the beat.
+clip idle D posture dance
+f armL=hold armR=raise legs=walkA torso=rest hang=rest
+f armL=wave2 armR=wave legs=idle torso=rest hang=flare bob=-2
+f armL=raise armR=hold legs=walkC torso=rest hang=rest
+f armL=wave armR=wave2 legs=idle torso=rest hang=flare bob=-2 expr=talk
+clip idle U posture dance
+f armL=hold armR=raise legs=walkA torso=rest hang=rest
+f armL=wave2 armR=wave legs=idle torso=rest hang=flare bob=-2
+f armL=raise armR=hold legs=walkC torso=rest hang=rest
+f armL=wave armR=wave2 legs=idle torso=rest hang=flare bob=-2
+clip idle R posture dance
+f armL=- armR=raise legs=walkA neck=flow torso=rest hang=wide
+f armL=- armR=wave legs=idle neck=flow2 torso=rest hang=flare bob=-2
+f armL=- armR=raise legs=walkC neck=flow torso=rest hang=wide
+f armL=- armR=wave2 legs=idle neck=flow2 torso=rest hang=flare bob=-2 expr=talk
+clip idle L posture dance
+f armL=raise armR=- legs=walkA neck=flow torso=rest hang=wide
+f armL=wave armR=- legs=idle neck=flow2 torso=rest hang=flare bob=-2
+f armL=raise armR=- legs=walkC neck=flow torso=rest hang=wide
+f armL=wave2 armR=- legs=idle neck=flow2 torso=rest hang=flare bob=-2 expr=talk
+clip idle D posture cheer
+f armL=hold armR=wave2 held=wave2 legs=idle torso=rest hang=rest bob=-1
+f armL=hold armR=wave2 held=wave2 legs=idle torso=rest hang=rest
+clip idle U posture cheer
+f armL=hold armR=wave2 held=wave2 legs=idle torso=rest hang=rest bob=-1
+f armL=hold armR=wave2 held=wave2 legs=idle torso=rest hang=rest
+clip idle R posture cheer
+f armL=- armR=wave2 held=wave2 legs=idle torso=rest hang=rest bob=-1
+f armL=- armR=wave2 held=wave2 legs=idle torso=rest hang=rest
+clip idle L posture cheer
+f armL=idle armR=wave2 held=wave2 legs=idle torso=rest hang=rest bob=-1
+f armL=idle armR=wave2 held=wave2 legs=idle torso=rest hang=rest
+# ---- Pray (DOLL-C, P2c wave 2 round 2): at the temples and shrines (posesOf gives it to every youth; drawn on v1 before).
+#      The youth's arms have no `pray` view: the hands meet before the chest on `hold`, the head bowed a row, eyes closed.
+clip idle D posture pray
+f armL=hold armR=hold legs=idle torso=rest hang=rest head=0,1 expr=closed
+f armL=hold armR=hold legs=idle torso=rest hang=rest head=0,1 bob=-1 expr=closed
+clip idle U posture pray
+f armL=hold armR=hold legs=idle torso=rest hang=rest head=0,1
+f armL=hold armR=hold legs=idle torso=rest hang=rest head=0,1 bob=-1
+clip idle R posture pray
+f armL=- armR=hold legs=idle torso=rest hang=rest head=1,1 expr=closed
+f armL=- armR=hold legs=idle torso=rest hang=rest head=1,1 bob=-1 expr=closed
+clip idle L posture pray
+f armL=hold armR=- legs=idle torso=rest hang=rest head=-1,1 expr=closed
+f armL=hold armR=- legs=idle torso=rest hang=rest head=-1,1 bob=-1 expr=closed

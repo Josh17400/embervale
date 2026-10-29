@@ -1,0 +1,417 @@
+[
+ {
+  "name": "p2c switch: the paperdoll on the doll at rig 2 (a whole multiple, inside its stage) at T1, T6 and the Mythic: the living finish on T6, the Mythic's flame within 3 px of the silhouette (C7); no v1 frame drawn",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "ladderkit",
+      "lt1"
+     ],
+     [
+      "menu",
+      "5"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.mode == 'menu'",
+     "state.menus.some(f => f.where == 'paperdoll' && f.rig == 2 && f.scale >= 1 && !f.cropped)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 0.65,
+    "call": [
+     [
+      "key",
+      "Escape"
+     ]
+    ]
+   },
+   {
+    "at": 0.7,
+    "call": [
+     [
+      "ladderkit",
+      "lt6"
+     ],
+     [
+      "menu",
+      "5"
+     ]
+    ]
+   },
+   {
+    "at": 1.2,
+    "expect": [
+     "state.menus.some(f => f.where == 'paperdoll' && f.rig == 2 && f.tier == 6 && !f.cropped && f.lights > 0)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 1.25,
+    "call": [
+     [
+      "key",
+      "Escape"
+     ]
+    ]
+   },
+   {
+    "at": 1.3,
+    "call": [
+     [
+      "ladderkit",
+      "lt6m"
+     ],
+     [
+      "menu",
+      "5"
+     ]
+    ]
+   },
+   {
+    "at": 1.8,
+    "expect": [
+     "state.menus.some(f => f.where == 'paperdoll' && f.rig == 2 && !f.cropped && f.auraOut <= 3)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 2.3,
+    "expect": [
+     "state.menus.every(f => f.where != 'paperdoll' || (f.rig == 2 && f.auraOut <= 3))"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 2.8,
+    "expect": [
+     "state.menus.every(f => f.where != 'paperdoll' || (f.rig == 2 && f.auraOut <= 3))"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2c switch: the HERO sheet and the loot preview (a pack piece picked: the hero on the doll wearing it) at rig 2, whole multiples, uncropped",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "gear",
+      "3"
+     ],
+     [
+      "gear",
+      "5"
+     ],
+     [
+      "menu",
+      "3"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.menus.some(f => f.where == 'hero' && f.rig == 2 && f.scale >= 1 && !f.cropped)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 0.65,
+    "call": [
+     [
+      "key",
+      "Escape"
+     ]
+    ]
+   },
+   {
+    "at": 0.7,
+    "call": [
+     [
+      "menu",
+      "5"
+     ],
+     [
+      "lootsel",
+      "doll",
+      "3",
+      "0"
+     ]
+    ]
+   },
+   {
+    "at": 1.1,
+    "expect": [
+     "state.menus.some(f => f.where == 'loot' && f.rig == 2 && !f.cropped)",
+     "state.menus.some(f => f.where == 'paperdoll' && f.rig == 2)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2c switch: companions at rig 2: the PARTY page's figure and every portrait cut from the doll (no painted bust, no v1 frame), the world's folk and riders on the doll",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "party",
+      "recruit",
+      "2"
+     ]
+    ]
+   },
+   {
+    "at": 1.0,
+    "expect": [
+     "state.mode == 'play'",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 1.1,
+    "call": [
+     [
+      "menu",
+      "6"
+     ]
+    ]
+   },
+   {
+    "at": 1.6,
+    "expect": [
+     "state.menus.some(f => f.where == 'party' && f.rig == 2 && !f.cropped)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 1.7,
+    "call": [
+     [
+      "key",
+      "Escape"
+     ]
+    ]
+   },
+   {
+    "at": 2.2,
+    "expect": [
+     "state.mode == 'play'",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2c switch: the creator's preview on the doll at rig 2: it breathes, walks, runs and swings, uncropped at a whole multiple",
+  "seed": 11,
+  "params": {
+   "rig": 2
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "creatoropen"
+     ]
+    ]
+   },
+   {
+    "at": 0.4,
+    "expect": [
+     "state.mode == 'creator'",
+     "state.menus.some(f => f.where == 'creator' && f.rig == 2 && f.scale >= 1 && !f.cropped)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 3.4,
+    "expect": [
+     "state.menus.some(f => f.where == 'creator' && f.rig == 2 && !f.cropped)"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 6.0,
+    "expect": [
+     "state.menus.some(f => f.where == 'creator' && f.rig == 2 && !f.cropped)"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 8.6,
+    "expect": [
+     "state.menus.some(f => f.where == 'creator' && f.rig == 2 && !f.cropped)",
+     "state.screen.v1Draws == 0"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2c switch: rig 1 keeps every menu on v1 (the flip is wave 3): the paperdoll and the HERO sheet draw the v1 sheet at rig 1",
+  "seed": 7,
+  "params": {
+   "rig": 1,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "menu",
+      "5"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.menus.some(f => f.where == 'paperdoll' && f.rig == 1)"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   },
+   {
+    "at": 0.65,
+    "call": [
+     [
+      "key",
+      "Escape"
+     ]
+    ]
+   },
+   {
+    "at": 0.7,
+    "call": [
+     [
+      "menu",
+      "3"
+     ]
+    ]
+   },
+   {
+    "at": 1.1,
+    "expect": [
+     "state.menus.some(f => f.where == 'hero' && f.rig == 1)"
+    ],
+    "call": [
+     [
+      "drawframe"
+     ]
+    ]
+   }
+  ]
+ }
+]

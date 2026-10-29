@@ -190,19 +190,19 @@ f armL=- armR=guard held=guard hair=rest hang=rest legs=walkC sheath=drawn torso
 f armL=- armR=guard held=guard hair=swing hang=rest legs=walkC2 sheath=drawn torso=rest bob=1 sway=1 plant=3:0 braid=swing sharm=guard shield=guard
 f armL=- armR=guard held=guard hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest sharm=guard shield=guard
 clip walk R part drawn family sword variant 1 when shield
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkA sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkA2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkB2 sheath=rest torso=run plant=-4:-8 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkC sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkC2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkD2 sheath=rest torso=run plant=-4:-8 braid=rest sharm=guard shield=guard
+f armL=- armR=guard hilt=- hair=rest hang=wide legs=walkA sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=swing hang=wide legs=walkA2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=rest hang=rest legs=walkB2 sheath=rest torso=run plant=-4:-8 braid=rest sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=rest hang=wide legs=walkC sheath=rest torso=run bob=1 hip=0,-1 plant=3:0 braid=rest sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=swing hang=wide legs=walkC2 sheath=rest torso=run tuft=down plant=0:-4 braid=swing sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=rest hang=rest legs=walkD2 sheath=rest torso=run plant=-4:-8 braid=rest sharm=guard shield=guard weapon=45,front
 clip walk L part drawn family sword variant 1 when shield
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkA sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkA2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkB2 sheath=kick torso=run plant=-3:-7 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=wide legs=walkC sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest sharm=guard shield=guard
+f armL=- armR=guard hilt=- hair=rest hang=wide legs=walkA sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=swing hang=wide legs=walkA2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=rest hang=rest legs=walkB2 sheath=kick torso=run plant=-3:-7 braid=rest sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=rest hang=wide legs=walkC sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest sharm=guard shield=guard weapon=135,back
 clip run D part drawn family sword variant 2 when shield
 f armL=- armR=guard held=guard hair=swing hang=flare legs=run1 sheath=drawn torso=rest sway=-1 plant=5:-1 braid=swing sharm=guard shield=guard
 f armL=- armR=guard held=guard hair=swing hang=flare legs=run2 sheath=drawn torso=rest sway=-1 plant=-1:-7 braid=swing sharm=guard shield=guard
@@ -218,19 +218,19 @@ f armL=- armR=guard held=guard hair=swing hang=flare legs=run4 sheath=drawn tors
 f armL=- armR=guard held=guard hair=swing hang=flare legs=run5 sheath=drawn torso=rest sway=1 plant=-1:-7 braid=swing sharm=guard shield=guard
 f armL=- armR=guard held=guard hair=rest hang=flare legs=run6 sheath=drawn torso=rest bob=-1 plant=-7:-13 braid=rest sharm=guard shield=guard
 clip run R part drawn family sword variant 2 when shield
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up sharm=guard shield=guard
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 plant=0:-6 hip=3,0 braid=run sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run sharm=guard shield=guard weapon=45,front
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up sharm=guard shield=guard weapon=45,front
 clip run L part drawn family sword variant 2 when shield
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run sharm=guard shield=guard
-f armL=- armR=guard held=gmove hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up sharm=guard shield=guard
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run sharm=guard shield=guard weapon=135,back
+f armL=- armR=guard hilt=- hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up sharm=guard shield=guard weapon=135,back
 clip windup D family sword variant 0 when shield
 f armL=- armR=sw_d0 held=a3d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70 sharm=shtuck shield=guard at=0,-1
 clip windup U family sword variant 0 when shield

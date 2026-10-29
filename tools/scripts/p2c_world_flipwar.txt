@@ -1,0 +1,32 @@
+# P2c flip pack (SWITCH; PLAN "The flip (wave 3)": the owner's go is given on these pairs): before / after at rig 1 and rig 2
+# of the same moment: a war camp (seed 2: the realm besieged, the soldiers' camp and a captain). Captures after `skill clearing` or a move wait with `settle` (D65); every image is the window
+# (1440 x 810; the _phone twin 2556 x 1179), under 8,000 px. Run once per build; nothing here fails on the art.
+#   embervale.exe --script tools/scripts/p2c_world_flipwar.txt     (p2c_world_flipwar_<screen>_rig1.png / _rig2.png)
+seed 2
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.5 realm siege 0
++0.3 expect realm besieged 0
++0.5 expect war camp
++0.1 war goto camp
++0.1 war at 1 3
++4.5 settle 3 0.5
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_world_flipwar_warcamp_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_world_flipwar_warcamp_rig2.png
++0.1 war goto captain def
++1.0 settle 3 0.5
++0.1 rig 1
++0.0 expect rig 1
++0.6 settle 3 0.5
++0.0 shot p2c_world_flipwar_captain_rig1.png
++0.1 rig 2
++0.0 expect rig 2
++0.6 settle 3 0.5
++0.0 shot p2c_world_flipwar_captain_rig2.png

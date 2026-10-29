@@ -1,0 +1,434 @@
+# arms/adult/action/body/arm_r: the right arm of the roll and the cast (ACTIONS-BODY, P2c wave 2; STYLE_P2 25.8 items 8-9).
+# GENERATED from the area's grids (src/build_maps.py in the area's root); keys rl* (the roll) and cs* (the cast), contracts 4.
+# Both fists work together in every frame: `mark grip` here (the right fist, every facing), `gripL` on arm_l on the held
+# weapon's line, so one drawing serves the one-handed families, the two-handed hafts (C3d) and empty hands. The cast's
+# gather carries the glow (Fx C B A) over the joined fists. Regions U F C H as the arm library. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role arms std
+layer armNear
+anchor shoulderR
+keys armR
+side R
+
+view R key rlcrouch origin 0 -1
+mark grip 4 7
+|58765...
+|58765...
+|.58765..
+|.58765..
+|..fihgf.
+|...fihgf
+|...qtsq.
+|...qsrq.
+|....qq..
+regions
+|UUUUU...
+|UUUUU...
+|.FFFFF..
+|.FFFFF..
+|..CCCCC.
+|...CCCCC
+|...HHHH.
+|...HHHH.
+|....HH..
+
+view R key rlrise origin 0 -1
+mark grip 8 4
+|58765.....
+|58765.....
+|58765.....
+|58765.qtsq
+|5876fiqsrq
+|.fihgf....
+|.......qq.
+regions
+|UUUUU.....
+|UUUUU.....
+|FFFFF.....
+|FFFFF.HHHH
+|FFFFCCHHHH
+|.CCCCC....
+|.......HH.
+
+view R key csgather origin 0 2
+mark grip 8 6
+|.......CC.
+|......CABC
+|......CBBC
+|58765..CC.
+|58765.qtsq
+|5876fiqsrq
+|.fihgf....
+|.......qq.
+regions
+|..........
+|..........
+|..........
+|FFFFF.....
+|FFFFF.HHHH
+|FFFFCCHHHH
+|.CCCCC....
+|.......HH.
+
+view R key csrelease origin 0 -1
+mark grip 10 2
+|58765..........C..
+|58888765qq....CBC.
+|5666fiihqtsq.CBABC
+|.5555ffqqsrq..CBC.
+|.........qq....C..
+regions
+|UUUUU.............
+|FFFFFFFFHH........
+|FFFFCCCCHHHH......
+|.FFFFCCHHHHH......
+|.........HH.......
+
+view L key rltuck origin 8 -2
+mark grip 1 1
+|.qq.
+|qrsq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view L key rlover origin 8 -2
+mark grip 1 1
+|.qq.
+|qrsq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view L key rlcrouch origin 9 -8
+mark grip 2 1
+|.qq.
+|qrsq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view L key rlrise origin 8 -6
+mark grip 2 1
+|.qq.
+|qsrq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view L key csgather origin 12 -2
+mark grip 2 1
+|.qq.
+|qtsq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view L key csrelease origin 8 -3
+mark grip 2 1
+|.qq.
+|qsrq
+|.qq.
+regions
+|.HH.
+|HHHH
+|.HH.
+
+view R key rlshcrouch origin 0 -1
+mark grip 4 7
+|58765...
+|58765...
+|.58765..
+|.58765..
+|..fihgf.
+|...fihgf
+|...qtsq.
+|...qsrq.
+|....qq..
+regions
+|UUUUU...
+|UUUUU...
+|.FFFFF..
+|.FFFFF..
+|..CCCCC.
+|...CCCCC
+|...HHHH.
+|...HHHH.
+|....HH..
+
+view R key csshrelease origin 0 -1
+mark grip 10 2
+|58765..........C..
+|58888765qq....CBC.
+|5666fiihqtsq.CBABC
+|.5555ffqqsrq..CBC.
+|.........qq....C..
+regions
+|UUUUU.............
+|FFFFFFFFHH........
+|FFFFCCCCHHHH......
+|.FFFFCCHHHHH......
+|.........HH.......
+
+view L key rlshcrouch origin 0 -1
+mark grip 7 5
+|765........
+|.765.......
+|..765......
+|....hgf....
+|......qtsq.
+|......qsrq.
+|.......qq..
+regions
+|UUU........
+|.UUU.......
+|..UUU......
+|....CCC....
+|......HHHH.
+|......HHHH.
+|.......HH..
+
+view L key csshrelease origin 17 -1
+mark grip 7 2
+|..C..........58765
+|.CBC....qq58888765
+|CBABC.qtsqfiih5666
+|.CBC..qqsrqff5555.
+|..C....qq.........
+regions
+|.............UUUUU
+|........HHFFFFFFFF
+|......HHHHCCCCFFFF
+|......HHHHHCCFFFF.
+|.......HH.........
+
+view D key rlcrouch origin 1 -1
+mark grip 4 6
+|597....
+|597....
+|.597...
+|.fih...
+|..fihq.
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUU....
+|UUU....
+|.FFF...
+|.CCC...
+|..CCCH.
+|...HHHH
+|...HHHH
+|....HH.
+
+view D key rlrise origin 1 -1
+mark grip 6 6
+|597.....
+|597.....
+|.597....
+|..fih...
+|...fiqq.
+|....qtsq
+|....qsrq
+|.....qq.
+regions
+|UUU.....
+|UUU.....
+|.FFF....
+|..CCC...
+|...CCHH.
+|....HHHH
+|....HHHH
+|.....HH.
+
+view D key csgather origin 1 1
+mark grip 6 6
+|.......CC.
+|......CABC
+|597...CBBC
+|597....CC.
+|.5fihqq...
+|..ffqtsq..
+|....qsrq..
+|.....qq...
+regions
+|..........
+|..........
+|UUU.......
+|FFF.......
+|.FCCCHH...
+|..CCHHHH..
+|....HHHH..
+|.....HH...
+
+view D key csrelease origin 2 -1
+mark grip 4 5
+|.597.......
+|.597.......
+|..597......
+|..fih...CC.
+|...qtsqCABC
+|...qsrqCBBC
+|....qq..CC.
+regions
+|.UUU.......
+|.UUU.......
+|..FFF......
+|..CCC......
+|...HHHH....
+|...HHHH....
+|....HH.....
+
+view U key rlcrouch origin 1 -1
+mark grip 2 6
+|765..
+|765..
+|.765.
+|.hgf.
+|.hgf.
+|.srq.
+|qrrq.
+|.qq..
+regions
+|UUU..
+|UUU..
+|.FFF.
+|.CCC.
+|.CCC.
+|.HHH.
+|HHHH.
+|.HH..
+
+view U key rlrise origin 1 -1
+mark grip 2 5
+|765..
+|765..
+|765..
+|hgf..
+|hgfq.
+|.srrq
+|.qrq.
+|..q..
+regions
+|UUU..
+|UUU..
+|FFF..
+|CCC..
+|CCCH.
+|.HHHH
+|.HHH.
+|..H..
+
+view U key csgather origin 2 -1
+mark grip 1 4
+|.765
+|.765
+|.hgf
+|qhgf
+|srq.
+|qq..
+regions
+|.UUU
+|.UUU
+|.CCC
+|HCCC
+|HHH.
+|HH..
+
+view U key csrelease origin 1 -1
+mark grip 4 4
+|.765...
+|..765..
+|..hgf..
+|...qrrq
+|...qsrq
+|....qq.
+regions
+|.UUU...
+|..UUU..
+|..CCC..
+|...HHHH
+|...HHHH
+|....HH.
+
+view D key rlshcrouch origin 5 -1
+mark grip 1 4
+|....597
+|...597.
+|..fih..
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|...UUU.
+|..CCC..
+|HHHH...
+|HHHH...
+|.HH....
+
+view U key rlshcrouch origin 1 -1
+mark grip 2 6
+|765..
+|765..
+|.765.
+|.hgf.
+|.hgf.
+|.srq.
+|qrrq.
+|.qq..
+regions
+|UUU..
+|UUU..
+|.FFF.
+|.CCC.
+|.CCC.
+|.HHH.
+|HHHH.
+|.HH..
+
+view D key csshrelease origin 2 -1
+mark grip 4 5
+|.597.......
+|.597.......
+|..597......
+|..fih...CC.
+|...qtsqCABC
+|...qsrqCBBC
+|....qq..CC.
+regions
+|.UUU.......
+|.UUU.......
+|..FFF......
+|..CCC......
+|...HHHH....
+|...HHHH....
+|....HH.....
+
+view U key csshrelease origin 1 -1
+mark grip 4 4
+|.765...
+|..765..
+|..hgf..
+|...qrrq
+|...qsrq
+|....qq.
+regions
+|.UUU...
+|..UUU..
+|..CCC..
+|...HHHH
+|...HHHH
+|....HH.

@@ -1,0 +1,74 @@
+# fx/stab: the Glint at the tip (the dagger's effect, `fx stab`: STYLE_P2 12's Glint, renamed because `fx glint` is the
+# living finish's edge spark (FINISH); core #FFFFFF, body #FFF6D8, halo #FFE9A8): the glint at the point at full
+# reach with a short streak back along the blade; the follow a 3 px fading twinkle.
+# Tones (contracts 4, STYLE_P2 25.10): C edge (fx 0), B body (fx 1), A core (fx 2) are A3's three; S (fx 3) and T (fx 4)
+# are the family's accents (named below). art_fx draws the map in the family's own ramp (STYLE_P2 6's named colours) and the
+# finisher (hit 3) in the #FFE6A0 tint. a1 is the impact (the strike frame: full width), a2 the follow's first frame
+# (thinning, debris falling); nothing on later frames. Side views drawn facing right, L mirrored (FX carry no light); U is
+# D mirrored a row higher, behind the body. Pivot-relative: every pixel above the sole row (y -1 or higher), inside the
+# figure's box plus the family's reach (rig(2).reach).
+# Format: rpg/art/doll/doll.h. (P2c wave 2, FX round 1)
+use person
+body adult
+role fx stab
+layer fx
+anchor pivot
+keys fx
+legend S fx 3
+legend T fx 4
+
+view R key a1 origin -3 15 layer fx
+|..........C..
+|..........B..
+|CCBBB....BAB.
+|........CBAAB
+|CCBBB....BAB.
+|..........B..
+|..........C..
+
+view L key a1 origin 15 15 layer fx
+|..C..........
+|..B..........
+|.BAB....BBBCC
+|BAABC........
+|.BAB....BBBCC
+|..B..........
+|..C..........
+
+view D key a1 origin 7 15 layer fx
+|...C...
+|...B...
+|..BAB..
+|CBAAABC
+|..BAB..
+|...B...
+|...C...
+
+view U key a1 origin -1 16 layer fxBack
+|...C...
+|...B...
+|..BAB..
+|CBAAABC
+|..BAB..
+|...B...
+|...C...
+
+view R key a2 origin -12 13 layer fx
+|.C.
+|CAC
+|.C.
+
+view L key a2 origin 14 13 layer fx
+|.C.
+|CAC
+|.C.
+
+view D key a2 origin 5 13 layer fx
+|.C.
+|CAC
+|.C.
+
+view U key a2 origin -3 14 layer fxBack
+|.C.
+|CAC
+|.C.

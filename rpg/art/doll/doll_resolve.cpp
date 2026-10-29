@@ -187,6 +187,15 @@ bool t2Kit(const HumanLook& L) {
 bool watchT3(const HumanLook& L) {
   return L.outfit == Outfit::Guard && L.tier[HumanLook::TIER_BODY] == 3 && !L.forge[HumanLook::TIER_BODY] && !L.civil;
 }
+// (P2c wave 2, DOLL-C; D69) a tiered fighter's armour at T2 or T3: the envelope's T2-T3 lifts apply (small caps or the short
+// mantle at T2; medium plates or the people's cape at T3)
+bool envelopeLifts(const HumanLook& L) {
+  const int tb = L.tier[HumanLook::TIER_BODY];
+  // (wave 2 r4) a people's line only: the watch and the soldiers (the Guard uniform, a rank's issued kit: the signed-off guard,
+  // the D57 watch) is no people's line and keeps its own kit at every tier
+  const bool watch = L.outfit == Outfit::Guard;
+  return !L.civil && !watch && tb >= 2 && tb <= 3 && armourOf(L) != nullptr;
+}
 // a `when` condition word some view of the pool keys on (a T2 view drawn into an existing part)
 bool poolKeysOn(const char* word) {
   const pool::Pool& P = pool::get();
@@ -475,7 +484,13 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // (P2c restated) pauldrons: <family>.<size> (plate: plate brigandine leaf; fur: padded leather; scale: mail scale
   // lamellar), size 2 small, 3 medium, 4 large from the dial; dial 1 is none
   {
-    const std::string pd = pauldronOf(L, r.forgeAx[HumanLook::TIER_BODY][forge::AX_SHOULDER]);
+    std::string pd = pauldronOf(L, r.forgeAx[HumanLook::TIER_BODY][forge::AX_SHOULDER]);
+    // (P2c wave 2, DOLL-C; D69) a T2 body whose people's dial gives no shoulders wears the short mantle (`capelet` at size 2,
+    // cloth in the people's coat colour; its hem by ornament comes with its variant views): 18 px across, never a hole
+    if (pd.empty() && envelopeLifts(L) && L.tier[HumanLook::TIER_BODY] == 2 && !(su.body && su.sx[forge::SX_MASS] == forge::MS_NONE)) {
+      if (!pool::get().partsWithRole(Role::Pauldron, "capelet.2").empty()) pd = "capelet.2";
+      else if (g_envMissing) g_envMissing->push_back("pauldron capelet.2 (T2 mantle, D69) -> none");
+    }
     // (forge round 2) a culture alloy's mass NONE wears no shoulders (ladderLook's dial 1 already; the guard here)
     if (!pd.empty() && !(su.body && su.sx[forge::SX_MASS] == forge::MS_NONE)) need(Role::Pauldron, pd);
     if (su.body && su.sx[forge::SX_MASS]) r.shape[forge::SX_MASS] = su.sx[forge::SX_MASS];
@@ -583,15 +598,34 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // what is carried: a sword rides sheathed at the hip (LOCO) and is drawn in hand to fight (ACTION, with its arc).
   // (P2c) a fighter's weapon is the library's `<weapon>.<form>` (heldOf: P2b's bare name while the pool serves no library
   // map for it, so a look covered today stays covered); civil tools keep their bare names
-  const std::string held = heldOf(L);
+  // (P2c wave 2, DOLL-C) every value of contracts 3's vocabulary is asked for; one the pool does not draw yet wears its fallback
+  // (a sheath, a back item or an effect: none; a library weapon: its family's nearest drawing) and is listed in vocabMissing
+  // (`--doll-coverage --scope envelope`), never a hole. Values drawn today resolve exactly as before.
+  auto needOr = [&](Role role, const std::string& v, const std::string& fallback) {
+    if (drawnFor(role, v, r.body)) { need(role, v); return; }
+    if (!fallback.empty() && drawnFor(role, fallback, r.body)) need(role, fallback);
+    r.vocabMissing.push_back(std::string(roleName(role)) + " " + v + " -> " + (fallback.empty() ? std::string("none") : fallback));
+  };
+  std::string held = heldOf(L);
+  // a fighter's greatsword the library has not drawn: the sword of the same form (the nearest blade), listed
+  if (L.weapon == 7 && !L.civil && !drawnFor(Role::Held, held, r.body)) {
+    const std::string form = weaponFormOf(L), sw = form.empty() ? std::string("sword") : "sword." + form;
+    const std::string fb = drawnFor(Role::Held, sw, r.body) ? sw : std::string("sword");
+    r.vocabMissing.push_back("held " + held + " -> " + fb);
+    held = fb;
+  }
   if (L.weapon == 1) { need(Role::Sheath, "sword"); need(Role::Held, held); need(Role::Fx, "arc"); }
-  else if (L.weapon == 2 || L.weapon == 5 || L.weapon == 6) { need(Role::Sheath, kHeld[L.weapon]); need(Role::Held, held); }
+  else if (L.weapon == 2 || L.weapon == 5 || L.weapon == 6) { needOr(Role::Sheath, kHeld[L.weapon], ""); need(Role::Held, held); }
   else if (L.weapon >= 3 && L.weapon <= 12) need(Role::Held, held);
   if (!L.civil) {
-    if (L.weapon == 7) need(Role::Sheath, "greatsword");   // across the back
-    if (L.weapon == 3) { need(Role::Sheath, "quiver"); need(Role::Sheath, "bowback"); need(Role::Fx, "twang"); }   // (P2c fix) the quiver; the bow on the back at rest
-    if (L.weapon == 8) need(Role::Fx, "thrust");
+    if (L.weapon == 7) needOr(Role::Sheath, "greatsword", "");   // across the back
+    if (L.weapon == 3) { needOr(Role::Sheath, "quiver", ""); needOr(Role::Sheath, "bowback", ""); needOr(Role::Fx, "twang", ""); }   // (P2c fix) the quiver; the bow on the back at rest
+    if (L.weapon == 8) needOr(Role::Fx, "thrust", "");
   }
+  // (P2c wave 2, DOLL-C) HumanLook::backItem (v1's back items, art_human.cpp backItems): the bow and its quiver (bit 1) on one who
+  // does not wield the bow, the staff (bit 2) on one who does not wield the staff
+  if ((L.backItem & 1) && L.weapon != 3) { needOr(Role::Sheath, "quiver", ""); needOr(Role::Sheath, "bowback", ""); }
+  if ((L.backItem & 2) && L.weapon != 4) needOr(Role::Sheath, "staffback", "");
 }
 
 // the sleeve and the legwear of each civilian garment: which slot the arm and leg libraries' regions take (STYLE_P2 24;
@@ -803,7 +837,9 @@ HumanLook ladderLook(const HumanLook& L) {
   // T1 feet with no boots are leather boots (the player starts in T1 gear: the rags of the rags-to-riches ladder)
   using O = Outfit;
   const bool cloth = L.outfit == O::Tunic || L.outfit == O::Rags;
-  if ((L.floor >> HumanLook::TIER_BODY & 1) && tb == 1 && !L.armorStyle && !L.bodyForm && cloth && !L.civil) { E.armorStyle = 1; E.bodyForm = 1; }
+  // (P2c wave 2, DOLL-C) never on a child: the armour library has no child body (a child keeps its tunic; "armour=padded
+  // (child): no part" when the hero's floor bits outlived an age change)
+  if ((L.floor >> HumanLook::TIER_BODY & 1) && tb == 1 && !L.armorStyle && !L.bodyForm && cloth && !L.civil && L.age != 1) { E.armorStyle = 1; E.bodyForm = 1; }
   if ((L.floor >> HumanLook::TIER_BOOTS & 1) && L.tier[HumanLook::TIER_BOOTS] == 1 && !L.boots) E.boots = 1;
   if (tb && !L.pauldron && !L.skirt && !L.crest) {
     static const uint8_t kPd[7] = {0, 1, 2, 3, 3, 4, 4}, kSk[7] = {0, 2, 2, 3, 3, 4, 4};
@@ -983,6 +1019,29 @@ HumanLook ladderLook(const HumanLook& L) {
     if (!E.cloak && !E.cape) E.cape = true;
     if (E.cape && !E.cloak) E.tier[HumanLook::TIER_CLOAK] = 3;
   }
+  // (P2c wave 2, DOLL-C; D69, STYLE_P2 29.3 at scale) T2 and T3 grow on every people's line: a T3 body in armour wears its
+  // people's medium plates (a small dial lifted to medium) or, where its dial gives none, its people's cape (TIER_CLOAK 3, the
+  // `when cloak.t3` views inside T3's caps); a T2 body's short mantle where its dial gives none is resolved with the shoulders
+  // (envelopeT2Mantle). A culture alloy's silhouette keeps its own mass (NONE: no shoulders, D38) and the D57 watch its kit.
+  if (envelopeLifts(E) && tb == 3 && !watchT3(L)) {
+    const ShapeUse su = shapeUseOf(L);
+    const bool massNone = su.body && su.sx[forge::SX_MASS] == forge::MS_NONE;
+    if (E.pauldron == 2 && !massNone) E.pauldron = 3;
+    else if (E.pauldron < 2 && !E.cloak && !E.cape) { E.cape = true; E.tier[HumanLook::TIER_CLOAK] = 3; }
+  }
+  if (const int wi = envelopeWhatIf()) {   // (wave 2 r3) rpg_test's what-if only (0 everywhere else)
+    const ShapeUse su = shapeUseOf(L);
+    const bool massNone = su.body && su.sx[forge::SX_MASS] == forge::MS_NONE;
+    if ((wi & 1) && tb == 4 && E.pauldron >= 2 && !massNone) E.pauldron = 4;
+    if ((wi & 2) && tb == 3 && E.cape && !watchT3(L)) { E.cape = false; E.tier[HumanLook::TIER_CLOAK] = 0; }
+    if ((wi & 4) && tb == 4 && !E.cloak && !E.cape) {
+      E.cloak = 1;
+      const uint32_t c = L.tabardColor ? L.tabardColor : (L.topColor ? L.topColor : rgba(110, 40, 40));
+      auto dk = [&](int sh) { return (uint32_t)((c >> sh & 255u) * 70u / 100u); };
+      E.cloakColor = 0xFF000000u | dk(16) << 16 | dk(8) << 8 | dk(0);
+      E.tier[HumanLook::TIER_CLOAK] = 4;
+    }
+  }
   const int thE = E.tier[HumanLook::TIER_HELM];   // the helm's tier after the fighter's own kit
   if (tb == 1) { E.pauldron = std::min<uint8_t>(E.pauldron, 1); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 2); }
   else if (tb == 2) { E.pauldron = std::min<uint8_t>(E.pauldron, 2); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 3); }
@@ -1025,7 +1084,9 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
   bool runeTile = false;
   for (int b = 0; b < 6; b++)
     if (used >> b & 1)
-      if (!P.partsWithRole(Role::Overlay, kTile[b]).empty()) {
+      // (P2c wave 2 round 2, DOLL-C) and drawn for this body: a child has no finish tiles (the judge: "overlay=finish.wear
+      // (child): no part" on a child whose look kept the hero's T1 tiers)
+      if (!P.partsWithRole(Role::Overlay, kTile[b]).empty() && (r.body != BodySet::Child || drawnFor(Role::Overlay, kTile[b], r.body))) {
         r.needs.push_back(Need{Role::Overlay, kTile[b]});
         if (b == 3) runeTile = true;
       }

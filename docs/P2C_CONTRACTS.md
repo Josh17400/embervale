@@ -14,6 +14,8 @@ code owner.
 **The envelope (2026-10-27, the owner's 32 px lock)** adds wave 1d's ownership (1) and freezes (2), the tier envelope, the
 pauldron sizes, the head key, the ramps' antique and glass rules and the A-defect data (3d), and its hooks (7); FORGE-DOLL
 stays the code owner.
+**Production (2026-10-28, the envelope signed off)** restates wave 2's ownership pointer (1), adds the production rules of
+PLAN D67-D70 to 3d and production's hooks to 7; DOLL-C is the code owner in wave 2.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -68,7 +70,11 @@ stays the code owner.
 Nobody else edits these in wave 1d. docs/ref/envelope (the owner-picked 32 px figures) is the planner's and read only.
 
 Wave 2 ownership is in docs/PLAN.md "Production areas". Art areas never build: they compile isolated pools and use the
-published exes (section 7).
+published exes (section 7). Restated 2026-10-28 at the envelope: each area's files are consolidated there from the ladder,
+forge, round-2 and wave-1d restatements (nothing moved between areas); the generated files (gen/doll_pool.cpp,
+rpg/sim/gear_forge_shapes.inc, clips/actions/{shield, sword_shield, spear_carry}.clip and death.clip's generated end, the
+embedded looks) are regenerated only by the integrator with DOLL-C's generators; every file in no wave-2 list is frozen in
+wave 2 (a needed change is a planner ruling).
 
 ## 2. Frozen in P2c (a needed change is a re-plan)
 
@@ -458,6 +464,22 @@ std::string describeEnvelope();                    // rpg_test --envelope: the t
 - **The shape table's metal rule** (A1-A3, gear_forge's solve; hard): a bronze or brass everyday alloy (rank 0) never pairs
   mass NONE with layer TABARD, nor a fur MANTLE with layer TABARD or HALFCAPE; the solve re-runs with rules 1-4 hard,
   C16o, C16u and C18 at 0 and the 37's helm families pinned.
+- **Production (wave 2; PLAN D67-D70)**:
+  - **C12f at scale** (D67): the ladder lines are source L's kits (`ladderKit(people, tier, body, wpn, -1, seed)` for the 12
+    peoples x man and woman x seeds 1..3: 72 lines), the hero lines and e6m; the area, head-step, head-OD and T2-head terms
+    as on the hero lines, each line against its own T1; the caps on every look of C1's sources (A-E, F, L). A per-people
+    ruling (PLAN) names its lines and the term it waives, with the measured numbers; the gate prints every ruled line.
+  - **T6's legend view** (D68): a helm family's `when helm.t6` view (ADD; `replace` over the base view at TIER_HELM 6), inside
+    T6's 10 rows and 2 columns; on a people's line it must stand 0.10 head OD or more off the same family's T5 view and its
+    helm pixels 5 % or more over them (C12f's head terms, unchanged).
+  - **T2 and T3 shoulders** (D69): at TIER_BODY 2 the resolver asks the people's pauldron family at size 2 when its dial is 1
+    or more, else `pauldron capelet.2` (its hem by the people's ornament: `variant-<n>` views or edge cells, the base view
+    the fallback, listed); at TIER_BODY 3 the family at size 3, else the people's cape at TIER_CLOAK 3 (`when cloak.t3`); a
+    T2 helm may take a `when helm.t2` view (ADD) that the resolver prefers at TIER_HELM 2. Each fallback is listed by
+    `--doll-coverage --scope envelope`, never a hole.
+  - **The T5-T6 budgets** (D70): DOLL-C writes e6's measured ACTION, DEATH and POSTURE (x 1.1, never under the T1-T3 row,
+    never over kMeasuredCap) into kEnvelope's T5-T6 rows at the first wave-2 integration that has e6's actions, and records
+    them in section 8.
 
 ## 4. Parts: anchors, layers, channels, keys
 
@@ -633,6 +655,19 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   preview with g4 and the `tier=` and `pauldron=` macros. ZOOM: `EMB_DEVICE=phone|tablet|desktop` (read only for the
   first-launch default, when no settings file exists) and the script command `firstlaunch <device>` (re-runs the first-launch
   default as that device, ignoring the settings file), with the existing `expect zoom` and `expect screen want|world`.
+- **Production's hooks** (wave 2, 2026-10-28; DOLL-C publishes them as exe w1 in its first working block, w0 being the
+  e25ea41 build at hour 0): tools/doll/arms_looks.txt (the matrices M8-M12 at the envelope, PLAN's DOLL-C brief; embedded
+  as the gates' matrix by embed_looks.py); `rpg_test --doll-envelope --scope ladder [--seeds a..b] [--report]` (C12f over
+  source L's lines, the per-people table) and `--doll-envelope --scope all [--seeds a..b]` (the caps on every look of C1's
+  sources); `rpg_test --doll-ladder --finish --scope ladder [--seeds a..b] [--report]` (C12-C13 over source L); every
+  command takes `--pool P`; doll_gallery board `envelope:people:<people>` (both bodies' T1-T6 on one baseline at 1x, 3x and
+  8x, `:grey`, the ratios and head steps printed). Exes: `%TEMP%\claude\emb_P2c\bin\rpg_test_w<N>.exe` and
+  `doll_gallery_w<N>.exe` (DOLL-C, BDIR build-proto) and `rpg_test_int<N>.exe` and `doll_gallery_int<N>.exe` (the
+  integrator, after each integration); LATEST.txt names the newest. Artists' roots `%TEMP%\claude\emb_P2c\wave2\areas\<KEY>\doll\`
+  and reports `%TEMP%\claude\emb_P2c\wave2\areas\<KEY>\report.txt`. The keys board: `%TEMP%\claude\emb_P2c\wave2\keys\<KEY>.txt`,
+  one file per area that names keys (channel, key, facings, family, the frames that use it), written only by its area. The
+  freeze manifest: `%TEMP%\claude\emb_P2c\wave2\freeze_e25ea41.txt` (`--doll-wear --freeze-write` at hour 0 by the
+  integrator; `--freeze-check` at every integration).
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 
@@ -1267,3 +1302,102 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
 - **Tools**: `rpg_test --doll-recipe <tag>[,..] [--map] [--looks f] [--pool f]` (needs, parts, flags, fallbacks, measures; --map the
   idle D / R slot-and-step grid with the part under each pixel); `owner_pack.py --envelope`; doll_gallery's growth strip labels
   T2 with its head pixels and budget (`E2 H160/229`).
+
+### DOLL-C, wave 2 round 1, first block (2026-10-28; exes w0 at e25ea41, w1 with the production hooks)
+
+- **Exes**: `%TEMP%\claude\emb_P2c\bin\rpg_test_w0.exe` / `doll_gallery_w0.exe` (e25ea41 exactly) and `rpg_test_w1.exe` /
+  `doll_gallery_w1.exe` (this block); LATEST.txt names the newest.
+- **`rpg_test --doll-envelope --scope ladder [--seeds a..b] [--report] [--selftest] [--pool P]`**: C12f over source L,
+  gear::ladderKit for the 12 peoples x man and woman x seeds (`kit=<people>:<t>:<s>,palette=look` on A3's hero / heroine, the
+  planner's 2026-10-28 measure, reproduced exactly at w0), each line against its own T1 with C12f's measure (noHeld, walk D
+  frame 0 + idle R): the area ratios and the 0.05 step, the Mythic (`kit=<people>:6m:<s>`) at its T6 or more, the head 5 %
+  over the tier below for T2-T3 (= T2's head <= T3's / 1.05) to T5-T6, consecutive heads 0.10 head OD apart. Prints each
+  missing line (all lines with --report), the per-people table (median ratio [lines at the ratio], the Mythic, the head
+  steps, lines ok) and the counts the planner's baseline uses. A failing term under a ruling of
+  `art::doll::kEnvelopeRulings` (doll_envelope.h: people, body, the term's prefix, the PLAN reference; none recorded yet) is
+  printed as ruled, never as a pass. Selftest: 8 synthetic lines (C12f source L selftests).
+- **`--doll-envelope --scope all [--seeds a..b]`**: the caps (shoulders, head rows / ornament rows / shell, brim and flare
+  columns, the cloak's side facing D and back facing R / L, T1 inside the bare outline + 1) on every look of C1's sources:
+  the census (test_doll.cpp `dollCensusLooks`: A world and residents, B cultures x roles x sexes x ages, D the creator,
+  E recruited residents, G the creator in worn gear, K roles, T towns; rig-2-covered looks only), F (the gates' matrix with
+  the forge looks) and L (source L with the envelope looks). The skirt's flare is measured (hang parts past the bare body's
+  row facing D) and reported per tier, not gated: kEnvelope's skirtFlare is "extra px past the hips" over a base the
+  contracts do not fix yet (the planner names it).
+- **`rpg_test --doll-ladder --finish --scope ladder [--seeds a..b] [--peoples all] [--selftest]`**: C12 per kit line (its six
+  tiers read as lt1..lt6), C13 (the living finish) and C14 on every look of source L (the sword; `--peoples all` every
+  weapon family).
+- **tools/doll/arms_looks.txt** (written by tools/doll/arms_looks.py, embedded by embed_looks.py as test_doll_arms.cpp
+  `kArmsLooks`): M8 192 looks, M9 360, M10 128, M11 62, M12 60 (802). `rpg_test --doll-arms --matrix arms` (or `--looks
+  tools/doll/arms_looks.txt`) runs C3-C6 on it; `--doll --gates` keeps the gates' matrix (ladder + forge looks).
+- **doll_gallery board `envelope:people:<people>|all[:grey|:black]`**: man and woman x seeds 1..3 a row, T1-T6 and the
+  Mythic on one baseline (idle D, idle R, walk R) at 1x, saved 3x and 8x; the label the area / T1, the sub-label the helm
+  pixels and the step over the tier below (T2: its pixels / T3's budget).
+- **Resolver (D69, the data levers)**: `envelopeLifts(L)` (a tiered fighter's armour at T2-T3). T2: a body whose dial gives
+  no shoulders wears `pauldron capelet.2` (listed in envelopeMissing while undrawn; a culture alloy's mass NONE keeps none).
+  T3: a small dial (2) is lifted to medium (3); a dial that gives none wears the people's cape at TIER_CLOAK 3. The D57 watch
+  keeps its kit. Not taken (tried, measured, reverted): T4 large shoulders (B8 knight fall orphan, C16m dune SUNSTEEL motif
+  hidden; T4 at the ratio 21 -> 25 only) and the cape in place of the T3 travel cloak (C12e lt3 vs imp3 outline 7 %: the
+  travel cloak is what sets Imperial apart; its `when cloak.t3` view inside T3's caps is ARMOUR-X's lever).
+- **Resolver (contracts 3's vocabulary)**: `DollRecipe::vocabMissing` (doll.h ADD). Every sheath, back item, library weapon and
+  effect is asked for; one the pool does not draw yet wears its fallback (sheath, back item, effect: none; a fighter's
+  greatsword: the sword of its form) and is listed (`--doll-coverage --scope envelope`). HumanLook::backItem is resolved:
+  bit 1 the quiver and `bowback` on one who does not wield the bow, bit 2 `staffback` on one who does not wield the staff.
+
+### DOLL-C, wave 2 round 2, fix round (2026-10-28; the judge's w2 r1 items)
+- **The child keeps no ladder dress** (doll_resolve.cpp): the T1 floor's padded jerkin never applies to a child (age 1), and a
+  finish tile (finish.wear ... finish.glyph) is asked for a child only where the pool draws it for the child body. A look
+  whose floor bits or T1 tiers outlived an age change (slicelook's child) wears its tunic: "armour=padded (child)" and
+  "overlay=finish.wear (child): no part" cannot happen.
+- **The youth's Dance, Cheer and Pray** (clips/kin_youth.clip, ADD): the sim gives a youth Dance (hopscotch, life_game
+  playTag; the festival night), Cheer (the festival toast from SitDrink) and Pray (posesOf); none had a youth clip, so the
+  view drew the youth from a v1 sheet at rig 2 (the judge's `expect menu v1 0` failures). Dance: the turning step, a hop on
+  the beat; Cheer: the mug on wave2; Pray: the hands met on `hold`, the head bowed a row.
+- **C1 counts postures drawn on v1** (`--doll-coverage`, test_doll.cpp): every (body, posture) the census gives a look that
+  the doll does not cover is printed ("posture on v1 in N looks: <body> posture <n> (<first missing>)") and fails `--gates`.
+  posesOf gives a youth SitDrink, SitFloorDrink, Drink and Cheer too.
+- **B7's seen counts on their own scope** (`--doll-variety`): the 18-of-24 hair styles, 9 beards, head types and garments
+  are counted over seeds 1..20 plus the seeds asked (VISION_PLAN 15.36 B7 defines them on 1..20); the per-settlement
+  head-recipe checks run on the seeds asked. The planner confirms or rules otherwise (PLAN).
+- **C11 in `--doll-variety`**: every settlement's watch within 160 tiles (12 men as spawnHuman makes them) and each kingdom's
+  squad of 8 soldiers: no head recipe (type, nose, brows, beard, hair colour) on more than 2.
+- **B11 wear's COVER figures** (test_doll_wear.cpp): every armour form plain on both bodies (cover_form<n>_<body>), each
+  carried weapon's sheath or back item (cover_wpn<n>_<body>, cover_back_<body>) and M8's build-0 T4 looks (arms_m8_*), so a
+  part a production area adds is judged on its side frames the day it lands.
+- **p2c_ladder's shields** are the forge styles' (signed off 2026-10-24, unchanged at e25ea41): form7 at T1-T2, form4 at T3,
+  form3 at T4 and T6, form2 at T5.
+
+### DOLL-C, wave 2 round 3 (fix round), 2026-10-28
+- **C3b by tier at every tier** (test_doll_arms.cpp helmCheck): T1-T6 read kEnvelope from the head anchor (rows / ornRows
+  over the crown; columns past the 16 px head box: side, a part named `brim` max(side, brim), horns / wings / flares /
+  brims / tails and crest parts `flare`); untiered (TIER_HELM 0) keeps today's F-35 / F-37 and head box + 1. Selftests add
+  a T4 shell 2 columns out (caught), 1 column out (clean), a T2 shell 1 column out (caught), a T3 shell 5 rows up (caught;
+  clean at T4), a T4 plume 7 rows up (caught; 6 clean), a T3 horn 3 columns out (clean).
+- **Coverage exit codes**: `--doll-coverage --scope forge` and `--scope ladder`, and `--doll-variety`, return 1 whenever
+  they print FAIL (before: only with --gates).
+- **sword_shield.clip** (p2c_clips.py): the woman's drawn walk and run facing R and L hold the sword through the library
+  angle view (`weapon=45,front` / `135,back`) instead of `held=gmove`: the same 45-degree guard with the hilt forward of her
+  face (the T4-T6 `gmove` tier views put the rear quillon on her chin: W7). The man's lines are unchanged. The generator
+  does not reproduce the integrated block lines (sw_d0 / a3d0 ... with fx=spark) or spear_carry.clip's sp_carry idle:
+  those were edited in the generated files by their areas; the file in the tree is the integrated one plus this change.
+- **What-if knob** (doll_envelope.h envelopeWhatIf, read by ladderLook; 0 everywhere but `rpg_test --doll-envelope --scope
+  ladder --what-if t4large,t3nocape,t4cloak,t2cap`): numbers for the planner's C12f ruling, never a gate result.
+
+### DOLL-C, wave 2 round 4 (fix round), 2026-10-28
+- **The freeze's shape cells are pinned** (root cause of slice_g_cov5w / forge_g_cov5w, 72 frames each: every integration
+  re-solves the shape table, and nothing held the cells the signed-off looks read; int2's re-solve moved JADE school 7 rank
+  0 from 02020105 to 02040105, so g_cov5w's shoulders went cop.4 to shard.4). `rpg_test --forge-frozen MANIFEST --from-inc
+  INC` expands every look the freeze manifest holds with gear::tableKey recorded (gear::setTableKeyRecorder, ADD) and writes
+  tools/doll/shape_frozen.txt ("<people> <school> <rank> 0x<key>": 37 cells at e25ea41's keys). `--forge-solve` reads it
+  by default (`--frozen FILE`, `--no-frozen`) into gear::ShapeModel::frozen (ADD): a cell all of whose ranks are frozen keeps
+  its keys whole and is never re-solved; a partly frozen cell solves its other ranks around the frozen key. The frozen pins
+  outrank the owner's-37 pins and the hero-cell pin. `--forge-shapes --check` adds rule 7 (every frozen cell holds its key):
+  the int3 table fails it (1: jade school 7 rank 0), the r4 table passes. The integrator's `--forge-solve --keep` now writes
+  the frozen cells back; r4's solve on pool 4BEAC6C091674704: 0 hard, C18a 0 twins, 2 cells moved against int3's table.
+  A new freeze file needs `--forge-frozen` run against it (the old cells stay pinned until then).
+- **D69 is a people's line's** (doll_resolve envelopeLifts): the Guard uniform (the watch and the soldiers, a rank's issued
+  kit) is no people's line, so the T2 short mantle and the T3 plates/cape never reach it (slice_guard's 136 frames went
+  back to the signed-off figure: pauldron none, area 770, not capelet.2 at 818). Source L's 72 kit lines never wear Guard.
+- Still changed against freeze_e25ea41 by code (e25 pool, r4 exe): slice_fjord3 136 (D69's T3 plates: flared.2 to
+  flared.3, area 1026 to 1044; a people's kit line, kit=fjordfolk:3:5) and slice_nking 124 (FOLK-SIM-C's rankSlots: the
+  king's over-layer forced to the cape at T5, halfcape to noble cloak). Both are intended changes to signed-off figures:
+  the owner's sign-off and a new freeze, or the change taken back.

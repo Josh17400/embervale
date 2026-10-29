@@ -1,0 +1,24 @@
+# P2c production, SWITCH (C7; the depth item): the character creator's preview on the doll at rig 2, from the title (New
+# Adventure), at the largest whole multiple its stage holds with the T6 envelope's room; it breathes, walks, runs and swings
+# (a round of 10.4 s: idle 2.6 s, walk 2.6, run 2.2, a sword's blows 3.0), turning slowly; v1Draws 0.
+#   embervale.exe --script tools/scripts/p2c_menus_creator.txt     (p2c_menus_creator_*.png in the working directory)
+seed 11
+0.3  rig 2
++0.0 expect rig 2
++0.3 key Return
++0.6 expect mode creator
++0.2 expect menu creator doll
++0.0 expect menu creator uncropped
++0.0 shot p2c_menus_creator_idle.png
++2.6 expect menu creator uncropped
++0.0 shot p2c_menus_creator_walk.png
++2.6 expect menu creator uncropped
++0.0 shot p2c_menus_creator_run.png
++2.4 expect menu creator uncropped
++0.0 shot p2c_menus_creator_swing.png
++0.3 expect menu v1 0
+# the heroine (the build row's woman) the same
++0.1 key Right
++0.1 key Left
++0.5 expect menu creator uncropped
++0.0 shot p2c_menus_creator_b.png

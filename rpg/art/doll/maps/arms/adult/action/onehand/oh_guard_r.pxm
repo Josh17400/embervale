@@ -1,0 +1,48 @@
+# arms/adult/action/onehand/oh_guard_r: the one-hand guard (dagger, axe, mace) facing L and U, key oh_g (P2c ACTIONS-1H,
+# round 2): the weapon fist in view in the drawn idle / walk / run and every recover (C3d); D and R keep the loco guard arm.
+use person
+body adult
+role arms std
+layer held
+anchor shoulderR
+keys armR
+side R
+z 1
+
+view L key oh_g origin 11 3 layer armNear
+mark grip 1 4
+mark handR 1 4
+|.....755....
+|....76665...
+|...hg66665..
+|qsrqg555666.
+|qrrqf...6665
+|.qqf.....65.
+regions
+|.....FUU....
+|....FFUUU...
+|...CCFUUUU..
+|HHHHCFUUUUU.
+|HHHHC...UUUU
+|.HHC.....UU.
+
+view U key oh_g origin 1 3 layer armNear
+mark grip 7 6
+mark handR 7 6
+|....585...
+|...8875...
+|.587775...
+|887767f...
+|8765ihf...
+|766.fhqtsq
+|.....fqsrq
+|.......qq.
+regions
+|....UUU...
+|...UUFF...
+|.UUUUFF...
+|UUUUUFC...
+|UUUUCCC...
+|UUU.CCHHHH
+|.....CHHHH
+|.......HH.

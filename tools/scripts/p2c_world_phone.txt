@@ -1,0 +1,56 @@
+# p2c_world as a phone's first launch (EMB_DEVICE phone, no settings file: NEAR at D 6 on 2556 x 1179); the same checks.
+#   embervale.exe --script tools/scripts/p2c_world_phone.txt     (p2c_world_phone_*.png)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 firstlaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen want 6
++0.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_village.png
++0.3 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_village_near.png
++0.1 skill foe bandit 2 0 unaware
++0.0 skill foe bandit -2 1 unaware
++0.3 killnear 6
++1.0 expect menu v1 0
++0.3 shot p2c_world_phone_fallen.png
++0.1 goto shrine
++0.5 home lot medium
++0.1 home fence
++0.1 home place stable 2 2
++0.1 home ride
++0.1 expect home riding 1
++0.1 walk east 0.8
++0.3 expect menu v1 0
++0.0 shot p2c_world_phone_ride_east.png
++0.3 walk south 0.8
++0.3 shot p2c_world_phone_ride_south.png
++0.5 home dismount
++0.3 goto market
++1.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_market.png
++0.3 goto camp
++1.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_camp.png
++0.3 sea port
++1.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_harbour.png
++0.3 goto capital
++1.5 hour 15
++3.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_capital.png
++0.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_phone_capital_near.png

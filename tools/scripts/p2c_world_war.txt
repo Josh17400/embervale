@@ -1,0 +1,21 @@
+# P2c production, SWITCH: a war camp at rig 2 (seed 2: the realm's siege, M4 WARDS): the soldiers, captains and their
+# horses on the doll, v1Draws 0; the flip pack's war-camp screen.
+#   embervale.exe --script tools/scripts/p2c_world_war.txt     (p2c_world_war_*.png)
+seed 2
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.1 rig 2
++0.0 expect rig 2
++0.5 realm siege 0
++0.3 expect realm besieged 0
++0.5 expect war camp
++0.1 war goto camp
++0.1 war at 1 3
++4.5 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_war_camp.png
++0.1 war goto captain def
++1.0 settle 3 0.5
++0.0 expect menu v1 0
++0.0 shot p2c_world_war_captain.png

@@ -1,0 +1,347 @@
+# headwear/helm/sallet_legend: the SALLET family grown at T5-T6
+# (HELMS wave 2, round 1; PLAN D44 D68, STYLE_P2 29.4 / 29.10) the T5-T6 growth of the helm family `fam.sallet` on a culture
+# alloy, drawn from the helm's own crown mark (placed on the head anchor at each variant's mark), so every variant keeps its outline and grows from its own
+# crown: T5 a feather plume streaming back (a horsehair crest on a drawn ridge); T6 before the gilt legend fin.
+# Written by the HELMS area tools/grow.py from src/designs.py (D and R drawn; U is D; L is R mirrored and re-lit; lie = L).
+# The `!crest-<v>` terms step aside for the crests drawn on this family: a drawn crest grows itself (helm/crest/*.pxm).
+use person
+body adult
+role helm fam.sallet
+layer headwear
+anchor head
+keys hatpose
+z 1
+tags overlay
+legend X glow 3
+legend W glow 4
+legend J metal2 0
+legend Q metal2 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+view D key rest origin 0 0
+|.
+view U key rest origin 0 0
+|.
+view R key rest origin 0 0
+|.
+view L key rest origin 0 0
+|.
+view L key lie origin 0 0
+|.
+view D key breeze origin 0 0
+|.
+view U key breeze origin 0 0
+|.
+view D key rest origin 2 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|.........vv.........
+|........vQOv........
+|........FFFF........
+|vv.....FTTSRF.....vv
+|vPvv...FTSSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOFTSSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPvPOvNNvv....
+|......vvvvvvvv......
+view D key rest origin 2 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|.........vv.........
+|........vQOv........
+|........vFFv........
+|vv......FTSF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOvFTSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPvFRFNNvv....
+|......vvvPOvvv......
+view D key rest origin -5 6 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|.FFFF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|.FTRF.
+|.vPOv.
+view D key rest origin -5 6 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|..FF..
+|.FTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTRF.
+|..FRF.
+|.vPOv.
+view U key rest origin 2 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|.........vv.........
+|........vQOv........
+|........FFFF........
+|vv.....FTTSRF.....vv
+|vPvv...FTSSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOFTSSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPvPOvNNvv....
+|......vvvvvvvv......
+view U key rest origin 2 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|.........vv.........
+|........vQOv........
+|........vFFv........
+|vv......FTSF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOvFTSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPvFRFNNvv....
+|......vvvPOvvv......
+view U key rest origin -5 6 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|.FFFF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|FTSSRF
+|.FTRF.
+|.vPOv.
+view U key rest origin -5 6 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|..FF..
+|.FTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTRF.
+|..FRF.
+|.vPOv.
+view R key rest origin 0 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|.............vv.
+|...........vvQv.
+|.........vvPPOv.
+|vv.....vvPPPOOv.
+|vPvv.FFFFFFFFNv.
+|vPPFFTTTTTTSSFF.
+|vvFTTSSSSSSSSRRF
+|vPFTSSSSSSSSRRRF
+|vOFSSSSSSSSRRRRF
+|.vFSSRFvPOvFRRRF
+|..FSRF......FRRF
+|...FF........FF.
+view R key rest origin 0 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|.............vv
+|...........vvQv
+|.........vvPPOv
+|vv.....vvPPPOOv
+|vPvvFFFFPPPOONv
+|vPPFTTSSFOOONNv
+|vvFTSSSRRFNNNv.
+|vFTSSRRFRFNvv..
+|vFTSRFNFRFv....
+|.FSRFvvvPOv....
+|.FRF...vPOv....
+|.FRF...........
+|..FF...........
+view R key rest origin -2 4 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|...FFFFFFFF...
+|.FFTTTTTTSSFF.
+|FTTSSSSSSSSRRF
+|FTSSSSSSSSRRRF
+|FSSSSSSSSRRRRF
+|FSSRFvPOvFRRRF
+|FSRF......FRRF
+|.FF........FF.
+view R key rest origin -1 4 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|...FFFF...
+|..FTTSSF..
+|.FTSSSRRF.
+|FTSSRRFRF.
+|FTSRFFFRF.
+|FSRFF.vPOv
+|FRF...vPOv
+|FRF.......
+|.FF.......
+view L key rest origin 0 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|.vv.............
+|.vQvv...........
+|.vONNvv.........
+|.vOONNNvv.....vv
+|.vPFFFFFFFF.vvNv
+|.FFSSRRRRRRFFNNv
+|FTTSSSSSSSSRRFvv
+|FTTTSSSSSSSSRFNv
+|FTTTTSSSSSSSSFOv
+|FTTTFvONvFTSSFv.
+|FTTF......FTSF..
+|.FF........FF...
+view L key rest origin -1 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|vv.............
+|vQvv...........
+|vONNvv.........
+|vOONNNvv.....vv
+|vPOONNNFFFFvvNv
+|vPPOOOFSSRRFNNv
+|.vPPPFTTSSSRFvv
+|..vvPFTFTTSSRFv
+|....vFTFPFTSRFv
+|....vONvvvFTSF.
+|....vONv...FTF.
+|...........FTF.
+|...........FFF.
+view L key rest origin 0 4 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|...FFFFFFFF...
+|.FFSSRRRRRRFF.
+|FTTSSSSSSSSRRF
+|FTTTSSSSSSSSRF
+|FTTTTSSSSSSSSF
+|FTTTFvONvFTSSF
+|FTTF......FTSF
+|.FF........FF.
+view L key rest origin -5 4 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|...FFFF...
+|..FSSRRF..
+|.FTTSSSRF.
+|.FTFTTSSRF
+|.FTFFFTSRF
+|vONv.FFTSF
+|vONv...FTF
+|.......FTF
+|.......FF.
+view L key lie origin 0 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|.vv.............
+|.vQvv...........
+|.vONNvv.........
+|.vOONNNvv.....vv
+|.vPFFFFFFFF.vvNv
+|.FFSSRRRRRRFFNNv
+|FTTSSSSSSSSRRFvv
+|FTTTSSSSSSSSRFNv
+|FTTTTSSSSSSSSFOv
+|FTTTFvONvFTSSFv.
+|FTTF......FTSF..
+|.FF........FF...
+view L key lie origin -1 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|vv.............
+|vQvv...........
+|vONNvv.........
+|vOONNNvv.....vv
+|vPOONNNFFFFvvNv
+|vPPOOOFSSRRFNNv
+|.vPPPFTTSSSRFvv
+|..vvPFTFTTSSRFv
+|....vFTFPFTSRFv
+|....vONvvvFTSF.
+|....vONv...FTF.
+|...........FTF.
+|...........FF..
+view L key lie origin 0 4 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|...FFFFFFFF...
+|.FFSSRRRRRRFF.
+|FTTSSSSSSSSRRF
+|FTTTSSSSSSSSRF
+|FTTTTSSSSSSSSF
+|FTTTFvONvFTSSF
+|FTTF......FTSF
+|.FF........FF.
+view L key lie origin -5 4 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|...FFFF...
+|..FSSRRF..
+|.FTTSSSRF.
+|.FTFTTSSRF
+|.FTFFFTSRF
+|vONv.FFTSF
+|vONv...FTF
+|.......FTF
+|.......FF.
+view D key breeze origin 3 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|..........vv..........
+|.........vQOv.........
+|..........FFFF........
+|.vv.....FTTSRF.....vv.
+|.vPvv...FTSSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOFTSSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPvPOvNNvv.....
+|.......vvvvvvvv.......
+view D key breeze origin 3 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|..........vv..........
+|.........vQOv.........
+|.........vvFv.........
+|.vv......FTSF......vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOvFTSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPvFRFNNvv.....
+|.......vvvPOvvv.......
+view D key breeze origin -4 6 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|...FFFF.
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTRF..
+|..vPOv..
+view D key breeze origin -4 6 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|....FF..
+|..FTSF..
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTSRF.
+|..FTRF..
+|...FRF..
+|..vPOv..
+view U key breeze origin 3 8 when helm.t6,alloyshape,helmfam-sallet,crest-ridge replace
+|..........vv..........
+|.........vQOv.........
+|..........FFFF........
+|.vv.....FTTSRF.....vv.
+|.vPvv...FTSSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOFTSSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPvPOvNNvv.....
+|.......vvvvvvvv.......
+view U key breeze origin 3 8 when helm.t6,alloyshape,helmfam-sallet,!crest-ridge replace
+|..........vv..........
+|.........vQOv.........
+|.........vvFv.........
+|.vv......FTSF......vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOvFTSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPvFRFNNvv.....
+|.......vvvPOvvv.......
+view U key breeze origin -4 6 when helm.t5,alloyshape,helmfam-sallet,crest-ridge replace
+|...FFFF.
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTRF..
+|..vPOv..
+view U key breeze origin -4 6 when helm.t5,alloyshape,helmfam-sallet,!crest-ridge replace
+|....FF..
+|..FTSF..
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTSRF.
+|..FTRF..
+|...FRF..
+|..vPOv..

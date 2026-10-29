@@ -17,7 +17,7 @@ view D key rest origin 3 5
 |.....vv
 |vvvvvvv
 |vyyyyxv
-|.vyyyv.
+|.vyyyvv
 |.vwwwv.
 |.vxxxv.
 regions
@@ -34,7 +34,7 @@ view D key up origin 3 6
 |.....vv
 |vvvvvvv
 |vyyyyxv
-|.vyyyv.
+|.vyyyvv
 |.vwwwv.
 |.vxxxv.
 regions
@@ -51,7 +51,7 @@ view D key lie origin 3 5
 |.....vv
 |vvvvvvv
 |vyyyyxv
-|.vyyyv.
+|.vyyyvv
 |.vwwwv.
 |.vxxxv.
 regions

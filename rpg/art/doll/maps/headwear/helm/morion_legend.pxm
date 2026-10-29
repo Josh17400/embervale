@@ -1,0 +1,345 @@
+# headwear/helm/morion_legend: the MORION family grown at T5-T6
+# (HELMS wave 2, round 1; PLAN D44 D68, STYLE_P2 29.4 / 29.10) the T5-T6 growth of the helm family `fam.morion` on a culture
+# alloy, drawn from the helm's own crown mark (placed on the head anchor at each variant's mark), so every variant keeps its outline and grows from its own
+# crown: T5 a feather plume over the comb; T6 the plume between heraldic gilt wings.
+# Written by the HELMS area tools/grow.py from src/designs.py (D and R drawn; U is D; L is R mirrored and re-lit; lie = L).
+# The `!crest-<v>` terms step aside for the crests drawn on this family: a drawn crest grows itself (helm/crest/*.pxm).
+use person
+body adult
+role helm fam.morion
+layer headwear
+anchor head
+keys hatpose
+z 1
+tags overlay
+legend X glow 3
+legend W glow 4
+legend J metal2 0
+legend Q metal2 4
+legend F plume 0
+legend R plume 1
+legend S plume 2
+legend T plume 3
+legend U plume 4
+view D key rest origin 0 0
+|.
+view U key rest origin 0 0
+|.
+view R key rest origin 0 0
+|.
+view L key rest origin 0 0
+|.
+view L key lie origin 0 0
+|.
+view D key breeze origin 0 0
+|.
+view U key breeze origin 0 0
+|.
+view D key rest origin 2 6 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|.........FF.........
+|vv......FTSF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOvFTSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPOFRFNNvv....
+|......vvvPOvvv......
+view D key rest origin 2 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|.........vv.........
+|........vPOv........
+|.......FvPOvF.......
+|vv...vvTFPOFRvv...vv
+|vPvv.vPvFTRFvNv.vvNv
+|vPPOvvPOvPOvONvvOONv
+|vPPvOvPOvPOvONvOvNNv
+|.vPvPvPOvPOvONvNvNv.
+|..vvPPvPOPOONvNNvv..
+|....vPPPPPOOONNv....
+|....vQPPPPOOONNv....
+|.....vvvvvvvvvv.....
+view D key rest origin -5 6 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|..FF..
+|.FTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTRF.
+|..FRF.
+|.vPOv.
+view D key rest origin -5 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|F....F
+|TF..FR
+|.FTRF.
+|.vPOv.
+view U key rest origin 2 6 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|.........FF.........
+|vv......FTSF......vv
+|vPvv...FTTSRF...vvNv
+|vPPOvv.FTSSRF.vvOONv
+|vPPPOOvFTSSRFvOOONNv
+|.vPPPOOvFTSRFOOONNv.
+|..vvPPOOFTRFOONNvv..
+|....vvPPOFRFNNvv....
+|......vvvPOvvv......
+view U key rest origin 2 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|.........vv.........
+|........vPOv........
+|.......FvPOvF.......
+|vv...vvTFPOFRvv...vv
+|vPvv.vPvFTRFvNv.vvNv
+|vPPOvvPOvPOvONvvOONv
+|vPPvOvPOvPOvONvOvNNv
+|.vPvPvPOvPOvONvNvNv.
+|..vvPPvPOPOONvNNvv..
+|....vPPPPPOOONNv....
+|....vQPPPPOOONNv....
+|.....vvvvvvvvvv.....
+view U key rest origin -5 6 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|..FF..
+|.FTSF.
+|FTTSRF
+|FTSSRF
+|FTSSRF
+|.FTSRF
+|.FTRF.
+|..FRF.
+|.vPOv.
+view U key rest origin -5 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|F....F
+|TF..FR
+|.FTRF.
+|.vPOv.
+view R key rest origin 2 5 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|..vv........
+|..vPvFFFF...
+|..vPFTTSSF..
+|..vFTSSSRRF.
+|..FTSSRRFRF.
+|..FFFRFPFRF.
+|.FTTSFvvvPOv
+|FTTSRF..vPOv
+|FTSRF.......
+|FTSRF.......
+|FSRF........
+|FSRF........
+|.FRF........
+|..FF........
+view R key rest origin 1 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|........vv.....
+|.......vPOv....
+|..FFF.FFPOv....
+|.FTTSFFTFOv.vv.
+|FTTSRFvFTRFvNv.
+|FTSRFPOvvPOvNv.
+|FTSRFPOvPOvONvv
+|FSRFPvPOPOONvNv
+|FSRFPPPPPOOONNv
+|.FRFPPPPPOOONNv
+|..FFQPPPPOOONNv
+|....vvvvvvvvvv.
+view R key rest origin 2 4 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|.....FFFF...
+|....FTTSSF..
+|...FTSSSRRF.
+|..FTSSRRFRF.
+|..FFFRF.FRF.
+|.FTTSF..vPOv
+|FTTSRF..vPOv
+|FTSRF.......
+|FTSRF.......
+|FSRF........
+|FSRF........
+|.FRF........
+|..FF........
+view R key rest origin 1 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|..FFF.FF....
+|.FTTSFFTF...
+|FTTSRFFFTRF.
+|FTSRFF..vPOv
+|FTSRF.......
+|FSRF........
+|FSRF........
+|.FRF........
+|..FF........
+view L key rest origin -6 5 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|........vv..
+|...FFFFvNv..
+|..FSSRRFNv..
+|.FTTSSSRFv..
+|.FTFTTSSRF..
+|.FTFNFTFFF..
+|vONvvvFSRRF.
+|vONv..FTSRRF
+|.......FTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view L key rest origin -2 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|.....vv........
+|....vONv.......
+|....vONFF.FFF..
+|.vv.vOFRFFSRRF.
+|.vPvFTRFvFTSRRF
+|.vPvONvvONFTSRF
+|vvPOvONvONFTSRF
+|vPvPOONONvNFTSF
+|vPPOOONNNNNFTSF
+|vPPOOONNNNNFTF.
+|vPPOOONNNNQFF..
+|.vvvvvvvvvv....
+view L key rest origin -6 4 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|...FFFF.....
+|..FSSRRF....
+|.FTTSSSRF...
+|.FTFTTSSRF..
+|.FTF.FTFFF..
+|vONv..FSRRF.
+|vONv..FTSRRF
+|.......FTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view L key rest origin -5 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|....FF.FFF..
+|...FRFFSRRF.
+|.FTRFFFTSRRF
+|vONv..FFTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view L key lie origin -6 5 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|........vv..
+|...FFFFvNv..
+|..FSSRRFNv..
+|.FTTSSSRFv..
+|.FTFTTSSRF..
+|.FTFNFTFFF..
+|vONvvvFSRRF.
+|vONv..FTSRRF
+|.......FTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view L key lie origin -2 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|.....vv........
+|....vONv.......
+|....vONFF.FFF..
+|.vv.vOFRFFSRRF.
+|.vPvFTRFvFTSRRF
+|.vPvONvvONFTSRF
+|vvPOvONvONFTSRF
+|vPvPOONONvNFTSF
+|vPPOOONNNNNFTSF
+|vPPOOONNNNNFTF.
+|vPPOOONNNNQFF..
+|.vvvvvvvvvv....
+view L key lie origin -6 4 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|...FFFF.....
+|..FSSRRF....
+|.FTTSSSRF...
+|.FTFTTSSRF..
+|.FTF.FTFFF..
+|vONv..FSRRF.
+|vONv..FTSRRF
+|.......FTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view L key lie origin -5 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|....FF.FFF..
+|...FRFFSRRF.
+|.FTRFFFTSRRF
+|vONv..FFTSRF
+|.......FTSRF
+|........FTSF
+|........FTSF
+|........FTF.
+|........FF..
+view D key breeze origin 3 6 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|...........FF.........
+|.vv......FTSF......vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOvFTSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPOFRFNNvv.....
+|.......vvvPOvvv.......
+view D key breeze origin 3 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|..........vv..........
+|.........vPOv.........
+|.........vPOv.F.......
+|.vv...vvTFPOFRvv...vv.
+|.vPvv.vPvFTRFvNv.vvNv.
+|.vPPOvvPOvPOvONvvOONv.
+|.vPPvOvPOvPOvONvOvNNv.
+|..vPvPvPOvPOvONvNvNv..
+|...vvPPvPOPOONvNNvv...
+|.....vPPPPPOOONNv.....
+|.....vQPPPPOOONNv.....
+|......vvvvvvvvvv......
+view D key breeze origin -4 6 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|....FF..
+|..FTSF..
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTSRF.
+|..FTRF..
+|...FRF..
+|..vPOv..
+view D key breeze origin -4 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|..F....F
+|.TF..FR.
+|..FTRF..
+|..vPOv..
+view U key breeze origin 3 6 when helm.t6,alloyshape,helmfam-morion,!variant-1 replace
+|...........FF.........
+|.vv......FTSF......vv.
+|.vPvv...FTTSRF...vvNv.
+|.vPPOvv.FTSSRF.vvOONv.
+|.vPPPOOvFTSSRFvOOONNv.
+|..vPPPOOvFTSRFOOONNv..
+|...vvPPOOFTRFOONNvv...
+|.....vvPPOFRFNNvv.....
+|.......vvvPOvvv.......
+view U key breeze origin 3 8 when helm.t6,alloyshape,helmfam-morion,variant-1 replace
+|..........vv..........
+|.........vPOv.........
+|.........vPOv.F.......
+|.vv...vvTFPOFRvv...vv.
+|.vPvv.vPvFTRFvNv.vvNv.
+|.vPPOvvPOvPOvONvvOONv.
+|.vPPvOvPOvPOvONvOvNNv.
+|..vPvPvPOvPOvONvNvNv..
+|...vvPPvPOPOONvNNvv...
+|.....vPPPPPOOONNv.....
+|.....vQPPPPOOONNv.....
+|......vvvvvvvvvv......
+view U key breeze origin -4 6 when helm.t5,alloyshape,helmfam-morion,!variant-1 replace
+|....FF..
+|..FTSF..
+|.FTTSRF.
+|.FTSSRF.
+|.FTSSRF.
+|..FTSRF.
+|..FTRF..
+|...FRF..
+|..vPOv..
+view U key breeze origin -4 6 when helm.t5,alloyshape,helmfam-morion,variant-1 replace
+|..F....F
+|.TF..FR.
+|..FTRF..
+|..vPOv..

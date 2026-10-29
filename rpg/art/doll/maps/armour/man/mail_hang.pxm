@@ -138,3 +138,73 @@ regions
 
 view U key breeze origin 0 0
 |.
+# >>> ARMOUR-M wave 2 r4: the posture keys sit / floor (tools/add_mail_hang_posture.py)
+
+view D key sit origin 0 0
+|.
+
+view D key floor origin 0 0
+|.
+
+view U key sit origin 0 0
+|.
+
+view U key floor origin 0 0
+|.
+
+view R key sit origin 0 0
+|.
+
+view R key floor origin 0 0
+|.
+
+view L key sit origin 0 0
+|.
+
+view L key floor origin 0 0
+|.
+
+view D key sit origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|..RRRRRR..
+
+view D key floor origin 5 0 when layer-tabard
+|..mpoonm..
+|..mpoonm..
+|..mpoonm..
+|..mmmmmm..
+regions
+|..........
+|..........
+|..........
+|..RRRRRR..
+
+view D key sit origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mmmm..mmmm
+regions
+|..........
+|..........
+|..........
+|RRRR..RRRR
+
+view D key floor origin 2 0 when layer-sash
+|.mpommpom.
+|.mpom.mpom
+|mpom..mpom
+|mmmm..mmmm
+regions
+|..........
+|..........
+|..........
+|RRRR..RRRR
+

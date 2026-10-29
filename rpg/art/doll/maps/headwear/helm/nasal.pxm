@@ -127,6 +127,41 @@ regions
 |..R..................
 |..R..................
 
+# (HELMS wave 2) begin T2: the soft leather cap of the peoples' T2 kits (TANNER'S / HOMESPUN on the nasal), inside 3 rows and the head box, under every line's T3 helm / 1.05 (PLAN D69).
+view D key rest origin 2 1 when helm.t2,!helm.t3 replace
+|--------------------
+|--------------------
+|--------------------
+|-------ffiihf-------
+|-----ffiihhhggf-----
+|----fiihhhhhgggf----
+|....ffffffffffff....
+view U key rest origin 2 1 when helm.t2,!helm.t3 replace
+|--------------------
+|--------------------
+|--------------------
+|-------ffiihf-------
+|-----ffiihhhggf-----
+|----fiihhhhhgggf----
+|....ffffffffffff....
+view R key rest origin 3 1 when helm.t2,!helm.t3 replace
+|---------------------
+|---------------------
+|---------------------
+|--------ffiihf-------
+|------ffiihhhggf-----
+|-----fiihhhhhgggf----
+|....ffffffffffffff...
+view L key rest origin 2 1 when helm.t2,!helm.t3 replace
+|---------------------
+|---------------------
+|---------------------
+|-------fhggff--------
+|-----fiihhhggff------
+|----fiiihhhhhggf-----
+|...ffffffffffffff....
+# (HELMS wave 2) end T2
+
 # (FORGE-HEAD envelope r1) the guard helm by tier: T2 inside the head box facing R / L (C3b); T3 the fair test's
 # guard (docs/ref/envelope f32_guard_t3d): a spike finial and the brim a column wider each side. Never on a forge crest or an alloy cone.
 

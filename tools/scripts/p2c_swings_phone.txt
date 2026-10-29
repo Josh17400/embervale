@@ -1,0 +1,309 @@
+# p2c_swings as a phone's first launch (EMB_DEVICE phone, no settings file: NEAR at D 6 on 2556 x 1179); the same checks.
+#   embervale.exe --script tools/scripts/p2c_swings_phone.txt     (p2c_swings_phone_*.png)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 firstlaunch phone 2556x1179
++0.3 expect zoom near
++0.0 expect screen want 6
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=sword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup sword 0 1
++0.1 shot p2c_swings_phone_sword_r_h1_windup.png
++0.1 pose strike sword 0 1
++0.1 shot p2c_swings_phone_sword_r_h1_strike.png
++0.1 pose follow sword 0 1
++0.1 shot p2c_swings_phone_sword_r_h1_follow.png
++0.1 pose windup sword 1 1
++0.1 shot p2c_swings_phone_sword_r_h2_windup.png
++0.1 pose strike sword 1 1
++0.1 shot p2c_swings_phone_sword_r_h2_strike.png
++0.1 pose follow sword 1 1
++0.1 shot p2c_swings_phone_sword_r_h2_follow.png
++0.1 pose windup sword 2 1
++0.1 shot p2c_swings_phone_sword_r_h3_windup.png
++0.1 pose strike sword 2 1
++0.1 shot p2c_swings_phone_sword_r_h3_strike.png
++0.1 pose follow sword 2 1
++0.1 shot p2c_swings_phone_sword_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup sword 0 1
++0.1 shot p2c_swings_phone_sword_d_h1_windup.png
++0.1 pose strike sword 0 1
++0.1 shot p2c_swings_phone_sword_d_h1_strike.png
++0.1 pose follow sword 0 1
++0.1 shot p2c_swings_phone_sword_d_h1_follow.png
++0.1 pose windup sword 1 1
++0.1 shot p2c_swings_phone_sword_d_h2_windup.png
++0.1 pose strike sword 1 1
++0.1 shot p2c_swings_phone_sword_d_h2_strike.png
++0.1 pose follow sword 1 1
++0.1 shot p2c_swings_phone_sword_d_h2_follow.png
++0.1 pose windup sword 2 1
++0.1 shot p2c_swings_phone_sword_d_h3_windup.png
++0.1 pose strike sword 2 1
++0.1 shot p2c_swings_phone_sword_d_h3_strike.png
++0.1 pose follow sword 2 1
++0.1 shot p2c_swings_phone_sword_d_h3_follow.png
++0.1 pose block sword 0 1
++0.1 shot p2c_swings_phone_sword_block.png
++0.1 pose roll sword 0 2
++0.1 shot p2c_swings_phone_sword_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=greatsword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_r_h1_windup.png
++0.1 pose strike greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_r_h1_strike.png
++0.1 pose follow greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_r_h1_follow.png
++0.1 pose windup greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_r_h2_windup.png
++0.1 pose strike greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_r_h2_strike.png
++0.1 pose follow greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_r_h2_follow.png
++0.1 pose windup greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_r_h3_windup.png
++0.1 pose strike greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_r_h3_strike.png
++0.1 pose follow greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_d_h1_windup.png
++0.1 pose strike greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_d_h1_strike.png
++0.1 pose follow greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_d_h1_follow.png
++0.1 pose windup greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_d_h2_windup.png
++0.1 pose strike greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_d_h2_strike.png
++0.1 pose follow greatsword 1 1
++0.1 shot p2c_swings_phone_greatsword_d_h2_follow.png
++0.1 pose windup greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_d_h3_windup.png
++0.1 pose strike greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_d_h3_strike.png
++0.1 pose follow greatsword 2 1
++0.1 shot p2c_swings_phone_greatsword_d_h3_follow.png
++0.1 pose block greatsword 0 1
++0.1 shot p2c_swings_phone_greatsword_block.png
++0.1 pose roll greatsword 0 2
++0.1 shot p2c_swings_phone_greatsword_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=axe
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup axe 0 1
++0.1 shot p2c_swings_phone_axe_r_h1_windup.png
++0.1 pose strike axe 0 1
++0.1 shot p2c_swings_phone_axe_r_h1_strike.png
++0.1 pose follow axe 0 1
++0.1 shot p2c_swings_phone_axe_r_h1_follow.png
++0.1 pose windup axe 1 1
++0.1 shot p2c_swings_phone_axe_r_h2_windup.png
++0.1 pose strike axe 1 1
++0.1 shot p2c_swings_phone_axe_r_h2_strike.png
++0.1 pose follow axe 1 1
++0.1 shot p2c_swings_phone_axe_r_h2_follow.png
++0.1 pose windup axe 2 1
++0.1 shot p2c_swings_phone_axe_r_h3_windup.png
++0.1 pose strike axe 2 1
++0.1 shot p2c_swings_phone_axe_r_h3_strike.png
++0.1 pose follow axe 2 1
++0.1 shot p2c_swings_phone_axe_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup axe 0 1
++0.1 shot p2c_swings_phone_axe_d_h1_windup.png
++0.1 pose strike axe 0 1
++0.1 shot p2c_swings_phone_axe_d_h1_strike.png
++0.1 pose follow axe 0 1
++0.1 shot p2c_swings_phone_axe_d_h1_follow.png
++0.1 pose windup axe 1 1
++0.1 shot p2c_swings_phone_axe_d_h2_windup.png
++0.1 pose strike axe 1 1
++0.1 shot p2c_swings_phone_axe_d_h2_strike.png
++0.1 pose follow axe 1 1
++0.1 shot p2c_swings_phone_axe_d_h2_follow.png
++0.1 pose windup axe 2 1
++0.1 shot p2c_swings_phone_axe_d_h3_windup.png
++0.1 pose strike axe 2 1
++0.1 shot p2c_swings_phone_axe_d_h3_strike.png
++0.1 pose follow axe 2 1
++0.1 shot p2c_swings_phone_axe_d_h3_follow.png
++0.1 pose block axe 0 1
++0.1 shot p2c_swings_phone_axe_block.png
++0.1 pose roll axe 0 2
++0.1 shot p2c_swings_phone_axe_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=mace
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup mace 0 1
++0.1 shot p2c_swings_phone_mace_r_h1_windup.png
++0.1 pose strike mace 0 1
++0.1 shot p2c_swings_phone_mace_r_h1_strike.png
++0.1 pose follow mace 0 1
++0.1 shot p2c_swings_phone_mace_r_h1_follow.png
++0.1 pose windup mace 1 1
++0.1 shot p2c_swings_phone_mace_r_h2_windup.png
++0.1 pose strike mace 1 1
++0.1 shot p2c_swings_phone_mace_r_h2_strike.png
++0.1 pose follow mace 1 1
++0.1 shot p2c_swings_phone_mace_r_h2_follow.png
++0.1 pose windup mace 2 1
++0.1 shot p2c_swings_phone_mace_r_h3_windup.png
++0.1 pose strike mace 2 1
++0.1 shot p2c_swings_phone_mace_r_h3_strike.png
++0.1 pose follow mace 2 1
++0.1 shot p2c_swings_phone_mace_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup mace 0 1
++0.1 shot p2c_swings_phone_mace_d_h1_windup.png
++0.1 pose strike mace 0 1
++0.1 shot p2c_swings_phone_mace_d_h1_strike.png
++0.1 pose follow mace 0 1
++0.1 shot p2c_swings_phone_mace_d_h1_follow.png
++0.1 pose windup mace 1 1
++0.1 shot p2c_swings_phone_mace_d_h2_windup.png
++0.1 pose strike mace 1 1
++0.1 shot p2c_swings_phone_mace_d_h2_strike.png
++0.1 pose follow mace 1 1
++0.1 shot p2c_swings_phone_mace_d_h2_follow.png
++0.1 pose windup mace 2 1
++0.1 shot p2c_swings_phone_mace_d_h3_windup.png
++0.1 pose strike mace 2 1
++0.1 shot p2c_swings_phone_mace_d_h3_strike.png
++0.1 pose follow mace 2 1
++0.1 shot p2c_swings_phone_mace_d_h3_follow.png
++0.1 pose block mace 0 1
++0.1 shot p2c_swings_phone_mace_block.png
++0.1 pose roll mace 0 2
++0.1 shot p2c_swings_phone_mace_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=spear
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup spear 0 1
++0.1 shot p2c_swings_phone_spear_r_h1_windup.png
++0.1 pose strike spear 0 1
++0.1 shot p2c_swings_phone_spear_r_h1_strike.png
++0.1 pose follow spear 0 1
++0.1 shot p2c_swings_phone_spear_r_h1_follow.png
++0.1 pose windup spear 1 1
++0.1 shot p2c_swings_phone_spear_r_h2_windup.png
++0.1 pose strike spear 1 1
++0.1 shot p2c_swings_phone_spear_r_h2_strike.png
++0.1 pose follow spear 1 1
++0.1 shot p2c_swings_phone_spear_r_h2_follow.png
++0.1 pose windup spear 2 1
++0.1 shot p2c_swings_phone_spear_r_h3_windup.png
++0.1 pose strike spear 2 1
++0.1 shot p2c_swings_phone_spear_r_h3_strike.png
++0.1 pose follow spear 2 1
++0.1 shot p2c_swings_phone_spear_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup spear 0 1
++0.1 shot p2c_swings_phone_spear_d_h1_windup.png
++0.1 pose strike spear 0 1
++0.1 shot p2c_swings_phone_spear_d_h1_strike.png
++0.1 pose follow spear 0 1
++0.1 shot p2c_swings_phone_spear_d_h1_follow.png
++0.1 pose windup spear 1 1
++0.1 shot p2c_swings_phone_spear_d_h2_windup.png
++0.1 pose strike spear 1 1
++0.1 shot p2c_swings_phone_spear_d_h2_strike.png
++0.1 pose follow spear 1 1
++0.1 shot p2c_swings_phone_spear_d_h2_follow.png
++0.1 pose windup spear 2 1
++0.1 shot p2c_swings_phone_spear_d_h3_windup.png
++0.1 pose strike spear 2 1
++0.1 shot p2c_swings_phone_spear_d_h3_strike.png
++0.1 pose follow spear 2 1
++0.1 shot p2c_swings_phone_spear_d_h3_follow.png
++0.1 pose block spear 0 1
++0.1 shot p2c_swings_phone_spear_block.png
++0.1 pose roll spear 0 2
++0.1 shot p2c_swings_phone_spear_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=dagger
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose windup dagger 0 1
++0.1 shot p2c_swings_phone_dagger_r_h1_windup.png
++0.1 pose strike dagger 0 1
++0.1 shot p2c_swings_phone_dagger_r_h1_strike.png
++0.1 pose follow dagger 0 1
++0.1 shot p2c_swings_phone_dagger_r_h1_follow.png
++0.1 pose windup dagger 1 1
++0.1 shot p2c_swings_phone_dagger_r_h2_windup.png
++0.1 pose strike dagger 1 1
++0.1 shot p2c_swings_phone_dagger_r_h2_strike.png
++0.1 pose follow dagger 1 1
++0.1 shot p2c_swings_phone_dagger_r_h2_follow.png
++0.1 pose windup dagger 2 1
++0.1 shot p2c_swings_phone_dagger_r_h3_windup.png
++0.1 pose strike dagger 2 1
++0.1 shot p2c_swings_phone_dagger_r_h3_strike.png
++0.1 pose follow dagger 2 1
++0.1 shot p2c_swings_phone_dagger_r_h3_follow.png
++0.1 p2cline face 0
++0.1 pose windup dagger 0 1
++0.1 shot p2c_swings_phone_dagger_d_h1_windup.png
++0.1 pose strike dagger 0 1
++0.1 shot p2c_swings_phone_dagger_d_h1_strike.png
++0.1 pose follow dagger 0 1
++0.1 shot p2c_swings_phone_dagger_d_h1_follow.png
++0.1 pose windup dagger 1 1
++0.1 shot p2c_swings_phone_dagger_d_h2_windup.png
++0.1 pose strike dagger 1 1
++0.1 shot p2c_swings_phone_dagger_d_h2_strike.png
++0.1 pose follow dagger 1 1
++0.1 shot p2c_swings_phone_dagger_d_h2_follow.png
++0.1 pose windup dagger 2 1
++0.1 shot p2c_swings_phone_dagger_d_h3_windup.png
++0.1 pose strike dagger 2 1
++0.1 shot p2c_swings_phone_dagger_d_h3_strike.png
++0.1 pose follow dagger 2 1
++0.1 shot p2c_swings_phone_dagger_d_h3_follow.png
++0.1 pose block dagger 0 1
++0.1 shot p2c_swings_phone_dagger_block.png
++0.1 pose roll dagger 0 2
++0.1 shot p2c_swings_phone_dagger_roll.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=staff
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose cast staff 0 0
++0.1 shot p2c_swings_phone_staff_cast0.png
++0.1 pose cast staff 0 1
++0.1 shot p2c_swings_phone_staff_cast1.png
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=bow
++0.3 expect doll covered
++0.1 pose draw bow 0 2
++0.1 shot p2c_swings_phone_bow_draw.png
++0.1 pose release bow 0 0
++0.1 shot p2c_swings_phone_bow_release.png
++0.1 pose off
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=greatsword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 key j
++0.25 key j
++0.25 key j
++0.12 shot p2c_swings_phone_live_gs.png
++0.6 expect menu v1 0

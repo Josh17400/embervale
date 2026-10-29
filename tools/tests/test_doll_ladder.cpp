@@ -384,7 +384,9 @@ struct Band { double lo, hi; };
 // take a rim's ceiling; the bodies' ceilings carry the gorget and fauld hems the maps draw (lt3's mail 10-13 %)
 const Band kTrimBand[7] = {{0, 0}, {0, 0}, {0, 0.03}, {0.03, 0.14}, {0.06, 0.20}, {0.10, 0.24}, {0.10, 0.24}};
 constexpr double kRimCeil = 0.36;
-void gateC12(Line& g, const std::vector<Built>& looks) {
+// flavourRow: rule e compares the T3 flavour row (lt3 jade3 imp3 fjord3) of the ladder looks; one people's kit line (source L)
+// carries only lt1..lt6, so the caller turns it off there (integrator, wave 2 int3: it failed all 72 lines whatever the art)
+void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
   const Built* line[7] = {};
   for (int t = 1; t <= 6; t++) line[t] = find(looks, fmt("lt%d", t).c_str());
   bool have = true;
@@ -463,6 +465,7 @@ void gateC12(Line& g, const std::vector<Built>& looks) {
       }
     }
     // e, flavour: the T3 row
+    if (flavourRow) {
     const char* row[4] = {"lt3", "jade3", "imp3", "fjord3"};
     for (int i = 0; i < 4; i++)
       for (int j = i + 1; j < 4; j++) {
@@ -474,6 +477,7 @@ void gateC12(Line& g, const std::vector<Built>& looks) {
         if (d < 0.25 || o < 0.08) g.bad(fmt("e: %s vs %s %c: gear %.0f %% (25), outline %.0f %% (8)", row[i], row[j], fc, d * 100, o * 100));
         else g.ok();
       }
+    }
   }
 }
 
@@ -905,16 +909,64 @@ int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::
   return fails;
 }
 
+// (P2c wave 2, DOLL-C) `--doll-ladder --finish --scope ladder [--seeds a..b]`: C12 (each kit line's six tiers read as lt1..lt6),
+// C13 (the living finish on every look) and C14 over source L: gear::ladderKit for the 12 peoples x man and woman x seeds, the
+// sword (and with --peoples all, each weapon family: the C1 source L of --doll-coverage --scope ladder)
+int runLadderScope(int a, int b, bool allWeapons, bool finish, bool self, std::vector<std::string>& out) {
+  static const char* const kPeople[12] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple",
+                                          "sylvan", "starspire"};
+  static const char* const kWpn[6] = {"sword", "spear", "bow", "axe", "mace", "greatsword"};
+  Line c12{"C12 source L (lines)"}, c13{"C13 source L"}, c14{"C14 source L"}, st{"C12-C14 selftests"};
+  int lines = 0, linesBad = 0;
+  std::vector<Built> every;
+  for (int p = 0; p < 12; p++)
+    for (int w = 0; w < (allWeapons ? 6 : 1); w++)
+      for (int who = 0; who < 2; who++)
+        for (int sd = a; sd <= b; sd++) {
+          std::vector<Look> ls;
+          for (int t = 1; t <= 6; t++)
+            ls.push_back(Look{fmt("lt%d", t), who, fmt("kit=%s:%d:%d,wpn=%s,palette=look", kPeople[p], t, sd, kWpn[w]), {}});
+          std::vector<Built> bl = buildAll(ls);
+          Line one{"line"};
+          gateC12(one, bl, false);
+          const std::string id = fmt("%s %s %s s%d", kPeople[p], kWpn[w], who ? "woman" : "man", sd);
+          lines++;
+          if (one.fails) { linesBad++; c12.bad(id + ": " + one.first + (one.fails > 1 ? fmt(" (+%d)", one.fails - 1) : "")); }
+          else c12.ok();
+          for (Built& x : bl) { x.tag = fmt("L_%s_%s_%s_s%d_%s", kPeople[p], kWpn[w], who ? "w" : "m", sd, x.tag.c_str()); every.push_back(std::move(x)); }
+        }
+  if (finish) gateC13(c13, every);
+  gateC14(c14, every);
+  out.push_back(fmt("  source L: %d lines (seeds %d..%d%s), %d looks; C12 misses on %d lines", lines, a, b, allWeapons ? ", every weapon family" : "",
+                    (int)every.size(), linesBad));
+  if (self) {
+    const int m = selftests(g_report);
+    if (m) st.bad(fmt("%d synthetic defect(s) missed", m)); else st.ok();
+    out.push_back(fmt("  C12-C14 selftest: %s", m ? "MISSED" : "ALL CAUGHT"));
+  }
+  int fails = 0;
+  for (Line* l : {&c12, &c13, &c14, &st}) {
+    if ((l == &c13 && !finish) || (l == &st && !self)) continue;
+    out.push_back(l->text());
+    fails += l->fails ? 1 : 0;
+  }
+  return fails;
+}
+
 int ladderCmd(int argc, char** argv) {
   const char* looksFile = nullptr;
   const char* pool = nullptr;
-  bool finish = false, self = false;
+  bool finish = false, self = false, scopeL = false, allW = false;
+  int sa = 1, sb = 3;
   for (int i = 1; i < argc; i++) {
     if ((!std::strcmp(argv[i], "--looks") || !std::strcmp(argv[i], "--limbs-looks")) && i + 1 < argc) looksFile = argv[++i];
     else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) pool = argv[++i];
     else if (!std::strcmp(argv[i], "--report")) g_report = true;
     else if (!std::strcmp(argv[i], "--finish") || !std::strcmp(argv[i], "--gates")) finish = true;
     else if (!std::strcmp(argv[i], "--selftest")) self = true;
+    else if (!std::strcmp(argv[i], "--scope") && i + 1 < argc) scopeL = !std::strcmp(argv[++i], "ladder");
+    else if (!std::strcmp(argv[i], "--peoples") && i + 1 < argc) allW = !std::strcmp(argv[++i], "all");
+    else if (!std::strcmp(argv[i], "--seeds") && i + 1 < argc) { if (std::sscanf(argv[++i], "%d..%d", &sa, &sb) < 2) sb = sa; }
   }
   if (pool) {
     std::string err;
@@ -924,7 +976,7 @@ int ladderCmd(int argc, char** argv) {
   art::setRigVersion(2);
   const std::string text = looksFile ? readFile(looksFile) : dollSliceLooksText();
   std::vector<std::string> out;
-  const int fails = runLadderGates(parseLooks(text), finish, self, out);
+  const int fails = scopeL ? runLadderScope(sa, sb, allW, finish, self, out) : runLadderGates(parseLooks(text), finish, self, out);
   for (const std::string& l : out) std::printf("%s\n", l.c_str());
   art::setRigVersion(was);
   std::printf("doll-ladder: %d failing line(s)\n", fails);
@@ -940,7 +992,7 @@ int dollLadderGates(bool report, std::vector<std::string>& printed) {
 }
 
 RPG_TEST_CMD("--expand-looks", "P2c the ladder looks macros expanded: --expand-looks FILE (each line's fields and what it resolves to)", dollladder::expandCmd);
-RPG_TEST_CMD("--doll-ladder", "P2c ladder gates C12 C13 C14 [--looks f] [--pool f] [--finish] [--report] [--selftest]", dollladder::ladderCmd);
+RPG_TEST_CMD("--doll-ladder", "P2c ladder gates C12 C13 C14 [--looks f] [--pool f] [--finish] [--report] [--selftest]; --scope ladder [--seeds a..b] [--peoples all] (C12-C14 over source L)", dollladder::ladderCmd);
 
 // ---------------------------------------------------------------- C1 source L (rpg_test --doll-coverage --scope ladder)
 // Every ladder look (the gates' matrix) and gear::ladderKit for the Heartland (or with --peoples all, every people) at
@@ -993,5 +1045,5 @@ int dollLadderCoverage(int argc, char** argv) {
   for (size_t i = 0; i < top.size() && i < 25; i++) std::printf("  missing x%d: %s\n", top[i].first, top[i].second.c_str());
   std::printf("%s C1 source L (ladder)   %d looks, %d covered, %d with something missing\n", covered == total ? "ok   " : "FAIL:", total, covered, total - covered);
   art::setRigVersion(was);
-  return gates && covered != total ? 1 : 0;
+  return covered != total ? 1 : 0;   // (wave 2 r3) a printed FAIL always fails
 }

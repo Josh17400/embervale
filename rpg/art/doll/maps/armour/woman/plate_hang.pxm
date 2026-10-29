@@ -43,6 +43,233 @@ legend F device 3
 
 # (FORGE-LIMBS envelope r2 panel) the T5 surcoat panel ends at hip+5 on the boots (was hip+10 man / hip+8 woman: past the soles and the ground ring, judge r1 item 12); its trim and hem kept. panel.py
 # (FORGE-LIMBS envelope r2 breeze) the T6 and Mythic tasset tips sway on their last row only, the T5 panel two (C13 drawn motion: T5 8-32, T6 16-48 px). breeze2.py
+# (ARMOUR-W wave 2) T1 (`armour.t1,!armour.t2`, first so they win): the tassets 16 px across facing D / U, inside the bare
+# hips + 1 (C12f's T1 rule; the 18 px rows put her T1 plate 3 px past it). Written by ARMOUR-W tools/t1hang.py.
+
+# (ARMOUR-W wave 2, depth) her surcoat's split skirt in the run: `<tier>,run` flare views facing R / L (T5, T6; the Mythic keeps its 3-row flare: its parted panel hid the far boot, B12)
+# put before the tier's flare view: the front and back panels part a pixel each way over the stride, one row under the
+# tassets (the 3-row flare had dropped them). The `run` flag is the compositor's on RigPart::Run frames. tools/runsplit.py.
+
+view D key rest when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key wide when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key flare when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key lie when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key idle when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key sit when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key floor when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key kneel when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key ride when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key rest when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key wide when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key flare when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key lie when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key idle when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key sit when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key floor when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key kneel when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key ride when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view D key breeze when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
+view U key breeze when armour.t1,!armour.t2 origin 9 -1 replace
+|...vxzxxvxxwwwv...
+|.vyyxxxwvxwwwwwwv.
+|.vxwwwwwvwwwwwwwv.
+|.vvvvvvv.vvvvvvvv.
+regions
+|..................
+|.............WW...
+|.RRR.....RRR......
+|..................
+
 view D key rest origin 9 -1
 |...vxzxxvxxwwwv...
 |.vyyxxxwvxwwwwwwv.
@@ -1206,7 +1433,7 @@ regions
 |.RR.......RR.
 
 view R key flare origin 7 -1
-|.vxzyxwxxxxwv.
+|.vxzyxwxxxxwwv
 |vxyxwwvxxwwwwv
 |vvvvvvvvvvvvvv
 regions
@@ -1219,10 +1446,32 @@ view R key flare origin 6 -1 when armour.t6,mythic replace
 |vyxvyxwwvxyxv
 |vyxvvvvvvvyxv
 
+view R key flare when armour.t6,run origin 7 -1 replace
+|.JIHJxzyxwxIHJ.
+|.JIHJyxwwvxIHJ.
+|.JIHJvvvvvvIHJ.
+|JDJ.........JHJ
+regions
+|...............
+|...............
+|...............
+|.RR.........RR.
+
 view R key flare origin 6 -1 when armour.t6 replace
 |JIHJxzyxwxIHJ
 |JIHJyxwwvxIHJ
 |JIHJvvvvvvIHJ
+
+view R key flare when armour.t5,run origin 7 -1 replace
+|.mpovxzyxwxnnm.
+|.mpoxyxwwvxnnm.
+|.mpovvvvvvvnnm.
+|mnm.........mnm
+regions
+|...............
+|...............
+|...............
+|.RR.........RR.
 
 view R key flare origin 6 -1 when armour.t5 replace
 |mpovxzyxwxnnm
@@ -1616,10 +1865,32 @@ view L key flare origin 7 -1 when armour.t6,mythic replace
 |vxyyxwvxxvyxv
 |vxyvvvvvvvyxv
 
+view L key flare when armour.t6,run origin 8 -1 replace
+|.JHIxzyxwxJIHJ.
+|.JHIyxwvxxJIHJ.
+|.JHIvvvvvvJIHJ.
+|JDJ.........JIJ
+regions
+|...............
+|...............
+|...............
+|.RR.........RR.
+
 view L key flare origin 7 -1 when armour.t6 replace
 |JHIxzyxwxJIHJ
 |JHIyxwvxxJIHJ
 |JHIvvvvvvJIHJ
+
+view L key flare when armour.t5,run origin 8 -1 replace
+|.mpovxzyxwxnnm.
+|.mpoxyxwvxxnnm.
+|.mpovvvvvvvnnm.
+|mnm.........mnm
+regions
+|...............
+|...............
+|...............
+|.RR.........RR.
 
 view L key flare origin 7 -1 when armour.t5 replace
 |mpovxzyxwxnnm
@@ -1894,25 +2165,33 @@ regions
 |.............
 |.............
 |.RR.......RR.
-
 # >>> FORGE-PLATE forge styles (STYLE_P2 28; contracts 3c): cut / edge overlays
 # FOUNDRY's strips hanging from a rolled waist lip, split where the stamp notches the hem (edge-strips; FORGE-PLATE i2, genhang.py)
+
 view D key rest origin 6 -1 when edge-strips
 |.
+
 view D key wide origin 6 -1 when edge-strips
 |.
+
 view D key idle origin 6 -1 when edge-strips
 |.
+
 view D key flare origin 6 -1 when edge-strips
 |.
+
 view U key rest origin 6 -1 when edge-strips
 |.
+
 view U key wide origin 6 -1 when edge-strips
 |.
+
 view U key idle origin 6 -1 when edge-strips
 |.
+
 view U key flare origin 6 -1 when edge-strips
 |.
+
 view R key rest origin 6 -1 when edge-strips
 |.vzzyyxxxxxv.
 |vyxwvyxwvxwwv
@@ -1921,6 +2200,7 @@ regions
 |..RRRRRRRRR..
 |N...N...N...N
 |.............
+
 view R key wide origin 6 -1 when edge-strips
 |.vzzyyxxxxxv.
 |vyxwvyxwvxwwv
@@ -1929,6 +2209,7 @@ regions
 |..RRRRRRRRR..
 |N...N...N...N
 |.............
+
 view R key idle origin 6 -1 when edge-strips
 |.vzzyyxxxxxv.
 |vyxwvyxwvxwwv
@@ -1937,6 +2218,7 @@ regions
 |..RRRRRRRRR..
 |N...N...N...N
 |.............
+
 view R key flare origin 7 -1 when edge-strips
 |.vzzyyyxxxxxv.
 |wvyxwvyxwvxwwv
@@ -1945,6 +2227,7 @@ regions
 |..RRRRRRRRRR..
 |.N...N...N...N
 |..............
+
 view L key rest origin 7 -1 when edge-strips
 |.vzzyyxxxxxv.
 |wvyxwvywwvxww
@@ -1953,10 +2236,12 @@ regions
 |..RRRRRRRRR..
 |.N...N...N...
 |.............
+
 view L key lie origin 6 -1 when edge-strips
 |...........
 |...........
 |...........
+
 view L key wide origin 7 -1 when edge-strips
 |.vzzyyxxxxxv.
 |wvyxwvywwvxww
@@ -1965,6 +2250,7 @@ regions
 |..RRRRRRRRR..
 |.N...N...N...
 |.............
+
 view L key idle origin 7 -1 when edge-strips
 |.vzzyyxxxxxv.
 |wvyxwvywwvxww
@@ -1973,6 +2259,7 @@ regions
 |..RRRRRRRRR..
 |.N...N...N...
 |.............
+
 view L key flare origin 7 -1 when edge-strips
 |.vzzyyyxxxxxv.
 |wvyxwvyxwvxwwv
@@ -1982,22 +2269,31 @@ regions
 |.N...N...N...N
 |..............
 # ARMOURER'S cusped tassets: narrow lames, a lame line, each lit column running into its cusp (edge-cusped; FORGE-PLATE i2, genhang.py)
+
 view D key rest origin 6 -1 when edge-cusped
 |.
+
 view D key wide origin 6 -1 when edge-cusped
 |.
+
 view D key idle origin 6 -1 when edge-cusped
 |.
+
 view D key flare origin 6 -1 when edge-cusped
 |.
+
 view U key rest origin 6 -1 when edge-cusped
 |.
+
 view U key wide origin 6 -1 when edge-cusped
 |.
+
 view U key idle origin 6 -1 when edge-cusped
 |.
+
 view U key flare origin 6 -1 when edge-cusped
 |.
+
 view R key rest origin 6 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vzyxwzywvyxwv
@@ -2006,6 +2302,7 @@ regions
 |.............
 |.RRR.RR..RR..
 |.............
+
 view R key wide origin 6 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vzyxwzywvyxwv
@@ -2014,6 +2311,7 @@ regions
 |.............
 |.RRR.RR..RR..
 |.............
+
 view R key idle origin 6 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vzyxwzywvyxwv
@@ -2022,6 +2320,7 @@ regions
 |.............
 |.RRR.RR..RR..
 |.............
+
 view R key flare origin 7 -1 when edge-cusped
 |.vyyyyyxxxxxv.
 |vwzyxwzywvyxwv
@@ -2030,6 +2329,7 @@ regions
 |..............
 |..RRR.RR..RR..
 |..............
+
 view L key rest origin 7 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vwzyxwzxwvyxv
@@ -2038,10 +2338,12 @@ regions
 |.............
 |..RRR.RR..RR.
 |.............
+
 view L key lie origin 6 -1 when edge-cusped
 |...........
 |...........
 |...........
+
 view L key wide origin 7 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vwzyxwzxwvyxv
@@ -2050,6 +2352,7 @@ regions
 |.............
 |..RRR.RR..RR.
 |.............
+
 view L key idle origin 7 -1 when edge-cusped
 |.vyyyyxxxxxv.
 |vwzyxwzxwvyxv
@@ -2058,6 +2361,7 @@ regions
 |.............
 |..RRR.RR..RR.
 |.............
+
 view L key flare origin 7 -1 when edge-cusped
 |.vyyyyyxxxxxv.
 |vwzyxwzywvyxwv
@@ -2067,6 +2371,7 @@ regions
 |..RRR.RR..RR..
 |..............
 # FURNACE's stepped hem: the upper lame a lit lip over a dark slit, the lower layer lit (edge-stepped; FORGE-PLATE i2, genhang.py)
+
 view D key rest origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2105,6 +2410,7 @@ regions
 |..........
 |.RR....RR.
 |..........
+
 view D key wide origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2115,6 +2421,7 @@ regions
 |............
 |............
 |............
+
 view D key idle origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2153,6 +2460,7 @@ regions
 |..........
 |.RR....RR.
 |..........
+
 view D key flare origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2161,6 +2469,7 @@ regions
 |..RRRRRRRR..
 |............
 |............
+
 view U key rest origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2171,6 +2480,7 @@ regions
 |............
 |............
 |............
+
 view U key wide origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2181,6 +2491,7 @@ regions
 |............
 |............
 |............
+
 view U key idle origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2191,6 +2502,7 @@ regions
 |............
 |............
 |............
+
 view U key flare origin 6 -1 when edge-stepped
 |.vyyyyxxxxv.
 |vxxvxxvwwvwv
@@ -2199,6 +2511,7 @@ regions
 |..RRRRRRRR..
 |............
 |............
+
 view R key rest origin 6 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vxxvxxvwwvwwv
@@ -2207,6 +2520,7 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view R key wide origin 6 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vxxvxxvwwvwwv
@@ -2215,6 +2529,7 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view R key idle origin 6 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vxxvxxvwwvwwv
@@ -2223,6 +2538,7 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view R key flare origin 7 -1 when edge-stepped
 |.vyyyyyxxxxxv.
 |vvxxvxxvwwvwwv
@@ -2231,6 +2547,7 @@ regions
 |..RRRRRRRRRR..
 |..............
 |..............
+
 view L key rest origin 7 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vvxxvxwvwwvwv
@@ -2239,10 +2556,12 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view L key lie origin 6 -1 when edge-stepped
 |...........
 |...........
 |...........
+
 view L key wide origin 7 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vvxxvxwvwwvwv
@@ -2251,6 +2570,7 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view L key idle origin 7 -1 when edge-stepped
 |.vyyyyxxxxxv.
 |vvxxvxwvwwvwv
@@ -2259,6 +2579,7 @@ regions
 |..RRRRRRRRR..
 |.............
 |.............
+
 view L key flare origin 7 -1 when edge-stepped
 |.vyyyyyxxxxxv.
 |vvxxvxxvwwvwwv
@@ -2267,9 +2588,9 @@ regions
 |..RRRRRRRRRR..
 |..............
 |..............
-
 # (BODY forge-fix i1) Iron, Bronze and Steel each their own hang: WROUGHT a square banded fauld, ARMOURER'S two
 # long cusped tassets, FOUNDRY long pteruges under a rolled waist (materials_r1.py); after the tier views.
+
 view D key rest origin 9 0 when forge-wrought replace
 |.vyyyzyyyxxxxxwwv.
 |vwwwwwwwwwwwwwvvvv
@@ -2396,7 +2717,6 @@ regions
 |....RR....RR....
 |................
 # <<< FORGE-PLATE
-
 # (FORGE-LIMBS envelope r1 breeze) the idle breathe frame: a breeze copy of every rest view facing D/U; on the T5-T6 views the hem stirs (the surcoat panel sways 1 px; the tassets stay rigid). Generated by FORGE-LIMBS breeze.py.
 
 view D key breeze origin 9 -1

@@ -19,6 +19,7 @@ legend Y linen 3
 legend Z linen 4
 body adult
 role held bow.self
+role held bow.classic
 layer held
 anchor gripL
 keys held

@@ -84,6 +84,9 @@ struct Actor {
   // 1 run) and the seconds a sheathable weapon stays drawn
   float moveV = 0, drawnT = 0;
   uint8_t gait = 0;
+  // (P2c FOLK-SIM-C, never saved; visual only) the block flash's seconds left (anim.h kBlockShow on the sword's parry and a
+  // shield bearer's parry: skills_game.cpp; animStep runs it down at rig 2; the pick shows Clip::Block while it is > 0)
+  float blockT = 0;
   float hp = 10, maxHp = 10, dmg = 1, speed = 40, armor = 0, radius = 5;
   float range = 14, aggroR = 100, windup = 0.3f;
   AState st = AState::Idle;

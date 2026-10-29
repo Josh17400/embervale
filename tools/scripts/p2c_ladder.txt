@@ -3,6 +3,8 @@
 # checked on the doll (`expect doll covered`, `expect doll tier`, `expect doll gear`); the rows (`p2cline ladder`, `flavour`,
 # `ranks`) by day and by night; the living finish shot every 0.1 s over one 2.2 s breath (p2c_ladder_breath_<n>.png).
 #   embervale.exe --script tools/scripts/p2c_ladder.txt          (p2c_ladder_*.png in the working directory)
+# (P2c wave 2 round 2, DOLL-C) the shields are the forge styles' (signed off with the forge, 2026-10-24; unchanged at e25ea41):
+# TANNER'S buckler (form7) at T1-T2, ARMOURER'S tower (form4) at T3, the heater (form3) at T4 and T6, the alloy's kite (form2) at T5
 seed 7
 0.3  newgame
 +0.1 god 1
@@ -21,7 +23,7 @@ seed 7
 +0.3 expect doll covered
 +0.0 expect doll tier 1
 +0.0 expect doll gear armour=padded
-+0.0 expect doll gear shield=form1
++0.0 expect doll gear shield=form7
 +0.1 zoom near
 +0.3 shot p2c_ladder_hero_t1.png
 +0.1 zoom normal
@@ -29,7 +31,7 @@ seed 7
 +0.3 expect doll covered
 +0.0 expect doll tier 2
 +0.0 expect doll gear armour=leather
-+0.0 expect doll gear shield=form1
++0.0 expect doll gear shield=form7
 +0.1 zoom near
 +0.3 shot p2c_ladder_hero_t2.png
 +0.1 zoom normal
@@ -37,7 +39,7 @@ seed 7
 +0.3 expect doll covered
 +0.0 expect doll tier 3
 +0.0 expect doll gear armour=mail
-+0.0 expect doll gear shield=form2
++0.0 expect doll gear shield=form4
 +0.1 zoom near
 +0.3 shot p2c_ladder_hero_t3.png
 +0.1 zoom normal
@@ -53,7 +55,7 @@ seed 7
 +0.3 expect doll covered
 +0.0 expect doll tier 5
 +0.0 expect doll gear armour=plate
-+0.0 expect doll gear shield=form3
++0.0 expect doll gear shield=form2
 +0.1 zoom near
 +0.3 shot p2c_ladder_hero_t5.png
 +0.1 zoom normal

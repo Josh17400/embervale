@@ -147,8 +147,6 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
   int sdx = 0, sdy = 0;   // the saddle's seat point (from the hooves' row at the cell's centre column)
   art::saddleSeat(row, fr, sdx, sdy);
   if (flip) { dx = -dx; sdx = -sdx; }
-  const Tex* rt = poseTex(a.look, art::Posture::Ride);
-  const Tex& rider = rt ? *rt : humanTex(a.look);
   const float rx = std::floor(fx + dx - art::HUMAN_W / 2.0f), ry = std::floor(fy + dy - art::HUMAN_H + 2 + art::postureInfo(art::Posture::Ride).dy);
   const int seatRow = std::clamp(HH - 2 + dy, 0, HH);
   const int stripW = rig2 ? 18 : 12;
@@ -158,9 +156,13 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
     // (P2a LENS) the rider on v2 where the painters cover the look (as the hero's, home_view.cpp): the hip anchor on
     // the saddle's seat point; recorded for the night lift (the horse is not)
     RideGhost g2;
-    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2)) {
+    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) {
       headY = g2.y;
     } else {
+      // (P2c SWITCH) the v1 rider only when the doll did not draw it
+      const Tex* rt = poseTex(a.look, art::Posture::Ride);
+      const Tex& rider = rt ? *rt : humanTex(a.look);
+      if (blend == 0) v1Draws++;
       if (blend == 0) P.recordBlits(&liftRecs_);
       P.blitEx(rider, 0, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
       P.recordBlits(nullptr);

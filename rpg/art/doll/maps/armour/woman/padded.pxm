@@ -659,3 +659,82 @@ regions
 |.............
 |.............
 |..RRRRRRRRR..
+
+# (ARMOUR-W wave 2 r3, gen_notch.py) a heavy or wide sleeve: her waist notch (the base view's '-' cells) closed with the
+# torso's own edge pixel, so no clear pocket stays between the sleeve, the pauldron and the torso (C3a).
+view D key rest origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key rest origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key idle origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key idle origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key run origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key run origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key runl origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key runl origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key drawn origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key drawn origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key swing origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key swing origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+view D key lie origin 5 -6 when arm-heavy
+|5
+|5
+|5
+
+view D key lie origin 5 -6 when arm-wide
+|5
+|5
+|5
+
+# (ARMOUR-W wave 2 r3, gen_shieldside.py) a shield flush against her side (the fall's first frame): the waist it walls in
+# is closed with the torso's own edge pixel (C3a); hidden under the shield arm in every other frame.
+view L key rest origin -4 -6 when shield
+|5
+|.
+|5
