@@ -1494,7 +1494,8 @@ the Mythic face). Each first line in italics is what the judge and the blind pan
    a plate gorget, the tower. On mail (the Heartland's T3) a breastplate over the mail and the hauberk to the knee.
    Signature: the notches and the nasal.
 6. **PARADE** (gilded: parcel-gilt). *Steel embossed and gilt for the parade, never a lump of gold.* The gilt onion helm
-   below T5, a raised medallion, gilt relief and rims on steel planes (gold on 35 % of the pieces at most), lobed petal
+   at every tier (its own T5 and T6 views, a gilt rim and a brow gem: PLAN D83), a raised medallion, gilt relief and
+   rims on steel planes (gold on 35 % of the pieces at most), lobed petal
    shoulders, a flared gorget, scalloped tassets. Signature: the petals and the medallion. (As drawn.)
 7. **KNAPPED** (obsidian). *Black glass, all facets.* **Fixed in round 2**: the masked helm, big facets from the shoulders
    to a point on the sternum, each facet a 3-4 px plane lit by the top-left rule with a hard 1 px lit edge; a body of
@@ -1511,9 +1512,12 @@ the Mythic face). Each first line in italics is what the judge and the blind pan
 9. **STARFALL** (starmetal). *Slim and tall, crystal.* **Fixed in round 2** (it was ARMOURER'S twin, both open cones):
    the CRYSTAL helm (closed and slim, a tall crystal spire, two small cheek wings), narrow ribs 2 px wide with dark gaps
    tapering to the waist, crystal shoulders (the tallest point 2 px over the shoulder), a high collar, a long SPLIT skirt
-   of narrow ribbed panels to below the knee, star rivets; at T5-T6 the ladder's own helm as before. Vertical and light:
+   of narrow ribbed panels to below the knee, star rivets; the crystal helm at every tier, in its own T5 view and T6
+   legend view (PLAN D83). Vertical and light:
    the opposite of FURNACE, and nothing like ARMOURER'S in outline (another helm and another skirt).
-10. **MYTHIC** (the ember tempering, on any metal). *Blackened steel cracked with fire.* Crackled plates whose cracks are
+10. **MYTHIC** (the ember tempering of Mythic bronze, iron, steel and the relics; a Mythic culture alloy keeps its alloy's
+    helm, outline and colours and wears the ember on top: PLAN D84). *Blackened steel cracked with fire.* Crackled
+    plates whose cracks are
     2-4 px dark-lit seams (no specks), flame-cut hems and shoulder rims, an ember-ring collar. **Fixed in round 2**: the
     face clean: no crackle, speckle, rune or glow pixel inside the face opening or its frame row; the flame crown lifted on
     a dark brow band with one clear row above the eyes, no flame within 2 rows of the eye row or beside the face. A
@@ -1529,11 +1533,11 @@ shield and plume, re-cut in the material's way):
 | FOUNDRY | CRESTED | STRIPS | ROUND (cop) | NONE | CLOSE | its muscle curves |
 | WROUGHT | KETTLE | TASSETS (plain) | BROAD (slab) | NONE | CLOSE | its bands |
 | ARMOURER'S | CONE (nasal) | TASSETS (cusped) | TALL (flared) | NONE | CLOSE | its keel and flutes |
-| PARADE | ONION (gilt) below T5 | TASSETS (scalloped) | ROUND (lobed) | NONE (T5: the ladder's surcoat) | CLOSE | its medallion |
+| PARADE | ONION (gilt; its own T5-T6 views) | TASSETS (scalloped) | ROUND (lobed) | NONE (T5: the ladder's surcoat) | CLOSE | its medallion |
 | KNAPPED | MASK | TASSETS (serrated) | TALL (shard) | NONE | CLOSE | its facets |
 | FURNACE | FURNACE | TASSETS (stepped) | BROAD (vented) | NONE | HEAVY | its vent rows |
 | STARFALL | CRYSTAL | SPLIT | TALL (crystal) | NONE | CLOSE | its ribs |
-| MYTHIC | the ladder's T6 helm | TASSETS (flame) | TALL (flame) | T6's cloak | CLOSE | its cracks |
+| MYTHIC | its T6's helm family (the crystal helm on the hero's road) | TASSETS (flame) | TALL (flame) | T6's cloak | CLOSE | its cracks |
 
 Every culture alloy stands two or more of the four key axes off every hero style of its people (contracts 3c).
 
@@ -1711,8 +1715,9 @@ test's T1). A few hours later a soft cap sits on his head and a short mantle wit
 traveller. The soldier wears plates that show past his arms and a short cape. The officer's shoulders are broad, his crest
 stands up and a cloak hangs to his calves. The champion is another figure: great pauldrons, a plume that sways a beat
 behind his step, a long cloak whose edges show beside his legs and trail behind him when he turns. The legend is nearly
-twice the boy's area: a winged helm with a tall fin, pauldrons almost two tiles across, the cloak stirring when he stands
-still, the runes breathing. Every step is a new helm. A king beside him looks smaller. Under all of it is the same 32 px
+twice the boy's area: a crystal helm with a tall spire (the hero's starmetal; on a people's line its own family's legend
+view), pauldrons almost two tiles across, the cloak stirring when he stands still, the runes breathing. Every step is a
+new helm. A king beside him looks smaller. Under all of it is the same 32 px
 body, walking and fighting exactly as the owner approved. Rich means big shapes, clear light and quiet movement; hair-thin
 lines blur at 1x and are never the richness.
 
@@ -1733,7 +1738,7 @@ lines blur at 1x and are never the richness.
 | T1 Scrap | 16: no pauldrons | the hero lines bareheaded; 2 for any other T1 hood or soft cap | 0 (a drawn brim 1) | none | 1.00 |
 | T2 Common | 18 (small, or the short mantle) | 3: a soft cap; a drawn crest or plume to F-37 as today | 0 (a drawn brim 1) | none | 1.10 |
 | T3 Sturdy | 20 (medium) | 4; a drawn crest or plume to F-37 as today | 1 | the people's cape, never beside the legs facing D | 1.20 |
-| T4 Fine | 22 (large) | 6 (F-37) | 1 | a cape or the travel cloak | 1.35 |
+| T4 Fine | 22 (large) | 6 (F-37) | 1 | the officer's cloak (a cape or the travel cloak), 4 px behind | 1.35 |
 | T5 Masterwork | 26 (great) | 8 (F-39) | 2 | the long cloak | 1.55 |
 | T6 Legendary | 28 (legend) | 10 (F-41) | 2 | the long cloak, stirring | 1.70 |
 
@@ -1749,12 +1754,14 @@ box at any tier. Areas are minimums, each tier at least 5 points of T1 over the 
   under it; a short mantle in the people's coat colour, a value step darker than the leather, over the shoulders to the
   elbow, its hem dagged in 2 px square tabs; its hood thrown back as a cowl, a soft roll round the neck facing D and a lump
   behind the nape facing R and L. The head now sits in a collar of cloth and the shoulders have a soft, tabbed edge; nothing
-  metal, nothing past 18 px. The cap stays small (under T3's head area / 1.05) so the helm keeps growing from T3.
+  metal, nothing past 18 px. The cap stays small (under T3's head area / 1.05) so the helm keeps growing from T3. Every
+  people's T2 is that traveller in its own cloth: its cowl, a cap that covers the hair, its small caps or mantle (29.11).
 - **T3 Sturdy**: medium plates (2 px past), the people's metal helm up to 4 rows (its drawn crest as today), the people's
   short cape: its edges show beside the arms and the coat facing D down to the hem, never beside the legs; it may hang to
   the calf behind and trails 1-2 px behind facing R and L. The fair test's T3 guard is the picture (PLAN D57): a kettle hat
   with its finial, round steel pauldrons, the red cape at both sides.
-- **T4 Fine**: large plates (3 px past), the crest to F-37, a cape or the travel cloak; the alloy's whole silhouette.
+- **T4 Fine**: large plates (3 px past), the crest to F-37, the officer's cloak (29.11: a shoulder cape, a turned collar,
+  2-3 px beside the arms down to the hem facing D, 4 px behind to the ankle facing R and L); the alloy's whole silhouette.
 - **T5 Masterwork**: great pauldrons (5 px past: 26 across); the head to 8 rows with a plume that sways; the long cloak to the
   ankle, showing 2 px beside each leg facing D and trailing 6-8 px behind facing R and L; the skirt flaring 1 px more.
 - **T6 Legendary**: legend pauldrons (6 px past: 28 across); the head to 10 rows (a winged helm and its fin, a crown, a
@@ -1779,9 +1786,11 @@ box at any tier. Areas are minimums, each tier at least 5 points of T1 over the 
 ### 29.4 Helmets: one per tier, one per alloy
 
 - **Every tier of a line wears its own helm family.** The Heartland hero's road: T1 bareheaded, T2 the soft leather cap over
-  the hooded mantle, T3 the nasal helm with its knife comb, T4 the Heartland alloy's helm, T5 a plumed great helm or armet with a gilt rim, T6 a winged
-  or crowned helm with a tall fin and a glowing brow rune or eye slit (docs/ref/envelope's T6: the winged helm, open on the
-  face), the Mythic the T6 helm in black steel, gold and fire (29.6) with its flame crown on a dark brow band. The artists
+  the hooded mantle, T3 the nasal helm with its knife comb, T4 the Heartland alloy's helm, T5 PARADE's gilt onion helm in its
+  T5 view (a gilt rim, a brow gem), T6 STARFALL's crystal helm in its legend view (two lit planes, the visor band under a lit
+  rim, cheek wings, a tall spire, a glowing slit or brow rune), the Mythic that crystal helm in black steel, gold and fire
+  (29.6) with its flame crown on a dark brow band. Every metal keeps its own helmet (PLAN D83, the owner's loot ruling); the
+  plumed great helm and the winged helm stay drawn for the looks that still wear them. The artists
   choose inside the rule: consecutive heads differ in outline at 1x, and from T3 the head grows every step (so T2's soft
   cap stays small).
 - **Every alloy its own head**: its helm family (the shape table) plus a variant and a crest. Variants are bold outlines of
@@ -1825,7 +1834,10 @@ families' ramps and C17 decide the exact steps.
   step shows light passing through, one unbroken run of 3 px or more on the torso (PLAN D59). The mask's face plate is one
   dark glass plane with its lit edge and two eye holes, in every facing: seen from the side its lower face stays dark, and a
   pale bar never crosses it (the light goes to the crown's shards or a shoulder facet). No 1 px streaks anywhere.
-- **The Mythic** (A5): the line's T6 tempered, never a step sideways: **black, gold and fire** (PLAN D60). Polished black steel
+- **The Mythic** (A5; the MYTHIC style, worn by Mythic bronze, iron, steel and the relics: PLAN D84. A Mythic culture alloy
+  is drawn as its alloy, its own helm, outline and colours, with the ember on top: its seams and rims lit like FURNACE's, the
+  ember collar, the flame crown seated on its own helm with a clear row above the eyes): the line's T6 tempered, never a step
+  sideways: **black, gold and fire** (PLAN D60). Polished black steel
   whose darkness lives only in the recesses (about #16121A #2A2430, a body near #5A5266) and whose lit planes are bright (a
   cool steel near #C8C0D4, a 2 x 2 plane or larger on every piece, glint #FFF4E0); the T6 gold generous and bright on the
   helm's brow band and the fin's edge, the pauldrons' rims and the cuirass's keel; ember on the top-left edges and in 2-4 px
@@ -1840,8 +1852,9 @@ families' ramps and C17 decide the exact steps.
   plane too, so the light itself turns from violet to cyan (PLAN D61). The bands must read as colour at 1x: violet about
   #3A3466 #5A4FA8 #8E84D8 #E8E8FF and cyan about #2E5A78 #2E86B4 #6CC4E8 #E8FAFF, never two near-whites side by side. Deep
   indigo in the gaps between the ribs, under the rims and in the recesses (a fifth of the metal or more) keeps it from
-  reading as a pale ghost. The hero's T6 wears starmetal too; T5 and T6 starmetal part by size, helm (the plumed great helm
-  under a gilt rim against the winged helm and its fin) and the T6's living finish.
+  reading as a pale ghost. The hero's T6 wears starmetal too; T5 and T6 starmetal part by size, by the crystal helm's T5
+  view against its taller legend view (PLAN D83), and by the T6's living finish. Its crystal shoulders are the biggest
+  mass of their size wherever they are worn: full width, the tallest points (PLAN D85).
 - **Glass alloys** (A7 THAERGLASS, every GLASS alloy): **glass is dark with light at its edges** (PLAN D62). A jewel-dark body
   (Thaerglass about #0A2420 #14463C #1E6A58, lit #7FD8C0, specular #F0FFF8): more than half of the glass (the outline
   aside) at its shadow and body steps, the lit plane a small top-left facet on each piece, and the light again on the far side, a rim at the lit step
@@ -1874,7 +1887,8 @@ families' ramps and C17 decide the exact steps.
 - No chocolate brass, no ghost crystal, no Mythic darker than its T6.
 - No brass hat over a cloth coat; no glass that reads as enamel or jade (no dark body, big pale patches); no glass wings
   shaped like leaves; no iridescence made of two near-whites; no light across a mask's face.
-- No T1 helm on the hero lines (the fair test's T1 is bareheaded); no T2 cap so big that T3's helm stops growing.
+- No T1 helm on the hero lines (the fair test's T1 is bareheaded); no T2 cap so big that T3's helm stops growing, and none
+  smaller than the hair it covers; no tier's cloak smaller than the tier below's; no pauldron drawn over the jaw (29.11).
 - No colour left in a greyscale board: every pixel, the hair, skin and eyes included, turns to its value (PLAN D63).
 - No compression and no deleted map.
 
@@ -1908,22 +1922,61 @@ helmet, the way the hero's does, and still reads as its people at every tier. PL
 measured gaps and the levers; PLAN D67-D69 the rules.
 - **T1**: the body's own outline (29.3), whatever the people. **T2**: the people's small caps or, where its people wears
   none, the short mantle in its coat colour with its own hem (TANNER'S tabs; a fringe for the Marsh, a fur edge for the
-  Fjordfolk, a plaid band for the Highland), and a soft helm inside 3 rows that stays smaller than the T3 helm. **T3**: the
-  people's medium plates or, without them, the people's cape, whose sides stop at the coat's hem facing D. **T4**: large
-  plates and the alloy's whole silhouette, its crest to F-37; a culture alloy wears no cape (PLAN D38), so its bulk is
-  shoulders, helm and skirt. **T5**: great shoulders, the head to 8 rows, the long cloak where the key has a cape, else the
-  key's own loud axis grown (a plume, a bell skirt's flare, a mantle). **T6**: legend shoulders, the cloak stirring 2 px,
-  and the legend view of the T5 helm: the same family grown from its own crown into a taller fin, crown points, wings or a
-  spire, a different helmet at 1x (PLAN D68).
+  Fjordfolk, a plaid band for the Highland), the people's cowl, and a soft cap that covers the hair inside 3 rows and stays
+  smaller than the T3 helm (29.11). **T3**: the people's medium plates where it wears them and its cape or travel cloak,
+  whose sides stop at the coat's hem facing D. **T4**: large plates and the alloy's whole silhouette, its crest to F-37, and
+  the officer's cloak over or behind the alloy's own over-layer (29.11; PLAN D73 retires "no cape on T4"). **T5**: great
+  shoulders, the head to 8 rows, the long cloak on every line at its full length, the key's own loud axis on top (a plume,
+  a bell skirt's flare, a mantle). **T6**: legend shoulders, the cloak stirring 2 px, and the legend view of the T5 helm:
+  the same family grown from its own crown into a taller fin, crown points, wings or a spire, a different helmet at 1x (PLAN
+  D68; a relic wears its own helm's views, D83).
 - **Every mass at every size keeps its character** (29.3): a great slab is still flat and square, a great DROP still
   hangs in lames, a legend MANTLE is still soft fur; a size never becomes another mass.
-- **Cloaks by tier**: the people's cape and the travel cloak stop at the hem facing D at T3-T4; the long cloak shows 2 px
-  past each leg facing D and 6-8 px behind facing R / L at T5-T6 and always hangs from behind the pauldrons.
+- **Cloaks by tier**: the people's cape and the travel cloak stop at the hem facing D at T3-T4 (2 px behind at T3, 4 at
+  T4); the long cloak shows 2 px past each leg facing D and 6-8 px behind facing R / L at T5-T6 and always hangs from behind
+  the pauldrons. Each tier's cloak is plainly the bigger one (29.11).
 - **The A materials on every piece**: every obsidian piece is black glass lit twice, every glass alloy jewel-dark with a
-  rim, every Mythic black, gold and fire with a clean face, every starmetal piece banded violet and cyan, every plate piece
-  in clean planes, every warm everyday alloy brass that throws light (29.6), whatever form or tier carries it.
+  rim, every MYTHIC-style piece black, gold and fire with a clean face (a Mythic alloy its own alloy under the ember), every
+  starmetal piece banded violet and cyan, every plate piece in clean planes, every warm everyday alloy brass that throws
+  light (29.6), whatever form or tier carries it.
 - **Actions carry the envelope**: great pauldrons ride every swing (lifting a pixel on overhead wind-ups), the long cloak
   swings behind and never through a leg, the T6 helm stays on the head through the blow, the fall and the lying frame.
+
+### 29.11 The climb on every people's line: the fix round (planner, 2026-10-29; binding on every art area of the round)
+
+Production's round 4 showed why a people's T4 could read smaller than its T3: the soldier had a cape and the officer had
+none, and a people's T2 cap was smaller than the hair under it. The fix gives every line the hero's own story in its
+people's cloth: a traveller, a soldier with a short cape, an officer in a cloak, a champion in a long cloak, a legend
+whose cloak stirs. The cloak is the climb's backbone because it is the one mass that can grow a lot without touching the
+32 px body or crowding the face; PLAN "The wave-2 fix round" holds the numbers and the ledger that measures them.
+- **T2, the traveller.** A soft cap that sits over the hair and covers it in every facing (the hair's tuft or tail may peek
+  under the rim; the cap is never smaller than the head it covers), 3 rows at most, one shine; the hood thrown back as a
+  cowl, a soft roll round the neck facing D and a lump behind the nape facing R and L, in the people's cloth with its edge:
+  TANNER'S tabs, the Marsh's fringe, the Fjordfolk's fur, the Highland's plaid band, and (the artists choose) a headcloth
+  tail for the Dune, a felt roll for the Steppe, a silk roll for the Jade, a linen hood for the River, a beaded collar for
+  the Sun Temple, a leaf-cut edge for the Sylvan, a stiff high collar for the Starspire, a short hooded cape for the
+  Imperial; small caps or the mantle as wide as the capelet. Nothing metal.
+- **T3, the soldier**: as signed off (29.3, the fair test's T3d guard): plates where the people wears them and its short
+  cape or travel cloak, its sides showing beside the arms down to the coat's hem.
+- **T4, the officer.** The cloak is plainly bigger than T3's: its edges 2-3 px beside the arms from the shoulder to the
+  coat's hem facing D (never beside the legs: that is T5's mark), a turned collar behind the neck, a short shoulder cape
+  2 px past the shoulder line that shows where the alloy wears no pauldrons and slips under them where it does, and 4 px
+  behind the back facing R and L down to the ankle in two folds with a lit edge. Large pauldrons are truly large: 22 px
+  across, never a size-3 drawing renamed. The alloy's tabard, sash or scarf sits over the armour in front, the cloak behind
+  it; a half-cape alloy's cloak is pinned on the left shoulder and drapes over that arm.
+- **T5-T6, the champion and the legend.** The long cloak at its full length: 2 px past each leg facing D, 6-8 px behind
+  facing R and L, two or three folds with a lit edge and a hem that stirs (1 px at T5, 2 at T6); great and legend pauldrons
+  hang over its front with a dark seam under their rims.
+- **Cloaks keep their light.** A cloak in the people's colour darkened still carries a lit fold edge on its top-left that
+  stands clear of the darkest grass at 1x; a dark cloak never swallows the figure's outline.
+- **Trim grows by tier** (PLAN D78): T3 brass on its hems; T4 a clean 1 px brass line on every rim; T5-T6 a 2 px gold band
+  (a lit outer row over a darker seam row), T6's with a notch rhythm; always a band, never dots or a dashed line, never on
+  the face, a gem or a seam.
+- **Faces stay on top** (PLAN D87): in every side frame the jaw and the mouth draw over the near pauldron's top rows; the
+  pauldron reads as a shape on the shoulder, never a strap across the face.
+- **Every metal keeps its helmet** (PLAN D83, D84): the gilded onion and the starmetal crystal climb in their own tier views;
+  a Mythic alloy keeps its own helm and outline, its seams and rims lit with ember, the flame crown seated on its own crown
+  with a clear row above the eyes.
 
 ---
 

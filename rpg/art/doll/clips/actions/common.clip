@@ -11,6 +11,12 @@
 # Every frame keeps the held weapon in the right fist (both fists on its line: C3d holds for the hafts).
 # HURT with gear: the shipped flinch with the head (and so the helm) snapped back a pixel for `capped` looks; a capped
 # shield bearer also drops the shield arm a pixel facing D / U (these lines come before shield.clip's, so they win).
+# (wave-2 fix round, ACTIONS r1, PLAN D81: no weapon pixel more than 2 rows below the sole row) an archer rolls with the
+# bow slung on the back (held=- bowback=rest, as in the LOCO frames): held low in the crouch and the rise it ran 3-8 rows
+# under the soles facing D / U; the longbow's cast facing D / U holds it at the nock (bw_nock, held=nock), a row higher.
+# (wave-2 fix round 2, ACTIONS; PLAN D81: the off fist on every ACTION frame of a two-handed weapon) a two-handed weapon
+# rolls with its haft along the tumbling body (`when twohand`: the tuck and the over at weapon=292.5): at 270 it lay flat
+# across the curled body like a bar and both fists missed its line by 2 px (C3d: the greatsword, the spear, the glaive).
 
 body man
 clip hurt R when shield,capped
@@ -54,28 +60,34 @@ clip cast L when shield
 f armL=- armR=csgather legs=guard neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=337.5,back expr=closed sharm=guard shield=guard
 f armL=- armR=csshrelease legs=lunge neck=rest sheath=rest hilt=- torso=rest bob=1 lean=-2 weapon=180,front expr=fierce sharm=guard shield=guard
 clip roll D when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 held=- bowback=rest ms=85
 clip roll U when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  held=low ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=rest tuft=down bob=3 lean=0 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  held=- bowback=rest ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=rest tuft=down bob=3 lean=0 held=- bowback=rest ms=85
 clip roll R when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 held=- bowback=rest ms=85
 clip roll L when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 held=- bowback=rest ms=85
+clip cast D when bow,bow-longbow
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock expr=closed
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock expr=fierce
 clip cast D when bow
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low expr=closed
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low expr=fierce
+clip cast U when bow,bow-longbow
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock
 clip cast U when bow
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low
@@ -85,21 +97,41 @@ f armL=bw_low armR=bw_low legs=lunge neck=rest sheath=rest hilt=- torso=rest bob
 clip cast L when bow
 f armL=bw_low armR=bw_low legs=stance neck=rest sheath=rest hilt=- torso=rest bob=1 lean=1 held=low expr=closed
 f armL=bw_low armR=bw_low legs=lunge neck=rest sheath=rest hilt=- torso=rest bob=1 lean=-2 held=low expr=fierce
+clip roll D when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  weapon=180,front expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 weapon=157.5,front ms=85
 clip roll D
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  weapon=180,front expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 weapon=157.5,front ms=85
+clip roll U when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
 clip roll U
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
+clip roll R when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  weapon=157.5,back expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 weapon=45,front ms=85
 clip roll R
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  weapon=157.5,back expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 weapon=45,front ms=85
+clip roll L when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  weapon=22.5,back expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 weapon=135,front ms=85
 clip roll L
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  weapon=22.5,back expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
@@ -160,28 +192,34 @@ clip cast L when shield
 f armL=- armR=csgather legs=guard neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=337.5,back expr=closed sharm=guard shield=guard
 f armL=- armR=csshrelease legs=lunge neck=rest sheath=rest hilt=- torso=rest bob=1 lean=-2 weapon=180,front expr=fierce sharm=guard shield=guard
 clip roll D when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 held=- bowback=rest ms=85
 clip roll U when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  held=low ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=rest tuft=down bob=3 lean=0 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  held=- bowback=rest ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=rest tuft=down bob=3 lean=0 held=- bowback=rest ms=85
 clip roll R when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 held=- bowback=rest ms=85
 clip roll L when bow
-f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  held=low expr=fierce ms=85
-f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=west at=0,-2 ms=85
-f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=low expr=closed turn=east at=0,-2 ms=85
-f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 held=low ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  held=- bowback=rest expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 held=- bowback=rest expr=closed turn=east at=0,-2 ms=85
+f armL=bw_low armR=bw_low legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 held=- bowback=rest ms=85
+clip cast D when bow,bow-longbow
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock expr=closed
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock expr=fierce
 clip cast D when bow
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low expr=closed
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low expr=fierce
+clip cast U when bow,bow-longbow
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock
+f armL=bw_nock armR=bw_nock legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=nock
 clip cast U when bow
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low
 f armL=bw_low armR=bw_low legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 held=low
@@ -191,21 +229,41 @@ f armL=bw_low armR=bw_low legs=lunge neck=rest sheath=rest hilt=- torso=rest bob
 clip cast L when bow
 f armL=bw_low armR=bw_low legs=stance neck=rest sheath=rest hilt=- torso=rest bob=1 lean=1 held=low expr=closed
 f armL=bw_low armR=bw_low legs=lunge neck=rest sheath=rest hilt=- torso=rest bob=1 lean=-2 held=low expr=fierce
+clip roll D when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  weapon=180,front expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 weapon=157.5,front ms=85
 clip roll D
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=5 lean=0 hip=0,0  weapon=180,front expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=0 weapon=157.5,front ms=85
+clip roll U when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
 clip roll U
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=rest hang=rest tuft=down bob=5 lean=0 hip=0,0  weapon=180,back ms=85
+clip roll R when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  weapon=157.5,back expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 weapon=45,front ms=85
 clip roll R
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=3 hip=1,0  weapon=157.5,back expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=east at=0,-2 ms=85
 f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85
 f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=2 weapon=45,front ms=85
+clip roll L when twohand
+f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  weapon=22.5,back expr=fierce ms=85
+f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=west at=0,-2 ms=85
+f armL=rlover armR=rlover legs=rlover neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=292.5,front expr=closed turn=east at=0,-2 ms=85
+f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=flare tuft=down bob=3 lean=-2 weapon=135,front ms=85
 clip roll L
 f armL=rlcrouch armR=rlcrouch legs=rlcrouch neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=down bob=5 lean=-3 hip=-1,0  weapon=22.5,back expr=fierce ms=85
 f armL=rltuck armR=rltuck legs=rltuck neck=rest sheath=sit hilt=- torso=runl hang=flare tuft=- bob=9 lean=-3 hip=-1,0 head=-2,3 weapon=270,front expr=closed turn=west at=0,-2 ms=85

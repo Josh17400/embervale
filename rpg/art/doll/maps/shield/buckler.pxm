@@ -407,13 +407,13 @@ view U key rest origin 4 4 layer armFar when studs replace
 |..vvvvv..
 regions
 |.........
-|....N....
-|....N....
+|..RRNRR..
+|.R..N..R.
 |.........
-|....N....
+|.R..N..R.
 |.........
-|....N....
-|.........
+|.R..N..R.
+|..RRRRR..
 |.........
 
 view U key guard origin 4 4 layer back when studs replace
@@ -428,13 +428,13 @@ view U key guard origin 4 4 layer back when studs replace
 |..vvvvv..
 regions
 |.........
-|....N....
-|....N....
+|..RRNRR..
+|.R..N..R.
 |.........
-|....N....
+|.R..N..R.
 |.........
-|....N....
-|.........
+|.R..N..R.
+|..RRRRR..
 |.........
 
 view U key block origin 4 5 layer back when studs replace
@@ -449,13 +449,13 @@ view U key block origin 4 5 layer back when studs replace
 |..vvvvv..
 regions
 |.........
-|....N....
-|....N....
+|..RRNRR..
+|.R..N..R.
 |.........
-|....N....
+|.R..N..R.
 |.........
-|....N....
-|.........
+|.R..N..R.
+|..RRRRR..
 |.........
 
 view R key rest origin 3 4 layer back when studs replace
@@ -470,13 +470,13 @@ view R key rest origin 3 4 layer back when studs replace
 |..vvvvv..
 regions
 |.........
-|....N....
-|....N....
+|..RRNRR..
+|.R..N..R.
 |.........
-|....N....
+|.R..N..R.
 |.........
-|....N....
-|.........
+|.R..N..R.
+|..RRRRR..
 |.........
 
 view L key rest origin 3 4 when studs replace
@@ -724,6 +724,15 @@ view D key block origin 4 4 when rim-dagged
 |.wxxwxxw.
 |..xxwxx..
 |.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.R.....R.
+|.R.....R.
+|..RRRRR..
+|.........
 
 view D key block origin 4 4 when rim-strips
 |.........
@@ -733,6 +742,15 @@ view D key block origin 4 4 when rim-strips
 |.w+w+w+w.
 |.w:w:w:w.
 |..:w:w:..
+|.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.R.....R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 view D key block origin 4 4 when rim-serrated
@@ -839,11 +857,31 @@ view D key block origin 4 4 when rim-fringed
 |.;:;:;:;.
 |..+;+;+..
 |.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+|..R.R.R..
+|.........
 
 view D key block origin 4 6 when rim-flame
 |....(....
 |.(((^(((.
 |.^.....^.
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+regions
+|.........
+|....R....
+|.R.....R.
 |.........
 |.........
 |.........
@@ -1033,6 +1071,15 @@ view L key block origin 3 4 when rim-dagged
 |.wxxwxxw.
 |..xxwxx..
 |.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.R.....R.
+|.R.....R.
+|..RRRRR..
+|.........
 
 view L key block origin 3 4 when rim-strips
 |.........
@@ -1042,6 +1089,15 @@ view L key block origin 3 4 when rim-strips
 |.w+w+w+w.
 |.w:w:w:w.
 |..:w:w:..
+|.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.R.....R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 view L key block origin 3 4 when rim-serrated
@@ -1148,11 +1204,31 @@ view L key block origin 3 4 when rim-fringed
 |.;:;:;:;.
 |..+;+;+..
 |.........
+regions
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+|..R.R.R..
+|.........
 
 view L key block origin 3 6 when rim-flame
 |....(....
 |.(((^(((.
 |.^.....^.
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+|.........
+regions
+|.........
+|....R....
+|.R.....R.
 |.........
 |.........
 |.........
@@ -1169,7 +1245,7 @@ view L key block origin 3 6 when rim-flame
 # the same conditions on every key. Overlays carry no regions: the rim is not brassed, the boss not metal-2.
 # (STYLE_P2 28.4, 28.7, 28.8)
 
-view D key rest when metal-obsidian,!studs
+view D key rest when metal-obsidian,!studs,!shield.t5
 |.zyyvv.
 |yyzyxxv
 |yzyxxxv
@@ -1177,8 +1253,16 @@ view D key rest when metal-obsidian,!studs
 |vwwwwxy
 |vwwwwwy
 |.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view D key rest when metal-ember,!studs
+view D key rest when metal-ember,!studs,!shield.t5
 |.vvvvv.
 |vxQxxxv
 |vxXXXQv
@@ -1186,8 +1270,16 @@ view D key rest when metal-ember,!studs
 |vQXXXxv
 |vxxxQxv
 |.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view D key rest when sheen-iridescent,!studs
+view D key rest when sheen-iridescent,!studs,!shield.t5
 |.......
 |.yyyyx.
 |.P]POO.
@@ -1195,8 +1287,16 @@ view D key rest when sheen-iridescent,!studs
 |.xxxww.
 |.xxwww.
 |.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view R key rest when metal-obsidian,!studs
+view R key rest when metal-obsidian,!studs,!shield.t5
 |.zyyvv.
 |yyzyxxv
 |yzyxxxv
@@ -1204,8 +1304,16 @@ view R key rest when metal-obsidian,!studs
 |vwwwwxy
 |vwwwwwy
 |.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view R key rest when metal-ember,!studs
+view R key rest when metal-ember,!studs,!shield.t5
 |.vvvvv.
 |vxQxxxv
 |vxQXQQv
@@ -1213,8 +1321,16 @@ view R key rest when metal-ember,!studs
 |vQQXQxv
 |vxxxQxv
 |.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view R key rest when sheen-iridescent,!studs
+view R key rest when sheen-iridescent,!studs,!shield.t5
 |.......
 |.xxxxw.
 |.ONONN.
@@ -1222,8 +1338,16 @@ view R key rest when sheen-iridescent,!studs
 |.wwwww.
 |.wwwww.
 |.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view L key rest when metal-obsidian,!studs
+view L key rest when metal-obsidian,!studs,!shield.t5
 |.zyyvv.
 |yyzyxxv
 |yzyxxxv
@@ -1231,8 +1355,16 @@ view L key rest when metal-obsidian,!studs
 |vwwwwxy
 |vwwwwwy
 |.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view L key rest when metal-ember,!studs
+view L key rest when metal-ember,!studs,!shield.t5
 |.vvvvv.
 |vxQxxxv
 |vxXXXQv
@@ -1240,14 +1372,30 @@ view L key rest when metal-ember,!studs
 |vQXXXxv
 |vxxxQxv
 |.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
+|.......
 
-view L key rest when sheen-iridescent,!studs
+view L key rest when sheen-iridescent,!studs,!shield.t5
 |.......
 |.yyyyx.
 |.P]POO.
 |.PPPON.
 |.xxxww.
 |.xxwww.
+|.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.R...R.
+|.RRRRR.
 |.......
 
 # ==== end of gen_shield.py ====
@@ -1300,12 +1448,12 @@ view D key block origin 4 4 when shield.t6,mythic replace
 |..vvvvv..
 regions
 |.........
-|.........
-|...GGG...
-|...GGG...
-|...GGG...
-|.........
-|.........
+|..RRRRR..
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 view U key rest origin 3 3 layer armFar when shield.t6,mythic replace
@@ -1457,12 +1605,12 @@ view L key block origin 3 4 when shield.t6,mythic replace
 |..vvvvv..
 regions
 |.........
-|.........
-|...GGG...
-|...GGG...
-|...GGG...
-|.........
-|.........
+|..RRRRR..
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 view L key lie origin 7 -4 anchor pivot when shield.t6,mythic replace
@@ -1654,13 +1802,13 @@ view U key bash origin 6 5 layer back when studs replace
 |..vvvvv..
 regions
 |.........
-|....N....
-|....N....
+|..RRNRR..
+|.R..N..R.
 |.........
-|....N....
+|.R..N..R.
 |.........
-|....N....
-|.........
+|.R..N..R.
+|..RRRRR..
 |.........
 
 view L key bash origin 4 5 when studs replace
@@ -1695,12 +1843,12 @@ view D key bash origin 4 4 when shield.t6,mythic replace
 |..vvvvv..
 regions
 |.........
-|.........
-|...GGG...
-|...GGG...
-|...GGG...
-|.........
-|.........
+|..RRRRR..
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 view U key bash origin 5 4 layer back when shield.t6,mythic replace
@@ -1750,12 +1898,379 @@ view L key bash origin 3 4 when shield.t6,mythic replace
 |..vvvvv..
 regions
 |.........
-|.........
-|...GGG...
-|...GGG...
-|...GGG...
-|.........
-|.........
+|..RRRRR..
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.GGG.R.
+|.R.....R.
+|..RRRRR..
 |.........
 
 # ==== end of add_keys.py ====
+
+# (wave-2 fix round 2, SHIELDS: C12b) T5-T6: the gilt rim on the upper part only, so D78's 2 px trim band keeps
+# the shield under the 36 % rim ceiling; the lower rim keeps the drawn edge (generated by t5rim.py from the base views)
+view D key rest origin 3 3 when shield.t5 replace
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vxxxwwv
+|vxxwwwv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|..GGG..
+|.......
+|.......
+
+view D key guard origin 3 3 when shield.t5 replace
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vxxxwwv
+|vxxwwwv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|..GGG..
+|.......
+|.......
+
+view D key block origin 4 4 when shield.t5 replace
+|..vvvvv..
+|.viiiiiv.
+|viTzyxShv
+|viSyyxShv
+|vySxxwRwv
+|vxSSSRRwv
+|.vxwwwwv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.RPGGGPR.
+|.RPGGGPR.
+|..PGGGP..
+|..PPPPP..
+|.........
+|.........
+
+view U key rest origin 3 3 layer armFar when shield.t5 replace
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|....N..
+|.......
+|.......
+
+view U key guard origin 3 3 layer back when shield.t5 replace
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|....N..
+|.......
+|.......
+
+view U key block origin 3 4 layer back when shield.t5 replace
+|..vvvvv..
+|.vhhhhhv.
+|vhffOffgv
+|vhhhggggv
+|vhhggggfv
+|vggggggfv
+|.vgffffv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.R.....R.
+|.R..N..R.
+|....N....
+|....N....
+|.........
+|.........
+
+view R key rest origin 2 3 layer back when shield.t5 replace
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|....N..
+|.......
+|.......
+
+view R key guard origin 0 2 layer neck when shield.t5 replace
+|.vvvv.
+|viiihv
+|vizyxv
+|viyyxv
+|vhxxwv
+|vhgggv
+|.vvvv.
+regions
+|......
+|.RRRR.
+|.RGGG.
+|.RGGG.
+|..GGG.
+|......
+|......
+
+view R key block origin 0 3 layer neck when shield.t5 replace
+|.vvvv.
+|viiihv
+|vizyxv
+|viyyxv
+|vhxxwv
+|vhgggv
+|.vvvv.
+regions
+|......
+|.RRRR.
+|.RGGG.
+|.RGGG.
+|..GGG.
+|......
+|......
+
+view L key rest origin 2 3 when shield.t5 replace
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vxxxwwv
+|vxxwwwv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|..GGG..
+|.......
+|.......
+
+view L key guard origin 2 3 when shield.t5 replace
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vxxxwwv
+|vxxwwwv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|..GGG..
+|.......
+|.......
+
+view L key block origin 3 4 when shield.t5 replace
+|..vvvvv..
+|.viiiiiv.
+|viTzyxShv
+|viSyyxShv
+|vySxxwRwv
+|vxSSSRRwv
+|.vxwwwwv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.RPGGGPR.
+|.RPGGGPR.
+|..PGGGP..
+|..PPPPP..
+|.........
+|.........
+
+# (wave-2 fix round 2, SHIELDS: C12b) T5-T6 copies of the alloy finish overlays, the R ring on the upper part only (t5alloy.py)
+view D key rest when metal-obsidian,!studs,shield.t5
+|.zyyvv.
+|yyzyxxv
+|yzyxxxv
+|vwxwxxv
+|vwwwwxy
+|vwwwwwy
+|.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view D key rest when metal-ember,!studs,shield.t5
+|.vvvvv.
+|vxQxxxv
+|vxXXXQv
+|vxXWXxv
+|vQXXXxv
+|vxxxQxv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view D key rest when sheen-iridescent,!studs,shield.t5
+|.......
+|.yyyyx.
+|.P]POO.
+|.PPPON.
+|.xxxww.
+|.xxwww.
+|.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view R key rest when metal-obsidian,!studs,shield.t5
+|.zyyvv.
+|yyzyxxv
+|yzyxxxv
+|vwxwxxv
+|vwwwwxy
+|vwwwwwy
+|.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view R key rest when metal-ember,!studs,shield.t5
+|.vvvvv.
+|vxQxxxv
+|vxQXQQv
+|vxXWXxv
+|vQQXQxv
+|vxxxQxv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view R key rest when sheen-iridescent,!studs,shield.t5
+|.......
+|.xxxxw.
+|.ONONN.
+|.OONNN.
+|.wwwww.
+|.wwwww.
+|.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view L key rest when metal-obsidian,!studs,shield.t5
+|.zyyvv.
+|yyzyxxv
+|yzyxxxv
+|vwxwxxv
+|vwwwwxy
+|vwwwwwy
+|.vvvyy.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view L key rest when metal-ember,!studs,shield.t5
+|.vvvvv.
+|vxQxxxv
+|vxXXXQv
+|vxXWXxv
+|vQXXXxv
+|vxxxQxv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+
+view L key rest when sheen-iridescent,!studs,shield.t5
+|.......
+|.yyyyx.
+|.P]POO.
+|.PPPON.
+|.xxxww.
+|.xxwww.
+|.......
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R...R.
+|.......
+|.......
+|.......
+

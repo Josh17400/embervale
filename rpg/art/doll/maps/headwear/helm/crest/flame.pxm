@@ -119,3 +119,51 @@ view R key rest when helm.t6,mythic,!alloyshape replace
 
 view U key rest when helm.t6,mythic,!alloyshape replace
 |.
+
+# (HELMS fix r2, D84) a Mythic culture alloy's flame crown, seated on its own helm's crown mark: seven tongues on a 14 px band,
+# the same height (no tongue nearer the eye row), so the Mythic measures at its T6 or more where its flame replaces the line's crest
+view D key rest origin 6 3 when alloyshape,mythic replace
+mark socket 6 0
+|......FF......
+|..F..FUTF..F..
+|.FTF.FUTSF.FTF
+|FUTSFUUTSFSTSF
+|vwwwvvvvvvwwwv
+|vxxwwwxxwwwxxv
+
+view U key rest origin 6 3 when alloyshape,mythic replace
+mark socket 6 0
+|......FF......
+|..F..FTUF..F..
+|.FTF.FTUUF.FTF
+|FSTSFTUUSFSTUF
+|vwwwvvvvvvwwwv
+|vxxwwxxxwwwxxv
+
+view R key rest origin 6 3 when alloyshape,mythic replace
+mark socket 6 0
+|......FF.....
+|..F..FUTF.F..
+|.FTF.FUTSFTF.
+|FUTSFUUTSTSTF
+|vwwwvvvvvwwwv
+|vxxwwxxxwwxxv
+
+view L key rest origin 6 3 when alloyshape,mythic replace
+mark socket 6 0
+|.....FF......
+|..F.FTUF..F..
+|.FTFSTUF.FTF.
+|FTSTSTUUFSTUF
+|vwwwvvvvvwwwv
+|vxxxwwxxwwwxv
+
+view L key lie origin 6 3 when alloyshape,mythic replace
+mark socket 6 0
+|.....FF......
+|..F.FTUF..F..
+|.FTFSTUF.FTF.
+|FTSTSTUUFSTUF
+|vwwwvvvvvwwwv
+|vxxxwwxxwwwxv
+

@@ -5,6 +5,7 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 namespace art {
@@ -24,11 +25,11 @@ struct TierEnvelope {
 };
 constexpr TierEnvelope kEnvelope[7] = {
   // shld rows orn side brim flare paul cloak sideD back sflare stir mvMin mvMax area loco run drawn action death posture
-  {  0,  4,  6,  1,  1,  3,  0,  3,  0,  2,  0,  0,  0,  0,   0, 128,  64, 256, 512, 52, 64 },  // 0 untiered: today's rules
+  {  0,  4,  6,  1,  1,  3,  0,  3,  2,  2,  0,  0,  0,  0,   0, 128,  64, 256, 512, 52, 64 },  // 0 untiered: today's rules (D80: sideD 2)
   { 16,  2,  2,  0,  1,  3,  0,  0,  0,  2,  0,  0,  0,  0, 100, 128,  64, 256, 512, 52, 64 },  // T1
   { 18,  3,  6,  0,  1,  3,  2,  0,  0,  2,  0,  0,  0,  0, 110, 128,  64, 256, 512, 52, 64 },  // T2
   { 20,  4,  6,  1,  1,  3,  3,  1,  0,  2,  0,  0,  0,  0, 120, 128,  64, 256, 512, 52, 64 },  // T3
-  { 22,  6,  6,  1,  1,  3,  4,  2,  0,  2,  0,  0,  0,  0, 135, 160,  80, 320, 512, 52, 64 },  // T4
+  { 22,  6,  6,  1,  1,  3,  4,  2,  0,  4,  0,  0,  0,  0, 135, 160,  80, 320, 512, 52, 64 },  // T4 (D73: the officer's cloak 4 behind)
   { 26,  8,  8,  2,  2,  3,  5,  3,  2,  8,  1,  1,  8, 32, 155, 200, 100, 400, 512, 59, 74 },  // T5
   { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400, 512, 59, 74 },  // T6
 };
@@ -64,6 +65,26 @@ constexpr EnvelopeRuling kEnvelopeRulings[] = {
 // the cape-length lever), 4 t4cloak (a T4 body with no over-layer cloak wears the travel cloak: the table's "a cape or the
 // travel cloak", which D69 forbids), 8 t2cap (the owner's switch: T2 only capped, measured as T2 = max(T2, T1 x 1.10)).
 inline int& envelopeWhatIf() { static int v = 0; return v; }
+
+// (wave-2 fix round, D72) this round's rules by bit, every one on in the game and the gates; `--doll-wear --freeze-check F
+// --report` turns each off in turn to attribute a changed frame to its cause (never set anywhere else)
+enum FixRule : uint32_t {
+  FIX_CLOAK = 1,    // D73: a worn cloak behind any over-layer, the T3 cloak on every people's line, the kits' tier cloaks
+  FIX_T2 = 2,       // D74: the people's T2 cowl
+  FIX_T4 = 4,       // D75: size 4 at T4 for every mass but NONE
+  FIX_TRIM = 8,     // D78: the trim band
+  FIX_SHIELD = 16,  // D82: the gripL shield under other parts' erase cells
+  FIX_RELIC = 32,   // D83 / D84: the relic helms, a Mythic alloy keeps its alloy with the ember on top
+  FIX_LINES = 64,   // D86: the two-alloy king's no full cape; a culture alloy T4 or more (lookTier)
+  FIX_COLOUR = 128, // D88: C14's parting from the hair and the skin (the material moves), the cloaks' lit steps
+  FIX_ALL = 255
+};
+// (fix round 2) EMB_FIX_RULES=<mask> (diagnostics only: unset in the game and every gate) starts with that mask
+inline uint32_t& fixRules() {
+  static uint32_t v = [] { const char* e = std::getenv("EMB_FIX_RULES"); return e && *e ? (uint32_t)std::strtoul(e, nullptr, 0) : (uint32_t)FIX_ALL; }();
+  return v;
+}
+inline bool fixOn(uint32_t bit) { return (fixRules() & bit) != 0; }
 
 inline const TierEnvelope& envelopeOf(int tier) { return kEnvelope[tier >= 0 && tier <= 6 ? tier : 0]; }
 // B10's KB for a figure whose highest piece is `tier` (atlas: 0 LOCO 1 RUN 2 DRAWN 3 ACTION 4 DEATH 5 POSTURE); a 0 left in

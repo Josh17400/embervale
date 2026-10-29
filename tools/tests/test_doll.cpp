@@ -120,6 +120,10 @@ int dollArmsGates(bool report, std::vector<std::string>& printed);
 std::string dollSliceLooksText();
 int dollLadderGates(bool report, std::vector<std::string>& printed);   // test_doll_ladder.cpp
 int dollLadderCoverage(int argc, char** argv);   // test_doll_ladder.cpp: --doll-coverage --scope ladder (C1 source L)
+std::vector<std::pair<std::string, art::HumanLook>> dollSpecLooks(const std::string& text);   // test_doll_envelope.cpp (D79)
+std::string dollSourceLText(int a, int b);
+std::string dollSliceLooksText();   // test_doll_arms.cpp
+std::string dollArmsLooksText();    // test_doll_arms.cpp
 int dollForgeGates(bool report, std::vector<std::string>& printed);   // test_doll_forge.cpp: C16 a b c s, C17, C1 F, C12a
 int dollForgeCoverage(int argc, char** argv);   // test_doll_forge.cpp: --doll-coverage --scope forge
 int dollEnvelopeGates(bool report, std::vector<std::string>& printed);   // test_doll_envelope.cpp: C12f C3b C13 B10 by tier, C19
@@ -498,6 +502,7 @@ void craftFrame(Gate& g, const Canvas& c, const std::string& who, const std::set
           any = X >= 0 && Y >= 0 && X < c.w && Y < c.h && (c.get(X, Y) >> 24);
         }
       orphans += !any;
+      if (!any && std::getenv("B8_DEBUG")) std::printf("    orphan %s at %d,%d (canvas %dx%d)\n", who.c_str(), x, y, c.w, c.h);
     }
   if (orphans) g.bad(who + fmt(": %.0f orphan pixel(s)", orphans));
   else if (black) g.bad(who + ": #000000");
@@ -2039,6 +2044,9 @@ void posesOf(const Who& w, std::vector<PoseUse>& out) {
   // (P2c wave 2 round 2, DOLL-C) a youth drinks (kin_youth's drink clips) and so toasts on a festival night (life_game: Cheer
   // from SitDrink)
   if (w.look.age == 2) for (Posture p : {Posture::SitDrink, Posture::SitFloorDrink, Posture::Drink, Posture::Cheer}) add(p);
+  // (wave-2 fix round, D79) a child leaves with its emigrating family carrying its own sack (life.cpp: "their children with
+  // them"; life_game T_AWAY: Carry): held/props/sack_child
+  if (w.look.age == 1) add(Posture::Carry);
   if (w.look.age == 1 || w.look.age == 2) { add(Posture::Play); add(Posture::Dance); return; }
   for (Posture p : {Posture::SitDrink, Posture::SitFloorDrink, Posture::Drink, Posture::Cheer, Posture::Dance}) add(p);
   if (w.who == 'H' || w.who == 'E') for (Posture p : {Posture::Kneel, Posture::Ride, Posture::Row, Posture::Downed}) add(p);
@@ -2324,7 +2332,15 @@ int coverageCmd(int argc, char** argv) {
       }
     }
   }
-  std::vector<std::string> dead, p2c;
+  // (wave-2 fix round, D79) C1's dead parts count over sources A-E, F (the gates' matrix with the forge looks), L (the kit lines,
+  // seeds 1..3, with the envelope looks) and M8-M12 (the arms matrices) too
+  if (all) {
+    Who w;
+    for (const auto& tl : dollSpecLooks(dollSliceLooksText())) { w.look = tl.second; w.src = 'F'; reach.add(w, "F gates"); }
+    for (const auto& tl : dollSpecLooks(dollSourceLText(1, 3))) { w.look = tl.second; w.src = 'L'; reach.add(w, "L kit lines"); }
+    for (const auto& tl : dollSpecLooks(dollArmsLooksText())) { w.look = tl.second; w.src = 'M'; reach.add(w, "M matrices"); }
+  }
+  std::vector<std::string> dead, p2c, reserve;
   {
     const std::vector<std::string> d = doll::deadParts();
     const std::set<std::string> ds(d.begin(), d.end());
@@ -2333,6 +2349,22 @@ int coverageCmd(int argc, char** argv) {
         const uint32_t m = (size_t)p < reach.partMask.size() ? reach.partMask[(size_t)p] : 0;
         for (size_t s = 0; s < reach.names.size(); s++) if (m == (1u << s)) reach.src[s].only++;
         continue;
+      }
+      // (D79) a drawn part no source reaches by design: tagged `reserve` in its map, or on the planner's list (motif plain and
+      // straps; a pauldron size no source asks): kept, listed, never dead
+      {
+        const std::string nm = doll::partName(p);
+        const char* why = doll::partTagged(p, "reserve") ? "tags reserve"
+                          : (nm.rfind("armour/motif/", 0) == 0 && (nm.size() > 6 && (nm.compare(nm.size() - 6, 6, "/plain") == 0 || (nm.size() > 7 && nm.compare(nm.size() - 7, 7, "/straps") == 0))))
+                              ? "the planner's list (D79: motif plain and straps)"
+                          : nm.rfind("armour/shared/pauldron_", 0) == 0 ? "the planner's list (D79: a pauldron size no source asks)"
+                          // (wave-2 fix round 3, D79 "by design") forge round 2 retired the cut, edge, limb and fittings of every
+                          // culture alloy (contracts 3c.1; gear_forge.cpp alloyStyle) and no hero style's column names these
+                          // values (doll_forge.h hero()), so no look of any world asks them; kept drawn (D49)
+                          : (nm == "forge/cut/splinted" || nm == "forge/edge/fringed" || nm == "forge/edge/spiked" || nm == "forge/fit/knot")
+                              ? "D79 by design: a culture alloy's retired forge value (contracts 3c.1), no hero style names it"
+                              : nullptr;
+        if (why && all) { reserve.push_back(nm + " (" + why + ")"); continue; }
       }
       const bool waits = reach.wait.count(p) && !reach.why.count(p);   // wanted only by looks P2c holds back
       if (!all && (p2cPart(p) || waits)) {
@@ -2349,6 +2381,7 @@ int coverageCmd(int argc, char** argv) {
               (unsigned long long)b, covered, total, share);
   for (const auto& kv : bySrc) std::printf("; %c %d/%d", kv.first, kv.second.first, kv.second.second);
   std::printf("; %zu dead part(s)", dead.size());
+  if (all) std::printf("; %zu reserve (D79)", reserve.size());
   if (!all) std::printf("; %zu P2c part(s) apart", p2c.size());
   std::printf(" (%.0f s)\n", secs);
   for (size_t s = 0; s < reach.names.size(); s++)
@@ -2368,6 +2401,8 @@ int coverageCmd(int argc, char** argv) {
     std::printf("  dead part: %s%s%s%s\n", dead[i].c_str(), g_report ? " (" : "", g_report ? why.c_str() : "", g_report ? ")" : "");
   }
   for (size_t i = 0; i < p2c.size() && g_report; i++) std::printf("  P2c part: %s\n", p2c[i].c_str());
+  for (const std::string& x : reserve) std::printf("  reserve: %s\n", x.c_str());
+  for (const std::string& x : doll::fxViewParts()) std::printf("  drawn by art_fx (contracts 4; no recipe asks it): %s\n", x.c_str());
   int poseMiss = 0;
   for (const auto& kv : reach.poseV1) poseMiss += kv.second;
   std::printf("  postures drawn on v1: %d (%zu body x posture)\n", poseMiss, reach.poseV1.size());

@@ -14,7 +14,7 @@ keys pauld
 z 5
 side R
 
-view D key rest origin 7 5 layer headwear
+view D key rest origin 7 5
 |.....55555.
 |...55988765
 |..598888765
@@ -41,7 +41,7 @@ regions
 |...RRRRRR..
 |...........
 
-view D key up origin 7 6 layer headwear
+view D key up origin 7 6
 |.....55555.
 |...55988765
 |..598888765
@@ -176,7 +176,7 @@ regions
 |..RRRRRR...
 |...........
 
-view R key rest origin 7 5 layer headwear
+view R key rest origin 7 5
 |...555555..
 |.5598887655
 |.5988887765
@@ -203,7 +203,7 @@ regions
 |...RRRRRR..
 |...........
 
-view R key up origin 7 6 layer headwear
+view R key up origin 7 6
 |...555555..
 |.5598887655
 |.5988887765

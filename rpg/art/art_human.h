@@ -179,6 +179,17 @@ struct HumanLook {
   // skirt 5-7, mass 8-10, layer 11-13, arm 14-15, motif 16-19, bit 31 set; 0 none: round 1's pixels): gear::shapeOf per
   // worn piece (the helm piece the helm family, the body piece the rest). Derived, never saved; key() at rig 2 only when set
   uint32_t forgeShape = 0;
+  // (P2c wave-2 fix round, D74) the body piece's maker people (cult::Archetype + 1; 0 none): the people's T2 cowl and capelet
+  // hems by people (doll flags `people-<name>`, the Highland's `hem-plaid`). Derived (gear::fillLadder), never saved; key()
+  // at rig 2 only when set
+  uint8_t makerPeople = 0;
+  // (P2c wave-2 fix round, D83 / D84) a Mythic relic helm's own metal style (art::doll::forge base: PARADE, KNAPPED, FURNACE,
+  // STARFALL; 0 none): the resolver gives it that metal's helm family under the black, gold and fire. Derived (gear::fillLadder),
+  // never saved; key() at rig 2 only when set
+  uint8_t relicHelm = 0;
+  // (wave-2 fix round 2, D84 restated) a Mythic relic body's own metal style (as relicHelm): the resolver keeps that metal's
+  // outline (STARFALL's split skirt, FURNACE's heavy arms) under MYTHIC's finish, so the Mythic measures at its T6's area or more
+  uint8_t relicBody = 0;
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

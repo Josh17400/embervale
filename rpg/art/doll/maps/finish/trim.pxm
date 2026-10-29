@@ -1,0 +1,51 @@
+# finish/trim: the tier's trim band (PLAN D78; STYLE_P2 29.11 "Trim grows by tier"; P2C_CONTRACTS 3d "The trim tile").
+# FINISH, wave-2 fix round r2 (2026-10-29), rewritten to DOLL's band mode as built (doll_compose trimBand / trimBandView):
+#  - the view: the facing-D `rest` view whose condition names the piece's tier (`tier4` / `tier5` / `tier6`), else the
+#    base rest view. r1's keyed views (t4 / t5lit ...) were never read: every tier drew the base view, a flat Metal 2 line;
+#  - ROW = depth from the outer edge (row 0 the drawn R pixel by the outline, row 1 the pixel the band adds inward). A view
+#    with 2 x W rows (T4 W 1, T5-T6 W 2) gives runs whose outside faces up or left (the light's side: a neck band, a brim's
+#    top, a pauldron's upper rim) the upper W rows and runs facing down or right (a hem, a rim's underside) the lower W;
+#  - COLUMN = x + y, mod the view's width; cells as region tiles (metal2 / metal step 1 and 3 move the drawn step one down /
+#    up, 2 keeps it, 0 and 4 set it). C12b counts the band's Metal 2 cells as trim; a notch (metal) is not trim.
+# The design (D78, by eye at 1x / 3x / 8x on grass and dark ground: r2/shots):
+#  - T4 a clean 1 px brass line, one step up on the light's runs, the drawn step on the rest;
+#  - T5 a 2 px gold band: on the light's runs a lit outer row over a seam one step down; the hems keep the drawn step
+#    (a darker seam on the hems took the Fjordfolk alloy's bands to 29 luma, C16m 40);
+#  - T6 the T5 band with, on the hems, a 2 px notch every 4 px cut through the outer row to the plate's dark (metal step 0:
+#    step 1-2 met the shield's field 16 luma apart, C14 18); never on the light's runs: notches there moved with the long
+#    cloak's breeze view (x + y phase) and took e6w's drawn motion 44 -> 49 (C13 48). Never a 1 px speck.
+# Measured (rpg_test_fr1 --doll-ladder --finish --scope ladder --seeds 1..3): T6 over the ceiling shields 116 -> 102, cloaks
+# 100 -> 73, bodies 39 -> 21 (the notch is not trim); step-4 falls 27 -> 12. The light in the band (stones at T5, glowing
+# rune-cuts at T6) is a proposal for the planner: r2/proposal_glow (it needs DOLL's face guard).
+use person
+role overlay finish.trim
+legend d metal2 1
+legend m metal2 2
+legend l metal2 3
+legend n metal 0
+tags tile band
+on-region R
+
+# the base view (a piece the tier keys miss): the T4 line
+view D key rest origin 0 0
+|llll
+|mmmm
+
+# T4: a clean 1 px brass line (lit runs a step up; shaded runs keep the drawn step)
+view D key rest origin 0 0 when tier4
+|llll
+|mmmm
+
+# T5: the 2 px gold band: lit outer row over a seam a step down on the light's side; the hems keep the drawn step
+view D key rest origin 0 0 when tier5
+|llll
+|dddd
+|mmmm
+|mmmm
+
+# T6: the T5 band; on the hems a 2 px notch every 4 px cut through the outer row to the plate's dark
+view D key rest origin 0 0 when tier6
+|llll
+|dddd
+|mmnn
+|mmmm

@@ -64,3 +64,947 @@ view L key lie origin 4 2
 |..566666675.
 |...5555555..
 
+
+
+# (ARMOUR fix r1, cowlgen.py) the peoples' cowls (D74): `when people-<name>` views, the edge by the people
+view D key rest origin 7 3 when people-fjordfolk replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..fhghihghihgf..
+|...ff.f.ff.f....
+
+view U key rest origin 6 2 when people-fjordfolk replace
+|..55555555..
+|.5899988765.
+|.fhghihghif.
+|..ff.f.ff...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-fjordfolk replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.fhghihf.
+|......ff.f...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-fjordfolk replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.fhghihf.
+|......ff.f...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-fjordfolk replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.fhghihf.
+|......ff.f...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-fjordfolk replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.fhghihf555.
+|..ff.f......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-fjordfolk replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.fhghihf555.
+|..ff.f......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-fjordfolk replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.fhghihf555.
+|..ff.f......
+
+view L key lie origin 4 2 when people-fjordfolk replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...fhghihf..
+|....ff.f....
+
+view D key rest origin 7 3 when people-highland replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..577337733775..
+|...5551155115...
+
+view U key rest origin 6 2 when people-highland replace
+|..55555555..
+|.5899988765.
+|.5773377335.
+|..55511555..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-highland replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5773375.
+|......55515..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-highland replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5773375.
+|......55515..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-highland replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5773375.
+|......55515..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-highland replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5773375555.
+|..55515.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-highland replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5773375555.
+|..55515.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-highland replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5773375555.
+|..55515.....
+
+view L key lie origin 4 2 when people-highland replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5773375..
+|....55515...
+
+view D key rest origin 8 3 when people-imperial replace
+|..5............5..
+|.585..........575.
+|.5898888888887765.
+|..57777777776665..
+|...555666666555...
+|..56767676767675..
+|..56666666666665..
+|...555555555555...
+
+view U key rest origin 7 2 when people-imperial replace
+|...55555555...
+|..5899988765..
+|..5555555555..
+|.567676767675.
+|.566666666665.
+|..5555555555..
+
+view R key rest origin 8 2 when people-imperial replace
+|..59855555....
+|.5899887765...
+|..587766665...
+|...5555555....
+|..567676765...
+|..566666665...
+|...5555555....
+
+view R key flow origin 8 2 when people-imperial replace
+|..59855555....
+|.5899887765...
+|..587766665...
+|...5555555....
+|..567676765...
+|..566666665...
+|...5555555....
+
+view R key flow2 origin 8 2 when people-imperial replace
+|..59855555....
+|.5899887765...
+|..587766665...
+|...5555555....
+|..567676765...
+|..566666665...
+|...5555555....
+
+view L key rest origin 5 2 when people-imperial replace
+|....55555785..
+|...5666778875.
+|...566666675..
+|....5555555...
+|...567676765..
+|...566666665..
+|....5555555...
+
+view L key flow origin 5 2 when people-imperial replace
+|....55555785..
+|...5666778875.
+|...566666675..
+|....5555555...
+|...567676765..
+|...566666665..
+|....5555555...
+
+view L key flow2 origin 5 2 when people-imperial replace
+|....55555785..
+|...5666778875.
+|...566666675..
+|....5555555...
+|...567676765..
+|...566666665..
+|....5555555...
+
+view L key lie origin 5 2 when people-imperial replace
+|....55555785..
+|...5666778875.
+|...566666675..
+|....5555555...
+|...567676765..
+|...566666665..
+|....5555555...
+
+view D key rest origin 7 3 when people-dune replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|...76...........
+|...65...........
+|...55...........
+
+view U key rest origin 6 2 when people-dune replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|..76........
+|..65........
+|..55........
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-dune replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......76.....
+|......65.....
+|......55.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-dune replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......76.....
+|......65.....
+|......55.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-dune replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......76.....
+|......65.....
+|......55.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-dune replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.....76.....
+|.....65.....
+|.....55.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-dune replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.....76.....
+|.....65.....
+|.....55.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-dune replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.....76.....
+|.....65.....
+|.....55.....
+
+view L key lie origin 4 2 when people-dune replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|.......76...
+|.......65...
+|.......55...
+
+view D key rest origin 7 3 when people-steppe replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|..566666666665..
+|...5555555555...
+
+view U key rest origin 6 2 when people-steppe replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|.5666666665.
+|..55555555..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-steppe replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5666665.
+|......55555..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-steppe replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5666665.
+|......55555..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-steppe replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5666665.
+|......55555..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-steppe replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5666665....
+|..55555.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-steppe replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5666665....
+|..55555.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-steppe replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5666665....
+|..55555.....
+
+view L key lie origin 4 2 when people-steppe replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5666665..
+|....55555...
+
+view D key rest origin 7 3 when people-marsh replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|...6.6.6.6.6....
+|...5.5.5.5.5....
+
+view U key rest origin 6 2 when people-marsh replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|..6.6.6.6...
+|..5.5.5.5...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-marsh replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......6.6.6..
+|......5.5.5..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-marsh replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......6.6.6..
+|......5.5.5..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-marsh replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|......6.6.6..
+|......5.5.5..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-marsh replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|..6.6.6.....
+|..5.5.5.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-marsh replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|..6.6.6.....
+|..5.5.5.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-marsh replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|..6.6.6.....
+|..5.5.5.....
+
+view L key lie origin 4 2 when people-marsh replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|....6.6.6...
+|....5.5.5...
+
+view D key rest origin 7 3 when people-jade replace
+|.5............5.
+|595..........575
+|5898888888887765
+|.57777777776665.
+|..monononononm..
+|....mmmmmmmm....
+
+view U key rest origin 6 2 when people-jade replace
+|..55555555..
+|.5999999765.
+|.mononononm.
+|...mmmmmm...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-jade replace
+|.55..........
+|5898.........
+|588759855555.
+|5775999997765
+|5666587766665
+|.555.mononom.
+|.......mmm...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-jade replace
+|.55..........
+|5898.........
+|588759855555.
+|5775999997765
+|5666587766665
+|.555.mononom.
+|.......mmm...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-jade replace
+|.55..........
+|5898.........
+|588759855555.
+|5775999997765
+|5666587766665
+|.555.mononom.
+|.......mmm...
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-jade replace
+|.........55.
+|........8985
+|.55555785885
+|566677997575
+|566666675665
+|.mononom555.
+|...mmm......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-jade replace
+|.........55.
+|........8985
+|.55555785885
+|566677997575
+|566666675665
+|.mononom555.
+|...mmm......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-jade replace
+|.........55.
+|........8985
+|.55555785885
+|566677997575
+|566666675665
+|.mononom555.
+|...mmm......
+
+view L key lie origin 4 2 when people-jade replace
+|...55555785.
+|..5666779975
+|..566666675.
+|...mononom..
+|.....mmm....
+
+view D key rest origin 7 3 when people-river replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|..578787878785..
+|...5676767675...
+|.....555555.....
+
+view U key rest origin 6 2 when people-river replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|.5787878785.
+|..56767675..
+|....5555....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-river replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5787875.
+|......56765..
+|........5....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-river replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5787875.
+|......56765..
+|........5....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-river replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....5787875.
+|......56765..
+|........5....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-river replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5787875....
+|..56765.....
+|....5.......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-river replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5787875....
+|..56765.....
+|....5.......
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-river replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.5787875....
+|..56765.....
+|....5.......
+
+view L key lie origin 4 2 when people-river replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5787875..
+|....56765...
+|......5.....
+
+view D key rest origin 7 3 when people-suntemple replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|..mpmopmopmopm..
+|...mmmmmmmmmm...
+
+view U key rest origin 6 2 when people-suntemple replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|.mpmopmopmm.
+|..mmmmmmmm..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-suntemple replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....mpmopmm.
+|......mmmmm..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-suntemple replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....mpmopmm.
+|......mmmmm..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-suntemple replace
+|.55..........
+|5898.........
+|588759855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+|.....mpmopmm.
+|......mmmmm..
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-suntemple replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.mpmopmm....
+|..mmmmm.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-suntemple replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.mpmopmm....
+|..mmmmm.....
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-suntemple replace
+|.........55.
+|........8985
+|.55555785885
+|566677887575
+|566666675665
+|.5555555555.
+|.mpmopmm....
+|..mmmmm.....
+
+view L key lie origin 4 2 when people-suntemple replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...mpmopmm..
+|....mmmmm...
+
+view D key rest origin 7 3 when people-sylvan replace
+|.5............5.
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+|..565665665665..
+|...5.55.55.55...
+
+view U key rest origin 6 2 when people-sylvan replace
+|..55555555..
+|.5899988765.
+|.5555555555.
+|.5656656655.
+|..5.55.55...
+
+view R key rest origin 7 2 when people-sylvan replace
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+|..5656655...
+|...5.55.....
+
+view R key flow origin 7 2 when people-sylvan replace
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+|..5656655...
+|...5.55.....
+
+view R key flow2 origin 7 2 when people-sylvan replace
+|.59855555...
+|5899887765..
+|.587766665..
+|..5555555...
+|..5656655...
+|...5.55.....
+
+view L key rest origin 4 2 when people-sylvan replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5656655..
+|....5.55....
+
+view L key flow origin 4 2 when people-sylvan replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5656655..
+|....5.55....
+
+view L key flow2 origin 4 2 when people-sylvan replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5656655..
+|....5.55....
+
+view L key lie origin 4 2 when people-sylvan replace
+|...55555785.
+|..5666778875
+|..566666675.
+|...5555555..
+|...5656655..
+|....5.55....
+
+view D key rest origin 7 5 when people-starspire replace
+|55............55
+|58............65
+|55............55
+|585..........575
+|5898888888887765
+|.57777777776665.
+|..555666666555..
+
+view U key rest origin 6 4 when people-starspire replace
+|.55......55.
+|.58......65.
+|.5555555555.
+|.5899988765.
+|.5555555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key rest origin 10 4 when people-starspire replace
+|.5555........
+|58958........
+|588559855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow origin 10 4 when people-starspire replace
+|.5555........
+|58958........
+|588559855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view R key flow2 origin 10 4 when people-starspire replace
+|.5555........
+|58958........
+|588559855555.
+|5775899887765
+|5666587766665
+|.555.5555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key rest origin 2 4 when people-starspire replace
+|........555.
+|........6585
+|.55555785585
+|566677887575
+|566666675665
+|.5555555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow origin 2 4 when people-starspire replace
+|........555.
+|........6585
+|.55555785585
+|566677887575
+|566666675665
+|.5555555555.
+
+# (ARMOUR fix r2, cowl_r2.py) the hood lump behind the nape (T2 climb, D74)
+view L key flow2 origin 2 4 when people-starspire replace
+|........555.
+|........6585
+|.55555785585
+|566677887575
+|566666675665
+|.5555555555.
+
+view L key lie origin 4 4 when people-starspire replace
+|..........55
+|..........65
+|...555557855
+|..5666778875
+|..566666675.
+|...5555555..

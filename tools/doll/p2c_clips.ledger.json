@@ -1,4 +1,7 @@
 {
- "clips/actions/shield.clip": "f634f342c5ca36e2b75438cd95278645c50dfc8110328a8354bd28dc48d86981",
- "clips/death.clip": "31f7fa85b8b982699b90c67b527f850fcc6104de4bf5a7916a0a9c94923f2aee"
+ "clips/actions/shield.clip": "3d324a8a16a60f8eb60d730ed3cf70b6be02ca92cc05fb4b5305e7e5b4db5ad5",
+ "clips/actions/spear_carry.clip": "ca0b5f189794f9f25699ba9a6f60dafb94a4cc9b619192a2acd640c35f98c05f",
+ "clips/actions/staff_carry.clip": "02cc0b3eb6e050ef9fe43622a2e2fd590d20d157b3a9d870459e54d47019dff2",
+ "clips/actions/sword_shield.clip": "c614fc222b0e533f8e76d8766c66a5c7aa49283cf5f5ca4126b2a456df40fa9c",
+ "clips/death.clip": "ef7c36f495227d8984ebfb6c0f4646ca6e8a2763c229895667338bbec91cdb8b"
 }

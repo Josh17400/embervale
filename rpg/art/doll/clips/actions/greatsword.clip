@@ -4,6 +4,14 @@
 # (the deep coil, overhead, the slam held, a deeper stance), the block, and the drawn walk / run (bow.clip's shipped legs
 # with the guard). Timing at the hero's greatsword pace 1.18 (windup 82, strike 129, follow 153, finisher 330 ms).
 # Written by ACTIONS-2H's tools/clips.py; `pauld=up` on the overhead wind-ups.
+# (wave-2 fix round, ACTIONS r1, PLAN D81: no weapon pixel more than 2 rows below the sole row) hit 3's coil facing D at
+# a202 (was a225, 4 rows under the soles) and facing U at a337 (was a292, 7 rows under), its follow facing U at a315 a
+# row shallower (bob 1; was a292 at bob 2, 5 rows under). Both fists stay on the haft line (D81).
+# (wave-2 fix round 2, ACTIONS; C3d) hit 3's overhead facing D is raised over the right shoulder (gs_2b, a045 behind): at
+# gs_3b a090 both fists sat behind the helm and the blade stood out of its crown with nothing holding it (no hand pixel).
+# (wave-2 fix round 3, ACTIONS; C3d) hit 1's windup peak facing U turns the head a pixel from the raised blade (head=-1,0):
+# the helm's brim hid the fists on the hilt (24 lines); hit 2's windup peak facing R / L lifts the pauldrons with the raised
+# arms (pauld=up), as hit 1's and hit 3's peaks already do.
 
 body man
 clip idle D part drawn family greatsword variant 1 when greatsword
@@ -29,8 +37,8 @@ clip follow D family greatsword variant 1 when greatsword
 f armL=gs_2f armR=gs_2f weapon=157.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a2 bob=1 ms=76 at=0,1
 f armL=gs_guard armR=gs_guard weapon=135,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup D family greatsword variant 2 when greatsword
-f armL=gs_3a armR=gs_3a weapon=225,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,-1
-f armL=gs_3b armR=gs_3b weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,-1
+f armL=gs_3a armR=gs_3a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,-1
+f armL=gs_2b armR=gs_2b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,-1
 clip strike D family greatsword variant 2 when greatsword
 f armL=gs_3s armR=gs_3s weapon=180,front legs=buckle neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=2 ms=52 at=0,1
 f armL=gs_3s armR=gs_3s weapon=180,front legs=buckle neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=2 ms=77 at=0,1
@@ -47,7 +55,7 @@ f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn t
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
 clip windup U family greatsword variant 0 when greatsword
 f armL=gs_1a armR=gs_1a weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=37 at=0,1
-f armL=gs_1b armR=gs_1b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=45 at=0,1
+f armL=gs_1b armR=gs_1b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=45 at=0,1 head=-1,0
 clip strike U family greatsword variant 0 when greatsword
 f armL=gs_1s armR=gs_1s weapon=90,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=52 at=0,-1
 f armL=gs_1s armR=gs_1s weapon=90,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=77 at=0,-1
@@ -64,13 +72,13 @@ clip follow U family greatsword variant 1 when greatsword
 f armL=gs_2f armR=gs_2f weapon=22.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=76 at=0,-1
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup U family greatsword variant 2 when greatsword
-f armL=gs_3a armR=gs_3a weapon=292.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,1
+f armL=gs_3a armR=gs_3a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,1
 f armL=gs_3b armR=gs_3b weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,1
 clip strike U family greatsword variant 2 when greatsword
 f armL=gs_3s armR=gs_3s weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=52 at=0,-1
 f armL=gs_3s armR=gs_3s weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=77 at=0,-1
 clip follow U family greatsword variant 2 when greatsword
-f armL=gs_3f armR=gs_3f weapon=292.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=2 ms=165 at=0,-1
+f armL=gs_3f armR=gs_3f weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=165 at=0,-1
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=165 at=0,-1
 clip block U family greatsword variant 0 when greatsword
 f armL=gs_blk armR=gs_blk weapon=22.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30 at=0,1
@@ -91,7 +99,7 @@ f armL=gs_1f armR=gs_1f weapon=337.5,front legs=lunge neck=rest sheath=drawn tor
 f armL=gs_guard armR=gs_guard weapon=67.5,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup R family greatsword variant 1 when greatsword
 f armL=gs_2a armR=gs_2a weapon=180,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-1 ms=37 at=-1,0
-f armL=gs_2b armR=gs_2b weapon=157.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-2 ms=45 at=-2,0
+f armL=gs_2b armR=gs_2b weapon=157.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-2 ms=45 at=-2,0 pauld=up
 clip strike R family greatsword variant 1 when greatsword
 f armL=gs_2s armR=gs_2s weapon=0,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=2 ms=52 at=2,0
 f armL=gs_2s armR=gs_2s weapon=0,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=2 ms=77 at=2,0
@@ -126,7 +134,7 @@ f armL=gs_1f armR=gs_1f weapon=202.5,front legs=lunge neck=rest sheath=drawn tor
 f armL=gs_guard armR=gs_guard weapon=112.5,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup L family greatsword variant 1 when greatsword
 f armL=gs_2a armR=gs_2a weapon=0,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=1 ms=37 at=1,0
-f armL=gs_2b armR=gs_2b weapon=22.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=2 ms=45 at=2,0
+f armL=gs_2b armR=gs_2b weapon=22.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=2 ms=45 at=2,0 pauld=up
 clip strike L family greatsword variant 1 when greatsword
 f armL=gs_2s armR=gs_2s weapon=180,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-2 ms=52 at=-2,0
 f armL=gs_2s armR=gs_2s weapon=180,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-2 ms=77 at=-2,0
@@ -171,8 +179,8 @@ clip follow D family greatsword variant 1 when greatsword
 f armL=gs_2f armR=gs_2f weapon=157.5,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a2 bob=1 ms=76 at=0,1
 f armL=gs_guard armR=gs_guard weapon=135,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup D family greatsword variant 2 when greatsword
-f armL=gs_3a armR=gs_3a weapon=225,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,-1
-f armL=gs_3b armR=gs_3b weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,-1
+f armL=gs_3a armR=gs_3a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,-1
+f armL=gs_2b armR=gs_2b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,-1
 clip strike D family greatsword variant 2 when greatsword
 f armL=gs_3s armR=gs_3s weapon=180,front legs=buckle neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=2 ms=52 at=0,1
 f armL=gs_3s armR=gs_3s weapon=180,front legs=buckle neck=rest sheath=drawn torso=rest expr=fierce fx=a1 bob=2 ms=77 at=0,1
@@ -189,7 +197,7 @@ f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn t
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1
 clip windup U family greatsword variant 0 when greatsword
 f armL=gs_1a armR=gs_1a weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=37 at=0,1
-f armL=gs_1b armR=gs_1b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=45 at=0,1
+f armL=gs_1b armR=gs_1b weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=45 at=0,1 head=-1,0
 clip strike U family greatsword variant 0 when greatsword
 f armL=gs_1s armR=gs_1s weapon=90,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=52 at=0,-1
 f armL=gs_1s armR=gs_1s weapon=90,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=77 at=0,-1
@@ -206,13 +214,13 @@ clip follow U family greatsword variant 1 when greatsword
 f armL=gs_2f armR=gs_2f weapon=22.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=76 at=0,-1
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup U family greatsword variant 2 when greatsword
-f armL=gs_3a armR=gs_3a weapon=292.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,1
+f armL=gs_3a armR=gs_3a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=37 at=0,1
 f armL=gs_3b armR=gs_3b weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up ms=45 at=0,1
 clip strike U family greatsword variant 2 when greatsword
 f armL=gs_3s armR=gs_3s weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=52 at=0,-1
 f armL=gs_3s armR=gs_3s weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=77 at=0,-1
 clip follow U family greatsword variant 2 when greatsword
-f armL=gs_3f armR=gs_3f weapon=292.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=2 ms=165 at=0,-1
+f armL=gs_3f armR=gs_3f weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=165 at=0,-1
 f armL=gs_guard armR=gs_guard weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=165 at=0,-1
 clip block U family greatsword variant 0 when greatsword
 f armL=gs_blk armR=gs_blk weapon=22.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30 at=0,1
@@ -233,7 +241,7 @@ f armL=gs_1f armR=gs_1f weapon=337.5,front legs=lunge neck=rest sheath=drawn tor
 f armL=gs_guard armR=gs_guard weapon=67.5,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup R family greatsword variant 1 when greatsword
 f armL=gs_2a armR=gs_2a weapon=180,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-1 ms=37 at=-1,0
-f armL=gs_2b armR=gs_2b weapon=157.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-2 ms=45 at=-2,0
+f armL=gs_2b armR=gs_2b weapon=157.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-2 ms=45 at=-2,0 pauld=up
 clip strike R family greatsword variant 1 when greatsword
 f armL=gs_2s armR=gs_2s weapon=0,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=2 ms=52 at=2,0
 f armL=gs_2s armR=gs_2s weapon=0,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=2 ms=77 at=2,0
@@ -268,7 +276,7 @@ f armL=gs_1f armR=gs_1f weapon=202.5,front legs=lunge neck=rest sheath=drawn tor
 f armL=gs_guard armR=gs_guard weapon=112.5,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=77
 clip windup L family greatsword variant 1 when greatsword
 f armL=gs_2a armR=gs_2a weapon=0,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=1 ms=37 at=1,0
-f armL=gs_2b armR=gs_2b weapon=22.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=2 ms=45 at=2,0
+f armL=gs_2b armR=gs_2b weapon=22.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=2 ms=45 at=2,0 pauld=up
 clip strike L family greatsword variant 1 when greatsword
 f armL=gs_2s armR=gs_2s weapon=180,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-2 ms=52 at=-2,0
 f armL=gs_2s armR=gs_2s weapon=180,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-2 ms=77 at=-2,0

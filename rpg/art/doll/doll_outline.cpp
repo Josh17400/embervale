@@ -14,11 +14,12 @@ namespace {
 const struct { int facing; Clip clip; int i; } kOutlineFrames[3] = {{0, Clip::Idle, 0}, {2, Clip::Idle, 0}, {2, Clip::Walk, 1}};
 }  // namespace
 
-Outline outlineOf(const DollRecipe& r) {
+Outline outlineOf(const DollRecipe& r, bool noKitCloak) {
   Outline o;
   ComposeOpts op;
   op.grey = true;
   op.noHeld = true;
+  op.noKitCloak = noKitCloak;
   RigSheet sheets[2];
   for (int k = 0; k < 2; k++) {
     op.onlyFacing = k == 0 ? 0 : 2;

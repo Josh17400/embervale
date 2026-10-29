@@ -27,7 +27,7 @@ regions
 |.RRR..
 |......
 
-view D key rest origin 3 3 layer headwear when shoulder-plate replace
+view D key rest origin 3 3 when shoulder-plate replace
 |vvvvvvvv
 |vyyyyyxv
 |vyyyyxwv
@@ -59,7 +59,7 @@ regions
 |.RRR..
 |......
 
-view D key up origin 3 4 layer headwear when shoulder-plate replace
+view D key up origin 3 4 when shoulder-plate replace
 |vvvvvvvv
 |vyyyyyxv
 |vyyyyxwv
@@ -273,7 +273,7 @@ regions
 |.RRRR..
 |.......
 
-view L key rest origin 0 3 layer headwear when shoulder-plate replace
+view L key rest origin 0 3 when shoulder-plate replace
 |vvvvvvvvvv
 |vyyyyyyyxv
 |vyyyyyyxwv
@@ -301,7 +301,7 @@ regions
 |.RRRR..
 |.......
 
-view L key up origin 0 4 layer headwear when shoulder-plate replace
+view L key up origin 0 4 when shoulder-plate replace
 |vvvvvvvvvv
 |vyyyyyyyxv
 |vyyyyyyxwv

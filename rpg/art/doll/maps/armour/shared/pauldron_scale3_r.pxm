@@ -31,7 +31,7 @@ regions
 |.RRRR..
 |.......
 
-view D key rest origin 4 3 layer headwear when shoulder-scale replace
+view D key rest origin 4 3 when shoulder-scale replace
 |....vvvv
 |..vvzyyv
 |.vyyxxwv
@@ -69,7 +69,7 @@ regions
 |.RRRR..
 |.......
 
-view D key up origin 4 4 layer headwear when shoulder-scale replace
+view D key up origin 4 4 when shoulder-scale replace
 |....vvvv
 |..vvzyyv
 |.vyyxxwv
@@ -259,7 +259,7 @@ regions
 |.RRR...
 |.......
 
-view R key rest origin 6 3 layer headwear when shoulder-scale replace
+view R key rest origin 6 3 when shoulder-scale replace
 |...vvvvvv.
 |..vzyyyyxv
 |.vyyxxxxwv
@@ -297,7 +297,7 @@ regions
 |.RRR...
 |.......
 
-view R key up origin 6 4 layer headwear when shoulder-scale replace
+view R key up origin 6 4 when shoulder-scale replace
 |...vvvvvv.
 |..vzyyyyxv
 |.vyyxxxxwv

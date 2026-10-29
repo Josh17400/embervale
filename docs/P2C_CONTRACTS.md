@@ -16,6 +16,9 @@ pauldron sizes, the head key, the ramps' antique and glass rules and the A-defec
 stays the code owner.
 **Production (2026-10-28, the envelope signed off)** restates wave 2's ownership pointer (1), adds the production rules of
 PLAN D67-D70 to 3d and production's hooks to 7; DOLL-C is the code owner in wave 2.
+**The wave-2 fix round (2026-10-29)** adds the round's ownership (1), the rules of PLAN D72-D89 to 3d (the cloak ladder,
+T2-T4, kEnvelope's two cells, noKitCloak, the trim band, the relics and the Mythic, the lines), the pauldron layer rule
+(4) and the round's hooks (7); DOLL is the code owner.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -75,6 +78,15 @@ forge, round-2 and wave-1d restatements (nothing moved between areas); the gener
 rpg/sim/gear_forge_shapes.inc, clips/actions/{shield, sword_shield, spear_carry}.clip and death.clip's generated end, the
 embedded looks) are regenerated only by the integrator with DOLL-C's generators; every file in no wave-2 list is frozen in
 wave 2 (a needed change is a planner ruling).
+
+| area | files (the wave-2 fix round, 2026-10-29; PLAN "The wave-2 fix round", D71-D89; the 14 wave-2 areas are closed and their files pass here; every other file is frozen this round) |
+|---|---|
+| DOLL (engineer-high) | DOLL-C's wave-2 files but tools/doll/p2c_clips.py, p2c_clips.ledger.json, p2c_clips_out/** and p2c_weight.py; plus rpg/sim/looks.cpp (census::rankSlots only), rpg/sim/game.cpp (the bandit chief's spawn lines only) and maps/held/props/** (ADD only: spoon_child.pxm, bread_child.pxm as WEAPONS drew them) |
+| ARMOUR (artist-xhigh) | maps/armour/** (man, woman, shared, tiles, motif); maps/cloak/** (ADD; P2b's views keep their pixels; the envelope's `cloak.t5` and breeze views may be repainted in place); maps/neck/** (ADD only) |
+| HELMS (artist) | maps/headwear/helm/** (with helm/crest), maps/headwear/collar/** |
+| FINISH (artist) | maps/finish/**, maps/forge/** |
+| ACTIONS (artist-xhigh) | rpg/art/doll/clips/** (the generated ones regenerated only by the integrator); tools/doll/p2c_clips.py, p2c_clips.ledger.json, p2c_clips_out/**, p2c_weight.py; maps/arms/adult/action/**, maps/legs/adult/action/**, maps/held/weapons/** |
+| SHIELDS (artist) | maps/shield/** |
 
 ## 2. Frozen in P2c (a needed change is a re-plan)
 
@@ -480,6 +492,40 @@ std::string describeEnvelope();                    // rpg_test --envelope: the t
   - **The T5-T6 budgets** (D70): DOLL-C writes e6's measured ACTION, DEATH and POSTURE (x 1.1, never under the T1-T3 row,
     never over kMeasuredCap) into kEnvelope's T5-T6 rows at the first wave-2 integration that has e6's actions, and records
     them in section 8.
+- **The wave-2 fix round (2026-10-29; PLAN D72-D89; DOLL is the code owner)**:
+  - **kEnvelope**: row 0 cloakSideD 0 to 2 (P2b's long cloak as drawn); T4 cloakBack 2 to 4 (W8 by tier: T1-T3 2, T4 4,
+    T5-T6 8). Nothing else moves; T5-T6 ACTION, DEATH and POSTURE are re-measured on e6 after its long cloak lands.
+  - **The cloak ladder** (D73): a worn cloak item shows on every body; a culture alloy's over-layer replaces only the
+    ladder's cape dial. CAPE = the tier cloak (noble) in the people's colour darkened; HALFCAPE = the tier cloak with its
+    left-shoulder drape (cloak halfcape's T4-T6 views carry the whole cloak); TABARD, SASH and SCARF stay over the armour.
+    The kits: T3 the people's cape (cape dial 0 or 1) or the travel cloak (cape dial 2), T4 the travel cloak, T5-T6 the
+    noble cloak (ladderKit's rows). Views: `when cloak.t4` (ADD) on travel, cape, fur, noble and halfcape; the long cloak's
+    `cloak.t5` views at the cap. One Cloak-slot piece a figure (B8 as before; the colour merges in their order).
+  - **T2-T4** (D74, D75): at TIER_BODY 2 on a people's line the neck value `cowl` replaces the scarf, its edge by the people's
+    ornament flag (the capelet's hem rule), the base cowl the fallback, listed; `when helm.t2` views preferred at TIER_HELM 2
+    and `when armour.t2` pauldron views at size 2; at TIER_BODY 3 the people's plates (size 3 where its dial gives
+    shoulders) AND its T3 cloak; at TIER_BODY 4 size 4 for every mass but NONE (3c.1's "T4 3" restated).
+  - **Helm views by the resolved tier** (D80): the helm piece's tier after kitVar and the D57 watch picks the view; a view
+    drawn for a higher tier is never used (D49); the missing view is listed (`--doll-coverage --scope envelope`).
+  - **ComposeOpts::noKitCloak** (D77): the kit's tier cloak item left out; the over-layer drawn as the shape solve measures
+    it. Used by C16o, C16k, C18 and `--forge-solve` (frozen cells and the owner's 37 still pinned).
+  - **The trim tile** (D78): role `overlay finish.trim`, `tags tile band`, `on-region R` (the band mode, NEW): on every part
+    whose piece's tier is T4-T6, each 4-connected run of R pixels is widened inward from the part's outline to the tier's
+    width (T4 1 px, T5-T6 2), painted from the tile's cells (slot Metal 2 and its steps; the tile's view per tier `when
+    <slot>.t4` / `.t5` / `.t6`); it only adds pixels (a run already at width keeps every pixel) and never covers a face
+    (W7's box + 1), a G or N pixel or another part. C12b counts the tier's own trim (R recoloured or added, T3 up).
+  - **Compose guards** (D82): the gripL shield's pixels survive every other part's `-` cells (as held pixels survive the
+    helm erase). `form-<armour>` is set on every armoured body (D80).
+  - **The relics and the Mythic** (D83-D85): styleKitOf / needsOf give PARADE `helm fam.onion` and STARFALL `helm
+    fam.crystal` at every tier (their `helm.t5` / `.t6` views); a Mythic culture-alloy piece keeps metalKind 10, its
+    alloyStyle and alloyShape, and the slot's `mythic` flag adds the ember (N and R in Glow as FURNACE's, `overlay
+    collar.ember`, `overlay crest.flame` on Anchor::Crown); MYTHIC (style 10) only on Mythic bronze, iron, steel and relics.
+    Starmetal's crystal shoulders take their `when metal-starmetal` views first. The relic invariant: at one tier, opaque px
+    of the front walk's frame 0 gilded < obsidian < emberforged < starmetal, and the crystal the largest mass of its size.
+  - **Lines** (D86, D89): census::rankSlots keeps a two-alloy realm's king in his warriors' alloy's over-layer with no full
+    cape; the bandit chief's look calls `gear::rankTiers` after its outfit lines (T2 at home, T3 where liftRank lifts);
+    lookTier: an alloy draws T4 or more, a masterwork T5 only from band 4; `wpn=` takes every family name (unarmed and
+    crossbow included) and an unknown value is an error naming the tag.
 
 ## 4. Parts: anchors, layers, channels, keys
 
@@ -499,7 +545,9 @@ std::string describeEnvelope();                    // rpg_test --envelope: the t
 | effect | fx <family> | pivot (art_fx draws it) | fx / fxBack | fx: a1 a2 (strike, follow) per orientation |
 
 Round 2's parts (helm families, skirts, sleeves, chest motifs, the sash, the half-cape; the pauldron's layer over a cape)
-are in 3c.1.
+are in 3c.1. **A near-side or facing-D pauldron view never takes `layer headwear`** (PLAN D87): it rides armNear / armFar
+as this table says, so the head and face draw over a near pauldron's top rows in every side frame; D41's compose lift
+(head z -4, over the cloak's front) is its only raise. Far-side views are not touched by this rule.
 
 **Arms carry the grips.** Every arm view that holds something has `mark grip` (the main fist's centre) or `mark gripL`.
 **The hand over the grip** (NEW in the compositor): after a grip-anchored item is placed, the gripping arm's H pixels are
@@ -668,6 +716,17 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   one file per area that names keys (channel, key, facings, family, the frames that use it), written only by its area. The
   freeze manifest: `%TEMP%\claude\emb_P2c\wave2\freeze_e25ea41.txt` (`--doll-wear --freeze-write` at hour 0 by the
   integrator; `--freeze-check` at every integration).
+- **The fix round's hooks** (2026-10-29; DOLL publishes them as exe w2f1, `rpg_test_w2f1.exe` and `doll_gallery_w2f1.exe`,
+  in its first block; the integrator then `_int5` on): `rpg_test --doll-envelope --scope ladder [--seeds a..b] --ledger`
+  (per line and tier: the area, D and R, and each piece's add, the frame without the piece against with it, for the helm,
+  pauldrons, cloak, neck piece, skirt and hangs, over-layer and torso; the T2 head budget); `--doll-envelope --scope all`
+  under the restated caps; `--doll-ladder` adds the relic invariant; `--doll-wear --freeze-check F --report` attributes
+  every changed frame to a cause (a map file, a resolver rule, a clip) and is reported, not gated, until the owner signs
+  (PLAN D72); `--doll-coverage --scope all --gates` prints the `reserve` list (a part tagged `tags reserve` is kept and not
+  dead; only the planner adds to the list: motif plain and straps, and the pauldron sizes no source asks); doll_gallery's
+  `envelope:people:<people>` prints the ledger under each figure, and the bow and crossbow boards read "draw, loose".
+  Roots `%TEMP%\claude\emb_P2c\wave2f\areas\<KEY>\doll\`, reports `...\wave2f\areas\<KEY>\report.txt`, the keys board
+  `...\wave2f\keys\<KEY>.txt`.
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 
@@ -1401,3 +1460,106 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   flared.3, area 1026 to 1044; a people's kit line, kit=fjordfolk:3:5) and slice_nking 124 (FOLK-SIM-C's rankSlots: the
   king's over-layer forced to the cape at T5, halfcape to noble cloak). Both are intended changes to signed-off figures:
   the owner's sign-off and a new freeze, or the change taken back.
+
+### DOLL, the wave-2 fix round, r1 (2026-10-29; PLAN D72-D89; exe w2f1 = rpg_test_w2f1.exe, doll_gallery_w2f1.exe, BDIR build-proto)
+- **kEnvelope** (doll_envelope.h): row 0 cloakSideD 2; T4 cloakBack 4. Nothing else moved.
+- **The cloak ladder** (D73; doll_resolve ladderLook, gear_ladder): an alloy's over-layer clears only the cape dial
+  (E.cape); a worn cloak item stays behind TABARD, SASH, SCARF and NONE; CAPE = the noble cloak (cloak 3) in the people's
+  colour darkened; HALFCAPE = `cloak halfcape` alone (one Cloak-slot piece); either takes TIER_CLOAK = the body's tier at
+  least. T3 on a people's line: plates (size 2 -> 3) AND the cape where no cloak item is worn (an alloy's layer stands in).
+  ladderKit: the T3 cape on every people's line (dial 0 included), and the kit's cloak at TIER_CLOAK = the kit tier from T3
+  (the T4 travel cloak reads `cloak.t4`). `DollRecipe::kitCloak` marks a culture alloy whose worn cloak D73 kept.
+- **T2 / T4** (D74, D75): `t2Line` (a people's line at TIER_BODY 2) wears `neck cowl` in the scarf's place; flags
+  `people-<name>` (HumanLook::makerPeople, ADD: the body's maker people, gear::fillLadder) and `hem-plaid` (Highland) key the
+  cowl's people variants; a cowl with no view for the look's people is listed ("neck cowl people-<p> ... -> the base cowl").
+  T4: size 4 for every mass but NONE (the alloy mass lift and `peoplesLine` dials 2-3).
+- **ComposeOpts::noKitCloak** (D77): drops the Cloak parts of a `kitCloak` recipe and restores D41's lift as it was
+  (`pauldronTopAlloy`); `outlineOf(r, true)` in C16o, C18, --forge-solve (test_doll_shapes) and C16k (test_doll_envelope),
+  and the gallery's alloy outlines.
+- **The trim band** (D78; doll_compose trimBand): a tile part tagged `band` (`tags tile band`, `on-region R`, role
+  `overlay finish.trim`) is asked by every look with a T4-T6 piece where drawn. On each such piece's views every R run is
+  widened inward (4-connected distance from the view's outline) from its innermost pixels to W = 1 (T4) / 2 (T5-T6),
+  never into G, N, a step-0 pixel or a clear cell; existing R pixels keep theirs (only adds). Painted from the tile view
+  whose condition names the piece's tier (`<slot>.tN` or `tierN`, N == tier, else the nearest lower, else the base rest
+  view): row = depth from the outer edge (0 outer); a tile with 2 x W rows gives the bottom- and right-facing runs the lower
+  rows (the top-left lit); columns run along x + y on the part's grid. Cell semantics as region tiles (ink moves the step,
+  Glow writes it). C12b counts R pixels in Metal 2 from T3; T1-T2 reported, not gated.
+- **Compose guard** (D82): pixels a gripL `Role::Shield` part wrote survive every other part's `-` cells.
+- **Helm by the resolved tier** (D80): the C12f caps (`--scope all`), the envelope lines and C3b read
+  `DollRecipe::pieceTier` (after kitVar, the watch, D69 / D73), never the look's field; cloth headwear (headwear/cloth/**)
+  out of the column caps; T1 measured without its cloak against the same look with every gear part off (t1Figure).
+- **The climb's rulings** (D76): `rulingFor` honours only a ratio term ("T<n> area <q> of T1 (<aim>)") 0.05 short or less;
+  steps, heads and the Mythic never (4 new selftests). `--doll-envelope --scope ladder --ledger`: under each line, per tier
+  the area, the ratio, the step and each piece's add (helm, pauldrons, cloak, neck, skirt, layer, torso: the frame without the
+  piece against with it), and T2's head budget. doll_gallery `envelope:people:<p>` prints C / S / H / N adds under each figure.
+- **The relics and the Mythic** (D83-D85): PARADE wears `helm fam.onion`, STARFALL `helm fam.crystal`, a Mythic relic helm
+  (HumanLook::relicHelm, ADD: gear::fillLadder from a Mythic steel helm of band 4-7) its metal's family; at T5-T6 only once
+  that family draws a `helm.t<N>` view that does not ask `alloyshape` (else today's helm, listed "helm fam.<f> T<N> view
+  (D83) -> today's helm"). metalKindOf: a Mythic alloy keeps 10 (MYTHIC = 11 for bronze, iron, steel and relics only);
+  `mythicAlloy` pieces take R and N in Glow, `overlay collar.ember` in the collar's place and `overlay crest.flame` in the
+  crest's (listed when not drawn). C19 A5's warm share and helm luma range read `forge-mythic` looks only. NEW gate line
+  `relic invariant` in `--doll-ladder`: hero and heroine at T5 and T6 (kit=heartland, mat=gilded / obsidian / ember /
+  starmetal) front walk px strictly climbing, and crystal.N the largest base-view mass of each size N (its `when
+  metal-starmetal replace` view where drawn).
+- **C3** (D81, D82): the probe names a held part by its library value wherever its map lists it (the spear is checked; A3's
+  held/weapons/sword stays out, contracts 2's exception); the probe falls back to handR / handL for the grip as the
+  compositor places it; C3d asks the off fist only on DRAWN and ACTION frames; NEW: no weapon pixel more than 2 rows below
+  the sole row on an upright frame; a hidden gripping hand (facing U, or the far arm) still fails, tagged "[hidden hand ...;
+  ruling proposed]". C3c facing U: attached when the shield touches the cloak part that covers the grip.
+- **C1** (D79): `--doll-coverage --scope all` adds sources F, L (seeds 1..3 + the envelope looks) and M8-M12; `reserve`
+  parts (map tag `reserve`, motif plain / straps, pauldron sizes no source asks) are listed, never dead; the strike maps art_fx
+  draws (`fx heavy chop smash stab swish punch`) are listed apart (contracts 4); a child carries (emigration: Carry v0).
+  maps/held/props: WEAPONS' spoon_child.pxm and bread_child.pxm, unchanged.
+- **Ramps** (D88; doll_ramps rampsOf, FIX_COLOUR): partSafe moves (cloth1 off skin, leather off hair and cloth1, accent
+  off leather, cloak off leather) that never close a pair already 18 apart; T1-T2 leather and shirt climb together to a
+  step-1 of 80 where no pair closes; a culture alloy's step 1 re-lifted to 80 after the round-2 read inside the caps (45 %
+  of step 3, 12 under step 2, 61 under step 3), its glint toward 245 where it held step 3 down; every cloak's step 3 at 86
+  and step 1 at 82 where step 2 allows. C14: GLASS alloys held to their own step 1.
+- **Lines** (D86, D89): the bandit chief `gear::retierLook` T2 (T3 where the place's danger band is 4+) in game.cpp (plus
+  `#include "rpg/sim/gear_look.h"`); census::rankSlots: a T5 king below the masterwork (alloyRank < 3) keeps his alloy's
+  layer and his cloak's tier is cleared, which the resolver reads as "no full cape" (L.cloak, v1's, untouched); the forced
+  LY_CAPE is gone. lookTier: a culture alloy T4 or more, a masterwork T5 only from band 4. `wpn=` takes sword axe mace
+  dagger greatsword spear bow crossbow staff unarmed (crossbow: the bow item in BowKind::Crossbow form; unarmed: nothing in
+  hand, no shield); any other value is a bad-look error naming it. The actions board prints "DRAW, LOOSE" for bow looks.
+- **The freeze, reported** (D72): `--doll-wear --freeze-check F --report [--freeze-old-pool P] [--pool Q]` prints per look
+  "freeze cause <tag> N frames; rule D73 ... n; maps / clips since the manifest's pool n; wave 2's code before this round n"
+  and the look's maps whose drawing changed. The rules are `doll::fixRules()` bits (doll_envelope.h FixRule: FIX_CLOAK,
+  FIX_T2, FIX_T4, FIX_TRIM, FIX_SHIELD, FIX_RELIC, FIX_LINES, FIX_COLOUR), all on everywhere but this report.
+
+### DOLL, the wave-2 fix round, r2 (2026-10-29; the judge's fix-round-1 items; BDIR build-proto, embedded pool = fr1)
+
+- **noKitCloak, restated (D77; item 2, the shape table).** `DollRecipe::layerCloakT3`: a culture alloy whose over-layer IS its
+  cloak (CAPE, HALFCAPE) composes, under `ComposeOpts::noKitCloak`, with the `cloak.t4`..`cloak.t6` flags off: its cloak at its
+  T3 view, the footprint the table was solved on. The tier ladder's T4-T6 cloak views (D73) are tier adds every line shares, so
+  ARMOUR's officer's cloak (`when cloak.t4,!cloak.t5`) no longer moves C16d / C16o / C18 / `--forge-solve`. Material styles keep
+  their worn cloak in the measure (leaving it out measured 199 rule failures: the table was solved with it). The table was
+  re-solved warm (`--forge-solve --keep`, frozen cells pinned): rpg/sim/gear_forge_shapes.inc, 63 lines changed.
+- **The Mythic by construction (D84).** `HumanLook::relicBody` (derived by gear::fillLadder, never saved; key() at rig 2 when
+  set): a Mythic relic body keeps its metal's outline under MYTHIC's finish (STARFALL's split skirt, FURNACE's heavy arms). A
+  Mythic culture-alloy helm keeps its own crest with the flame crown seated over it.
+- **C14 (D88).** The parting adds the metal off the hair (`partSafe(Metal, {Hair})`): steps 2-4 move, step 1 (the lit edge) is
+  kept while 8 under step 2; the glint capped at 250 luma and kept 4 over the lit plane; C17's plate read and dE terms held.
+- **C12f T1 column (D80).** `t1Outside` leaves out `headwear/cloth/**` (as the head columns do) and a helm whose resolved tier is
+  2 or more (it has its own head caps). Selftest: a T4 body measured as T1 with its helm left out still fails (C12f 11/11).
+- **Diagnostics.** `EMB_FIX_RULES=<mask>` starts `doll::fixRules()` with that mask (unset everywhere else).
+
+### DOLL, the wave-2 fix round, r3 (2026-10-29; the judge's fix-round-2 items; BDIR build-proto, embedded pool = the tree's r2 gen)
+- **Compose, the shield under an erased overpaint (D82; SHIELDS' r2 proposal, adopted).** The gripL shield's last pixel under
+  each canvas cell is kept (code, region, item). A part that paints over the shield and is then cleared by a later part's `-`
+  cell shows the shield again, never a hole through it. With `FIX_SHIELD` off, nothing changes.
+- **C1 reserve (D79 "by design").** `forge/cut/splinted`, `forge/edge/fringed`, `forge/edge/spiked` and `forge/fit/knot` are listed
+  `reserve`. Forge round 2 retired the cut, edge, limb and fittings of every culture alloy (3c.1, gear_forge.cpp alloyStyle), and no
+  hero style's column names these values. `forge/cut/brick`, `forge/cut/diamond` and `back/staff` can be reached in a world, so
+  source F reaches them: tools/doll/forge_looks.txt g_cov6 (FOUNDRY on a padded body), g_cov7 (PARADE on a padded body) and
+  g_cov8 (a T1 sword fighter with his staff on his back). These looks are embedded and gated like every F look.
+- **Ramps (D88), after the parting pass.** A pair the first mover cannot part tries its other side (leather off the accent, the
+  shirt off the leather, the leather off the cloak). Where no whole-ramp move parts the metal from the hair, step 2 moves alone,
+  between step 1 + 12 and step 3 - 30. On a T1-T2 figure, the leather parts with step 1 at 80 luma or more where such a move exists
+  (a finer 0.005 search), else as before. The Heartland's own kit at T1-T3 is left alone (D72). The second lift (mk 10) now raises
+  the lit plane when the dark-core rule caps step 1, and the body when step 2 caps it (the first lift's rules: 15 under the glint,
+  18 off the skin and hair, 22 under the lit plane, round-2 read kept). The Mythic's black steel takes its step 1 up to 82 luma,
+  8 under step 2 at most.
+- **Diagnostics (tests only).** `--doll-recipe T --regions`: idle D and R cropped, with the R/P/G/N/W regions and each part's R
+  and trim count. `--doll-recipe T --orphans`: the lone pixels in every DEATH frame and the part that drew them.
+  `ENV_DEBUG_TAG=<tag>` (`--doll-envelope --scope all`): one look's parts, its T1 pixels outside the outline, and its part
+  extents from the head anchor. `B8_DEBUG=1`: where each orphan is.

@@ -104,7 +104,10 @@ const char* kForgeLooks =   // (P2c forge) tools/doll/forge_looks.txt (tools/dol
     "lying\n"
     "g_cov3w  woman  kit=imperial:4:1,alloy=1,palette=look,shape=skirt:strips  stay,walk,run,didle,hit1,hurt,fall,lying\n"
     "g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard  stay,walk,run,didle,hit1,hurt,fall,lying\n"
-    "g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell  stay,walk,run,didle,hit1,hurt,fall,lying\n";
+    "g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_cov6   man    kit=highland:2:1,forge=foundry,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_cov7   man    kit=highland:2:1,forge=parade,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n"
+    "g_cov8   man    kit=heartland:1:1,wpn=sword,backItem=2,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying\n";
 std::string dollForgeLooksTextLocal() { return kForgeLooks; }
 
 namespace F = art::doll::forge;

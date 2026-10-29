@@ -7,7 +7,8 @@
 # iridescent alloy's Metal 2 is its hue-turned ramp, so the courses alternate two hues), keyed by the cut.
 use person
 role overlay sheen.glowing
-tags tile overlay
+# (FINISH wave-2 fix r2, D79) RESERVE: the engine writes a glowing alloy's seams in Glow from T4 (flag sheen-glowing, D28/D40 glowseams); no resolver asks `overlay sheen.glowing`. Kept drawn, listed, never deleted (D49).
+tags tile overlay reserve
 on-region N
 legend g glow 2
 legend ! glow 3

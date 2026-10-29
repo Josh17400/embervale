@@ -5,8 +5,15 @@
 # (P2c slice iteration 1, INTEGRATE) SLICE-ARMS's proposed lines committed: the drawn idle / walk / run moved to `part drawn`,
 # every clip gated `when bow` (a fighter's: a civil trade with the same tool keeps the generic clips).
 # (P2c wave 2, ACTIONS-2H) `when bow,!bow-crossbow`: the crossbow's lines are crossbow.clip's.
+# (wave-2 fix round, ACTIONS r1, PLAN D81: no weapon pixel more than 2 rows below the sole row) the longbow is a row too long
+# for the low hold facing D / U on the breath and step frames (its lower limb 3 rows under the soles): it holds the drawn
+# idle and walk facing D / U at the nock (bw_nock, held=nock), the bow a row higher with the arrow on the string.
 
 body man
+clip idle D part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1 expr=blink
 clip idle D part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest bob=1
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest
@@ -17,6 +24,10 @@ f armL=bw_draw armR=bw_draw held=draw legs=drawn neck=rest sheath=drawn torso=re
 f armL=bw_full armR=bw_full held=full legs=drawn neck=rest sheath=drawn torso=rest expr=fierce ms=120
 clip release D family bow variant 0 when bow,!bow-crossbow
 f armL=bw_rel armR=bw_rel held=release legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=80
+clip idle U part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
 clip idle U part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest bob=1
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest
@@ -49,6 +60,10 @@ clip release L family bow variant 0 when bow,!bow-crossbow
 f armL=bw_rel armR=bw_rel held=release legs=guard neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=80
 
 body woman
+clip idle D part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1 expr=blink
 clip idle D part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest bob=1
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest
@@ -59,6 +74,10 @@ f armL=bw_draw armR=bw_draw held=draw legs=drawn neck=rest sheath=drawn torso=re
 f armL=bw_full armR=bw_full held=full legs=drawn neck=rest sheath=drawn torso=rest expr=fierce ms=120
 clip release D family bow variant 0 when bow,!bow-crossbow
 f armL=bw_rel armR=bw_rel held=release legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=80
+clip idle U part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest
+f armL=bw_nock armR=bw_nock held=nock legs=drawn neck=rest sheath=drawn torso=rest bob=1
 clip idle U part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest bob=1
 f armL=bw_low armR=bw_low held=low legs=drawn neck=rest sheath=drawn torso=rest
@@ -92,6 +111,13 @@ f armL=bw_rel armR=bw_rel held=release legs=guard neck=rest sheath=drawn torso=r
 
 # the drawn walk (variant 1) and run (variant 2): the sword's drawn lines, the bow low, an arrow nocked
 body man
+clip walk D part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
+f armL=bw_nock armR=bw_nock held=nock legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock legs=walkB neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+f armL=bw_nock armR=bw_nock held=nock legs=walkC neck=rest sheath=drawn torso=rest sway=1 plant=6:3
+f armL=bw_nock armR=bw_nock held=nock legs=walkC2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock legs=walkD neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
 clip walk D part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
 f armL=bw_low armR=bw_low held=low legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
@@ -99,6 +125,13 @@ f armL=bw_low armR=bw_low held=low legs=walkB neck=rest sheath=drawn torso=rest 
 f armL=bw_low armR=bw_low held=low legs=walkC neck=rest sheath=drawn torso=rest sway=1 plant=6:3
 f armL=bw_low armR=bw_low held=low legs=walkC2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing
 f armL=bw_low armR=bw_low held=low legs=walkD neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+clip walk U part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
+f armL=bw_nock armR=bw_nock held=nock legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock legs=walkB neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
+f armL=bw_nock armR=bw_nock held=nock legs=walkC neck=rest sheath=drawn torso=rest sway=1 plant=6:3
+f armL=bw_nock armR=bw_nock held=nock legs=walkC2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock legs=walkD neck=rest sheath=drawn torso=rest tuft=up plant=0:-3 crest=up
 clip walk U part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low legs=walkA neck=rest sheath=drawn torso=rest sway=-1 plant=6:3
 f armL=bw_low armR=bw_low held=low legs=walkA2 neck=rest sheath=drawn torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing
@@ -149,6 +182,13 @@ f armL=bw_low armR=bw_low held=low legs=run4 neck=flow2 sheath=drawn torso=runl 
 f armL=bw_low armR=bw_low held=low legs=run5 neck=flow2 sheath=drawn torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run
 f armL=bw_low armR=bw_low held=low legs=run6 neck=flow2 sheath=drawn torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
 body woman
+clip walk D part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=swing hang=rest legs=walkA2 sheath=drawn torso=swing bob=1 sway=-1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkB sheath=drawn torso=rest plant=0:-3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkC sheath=drawn torso=rest sway=1 plant=6:3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=swing hang=rest legs=walkC2 sheath=drawn torso=swing bob=1 sway=1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest
 clip walk D part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
 f armL=bw_low armR=bw_low held=low hair=swing hang=rest legs=walkA2 sheath=drawn torso=swing bob=1 sway=-1 plant=3:0 braid=swing
@@ -156,6 +196,13 @@ f armL=bw_low armR=bw_low held=low hair=rest hang=rest legs=walkB sheath=drawn t
 f armL=bw_low armR=bw_low held=low hair=rest hang=rest legs=walkC sheath=drawn torso=rest sway=1 plant=6:3 braid=rest
 f armL=bw_low armR=bw_low held=low hair=swing hang=rest legs=walkC2 sheath=drawn torso=swing bob=1 sway=1 plant=3:0 braid=swing
 f armL=bw_low armR=bw_low held=low hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest
+clip walk U part drawn family bow variant 1 when bow,bow-longbow
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=swing hang=rest legs=walkA2 sheath=drawn torso=rest bob=1 sway=-1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkB sheath=drawn torso=rest plant=0:-3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkC sheath=drawn torso=rest sway=1 plant=6:3 braid=rest
+f armL=bw_nock armR=bw_nock held=nock hair=swing hang=rest legs=walkC2 sheath=drawn torso=rest bob=1 sway=1 plant=3:0 braid=swing
+f armL=bw_nock armR=bw_nock held=nock hair=rest hang=rest legs=walkD sheath=drawn torso=rest plant=0:-3 braid=rest
 clip walk U part drawn family bow variant 1 when bow,!bow-crossbow
 f armL=bw_low armR=bw_low held=low hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
 f armL=bw_low armR=bw_low held=low hair=swing hang=rest legs=walkA2 sheath=drawn torso=rest bob=1 sway=-1 plant=3:0 braid=swing

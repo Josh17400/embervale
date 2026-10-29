@@ -11,7 +11,9 @@
 # (FORGE-MARKS forge i3) splinted: period 4, vertical strips: a lit left edge, the plane, a dark gap (N), a rivet head every 4th row.
 use person
 role overlay cut.splinted
-tags tile overlay on-slot:metal
+# (FINISH wave-2 fix round r3, D79) RESERVE: a culture alloy's forge value retired by forge round 2 (contracts 3c.1) that no
+# hero style's column names, so no look of sources A-E, F, L or M asks it. Kept drawn and listed (D49), never dead.
+tags tile overlay on-slot:metal reserve
 legend + ink 3
 legend ^ ink 4
 legend : ink 1

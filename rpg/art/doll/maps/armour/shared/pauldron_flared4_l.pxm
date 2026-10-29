@@ -169,7 +169,7 @@ regions
 view R key lie origin 0 0
 |.
 
-view L key rest origin 2 3 layer headwear
+view L key rest origin 2 3
 |........vv
 |........vv
 |......vvwv
@@ -188,7 +188,7 @@ regions
 |..NNNNN...
 |..........
 
-view L key up origin 2 4 layer headwear
+view L key up origin 2 4
 |........vv
 |........vv
 |......vvwv

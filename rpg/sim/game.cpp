@@ -12,6 +12,7 @@
 #include "rpg/sim/anim.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_look.h"   // (P2c wave-2 fix round, D86) the bandit chief's ladder tier
 #include "rpg/sim/home.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/magic_ops.h"
@@ -1864,6 +1865,9 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
     if (sp.boss) {
       a.boss = true; a.maxHp *= 3; a.hp = a.maxHp; a.dmg *= 1.4f; a.xp *= 4; a.name = "BANDIT CHIEF";
       a.look.outfit = art::Outfit::Plate; a.look.helmet = true; a.look.weapon = 2; a.look.cape = true; a.look.tabardColor = rgba(60, 40, 40);
+      // (P2c wave-2 fix round, D86) his ladder tier in the plate he wears: T2 at home, T3 in far lands (where liftRank lifts the
+      // bandits: the place's danger band 4 or more); ladder fields only, rig 1 never reads them
+      retierLook(a.look, gear::bandOf(st.level) >= 4 ? 3 : 2, nullptr);
     }
     foeSpawned(a, st.level);   // M6: bandits in their land's poorer arms, elites (foes_game.cpp)
   } else {

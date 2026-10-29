@@ -1276,6 +1276,43 @@ void frozenFrames(const WLook& w, std::map<std::string, uint64_t>& out) {
     }
   }
 }
+// (wave-2 fix round, D72) every changed frame attributed to its cause: this round's rules (doll::FixRule: the frame differs
+// with the rule off), the maps and clips since the manifest's pool (with --freeze-old-pool P, the manifest's pool compiled
+// from git: the frame holds its hash there with every rule off, and the look's parts whose drawing changed are named), and
+// what is left: wave 2's code before this round (the resolver, the compositor)
+const char* g_freezeOld = nullptr;
+std::string g_freezeNew;   // the pool the check runs on ("" the embedded one)
+uint64_t partSig(int pi) {
+  const doll::pool::Pool& P = doll::pool::get();
+  const doll::pool::PartRec& pr = P.parts[(size_t)pi];
+  uint64_t h = 1469598103934665603ull;
+  for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews && vi < P.views.size(); vi++) {
+    const doll::pool::ViewRec& v = P.views[vi];
+    const int16_t hd[6] = {(int16_t)v.w, (int16_t)v.h, (int16_t)v.ox, (int16_t)v.oy, (int16_t)v.facing, (int16_t)v.layer};
+    h = fnv(h, hd, sizeof hd);
+    const std::string k = P.s(v.key) + "|" + (v.when ? P.s(v.when) : std::string());
+    h = fnv(h, k.data(), k.size());
+    if (!v.cells.empty()) h = fnv(h, v.cells.data(), v.cells.size());
+    if (!v.regions.empty()) h = fnv(h, v.regions.data(), v.regions.size());
+  }
+  return h;
+}
+std::map<std::string, uint64_t> poolSigs() {
+  std::map<std::string, uint64_t> out;
+  const doll::pool::Pool& P = doll::pool::get();
+  for (size_t i = 0; i < P.parts.size(); i++) out[P.s(P.parts[i].name)] = partSig((int)i);
+  return out;
+}
+bool reloadPool(const char* file) {
+  std::string err;
+  if (file && *file) {
+    const bool ok = doll::loadPoolFile(file, &err);
+    if (!ok) std::printf("FAIL: freeze: cannot reload the pool %s (%s)\n", file, err.c_str());
+    return ok;
+  }
+  doll::useEmbeddedPool();
+  return true;
+}
 int freeze(const char* file, bool write) {
   const std::vector<WLook> looks = matrix("");
   if (write) {
@@ -1345,6 +1382,62 @@ int freeze(const char* file, bool write) {
       if (g_rep || changed <= 20) std::printf("  freeze CHANGED %s %s\n", w.tag.c_str(), kv.first.c_str());
     }
     for (const auto& kv : fr) if (!it->second.count(kv.first)) extra++;
+    // (D72) the causes of this look's changed frames
+    if (g_rep && byLook.count(w.tag)) {
+      std::vector<std::string> ch;
+      for (const auto& kv : it->second) { auto j = fr.find(kv.first); if (j != fr.end() && j->second != kv.second) ch.push_back(kv.first); }
+      std::map<std::string, int> cause;
+      static const struct { uint32_t bit; const char* name; } kRules[] = {
+          {doll::FIX_CLOAK, "rule D73 cloak ladder"}, {doll::FIX_T2, "rule D74 T2 cowl"}, {doll::FIX_T4, "rule D75 T4 size 4"}, {doll::FIX_TRIM, "rule D78 trim band"},
+          {doll::FIX_SHIELD, "rule D82 shield guard"}, {doll::FIX_RELIC, "rule D83-D84 relic / Mythic"}, {doll::FIX_LINES, "rule D86 lines"}, {doll::FIX_COLOUR, "rule D88 colour"}};
+      std::set<std::string> byRule;
+      for (const auto& ru : kRules) {
+        doll::fixRules() = doll::FIX_ALL & ~ru.bit;
+        std::map<std::string, uint64_t> alt;
+        frozenFrames(w, alt);
+        for (const std::string& k : ch) if (alt[k] != fr[k]) { cause[ru.name]++; byRule.insert(k); }
+      }
+      doll::fixRules() = doll::FIX_ALL;
+      int poolOnly = 0, code = 0;
+      std::set<std::string> parts;
+      if (g_freezeOld) {
+        static std::map<std::string, uint64_t> sigNew, sigOld;
+        if (sigNew.empty()) {
+          sigNew = poolSigs();
+          reloadPool(g_freezeOld);
+          sigOld = poolSigs();
+          reloadPool(g_freezeNew.c_str());
+        }
+        doll::fixRules() = 0;
+        reloadPool(g_freezeOld);
+        std::map<std::string, uint64_t> old0;
+        frozenFrames(w, old0);
+        reloadPool(g_freezeNew.c_str());
+        doll::fixRules() = doll::FIX_ALL;
+        for (const std::string& k : ch) {
+          if (old0[k] == it->second[k]) { if (!byRule.count(k)) poolOnly++; }
+          else code++;
+        }
+        const Parsed pp = parse(w);
+        const doll::DollRecipe rr = recipeOf(pp);
+        const doll::pool::Pool& P = doll::pool::get();
+        for (int pi : rr.parts) {
+          const std::string nm = P.s(P.parts[(size_t)pi].name);
+          auto o = sigOld.find(nm);
+          if (o == sigOld.end()) parts.insert(nm + " (new)");
+          else if (o->second != sigNew[nm]) parts.insert(nm);
+        }
+      }
+      std::string why;
+      for (const auto& kv : cause) why += fmt("; %s %d", kv.first.c_str(), kv.second);
+      if (g_freezeOld) why += fmt("; maps / clips since the manifest's pool %d; wave 2's code before this round %d", poolOnly, code);
+      std::printf("  freeze cause %-26s %zu frames%s\n", w.tag.c_str(), ch.size(), why.c_str());
+      if (!parts.empty()) {
+        std::string pl;
+        for (const std::string& x : parts) pl += " " + x;
+        std::printf("    changed maps in its recipe:%s\n", pl.c_str());
+      }
+    }
   }
   std::printf("  freeze: %zu frames checked, %d changed, %d gone, %d new frames, %d looks not in the manifest; %d changed as ruled (freeze_accepted.txt)\n", checked, changed, missing, extra, newLooks, okChanged);
   for (const auto& kv : byLook) std::printf("  freeze changed %-28s %d frames\n", kv.first.c_str(), kv.second);
@@ -1580,11 +1673,12 @@ int wearCmd(int argc, char** argv) {
   const char *fpTag = nullptr, *fpPart = nullptr, *fpOut = nullptr;   // --frame-png TAG PART F CLIP VARIANT I OUT.png (a freeze line's frame, 8x)
   int fpF = 0, fpC = 0, fpV = 0, fpI = 0;
   for (int i = 1; i < argc; i++) {
-    if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) pool = argv[++i];
+    if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) { pool = argv[++i]; g_freezeNew = pool; }   // (D72: the freeze report reloads it)
     else if (!std::strcmp(argv[i], "--looks") && i + 1 < argc) looksFile = argv[++i];
     else if (!std::strcmp(argv[i], "--matrix") && i + 1 < argc) filter = argv[++i];
     else if (!std::strcmp(argv[i], "--frames") && i + 1 < argc) framesDir = argv[++i];
     else if (!std::strcmp(argv[i], "--freeze-write") && i + 1 < argc) frzW = argv[++i];
+    else if (!std::strcmp(argv[i], "--freeze-old-pool") && i + 1 < argc) g_freezeOld = argv[++i];   // (D72) attribution
     else if (!std::strcmp(argv[i], "--freeze-check") && i + 1 < argc) frzC = argv[++i];
     else if (!std::strcmp(argv[i], "--report")) g_rep = true;
     else if (!std::strcmp(argv[i], "--selftest")) self = true;

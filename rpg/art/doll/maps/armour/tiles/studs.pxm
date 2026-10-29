@@ -4,7 +4,7 @@
 use person
 body adult
 role overlay studs
-tags tile overlay
+tags tile overlay reserve
 on-region F
 
 view D key rest origin 0 0

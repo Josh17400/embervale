@@ -3,6 +3,13 @@
 # diagonal at full reach, swinging through), hit 2 the rising strike, hit 3 the overhead smash (the finisher: the
 # staff overhead, the smash level at the ground line, the bounce), the block (the haft up across), the drawn walk / run.
 # A fighter's staff (`when staff`); the walking stick and a civil staff keep the generic clips. Timing at pace 1.0.
+# (wave-2 fix round, ACTIONS r1: B12 BOOT on m11_staff drun L5) the drawn run facing L leans a step further at each
+# bound (frames 2 and 5, the flight: lean -5), which carries the staff a pixel forward so its butt clears the far boot
+# (it left a 1 px sliver of it). The angles stay a045 / a135: D81 asks both fists on the haft line in a drawn frame.
+# (PLAN D81: no weapon pixel more than 2 rows below the sole row) hit 2 coils twice on st_2a (frame 2 keeps frame 1's
+# arms and angle, a202 / a337, and crouches a row deeper): st_2b's low coil hung the staff 8-10 rows under the soles
+# and no angle on st_2b holds both fists on the haft above the ground; hit 1's follow facing L keeps a225 standing a
+# row taller (no bob), its staff 3 rows under the soles before.
 
 body man
 clip idle D part drawn family staff variant 1 when staff
@@ -20,7 +27,7 @@ f armL=st_1f armR=st_1f weapon=337.5,front legs=drawn neck=rest sheath=drawn tor
 f armL=st_guard armR=st_guard weapon=22.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup D family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=32 at=0,-1
-f armL=st_2b armR=st_2b weapon=225,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,-1
+f armL=st_2a armR=st_2a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,-1
 clip strike D family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=45,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=44 at=0,1
 f armL=st_2s armR=st_2s weapon=45,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=66 at=0,1
@@ -55,7 +62,7 @@ f armL=st_1f armR=st_1f weapon=202.5,back legs=drawn neck=rest sheath=drawn tors
 f armL=st_guard armR=st_guard weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup U family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=32 at=0,1
-f armL=st_2b armR=st_2b weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,1
+f armL=st_2a armR=st_2a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,1
 clip strike U family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=44 at=0,-1
 f armL=st_2s armR=st_2s weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=66 at=0,-1
@@ -90,7 +97,7 @@ f armL=st_1f armR=st_1f weapon=315,front legs=lunge neck=rest sheath=drawn torso
 f armL=st_guard armR=st_guard weapon=45,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup R family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=202.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-1 ms=32 at=-1,0
-f armL=st_2b armR=st_2b weapon=225,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=-2 ms=38 at=-2,0
+f armL=st_2a armR=st_2a weapon=202.5,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=-2 ms=38 at=-2,0
 clip strike R family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=45,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=2 ms=44 at=2,0
 f armL=st_2s armR=st_2s weapon=45,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=2 ms=66 at=2,0
@@ -121,11 +128,11 @@ clip strike L family staff variant 0 when staff
 f armL=st_1s armR=st_1s weapon=202.5,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-3 ms=44 at=-2,0
 f armL=st_1s armR=st_1s weapon=202.5,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-3 ms=66 at=-2,0
 clip follow L family staff variant 0 when staff
-f armL=st_1f armR=st_1f weapon=225,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide fx=a2 bob=1 lean=-2 ms=65 at=-2,0
+f armL=st_1f armR=st_1f weapon=225,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide fx=a2 lean=-2 ms=65 at=-2,0
 f armL=st_guard armR=st_guard weapon=135,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup L family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=337.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=1 ms=32 at=1,0
-f armL=st_2b armR=st_2b weapon=315,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=2 ms=38 at=2,0
+f armL=st_2a armR=st_2a weapon=337.5,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=2 ms=38 at=2,0
 clip strike L family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=135,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=-2 ms=44 at=-2,0
 f armL=st_2s armR=st_2s weapon=135,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=-2 ms=66 at=-2,0
@@ -162,7 +169,7 @@ f armL=st_1f armR=st_1f weapon=337.5,front legs=drawn neck=rest sheath=drawn tor
 f armL=st_guard armR=st_guard weapon=22.5,front legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup D family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=32 at=0,-1
-f armL=st_2b armR=st_2b weapon=225,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,-1
+f armL=st_2a armR=st_2a weapon=202.5,front legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,-1
 clip strike D family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=45,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=44 at=0,1
 f armL=st_2s armR=st_2s weapon=45,front legs=drawn neck=rest sheath=drawn torso=rest expr=fierce fx=a1 ms=66 at=0,1
@@ -197,7 +204,7 @@ f armL=st_1f armR=st_1f weapon=202.5,back legs=drawn neck=rest sheath=drawn tors
 f armL=st_guard armR=st_guard weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup U family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=32 at=0,1
-f armL=st_2b armR=st_2b weapon=315,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,1
+f armL=st_2a armR=st_2a weapon=337.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=38 at=0,1
 clip strike U family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=44 at=0,-1
 f armL=st_2s armR=st_2s weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=66 at=0,-1
@@ -232,7 +239,7 @@ f armL=st_1f armR=st_1f weapon=315,front legs=lunge neck=rest sheath=drawn torso
 f armL=st_guard armR=st_guard weapon=45,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup R family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=202.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=-1 ms=32 at=-1,0
-f armL=st_2b armR=st_2b weapon=225,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=-2 ms=38 at=-2,0
+f armL=st_2a armR=st_2a weapon=202.5,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=-2 ms=38 at=-2,0
 clip strike R family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=45,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=2 ms=44 at=2,0
 f armL=st_2s armR=st_2s weapon=45,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=2 ms=66 at=2,0
@@ -263,11 +270,11 @@ clip strike L family staff variant 0 when staff
 f armL=st_1s armR=st_1s weapon=202.5,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-3 ms=44 at=-2,0
 f armL=st_1s armR=st_1s weapon=202.5,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 bob=1 lean=-3 ms=66 at=-2,0
 clip follow L family staff variant 0 when staff
-f armL=st_1f armR=st_1f weapon=225,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide fx=a2 bob=1 lean=-2 ms=65 at=-2,0
+f armL=st_1f armR=st_1f weapon=225,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide fx=a2 lean=-2 ms=65 at=-2,0
 f armL=st_guard armR=st_guard weapon=135,front legs=guard neck=rest sheath=drawn torso=rest bob=1 ms=65
 clip windup L family staff variant 1 when staff
 f armL=st_2a armR=st_2a weapon=337.5,back legs=stance neck=rest sheath=drawn torso=rest bob=1 lean=1 ms=32 at=1,0
-f armL=st_2b armR=st_2b weapon=315,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=2 ms=38 at=2,0
+f armL=st_2a armR=st_2a weapon=337.5,back legs=stance neck=rest sheath=drawn torso=rest bob=2 lean=2 ms=38 at=2,0
 clip strike L family staff variant 1 when staff
 f armL=st_2s armR=st_2s weapon=135,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=-2 ms=44 at=-2,0
 f armL=st_2s armR=st_2s weapon=135,front legs=lunge neck=rest sheath=drawn torso=rest hang=wide expr=fierce fx=a1 lean=-2 ms=66 at=-2,0
@@ -342,10 +349,10 @@ f armL=st_guard armR=st_guard weapon=45,front legs=run6 neck=flow sheath=drawn t
 clip run L part drawn family staff variant 2 when staff
 f armL=st_guard armR=st_guard weapon=135,front legs=run1 neck=flow2 sheath=drawn torso=runl hang=flare lean=-4 plant=1:-5 hip=-2,0 hair=run braid=run
 f armL=st_guard armR=st_guard weapon=135,front legs=run2 neck=flow2 sheath=drawn torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run
-f armL=st_guard armR=st_guard weapon=135,front legs=run3 neck=flow2 sheath=drawn torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
+f armL=st_guard armR=st_guard weapon=135,front legs=run3 neck=flow2 sheath=drawn torso=runl hang=flare lean=-5 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
 f armL=st_guard armR=st_guard weapon=135,front legs=run4 neck=flow2 sheath=drawn torso=runl hang=flare lean=-4 plant=1:-5 hip=-2,0 hair=run braid=run
 f armL=st_guard armR=st_guard weapon=135,front legs=run5 neck=flow2 sheath=drawn torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run
-f armL=st_guard armR=st_guard weapon=135,front legs=run6 neck=flow2 sheath=drawn torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
+f armL=st_guard armR=st_guard weapon=135,front legs=run6 neck=flow2 sheath=drawn torso=runl hang=flare lean=-5 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up
 body woman
 clip walk D part drawn family staff variant 1 when staff
 f armL=st_guard armR=st_guard weapon=22.5,front hair=rest hang=rest legs=walkA sheath=drawn torso=rest sway=-1 plant=6:3 braid=rest
@@ -399,9 +406,9 @@ f armL=st_guard armR=st_guard weapon=45,front hair=run hang=flare legs=run6 shea
 clip run L part drawn family staff variant 2 when staff
 f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run1 sheath=drawn torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run
 f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run2 sheath=drawn torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run
-f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run3 sheath=drawn torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up
+f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run3 sheath=drawn torso=runl lean=-5 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up
 f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run4 sheath=drawn torso=runl lean=-4 plant=1:-5 hip=-3,0 braid=run
 f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run5 sheath=drawn torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run
-f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run6 sheath=drawn torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up
+f armL=st_guard armR=st_guard weapon=135,front hair=run hang=flare legs=run6 sheath=drawn torso=runl lean=-5 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up
 body man.elder
 body woman.elder

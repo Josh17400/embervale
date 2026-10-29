@@ -1,0 +1,60 @@
+# held/props/bread_child: the child's round loaf, broken, in the right hand for Eat (WEAPONS w2r3, a proposal for the
+# planner: held/props is frozen in wave 2). The adult loaf (held/props/bread) cut to the child's 21 px: 4 x 4, the crust in
+# cloth 3, lit top-left. Format: rpg/art/doll/doll.h. Anchored on the child's right shoulder (kin/child/arms/arm_r) at the
+# pose arms' grips (hold, mouth), the views and layers as the adult's.
+use person
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+body child
+role held bread
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 0 layer neck
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view D key mouth origin -3 4 layer beard
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view U key hold origin 7 0 layer heldBack
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view U key mouth origin 6 -14 layer heldBack
+|.
+
+view R key hold origin -4 0 layer neck
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view R key mouth origin -5 4 layer hairFront
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view L key hold origin 6 0 layer hairBack
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.
+
+view L key mouth origin 9 4 layer hairBack
+|.QQ.
+|QUTQ
+|QSRQ
+|.QQ.

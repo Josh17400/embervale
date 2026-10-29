@@ -14,7 +14,7 @@ keys pauld
 z 5
 side L
 
-view D key rest origin 3 2 layer headwear
+view D key rest origin 3 2
 |vvvvvvvvvv
 |vyyyyyyxwv
 |vyyyyyxxwv
@@ -37,7 +37,7 @@ regions
 |..........
 |..........
 
-view D key up origin 3 3 layer headwear
+view D key up origin 3 3
 |vvvvvvvvvv
 |vyyyyyyxwv
 |vyyyyyxxwv
@@ -189,7 +189,7 @@ regions
 view R key lie origin 0 0
 |.
 
-view L key rest origin 3 2 layer headwear
+view L key rest origin 3 2
 |vvvvvvvvvvvv
 |vyzzyyyyyxwv
 |vwwwwwwwwwwv
@@ -208,7 +208,7 @@ regions
 |............
 |............
 
-view L key up origin 3 3 layer headwear
+view L key up origin 3 3
 |vvvvvvvvvvvv
 |vyzzyyyyyxwv
 |vwwwwwwwwwwv
@@ -238,4 +238,216 @@ regions
 |.RRRRRRRRRR.
 |.NNNNNNNNNN.
 |.PPPPPPP....
+|............
+
+view D key rest origin 3 5 when metal-ember replace
+|..vxv.vxv.
+|..vwv.vwv.
+|..vyv.vyv.
+|vvvvvvvvvv
+|vyyyyyyxwv
+|vyyyyyxxwv
+|vwwwwwwwwv
+|vyyyyyxxwv
+|vxxxxxxwwv
+|vwwwwwwwwv
+|.vyyyxxwv.
+|.vxxxxwwv.
+|..vvvvvv..
+regions
+|...N...N..
+|..........
+|..........
+|..........
+|.RRRRRRRR.
+|.PPPPP....
+|.NNNNNNNN.
+|.PPPPP....
+|..........
+|.NNNNNNNN.
+|..PPP.....
+|..........
+|..........
+
+view D key up origin 3 6 when metal-ember replace
+|..vxv.vxv.
+|..vwv.vwv.
+|..vyv.vyv.
+|vvvvvvvvvv
+|vyyyyyyxwv
+|vyyyyyxxwv
+|vwwwwwwwwv
+|vyyyyyxxwv
+|vxxxxxxwwv
+|vwwwwwwwwv
+|.vyyyxxwv.
+|.vxxxxwwv.
+|..vvvvvv..
+regions
+|...N...N..
+|..........
+|..........
+|..........
+|.RRRRRRRR.
+|.PPPPP....
+|.NNNNNNNN.
+|.PPPPP....
+|..........
+|.NNNNNNNN.
+|..PPP.....
+|..........
+|..........
+
+view U key rest origin 6 5 layer headwear when metal-ember replace
+|.vxv..vxv.
+|.vwv..vwv.
+|.vyv..vyv.
+|vvvvvvvvvv
+|vyyyyyyxwv
+|vyyyyyxxwv
+|vwwwwwwwwv
+|vyyyyyxxwv
+|vxxxxxxwwv
+|vwwwwwwwwv
+|.vyyyxxwv.
+|.vxxxxwwv.
+|..vvvvvv..
+regions
+|..N....N..
+|..........
+|..........
+|..........
+|.RRRRRRRR.
+|.PPPPP....
+|.NNNNNNNN.
+|.PPPPP....
+|..........
+|.NNNNNNNN.
+|..PPP.....
+|..........
+|..........
+
+view U key up origin 6 6 layer headwear when metal-ember replace
+|.vxv..vxv.
+|.vwv..vwv.
+|.vyv..vyv.
+|vvvvvvvvvv
+|vyyyyyyxwv
+|vyyyyyxxwv
+|vwwwwwwwwv
+|vyyyyyxxwv
+|vxxxxxxwwv
+|vwwwwwwwwv
+|.vyyyxxwv.
+|.vxxxxwwv.
+|..vvvvvv..
+regions
+|..N....N..
+|..........
+|..........
+|..........
+|.RRRRRRRR.
+|.PPPPP....
+|.NNNNNNNN.
+|.PPPPP....
+|..........
+|.NNNNNNNN.
+|..PPP.....
+|..........
+|..........
+
+view R key rest origin 7 5 when metal-ember replace
+|..vxv..vxv..
+|..vwv..vwv..
+|..vyv..vyv..
+|vvvvvvvvvvvv
+|vxxxxxxxxwwv
+|vwwwwwwwwwwv
+|vxxxxxxxwwwv
+|vwwwwwwwwwwv
+|vxxxxxxwwwwv
+|..vvvvvvvv..
+regions
+|...N....N...
+|............
+|............
+|............
+|.RRRRRRRRRR.
+|.NNNNNNNNNN.
+|.PPPPPPP....
+|.NNNNNNNNNN.
+|.PPPPPP.....
+|............
+
+view R key up origin 7 6 when metal-ember replace
+|..vxv..vxv..
+|..vwv..vwv..
+|..vyv..vyv..
+|vvvvvvvvvvvv
+|vxxxxxxxxwwv
+|vwwwwwwwwwwv
+|vxxxxxxxwwwv
+|vwwwwwwwwwwv
+|vxxxxxxwwwwv
+|..vvvvvvvv..
+regions
+|...N....N...
+|............
+|............
+|............
+|.RRRRRRRRRR.
+|.NNNNNNNNNN.
+|.PPPPPPP....
+|.NNNNNNNNNN.
+|.PPPPPP.....
+|............
+
+view L key rest origin 3 5 when metal-ember replace
+|..vxv..vxv..
+|..vwv..vwv..
+|..vyv..vyv..
+|vvvvvvvvvvvv
+|vyzzyyyyyxwv
+|vwwwwwwwwwwv
+|vyyyyyyyxxwv
+|vwwwwwwwwwwv
+|vyyyyyyxxxwv
+|.vxxxxxxwwv.
+|..vvvvvvvv..
+regions
+|...N....N...
+|............
+|............
+|............
+|.RRRRRRRRRR.
+|.NNNNNNNNNN.
+|.PPPPPPP....
+|.NNNNNNNNNN.
+|.PPPPPP.....
+|............
+|............
+
+view L key up origin 3 6 when metal-ember replace
+|..vxv..vxv..
+|..vwv..vwv..
+|..vyv..vyv..
+|vvvvvvvvvvvv
+|vyzzyyyyyxwv
+|vwwwwwwwwwwv
+|vyyyyyyyxxwv
+|vwwwwwwwwwwv
+|vyyyyyyxxxwv
+|.vxxxxxxwwv.
+|..vvvvvvvv..
+regions
+|...N....N...
+|............
+|............
+|............
+|.RRRRRRRRRR.
+|.NNNNNNNNNN.
+|.PPPPPPP....
+|.NNNNNNNNNN.
+|.PPPPPP.....
+|............
 |............

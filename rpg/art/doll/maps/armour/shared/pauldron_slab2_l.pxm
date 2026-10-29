@@ -11,7 +11,7 @@ keys pauld
 z 5
 side L
 
-view D key rest origin 2 2 layer headwear
+view D key rest origin 2 2
 |vvvvvv
 |vyzywv
 |vyyxwv
@@ -24,7 +24,7 @@ regions
 |.NNNN.
 |......
 # (ARMOUR-X wave 2, fitcap.py) D rest: 2 px reach -> 1 at T2
-view D key rest origin 2 2 layer headwear when armour.t2,!armour.t3 replace
+view D key rest origin 2 2 when armour.t2,!armour.t3 replace
 |vvvvv
 |vyzyv
 |vyyxv
@@ -38,7 +38,7 @@ regions
 |.....
 
 
-view D key up origin 2 3 layer headwear
+view D key up origin 2 3
 |vvvvvv
 |vyzywv
 |vyyxwv
@@ -51,7 +51,7 @@ regions
 |.NNNN.
 |......
 # (ARMOUR-X wave 2, fitcap.py) D up: 2 px reach -> 1 at T2
-view D key up origin 2 3 layer headwear when armour.t2,!armour.t3 replace
+view D key up origin 2 3 when armour.t2,!armour.t3 replace
 |vvvvv
 |vyzyv
 |vyyxv
@@ -188,7 +188,7 @@ view R key up origin 4 3
 view R key lie origin 0 0
 |.
 
-view L key rest origin 3 2 layer headwear
+view L key rest origin 3 2
 |vvvvvv
 |vyzywv
 |vyyxwv
@@ -201,7 +201,7 @@ regions
 |.NNNN.
 |......
 
-view L key up origin 3 3 layer headwear
+view L key up origin 3 3
 |vvvvvv
 |vyzywv
 |vyyxwv

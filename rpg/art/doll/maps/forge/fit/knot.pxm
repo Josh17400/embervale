@@ -7,7 +7,9 @@
 # Cells as the limb tile's (region tiles) or the cut tile's (plane tiles).
 use person
 role overlay fit.knot
-tags tile overlay fit
+# (FINISH wave-2 fix round r3, D79) RESERVE: a culture alloy's forge value retired by forge round 2 (contracts 3c.1) that no
+# hero style's column names, so no look of sources A-E, F, L or M asks it. Kept drawn and listed (D49), never dead.
+tags tile overlay fit reserve
 on-region P
 legend + ink 3
 legend ^ ink 4

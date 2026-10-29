@@ -570,14 +570,15 @@ regions
 |.............
 |..RRRRRRRRR..
 
+# (ARMOUR fix r1, item 9: B11 HEAD 18) the back's erase cells dropped: they cut the 1 px under the braid at the nape (the run L neck gap)
 view L key runl origin 7 -1
 |..fiihgf.....
 |..579887665..
 |.58878767665.
 |.58878767665.
 |..5878767665.
-|...587876765-
-|...587876765-
+|...587876765.
+|...587876765.
 |...5Oghhhgg5.
 |..fiiihhhhhgf
 regions

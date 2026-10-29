@@ -14,10 +14,10 @@ keys pauld
 z 5
 side R
 
-view D key rest origin 6 6 layer headwear
+view D key rest origin 6 6
 |vvv.......
 |vyvv......
-|vyyv.vvv..
+|vyyvvvvv..
 |vyywvyyvvv
 |.vyywyyyxv
 |.vzyywyxwv
@@ -40,10 +40,10 @@ regions
 |..........
 
 # (ARMOUR-X r2) D rest on the woman: a 3 px lame strap under the inner corner (C3a)
-view D key rest origin 6 6 layer headwear when woman replace
+view D key rest origin 6 6 when woman replace
 |vvv.......
 |vyvv......
-|vyyv.vvv..
+|vyyvvvvv..
 |vyywvyyvvv
 |.vyywyyyxv
 |.vzyywyxwv
@@ -69,10 +69,10 @@ regions
 |..........
 |..........
 
-view D key up origin 6 7 layer headwear
+view D key up origin 6 7
 |vvv.......
 |vyvv......
-|vyyv.vvv..
+|vyyvvvvv..
 |vyywvyyvvv
 |.vyywyyyxv
 |.vzyywyxwv
@@ -95,10 +95,10 @@ regions
 |..........
 
 # (ARMOUR-X r2) D up on the woman: a 3 px lame strap under the inner corner (C3a)
-view D key up origin 6 7 layer headwear when woman replace
+view D key up origin 6 7 when woman replace
 |vvv.......
 |vyvv......
-|vyyv.vvv..
+|vyyvvvvv..
 |vyywvyyvvv
 |.vyywyyyxv
 |.vzyywyxwv
@@ -152,7 +152,7 @@ regions
 view U key rest origin 3 6 layer headwear
 |.......vvv
 |......vvyv
-|..vvv.vyyv
+|..vvvvvyyv
 |vvvyyvyywv
 |vyywyyyxv.
 |vyyywyxwv.
@@ -177,7 +177,7 @@ regions
 view U key up origin 3 7 layer headwear
 |.......vvv
 |......vvyv
-|..vvv.vyyv
+|..vvvvvyyv
 |vvvyyvyywv
 |vyywyyyxv.
 |vyyywyxwv.
@@ -224,7 +224,7 @@ regions
 |..........
 |..........
 
-view R key rest origin 7 6 layer headwear
+view R key rest origin 7 6
 |vv.........
 |vyv........
 |vyyv.vv....
@@ -249,7 +249,7 @@ regions
 |...........
 |...........
 
-view R key up origin 7 7 layer headwear
+view R key up origin 7 7
 |vv.........
 |vyv........
 |vyyv.vv....

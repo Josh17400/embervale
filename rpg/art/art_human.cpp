@@ -4967,6 +4967,9 @@ uint64_t HumanLook::key() const {
     if (alloyRank) mx(0xF0E6E2000000000Full ^ alloyRank);
     if (forgeGuise) mx(0xF0E6E3000000000Full ^ forgeGuise);
     if (forgeShape) mx(0xF0E6E40000000000ull ^ forgeShape);   // (forge round 2) the silhouette
+    if (makerPeople) mx(0xF0E6E50000000000ull ^ makerPeople);   // (wave-2 fix round, D74) the people's hems
+    if (relicHelm) mx(0xF0E6E60000000000ull ^ relicHelm);       // (wave-2 fix round, D83) a Mythic relic's helm family
+    if (relicBody) mx(0xF0E6E70000000000ull ^ relicBody);       // (wave-2 fix round 2, D84) a Mythic relic body's outline
   }
   return k;
 }

@@ -74,3 +74,8 @@ g_cov2w  woman  kit=imperial:4:1,alloy=2,palette=look,shieldForm=9,weapon=0,shap
 g_cov3w  woman  kit=imperial:4:1,alloy=1,palette=look,shape=skirt:strips                                 stay,walk,run,didle,hit1,hurt,fall,lying
 g_cov4w  woman  kit=heartland:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=layer:tabard                        stay,walk,run,didle,hit1,hurt,fall,lying
 g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=skirt:bell                         stay,walk,run,didle,hit1,hurt,fall,lying
+# (wave-2 fix round 3, D79: C1's sources reach every drawn value a world can ask) FOUNDRY and PARADE on a padded body (a
+# padded-first people's bronze and gilded armour: forge cut brick and diamond); a sword fighter with his staff on his back
+g_cov6   man    kit=highland:2:1,forge=foundry,palette=look                                stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov7   man    kit=highland:2:1,forge=parade,palette=look                                 stay,walk,run,didle,hit1,hurt,fall,lying
+g_cov8   man    kit=heartland:1:1,wpn=sword,backItem=2,palette=look                        stay,walk,run,didle,hit1,hurt,fall,lying

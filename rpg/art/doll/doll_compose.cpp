@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include "rpg/art/art_holders2.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
 
@@ -327,6 +328,118 @@ struct Tile { const ViewRec* v = nullptr; Slot on = Slot::Cloth1; };
 // forgeMask: a limb tile's regions narrowed to the slots that picked its value
 struct RegionTile { const ViewRec* v = nullptr; uint32_t mask = 0; uint8_t fin = 0; bool fit = false, stamp = false; const PartRec* part = nullptr;
                     int forgeSlot = -1; bool forge = false; };
+// (wave-2 fix round, D78) the trim band of a view: bandReg = its regions with the widened pixels set to R; bandRow = each R pixel's
+// row in the band counted from the outer edge (-1: not trim). Depth = the 4-connected distance from the part's outline (a
+// pixel beside a clear cell or the view's edge is 0). A run is widened from its innermost R pixels toward deeper pixels until
+// it is W thick; never into G or N, an outline pixel (step 0) or a clear cell
+void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vector<int8_t>& bandRow) {
+  const int n = v.w * v.h;
+  bandReg.assign(v.regions.begin(), v.regions.end());
+  bandRow.assign((size_t)n, -1);
+  auto solid = [&](int k) { const uint8_t c = v.cells[(size_t)k]; return c >= 2 && c != kErase; };
+  static thread_local std::vector<int> dist, q, rOut, rIn;
+  dist.assign((size_t)n, -1);
+  q.clear();
+  for (int y = 0; y < v.h; y++)
+    for (int x = 0; x < v.w; x++) {
+      const int k = y * v.w + x;
+      if (!solid(k)) continue;
+      bool edge = x == 0 || y == 0 || x == v.w - 1 || y == v.h - 1;
+      if (!edge) edge = !solid(k - 1) || !solid(k + 1) || !solid(k - v.w) || !solid(k + v.w);
+      if (edge) { dist[(size_t)k] = 0; q.push_back(k); }
+    }
+  for (size_t h = 0; h < q.size(); h++) {
+    const int k = q[h], x = k % v.w, y = k / v.w;
+    const int nb[4] = {x > 0 ? k - 1 : -1, x < v.w - 1 ? k + 1 : -1, y > 0 ? k - v.w : -1, y < v.h - 1 ? k + v.w : -1};
+    for (int m : nb) if (m >= 0 && solid(m) && dist[(size_t)m] < 0) { dist[(size_t)m] = dist[(size_t)k] + 1; q.push_back(m); }
+  }
+  auto isR = [&](int k) { return solid(k) && v.regions[(size_t)k] == (uint8_t)Region::Trim && codeStep(v.cells[(size_t)k]) >= 1; };
+  // rOut: R pixels from the outer edge of the run to here; rIn: from here to the inner edge (q is in BFS order: dist ascending)
+  rOut.assign((size_t)n, 0);
+  rIn.assign((size_t)n, 0);
+  auto nbrs = [&](int k, int out[4]) {
+    const int x = k % v.w, y = k / v.w;
+    out[0] = x > 0 ? k - 1 : -1; out[1] = x < v.w - 1 ? k + 1 : -1; out[2] = y > 0 ? k - v.w : -1; out[3] = y < v.h - 1 ? k + v.w : -1;
+  };
+  for (int k : q) {
+    if (!isR(k)) continue;
+    int o = 1, nb[4];
+    nbrs(k, nb);
+    for (int m : nb) if (m >= 0 && isR(m) && dist[(size_t)m] == dist[(size_t)k] - 1) o = std::max(o, rOut[(size_t)m] + 1);
+    rOut[(size_t)k] = o;
+  }
+  for (size_t h = q.size(); h-- > 0;) {
+    const int k = q[h];
+    if (!isR(k)) continue;
+    int i = 1, nb[4];
+    nbrs(k, nb);
+    for (int m : nb) if (m >= 0 && isR(m) && dist[(size_t)m] == dist[(size_t)k] + 1) i = std::max(i, rIn[(size_t)m] + 1);
+    rIn[(size_t)k] = i;
+  }
+  auto canTake = [&](int k) {
+    if (!solid(k) || codeStep(v.cells[(size_t)k]) < 1) return false;
+    const uint8_t g = v.regions[(size_t)k];
+    return g != (uint8_t)Region::Trim && g != (uint8_t)Region::Gem && g != (uint8_t)Region::Seam;
+  };
+  for (int k : q) {
+    if (!isR(k)) continue;
+    bandRow[(size_t)k] = (int8_t)std::min(rOut[(size_t)k] - 1, 7);
+  }
+  for (int k : q) {
+    if (!isR(k) || rIn[(size_t)k] != 1) continue;   // the run's innermost pixels
+    const int thick = rOut[(size_t)k];
+    if (thick >= W) continue;
+    std::vector<int> front{k};
+    for (int row = thick; row < W && !front.empty(); row++) {
+      std::vector<int> next;
+      for (int f : front) {
+        int nb[4];
+        nbrs(f, nb);
+        for (int m : nb) {
+          if (m < 0 || dist[(size_t)m] != dist[(size_t)f] + 1 || !canTake(m) || bandReg[(size_t)m] == (uint8_t)Region::Trim) continue;
+          bandReg[(size_t)m] = (uint8_t)Region::Trim;
+          bandRow[(size_t)m] = (int8_t)row;
+          next.push_back(m);
+        }
+      }
+      front.swap(next);
+    }
+  }
+}
+// the band pixel's outer side faces down or right (its clear neighbour, or the nearest clear cell, is below or to the right)
+bool bandFacesDownRight(const ViewRec& v, int x, int y) {
+  auto clear = [&](int xx, int yy) { return xx < 0 || yy < 0 || xx >= v.w || yy >= v.h || v.cells[(size_t)yy * v.w + xx] < 2; };
+  for (int d = 1; d <= 3; d++) {
+    if (clear(x, y - d) || clear(x - d, y)) return false;
+    if (clear(x, y + d) || clear(x + d, y)) return true;
+  }
+  return false;
+}
+// the trim tile's view for a piece of `tier`: the rest view (facing D) whose condition names that tier (`<slot>.tN` or `tierN`,
+// N == tier), else the nearest lower tier's, else the base rest view
+const ViewRec* trimBandView(const Pool& P, const PartRec& p, int tier) {
+  const uint16_t rest = P.strId("rest");
+  const ViewRec* best = nullptr;
+  int bestN = -1;
+  for (uint32_t vi = p.firstView; vi < p.firstView + p.nViews && vi < P.views.size(); vi++) {
+    const ViewRec& w = P.views[vi];
+    if (w.facing != 0 || w.key != rest || w.cells.empty()) continue;
+    int nT = 0;
+    if (w.when) {
+      const std::string& c = P.s(w.when);
+      for (size_t i = 0; i + 1 < c.size(); i++) {
+        if (c[i] == '!' ) { while (i < c.size() && c[i] != ',') i++; continue; }
+        int d = -1;
+        if (c.compare(i, 2, ".t") == 0 && i + 2 < c.size() && c[i + 2] >= '1' && c[i + 2] <= '6') d = c[i + 2] - '0';
+        else if (c.compare(i, 4, "tier") == 0 && i + 4 < c.size() && c[i + 4] >= '1' && c[i + 4] <= '6') d = c[i + 4] - '0';
+        if (d > 0) nT = std::max(nT, d);
+      }
+    }
+    if (nT > tier) continue;
+    if (nT > bestN) { bestN = nT; best = &w; }
+  }
+  return best;
+}
 // (P2c forge, contracts 3c) a cut tile (`on-slot <slot>`) or an edge stamp (`on-edge hem|rim`) on the armour and pauldron
 // parts: their views transformed before the paint (forgeView)
 struct ForgeTile { const PartRec* part = nullptr; bool edge = false, rim = false; Slot on = Slot::Metal; };
@@ -1801,6 +1914,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   rtiles.clear();
   static thread_local std::vector<ForgeTile> ftiles;
   ftiles.clear();
+  const PartRec* bandTile = nullptr;   // (wave-2 fix round, D78) the trim tile: `tags tile band` + `on-region R`
   const uint16_t forced = forceKey ? P.strId(forceKey) : (uint16_t)0xFFFF;
   const std::vector<int>& list = onlyParts ? *onlyParts : r.parts;
   for (size_t li = 0; li < list.size(); li++) {
@@ -1809,6 +1923,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     const PartRec& p = P.parts[(size_t)pi];
     if (keep && !keep(p)) continue;
     if (partTaggedId(p, I.tile)) {   // a pattern tile: laid over the garments' cloth, never placed itself
+      if (partTagged(pi, "band")) { bandTile = &p; continue; }   // (D78) the band mode: widened R runs, laid per piece below
       const ViewRec* tv = viewOf(p, facing, I.rest);
       if (!tv) tv = viewOf(p, 0, I.rest);
       {
@@ -2011,6 +2126,15 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   // hair, head and face but never the haft or head of a polearm passing behind the helm
   static thread_local std::vector<uint8_t> heldPx;
   heldPx.assign((size_t)CW * CH, 0);
+  static thread_local std::vector<uint8_t> shieldPx;   // (wave-2 fix round, D82) the gripL shield's pixels
+  shieldPx.assign((size_t)CW * CH, 0);
+  // (wave-2 fix round 3, D82; SHIELDS' r2 proposal) the gripL shield's last pixel under each cell (code, region, item): a part
+  // that paints over the shield and is then erased by a later part's `-` cell shows the shield again, never a hole through it
+  static thread_local std::vector<uint8_t> shieldKeep, shieldKeepRg;
+  static thread_local std::vector<int16_t> shieldKeepOw;
+  shieldKeep.assign((size_t)CW * CH, 0);
+  shieldKeepRg.assign((size_t)CW * CH, 0);
+  shieldKeepOw.assign((size_t)CW * CH, -1);
   g_depthPx.assign((size_t)CW * CH, 0);
   // (ladder i2) heldPx marks the pixels a helm's erase may NOT clear: a helm's box clears hair, head, face, beard and ears
   // (LADDER-ARMS's ask); the haft and head of a polearm, a scarf's tail, a collar passing behind the helm stay
@@ -2055,6 +2179,24 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     }
     const ViewRec& v = *vp;
     const uint8_t heldMark = isHeld(*it.part) ? 1 : 0;
+    // (wave-2 fix round, D82) the gripL shield: its pixels survive every other part's erase cells
+    const uint8_t shieldMark = fixOn(FIX_SHIELD) && partHasRoleCat(*it.part, Role::Shield) && it.anchor == Anchor::GripL ? 1 : 0;
+    // (wave-2 fix round, D78) the trim band: on a T4-T6 piece every 4-connected run of R pixels widened inward from the part's
+    // outline to the tier's width (T4 1 px, T5-T6 2), painted from the trim tile's view for that tier; only adds trim (a run at
+    // width keeps every pixel), never over a G or N pixel, an outline pixel or a pixel of another part (the view's own pixels)
+    static thread_local std::vector<uint8_t> bandReg;
+    static thread_local std::vector<int8_t> bandRow;
+    const ViewRec* bandView = nullptr;
+    bool bandOn = false;
+    {
+      const int bts = partTierSlot(it.order);
+      const int btier = bts >= 0 ? r.pieceTier[bts] : 0;
+      if (bandTile && !handOnly && !v.regions.empty() && btier >= 4 && btier <= 6) {
+        bandView = trimBandView(P, *bandTile, btier);
+        bandOn = true;
+        trimBand(v, btier >= 5 ? 2 : 1, bandReg, bandRow);
+      }
+    }
     const uint8_t depthMark = partHasRoleCat(*it.part, Role::Held) ? 2 : (partHasRoleCat(*it.part, Role::Shield) || partHasRoleCat(*it.part, Role::Sheath) ||
                                it.layer == (int)Layer::Back || it.layer == (int)Layer::HeldBack || it.layer == (int)Layer::FxBack ||
                                it.layer == (int)Layer::Fx) ? 1 : 0;   // (2: a held weapon)
@@ -2208,13 +2350,34 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           const int cx = x - v.ox + it.clip->ox, cy = y - v.oy + it.clip->oy;
           if (cx < 0 || cy < 0 || cx >= it.clip->w || cy >= it.clip->h || it.clip->cells[(size_t)cy * it.clip->w + cx] < 2) continue;
         }
-        const uint8_t rg = c >= 2 && hasReg ? v.regions[(size_t)y * v.w + x] : 0;
+        const uint8_t rg = c >= 2 && hasReg ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
         if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
         if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
         // (P2c ladder) R P G N W by the piece's own tier (the outline ring keeps its slot)
         if (rg >= (uint8_t)Region::Trim && rg < REGION_COUNT && ts >= 0 && c >= 2 && codeStep(c) >= 1) {
           const uint8_t fs = r.fin[ts][rg - (uint8_t)Region::Trim];
           if (fs != 0xFF) c = code((Slot)fs, codeStep(c));
+        }
+        // (D78) the band's cells: a row per depth from the outer edge (row 0 the outer row); a tile with twice the band's rows
+        // gives the bottom- and right-facing edges their own rows (the lower half), so the top-left can be the lit one
+        if (bandOn && bandView && c >= 2 && codeStep(c) >= 1 && rg == (uint8_t)Region::Trim) {
+          const int k = y * v.w + x;
+          const int row = bandRow[(size_t)k];
+          if (row >= 0) {
+            const ViewRec& tv = *bandView;
+            const int W = r.pieceTier[partTierSlot(it.order)] >= 5 ? 2 : 1;
+            int ty = std::min(row, (int)tv.h - 1);
+            if ((int)tv.h >= 2 * W && bandFacesDownRight(v, x, y)) ty = std::min(W + row, (int)tv.h - 1);
+            int tx = ((it.ax + x - v.ox - it.tx) + (it.ay + y - v.oy - it.ty)) % (int)tv.w;
+            if (tx < 0) tx += tv.w;
+            const uint8_t tc = tv.cells[(size_t)ty * tv.w + tx];
+            if (tc >= 2) {
+              const Slot tsl = codeSlot(tc);
+              const int tk = codeStep(tc), ck = codeStep(c);
+              const int nk = tsl == Slot::Ink ? std::clamp(ck + tk - 2, 1, 4) : tsl == Slot::Glow ? tk : (tk == 2 ? ck : tk == 1 ? std::max(1, ck - 1) : tk == 3 ? std::min(4, ck + 1) : tk);
+              c = code(tsl == Slot::Ink ? codeSlot(c) : tsl, nk);
+            }
+          }
         }
         if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
         // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
@@ -2289,6 +2452,17 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             if (c == kErase) {
               if (it.noErase) continue;
               if (heldPx[(size_t)Y * CW + X] && !heldMark && helmErase) continue;
+              if (shieldPx[(size_t)Y * CW + X] && !shieldMark) continue;   // (D82) the gripL shield under another part's erase
+              if (fixOn(FIX_SHIELD) && shieldKeep[(size_t)Y * CW + X] && !shieldMark) {   // (D82) the shield under an erased overpaint
+                const size_t q = (size_t)Y * CW + X;
+                o.code[q] = shieldKeep[q];
+                g_bodyPiece[q] = 0;
+                g_depthPx[q] = 1;
+                heldPx[q] = 0;
+                shieldPx[q] = 1;
+                if (g_probeOwner) { (*g_probeOwner)[q] = shieldKeepOw[q]; (*g_probeRegion)[q] = shieldKeepRg[q]; }
+                continue;
+              }
               o.code[(size_t)Y * CW + X] = 0;
               g_bodyPiece[(size_t)Y * CW + X] = 0;
               g_depthPx[(size_t)Y * CW + X] = 0;
@@ -2310,6 +2484,13 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             g_bodyPiece[(size_t)Y * CW + X] = (uint8_t)(bodyPiece | (rg == (uint8_t)Region::Trim ? 8 : 0));   // (envelope fix round) bit 8: the drawn trim (R)
             g_depthPx[(size_t)Y * CW + X] = depthMark;
             heldPx[(size_t)Y * CW + X] = heldMark;
+            shieldPx[(size_t)Y * CW + X] = shieldMark;
+            if (shieldMark) {
+              const size_t q = (size_t)Y * CW + X;
+              shieldKeep[q] = w;
+              shieldKeepRg[q] = rg;
+              shieldKeepOw[q] = (int16_t)(&it - items.data());
+            }
             if (g_probeOwner) { (*g_probeOwner)[(size_t)Y * CW + X] = (int16_t)(&it - items.data()); (*g_probeRegion)[(size_t)Y * CW + X] = rg; }
             if (X < o.bx0) o.bx0 = X;
             if (X > o.bx1) o.bx1 = X;
@@ -2671,7 +2852,23 @@ RigSheet compose(const DollRecipe& rIn, RigPart part, const ComposeOpts* opts) {
                       }),
                       bareR.parts.end());
   }
-  const DollRecipe& r0 = op.noHeld ? bareR : r00;
+  // (wave-2 fix round, D77) noKitCloak: the kit's worn cloak item off a culture alloy whose over-layer used to replace it
+  if (op.noKitCloak && r00.kitCloak) {
+    if (!op.noHeld) bareR = r00;
+    bareR.parts.erase(std::remove_if(bareR.parts.begin(), bareR.parts.end(), [&](int pi) { return partHasRoleCat(P.parts[(size_t)pi], Role::Cloak); }),
+                      bareR.parts.end());
+    bareR.pauldronTop = bareR.pauldronTopAlloy;
+    bareR.kitCloak = false;
+  }
+  // (fix round 2, D77 restated) an alloy's own CAPE / HALFCAPE at its T3 view: the tier's cloak.t4..t6 flags off
+  if (op.noKitCloak && r00.layerCloakT3) {
+    if (!op.noHeld) bareR = r00;
+    bareR.flags.erase(std::remove_if(bareR.flags.begin(), bareR.flags.end(),
+                                     [](const std::string& f) { return f == "cloak.t4" || f == "cloak.t5" || f == "cloak.t6"; }),
+                      bareR.flags.end());
+    bareR.layerCloakT3 = false;
+  }
+  const DollRecipe& r0 = op.noHeld || (op.noKitCloak && (r00.kitCloak || r00.layerCloakT3)) ? bareR : r00;
   // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the flag `run` while the RUN part composes: a long carried tool (the staff) draws
   // its run carry there (`when run replace`: held close and upright, so the run's frames stay inside B10's 64 KB)
   DollRecipe runR;
@@ -2792,20 +2989,30 @@ FrameProbe probeFrame(const DollRecipe& r0, RigPart part, int facing, Clip clip,
     x.side = it.part->side; x.layer = (Layer)it.layer; x.anchor = it.anchor; x.ax = it.ax; x.ay = it.ay;
     for (const RoleRec& rr : it.part->roles) {
       x.roles |= 1u << rr.cat;
-      if (rr.cat == (uint8_t)Role::Held && x.held.empty()) x.held = P.s(rr.value);
+      // (wave-2 fix round, D81) a library value (`<weapon>.<form>`) names the held part wherever it is listed (the spear's map
+      // lists its bare name first: C3d skipped it)
+      if (rr.cat == (uint8_t)Role::Held && (x.held.empty() || (x.held.find('.') == std::string::npos && P.s(rr.value).find('.') != std::string::npos)))
+        x.held = P.s(rr.value);
     }
     out.items.push_back(x);
   }
   const Pt& hd = fo.anchors[(int)Anchor::Head];
   out.headX = CPX + hd.x; out.headY = CPY + hd.y;
   const Ids& I = P.ids;
+  bool handR = false, handL = false;
+  int hRX = 0, hRY = 0, hLX = 0, hLY = 0;
   for (int k = 0; k < fo.nMarks; k++) {
     if (!fo.marks[k].on) continue;
     const int X = CPX + fo.marks[k].x, Y = CPY + fo.marks[k].y;
     if (fo.markIds[k] == I.grip) { out.grip = true; out.gripX = X; out.gripY = Y; }
     else if (fo.markIds[k] == I.gripL) { out.gripL = true; out.gripLX = X; out.gripLY = Y; }
     else if (fo.markIds[k] == I.tip) { out.tip = true; out.tipX = X; out.tipY = Y; }
+    else if (I.handR != 0xFFFF && fo.markIds[k] == I.handR) { handR = true; hRX = X; hRY = Y; }
+    else if (I.handL != 0xFFFF && fo.markIds[k] == I.handL) { handL = true; hLX = X; hLY = Y; }
   }
+  // (wave-2 fix round, D81) the compositor's fallback, as placed: an arm that marks no grip carries at its hand mark
+  if (!out.grip && handR && g_probeGrip >= 0) { out.grip = true; out.gripX = hRX; out.gripY = hRY; }
+  if (!out.gripL && handL && g_probeGripL >= 0) { out.gripL = true; out.gripLX = hLX; out.gripLY = hLY; }
   out.gripFrom = g_probeGrip; out.gripLFrom = g_probeGripL;
   return out;
 }

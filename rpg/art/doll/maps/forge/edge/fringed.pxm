@@ -9,7 +9,9 @@
 # (FORGE-MARKS forge i3) 1 px lit strands on a dark ground, period 3: a fringe, never a solid edge.
 use person
 role overlay edge.fringed
-tags tile overlay edge on-edge:hem
+# (FINISH wave-2 fix round r3, D79) RESERVE: a culture alloy's forge value retired by forge round 2 (contracts 3c.1) that no
+# hero style's column names, so no look of sources A-E, F, L or M asks it. Kept drawn and listed (D49), never dead.
+tags tile overlay edge on-edge:hem reserve
 
 
 

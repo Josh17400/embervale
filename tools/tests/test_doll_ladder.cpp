@@ -24,6 +24,7 @@
 #include "rpg/art.h"
 #include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_internal.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
@@ -338,6 +339,22 @@ double c14Look(Line& g, const Built& b, int facing) {
   for (const auto& kv : rowMin) e.insert({kv.second, kv.first});
   for (const auto& kv : colMin) e.insert({kv.first, kv.second});
   for (const auto& k : e) edge.push_back(luma(colourOf(b.r, f.px.at(k).code)));
+  if (std::getenv("C14_DEBUG")) {   // the edge's make-up by slot and step (luma)
+    std::map<std::pair<int, int>, int> hist;
+    for (const auto& k : e) hist[{(int)doll::codeSlot(f.px.at(k).code), doll::codeStep(f.px.at(k).code)}]++;
+    std::printf("    C14 ramps %s: metal %.0f %.0f %.0f %.0f %.0f leather %.0f %.0f %.0f cloth1 %.0f %.0f %.0f skin %.0f hair %.0f\n", b.tag.c_str(),
+                luma(b.r.ramps.c[(int)doll::Slot::Metal][0]), luma(b.r.ramps.c[(int)doll::Slot::Metal][1]), luma(b.r.ramps.c[(int)doll::Slot::Metal][2]),
+                luma(b.r.ramps.c[(int)doll::Slot::Metal][3]), luma(b.r.ramps.c[(int)doll::Slot::Metal][4]), luma(b.r.ramps.c[(int)doll::Slot::Leather][1]),
+                luma(b.r.ramps.c[(int)doll::Slot::Leather][2]), luma(b.r.ramps.c[(int)doll::Slot::Leather][3]), luma(b.r.ramps.c[(int)doll::Slot::Cloth1][1]),
+                luma(b.r.ramps.c[(int)doll::Slot::Cloth1][2]), luma(b.r.ramps.c[(int)doll::Slot::Cloth1][3]), luma(b.r.ramps.c[(int)doll::Slot::Skin][2]),
+                luma(b.r.ramps.c[(int)doll::Slot::Hair][2]));
+    std::printf("    C14 step2 %s: cloth2 %.0f accent %.0f cloak %.0f field %.0f linen %.0f head %.0f\n", b.tag.c_str(), luma(b.r.ramps.c[(int)doll::Slot::Cloth2][2]),
+                luma(b.r.ramps.c[(int)doll::Slot::Accent][2]), luma(b.r.ramps.c[(int)doll::Slot::Cloak][2]), luma(b.r.ramps.c[(int)doll::Slot::Field][2]),
+                luma(b.r.ramps.c[(int)doll::Slot::Linen][2]), luma(b.r.ramps.c[(int)doll::Slot::Head][2]));
+    std::printf("    C14 edge %s %c:", b.tag.c_str(), "DURL"[facing]);
+    for (const auto& kv : hist) std::printf(" %s%d x%d (L%.0f)", doll::slotName((doll::Slot)kv.first.first), kv.first.second, kv.second, luma(b.r.ramps.c[kv.first.first][kv.first.second]));
+    std::printf("\n");
+  }
   std::sort(edge.begin(), edge.end());
   // the lit side: the upper quartile of the edge (the selout-lit step 1 and the light planes behind it), against the darkest
   // day ground (kDarkGround); the hero's own A3 palette is the yardstick (--report prints it)
@@ -352,6 +369,8 @@ double c14Look(Line& g, const Built& b, int facing) {
   // is held to their own step 1, as the dark sheen's
   if ((b.L.metalKind == 7 || b.L.metalKind == 8) && b.L.forge[HumanLook::TIER_BODY])
     want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
+  // (wave-2 fix round, D88) GLASS alloys too (D62 made them jewel-dark by design; their rim and speculars carry them)
+  if (b.r.has("glass") && b.L.forge[HumanLook::TIER_BODY]) want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
   if (lit < want) g.bad(b.tag + fmt(" %c: the lit top-left edge %.0f luma, %.0f over the darkest day ground (%.0f wanted: 40 over, or A3's own)", "DURL"[facing], lit, lit - luma(kDarkGround), want - luma(kDarkGround)));
   else g.ok();
   return lit;
@@ -419,6 +438,9 @@ void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
         if (!L.tier[s] || rich[t].px[s] < 20) continue;
         const int tt = std::min(6, L.tier[s] + ((L.rare >> s & 1) ? 1 : 0));
         const double sh = (double)rich[t].trim[s] / rich[t].px[s];
+        // (wave-2 fix round, D78) C12b counts the tier's own trim (R recoloured, or added by the trim band, from T3); at T1-T2
+        // R is drawn material: reported, not gated
+        if (tt <= 2) { g.ok(); continue; }
         Band bd = kTrimBand[tt];
         if (s == 1 || s == 2) bd.hi = std::max(bd.hi, kRimCeil);
         // the weapon and the cloak: their trim is drawn in their own colours where the maps mark no R (the sword's guard,
@@ -887,21 +909,103 @@ void gateC15(Line& g, Line& n) {
   }
 }
 
+// (wave-2 fix round, D85) the relic invariant: at one tier the old makers' metals climb in opaque px of the front walk's frame 0
+// (noHeld), gilded < obsidian < emberforged < starmetal, on the hero and the heroine at T5 and T6; and starmetal's crystal
+// shoulders the largest mass of every size they draw (each size's facing-D rest views, both sides, the `when metal-starmetal`
+// view where one is drawn, against every other shoulder shape at that size)
+int frontArea(const doll::DollRecipe& r) {
+  doll::ComposeOpts o;
+  o.noHeld = true;
+  o.onlyFacing = 0;
+  const RigSheet sh = doll::compose(r, RigPart::Loco, &o);
+  const art::FrameRect* f = sh.frame(0, Clip::Walk, 0, 0);
+  if (!f) return 0;
+  int n = 0;
+  for (int y = 0; y < f->h; y++)
+    for (int x = 0; x < f->w; x++) n += (sh.atlas.get(f->x + x, f->y + y) >> 24) != 0;
+  return n;
+}
+int pauldronMass(const std::string& value, bool star) {
+  const doll::pool::Pool& P = doll::pool::get();
+  const uint16_t rest = P.strId("rest");
+  int n = 0;
+  for (int pi : P.partsWithRole(doll::Role::Pauldron, value)) {
+    const doll::pool::PartRec& pr = P.parts[(size_t)pi];
+    if (!(pr.bodyMask >> (int)doll::BodySet::Man & 1)) continue;
+    const doll::pool::ViewRec* base = nullptr;
+    const doll::pool::ViewRec* starV = nullptr;
+    for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews && vi < P.views.size(); vi++) {
+      const doll::pool::ViewRec& w = P.views[vi];
+      if (w.facing != 0 || w.key != rest || w.cells.empty()) continue;
+      if (!w.when) { if (!base) base = &w; }
+      else if (star && (w.flags & 1) && P.s(w.when) == "metal-starmetal") starV = &w;
+    }
+    const doll::pool::ViewRec* v = starV ? starV : base;
+    if (!v) continue;
+    for (uint8_t c : v->cells) n += c >= 2;
+  }
+  return n;
+}
+void gateRelics(Line& g) {
+  static const char* const kMat[4] = {"gilded", "obsidian", "ember", "starmetal"};
+  for (int who = 0; who < 2; who++)
+    for (int t = 5; t <= 6; t++) {
+      int a[4] = {};
+      for (int m = 0; m < 4; m++) {
+        Look l;
+        l.tag = fmt("relic_%s_t%d_%s", kMat[m], t, who ? "w" : "m");
+        l.who = who;
+        l.spec = fmt("%s,kit=heartland:%d:1,mat=%s", who ? "heroine=1" : "hero=1", t, kMat[m]);
+        const Built b = build(l);
+        if (!b.bad.empty()) { g.bad(l.tag + ": bad look " + b.bad); continue; }
+        a[m] = frontArea(b.r);
+      }
+      std::string row;
+      for (int m = 0; m < 4; m++) row += fmt(" %s %d", kMat[m], a[m]);
+      if (g_report) std::printf("    relics %s T%d:%s\n", who ? "heroine" : "hero", t, row.c_str());
+      bool ok = true;
+      for (int m = 1; m < 4; m++) ok &= a[m] > a[m - 1];
+      if (ok) g.ok(); else g.bad(fmt("%s T%d front walk px%s (gilded < obsidian < emberforged < starmetal)", who ? "heroine" : "hero", t, row.c_str()));
+    }
+  // the crystal: the largest mass of its size
+  static const char* const kShapes[] = {"cop", "lobed", "roll", "slab", "vented", "plate", "winged", "flared", "shard", "flame", "layered", "scale", "flap",
+                                        "leaf", "fur", "pelt", "feather"};
+  for (int size = 2; size <= 6; size++) {
+    const int cr = pauldronMass("crystal." + std::to_string(size), true);
+    if (!cr) continue;
+    int best = 0;
+    std::string who;
+    for (const char* sh : kShapes) {
+      const int m = pauldronMass(std::string(sh) + "." + std::to_string(size), false);
+      if (m > best) { best = m; who = sh; }
+    }
+    if (cr >= best) g.ok();
+    else g.bad(fmt("crystal.%d %d px under %s.%d's %d (the crystal the largest mass of its size)", size, cr, who.c_str(), size, best));
+  }
+}
+int relicSelftests() {
+  // a synthetic order that dips must fail the rule the gate applies
+  const int a[4] = {900, 950, 940, 1000};
+  bool ok = true;
+  for (int m = 1; m < 4; m++) ok &= a[m] > a[m - 1];
+  return ok ? 1 : 0;   // 1 = missed
+}
 int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::vector<std::string>& out) {
   const std::vector<Built> built = buildAll(looks);
   Line c12{"C12 the ladder reads"}, c13{"C13 the living finish"}, c14{"C14 value"}, st{"C12-C14 selftests"};
-  Line c15{"C15 the alloys"}, c15n{"C15c alloy neighbours"};
+  Line c15{"C15 the alloys"}, c15n{"C15c alloy neighbours"}, rel{"relic invariant"};
+  gateRelics(rel);
   gateC12(c12, built);
   if (finish) gateC13(c13, built);
   gateC14(c14, built);
   gateC15(c15, c15n);
   if (self) {
-    const int m = selftests(g_report);
+    const int m = selftests(g_report) + relicSelftests();
     if (m) st.bad(fmt("%d synthetic defect(s) missed", m)); else st.ok();
     out.push_back(fmt("  C12-C14 selftest: %s", m ? "MISSED" : "ALL CAUGHT"));
   }
   int fails = 0;
-  for (Line* l : {&c12, &c13, &c14, &c15, &c15n, &st}) {
+  for (Line* l : {&c12, &c13, &c14, &c15, &c15n, &rel, &st}) {
     if ((l == &c13 && !finish) || (l == &st && !self)) continue;
     out.push_back(l->text());
     fails += l->fails ? 1 : 0;

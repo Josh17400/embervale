@@ -190,6 +190,24 @@ view L key lie when alloyshape,!helmfam-crown,!helmfam-kabuto replace
 |.
 
 
+# (HELMS fix r2, D83) PARADE's onion helm at T5: its own finial is the crown point and its gilt rim the circlet, so the crest
+# steps aside (the crown over the bulb read as a mushroom cap at 3x; judge w2fix_r1 P3)
+view D key rest when metal-gilded,helm.t5,!helm.t6 replace
+|.
+
+view U key rest when metal-gilded,helm.t5,!helm.t6 replace
+|.
+
+view R key rest when metal-gilded,helm.t5,!helm.t6 replace
+|.
+
+view L key rest when metal-gilded,helm.t5,!helm.t6 replace
+|.
+
+view L key lie when metal-gilded,helm.t5,!helm.t6 replace
+|.
+
+
 # (FORGE-HEAD envelope r2, tools2/crown5.py) T5: the parade crown steps down to a low circlet with a jewelled socket, so the
 # T5 plume stands clear above it (the judge read the crown + fan as a beret); a crown in front of the plume's stem.
 view D key rest when helm.t5,!alloyshape replace

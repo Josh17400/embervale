@@ -28,7 +28,8 @@ role overlay glass.spec
 legend 4 metal 4
 legend 3 metal 3
 legend 2 metal 2
-tags tile overlay stamp
+# (FINISH wave-2 fix r2, D79) RESERVE: the compositor's glass pass (doll_compose glassPass, D53/D62) draws the speculars and the rim procedurally; no resolver asks `overlay glass.spec`. Kept drawn, listed, never deleted (D49).
+tags tile overlay stamp reserve
 
 view D key bar2 origin 0 1
 |.4

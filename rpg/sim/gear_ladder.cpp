@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear.h"
@@ -49,15 +50,20 @@ LookTier lookTier(const Item& it, const cult::Culture* maker) {
     case Rarity::Mythic: t.tier = 6; t.flame = true; break;
     default: t.tier = kBase[band]; break;
   }
-  // a culture's masterwork alloy (tierStep 3) is T5 at least
-  if (const cult::Alloy* a = alloyOfItem(it, maker))
-    if (a->tierStep >= 3 && t.tier < 5) { t.tier = 5; t.rare = false; }
+  // (wave-2 fix round, D86) a culture alloy draws T4 or more (crafted or found: its people's silhouette shows from T4), and a
+  // masterwork (tierStep 3) T5 only from band 4 (a low-band masterwork is T4; before, every masterwork was T5)
+  if (const cult::Alloy* a = alloyOfItem(it, maker)) {
+    if (a->tierStep >= 3 && band >= 4 && t.tier < 5) { t.tier = 5; t.rare = false; }
+    else if (t.tier < 4 && art::doll::fixOn(art::doll::FIX_LINES)) { t.tier = 4; t.rare = false; }
+  }
   return t;
 }
 
 uint8_t metalKindOf(const Item& it) {
   const bool metalPiece = it.mat == Mat::Bronze || it.mat == Mat::Iron || it.mat == Mat::Steel || it.mat == Mat::Alloy;
-  if (it.rarity == Rarity::Mythic && metalPiece) return 11;
+  // (wave-2 fix round, D84; D32 restated) MYTHIC is the style of Mythic bronze, iron, steel and the old makers' metals; a Mythic
+  // culture-alloy piece keeps its alloy (its helm family, outline and colours) and wears the ember on top (HumanLook::mythic)
+  if (it.rarity == Rarity::Mythic && metalPiece && (it.mat != Mat::Alloy || !art::doll::fixOn(art::doll::FIX_RELIC))) return 11;
   switch (it.mat) {
     case Mat::Leather: return 1;
     case Mat::Bronze: return 2;
@@ -204,9 +210,33 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
   {
     Shape s;
     if (L.floor >> H::TIER_BODY & 1) s = heroShape(art::doll::forge::B_HOMESPUN, nullptr);
-    else if (g.armor && lookTier(*g.armor, maker(g.armor)).tier) s = shapeOf(*g.armor, maker(g.armor));
+    else if (g.armor && lookTier(*g.armor, maker(g.armor)).tier) {
+      s = shapeOf(*g.armor, maker(g.armor));
+      // (wave-2 fix round 2, D84 restated: "at its T6's area or more by construction") a Mythic relic body (gilded, obsidian,
+      // emberforged, starmetal steel) wears MYTHIC's black, gold and fire and its tells over its own metal's outline (the
+      // resolver reads relicBody: STARFALL's split skirt, FURNACE's heavy arms), as its helm keeps its family (D83)
+      if (art::doll::fixOn(art::doll::FIX_RELIC) && g.armor->rarity == Rarity::Mythic && g.armor->mat == Mat::Steel) {
+        const int band = bandOf(std::max(1, (int)g.armor->ilvl));
+        static const uint8_t kRelicB[4] = {5, 7, 8, 9};   // metalKind gilded obsidian ember starmetal (bands 4-7)
+        if (band >= 4) L.relicBody = (uint8_t)baseStyle(kRelicB[std::min(band, 7) - 4], cult::BodyArm::Plate).base;
+      }
+    }
     s.helm = 0;
-    if (g.helmet && lookTier(*g.helmet, maker(g.helmet)).tier) s.helm = shapeOf(*g.helmet, maker(g.helmet)).helm;
+    if (g.helmet && lookTier(*g.helmet, maker(g.helmet)).tier) {
+      s.helm = shapeOf(*g.helmet, maker(g.helmet)).helm;
+      // (wave-2 fix round, D83 / D84) a Mythic relic helm (gilded, obsidian, emberforged, starmetal steel) keeps its metal's helm
+      // family in black, gold and fire: the onion, the mask, the furnace helm, the crystal (e6m the crystal's legend view)
+      if (art::doll::fixOn(art::doll::FIX_RELIC) && g.helmet->rarity == Rarity::Mythic && g.helmet->mat == Mat::Steel) {
+        const int band = bandOf(std::max(1, (int)g.helmet->ilvl));
+        if (band >= 4) {
+          static const uint8_t kRelic[4] = {5, 7, 8, 9};   // metalKind gilded obsidian ember starmetal (bands 4-7)
+          const ForgeStyle rs = baseStyle(kRelic[std::min(band, 7) - 4], cult::BodyArm::Plate);
+          const Shape rsh = heroShape(rs.base, nullptr);
+          if (rsh.helm) s.helm = rsh.helm;
+          L.relicHelm = (uint8_t)rs.base;
+        }
+      }
+    }
     L.forgeShape = packShape(s);
     L.forgeGuise = 0;
   }
@@ -216,6 +246,7 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     if (const cult::Culture* c = maker(src)) {
       using A = cult::Archetype;
       const A a = c->archetype;
+      L.makerPeople = (uint8_t)((int)a + 1);   // (wave-2 fix round, D74) the people's T2 hems
       L.motif = a == A::Jade ? 1 : a == A::Imperial ? 2 : (a == A::Fjordfolk || a == A::Highland) ? 3 : 0;
       break;
     }
@@ -336,13 +367,17 @@ const cult::Culture& kitCulture(cult::Archetype a, uint32_t seed) {
   return *(memo[key] = std::move(c));
 }
 namespace {
+// (wave-2 fix round, D89) every family a kit tag names; -1 for one that is not a melee weapon type (bow, crossbow, staff,
+// unarmed: ladderKit's own branches) and -2 for an unknown name (applyLadderSpec reports it: a tag renders what it says)
 int weaponTypeOf(const std::string& w) {
+  if (w.empty() || w == "sword") return (int)WeaponType::Sword;
   if (w == "axe") return (int)WeaponType::Axe;
   if (w == "mace") return (int)WeaponType::Mace;
   if (w == "dagger") return (int)WeaponType::Dagger;
   if (w == "greatsword") return (int)WeaponType::Greatsword;
   if (w == "spear") return (int)WeaponType::Spear;
-  return (int)WeaponType::Sword;
+  if (w == "bow" || w == "crossbow" || w == "staff" || w == "unarmed") return -1;
+  return -2;
 }
 }  // namespace
 
@@ -353,6 +388,9 @@ static void applyKitDials(art::HumanLook& L, const LadderKit& K, int tier) {
     L.cape = true;
     if (!L.tier[art::HumanLook::TIER_CLOAK]) L.tier[art::HumanLook::TIER_CLOAK] = (uint8_t)std::clamp(tier, 1, 6);
   }
+  // (wave-2 fix round, D73) the kit's cloak is the tier's cloak: T3 the travel cloak at cloak.t3, T4 the officer's cloak at
+  // cloak.t4 (the band-3 travel cloak item reads T3 by its own level; the kit row is T4's), T5-T6 the long cloak at its tier
+  if (art::doll::fixOn(art::doll::FIX_CLOAK) && K.hasCloak && L.cloak && tier >= 3) L.tier[art::HumanLook::TIER_CLOAK] = (uint8_t)std::clamp(tier, 3, 6);
 }
 
 LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::string& wpn, int rarity, uint32_t seed) {
@@ -422,7 +460,7 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
   }
   // shield (a people with no shield bears none; two-handed weapons and bows carry none)
   const std::string w = wpn.empty() ? std::string("sword") : wpn;
-  const bool twoHand = w == "greatsword" || w == "spear" || w == "bow" || w == "staff";
+  const bool twoHand = w == "greatsword" || w == "spear" || w == "bow" || w == "crossbow" || w == "staff" || w == "unarmed";   // (D89: fists bear no shield)
   if (!twoHand && (A.shield != SF::None || heart)) {
     if (tier <= 2) {
       k.shield = make(ItemKind::Shield, 0, il, rar, Mat::Leather, 0, C);
@@ -438,14 +476,17 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
     k.hasShield = true;
   }
   // the weapon in hand
-  if (w == "bow") {
+  if (w == "bow" || w == "crossbow") {
     k.bow = make(ItemKind::Bow, 0, tier <= 2 ? (tier == 1 ? 3 : 10) : il, tier == 2 ? ovr(Rarity::Common) : rar, Mat::Wood, 0, C);
+    if (w == "crossbow") k.bow.form = (uint8_t)((int)cult::BowKind::Crossbow + 1);   // (D89) the crossbow's own form, any people
     k.hasBow = true;
+  } else if (w == "unarmed") {
+    // (D89) fists: nothing in hand
   } else if (w == "staff") {
     k.staff = make(ItemKind::Staff, 0, tier <= 2 ? (tier == 1 ? 3 : 10) : il, tier == 2 ? ovr(Rarity::Common) : rar, Mat::Wood, 0, C);
     k.hasStaff = true;
   } else {
-    const int sub = weaponTypeOf(w);
+    const int sub = std::max(0, weaponTypeOf(w));
     if (tier == 1) {
       if (heart && sub == (int)WeaponType::Sword) {
         // the OLD BLADE (game_rpg.cpp giveFirstWeapon): an item-level-1 iron heirloom in the old heartland make
@@ -493,7 +534,9 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
   }
   // (P2c envelope r3, C12f ladder lines) T3 wears the people's cape (PLAN's T3 row: "the people's cape, to the waist"; the
   // fair test's T3 guard): a people with a long cloak (cape dial 2) has its travel cloak above, one with none bears none
-  k.cape = tier == 3 && !k.hasCloak && (A.cape == 1 || heart);
+  // (wave-2 fix round, D73) every people's line wears its T3 cloak: the people's cape where its dial is 0 or 1 (a people with
+  // no cape of its own wears the plain short cape in its colour), the travel cloak above where it is 2
+  k.cape = tier == 3 && !k.hasCloak && (art::doll::fixOn(art::doll::FIX_CLOAK) || A.cape == 1 || heart);
   if (k.hasCloak && !k.cloak.tint) k.cloak.tint = (C->heraldry.field ? C->heraldry.field : (A.cloth ? A.cloth : 0)) | 0xFF000000u;
   return k;
 }
@@ -554,7 +597,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "heroine") { if (v != "0") hero = 1; }
     else if (k == "kit") kit = v;
     else if (k == "npc") npc = v;
-    else if (k == "wpn") wpn = v;
+    else if (k == "wpn") { wpn = v; if (weaponTypeOf(v) == -2) addBad("wpn=" + v + " (sword axe mace dagger greatsword spear bow crossbow staff unarmed)"); }
     else if (k == "alloy") kitAlloy = (int)std::strtol(v.c_str(), nullptr, 10);   // (alloys i1) the kit's metal pieces in alloy N
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
     else if (k == "mat" || k == "forge" || k == "style" || k == "alloyStyle" || k == "shape" || k == "alloyShape" ||

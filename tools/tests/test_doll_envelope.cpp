@@ -10,6 +10,8 @@
 //   rpg_test --doll-coverage --scope envelope       (test_doll.cpp dispatches) the envelope's fallbacks and undrawn variants
 // Every number is read from rpg/art/doll/doll_envelope.h. Planned thresholds (set by eye in round 1) are marked "planned".
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -41,6 +43,7 @@ using art::RigSheet;
 using doll::Role;
 
 bool g_report = false;
+bool g_ledger = false;   // (wave-2 fix round, D76) --doll-envelope --scope ladder --ledger: each piece's add on every line and tier
 
 std::string fmt(const char* f, ...) {
   char b[1024];
@@ -268,6 +271,8 @@ Head headOf(const Fig& f, int who) {
       if (ornIt(*it) || f.slot(k) == doll::Slot::Plume) h.ornRows = std::max(h.ornRows, up);
       else {
         if (up > h.rows) { h.rows = up; h.worst = it->part; }
+        // (wave-2 fix round, D80) P2b's cloth headwear (headwear/cloth/**) is out of the column caps at every tier; its rows stand
+        if (it->part.find("headwear/cloth/") != std::string::npos) continue;
         if (flarePart(it->part)) h.colsFlare = std::max(h.colsFlare, col);
         else if (brimPart(it->part)) h.colsBrim = std::max(h.colsBrim, col);
         else if (col > h.cols) { h.cols = col; h.worstCol = it->part; }
@@ -343,8 +348,9 @@ int cloakBackOf(const Fig& f, int facing) {
   }
   return std::max(0, reach);
 }
+bool g_t1dbg = false;   // (debug) ENV_DEBUG_TAG=<tag>: the T1 pixels outside, for that look only
 // T1 inside the bare body's outline + 1 px (the hood's rows inside the hair's 2-row rise exempt)
-int t1Outside(const Fig& f, const Fig& bare, int who) {
+int t1Outside(const Fig& f, const Fig& bare, int who, int helmTier = 1) {
   if (!f.ok || !bare.ok) return 0;
   std::set<std::pair<int, int>> dil;
   for (int k = 0; k < bare.p.w * bare.p.h; k++) {
@@ -360,7 +366,12 @@ int t1Outside(const Fig& f, const Fig& bare, int who) {
     if (dil.count({x, y})) continue;
     const auto* it = f.it(k);
     if (it && helmIt(*it) && crown - k / f.p.w <= 2) continue;   // the hood inside the hair's rise
-    if (std::getenv("ENV_DEBUG")) std::printf("      T1 outside: %d,%d %s (anchor %d,%d pivot %d,%d)\n", x, y, it ? it->part.c_str() : "?", it ? it->ax : 0,
+    // (wave-2 fix round 2, D80: "P2b's cloth headwear is out of the column caps", as the head columns read it at every tier)
+    if (it && it->part.find("headwear/cloth/") != std::string::npos) continue;
+    // (D80: "the caps read each piece's RESOLVED tier") a helm resolved at T2 or more on a T1 body has its own head caps
+    // (headRule at that tier), as the cloak has its own: T1's bare-body column reads the T1 pieces
+    if (it && helmTier >= 2 && helmIt(*it)) continue;
+    if (std::getenv("ENV_DEBUG") || g_t1dbg) std::printf("      T1 outside:%d,%d %s (anchor %d,%d pivot %d,%d)\n", x, y, it ? it->part.c_str() : "?", it ? it->ax : 0,
                                                it ? it->ay : 0, f.p.px, f.p.py);
     out++;
   }
@@ -477,7 +488,8 @@ int envelopeLooksGate(const std::vector<Built>& looks, Line& g, Line& c3b, Line&
     if (!b.bad.empty()) { g.bad(b.tag + ": " + b.bad); continue; }
     const Measured m = measure(b);
     if (out) (*out)[b.tag] = m;
-    const int tb = tierOf(b.L, HumanLook::TIER_BODY), th = tierOf(b.L, HumanLook::TIER_HELM), tc = tierOf(b.L, HumanLook::TIER_CLOAK);
+    // (wave-2 fix round, D80) each piece's resolved tier (the tier its views were picked by)
+    const int tb = b.r.pieceTier[HumanLook::TIER_BODY], th = b.r.pieceTier[HumanLook::TIER_HELM], tc = b.r.pieceTier[HumanLook::TIER_CLOAK];
     if (g_report)
       std::printf("  C12f %-9s T%d/%d/%d area %4d (D %3d R %3d) shoulders %2d head rows %3d orn %3d cols %d/%d/%d cloak D %d back %d headpx %d\n",
                   b.tag.c_str(), tb, th, tc, m.area, m.areaD, m.areaR, m.shoulders, m.hd.rows, m.hd.ornRows, m.hd.cols, m.hd.colsBrim,
@@ -578,7 +590,7 @@ int drawnMotion(const Built& b, int facing) {
 void motionGate(const std::vector<Built>& looks, Line& g) {
   for (const Built& b : looks) {
     if (!b.r.has("breeze")) continue;
-    const int t = std::max(tierOf(b.L, HumanLook::TIER_CLOAK), tierOf(b.L, HumanLook::TIER_HELM));
+    const int t = std::max<int>(b.r.pieceTier[HumanLook::TIER_CLOAK], b.r.pieceTier[HumanLook::TIER_HELM]);   // (D80) resolved
     if (t < 5) continue;
     const doll::TierEnvelope& e = doll::envelopeOf(t);
     for (int fc : {0, 2}) {
@@ -653,6 +665,17 @@ int envelopeSelftests() {
     const Built b = build(Look{"st_t2", 0, "hero=1,kit=heartland:4:7,palette=look"});
     const int sh = shouldersOf(probe(b, RigPart::Loco, 0, Clip::Idle, 0, 0));
     expect(!shoulderRule(2, std::max(sh, 22)).empty(), "a T2 with large pauldrons");
+    // (wave-2 fix round 2, D80) the T1 bare-body column leaves out only cloth headwear and a helm resolved at T2 or more: a T4
+    // figure's shoulders and body measured as a T1 (its helm left out) still fall outside the bare outline + 1
+    {
+      Built bare;
+      bare.who = 0;
+      bare.L = a3Hero();
+      bare.L.weapon = 0;
+      bare.r = doll::resolve(bare.L);
+      const int out = t1Outside(probe(b, RigPart::Loco, 0, Clip::Walk, 0, 0), probe(bare, RigPart::Loco, 0, Clip::Walk, 0, 0), 0, 4);
+      expect(out > 0, "a T4 body (helm left out) inside a T1's bare outline");
+    }
   }
   // a T5 cloak 10 px behind
   expect(!cloakRule(5, 0, 10).empty(), "a T5 cloak 10 px behind");
@@ -1179,8 +1202,12 @@ void r4Mythic(Line& g, const Built& b, const Built* t6, int item) {
       }
       std::printf("\n");
     }
-    rchk(g, a.warm * 100 >= a.gear * 15, id + fmt(" facing %d: warm light %d of %d gear px (%.0f %%; 15)", fc, a.warm, a.gear, a.gear ? 100.0 * a.warm / a.gear : 0.0));
+    if (b.r.has("forge-mythic"))   // (D84) MYTHIC-style looks only
+      rchk(g, a.warm * 100 >= a.gear * 15, id + fmt(" facing %d: warm light %d of %d gear px (%.0f %%; 15)", fc, a.warm, a.gear, a.gear ? 100.0 * a.warm / a.gear : 0.0));
   }
+  // (wave-2 fix round, D84) the black-steel terms (the helm's luma range; the warm share above) read MYTHIC-style looks only: a
+  // Mythic culture alloy keeps its alloy's colours under the ember
+  if (!b.r.has("forge-mythic")) return;
   const Fig d = probe(b, RigPart::Loco, 0, Clip::Idle, 0, 0);
   std::vector<double> ls;
   for (int k = 0; k < d.p.w * d.p.h; k++) if (d.opaque(k) && itemHas(d, k, Role::Helm) && d.step(k) > 0) ls.push_back(luma(d.colour(k)));
@@ -1566,7 +1593,7 @@ int headGates(bool selftest, std::vector<std::string>& printed) {
   {
     std::vector<doll::Outline> outs;
     HumanLook base = a3Hero();
-    for (const OwnerAlloy& o : os) outs.push_back(doll::outlineOf(doll::resolve(gear::alloyKitLook(base, o.c, o.idx))));
+    for (const OwnerAlloy& o : os) outs.push_back(doll::outlineOf(doll::resolve(gear::alloyKitLook(base, o.c, o.idx)), true));
     int near = 0;
     for (size_t i = 0; i < os.size(); i++)
       for (size_t j = i + 1; j < os.size(); j++) {
@@ -1655,6 +1682,15 @@ std::vector<std::string> climbRule(const LineNums& n) {
 }
 // the recorded ruling a failing term stands under (nullptr: none)
 const doll::EnvelopeRuling* rulingFor(const char* people, int who, const std::string& term) {
+  // (wave-2 fix round, D76) only a ratio term ("T<n> area <q> of T1 (<aim>)") short by 0.05 or less may stand under a ruling: a
+  // step, a head term and the Mythic term are never ruled (the owner's climb has no dip)
+  {
+    int t = 0;
+    double q = 0, aim = 0;
+    char tail[8] = {};
+    if (std::sscanf(term.c_str(), "T%d area %lf of T1 (%lf%7s", &t, &q, &aim, tail) < 4 || tail[0] != ')') return nullptr;
+    if (aim - q > 0.05 + 1e-9) return nullptr;
+  }
   for (const doll::EnvelopeRuling& r : doll::kEnvelopeRulings) {
     if (!r.people || !r.term) continue;
     if (std::strcmp(r.people, people) || (r.body >= 0 && r.body != who)) continue;
@@ -1663,7 +1699,45 @@ const doll::EnvelopeRuling* rulingFor(const char* people, int who, const std::st
   return nullptr;
 }
 
-struct LResult { int p, who, seed; LineNums n; std::vector<std::string> fails, ruled; };
+struct LResult { int p, who, seed; LineNums n; std::vector<std::string> fails, ruled, ledger; };
+
+// (wave-2 fix round, D76) the area ledger: each piece's add, the frame without the piece against with it (C12f's measure: the walk's
+// frame 0 facing D + the idle facing R, noHeld). Pieces: the helm (helm, headwear, crest overlays), the pauldrons, the cloak, the neck
+// piece, the skirt and hangs (skirt overlays, the armour's hangFront / hangBack), the over-layer (tabard, sash) and the torso (the
+// body armour on the torso layer, its motif and sleeves)
+enum LedgerPiece { LP_HELM, LP_PAULDRON, LP_CLOAK, LP_NECK, LP_SKIRT, LP_LAYER, LP_TORSO, LP_COUNT };
+const char* const kLedgerName[LP_COUNT] = {"helm", "pauldrons", "cloak", "neck", "skirt", "layer", "torso"};
+int ledgerPieceOf(const doll::pool::Pool& P, int pi) {
+  const doll::pool::PartRec& p = P.parts[(size_t)pi];
+  auto ov = [&](const char* pre) {
+    for (const auto& rr : p.roles) if (rr.cat == (uint8_t)Role::Overlay && P.s(rr.value).rfind(pre, 0) == 0) return true;
+    return false;
+  };
+  auto has = [&](Role ro) { for (const auto& rr : p.roles) if (rr.cat == (uint8_t)ro) return true; return false; };
+  if (has(Role::Helm) || has(Role::Headwear) || ov("crest.")) return LP_HELM;
+  if (has(Role::Pauldron)) return LP_PAULDRON;
+  if (has(Role::Cloak)) return LP_CLOAK;
+  if (has(Role::Neck)) return LP_NECK;
+  if (ov("skirt.") || (has(Role::Armour) && (p.layer == (uint8_t)doll::Layer::HangFront || p.layer == (uint8_t)doll::Layer::HangBack))) return LP_SKIRT;
+  if (ov("tabard") || ov("sash")) return LP_LAYER;
+  if (has(Role::Armour) || ov("motif.") || ov("sleeve.")) return LP_TORSO;
+  return -1;
+}
+int ledgerArea(const doll::DollRecipe& r) { return noHeldArea(r, 0, Clip::Walk, 0) + noHeldArea(r, 2, Clip::Idle, 0); }
+// "+add" per piece (absent pieces "-"); adds[i] filled for the board
+std::string ledgerRow(const doll::DollRecipe& r, int full, int adds[LP_COUNT]) {
+  const doll::pool::Pool& P = doll::pool::get();
+  std::string row;
+  for (int k = 0; k < LP_COUNT; k++) {
+    doll::DollRecipe x = r;
+    const size_t n0 = x.parts.size();
+    x.parts.erase(std::remove_if(x.parts.begin(), x.parts.end(), [&](int pi) { return ledgerPieceOf(P, pi) == k; }), x.parts.end());
+    if (x.parts.size() == n0) { adds[k] = 0; row += fmt(" %s -", kLedgerName[k]); continue; }
+    adds[k] = full - ledgerArea(x);
+    row += fmt(" %s %+d", kLedgerName[k], adds[k]);
+  }
+  return row;
+}
 
 int ladderSelftests() {
   int caught = 0, want = 0;
@@ -1685,6 +1759,11 @@ int ladderSelftests() {
   { LineNums n = good; n.od[3] = 0.05; expect(!climbRule(n).empty(), "a T6 helm the shape of its T5 (OD 0.05)"); }
   { LineNums n = good; n.mythic = 1300; expect(!climbRule(n).empty(), "a Mythic smaller than its T6"); }
   expect(rulingFor("heartland", 0, "T5 area 1.50 of T1 (1.55)") == nullptr, "an unruled term reads as ruled");
+  // (wave-2 fix round, D76) whatever kEnvelopeRulings holds, a step, a head term, the Mythic or a ratio 0.06 short is never ruled
+  expect(rulingFor("heartland", 0, "T4 area 1.16 not 0.05 over T3's 1.21") == nullptr, "a step stands under a ruling");
+  expect(rulingFor("heartland", 0, "T4-T5 head 346 -> 321 px (5 %)") == nullptr, "a head term stands under a ruling");
+  expect(rulingFor("heartland", 0, "Mythic area 1129 under its T6's 1424") == nullptr, "the Mythic stands under a ruling");
+  expect(rulingFor("heartland", 0, "T4 area 1.29 of T1 (1.35)") == nullptr, "a ratio 0.06 short stands under a ruling");
   std::printf("  C12f source L selftests: %d of %d caught\n", caught, want);
   return want - caught;
 }
@@ -1716,6 +1795,15 @@ std::vector<LResult> measureLines(int a, int b, int onlyPeople) {
         }
         for (int i = 0; i < 4; i++) r.n.od[i] = doll::outlineDistance(ol[i + 1], ol[i + 2]).head;
         if (mb && mb->bad.empty()) r.n.mythic = measure(*mb).area;
+        if (g_ledger)
+          for (int t = 0; t < 6; t++) {
+            int adds[LP_COUNT];
+            const std::string row = ledgerRow(bs[t]->r, r.n.area[t], adds);
+            std::string extra;
+            if (t == 1) extra = fmt("; T2 head %d, budget %d (T3's %d / 1.05)", r.n.head[1], r.n.head[2] * 100 / (100 + doll::kHeadAreaStepPct), r.n.head[2]);
+            r.ledger.push_back(fmt("        ledger T%d: area %d (%.2f; step %+.2f) |%s%s", t + 1, r.n.area[t], r.n.area[0] ? (double)r.n.area[t] / r.n.area[0] : 0.0,
+                                   t && r.n.area[0] ? (double)(r.n.area[t] - r.n.area[t - 1]) / r.n.area[0] : 0.0, row.c_str(), extra.c_str()));
+          }
         for (const std::string& f : climbRule(r.n)) {
           if (const doll::EnvelopeRuling* ru = rulingFor(kLPeople[p], who, f)) r.ruled.push_back(f + " [ruled: " + ru->plan + "]");
           else r.fails.push_back(f);
@@ -1734,7 +1822,7 @@ int runLadderScope(int a, int b, bool self, std::vector<std::string>& printed) {
   for (const LResult& r : res) {
     if (!r.fails.empty()) failLines++;
     else if (!r.ruled.empty()) ruledLines++;
-    if (!g_report && r.fails.empty() && r.ruled.empty()) continue;
+    if (!g_report && !g_ledger && r.fails.empty() && r.ruled.empty()) continue;
     std::string row, hrow;
     for (int t = 0; t < 6; t++) row += fmt(" %.2f", r.n.area[0] ? (double)r.n.area[t] / r.n.area[0] : 0.0);
     for (int t = 1; t < 6; t++) hrow += fmt(" %d", r.n.head[t]);
@@ -1746,6 +1834,7 @@ int runLadderScope(int a, int b, bool self, std::vector<std::string>& printed) {
     if (g_report)
       for (size_t i = 1; i < r.fails.size(); i++) printed.push_back("        also: " + r.fails[i]);
     for (const std::string& x : r.ruled) printed.push_back("        ruled: " + x);
+    for (const std::string& x : r.ledger) printed.push_back(x);
   }
   // the per-people table (PLAN "The envelope in production"): the median of the people's lines as a multiple of T1, in brackets
   // how many reach the tier's ratio; the Mythic at its T6; the lines whose head steps hold (T2-T3 / T3-T4 / T4-T5 / T5-T6)
@@ -1800,7 +1889,7 @@ int runLadderScope(int a, int b, bool self, std::vector<std::string>& printed) {
   int fails = g.fails ? 1 : 0;
   if (self) {
     const int miss = ladderSelftests();
-    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f source L selftests", 8, miss));
+    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f source L selftests", 12, miss));
     fails += miss ? 1 : 0;
   }
   art::setRigVersion(was);
@@ -1837,6 +1926,26 @@ int skirtFlareOf(const Fig& f, const Fig& bare) {
   return reach;
 }
 
+// (wave-2 fix round, D80) T1's figures: the look without its cloak (bare = false), or its own bare body (bare = true: every gear
+// part removed: armour, helm and headwear, pauldrons, shield, held, sheath, cloak, overlays, effects; the body, garment, head,
+// hair, ears, face and the neck piece kept)
+doll::DollRecipe t1Figure(const doll::DollRecipe& r, bool bare) {
+  const doll::pool::Pool& P = doll::pool::get();
+  doll::DollRecipe x = r;
+  x.parts.erase(std::remove_if(x.parts.begin(), x.parts.end(), [&](int pi) {
+                  for (const auto& rr : P.parts[(size_t)pi].roles) {
+                    const Role ro = (Role)rr.cat;
+                    if (ro == Role::Cloak) return true;
+                    if (bare && (ro == Role::Armour || ro == Role::Helm || ro == Role::Headwear || ro == Role::Pauldron || ro == Role::Shield ||
+                                 ro == Role::Held || ro == Role::Sheath || ro == Role::Overlay || ro == Role::Fx))
+                      return true;
+                  }
+                  return false;
+                }),
+                x.parts.end());
+  if (bare) x.dropHang = false;
+  return x;
+}
 struct CapStat { int looks = 0, fails = 0; std::map<std::string, int> terms; std::vector<std::string> first; std::map<int, std::vector<int>> flare; };
 void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
   cs.looks++;
@@ -1846,7 +1955,9 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
     if (cs.first.size() < 12) cs.first.push_back(b.tag + ": " + b.bad);
     return;
   }
-  const int tb = tierOf(b.L, HumanLook::TIER_BODY), th = tierOf(b.L, HumanLook::TIER_HELM), tc = tierOf(b.L, HumanLook::TIER_CLOAK);
+  // (wave-2 fix round, D80) the caps read each piece's RESOLVED tier (after kitVar, the watch, D69 / D73's cloaks: the tier its
+  // views were picked by), never the look's field
+  const int tb = b.r.pieceTier[HumanLook::TIER_BODY], th = b.r.pieceTier[HumanLook::TIER_HELM], tc = b.r.pieceTier[HumanLook::TIER_CLOAK];
   const Fig id = probe(b, RigPart::Loco, 0, Clip::Idle, 0, 0), ir = probe(b, RigPart::Loco, 2, Clip::Idle, 0, 0),
             il = probe(b, RigPart::Loco, 3, Clip::Idle, 0, 0);
   std::vector<std::string> w;
@@ -1872,9 +1983,35 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
   // the skirt's flare: measured on every tiered look and reported per tier (kEnvelope's skirtFlare is "extra px past the hips"
   // over the base skirt, whose width the contracts do not fix yet: reported, not gated, until the planner names the base)
   if (tb >= 1) cs.flare[tb].push_back(skirtFlareOf(id, probe(bb, RigPart::Loco, 0, Clip::Idle, 0, 0)));
+  {
+    const char* t = std::getenv("ENV_DEBUG_TAG");
+    g_t1dbg = t && b.tag == t;
+    if (g_t1dbg) {
+      std::printf("  debug %s parts:", b.tag.c_str());
+      for (int pi : b.r.parts) std::printf(" %s", doll::pool::get().s(doll::pool::get().parts[(size_t)pi].name).c_str());
+      std::printf("\n");
+      for (const Fig* f : {&id, &ir}) {
+        std::map<std::string, std::array<int, 3>> top;   // part: top row, left col, right col (relative to the head anchor)
+        for (int k = 0; k < f->p.w * f->p.h; k++) {
+          if (!f->opaque(k) || !f->it(k)) continue;
+          auto& t = top.emplace(f->it(k)->part, std::array<int, 3>{9999, 9999, -9999}).first->second;
+          t[0] = std::min(t[0], k / f->p.w - f->p.headY);
+          t[1] = std::min(t[1], k % f->p.w - f->p.headX);
+          t[2] = std::max(t[2], k % f->p.w - f->p.headX);
+        }
+        std::printf("  debug crown offset %d (who %d body %d)\n", crownOffset(b.who), b.who, (int)b.L.body);
+        for (const auto& kv : top)
+          if (kv.second[0] < 20) std::printf("    %-40s top %3d cols %3d..%3d\n", kv.first.c_str(), kv.second[0], kv.second[1], kv.second[2]);
+      }
+    }
+  }
   if (tb == 1) {
-    const int od = t1Outside(probe(b, RigPart::Loco, 0, Clip::Walk, 0, 0), probe(bb, RigPart::Loco, 0, Clip::Walk, 0, 0), b.who);
-    const int orr = t1Outside(ir, probe(bb, RigPart::Loco, 2, Clip::Idle, 0, 0), b.who);
+    // (wave-2 fix round, D80) T1 against the SAME look's bare body (every gear part off; head, hair, ears and the neck piece
+    // kept) with the cloak left out (it has its own caps)
+    const doll::DollRecipe noCloak = t1Figure(b.r, false), own = t1Figure(b.r, true);
+    const Fig fd = probeR(noCloak, RigPart::Loco, 0, Clip::Walk, 0, 0), fr = probeR(noCloak, RigPart::Loco, 2, Clip::Idle, 0, 0);
+    const int od = t1Outside(fd, probeR(own, RigPart::Loco, 0, Clip::Walk, 0, 0), b.who, th);
+    const int orr = t1Outside(fr, probeR(own, RigPart::Loco, 2, Clip::Idle, 0, 0), b.who, th);
     if (od || orr) w.push_back(fmt("T1 %d px (D) and %d px (R) outside the bare outline + 1", od, orr));
   }
   if (w.empty()) return;
@@ -1993,7 +2130,7 @@ int runEnvelope(const std::string& text, bool self, std::vector<std::string>& pr
   for (Line* l : {&g, &c3b, &lad, &mot, &b10, &kt}) { printed.push_back(l->text()); fails += l->fails ? 1 : 0; }
   if (self) {
     const int miss = envelopeSelftests();
-    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f selftests", 10, miss));
+    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f selftests", 11, miss));
     fails += miss ? 1 : 0;
   }
   art::setRigVersion(was);
@@ -2006,6 +2143,7 @@ int envelopeCmd(int argc, char** argv) {
   for (int i = 1; i < argc; i++) {
     if (!std::strcmp(argv[i], "--report")) g_report = true;
     if (!std::strcmp(argv[i], "--selftest")) self = true;
+    if (!std::strcmp(argv[i], "--ledger")) g_ledger = true;
     if (!std::strcmp(argv[i], "--scope") && i + 1 < argc) scope = argv[++i];
     else if (!std::strcmp(argv[i], "--what-if") && i + 1 < argc) {   // (wave 2 r3) the planner's numbers: see envelopeWhatIf
       const std::string w = std::string(",") + argv[++i] + ",";
@@ -2146,8 +2284,63 @@ int recipeCmd(int argc, char** argv) {
     // --map: the idle D and R frames as slot letters (a Skin b Hair c Eyes d Face e Ink f Cloth1 g Cloth2 h Accent i Linen j Cloth3
     // k Leather l Metal m Metal2 n Head o Cloak p Pattern q Plume r Field s Device t Glow u Fx v Blade) with the step, and the
     // part under each pixel by index
-    bool map = false;
+    // (wave-2 fix round 3) --orphans: every DEATH frame's lone pixels (no 8-neighbour; B8 craft) with the part that drew them
+    for (int i = 1; i < argc; i++)
+      if (!std::strcmp(argv[i], "--orphans"))
+        for (Clip cl : {Clip::Fall, Clip::Lying})
+          for (int fc = 0; fc < 4; fc++)
+            for (int va = 0; va < 2; va++)
+              for (int fi = 0; fi < 8; fi++) {
+                const Fig f = probe(b, RigPart::Death, fc, cl, va, fi);
+                if (!f.ok) break;
+                for (int k = 0; k < f.p.w * f.p.h; k++) {
+                  if (!f.opaque(k)) continue;
+                  const int x = k % f.p.w, y = k / f.p.w;
+                  bool any = false;
+                  for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                      if ((dx || dy) && f.p.at(x + dx, y + dy) >= 0 && f.opaque(f.p.at(x + dx, y + dy))) any = true;
+                  if (!any)
+                    std::printf("  orphan %s clip %d facing %d v%d f%d at %d,%d (pivot %+d,%+d): %s\n", b.tag.c_str(), (int)cl, fc, va, fi, x, y,
+                                x - f.p.px, y - f.p.py, f.it(k) ? f.it(k)->part.c_str() : "-");
+                }
+              }
+    bool map = false, regs = false;
     for (int i = 1; i < argc; i++) map |= !std::strcmp(argv[i], "--map");
+    for (int i = 1; i < argc; i++) regs |= !std::strcmp(argv[i], "--regions");
+    // (wave-2 fix round 3) --regions: the idle D and R frames cropped, one char a pixel (the finish regions R P G N W in
+    // upper case where the pixel is Metal 2, lower case otherwise; else the slot letter), and each part's R and trim count
+    if (regs)
+      for (int fc : {0, 2}) {
+        const Fig f = probe(b, RigPart::Loco, fc, Clip::Idle, 0, 0);
+        int x0 = f.p.w, y0 = f.p.h, x1 = -1, y1 = -1;
+        for (int k = 0; k < f.p.w * f.p.h; k++)
+          if (f.opaque(k)) { x0 = std::min(x0, k % f.p.w); x1 = std::max(x1, k % f.p.w); y0 = std::min(y0, k / f.p.w); y1 = std::max(y1, k / f.p.w); }
+        std::printf("  regions facing %d\n", fc);
+        std::map<std::string, std::array<int, 3>> per;
+        for (int y = y0; y <= y1; y++) {
+          std::string a;
+          for (int x = x0; x <= x1; x++) {
+            const int k = y * f.p.w + x;
+            if (!f.opaque(k)) { a += '.'; continue; }
+            const doll::Region rg = (doll::Region)f.p.region[(size_t)k];
+            const bool m2 = f.slot(k) == doll::Slot::Metal2;
+            char ch = (char)('a' + (int)f.slot(k));
+            if (rg >= doll::Region::Trim && rg <= doll::Region::Wear) {
+              ch = doll::regionChar(rg);
+              if (!m2) ch = (char)std::tolower((unsigned char)ch);
+            }
+            a += ch;
+            const std::string pn = f.it(k) ? f.it(k)->part : "-";
+            auto& c = per[pn];
+            c[0]++;
+            if (rg == doll::Region::Trim) c[1]++;
+            if (rg == doll::Region::Trim && m2) c[2]++;
+          }
+          std::printf("   %s\n", a.c_str());
+        }
+        for (const auto& kv : per) std::printf("    %-44s px %4d  R %3d  trim %3d\n", kv.first.c_str(), kv.second[0], kv.second[1], kv.second[2]);
+      }
     if (map)
       for (int fc : {0, 2}) {
         const Fig f = probe(b, RigPart::Loco, fc, Clip::Idle, 0, 0);
@@ -2191,6 +2384,13 @@ int dollHeadGates(bool report, bool selftest, std::vector<std::string>& printed)
   return dollenv::headGates(selftest, printed);
 }
 int dollEnvelopeCoverage(int argc, char** argv) { return dollenv::coverage(argc, argv); }
+// (wave-2 fix round, D79) C1's sources F, L and M8-M12 as looks (the dead parts count over them too)
+std::vector<std::pair<std::string, art::HumanLook>> dollSpecLooks(const std::string& text) {
+  std::vector<std::pair<std::string, art::HumanLook>> out;
+  for (const dollenv::Built& b : dollenv::buildLooks(text)) if (b.bad.empty()) out.push_back({b.tag, b.L});
+  return out;
+}
+std::string dollSourceLText(int a, int b) { return dollenv::sourceLText(a, b) + dollenv::kEnvelopeLooks; }
 std::string dollEnvelopeLooksText() { return dollenv::envelopeLooksText(); }
 
 RPG_TEST_CMD("--envelope", "P2c envelope: print the tier envelope (art::doll::kEnvelope)", dollenv::envelopePrint);

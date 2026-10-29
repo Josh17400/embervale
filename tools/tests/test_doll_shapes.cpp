@@ -187,7 +187,7 @@ doll::Outline alloyOutline(const cult::Culture& c, int i, bool roundOne = false)
     const uint64_t pk = gear::packForge(gear::alloyPick(c, i).style);
     for (uint64_t& f : L.forge) if (f) f = pk;
   }
-  return doll::outlineOf(doll::resolve(L));
+  return doll::outlineOf(doll::resolve(L), true);
 }
 // a material style of a people on the same kit (its own form; STYLE_P2 28.4's hero on it)
 doll::Outline materialOutline(const cult::Culture& c, int base) {
@@ -197,7 +197,7 @@ doll::Outline materialOutline(const cult::Culture& c, int base) {
   if (base == F::B_MYTHIC) L.mythic = 1;
   doll::applyLookSpec(L, std::string("mat=") + kMat[base]);
   if (base >= F::B_TANNER && base <= F::B_ARMOURER && c.archetype != cult::Archetype::Heartland) L.forgeKit = 0;   // the people's own forms
-  return doll::outlineOf(doll::resolve(L));
+  return doll::outlineOf(doll::resolve(L), true);
 }
 
 // C16o's pair rule for two alloys of a culture: body OD 0.08 or more with no frame under 0.05, head OD 0.10 or more
@@ -585,7 +585,7 @@ struct Measured {
     const int nm = F::massShapes(s.mass, ms);
     doll::applyLookSpec(L, nm ? fmt("style=shoulder:%s", F::valueName(F::AX_SHOULDER, ms[0])) : std::string("style=shoulder:none"));
     composes++;
-    return body[k] = doll::outlineOf(doll::resolve(L));
+    return body[k] = doll::outlineOf(doll::resolve(L), true);
   }
   const doll::Outline& headOf(int h) {
     auto it = head.find(h);
@@ -593,7 +593,7 @@ struct Measured {
     art::HumanLook L = gear::alloyKitLook(a3Base(0), gear::kitCulture(cult::Archetype::Heartland, 1), 1, 4);
     doll::applyLookSpec(L, fmt("shape=helm:%s", F::shapeName(F::SX_HELM, h)));
     composes++;
-    return head[h] = doll::outlineOf(doll::resolve(L));
+    return head[h] = doll::outlineOf(doll::resolve(L), true);
   }
   const doll::Outline& matOf(int p, int base) {
     const uint32_t k = (uint32_t)p << 8 | (uint32_t)base;
@@ -617,7 +617,7 @@ struct Measured {
     doll::applyLookSpec(L, fmt("shape=helm:%s+skirt:%s+mass:%s+layer:%s", F::shapeName(F::SX_HELM, k.helm), F::shapeName(F::SX_SKIRT, k.skirt),
                                F::shapeName(F::SX_MASS, k.mass), F::shapeName(F::SX_LAYER, k.layer)));
     composes++;
-    return &(board[key] = doll::outlineOf(doll::resolve(L)));
+    return &(board[key] = doll::outlineOf(doll::resolve(L), true));
   }
 };
 gear::ShapeModel measuredModel(Measured& M, int* undrawn) {

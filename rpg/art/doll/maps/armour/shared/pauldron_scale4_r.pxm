@@ -31,7 +31,7 @@ regions
 |.RRRRR.
 |.......
 
-view D key rest origin 4 3 layer headwear when shoulder-scale replace
+view D key rest origin 4 3 when shoulder-scale replace
 |....vvvv
 |..vvzyyv
 |.vyyxxwv
@@ -73,7 +73,7 @@ regions
 |.RRRRR.
 |.......
 
-view D key up origin 4 4 layer headwear when shoulder-scale replace
+view D key up origin 4 4 when shoulder-scale replace
 |....vvvv
 |..vvzyyv
 |.vyyxxwv
@@ -283,7 +283,7 @@ regions
 |.RRRRRR.
 |........
 
-view R key rest origin 6 3 layer headwear when shoulder-scale replace
+view R key rest origin 6 3 when shoulder-scale replace
 |...vvvvvv.
 |..vzyyyyxv
 |.vyyxxxxwv
@@ -325,7 +325,7 @@ regions
 |.RRRRRR.
 |........
 
-view R key up origin 6 4 layer headwear when shoulder-scale replace
+view R key up origin 6 4 when shoulder-scale replace
 |...vvvvvv.
 |..vzyyyyxv
 |.vyyxxxxwv
@@ -459,3 +459,107 @@ view L key lie origin 0 0
 
 view L key lie origin 0 0 when shoulder-scale replace
 |.
+
+
+# (ARMOUR fix r1, sizes4.py) size 4 at 22 px across facing D (D75): the plate widened 1 px outward
+view D key rest origin 4 2 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vzyywxwv
+|vxwwwwwv
+|vywwxwwv
+|vyzzxxxv
+|.vvvvvv.
+regions
+|........
+|.PPPP...
+|.PPPP...
+|.....WW.
+|........
+|.RRRRRR.
+|........
+
+view D key up origin 4 3 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vzyywxwv
+|vxwwwwwv
+|vywwxwwv
+|vyzzxxxv
+|.vvvvvv.
+regions
+|........
+|.PPPP...
+|.PPPP...
+|.....WW.
+|........
+|.RRRRRR.
+|........
+
+view D key lie origin 4 2 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vzyywxwv
+|vxwwwwwv
+|vywwxwwv
+|vyzzxxxv
+|.vvvvvv.
+regions
+|........
+|.PPPP...
+|.PPPP...
+|.....WW.
+|........
+|.RRRRRR.
+|........
+
+view U key rest origin 3 2 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vxxwxxwv
+|vwwwwwwv
+|vxwxwwwv
+|vxxxxxxv
+|.vvvvvv.
+regions
+|........
+|........
+|........
+|....WWW.
+|........
+|.RRRRRR.
+|........
+
+view U key up origin 3 3 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vxxwxxwv
+|vwwwwwwv
+|vxwxwwwv
+|vxxxxxxv
+|.vvvvvv.
+regions
+|........
+|........
+|........
+|....WWW.
+|........
+|.RRRRRR.
+|........
+
+view U key lie origin 3 2 when armour.t4,!armour.t5 replace
+|.vvvvvv.
+|vwwwwwwv
+|vxxwxxwv
+|vwwwwwwv
+|vxwxwwwv
+|vxxxxxxv
+|.vvvvvv.
+regions
+|........
+|........
+|........
+|....WWW.
+|........
+|.RRRRRR.
+|........

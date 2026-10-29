@@ -179,8 +179,18 @@ int pauldronAcross(const std::string& v) {
 // T2 kit: TANNER'S at T2 on the Heartland's kit wears the soft cap (the leather cap's T2 drawing), the short hooded mantle (the
 // pauldron shape `capelet` at size 2) and its hood thrown back (the neck piece `cowl`); each falls back to today's leather cap,
 // flap2 and no neck piece until drawn, listed in envelopeMissing (rpg_test --doll-coverage --scope envelope)
+const char* peopleFlagName(int makerPeople) {
+  static const char* const k[12] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple",
+                                    "sylvan", "starspire"};
+  return makerPeople >= 1 && makerPeople <= 12 ? k[makerPeople - 1] : "none";
+}
 bool t2Kit(const HumanLook& L) {
   return L.forgeKit && L.tier[HumanLook::TIER_BODY] == 2 && L.forge[HumanLook::TIER_BODY] && (L.forge[HumanLook::TIER_BODY] & 0xFF) == forge::B_TANNER;
+}
+// (wave-2 fix round, D84) a Mythic culture-alloy piece in this slot: it keeps its alloy (metalKind 10, its style and shape) and
+// wears the ember on top (Glow seams and rims as FURNACE's, the ember collar, the flame crown)
+bool mythicAlloy(const HumanLook& L, int slot) {
+  return fixOn(FIX_RELIC) && (L.mythic >> slot & 1) && L.metalKind == 10 && L.forge[slot] && (L.forge[slot] & 0xFF) == forge::B_ALLOY;
 }
 // (envelope fix round, D57; the judge's round 3: eg3 measured shoulders 18, no cape, 1.05 of eg0) the village watch at T3 wears
 // the fair test's T3d kit (docs/ref/envelope f32_guard_t3d): a guard's coat (Outfit::Guard) at body tier 3 outside the forge kits
@@ -189,13 +199,18 @@ bool watchT3(const HumanLook& L) {
 }
 // (P2c wave 2, DOLL-C; D69) a tiered fighter's armour at T2 or T3: the envelope's T2-T3 lifts apply (small caps or the short
 // mantle at T2; medium plates or the people's cape at T3)
+// (wave 2 r4) a people's line only: the watch and the soldiers (the Guard uniform, a rank's issued kit: the signed-off guard,
+// the D57 watch) is no people's line and keeps its own kit at every tier
+bool peoplesLine(const HumanLook& L) {
+  return !L.civil && L.outfit != Outfit::Guard && L.tier[HumanLook::TIER_BODY] && armourOf(L) != nullptr;
+}
 bool envelopeLifts(const HumanLook& L) {
   const int tb = L.tier[HumanLook::TIER_BODY];
-  // (wave 2 r4) a people's line only: the watch and the soldiers (the Guard uniform, a rank's issued kit: the signed-off guard,
-  // the D57 watch) is no people's line and keeps its own kit at every tier
-  const bool watch = L.outfit == Outfit::Guard;
-  return !L.civil && !watch && tb >= 2 && tb <= 3 && armourOf(L) != nullptr;
+  return peoplesLine(L) && tb >= 2 && tb <= 3;
 }
+// (wave-2 fix round, D74) a people's T2 line: the soft cap over the hair, the size-2 piece at the capelet's footprint and the
+// people's cowl in the scarf's place (D55's TANNER'S kit is one of them)
+bool t2Line(const HumanLook& L) { return envelopeLifts(L) && L.tier[HumanLook::TIER_BODY] == 2; }
 // a `when` condition word some view of the pool keys on (a T2 view drawn into an existing part)
 bool poolKeysOn(const char* word) {
   const pool::Pool& P = pool::get();
@@ -373,6 +388,46 @@ bool drawnFor(Role role, const std::string& v, BodySet body) {
 // people's leather, bronze, iron and steel keep its own helm and shield, C12e); a people's signature shape (horned, conical, masked, winged; crescent, leaf, none) stays its own. At T5-T6 PARADE,
 // STARFALL and the MYTHIC keep the ladder's signature helms (the crested T5 crest, the T6 winged crown, the flame crown).
 // Rig 2 only (forge[] is set at rig 2 only). helm: HelmForm + 1; -1 the band-1 leather cap; -2 the hood
+// (wave-2 fix round, D83 / D84) the relic helm: PARADE (gilded) the onion, STARFALL (starmetal) the crystal, a Mythic relic its
+// metal's family; at T5-T6 only once its tier's own view is drawn for a non-alloy body (a view keyed `helm.t<N>` that does
+// not ask `alloyshape`): until then today's helm, listed (`--doll-coverage --scope envelope`), so no figure shrinks to a
+// family's plain base view
+bool helmTierViewDrawn(const std::string& fam, int tier, BodySet body) {
+  const pool::Pool& P = pool::get();
+  const std::string want = "helm.t" + std::to_string(tier);
+  for (int pi : P.partsWithRole(Role::Helm, fam)) {
+    const pool::PartRec& pr = P.parts[(size_t)pi];
+    if (!(pr.bodyMask >> (int)body & 1)) continue;
+    for (uint32_t wi : pr.whenViews) {
+      const std::string& c = P.s(P.views[wi].when);
+      bool tierTok = false, alloyTok = false;
+      for (size_t a = 0; a <= c.size();) {
+        size_t b = c.find(',', a);
+        if (b == std::string::npos) b = c.size();
+        const std::string t = c.substr(a, b - a);
+        if (t == want) tierTok = true;
+        if (t == "alloyshape") alloyTok = true;
+        a = b + 1;
+      }
+      if (tierTok && !alloyTok) return true;
+    }
+  }
+  return false;
+}
+const char* relicHelmOf(const HumanLook& L, const ShapeUse& su, BodySet body) {
+  if (!fixOn(FIX_RELIC) || !(helmBandOf(L) || L.helmForm)) return nullptr;
+  int base = su.helmBase == forge::B_PARADE || su.helmBase == forge::B_STARFALL ? su.helmBase : 0;
+  if (su.helmBase == forge::B_MYTHIC && L.relicHelm) base = L.relicHelm;
+  if (!base) return nullptr;
+  const char* fam = base == forge::B_PARADE ? "fam.onion" : base == forge::B_STARFALL ? "fam.crystal" : base == forge::B_FURNACE ? "fam.furnace" : "fam.mask";
+  const int th = L.tier[HumanLook::TIER_HELM];
+  if (th >= 5 && !helmTierViewDrawn(fam, th, body)) {
+    if (g_envMissing) g_envMissing->push_back(std::string("helm ") + fam + " T" + std::to_string(th) + " view (D83, " + bodySetName(body) + ") -> today's helm");
+    // (below T5 STARFALL already wore the crystal where styleKitOf gives it: that path stands)
+    return nullptr;
+  }
+  return fam;
+}
 struct StyleKit { int helm = 0, shield = 0, hw = 0; };   // hw: (forge i3) a guise's metal head drawn as headwear (cult::Headwear)
 StyleKit styleKitOf(const HumanLook& L, const DollRecipe& r) {
   StyleKit k;
@@ -456,6 +511,9 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   const ShapeUse su = shapeUseOf(L);
   std::string famHelm;
   if (su.helm) famHelm = std::string("fam.") + forge::shapeName(forge::SX_HELM, su.sx[forge::SX_HELM]);
+  // (wave-2 fix round, D83) every metal keeps its helmet: PARADE (gilded) the onion helm and STARFALL (starmetal) the crystal helm
+  // at every tier (their T5 / T6 views); a Mythic relic its metal's family (e6m the crystal) under the black, gold and fire
+  else if (const char* relic = relicHelmOf(L, su, r.body)) famHelm = relic;
   else if (sk.helm > 0 && (su.helmBase == forge::B_FURNACE || su.helmBase == forge::B_STARFALL))
     famHelm = su.helmBase == forge::B_FURNACE ? "fam.furnace" : "fam.crystal";
   if (!famHelm.empty() && !drawnFor(Role::Helm, famHelm, r.body)) {
@@ -474,6 +532,26 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   else if (sk.helm > 0) need(Role::Helm, drawnForm(Role::Helm, sk.helm));
   else if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : drawnBand(hb));
   else if (L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));
+  // (wave-2 fix round, D80) the helm's views by its resolved tier: a family that draws tier views (`helm.t<N>`) but none for this
+  // look's tier wears a lower tier's (never a higher one: the flags are cumulative), and the missing view is listed
+  if (g_envMissing && L.tier[HumanLook::TIER_HELM] >= 3) {
+    const pool::Pool& P = pool::get();
+    const int th = L.tier[HumanLook::TIER_HELM];
+    for (const Need& n : r.needs) {
+      if (n.role != Role::Helm) continue;
+      uint8_t have = 0;
+      for (int pi : P.partsWithRole(Role::Helm, n.value)) {
+        if (!(P.parts[(size_t)pi].bodyMask >> (int)r.body & 1)) continue;
+        for (uint32_t wi : P.parts[(size_t)pi].whenViews) {
+          const std::string& c = P.s(P.views[wi].when);
+          for (size_t a = c.find("helm.t"); a != std::string::npos; a = c.find("helm.t", a + 1))
+            if (a + 6 < c.size() && c[a + 6] >= '1' && c[a + 6] <= '6' && (a + 7 == c.size() || c[a + 7] == ',')) have |= (uint8_t)(1u << (c[a + 6] - '0'));
+        }
+      }
+      if (have && !(have >> th & 1))
+        g_envMissing->push_back("helm " + n.value + " T" + std::to_string(th) + " view not drawn (D80; " + bodySetName(r.body) + ") -> a lower tier's");
+    }
+  }
   // (P2c) the shield: the shield arm for every bearer, plus its form (form1..8) or shape (shape0 legacy round, 1..4);
   // form9 is ShieldForm::None: no shield at all (v1's hasShield rule)
   if (shieldOf(L)) {
@@ -508,6 +586,11 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
     int skirt = su.body ? su.sx[forge::SX_SKIRT] : 0, arm = su.body ? su.sx[forge::SX_ARM] : 0;
     if (!su.body && su.bodyBase == forge::B_STARFALL && armourOf(L)) skirt = forge::SK_SPLIT;
     if (!su.body && su.bodyBase == forge::B_FURNACE && armourOf(L)) arm = forge::AR_HEAVY;
+    // (wave-2 fix round 2, D84 restated) a Mythic relic body keeps its metal's outline under the black, gold and fire
+    if (!su.body && su.bodyBase == forge::B_MYTHIC && armourOf(L) && fixOn(FIX_RELIC)) {
+      if (L.relicBody == forge::B_STARFALL) skirt = forge::SK_SPLIT;
+      if (L.relicBody == forge::B_FURNACE) arm = forge::AR_HEAVY;
+    }
     if (skirt == forge::SK_NONE) { r.dropHang = true; r.shape[forge::SX_SKIRT] = (uint8_t)skirt; }
     else if (skirt > 0 && want(Role::Overlay, std::string("skirt.") + forge::shapeName(forge::SX_SKIRT, skirt), forge::SX_SKIRT, skirt)) r.dropHang = true;
     if (arm == forge::AR_WIDE || arm == forge::AR_HEAVY) want(Role::Overlay, std::string("sleeve.") + forge::shapeName(forge::SX_ARM, arm), forge::SX_ARM, arm);
@@ -541,14 +624,33 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
       return true;
     };
     const int B = HumanLook::TIER_BODY;
-    if (armourOf(L)) {
+    // (wave-2 fix round, D84) a Mythic culture-alloy piece keeps its alloy and wears the ember on top: the ember collar in its
+    // collar's place, the flame crown on its helm's crown mark (where drawn; else its own, listed)
+    const bool emberBody = mythicAlloy(L, B), emberHelm = mythicAlloy(L, HumanLook::TIER_HELM);
+    auto ember = [&](bool on, const char* v) {
+      if (!on) return false;
+      if (drawn(v)) { need(Role::Overlay, v); return true; }
+      r.forgeMissing.push_back(std::string("overlay ") + v + " (Mythic alloy, D84)");
+      return false;
+    };
+    if (armourOf(L) && ember(emberBody, "collar.ember")) {
+      want(B, forge::AX_CUT, "cut.");
+      want(B, forge::AX_EDGE, "edge.");
+      want(B, forge::AX_FIT, "fit.");
+      forgeLimbBody = want(B, forge::AX_LIMB, "limb.");
+    } else if (armourOf(L)) {
       want(B, forge::AX_COLLAR, "collar.");
       want(B, forge::AX_CUT, "cut.");
       want(B, forge::AX_EDGE, "edge.");
       want(B, forge::AX_FIT, "fit.");
       forgeLimbBody = want(B, forge::AX_LIMB, "limb.");
     }
-    if ((helmBandOf(L) || L.helmForm) && (L.tier[HumanLook::TIER_HELM] == 0 || L.tier[HumanLook::TIER_HELM] >= 3) && sk.helm != -2) want(HumanLook::TIER_HELM, forge::AX_CREST, "crest.");
+    // (wave-2 fix round 2, D84 "its T6's pieces and the ember ... by construction") a Mythic alloy helm keeps its own crest under
+    // the flame crown: the flame sits on the crown mark over the crest's root, so the Mythic is its T6 plus the ember
+    if ((helmBandOf(L) || L.helmForm) && (L.tier[HumanLook::TIER_HELM] == 0 || L.tier[HumanLook::TIER_HELM] >= 3) && sk.helm != -2) {
+      const bool flame = ember(emberHelm, "crest.flame");
+      if (!flame || fixOn(FIX_RELIC)) want(HumanLook::TIER_HELM, forge::AX_CREST, "crest.");
+    }
     if (L.gloves) want(HumanLook::TIER_GLOVES, forge::AX_LIMB, "limb.");
     if (L.boots) want(HumanLook::TIER_BOOTS, forge::AX_LIMB, "limb.");
   }
@@ -565,10 +667,26 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // (P2c forge) the body style's limb tile, where drawn, takes the material's place on the sleeves
   if (const char* t = sleeveTileOf(L))
     if (!forgeLimbBody && !pool::get().partsWithRole(Role::Overlay, t).empty()) need(Role::Overlay, t);
-  // (envelope fix round, D55) the T2 kit's hood thrown back: the cowl in the scarf's place, once drawn for the body
-  if (t2Kit(L) && drawnFor(Role::Neck, "cowl", r.body)) need(Role::Neck, "cowl");
-  else {
-    if (t2Kit(L) && g_envMissing) g_envMissing->push_back(std::string("neck cowl (T2 kit, D55; ") + bodySetName(r.body) + ")");
+  // (envelope fix round, D55; wave-2 fix round, D74) a people's T2 line wears its hood thrown back: the cowl in the scarf's
+  // place, its edge by the people (the cowl's `when people-<name>` / ornament views; the base cowl the fallback, listed)
+  if ((t2Kit(L) || (fixOn(FIX_T2) && t2Line(L))) && drawnFor(Role::Neck, "cowl", r.body)) {
+    need(Role::Neck, "cowl");
+    if (g_envMissing && L.makerPeople && !t2Kit(L)) {
+      const char* pn = peopleFlagName(L.makerPeople);
+      const pool::Pool& P = pool::get();
+      bool own = false;
+      for (int pi : P.partsWithRole(Role::Neck, "cowl")) {
+        const pool::PartRec& pr = P.parts[(size_t)pi];
+        if (!(pr.bodyMask >> (int)r.body & 1)) continue;
+        for (uint32_t wi : pr.whenViews) {
+          const std::string& c = P.s(P.views[wi].when);
+          if (c.find(std::string("people-") + pn) != std::string::npos || (L.makerPeople == 2 && c.find("hem-plaid") != std::string::npos)) own = true;
+        }
+      }
+      if (!own) g_envMissing->push_back(std::string("neck cowl people-") + pn + " (T2, D74; " + bodySetName(r.body) + ") -> the base cowl");
+    }
+  } else {
+    if ((t2Kit(L) || (fixOn(FIX_T2) && t2Line(L))) && g_envMissing) g_envMissing->push_back(std::string("neck cowl (T2, D74; ") + bodySetName(r.body) + ")");
     if (L.neck) need(Role::Neck, neckName(L.neck));
   }
   if (L.jewellery & 2) need(Role::Neck, "torc");
@@ -744,6 +862,11 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   }
   static const char* const kOrn[10] = {"plumes", "furtrim", "gilding", "horsetail", "studs", "etching", "tassels", "scallops", "rivets", "filigree"};
   for (int b = 0; b < 10; b++) if (L.armsOrnament >> b & 1) flag(kOrn[b]);
+  // (wave-2 fix round, D74) the people's hems (the T2 cowl and capelet variants): people-<name>; the Highland's plaid band
+  if (L.makerPeople) {
+    flagS(std::string("people-") + peopleFlagName(L.makerPeople));
+    if (L.makerPeople == 2) flagS("hem-plaid");
+  }
   if (L.skirt >= 1 && L.skirt <= 4) flagS("skirt" + std::to_string(L.skirt));
   if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
   if (L.pauldron >= 2 && L.pauldron <= 4) flagS("pauldron" + std::to_string(L.pauldron));
@@ -975,6 +1098,9 @@ HumanLook ladderLook(const HumanLook& L) {
       if (!E.tier[HumanLook::TIER_CLOAK]) E.tier[HumanLook::TIER_CLOAK] = (uint8_t)tb;
     }
   }
+  // (wave-2 fix round, D86) a two-alloy realm's king (census::rankSlots: his cloak's tier cleared on a T5 alloy body below the
+  // masterwork) wears no full cape: his alloy's own over-layer with the finish on its hem
+  if (fixOn(FIX_LINES) && (L.cloak || L.cape) && !L.tier[HumanLook::TIER_CLOAK] && tb >= 5 && L.alloyRank && L.alloyRank < 3 && L.forgeShape) { E.cloak = 0; E.cape = false; }
   // (forge round 2, contracts 3c.1) a culture alloy's silhouette sets the dials it owns: no shoulders for mass NONE, else the
   // tier's size lifted (T4 medium, T5 up large: culture alloys appear from T4, their whole silhouette shows); its over-layer
   // replaces the ladder's cape dial (D38): a CAPE is the noble cloak in the people's colour darkened, a SCARF the neck
@@ -984,15 +1110,21 @@ HumanLook ladderLook(const HumanLook& L) {
     if (su.body && tb) {
       const int mass = su.sx[forge::SX_MASS], ly = su.sx[forge::SX_LAYER];
       if (mass == forge::MS_NONE) E.pauldron = 1;
-      else if (mass) E.pauldron = std::max<uint8_t>(E.pauldron, (uint8_t)(tb >= 5 ? 4 : tb >= 4 ? 3 : 2));
+      // (wave-2 fix round, D75) T4 asks size 4 for every mass but NONE (3c.1's "T4 3" restated to kEnvelope's 4)
+      else if (mass) E.pauldron = std::max<uint8_t>(E.pauldron, (uint8_t)(tb >= 5 ? 4 : tb >= 4 ? (fixOn(FIX_T4) ? 4 : 3) : 2));
       if (ly) {
-        E.cloak = 0; E.cape = false;
+        // (wave-2 fix round, D73; D38 restated) the over-layer replaces the ladder's cape dial, never a worn cloak item: a
+        // TABARD, SASH or SCARF is worn over the armour with the kit's cloak behind; a CAPE is the tier cloak (the noble
+        // cloak's views, `when cloak.t4` at T4) in the people's colour darkened; a HALFCAPE is the tier cloak with its
+        // left-shoulder drape (cloak halfcape, whose T4-T6 views carry the whole cloak): one Cloak-slot piece a figure
+        E.cape = false;
+        if (!fixOn(FIX_CLOAK)) E.cloak = 0;   // (before D73: the layer took the worn cloak off)
         const uint32_t c = L.tabardColor ? L.tabardColor : (L.topColor ? L.topColor : rgba(110, 40, 40));
         auto dk = [&](int sh) { return (uint32_t)((c >> sh & 255u) * 70u / 100u); };
         if (ly == forge::LY_CAPE || ly == forge::LY_HALFCAPE) {
-          if (ly == forge::LY_CAPE) E.cloak = 3;
+          E.cloak = ly == forge::LY_CAPE ? 3 : 0;
           if (!L.cloakColor || L.cloak == 0) E.cloakColor = 0xFF000000u | dk(16) << 16 | dk(8) << 8 | dk(0);
-          if (!E.tier[HumanLook::TIER_CLOAK]) E.tier[HumanLook::TIER_CLOAK] = (uint8_t)tb;
+          if (fixOn(FIX_CLOAK) ? E.tier[HumanLook::TIER_CLOAK] < tb : !E.tier[HumanLook::TIER_CLOAK]) E.tier[HumanLook::TIER_CLOAK] = (uint8_t)tb;
         }
         if (ly == forge::LY_SCARF) E.neck = 1;
       }
@@ -1023,11 +1155,24 @@ HumanLook ladderLook(const HumanLook& L) {
   // people's medium plates (a small dial lifted to medium) or, where its dial gives none, its people's cape (TIER_CLOAK 3, the
   // `when cloak.t3` views inside T3's caps); a T2 body's short mantle where its dial gives none is resolved with the shoulders
   // (envelopeT2Mantle). A culture alloy's silhouette keeps its own mass (NONE: no shoulders, D38) and the D57 watch its kit.
+  // (wave-2 fix round, D75: D69's "or" becomes "and") T3 wears its people's medium plates where its dial gives shoulders AND its
+  // T3 cloak (the people's cape where no cloak item is worn); an alloy's over-layer stands in for the cape dial (D73)
   if (envelopeLifts(E) && tb == 3 && !watchT3(L)) {
     const ShapeUse su = shapeUseOf(L);
     const bool massNone = su.body && su.sx[forge::SX_MASS] == forge::MS_NONE;
-    if (E.pauldron == 2 && !massNone) E.pauldron = 3;
-    else if (E.pauldron < 2 && !E.cloak && !E.cape) { E.cape = true; E.tier[HumanLook::TIER_CLOAK] = 3; }
+    const bool layered = su.body && su.sx[forge::SX_LAYER];
+    const bool plated = E.pauldron == 2 && !massNone;
+    if (plated) E.pauldron = 3;
+    if (fixOn(FIX_CLOAK) ? (!E.cloak && !E.cape && !layered) : (!plated && E.pauldron < 2 && !E.cloak && !E.cape)) {
+      E.cape = true;
+      if (E.tier[HumanLook::TIER_CLOAK] < 3) E.tier[HumanLook::TIER_CLOAK] = 3;
+    }
+  }
+  // (wave-2 fix round, D75) T4 on a people's line: size 4 for every mass but NONE (a dial that gives shoulders; a culture
+  // alloy's mass above)
+  if (fixOn(FIX_T4) && peoplesLine(E) && tb == 4 && E.pauldron >= 2 && E.pauldron < 4) {
+    const ShapeUse su = shapeUseOf(L);
+    if (!(su.body && su.sx[forge::SX_MASS] == forge::MS_NONE)) E.pauldron = 4;
   }
   if (const int wi = envelopeWhatIf()) {   // (wave 2 r3) rpg_test's what-if only (0 everywhere else)
     const ShapeUse su = shapeUseOf(L);
@@ -1090,6 +1235,13 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
         r.needs.push_back(Need{Role::Overlay, kTile[b]});
         if (b == 3) runeTile = true;
       }
+  // (wave-2 fix round, D78) the trim tile (`overlay finish.trim`, `tags tile band`): asked by every look with a T4-T6 piece where
+  // the pool draws it; the compositor widens each such piece's R runs to its tier's width
+  {
+    bool t46 = false;
+    for (int s = 0; s < 8; s++) t46 |= L.tier[s] >= 4 && L.tier[s] <= 6;
+    if (t46 && fixOn(FIX_TRIM) && drawnFor(Role::Overlay, "finish.trim", r.body)) r.needs.push_back(Need{Role::Overlay, "finish.trim"});
+  }
   // (LADDER-FINISH's ruling) the rune tile writes the Glow on its dashes and the gaps keep the seam as drawn: N is recoloured
   // to Glow wholesale only while no rune tile is drawn
   if (runeTile) for (auto& f : r.fin) f[3] = 0xFF;
@@ -1102,6 +1254,9 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
   // grille) in Glow at every tier below T6 (T6's runes take them), on every piece made in it
   for (int s : {(int)HumanLook::TIER_BODY, (int)HumanLook::TIER_HELM, (int)HumanLook::TIER_SHIELD, (int)HumanLook::TIER_GLOVES, (int)HumanLook::TIER_BOOTS})
     if (L.forge[s] && (L.forge[s] & 0xFF) == forge::B_FURNACE && L.tier[s] >= 1 && L.tier[s] <= 5 && r.fin[s][3] == 0xFF) r.fin[s][3] = (uint8_t)Slot::Glow;
+  // (wave-2 fix round, D84) the ember on a Mythic culture-alloy piece: its seams (N) and rims (R) lit in Glow, as FURNACE's are
+  for (int s : {(int)HumanLook::TIER_BODY, (int)HumanLook::TIER_HELM, (int)HumanLook::TIER_SHIELD, (int)HumanLook::TIER_GLOVES, (int)HumanLook::TIER_BOOTS})
+    if (mythicAlloy(L, s)) { r.fin[s][0] = (uint8_t)Slot::Glow; if (r.fin[s][3] == 0xFF || r.fin[s][3] != (uint8_t)Slot::Glow) r.fin[s][3] = (uint8_t)Slot::Glow; }
   static const char* const kMotif[4] = {"oak", "clouds", "laurel", "knot"};
   r.motif = kMotif[L.motif < 4 ? L.motif : 0];
   auto flagS = [&](const std::string& f) { r.flags.push_back(f); };
@@ -1209,6 +1364,16 @@ DollRecipe resolve(const HumanLook& L0) {
     for (const Need& n : r.needs) if (n.role == Role::Cloak) cloak = true;
     r.pauldronTop = cloak || L.tier[HumanLook::TIER_BODY] >= 5;
     const ShapeUse su = shapeUseOf(L);
+    // (wave-2 fix round, D73 / D77) a culture alloy whose over-layer is no cloak (TABARD, SASH, SCARF, NONE) and who wears a
+    // cloak item: before D73 the layer took the cloak off; noKitCloak composes it that way for the silhouette gates
+    // (fix round 2) any other figure's worn cloak (a material style's or a kit's tier cloak, D73's "the kits' tier cloaks") is a
+    // kit cloak too: the silhouette gates compare identities (helm family, skirt, mass, over-layer), never the shared ladder
+    // cloak, so a CAPE alloy is measured against HOMESPUN's body, not against both wearing the same officer's cloak
+    if (cloak) {
+      const int ly = su.body ? su.sx[forge::SX_LAYER] : 0;
+      if (su.body && (ly == forge::LY_CAPE || ly == forge::LY_HALFCAPE)) r.layerCloakT3 = true;
+      else if (su.body && ly) { r.kitCloak = true; r.pauldronTopAlloy = L.tier[HumanLook::TIER_BODY] >= 5; }
+    }
     r.irisBands = su.body && L.sheen == 5;
     // (P2c envelope r2, FORGE-MATERIAL prototype; PLAN A6) STARFALL's starmetal is iridescent crystal: its armour, shoulders and
     // helm alternate the lavender star-white (Metal) and a turned sea-glass cyan (Metal 2) in 2-row bands, the lit planes
@@ -1525,11 +1690,22 @@ int partTierSlot(int part) {
 
 void markReached(const DollRecipe& r) { for (int p : r.parts) reached().insert(p); }
 void clearReached() { reached().clear(); }
+bool fxByView(int part) {
+  for (const char* v : {"heavy", "chop", "smash", "stab", "swish", "punch"}) if (partHasRole(part, Role::Fx, v)) return true;
+  return false;
+}
+std::vector<std::string> fxViewParts() {
+  std::vector<std::string> out;
+  for (int i = 0; i < partCount(); i++) if (!reached().count(i) && fxByView(i)) out.push_back(partName(i));
+  return out;
+}
 std::vector<std::string> deadParts() {
   std::vector<std::string> out;
   // (P2c ladder) the living finish's sprites (`fx glint`, `fx mote`) are drawn by the view, never by a recipe
+  // (wave-2 fix round, D79 scope; contracts 4 "effect | fx <family> | pivot (art_fx draws it)") the families' strike maps
+  // (`fx heavy chop smash stab swish punch`) are art_fx's to draw from the map, not a recipe's: counted apart (fxByView)
   for (int i = 0; i < partCount(); i++)
-    if (!reached().count(i) && !partHasRole(i, Role::Fx, "glint") && !partHasRole(i, Role::Fx, "mote")) out.push_back(partName(i));
+    if (!reached().count(i) && !partHasRole(i, Role::Fx, "glint") && !partHasRole(i, Role::Fx, "mote") && !fxByView(i)) out.push_back(partName(i));
   return out;
 }
 

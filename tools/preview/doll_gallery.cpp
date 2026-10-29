@@ -64,6 +64,7 @@
 #include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/art/doll/doll_internal.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
@@ -1114,6 +1115,8 @@ void boardActions(const std::string& dir) {
   Board b(1600, std::max(120, (int)rows.size() * 4 * 56 + 60));
   dirt(b, 0, b.c.h);
   b.text(4, 4, "ACTIONS: EVERY DRAWN AND ACTION CLIP, FRAME BY FRAME, D U R L (MS UNDER EACH FRAME)" + (g_lookSpec.empty() ? std::string() : " " + g_lookSpec));
+  // (wave-2 fix round, D89) the bow's and the crossbow's boards say what they hold: draw, loose (no melee blows, by design)
+  if (r.has("bow")) b.text(4, 14, r.has("bow-crossbow") ? "THE CROSSBOW: DRAW, LOOSE (NO MELEE BLOWS, BY DESIGN)" : "THE BOW: DRAW, LOOSE (NO MELEE BLOWS, BY DESIGN)", rgba(250, 214, 120));
   if (rows.empty()) b.text(4, 30, "NO DRAWN OR ACTION CLIPS FOR THIS LOOK", rgba(232, 96, 60));
   std::map<int, RigSheet> cache;
   int y = 70;
@@ -1581,7 +1584,7 @@ std::string shapeAbbrev(const gear::Shape& s) {
   };
   return ab(F2::SX_HELM, s.helm) + " " + ab(F2::SX_SKIRT, s.skirt) + " " + ab(F2::SX_MASS, s.mass) + " " + ab(F2::SX_LAYER, s.layer);
 }
-struct ShapeEntry { std::string label, sub; art::HumanLook L; bool pal = true; bool gap = false; };
+struct ShapeEntry { std::string label, sub, ledger; art::HumanLook L; bool pal = true; bool gap = false; };
 enum ShapeMode { SM_COLOUR, SM_GREY, SM_BLACK };
 const struct { int fc; Clip c; int i; } kTrio[3] = {{0, Clip::Idle, 0}, {2, Clip::Idle, 0}, {2, Clip::Walk, 1}};
 const int kTrioPitch = 22;
@@ -1630,7 +1633,9 @@ void shapeGrid(const std::string& dir, const std::string& name, const std::strin
                const std::vector<std::vector<ShapeEntry>>& rows, std::initializer_list<ShapeMode> modes, int frames = 3) {
   size_t cols = 1;
   for (const auto& r : rows) cols = std::max(cols, r.size());
-  const int cellW = frames * kTrioPitch + 10, rowH = 64, lab = 64, top = 14;
+  bool anyLedger = false;   // (wave-2 fix round, D76) a third text line: the ledger's adds under the figure
+  for (const auto& r : rows) for (const ShapeEntry& e : r) anyLedger |= !e.ledger.empty();
+  const int cellW = anyLedger ? std::max(frames * kTrioPitch + 10, 118) : frames * kTrioPitch + 10, rowH = anyLedger ? 72 : 64, lab = 64, top = 14;
   for (ShapeMode m : modes) {
     Board b(lab + (int)cols * cellW + 8, top + (int)rows.size() * rowH + 4);
     if (m == SM_BLACK) paperFill(b, 0, b.c.h, rgba(232, 228, 216));
@@ -1650,6 +1655,7 @@ void shapeGrid(const std::string& dir, const std::string& name, const std::strin
         const int x = lab + (int)ci * cellW;
         b.text(x + 2, y0 + 1, e.label.substr(0, (size_t)(cellW / 6)), m == SM_BLACK ? ink : rgba(250, 214, 120));
         b.text(x + 2, y0 + 9, e.sub.substr(0, (size_t)(cellW / 6)), dim);
+        if (!e.ledger.empty()) b.text(x + 2, y0 + 17, e.ledger.substr(0, (size_t)(cellW / 6)), dim);
         drawTrio(b, e, x, y0 + rowH - 6, m, frames);
       }
     }
@@ -1731,6 +1737,43 @@ int envelopeHeadPx(const art::HumanLook& L) {
   }
   return n;
 }
+// (wave-2 fix round, D76) the ledger under a figure: each piece's add (the frame without the piece against with it, C12f's
+// measure): C the cloak, S the shoulders, H the helm, N the neck piece
+std::string ledgerAdds(const art::HumanLook& L) {
+  const doll::DollRecipe r = doll::resolve(L);
+  auto areaOf = [&](const doll::DollRecipe& x) {
+    doll::ComposeOpts o;
+    o.noHeld = true;
+    int n = 0;
+    for (int fc : {0, 2}) {
+      o.onlyFacing = fc;
+      const art::RigSheet sh = doll::compose(x, art::RigPart::Loco, &o);
+      const art::FrameRect* f = sh.frame(fc, fc == 0 ? Clip::Walk : Clip::Idle, 0, 0);
+      if (!f) continue;
+      for (int y = 0; y < f->h; y++)
+        for (int xx = 0; xx < f->w; xx++) n += (sh.atlas.get(f->x + xx, f->y + y) >> 24) != 0;
+    }
+    return n;
+  };
+  const int full = areaOf(r);
+  const doll::pool::Pool& P = doll::pool::get();
+  std::string out;
+  const struct { char tag; doll::Role role; } kP[4] = {{'C', doll::Role::Cloak}, {'S', doll::Role::Pauldron}, {'H', doll::Role::Helm}, {'N', doll::Role::Neck}};
+  for (const auto& k : kP) {
+    doll::DollRecipe x = r;
+    const size_t n0 = x.parts.size();
+    x.parts.erase(std::remove_if(x.parts.begin(), x.parts.end(), [&](int pi) {
+                    for (const auto& rr : P.parts[(size_t)pi].roles) if (rr.cat == (uint8_t)k.role || (k.role == doll::Role::Helm && rr.cat == (uint8_t)doll::Role::Headwear)) return true;
+                    return false;
+                  }),
+                  x.parts.end());
+    if (x.parts.size() == n0) continue;
+    char b[16];
+    std::snprintf(b, sizeof b, "%s%c%+d", out.empty() ? "" : " ", k.tag, full - areaOf(x));
+    out += b;
+  }
+  return out;
+}
 // (P2c wave 2, DOLL-C) envelope:people:<people>[:grey|:black]: source L's lines of one people (gear::ladderKit, kit=<people>:<t>:<s>
 // on A3's hero and heroine), man and woman x seeds 1..3 a row each, T1-T6 and the Mythic on one baseline at 1x (saved 3x and 8x);
 // under each look its area as a multiple of the row's T1 (C12f's measure) and its helm pixels with the step over the tier below
@@ -1763,6 +1806,7 @@ void boardEnvelopePeople(const std::string& dir, const std::string& people, Shap
         if (t <= 6) prevH = h;
         e.label = lab;
         e.sub = sub;
+        e.ledger = ledgerAdds(e.L);   // (D76) the ledger under each figure
         row.push_back(e);
       }
       // T2's head budget on T2's label line: under T3's / 1.05
@@ -1779,12 +1823,88 @@ void boardEnvelopePeople(const std::string& dir, const std::string& people, Shap
   if (one) shapeGrid(dir, "doll_envelope_people_" + people, title, labels, rows, {only});
   else shapeGrid(dir, "doll_envelope_people_" + people, title, labels, rows, {SM_COLOUR, SM_GREY, SM_BLACK});
 }
+// (wave-2 fix round, D76: the ledger as a board) envelope:ledger:<people>: the man and the woman of seed 1, T1-T6 and the Mythic,
+// idle D and idle R; every pixel coloured by the piece that drew it (helm red, shoulders orange, cloak blue, neck green, skirt
+// and hangs violet, the over-layer gold, the torso armour grey, the body pale), each piece's add under the figure; saved 1x
+// (the 3x and 8x where they fit 8,000 px)
+void boardEnvelopeLedger(const std::string& dir, const std::string& people) {
+  const int cellW = 100, rowH = 78, lab = 60, top = 32;
+  Board b(lab + 7 * cellW + 8, top + 2 * rowH + 6);
+  paperFill(b, 0, b.c.h, rgba(236, 232, 222));
+  const uint32_t ink = rgba(40, 36, 44);
+  b.text(4, 3, "THE LEDGER: " + people + " S1, IDLE D AND R", ink);
+  b.text(4, 12, "HELM RED  SHOULDERS ORANGE  CLOAK BLUE  NECK GREEN  SKIRT VIOLET  LAYER GOLD  TORSO GREY", ink);
+  b.text(4, 21, "UNDER EACH: C S H N ADDS (THE FRAME WITHOUT THE PIECE AGAINST WITH IT)", ink);
+  const doll::pool::Pool& P = doll::pool::get();
+  auto colourOf = [&](int pi) -> uint32_t {
+    if (pi < 0) return rgba(250, 240, 220);
+    const doll::pool::PartRec& pr = P.parts[(size_t)pi];
+    auto has = [&](doll::Role ro) { for (const auto& rr : pr.roles) if (rr.cat == (uint8_t)ro) return true; return false; };
+    auto ov = [&](const char* pre) { for (const auto& rr : pr.roles) if (rr.cat == (uint8_t)doll::Role::Overlay && P.s(rr.value).rfind(pre, 0) == 0) return true; return false; };
+    if (has(doll::Role::Helm) || has(doll::Role::Headwear) || ov("crest.")) return rgba(214, 52, 44);
+    if (has(doll::Role::Pauldron)) return rgba(240, 140, 30);
+    if (has(doll::Role::Cloak)) return rgba(48, 96, 214);
+    if (has(doll::Role::Neck)) return rgba(52, 164, 70);
+    if (ov("skirt.") || (has(doll::Role::Armour) && (pr.layer == (uint8_t)doll::Layer::HangFront || pr.layer == (uint8_t)doll::Layer::HangBack))) return rgba(150, 70, 190);
+    if (ov("tabard") || ov("sash")) return rgba(212, 172, 40);
+    if (has(doll::Role::Armour) || ov("motif.") || ov("sleeve.")) return rgba(130, 130, 140);
+    return rgba(250, 236, 210);
+  };
+  for (int who = 0; who < 2; who++) {
+    const int y0 = top + who * rowH;
+    b.text(4, y0 + 30, who ? "WOMAN S1" : "MAN S1", ink);
+    for (int t = 1; t <= 7; t++) {
+      art::HumanLook L = a3Look(who);
+      bool pal = false;
+      char spec[96];
+      if (t <= 6) std::snprintf(spec, sizeof spec, "kit=%s:%d:1,palette=look", people.c_str(), t);
+      else std::snprintf(spec, sizeof spec, "kit=%s:6m:1,palette=look", people.c_str());
+      std::string bad;
+      doll::applyLookSpec(L, spec, &pal, nullptr, &bad);
+      if (!bad.empty()) continue;
+      const doll::DollRecipe r = doll::resolve(L);
+      const int x0 = lab + (t - 1) * cellW;
+      b.text(x0 + 2, y0 + 1, t <= 6 ? "T" + std::to_string(t) : std::string("MYTHIC"), ink);
+      for (int k = 0; k < 2; k++) {
+        const int fc = k ? 2 : 0;
+        const doll::FrameProbe pf = doll::probeFrame(r, art::RigPart::Loco, fc, Clip::Idle, 0, 0, true);
+        if (!pf.ok) continue;
+        const int ox = x0 + 14 + k * 34 - (pf.px - 12), oy = y0 + rowH - 6 - pf.py;
+        for (int y = 0; y < pf.h; y++)
+          for (int x = 0; x < pf.w; x++) {
+            const size_t q = (size_t)y * pf.w + x;
+            if (pf.code[q] < 2) continue;
+            const int o = pf.owner[q];
+            const bool held = o >= 0 && (pf.items[(size_t)o].has(doll::Role::Held) || pf.items[(size_t)o].has(doll::Role::Shield) || pf.items[(size_t)o].has(doll::Role::Sheath));
+            if (held) continue;
+            const int X = ox + x, Y = oy + y;
+            if (X >= 0 && Y >= 0 && X < b.c.w && Y < b.c.h) b.c.set(X, Y, colourOf(o >= 0 ? pf.items[(size_t)o].partIndex : -1));
+          }
+      }
+      {
+        const std::string lg = ledgerAdds(L);   // two lines: C S, then H N
+        const size_t h = lg.find(" H");
+        b.text(x0 + 2, y0 + 9, lg.substr(0, h).substr(0, 16), ink);
+        if (h != std::string::npos) b.text(x0 + 2, y0 + 17, lg.substr(h + 1).substr(0, 16), ink);
+      }
+    }
+  }
+  saveScaled(b, dir, "doll_envelope_ledger_" + people);
+}
 void boardEnvelope(const std::string& dir, const std::string& b) {
   std::string line = b.substr(9);
   ShapeMode only = SM_COLOUR;
   bool one = false;
   if (line.size() > 5 && line.compare(line.size() - 5, 5, ":grey") == 0) { line.resize(line.size() - 5); only = SM_GREY; one = true; }
   if (line.size() > 6 && line.compare(line.size() - 6, 6, ":black") == 0) { line.resize(line.size() - 6); only = SM_BLACK; one = true; }
+  if (line.rfind("ledger:", 0) == 0) {   // (wave-2 fix round, D76) the ledger board
+    const std::string p = line.substr(7);
+    if (p == "all") {
+      for (const char* q : {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple", "sylvan", "starspire"})
+        boardEnvelopeLedger(dir, q);
+    } else boardEnvelopeLedger(dir, p);
+    return;
+  }
   if (line.rfind("people:", 0) == 0) {
     const std::string p = line.substr(7);
     if (p == "all") {
@@ -1965,7 +2085,7 @@ void boardWorld(const std::string& dir, const std::string& arg) {
       const cult::Culture& c = at.family(ci, cj);
       for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
         A a{&c, i, ci, cj, {}};
-        a.o = doll::outlineOf(doll::resolve(gear::alloyKitLook(a3Look(0), c, i)));
+        a.o = doll::outlineOf(doll::resolve(gear::alloyKitLook(a3Look(0), c, i)), true);
         as.push_back(std::move(a));
       }
     }

@@ -851,11 +851,14 @@ void rankSlots(art::HumanLook& L, Role r) {
   using H = art::HumanLook;
   if (r == Role::Herald && L.tier[H::TIER_BODY] && !L.bodyForm && !L.armorStyle && !(L.helmet || L.helmStyle || L.helmForm))
     L.forge[H::TIER_BODY] = gear::packForge(gear::baseStyle(0, cult::BodyArm::Padded));
-  if (r == Role::King && L.cloak && L.forgeShape && L.tier[H::TIER_BODY] >= 5) {
-    gear::Shape sh = gear::unpackShape(L.forgeShape);
-    sh.layer = (uint8_t)art::doll::forge::LY_CAPE;
-    L.forgeShape = gear::packShape(sh);
-  }
+  // (P2c wave-2 fix round, D86; D73 restated) the king's regalia by his realm's alloys: a two-alloy (or one-alloy) realm's king
+  // wears its warriors' alloy (rankTiers: alloyRank under 3) in that alloy's own over-layer, the T5 finish on its hem, and no
+  // full cape; a masterwork realm's king (alloyRank 3) keeps the noble cloak he wears as the long cloak (D73: a worn cloak shows
+  // behind any over-layer, so his alloy's layer stays his own)
+  // (ladder fields only: L.cloak is v1's and stays; the cloak tier 0 on a tiered alloy body is the resolver's "no full cape",
+  // doll_resolve ladderLook)
+  if (r == Role::King && L.forgeShape && L.tier[H::TIER_BODY] >= 5 && L.alloyRank && L.alloyRank < 3 && (L.cloak || L.cape))
+    L.tier[H::TIER_CLOAK] = 0;
 }
 
 }  // namespace census

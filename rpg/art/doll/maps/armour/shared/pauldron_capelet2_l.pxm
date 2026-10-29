@@ -14,7 +14,7 @@ keys pauld
 z 5
 side L
 
-view D key rest origin 6 2 layer headwear
+view D key rest origin 6 2
 |....5555.
 |..5577875
 |.56666775
@@ -35,7 +35,7 @@ regions
 |....RR.RR
 |....RR.RR
 # (ARMOUR-X wave 2, capehem.py) D rest fringe
-view D key rest origin 6 2 layer headwear when tassels replace
+view D key rest origin 6 2 when tassels replace
 |....5555.
 |..5577875
 |.56666775
@@ -57,7 +57,7 @@ regions
 |...R.R.R.
 
 # (ARMOUR-X wave 2, capehem.py) D rest fur
-view D key rest origin 6 2 layer headwear when furtrim replace
+view D key rest origin 6 2 when furtrim replace
 |....5555.
 |..5577875
 |.56666775
@@ -79,7 +79,7 @@ regions
 |...R.RR.R
 
 # (ARMOUR-X wave 2, capehem.py) D rest plaid
-view D key rest origin 6 2 layer headwear when hem-plaid replace
+view D key rest origin 6 2 when hem-plaid replace
 |....5555.
 |..5577875
 |.56666775
@@ -101,7 +101,7 @@ regions
 |...RRRRRR
 
 
-view D key up origin 6 3 layer headwear
+view D key up origin 6 3
 |....5555.
 |..5577875
 |.56666775
@@ -122,7 +122,7 @@ regions
 |....RR.RR
 |....RR.RR
 # (ARMOUR-X wave 2, capehem.py) D up fringe
-view D key up origin 6 3 layer headwear when tassels replace
+view D key up origin 6 3 when tassels replace
 |....5555.
 |..5577875
 |.56666775
@@ -144,7 +144,7 @@ regions
 |...R.R.R.
 
 # (ARMOUR-X wave 2, capehem.py) D up fur
-view D key up origin 6 3 layer headwear when furtrim replace
+view D key up origin 6 3 when furtrim replace
 |....5555.
 |..5577875
 |.56666775
@@ -166,7 +166,7 @@ regions
 |...R.RR.R
 
 # (ARMOUR-X wave 2, capehem.py) D up plaid
-view D key up origin 6 3 layer headwear when hem-plaid replace
+view D key up origin 6 3 when hem-plaid replace
 |....5555.
 |..5577875
 |.56666775
@@ -587,7 +587,7 @@ view R key up origin 2 2
 view R key lie origin 2 1
 |5665
 
-view L key rest origin 6 4 layer headwear
+view L key rest origin 6 4
 |............55...
 |...........5895..
 |.......55556785..
@@ -612,7 +612,7 @@ regions
 |....RR.RR.RR.....
 |....RR.RR.RR.....
 # (ARMOUR-X wave 2, capehem.py) L rest fringe
-view L key rest origin 6 4 layer headwear when tassels replace
+view L key rest origin 6 4 when tassels replace
 |............55...
 |...........5895..
 |.......55556785..
@@ -638,7 +638,7 @@ regions
 |..R.R.R.R.R.R....
 
 # (ARMOUR-X wave 2, capehem.py) L rest fur
-view L key rest origin 6 4 layer headwear when furtrim replace
+view L key rest origin 6 4 when furtrim replace
 |............55...
 |...........5895..
 |.......55556785..
@@ -664,7 +664,7 @@ regions
 |..R.RR.RR.RR.R...
 
 # (ARMOUR-X wave 2, capehem.py) L rest plaid
-view L key rest origin 6 4 layer headwear when hem-plaid replace
+view L key rest origin 6 4 when hem-plaid replace
 |............55...
 |...........5895..
 |.......55556785..
@@ -690,7 +690,7 @@ regions
 |..RRRRRRRRRRRR...
 
 
-view L key up origin 6 5 layer headwear
+view L key up origin 6 5
 |............55...
 |...........5895..
 |.......55556785..
@@ -715,7 +715,7 @@ regions
 |....RR.RR.RR.....
 |....RR.RR.RR.....
 # (ARMOUR-X wave 2, capehem.py) L up fringe
-view L key up origin 6 5 layer headwear when tassels replace
+view L key up origin 6 5 when tassels replace
 |............55...
 |...........5895..
 |.......55556785..
@@ -741,7 +741,7 @@ regions
 |..R.R.R.R.R.R....
 
 # (ARMOUR-X wave 2, capehem.py) L up fur
-view L key up origin 6 5 layer headwear when furtrim replace
+view L key up origin 6 5 when furtrim replace
 |............55...
 |...........5895..
 |.......55556785..
@@ -767,7 +767,7 @@ regions
 |..R.RR.RR.RR.R...
 
 # (ARMOUR-X wave 2, capehem.py) L up plaid
-view L key up origin 6 5 layer headwear when hem-plaid replace
+view L key up origin 6 5 when hem-plaid replace
 |............55...
 |...........5895..
 |.......55556785..

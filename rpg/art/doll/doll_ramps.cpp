@@ -23,9 +23,11 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 
 namespace art {
@@ -792,6 +794,12 @@ DollRamps rampsOf(const HumanLook& L) {
         const double cap = std::min({c3, c2, cp});
         if (luma(scaleRgb(M[1], 1.01)) <= cap) { M[1] = scaleRgb(M[1], 1.01); continue; }
         if (cap == c3 && luma(scaleRgb(M[3], 1.01)) <= luma(M[4]) - 15.0) { M[3] = scaleRgb(M[3], 1.01); continue; }
+        // (wave-2 fix round, D88: the T4 alloys of the Dune, the Highland and the River held their edge 1-4 luma short under the
+        // glint's headroom) a culture alloy's glint climbs toward white (luma 245 at most) so its lit plane and edge can follow
+        if (fixOn(FIX_COLOUR) && cap == c3 && mk == 10 && L.sheen != 3 && luma(M[4]) < 245.0 && luma(scaleRgb(M[4], 1.01)) <= 245.0) {
+          M[4] = scaleRgb(M[4], 1.01);
+          continue;
+        }
         const double l2n = luma(scaleRgb(M[2], 1.01));
         if (cap == c2 && L.sheen != 3 && std::fabs(l2n - sk) >= 18.0 && std::fabs(l2n - hr) >= 18.0 && luma(M[3]) - l2n >= 22.0) {
           M[2] = scaleRgb(M[2], 1.01);
@@ -845,6 +853,32 @@ DollRamps rampsOf(const HumanLook& L) {
       // pale lit plane): the last word on a warm metal's ramp, after the partings above (the blackened rule below is the cold
       // metals'; C17 reads D52 on bronze and brass)
       const int mw = alloyFamilyMetal(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen));
+      // (wave-2 fix round, D88: the T4 alloys of the Dune, the Highland and the River, their edge 1-4 luma short) the round-2
+      // read above re-shapes the ramp after the step-1 lift: the lift again, inside the same caps (45 % of step 3, 12 under
+      // step 2, plate's 61 under step 3); the dark sheens (their own step 1) and GLASS (jewel-dark by design) aside
+      if (fixOn(FIX_COLOUR) && L.sheen != 3 && mw != 5)
+        for (int it = 0; it < 60 && luma(M[1]) < 80.0; it++) {
+          const double c3 = 0.45 * luma(M[3]) - 1.0, cap = std::min({c3, luma(M[2]) - 12.0, luma(M[3]) - 61.0});
+          if (luma(scaleRgb(M[1], 1.01)) > cap) {
+            // (wave-2 fix round 3, D88: the Dune women's T4-T5 alloy edge 76 luma, held by the dark core's 45 % of a 172 lit
+            // plane) where the core rule holds it, the lit plane climbs a little under the glint (15 under it), as the first
+            // lift does, while the round-2 read holds
+            if (cap == c3 && luma(scaleRgb(M[3], 1.01)) <= luma(M[4]) - 15.0) {
+              uint32_t t[5] = {M[0], M[1], M[2], scaleRgb(M[3], 1.01), M[4]};
+              if (metalRead2(t, nullptr) || !metalRead2(M, nullptr)) { M[3] = t[3]; continue; }
+            }
+            // and where the body plane holds it (12 under step 2: a glowing Jade captain's 83), the body climbs as the first
+            // lift's does: 18 off the skin and the hair, 22 under the lit plane, the round-2 read kept
+            const double l2n = luma(scaleRgb(M[2], 1.01));
+            if (cap == luma(M[2]) - 12.0 && std::fabs(l2n - luma(R.c[(int)Slot::Skin][2])) >= 18.0 &&
+                std::fabs(l2n - luma(R.c[(int)Slot::Hair][2])) >= 18.0 && luma(M[3]) - l2n >= 22.0) {
+              uint32_t t[5] = {M[0], M[1], scaleRgb(M[2], 1.01), M[3], M[4]};
+              if (metalRead2(t, nullptr) || !metalRead2(M, nullptr)) { M[2] = t[2]; continue; }
+            }
+            break;
+          }
+          M[1] = scaleRgb(M[1], 1.01);
+        }
       if (L.sheen == 3 && (mw == 0 || mw == 1)) antiqueRamp(M);
       else if (L.sheen == 3) {   // (the glowing sheen keeps C14's lit edge: its seams, not its core, are its tell)
         const double want = 0.6 * luma(M[2]);
@@ -965,6 +999,13 @@ DollRamps rampsOf(const HumanLook& L) {
       setHex(R.c[(int)Slot::Metal], kMyth);
       setHex(R.c[(int)Slot::Metal2], kMythGold);
       for (int i = 0; i < 5; i++) { R.c[(int)Slot::Metal][i] |= 0xFF000000u; R.c[(int)Slot::Metal2][i] |= 0xFF000000u; }
+      // (wave-2 fix round 3, D88: the Mythic's lit top-left edge 71 luma, 32 over the darkest day ground; D88 holds every figure
+      // but the dark sheen, KNAPPED, FURNACE and GLASS to 40) the black steel's selout-lit step 1 climbs to 82 luma, 8 under its
+      // body (step 2) at most: the body, the recesses, the lit plane and the gold stay as D60 drew them
+      if (fixOn(FIX_COLOUR)) {
+        uint32_t* M = R.c[(int)Slot::Metal];
+        for (int it = 0; it < 30 && luma(M[1]) < 82.0 && luma(scaleRgb(M[1], 1.02)) <= luma(M[2]) - 8.0; it++) M[1] = scaleRgb(M[1], 1.02);
+      }
       // the flame crown (Plume) tall and bright: #FFC060 tongues (step 2), near-white tips (3-4) over a hot orange root (1)
       static const uint32_t kMythFlame[5] = MYTH_F;
       setHex(R.c[(int)Slot::Plume], kMythFlame);
@@ -1039,7 +1080,7 @@ DollRamps rampsOf(const HumanLook& L) {
       // (P2c forge i2, C17; STYLE_P2 28.8) a styled figure's leather and cloths stay 15 dE off the metal's body and lit plane
       // (steps 2 and 3), so a bronze cuirass never reads as the jerkin under it nor an iron one as the grey shirt
       bool styled = L.forge[HumanLook::TIER_BODY] != 0;
-      auto part = [&](S who, std::initializer_list<S> partners, bool lighterOnly, double floor1 = 0) -> bool {
+      auto part = [&](S who, std::initializer_list<S> partners, bool lighterOnly, double floor1 = 0, double stepSz = 0.025) -> bool {
         uint32_t* T = R.c[(int)who];
         const bool offMetal = styled && (who == S::Leather || who == S::Cloth1 || who == S::Cloth2);
         auto apart = [&](const uint32_t* t) {
@@ -1049,10 +1090,10 @@ DollRamps rampsOf(const HumanLook& L) {
           return luma(t[2]) - luma(T[0]) >= 40.0 && luma(t[1]) >= floor1;
         };
         if (apart(T)) return true;
-        for (int k = 1; k <= 40; k++)
+        for (int k = 1; k <= (int)(1.0 / stepSz + 0.5); k++)
           for (double dir : {-1.0, 1.0}) {
             if (lighterOnly && dir < 0) continue;
-            const double f = 1.0 + dir * 0.025 * k;
+            const double f = 1.0 + dir * stepSz * k;
             if (f <= 0.2) continue;
             uint32_t t[5];
             t[0] = T[0];
@@ -1066,7 +1107,13 @@ DollRamps rampsOf(const HumanLook& L) {
       // (forge i2, C14: the T1 heroine's lifted shirt sat 9 luma off her wheat braids) a styled figure's shirt parts from the
       // hair it touches
       if (styled && std::fabs(luma(R.c[(int)S::Cloth1][2]) - luma(R.c[(int)S::Hair][2])) < 18.0) { if (!part(S::Cloth1, {S::Hair, S::Metal}, false)) part(S::Cloth1, {S::Hair}, false); }
-      part(S::Leather, {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin}, false);   // (i2) and the skin: the archer's jerkin read as bare skin
+      // (wave-2 fix round 3, D88: a T2 woman's jerkin pushed darker off her fair hair, to step 2 at 63 luma, sank her lit edge 24
+      // over the darkest day ground on 20 kit lines) a T1-T2 figure's leather parts with its selout-lit step 1 at 80 luma or
+      // more where such a move exists (the finer search: the window between the hair and the skin is a few luma wide); else
+      // as before. The Heartland's own kit at T1-T3 (the signed-off hero lines, D72) keeps its ramps
+      const bool heroKit0 = L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3;
+      if (!(fixOn(FIX_COLOUR) && !heroKit0 && L.topTier() <= 2 && part(S::Leather, {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin}, false, 80.0, 0.005)))
+        part(S::Leather, {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin}, false);   // (i2) and the skin: the archer's jerkin read as bare skin
       // (forge i2: and the metal, where a lighter trouser can clear it too; else as before)
       // (silhouettes i3, C14: a_fj2's trousers 15 luma off the brass they hang under, once the brass climbed) the metal before
       // the leather: darker trousers that clear the metal and the hair come next
@@ -1102,6 +1149,120 @@ DollRamps rampsOf(const HumanLook& L) {
       // (INTEGRATE forge i2, C14: HOMESPUN's leather straps lay on the shield's field 2 luma off it) the field parts from the
       // leather too where it can, else from the metal and the accent as before
       if (!part(S::Field, {S::Metal, S::Accent, S::Leather}, false)) part(S::Field, {S::Metal, S::Accent}, false);
+      // (wave-2 fix round, D88) C14's parting covers the hair and the skin: the material's ramp moves, never the person's. The
+      // shirt off the skin it meets (a T1 dress at the skin's value), the leather off the hair and the shirt where the first
+      // pass could not clear every partner, the accent off the leather, the cloak off the leather it lies on
+      // (D72: e1-e3 and e1w-e3w do not change while the owner's sign-off waits) the Heartland's own kit at T1-T3, the hero's and
+      // the heroine's signed-off figures, keeps its ramps: its C14 lines go to the planner (D88 against D72)
+      const bool heroKit = L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3;
+      if (fixOn(FIX_COLOUR) && !heroKit) {
+        auto near = [&](S a, S b) { return std::fabs(luma(R.c[(int)a][2]) - luma(R.c[(int)b][2])) < 18.0; };
+        // the move that clears `must` and leaves every pair that was already 18 apart still 18 apart (never a new clash)
+        auto partSafe = [&](S who, std::initializer_list<S> must) -> bool {
+          static const S kAll[] = {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin, S::Leather, S::Accent, S::Cloak, S::Field};
+          uint32_t* T = R.c[(int)who];
+          std::vector<S> keep;
+          for (S o : kAll) if (o != who && !near(who, o)) keep.push_back(o);
+          auto ok = [&](const uint32_t* t) {
+            for (S m : must) if (std::fabs(luma(t[2]) - luma(R.c[(int)m][2])) < 18.0) return false;
+            for (S k : keep) if (std::fabs(luma(t[2]) - luma(R.c[(int)k][2])) < 18.0) return false;
+            // (C17, as the first pass: a styled figure's leather and cloths stay 16 dE off the metal's body and lit plane)
+            if (styled && (who == S::Leather || who == S::Cloth1 || who == S::Cloth2))
+              for (int st = 2; st <= 3; st++) if (deltaE76(t[st], R.c[(int)S::Metal][st]) < 16.0f) return false;
+            // (fix round 2) the metal keeps its plate read (C17: step 3 over step 1 by 60, or by what it had) and its glint
+            // and its glint (step 4 at 196 luma or more, where it was)
+            if (who == S::Metal && (luma(t[3]) - luma(t[1]) < std::min(60.0, luma(T[3]) - luma(T[1])) - 0.5 || luma(t[4]) > 251.0 ||
+                                    luma(t[4]) < std::min(196.0, luma(T[4])))) return false;
+            if (who == S::Metal)   // (C17: steps 2-3 20 dE off the skin, 15 off the leather and the shirt, where they were)
+              for (int st = 2; st <= 3; st++)
+                for (const std::pair<S, float> o : {std::pair<S, float>{S::Skin, 20.0f}, {S::Leather, 15.0f}, {S::Cloth1, 15.0f}}) {
+                  const float was = deltaE76(T[st], R.c[(int)o.first][st]);
+                  if (deltaE76(t[st], R.c[(int)o.first][st]) < std::min(o.second, was)) return false;
+                }
+            return luma(t[2]) - luma(T[0]) >= 40.0;
+          };
+          for (int k = 1; k <= 40; k++)
+            for (double dir : {-1.0, 1.0}) {
+              const double f = 1.0 + dir * 0.025 * k;
+              if (f <= 0.2) continue;
+              uint32_t t[5];
+              t[0] = T[0];
+              for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+              // (fix round 2) a darker metal keeps its step 1, the selout-lit edge (C14's lit top-left edge), while it stays 8 under
+              // the new step 2
+              if (who == S::Metal && f < 1.0 && luma(T[1]) <= luma(t[2]) - 8.0) t[1] = T[1];
+              // the metal's glint climbs to 250 luma at most and stays over its lit plane
+              if (who == S::Metal && luma(t[4]) > 250.0) t[4] = scaleRgb(T[4], std::max(1.0, 250.0 / std::max(1.0, luma(T[4]))));
+              if (who == S::Metal && luma(t[4]) < luma(t[3]) + 4.0) continue;
+              if (ok(t)) { for (int q = 1; q < 5; q++) T[q] = t[q]; return true; }
+            }
+          // (wave-2 fix round 3, D88) where no whole-ramp move clears it (the T3 women's steel 7-9 luma off the hair it frames:
+          // brightening the whole ramp blows the lit plane into the glint, darkening it kills the glint), the metal's body
+          // plane (step 2) moves alone, between its selout edge (step 1 + 12) and its lit plane (step 3 - 30): the plate read
+          // (step 3 over step 1), the edge and the glint are untouched
+          if (who == S::Metal)
+            for (int k = 1; k <= 40; k++)
+              for (double dir : {1.0, -1.0}) {
+                const double f = 1.0 + dir * 0.02 * k;
+                uint32_t t[5];
+                for (int q = 0; q < 5; q++) t[q] = T[q];
+                t[2] = scaleRgb(T[2], f);
+                if (luma(t[2]) < luma(t[1]) + 12.0 || luma(t[2]) > luma(t[3]) - 30.0) continue;
+                if (ok(t)) { T[2] = t[2]; return true; }
+              }
+          return false;
+        };
+        if (near(S::Cloth1, S::Skin)) partSafe(S::Cloth1, {S::Skin});
+        if (near(S::Leather, S::Hair)) partSafe(S::Leather, {S::Hair});
+        if (near(S::Leather, S::Cloth1)) partSafe(S::Leather, {S::Cloth1});
+        if (near(S::Accent, S::Leather)) partSafe(S::Accent, {S::Leather});
+        if (near(S::Cloak, S::Leather)) partSafe(S::Cloak, {S::Leather});
+        // (fix round 2, D88: a T3 woman's hair met her steel helm's brim and plates 3-14 luma apart on 25 lines) the metal
+        // off the hair, the material's ramp moving (never the person's)
+        if (near(S::Metal, S::Hair)) partSafe(S::Metal, {S::Hair});
+        // (wave-2 fix round 3, D88) a pair the first mover could not part tries its other side (the material, never the person)
+        if (near(S::Accent, S::Leather)) partSafe(S::Leather, {S::Accent});
+        if (near(S::Leather, S::Cloth1)) partSafe(S::Cloth1, {S::Leather});
+        if (near(S::Cloak, S::Leather)) partSafe(S::Leather, {S::Cloak});
+        // (D88: the dark T2 leathers of the Jade, the Heartland and the Starspire, a soft kit's edge 15-24 over the darkest day
+        // ground) a T1-T2 figure's leather and shirt climb whole (steps 1-4, hue kept) until their selout-lit step 1 reads 80
+        // luma, as far as no pair that was 18 apart closes and the top step stays under 245
+        if (L.topTier() <= 2 && (luma(R.c[(int)S::Leather][1]) < 80.0 || luma(R.c[(int)S::Cloth1][1]) < 80.0)) {
+          // the two climb together (their own gap only widens), each pair with the rest that was 18 apart kept so
+          static const S kAll[] = {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin, S::Leather, S::Accent, S::Cloak, S::Field};
+          const S grp[2] = {S::Leather, S::Cloth1};
+          std::vector<std::pair<S, S>> keep;
+          for (S g : grp)
+            for (S o : kAll) if (o != S::Leather && o != S::Cloth1 && !near(g, o)) keep.push_back({g, o});
+          for (int k = 1; k <= 40; k++) {
+            if (luma(R.c[(int)S::Leather][1]) >= 80.0 && luma(R.c[(int)S::Cloth1][1]) >= 80.0) break;
+            uint32_t t[2][5];
+            bool ok = true;
+            for (int g = 0; g < 2; g++) {
+              const uint32_t* T = R.c[(int)grp[g]];
+              const bool up = luma(T[1]) < 80.0;
+              t[g][0] = T[0];
+              for (int q = 1; q < 5; q++) t[g][q] = up ? scaleRgb(T[q], 1.025) : T[q];
+              if (luma(t[g][4]) >= 245.0) ok = false;
+              if (styled) for (int st = 2; st <= 3; st++) if (deltaE76(t[g][st], R.c[(int)S::Metal][st]) < 16.0f) ok = false;   // (C17)
+            }
+            for (const auto& pr : keep) {
+              const uint32_t* a = t[pr.first == S::Leather ? 0 : 1];
+              if (ok && std::fabs(luma(a[2]) - luma(R.c[(int)pr.second][2])) < 18.0) ok = false;
+            }
+            if (ok && std::fabs(luma(t[0][2]) - luma(t[1][2])) < 18.0 && !near(S::Leather, S::Cloth1)) ok = false;
+            if (!ok) break;
+            for (int g = 0; g < 2; g++) for (int q = 1; q < 5; q++) R.c[(int)grp[g]][q] = t[g][q];
+          }
+        }
+      }
+    }
+    // (wave-2 fix round, D88; STYLE_P2 29.11 "cloaks keep their light") every cloak colour's lit steps clear the darkest day
+    // ground: step 1 (the selout-lit edge) at 82 luma where step 2 allows, the lit fold (step 3) at 86 or more
+    if (fixOn(FIX_COLOUR) && (L.cloak || L.cape || L.tier[HumanLook::TIER_CLOAK]) && !(L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3)) {
+      uint32_t* C = R.c[(int)Slot::Cloak];
+      for (int it = 0; it < 24 && luma(C[3]) < 86.0; it++) { C[3] = scaleRgb(C[3], 1.05); if (luma(C[4]) < luma(C[3]) + 12.0) C[4] = scaleRgb(C[4], 1.05); }
+      for (int it = 0; it < 20 && luma(C[1]) < 82.0 && luma(scaleRgb(C[1], 1.05)) < luma(C[2]) - 6.0; it++) C[1] = scaleRgb(C[1], 1.05);
     }
     // (ladder i2, C14) the leather's step 1 is the lit edge of a soft kit's silhouette (A3's brown at 58 luma sank into dark
     // ground: lt2's edge 35 over the forest floor): lifted to 82 luma, under its step 2, the outline untouched

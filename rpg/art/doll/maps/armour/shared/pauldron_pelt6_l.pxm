@@ -14,7 +14,7 @@ keys pauld
 z 5
 side L
 
-view D key rest origin 4 4 layer headwear
+view D key rest origin 4 4
 |....fffff...
 |...ffiiiff..
 |.ffffiiifff.
@@ -41,7 +41,7 @@ regions
 |......PP....
 |............
 
-view D key up origin 4 5 layer headwear
+view D key up origin 4 5
 |....fffff...
 |...ffiiiff..
 |.ffffiiifff.
@@ -229,7 +229,7 @@ regions
 view R key lie origin 0 0
 |.
 
-view L key rest origin 2 4 layer headwear
+view L key rest origin 2 4
 |..........fff.
 |........ffiiff
 |..ffffffiiifff
@@ -256,7 +256,7 @@ regions
 |.....P...PP...
 |..............
 
-view L key up origin 2 5 layer headwear
+view L key up origin 2 5
 |..........fff.
 |........ffiiff
 |..ffffffiiifff

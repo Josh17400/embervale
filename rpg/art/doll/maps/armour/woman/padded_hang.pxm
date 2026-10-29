@@ -227,6 +227,15 @@ regions
 |.RRRRRRWW..
 |...........
 
+view R key rest origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
+
 view R key wide origin 6 -1
 |.588887766665
 |5888887766665
@@ -235,6 +244,15 @@ regions
 |.............
 |.RRRRRRRRWW..
 |.............
+
+view R key wide origin 5 -1 when armour.t1,!armour.t2 replace
+|588887766665
+|588887766665
+|555555555555
+regions
+|............
+|RRRRRRRRWW..
+|............
 
 view R key flare origin 7 -1
 |.5888877666665
@@ -245,6 +263,15 @@ regions
 |.RRRRRRRRRWW..
 |..............
 
+view R key flare origin 6 -1 when armour.t1,!armour.t2 replace
+|5888877666665
+|5888877666665
+|5555555555555
+regions
+|.............
+|RRRRRRRRRWW..
+|.............
+
 view R key lie origin 5 -1
 |58887766665
 |58888776665
@@ -253,6 +280,15 @@ regions
 |...........
 |.RRRRRRWW..
 |...........
+
+view R key lie origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
 
 view R key idle origin 5 -1
 |58887766665
@@ -263,6 +299,15 @@ regions
 |.RRRRRRWW..
 |...........
 
+view R key idle origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
+
 view R key sit origin 5 -1
 |58887766665
 |58888776665
@@ -271,6 +316,15 @@ regions
 |...........
 |.RRRRRRWW..
 |...........
+
+view R key sit origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
 
 view R key floor origin 5 -1
 |58887766665
@@ -281,6 +335,15 @@ regions
 |.RRRRRRWW..
 |...........
 
+view R key floor origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
+
 view R key kneel origin 5 -1
 |58887766665
 |58888776665
@@ -290,6 +353,15 @@ regions
 |.RRRRRRWW..
 |...........
 
+view R key kneel origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
+
 view R key ride origin 5 -1
 |58887766665
 |58888776665
@@ -298,6 +370,15 @@ regions
 |...........
 |.RRRRRRWW..
 |...........
+
+view R key ride origin 4 -1 when armour.t1,!armour.t2 replace
+|5887766665
+|5888776665
+|5555555555
+regions
+|..........
+|RRRRRRWW..
+|..........
 
 view L key rest origin 6 -1
 |58887766665

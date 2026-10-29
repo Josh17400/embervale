@@ -286,6 +286,14 @@ struct DollRecipe {
   std::vector<std::string> envelopeMissing;
   uint8_t helmVariant = 0;
   bool pauldronTop = false;
+  // (wave-2 fix round, D73 / D77) the cloak part is a worn cloak item the alloy's over-layer used to replace (TABARD, SASH,
+  // SCARF, NONE): ComposeOpts::noKitCloak leaves it out, and D41's lift as it was without it (pauldronTopAlloy)
+  bool kitCloak = false;
+  bool pauldronTopAlloy = false;
+  // (wave-2 fix round 2, D77 restated) the cloak is the alloy's own over-layer (CAPE, HALFCAPE): noKitCloak composes it at its
+  // T3 view (cloak.t1..t3 flags only), the footprint the shape table was solved on; the tier ladder's T4-T6 cloak views
+  // (D73's officer's cloak and long cloak) are tier adds every line shares, never part of an alloy's identity
+  bool layerCloakT3 = false;
   bool irisBands = false;
   bool dropHang = false;
   // (P2c wave 2, DOLL-C; contracts 3) the production vocabulary's fallbacks: a sheath, a carried back item, a library weapon or an
@@ -349,6 +357,10 @@ std::vector<Missing> dollMissingPosture(const HumanLook& look, Posture p, uint8_
 void markReached(const DollRecipe& r);
 void clearReached();
 std::vector<std::string> deadParts();   // the pool's parts no markReached recipe used
+// (wave-2 fix round, D79 scope) the families' strike maps art_fx draws (fx heavy chop smash stab swish punch) that no recipe
+// reached: never dead parts, listed apart by --doll-coverage
+bool fxByView(int part);
+std::vector<std::string> fxViewParts();
 
 // ---------------------------------------------------------------- composing
 struct ComposeOpts {
@@ -361,6 +373,9 @@ struct ComposeOpts {
   bool grey = false;
   // (forge round 2, contracts 3c.1) no held weapon, shield, sheath or back item: the outline masks of C16o and C18
   bool noHeld = false;
+  // (wave-2 fix round, D77) the alloy without the kit's tier cloak: a culture alloy's figure whose worn cloak item D73 keeps
+  // (DollRecipe::kitCloak) composes as the shape solve measures it (its over-layer only): C16o, C16k, C18, --forge-solve
+  bool noKitCloak = false;
 };
 // (P2c forge) the neutral ramp ComposeOpts::grey draws every material slot in, and whether a slot takes it
 extern const uint32_t kGreyRamp[5];
@@ -377,7 +392,7 @@ RigSheet compose(const DollRecipe& r, RigPart part, const ComposeOpts* opts = nu
 // above it, the body from it). OD: the XOR over the union per part, averaged over the three frames (and the smallest frame's)
 struct OutlineFrame { int x0 = 0, y0 = 0, w = 0, h = 0, neck = 0; std::vector<uint8_t> m; };
 struct Outline { OutlineFrame f[3]; bool ok = false; };
-Outline outlineOf(const DollRecipe& r);
+Outline outlineOf(const DollRecipe& r, bool noKitCloak = false);   // (D77) noKitCloak: C16o, C16k, C18, --forge-solve
 struct OutlineOD { double head = 0, body = 0, bodyMin = 0, headMin = 0; };
 OutlineOD outlineDistance(const Outline& a, const Outline& b);
 // (P2c envelope, contracts 3d) a look's envelope measures (doll_outline.cpp; `expect doll envelope`, Witness

@@ -308,6 +308,14 @@ view R key flare when run origin 5 1 replace
 |vyzxxxxxxxxv
 |.........vxv
 
+
+# (ARMOUR fix r1, item 10: B11 FARWIDTH) the run's flare facing L as the R view's: the front panel 2 px longer and its
+# tip a row lower, so the far thigh never shows as a 2 px sliver past the near leg (m9 winged / ladder T5-T6, wh2 wh6)
+view L key flare origin 7 1 when run replace
+|xxxxxxxxxxxx
+|vxxxxxxxxwwv
+|vxv.........
+
 view R key idle origin 5 1 when forge-starfall replace
 |xxxxxxxxxx
 |vyzxxxxxxv

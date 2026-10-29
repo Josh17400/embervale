@@ -1,0 +1,68 @@
+# held/props/spoon_child: the child's wooden spoon in the right hand and the bowl it eats from in the left (WEAPONS w2r3, a
+# proposal for the planner: held/props is frozen in wave 2) for SitEat and SitFloorEat. The adult's (held/props/spoon) cut
+# to the child's 21 px: a 2 px spoon, a 5 px bowl. Format: rpg/art/doll/doll.h. Anchored on the child's right shoulder
+# (kin/child/arms/arm_r): the bowl at the left fist's grip, the spoon at the right's: up to the mouth, down to the bowl.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+body child
+role held spoon
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -2 0 layer neck
+|.j....
+|fVYXWV
+|.fVWVf
+|..fhf.
+
+view D key mouth origin -3 3 layer beard
+|.fj..
+|.....
+|.....
+|.....
+|VYXWV
+|fVWVf
+|.fhf.
+
+view U key hold origin 6 -14 layer heldBack
+|.
+
+view U key mouth origin 6 -14 layer heldBack
+|.
+
+view R key hold origin -4 0 layer neck
+|...j.
+|VYf.V
+|fVWVf
+|.fhf.
+
+view R key mouth origin -4 4 layer hairFront
+|..j..
+|.f...
+|.....
+|.....
+|.....
+|VYXWV
+|fVWVf
+|.fhf.
+
+view L key hold origin 6 0 layer hairBack
+|.j...
+|VYf.V
+|fVWVf
+|.fhf.
+
+view L key mouth origin 7 4 layer hairBack
+|j.....
+|.f....
+|......
+|......
+|......
+|.VYXWV
+|.fVWVf
+|..fhf.

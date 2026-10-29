@@ -47,7 +47,7 @@ f hang=wide armL=F armR=sp_carry hilt=rest legs=walkC neck=flow sheath=kick tors
 f hang=wide armL=N armR=sp_carry hilt=rest legs=walkC2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
 f hang=rest armL=B armR=sp_carry hilt=rest legs=walkD2 neck=flow sheath=kick torso=run plant=-3:-7 held=carryL weapon=67.5,back
 clip hurt D family spear when spear
-f armL=orunF armR=runF legs=idle neck=rest sheath=rest torso=rest tuft=down hair=swing expr=hurt bob=-1 braid=swing at=0,-1 held=a112 weapon=112.5,front
+f armL=orunF armR=runF legs=idle neck=rest sheath=rest torso=rest tuft=down hair=swing expr=hurt bob=-1 braid=swing at=0,-1 held=a112 weapon=112.5,front pauld=up
 clip hurt U family spear when spear
 f armL=orunF armR=runF legs=idle neck=rest sheath=rest torso=rest tuft=down hair=swing bob=-1 braid=swing at=0,1 held=a067 weapon=67.5,front
 clip hurt R family spear when spear
@@ -76,70 +76,70 @@ f armL=pB armR=pN hilt=rest legs=run4 neck=flow2 sheath=kick torso=runl hang=fla
 f armL=pM armR=pN hilt=rest legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=runcarry weapon=90,back
 f armL=pF armR=pN hilt=rest legs=run6 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
 clip run L family spear when spear
-f armL=pB armR=pN hilt=rest legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hilt=rest legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hilt=rest legs=run3 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
-f armL=pF armR=pN hilt=rest legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hilt=rest legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hilt=rest legs=run6 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
+f armL=pB armR=sp_carry hilt=rest legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=carryL weapon=67.5,back
+f armL=pM armR=sp_carry hilt=rest legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=carryL weapon=67.5,back
+f armL=pF armR=sp_carry hilt=rest legs=run3 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=carryL weapon=67.5,back
+f armL=pF armR=sp_carry hilt=rest legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=carryL weapon=67.5,back
+f armL=pK armR=sp_carry hilt=rest legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=carryL weapon=67.5,back
+f armL=pB armR=sp_carry hilt=rest legs=run6 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=carryL weapon=67.5,back
 
-# the drawn walk and run (man): the upright carry
+# the drawn walk and run (man): both fists on the haft (PLAN D81): the port, the charge facing D on the guard
 clip walk D part drawn family spear variant 1 when spear
-f armL=fwd armR=idle legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3 held=carry
-f armL=fwd armR=idle legs=walkA2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle legs=walkB neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=carry
-f armL=back armR=idle legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6:3 held=carry
-f armL=back armR=idle legs=walkC2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle legs=walkD neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=carry
+f armL=sp_brace armR=sp_brace legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3 held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace legs=walkA2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace legs=walkB neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6:3 held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace legs=walkC2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace legs=walkD neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=a045 weapon=45,front
 clip walk U part drawn family spear variant 1 when spear
-f armL=back armR=idle legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3 held=carry
-f armL=back armR=idle legs=walkA2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle legs=walkB neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=carry
-f armL=fwd armR=idle legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6:3 held=carry
-f armL=fwd armR=idle legs=walkC2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle legs=walkD neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=carry
+f armL=sp_guard armR=sp_guard legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3 held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=walkA2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=walkB neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6:3 held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=walkC2 neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3:0 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=walkD neck=rest sheath=rest torso=rest tuft=up plant=0:-3 crest=up held=fU weapon=157.5,back
 clip walk R part drawn family spear variant 1 when spear
-f hang=wide armL=- armR=sp_carry hilt=rest legs=walkA neck=flow sheath=rest torso=run bob=1 plant=3:0 held=carryR weapon=112.5,back
-f hang=wide armL=- armR=sp_carry hilt=rest legs=walkA2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing held=carryR weapon=112.5,back
-f hang=rest armL=back armR=sp_carry hilt=rest legs=walkB2 neck=flow sheath=rest torso=run plant=-4:-8 held=carryR weapon=112.5,back
-f hang=wide armL=back armR=sp_carry hilt=rest legs=walkC neck=flow sheath=rest torso=run bob=1 plant=3:0 held=carryR weapon=112.5,back
-f hang=wide armL=- armR=sp_carry hilt=rest legs=walkC2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing held=carryR weapon=112.5,back
-f hang=rest armL=- armR=sp_carry hilt=rest legs=walkD2 neck=flow sheath=rest torso=run plant=-4:-8 held=carryR weapon=112.5,back
+f hang=wide armL=sp_hi armR=sp_hi legs=walkA neck=flow sheath=rest torso=run bob=1 plant=3:0 held=a067 weapon=67.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkA2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing held=a067 weapon=67.5,front
+f hang=rest armL=sp_hi armR=sp_hi legs=walkB2 neck=flow sheath=rest torso=run plant=-4:-8 held=a067 weapon=67.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkC neck=flow sheath=rest torso=run bob=1 plant=3:0 held=a067 weapon=67.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkC2 neck=flow2 sheath=rest torso=run hair=swing tuft=down plant=0:-4 braid=swing held=a067 weapon=67.5,front
+f hang=rest armL=sp_hi armR=sp_hi legs=walkD2 neck=flow sheath=rest torso=run plant=-4:-8 held=a067 weapon=67.5,front
 clip walk L part drawn family spear variant 1 when spear
-f hang=wide armL=B armR=sp_carry hilt=rest legs=walkA neck=flow sheath=kick torso=run bob=1 plant=4:1 held=carryL weapon=67.5,back
-f hang=wide armL=N armR=sp_carry hilt=rest legs=walkA2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
-f hang=rest armL=F armR=sp_carry hilt=rest legs=walkB2 neck=flow sheath=kick torso=run plant=-3:-7 held=carryL weapon=67.5,back
-f hang=wide armL=F armR=sp_carry hilt=rest legs=walkC neck=flow sheath=kick torso=run bob=1 plant=4:1 held=carryL weapon=67.5,back
-f hang=wide armL=N armR=sp_carry hilt=rest legs=walkC2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
-f hang=rest armL=B armR=sp_carry hilt=rest legs=walkD2 neck=flow sheath=kick torso=run plant=-3:-7 held=carryL weapon=67.5,back
+f hang=wide armL=sp_hi armR=sp_hi legs=walkA neck=flow sheath=kick torso=run bob=1 plant=4:1 held=a112 weapon=112.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkA2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing held=a112 weapon=112.5,front
+f hang=rest armL=sp_hi armR=sp_hi legs=walkB2 neck=flow sheath=kick torso=run plant=-3:-7 held=a112 weapon=112.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkC neck=flow sheath=kick torso=run bob=1 plant=4:1 held=a112 weapon=112.5,front
+f hang=wide armL=sp_hi armR=sp_hi legs=walkC2 neck=flow2 sheath=kick torso=run hair=swing tuft=down plant=1:-3 braid=swing held=a112 weapon=112.5,front
+f hang=rest armL=sp_hi armR=sp_hi legs=walkD2 neck=flow sheath=kick torso=run plant=-3:-7 held=a112 weapon=112.5,front
 clip run D part drawn family spear variant 2 when spear
-f armL=runF armR=idle legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1 held=carry
-f armL=runF armR=idle legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=carry
-f armL=back armR=idle legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1 held=carry
-f armL=back armR=idle legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=carry
+f armL=sp_hit armR=sp_guard legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1 held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1 held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=fD weapon=337.5,front
 clip run U part drawn family spear variant 2 when spear
-f armL=back armR=idle legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1 held=carry
-f armL=back armR=idle legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=carry
-f armL=runF armR=idle legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1 held=carry
-f armL=runF armR=idle legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=carry
+f armL=sp_guard armR=sp_guard legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1 held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1 held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up held=fU weapon=157.5,back
 clip run R part drawn family spear variant 2 when spear
-f armL=pF armR=pN hilt=rest legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=4 tuft=down plant=0:-6 hip=2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hilt=rest legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hilt=rest legs=run3 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
-f armL=pB armR=pN hilt=rest legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=4 tuft=down plant=0:-6 hip=2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hilt=rest legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hilt=rest legs=run6 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
+f armL=sp_hi armR=sp_hi legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=4 tuft=down plant=0:-6 hip=2,0 hair=run braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi legs=run3 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=4 tuft=down plant=0:-6 hip=2,0 hair=run braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi legs=run6 neck=flow sheath=kick torso=runl hang=flare lean=4 bob=-2 plant=-12:-18 hip=2,0 hair=run braid=run crest=up held=a067 weapon=67.5,front
 clip run L part drawn family spear variant 2 when spear
-f armL=pB armR=pN hilt=rest legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hilt=rest legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hilt=rest legs=run3 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
-f armL=pF armR=pN hilt=rest legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hilt=rest legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hilt=rest legs=run6 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=runcarry weapon=90,back
+f armL=sp_hi armR=sp_hi legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi legs=run3 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi legs=run4 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 tuft=down plant=1:-5 hip=-2,0 hair=run braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi legs=run5 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=-4 plant=-5:-11 hip=-2,0 bob=-1 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi legs=run6 neck=flow2 sheath=kick torso=runl hang=flare lean=-4 bob=-2 plant=-11:-17 hip=-2,0 hair=run braid=run crest=up held=a112 weapon=112.5,front
 
 body woman
 clip idle D family spear when spear
@@ -187,7 +187,7 @@ f armL=F armR=sp_carry hair=rest hang=wide legs=walkC sheath=kick torso=run bob=
 f armL=N armR=sp_carry hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
 f armL=B armR=sp_carry hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest held=carryL weapon=67.5,back
 clip hurt D family spear when spear
-f armL=runF armR=runF hair=swing hang=idle legs=idle torso=rest expr=hurt bob=-1 braid=swing at=0,-1 held=a112 weapon=112.5,front
+f armL=runF armR=runF hair=swing hang=idle legs=idle torso=rest expr=hurt bob=-1 braid=swing at=0,-1 held=a112 weapon=112.5,front pauld=up
 clip hurt U family spear when spear
 f armL=runF armR=runF hair=swing hang=idle legs=idle torso=rest bob=-1 braid=swing at=0,1 held=a067 weapon=67.5,front
 clip hurt R family spear when spear
@@ -216,67 +216,67 @@ f armL=pB armR=pN hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 tu
 f armL=pM armR=pN hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run held=runcarry weapon=90,back
 f armL=pF armR=pN hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up held=runcarry weapon=90,back
 clip run L family spear when spear
-f armL=pB armR=pN hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=runcarry weapon=90,back
-f armL=pF armR=pN hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=runcarry weapon=90,back
+f armL=pB armR=sp_carry hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=carryL weapon=67.5,back
+f armL=pM armR=sp_carry hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=carryL weapon=67.5,back
+f armL=pF armR=sp_carry hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=carryL weapon=67.5,back
+f armL=pF armR=sp_carry hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=carryL weapon=67.5,back
+f armL=pK armR=sp_carry hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=carryL weapon=67.5,back
+f armL=pB armR=sp_carry hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=carryL weapon=67.5,back
 
-# the drawn walk and run (woman): the upright carry
+# the drawn walk and run (woman): both fists on the haft (PLAN D81): the port, the charge facing D on the guard
 clip walk D part drawn family spear variant 1 when spear
-f armL=down armR=idle hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=6:3 braid=rest held=carry
-f armL=down1 armR=idle hair=swing hang=rest legs=walkA2 torso=swing bob=1 sway=-1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=rest legs=walkB torso=rest plant=0:-3 braid=rest held=carry
-f armL=up armR=idle hair=rest hang=rest legs=walkC torso=rest sway=1 plant=6:3 braid=rest held=carry
-f armL=up1 armR=idle hair=swing hang=rest legs=walkC2 torso=swing bob=1 sway=1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=rest legs=walkD torso=rest plant=0:-3 braid=rest held=carry
+f armL=sp_brace armR=sp_brace hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=6:3 braid=rest held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace hair=swing hang=rest legs=walkA2 torso=swing bob=1 sway=-1 plant=3:0 braid=swing held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace hair=rest hang=rest legs=walkB torso=rest plant=0:-3 braid=rest held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace hair=rest hang=rest legs=walkC torso=rest sway=1 plant=6:3 braid=rest held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace hair=swing hang=rest legs=walkC2 torso=swing bob=1 sway=1 plant=3:0 braid=swing held=a045 weapon=45,front
+f armL=sp_brace armR=sp_brace hair=rest hang=rest legs=walkD torso=rest plant=0:-3 braid=rest held=a045 weapon=45,front
 clip walk U part drawn family spear variant 1 when spear
-f armL=down armR=idle hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=6:3 braid=rest held=carry
-f armL=down armR=idle hair=swing hang=rest legs=walkA2 torso=rest bob=1 sway=-1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=rest legs=walkB torso=rest plant=0:-3 braid=rest held=carry
-f armL=up armR=idle hair=rest hang=rest legs=walkC torso=rest sway=1 plant=6:3 braid=rest held=carry
-f armL=up armR=idle hair=swing hang=rest legs=walkC2 torso=rest bob=1 sway=1 plant=3:0 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=rest legs=walkD torso=rest plant=0:-3 braid=rest held=carry
+f armL=sp_guard armR=sp_guard hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=6:3 braid=rest held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=swing hang=rest legs=walkA2 torso=rest bob=1 sway=-1 plant=3:0 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=rest hang=rest legs=walkB torso=rest plant=0:-3 braid=rest held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=rest hang=rest legs=walkC torso=rest sway=1 plant=6:3 braid=rest held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=swing hang=rest legs=walkC2 torso=rest bob=1 sway=1 plant=3:0 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=rest hang=rest legs=walkD torso=rest plant=0:-3 braid=rest held=fU weapon=157.5,back
 clip walk R part drawn family spear variant 1 when spear
-f armL=- armR=sp_carry hair=rest hang=wide legs=walkA torso=run bob=1 hip=0,-1 plant=3:0 braid=rest held=carryR weapon=112.5,back
-f armL=- armR=sp_carry hair=swing hang=wide legs=walkA2 torso=run tuft=down plant=0:-4 braid=swing held=carryR weapon=112.5,back
-f armL=- armR=sp_carry hair=rest hang=rest legs=walkB2 torso=run plant=-4:-8 braid=rest held=carryR weapon=112.5,back
-f armL=- armR=sp_carry hair=rest hang=wide legs=walkC torso=run bob=1 hip=0,-1 plant=3:0 braid=rest held=carryR weapon=112.5,back
-f armL=- armR=sp_carry hair=swing hang=wide legs=walkC2 torso=run tuft=down plant=0:-4 braid=swing held=carryR weapon=112.5,back
-f armL=- armR=sp_carry hair=rest hang=rest legs=walkD2 torso=run plant=-4:-8 braid=rest held=carryR weapon=112.5,back
+f armL=sp_hi armR=sp_hi hair=rest hang=wide legs=walkA torso=run bob=1 hip=0,-1 plant=3:0 braid=rest held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=swing hang=wide legs=walkA2 torso=run tuft=down plant=0:-4 braid=swing held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=rest legs=walkB2 torso=run plant=-4:-8 braid=rest held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=wide legs=walkC torso=run bob=1 hip=0,-1 plant=3:0 braid=rest held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=swing hang=wide legs=walkC2 torso=run tuft=down plant=0:-4 braid=swing held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=rest legs=walkD2 torso=run plant=-4:-8 braid=rest held=a067 weapon=67.5,front
 clip walk L part drawn family spear variant 1 when spear
-f armL=B armR=sp_carry hair=rest hang=wide legs=walkA sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest held=carryL weapon=67.5,back
-f armL=N armR=sp_carry hair=swing hang=wide legs=walkA2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
-f armL=F armR=sp_carry hair=rest hang=rest legs=walkB2 sheath=kick torso=run plant=-3:-7 braid=rest held=carryL weapon=67.5,back
-f armL=F armR=sp_carry hair=rest hang=wide legs=walkC sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest held=carryL weapon=67.5,back
-f armL=N armR=sp_carry hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing held=carryL weapon=67.5,back
-f armL=B armR=sp_carry hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest held=carryL weapon=67.5,back
+f armL=sp_hi armR=sp_hi hair=rest hang=wide legs=walkA sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=swing hang=wide legs=walkA2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=rest legs=walkB2 sheath=kick torso=run plant=-3:-7 braid=rest held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=wide legs=walkC sheath=kick torso=run bob=1 hip=0,-1 plant=4:1 braid=rest held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=swing hang=wide legs=walkC2 sheath=kick torso=run tuft=down plant=1:-3 braid=swing held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=rest hang=rest legs=walkD2 sheath=kick torso=run plant=-3:-7 braid=rest held=a112 weapon=112.5,front
 clip run D part drawn family spear variant 2 when spear
-f armL=runF armR=idle hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=5:-1 braid=swing held=carry
-f armL=runF armR=idle hair=swing hang=flare legs=run2 torso=rest sway=-1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=flare legs=run3 torso=rest bob=-1 plant=-7:-13 braid=rest held=carry
-f armL=up armR=idle hair=swing hang=flare legs=run4 torso=rest sway=1 plant=5:-1 braid=swing held=carry
-f armL=up armR=idle hair=swing hang=flare legs=run5 torso=rest sway=1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=flare legs=run6 torso=rest bob=-1 plant=-7:-13 braid=rest held=carry
+f armL=sp_hit armR=sp_guard hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=5:-1 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard hair=swing hang=flare legs=run2 torso=rest sway=-1 plant=-1:-7 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard hair=rest hang=flare legs=run3 torso=rest bob=-1 plant=-7:-13 braid=rest held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard hair=swing hang=flare legs=run4 torso=rest sway=1 plant=5:-1 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard hair=swing hang=flare legs=run5 torso=rest sway=1 plant=-1:-7 braid=swing held=fD weapon=337.5,front
+f armL=sp_hit armR=sp_guard hair=rest hang=flare legs=run6 torso=rest bob=-1 plant=-7:-13 braid=rest held=fD weapon=337.5,front
 clip run U part drawn family spear variant 2 when spear
-f armL=up armR=idle hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=5:-1 braid=swing held=carry
-f armL=up armR=idle hair=swing hang=flare legs=run2 torso=rest sway=-1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=flare legs=run3 torso=rest bob=-1 plant=-7:-13 braid=rest held=carry
-f armL=runF armR=idle hair=swing hang=flare legs=run4 torso=rest sway=1 plant=5:-1 braid=swing held=carry
-f armL=runF armR=idle hair=swing hang=flare legs=run5 torso=rest sway=1 plant=-1:-7 braid=swing held=carry
-f armL=idle armR=idle hair=rest hang=flare legs=run6 torso=rest bob=-1 plant=-7:-13 braid=rest held=carry
+f armL=sp_guard armR=sp_guard hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=5:-1 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=swing hang=flare legs=run2 torso=rest sway=-1 plant=-1:-7 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=rest hang=flare legs=run3 torso=rest bob=-1 plant=-7:-13 braid=rest held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=swing hang=flare legs=run4 torso=rest sway=1 plant=5:-1 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=swing hang=flare legs=run5 torso=rest sway=1 plant=-1:-7 braid=swing held=fU weapon=157.5,back
+f armL=sp_guard armR=sp_guard hair=rest hang=flare legs=run6 torso=rest bob=-1 plant=-7:-13 braid=rest held=fU weapon=157.5,back
 clip run R part drawn family spear variant 2 when spear
-f armL=pF armR=pN hair=run hang=flare legs=run1 sheath=kick torso=runl lean=4 tuft=down plant=0:-6 hip=3,0 braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hair=run hang=flare legs=run2 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hair=run hang=flare legs=run3 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up held=runcarry weapon=90,back
-f armL=pB armR=pN hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 tuft=down plant=0:-6 hip=3,0 braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up held=runcarry weapon=90,back
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run1 sheath=kick torso=runl lean=4 tuft=down plant=0:-6 hip=3,0 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run2 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run3 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run4 sheath=kick torso=runl lean=4 tuft=down plant=0:-6 hip=3,0 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run5 sheath=kick torso=runl lean=4 plant=-6:-12 hip=3,0 bob=-1 braid=run held=a067 weapon=67.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run6 sheath=kick torso=runl lean=4 bob=-2 plant=-12:-18 hip=3,0 braid=run crest=up held=a067 weapon=67.5,front
 clip run L part drawn family spear variant 2 when spear
-f armL=pB armR=pN hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=runcarry weapon=90,back
-f armL=pM armR=pN hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pF armR=pN hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=runcarry weapon=90,back
-f armL=pF armR=pN hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=runcarry weapon=90,back
-f armL=pK armR=pN hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=runcarry weapon=90,back
-f armL=pB armR=pN hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=runcarry weapon=90,back
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run1 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run2 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run3 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run4 sheath=kick torso=runl lean=-4 tuft=down plant=1:-5 hip=-3,0 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run5 sheath=kick torso=runl lean=-4 plant=-5:-11 hip=-3,0 bob=-1 braid=run held=a112 weapon=112.5,front
+f armL=sp_hi armR=sp_hi hair=run hang=flare legs=run6 sheath=kick torso=runl lean=-4 bob=-2 plant=-11:-17 hip=-3,0 braid=run crest=up held=a112 weapon=112.5,front

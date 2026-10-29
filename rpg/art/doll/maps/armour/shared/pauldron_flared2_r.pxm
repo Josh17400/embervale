@@ -102,7 +102,7 @@ regions
 |.NNN.
 |..RR.
 
-view R key rest origin 0 4 layer headwear
+view R key rest origin 0 4
 |..vv..
 |.vzv..
 |vvyvvv
@@ -117,7 +117,7 @@ regions
 |.NNNN.
 |......
 
-view R key up origin 0 5 layer headwear
+view R key up origin 0 5
 |..vv..
 |.vzv..
 |vvyvvv

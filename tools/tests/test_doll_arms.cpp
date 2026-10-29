@@ -1217,7 +1217,11 @@ bool isGear(const doll::FrameProbe::It& it) {
          (it.has(doll::Role::Shield) && it.anchor == art::doll::Anchor::GripL) ||
          (it.has(doll::Role::Overlay) && (it.part.find("tabard") != std::string::npos || it.part.find("armour/") == 0));
 }
-bool isLibraryHeld(const doll::FrameProbe::It& it) { return it.has(doll::Role::Held) && it.held.find('.') != std::string::npos; }
+// (wave-2 fix round, D81) every library weapon, the spear included (the probe names a part by its library value wherever its map
+// lists it); A3's sword (held/weapons/sword) is contracts 2's one exception, re-cut into the arm, and stays out as before
+bool isLibraryHeld(const doll::FrameProbe::It& it) {
+  return it.has(doll::Role::Held) && it.held.find('.') != std::string::npos && it.part != "held/weapons/sword";
+}
 bool isBow(const doll::FrameProbe::It& it) { return it.has(doll::Role::Held) && it.held.rfind("bow", 0) == 0; }
 bool isShield(const doll::FrameProbe::It& it) { return it.has(doll::Role::Shield) && it.anchor == art::doll::Anchor::GripL; }
 bool isHelm(const doll::FrameProbe::It& it) { return it.has(doll::Role::Helm); }
@@ -1409,6 +1413,22 @@ std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare,
           if (k >= 0 && shOwner(k)) shNear = true;
         }
       if (allCloak && shNear) near = true;
+      // (wave-2 fix round, D82) facing U a cloak may cover the grip: attached when the shield's visible pixels touch the cloak
+      // part that covers the grip
+      if (!near) {
+        const int kg = p.at(p.gripLX, p.gripLY);
+        const int co = kg < 0 ? -1 : ownerOf(p, kg);
+        if (co >= 0 && opaque(p, kg) && p.items[(size_t)co].has(doll::Role::Cloak))
+          for (int k = 0; k < p.w * p.h && !near; k++) {
+            if (!shOwner(k) || !opaque(p, k)) continue;
+            const int x = k % p.w, y = k / p.w;
+            for (int d = 0; d < 4 && !near; d++) {
+              const int k2 = p.at(x + (d == 0) - (d == 1), y + (d == 2) - (d == 3));
+              const int o2 = k2 >= 0 && opaque(p, k2) ? ownerOf(p, k2) : -1;
+              if (o2 == co || (o2 >= 0 && p.items[(size_t)co].partIndex >= 0 && p.items[(size_t)o2].partIndex == p.items[(size_t)co].partIndex)) near = true;
+            }
+          }
+      }
     }
     bool handDrawn = p.gripLFrom < 0;
     for (int k = 0; k < p.w * p.h && !handDrawn; k++) if (opaque(p, k) && ownerOf(p, k) == p.gripLFrom) handDrawn = true;
@@ -1454,12 +1474,25 @@ std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare,
   return "";
 }
 // d: the grips. bare: the same frame without the weapon (the fist's own hand pixels)
-std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, bool twoHand) {
+// (wave-2 fix round, D81) twoHand: the off fist is asked (DRAWN and ACTION frames and the guard; never a LOCO, RUN or DEATH
+// carry: D5 carries spears and staffs in the right fist); upright: no weapon pixel more than 2 rows below the sole row
+std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, bool twoHand, bool upright, int facing = 0) {
   int wi = -1;
   for (size_t i = 0; i < p.items.size(); i++) if (isLibraryHeld(p.items[i])) wi = (int)i;
   if (wi < 0) return "";
   const doll::FrameProbe::It& w = p.items[(size_t)wi];
   if (w.key == "drop") return "";   // (INTEGRATE i1) on the ground beside the body: no hand holds it
+  if (upright && !p.turn) {
+    int sole = -1, low = -1;
+    for (int k = 0; k < p.w * p.h; k++) {
+      if (!opaque(p, k)) continue;
+      const int o = ownerOf(p, k);
+      if (o < 0) continue;
+      if (p.items[(size_t)o].has(doll::Role::Legs)) sole = std::max(sole, k / p.w);
+      if (o == wi) low = std::max(low, k / p.w);
+    }
+    if (sole >= 0 && low > sole + 2) return w.part + fmt(": %d rows below the soles (2 at most on an upright frame)", low - sole);
+  }
   const bool bow = isBow(w);
   const bool onL = w.anchor == art::doll::Anchor::GripL;
   if (bow && !onL) return w.part + ": a bow not in the left hand (gripL)";
@@ -1487,6 +1520,12 @@ std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, b
     handPx++;
     if (ownerOf(p, k) == wi) covered++;
   }
+  // (wave-2 fix round, D81: every library weapon checked, the spear and the greatsword among them) a gripping hand the body
+  // hides by design draws no H pixel: facing U (the hands before the chest, the back toward us), or the far arm (the right fist
+  // facing L, the left facing R); as C3c's hidden far hand, nothing to touch there
+  const bool hidden = facing == 1 || (facing == 3 && !onL) || (facing == 2 && onL);
+  // (not exempt without the planner's ruling: the message names the case so the judge and the planner can count it)
+  if (!handPx && hidden) return arm.part + ": no hand pixels (region H) on the gripping arm [hidden hand: facing U or the far arm; ruling proposed]";
   if (!handPx) return arm.part + ": no hand pixels (region H) on the gripping arm";
   if (gx < hx0 - 1 || gx > hx1 + 1 || gy < hy0 - 1 || gy > hy1 + 1) return w.part + fmt(": the grip (%d,%d) outside the fist", gx - p.px, gy - p.py);
   if (covered) return w.part + fmt(": %d weapon pixel(s) over the fist", covered);
@@ -1577,7 +1616,8 @@ void gateC3(Line& g, const std::vector<Look>& looks) {
         const std::string nm = frameName(l.tag, f);
         std::string why;
         if (holesInGear(p, &why)) g.bad("C3a " + nm + ": " + why); else g.ok();
-        const std::string hb = helmCheck(p, b.L.tier[HumanLook::TIER_HELM], b.L.body == 1);
+        // (wave-2 fix round, D80) the helm's resolved tier (after kitVar and the watch: the tier its views were picked by)
+        const std::string hb = helmCheck(p, b.r.pieceTier[HumanLook::TIER_HELM], b.L.body == 1);
         if (!hb.empty()) g.bad("C3b " + nm + ": " + hb); else g.ok();
         if (hasShield) {
           const doll::FrameProbe bare = doll::probeFrame(noShield, part, f.facing, f.clip, f.variant, f.i);
@@ -1588,7 +1628,9 @@ void gateC3(Line& g, const std::vector<Look>& looks) {
         for (const doll::FrameProbe::It& it : p.items) lib = lib || isLibraryHeld(it);
         if (lib) {
           const doll::FrameProbe bare = doll::probeFrame(noWeapon, part, f.facing, f.clip, f.variant, f.i);
-          const std::string gc = gripCheck(p, bare.ok ? &bare : nullptr, twoHand);
+          // (D81) the off fist on DRAWN and ACTION frames and the guard only; the carry is one-handed
+          const bool askOff = twoHand && (part == RigPart::Drawn || part == RigPart::Action);
+          const std::string gc = gripCheck(p, bare.ok ? &bare : nullptr, askOff, f.clip != Clip::Fall && f.clip != Clip::Lying, p.turn ? 3 : f.facing);
           if (!gc.empty()) g.bad("C3d " + nm + ": " + gc); else g.ok();
         }
         if (f.clip == Clip::Lying) {
@@ -1981,6 +2023,17 @@ int selftestC3(bool report) {
     q.items[(size_t)sh].anchor = A::Hip;
     // (no longer counted as the shield: re-mark it as on the hip with the shield role kept)
     expect(shieldCheck(q, &bare, false, 2).empty(), "(a non-gripL shield part is the arm's)");
+    // (wave-2 fix round, D82) facing U a cloak covers the grip: attached when the shield touches that cloak part
+    q = p;
+    const int ck = addItem(q, "cloak/noble", doll::Role::Cloak, A::Neck, doll::Layer::CloakFront);
+    fill(q, ck, 30, 22, 37, 34, doll::Slot::Cloak);
+    q.gripLX = 36;
+    expect(shieldCheck(q, nullptr, false, 1).empty(), "(a shield beside the cloak that covers its grip reads clean)");
+    q = p;
+    const int ck2 = addItem(q, "cloak/noble", doll::Role::Cloak, A::Neck, doll::Layer::CloakFront);
+    fill(q, ck2, 33, 22, 37, 34, doll::Slot::Cloak);
+    q.gripLX = 35;
+    expect(!shieldCheck(q, nullptr, false, 1).empty(), "a shield 3 px clear of the cloak that covers its grip");
   }
   {   // d: a weapon over the fist, the grip outside the fist, the left hand, the off fist off the haft, no tip
     doll::FrameProbe p = synth(80, 60);
@@ -1993,20 +2046,35 @@ int selftestC3(bool report) {
     fill(p, off, 40, 29, 41, 31, doll::Slot::Skin, 2, doll::Region::Hand);
     p.gripL = true; p.gripLX = 40; p.gripLY = 30; p.gripLFrom = off;
     doll::FrameProbe bare = p;
-    expect(gripCheck(p, &bare, true).empty(), "a two-handed grip on the haft reads clean");
+    expect(gripCheck(p, &bare, true, true).empty(), "a two-handed grip on the haft reads clean");
     doll::FrameProbe q = p;
     fill(q, w, 30, 30, 31, 30, doll::Slot::Leather);
-    expect(!gripCheck(q, &bare, true).empty(), "weapon pixels over the fist");
+    expect(!gripCheck(q, &bare, true, true).empty(), "weapon pixels over the fist");
     q = p; q.gripX = 36;
-    expect(!gripCheck(q, &bare, true).empty(), "the grip outside the fist");
+    expect(!gripCheck(q, &bare, true, true).empty(), "the grip outside the fist");
     q = p; q.items[(size_t)arm].side = 2;
-    expect(!gripCheck(q, &bare, true).empty(), "a weapon in the left arm");
+    expect(!gripCheck(q, &bare, true, true).empty(), "a weapon in the left arm");
     q = p; q.gripLY = 35;
-    expect(!gripCheck(q, &bare, true).empty(), "the off fist off the haft line");
+    expect(!gripCheck(q, &bare, true, true).empty(), "the off fist off the haft line");
     q = p; q.tip = false;
-    expect(!gripCheck(q, &bare, true).empty(), "no tip mark");
+    expect(!gripCheck(q, &bare, true, true).empty(), "no tip mark");
     q = p; q.tipX = 45;
-    expect(!gripCheck(q, &bare, true).empty(), "the tip mark short of the far end");
+    expect(!gripCheck(q, &bare, true, true).empty(), "the tip mark short of the far end");
+    // (wave-2 fix round, D81) the carry is one-handed: the off fist is not asked on a LOCO / RUN / DEATH carry
+    q = p; q.gripLY = 35;
+    expect(gripCheck(q, &bare, false, true).empty(), "(a carry: the off fist off the haft line reads clean)");
+    // NEW: no weapon pixel more than 2 rows below the sole row on an upright frame (the spear's blow 3 facing D)
+    q = p;
+    const int legs = addItem(q, "legs", doll::Role::Legs, A::Pivot, doll::Layer::Legs);
+    fill(q, legs, 30, 40, 34, 45, doll::Slot::Cloth2);
+    fill(q, w, 50, 31, 50, 48, doll::Slot::Leather);
+    expect(!gripCheck(q, &bare, true, true).empty(), "a weapon 3 rows below the soles on an upright frame");
+    expect(gripCheck(q, &bare, true, false).empty(), "(the same weapon on a fall frame reads clean)");
+    q = p;
+    const int legs2 = addItem(q, "legs", doll::Role::Legs, A::Pivot, doll::Layer::Legs);
+    fill(q, legs2, 30, 40, 34, 45, doll::Slot::Cloth2);
+    fill(q, w, 50, 31, 50, 47, doll::Slot::Leather);
+    expect(gripCheck(q, &bare, true, true).empty(), "(a weapon 2 rows below the soles reads clean)");
   }
   {   // e: lying without the helm, the shield away, the weapon away
     doll::FrameProbe p = synth(80, 40);

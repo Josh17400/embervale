@@ -7,7 +7,10 @@
 # iridescent alloy's Metal 2 is its hue-turned ramp, so the courses alternate two hues), keyed by the cut.
 use person
 role overlay sheen.iridescent
-tags tile overlay on-slot:metal
+# (FINISH wave-2 fix r2, D79) RESERVE: the compositor bands an iridescent alloy procedurally (DollRecipe::irisBands,
+# doll_compose irisBand: the 2-row Metal / Metal 2 courses, D61); no resolver asks `overlay sheen.iridescent`. Kept
+# drawn, listed, never deleted (D49).
+tags tile overlay on-slot:metal reserve
 legend + ink 3
 legend ^ ink 4
 legend : ink 1
