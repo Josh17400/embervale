@@ -1,66 +1,66 @@
 # M7b village-art fixture (tools/preview/city_gallery.cpp --village-art-write): villages never change
-bldg classic urban0 9e7cdde771f8e945
-bldg classic urban1 71ddd38dbd969511
-bldg classic urban2 842e9cd16dc98d4d
-bldg classic urban3 774c948cb7d229b2
-bldg fjordfolk urban0 5d9a120f0fd23870
-bldg fjordfolk urban1 81f9965b4efc9cac
-bldg fjordfolk urban2 42206de3be969b5d
-bldg fjordfolk urban3 e90aab829781ec4f
-bldg highland urban0 5b1eeca5383702e2
-bldg highland urban1 dbd6c4a476796ea9
-bldg highland urban2 1b85f7663bf5fc6e
-bldg highland urban3 5a0e73ebeeb617f4
-bldg heartland urban0 4e5266fe031fdc42
-bldg heartland urban1 1449804ed1728223
-bldg heartland urban2 fb65a4889264448d
-bldg heartland urban3 7b45d18fc7adb9f7
-bldg imperial urban0 4fc6ca231e5e3595
-bldg imperial urban1 7580f60fb951a185
-bldg imperial urban2 7b628495548f9b61
-bldg imperial urban3 0b2ab0b678e727c0
-bldg dune urban0 3f4af6f01e90036b
-bldg dune urban1 9c66e17a98065965
-bldg dune urban2 bd67d2b58ffd9d63
-bldg dune urban3 42fd2004a1632ac0
-bldg steppe urban0 d1c1c3b819026e3c
-bldg steppe urban1 ca97be1b3d220756
-bldg steppe urban2 40650038e52de6ec
-bldg steppe urban3 49ffd41112bc77c4
-bldg marsh urban0 95b0360c38c15378
-bldg marsh urban1 2bc3144db6e6df25
-bldg marsh urban2 e4b4a643711deddf
-bldg marsh urban3 ba685c33832f77a5
-bldg jade urban0 3c87f7a274ba019f
-bldg jade urban1 06f70beaf2dad25e
-bldg jade urban2 deabdb8c47f1659d
-bldg jade urban3 0f0aacbca5c4a605
-bldg river urban0 f06756cb82b998bf
-bldg river urban1 468c2da11c571f83
-bldg river urban2 d8e6510696397554
-bldg river urban3 5b78633ae5e645c1
-bldg suntemple urban0 12df58891dd85fdc
-bldg suntemple urban1 bc35cbbbf53b14d3
-bldg suntemple urban2 acd9f27658f56786
-bldg suntemple urban3 58534cf10c6843c9
-bldg sylvan urban0 ee7754d3dc443760
-bldg sylvan urban1 f058f51b01833f78
-bldg sylvan urban2 818d31493ac4dc22
-bldg sylvan urban3 f671b583ba83f5c3
-bldg starspire urban0 c238ccbba8fbb831
-bldg starspire urban1 e3117475c25a8d4b
-bldg starspire urban2 91b56b2c72cd3e57
-bldg starspire urban3 9d330f28579a42a7
-props classic 8dd3d2f2878f1371
-props fjordfolk 41574120cc0c3504
-props highland 9f2b1b498940371b
-props heartland aa35818abdb698ab
-props imperial 74dff6be16834cf1
-props dune 2dfb0e554438169c
-props steppe 5e2b1c88304f113e
-props marsh 552e3f95520cbef4
-props jade ca4b89f208dd6e2b
-props river df4f3daa73657155
-props suntemple 8a5797ab69532aeb
-props sylvan c8843cd090d27dda
-props starspire d8ec61672db53c80
+bldg classic urban0 31352d8441c23870
+bldg classic urban1 6413a5fc9a624285
+bldg classic urban2 42e6193a608dce9f
+bldg classic urban3 154072edf0e6b61a
+bldg fjordfolk urban0 92f79d89fcaf68a9
+bldg fjordfolk urban1 72619f66cb284d68
+bldg fjordfolk urban2 f7ba38eac4738b86
+bldg fjordfolk urban3 176b918e049c77e2
+bldg highland urban0 cd30fb02341676db
+bldg highland urban1 cff1dc1d169291fc
+bldg highland urban2 656858043cfd1420
+bldg highland urban3 5dd3ee47277f5a63
+bldg heartland urban0 8c165fea9ce56be1
+bldg heartland urban1 6901583767b512f0
+bldg heartland urban2 be02075a5f28b055
+bldg heartland urban3 57dc85dc9ed37795
+bldg imperial urban0 f04bfa0ff5f27685
+bldg imperial urban1 b4f9be52bc02ba93
+bldg imperial urban2 d2e0a05c8c2b732f
+bldg imperial urban3 21434627926469ea
+bldg dune urban0 c013573c8d6960f6
+bldg dune urban1 85259d56b1e6fdab
+bldg dune urban2 9db12f57905f0ab1
+bldg dune urban3 879cd7db08a2db44
+bldg steppe urban0 838af324b5ec6f4c
+bldg steppe urban1 368d56f62c6d9380
+bldg steppe urban2 59afdbd38b39635b
+bldg steppe urban3 24825da9a4804b67
+bldg marsh urban0 0d827f9cfcc2e213
+bldg marsh urban1 6ab80923f7f8085b
+bldg marsh urban2 a6d0d49f759cbadc
+bldg marsh urban3 2d0c63fb202db9a5
+bldg jade urban0 0ef87ff6d91fd031
+bldg jade urban1 64806fa998242426
+bldg jade urban2 dd15dbb03ca452d1
+bldg jade urban3 3a8702860e64bb05
+bldg river urban0 b1938cfa87e5b044
+bldg river urban1 fc3bd2a88c13a875
+bldg river urban2 875916843fd41e28
+bldg river urban3 7376632847cb0c5a
+bldg suntemple urban0 74fb8fc419a2d723
+bldg suntemple urban1 9b935416625857d4
+bldg suntemple urban2 d907b9e9d35e3fe2
+bldg suntemple urban3 054a5d08c353f035
+bldg sylvan urban0 f1a1abcc154aed7b
+bldg sylvan urban1 afe7e60d0ab8cba8
+bldg sylvan urban2 ca04e447f3100cf9
+bldg sylvan urban3 dcb6e8c8709801c2
+bldg starspire urban0 fb76b9dc1a08a93d
+bldg starspire urban1 757986bdfa316d69
+bldg starspire urban2 025b6d776cf9ea2f
+bldg starspire urban3 cada61e31e948f6d
+props classic f81cbb1fb8a799dc
+props fjordfolk a8c95f277383f9fc
+props highland 524198f7f0d18fc0
+props heartland f6b28ac539e6f37d
+props imperial c2a193581c69fa67
+props dune a81bcba75516a7f4
+props steppe b24c8aef0d661998
+props marsh d41ec504fb1de609
+props jade 5e64a235ddb82320
+props river cd2ed618d2094721
+props suntemple 3361787bc5ee77a5
+props sylvan 6472886e01d9b707
+props starspire b81cb3f6c667acf6

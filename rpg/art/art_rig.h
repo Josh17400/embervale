@@ -1,16 +1,18 @@
 // EMBERVALE art API: the Clear Sight rig contract (P2a phase A, VISION_PLAN 15.36 item 4; art direction docs/STYLE_P2.md).
 // Part of rpg/art.h (include that). FROZEN after phase A: lanes may ADD names, never rename them or change their meaning.
 //
-// Two human rigs live side by side through P2a and P2b:
-//   rig 1  today's 16 x 24 sheets (art_human.cpp), the shipped default through P2a; frozen (no new v1 art)
-//   rig 2  the 32 px v2 rig (rpg/art/rig/*.cpp: RIG-BODY, RIG-ARMS, POSES), behind `rig 2` (EMB_RIG=2, web ?rig=2,
-//          script `rig 2`, Witness reset param "rig": 2) until P2b flips every human at once and deletes v1
+// Two human rigs live side by side (restated at the P2c flip, 2026-10-30, PLAN D100-D101):
+//   rig 2  the DOLL (rpg/art/doll/doll.h), THE DEFAULT everywhere since the flip: the game, the menus and portraits, the
+//          web, Witness and the scripts (kDefaultRig). The k-scaled holders are the only size at the default.
+//   rig 1  the v1 16 x 24 sheets (art_human.cpp), an OPT-IN FALLBACK until the owner's separate retirement OK: EMB_RIG=1,
+//          web ?rig=1, script `rig 1`, Witness reset param "rig": 1 (or EMB_WPLAY_RIG=1), `--rig=1` on rpg_test,
+//          art_hash and city_gallery. Frozen pixel for pixel (no new v1 art), with its v1 holder sizes (D101).
 // The switch, the body scale and the metrics are header-only (inline) so rpg/sim (anim.cpp, game.cpp) reads them
 // without linking rpg_art. The painters (humanRig, humanPosture2, sleeper2...) live in rpg_art.
 //
 // Which file implements what (P2b phase A: the art-direction change, VISION_PLAN 15.36): the rejected procedural painters
 // (rpg/art/rig/*.cpp) are DETACHED: nothing calls them at rig 2 (their entry points are renamed legacy*, kept compiled only
-// for tools/preview/rigdraft.cpp until the P2c flip deletes them). Rig 2 draws the DOLL (rpg/art/doll/doll.h):
+// for tools/preview/rigdraft.cpp until the owner's retirement OK deletes them; D100). Rig 2 draws the DOLL (rpg/art/doll/doll.h):
 //   art_rig.cpp            (lead)      the dispatch to the doll (humanRig, humanPosture2, sleeper2, humanFigureStill2,
 //                                      humanoidCell2, rig2Covers), the RigSheet helpers, holderName
 //   doll/*.cpp             (DOLL)      the pool, the compositor, the resolver and coverage, the ramps, seatFit2 / bedFit2
@@ -34,11 +36,21 @@ constexpr uint8_t WEAPON_GREATSWORD = 7;
 constexpr uint8_t WEAPON_HORN = 12;
 
 // ---------------------------------------------------------------- the switch
+constexpr int kDefaultRig = 2;   // (P2c flip, D100) the doll is the default; rig 1 is the opt-in v1 fallback
 namespace rigdetail {
-inline int& version() { static int v = 1; return v; }
+inline int& version() { static int v = kDefaultRig; return v; }
 }  // namespace rigdetail
 inline int rigVersion() { return rigdetail::version(); }                       // 1 or 2
 inline void setRigVersion(int v) { rigdetail::version() = v >= 2 ? 2 : 1; }   // callers flush their people caches
+// (P2c flip) save the rig, optionally set one, and restore the saved rig on scope exit (tests: never "back to 1")
+struct RigScope {
+  int saved;
+  RigScope() : saved(rigVersion()) {}
+  explicit RigScope(int v) : saved(rigVersion()) { setRigVersion(v); }
+  ~RigScope() { setRigVersion(saved); }
+  RigScope(const RigScope&) = delete;
+  RigScope& operator=(const RigScope&) = delete;
+};
 // what a body uses (doors, walls, seats, beds, mounts, boats, carts, ladders, gates) scales with the rig: 1 at rig 1,
 // k = 32 / 22 at rig 2. Footprints in tiles never change.
 inline float bodyScale() { return rigVersion() >= 2 ? 32.0f / 22.0f : 1.0f; }

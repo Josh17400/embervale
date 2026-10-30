@@ -136,6 +136,7 @@ int checkA2(uint64_t seed) {
   // the 9 effects
   {
     Game g(1);
+    art::RigScope keep;   // (P2c flip) the rig before A2 comes back after it (it was "back to rig 1")
     for (int rv = 1; rv <= 2; rv++) {
       art::setRigVersion(rv);
       std::set<int> fx;
@@ -153,7 +154,6 @@ int checkA2(uint64_t seed) {
       if (fx.size() != (size_t)art::FAMILY_COUNT || same)
         std::printf("FAIL: A2 rig %d: %zu distinct swing effects for %d families (%d identical sprite pairs)\n", rv, fx.size(), art::FAMILY_COUNT, same), g_fail++;
     }
-    art::setRigVersion(1);
   }
   // the effect ends with the strike (the hero, sim steps)
   for (WeaponType t : {WeaponType::Dagger, WeaponType::Mace, WeaponType::Sword}) {
@@ -264,7 +264,7 @@ int checkA3(uint64_t seed) {
 
 int checkA4(uint64_t seed) {
   const int f0 = g_fail;
-  art::setRigVersion(2);
+  art::RigScope rig2(2);   // (P2c flip) rig 2 here; the previous rig is restored on return (it was "back to rig 1")
   {   // lying after the killing blow; the corpse's life
     Game g(seed);
     stage(g, seed);
@@ -313,13 +313,12 @@ int checkA4(uint64_t seed) {
     for (int s = 0; s < 30; s++) { tick(g, in); g.mode = Mode::Play; }
     if (g.pl().p.x < start.x + 18.0f) { std::printf("FAIL: A4 a corpse blocks the hero (walked %.1f px of 18)\n", g.pl().p.x - start.x); g_fail++; }
   }
-  art::setRigVersion(1);
   return g_fail - f0;
 }
 
 int checkA5(uint64_t seed) {
   const int f0 = g_fail;
-  art::setRigVersion(2);
+  art::RigScope rig2(2);   // (P2c flip) rig 2 here; the previous rig is restored on return (it was "back to rig 1")
   Game g(seed);
   stage(g, seed);
   g.godMode = false;
@@ -334,7 +333,6 @@ int checkA5(uint64_t seed) {
   }
   std::printf("A5 rig 2: the hero's fall %s, lying at %.2f s (mode %d)\n", fell ? "plays" : "never plays", lyingAt, (int)g.mode);
   if (!fell || lyingAt < 0 || lyingAt > 0.45f) { std::printf("FAIL: A5 the hero's fall under the death screen\n"); g_fail++; }
-  art::setRigVersion(1);
   return g_fail - f0;
 }
 
@@ -361,7 +359,7 @@ std::string fmtA(const char* f, ...) {
 //   impact     hit 3 of the greatsword, axe and mace flags the first kImpactShow s of its strike; hits 1-2 and a sword's 3 never
 int checkA6(uint64_t seed) {
   const int f0 = g_fail;
-  art::setRigVersion(2);
+  art::RigScope rig2(2);   // (P2c flip) rig 2 here; the previous rig is restored on return (it was "back to rig 1")
   auto fail = [&](const std::string& s) { std::printf("FAIL: A6 %s\n", s.c_str()); g_fail++; };
   // carry
   {
@@ -542,7 +540,6 @@ int checkA6(uint64_t seed) {
     }
     if (!bad) std::printf("A6 impact: hit 3 of the greatsword, axe and mace only (%d ms windows)\n", (int)std::lround(kImpactShow * 1000));
   }
-  art::setRigVersion(1);
   return g_fail - f0;
 }
 

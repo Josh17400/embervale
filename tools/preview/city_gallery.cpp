@@ -2,6 +2,11 @@
 //
 //   city_gallery --village-art-write [file]   record the village-art fixture (default tests/fixtures/golden_village_art.txt)
 //   city_gallery --village-art-check [file]   every line of the fixture must hash as recorded (villages never change)
+//   city_gallery --village-art-dump <dir>     (P2c flip) each group's sprites as one PNG sheet, <dir>/<group>.png (1x, in
+//                                             hashing order, rows of 16): the before / after boards of a re-record
+//   (P2c flip, D101-D102) EMB_RIG=1|2 or --rig=1|2 (the flag wins) picks the rig; the default fixture is
+//   tests/fixtures/golden_village_art.txt at rig 2 (the default: the k-scaled holders, recorded at the flip) and
+//   tests/fixtures/golden_village_art_rig1.txt at rig 1 (the opt-in fallback: the v1 holder sizes, b9e0108's bytes)
 //   city_gallery <outdir>                     boards: terraces of 3..6 row houses per culture (city_terraces_<culture>.png,
 //                                             3x and _1x), the city props per culture (city_props.png)
 //   city_gallery --check                      0 failures wanted:
@@ -22,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <utility>
@@ -39,10 +45,14 @@ namespace {
 const char* kCult[] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple", "sylvan", "starspire"};
 constexpr int kCults = 12;
 
+std::vector<Canvas>* g_villageSink = nullptr;   // (P2c flip) --village-art-dump: the group's canvases as they are hashed
 struct Fnv {
   uint64_t h = 1469598103934665603ull;
   void u32(uint32_t v) { for (int i = 0; i < 4; i++) { h ^= (uint8_t)(v >> (i * 8)); h *= 1099511628211ull; } }
-  void canvas(const Canvas& c) { u32((uint32_t)c.w); u32((uint32_t)c.h); for (uint32_t p : c.px) u32(p); }
+  void canvas(const Canvas& c) {
+    u32((uint32_t)c.w); u32((uint32_t)c.h); for (uint32_t p : c.px) u32(p);
+    if (g_villageSink) g_villageSink->push_back(c);
+  }
 };
 
 cult::Culture cultureOf(int c) { return cult::Atlas::make((cult::Archetype)c, 4242u + (uint32_t)c * 7u, 2); }
@@ -93,11 +103,74 @@ std::vector<std::pair<std::string, uint64_t>> villageArt() {
 
 std::string fixturePath(int argc, char** argv, int i) {
   if (i + 1 < argc && argv[i + 1][0] != '-') return argv[i + 1];
+  // (P2c flip, D101) rig 2 (the default) reads the flip's record, rig 1 (the opt-in fallback) b9e0108's bytes
+  const char* name = art::rigVersion() >= 2 ? "/tests/fixtures/golden_village_art.txt" : "/tests/fixtures/golden_village_art_rig1.txt";
 #ifdef EMB_SOURCE_DIR
-  return std::string(EMB_SOURCE_DIR) + "/tests/fixtures/golden_village_art.txt";
+  return std::string(EMB_SOURCE_DIR) + name;
 #else
-  return "tests/fixtures/golden_village_art.txt";
+  return std::string(".") + name;
 #endif
+}
+
+// (P2c flip) --village-art-dump <dir>: each group's sprites as one sheet (1x, hashing order, rows of 16, 2 px gaps on a
+// neutral ground), named after the group ("bldg classic urban0" -> bldg_classic_urban0.png)
+int villageDump(const std::string& dir) {
+  std::error_code ec;
+  std::filesystem::create_directories(dir, ec);
+  std::vector<Canvas> sink;
+  g_villageSink = &sink;
+  int groups = 0;
+  std::vector<std::pair<std::string, std::vector<Canvas>>> byGroup;
+  const auto lines = villageArt();
+  g_villageSink = nullptr;
+  // split the sink into groups by villageArt's own counts (a building line: every Building x wealth 0..3 x two
+  // footprints x two seeds; props classic: every prop before Bollard; a culture's props: its styled props + 16 x 4 pieces)
+  size_t at = 0;
+  const size_t perBldg = (size_t)Building::COUNT * 4 * 2 * 2;
+  for (const auto& e : lines) {
+    size_t n = 0;
+    if (e.first.rfind("bldg ", 0) == 0) n = perBldg;
+    else if (e.first == "props classic") n = (size_t)Prop::Bollard;
+    else {
+      size_t styled = 0;
+      for (int p = 0; p < (int)Prop::Bollard; p++) styled += art::propStyled((Prop)p) ? 1 : 0;
+      n = styled + 16 * 4;
+    }
+    if (at + n > sink.size()) { std::printf("FAIL: village-art-dump: %s needs %zu canvases, %zu left\n", e.first.c_str(), n, sink.size() - at); return 1; }
+    byGroup.push_back({e.first, std::vector<Canvas>(sink.begin() + (long)at, sink.begin() + (long)(at + n))});
+    at += n;
+  }
+  if (at != sink.size()) { std::printf("FAIL: village-art-dump: %zu canvases left over\n", sink.size() - at); return 1; }
+  for (const auto& g : byGroup) {
+    const int cols = 16, gap = 2;
+    int rowsH = 0, sheetW = 0, curW = gap, curH = 0;
+    std::vector<std::pair<int, int>> pos;
+    int y = gap;
+    for (size_t i = 0; i < g.second.size(); i++) {
+      if (i % cols == 0 && i) { y += curH + gap; sheetW = std::max(sheetW, curW); curW = gap; curH = 0; }
+      pos.push_back({curW, y});
+      curW += std::max(1, g.second[i].w) + gap;
+      curH = std::max(curH, g.second[i].h);
+    }
+    sheetW = std::max(sheetW, curW);
+    rowsH = y + curH + gap;
+    Canvas sheet(sheetW, rowsH);
+    for (uint32_t& p : sheet.px) p = rgba(92, 96, 88);
+    for (size_t i = 0; i < g.second.size(); i++) {
+      const Canvas& c = g.second[i];
+      for (int yy = 0; yy < c.h; yy++)
+        for (int xx = 0; xx < c.w; xx++) {
+          const uint32_t p = c.get(xx, yy);
+          if (p >> 24) sheet.px[(size_t)(pos[i].second + yy) * sheet.w + pos[i].first + xx] = p;
+        }
+    }
+    std::string name = g.first;
+    for (char& ch : name) if (ch == ' ') ch = '_';
+    if (!savePng(sheet, dir + "/" + name + ".png", 1)) return 1;
+    groups++;
+  }
+  std::printf("village-art-dump: %d groups (rig %d) in %s\n", groups, art::rigVersion(), dir.c_str());
+  return 0;
 }
 
 int villageWrite(const std::string& path) {
@@ -553,7 +626,18 @@ int check(const std::string& fixture, bool quick) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  // (P2c flip, D101) the rig as the game reads it: EMB_RIG, then --rig=1|2 (the flag wins; taken out of argv)
+  if (const char* e = std::getenv("EMB_RIG")) art::setRigVersion(std::atoi(e));
+  {
+    int w = 1;
+    for (int i = 1; i < argc; i++) {
+      if (!std::strncmp(argv[i], "--rig=", 6)) { art::setRigVersion(std::atoi(argv[i] + 6)); continue; }
+      argv[w++] = argv[i];
+    }
+    argc = w;
+  }
   for (int i = 1; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--village-art-dump") && i + 1 < argc) return villageDump(argv[i + 1]);
     if (!std::strcmp(argv[i], "--check")) return check(fixturePath(argc, argv, i), false) ? 1 : 0;
     if (!std::strcmp(argv[i], "--check-quick")) return check(fixturePath(argc, argv, i), true) ? 1 : 0;
     if (!std::strcmp(argv[i], "--village-art-write")) return villageWrite(fixturePath(argc, argv, i));
@@ -561,6 +645,6 @@ int main(int argc, char** argv) {
   }
   if (argc >= 3 && argv[1][0] != '-' && !std::strcmp(argv[2], "rows")) { rowBoards(argv[1]); return 0; }
   if (argc >= 2 && argv[1][0] != '-') { propsBoard(argv[1]); terraceBoards(argv[1]); rowBoards(argv[1]); return 0; }
-  std::printf("usage: city_gallery --village-art-write|--village-art-check [file] | <outdir> | --check\n");
+  std::printf("usage: city_gallery [--rig=1|2] --village-art-write|--village-art-check [file] | --village-art-dump <dir> | <outdir> | --check\n");
   return 2;
 }

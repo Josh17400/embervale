@@ -164,6 +164,14 @@ class View {
   // people frames drawn from v1 sheets (P2b gate B2): v1Draws counts during a draw and holds the last drawn frame's count
   // after it (what Witness reports); v1DrawsLast the frame before
   int v1Draws = 0, v1DrawsLast = 0;
+  // (P2c flip, D103: C2 over a whole run) the people frames from v1 sheets summed over the run, by the rig they were drawn
+  // at: v1DrawsRun2 while rig 2 (the default) is set, v1DrawsRun1 while rig 1 is opted into. View::draw adds each finished
+  // frame; v1DrawsRunAt adds the last drawn frame too (a `--script` run's `v1draws` line, Witness screen.v1DrawsRun)
+  long long v1DrawsRun2 = 0, v1DrawsRun1 = 0;
+  int v1DrawsRig = 0;   // the rig the frame in v1Draws was drawn at (0: none drawn yet)
+  long long v1DrawsRunAt(int rig) const {
+    return (rig >= 2 ? v1DrawsRun2 : v1DrawsRun1) + (v1DrawsRig != 0 && (v1DrawsRig >= 2) == (rig >= 2) ? v1Draws : 0);
+  }
   // ---- (P2c SWITCH) the menus on the doll (rig 2; rig 1 draws every menu as before). Each menu figure drawn this frame
   // (Witness state.menus): where (MenuWhere), the rig it came from, the whole multiple, its rect on the UI layer, the stage
   // it stands on and whether the rect leaves it (C7: the T6 envelope uncropped), the furthest finish light from the

@@ -17,6 +17,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include "rpg/art/art_rig.h"
 #include "tools/tests/tests.h"
 
 bool g_quiet = false;
@@ -66,7 +67,25 @@ int laneChecks(uint64_t seed) {
 }
 }  // namespace
 
+// (P2c flip, D101) the rig this process started at and whether something opted into it (EMB_RIG or --rig=): test_rig's
+// "the default rig is 2" reads them
+int g_startRig = 0;
+bool g_rigChosen = false;
+
 int main(int argc, char** argv) {
+  // (P2c flip, D101) the human rig as the game reads it: EMB_RIG=1|2, then `--rig=1|2` (the flag wins; it is taken out of
+  // argv before dispatch, so verify_batch's env-less CI lines can opt into the rig-1 fallback). The default is 2
+  if (const char* e = std::getenv("EMB_RIG")) { art::setRigVersion(std::atoi(e)); g_rigChosen = true; }
+  {
+    int w = 1;
+    for (int i = 1; i < argc; i++) {
+      if (!strncmp(argv[i], "--rig=", 6)) { art::setRigVersion(atoi(argv[i] + 6)); g_rigChosen = true; continue; }
+      argv[w++] = argv[i];
+    }
+    argc = w;
+    argv[argc] = nullptr;
+  }
+  g_startRig = art::rigVersion();
   // M1: commands registered by the lanes' test files (RPG_TEST_CMD in tests.h)
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--help")) {

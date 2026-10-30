@@ -4,6 +4,9 @@
 // every gate below measures the doll's atlases; the procedural painters are detached and no longer measured.
 //   rpg_test --rig [--gates] [--report]
 //   rpg_test --rig-coverage [--seeds A..B] [--gates]
+// (P2c flip, D100-D104) rig 2 is the default: the contract opens with "the default rig is 2" and every v1 line below reads
+// rig 1 by name (the opt-in fallback until the retirement OK); --rig restores the rig it found. --rig-coverage left CI at
+// the flip (C1 replaces it) and stays runnable.
 // Always (CI): the contract: metrics (STYLE_P2 3, 8: A3's rows), families, bodyPx identity at rig 1, the atlas index,
 // the weapon ids (the greatsword paints as the sword on v1, the herald's horn as before), the ink outer outline on
 // every v1 character sheet (Ink / Lit Ink, never #000000, the sheet == outlineInk(raw cell)), the legacy outline hook,
@@ -27,6 +30,9 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/sim/game.h"
 #include "tools/tests/tests.h"
+
+extern int g_startRig;     // (P2c flip) tools/tests/main.cpp: the rig the process started at
+extern bool g_rigChosen;   // ... and whether EMB_RIG or --rig= chose it
 
 namespace {
 
@@ -193,6 +199,13 @@ void checkInkOutline() {
   for (int y = 0; y < HUMAN_H; y++)
     for (int x = 0; x < HUMAN_W; x++)
       if (cell.get(x, y) != old.get(x, y)) { cfail("the legacy outline hook paints the pre-P2a outline"); y = HUMAN_H; break; }
+}
+// (P2c flip, D100) the default rig is 2: kDefaultRig, and a process that opted into no rig (no EMB_RIG, no --rig=)
+// started at 2 (tools/tests/main.cpp records both)
+void checkDefaultRig() {
+  if (kDefaultRig != 2) cfail(fmt("the default rig is 2 (kDefaultRig %.0f)", kDefaultRig));
+  if (!g_rigChosen && g_startRig != 2) cfail(fmt("the default rig is 2 (this process started at rig %.0f with no EMB_RIG or --rig=)", g_startRig));
+  std::printf("rig default: %d (this process started at rig %d%s)\n", kDefaultRig, g_startRig, g_rigChosen ? ", chosen by EMB_RIG or --rig=" : ", the default");
 }
 void checkHoldersRig1() {
   const int was = rigVersion();
@@ -656,7 +669,9 @@ int rigCmd(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--report")) g_report = true;
   }
   g_contractFails = 0;
-  setRigVersion(1);
+  const RigScope keep;   // (P2c flip) the rig this command found comes back at its end (it was "back to rig 1")
+  checkDefaultRig();
+  setRigVersion(1);      // the v1 contract (rig 1, the opt-in fallback until the retirement OK) reads rig 1 by name
   checkMetrics();
   checkFamilies();
   checkScale();
@@ -681,7 +696,6 @@ int rigCmd(int argc, char** argv) {
     gateSeats(p2);
     gateKin(p3);
     gateHolders(h2);
-    setRigVersion(1);
     for (Gate* g : {&r2, &r4, &r4h, &r5, &r6, &r7, &r8, &r9, &r10, &p1, &p2, &p3, &h2}) {
       std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g->fails ? "FAIL:" : "ok   ", g->id, g->checks, g->fails, g->fails ? "; first: " : "", g->first.c_str());
       gateFails += g->fails ? 1 : 0;

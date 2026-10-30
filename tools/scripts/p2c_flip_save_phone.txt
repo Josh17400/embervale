@@ -1,0 +1,28 @@
+# P2c flip (SWITCH; R9, D100-D102): an old save on the doll. tests/fixtures/save_v23.bin (never changes) loads through
+# Game::deserialize as CONTINUE does (`loadsave`, test only; it never writes), at THE DEFAULT RIG (no `rig` line). Its
+# format-level facts (save_test's FIX6 and fixture: BRYNJA, 30 gold) hold, the hero is on the doll, and the world, EQUIP
+# and HERO are shot with no people frame from a v1 sheet. The window (2556 x 1179, a phone's first launch at NEAR), under 8,000 px.
+#   embervale.exe --script tools/scripts/p2c_flip_save_phone.txt     (p2c_flip_save_phone_<screen>.png)
+phone
+seed 7
+0.3  loadsave tests/fixtures/save_v23.bin
++0.0 expect rig 2
++0.0 expect mode play
++0.0 expect name BRYNJA
++0.0 expect gold 30
++0.0 expect doll covered
++1.0 settle 3 0.5
++0.0 shot p2c_flip_save_phone_world.png
++0.0 expect menu v1 0
++0.1 menu 5
++0.5 expect menu paperdoll doll
++0.0 expect menu paperdoll uncropped
++0.0 shot p2c_flip_save_phone_equip.png
++0.0 expect menu v1 0
++0.1 key Escape
++0.1 menu 3
++0.5 expect menu hero doll
++0.0 expect menu hero uncropped
++0.0 shot p2c_flip_save_phone_hero.png
++0.0 expect menu v1 0
++0.1 key Escape

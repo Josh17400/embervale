@@ -3,6 +3,8 @@
 # the cottage door, the inn's seats and tables with townsfolk seated, a bed with a sleeper, the rowboat and sloop with
 # the hero aboard, the capital's market, a street and its gate; then the start village on rig 1.
 #   embervale.exe --script tools/scripts/p2a_holders_phone.txt  (p2a_holders_phone_*.png in the working directory)
+# (P2c flip, 2026-10-30, D100) rig 2 is the default now: the `rig 1` segments here are the v1 fallback's coverage on purpose
+# (opt-in until the owner's retirement OK; tools/run_scripts.sh lists their v1 frames as the fallback's).
 phone
 seed 7
 0.3  newgame

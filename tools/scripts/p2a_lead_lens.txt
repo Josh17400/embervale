@@ -14,7 +14,7 @@ seed 7
 +0.5 expect screen d0 3
 +0.0 expect screen levels 3,4,5
 +0.0 expect screen ui 480 270
-+0.0 expect rig 1
++0.0 expect rig 2   # (flip, D100) the default is rig 2; was `expect rig 1` (the old default)
 # ---- 11:00, every level
 +0.1 zoom normal
 +0.3 expect zoom normal

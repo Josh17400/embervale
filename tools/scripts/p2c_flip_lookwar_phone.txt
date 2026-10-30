@@ -1,0 +1,22 @@
+# P2c flip (SWITCH; R10, D100): the war camp at THE DEFAULT RIG (no `rig` line), seed 2 (the realm besieged: the soldiers'
+# camp and a captain), p2c_flip_look_phone.txt's companion (a script has one seed). `expect menu v1 0` after every shot. The window
+# (2556 x 1179), under 8,000 px. Nothing here fails on the art.
+#   embervale.exe --script tools/scripts/p2c_flip_lookwar_phone.txt     (p2c_flip_lookwar_phone_<screen>.png)
+phone
+seed 2
+0.3  newgame
++0.0 expect rig 2
++0.02 hour 10
++0.1 god 1
++0.5 realm siege 0
++0.3 expect realm besieged 0
++0.5 expect war camp
++0.1 war goto camp
++0.1 war at 1 3
++4.5 settle 3 0.5
++0.0 shot p2c_flip_lookwar_phone_camp.png
++0.0 expect menu v1 0
++0.1 war goto captain def
++1.0 settle 3 0.5
++0.0 shot p2c_flip_lookwar_phone_captain.png
++0.0 expect menu v1 0

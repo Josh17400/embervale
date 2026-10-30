@@ -253,15 +253,18 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // (P2c SWITCH) a body on the doll is never drawn from a v1 sheet while its atlas waits in the queue: its LOCO atlas (the
   // last fallback of every clip: one facing's bake p95 0.385 ms) bakes now, over the frame's budget if it must; the other
   // parts keep the queue and fall back to LOCO's frames meanwhile. (The arrival bakes a city's crowd ahead: terrain.cpp.)
-  // (a crowd met at once, e.g. the rig switched under a city square: past 8 ms of bakes in one frame the rest wait a frame
-  // on the queue and draw v1 meanwhile, counted in v1Draws)
-  if (v2Look && !posing) { (void)rigBakeBudget(); rigBakeNow_ = witness || rigBakeFrameMs_ < 8.0; (void)rigTex(look, art::RigPart::Loco, child); rigBakeNow_ = false; }
+  // (P2c flip, D103: C2 is 0 over a whole run) a crowd met at once (a new game, a load, the rig switched under a square)
+  // bakes all its on-screen bodies in that one frame: a one-time hitch at a scene change, never a frame of v1 people
+  if (v2Look && !posing) { (void)rigBakeBudget(); rigBakeNow_ = true; (void)rigTex(look, art::RigPart::Loco, child); rigBakeNow_ = false; }
   if (v2Look && !posing) {
     AnimPick k = animPick(g, a, 2);
     art::HumanLook lookP = look;
     if (a.player && p2a.poseOn) {
       k.clip = p2a.poseClip; k.variant = (uint8_t)p2a.poseVariant; k.frame = (uint8_t)p2a.poseFrame;
       if (p2a.poseFamily != art::familyOf(look)) lookP.weapon = weaponOfFamily(p2a.poseFamily);
+      // (P2c flip, D103) a frozen pose (test only) bakes its atlases now: a pose of another family than the kit just put on
+      // is a look nothing baked yet, never a v1 frame while it waits
+      rigBakeNow_ = true;
     }
     // (P2c SWITCH, FOLK-SIM-C's ask) the facing the pick draws (a drawn fighter at rest turns to its threat through the
     // side facing, never a flip); the hero and a frozen pose keep Actor::face
@@ -299,6 +302,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         break;
       default: break;
     }
+    rigBakeNow_ = false;
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
@@ -419,7 +423,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     // sleeper one), its pivot on at2 (seatFit2's floor under the hips; standing postures the feet), never flipped
     if (!drawn && v2Look) {
       (void)rigBakeBudget();
-      rigBakeNow_ = witness || rigBakeFrameMs_ < 8.0;   // (P2c SWITCH) on screen: baked now (8 ms a frame at most), never a v1 posture while it waits
+      rigBakeNow_ = true;   // (P2c SWITCH; flip D103: no 8 ms cap) on screen: baked now, never a v1 posture while it waits
       const RigTex rt = rigPoseTex(look, pz, variant);
       rigBakeNow_ = false;
       if (rt.ready()) {

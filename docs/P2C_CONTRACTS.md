@@ -19,6 +19,8 @@ PLAN D67-D70 to 3d and production's hooks to 7; DOLL-C is the code owner in wave
 **The wave-2 fix round (2026-10-29)** adds the round's ownership (1), the rules of PLAN D72-D89 to 3d (the cloak ladder,
 T2-T4, kEnvelope's two cells, noKitCloak, the trim band, the relics and the Mythic, the lines), the pauldron layer rule
 (4) and the round's hooks (7); DOLL is the code owner.
+**The flip (2026-10-30, the owner's go; PLAN D100-D106)** adds the flip's ownership (1). It restates rig 1's freeze as the
+opt-in fallback's (2), and it adds the flip's hooks (7). Nothing is deleted. SWITCH is the code owner and the integrator.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -88,6 +90,12 @@ wave 2 (a needed change is a planner ruling).
 | ACTIONS (artist-xhigh) | rpg/art/doll/clips/** (the generated ones regenerated only by the integrator); tools/doll/p2c_clips.py, p2c_clips.ledger.json, p2c_clips_out/**, p2c_weight.py; maps/arms/adult/action/**, maps/legs/adult/action/**, maps/held/weapons/** |
 | SHIELDS (artist) | maps/shield/** |
 
+| area | files (wave 3, the flip, 2026-10-30; PLAN "The flip (wave 3)" and its checklist, D100-D106; the fix-round areas are closed; every file in no list below is frozen, every rpg/art/doll file among them) |
+|---|---|
+| SWITCH (engineer-high; the integrator; BDIR=build, the only area that builds build/) | rpg/art/art_rig.h; rpg/main.cpp; rpg/view/script_p2a.cpp, script_p2c.cpp, view.h, hud.cpp, witness_state.cpp; tools/run_scripts.sh; tools/tests/main.cpp, test_anim.cpp, test_rig.cpp, test_arms.cpp; tools/art_hash.cpp; tools/doll/hash_looks.txt (new); tools/preview/city_gallery.cpp; tests/fixtures/golden_village_art.txt, golden_village_art_rig1.txt (new); .github/workflows/web.yml; tools/scripts/*.txt (the restatements; p2c_flip_look*, p2c_flip_save*: new); witness/*.witness.json; witness/refs/**; tools/witness_web/firstlaunch.mjs (new); PLAN "Production results and the flip" (append) |
+| DOLL (engineer-high; BDIR build-proto) | tools/tests/test_doll_ladder.cpp; this file's section 8 (append) |
+| WITNESS (scaffolder; BDIR build-witness) | engine/witness.h; engine/witness_emscripten.js (checked, unchanged); witness.play.json; docs/PLAYTEST.md |
+
 ## 2. Frozen in P2c (a needed change is a re-plan)
 
 Every idle view (B1); every existing D / U walk and run view; the adult walk and run legs and arms (legs/adult/loco std,
@@ -127,6 +135,18 @@ file, view or size is deleted or emptied and no view changes its meaning (D49): 
 pixels unchanged); an A fix repaints its own view in place and names it in its report; P2b's cloak and neck views keep their
 pixels (`--freeze-check` 0 for every untiered look); loot, rarity, pacing and lookTier's table are unchanged (the owner's
 answers are pending); rig 1 is frozen; rpg/culture is read only.
+
+**The flip (2026-10-30)** keeps all of this, and rig 1 is now frozen behind the opt-in rather than until the flip (PLAN
+D101). Its record holds:
+- `art_hash --rig=1` TOTAL 317eef6efe4d8229;
+- `city_gallery --rig=1 --village-art-check tests/fixtures/golden_village_art_rig1.txt` 65 / 0;
+- `--anim` A1 identical;
+- `--arms --seeds 1..3 --rig=1` ALL OK.
+
+Every map, clip and generated file is frozen, and the pool stays 2,570,937 B (c8df3de9a5fc8245; b9e0108's 2,570,727 B plus
+210 B of empty tips views, D100). The doll's frames are frozen: the owner-signed tools/doll/freeze/p2c_freeze.txt (drawn at
+rig 2, D107) stays at 0 changed at the default rig. save_v23.bin and the town, world, endless
+and village goldens never change. Nothing on the retirement list (PLAN "The flip (wave 3)") is deleted, moved or emptied.
 
 ## 3. The resolver's P2c vocabulary (`role <category> <value>`, doll_resolve.cpp)
 
@@ -760,6 +780,32 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
     against the tier's).
   - The freeze is hard against `%TEMP%\claude\emb_P2c\wave2\freeze_final.txt` (`--doll-wear --freeze-check F`, 0 changed).
   - The planner's measurement and boards are in `%TEMP%\claude\emb_P2c\wave2\fix2\d99\`.
+- **The flip's hooks** (wave 3, 2026-10-30; PLAN D100-D106; SWITCH unless named):
+  - The rig: `art::kDefaultRig` (2) and `art::RigScope` (save, set, restore). rpg_test, art_hash and city_gallery read
+    `EMB_RIG=1|2` as the game does, and also take `--rig=1|2` (rpg_test strips it before dispatch; when both are given,
+    the flag wins). The Witness reset's
+    `rig` defaults to EMB_WPLAY_RIG, else 2. Script `rig 1`, Witness `rig: 1` and web `?rig=1` open the v1 fallback, and
+    the game prints one line when they do.
+  - art_hash: at rig 2, `doll` hashes every atlas humanRig bakes for each line of tools/doll/hash_looks.txt (LOCO, RUN,
+    DRAWN, ACTION, DEATH and its POSTURE set, in file order). It sits in TOTAL in place of `humans`. `--dump DIR` writes
+    `<category>/<name>.png`, and `-v` works as before.
+  - city_gallery: `--village-art-dump DIR`. The default fixture is golden_village_art.txt at rig 2 and
+    golden_village_art_rig1.txt at rig 1.
+  - test_arms: kOldKeys (rig 1) and kOldKeys2 (rig 2). `--print` prints the current rig's keys.
+  - C2's counter: View::v1DrawsRun2 and v1DrawsRun1 sum, over the run, the people frames drawn from v1 sheets, split by the
+    rig they were drawn at. A `--script` run ends with `v1draws rig2 <n> rig1 <n>`. tools/run_scripts.sh prints `v1draws
+    rig2: <n> scripts with v1 frames` and the rig-1 counts per script, and it fails any script with rig-1 frames and no
+    `rig 1` line. Witness reports `screen.v1DrawsRun`.
+  - Script `loadsave <file>` (test only): loads through Game::deserialize, as CONTINUE does. It fails the script on a
+    refused file and never writes.
+  - tools/witness_web/firstlaunch.mjs: Chromium, the "iPhone 15 Pro landscape" device, a fresh context, and site-witness on
+    127.0.0.1:8090 without `?witness`. It starts New Game and takes a shot. `--query k=v` adds URL params.
+  - The C12 cover floor (DOLL, test_doll_ladder.cpp; PLAN D106). For each kit part of the upper tier, take its pixels that
+    lie over the tier below (D99's covers). The floor reads a cover of 12 px or more with 4 or more colours below it. The
+    part needs 3 or more colours of its own over all its visible pixels (2 under D106's fallback). `--report` prints the
+    covers and the five lowest. The synthetic selftests go in selftests(), and the real-frame one in gateC12's hero line.
+  - Witness 0.7.11 (WITNESS): engine/witness.h has `witness_drawing()`. witness.play.json's `play.lazyDraw` is on only
+    after doctor prints "✔ lazy drawing safe".
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 

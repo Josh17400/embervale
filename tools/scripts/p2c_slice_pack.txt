@@ -3,6 +3,8 @@
 # fit twins, the A3 hero) checked on the doll (`expect doll covered`, `expect doll gear`), each clip frozen by `pose` in
 # the four facings (`p2cline face`), shot. A look the doll does not cover is drawn whole on v1 and fails `expect doll`.
 #   embervale.exe --script tools/scripts/p2c_slice_pack.txt      (p2c_pack_<row>_<facing>.png; tools/doll/owner_pack.py --p2c runs it)
+# (P2c flip, 2026-10-30, D100) rig 2 is the default now: the `rig 1` segments here are the v1 fallback's coverage on purpose
+# (opt-in until the owner's retirement OK; tools/run_scripts.sh lists their v1 frames as the fallback's).
 seed 7
 0.3  newgame
 +0.1 god 1

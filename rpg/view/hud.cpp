@@ -688,7 +688,11 @@ void View::draw(Game& g, bool hasSave) {
   Pix& P = *pix_;
   hasSave_ = hasSave;
   v1DrawsLast = v1Draws;   // (P2a) people frames drawn from v1 sheets last frame
+  if (v1DrawsRig >= 2) v1DrawsRun2 += v1Draws;   // (P2c flip, D103) the run's sums, by the rig the frame was drawn at
+  else if (v1DrawsRig == 1) v1DrawsRun1 += v1Draws;
+  if (v1Draws > 0 && v1DrawsRig >= 2 && std::getenv("EMB_V1TRACE")) std::printf("v1trace t %.3f mode %d n %d\n", t_, (int)g.mode, v1Draws);
   v1Draws = 0;
+  v1DrawsRig = art::rigVersion();
   menuFigs.clear();        // (P2c SWITCH) the menu figures drawn this frame (Witness state.menus)
   P.begin(Color(0, 0, 0));
   // (P2a) the WORLD layer (engine/pix.h): every world pixel a whole D x D block of device px; the world view is Pix::W x

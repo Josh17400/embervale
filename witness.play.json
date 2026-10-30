@@ -7,12 +7,11 @@
    "--witness"
   ],
   "env": {
-   "EMB_WPLAY_RIG": "2",
    "EMB_WPLAY_WINDOW": "2556x1179",
    "EMB_WPLAY_SAFE": "177,0,177,63",
    "EMB_WPLAY_SCREEN": "fill",
    "EMB_WPLAY_HOUR": "11",
-   "EMB_WPLAY_SHOT": "world:3",
+   "EMB_WPLAY_SHOT": "world:fit",
    "EMB_WPLAY_GOD": "1"
   }
  },
@@ -26,6 +25,7 @@
   ]
  },
  "play": {
+  "lazyDraw": true,
   "profile": "topdown",
   "cell": 1,
   "controls": {
@@ -57,7 +57,7 @@
    "pickup": 0.6
   },
   "alert": 8,
-  "brief": "Embervale: an open-world pixel RPG (think Skyrim in pixels). Distances are in tiles. The goal line is the tracked quest and its next step; 'goto goal' walks to where that step happens (a door, a den, a camp). Public buildings are listed by their doors (Inn, Shop, Smithy, Temple...): 'goto Inn' walks in, and inside you talk to the people there (talk Innkeeper) and leave by 'goto Exit'. Entering or leaving a building interrupts the order: give the next one. Stall keepers are talked to from the front of their counter. A newly accepted quest does not replace the tracked one in the goal line (the game says NEW QUEST: ...); every open quest with a place to go is also listed as a Quest thing named by its title: goto \"<title>\" walks there (a den, a camp, a door). There is no block: fights roll away from telegraphed bites (dodge, the default); wolves wind up before they bite, and a badly hurt one runs off: 'fight' it again to finish it. People can be talked to; animals (hens, dogs, goats...) cannot. Dialogue options are picked with choose N; walking away or choosing FAREWELL ends a conversation.",
+  "brief": "Embervale: an open-world pixel RPG (think Skyrim in pixels). Distances are in tiles. The goal line is the tracked quest and its next step; 'goto goal' walks to where that step happens (a door, a den, a camp). Public buildings are listed by their doors (Inn, Shop, Smithy, Temple...): 'goto Inn' walks in, and inside you talk to the people there (talk Innkeeper) and leave by 'goto Exit'. Entering or leaving a building interrupts the order: give the next one. Stall keepers are talked to from the front of their counter. A newly accepted quest does not replace the tracked one in the goal line (the game says NEW QUEST: ...); every open quest with a place to go is also listed as a Quest thing named by its title: goto \"<title>\" walks there (a den, a camp, a door). There is no block: fights roll away from telegraphed bites (dodge, the default); wolves wind up before they bite, and a badly hurt one runs off: 'fight' it again to finish it. People can be talked to; animals (hens, dogs, goats...) cannot. Dialogue options are picked with choose N; walking away or choosing FAREWELL ends a conversation. A game call that stays busy (a walk, or a setup call that is still travelling) is stopped with 'call cancel'; the session's own stop ends the whole run.",
   "npc": "e.talk",
   "allowCalls": true,
   "clock": "state.day*24 + state.hour",

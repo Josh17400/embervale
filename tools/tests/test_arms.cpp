@@ -7,7 +7,10 @@
 //   - wearGear on nothing equals appearanceLook; heartland classic pieces set no M6 field; bronze has its own metal;
 //     poor pieces lose their ornament
 //   - gearIcon / itemIconLook are deterministic, and culture pieces paint culture icons
-// rpg_test --arms [--seeds A..B] [--print]   (--print: the golden keys, to refresh them)
+// rpg_test --arms [--seeds A..B] [--print]   (--print: the current rig's golden keys, to refresh them)
+// (P2c flip, D102) the golden keys by rig: kOldKeys at rig 1 (the opt-in fallback, unchanged; `--rig=1`) and kOldKeys2
+// at rig 2 (the default), recorded once at the flip with --print. The other checks read the v1 cells (humanCellRaw) at
+// either rig.
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -134,6 +137,11 @@ art::HumanLook oldLook(int i) {
 }
 const uint64_t kOldKeys[6] = {0xc9aaacdeea0d1475ull, 0x46b731532091d98cull, 0xd40e030f3b3c6607ull,
                               0x67641a868e3d9a61ull, 0x9702ab7a303bd69cull, 0x3f268663d4c12633ull};
+// (P2c flip, D102) the same looks' keys at rig 2, the default (recorded once with `--arms --seeds 1..3 --print` at the
+// flip, 2026-10-30): equal to kOldKeys, because no pre-M6 look sets a field the key reads only at rig 2 (age, the doll's
+// face and garb fields, the ladder, the forge styles)
+const uint64_t kOldKeys2[6] = {0xc9aaacdeea0d1475ull, 0x46b731532091d98cull, 0xd40e030f3b3c6607ull,
+                               0x67641a868e3d9a61ull, 0x9702ab7a303bd69cull, 0x3f268663d4c12633ull};
 
 int cmdArms(int argc, char** argv) {
   bool print = false;
@@ -147,10 +155,12 @@ int cmdArms(int argc, char** argv) {
   const int nA = (int)cult::Archetype::COUNT;
 
   // ---- golden keys of pre-M6 looks; their pixels with every M6 field at 0; each M6 field moves the key
+  const uint64_t* keys = art::rigVersion() >= 2 ? kOldKeys2 : kOldKeys;
+  if (print) std::printf("  (rig %d: kOldKeys%s)\n", art::rigVersion(), art::rigVersion() >= 2 ? "2" : "");
   for (int i = 0; i < 6; i++) {
     const art::HumanLook L = oldLook(i);
     if (print) std::printf("  old look %d key 0x%016llxull\n", i, (unsigned long long)L.key());
-    else if (kOldKeys[i] && L.key() != kOldKeys[i]) fail("pre-M6 look " + std::to_string(i) + " changed its key");
+    else if (keys[i] && L.key() != keys[i]) fail("pre-M6 look " + std::to_string(i) + " changed its key at rig " + std::to_string(art::rigVersion()));
     for (int f = 0; f < 7; f++) {
       art::HumanLook M = L;
       switch (f) {
@@ -223,7 +233,20 @@ int cmdArms(int argc, char** argv) {
       const art::HumanLook base = appearanceLook(app, &g_c[0]);
       art::HumanLook L = base;
       wearGear(L, WornGear{}, lookup);
-      if (L.key() != base.key()) fail("wearGear on nothing changed the look");
+      if (art::rigVersion() >= 2) {
+        // (P2c flip, restated per rig; the rig-1 form is the line below) at rig 2 the key reads the ladder's fields, and
+        // the T1 floor (polish i1, the owner: "the player starts in T1 gear") dresses an empty body and empty feet: their
+        // tier 1, the floor bits, those slots' forge styles and the floor's silhouette. Nothing else may move.
+        using H = art::HumanLook;
+        const uint8_t floorBits = (uint8_t)(1u << H::TIER_BODY | 1u << H::TIER_BOOTS);
+        if (L.tier[H::TIER_BODY] != 1 || L.tier[H::TIER_BOOTS] != 1 || (L.floor & floorBits) != floorBits) fail("wearGear on nothing at rig 2: no T1 floor");
+        art::HumanLook M = L;
+        M.tier[H::TIER_BODY] = base.tier[H::TIER_BODY]; M.tier[H::TIER_BOOTS] = base.tier[H::TIER_BOOTS];
+        M.floor = base.floor;
+        M.forge[H::TIER_BODY] = base.forge[H::TIER_BODY]; M.forge[H::TIER_BOOTS] = base.forge[H::TIER_BOOTS];
+        M.forgeShape = base.forgeShape;
+        if (M.key() != base.key()) fail("wearGear on nothing changed the look beyond the T1 floor (rig 2)");
+      } else if (L.key() != base.key()) fail("wearGear on nothing changed the look");
       // heartland classic pieces: no M6 field
       Rng r(seed * 31 + 5);
       std::vector<Item> cl = {makeArmor(r, 10, ItemKind::Armor), makeArmor(r, 10, ItemKind::Helmet), makeArmor(r, 10, ItemKind::Shield),

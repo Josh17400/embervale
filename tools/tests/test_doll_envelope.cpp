@@ -341,13 +341,19 @@ int cloakSideOf(const Fig& f) {
   }
   return reach;
 }
-int cloakBackOf(const Fig& f, int facing) {
+// (P2c flip fix r2) box: the same frame with the hair left out (cloakBox): the body's box is the body's, also where long
+// hair covers the back of the head. Read from the visible owners alone, the box lost the skull's back columns under a long
+// hang, so the same cape on the same head measured 1 behind with short hair and 3 with long (the capital heralds, first on
+// the doll at the flip: 14 of 26 men, every one 3 px behind the torso like the rest). Hair never widens the box.
+int cloakBackOf(const Fig& f, int facing, const Fig* box = nullptr) {
   if (!f.ok) return 0;
   int b0 = 1 << 20, b1 = -(1 << 20);
-  for (int k = 0; k < f.p.w * f.p.h; k++) {
-    const auto* it = f.opaque(k) ? f.it(k) : nullptr;
+  const Fig& bf = box && box->ok ? *box : f;
+  const int dx = f.p.px - bf.p.px;   // (box columns into f's)
+  for (int k = 0; k < bf.p.w * bf.p.h; k++) {
+    const auto* it = bf.opaque(k) ? bf.it(k) : nullptr;
     if (it && (it->has(Role::Legs) || it->has(Role::Arms) || it->has(Role::Body) || it->has(Role::Head) || it->has(Role::Armour) ||
-               it->has(Role::Garment))) { b0 = std::min(b0, k % f.p.w); b1 = std::max(b1, k % f.p.w); }
+               it->has(Role::Garment))) { b0 = std::min(b0, k % bf.p.w + dx); b1 = std::max(b1, k % bf.p.w + dx); }
   }
   if (b0 > b1) return 0;
   int reach = 0;
@@ -358,6 +364,19 @@ int cloakBackOf(const Fig& f, int facing) {
     reach = std::max(reach, facing == 2 ? b0 - x : x - b1);   // facing R the back is to the left
   }
   return std::max(0, reach);
+}
+// (P2c flip fix r2) cloakBackOf's box frame: the idle facing R or L composed with no hair part
+Fig cloakBox(const doll::DollRecipe& r, int facing) {
+  doll::DollRecipe nh = r;
+  const doll::pool::Pool& P = doll::pool::get();
+  nh.parts.erase(std::remove_if(nh.parts.begin(), nh.parts.end(), [&](int pi) {
+                   for (const auto& rr : P.parts[(size_t)pi].roles) if (rr.cat == (uint8_t)Role::Hair) return true;
+                   return false;
+                 }),
+                 nh.parts.end());
+  Fig f = probeR(nh, RigPart::Loco, facing, Clip::Idle, 0, 0);
+  f.r = &r;   // (only owners and codes are read)
+  return f;
 }
 bool g_t1dbg = false;   // (debug) ENV_DEBUG_TAG=<tag>: the T1 pixels outside, for that look only
 // T1 inside the bare body's outline + 1 px (the hood's rows inside the hair's 2-row rise exempt)
@@ -492,7 +511,10 @@ Measured measure(const Built& b) {
   m.areaD = noHeldArea(b.r, 0, Clip::Walk, 0); m.areaR = noHeldArea(b.r, 2, Clip::Idle, 0); m.area = m.areaD + m.areaR;
   m.shoulders = shouldersOf(id);
   m.cloakD = cloakSideOf(id);
-  m.cloakBack = std::max(cloakBackOf(ir, 2), cloakBackOf(il, 3));
+  {   // (flip fix r2) the box without the hair (cloakBox)
+    const Fig hr = cloakBox(b.r, 2), hl = cloakBox(b.r, 3);
+    m.cloakBack = std::max(cloakBackOf(ir, 2, &hr), cloakBackOf(il, 3, &hl));
+  }
   m.hd = headOf(id, b.who); m.hr = headOf(ir, b.who);
   m.headArea = helmPx(id) + helmPx(ir);
   return m;
@@ -2015,7 +2037,12 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
   std::vector<std::string> w;
   const std::string s = shoulderRule(tb, shouldersOf(id));
   if (!s.empty()) w.push_back(s);
-  const std::string c = cloakRule(tc, cloakSideOf(id), std::max(cloakBackOf(ir, 2), cloakBackOf(il, 3)));
+  int back = std::max(cloakBackOf(ir, 2), cloakBackOf(il, 3));
+  if (back > doll::envelopeOf(tc).cloakBack) {   // (flip fix r2) past the cap on the visible box: measured on the box without the hair (cloakBox)
+    const Fig hr = cloakBox(b.r, 2), hl = cloakBox(b.r, 3);
+    back = std::max(cloakBackOf(ir, 2, &hr), cloakBackOf(il, 3, &hl));
+  }
+  const std::string c = cloakRule(tc, cloakSideOf(id), back);
   if (!c.empty()) w.push_back(c);
   bool untiered = true;
   for (int i = 0; i < HumanLook::TIER_SLOTS; i++) untiered = untiered && !b.L.tier[i] && !b.r.pieceTier[i];

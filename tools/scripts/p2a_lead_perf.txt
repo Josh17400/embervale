@@ -7,6 +7,7 @@
 phone
 seed 7
 0.3  newgame
++0.0 rig 1   # (flip, D100; C8) the render baseline and the city arrival are rig 1 by name (the opt-in fallback)
 +0.1 god 1
 +0.1 goto capital
 +1.5 hour 15

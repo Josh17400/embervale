@@ -378,11 +378,13 @@ int main(int argc, char** argv) {
   // (P2a test hook) EMB_LEGACY_OUTLINE=1: the character sheets with the pre-P2a selective outline, so a run's shots can be
   // compared byte for byte with a pre-P2a build (the ink outline is phase A's only intended pixel change)
   if (std::getenv("EMB_LEGACY_OUTLINE")) art::outlineLegacyForTests() = true;
-  // (P2a test hook) EMB_RIG=1|2: the human rig (the preview of the v2 people), set before the first sheet is baked
+  // EMB_RIG=1|2: the human rig, set before the first sheet is baked. (P2c flip, D100) rig 2, the doll, is the default
+  // (art::kDefaultRig); 1 opts into the v1 fallback until the owner's retirement OK, and 2 is still accepted
   if (const char* e = std::getenv("EMB_RIG")) art::setRigVersion(std::atoi(e));
 #ifdef __EMSCRIPTEN__
-  if (const int r = emb_url_int("rig"); r > 0) art::setRigVersion(r);   // (P2a) the web's ?rig=2 (the preview link)
+  if (const int r = emb_url_int("rig"); r > 0) art::setRigVersion(r);   // the web's ?rig=1 (the fallback) or ?rig=2
 #endif
+  if (art::rigVersion() == 1) std::printf("rig 1: the v1 people, an opt-in fallback until the owner's retirement OK\n");
 #ifdef EMB_WITNESS
   const bool witness = witness_active(argc, argv);   // a Witness harness drives this run (see "Witness" below)
   // WITNESS_WATCH=1 (`witness play start --watch`, Witness PROTOCOL.md section 9): a person watches the harness play.
@@ -1936,8 +1938,11 @@ int main(int argc, char** argv) {
         }
         if ((hasSafe || mode >= 0) && ww <= 0) { ww = 960; wh = 540; }   // a safe area or a mode alone: the harness window, unpinned
         screen::witnessScreen(pix, ww, wh, hasSafe ? safe : nullptr, mode, zoom, keep);
+        // (P2c flip, D100) the rig defaults to EMB_WPLAY_RIG, else art::kDefaultRig (2); "rig": 1 opts into the v1 fallback
         const char* envRig = std::getenv("EMB_WPLAY_RIG");
-        art::setRigVersion((int)params["rig"].integer(envRig ? std::atoi(envRig) : 1));   // a fresh view follows: no cache carries the other rig's pixels
+        const int wantRig = (int)params["rig"].integer(envRig ? std::atoi(envRig) : art::kDefaultRig);
+        if (wantRig == 1 && art::rigVersion() != 1) std::printf("rig 1: the v1 people, an opt-in fallback until the owner's retirement OK\n");
+        art::setRigVersion(wantRig);   // a fresh view follows: no cache carries the other rig's pixels
       }
       new (&audio) Audio();
       new (&view) View();
@@ -2046,7 +2051,9 @@ int main(int argc, char** argv) {
         for (int b = 0; b < 4; b++) { wAudioHash ^= (u >> (8 * b)) & 255u; wAudioHash *= 1099511628211ull; }
       }
       wAudioN += n;
-      if (watch) { drawFrame(); pix.end(); }   // (watch mode) the step on screen (drawing never feeds the sim)
+      // (watch mode) the step on screen (drawing never feeds the sim); (Witness 0.7.11) a frame nobody sees (a step sent with
+      // "draw": "last", play.lazyDraw) is not drawn
+      if (watch && witness_drawing()) { drawFrame(); pix.end(); }
     };
     h.snapshot = [&](witness::Json& j) {
       WitnessExtra x = wStart;
@@ -2063,13 +2070,22 @@ int main(int argc, char** argv) {
       // (P2b fix round 1, test only) EMB_WPLAY_SHOT "world:K": a playtester's shot is the world layer at world px (one
       // pixel per art px, the UI left out), each pixel repeated K x K (1-4), so people read at 32 x K px instead of the
       // UI canvas's ~20 px (the phone window's UI scale samples the world below its own resolution)
+      // (fix, T4 playtest: "I could not tell the swings apart") "world:fit": the largest K (1-4) whose shot stays within
+      // what the tester's eyes take unscaled (1568 px wide, 1.15 MP), so a closer ZOOM (a smaller world layer) gives a
+      // bigger K: NORMAL on the phone window (512 x 236) 3, CLOSE (366 x 169) 4. A larger shot is scaled down before
+      // the model sees it, which undoes the extra K
       int worldK = 0;
-      if (const char* e = std::getenv("EMB_WPLAY_SHOT"); e && std::strncmp(e, "world", 5) == 0)
-        worldK = std::clamp(e[5] == ':' ? std::atoi(e + 6) : 1, 1, 4);
+      bool worldFit = false;
+      if (const char* e = std::getenv("EMB_WPLAY_SHOT"); e && std::strncmp(e, "world", 5) == 0) {
+        worldFit = std::strcmp(e + 5, ":fit") == 0;
+        worldK = worldFit ? 1 : std::clamp(e[5] == ':' ? std::atoi(e + 6) : 1, 1, 4);
+      }
       bool ok;
       if (worldK > 0) {
         std::vector<uint8_t> src;
         ok = pix.readWorld(src, w, hh);
+        if (ok && worldFit)
+          while (worldK < 4 && w * (worldK + 1) <= 1568 && (double)w * hh * (worldK + 1) * (worldK + 1) <= 1.15e6) worldK++;
         if (ok && worldK > 1) {
           const int W = w * worldK, H = hh * worldK;
           wShot.assign((size_t)W * H * 4, 0);
@@ -2144,7 +2160,19 @@ int main(int argc, char** argv) {
         result.begin_object().field("label", c.a[1]).field("first", first).field("hash", std::string(hb)).end_object();
         return;
       }
-      if (walk.on || extRun.e) { witness::fail("busy: the last call is still running (step until state.script.busy is false)"); return; }
+      // (fix, T6 playtest) `cancel` (or `stop`): the call still running (a walkto / talkto's autopilot, a registered
+      // command still waiting) is let go at once, the autopilot's held keys released; the harness's own stop ends the
+      // whole session, so a tester stuck on a busy call had no way out but to wait out its timeout
+      if (c.a[0] == "cancel" || c.a[0] == "stop") {
+        const bool was = walk.on || extRun.e != nullptr;
+        const std::string what = walk.on ? "walkto " + walk.what : extRun.e ? extRun.cmd.text : std::string();
+        if (walk.on) { walk = Walk(); setMove(false, false, false, false); }
+        extRun = ExtRun();
+        if (was) std::printf("script: cancel: stopped %s\n", what.c_str());
+        result.begin_object().field("stopped", was).field("call", what).field("busy", false).end_object();
+        return;
+      }
+      if (walk.on || extRun.e) { witness::fail("busy: the last call is still running (step until state.script.busy is false, or call cancel to stop it)"); return; }
       const int fails0 = scriptFails;
       witnessInCall = true;
       runCmd(c);
@@ -2165,6 +2193,7 @@ int main(int argc, char** argv) {
     static const struct { const char* name; const char* args; const char* help; } builtin[] = {
         {"goto", "city|town|village|cave|ruin|camp|lair|shrine|capital|market [enter]", "fast travel to the nearest such place"},
         {"walkto", "inn|shop|innkeeper|giver|exit|NAME|x y [timeout]", "autopilot (takes steps: state.script.busy)"},
+        {"cancel", "", "stop the call still running (a walkto, a talkto or a waiting command such as war goto patrol); also 'stop'"},
         {"talkto", "NAME|role [timeout]", "walk to someone and talk to them"},
         {"talk", "0|1|2", "the innkeeper: greeting, job offer, shop"},
         {"choose", "words", "choose the open dialogue's option containing the words"},
@@ -2268,6 +2297,8 @@ int main(int argc, char** argv) {
 #endif
   if (perf || scripted) printSummary();
   if (scripted) {
+    // (P2c flip, D103: C2 over the sweep) the people frames drawn from v1 sheets over the run, by the rig they were drawn at
+    std::printf("v1draws rig2 %lld rig1 %lld\n", view.v1DrawsRunAt(2), view.v1DrawsRunAt(1));
     std::printf("script: %d failure(s)\n", scriptFails);
     return scriptFails ? 3 : 0;
   }

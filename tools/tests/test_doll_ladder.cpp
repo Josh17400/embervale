@@ -299,7 +299,7 @@ bool isKit(const Frame& f, const Pix& p) {
 // one pixel of a tier's idle frame, for the colour term: where (pivot-relative), its colour, and its piece: the kit's tier
 // slot (0 body .. 7; -1 a kit part on no tier slot: the cowl, a sheath, an overlay) or kNotKit (the person, the clothes)
 constexpr int kNotKit = -100;
-struct CPix { std::pair<int, int> at; uint32_t colour; int piece; };
+struct CPix { std::pair<int, int> at; uint32_t colour; int piece; int item = -1; };   // item: the FrameProbe item (D106), -1 none
 using KitMap = std::map<std::pair<int, int>, int>;   // where the tier's kit is drawn -> its piece
 int pieceOf(const Frame& f, const Pix& p) {
   if (!isKit(f, p)) return kNotKit;
@@ -307,7 +307,10 @@ int pieceOf(const Frame& f, const Pix& p) {
 }
 std::vector<CPix> cpixOf(const Built& b, const Frame& f) {
   std::vector<CPix> v;
-  for (const auto& kv : f.px) v.push_back(CPix{kv.first, colourOf(b.r, kv.second.code), pieceOf(f, kv.second)});
+  for (const auto& kv : f.px) {
+    const int pc = pieceOf(f, kv.second);
+    v.push_back(CPix{kv.first, colourOf(b.r, kv.second.code), pc, pc != kNotKit ? kv.second.item : -1});
+  }
   return v;
 }
 KitMap kitMap(const std::vector<CPix>& v) {
@@ -335,6 +338,49 @@ int distinctColours(const std::vector<CPix>& v) {
   std::set<uint32_t> s;
   for (const CPix& p : v) s.insert(p.colour);
   return (int)s.size();
+}
+// (P2c flip, D106) C12b's cover floor. D99 lets a new piece hide what it covers, so a flat piece laid over a rich one
+// passed whenever the rest of the figure held its colours. Each kit part of the tier (one FrameProbe item) that lies over
+// kCoverPx or more pixels of the tier below that D99 reads as covered (a different kit piece, the person or the clothes),
+// where those covered pixels show kCoverBelow or more colours, shows kCoverOwn or more colours of its own over all its
+// visible pixels in the view: lit, mid and shade (A3's smallest ramp). Like against like stays D99's (inSight).
+// D106's fallback, taken: real parts read 2 (source L seeds 1..3: river greathelm T5 D, highland pauldron_fur5 T5 D,
+// starspire sleeve_heavy_r T4 R), so the floor is 2 for the flip (a flat one-colour piece still FAILs) and every part
+// under the planned 3 is listed (`C12 cover fallback`, with --report) for the planner. No frame or threshold moved.
+constexpr int kCoverPx = 12, kCoverBelow = 4, kCoverOwnPlanned = 3, kCoverOwn = 2;
+struct Cover { int item = -1; int area = 0; int below = 0; int own = 0; bool holds() const { return area < kCoverPx || below < kCoverBelow || own >= kCoverOwn; } };
+std::vector<Cover> coversOf(const std::vector<CPix>& below, const std::vector<CPix>& above) {
+  std::map<std::pair<int, int>, const CPix*> under;
+  for (const CPix& p : below) under[p.at] = &p;
+  std::map<int, std::set<uint32_t>> own, cols;
+  std::map<int, int> area;
+  for (const CPix& p : above) {
+    if (p.piece == kNotKit || p.item < 0) continue;
+    own[p.item].insert(p.colour);
+    const auto it = under.find(p.at);
+    if (it == under.end()) continue;
+    const CPix& b = *it->second;
+    if (b.piece != kNotKit && b.piece == p.piece) continue;   // like against like: D99 compares it
+    area[p.item]++;
+    cols[p.item].insert(b.colour);
+  }
+  std::vector<Cover> v;
+  for (const auto& kv : area) {
+    Cover c;
+    c.item = kv.first; c.area = kv.second; c.below = (int)cols[kv.first].size(); c.own = (int)own[kv.first].size();
+    v.push_back(c);
+  }
+  return v;
+}
+std::string coverName(const Frame& f, int item) {
+  if (item < 0 || (size_t)item >= f.p.items.size()) return "?";
+  const doll::pool::Pool& P = doll::pool::get();
+  const int pi = f.p.items[(size_t)item].partIndex;
+  return pi >= 0 && (size_t)pi < P.parts.size() ? P.s(P.parts[(size_t)pi].name) : "?";
+}
+bool coversHold(const std::vector<CPix>& below, const std::vector<CPix>& above) {
+  for (const Cover& c : coversOf(below, above)) if (!c.holds()) return false;
+  return true;
 }
 // C12b's colour floor: 80 % of the tier below's colours in sight, 75 % on a styled body
 bool coloursHold(int below, int tier, bool styled) { return styled ? tier * 4 >= below * 3 : tier * 5 >= below * 4; }
@@ -500,6 +546,15 @@ void reportColourFall(const Built& A, const Frame& a, const Built& B, const Fram
 // flavourRow: rule e compares the T3 flavour row (lt3 jade3 imp3 fjord3) of the ladder looks; one people's kit line (source L)
 // carries only lt1..lt6, so the caller turns it off there (integrator, wave 2 int3: it failed all 72 lines whatever the art)
 void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
+  std::vector<std::pair<int, std::string>> lowest;   // (D106, --report) the covers by their own colours
+  struct Lowest {
+    std::vector<std::pair<int, std::string>>& v;
+    ~Lowest() {
+      if (!g_report || v.empty()) return;
+      std::stable_sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+      for (size_t i = 0; i < v.size() && i < 5; i++) std::printf("    C12 cover lowest %zu: %d colours, %s\n", i + 1, v[i].first, v[i].second.c_str());
+    }
+  } lowestOut{lowest};
   const Built* line[7] = {};
   for (int t = 1; t <= 6; t++) line[t] = find(looks, fmt("lt%d", t).c_str());
   bool have = true;
@@ -566,6 +621,19 @@ void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
           g.bad(fmt("b: lt%d %c: colours fall %d -> %d (%d in sight of lt%d's %d)", t, fc, seen, now, seen, t - 1, rich[t - 1].colours));
           if (g_report) reportColourFall(*line[t - 1], fr[t - 1], *line[t], fr[t], kitMap(above), t, fc);
         } else g.ok();
+        // (D106) the cover floor: each kit part over 12 px or more of a rich tier below shows 3 colours of its own
+        for (const Cover& c : coversOf(below, above)) {
+          if (c.area < kCoverPx || c.below < kCoverBelow) continue;
+          const std::string nm = coverName(fr[t], c.item);
+          if (g_report) std::printf("    C12 cover %s lt%d %c: %s over %d px of lt%d (%d colours below), %d of its own\n",
+                                    g_lineId.empty() ? "hero" : g_lineId.c_str(), t, fc, nm.c_str(), c.area, t - 1, c.below, c.own);
+          lowest.push_back({c.own, fmt("%s lt%d %c %s (%d px, %d below)", g_lineId.empty() ? "hero" : g_lineId.c_str(), t, fc, nm.c_str(), c.area, c.below)});
+          if (g_report && c.holds() && c.own < kCoverOwnPlanned)
+            std::printf("    C12 cover fallback (D106: floor 2 for the flip, 3 planned) %s lt%d %c: %s %d px over %d colours, %d of its own\n",
+                        g_lineId.empty() ? "hero" : g_lineId.c_str(), t, fc, nm.c_str(), c.area, c.below, c.own);
+          if (!c.holds()) g.bad(fmt("b: lt%d %c: %s covers %d px of lt%d (%d colours) in %d colour(s) of its own (D106: 2 for the flip)", t, fc, nm.c_str(), c.area, t - 1, c.below, c.own));
+          else g.ok();
+        }
       }
     }
     // c, silhouette
@@ -907,6 +975,78 @@ int selftests(bool report) {
       expect(holds(g4, g5, false) && !coloursHold(distinctColours(g4), distinctColours(g5), true),
              "C12b: tassets over the greaves below, gear colours equal, pass (the whole-figure count fails them)");
     }
+    {
+      // (D106) the cover floor. The tassets view at 12 px: T4 greaves (piece 5, 8 colours) under T5 tassets (piece 0, one
+      // item) in 1, 2 or 3 colours of their own; the rest of the figure holds D99's colours either way
+      auto tassets = [](int own, int px) {
+        std::vector<CPix> b4, a5;
+        for (int i = 0; i < 20; i++) { b4.push_back(CPix{{i, 10}, 0xFF000100u + (uint32_t)i, 0, 1}); a5.push_back(CPix{{i, 10}, 0xFF000100u + (uint32_t)i, 0, 1}); }
+        for (int i = 0; i < px; i++) b4.push_back(CPix{{i % 6, 5 + i / 6}, 0xFF040000u + (uint32_t)(i % 8), 5, 2});
+        for (int i = 0; i < px; i++) a5.push_back(CPix{{i % 6, 5 + i / 6}, 0xFF050000u + (uint32_t)(i % own), 0, 7});
+        return std::make_pair(b4, a5);
+      };
+      for (int own : {1, 2, 3}) {
+        const auto v = tassets(own, 12);
+        const bool d99 = coloursHold((int)coloursInSight(v.first, kitMap(v.second)).size(), distinctColours(v.second), false);
+        // (the fallback floor 2: two colours pass and fall under the planned 3, listed for the planner)
+        const bool under = own < kCoverOwn;
+        const std::string what = fmt("C12b (D106): tassets over the greaves in %d colour(s) %s", own,
+                                     under ? "FAIL (D99 alone passes them)" : own < kCoverOwnPlanned ? "pass the fallback floor 2, under the planned 3" : "pass");
+        bool ok = under ? (d99 && !coversHold(v.first, v.second)) : coversHold(v.first, v.second);
+        if (own < kCoverOwnPlanned && !under) { ok = ok && coversOf(v.first, v.second).size() == 1 && coversOf(v.first, v.second)[0].own < kCoverOwnPlanned; }
+        expect(ok, what.c_str());
+      }
+      {
+        const auto v = tassets(1, 11);
+        expect(coversHold(v.first, v.second), "C12b (D106): a one-colour part over 11 px is not read");
+      }
+      // a one-colour closed helm (piece 1) over the T3 face (12 px in 10 colours, the person)
+      {
+        std::vector<CPix> f3, h4;
+        for (int i = 0; i < 20; i++) { f3.push_back(CPix{{i, 10}, 0xFF000100u + (uint32_t)i, 0, 1}); h4.push_back(CPix{{i, 10}, 0xFF000100u + (uint32_t)i, 0, 1}); }
+        for (int i = 0; i < 12; i++) f3.push_back(CPix{{i % 4, i / 4}, 0xFF010000u + (uint32_t)(i % 10), kNotKit, -1});
+        for (int i = 0; i < 12; i++) h4.push_back(CPix{{i % 4, i / 4}, 0xFF060000u, 1, 3});
+        expect(!coversHold(f3, h4), "C12b (D106): a one-colour closed helm over the T3 face FAILs");
+      }
+      // a one-colour helm over the helm below: like against like, not a cover; D99 still fails it
+      {
+        std::vector<CPix> h4 = view(10, 0, false, false, false, false), h5 = h4;
+        for (int i = 0; i < 12; i++) h4.push_back(CPix{{i % 6, i / 6}, 0xFF030000u + (uint32_t)(i % 10), 1, 3});
+        for (int i = 0; i < 12; i++) h5.push_back(CPix{{i % 6, i / 6}, 0xFF030000u, 1, 3});
+        expect(coversOf(h4, h5).empty() && !holds(h4, h5, true), "C12b (D106): a one-colour helm over the helm below is D99's, and still FAILs");
+      }
+    }
+  }
+  // C12b (D106) on real frames: the first T3 -> T4 cover facing R on the hero's line (the officer's cloak over the T3 back
+  // when it is one) passes as drawn and FAILs recoloured to one colour in a copy
+  {
+    const std::vector<Look> ls = parseLooks(dollSliceLooksText());
+    std::vector<Look> two;
+    for (const Look& l : ls) if (l.tag == "lt3" || l.tag == "lt4") two.push_back(l);
+    std::vector<Built> bl;
+    for (const Look& l : two) bl.push_back(build(l));
+    const Built *b3 = find(bl, "lt3"), *b4 = find(bl, "lt4");
+    bool caught = false;
+    std::string name = "none found";
+    if (b3 && b4) {
+      const Frame f3 = idle(*b3, 2), f4 = idle(*b4, 2);
+      if (f3.ok && f4.ok) {
+        const std::vector<CPix> below = cpixOf(*b3, f3), above = cpixOf(*b4, f4);
+        const Cover* pick = nullptr;
+        const std::vector<Cover> cs = coversOf(below, above);
+        for (const Cover& c : cs)
+          if (c.area >= kCoverPx && c.below >= kCoverBelow && (!pick || (coverName(f4, c.item).find("cloak") != std::string::npos &&
+                                                                         coverName(f4, pick->item).find("cloak") == std::string::npos))) pick = &c;
+        if (pick) {
+          name = fmt("%s, %d px over %d colours, %d of its own", coverName(f4, pick->item).c_str(), pick->area, pick->below, pick->own);
+          std::vector<CPix> flat = above;
+          for (CPix& p : flat) if (p.item == pick->item) p.colour = 0xFF7F7F7Fu;
+          caught = coversHold(below, above) && !coversHold(below, flat);
+        }
+      }
+    }
+    const std::string what = "C12b (D106): the hero's T3 -> T4 cover facing R (" + name + ") passes as drawn, FAILs flat";
+    expect(caught, what.c_str());
   }
   // C12b (D99): a styled body's glints; a body's trim in profile
   expect(step4Holds(16, 3, true) && !step4Holds(16, 2, true) && !step4Holds(16, 3, false),

@@ -5,6 +5,8 @@
 # side-by-side. NORMAL (D3) and NEAR (D4); shot pairs (`shotpair`, `ui 0`) for witness measure box / scale / contrast and
 # tools/p2_measure.mjs. A look the doll does not cover yet is drawn whole on v1 (`expect doll` tells which).
 #   embervale.exe --script tools/scripts/p2b_slice.txt          (p2b_slice_*.png in the working directory)
+# (P2c flip, 2026-10-30, D100) rig 2 is the default now: the `rig 1` segments here are the v1 fallback's coverage on purpose
+# (opt-in until the owner's retirement OK; tools/run_scripts.sh lists their v1 frames as the fallback's).
 seed 7
 0.3  newgame
 +0.1 god 1

@@ -1,6 +1,6 @@
 # Playtesting Embervale with Witness
 
-Witness lives at `../witness` (0.7.9). Run it from the repo root as `node ../witness/bin/witness.js <command>`, always
+Witness lives at `../witness` (0.7.11; engine/witness.h is its C++ adapter, re-copied at the P2c flip). Run it from the repo root as `node ../witness/bin/witness.js <command>`, always
 wrapped in `tools/slot.sh` (the machine-wide cap of 5 heavy jobs) and always headless (no `--watch`).
 
 ## Machine budget (set these in every shell that runs Witness)
@@ -21,8 +21,21 @@ is never Witness's to stop.
 
 ## Configs
 
-- `witness.json`: the desktop game (rig 1), `witness.play.json`: the phone window at rig 2 for batches
-  (`--config witness.play.json`), `tools/witness_web/witness.json`: the web build (no `play` section).
+- `witness.json`: the desktop game, `witness.play.json`: the phone window for batches (`--config witness.play.json`),
+  `tools/witness_web/witness.json`: the web build (no `play` section). Since the P2c flip both run rig 2, the doll, by
+  default; rig 1 (the v1 people, kept until the owner's retirement OK) is opt-in only: reset param `"rig": 1` or
+  EMB_WPLAY_RIG=1 in a launch env.
+- `witness.play.json` sets `play.lazyDraw` (0.7.11): playtest steps tell the game only their last frame is seen, and
+  a watch-mode step skips drawing the others (`witness_drawing()`, rpg/main.cpp). Doctor checked it before it was
+  turned on: `witness doctor --config witness.play.json --params '{"seed":7}'` prints `lazy drawing safe`; rerun that
+  after any change that lets drawing touch the game's state.
+- `witness.play.json` sets EMB_WPLAY_SHOT `world:fit`: a tester's shot is the world layer at the largest K (1-4) that
+  keeps it within 1568 px wide and 1.15 MP (larger shots are scaled down before the model sees them). On the phone
+  window that is K 3 at NORMAL (1536 x 708, as `world:3` was) and K 4 at CLOSE (1464 x 676), so `call zoom close`
+  is how a goal asks for a closer look. `world:K` still forces K.
+- A call that stays busy (`state.script.busy`: a walkto, or a setup call still travelling) is stopped with
+  `call cancel` (or `call stop`); the harness's own stop ends the whole session. `call war goto soldiers` takes a
+  tester to a road patrol of a realm not shown yet (twice: two realms), at peace or at war.
 - `play.clock` is `state.day*24 + state.hour` (in-game hours, keeps rising across midnight), so `--game-hours N`
   plays until N in-game hours have passed (`--until "<expr>"` takes any condition over the snapshot).
   Travel (`call goto ...`, fast travel, sleeping) moves the clock by hours at once.
@@ -41,7 +54,7 @@ tools/slot.sh node ../witness/bin/witness.js shot --at 2 --save-ref village_star
 tools/slot.sh node ../witness/bin/witness.js shot --at 2 --diff village_start --expect "ssim >= 0.999"
 ```
 
-`witness/refs/village_start.png` is the seed-1 start village at t = 2 s (desktop, rig 1). Re-save a ref only on
+`witness/refs/village_start.png` is the seed-1 start village at t = 2 s (desktop, rig 2, the default since the flip). Re-save a ref only on
 purpose, when the picture is meant to change.
 
 ## Playtests

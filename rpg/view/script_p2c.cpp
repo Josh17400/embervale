@@ -422,6 +422,29 @@ const int kDrawFrameReg = registerScriptExt(ScriptExt{"drawframe", "drawframe: d
 // `female 1|0`: the hero's body the woman's or the man's (as Witness's reset param female; the gear kept, the look redressed)
 bool cmdFemale(ScriptCtx& c) { c.game.app.female = c.arg(1) != "0"; AnimOps::refreshHero(c.game); return true; }
 const int kFemaleReg = registerScriptExt(ScriptExt{"female", "female 1|0: the hero's body the woman's or the man's, worn gear kept (P2c SWITCH, test only)", cmdFemale});
+// (P2c flip, R9) `loadsave <file>`: a save file read through Game::deserialize, as CONTINUE does (the game in play, the
+// view snapped to it). It fails the script when the file cannot be read or is refused, and it never writes (a scripted
+// run has no save path; test only)
+bool cmdLoadSave(ScriptCtx& c) {
+  const std::string path = c.rest(1);
+  if (path.empty()) { c.fail("loadsave <file>"); return true; }
+  std::vector<uint8_t> buf;
+  if (FILE* f = std::fopen(path.c_str(), "rb")) {
+    uint8_t chunk[65536];
+    size_t n;
+    while ((n = std::fread(chunk, 1, sizeof chunk, f)) > 0) buf.insert(buf.end(), chunk, chunk + n);
+    std::fclose(f);
+  } else {
+    c.fail("loadsave " + path + ": cannot open the file");
+    return true;
+  }
+  if (buf.empty() || !c.game.deserialize(buf)) { c.fail("loadsave " + path + ": the save was refused (" + std::to_string(buf.size()) + " bytes)"); return true; }
+  c.game.mode = Mode::Play;
+  c.view.snap(c.game);
+  std::printf("loadsave: %s loaded (%zu bytes)\n", path.c_str(), buf.size());
+  return true;
+}
+const int kLoadSaveReg = registerScriptExt(ScriptExt{"loadsave", "loadsave <file>: read a save through Game::deserialize as CONTINUE does; fails on a refused file, never writes (P2c flip, test only)", cmdLoadSave});
 bool cmdCreatorOpen(ScriptCtx& c) { c.game.beginCreator(); return true; }
 const int kCreatorReg = registerScriptExt(ScriptExt{"creatoropen", "creatoropen: the character creator over the game, as New Adventure opens it (P2c SWITCH, test only)", cmdCreatorOpen});
 

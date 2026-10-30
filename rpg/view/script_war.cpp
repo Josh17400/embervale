@@ -8,7 +8,11 @@
 //   war goto road               stand on the nearest road tile of a kingdom's land, away from settlements
 //   war goto checkpoint         stand by a checkpoint (barricades where a road crosses into a warring kingdom's land)
 //   war goto border             go to where the player's land meets the land of a kingdom it is at war with
-//   war goto patrol             wait (up to 58 s) for a road patrol's leader to walk within 9 tiles of the player
+//   war goto patrol             a road patrol's leader within 9 tiles of the player (4 s for him to come by, then
+//                               the player steps to the roadside ahead of him); fails at once in town, and within
+//                               2 s when none is out
+//   war goto soldiers [0 reset] the soldiers of a realm an earlier call has not shown (a culture not shown first): ones
+//                               in play nearby, else out along its seat's road, where its patrol sets off to meet
 //   war raid <monster> <n> [k]  n monsters loosed in the k-th nearest settlement's street, beside its people
 //   war kill <n>                n of the besiegers (or, on JOIN THE ASSAULT, the defenders) fall to the player's hand
 //   war mark                    remember the nearest siege's atk and def (for expect siege)
@@ -29,6 +33,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/war.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/view.h"
 #include "rpg/world/source.h"
 
 namespace {
@@ -52,6 +57,35 @@ std::vector<int> nearestSettlements(Game& g) {
 // teleport onto the free tile nearest (tx, ty) (window tiles); never onto a doorstep
 void standAt(Game& g, int tx, int ty) {
   g.teleportGlobal(g.world.ox + tx, g.world.oy + ty);
+}
+// dry open ground to stand on beside a road (not the road, a bridge, water, a swamp, rock or ice)
+bool roadside(const Map& m, int x, int y) {
+  if (!m.in(x, y) || m.blocked(x, y)) return false;
+  switch (m.at(x, y)) {
+    case Ground::Sand: case Ground::Grass: case Ground::Meadow: case Ground::ForestFloor: case Ground::Autumn:
+    case Ground::Tundra: case Ground::Snow: case Ground::Dirt: case Ground::Farmland: return true;
+    default: return false;
+  }
+}
+// the player steps to the roadside a few tiles ahead of a patrol's leader (in the window: no teleport, the patrol
+// stays), facing him; false when its leader is gone or no open tile lies beside the road there
+bool meetPatrol(Game& g, const WarPatrol& p) {
+  if (p.ids.empty() || p.path.empty()) return false;
+  for (const Actor& a : g.actors)
+    if (a.id == p.ids.front() && a.st != AState::Dead) {
+      const auto& to = p.path[(size_t)std::min<int>((int)p.path.size() - 1, p.at + 6)];
+      const int rx = to.first - g.world.ox, ry = to.second - g.world.oy;
+      for (int r = 2; r <= 8; r++)   // the first dry open tile beside the road, two tiles out or more
+        for (int s = -1; s <= 1; s += 2)
+          for (const bool xs : {true, false}) {
+            const int tx = xs ? rx + s * r : rx, ty = xs ? ry : ry + s * r;
+            if (!roadside(g.map(), tx, ty)) continue;
+            g.pl().p = Vec2(tx * TILE + 8.0f, ty * TILE + 10.0f);
+            return true;
+          }
+      return false;
+    }
+  return false;
 }
 const realm::Siege* nearestSiege(Game& g) {
   const realm::Siege* best = nullptr;
@@ -302,40 +336,170 @@ bool cmdWar(ScriptCtx& c) {
     return true;
   }
   if (where == "patrol") {
-    // (no teleport: that would put the patrol away) wait for a patrol's leader to walk within 9 tiles of the player
+    // (no teleport: that would put the patrol away) a patrol's leader within 9 tiles of the player: done
     for (const WarPatrol& p : g.war.patrols)
       for (const Actor& a : g.actors)
-        if (!p.ids.empty() && a.id == p.ids.front() && len2(a.p - g.pl().p) < (9.0f * TILE) * (9.0f * TILE)) return true;
-    if (c.waited < 58) return false;
-    // (M7c merge) a patrol walks to the far end of a road picked at random round the ring (Game::warStep): on the
-    // merged world it set off down the south road as often as up the north one, and the script failed by the toss.
-    // A patrol out but walking elsewhere: the player steps to the roadside a few tiles ahead of its leader (in the
-    // window: no teleport, the patrol stays)
-    for (const WarPatrol& p : g.war.patrols) {
-      if (p.ids.empty() || p.path.empty()) continue;
-      for (const Actor& a : g.actors)
-        if (a.id == p.ids.front() && a.st != AState::Dead) {
-          const auto& to = p.path[(size_t)std::min<int>((int)p.path.size() - 1, p.at + 6)];
-          const int rx = to.first - g.world.ox, ry = to.second - g.world.oy;
-          for (int r = 2; r <= 6; r++)   // the first open tile beside the road, two tiles out or more
-            for (int s = -1; s <= 1; s += 2)
-              for (const bool xs : {true, false}) {
-                const int tx = xs ? rx + s * r : rx, ty = xs ? ry : ry + s * r;
-                if (!g.map().in(tx, ty) || g.map().blocked(tx, ty) || g.map().at(tx, ty) == Ground::Road) continue;
-                g.pl().p = Vec2(tx * TILE + 8.0f, ty * TILE + 10.0f);
-                return true;
-              }
-          return false;
-        }
+        if (!p.ids.empty() && a.id == p.ids.front() && a.st != AState::Dead && len2(a.p - g.pl().p) < (9.0f * TILE) * (9.0f * TILE)) return true;
+    if (g.war.patrols.empty()) {
+      // (fix, T6 playtest: "war goto patrol returned busy and then every later call stayed busy") none out: the call
+      // no longer waits for one that may never come. Patrols set off only while the player is out of town, from a
+      // kingdom's road 24-36 tiles away (Game::warStep), so in town it fails at once; out of town the next spawn
+      // check is brought forward (test only) and the call fails within 2 s if none sets off
+      if (g.settlementAt(g.pl().p) >= 0) {
+        c.fail("war goto patrol: no road patrol is out, and none sets off while you are in a town (try 'war goto soldiers', "
+               "which travels to a realm's road and meets its patrol, or 'war goto road' then 'war goto patrol')");
+        return true;
+      }
+      g.war.patrolT = 0;
+      if (c.waited < 2) return false;
+      c.fail("war goto patrol: no road patrol is out near here (patrols set off from a kingdom's road 24-36 tiles away; "
+             "try 'war goto soldiers', which travels to a realm's road and meets its patrol)");
+      return true;
     }
-    if (c.waited < 58 + 12 * 60) return false;   // (none out yet: one sets off every 10 s)
-    c.fail("war goto patrol: no patrol came");
+    // one out but walking elsewhere: a few seconds for its leader to come by, then the player steps to the roadside a
+    // few tiles ahead of him (in the window: no teleport, the patrol stays). (M7c merge) a patrol walks to the far end
+    // of a road picked at random round the ring, so waiting alone failed by the toss
+    if (c.waited < 4) return false;
+    for (const WarPatrol& p : g.war.patrols)
+      if (meetPatrol(g, p)) { c.view.snap(g); return true; }
+    c.fail("war goto patrol: no patrol leader in reach (no open roadside ahead of the patrol near here)");
     return true;
   }
-  c.fail("war goto camp|gate|captain att|def|refuge|tower|burned|road|patrol");
+  if (where == "soldiers") {
+    // (T6 setup) the soldiers of a realm whose soldiers an earlier `war goto soldiers` has not shown yet (so calling it
+    // twice shows two realms), at peace or at war: the nearest such soldiers already in play (a siege camp, a
+    // checkpoint, a patrol), else a trip to that realm's seat and out along its road, where its road patrol sets off
+    // (the spawn check is brought forward: test only) and the player stands at the roadside ahead of its leader
+    static std::vector<ew::Gid> shown;
+    static std::vector<uint64_t> shownCult;
+    static ew::Gid target = 0;
+    static uint64_t lastSeed = 0;
+    static float lastTime = 0;
+    if (g.seed != lastSeed || g.time + 1e-3f < lastTime) { shown.clear(); shownCult.clear(); target = 0; }   // a new game or a reset
+    lastSeed = g.seed;
+    lastTime = g.time;
+    auto realmName = [&](ew::Gid K) {
+      if (const realm::KingdomState* S = g.realm.kingdom(K)) return S->name;
+      const ew::KingdomPlan* P = g.world.src ? g.world.src->kingdom(K) : nullptr;
+      return P ? P->name : std::string("a realm");
+    };
+    auto isShown = [&](ew::Gid K) { return std::find(shown.begin(), shown.end(), K) != shown.end(); };
+    auto done = [&](ew::Gid K, const char* how) {
+      target = 0;
+      shown.push_back(K);
+      if (const realm::KingdomState* S = g.realm.kingdom(K)) shownCult.push_back(S->culture);
+      g.mode = Mode::Play;
+      c.view.snap(g);
+      std::printf("script: war goto soldiers -> %s (%s); realms shown so far %zu\n", realmName(K).c_str(), how, shown.size());
+      return true;
+    };
+    // (a command's first two frames both see waited 0: the trip is under way while target is set)
+    if (c.waited == 0 && !target) {
+      if (c.arg(3) == "reset" || c.arg(4) == "reset") { shown.clear(); shownCult.clear(); }
+      // 1. soldiers in play within 40 tiles
+      const Actor* best = nullptr;
+      float bd = (40.0f * TILE) * (40.0f * TILE);
+      for (const Actor& a : g.actors)
+        if (a.npc && a.role == Role::Soldier && a.realm && a.st != AState::Dead && !isShown(a.realm) && len2(a.p - g.pl().p) < bd) {
+          bd = len2(a.p - g.pl().p);
+          best = &a;
+        }
+      if (best) {
+        const ew::Gid K = best->realm;
+        bool placed = false;
+        for (const WarPatrol& p : g.war.patrols)
+          if (std::find(p.ids.begin(), p.ids.end(), best->id) != p.ids.end()) placed = meetPatrol(g, p);
+        if (!placed) {   // a man at his post: two tiles south of him, facing him
+          const int tx = (int)std::floor(best->p.x / TILE), ty = (int)std::floor(best->p.y / TILE);
+          for (int dy = 2; dy <= 4 && !placed; dy++)
+            if (roadside(g.map(), tx, ty + dy) || (g.map().in(tx, ty + dy) && !g.map().blocked(tx, ty + dy) && (g.map().at(tx, ty + dy) == Ground::Road || g.map().at(tx, ty + dy) == Ground::Plaza))) { g.pl().p = Vec2(tx * TILE + 8.0f, (ty + dy) * TILE + 10.0f); placed = true; }
+          g.pl().face = 1;
+          g.pl().aim = Vec2(0, -1);
+        }
+        if (placed) return done(K, "soldiers in play nearby");
+      }
+      // 2. the nearest realm not shown yet (one of a culture not shown yet first), a mainland realm with a seat
+      if (!g.world.src) { c.fail("war goto soldiers: no endless world"); return true; }
+      const int32_t px = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), py = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
+      const ew::KingdomPlan* pick = nullptr;
+      double pickD = 1e300;
+      bool pickNew = false;
+      for (const realm::KingdomState& K : g.realm.kingdoms()) {
+        if (K.fallen || isShown(K.id)) continue;
+        const ew::KingdomPlan* P = g.world.src->kingdom(K.id);
+        if (!P || !P->capital || P->hiddenLand) continue;
+        const bool newCult = std::find(shownCult.begin(), shownCult.end(), K.culture) == shownCult.end();
+        const double d = std::hypot((double)(P->gx - px), (double)(P->gy - py));
+        if ((newCult && !pickNew) || (newCult == pickNew && d < pickD)) { pick = P; pickD = d; pickNew = newCult; }
+      }
+      if (!pick) { c.fail("war goto soldiers: no realm left whose soldiers have not been shown ('war goto soldiers 0 reset' starts over)"); return true; }
+      const ew::Gid K = pick->id;
+      const int32_t seatX = pick->gx, seatY = pick->gy;
+      if (g.inside) g.debugLeave();
+      // where its road patrols set off: a road tile of its land out of town with room for the patrols' ring round it
+      // (Game::warStep picks a road 24-36 tiles from the player). A capital fills most of the window, so its villages
+      // and towns are tried after the seat, nearest the seat first
+      std::vector<std::pair<int32_t, int32_t>> spots{{seatX, seatY}};
+      {
+        std::vector<std::pair<double, std::pair<int32_t, int32_t>>> near;
+        const int32_t rx0 = ew::regionOf(seatX), ry0 = ew::regionOf(seatY);
+        for (int32_t ry = ry0 - 3; ry <= ry0 + 3; ry++)
+          for (int32_t rx = rx0 - 3; rx <= rx0 + 3; rx++)
+            for (const ew::SitePlan& s : g.world.src->region(rx, ry).sites)
+              if (s.kingdom == K && (s.type == SiteType::Village || s.type == SiteType::Town))
+                near.push_back({std::hypot((double)(s.ex - seatX), (double)(s.ey - seatY)), {s.ex, s.ey}});
+        std::sort(near.begin(), near.end());
+        for (size_t i = 0; i < near.size() && i < 5; i++) spots.push_back(near[i].second);
+      }
+      const Map& M = g.world.over;
+      int rx = -1, ry = -1;
+      for (const auto& sp : spots) {
+        g.teleportGlobal(sp.first, sp.second + 3);
+        const int sx = sp.first - g.world.ox, sy = sp.second - g.world.oy;
+        for (int r = 12; r <= 90 && rx < 0; r += 2)
+          for (int k = 0; k < 96 && rx < 0; k++) {
+            const float an = 6.2831853f * k / 96;
+            const int x = sx + (int)std::lround(std::cos(an) * r), y = sy + (int)std::lround(std::sin(an) * r);
+            if (x < 44 || y < 44 || x >= World::WIN - 44 || y >= World::WIN - 44) continue;
+            if (M.at(x, y) != Ground::Road || M.blocked(x, y) || g.world.siteAt(x, y, 6) >= 0) continue;
+            const int32_t gx = g.world.ox + x, gy = g.world.oy + y;
+            if (g.realm.landOwner(g.world.src->kingdomAt(gx, gy), gx, gy) != K) continue;
+            rx = x; ry = y;
+          }
+        if (rx >= 0) break;
+      }
+      if (rx < 0) { c.fail("war goto soldiers: " + realmName(K) + " has no road out of town near its seat or its villages"); return true; }
+      // beside the road (the patrol walks it past the player)
+      bool placed = false;
+      for (int r = 2; r <= 6 && !placed; r++)
+        for (const int s : {1, -1})
+          for (const bool xs : {false, true}) {
+            if (placed) break;
+            const int tx = xs ? rx + s * r : rx, ty = xs ? ry : ry + s * r;
+            if (!roadside(M, tx, ty)) continue;
+            g.pl().p = Vec2(tx * TILE + 8.0f, ty * TILE + 10.0f);
+            placed = true;
+          }
+      if (!placed) g.pl().p = Vec2(rx * TILE + 8.0f, ry * TILE + 10.0f);
+      target = K;
+      g.war.patrolT = 0;
+      g.mode = Mode::Play;
+      c.view.snap(g);
+      return false;
+    }
+    // 3. its patrol (or one of any realm not shown yet) sets off: meet it
+    for (const WarPatrol& p : g.war.patrols)
+      if (!p.ids.empty() && (p.kingdom == target || !isShown(p.kingdom)) && meetPatrol(g, p)) return done(p.kingdom, "its road patrol");
+    if (g.war.patrols.size() < 2) g.war.patrolT = 0;
+    if (c.waited < 6) return false;
+    c.fail("war goto soldiers: no patrol of " + realmName(target) + " set off from its road");
+    target = 0;
+    return true;
+  }
+  c.fail("war goto camp|gate|captain att|def|refuge|tower|burned|road|patrol|soldiers|checkpoint|border");
   return true;
 }
-EMB_SCRIPT_CMD("war", "war goto camp|gate|captain att|def|refuge|tower|burned|road|patrol|checkpoint|border | raid <monster> <n> [k] | kill <n> | mark | at <x> <y> | free [k] | take [k] (M4 WARDS)", cmdWar);
+EMB_SCRIPT_CMD("war", "war goto camp|gate|captain att|def|refuge|tower|burned|road|patrol|soldiers|checkpoint|border | raid <monster> <n> [k] | kill <n> | mark | at <x> <y> | free [k] | take [k] (M4 WARDS)", cmdWar);
 
 bool expSiege(ScriptCtx& c) {
   Game& g = c.game;

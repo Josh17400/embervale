@@ -8,6 +8,9 @@
 #
 # Each script runs through tools/slot.sh (the machine-wide cap), up to EMB_SLOTS at once. Logs go to
 # $RUN_LOG_DIR (default: a temp dir, deleted unless something failed). Exit code = number of failed scripts (max 255).
+# (P2c flip, D103) each run's `v1draws rig2 <n> rig1 <n>` line is collected: the batch prints `v1draws rig2: <n> scripts
+# with v1 frames` (0 wanted, the names follow) and the rig-1 counts as the fallback's coverage; a script with rig-1
+# frames and no `rig 1` line fails as a stray.
 # Environment: BDIR (build dir, default build), EMB_SLOTS (default 3), RUN_LOG_DIR.
 
 set -u
@@ -35,6 +38,16 @@ run_one() {
   local t0=$SECONDS
   tools/slot.sh "$EXE" --script "$f" > "$LOGS/$name.log" 2>&1
   local rc=$?
+  # (P2c flip, D103: C2) the run's `v1draws rig2 <n> rig1 <n>` line: v1 people frames at the default rig 2 are wanted 0;
+  # rig-1 frames are the fallback's coverage, allowed only in a script that opts in with a `rig 1` line (else a stray)
+  local v1; v1="$(grep -m1 '^v1draws rig2 ' "$LOGS/$name.log" 2>/dev/null)"
+  if [ -n "$v1" ]; then
+    local r2 r1; r2="$(echo "$v1" | awk '{print $3}')"; r1="$(echo "$v1" | awk '{print $5}')"
+    echo "$name $r2 $r1" > "$LOGS/$name.v1draws"
+    if [ "${r1:-0}" != "0" ] && ! grep -qE '^[^#]*[0-9.]+[[:space:]]+rig[[:space:]]+1([[:space:]]|$)' "$f"; then
+      echo "FAIL $name: $r1 v1 people frames at rig 1 with no 'rig 1' line (a stray) - log: $LOGS/$name.log"; touch "$LOGS/$name.failed"; return
+    fi
+  fi
   if [ $rc -ne 0 ]; then echo "FAIL $name (exit $rc, $((SECONDS - t0)) s) - log: $LOGS/$name.log"; touch "$LOGS/$name.failed"
   else echo "ok   $name ($((SECONDS - t0)) s)"; fi
 }
@@ -46,6 +59,11 @@ printf '%s\n' "${files[@]}" | xargs -P "$JOBS" -I{} bash -c 'run_one "$@"' _ {} 
 # scripts write their screenshots into the repo root: remove the ones this batch made
 find . -maxdepth 1 -name "*.png" -newer "$LOGS/.start" -delete 2>/dev/null
 nfail=$(ls "$LOGS"/*.failed 2>/dev/null | wc -l)
+# (P2c flip, D103) C2 over the batch: the scripts with v1 people frames at rig 2 (0 wanted), then the fallback's coverage
+v1bad="$(cat "$LOGS"/*.v1draws 2>/dev/null | awk '$2 != "0" {print $1 " (" $2 ")"}')"
+echo "v1draws rig2: $(printf '%s' "$v1bad" | grep -c .) scripts with v1 frames${v1bad:+: $(echo $v1bad)}"
+v1cov="$(cat "$LOGS"/*.v1draws 2>/dev/null | awk '$3 != "0" {print $1 " " $3}')"
+[ -n "$v1cov" ] && echo "v1draws rig1 (the fallback's coverage): $(echo "$v1cov" | paste -sd, - | sed 's/,/, /g')"
 echo "run_scripts: ${#files[@]} scripts, $nfail failed, $((SECONDS - start)) s"
 if [ "$nfail" -eq 0 ] && [ -z "${RUN_LOG_DIR:-}" ]; then rm -rf "$LOGS"; fi
 [ "$nfail" -gt 255 ] && nfail=255

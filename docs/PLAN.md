@@ -1877,6 +1877,16 @@ the body's ceiling in profile; amended after judge round c12_r1, which measured 
 40 falling views and the hero's line failing), the restated C12b, and a short block in "The wave-2 fix round 4" (DOLL's gate code; no art; no frame
 changes). STYLE_P2 29.11 gains one line, and P2C_CONTRACTS 7 the hook.
 
+**Re-planned on 2026-10-30 (the flip: the owner's go, with nothing deleted).** Fix round 4 closed with the judge's PASS
+(b9e0108 on p2c-slice: pool 2,570,727 B, hash bfebaa79e8d2fb35, every gate green, rig 1 unchanged). On 2026-10-29 the owner
+answered the flip pack (%TEMP%\claude\emb_P2c\wave2\owner) with "Ready" = flip, under a hard constraint: old art is retired
+only on a separate OK. What changed: "The flip (wave 3)" is restated. Rig 2 becomes the default everywhere, nothing is
+deleted, and rig 1 stays reachable as an opt-in fallback, pixel for pixel. The section now holds the exact checklist, the
+re-records with their before / after, the retirement list kept for the owner's later OK, and the one full regression.
+Also restated: gates C2, C7, C8, C9 and C10 at the flip; decisions D100-D106 (D9 and the IN / OUT lines restated, the Witness
+0.7.11 adoption, and the C12 cover floor that closes the judge's gap); wave 8; the judge's focus; the risks. Data and hooks
+are in P2C_CONTRACTS 1, 2 and 7. STYLE_P2 does not change, because the flip draws nothing new.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -1886,8 +1896,9 @@ length you can tell a Jade masked lancer, an Imperial crested spearman and a Fjo
 and putting on plate visibly changes the hero. Every weapon class fights with its own body: three blows each, a clear
 coil before the blow and a hit you feel. Guards fall into a ready guard when trouble comes near. An archer holds a full
 draw, then the string snaps. A soldier who falls keeps his helm, his shield lies flat and his spear lands beside his
-hand. Then comes the flip: rig 2 becomes the game, v1's 16 x 24 people and the rejected procedural rig are deleted, every
-menu figure and portrait is the doll, and no player ever sees two kinds of people again. It should feel like a finished
+hand. Then comes the flip: rig 2 becomes the game, every menu figure and portrait is the doll, and no player ever sees two
+kinds of people again. v1's 16 x 24 people and the rejected procedural rig stay in the tree behind an opt-in until the
+owner's separate OK retires them (D100). It should feel like a finished
 16-bit RPG whose cast was drawn by one hand, at 1x and zoomed.
 
 And the gear tells the hero's story (the owner's rags to riches). The hero leaves home in a mended gambeson with an old
@@ -2394,9 +2405,9 @@ number.
   shoulder masses, six over-layers, four arm bulks, eight chest motifs) on both bodies; the shape table and the detail
   rule; the four hero fixes (FURNACE, KNAPPED, STARFALL, the Mythic face); the metal read at 1x; pauldrons over capes and
   in side views; shields and boots in their alloy; gates C16 (restated), C17 (restated) and C18.
-- Every remaining human draw path on the doll. Then the flip: rig 2 is the only rig, v1 people and the procedural rig are
-  deleted, and art_hash and the goldens are re-recorded once.
-- Gates C1-C18, and playtests T4-T7.
+- Every remaining human draw path on the doll. Then the flip (restated by D100): rig 2 is the default everywhere, rig 1
+  stays an opt-in fallback, nothing is deleted, and art_hash and the goldens are re-recorded once (D102).
+- Gates C1-C19, and playtests T4-T7.
 
 **OUT**
 - The humanoid monsters (skeleton, draugr, goblin), the creatures, the village animals, and the props the P2c judge lists
@@ -2404,7 +2415,8 @@ number.
 - Any balance change: the sim's clocks, damage, parry and roll rules stay. Block is a visual flash; there is no new sim
   state and no new attack. Parry stays the sword's.
 - Armour on kids.
-- Rig 1 after the flip (D9).
+- Deleting rig 1, v1 people or the procedural rig in P2c (restated by D100): that retirement waits for the owner's
+  separate OK, and its list is in "The flip (wave 3)".
 - The creator's flow (P3). P2b leftovers that are not gear: the talk mouth, the dust puff, the loose horse's coat.
 - Any change to the shipped walk and run, or to front and back walks.
 - Any SAVE_VER, ENDLESS_GEN_VER or SAGA_GEN_VER bump. save_v23.bin and the town, world and endless goldens never change.
@@ -2531,47 +2543,316 @@ form9 means no shield.
 
 ### The flip (wave 3)
 
-- **What makes rig 2 the default.** All of these:
-  - C1 at 100 % over sources A-E and L (seeds 1..20; L seeds 1..3);
-  - C12-C17 green over the matrices and source L;
-  - C3-C6 and C8 green at rig 2;
-  - the wave-2 judge's look review passed;
-  - the owner's go on the flip pack: before / after pairs at rig 1 and rig 2 of the reference screens, the start village,
-    a war camp, a market, a harbour and every menu.
-- **What changes.**
-  - `rigVersion()` returns 2 always (art_rig.h's default).
-  - `setRigVersion(1)`, `EMB_RIG=1`, script `rig 1`, Witness `rig: 1` and web `?rig=1` warn once and are ignored.
-    `rig 2` stays accepted, so old scripts still run.
-  - The k-scaled holders become the only size.
-- **What is deleted.**
-  - The v1 people painter: art_human.cpp's sheets, postures, sleepers and v1 portrait helpers (humanSheet, humanCellRaw,
-    humanFigureStill, humanPostureCellRaw, paintSleeperHead), and art_life.cpp's v1 posture tables.
-  - The procedural rig: rpg/art/rig/** and tools/preview/rigdraft.cpp, rig_gallery.cpp, rigarms_gallery.cpp and
-    rigposes_gallery.cpp.
-  - Every v1 human fallback in the view (humanTex, poseTex, sleeperTex, the v1Draws sites), and RigMetrics r1's people
-    rows.
-- **What is kept and moved.**
-  - metalRampKeys moves to art_items.cpp (the icons share it).
-  - HumanLook and key() stay: they are the doll's input.
-  - humanoidCell moves to art_monsters.cpp, pixel for pixel; P2d redraws it.
-  - Every gallery that drew v1 people now draws the doll and keeps its boards.
-- **Rig 1 retires** (D9). Nothing keeps v1 people alive after the flip; the before / after pack is the record.
-- **art_hash and the goldens.** Each is re-recorded once, by the flip, with before / after pairs.
-  - In art_hash, `humans` goes and `doll` comes in: the composed atlases of a fixed reference list (the A3 hero and
-    woman, the slice looks, one look per armour form and body, one per family), all deterministic.
-  - `monsters` and `icons` stay identical, and the hash proves it.
-  - `buildings`, `walls` and `props` change, because the k-scaled holders are now the only size. `fx` changes because the
-    effects now come from maps. TOTAL is new.
-  - `city_gallery --village-art-check` (65 groups) is re-recorded, with a before / after PNG per changed group.
-  - tests/fixtures/golden_anim_v1.txt and `--anim`'s A1 retire with rig 1's pick.
-  - `--arms` golden keys are re-recorded with a before / after table (key() always mixes the doll's fields).
-  - save_v23.bin and golden_towns, golden_world, golden_endless and golden_villages never change.
-- **CI** ("Clear Sight rig and animation test"):
-  - runs `pxc --check`, `--rig` (the contract), `--anim --gates`, `--doll --gates`,
-    `--doll-coverage --scope all --seeds 1..3 --gates` and `--doll-variety --seeds 1..3 --gates`;
-  - `--rig-coverage` retires (C1 replaces it).
-- **Scripts and Witness**: every `rig 1` line and v1 expectation in tools/scripts and witness/*.json is restated at rig 2,
-  and witness/p2c_switch.witness.json joins (v1Draws 0, coverage, menus).
+Restated on 2026-10-30 for the owner's go and the owner's constraint (D100-D106). The 2026-10-23 text planned the deletion.
+The deletion is now "the retirement" below, and it waits for a separate OK. Owners and files are in P2C_CONTRACTS 1, and
+the hooks in P2C_CONTRACTS 7.
+
+- **What made rig 2 the default** (all met at b9e0108): C1 at 100 % over sources A-E and L (seeds 1..20; L seeds 1..3);
+  C12-C17 and C19 green over the matrices and source L; C3-C6 and C8 green at rig 2; the wave-2 judge's PASS (fix round 4,
+  judge round 4); the owner's go on the flip pack (2026-10-29: "Ready").
+- **What changes** (and nothing else):
+  - `rigVersion()` returns 2 unless something opts into rig 1 (`art::kDefaultRig = 2` in art_rig.h).
+  - Rig 1 stays reachable and unchanged, pixel for pixel (D101). The ways in: `EMB_RIG=1`, script `rig 1`, Witness `rig: 1`
+    (or `EMB_WPLAY_RIG=1`), web `?rig=1`, and `EMB_RIG=1` or `--rig=1` on rpg_test, art_hash and city_gallery. `rig 2` stays
+    accepted everywhere, so old scripts still run. The game prints one line when rig 1 is chosen.
+  - The k-scaled holders are the only size at the default: in the game, on the web and in the default goldens. The v1
+    holder sizes stay bound to rig 1 for the fallback (D101).
+  - art_hash, the village-art fixture and `--arms`'s keys are re-recorded once at rig 2. The rig-1 record is kept behind
+    the opt-in (D102).
+  - CI, the scripts and the Witness tests are restated for the default (D103, D104). Witness 0.7.11 is adopted (D105), and
+    C12 gains the cover floor (D106).
+  - No map, clip or frame changes. The pool grows by 210 B to 2,570,937 B (c8df3de9a5fc8245): legs/adult/loco/tips.pxm
+    gains its empty views, which draw nothing. The owner-signed freeze (tools/doll/freeze/p2c_freeze.txt, at rig 2 by
+    D107) stays at 0 changed.
+- **Kept and moved: nothing moves at the flip** (D100). The moves of 2026-10-23 (metalRampKeys to art_items.cpp,
+  humanoidCell to art_monsters.cpp, the galleries onto the doll) exist only to survive the deletion, so they go with the
+  retirement. A gallery that draws v1 people keeps doing so and says so in its header. The doll's boards come from
+  doll_gallery and the scripts.
+- **The retirement** (for the owner's separate OK; one later step with its own gate; the flip touches none of it):
+  1. The v1 people painter: art_human.cpp's sheets, postures, sleepers and v1 portrait helpers (humanSheet, humanCellRaw,
+     humanFigureStill's v1 branch, humanPostureCellRaw, paintSleeperHead) and art_life.cpp's v1 posture tables. With them
+     go the moves that survive the deletion: metalRampKeys to art_items.cpp, and humanoidCell to art_monsters.cpp pixel for
+     pixel (P2d redraws it). HumanLook and key() stay.
+  2. The procedural rig: rpg/art/rig/**, tools/preview/rigdraft.cpp, rig_gallery.cpp, rigarms_gallery.cpp,
+     rigposes_gallery.cpp and rig_preview.h, with their CMakeLists lines.
+  3. The view's v1 fallbacks: humanTex, poseTex and sleeperTex; the v1Draws sites (render.cpp, render_anim.cpp,
+     home_view.cpp, party_view.cpp and party_hud.cpp's painted bust); RigMetrics r1's people rows.
+  4. The switch's rig-1 side:
+     - rig 1 in setRigVersion, EMB_RIG, `rig 1`, Witness `rig: 1`, `?rig=1` and `--rig=1`, which then warn once and are
+       ignored;
+     - bodyScale and bodyPx's rig-1 identity, and the v1 size in every `rigVersion() >= 2 ?` holder branch (art_props,
+       art_walls, art_building, art_home, art_sea, art_city, art_market, art_culture_furniture, art_handcart);
+     - the rig-1 paths in rpg/sim: anim.cpp's pickV1 and the v1 corpse, and game.cpp's rig < 2 branches. The rig-2
+       conditions in looks.cpp, gear_look.cpp and life_game.cpp become unconditional.
+  5. The rig-1 record:
+     - tests/fixtures/golden_anim_v1.txt and `--anim`'s A1, and tests/fixtures/golden_village_art_rig1.txt;
+     - test_arms's rig-1 keys, and test_rig's v1 contract lines (bodyPx identity, the v1 ink outline, holders at rig 1,
+       the youth key at rig 1);
+     - `--rig-coverage`, art_hash's rig-1 path, CI's rig-1 line, witness/refs/village_start_rig1.png and p2c_switch's
+       rig-1 test;
+     - the scripts' rig-1 segments (the p2a and p2b holders and slices, p2c_slice and its pack, the flip-pack scripts).
+  6. The galleries' v1 boards (the arms, hero, holders, home, life, magic, party, people, props, rise, rooms and sea
+     galleries, and art_preview): each board is ported to the doll or dropped.
+  - Its gate, planned for that OK, is that the default does not change. art_hash's flip TOTAL, the village fixture at
+    65 / 0, the freeze at 0 changed, `--arms`'s rig-2 keys, every CI line and the sweep's `v1draws rig2` at 0 all hold.
+    Monsters and icons stay identical, and embervale.wasm gets smaller.
+
+#### The flip checklist (every file the flip touches; three areas, files disjoint, all start at hour 0 on b9e0108)
+
+**SWITCH** (engineer-high; the flip's integrator; BDIR=build, the only area that builds build/).
+- *Before any change*, first rebuild build/ at b9e0108 with the tree untouched. Then, with rig 1 still the default:
+  - `build/art_hash.exe -v > .tmp/flip/before/art_hash_v.txt` (TOTAL 317eef6efe4d8229);
+  - `build/city_gallery.exe --village-art-check > .tmp/flip/before/village.txt` (65 / 0);
+  - `build/rpg_test.exe --arms --seeds 1..3 --print > .tmp/flip/before/arms_keys.txt`;
+  - `build/rpg_test.exe --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt` (0 changed);
+  - byte copies: tests/fixtures/golden_village_art.txt -> golden_village_art_rig1.txt, and witness/refs/village_start.png
+    -> village_start_rig1.png.
+- 1. rpg/art/art_rig.h: ADD `constexpr int kDefaultRig = 2`, and start `rigdetail::version()` at it. ADD `struct RigScope`
+  (it saves rigVersion(), sets a rig, and restores the saved rig). Restate the header comment: rig 2 is the default, and
+  rig 1 is the v1 fallback, opt-in until the retirement OK. bodyScale and bodyPx do not change.
+- 2. rpg/main.cpp: EMB_RIG and web `?rig=` keep working (1 opts in, 2 is accepted). When rig 1 is chosen, print one line:
+  `rig 1: the v1 people, an opt-in fallback until the owner's retirement OK`. The Witness reset's `rig` defaults to
+  EMB_WPLAY_RIG, else kDefaultRig (it was 1). A `--script` run ends by printing `v1draws rig2 <frames> rig1 <frames>`
+  (item 4).
+- 3. rpg/view/script_p2a.cpp: restate the help of `rig 1|2` (rig 2 the default, rig 1 the fallback). Behaviour does not
+  change.
+- 4. rpg/view/view.h, hud.cpp and witness_state.cpp: add the run counters View::v1DrawsRun2 and v1DrawsRun1. They sum, over
+  the run, the people frames drawn from v1 sheets while rig 2 is set and while rig 1 is opted into. Witness gets
+  `screen.v1DrawsRun` (the rig-2 count).
+- 5. rpg/view/script_p2c.cpp: add `loadsave <file>` (test only). It reads a save through Game::deserialize, as CONTINUE
+  does, and fails the script when the file is refused. It never writes: a scripted run has no save path.
+- 6. tools/run_scripts.sh: collect each script's `v1draws` line. Print `v1draws rig2: <n> scripts with v1 frames` and name
+  those scripts (0 wanted). List the rig-1 counts as the fallback's coverage. A script with rig-1 frames and no `rig 1`
+  line is a stray, and it fails.
+- 7. tools/tests/main.cpp: read EMB_RIG and `--rig=1|2` before dispatch, and take the flag out of argv. When both are
+  given, the flag wins. The same rule holds in art_hash and city_gallery.
+- 8. tools/tests/test_anim.cpp: every `setRigVersion(1)` that means "back to the default" restores the previous rig
+  (RigScope). A1 and golden_anim_v1.txt do not change: A1 always reads rig 1's pick.
+- 9. tools/tests/test_rig.cpp: add the contract line "the default rig is 2" (kDefaultRig, and a process with no EMB_RIG and
+  no `--rig=1` starts at 2). rigCmd restores the previous rig. `--rig-coverage` stays runnable and leaves CI.
+- 10. tools/tests/test_arms.cpp: golden keys by rig: kOldKeys (rig 1, unchanged) and kOldKeys2 (rig 2, recorded once with
+  `--print`). A check that fails at rig 2 only because it states a rig-1 rule is restated per rig, keeps its rig-1 form,
+  and is listed in the report. A real rig-2 fault is fixed. No check is loosened.
+- 11. tools/art_hash.cpp: read EMB_RIG and `--rig=N`. At rig 2, `doll` takes `humans`' place in TOTAL. It hashes every
+  atlas the game bakes for each line of tools/doll/hash_looks.txt (LOCO, RUN, DRAWN, ACTION, DEATH and its POSTURE set,
+  composed through humanRig), in file order. `humans+new` is not printed at rig 2, and at rig 1 every line prints as today.
+  ADD `--dump DIR`, which writes every sprite as `<category>/<name>.png`. The header comment records the flip's lines and
+  TOTAL.
+- 12. tools/doll/hash_looks.txt (new): the fixed reference list, frozen after the record (changing it means re-recording).
+  It holds the A3 hero and the A3 woman, the slice looks (slice_looks.txt), one look per armour form x body (8 x 2), one per
+  weapon family (unarmed, dagger, sword, greatsword, axe, mace, spear, staff, bow, crossbow), lt1-lt6, lt1w-lt6w, lt6m and
+  nking.
+- 13. tools/preview/city_gallery.cpp: read EMB_RIG and `--rig=N`. The default fixture is golden_village_art.txt at rig 2
+  and golden_village_art_rig1.txt at rig 1. ADD `--village-art-dump DIR`, which writes each group's sprites as PNGs.
+- 14. tests/fixtures/golden_village_art.txt: re-recorded once at rig 2 (`--village-art-write`).
+  tests/fixtures/golden_village_art_rig1.txt (new) is today's file, byte for byte.
+- 15. .github/workflows/web.yml: the Clear Sight step runs `node tools/doll/pxc.mjs --check`, `rpg_test --rig`, `--anim
+  --gates`, `--doll --gates`, `--doll-coverage --scope all --seeds 1..3 --gates` and `--doll-variety --seeds 1..3 --gates`,
+  and its comment is restated (D104). `--rig-coverage` leaves CI. The Gear step gains `./build-native/rpg_test --arms
+  --seeds 1..3 --rig=1` (the fallback, until the retirement OK). The 66 extracted commands become 67.
+- 16. tools/scripts:
+  - p2a_lead_lens.txt and its _phone twin: `expect rig 1` (the old default) becomes `expect rig 2`.
+  - p2a_lead_perf.txt: add `+0.0 rig 1` right after `newgame`, so the render baseline and the city arrival are rig 1 by
+    name. NORMAL_RIG2 keeps its `rig 2`.
+  - The deliberate rig-1 segments stay, and their comments name them the fallback's: p2a_holders, p2b_holders, p2a_slice,
+    p2b_slice, p2c_slice, p2c_slice_pack, and the flip-pack scripts p2c_menus_flip, p2c_world_flip and p2c_world_flipwar,
+    each with its _phone twin where it has one (17 files today; `grep -l "rig 1"` lists them).
+  - New p2c_flip_look.txt and its _phone twin: the by-eye capture at the default rig, with no `rig` line and `expect rig
+    2` once. It uses the flip pack's places and moments. Seed 7: the reference screen, the start village at NORMAL and
+    NEAR by day and at 22:00, the market town, the bandit camp, the harbour, and the capital at 15:00. Seed 2: the war
+    camp. Then every menu: EQUIP with a T1 and a T6 hero and the loot preview, HERO, PARTY with its portraits, the party
+    column, a dialogue's speaker, the creator's preview and the HUD hero. `expect menu v1 0` follows each shot, and every
+    image is 8,000 px or less.
+  - New p2c_flip_save.txt and its _phone twin: `loadsave tests/fixtures/save_v23.bin`, save_test's FIX6 values as `expect`
+    lines, `expect doll covered`, shots of the world, EQUIP and HERO, and `expect menu v1 0`.
+  - Every other script runs at rig 2 for the first time in the regression's sweep. When one trips a v1 expectation, that
+    expectation is restated at its rig-2 value with `# (flip) was <v> at rig 1`. A rig-2 fault is a fix item. No script
+    gains `rig 1` just to pass.
+- 17. Witness:
+  - witness/p2c_switch.witness.json: its four rig-2 tests drop `"rig": 2`, so they test the default.
+  - ADD the test "the default is rig 2", with no rig param: `state.player.sprite.rig == 2`, the paperdoll and the HERO
+    sheet on the doll, and `state.screen.v1Draws == 0`.
+  - ADD a coverage test: the start village at 11:00 and seed 2's war camp, with every on-screen person `doll.covered` and
+    v1Draws 0.
+  - Rename the rig-1 test to "rig 1, the opt-in v1 fallback until the retirement OK, still draws every menu on v1".
+  - The other test files keep their `"rig": 2` pins.
+  - witness/refs/village_start.png is re-saved at rig 2 after the look.
+- 18. tools/witness_web/firstlaunch.mjs (new): Playwright from tools/witness_web, Chromium with the "iPhone 15 Pro
+  landscape" device (touch), and a fresh context. It loads site-witness served on 127.0.0.1:8090 without `?witness`, starts
+  New Game, waits 3 s and takes a screenshot (8,000 px or less). `--query rig=1` shows the fallback.
+- 19. The boards, in .tmp/flip/goldens:
+  - art_hash's changed sprites, per category, rig 1 beside rig 2 at 1x and 3x;
+  - the `doll` pairs: each hash_looks line's v1 idle cell beside the doll's idle frame, D and R;
+  - one PNG per changed village group;
+  - the `--arms` keys table.
+- *Done* (BDIR=build; SWITCH's own commands, never the full sweep):
+  - `rpg_test --rig` reports 0, with default rig 2.
+  - The rig-1 proofs (D101) hold.
+  - The re-records hold, with their boards: art_hash's new TOTAL; monsters, icons, monst+new and icons+new equal at both
+    rigs; the village fixture 65 / 0 at rig 2; `--arms --seeds 1..3` ALL OK at rig 2.
+  - The freeze reports 0 changed.
+  - `BDIR=build tools/run_scripts.sh p2a_ p2b_ p2c_` reports 0 failed, and `v1draws rig2` is 0 in every script.
+  - The Witness tests p2c_switch, p2b_doll, p2a_lens and p2c_zoom pass on `build/embervale --witness`.
+  - verify_batch `p2a_ p2b_ p2c_` ends with CLANG_FAILS=0 and an ok count of 67.
+  - `git status --short` (read only) shows every changed path in this list.
+
+**DOLL** (engineer-high; BDIR build-proto). Files: tools/tests/test_doll_ladder.cpp only, and an append to P2C_CONTRACTS 8.
+- Core: D106's cover floor in C12b, its `--report` lines and its selftests, the real-frame one included.
+- Done (EMB_RIG=2):
+  - `--doll-ladder --selftest` reports ALL CAUGHT, D106's selftests included.
+  - `--doll-ladder --finish --report` reports 0, and the hero's line holds 118 / 118 or more.
+  - `--doll-ladder --finish --scope ladder --seeds 1..3 --report` reports C12 72 / 72. Every real cover has 3 or more of
+    its own colours, or D106's fallback is recorded with its parts.
+  - `--doll --gates --parity` reports 0.
+  - The freeze against tools/doll/freeze/p2c_freeze.txt reports 0 changed.
+  - WSL clang 18 gives the same numbers.
+
+**WITNESS** (scaffolder; BDIR build-witness). Files: engine/witness.h, engine/witness_emscripten.js (checked only),
+witness.play.json and docs/PLAYTEST.md.
+- Copy C:\Users\joshu\Documents\witness\adapters\cpp\witness.h (0.7.11) over engine/witness.h, keeping the repo's line
+  endings. The only difference is the lazy-draw hint: a step's `"draw": "last"` and `witness_drawing()`.
+- engine/witness_emscripten.js already equals 0.7.11's (`diff --strip-trailing-cr` prints nothing), so it does not change.
+- witness.play.json: drop `EMB_WPLAY_RIG`, so playtests start at the default. Add `"lazyDraw": true` to `play` only after
+  `witness doctor --config witness.play.json --cmd "build-witness/embervale --witness"` prints "✔ lazy drawing safe". If it
+  does not, leave lazyDraw off and report why.
+- docs/PLAYTEST.md: Witness is 0.7.11. witness.json is the desktop game at the default rig 2, and `rig: 1` or
+  `EMB_WPLAY_RIG=1` opts into the v1 fallback until the retirement OK. witness.play.json is the phone window at the default.
+  The refs: village_start.png is at rig 2, and village_start_rig1.png is the fallback's. Add the lazyDraw note (D105).
+- Done: doctor is all good (deterministic, and lazy drawing safe); `witness test` passes p2a_lens, p2c_zoom and p2c_switch
+  on build-witness; the web bridge is unchanged.
+
+#### The re-records (C9 at the flip, each once; D102)
+
+| record | before (kept) | after (rig 2, the default) | how the pair is shown |
+|---|---|---|---|
+| art_hash | `art_hash --rig=1`: today's lines, TOTAL 317eef6efe4d8229, `-v` equal to .tmp/flip/before | `doll`, `monsters`, `props`, `buildings`, `walls`, `icons`, `fx`, and a new TOTAL, recorded here and in art_hash.cpp | monsters, icons, monst+new and icons+new hash the same at both rigs (the proof). For props, buildings, walls and fx (and their +new), the `-v` diff lists every changed sprite, and each one goes on a board, rig 1 beside rig 2 at 1x and 3x. doll: one pair per hash_looks line |
+| village-art fixture | golden_village_art_rig1.txt (today's bytes; `--rig=1` 65 / 0) | golden_village_art.txt at rig 2 (65 groups) | one PNG per changed group, rig 1 beside rig 2 (`--village-art-dump` at both rigs); the unchanged groups listed |
+| `--arms` golden keys | kOldKeys (rig 1) | kOldKeys2 (rig 2) | a table: the look, its rig-1 key, its rig-2 key, changed or not, and any check restated per rig |
+| golden_anim_v1.txt and A1 | unchanged | unchanged (rig 1's pick) | A1 reads "identical" |
+| witness/refs/village_start.png | village_start_rig1.png | village_start.png at rig 2 | the two side by side in the record |
+| save_v23.bin, golden_towns, golden_world, golden_endless, golden_villages, metrics_m5 | never change | never change | sha256 equal to `git show b9e0108:<path>`; their tests pass |
+| the freeze; the pool | p2c_freeze.txt; 2,570,727 B, bfebaa79e8d2fb35 | p2c_freeze.txt at rig 2 (D107); 2,570,937 B, c8df3de9a5fc8245 (+210 B: tips.pxm's empty views) | `--freeze-check` 0 changed at the default; `pxc --check` |
+
+#### The flip's one full regression (the owner's rule: once per update; fix rounds verify only their fixes)
+
+The integrator (SWITCH) runs it once on the integrated build and keeps every log in .tmp/flip/regression/<step>. Then the
+verifier gate makes a PASS / FAIL table from those logs and re-runs R2 on the same build. Then comes the judge. It states
+this protocol in round 1, re-measures R2 with its own harness and does R10. It reads every other line, and re-runs any
+line whose log is missing, stale (from another build id) or doubtful. Fix rounds re-run only their items' lines plus R2,
+never R3, R4 or R7 whole. A code item that fails twice goes to engineer-high.
+
+The rules for every step:
+- Every heavy process goes through tools/slot.sh (5 at most, machine-wide).
+- Never kill a running Embervale.exe.
+- Never touch %APPDATA%\Josh17400\Embervale (the owner's save and settings).
+- Timing lines run with no other heavy process. A failure on timing alone is re-run alone before it counts.
+- Images are 8,000 px or less. Screenshots go under %TEMP% and are deleted after review.
+
+- **R0, the build.**
+  - SWITCH integrates DOLL's and WITNESS's files. `git status --short` (read only) shows every changed path in exactly one
+    flip area.
+  - `tools/slot.sh cmd //c "set BDIR=build&& tools\\build.bat" < /dev/null` builds every target.
+  - `sha256sum build/*.exe > .tmp/flip/regression/build.sha` is the build id. A line run on another build is stale.
+  - `node tools/doll/pxc.mjs --check` reports the pool up to date: 2,570,937 B, hash c8df3de9a5fc8245 (D100, D107).
+  - The EMBERVALE_WITNESS=OFF configure and build of embervale links (the web stand-in, .tmp/judge/build_nowit.bat).
+- **R1, CI on both compilers.**
+  - `bash C:/Users/joshu/AppData/Local/Temp/claude/C--Users-joshu/5673c178-5c4b-4daa-8a88-0029f5ad318a/scratchpad/verify_batch.sh
+    p2a_ p2b_ p2c_` ends with msvc build rc=0, run_scripts 0 failed, `ci commands: 67`, CLANG_FAILS=0 and ok count 67.
+  - Every line of its ci_cmds.txt also runs on MSVC as `build/<command>`: 67 / 0. That covers `rpg_test --seeds 1..20`,
+    save_test, `--save-soak 100`, the town, world, endless and village goldens, `--anim --gates` with A1, and the rig-1 line.
+- **R2, the gates harness** (C1, C3-C6, C11-C19, B1-B12). `.tmp/judge/flip_gates.sh` is w2_gates.sh with these changes:
+  - the `env EMB_RIG=2` wrapper is dropped, so every doll line runs at the default;
+  - the freeze line reads tools/doll/freeze/p2c_freeze.txt (0 changed);
+  - new lines: `--doll-ladder --selftest` (ALL CAUGHT, D106's included); `--rig` with no EMB_RIG in its environment (0,
+    default 2); `--rig --gates --report`
+    (its H2 holders line 0; the other lines reported, P3's humanoids being P2d's); `--arms --seeds 1..3` (ALL OK on
+    kOldKeys2);
+  - the rig-1 proofs (D101): `build/art_hash.exe --rig=1` TOTAL 317eef6efe4d8229; `build/city_gallery.exe --rig=1
+    --village-art-check tests/fixtures/golden_village_art_rig1.txt` 65 / 0; `--arms --seeds 1..3 --rig=1` ALL OK; `--anim`
+    A1 identical;
+  - the default: `build/art_hash.exe` prints the recorded flip lines, and `build/city_gallery.exe --village-art-check`
+    reports 65 / 0.
+  - Every line ends with rc 0. cov_all (`--doll-coverage --scope all --seeds 1..20 --gates`) reports 100 %, 0 dead parts
+    and 0 postures on v1.
+- **R3, C2 and the full script sweep.**
+  - `BDIR=build RUN_LOG_DIR=.tmp/flip/regression/sweep tools/run_scripts.sh` runs every tools/scripts/*.txt except the
+    *_playtests.txt goal lists (414, plus the flip's 4).
+  - 0 scripts fail, and the sweep prints `v1draws rig2: 0 scripts with v1 frames`.
+  - Rig-1 frames appear only in scripts with a `rig 1` line, listed as the fallback's coverage.
+  - The _phone twins run as a phone's first launch at NEAR.
+- **R4, Witness.**
+  - `tools/slot.sh node ../witness/bin/witness.js test --repeat 2 --cmd "build/embervale --witness"` runs all 15 test files:
+    death_respawn, determinism, embervale, p2a_lens, p2a_lens_lane, p2b_doll, p2b_slice, p2c_envelope, p2c_forge,
+    p2c_ladder, p2c_slice, p2c_switch, p2c_zoom, touch_snapshot and witness_adoption.
+  - Every test passes in both passes, and the passes are identical (state, digest, shots within `--shot-tol` 2).
+  - Every `v1Draws == 0` check holds. p2c_switch's default test reads rig 2, and its rig-1 test still draws v1.
+  - `witness doctor --config witness.play.json --cmd "build/embervale --witness"` is all good, with "✔ lazy drawing safe"
+    when lazyDraw is on.
+- **R5, the re-records** (C9; D102).
+  - The table above holds on this build.
+  - The boards exist, and every sprite the `-v` diff names is on one.
+  - golden_village_art_rig1.txt is byte-identical to `git show b9e0108:tests/fixtures/golden_village_art.txt`.
+  - The sha256 of each never-change fixture equals b9e0108's.
+- **R6, C8 speed** (each timing line alone).
+  - The pool and B10 by tier come from R2.
+  - `EMB_TIMING=1 build/embervale.exe --perf --script tools/scripts/p2a_lead_perf.txt`: View::draw at NORMAL_RIG2 within
+    the rig-1 NORMAL median + 10 %; one facing's LOCO bake p95 0.385 ms or less; an ACTION atlas 6 ms or less.
+  - `EMB_TIMING=1 build/embervale.exe --perf --script tools/scripts/p2c_world_sweep.txt`:
+    - people 24 MB or less in the capital at 15:00;
+    - the rig-2 cache's MB and its evictions (none of an on-screen look);
+    - the city-arrival worst frame within p2a_lead_perf's rig-1 arrival + 4 ms.
+  - `--doll-ladder --finish --report`: the light of 8 T6 figures takes 0.3 ms or less (C13).
+  - The web: embervale.wasm in the flip ref's web-witness artifact is within the same variant at main 390c485 (P2c's start)
+    + 2,097,152 B.
+- **R7, C10 playtests.**
+  - `tools/slot.sh node ../witness/bin/witness.js play batch --goals tools/scripts/p2c_playtests.txt --config witness.play.json
+    --model sonnet --effort low --parallel 4` runs in the background, the only batch on the machine.
+  - That is 12 testers at the default rig, on the phone window with world:3 shots: T4 fighter, T5 outfitter, T6 watch and
+    T7 ladder, three each.
+  - Each goal is met by 2 of 3 testers. The per-tester report.md files are the record.
+  - Every note with a shot is triaged, as B13's were: reproduced or not, its owner, its ruling.
+- **R8, the first launches.**
+  - The phone: the _phone twins (R3) and `p2c_zoom_phone.txt` read NEAR at D 6 on 2556 x 1179, with the man 192 device px
+    tall.
+  - The desktop: `p2c_zoom.txt` reads NORMAL at D 3 on 1440 x 810, and NORMAL at D 7 on the iPad. Witness p2c_zoom passes
+    (R4).
+  - The web:
+    - the main session pushes the flip branch and dispatches web-witness.yml for that ref and for main;
+    - `gh run download <id> --name embervale-web-witness --dir site-witness` fetches the flip build;
+    - `witness doctor --config tools/witness_web --device iphone-15-landscape --engine webkit` is all good, and so is the
+      same with `--engine chromium`;
+    - `witness test --config tools/witness_web witness/p2c_switch.witness.json` passes p2c_switch's default test (the
+      README's `tests` note says how the web config reaches witness/);
+    - `node tools/witness_web/firstlaunch.mjs` takes the first-launch shot at NEAR, and with `--query rig=1` it shows the
+      fallback.
+- **R9, the save.**
+  - save_test and `--save-soak 100` pass (R1).
+  - `build/embervale.exe --script tools/scripts/p2c_flip_save.txt` and its _phone twin pass. save_v23 loads at rig 2, the
+    hero is on the doll, the shots are taken, and the v1 count is 0.
+  - The fixture's sha256 is unchanged after the run.
+- **R10, the look** (the judge; `eyes` agents turn the shots into measured text).
+  - The shots come from p2c_flip_look.txt and its _phone twin, at true 1x on the phone at NEAR (its first launch) and on
+    the desktop at NORMAL. Greyscale comes first, then colour, by day and at 22:00.
+  - The places: the start village OSLARS, the war camp (seed 2), the market town, the harbour, the bandit camp, the capital
+    at 15:00, and every menu.
+  - What to check:
+    - one kind of people everywhere, with no figure at another pixel size (STYLE_P2 20);
+    - doors, seats, beds, counters, boats and carts that fit the 32 px body (16);
+    - people reading on grass and on dark ground, and a clear HUD (17);
+    - menus at whole multiples, with the T6 envelope uncropped (C7) and the living finish quiet and out of step;
+    - the market's keepers behind their counters, the harbour's sailors and rowers on their boats, and the war camp's
+      soldiers in their peoples' kits;
+    - rank reading by size;
+    - each place matching the owner-approved pack (4_phone_near, 6_before_after, and the flip-pack scripts' `_rig2` halves
+      at the same moments).
+  - The blind read: three `eyes` lenses get the place shots, shuffled and unlabelled, and are asked "is every person
+    drawn in one style and size? point at any that differs". 0 named.
+  - One pair: the flip pack's `_rig1` shots beside the default's (the fallback is still reachable, and it differs).
+- **R11, the record.** The integrator writes "Production results and the flip": the build id; every R line's numbers;
+  art_hash's new lines and TOTAL; the village groups that changed; the `--arms` table; the playtest triage; the web sizes;
+  C8; the rig-1 proofs; MSVC equal to clang.
+- **Verdict** (the judge): PASS, or FAIL items, each with a repro command, the number, the threshold and the check that will
+  pass it. After PASS the main session commits and merges, and the deployed web becomes rig 2 with main's push.
 
 ### Gates (P2c DONE; every B gate stays green)
 
@@ -2740,8 +3021,36 @@ form9 means no shield.
   floors stand in every facing. trimBand does not change.
 - **The freeze** is hard against %TEMP%\claude\emb_P2c\wave2\freeze_final.txt (0 changed; D94 closed it; D99 rules no
   exception).
-- **tools/doll/freeze/p2c_freeze.txt** is the owner-signed baseline in the repo: a byte copy of freeze_final.txt (39,152
-  frames, pool bfebaa79e8d2fb35; `EMB_RIG=2 rpg_test --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt`).
+- **tools/doll/freeze/p2c_freeze.txt** is the owner-signed baseline in the repo, drawn at rig 2 (D107): 39,152 frames,
+  pool c8df3de9a5fc8245, its header stamped `rig 2`. The check runs at the default rig with no EMB_RIG:
+  `rpg_test --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt` (0 changed). Its last lines read
+  `freeze: 39152 frames checked, 0 changed, ...` and `freeze rig: manifest drawn at rig 2, checked at rig 2`; a manifest
+  checked at another rig than it was drawn at prints `; MISMATCH: ...` on that line (an unstamped manifest counts as rig 1).
+  The b9e0108 manifest, written at rig 1 by mistake, is kept as tools/doll/freeze/p2c_freeze_rig1.txt (unstamped; 0
+  changed with `EMB_RIG=1`).
+
+**Restated by the flip (2026-10-30; D100-D106; each change has a check that trips it):**
+- **C2** (D103): 0 people frames from a v1 sheet while rig 2 is set (the default). This holds over the full script sweep
+  (each script's `v1draws rig2` line, collected by run_scripts.sh: 0 in every script) and over every Witness test (its
+  `v1Draws == 0` checks). Rig-1 frames may appear only where a script or test opts in by name, and a stray one fails.
+- **C7**: measured at the default, with no rig param (p2c_switch's default test and p2c_flip_look's menus). The creator's
+  preview, a dialogue's speaker and the party column are added.
+- **C8**:
+  - The render baseline is rig 1 by name (p2a_lead_perf.txt's `rig 1`). The rig-2 city arrival (p2c_world_sweep) stays
+    within the rig-1 arrival + 4 ms.
+  - embervale.wasm (the web-witness variant) at the flip stays within the same variant at main 390c485 (P2c's start)
+    + 2,097,152 B.
+  - Timing lines run with no other heavy process. A bake p95 over 0.385 ms under load is re-run on a quiet machine before
+    it counts. The owner pack noted 0.557 ms with 7 processes, then 0.285 and 0.335 ms quiet.
+- **C9** (D101, D102): re-recorded once at the flip, with pairs. The rig-1 record holds behind the opt-in.
+- **C10**: T4-T7 at the default rig (witness.play.json without EMB_WPLAY_RIG), each met by 2 of 3 Sonnet-low testers, and
+  every note with a shot triaged. T7 is the ladder re-plan's.
+- **C12b, the cover floor** (D106): where one kit part of the upper tier covers 12 px or more of the tier below, and the
+  tier below shows 4 or more colours there, that part shows 3 or more colours of its own. A flat one-colour piece laid over
+  a rich piece FAILs.
+- **Rig 1, the fallback** (D101): `art_hash --rig=1` TOTAL 317eef6efe4d8229, `city_gallery --rig=1 --village-art-check
+  tests/fixtures/golden_village_art_rig1.txt` 65 / 0, `--anim` A1 identical, `--arms --seeds 1..3 --rig=1` ALL OK, and
+  p2c_switch's rig-1 test.
 
 ### Constants that interact (budgets and timing)
 
@@ -2816,8 +3125,10 @@ arithmetic is the constants table in "The envelope".
 - **D7. Block is a 0.15 s visual flash** on the sword's parry and on a shield bearer's parry. No sim state, no balance
   change.
 - **D8. The humanoid monsters move to P2d.** Their v1 painter moves to art_monsters.cpp unchanged at the flip. (VISION_PLAN
-  15.36 had them in P2c; the P2b integrator already counted them as P2d's.)
-- **D9. Rig 1 retires at the flip**, and the flip waits for the owner's go on the before / after pack.
+  15.36 had them in P2c; the P2b integrator already counted them as P2d's.) (Restated by D100: the move waits for the
+  retirement; until then the humanoids keep humanoidCell where it is.)
+- **D9. Rig 1 retires at the flip**, and the flip waits for the owner's go on the before / after pack. (Restated by D100:
+  the owner gave the go on 2026-10-29 with nothing deleted. Rig 1 stays an opt-in fallback until a separate OK.)
 - **D10. Pauldrons and helms are shared** by both bodies: the same 16 px shoulders and head box, with the anchors carrying
   the woman's row. Torsos, skirts and tabards are fitted per body.
 - **D11. The pool budget is 1.5 MB** (it was 1.0 MB), and embervale.wasm stays within today's + 1.0 MB (the deleted
@@ -3448,6 +3759,94 @@ and the boards are in %TEMP%\claude\emb_P2c\wave2\fix2\d99:
     29.11; T4's 3-colour device and metal-2 rim; the T5 gem and the brow gem, 27.2), as a `when` view (ADD) wherever a
     signed-off look shares the view. A hue is never added just to pass, and a residual on a signed-off line comes to the
     planner with its numbers.
+
+The flip (2026-10-30, the owner's go: "Ready" = flip; old art is retired only on a separate OK) adds:
+- **D100. The flip keeps rig 1 as an opt-in fallback** (restates D8's and D9's timing, the IN and OUT lines and the vision).
+  - Rig 2, the doll, is the default everywhere: the game, the menus and portraits, the web, Witness and the scripts.
+  - Nothing is deleted. The v1 people painter, rpg/art/rig/**, the rig galleries, the view's v1 fallbacks and
+    golden_anim_v1 stay in the tree. Rig 1 stays reachable instead of being ignored: EMB_RIG=1, script `rig 1`, Witness
+    `rig: 1`, web `?rig=1`, and `--rig=1` on the tools.
+  - A rig-1 line that tested the old default is restated at rig 2. A rig-1 line that exercises the fallback on purpose
+    stays and is named the fallback's: the side-by-side segments, the flip-pack scripts and p2c_switch's rig-1 test.
+  - The moves planned with the deletion (metalRampKeys, humanoidCell, the galleries' port) wait for the retirement,
+    because they exist only to survive it. Until then the galleries keep their v1 boards and say so.
+  - The retirement list in "The flip (wave 3)" is what the owner's separate OK deletes, in one later step with its own gate.
+  - The pool at the flip is 2,570,937 B (c8df3de9a5fc8245): 210 B more than b9e0108's 2,570,727 B, for the empty views
+    tips.pxm gains (legs/adult/loco; they draw nothing). No frame changes.
+- **D101. Rig 1 behind the opt-in is today's rig 1, pixel for pixel.**
+  - The k-scaled holders are the only size at the default. The v1 holder sizes stay bound to rig 1 with the v1 people,
+    because a fallback in k-scaled doors would be neither rig.
+  - The rig-1 record moves behind the opt-in, checked by the regression and by one CI line:
+    - `art_hash --rig=1` TOTAL 317eef6efe4d8229, with per-sprite lines equal to b9e0108's;
+    - `city_gallery --rig=1 --village-art-check tests/fixtures/golden_village_art_rig1.txt` 65 / 0;
+    - `--anim` A1 identical;
+    - `--arms --seeds 1..3 --rig=1` ALL OK on today's keys.
+  - A change to any of them is a defect of the flip.
+  - The tools read EMB_RIG as the game does. `--rig=1|2` exists as a flag as well, because verify_batch extracts CI lines
+    without their environment.
+- **D102. The goldens are re-recorded once, at rig 2, with pairs** (C9 at the flip; the table is in "The flip (wave 3)").
+  - art_hash: `doll` replaces `humans`, hashing the atlases of tools/doll/hash_looks.txt.
+    - `monsters` and `icons` (and their +new) hash the same at both rigs, which proves them unchanged.
+    - `props`, `buildings`, `walls` and `fx` change (the k-scaled holders, the effects from maps). Every changed sprite is
+      shown.
+  - The village fixture is re-recorded at rig 2, after today's file is copied to golden_village_art_rig1.txt.
+  - `--arms` keeps one key table per rig.
+  - golden_anim_v1 and A1 stay.
+  - save_v23.bin, golden_towns, golden_world, golden_endless, golden_villages and metrics_m5 stay byte-identical, and so
+    do the freeze and the pool.
+- **D103. C2 is read at the default.**
+  - The flip counts v1 people frames per run: View's v1DrawsRun2 while rig 2 is set, and v1DrawsRun1 while rig 1 is
+    opted into.
+  - Each `--script` run prints both counts at its end, and run_scripts.sh collects them. Witness reports
+    `screen.v1DrawsRun`.
+  - C2 passes when every script and every Witness test reads 0 at rig 2. Rig-1 frames are the fallback's coverage. They
+    are allowed only in a script or test that opts in by name.
+  - The counter is what turns "over the full script sweep" into a number. No single test sees the sweep.
+- **D104. CI at the flip.**
+  - The Clear Sight step runs pxc --check, `--rig`, `--anim --gates`, `--doll --gates`, `--doll-coverage --scope all --seeds
+    1..3 --gates` and `--doll-variety --seeds 1..3 --gates`.
+  - `--rig-coverage` leaves CI (C1 replaces it). Its code stays until the retirement.
+  - One line keeps the fallback from rotting until the retirement OK: `rpg_test --arms --seeds 1..3 --rig=1`. A1 and
+    `--rig`'s rig-1 contract already run.
+  - verify_batch's count becomes 67.
+- **D105. Witness 0.7.11.** The C++ adapter that Embervale vendors predates 0.7.7. From 0.7.7 to 0.7.11 nothing is
+  required for a C++ game: the steps for DOM taps, tappables, CSS animations and wheel scrolling belong to the JS adapter,
+  and the web bridge is witness_emscripten.js, which already matches 0.7.11's. The adoption is:
+  - re-copy adapters/cpp/witness.h, which adds the step `"draw": "last"` hint and witness_drawing();
+  - name 0.7.11 in docs/PLAYTEST.md;
+  - turn on `play.lazyDraw` in witness.play.json once `witness doctor` prints "✔ lazy drawing safe".
+  - Embervale already draws only for a shot, and in watch mode, which never gets the hint. A lazy step therefore skips no
+    draw today, and doctor proves the hint harmless. The batch's wall time is reported, not gated.
+  - `--shot-tol` 2 now also covers `test --repeat` and `match` steps. Differences within it are notes, not failures.
+  - Re-copy the header whenever Witness changes the C++ adapter.
+- **D106. The C12 cover floor** (the judge's gap after D99; gate code only, no frame changes). Under D99 a new piece hides
+  what it covers, so a flat one-colour piece laid over a rich piece passed whenever the rest of the figure held its colours.
+  - The rule: take one kit part of the upper tier (a FrameProbe item) that lies over 12 px or more of the tier below,
+    where the tier below shows 4 or more colours (a different kit piece, the person or the clothes: D99's covers). That part
+    shows 3 or more colours of its own over all its visible pixels in that view. The 3 is planned: lit, mid and shade,
+    A3's smallest ramp.
+  - Like against like stays D99's.
+  - `--report` lists every cover (the part, the area, the colours below on it, the part's own count) and the five lowest.
+  - Selftests:
+    - D99's tassets view with the covering part in one colour FAILs, in two colours FAILs, and in three passes;
+    - a one-colour closed helm over the T3 face FAILs;
+    - a one-colour part over 11 px is not read;
+    - a one-colour helm over the helm below still FAILs, by D99;
+    - on real frames: take the first T3 -> T4 cover facing R on the hero's line (the officer's cloak over the T3 back,
+      else the first such cover on source L, named in the report). Recoloured to one colour in a copy, it FAILs. As drawn,
+      it passes.
+  - If a real part on source L or the hero's line reads under 3, the floor is 2 for the flip (the flat one-colour case
+    still FAILs), and those parts go to the planner with their numbers. No frame is changed and no threshold is moved to
+    pass a flat piece.
+- **D107. The signed freeze is the rig-2 manifest** (main-session ruling, 2026-10-30). The tools/doll/freeze/p2c_freeze.txt
+  signed at b9e0108 was written at rig 1 by mistake: rpg_test ignored EMB_RIG there, while the owner judged rig-2 boards.
+  All 160 owner-judged frames match rig 2.
+  - p2c_freeze.txt is replaced by the rig-2 manifest (39,152 frames, pool c8df3de9a5fc8245, header stamped `rig 2`).
+    `rpg_test --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt` at the default rig reports 0 changed and
+    `freeze rig: manifest drawn at rig 2, checked at rig 2`.
+  - The rig-1 manifest stays beside it as tools/doll/freeze/p2c_freeze_rig1.txt (0 changed with `EMB_RIG=1`). It is the
+    fallback's record, not a gate.
+  - The rig-gated fields (the alloy shield paint) are why the two differ. A freeze is compared at the rig it was drawn at.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -5045,7 +5444,8 @@ the tier's ratio. T1 measures 718-836 px.)
   - Files in wave 3 (serial, every other area delivered, after the owner's go): rpg/art/art_human.cpp/.h, art_life.cpp/.h,
     art_internal.h, rpg/art/rig/**, art_monsters.cpp, art_items.cpp, art_rig.h/.cpp, CMakeLists.txt, tools/art_hash.cpp,
     tools/tests/test_rig.cpp, test_anim.cpp, test_arms.cpp, tests/fixtures/golden_anim_v1.txt, golden_village_art.txt,
-    .github/workflows/web.yml, and every script and Witness file that says `rig 1`.
+    .github/workflows/web.yml, and every script and Witness file that says `rig 1`. (Restated 2026-10-30 by D100: the flip's
+    files are the SWITCH list of "The flip checklist". The deletions in this list wait for the retirement.)
   - Core in wave 2 (behind rig 2; deletes nothing):
     - every remaining draw path on the doll: the paperdoll at whole multiples, the creator preview, the HUD hero, the party
       list, portraits from A3's face, loot previews, statues through figureStill, the bather and swimmer crop from doll
@@ -5681,13 +6081,15 @@ gate code only. Nothing is drawn, the pool does not move, and no frame changes:
    (its gate in that section), the new freeze manifest (D94), the Batch A marks and the flip pack. Judge round 3 failed one
    item (C12 on source L). D99 turns it into DOLL's gate code alone ("Judge round 3 and D99"), then the integration
    build, the verifier gate and the judge's round 4. The freeze is now hard against freeze_final.txt.
-8. **Wave 3, the flip** (SWITCH, serial; not started before the owner's go), then **integration**: the one full regression.
-   - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
-   - The script sweep; Witness `test --repeat 2`.
-   - The web build (EMBERVALE_WITNESS=OFF) and its size.
-   - art_hash and the goldens re-recorded with pairs.
-   - The C10 playtests.
-   Then a verifier gate, then judge rounds (at most 4).
+8. **Wave 3, the flip** (restated 2026-10-30; the owner gave the go on 2026-10-29, with nothing deleted: D100).
+   - Three areas start at hour 0 on b9e0108, with disjoint files (P2C_CONTRACTS 1): SWITCH (the flip itself, serial
+     inside the area; also the integrator), DOLL (D106) and WITNESS (D105).
+   - SWITCH builds build/ for integration. Then comes the one full regression ("The flip's one full regression", R0-R11),
+     run once: every CI command on MSVC and on WSL clang 18, the script sweep with C2's counter, Witness `test --repeat 2`,
+     the re-records with their pairs, C8 and the web, the C10 playtests, the first launches, the save, and the look.
+   - Then the verifier gate and judge rounds (at most 4). Fix rounds re-run only their items' lines and R2.
+   - After PASS the main session commits and merges, and the deployed web becomes rig 2 with main's push.
+   - The retirement waits for the owner's separate OK.
 
 ### What the judge focuses on (and how each done is measured)
 
@@ -5743,7 +6145,18 @@ gate code only. Nothing is drawn, the pool does not move, and no frame changes:
      Closed helms, plate over the clothes and a new piece laid over another are steps up, so the judge reads each higher tier beside the one below at true 1x and 3x, as the richer kit (D99's pairs). A
      face hidden by a closed helm, a coloured alloy's own-metal trim and a winged pauldron's rim in profile are not
      defects.
-2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
+   - **the flip** (2026-10-30; D100-D106): from the state a player starts in (no EMB_RIG, no rig param), the doll
+     everywhere. The judge checks:
+     - the start village, a war camp, a market, a harbour and every menu at true 1x, on the phone at NEAR (first launch)
+       and on the desktop at NORMAL, greyscale first;
+     - one kind of people at one pixel size, and holders that fit the 32 px body;
+     - each place against the owner-approved pack;
+     - rig 1 still reachable and unchanged behind the opt-in, with nothing deleted;
+     - the re-records' pairs reading as the k-scaled holders and the doll, with monsters and icons identical;
+     - the C12 cover floor catching a flat piece.
+     The protocol is "The flip's one full regression".
+2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs; after the flip, rig 1
+   unchanged behind the opt-in (D101).
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; until the flip at rig 2 through EMB_RIG=2, with the phone as a first launch at NEAR; after the flip, rig 2 by
    default), and reruns every area's done with the area's own commands. An agent's word passes nothing.
@@ -5859,6 +6272,21 @@ gate code only. Nothing is drawn, the pool does not move, and no frame changes:
 - **Fix round: signed-off figures change while the freeze waits** (D72): every change is listed and attributed in DOLL's
   freeze report; if the owner refuses e4's cloak, the hero lines' T4 keeps its tabard without it (one switch in the
   resolver, recorded) and the peoples' lines keep the rule.
+- **The flip: scripts and tests that expect rig 1 without saying so.** Known cases: p2a_lead_perf's baseline, p2a_lead_lens's
+  `expect rig 1`, and test_anim's restores. The sweep at the default finds the rest. Each case is restated at rig 2 with
+  its v1 value in a comment, or names rig 1 when it is a baseline. No script gains `rig 1` to pass, and a rig-2 fault is
+  fixed in code. A test that "restores" rig 1 would leave its process at rig 1. RigScope, `--rig`'s "default rig 2" line
+  and D103's stray-frame check catch that.
+- **The flip: the fallback rots before the retirement.** A1, `--rig`'s rig-1 contract, CI's rig-1 line and the
+  regression's rig-1 proofs (D101) guard it. Any change there is a defect of the flip.
+- **The flip: CI at the default meets a rig-1 rule in a sim test** (`--arms`, `--folk`, `--life`). The rule is restated per
+  rig and keeps its rig-1 form (checklist item 10). A real rig-2 fault is fixed.
+- **The flip: the web differs from the desktop** (the first launch at NEAR on a touch-first screen). Before the merge,
+  check the web-witness artifact's doctor, firstlaunch.mjs's shot and the wasm size. The deployed site changes only with
+  main's push.
+- **The flip: D106 fails a real piece.** The floor is 2 for the flip, the parts go to the planner, and no frame changes.
+- **The flip: lazyDraw changes a run.** Doctor comes first, and lazyDraw stays off if it is not safe. Embervale draws only
+  for shots, so no change is expected.
 
 ### Process (the owner's rules for P2c)
 
@@ -6045,6 +6473,14 @@ art_hash 317eef6efe4d8229, village-art 65/0, --anim 0, full rpg_test ALL OK.
 in production". Record per integration: the pool's size and hash; every area's delta against its allowance; every gate
 line's numbers; the per-people table with any rulings; the measured T5-T6 ACTION, DEATH and POSTURE; rig 1; MSVC equal to
 WSL clang 18. The older entries below are the ladder's alloys iterations, kept where they were written.)
+
+**The flip (wave 3; the integrator fills this at the regression's R11; D100-D106).** To record:
+- the build id, and the numbers of R0-R10;
+- art_hash's new lines and TOTAL, beside its rig-1 lines under `--rig=1`;
+- the village groups that changed, and the `--arms` keys table;
+- the sweep's v1 counts per rig, the Witness passes, and the playtest triage;
+- C8, the web sizes, and the rig-1 proofs;
+- MSVC equal to WSL clang 18.
 
 **Wave 2 integration 4 (INTEGRATOR, 2026-10-29; every area's round 4; bin/rpg_test_int4.exe).** Pool 2,297,837 B, hash
 4475d3c53266351a (gate 2,621,440; pxc 0 errors). Shape table re-solved warm (0 hard, 1 line moved, rules 1-7 0).

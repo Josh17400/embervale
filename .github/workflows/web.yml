@@ -86,6 +86,7 @@ jobs:
           ./build-native/rpg_test --loot-audit
           ./build-native/rpg_test --foes --seeds 1..3
           ./build-native/rpg_test --arms --seeds 1..3
+          ./build-native/rpg_test --arms --seeds 1..3 --rig=1
 
       # M8b Treasure (VISION_PLAN 15.27, 15.28): the loot overhaul. The rarity ladder gated by level, every non-Common
       # piece with a working visible affix from every source, the power curves (the iron / bronze example), determinism;
@@ -180,14 +181,23 @@ jobs:
       # (W1-W10, T1, T2 over GATES-WEAR's 213-look matrix and part coverage), B12 boots (the library's boot measures) and
       # the M7 cloak watch in B10; rpg_test --doll-wear runs B11 wear, the freeze check and the M7 sweep alone. All pass
       # on MSVC and clang after the rollout's fix rounds (docs/P2B_MOTION_ROLLOUT.md 12).
+      # (P2c flip, 2026-10-30, PLAN D100-D104) rig 2, the doll, is the default everywhere; rig 1 is an opt-in fallback
+      # (EMB_RIG=1, --rig=1) until the owner's retirement OK. --rig opens with "the default rig is 2" and keeps the v1
+      # contract by name; --anim's A1 still reads rig 1's pick against golden_anim_v1; --doll --gates, the census at C1
+      # (--doll-coverage --scope all --seeds 1..20 --gates: 100 %, 0 dead parts, 0 postures on v1; C1's own seeds, since
+      # seeds 1..3 leave 43 parts unreached even at b9e0108) and the variety gate run at the
+      # default. --rig-coverage left CI (C1 replaces it; its code stays until the retirement). The Gear step's
+      # `--arms --seeds 1..3 --rig=1` keeps the fallback's golden keys from rotting. --doll-ladder --selftest holds C12's
+      # synthetic defects, D106's cover floor (a flat one-colour piece over a rich one FAILs) included. Blocking.
       - name: Clear Sight rig and animation test
         run: |
           node tools/doll/pxc.mjs --check
           ./build-native/rpg_test --rig
           ./build-native/rpg_test --anim --gates
-          ./build-native/rpg_test --rig-coverage --seeds 1..3
           ./build-native/rpg_test --doll --gates
-          ./build-native/rpg_test --doll-coverage --seeds 1..3
+          ./build-native/rpg_test --doll-coverage --scope all --seeds 1..20 --gates
+          ./build-native/rpg_test --doll-variety --seeds 1..3 --gates
+          ./build-native/rpg_test --doll-ladder --selftest
 
       # M7 Home (VISION_PLAN 8, 15.22): crops and seasons, deterministic offline catch-up, a 1000-placement fuzz, the
       # 4 KB plot budget and the home block, building in a culture's style, riding and the dismount triggers. Blocking.

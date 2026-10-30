@@ -1321,8 +1321,10 @@ int freeze(const char* file, bool write) {
     FILE* f = std::fopen(file, "wb");
     if (!f) { std::printf("FAIL: freeze: cannot write %s\n", file); return 1; }
     const doll::PoolStats st = doll::poolStats();
-    std::fprintf(f, "# freeze manifest (P2B_MOTION_ROLLOUT 5.6): pool %s, %d parts; per matrix look every frame outside the side walk / run / drawn frames\n",
-                 st.hash.empty() ? "(file)" : st.hash.c_str(), st.parts);
+    // (P2c flip fix 3) the rig the frames were drawn at is stamped: gear_look's alloy shield paint (and any other rig-gated
+    // field) differs by rig, and an unstamped manifest from before the flip was drawn at rig 1 whatever EMB_RIG said
+    std::fprintf(f, "# freeze manifest (P2B_MOTION_ROLLOUT 5.6): pool %s, %d parts; per matrix look every frame outside the side walk / run / drawn frames; rig %d\n",
+                 st.hash.empty() ? "(file)" : st.hash.c_str(), st.parts, art::rigVersion());
     size_t n = 0;
     for (const WLook& w : looks) {
       std::map<std::string, uint64_t> fr;
@@ -1338,8 +1340,12 @@ int freeze(const char* file, bool write) {
   if (!f) { std::printf("FAIL: freeze: cannot read %s\n", file); return 1; }
   std::map<std::string, std::map<std::string, uint64_t>> man;
   char line[512];
+  int manRig = 0;   // 0: no rig stamp (written before fix 3; every pre-flip writer drew at rig 1)
   while (std::fgets(line, sizeof line, f)) {
-    if (line[0] == '#') continue;
+    if (line[0] == '#') {
+      if (const char* r = std::strstr(line, "; rig ")) manRig = std::atoi(r + 6);
+      continue;
+    }
     char tag[128], part[32];
     int fc, c, v, i;
     unsigned long long h;
@@ -1443,6 +1449,11 @@ int freeze(const char* file, bool write) {
     }
   }
   std::printf("  freeze: %zu frames checked, %d changed, %d gone, %d new frames, %d looks not in the manifest; %d changed as ruled (freeze_accepted.txt)\n", checked, changed, missing, extra, newLooks, okChanged);
+  {
+    const int was = manRig ? manRig : 1;
+    std::printf("  freeze rig: manifest drawn at rig %d%s, checked at rig %d%s\n", was, manRig ? "" : " (no stamp: a pre-flip manifest)", art::rigVersion(),
+                was == art::rigVersion() ? "" : "; MISMATCH: rig-gated fields (the alloy shield paint) differ, so compare at the manifest's rig or re-sign");
+  }
   for (const auto& kv : byLook) std::printf("  freeze changed %-28s %d frames\n", kv.first.c_str(), kv.second);
   return changed + missing;
 }

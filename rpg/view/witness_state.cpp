@@ -262,7 +262,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.end_array().end_object();
     j.field("zoom", ss.zoom).field("zoomName", screen::zoomName(ss.zoom)).field("ring", ss.ring)
         .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
-        .field("v1Draws", v.v1Draws).field("peopleMB", r2(v.peopleMB())).field("rigMB", r2(v.lensStats.rigMB)).field("rigCapMB", r2(v.rigCapMB()))
+        .field("v1Draws", v.v1Draws).field("v1DrawsRun", (int)v.v1DrawsRunAt(2)).field("peopleMB", r2(v.peopleMB())).field("rigMB", r2(v.lensStats.rigMB)).field("rigCapMB", r2(v.rigCapMB()))
         .field("rigEvictions", v.lensStats.rigEvictions).field("rigRebakes", v.lensStats.rigRebakes).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
     j.end_object();
     // (Witness 0.7.1) the layers in screen pixels, so measure scale / doctor read each one at its own scale: the world

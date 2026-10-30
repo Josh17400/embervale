@@ -1,7 +1,9 @@
 // P2a Clear Sight test commands (VISION_PLAN 15.36 item 10; the phase A harness, frozen: lanes report a harness problem
 // instead of editing it). Every command is also a Witness call (rpg/main.cpp lists the registered commands).
 //   zoom far|normal|near|close|-1..2|+|-   the ZOOM setting (an offset from D0; + / - step through the levels allowed)
-//   rig 1|2                                 the human rig (art::setRigVersion; the rig-dependent caches are rebuilt)
+//   rig 1|2                                 the human rig (art::setRigVersion; the rig-dependent caches are rebuilt):
+//                                           2 the doll, the default since the P2c flip; 1 the v1 fallback (opt-in until the
+//                                           owner's retirement OK)
 //   body man|woman                          the hero's body base (Appearance::female, the v2 rig's body)
 //   pose <clip> [family] [variant] [frame] | pose off   freeze the hero's frame (clip names: art::clipName)
 //   hideplayer [0|1]                        the hero's body not drawn (the shadow and ring stay): the shot pair's 2nd shot
@@ -80,12 +82,13 @@ bool cmdRig(ScriptCtx& c) {
   const int v = std::atoi(c.arg(1).c_str());
   if (v != 1 && v != 2) { c.fail("rig: 1 or 2"); return true; }
   if (v != art::rigVersion()) {
+    if (v == 1) std::printf("rig 1: the v1 people, an opt-in fallback until the owner's retirement OK\n");
     art::setRigVersion(v);
     c.view.rigChanged();
   }
   return true;
 }
-EMB_SCRIPT_CMD("rig", "rig 1|2: the human rig (P2a; 2 previews the v2 people where they are painted)", cmdRig);
+EMB_SCRIPT_CMD("rig", "rig 1|2: the human rig (2 the doll, the default since the P2c flip; 1 the v1 fallback, opt-in until the owner's retirement OK)", cmdRig);
 
 bool cmdBody(ScriptCtx& c) {
   const std::string w = Ops::lower(c.arg(1));

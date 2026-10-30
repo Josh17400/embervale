@@ -2096,6 +2096,13 @@ struct Reach {
   std::set<std::pair<uint64_t, int>> seenLook;
   std::set<uint64_t> seenPose;
   std::vector<PoseUse> poses;
+  // (P2c flip fix r2, judge C2) every counted source's looks the game draws from a v1 sheet at rig 2 (rig2Covers false), by
+  // source and first missing view: B6's share counted sources A, B and D only, so the capital herald (source K, Game::makeLook:
+  // `held=horn ... held/props/horn L key drop: no view`) drew on v1 in free play while coverage read 0 missing. all: every
+  // look; else the civil ones (--scope civil)
+  bool all = true;
+  std::map<std::string, int> v1Looks;
+  std::map<std::string, int> v1Views;
   int id(const char* name) {
     for (size_t i = 0; i < names.size(); i++) if (names[i] == name) return (int)i;
     names.push_back(name); src.push_back({});
@@ -2137,6 +2144,17 @@ struct Reach {
     const doll::DollRecipe r = doll::resolve(w.look);
     if (!art::rig2Covers(w.look)) {   // drawn on v1 (render.cpp rigTex): none of its doll parts is drawn
       const std::vector<doll::Missing> m = doll::dollMissing(w.look);
+      if (all || civil(w.look)) {   // (named by the first missing view of the clips rig2Covers reads: LOCO, DEATH, ACTION when armed)
+        std::vector<doll::Missing> why = doll::dollMissing(w.look, art::RigPart::Loco);
+        const char* clip = "loco";
+        if (why.empty()) { why = doll::dollMissing(w.look, art::RigPart::Death); clip = "death"; }
+        if (why.empty()) { why = doll::dollMissing(w.look, art::RigPart::Action); clip = "action"; }
+        const doll::Missing* x = why.empty() ? nullptr : &why[0];
+        if (g_report)   // (--report: every missing view of those clips, not only the first)
+          for (art::RigPart rp : {art::RigPart::Loco, art::RigPart::Death, art::RigPart::Action})
+            for (const doll::Missing& y : doll::dollMissing(w.look, rp)) v1Views[y.part.empty() ? std::string(doll::roleName(y.role)) + "=" + y.value : y.what()]++;
+        v1Looks[std::string(source) + " " + clip + ": " + (!x ? std::string("(nothing missing; a rig2Covers rule)") : x->part.empty() ? std::string(doll::roleName(x->role)) + "=" + x->value + " (" + doll::bodySetName(x->body) + ")" : x->what())]++;
+      }
       wanted(r, m, source, "look drawn on v1");
       if (p2cHeld(m)) {   // its postures' props wait on P2c with it
         posesOf(w, poses);
@@ -2276,6 +2294,7 @@ int coverageCmd(int argc, char** argv) {
   art::setRigVersion(2);
   doll::clearReached();
   Reach reach;
+  reach.all = all;
   std::map<std::string, int> missing;
   std::map<char, std::pair<int, int>> bySrc;   // covered / total
   int total = 0, covered = 0;
@@ -2405,10 +2424,15 @@ int coverageCmd(int argc, char** argv) {
   for (const std::string& x : doll::fxViewParts()) std::printf("  drawn by art_fx (contracts 4; no recipe asks it): %s\n", x.c_str());
   int poseMiss = 0;
   for (const auto& kv : reach.poseV1) poseMiss += kv.second;
+  int lookV1 = 0;
+  for (const auto& kv : reach.v1Looks) lookV1 += kv.second;
+  std::printf("  looks drawn on v1, every counted source: %d\n", lookV1);
+  for (const auto& kv : reach.v1Looks) std::printf("  look on v1 in %5d looks: %s\n", kv.second, kv.first.c_str());
+  for (const auto& kv : reach.v1Views) std::printf("  view missing in %5d v1 looks: %s\n", kv.second, kv.first.c_str());
   std::printf("  postures drawn on v1: %d (%zu body x posture)\n", poseMiss, reach.poseV1.size());
   for (const auto& kv : reach.poseV1) std::printf("  posture on v1 in %5d looks: %s\n", kv.second, kv.first.c_str());
-  if (gates && (share < 100.0 || !dead.empty() || poseMiss)) {
-    std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0), %d postures on v1 (0)\n", share, dead.size(), poseMiss);
+  if (gates && (share < 100.0 || !dead.empty() || poseMiss || lookV1)) {
+    std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0), %d postures on v1 (0), %d source looks on v1 (0)\n", share, dead.size(), poseMiss, lookV1);
     return 1;
   }
   return 0;

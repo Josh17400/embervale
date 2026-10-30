@@ -1236,7 +1236,9 @@ View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t v
 // never flipped. False (draw v1) until the painters cover the look. The blit is recorded for the night lift.
 bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost,
                        int horseFrame, int riderId) {
+  rigBakeNow_ = true;   // (P2c flip, D103) a rider on screen bakes now: never a v1 rider while the atlas waits
   const RigTex rt = rigPoseTex(L, art::Posture::Ride, 0);
+  rigBakeNow_ = false;
   if (!rt.ready()) return false;
   // (P2c SWITCH) the Ride frame per horse frame: the posture's frames step with the horse's cell (its gait's own beat),
   // the hip anchor of that frame on the saddle's seat point of that cell

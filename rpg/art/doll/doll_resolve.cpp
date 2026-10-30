@@ -138,6 +138,9 @@ int helmBandOf(const HumanLook& L) {
 // (P2c) a shield is borne (shieldForm 9 = ShieldForm::None + 1: none)
 bool shieldOf(const HumanLook& L) {
   if (L.shieldForm == 9) return false;
+  // (P2c flip, D103) an archer slings his shield (anim.cpp animBash, gear_ladder: bows carry none): an old save's bowman
+  // with a shield (save_v23's bandits) is drawn on the doll without it, never from a v1 sheet
+  if (!L.civil && familyOf(L) == Family::Bow) return false;
   return L.shield || L.shieldStyle || L.shieldForm;
 }
 // (P2c forge, contracts 3c) shoulder: the body style's shape (doll_forge.h's shoulder value, 0 the family's own): that shape
@@ -1353,8 +1356,14 @@ DollRecipe resolve(const HumanLook& L0) {
     }
     if (served(v)) n.value = v;   // (a chain that finds nothing drawn leaves the need as it was: still reported missing)
   }
+  // (P2c flip fix r2) a posture's prop (maps/held/props/) enters a recipe only through its posture (withPosture): the played
+  // horn shares `role held horn` with the herald's slung horn (held/civil/horn), so the herald's own recipe carried it, and
+  // the death clips' held=drop found no view for it: every herald drew from the v1 sheet at rig 2 (judge C2, flip r1). It
+  // never drew outside a posture (no rest or drop view), so no frame changes.
+  auto postureProp = [&](int i) { return P.s(P.parts[(size_t)i].name).rfind("held/props/", 0) == 0; };
   for (const Need& n : r.needs)
     for (int i : P.partsWithRole(n.role, n.value)) {
+      if (n.role == Role::Held && postureProp(i)) continue;
       const uint8_t m = P.parts[(size_t)i].bodyMask;
       bool ok = (m >> (int)r.body & 1) != 0;
       if (r.body == BodySet::Youth && headBox(n.role)) {
