@@ -186,3 +186,55 @@ regions
 |..NNNNNN..
 |..........
 |..........
+
+# (ARMOUR fix2 r1, a3slab.py) under an onion brim the outer plate carries the light (C19 A3)
+view D key rest origin 3 2 when helmfam-onion replace
+|vvvvvvvv
+|vyzyyyyv
+|vyyyyyyv
+|vwwwwwwv
+|vyyyxwv.
+|vyxxxwv.
+|.vvvvv..
+regions
+|........
+|.RRRRRR.
+|.PPPP...
+|.NNNNNN.
+|.PPPPP..
+|........
+|........
+
+view D key up origin 3 3 when helmfam-onion replace
+|vvvvvvvv
+|vyzyyyyv
+|vyyyyyyv
+|vwwwwwwv
+|vyyyxwv.
+|vyxxxwv.
+|.vvvvv..
+regions
+|........
+|.RRRRRR.
+|.PPPP...
+|.NNNNNN.
+|.PPPPP..
+|........
+|........
+
+view D key lie origin 3 2 when helmfam-onion replace
+|vvvvvvvv
+|vyzyyyyv
+|vyyyyyyv
+|vwwwwwwv
+|vyyyxwv.
+|vyxxxwv.
+|.vvvvv..
+regions
+|........
+|.RRRRRR.
+|.PPPP...
+|.NNNNNN.
+|.PPPPP..
+|........
+|........

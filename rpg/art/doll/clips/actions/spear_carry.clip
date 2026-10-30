@@ -62,12 +62,12 @@ f armL=back armR=idle legs=run4 neck=rest sheath=rest torso=rest hang=flare sway
 f armL=back armR=idle legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing
 f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
 clip run U family spear when spear
-f armL=back armR=idle legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1
-f armL=back armR=idle legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing
-f armL=idle armR=idle legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
-f armL=runF armR=idle legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1
-f armL=runF armR=idle legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing
-f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+f armL=back armR=guard legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:-1
+f armL=back armR=guard legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=-1 plant=-1:-7 braid=swing
+f armL=idle armR=guard legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
+f armL=runF armR=guard legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=5:-1
+f armL=runF armR=guard legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down sway=1 plant=-1:-7 braid=swing
+f armL=idle armR=guard legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-1 plant=-7:-13 crest=up
 clip run R family spear when spear
 f armL=pF armR=pN hilt=rest legs=run1 neck=flow2 sheath=kick torso=runl hang=flare lean=4 tuft=down plant=0:-6 hip=2,0 hair=run braid=run held=runcarry weapon=90,back
 f armL=pK armR=pN hilt=rest legs=run2 neck=flow2 sheath=kick torso=runl hang=flare hair=run lean=4 plant=-6:-12 hip=2,0 bob=-1 braid=run held=runcarry weapon=90,back

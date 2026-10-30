@@ -886,6 +886,10 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
     }
   }
   if (L.glow && L.glowColor == 0xFF2868FFu) flag("mythic");   // (P2c ladder) gear_look.h kMythicGlow
+  // (wave-2 fix round 4, D91 / D96; contracts 3d) `herokit`: the Heartland kit's road (HumanLook::forgeKit), so a fitted view
+  // can leave the signed-off hero lines out; `king`: Role::King (census::rankSlots sets HumanLook::king), the king's cape views
+  if (L.forgeKit) flag("herokit");
+  if (L.king) flag("king");
   // (P2c forge, contracts 3c) the forge flags: forge-<base> and the body's picks, the helm's crest, the shield's boss and rim,
   // the gloves' and boots' limbs; the armour's form; the metal in hand
   {
@@ -1130,6 +1134,22 @@ HumanLook ladderLook(const HumanLook& L) {
       }
     }
   }
+  // (wave-2 fix round 4, D96) a king's cape is his realm's colour, deep: the cloak colour he was dressed in (makeLook: the
+  // kingdom's; the census: its own), else his tabard's, darkened to the owner's crimson's depth (e25ea41's nking cape, mid
+  // step at luma 91) when it is lighter; census::rankSlots gave him the long cloak at his tier. doll_ramps passes it by D88's
+  // lift and pins the Heartland king's five steps to e25ea41's
+  if (fixOn(FIX_KING) && L.king && (E.cloak || E.cape)) {
+    uint32_t c = L.cloakColor ? L.cloakColor : (L.tabardColor ? L.tabardColor : (L.topColor ? L.topColor : rgba(110, 40, 40)));
+    const double lu = 0.299 * (c & 255u) + 0.587 * (c >> 8 & 255u) + 0.114 * (c >> 16 & 255u);
+    if (lu > 91.0) {
+      const double k = 91.0 / lu;
+      auto sc = [&](int sh) { return (uint32_t)((double)(c >> sh & 255u) * k + 0.5); };
+      c = 0xFF000000u | sc(16) << 16 | sc(8) << 8 | sc(0);
+    }
+    E.cloakColor = c | 0xFF000000u;
+    if (!E.cloak) E.cloak = 3;
+    E.cape = false;
+  }
   // (forge i3, C12a: lt2 to lt3 outline +4.4 %, 6 wanted, once the integrated helm maps landed) ARMOURER'S breastplate over
   // mail on the Heartland kit wears the hauberk to the knee under it: the mail skirt shows below the plackart (a lift only)
   // and ARMOURER'S flared guards a size up (the step's shoulders, C12a)
@@ -1209,6 +1229,7 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
   for (int s = 0; s < 8; s++) {
     const int t = L.tier[s];
     r.pieceTier[s] = (uint8_t)t;
+    if (L.rare >> s & 1) r.rare |= (uint8_t)(1u << s);
     if (!t) continue;
     const int tr = std::min(6, t + ((L.rare >> s & 1) ? 1 : 0));
     uint8_t* f = r.fin[s];
@@ -1424,6 +1445,19 @@ DollRecipe resolve(const HumanLook& L0) {
       r.flags.erase(std::remove_if(r.flags.begin(), r.flags.end(), [](const std::string& f) { return f.rfind("crest-", 0) == 0; }), r.flags.end());
     }
   }
+  // (wave-2 fix round 4, D93) the trim band's level per slot, measured on the finished recipe's idle D and R
+  tuneTrim(r);
+  // (fix round 2, C14) a touching pair rampsOf's look-only parting left under 18 luma, parted by the figure's own contacts; the
+  // king (D96's pinned crimson) keeps his ramps. (wave-2 fix round 4, fix round 3) every other kit is read, the Heartland's
+  // too: `herokit` is every Heartland kit (any seed), so the old guard left source L's Heartland women at T1-T2 unparted (C14 5).
+  // The parting moves a ramp only where a pair is under 18 or the lit edge under 40, and the signed-off figures clear both:
+  // `--doll-wear --freeze-check` against the fix-2 integration shows 0 changed frames on lt1-lt6, lt6m, lt1w, lt6w, nking and
+  // the envelope looks (D94 holds by measure). EMB_C14_HERO_GUARD=1 restores the old guard (diagnostics)
+  static const bool kHeroGuard = std::getenv("EMB_C14_HERO_GUARD") != nullptr;
+  const bool heroGuard = kHeroGuard && ((L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3) || r.has("herokit"));
+  if (fixOn(FIX_C14) && !heroGuard && !r.has("king") &&
+      !std::getenv("EMB_NO_CONTACT_PART"))   // (diagnostics only: the boards' before)
+    partContacts(r, L);
   return r;
 }
 

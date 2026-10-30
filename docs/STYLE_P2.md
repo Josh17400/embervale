@@ -1978,6 +1978,27 @@ whose cloak stirs. The cloak is the climb's backbone because it is the one mass 
   a Mythic alloy keeps its own helm and outline, its seams and rims lit with ember, the flame crown seated on its own crown
   with a clear row above the eyes.
 
+The owner's freeze sign-off (2026-10-29) and fix round 4 add (PLAN D90-D98):
+- **A device is a sign, not a texture** (D95). A shield carries one bold charge: the kite a cross, the heater a chevron,
+  built from 2 px bands in the device's two steps (a lit top-left edge over its mid step), well apart from the field in
+  value, symmetric on the shield's axis. The field round it is one clean convex plane, lit top-left and shaded bottom-right;
+  the etch and the filigree never touch the device. At 1x on the phone it reads as "a chevron on a shield", never as
+  mottle. A 1 px tracery or a five-pixel cross is noise at this size.
+- **The king wears his cape like a king** (D96). Full and symmetrical: both shoulders covered alike from behind, its edges
+  showing alike beside both arms from the front, a long trail behind in profile. Deep crimson, as he wore it at e25ea41,
+  never lifted toward salmon. Two or three long, calm folds, each lit by one quiet edge pixel of the cape's own light step,
+  never a white streak that reads as a flag. A level hem that clears the boots, with no stray pixel beside a foot. When he
+  falls the crimson goes down with him and spreads beside the body: a dead king is never a grey lump.
+- **Starters stay slim** (D91). A T1 collar sits inside its own neck and shoulder line: on a narrow neck it is cut to 11 px,
+  its ends turned down onto the shoulder slope as small outlined ends, so the starter's outline is the person's.
+- **A hidden fist still holds** (D90). Facing up, and on the far arm in profile, the body covers the fist: the weapon comes
+  out from behind the body where the fist would be, touching it, never floating clear, never drawn across the body where a
+  fist ought to show. Facing down and on the near arm the fist is always drawn on the grip.
+- **One kit, one look** (D97). A kit is the same figure whatever it carries: the helm, the crown's metal, the cloak and the
+  trim do not change with the weapon. Only the hands do.
+- **The relics climb in the body** (D92). Gilded, obsidian, emberforged and starmetal grow in the shoulders, the arms and the
+  skirt, each plainly bulkier than the one before; their helms (the onion, the crystal) climb on the helm's own ladder.
+
 ---
 
 ## Appendix: the P2a slice record (history; its look is superseded)

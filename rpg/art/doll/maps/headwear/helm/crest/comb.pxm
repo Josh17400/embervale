@@ -140,6 +140,57 @@ mark socket 6 0
 |...........vxv
 |............vv
 
+# (HELMS fix-2 r1, item 1) D98: the T4 alloy great helm, variant 0 (river s3, crest-comb; GREBRASS, variant 1, keeps its look: C16k) wears its forge comb in metal 2 (a brass comb on the alloy, as the T4 rib), the cast crest front to back with
+# its tail behind the nape, so the T4 head steps over the T3 kettle (the -39 add of a closed barrel that masks the hair)
+view D key rest origin 1 3 when helm.t4,!helm.t5,helmfam-great,!variant-1,!variant-2,alloyshape replace
+mark socket 1 0
+|.vv.
+|vQPv
+|vPOv
+|vONv
+|vONv
+|.vv.
+
+view U key rest origin 1 3 when helm.t4,!helm.t5,helmfam-great,!variant-1,!variant-2,alloyshape replace
+mark socket 1 0
+|.vv.
+|vQPv
+|vPOv
+|vONv
+|vONv
+|.vv.
+
+view R key rest origin 8 3 when helm.t4,!helm.t5,helmfam-great,!variant-1,!variant-2,alloyshape replace
+mark socket 7 0
+|.....vvvvvv...
+|...vvQQQPPPvv.
+|..vQPOOOONNNNv
+|.vPONNNNNNNNNv
+|vPOvvvvvvvvvv.
+|vOv...........
+|vv............
+
+view L key rest origin 5 3 when helm.t4,!helm.t5,helmfam-great,!variant-1,!variant-2,alloyshape replace
+mark socket 6 0
+|...vvvvvv.....
+|.vvQQQPPPvv...
+|vQPOOOONNNNv..
+|vPONNNNNNNNNv.
+|.vvvvvvvvvvPOv
+|...........vOv
+|............vv
+
+view L key lie origin 5 3 when helm.t4,!helm.t5,helmfam-great,!variant-1,!variant-2,alloyshape replace
+mark socket 6 0
+|...vvvvvv.....
+|.vvQQQPPPvv...
+|vQPOOOONNNNv..
+|vPONNNNNNNNNv.
+|.vvvvvvvvvvPOv
+|...........vOv
+|............vv
+# (HELMS fix-2 r1, item 1) end
+
 # (FORGE-HEAD i2) crest yield: drawn only on crested; any other alloy helm family wears no comb crest
 view D key rest when alloyshape,!helmfam-crested replace
 |.

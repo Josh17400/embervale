@@ -17,6 +17,11 @@
 # (wave-2 fix round 2, ACTIONS; PLAN D81: the off fist on every ACTION frame of a two-handed weapon) a two-handed weapon
 # rolls with its haft along the tumbling body (`when twohand`: the tuck and the over at weapon=292.5): at 270 it lay flat
 # across the curled body like a bar and both fists missed its line by 2 px (C3d: the greatsword, the spear, the glaive).
+# (wave-2 fix round 4, ACTIONS; C3d 32) the cast release facing U with a weapon in hand: a one-handed weapon rides the
+# guard fist out at the side (oh_g, the drawn idle's arm: the whole fist clear of a cape; it sat a pixel past the cape's
+# edge, the grip under it), the off hand releasing; a two-handed weapon stays in both fists at the chest (csgather, hidden
+# by the back, both fists on the haft: D90) and swings up behind the right shoulder (a045). The signed-off hero lines
+# (`herokit`) keep their cast (PLAN D94).
 
 body man
 clip hurt R when shield,capped
@@ -50,6 +55,9 @@ f armL=- armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=fl
 clip cast D when shield
 f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,front expr=closed sharm=guard shield=guard
 f armL=- armR=csshrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=180,front expr=fierce sharm=guard shield=guard
+clip cast U when shield,onehand,!herokit
+f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back sharm=guard shield=guard
+f armL=- armR=oh_g legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front sharm=guard shield=guard
 clip cast U when shield
 f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back sharm=guard shield=guard
 f armL=- armR=csshrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front sharm=guard shield=guard
@@ -140,6 +148,12 @@ f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest ha
 clip cast D
 f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,front expr=closed
 f armL=csrelease armR=csrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=180,front expr=fierce
+clip cast U when onehand,!herokit
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
+f armL=csrelease armR=oh_g legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front
+clip cast U when twohand,!herokit
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=45,back
 clip cast U
 f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
 f armL=csrelease armR=csrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front
@@ -182,6 +196,9 @@ f armL=- armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest hang=fl
 clip cast D when shield
 f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,front expr=closed sharm=guard shield=guard
 f armL=- armR=csshrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=180,front expr=fierce sharm=guard shield=guard
+clip cast U when shield,onehand,!herokit
+f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back sharm=guard shield=guard
+f armL=- armR=oh_g legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front sharm=guard shield=guard
 clip cast U when shield
 f armL=- armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back sharm=guard shield=guard
 f armL=- armR=csshrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front sharm=guard shield=guard
@@ -272,6 +289,12 @@ f armL=rlrise armR=rlrise legs=buckle neck=rest sheath=rest hilt=- torso=rest ha
 clip cast D
 f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,front expr=closed
 f armL=csrelease armR=csrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=180,front expr=fierce
+clip cast U when onehand,!herokit
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
+f armL=csrelease armR=oh_g legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front
+clip cast U when twohand,!herokit
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
+f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=45,back
 clip cast U
 f armL=csgather armR=csgather legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=202.5,back
 f armL=csrelease armR=csrelease legs=drawn neck=rest sheath=rest hilt=- torso=rest bob=1 lean=0 weapon=90,front

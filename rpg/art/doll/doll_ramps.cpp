@@ -20,6 +20,7 @@
 // ramps and four in their manner), elder greys; the creator's six eye colours as iris + glint pairs; six leathers; four
 // trim metals (brass, gold, silver, bronze). Everything else (cloth, headwear, cloaks, patterns) is the generator's.
 #include <algorithm>
+#include <map>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -1200,10 +1201,12 @@ DollRamps rampsOf(const HumanLook& L) {
           // brightening the whole ramp blows the lit plane into the glint, darkening it kills the glint), the metal's body
           // plane (step 2) moves alone, between its selout edge (step 1 + 12) and its lit plane (step 3 - 30): the plate read
           // (step 3 over step 1), the edge and the glint are untouched
+          // (wave-2 fix round 4, C14: the window between the hair and the skin is a luma or two wide on the T3 women's steel,
+          // which the 2 % steps jumped over) in 0.5 % steps
           if (who == S::Metal)
-            for (int k = 1; k <= 40; k++)
+            for (int k = 1; k <= (fixOn(FIX_C14) ? 160 : 40); k++)
               for (double dir : {1.0, -1.0}) {
-                const double f = 1.0 + dir * 0.02 * k;
+                const double f = 1.0 + dir * (fixOn(FIX_C14) ? 0.005 : 0.02) * k;
                 uint32_t t[5];
                 for (int q = 0; q < 5; q++) t[q] = T[q];
                 t[2] = scaleRgb(T[2], f);
@@ -1219,7 +1222,12 @@ DollRamps rampsOf(const HumanLook& L) {
         if (near(S::Cloak, S::Leather)) partSafe(S::Cloak, {S::Leather});
         // (fix round 2, D88: a T3 woman's hair met her steel helm's brim and plates 3-14 luma apart on 25 lines) the metal
         // off the hair, the material's ramp moving (never the person's)
-        if (near(S::Metal, S::Hair)) partSafe(S::Metal, {S::Hair});
+        if (near(S::Metal, S::Hair) && !partSafe(S::Metal, {S::Hair}) && std::getenv("EMB_C14_DEBUG")) {
+          std::printf("    C14 metal-hair unparted:");
+          for (S o : {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin, S::Leather, S::Accent, S::Cloak, S::Field})
+            std::printf(" %d:%.0f", (int)o, luma(R.c[(int)o][2]));
+          std::printf(" | metal %.0f %.0f %.0f %.0f %.0f\n", luma(R.c[(int)S::Metal][0]), luma(R.c[(int)S::Metal][1]), luma(R.c[(int)S::Metal][2]), luma(R.c[(int)S::Metal][3]), luma(R.c[(int)S::Metal][4]));
+        }
         // (wave-2 fix round 3, D88) a pair the first mover could not part tries its other side (the material, never the person)
         if (near(S::Accent, S::Leather)) partSafe(S::Leather, {S::Accent});
         if (near(S::Leather, S::Cloth1)) partSafe(S::Cloth1, {S::Leather});
@@ -1259,10 +1267,19 @@ DollRamps rampsOf(const HumanLook& L) {
     }
     // (wave-2 fix round, D88; STYLE_P2 29.11 "cloaks keep their light") every cloak colour's lit steps clear the darkest day
     // ground: step 1 (the selout-lit edge) at 82 luma where step 2 allows, the lit fold (step 3) at 86 or more
-    if (fixOn(FIX_COLOUR) && (L.cloak || L.cape || L.tier[HumanLook::TIER_CLOAK]) && !(L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3)) {
+    // (wave-2 fix round 4, D96) a king's cape is passed by: his realm's deep colour as the owner judged it (C14 reads his lit
+    // fold against the cape's own step 3)
+    const bool kingCape = fixOn(FIX_KING) && L.king;
+    if (fixOn(FIX_COLOUR) && !kingCape && (L.cloak || L.cape || L.tier[HumanLook::TIER_CLOAK]) && !(L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3)) {
       uint32_t* C = R.c[(int)Slot::Cloak];
       for (int it = 0; it < 24 && luma(C[3]) < 86.0; it++) { C[3] = scaleRgb(C[3], 1.05); if (luma(C[4]) < luma(C[3]) + 12.0) C[4] = scaleRgb(C[4], 1.05); }
       for (int it = 0; it < 20 && luma(C[1]) < 82.0 && luma(scaleRgb(C[1], 1.05)) < luma(C[2]) - 6.0; it++) C[1] = scaleRgb(C[1], 1.05);
+    }
+    // (wave-2 fix round 4, D96) the Heartland king's cape: e25ea41's five steps (read from rpg_test_w0's nking: the owner's "old
+    // deep crimson"); the maps keep step 4 off the cape (the folds lit by a 1 px step-3 edge)
+    if (kingCape && (L.makerPeople == 3 || L.forgeKit)) {
+      static const uint32_t kKingCrimson[5] = {0x220813, 0x631B27, 0xA53C3C, 0xED7A5D, 0xFFB684};
+      for (int q = 0; q < 5; q++) R.c[(int)Slot::Cloak][q] = hex(kKingCrimson[q]);
     }
     // (ladder i2, C14) the leather's step 1 is the lit edge of a soft kit's silhouette (A3's brown at 58 luma sank into dark
     // ground: lt2's edge 35 over the forest floor): lifted to 82 luma, under its step 2, the outline untouched
@@ -1289,6 +1306,151 @@ DollRamps rampsOf(const HumanLook& L) {
       forge::guiseHeadwear(forge::unpackGuise(L.forgeGuise).helm))
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Head][i] = R.c[(int)Slot::Metal][i];
   return R;
+}
+
+// (fix round 2, C14) rampsOf parts the materials by the look alone, so it must keep every pair that was 18 apart whether or not
+// the two ever touch, and on the T3 women's steel (hair 149, skin 186, leather 122, field 162, cloak 169 luma) no value of the
+// metal is 18 off all of them: the steel stayed 7-9 off the hair it frames. Here the figure's own contacts (the idle D and R)
+// decide: a pair touching on 3 or more contacts and under 18 luma at step 2 is parted by moving its material (never the
+// person's hair or skin, D88), holding 18 only against what that material touches (every pair it touches on 3 or more
+// contacts, C14's own count, clears 18) and keeping rampsOf's metal rules (the plate read, the glint, the selout
+// edge, C17's distances). Returns true when it moved a ramp
+bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& cr, bool edgeOwn, bool dbg) {
+  const auto& touch = cr.touch;
+  using S = Slot;
+  static const S kMat[] = {S::Cloth1, S::Cloth2, S::Accent, S::Leather, S::Metal, S::Hair, S::Skin, S::Cloak, S::Field, S::Head};
+  const bool styled = L.forge[HumanLook::TIER_BODY] != 0;
+  auto person = [](S s) { return s == S::Skin || s == S::Hair; };
+  auto con = [&](S a, S b) { return (int)touch[(int)a][(int)b] + (int)touch[(int)b][(int)a]; };
+  auto l2 = [&](S s) { return luma(R.c[(int)s][2]); };
+  bool moved = false;
+  auto tryMove = [&](S m) -> bool {
+    uint32_t* T = R.c[(int)m];
+    auto ok = [&](const uint32_t* t) {
+      for (S o : kMat) {
+        if (o == m) continue;
+        const int c = con(m, o);
+        if (!c) continue;
+        const double now = std::fabs(luma(t[2]) - l2(o)), was = std::fabs(luma(T[2]) - l2(o));
+        (void)was;
+        if (c >= 3 && now < 18.0) return false;   // (a contact of a pixel or two is a seam, not two materials side by side: C14)
+      }
+      if (luma(t[2]) - luma(T[0]) < 40.0) return false;   // (the body 40 over its own outline, as rampsOf)
+      if (luma(t[1]) < std::min(80.0, luma(T[1])) - 0.5) return false;   // (the selout-lit edge never sinks: C14's lit edge)
+      if (styled && (m == S::Leather || m == S::Cloth1 || m == S::Cloth2))
+        for (int st = 2; st <= 3; st++) if (deltaE76(t[st], R.c[(int)S::Metal][st]) < std::min(16.0f, deltaE76(T[st], R.c[(int)S::Metal][st]))) return false;
+      if (m == S::Metal) {
+        if (luma(t[3]) - luma(t[1]) < std::min(60.0, luma(T[3]) - luma(T[1])) - 0.5) return false;   // (C17: the plate read)
+        if (luma(t[4]) < std::min(196.0, luma(T[4])) || luma(t[4]) > 251.0 || luma(t[4]) < luma(t[3]) + 4.0) return false;   // (the glint)
+        for (int st = 2; st <= 3; st++)
+          for (const std::pair<S, float> o : {std::pair<S, float>{S::Skin, 20.0f}, {S::Leather, 15.0f}, {S::Cloth1, 15.0f}})
+            if (deltaE76(t[st], R.c[(int)o.first][st]) < std::min(o.second, deltaE76(T[st], R.c[(int)o.first][st]))) return false;
+      }
+      return true;
+    };
+    // the metal's body plane alone first (its edge, lit plane and glint untouched), between its selout edge + 12 and its lit
+    // plane - 30, the nearest value first; then the whole ramp (steps 1-4, hue kept), the nearest scale first
+    if (m == S::Metal)
+      for (int k = 1; k <= 200; k++)
+        for (double dir : {1.0, -1.0}) {
+          uint32_t t[5];
+          for (int q = 0; q < 5; q++) t[q] = T[q];
+          t[2] = scaleRgb(T[2], 1.0 + dir * 0.005 * k);
+          if (luma(t[2]) < luma(t[1]) + 12.0 || luma(t[2]) > luma(t[3]) - 30.0) continue;
+          if (ok(t)) { T[2] = t[2]; return true; }
+        }
+    for (int k = 1; k <= 80; k++)
+      for (double dir : {1.0, -1.0}) {
+        const double f = 1.0 + dir * 0.0125 * k;
+        if (f <= 0.2) continue;
+        uint32_t t[5];
+        t[0] = T[0];
+        for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+        if (m == S::Metal && f < 1.0 && luma(T[1]) <= luma(t[2]) - 8.0) t[1] = T[1];
+        if (m == S::Metal && luma(t[4]) > 250.0) t[4] = scaleRgb(T[4], std::max(1.0, 250.0 / std::max(1.0, luma(T[4]))));
+        if (luma(t[4]) > 252.0 && m != S::Metal) continue;
+        if (ok(t)) { for (int q = 1; q < 5; q++) T[q] = t[q]; return true; }
+      }
+    return false;
+  };
+  for (S a : kMat)
+    for (S b : kMat) {
+      if (!(a < b) || con(a, b) < 3 || std::fabs(l2(a) - l2(b)) >= 18.0 || (person(a) && person(b))) continue;
+      bool done = false;
+      // the material moves: the metal first where it is one of the two (its body plane alone keeps its read), else each side
+      for (S m : {a == S::Metal || person(b) ? a : b, a == S::Metal || person(b) ? b : a}) {
+        if (person(m) || done) continue;
+        done = tryMove(m);
+      }
+      if (dbg && !done) {
+        const S m = a == S::Metal || person(b) ? a : b;
+        std::printf("    C14 contact m %s %.0f %.0f %.0f %.0f %.0f touches:", slotName(m), luma(R.c[(int)m][0]), luma(R.c[(int)m][1]), luma(R.c[(int)m][2]), luma(R.c[(int)m][3]), luma(R.c[(int)m][4]));
+        for (S o : kMat) if (o != m && con(m, o)) std::printf(" %s %d@%.0f", slotName(o), con(m, o), l2(o));
+        std::printf("\n");
+      }
+      if (dbg)
+        std::printf("    C14 contact part %s/%s (%d contacts): %s, now %.0f luma apart\n", slotName(a), slotName(b), con(a, b), done ? "moved" : "no move", std::fabs(l2(a) - l2(b)));
+      moved = moved || done;
+    }
+  // (fix round 2, D88: the lit top-left edge 40 luma over the darkest day ground, every figure; a T2 Highland woman's at 79
+  // under 79.8, a T5 Dune woman's facing R at 70 where her plume and cloak make the edge) the edge's upper quartile read as
+  // C14 reads it; where it is short, the material with the most edge pixels under the mark climbs whole (steps 1-4, hue kept,
+  // the outline kept) until the quartile clears it, holding 18 luma against every pair it touches (3 contacts or more) that was
+  // 18 apart, its top step under 250 and the metal's rules (never the person's hair or skin, D88)
+  if (!edgeOwn) {
+    const double want = luma(0xFF1E2A24u) + 40.0 + 0.5;   // (the darkest day ground, #242A1E, + 40; half a luma of margin)
+    auto quart = [&](int g) {
+      std::vector<double> e;
+      for (uint8_t c : cr.edge[g]) e.push_back(luma(R.c[(int)codeSlot(c)][codeStep(c)]));
+      if (e.empty()) return 1e9;
+      std::sort(e.begin(), e.end());
+      return e[e.size() * 3 / 4];
+    };
+    for (int g = 0; g < 2; g++) {
+      if (quart(g) >= want) continue;
+      std::map<int, int> under;   // slot -> edge pixels under the mark
+      for (uint8_t c : cr.edge[g]) {
+        const S sl = codeSlot(c);
+        if (person(sl) || sl == S::Ink || sl == S::Eyes || sl == S::Face || sl == S::Glow || sl == S::Fx || sl == S::Skin) continue;
+        if (luma(R.c[(int)sl][codeStep(c)]) < want) under[(int)sl]++;
+      }
+      std::vector<std::pair<int, int>> order;
+      for (const auto& kv : under) order.push_back({kv.second, kv.first});
+      std::sort(order.rbegin(), order.rend());
+      bool lifted = false;
+      for (const auto& oc : order) {
+        if (lifted) break;
+        const S m = (S)oc.second;
+        uint32_t* T = R.c[(int)m];
+        for (int k = 1; k <= 40 && !lifted; k++) {
+          const double f = 1.0 + 0.0125 * k;
+          uint32_t t[5];
+          t[0] = T[0];
+          for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+          if (luma(t[4]) > 250.0) break;
+          bool ok = true;
+          for (S o : kMat) {
+            if (o == m || con(m, o) < 3) continue;
+            const double now = std::fabs(luma(t[2]) - l2(o)), was = std::fabs(luma(T[2]) - l2(o));
+            if (now < 18.0 && now < was - 1e-9) ok = false;
+          }
+          if (ok && m == S::Metal && luma(t[3]) - luma(t[1]) < std::min(60.0, luma(T[3]) - luma(T[1])) - 0.5) ok = false;
+          if (ok && styled && (m == S::Leather || m == S::Cloth1 || m == S::Cloth2))
+            for (int st = 2; st <= 3; st++) if (deltaE76(t[st], R.c[(int)S::Metal][st]) < std::min(16.0f, deltaE76(T[st], R.c[(int)S::Metal][st]))) ok = false;
+          if (!ok) break;   // (the climb only closes it further)
+          uint32_t keep[5];
+          for (int q = 0; q < 5; q++) { keep[q] = T[q]; T[q] = t[q]; }
+          if (quart(g) >= want) {
+            lifted = true;
+            if (dbg) std::printf("    C14 edge lift %c: %s x%.4f -> quartile %.1f\n", "DR"[g], slotName(m), f, quart(g));
+          } else for (int q = 0; q < 5; q++) T[q] = keep[q];
+        }
+      }
+      if (!lifted && dbg) std::printf("    C14 edge lift %c: none (quartile %.1f)\n", "DR"[g], quart(g));
+      moved = moved || lifted;
+    }
+  }
+  return moved;
 }
 
 }  // namespace doll

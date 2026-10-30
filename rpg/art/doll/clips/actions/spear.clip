@@ -44,6 +44,17 @@ f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=
 clip follow U family spear variant 0 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+# (wave-2 fix round 4, fix 2, ACTIONS; D90 h2) the block facing U for the ARMOURER's flared shoulders (`shoulder-flared`,
+# the knight): the haft raised two rows higher across the back (the rear fist on sp_guard's grip, the off fist on sp_wind's
+# gripL, both behind the body, the off fist 0.7 px from the haft line), so the leaf's half passes behind the helm's side
+# above the brow band. sp_brace's line ran through the notch between the helm and the flared guard rising beside the neck,
+# where the guard and the head overpaint the haft and the helm's erase box then clears them (the compositor keeps no held
+# pixel under an erased overpaint): 30 px of haft floated 1 px clear of the helm (the woman knight T4, U0 and U2). Every
+# other spear keeps sp_brace (lt6w's signed-off frames unchanged, D94).
+clip block U family spear variant 0 when spear,shoulder-flared
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 fx=spark ms=50 at=0,1
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=70
 clip block U family spear variant 0 when spear
 f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30
 f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 fx=spark ms=50 at=0,1
@@ -116,6 +127,11 @@ f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=
 clip follow U family spear variant 0 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
+# (wave-2 fix round 4, fix 2, ACTIONS) the flared shoulders' raised block facing U, as the man's
+clip block U family spear variant 0 when spear,shoulder-flared
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 fx=spark ms=50 at=0,1
+f armL=sp_wind armR=sp_guard held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 ms=70
 clip block U family spear variant 0 when spear
 f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30
 f armL=sp_brace armR=sp_brace held=a135 weapon=135,back legs=buckle neck=rest sheath=drawn torso=rest bob=2 fx=spark ms=50 at=0,1

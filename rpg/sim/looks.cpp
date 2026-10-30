@@ -13,6 +13,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/art/art_rise.h"
 #include "rpg/art/art_rig.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_forge.h"
@@ -857,6 +858,19 @@ void rankSlots(art::HumanLook& L, Role r) {
   // behind any over-layer, so his alloy's layer stays his own)
   // (ladder fields only: L.cloak is v1's and stays; the cloak tier 0 on a tiered alloy body is the resolver's "no full cape",
   // doll_resolve ladderLook)
+  // (wave-2 fix round 4, D96: the owner's change b; D86's king clause restated) a king wears a full, symmetrical cape: the
+  // long cloak (the noble cloak he wears, makeLook's cloak 3) at his tier, and his alloy's over-layer (the half-cape's drape
+  // over one shoulder, a tabard, a sash, a scarf) gives way to it: one Cloak-slot piece. `king` marks him for the resolver
+  // (his realm's colour darkened, no D88 lift; the Heartland king's ramp pinned to e25ea41's) and the `when king` views
+  if (r == Role::King) L.king = 1;
+  if (r == Role::King && art::doll::fixOn(art::doll::FIX_KING)) {
+    if (L.tier[H::TIER_BODY] >= 5 && (L.cloak || L.cape)) {
+      L.tier[H::TIER_CLOAK] = L.tier[H::TIER_BODY];
+      // the layer axis (bits 11-13) to NONE; every other bit (the helm's variant 20-22 among them) kept
+      if (L.forgeShape) L.forgeShape = (L.forgeShape & ~(7u << 11)) | (uint32_t)art::doll::forge::LY_NONE << 11;
+    }
+    return;
+  }
   if (r == Role::King && L.forgeShape && L.tier[H::TIER_BODY] >= 5 && L.alloyRank && L.alloyRank < 3 && (L.cloak || L.cape))
     L.tier[H::TIER_CLOAK] = 0;
 }

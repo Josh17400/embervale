@@ -14,6 +14,7 @@ legend ^ ink 4
 legend : ink 1
 legend = ink 0
 legend O metal2 2
+legend g glow 2
 
 
 
@@ -39,8 +40,19 @@ legend O metal2 2
 
 
 
+# (FINISH wave-2 fix2 r2; C19 A5, the owner's Mythic: "polished black steel whose lit planes are bright ... fire on the
+# top-left edges and in the cracks") each crack gets a LIT LIP two steps up (the blackened plate's bright plane), never a
+# lone lit pixel (a lip spans the limb's width). Facing D: the crack, then the lip under it (the crack's lower wall faces the
+# light), period 4. Facing R (L falls back to D): the lip turns the top-left corner (a 3 px L of light over the crack),
+# period 3, so the side view, where the shin is all the plate that shows, carries the fire. Mythic only (M_CRACKLED).
+# Measured: fm_myth / lt6m A5 facing R lit + glow 173 -> 191 (1.16 of e6's 164), facing D 201 -> 213.
 view D key rest origin 0 0
+|::
+|::
 |==
-|::
-|::
+|^^
+
+view R key rest origin 0 0
+|^^
+|^:
 |==

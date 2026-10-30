@@ -195,11 +195,11 @@ f armL=fling armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 weapon=135,back
 f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall U variant 0 family spear when spear
-f armL=fling armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up weapon=90,back
+f armL=fling armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up weapon=67.5,back
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 weapon=45,back
 f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=west at=2,2 braid=lie
 clip fall U variant 1 family spear when spear
-f armL=fling armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up weapon=90,back
+f armL=fling armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1 crest=up weapon=67.5,back
 f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1 weapon=45,back
 f armL=lie armR=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie pauld=lie head=-2,0 turn=east at=-2,2 braid=lie
 clip fall R variant 0 family spear when spear

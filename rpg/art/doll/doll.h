@@ -266,6 +266,16 @@ struct DollRecipe {
   uint8_t fin[8][FIN_REGIONS];
   uint8_t finTiles[8] = {};
   uint8_t pieceTier[8] = {};
+  // (wave-2 fix round 4, D93) the trim band's level per tier slot, chosen once per look on the idle D and R (tuneTrim, at the
+  // end of resolve) and laid on every frame: 0 D78's band; 1..4 the floor mode (the band continues along the hem, then the
+  // neck, the arm openings, a pauldron's lower rim); -1 / -2 the ceiling mode at T4-T6 (the band's added rows 2 px to 1, then
+  // off); -3..-8 at T3 (the shortest drawn R runs, 2 px up to 14, in the piece's own metal). rare: HumanLook::rare
+  // (fix round 2, D93) one level per facing pair: [0] the front and back views (D, U), [1] the side views (R, L): C12b reads D and
+  // R, whose views are drawn apart, so each converges on its own (a shared level left one facing under its floor while the
+  // other sat over its ceiling); still chosen once per look and laid on every frame of that facing
+  int8_t trimLevel[2][8] = {};
+  int8_t trimCeil[2][8] = {};   // the ceiling mode: T4-T6 1 (the band's added rows to 1 px) 2 (off); T3 1-16 (the run limit)
+  uint8_t rare = 0;
   bool blade = false;                // the held part's metal draws in Slot::Blade
   bool guiseHead = false;            // (forge i3) the headwear part is a culture alloy's metal head: its cloth draws in Metal
   std::string motif = "oak";         // the filigree tile's motif (`tags fit` views <motif><w>x<h>)
@@ -304,6 +314,22 @@ struct DollRecipe {
   bool has(const char* flag) const;
 };
 DollRecipe resolve(const HumanLook& look);
+// (wave-2 fix round 4, D93) the trim band's level per slot (DollRecipe::trimLevel) from the idle D and R shares (resolve calls it)
+void tuneTrim(DollRecipe& r);
+// (fix round 2) seam / gem / outline / glow: the slot's visible pixels the floor mode may not take (N, G, step 0, R in a glow cell)
+struct TrimShare { int px[8] = {}, trim[8] = {}, seam[8] = {}, gem[8] = {}, outline[8] = {}, glow[8] = {}; };
+TrimShare trimShares(const DollRecipe& r, int facing);
+// (fix round 2, C14) the materials touching on a facing's idle frame 0: 4-neighbour contacts per slot pair, both off the outline
+// and the lit top-left edge's pixels (the first lit pixel of each row from the left and each column from the top, C14's read)
+// of the idle D [0] and R [1], as codes
+struct ContactRead { uint16_t touch[SLOT_COUNT][SLOT_COUNT] = {}; std::vector<uint8_t> edge[2]; };
+void contactRead(const DollRecipe& r, ContactRead& out);
+// (fix round 2, C14) a touching pair under 18 luma at step 2 that rampsOf's look-only parting could not clear, parted by the
+// figure's own contacts (resolve calls it last): the material moves, never the person (D88); only the pairs that touch hold it
+void partContacts(DollRecipe& r, const HumanLook& L);
+// edgeOwn: the look's lit edge is held to its own step 1 (a dark sheen, KNAPPED, FURNACE, GLASS: C14), so no edge lift
+bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& c, bool edgeOwn, bool dbg);
+int trimSelftests(std::vector<std::string>* missed);   // (D93) the band's floor and ceiling modes on synthetic views   // C12b's measure on the idle frame 0 (gear px and Metal 2 trim per slot)
 // (P2c ladder) the finish tiles (`role overlay finish.<name>`): bits of DollRecipe::finTiles
 enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32 };
 // (P2c ladder) the tier slot (HumanLook::TIER_*) a part's finish follows (-1: none; see DollRecipe::fin)

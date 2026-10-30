@@ -190,6 +190,9 @@ struct HumanLook {
   // (wave-2 fix round 2, D84 restated) a Mythic relic body's own metal style (as relicHelm): the resolver keeps that metal's
   // outline (STARFALL's split skirt, FURNACE's heavy arms) under MYTHIC's finish, so the Mythic measures at its T6's area or more
   uint8_t relicBody = 0;
+  // (wave-2 fix round 4, D96) 1: a king (Role::King; census::rankSlots sets it): the doll's `king` flag, his full cape and his
+  // realm's deep cloak ramp. Derived, never saved; key() at rig 2 only when set
+  uint8_t king = 0;
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

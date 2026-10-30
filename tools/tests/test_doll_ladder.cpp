@@ -371,6 +371,9 @@ double c14Look(Line& g, const Built& b, int facing) {
     want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
   // (wave-2 fix round, D88) GLASS alloys too (D62 made them jewel-dark by design; their rim and speculars carry them)
   if (b.r.has("glass") && b.L.forge[HumanLook::TIER_BODY]) want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Metal][1]) - 1.0);
+  // (wave-2 fix round 4, D96) a king's lit fold reads against his cape's own step 3 (the owner's deep colour, which D88's
+  // lift passes by), as GLASS reads its own step 1
+  if (b.r.has("king")) want = std::min(want, luma(b.r.ramps.c[(int)doll::Slot::Cloak][3]) - 1.0);
   if (lit < want) g.bad(b.tag + fmt(" %c: the lit top-left edge %.0f luma, %.0f over the darkest day ground (%.0f wanted: 40 over, or A3's own)", "DURL"[facing], lit, lit - luma(kDarkGround), want - luma(kDarkGround)));
   else g.ok();
   return lit;
@@ -925,6 +928,45 @@ int frontArea(const doll::DollRecipe& r) {
     for (int x = 0; x < f->w; x++) n += (sh.atlas.get(f->x + x, f->y + y) >> 24) != 0;
   return n;
 }
+// (wave-2 fix round 4, D92) the relic invariant reads the body: the front walk's frame 0 (noHeld: no held weapon, shield,
+// sheath or fx part), every opaque pixel that no head-anchored part draws (head, face, ears, hair, beard, helm, crest,
+// headwear); an outline pixel the finish added (no owner) counts where it borders a counted pixel
+bool headAnchored(const doll::FrameProbe::It& it) {
+  using R = doll::Role;
+  if (it.anchor == art::doll::Anchor::Head) return true;
+  for (R r : {R::Head, R::Nose, R::Brow, R::Ears, R::Marks, R::Expr, R::Paint, R::Earring, R::Beard, R::Hair, R::Headwear, R::Helm})
+    if (it.has(r)) return true;
+  return it.part.find("helm/crest/") != std::string::npos || it.part.find("_crest") != std::string::npos || it.part.find("_plume") != std::string::npos;
+}
+int bodyArea(const doll::DollRecipe& r) {
+  const doll::pool::Pool& P = doll::pool::get();
+  doll::DollRecipe x = r;
+  auto has = [&](int pi, doll::Role ro) { for (const auto& rr : P.parts[(size_t)pi].roles) if ((doll::Role)rr.cat == ro) return true; return false; };
+  x.parts.erase(std::remove_if(x.parts.begin(), x.parts.end(), [&](int pi) {
+                  return has(pi, doll::Role::Held) || has(pi, doll::Role::Shield) || has(pi, doll::Role::Sheath) || has(pi, doll::Role::Fx);
+                }),
+                x.parts.end());
+  const doll::FrameProbe p = doll::probeFrame(x, RigPart::Loco, 0, Clip::Walk, 0, 0, true);
+  if (!p.ok) return 0;
+  auto opq = [&](int k) { return k >= 0 && p.code[(size_t)k] >= 2; };
+  auto body = [&](int k) {
+    const int o = p.owner[(size_t)k];
+    return o >= 0 && o < (int)p.items.size() && !headAnchored(p.items[(size_t)o]);
+  };
+  int n = 0;
+  for (int k = 0; k < p.w * p.h; k++) {
+    if (!opq(k)) continue;
+    if (p.owner[(size_t)k] >= 0) { n += body(k) ? 1 : 0; continue; }
+    const int x0 = k % p.w, y0 = k / p.w;
+    bool b = false;
+    for (int d = 0; d < 4 && !b; d++) {
+      const int q = p.at(x0 + (d == 0) - (d == 1), y0 + (d == 2) - (d == 3));
+      b = q >= 0 && opq(q) && body(q);
+    }
+    n += b ? 1 : 0;
+  }
+  return n;
+}
 int pauldronMass(const std::string& value, bool star) {
   const doll::pool::Pool& P = doll::pool::get();
   const uint16_t rest = P.strId("rest");
@@ -950,7 +992,7 @@ void gateRelics(Line& g) {
   static const char* const kMat[4] = {"gilded", "obsidian", "ember", "starmetal"};
   for (int who = 0; who < 2; who++)
     for (int t = 5; t <= 6; t++) {
-      int a[4] = {};
+      int a[4] = {}, whole[4] = {};
       for (int m = 0; m < 4; m++) {
         Look l;
         l.tag = fmt("relic_%s_t%d_%s", kMat[m], t, who ? "w" : "m");
@@ -958,14 +1000,18 @@ void gateRelics(Line& g) {
         l.spec = fmt("%s,kit=heartland:%d:1,mat=%s", who ? "heroine=1" : "hero=1", t, kMat[m]);
         const Built b = build(l);
         if (!b.bad.empty()) { g.bad(l.tag + ": bad look " + b.bad); continue; }
-        a[m] = frontArea(b.r);
+        whole[m] = frontArea(b.r);
+        a[m] = bodyArea(b.r);   // (D92) the body: no head-anchored part
       }
-      std::string row;
+      std::string row, steps;
       for (int m = 0; m < 4; m++) row += fmt(" %s %d", kMat[m], a[m]);
-      if (g_report) std::printf("    relics %s T%d:%s\n", who ? "heroine" : "hero", t, row.c_str());
+      for (int m = 1; m < 4; m++) steps += fmt(" %+.1f%%", a[m - 1] ? 100.0 * (a[m] - a[m - 1]) / a[m - 1] : 0.0);
+      // the four numbers per line, always printed (ARMOUR sizes the growth from them); the whole figure's for reference
+      std::printf("    relics %s T%d body:%s (steps%s; 2 %% aimed) | whole figure %d %d %d %d\n", who ? "heroine" : "hero", t, row.c_str(), steps.c_str(),
+                  whole[0], whole[1], whole[2], whole[3]);
       bool ok = true;
       for (int m = 1; m < 4; m++) ok &= a[m] > a[m - 1];
-      if (ok) g.ok(); else g.bad(fmt("%s T%d front walk px%s (gilded < obsidian < emberforged < starmetal)", who ? "heroine" : "hero", t, row.c_str()));
+      if (ok) g.ok(); else g.bad(fmt("%s T%d front walk body px%s (gilded < obsidian < emberforged < starmetal)", who ? "heroine" : "hero", t, row.c_str()));
     }
   // the crystal: the largest mass of its size
   static const char* const kShapes[] = {"cop", "lobed", "roll", "slab", "vented", "plate", "winged", "flared", "shard", "flame", "layered", "scale", "flap",
@@ -983,18 +1029,139 @@ void gateRelics(Line& g) {
     else g.bad(fmt("crystal.%d %d px under %s.%d's %d (the crystal the largest mass of its size)", size, cr, who.c_str(), size, best));
   }
 }
+// (wave-2 fix round 4, D96: the owner's change b) the king's cape, measured on nking (npc=heartland:king:0:7): the cape's
+// columns left and right of the body's axis equal within 1 facing D and U (idle frame 0); its steps 2-3 within dE 6 of
+// e25ea41's (#A53C3C, #ED7A5D, read from rpg_test_w0's frames); no Cloak pixel at step 4 (idle, walk, run; every facing); no
+// Cloak pixel without a 4-neighbour of the cape within 2 px of a boot; the fall and lying frames' Cloak pixels 90 % or more of
+// e25ea41's (2,406 over the fall and lying strips, every facing, counted by its five cape colours in w0's strips)
+void gateKing(Line& g) {
+  Look l;
+  l.tag = "nking";
+  l.who = 0;
+  l.spec = "npc=heartland:king:0:7,palette=look";
+  const Built b = build(l);
+  if (!b.bad.empty()) { g.bad("nking: bad look " + b.bad); return; }
+  if (!b.r.has("king")) g.bad("nking: no `king` flag"); else g.ok();
+  auto cloakAt = [&](const doll::FrameProbe& p, int k) {
+    if (k < 0 || p.code[(size_t)k] < 2) return false;
+    const int o = p.owner[(size_t)k];
+    return o >= 0 && o < (int)p.items.size() && p.items[(size_t)o].has(doll::Role::Cloak) && doll::codeSlot(p.code[(size_t)k]) == doll::Slot::Cloak;
+  };
+  std::string cols;
+  bool symOk = true;
+  for (int fc : {0, 1}) {
+    const doll::FrameProbe p = doll::probeFrame(b.r, RigPart::Loco, fc, Clip::Idle, 0, 0, true);
+    if (!p.ok) continue;
+    std::set<int> L, R;
+    for (int k = 0; k < p.w * p.h; k++)
+      if (cloakAt(p, k)) { const int x = k % p.w; if (x < p.px) L.insert(x); else if (x > p.px) R.insert(x); }
+    cols += fmt(" %c %zu|%zu", "DURL"[fc], L.size(), R.size());
+    if (std::abs((int)L.size() - (int)R.size()) > 1) symOk = false;
+  }
+  int step4 = 0, lone = 0;
+  for (RigPart part : {RigPart::Loco, RigPart::Run})
+    for (int fc = 0; fc < 4; fc++)
+      for (Clip cl : {Clip::Idle, Clip::Walk})
+        for (int i = 0; i < (cl == Clip::Idle ? 2 : 6); i++) {
+          if (part == RigPart::Run && cl == Clip::Idle) continue;
+          const doll::FrameProbe p = doll::probeFrame(b.r, part, fc, cl, 0, i, true);
+          if (!p.ok) break;
+          for (int k = 0; k < p.w * p.h; k++) {
+            if (!cloakAt(p, k)) continue;
+            if (doll::codeStep(p.code[(size_t)k]) == 4) step4++;
+            const int x = k % p.w, y = k / p.w;
+            bool nb = false;
+            for (int d = 0; d < 4 && !nb; d++) nb = cloakAt(p, p.at(x + (d == 0) - (d == 1), y + (d == 2) - (d == 3)));
+            if (nb) continue;
+            bool boot = false;
+            for (int dy = -2; dy <= 2 && !boot; dy++)
+              for (int dx = -2; dx <= 2 && !boot; dx++) {
+                const int q = p.at(x + dx, y + dy);
+                boot = q >= 0 && p.code[(size_t)q] >= 2 && (p.region[(size_t)q] == (uint8_t)doll::Region::Boot || p.region[(size_t)q] == (uint8_t)doll::Region::Sole);
+              }
+            if (boot) lone++;
+          }
+        }
+  // (the --limbs strips' frames, as w0's were counted: the fall's variants 0-1 frames 0-2, the lying variants 0-1, every facing)
+  int fallPx = 0;
+  for (Clip cl : {Clip::Fall, Clip::Lying})
+    for (int fc = 0; fc < 4; fc++)
+      for (int va = 0; va < 2; va++)
+        for (int i = 0; i < (cl == Clip::Fall ? 3 : 1); i++) {
+          const doll::FrameProbe p = doll::probeFrame(b.r, RigPart::Death, fc, cl, va, i, true);
+          if (!p.ok) continue;
+          for (int k = 0; k < p.w * p.h; k++) fallPx += cloakAt(p, k) ? 1 : 0;
+        }
+  constexpr int kE25FallLying = 2406;
+  const uint32_t* C = b.r.ramps.c[(int)doll::Slot::Cloak];
+  const double d2 = doll::deltaE76(C[2], 0xFF3C3CA5u), d3 = doll::deltaE76(C[3], 0xFF5D7AEDu);
+  std::printf("    D96 king nking: cape columns left|right%s; steps 2-3 dE %.1f %.1f off e25ea41's; %d Cloak px at step 4; %d lone Cloak px by a boot; fall + lying Cloak px %d (%.0f %% of e25ea41's %d)\n",
+              cols.c_str(), d2, d3, step4, lone, fallPx, 100.0 * fallPx / kE25FallLying, kE25FallLying);
+  if (!symOk) g.bad("D96 nking: the cape's columns left|right of the axis" + cols + " (equal within 1 facing D and U)"); else g.ok();
+  if (d2 > 6.0 || d3 > 6.0) g.bad(fmt("D96 nking: cape steps 2-3 dE %.1f %.1f off e25ea41's crimson (6)", d2, d3)); else g.ok();
+  if (step4) g.bad(fmt("D96 nking: %d Cloak pixel(s) at step 4 (0)", step4)); else g.ok();
+  if (lone) g.bad(fmt("D96 nking: %d Cloak pixel(s) with no 4-neighbour of the cape within 2 px of a boot (0)", lone)); else g.ok();
+  if (fallPx * 10 < kE25FallLying * 9) g.bad(fmt("D96 nking: fall + lying Cloak px %d, %.0f %% of e25ea41's %d (90)", fallPx, 100.0 * fallPx / kE25FallLying, kE25FallLying));
+  else g.ok();
+}
+
 int relicSelftests() {
   // a synthetic order that dips must fail the rule the gate applies
   const int a[4] = {900, 950, 940, 1000};
   bool ok = true;
   for (int m = 1; m < 4; m++) ok &= a[m] > a[m - 1];
-  return ok ? 1 : 0;   // 1 = missed
+  // (D92) the body measure: a helm or a crest never counts, an armour piece always does
+  doll::FrameProbe::It helm, crest, plate;
+  helm.roles = 1u << (int)doll::Role::Helm; helm.anchor = art::doll::Anchor::Head;
+  crest.part = "headwear/helm/crest/comb"; crest.roles = 1u << (int)doll::Role::Overlay;
+  plate.roles = 1u << (int)doll::Role::Armour; plate.anchor = art::doll::Anchor::Neck;
+  const bool bodyOk = headAnchored(helm) && headAnchored(crest) && !headAnchored(plate);
+  // (D93) the trim band's floor and ceiling modes
+  std::vector<std::string> tm;
+  const int tmiss = doll::trimSelftests(&tm);
+  for (const std::string& w : tm) std::printf("  C12 selftest MISSED: %s\n", w.c_str());
+  // (fix round 2, C14) the contact parting: steel 9 luma off the hair it frames, touching a leather 18 under it and the skin,
+  // parts from all three by its body plane alone (its edge, lit plane and glint kept); a cloth it never touches holds nothing;
+  // the hair and the skin never move. And the edge lift: a figure whose lit edge is a dark leather climbs it past the mark
+  int cmiss = 0;
+  {
+    using S = doll::Slot;
+    auto grey = [](int v) { return 0xFF000000u | (uint32_t)v << 16 | (uint32_t)v << 8 | (uint32_t)v; };
+    auto lum = [](uint32_t c) { return (c & 255) * 0.299 + ((c >> 8) & 255) * 0.587 + ((c >> 16) & 255) * 0.114; };
+    auto set = [&](doll::DollRamps& R, S s, int a, int b, int c, int d, int e) { const int v[5] = {a, b, c, d, e}; for (int q = 0; q < 5; q++) R.c[(int)s][q] = grey(v[q]); };
+    doll::DollRamps R;
+    set(R, S::Metal, 50, 80, 140, 208, 234); set(R, S::Hair, 60, 110, 149, 190, 220); set(R, S::Skin, 90, 150, 186, 215, 235);
+    set(R, S::Leather, 40, 90, 122, 160, 190); set(R, S::Cloth2, 40, 70, 101, 140, 170); set(R, S::Cloth1, 10, 25, 40, 70, 100);
+    doll::ContactRead c;
+    c.touch[(int)S::Metal][(int)S::Hair] = 7; c.touch[(int)S::Leather][(int)S::Metal] = 30; c.touch[(int)S::Metal][(int)S::Skin] = 3;
+    const doll::DollRamps was = R;
+    HumanLook L;
+    doll::partByContact(R, L, c, true, false);
+    const double m2 = lum(R.c[(int)S::Metal][2]);
+    bool pass = std::fabs(m2 - 149) >= 18 && std::fabs(m2 - 122) >= 18 && std::fabs(m2 - 186) >= 18;
+    for (int q : {0, 1, 3, 4}) pass = pass && R.c[(int)S::Metal][q] == was.c[(int)S::Metal][q];
+    for (S p : {S::Hair, S::Skin, S::Cloth2}) for (int q = 0; q < 5; q++) pass = pass && R.c[(int)p][q] == was.c[(int)p][q];
+    if (!pass) { cmiss++; std::printf("  C14 selftest MISSED: the contact parting (metal step 2 at %.0f)\n", m2); }
+    // the edge lift: the D edge all leather step 1 at 64 luma, the R edge already lit
+    doll::DollRamps E = was;
+    doll::ContactRead ce;
+    for (int k = 0; k < 8; k++) { ce.edge[0].push_back(doll::code(S::Leather, 1)); ce.edge[1].push_back(doll::code(S::Skin, 2)); }
+    set(E, S::Leather, 30, 64, 100, 140, 180);
+    doll::partByContact(E, L, ce, false, false);
+    if (lum(E.c[(int)S::Leather][1]) < 79.3) { cmiss++; std::printf("  C14 selftest MISSED: the edge lift (leather step 1 at %.0f)\n", lum(E.c[(int)S::Leather][1])); }
+    doll::DollRamps G = was;
+    set(G, S::Leather, 30, 64, 100, 140, 180);
+    doll::partByContact(G, L, ce, true, false);   // (a dark sheen's own edge: no lift)
+    if (G.c[(int)S::Leather][1] != grey(64)) { cmiss++; std::printf("  C14 selftest MISSED: the edge lift took a look held to its own step 1\n"); }
+  }
+  return ok || !bodyOk || tmiss || cmiss ? 1 : 0;   // 1 = missed
 }
 int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::vector<std::string>& out) {
   const std::vector<Built> built = buildAll(looks);
   Line c12{"C12 the ladder reads"}, c13{"C13 the living finish"}, c14{"C14 value"}, st{"C12-C14 selftests"};
-  Line c15{"C15 the alloys"}, c15n{"C15c alloy neighbours"}, rel{"relic invariant"};
+  Line c15{"C15 the alloys"}, c15n{"C15c alloy neighbours"}, rel{"relic invariant"}, king{"D96 king cape"};
   gateRelics(rel);
+  gateKing(king);
   gateC12(c12, built);
   if (finish) gateC13(c13, built);
   gateC14(c14, built);
@@ -1005,7 +1172,7 @@ int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::
     out.push_back(fmt("  C12-C14 selftest: %s", m ? "MISSED" : "ALL CAUGHT"));
   }
   int fails = 0;
-  for (Line* l : {&c12, &c13, &c14, &c15, &c15n, &rel, &st}) {
+  for (Line* l : {&c12, &c13, &c14, &c15, &c15n, &rel, &king, &st}) {
     if ((l == &c13 && !finish) || (l == &st && !self)) continue;
     out.push_back(l->text());
     fails += l->fails ? 1 : 0;

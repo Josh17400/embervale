@@ -1,6 +1,10 @@
 # rpg/art/doll/clips/actions/sword.clip: A3's sword swing (the slice; ACTIONS owns the families in P2c). Format: rpg/art/doll/doll.h.
 # The side keys stand on `legs=stance` (A3's contact legs, kept pixel for pixel: the walk's own contact drawings were
 # redrawn sturdier for the owner, 2026-10-19).
+# (wave-2 fix round 4, ACTIONS; C3a 6) hit 3's windup for a shield bearer fitted to the gear that holed it: a wide sleeve
+# facing U raises the sword on the mace's overhead arm (mc_3w; sw_3w's wide sleeve and a lobed T6 pauldron closed a
+# pixel between them), a mask helm facing R / L leans the head a pixel forward off the raised blade (`when shield,arm-wide`,
+# `when shield,helmfam-mask`: no hero line wears either, PLAN D94).
 
 body man
 clip windup R family sword variant 0
@@ -487,6 +491,8 @@ f armL=- armR=sw_2s weapon=112,back fx=a1 legs=drawn sheath=drawn bob=0 lean=1 h
 clip follow U family sword variant 1 when shield
 f armL=- armR=sw_2f weapon=67,back fx=a2 legs=drawn sheath=drawn bob=0 lean=1 hip=1,0 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=drawn sheath=drawn tuft=- ms=60 sharm=shtuck shield=guard
+clip windup R family sword variant 2 when shield,helmfam-mask
+f armL=- armR=sw_3w weapon=135,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=70 sharm=shtuck shield=guard head=1,0
 clip windup R family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=135,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=70 sharm=shtuck shield=guard
 clip strike R family sword variant 2 when shield
@@ -503,6 +509,8 @@ f armL=- armR=sw_3s weapon=270,front expr=fierce fx=a1 legs=drawn sheath=drawn t
 clip follow D family sword variant 2 when shield
 f armL=- armR=sw_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=drawn tuft=fierce bob=1 lean=0 at=0,1 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=drawn sheath=drawn tuft=- ms=60 sharm=shtuck shield=guard
+clip windup L family sword variant 2 when shield,helmfam-mask
+f armL=- armR=sw_3w weapon=45,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=70 sharm=guard shield=guard head=-1,0
 clip windup L family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=45,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=70 sharm=guard shield=guard
 clip strike L family sword variant 2 when shield
@@ -511,6 +519,8 @@ f armL=- armR=sw_3s weapon=225,front expr=fierce fx=a1 legs=lunge hilt=- bob=0 l
 clip follow L family sword variant 2 when shield
 f armL=- armR=sw_3f weapon=248,front expr=fierce fx=a2 legs=lunge hilt=- bob=0 lean=-2 at=-3,0 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=stance hilt=- tuft=- ms=60 sharm=shtuck shield=guard
+clip windup U family sword variant 2 when shield,arm-wide
+f armL=- armR=mc_3w weapon=67,front legs=drawn sheath=drawn tuft=- bob=1 lean=-1 hip=1,0 ms=70 sharm=guard shield=guard
 clip windup U family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=67,front legs=drawn sheath=drawn tuft=- bob=1 lean=-1 hip=1,0 ms=70 sharm=guard shield=guard
 clip strike U family sword variant 2 when shield
@@ -771,6 +781,8 @@ f armL=- armR=sw_2s weapon=112,back fx=a1 legs=drawn sheath=drawn bob=0 lean=1 h
 clip follow U family sword variant 1 when shield
 f armL=- armR=sw_2f weapon=67,back fx=a2 legs=drawn sheath=drawn bob=0 lean=1 hip=1,0 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=drawn sheath=drawn tuft=- ms=60 sharm=shtuck shield=guard
+clip windup R family sword variant 2 when shield,helmfam-mask
+f armL=- armR=sw_3w weapon=135,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=70 sharm=shtuck shield=guard head=1,0
 clip windup R family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=135,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=70 sharm=shtuck shield=guard
 clip strike R family sword variant 2 when shield
@@ -787,6 +799,8 @@ f armL=- armR=sw_3s weapon=270,front expr=fierce fx=a1 legs=drawn sheath=drawn t
 clip follow D family sword variant 2 when shield
 f armL=- armR=sw_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=drawn tuft=fierce bob=1 lean=0 at=0,1 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=drawn sheath=drawn tuft=- ms=60 sharm=shtuck shield=guard
+clip windup L family sword variant 2 when shield,helmfam-mask
+f armL=- armR=sw_3w weapon=45,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=70 sharm=guard shield=guard head=-1,0
 clip windup L family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=45,back legs=stance hilt=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=70 sharm=guard shield=guard
 clip strike L family sword variant 2 when shield
@@ -795,6 +809,8 @@ f armL=- armR=sw_3s weapon=225,front expr=fierce fx=a1 legs=lunge hilt=- bob=0 l
 clip follow L family sword variant 2 when shield
 f armL=- armR=sw_3f weapon=248,front expr=fierce fx=a2 legs=lunge hilt=- bob=0 lean=-2 at=-3,0 ms=70 sharm=shtuck shield=guard
 f armL=- armR=guard held=guard legs=stance hilt=- tuft=- ms=60 sharm=shtuck shield=guard
+clip windup U family sword variant 2 when shield,arm-wide
+f armL=- armR=mc_3w weapon=67,front legs=drawn sheath=drawn tuft=- bob=1 lean=-1 hip=1,0 ms=70 sharm=guard shield=guard
 clip windup U family sword variant 2 when shield
 f armL=- armR=sw_3w weapon=67,front legs=drawn sheath=drawn tuft=- bob=1 lean=-1 hip=1,0 ms=70 sharm=guard shield=guard
 clip strike U family sword variant 2 when shield

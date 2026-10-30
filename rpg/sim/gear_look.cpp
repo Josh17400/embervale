@@ -272,6 +272,11 @@ art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home) 
   return L;
 }
 
+uint32_t shieldTrimOf(const Item& shield, const cult::Culture* maker) {
+  const Metal m = metalOf(shield, maker);
+  return m.light ? m.light : shield.tint;
+}
+
 void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf) {
   auto maker = [&](const Item* it) -> const cult::Culture* { return it && it->culture && cultureOf ? cultureOf(it->culture) : nullptr; };
   auto metal = [&](const Item* it) { return metalOf(*it, maker(it)); };

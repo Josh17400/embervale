@@ -20,6 +20,7 @@ legend T accent 3
 legend U accent 4
 
 # (ARMOUR fix r1, cloakgen.py) the officer's cloak (T4, PLAN D73, STYLE_P2 29.11): `cloak.t4,!cloak.t5`
+# (ARMOUR fix2 r1, t3back.py) the T3 cape facing R / L (rest, idle) 1 row longer at the back hem on the man's lamellar and the woman's scale (C12 c: T3 under T2 facing R; the shield hides the upper back)
 # views from the long cloak's, as wide as the T3 cape to the coat's hem facing D, inside the legs below it,
 # 4 columns behind the back to the ankle facing R / L; placed before the first replacing view
 view D key rest origin 14 2 when cloak.t4,!cloak.t5,!armour.t1,woman,skirt-strips replace
@@ -2140,6 +2141,7 @@ view R key rest origin 8 1 when cloak.t3,!cloak.t5,!walk,!woman,form-lamellar re
 |QTSSRSSRRRRRRRRQ
 |QTSRSSSRRRRRRRRQ
 |QTSRSSRRRRRRRRRQ
+|QTSRSSRRRRRRRRRQ
 |QTTTTTSSSSSSSSSQ
 |.QQQQQQQQQQQQQQ.
 
@@ -2277,6 +2279,7 @@ view L key rest origin 8 1 when cloak.t3,!cloak.t5,!walk,!woman,form-lamellar re
 |QRRRRRRRRSSRSSSQ
 |QRRRRRRRRSSSRSSQ
 |QRRRRRRRRRSSRSSQ
+|QRRRRRRRRRSSRSSQ
 |QSSSSSSSSSSSSSSQ
 |.QQQQQQQQQQQQQQ.
 
@@ -2351,6 +2354,25 @@ view R key rest origin 8 1 when cloak.t3,!cloak.t5,!walk,woman,form-lamellar rep
 |.QTTTTTSSSSSSSSS
 |..QQQQQQQQQQQQQQ
 
+# (ARMOUR fix2 r1, t3back.py) the scale wearer's T3 cape 1 row longer at the back hem (C12 c: T3 under T2 facing R)
+view R key rest origin 9 1 when cloak.t3,!cloak.t5,!walk,woman,form-scale replace
+|......QQQQ......
+|.....QTTSRQQQQQQ
+|....QTSSSRQRRRRR
+|...QTSSSSRRRRRRR
+|...QTSSSRSRRRRRR
+|..QTSSSRSRRRRRRR
+|..QTSSRSSRRRRRRR
+|.QTTSSRSSRRRRRRR
+|.QTSSSRSSRRRRRRR
+|.QTSSRSSSRRRRRRR
+|.QTSSRSSRRRRRRRR
+|.QTSRSSSRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTTTTTSSSSSSSSS
+|..QQQQQQQQQQQQQQ
+
 view R key rest origin 9 1 when cloak.t3,!cloak.t5,!walk,woman replace
 |......QQQQ......
 |.....QTTSRQQQQQQ
@@ -2400,6 +2422,24 @@ view L key rest origin 8 1 when cloak.t3,!cloak.t5,!walk,woman,form-lamellar rep
 |RRRRRRRSSSRSSSQ.
 |RRRRRRRRSSRSSSQ.
 |RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
+|SSSSSSSSSSSSSSQ.
+|QQQQQQQQQQQQQQ..
+
+view L key rest origin 7 1 when cloak.t3,!cloak.t5,!walk,woman,form-scale replace
+|......QQQQ......
+|QQQQQQRSSSQ.....
+|RRRRRQRSSSSQ....
+|RRRRRRRSSSSSQ...
+|RRRRRRSRSSSSQ...
+|RRRRRRRSRSSSSQ..
+|RRRRRRRSSRSSSQ..
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSSRSSSQ.
+|RRRRRRRRSSRSSSQ.
+|RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
 |RRRRRRRRRSSRSSQ.
 |SSSSSSSSSSSSSSQ.
 |QQQQQQQQQQQQQQ..
@@ -2519,6 +2559,7 @@ view R key idle origin 8 1 when cloak.t3,!cloak.t5,!walk,!woman,form-lamellar re
 |QTSSRSSSRRRRRRRQ
 |QTSSRSSRRRRRRRRQ
 |QTSRSSSRRRRRRRRQ
+|QTSRSSRRRRRRRRRQ
 |QTSRSSRRRRRRRRRQ
 |QTTTTTSSSSSSSSSQ
 |.QQQQQQQQQQQQQQ.
@@ -2657,6 +2698,7 @@ view L key idle origin 8 1 when cloak.t3,!cloak.t5,!walk,!woman,form-lamellar re
 |QRRRRRRRRSSRSSSQ
 |QRRRRRRRRSSSRSSQ
 |QRRRRRRRRRSSRSSQ
+|QRRRRRRRRRSSRSSQ
 |QSSSSSSSSSSSSSSQ
 |.QQQQQQQQQQQQQQ.
 
@@ -2731,6 +2773,24 @@ view R key idle origin 8 1 when cloak.t3,!cloak.t5,!walk,woman,form-lamellar rep
 |.QTTTTTSSSSSSSSS
 |..QQQQQQQQQQQQQQ
 
+view R key idle origin 9 1 when cloak.t3,!cloak.t5,!walk,woman,form-scale replace
+|......QQQQ......
+|.....QTTSRQQQQQQ
+|....QTSSSRQRRRRR
+|...QTSSSSRRRRRRR
+|...QTSSSRSRRRRRR
+|..QTSSSRSRRRRRRR
+|..QTSSRSSRRRRRRR
+|.QTTSSRSSRRRRRRR
+|.QTSSSRSSRRRRRRR
+|.QTSSRSSSRRRRRRR
+|.QTSSRSSRRRRRRRR
+|.QTSRSSSRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTSRSSRRRRRRRRR
+|.QTTTTTSSSSSSSSS
+|..QQQQQQQQQQQQQQ
+
 view R key idle origin 9 1 when cloak.t3,!cloak.t5,!walk,woman replace
 |......QQQQ......
 |.....QTTSRQQQQQQ
@@ -2780,6 +2840,24 @@ view L key idle origin 8 1 when cloak.t3,!cloak.t5,!walk,woman,form-lamellar rep
 |RRRRRRRSSSRSSSQ.
 |RRRRRRRRSSRSSSQ.
 |RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
+|SSSSSSSSSSSSSSQ.
+|QQQQQQQQQQQQQQ..
+
+view L key idle origin 7 1 when cloak.t3,!cloak.t5,!walk,woman,form-scale replace
+|......QQQQ......
+|QQQQQQRSSSQ.....
+|RRRRRQRSSSSQ....
+|RRRRRRRSSSSSQ...
+|RRRRRRSRSSSSQ...
+|RRRRRRRSRSSSSQ..
+|RRRRRRRSSRSSSQ..
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSRSSSSQ.
+|RRRRRRRSSSRSSSQ.
+|RRRRRRRRSSRSSSQ.
+|RRRRRRRRSSSRSSQ.
+|RRRRRRRRRSSRSSQ.
 |RRRRRRRRRSSRSSQ.
 |SSSSSSSSSSSSSSQ.
 |QQQQQQQQQQQQQQ..

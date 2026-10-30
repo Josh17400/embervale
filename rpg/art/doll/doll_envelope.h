@@ -77,7 +77,12 @@ enum FixRule : uint32_t {
   FIX_RELIC = 32,   // D83 / D84: the relic helms, a Mythic alloy keeps its alloy with the ember on top
   FIX_LINES = 64,   // D86: the two-alloy king's no full cape; a culture alloy T4 or more (lookTier)
   FIX_COLOUR = 128, // D88: C14's parting from the hair and the skin (the material moves), the cloaks' lit steps
-  FIX_ALL = 255
+  // (wave-2 fix round 4) this round's rules, for the freeze report's attribution (D94)
+  FIX_KIT = 256,    // D97: one kit, one look (the shield item made for every weapon, the trim from it)
+  FIX_KING = 512,   // D96: the king's full cape, his deep ramp (the Heartland king's pinned to e25ea41's)
+  FIX_TRIM4 = 1024, // D93: the trim band lands each piece inside its tier's band (floor and ceiling modes)
+  FIX_C14 = 2048,   // fix round 4: C14's lit edges (D88's ramps inside the parting rules)
+  FIX_ALL = 4095
 };
 // (fix round 2) EMB_FIX_RULES=<mask> (diagnostics only: unset in the game and every gate) starts with that mask
 inline uint32_t& fixRules() {

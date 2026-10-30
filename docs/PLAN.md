@@ -2700,6 +2700,23 @@ form9 means no shield.
 - **The freeze** (`--doll-wear --freeze-check`) is reported with every changed frame attributed to its cause, not gated,
   until the owner signs the before / after board; then it is hard against the new manifest (D72).
 
+**Restated by the wave-2 fix round 4 (2026-10-29; D90-D98; each change has a selftest that trips it):**
+- **C3d**: a gripping arm with no H pixel fails facing D and on the near arm; facing U, on the far arm and on turned frames
+  it passes only on the hidden-grip proof (h1 the grip on an opaque non-weapon pixel of the figure, h2 every visible piece
+  of the weapon touching the figure) (D90).
+- **C12b**: the bands stand; the trim band lands each piece inside its tier's band (continuing along the piece's hem, neck,
+  arm openings and pauldron rims under the floor; narrowing its own rows, and at T3 the shortest R runs, over the ceiling)
+  (D93).
+- **C12f**: T1's bare body keeps a shield bearer's shield arm (the limb, without the shield); P2b's cloth headwear
+  (headwear/cloth/** and kin/*/headwear/**) is out of the head caps, rows and columns, on untiered looks (D91).
+- **C14**: a king's cape is read against its own step 3 (D96).
+- **The relic invariant**: opaque pixels of the front walk's frame 0 (noHeld) that no head-anchored part draws, strictly
+  climbing gilded < obsidian < emberforged < starmetal on the hero and the heroine at T5 and T6 (D92).
+- **NEW, one kit one look**: `--expand-looks` over the ten weapons x T1-T6 x both bodies x the 12 peoples x seeds 1..3
+  gives equal fields but the hands' (D97).
+- **The freeze** is reported this round with every changed frame on a signed-off look attributed to D95, D96, D93's trim or
+  item 4; after the round the packager writes the new manifest from the final build and the check is hard (D94).
+
 ### Constants that interact (budgets and timing)
 
 | constant | value | arithmetic |
@@ -3091,7 +3108,8 @@ holds the areas):
   e3w-e6w and e6m show the face over the near pauldron's top rows (D87); the T5-T6 forge looks of PARADE and STARFALL
   (f5_star, fm_star and the gilded ones) and fm_myth (D83, D84); nking if his realm has two alloys (D86); any lt3-lt6 frame
   the trim band widens (D78; none expected). e1-e3, e1w-e3w, eg0 and eg3 do not change. After the sign-off the integrator
-  writes the new manifest and runs `--forge-frozen` on it, and the check is hard again.
+  writes the new manifest and runs `--forge-frozen` on it, and the check is hard again. (Closed by D94: the owner signed
+  off on 2026-10-29 with two changes; the packager writes the new manifest after fix round 4.)
 - **D73. The cloak ladder** (item 1, structural): from T3 every people's line wears a cloak, and each tier's is the bigger:
   T3 the people's short cape or the travel cloak at its signed-off footprint (D57); T4 the officer's cloak, the kit's own
   travel cloak (ladderKit's T4 row) or a CAPE or HALFCAPE alloy's layer cut to it, with a shoulder cape and 4 columns
@@ -3126,7 +3144,7 @@ holds the areas):
   runs on every T3-T6 view (necks, arm openings and hems; skirt hems and panel edges; pauldron rims; brow bands and shell
   rims; motif borders; shield rims; the long cloak's hem); T3's forge edge stamps paint in the piece's own metal (brass
   from T4). It keeps late gear richer, which ruling the check away would not. C12b counts the tier's own trim; its bands
-  stand.
+  stand. (Restated by D93: the band lands each piece inside its tier's band by rule; the marks still lead.)
 - **D79. The child's spoon and bread move to the doll now** (item 5): WEAPONS' spoon_child.pxm and bread_child.pxm (its r3
   proposal) are ADDed to maps/held/props, which stays frozen for every other file; DOLL delivers them unchanged. C1's dead
   parts count over A-E, F, L and M8-M12; a drawn part no source reaches by design is tagged `reserve` (motif plain and
@@ -3135,11 +3153,13 @@ holds the areas):
   cloak as drawn is "today's rules"); T1's outline is measured against the look's own bare body without the cloak; the
   head caps read the helm's resolved tier (after kitVar and the watch), and the resolver never uses a helm view drawn for
   a higher tier (D49; the missing view is listed and drawn); P2b's cloth headwear is out of the column caps; every armoured
-  body sets `form-<armour>` so the cloak fits reach it.
+  body sets `form-<armour>` so the cloak fits reach it. (Restated by D91: T1's bare body keeps a shield bearer's arm; P2b's
+  cloth headwear, kin/*/headwear/** included, is out of the rows too on untiered looks.)
 - **D81. The carry is one-handed** (item 8: WEAPONS' dispute upheld): D5 carries spears and staffs in the right fist, so
   C3d asks the off fist only on DRAWN and ACTION frames and the guard; a carry's grip reads the hand mark; the spear is
   checked like every library weapon (its map's first role no longer skips it); the staff rides staff_carry.clip (WEAPONS'
   r4 proposal); NEW: no weapon pixel more than 2 rows below the sole row on an upright frame (the spear's blow 3 facing D).
+  (Restated by D90: a fist the body hides passes only on the hidden-grip proof.)
 - **D82. Shields are not cut by the body's erase cells** (item 7): the compositor keeps the gripL shield's pixels under
   every other part's `-` cells, as held pixels survive the helm's erase; C3e measures the laid frame (the lying shield may
   sit 3 px lower); C3c facing U under a cloak as restated.
@@ -3160,13 +3180,15 @@ holds the areas):
   at every size they draw, by ADDed views inside each tier's cap (D49: never the drawn set repainted); obsidian's "one size
   above gilded" is blocked by the caps wherever relics are worn (T4-T6), so the relic bands climb by the mass's area at one
   size (gilded < obsidian < emberforged < starmetal, the front walk's frame 0), checked by the relic invariant. A step the
-  caps still block goes to the planner with its numbers, never a quiet cap change.
+  caps still block goes to the planner with its numbers, never a quiet cap change. (Restated by D92: the invariant reads the
+  body, the head-anchored parts left out, since each relic now wears its own helm.)
 - **D86. Owners for the unowned lines** (loot Q8, Q9): this round DOLL owns the bandit chief's ladder tier (game.cpp, one
   rankTiers call after the outfit lines: T2 at home, T3 in far lands, in the plate he wears), census::rankSlots (looks.cpp:
   a two-alloy realm's king keeps his warriors' alloy's over-layer with the finish on its hem and wears no full cape; a
   masterwork realm's king the long cloak) and lookTier's crafted looks (an alloy draws T4 or more, a masterwork T5 only
   from band 4). The marks (Q3: the `epic` bit, a band-1 Epic's trim, the T5 Rare glyph, the gold inlay) go to the batch
-  after this round's PASS (DOLL, FINISH), before the flip pack.
+  after this round's PASS (DOLL, FINISH), before the flip pack. (The king's clause restated by D96, the owner: a king wears
+  the full, symmetrical long cloak in his realm's deep colour; his alloy's half-cape gives way.)
 - **D87. Near pauldrons draw under the face** (item 4's cause, found by ACTIONS-1H): 492 near-side and facing-D rest and up
   pauldron views carry `layer headwear`, which draws them over the jaw in every side frame. They return to contracts 4's
   arm layers (ACTIONS-1H's pauldron_face_patch.py; pixels unchanged); D41's lift keeps them over a cloak's front.
@@ -3177,6 +3199,161 @@ holds the areas):
 - **D89. A kit tag renders what it says, the weapon too** (the packager): `wpn=unarmed` and `wpn=crossbow` resolve to
   their families and any unknown value is an error naming the tag (D64's rule; gear_ladder.cpp weaponTypeOf); the boards
   made with them are re-shot; the bow's and the crossbow's boards say "draw, loose" (they have no melee blows, by design).
+
+The fix round's round-3 judge (2026-10-29; .tmp/judge/w2fix_r3 on the fr3 build: 7 of the harness's 42 lines failing, 8
+items), the owner's freeze sign-off and the packager's notes add ("The wave-2 fix round 4" holds the areas; every number
+below was measured on build/rpg_test.exe of 10:35, pool 2,544,378 B):
+- **D90. A hidden fist is proven, never waived** (item 7, structural). Of the arms matrix's 3,923 C3 failures, 3,802 are
+  gripping hands the body hides by design (facing U 3,220: the fists before the chest; the far arm facing L 462; the roll's
+  turned frames 120, which the probe reads as facing L), 114 are real, C3a 6 and C3b 1. C3d keeps "no H pixel on the
+  gripping arm" a failure facing D, on the near arm (the right fist facing R, the left fist facing L) and on every frame
+  not named here. Facing U, on the far arm and on turned frames (fall, roll, lying), a frame with no H pixel on the
+  gripping arm passes only on the hidden-grip proof, every term measured on the composed frame:
+  - **h1, covered**: the grip mark (or the hand mark a carry reads) lies on an opaque pixel of a non-weapon part of the
+    figure (torso, armour, arm, cloak, head, helm, shield, or the outline round them): the body covers the fist. A grip on
+    a clear pixel fails ("the fist missing in the open"); a grip on a weapon pixel fails ("a weapon in front with no
+    fist");
+  - **h2, attached**: every 8-connected group of visible weapon pixels touches a non-weapon pixel of the figure. A piece of
+    weapon clear of the body fails ("a weapon floating");
+  - the rest of C3d as on every frame: the right arm grips, the tip mark at the far end, the off fist on the haft line on
+    DRAWN and ACTION frames (with this proof where the off fist is the hidden one).
+  A weapon may start right beside a hidden grip: a fist at the silhouette's edge has its blade leave the body there (seen
+  on the sword's hit 2 facing U), so no clearance round the grip is asked; a blade lying over the back (a shouldered sword
+  facing U) is allowed. The message names the failing term and "[ruling proposed]" goes. Selftests: a clean facing-U
+  strike passes, and one with its fist at the silhouette's edge; the same frame with the grip on a clear pixel, with the
+  grip on the blade, or with a 2 px gap between the blade and the shoulder fails each; a facing-D frame with no H pixel
+  fails although h1 and h2 hold. The 114 real failures (the greatsword's grip outside the fist on windup and cast 58, the
+  spear's run carry facing U 30, gs_r with no hand facing D 10, the rest 16) and every frame that fails h1 or h2 are
+  ACTIONS' art. On a sample (the Heartland T4 kit's sword, greatsword and spear strikes facing U: 20 frames, the grips
+  mapped onto the strips) every grip lies on the body (the cape, its outline, the helm), so most of the 3,802 are
+  expected to pass and what fails is real; the arm keys are shared, so DOLL's residual list is grouped by arm part, key
+  and facing. The judge reads every family's facing-U strikes and the far-arm frames at 12x: each weapon reads as held.
+- **D91. T1 stays slim; the measure gets the body right** (item 6). The rule stands: every T1 look's pieces inside its own
+  bare body + 1 px (the walk's frame 0 facing D, the idle facing R); no piece is exempt; the starter stays slim. Every
+  pixel outside (1,032 on the 1,012 looks; facing R 0 on all) is a forge collar's outer tip on the shoulder line facing D,
+  at x +6 (a few at -6 or +5): `headwear/collar/rolled` 926 (HOMESPUN's roll, mostly census women in padded coats with
+  short, bald or tied hair), `headwear/collar/stand` 106 (TANNER'S, the L lines' men). Both collars are 13 px across
+  facing D, wider than a slim neck line + 1. The rulings:
+  - **the measure**: t1Figure's bare body drops `shield/arm`, which is a shield bearer's left ARM (the limb drawn in the
+    shield pose; heldIt reads it as the shield), so on the shield side T1's outline is the torso alone. The bare body keeps
+    that arm's outline (the shield arm without the shield). DOLL, with a selftest (a shield bearer's bare body has two arms;
+    a collar 2 px past the torso on the shield side still fails). It measures the real body and waives nothing;
+  - **the collars** (what then remains): HELMS ADDs fitted views of `collar.rolled` and `collar.stand` (D49) for every T1
+    wearer but the hero's road (`when !armour.t2,!herokit`): 11 px across facing D (+-5 from the neck anchor), the ends
+    turned down onto the shoulder slope as outlined 2 px ends, the roll's tucks and the stand's points kept; facing R and L
+    as drawn. T2-T6 keep today's views (their caps pass). lt1 and lt1w (e1, e1w) keep every pixel: DOLL adds the flag
+    `herokit` (HumanLook::forgeKit), and the freeze report gives this change 0 hero frames;
+  - **P2b's child headwear**: `kin/child/headwear/conical` (39 looks, 6 rows over the crown against row 0's 4) and
+    `kin/child/headwear/veil` (21 looks, 2 columns against 1) are P2b's signed-off cloth hats filed under kin/. Row 0 is
+    "today's rules" (D80's cloak precedent), so P2b's cloth headwear (headwear/cloth/** and kin/*/headwear/**) is out of the
+    head caps, rows and columns, on untiered looks; on tiered looks D80 stands (out of the columns, rows capped), and every
+    helm (maps/headwear/helm/**) stays capped on every look. DOLL; selftest: a row-0 helm 6 rows over the crown fails;
+  - a_jade3's cloak 3 px past a leg facing D (T5: 2) is ARMOUR's: the view cut 1 px.
+- **D92. The relic climb is the armour's bulk; the helm climbs on its own ladder** (item 3). Measured (the front walk's
+  frame 0, noHeld): hero T5 gilded 762, obsidian 744, emberforged 679, starmetal 770; hero T6 746 / 774 / 703 / 854;
+  heroine T5 740 / 721 / 659 / 742; heroine T6 724 / 751 / 683 / 826. Emberforged is the smallest on all four lines, and at
+  T5 the onion lifts gilded over obsidian. Question 5 ("grow it") asked for bulk in the shoulders, the waist and the skirt
+  while every relic wore the ladder's crested helm, so the head was the same on all four; question 4 then gave each relic
+  its own helm, whose size the head ladder sets (D44: 5 % and 0.10 head OD a tier; the onion at 1.05 x the Heartland T4
+  heads, item 11). So the relic invariant reads the body: the front walk's frame 0 (noHeld), every opaque pixel that no
+  head-anchored part draws (head, face, ears, hair, beard, helm, crest, headwear), gilded < obsidian < emberforged <
+  starmetal on the hero and the heroine at T5 and T6, each step aimed at 2 % or more so it reads at 1x (the gate: strictly
+  climbing); the crystal the largest mass of each size, as before. The onion and crystal helms keep every pixel. A band out
+  of order grows by ADDed views inside the caps (D49, D85): FURNACE's vented shoulders and heavy sleeves (`when
+  metal-ember`), obsidian's shards (`when metal-obsidian`), sized from DOLL's first-block numbers (ARMOUR). Gilded and
+  starmetal are the hero's T5 and T6 (signed off), so the middle bands move first; a step that cannot be reached without
+  touching gilded or starmetal, or that the caps still block, comes to the planner with its numbers, never a quiet cap
+  change.
+- **D93. Trim reaches its band by rule** (item 2, structural). Three rounds of hand marks left source L 72 / 72 lines
+  outside C12b's bands (bodies at T5-T6: 94 views under the 10 % floor, mostly 5-10 %, and 22 over 24 %; T4: 22 under
+  6 %, at 0-6 %, and 3 over 20 %; T3: 33 over 14 %, at 14-24 %; cloaks: 41 over the 30 % ceiling, at 30-36 %, and 30
+  under 10 %) and the hero's line failing again (lt6 D body 8.6 %, lt5 R cloak 34.5 %). Marks placed by hand on hundreds
+  of alloy views do not converge, so the trim band itself lands each piece inside its tier's band (DOLL, doll_compose's
+  trimBand; no pool bytes):
+  - **under the floor**: after widening the marked R runs, the band continues along the piece's own edges, in this order:
+    the hem (the lowest outline row of a torso, skirt, hang, over-layer or cloak facing D and U; the lower edge facing R
+    and L), the neck opening, the arm openings, a pauldron's lower rim, at the tier's width (T4 1 px brass, T5-T6 2 px
+    gold), until the slot's share is its floor + 2 points; runs 2 px long or more; never into a face (W7's box + 1), a G or
+    N pixel, a step-0 or clear cell;
+  - **over the ceiling**: the band's own added rows go first (2 px to 1 on the longest runs, then off on the shortest), then
+    at T3 the shortest R runs paint in the piece's own metal (as at T1-T2), until the share is the ceiling - 2 points; a
+    drawn R pixel at T4-T6 is kept, and a drawn trim still over its ceiling is its map owner's to repaint;
+  - the bands stand (D78) and the marks lead (a marked run is always kept), so FINISH places trim by eye where the rule
+    lands badly (an R mark, made by the map's owner). Selftests: a T6 plate with no R lands in 10-24 %; a T3 piece with
+    every edge marked R lands under 14 %; a face, a gem and a seam are never touched;
+  - the level (which edges, which width) is chosen once per look and slot on the idle D and R, the frames C12b reads, and
+    laid on every frame of that look, so a figure's trim never changes between frames; it tunes the armour slots and the
+    cloak, never the weapon in hand (its trim is the library's R marks);
+  - on the signed-off lines only T5-T6 pieces outside their bands move, in colour inside the outline (D72's trim clause,
+    D94): measured, lt5's and lt5w's cloaks facing R (34.5 %), lt6's body facing D (8.6 %) and lt6w's body facing R
+    (28.7 %); lt1-lt4 and the heroine's T1-T4 sit inside their bands;
+  - C12's other terms on source L have owners: no glow pixel at T5 on 23 views (HELMS: a 2 px brow gem, G, on every T5
+    helm view facing D and R, STYLE_P2 27's "a gilt rim, a brow gem"); colours falling from T3 to T4 on 26 views (the T4
+    brass line adds a colour; what still falls is FINISH's etch); step-4 glints falling on 3 (FINISH); T5 and T6 differing
+    12-13 % facing R on 3 lines, river m s2, river w s2 and highland w s2 (HELMS's legend views); T3 under T2 facing R on
+    dune w s1 and jade m s1 (ARMOUR: the T3 cloak's back facing R).
+- **D94. The owner signs off the freeze** (2026-10-29: "that works for me"). Wave 2's changes on the signed-off figures
+  stand (lt1-lt6, lt6m, lt1w and lt6w, nking, and the envelope looks e1-e6, e1w-e6w, e6m, eg0 and eg3 as built), with two
+  changes the owner asked for: **(a)** the hero's T3 and T4 shields (lt3's kite, lt4's heater and their devices) get a
+  simpler, clear emblem that reads as a design at 1x at NEAR, not mottled noise (D95, SHIELDS); **(b)** the king (nking):
+  a full symmetrical cape in the old deep crimson (as at e25ea41), calmer folds, no white flag-like streaks, no stray hem
+  pixels by the boots, and his crimson back on the lying and dead frames, never a steel lump (D96, DOLL and ARMOUR). The
+  board the owner judged: %TEMP%\claude\emb_P2c\wave2\owner\7_freeze (e25ea41 against 612d3c7) and 1_ladders (lt5-lt6's
+  cloaks and helms). In this round a signed-off figure changes only by (a), (b), item 4's fist on lt6w's haft and D93's
+  trim on the T5-T6 pieces outside their bands (lt5's and lt5w's cloaks, lt6's and lt6w's bodies; colour inside the
+  outline, the silhouette unchanged); `--freeze-check` stays reported, each changed frame attributed to one of these causes
+  and nothing else. After the round's last integration the packager writes the new freeze manifest from the final build
+  (every frozen look, the hero lines and nking among them; the format of wave2\freeze_e25ea41.txt), the integrator runs
+  `--forge-frozen` on it, and from then the freeze is hard against it. D72 is closed.
+- **D95. The hero's T3 and T4 shields carry one clear emblem** (the owner's change a). Today the kite's device is a 1 px
+  cross of five pixels and the heater's a 1 px chevron, each set in a field of broken steps (and on the heater at T4 the
+  etch on P): at 1x they read as noise. lt3's kite and lt4's heater show one bold charge: the kite a cross, the heater the chevron, drawn as solid 2 px
+  bands (the heater's inverted V from its upper corners to the centre, 5-6 px tall facing D; the kite's cross 5-6 px tall
+  and 4-5 wide in its upper half), in the device's two steps (a lit top-left edge over its mid step), 60 luma or more off
+  the field's mid step, symmetric on the shield's axis; the boss (G) a 2 x 2 at the chevron's apex or the cross's centre,
+  or gone; no 1 px device pixel. The field round it is a clean convex plane (the lit band top-left, the shade bottom-right):
+  the etch and filigree are kept off the device and off the field cells that touch it (P cleared there). It reads at 1x on
+  the phone at NEAR as "a chevron (a cross) on a shield". The devices are repainted in place in every face-on key (D, L,
+  guard, block, lie), so every T3-T4 kite and heater gains the clear emblem; the shapes, rims and field colours do not
+  change. lt5, lt6 and lt6m keep their shields' pixels: where a T5-T6 heater reads the base view, today's drawing is kept
+  for it as a `when shield.t5` view (ADD; its planes are stored once, so it costs its records only).
+- **D96. The king's cape** (the owner's change b; D86's king clause restated). A king wears a full, symmetrical cape:
+  census::rankSlots gives a T5 king the long cloak (CAPE at his tier: both shoulders covered alike facing U, its edges
+  showing alike beside both arms facing D, trailing behind facing R and L), and his alloy's half-cape gives way to it (one
+  Cloak-slot piece, D73); the drape over one shoulder goes. A king's cape is his realm's colour darkened, deep, and D88's
+  cloak lift passes it by; the Heartland king's ramp is pinned to e25ea41's crimson (DOLL reads nking's five cloak steps
+  from rpg_test_w0's frames, the e25ea41 build). C14 reads a king's lit fold against his cape's own step 3 (the owner's
+  colour, as GLASS reads its own step 1). The folds are calm: two or three long folds 2-3 px wide, each lit only by a 1 px
+  step-3 edge on its top-left; no step-4 or near-white pixel on the cape. The hem is level and ends a row above the soles
+  facing R and L, every cape pixel 4-connected to the cape (none alone beside a boot). On the fall, lying and dead frames the
+  crimson spreads under and beside the turned body as on e25ea41's nking. DOLL: rankSlots, the ramp pin and a `king` flag
+  (Role::King); ARMOUR: the cape's views as the king wears them, as `when king` views (ADD) wherever the shared long cloak's
+  pixels must stay as signed off on lt5 and lt6. Measured on nking: the cape's columns left and right of the body's axis
+  equal within 1 facing D and U; its steps 2-3 within dE 6 of e25ea41's; 0 Cloak pixels at step 4; 0 Cloak pixels with no
+  4-neighbour of the cape within 2 px of a boot; the fall and lying frames' Cloak pixels 90 % or more of e25ea41's.
+- **D97. One kit, one look** (the packager: on the Heartland T4 kit the sword, dagger, axe and mace rows wear a pale steel
+  crown and the unarmed, greatsword, spear and staff rows a gold one). Measured: the ten `wpn=` values resolve the same helm
+  (fam.crown), cloak and tiers, but gear_look's wearGear takes HumanLook::trimColor from the shield (#E1BFB7 on that kit),
+  and doll_ramps builds Metal 2 (crests, crowns, fittings, the trim below T5) from it, so a kit that carries no shield
+  falls back to brass; ladderKit also skips the shield's draw for those weapons, which shifts every later draw of its Rng.
+  The rule: a kit tag draws one figure whatever it carries, the same armour, helm (family, variant, crest), cloak, colours
+  and trim; only the hands change (the weapon, its sheath, quiver or back item, and the shield and shield arm of a
+  one-handed weapon). ladderKit makes the kit's shield item (where its people bears one) for every weapon and carries it
+  only where the weapon allows;
+  gear::fillLadder takes the kit's trim from that item, carried or not, so every row matches the signed-off sword-and-shield
+  lines. lt6w, the one two-hander among the signed-off lines, is T6, where Metal 2 is the tier's gold or starmetal's
+  ice-cyan whatever trimColor says: 0 frames. DOLL; a test: `--expand-looks` over the ten weapons x T1-T6 x man and woman x
+  the 12 peoples x seeds 1..3 gives equal fields but the hands'; the 3_blows boards re-shot. wearGear (shared with rig 1)
+  does not change: in play a worn shield still sets the figure's trim below T5 (listed for the owner in the flip pack).
+- **D98. The round's budget and the climb's last four lines.** The pool is 2,544,378 B at fr3 (hash 6e6f805e01ffd341),
+  77,062 B under the gate. Allowances (planning; D48: nothing is cut; an area past its own reports it before it spends
+  more): ARMOUR 28 KB, HELMS 14, ACTIONS 14, SHIELDS 4, FINISH 4, DOLL 2 (66 KB; about 9 KB spare). Repaint in place
+  where D49 allows (an A fix, a view's own defect, the owner's change a) before ADDing. The climb (item 1) is not ruled:
+  D76 waives a ratio only when every piece is at its target, and the ledger shows the short lines' pieces under theirs:
+  river s3's officer's cloak adds 150 px (man) and 153 (woman) against 165-190, only 12 px or less over its T3 cloak (D73
+  asks 45), and its T4 helm adds -39 px on the man (smaller than the hair it covers); imperial m s2's T4 shoulders add +1
+  and its helm +34; jade m s1's helm +34 and shoulders +6. Each needs: imperial m s2 +8 px, jade m s1 +3, river m s3 +41,
+  river w s3 +32; the areas aim at 15-20 px of margin, and the judge sees river s3's T4 plainly bigger than its T3 at 1x.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -5169,6 +5346,149 @@ items plus the cheap harness; at most the rounds the main session allows):
 12. Verdict: PASS, or FAIL items each with a repro, the number, the threshold and the check. After PASS: the Batch A marks
     (D86), the owner's freeze board with this round's changes, then the flip pack.
 
+### The wave-2 fix round 4 (2026-10-29: the judge's fix-round-3 items, the owner's freeze sign-off, the packager's notes; D90-D98)
+
+Fix round 3 (the fr3 build of 10:35: pool 2,544,378 B, hash 6e6f805e01ffd341; rig 1 unchanged) failed 7 of the harness's
+42 lines (.tmp/judge/w2fix_r3): gates_parity (B8 4, C3 161, C12 2, relic 4, C19 A3 A5 A6), env_ladder, env_all, adefects,
+arms_matrix, ladder_finish and ladder_finish_L; verify_batch ended CLANG_FAILS=2 (the `--doll --gates` lines of items 3-5
+and `--towns` timing under load). The owner signed off the freeze with two changes (D94). Two items are structural and
+re-ruled (7: D90; 2: D93), two disputes are decided (6: D91; 3: D92), and the rest are fix items:
+
+| # | item (fr3) | ruling | owner |
+|---|---|---|---|
+| 1 | the climb: 68 / 72; imperial m s2 T4 1.34, jade m s1 1.35-, river m s3 T4 = T3 1.30, river w s3 1.39 on 1.38 | D98 (not ruled) | ARMOUR (river s3's officer's cloak), HELMS (the four T4 helms) |
+| 2 | C12 on source L 72 / 72; the hero's line (lt6 D body 8.6 %, lt5 R cloak 34.5 %) | D93 | DOLL (the rule), FINISH (the review, colours, glints), HELMS (T5 gem, legend views), ARMOUR (T3 back facing R) |
+| 3 | the relic order 4 / 9 | D92 | DOLL (the measure), ARMOUR (the growth) |
+| 4 | lt6w's spear idle and walk D: no fist on the haft (161 frames); B8 4 orphans | - | ARMOUR |
+| 5 | C19 A3 a_enkho's left shoulder, A5 fm_myth 1.07, A6 f5_star 2 bands | - | ARMOUR (A3), FINISH (A5, A6) |
+| 6 | C12f caps 1,073: T1 1,012, P2b child headwear 60, a_jade3's cloak 1 | D91 | DOLL (measure, scope, flag), HELMS (collars), ARMOUR (a_jade3) |
+| 7 | C3 3,923: hidden fists 3,802, real 114, C3a 6, C3b 1 | D90 | DOLL (the proof), ACTIONS (the real, the residual, C3a), HELMS (C3b) |
+| 8 | C13 19 (T6 soft light, fjordfolk 25 px), C14 23 (highland w lt2's lit edge 79 luma) | - | FINISH (C13), DOLL (C14's ramps) |
+| a | the owner: lt3's and lt4's shield emblem | D95 | SHIELDS |
+| b | the owner: the king's cape | D96 | DOLL, ARMOUR |
+| p | the packager: one kit one look; the unarmed block; verify_batch | D97 | DOLL; ACTIONS; the integrator |
+
+**How the round works** (as "The wave-2 fix round", with these paths): roots `%TEMP%\claude\emb_P2c\wave2f4\areas\<KEY>\doll\`
+(fresh copies of the fr3 tree's rpg/art/doll/maps and clips, re-copied after each integration; edit only your own globs);
+the keys board `%TEMP%\claude\emb_P2c\wave2f4\keys\<KEY>.txt`; preview with the newest published exe (`bin\LATEST.txt`: the
+fr3 build until DOLL publishes `rpg_test_w2f4.exe` and `doll_gallery_w2f4.exe` with D90-D93, D96 and D97 in its first block,
+then the integrator's `_int<N>`); every `$X` command with EMB_RIG=2 and `--pool $W\x.pool`; builds only through
+`tools/slot.sh cmd //c "set BDIR=<own dir>&& tools\\build.bat <target>" < /dev/null` (5 heavy processes; art areas never
+build; only the integrator builds `build`). Deliver as before: `$W\report.txt` with every Done command's output, the pool
+delta against fr3 and the area's allowance (D98), strips at 1x, 3x and 8x in colour and greyscale, and every signed-off
+frame you changed with its cause (D94). Never write gen/doll_pool.cpp, edit another area's file, kill a running
+Embervale.exe, make a state-changing git operation, delete or empty a drawn map, view or size, or loosen a gate (a gate you
+think wrong goes in the report with its numbers). Rig 1 never changes. The eye: true 1x and 3x first, then 8x hip to boot
+and greyscale, then the black silhouette; clean 2-4 px planes, no 1 px speck; short legs at full thickness, no skinny
+ankles; images 8,000 px or less. The files of each area are those of "The wave-2 fix round" (disjoint, unchanged); every
+other file is frozen.
+
+**Order** (no barrier but DOLL's exe for the items that need its numbers): at hour 0, in parallel, DOLL's first block;
+ARMOUR's items 1, 4, 5 (A3), B8, a_jade3 and the T3 backs; HELMS's item 1, the T5 gems, the legend views and C3b; SHIELDS'
+emblem; FINISH's C13, A5 and A6; ACTIONS' 114, C3a, the unarmed block and the generator. On DOLL's exe: HELMS fits the
+collars from its T1 list; ARMOUR grows the relics from its numbers and draws the king's cape on the pinned ramp; FINISH
+reviews the trim the rule lays; ACTIONS works the frames that fail h1 or h2.
+
+- **DOLL** (engineer-high; BDIR build-proto; the code owner).
+  - First block (exe w2f4): D90 (C3d's proof, h1 and h2, with its selftests; the residual list grouped by arm part, key and
+    facing, with the looks and frames under each and the failing term); D91
+    (t1Figure keeps the shield arm; kin/*/headwear/** out of the head caps on untiered looks; the flag `herokit`; the T1
+    residual list: tag, collar, body, build, hair, pixel); D92 (the relic invariant on the body, each line's four numbers
+    printed); D93 (trimBand's floor and ceiling modes with their selftests; every line's slot shares after it); D96
+    (rankSlots: a king's long cloak, his half-cape out; the kings' deep ramps and the Heartland king's pinned to e25ea41's
+    steps; the flag `king`; C14's king term); D97 (ladderKit makes the shield item for every weapon; fillLadder's trim from
+    it; the kit test).
+  - Core also: C14's 23 lit edges (D88's ramps, inside the parting rules; the Heartland's own kit at T1-T3 left alone);
+    the verify_batch timing line re-run with no other heavy process; contracts 8 appended.
+  - Done (integrated tree, build-proto, EMB_RIG=2): `node tools/doll/pxc.mjs --check` clean, the pool 2,621,440 B or
+    less; `--doll-arms --looks tools/doll/arms_looks.txt --report` prints no "[ruling proposed]" and its selftests ALL
+    CAUGHT; `--doll-envelope --scope all --seeds 1..3`: no kin/*/headwear line and no shield-side T1 line; `--doll-ladder
+    --finish --report` 0 but a relic step still waiting on ARMOUR's growth, and `--scope ladder --seeds 1..3 --report` no
+    C12b slot-share line; the relic line printed on the body measure; the kit test 0; nking's D96 measures; C14 0 on source L; `--doll --gates --parity` 0 but the art items;
+    rig 1 (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0, `--arms --seeds 1..3` ALL OK); WSL clang 18
+    equal on the new gates.
+- **ARMOUR** (artist; item 1 has failed more than three rounds, so artist-xhigh by the escalation rule, as in "The wave-2
+  fix round").
+  - Core: item 1, river s3's officer's cloak (man and woman) at 165-190 px and 45 or more over the line's T3 cloak (today
+    +150 against T3's +158, and +153 against +141), and imperial m s2's T4 shoulders (+1 today: size 4 at 22 px, or the
+    cloak's shoulder cape where its mass is NONE); item 4, lt6w's fist on the haft (the likely cause, read from the part
+    list: `cloak/noble_front` draws on the head layer over the carrying fist facing D; `when spear` and `when staff` views
+    of the cloak fronts cut back so the fist and the haft show, the sword lines lt5 and lt6 unchanged; if the cause is
+    another file, its owner fixes it and the keys board says so); B8's 4 orphans (the knight's and fw_steel's fall f1:
+    `$X --doll-recipe <tag> --orphans`, B8_DEBUG=1); C19 A3, a 2 x 2 lit plane on a_enkho's left shoulder; a_jade3's cloak
+    inside 2 px past the leg; T3 under T2 facing R on dune w s1 and jade m s1 (the T3 cloak 1-2 columns behind); D92's
+    growth from DOLL's numbers (obsidian and emberforged first; gilded and starmetal, the hero's T5 and T6, only through
+    the planner); D96's cape on the king.
+  - Done: `$X --doll-envelope --scope ladder --seeds 1..3 --report --ledger` 72 / 72 with river s3's cloak adds as above;
+    `--doll-ladder` relic invariant 9 / 9; `--doll --gates --parity` C3 0 on the hero lines and B8 0; `--doll-adefects` A3
+    0; `--doll-envelope --scope all --seeds 1..3` no cloak line; C12c 0 on source L; nking's D96 measures; no hero frame in
+    the freeze report from ARMOUR but item 4's and the king's.
+- **HELMS** (artist).
+  - Core: item 1, the T4 views of imperial m s2's and jade m s1's families at 10-15 px over today's add (+34 each), river
+    s3's T4 view covering the hair it masks (the man's add -39 today, the woman's +6; 15 or more each), inside 6 rows, 1.05
+    x the T3 head and 0.10 OD; D91's fitted collars from DOLL's list; D93, a 2 px brow gem (G) on every T5 helm view facing
+    D and R that has none, and the legend views of river m s2, river w s2 and highland w s2 15 % or more off their T5 facing
+    R; C3b, the warhat T6's erase cells covering the long hair at column 6 on ACTION strike v1 D0 (m9_warhat_t6_wh2); the
+    onion and crystal views unchanged (D92).
+  - Done: `$X --doll-envelope --scope ladder --seeds 1..3 --report` head terms 0 and the four lines' helm adds as above;
+    `--scope all --seeds 1..3` 0 T1 lines, lt1 and lt1w unchanged (the freeze report); `--doll-ladder --finish --scope
+    ladder --seeds 1..3 --report` no "no glow pixel at T5" and no rule-a line; `--doll-arms` C3b 0; `--doll-heads` and
+    `--doll-forge --worlds 1..6` C16k 0.
+- **FINISH** (artist; the material lead).
+  - Core: C13 on the 19 T6 lines at 40 px or more of soft light at the breath's peak (fjordfolk 25 px today), on N seams
+    first (N seams on T6 views that lack them asked of ARMOUR and HELMS on the keys board), never in the face box; C19 A5,
+    fm_myth's lit + glow 1.15 x its T6's or more (175 against 164 today: about 15 px more fire on the top-left edges and in
+    2 px cracks, the face clean); C19 A6, f5_star's torso back to 3 Metal / Metal 2 bands (if the trim band merges a band,
+    DOLL's rule skips it); after D93, the trim review per people (T3-T6 at 1x, 3x and 8x, colour and greyscale, grass and
+    dark ground: clean bands, never dots; the R marks it wants asked of the map owners); C12's colours (T3 to T4) and
+    step-4 glint terms.
+  - Done: `$X --doll-ladder --finish --scope ladder --seeds 1..3 --report` C13 0 and no colours or step-4 line;
+    `--doll-adefects` A5 and A6 0; B8 0 on every tile; the review sheet in report.txt.
+- **ACTIONS** (artist-xhigh).
+  - Core: the 114 real C3d failures (the greatsword's grip inside the fist on windup and cast, gs_r and gs_l's marks; the
+    spear's run carry facing U; gs_r's hand facing D on its 10 frames; the 16 others); C3a's six 1 px holes on windup v2
+    (sleeve_heavy_r and sleeve_wide_r at (9,-22), the masked helm at (7,-20): the arm key closes the gap; a sleeve's own
+    view goes to ARMOUR on the keys board); on DOLL's exe, every view that fails h1 or h2, worked from DOLL's list grouped by
+    arm part, key and facing (a fist raised in view from behind is drawn on the grip; a fist the body covers keeps the
+    weapon behind the body there, touching it); the unarmed block (3 frames: raise, impact with a 1 px recoil,
+    brace; the fists up before the face, D U R L; written by the generator); the generator a fixed point.
+  - Done: `$X --doll-arms --looks tools/doll/arms_looks.txt --report` C3 0; `python tools/doll/p2c_clips.py` on a fresh
+    root exits 0 with no diff; `$X --doll --motion --limbs-looks tools/doll/arms_looks.txt --report` 0; `--doll --gates
+    --parity` B10 0; `rpg_test --anim --gates` 0 on the integrated build; the actions board's unarmed row with its block.
+- **SHIELDS** (artist).
+  - Core: D95, the emblem on the kite and the heater and the T5 keep views.
+  - Done: pxc 0 errors; lt3 and lt4 at true 1x on the phone at NEAR (seed 7, the hero at T3 and T4): the emblem reads;
+    at 8x 2 px strokes, no 1 px device pixel, no etch on or beside the device; the freeze report: lt3 and lt4 changed only
+    on the shield, lt5, lt6 and lt6m unchanged; `$X --doll-arms --looks tools/doll/arms_looks.txt --report` C3a, C3c and
+    C3e 0 on shield parts; B8 and B10 0.
+
+**Integrating the round** (the integrator; as "Integrating wave 2"): hour 0 is the fr3 tree. At the barrier: every line of
+`.tmp/judge/w2_gates.sh` rc 0 but the freeze (reported, every changed frame on a signed-off look attributed to D94's
+causes); the pool 2,621,440 B or less; verify_batch CLANG_FAILS=0 (the `--towns` timing line re-run with no other heavy
+process; a failure on a quiet machine is DOLL's); the p2a, p2b and p2c scripts 0 failed; the Witness tests. Record fix
+rounds 1-4 in "Production results and the flip" (the pool and its hash, each area's delta, every gate line, the per-people
+table). Then the verifier gate and the judge. After the verdict: the packager writes the new freeze manifest from the final
+build (D94), then the Batch A marks (D86), the owner's pack and the flip.
+
+**The fix round's gate** (the judge: the production gate's protocol; this round verifies its items plus the cheap harness):
+1. `sh .tmp/judge/w2_gates.sh .tmp/judge/w2fix_r4`: every line rc 0 but the freeze (attributed, D94); rig 1; the pool.
+2. Item 1: `--doll-envelope --scope ladder --seeds 1..3 --report --ledger` 72 / 72; river s3's T3 beside its T4, man and
+   woman, at true 1x in greyscale: the T4 plainly the bigger figure.
+3. Item 2: `--doll-ladder --finish --report` rc 0 and `--scope ladder --seeds 1..3 --report` C12 0; the T4-T6 trim at 1x
+   and 8x: clean bands.
+4. Item 3: the relic invariant 9 / 9; the four relics side by side at 1x, each bulkier in the body; lt5's onion unchanged.
+5. Item 4: lt6w's idle and walk facing D at 12x, the fist on the haft; B8 0.
+6. Item 5: `--doll-adefects` 0.
+7. Item 6: `--doll-envelope --scope all --seeds 1..3` 0; the T1 starters slim at 1x; lt1 and lt1w unchanged.
+8. Item 7: `--doll-arms` C3 0; every family's facing-U strikes and far-arm frames at 12x read as held; D90's selftests.
+9. Item 8: C13 and C14 0 on source L; a T6 breath at 1x.
+10. The owner's changes: lt3 and lt4 on the phone at NEAR (the emblem reads as a design); nking at 1x and 8x beside
+    e25ea41's (symmetric, deep crimson, calm folds, a clean hem, the crimson on the fall and lying frames) with D96's
+    measures.
+11. The packager's notes: the kit test 0 and the 3_blows boards wearing one helm across the weapons; the unarmed block
+    drawn.
+12. Verdict: PASS, or FAIL items each with a repro, the number, the threshold and the check.
+
 ### Waves
 
 1. **Wave 0** (the planner; done, again on 2026-10-23 for the ladder and on 2026-10-24 for the forge styles): this
@@ -5228,6 +5548,10 @@ items plus the cheap harness; at most the rounds the main session allows):
    gate rulings), and the art areas preview on int4 until then (a T4 cloak with `tier=4,cloak=1` on a plate body without an
    alloy shape); the integrator integrates as areas deliver (no barrier but the integration build); then the verifier gate,
    the judge ("The fix round's gate"), the Batch A marks (D86), the owner's freeze board (D72) and the flip pack.
+7c. **The wave-2 fix round 4** (2026-10-29; "The wave-2 fix round 4"): the same six areas on the fr3 tree; DOLL's first
+   block (w2f4: D90-D93, D96, D97) unblocks HELMS's collars, ARMOUR's relic growth and king's cape, FINISH's trim review and
+   ACTIONS's hidden-fist residual; every other item starts at hour 0; then the integration, the verifier gate, the judge
+   (its gate in that section), the new freeze manifest (D94), the Batch A marks and the flip pack.
 8. **Wave 3, the flip** (SWITCH, serial; not started before the owner's go), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
@@ -5281,6 +5605,11 @@ items plus the cheap harness; at most the rounds the main session allows):
      the trim as clean bands from T4; faces clear of pauldrons in every side frame; the hero's onion and crystal helms; the
      Mythic alloys in their own helms under the ember; the freeze report by cause for the owner. The protocol is "The fix
      round's gate".
+   - **the wave-2 fix round 4** (2026-10-29): the owner's two changes first (lt3's and lt4's emblem on the phone at NEAR;
+     the king's full crimson cape at 1x and 8x against e25ea41, standing and dead); river s3's T4 plainly bigger than its
+     T3; trim as clean bands on every people's T4-T6; the four relics bulkier in the body in order, the onion untouched;
+     slim T1 starters; every hidden fist reading as held at 12x; one kit wearing one helm across the weapons. Its gate is
+     in "The wave-2 fix round 4".
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; until the flip at rig 2 through EMB_RIG=2, with the phone as a first launch at NEAR; after the flip, rig 2 by

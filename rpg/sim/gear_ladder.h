@@ -57,6 +57,9 @@ struct LadderKit {
   // (P2c envelope r3, PLAN "The envelope" T3 row) the people's cape to the waist at T3 (a look dial, not an item: L.cape and
   // the cloak's tier 3)
   bool cape = false;
+  // (wave-2 fix round 4, D97) the kit's shield item is made for every weapon (its people bears one; the Rng draws stay in
+  // step), carried (hasShield) only with a one-handed weapon; the kit's trim is taken from it either way
+  bool shieldMade = false;
   WornGear worn() const;
   CultureLookup lookup() const;   // resolves culture.id (only valid while this kit lives)
 };

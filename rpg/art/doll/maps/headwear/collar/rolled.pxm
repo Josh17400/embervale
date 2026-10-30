@@ -42,6 +42,19 @@ legend m cloak 2
 legend n cloak 3
 legend o cloak 4
 
+# (HELMS fix-2 r1, D91) the T1 collar fitted to the slim starter (every T1 wearer but the hero's road): HOMESPUN's roll, 11 px across facing D / U
+# (+-5 from the neck anchor, inside the bare body + 1, C12f T1); the T2-T6 collar and the R / L views as drawn
+view D key rest origin 5 1 when !armour.t2,!herokit replace
+|.55.....55.
+|59855555765
+|58878878665
+|.555555555.
+view U key rest origin 5 1 when !armour.t2,!herokit replace
+|.55.....55.
+|59855555765
+|58878878665
+|.555555555.
+
 view D key rest origin 6 1
 |.55.......55.
 |5985555555765

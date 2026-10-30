@@ -393,6 +393,16 @@ static void applyKitDials(art::HumanLook& L, const LadderKit& K, int tier) {
   if (art::doll::fixOn(art::doll::FIX_CLOAK) && K.hasCloak && L.cloak && tier >= 3) L.tier[art::HumanLook::TIER_CLOAK] = (uint8_t)std::clamp(tier, 3, 6);
 }
 
+// (wave-2 fix round 4, D97) the kit's trim from its shield item, carried or not (wearGear's own rule for a carried shield:
+// the item's tint, else its metal's light), so a kit tag draws one figure whatever it holds: Metal 2 (the crests, crowns,
+// fittings and the trim below T5) never falls back to brass on the two-handed rows. wearGear itself is unchanged (rig 1)
+static void kitTrim(art::HumanLook& L, const LadderKit& K) {
+  if (!K.shieldMade || K.hasShield || !art::doll::fixOn(art::doll::FIX_KIT)) return;
+  const CultureLookup look = K.lookup();
+  const cult::Culture* mk = K.shield.culture ? look(K.shield.culture) : nullptr;
+  L.trimColor = shieldTrimOf(K.shield, mk);
+}
+
 LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::string& wpn, int rarity, uint32_t seed) {
   LadderKit k;
   k.culture = kitCulture(people, seed);
@@ -461,7 +471,10 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
   // shield (a people with no shield bears none; two-handed weapons and bows carry none)
   const std::string w = wpn.empty() ? std::string("sword") : wpn;
   const bool twoHand = w == "greatsword" || w == "spear" || w == "bow" || w == "crossbow" || w == "staff" || w == "unarmed";   // (D89: fists bear no shield)
-  if (!twoHand && (A.shield != SF::None || heart)) {
+  // (wave-2 fix round 4, D97: one kit, one look) the shield item is made whatever the weapon, so every later draw of the kit's
+  // Rng (the weapon, gloves, boots, cloak) is the same on every `wpn=` row; it is carried only with a one-handed weapon
+  const bool makeShield = art::doll::fixOn(art::doll::FIX_KIT) ? (A.shield != SF::None || heart) : (!twoHand && (A.shield != SF::None || heart));
+  if (makeShield) {
     if (tier <= 2) {
       k.shield = make(ItemKind::Shield, 0, il, rar, Mat::Leather, 0, C);
       if (heart || A.shield == SF::Round || A.shield == SF::Kite || A.shield == SF::Heater) k.shield.form = (uint8_t)((int)SF::Round + 1);
@@ -473,7 +486,8 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
       else k.shield = make(ItemKind::Shield, 0, il, rar, m, al, C);
       form(k.shield, tier == 3 ? (int)SF::Kite : (int)SF::Heater);
     }
-    k.hasShield = true;
+    k.shieldMade = true;
+    k.hasShield = !twoHand;
   }
   // the weapon in hand
   if (w == "bow" || w == "crossbow") {
@@ -602,7 +616,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
     else if (k == "mat" || k == "forge" || k == "style" || k == "alloyStyle" || k == "shape" || k == "alloyShape" ||
              (k.rfind("forge", 0) == 0 && k.size() > 5 && k != "forgeKit" && k != "forgeGuise")) forges.push_back(KV{k, v});
-    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam" || k == "forgeKit" || k == "alloyRank" || k == "forgeGuise")
+    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam" || k == "forgeKit" || k == "alloyRank" || k == "forgeGuise" || k == "king")
       tiers.push_back(KV{k, v});
     else plain.push_back(KV{k, v});
   }
@@ -637,6 +651,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       L.outfit = art::Outfit::Tunic;   // appearanceLook's start: the shirt under the kit
       L.weapon = 0; L.shield = false; L.backItem = 0;
       wearGear(L, K.worn(), K.lookup());
+      kitTrim(L, K);
       applyKitDials(L, K, t);
       // the scarf through T3 (contracts 3b): from T4 the gorget and the great helm cover it
       if (hero >= 0 && L.tier[art::HumanLook::TIER_BODY] >= 4) L.neck = 0;
@@ -722,6 +737,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       else if (kv.k == "forgeKit") L.forgeKit = (uint8_t)n;
       else if (kv.k == "alloyRank") L.alloyRank = (uint8_t)n;
       else if (kv.k == "forgeGuise") L.forgeGuise = (uint16_t)n;
+      else if (kv.k == "king") L.king = (uint8_t)n;   // (D96)
       else if (kv.k == "gemColor") {
         const uint32_t rgb = (uint32_t)std::strtoul(kv.v.c_str() + (!kv.v.empty() && kv.v[0] == '#' ? 1 : 0), nullptr, 16);
         L.gemColor = kv.v == "0" ? 0u : hexc(rgb);
@@ -862,6 +878,7 @@ art::HumanLook alloyKitLook(const art::HumanLook& base, const cult::Culture& c, 
   L.outfit = art::Outfit::Tunic;
   L.weapon = 0; L.shield = false; L.backItem = 0;
   wearGear(L, K.worn(), K.lookup());
+  kitTrim(L, K);
   applyKitDials(L, K, t);
   return L;
 }
@@ -904,7 +921,7 @@ std::string describeLook(const art::HumanLook& L) {
   C_(plumeColor) C_(armourTint) C_(armourTint2) C_(glowColor) C_(shieldField) C_(shieldDevice) C_(trimColor) C_(weaponColor)
   static const char* const kSlot[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
   for (int s = 0; s < 8; s++) if (L.tier[s]) add(kSlot[s], L.tier[s]);
-  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) N_(alloyFam) C_(gemColor)
+  N_(rare) N_(mythic) N_(metalKind) N_(bladeKind) N_(motif) N_(kitVar) N_(floor) N_(alloyFam) C_(gemColor) N_(king)
   {   // (P2c forge) the packed styles (0x.., a byte per axis)
     static const char* const kFg[8] = {"forgeBody", "forgeHelm", "forgeShield", "forgeWeapon", "forgeGloves", "forgeBoots", "forgeCloak", "forgeBack"};
     for (int s = 0; s < 8; s++)

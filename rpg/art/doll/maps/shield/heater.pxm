@@ -8,6 +8,12 @@
 # right its back behind the body, raised edge-on before the chest (layer neck) for guard and block. Regions (contracts
 # 3b): R the rim, P the field round the device, G the boss, N the boards, W wear. Written by the LADDER-HEAD area's
 # gen_shields.py from shape masks and checked by eye at 1x and 8x. Format: rpg/art/doll/doll.h.
+# (SHIELDS fix round 4, D95: the hero T4) T3-T4 face-on keys carry one bold inverted V from the field's upper corners to its
+# centre: 2 px bands (H, device 4, lit edge over J), a field-4 sheen top-left, no boss, P (the etch) cleared round it; T5-T6
+# keep theirs (their own views, and the lie and back copies `when shield.t5 replace`).
+# (SHIELDS wave-2 fix round 2, judge P3 'the lt4 chevron pale') the field round the chevron sits a step darker (field 3
+# only in the lit top-left, field 2 on the lit half, field 1 in the shade half), so the device stands 90-150 luma off it;
+# block and bash inset the V one cell from the rims (a 5 x 5 V on the 7-wide field). Shapes, rims and palettes unchanged.
 use person
 body adult
 role shield form3
@@ -21,6 +27,8 @@ legend S field 2
 legend T field 3
 legend F device 2
 legend J device 3
+legend H device 4
+legend Z field 4
 legend k plume 1
 legend l plume 2
 
@@ -43,76 +51,76 @@ legend U glow 1
 view D key rest origin 3 6
 |vvvvvvvvv
 |vzyyyyyxv
-|vyTTTTSxv
-|vyTTJSSxv
-|vyTJFJSxv
-|vyJFSFJxv
-|vyFSSSFwv
-|vxSSSRRwv
+|vyTTSSRxv
+|vyHHSHHxv
+|vyHJSHJxv
+|vySHHJRxv
+|vySHJJRwv
+|vxSSHRRwv
 |.vxSRRwv.
 |.vvwwwvv.
 |...vvv...
 regions
 |.........
 |.RRRRRRR.
-|.RPPPPPR.
-|.RPPGPPR.
-|.RP.G.PR.
 |.R.....R.
-|.R.PPP.R.
-|.RPPPPPR.
-|..RPPPR..
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|..R...R..
 |...RRR...
 |.........
 
 view D key guard origin 3 5
 |vvvvvvvvv
 |vzyyyyyxv
-|vyTTTTSxv
-|vyTTJSSxv
-|vyTJFJSxv
-|vyJFSFJxv
-|vyFSSSFwv
-|vxSSSRRwv
+|vyTTSSRxv
+|vyHHSHHxv
+|vyHJSHJxv
+|vySHHJRxv
+|vySHJJRwv
+|vxSSHRRwv
 |.vxSRRwv.
 |.vvwwwvv.
 |...vvv...
 regions
 |.........
 |.RRRRRRR.
-|.RPPPPPR.
-|.RPPGPPR.
-|.RP.G.PR.
 |.R.....R.
-|.R.PPP.R.
-|.RPPPPPR.
-|..RPPPR..
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|..R...R..
 |...RRR...
 |.........
 
 view D key block origin 5 6
 |vvvvvvvvvvv
 |vzyyyyyyyxv
-|vyTTTTTTSxv
-|vyTTTJSSSxv
-|vyTTJFJSSxv
-|vyTJFSFJSxv
-|vyJFSSSFJwv
-|vyFSSSSSFwv
-|vxSSSSSRRwv
-|.vxSSRRRwv.
+|vyTTSSSSRxv
+|vyTHHSHHRxv
+|vySHJSHJRxv
+|vySSHHJRRxv
+|vySSHJJRRwv
+|vySRRHRRRwv
+|vxSRRRRRRwv
+|.vxRRRRRwv.
 |..vwwwwwv..
 |...vvvvv...
 regions
 |...........
 |.RRRRRRRRR.
-|.RPPPPPPPR.
-|.RPPPGPPPR.
-|.RPP.G.PPR.
-|.RP.....PR.
 |.R.......R.
-|.R.PPPPP.R.
-|.RPPPPPPPR.
+|.R.......R.
+|.R.......R.
+|.R.......R.
+|.RP.....PR.
+|.RP.....PR.
+|.RPP...PPR.
 |..RPPPPPR..
 |...RRRRR...
 |...........
@@ -222,11 +230,11 @@ regions
 view R key guard origin -1 4 layer neck
 |vvvvvvvv
 |vyyyyyxv
-|vyJTSSxv
-|vyTSSSxv
-|vySzxSxv
-|vySxwSwv
-|vxSSSRwv
+|vyTSSRxv
+|vyHHSHxv
+|vySHHJxv
+|vySSHRwv
+|vxSSRRwv
 |vxSSRRwv
 |vxSRRRwv
 |.vwwwwv.
@@ -234,11 +242,11 @@ view R key guard origin -1 4 layer neck
 regions
 |........
 |.RRRRRR.
-|.R.PPPR.
-|.RPPPPR.
-|.RPGGPR.
-|.RPGGPR.
-|.RPPPPR.
+|.R....R.
+|.R....R.
+|.R....R.
+|.R....R.
+|.RP...R.
 |.RPPPPR.
 |.RPPPPR.
 |..RRRR..
@@ -247,11 +255,11 @@ regions
 view R key block origin 0 6 layer neck
 |vvvvvvvv
 |vzyyyyxv
-|vyJTSSxv
-|vyTSSSxv
-|vySzxSxv
-|vySxwSwv
-|vxSSSRwv
+|vyTSSRxv
+|vyHHSHxv
+|vySHHJxv
+|vySSHRwv
+|vxSSRRwv
 |vxSSRRwv
 |vxSRRRwv
 |.vwwwwv.
@@ -259,11 +267,11 @@ view R key block origin 0 6 layer neck
 regions
 |........
 |.RRRRRR.
-|.R.PPPR.
-|.RPPPPR.
-|.RPGGPR.
-|.RPGGPR.
-|.RPPPPR.
+|.R....R.
+|.R....R.
+|.R....R.
+|.R....R.
+|.RP...R.
 |.RPPPPR.
 |.RPPPPR.
 |..RRRR..
@@ -272,76 +280,76 @@ regions
 view L key rest origin 2 6
 |vvvvvvvvv
 |vzyyyyyxv
-|vyTTTTSxv
-|vyTTJSSxv
-|vyTJFJSxv
-|vyJFSFJxv
-|vyFSSSFwv
-|vxSSSRRwv
+|vyTTSSRxv
+|vyHHSHHxv
+|vyHJSHJxv
+|vySHHJRxv
+|vySHJJRwv
+|vxSSHRRwv
 |.vxSRRwv.
 |.vvwwwvv.
 |...vvv...
 regions
 |.........
 |.RRRRRRR.
-|.RPPPPPR.
-|.RPPGPPR.
-|.RP.G.PR.
 |.R.....R.
-|.R.PPP.R.
-|.RPPPPPR.
-|..RPPPR..
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|..R...R..
 |...RRR...
 |.........
 
 view L key guard origin 2 5
 |vvvvvvvvv
 |vzyyyyyxv
-|vyTTTTSxv
-|vyTTJSSxv
-|vyTJFJSxv
-|vyJFSFJxv
-|vyFSSSFwv
-|vxSSSRRwv
+|vyTTSSRxv
+|vyHHSHHxv
+|vyHJSHJxv
+|vySHHJRxv
+|vySHJJRwv
+|vxSSHRRwv
 |.vxSRRwv.
 |.vvwwwvv.
 |...vvv...
 regions
 |.........
 |.RRRRRRR.
-|.RPPPPPR.
-|.RPPGPPR.
-|.RP.G.PR.
 |.R.....R.
-|.R.PPP.R.
-|.RPPPPPR.
-|..RPPPR..
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|..R...R..
 |...RRR...
 |.........
 
 view L key block origin 3 6
 |vvvvvvvvvvv
 |vzyyyyyyyxv
-|vyTTTTTTSxv
-|vyTTTJSSSxv
-|vyTTJFJSSxv
-|vyTJFSFJSxv
-|vyJFSSSFJwv
-|vyFSSSSSFwv
-|vxSSSSSRRwv
-|.vxSSRRRwv.
+|vyTTSSSSRxv
+|vyTHHSHHRxv
+|vySHJSHJRxv
+|vySSHHJRRxv
+|vySSHJJRRwv
+|vySRRHRRRwv
+|vxSRRRRRRwv
+|.vxRRRRRwv.
 |..vwwwwwv..
 |...vvvvv...
 regions
 |...........
 |.RRRRRRRRR.
-|.RPPPPPPPR.
-|.RPPPGPPPR.
-|.RPP.G.PPR.
-|.RP.....PR.
 |.R.......R.
-|.R.PPPPP.R.
-|.RPPPPPPPR.
+|.R.......R.
+|.R.......R.
+|.R.......R.
+|.RP.....PR.
+|.RP.....PR.
+|.RPP...PPR.
 |..RPPPPPR..
 |...RRRRR...
 |...........
@@ -349,6 +357,22 @@ regions
 # (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
 # in shadow; laid over the body's lower edge, never hung under it
 view L key lie origin 9 -4 anchor pivot
+|...vvvvvvvvv
+|.vvyyyyyyyxv
+|vxyTSSSSHHwv
+|vxySSSHHRRwv
+|.vvwSSSRHHwv
+|...vvwwwwwvv
+regions
+|............
+|...RRRRRRRR.
+|.RRPP.....R.
+|.RRPP.....R.
+|...RP.....R.
+|.....RRRRR..
+
+# (SHIELDS fix round 4, D95) the T5-T6 heater keeps its own lie and back drawing (the base views carry the T4 chevron)
+view L key lie origin 9 -4 anchor pivot when shield.t5 replace
 |...vvvvvvvvv
 |.vvyyyyyyyxv
 |vxyTTTTJTTwv
@@ -389,6 +413,32 @@ regions
 |.........
 
 view U key back origin 4 0 anchor neck
+|vvvvvvvvv
+|vyyyyyyxv
+|vyTTSSRxv
+|vyHHSHHxv
+|vyHJSHJxv
+|vySHHJRwv
+|vySHJJRwv
+|vxSSHRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|.R.....R.
+|..R...R..
+|...RRR...
+|.........
+
+# (SHIELDS fix round 4, D95) the T5-T6 heater keeps its own lie and back drawing (the base views carry the T4 chevron)
+view U key back origin 4 0 anchor neck when shield.t5 replace
 |vvvvvvvvv
 |vyyyyyyxv
 |vyJTTSFxv
@@ -11188,26 +11238,26 @@ regions
 view D key bash origin 5 6
 |vvvvvvvvvvv
 |vzyyyyyyyxv
-|vyTTTTTTSxv
-|vyTTTJSSSxv
-|vyTTJFJSSxv
-|vyTJFSFJSxv
-|vyJFSSSFJwv
-|vyFSSSSSFwv
-|vxSSSSSRRwv
-|.vxSSRRRwv.
+|vyTTSSSSRxv
+|vyTHHSHHRxv
+|vySHJSHJRxv
+|vySSHHJRRxv
+|vySSHJJRRwv
+|vySRRHRRRwv
+|vxSRRRRRRwv
+|.vxRRRRRwv.
 |..vwwwwwv..
 |...vvvvv...
 regions
 |...........
 |.RRRRRRRRR.
-|.RPPPPPPPR.
-|.RPPPGPPPR.
-|.RPP.G.PPR.
-|.RP.....PR.
 |.R.......R.
-|.R.PPPPP.R.
-|.RPPPPPPPR.
+|.R.......R.
+|.R.......R.
+|.R.......R.
+|.RP.....PR.
+|.RP.....PR.
+|.RPP...PPR.
 |..RPPPPPR..
 |...RRRRR...
 |...........
@@ -11242,11 +11292,11 @@ regions
 view R key bash origin 0 6 layer neck
 |vvvvvvvv
 |vzyyyyxv
-|vyJTSSxv
-|vyTSSSxv
-|vySzxSxv
-|vySxwSwv
-|vxSSSRwv
+|vyTSSRxv
+|vyHHSHxv
+|vySHHJxv
+|vySSHRwv
+|vxSSRRwv
 |vxSSRRwv
 |vxSRRRwv
 |.vwwwwv.
@@ -11254,11 +11304,11 @@ view R key bash origin 0 6 layer neck
 regions
 |........
 |.RRRRRR.
-|.R.PPPR.
-|.RPPPPR.
-|.RPGGPR.
-|.RPGGPR.
-|.RPPPPR.
+|.R....R.
+|.R....R.
+|.R....R.
+|.R....R.
+|.RP...R.
 |.RPPPPR.
 |.RPPPPR.
 |..RRRR..
@@ -11267,26 +11317,26 @@ regions
 view L key bash origin 3 6
 |vvvvvvvvvvv
 |vzyyyyyyyxv
-|vyTTTTTTSxv
-|vyTTTJSSSxv
-|vyTTJFJSSxv
-|vyTJFSFJSxv
-|vyJFSSSFJwv
-|vyFSSSSSFwv
-|vxSSSSSRRwv
-|.vxSSRRRwv.
+|vyTTSSSSRxv
+|vyTHHSHHRxv
+|vySHJSHJRxv
+|vySSHHJRRxv
+|vySSHJJRRwv
+|vySRRHRRRwv
+|vxSRRRRRRwv
+|.vxRRRRRwv.
 |..vwwwwwv..
 |...vvvvv...
 regions
 |...........
 |.RRRRRRRRR.
-|.RPPPPPPPR.
-|.RPPPGPPPR.
-|.RPP.G.PPR.
-|.RP.....PR.
 |.R.......R.
-|.R.PPPPP.R.
-|.RPPPPPPPR.
+|.R.......R.
+|.R.......R.
+|.R.......R.
+|.RP.....PR.
+|.RP.....PR.
+|.RPP...PPR.
 |..RPPPPPR..
 |...RRRRR...
 |...........

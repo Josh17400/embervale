@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <unordered_map>
+#include <map>
 #include <cmath>
 #include <cstring>
 #include "rpg/art/art_holders2.h"
@@ -332,9 +334,22 @@ struct RegionTile { const ViewRec* v = nullptr; uint32_t mask = 0; uint8_t fin =
 // row in the band counted from the outer edge (-1: not trim). Depth = the 4-connected distance from the part's outline (a
 // pixel beside a clear cell or the view's edge is 0). A run is widened from its innermost R pixels toward deeper pixels until
 // it is W thick; never into G or N, an outline pixel (step 0) or a clear cell
-void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vector<int8_t>& bandRow) {
+// (wave-2 fix round 4, D93) level: the slot's tuned level (DollRecipe::trimLevel); edges: the part's edge kinds (TE_*) the floor
+// mode may continue along; t3: a T3 piece (the ceiling mode paints its shortest drawn R runs in its own metal)
+enum TrimEdge : int { TE_HEM = 1, TE_NECK = 2, TE_ARM = 4, TE_RIM = 8, TE_PLATE = 16 };
+// (fix round 3, D93's walk past its four edges) floorLv 5.. the plate rims: the lower rim of the piece's own lames, the lowest
+// (floorLv - 4) internal lines first (a step-0 line inside the piece, solid above and below, or a seam N row); 1 px, laid in the
+// tile's last (shaded, drawn-step) row: what shows when the hem is drawn R and the neck and arm openings sit under the arms
+constexpr int kBandRim = 0x40;   // bandRow's flag: a plate rim (the tile's last row)
+// (D93) floorLv: the floor mode's edges laid (1 hem .. 4 the pauldron rim) at edgeW; cutLv: the T3 ceiling mode's run limit
+// (1..16); the T4-T6 ceiling narrows W itself (the caller)
+void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vector<int8_t>& bandRow, int floorLv = 0, int edges = 0, int edgeW = 0,
+              int cutLv = 0) {
   const int n = v.w * v.h;
-  bandReg.assign(v.regions.begin(), v.regions.end());
+  // (D93) a view with no region layer (a pauldron, a cloak's back) reads as all "none": the floor mode may still edge it
+  if (v.regions.size() == (size_t)n) bandReg.assign(v.regions.begin(), v.regions.end());
+  else bandReg.assign((size_t)n, 0);
+  const std::vector<uint8_t>& vreg = bandReg;   // (the drawn regions: bandReg is only widened below, never narrowed before isR reads it)
   bandRow.assign((size_t)n, -1);
   auto solid = [&](int k) { const uint8_t c = v.cells[(size_t)k]; return c >= 2 && c != kErase; };
   static thread_local std::vector<int> dist, q, rOut, rIn;
@@ -353,7 +368,9 @@ void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vecto
     const int nb[4] = {x > 0 ? k - 1 : -1, x < v.w - 1 ? k + 1 : -1, y > 0 ? k - v.w : -1, y < v.h - 1 ? k + v.w : -1};
     for (int m : nb) if (m >= 0 && solid(m) && dist[(size_t)m] < 0) { dist[(size_t)m] = dist[(size_t)k] + 1; q.push_back(m); }
   }
-  auto isR = [&](int k) { return solid(k) && v.regions[(size_t)k] == (uint8_t)Region::Trim && codeStep(v.cells[(size_t)k]) >= 1; };
+  static thread_local std::vector<uint8_t> drawnReg;
+  drawnReg = vreg;
+  auto isR = [&](int k) { return solid(k) && drawnReg[(size_t)k] == (uint8_t)Region::Trim && codeStep(v.cells[(size_t)k]) >= 1; };
   // rOut: R pixels from the outer edge of the run to here; rIn: from here to the inner edge (q is in BFS order: dist ascending)
   rOut.assign((size_t)n, 0);
   rIn.assign((size_t)n, 0);
@@ -378,7 +395,7 @@ void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vecto
   }
   auto canTake = [&](int k) {
     if (!solid(k) || codeStep(v.cells[(size_t)k]) < 1) return false;
-    const uint8_t g = v.regions[(size_t)k];
+    const uint8_t g = drawnReg[(size_t)k];
     return g != (uint8_t)Region::Trim && g != (uint8_t)Region::Gem && g != (uint8_t)Region::Seam;
   };
   for (int k : q) {
@@ -403,6 +420,121 @@ void trimBand(const ViewRec& v, int W, std::vector<uint8_t>& bandReg, std::vecto
         }
       }
       front.swap(next);
+    }
+  }
+  // (wave-2 fix round 4, D93) the floor mode: the band continues along the piece's own edges in order (floorLv 1 the hem, 2
+  // the neck opening, 3 the arm openings, 4 a pauldron's lower rim) at edgeW: from the edge inward past the outline ring
+  // (step 0), edgeW cells that can take trim (never a G, N or drawn R cell, a step-0 or clear cell); runs of 2 px or more
+  if (floorLv >= 1 && edgeW >= 1 && edges) {
+    static thread_local std::vector<uint8_t> add;
+    add.assign((size_t)n, 0);
+    auto take = [&](int k) { return canTake(k) && bandReg[(size_t)k] != (uint8_t)Region::Trim; };
+    auto lay = [&](int x, int y, int dx, int dy) {
+      while (x >= 0 && y >= 0 && x < v.w && y < v.h && !solid(y * v.w + x)) { x += dx; y += dy; }
+      while (x >= 0 && y >= 0 && x < v.w && y < v.h && solid(y * v.w + x) && codeStep(v.cells[(size_t)y * v.w + x]) == 0) { x += dx; y += dy; }      for (int row = 0; row < edgeW; row++, x += dx, y += dy) {
+        if (x < 0 || y < 0 || x >= v.w || y >= v.h) break;
+        const int k = y * v.w + x;
+        if (!take(k)) break;
+        if (!add[(size_t)k] || row < add[(size_t)k] - 1) add[(size_t)k] = (uint8_t)(row + 1);
+      }
+    };
+    int top = v.h, bot = -1;
+    for (int k = 0; k < n; k++) if (solid(k)) { top = std::min(top, k / v.w); bot = std::max(bot, k / v.w); }
+    const int mid = (top + bot) / 2;
+    if ((edges & TE_HEM) && floorLv >= 1)
+      for (int x = 0; x < v.w; x++) {
+        int yb = -1;
+        for (int y = v.h - 1; y >= 0 && yb < 0; y--) if (solid(y * v.w + x)) yb = y;
+        if (yb >= mid) lay(x, v.h - 1, 0, -1);
+      }
+    if ((edges & TE_NECK) && floorLv >= 2) {
+      const int cx = v.w / 2, hw = std::max(2, v.w / 6);
+      for (int x = std::max(0, cx - hw); x <= std::min(v.w - 1, cx + hw); x++) {
+        int yt = -1;
+        for (int y = 0; y < v.h && yt < 0; y++) if (solid(y * v.w + x)) yt = y;
+        if (yt >= 0 && yt <= mid) lay(x, 0, 0, 1);
+      }
+    }
+    if ((edges & TE_ARM) && floorLv >= 3)
+      for (int y = top; y <= mid && y < v.h; y++) { lay(0, y, 1, 0); lay(v.w - 1, y, -1, 0); }
+    if ((edges & TE_RIM) && floorLv >= 4)
+      for (int x = 0; x < v.w; x++) lay(x, v.h - 1, 0, -1);
+    if ((edges & TE_PLATE) && floorLv >= 5) {
+      // an internal line cell: solid, a seam (N) or a step-0 cell with solid cells above and below (never the outer ring)
+      auto line = [&](int x, int y) {
+        if (x < 0 || y < 1 || x >= v.w || y >= v.h - 1) return false;
+        const int k = y * v.w + x;
+        if (!solid(k)) return false;
+        if (drawnReg[(size_t)k] == (uint8_t)Region::Seam) return true;
+        return codeStep(v.cells[(size_t)k]) == 0 && solid(k - v.w) && solid(k + v.w);
+      };
+      static thread_local std::vector<int> ys;
+      ys.clear();
+      for (int y = 1; y < v.h - 1; y++) {
+        int run = 0, best = 0;
+        for (int x = 0; x < v.w; x++) { run = line(x, y) && take((y - 1) * v.w + x) ? run + 1 : 0; best = std::max(best, run); }
+        if (best >= 2) ys.push_back(y);
+      }
+      // the lowest (floorLv - 4) lines; a line directly under another counts once (a 2 px seam is one line)
+      std::sort(ys.begin(), ys.end(), std::greater<int>());
+      int nl = 0, last = -9;
+      for (int y : ys) {
+        if (y == last - 1) { last = y; continue; }
+        if (nl >= floorLv - 4) break;
+        nl++;
+        last = y;
+        for (int x = 0; x < v.w; x++) {
+          const int k = (y - 1) * v.w + x;
+          if (line(x, y) && take(k) && !add[(size_t)k] && !line(x, y - 1)) add[(size_t)k] = (uint8_t)(kBandRim | 1);
+        }
+      }
+    }
+    static thread_local std::vector<int> st;
+    static thread_local std::vector<uint8_t> seen;
+    seen.assign((size_t)n, 0);
+    for (int k0 = 0; k0 < n; k0++) {
+      if (!add[(size_t)k0] || seen[(size_t)k0]) continue;
+      std::vector<int> comp;
+      st.assign(1, k0);
+      seen[(size_t)k0] = 1;
+      while (!st.empty()) {
+        const int k = st.back();
+        st.pop_back();
+        comp.push_back(k);
+        int nb[4];
+        nbrs(k, nb);
+        for (int m : nb) if (m >= 0 && add[(size_t)m] && !seen[(size_t)m]) { seen[(size_t)m] = 1; st.push_back(m); }
+      }
+      if (comp.size() < 2) continue;
+      for (int k : comp) {
+        bandReg[(size_t)k] = (uint8_t)Region::Trim;
+        bandRow[(size_t)k] = (int8_t)((add[(size_t)k] & kBandRim) ? kBandRim : (add[(size_t)k] - 1));
+      }
+    }
+  }
+  // (D93) the ceiling mode at T3: the shortest drawn R runs (4-connected) paint in the piece's own metal (as at T1-T2): cutLv 1
+  // runs of 2 px or less, 2 3, 3 4 ... 9 10, 10 12, 11 14, 12 18, 13 24, 14 32, 15 48, 16 every run
+  if (cutLv >= 1) {
+    static const int kRun[16] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 32, 48, 1 << 20};
+    const int lim = kRun[std::min(15, cutLv - 1)];
+    static thread_local std::vector<int> st2;
+    static thread_local std::vector<uint8_t> seen2;
+    seen2.assign((size_t)n, 0);
+    for (int k0 = 0; k0 < n; k0++) {
+      if (!isR(k0) || seen2[(size_t)k0]) continue;
+      std::vector<int> comp;
+      st2.assign(1, k0);
+      seen2[(size_t)k0] = 1;
+      while (!st2.empty()) {
+        const int k = st2.back();
+        st2.pop_back();
+        comp.push_back(k);
+        int nb[4];
+        nbrs(k, nb);
+        for (int m : nb) if (m >= 0 && isR(m) && !seen2[(size_t)m]) { seen2[(size_t)m] = 1; st2.push_back(m); }
+      }
+      if ((int)comp.size() > lim) continue;
+      for (int k : comp) bandRow[(size_t)k] = -2;   // (-2: R kept as drawn material, its tier's colour not laid)
     }
   }
 }
@@ -2188,14 +2320,59 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     static thread_local std::vector<int8_t> bandRow;
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
+    int bandW = 0;   // (D93) the band's width on this piece after its slot's level (0: no rows added)
     {
       const int bts = partTierSlot(it.order);
       const int btier = bts >= 0 ? r.pieceTier[bts] : 0;
-      if (bandTile && !handOnly && !v.regions.empty() && btier >= 4 && btier <= 6) {
-        bandView = trimBandView(P, *bandTile, btier);
-        bandOn = true;
-        trimBand(v, btier >= 5 ? 2 : 1, bandReg, bandRow);
+      // (wave-2 fix round 4, D93) the slot's tuned level: the floor mode continues the band along the piece's edges, the
+      // ceiling mode narrows the band's own rows (T4-T6) or paints the shortest drawn R runs in the piece's metal (T3); never
+      // the weapon in hand
+      const bool tun = bts >= 0 && bts != 3 && bts != 7 && fixOn(FIX_TRIM4);
+      const int tg = facing >= 2 ? 1 : 0;   // (fix round 2) the facing pair's level
+      const int lvl = tun ? r.trimLevel[tg][bts] : 0, cut = tun ? r.trimCeil[tg][bts] : 0;
+      int edges = 0;
+      if (lvl >= 1) {
+        bool armour = false, pauld = false, cloak = false, skirt = false, helm = false;
+        for (const RoleRec& rr : it.part->roles) {
+          const Role ro = (Role)rr.cat;
+          if (ro == Role::Armour) armour = true;
+          if (ro == Role::Pauldron) pauld = true;
+          if (ro == Role::Cloak) cloak = true;
+          if (ro == Role::Helm || ro == Role::Headwear) helm = true;
+          if (ro == Role::Overlay) {
+            const std::string& ov = P.s(rr.value);
+            if (ov.rfind("skirt.", 0) == 0 || ov == "tabard" || ov == "sash" || ov.rfind("mail", 0) == 0) skirt = true;
+          }
+        }
+        const bool hang = it.layer == (int)Layer::HangBack || it.layer == (int)Layer::HangFront;
+        if (helm) edges = 0;
+        else if (pauld) edges = TE_RIM | TE_PLATE;
+        else if (armour && it.layer == (int)Layer::Torso) edges = TE_HEM | TE_NECK | TE_ARM | TE_PLATE;
+        else if (cloak && !armour) edges = TE_HEM;
+        else if (armour || hang || skirt) edges = TE_HEM | TE_PLATE;
       }
+      const bool t3cut = btier == 3 && cut >= 1 && !v.regions.empty() && !handOnly;
+      // (a view with no regions takes the band only for the floor mode's edges: D78's band has no marked run to widen there)
+      if ((bandTile && !handOnly && (!v.regions.empty() || (lvl >= 1 && edges)) && btier >= 4 && btier <= 6) || t3cut) {
+        bandView = btier >= 4 && bandTile ? trimBandView(P, *bandTile, btier) : nullptr;
+        bandOn = true;
+        const int tierW = btier >= 4 ? (btier >= 5 ? 2 : 1) : 0;
+        // the ceiling mode at T4-T6: cut 1 the band's added rows 2 px to 1, cut 2 off; the floor's edges at the tier's
+        // width, 1 px once the ceiling narrows the band
+        bandW = btier >= 4 ? (cut >= 2 ? 0 : cut == 1 ? std::min(tierW, 1) : tierW) : 0;
+        const int edgeW = btier >= 4 ? (cut >= 1 ? 1 : tierW) : 0;
+        trimBand(v, bandW, bandReg, bandRow, lvl, edges, edgeW, btier == 3 ? cut : 0);
+      }
+      static const bool kBandDbg = std::getenv("EMB_BAND_DEBUG") != nullptr;   // (fix round 3) each tuned piece's band, printed
+      if (tun && (lvl || cut) && kBandDbg) {
+        int nR = 0, nAdd = 0, nPx = 0;
+        if (bandOn)
+          for (size_t k = 0; k < bandRow.size(); k++) { if (bandRow[k] >= 0) nR++; if (bandRow[k] >= 0 && (v.regions.size() != bandRow.size() || v.regions[k] != (uint8_t)Region::Trim)) nAdd++; }
+        for (uint8_t c : v.cells) if (c >= 2 && c != kErase) nPx++;
+        std::printf("      band f%d slot %d T%d %s layer %d lvl %d cut %d edges %d tile %d regions %d on %d: px %d R %d added %d\n", facing, bts, btier,
+                    P.s(it.part->name).c_str(), it.layer, lvl, cut, edges, bandTile ? 1 : 0, v.regions.empty() ? 0 : 1, bandOn ? 1 : 0, nPx, nR, nAdd);
+      }
+
     }
     const uint8_t depthMark = partHasRoleCat(*it.part, Role::Held) ? 2 : (partHasRoleCat(*it.part, Role::Shield) || partHasRoleCat(*it.part, Role::Sheath) ||
                                it.layer == (int)Layer::Back || it.layer == (int)Layer::HeldBack || it.layer == (int)Layer::FxBack ||
@@ -2350,11 +2527,12 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           const int cx = x - v.ox + it.clip->ox, cy = y - v.oy + it.clip->oy;
           if (cx < 0 || cy < 0 || cx >= it.clip->w || cy >= it.clip->h || it.clip->cells[(size_t)cy * it.clip->w + cx] < 2) continue;
         }
-        const uint8_t rg = c >= 2 && hasReg ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
+        const uint8_t rg = c >= 2 && (hasReg || bandOn) ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
         if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
         if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
         // (P2c ladder) R P G N W by the piece's own tier (the outline ring keeps its slot)
-        if (rg >= (uint8_t)Region::Trim && rg < REGION_COUNT && ts >= 0 && c >= 2 && codeStep(c) >= 1) {
+        if (rg >= (uint8_t)Region::Trim && rg < REGION_COUNT && ts >= 0 && c >= 2 && codeStep(c) >= 1 &&
+            !(bandOn && rg == (uint8_t)Region::Trim && bandRow[(size_t)y * v.w + x] == -2)) {   // (D93: a T3 run kept as drawn)
           const uint8_t fs = r.fin[ts][rg - (uint8_t)Region::Trim];
           if (fs != 0xFF) c = code((Slot)fs, codeStep(c));
         }
@@ -2365,9 +2543,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
           const int row = bandRow[(size_t)k];
           if (row >= 0) {
             const ViewRec& tv = *bandView;
-            const int W = r.pieceTier[partTierSlot(it.order)] >= 5 ? 2 : 1;
+            const int W = r.pieceTier[partTierSlot(it.order)] >= 5 ? 2 : 1;   // (the tile's rows by the tier's width, whatever D93 narrowed)
             int ty = std::min(row, (int)tv.h - 1);
-            if ((int)tv.h >= 2 * W && bandFacesDownRight(v, x, y)) ty = std::min(W + row, (int)tv.h - 1);
+            if (row & kBandRim) ty = (int)tv.h - 1;   // (a plate rim: the shaded, drawn-step row)
+            else if ((int)tv.h >= 2 * W && bandFacesDownRight(v, x, y)) ty = std::min(W + row, (int)tv.h - 1);
             int tx = ((it.ax + x - v.ox - it.tx) + (it.ay + y - v.oy - it.ty)) % (int)tv.w;
             if (tx < 0) tx += tv.w;
             const uint8_t tc = tv.cells[(size_t)ty * tv.w + tx];
@@ -2943,6 +3122,392 @@ const FrameRec* pickFrame(const DollRecipe& r0, RigPart part, int facing, Clip c
   return &f;
 }
 }  // namespace
+
+// (wave-2 fix round 4, D93) C12b's measure on the idle frame 0 of a facing: per tier slot the gear pixels (armour, helm,
+// shield, pauldron, held, sheath, cloak, overlay parts) and those of them in the trim region drawn in Metal 2, after the
+// finishing pass (tools/tests/test_doll_ladder.cpp richness reads the same)
+TrimShare trimShares(const DollRecipe& r0, int facing) {
+  TrimShare m;
+  const Pool& P = get();
+  DollRecipe r;
+  uint8_t turn = 0;
+  const FrameRec* fp = pickFrame(r0, RigPart::Loco, facing, Clip::Idle, 0, 0, r, turn);
+  if (!fp) return m;
+  static thread_local FrameOut fo;
+  static thread_local std::vector<int16_t> owner;
+  static thread_local std::vector<uint8_t> region;
+  owner.assign((size_t)CW * CH, -1);
+  region.assign((size_t)CW * CH, 0);
+  std::vector<int16_t>* so = g_probeOwner;
+  std::vector<uint8_t>* sr = g_probeRegion;
+  g_probeOwner = &owner; g_probeRegion = &region;
+  composeFrame(r, turn ? 3 : facing, *fp, fo);
+  g_probeOwner = so; g_probeRegion = sr;
+  std::vector<uint8_t> code = fo.code;
+  if (fo.bx1 >= fo.bx0) finishPass(&code[(size_t)fo.by0 * CW + fo.bx0], fo.bx1 - fo.bx0 + 1, fo.by1 - fo.by0 + 1, CW);
+  for (size_t k = 0; k < code.size(); k++) {
+    if (code[k] < 2 || owner[k] < 0 || (size_t)owner[k] >= g_items.size()) continue;
+    const Item& it = g_items[(size_t)owner[k]];
+    bool gear = false;
+    for (const RoleRec& rr : it.part->roles) {
+      const Role ro = (Role)rr.cat;
+      gear = gear || ro == Role::Armour || ro == Role::Helm || ro == Role::Shield || ro == Role::Pauldron || ro == Role::Held || ro == Role::Sheath ||
+             ro == Role::Cloak || ro == Role::Overlay;
+    }
+    const int ts = partTierSlot((int)(it.part - P.parts.data()));
+    if (!gear || ts < 0 || ts >= 8) continue;
+    m.px[ts]++;
+    if (region[k] == (uint8_t)Region::Trim && codeSlot(code[k]) == Slot::Metal2) m.trim[ts]++;
+    else if (region[k] == (uint8_t)Region::Trim) m.glow[ts]++;
+    else if (region[k] == (uint8_t)Region::Seam) m.seam[ts]++;
+    else if (region[k] == (uint8_t)Region::Gem) m.gem[ts]++;
+    else if (codeStep(code[k]) == 0) m.outline[ts]++;
+  }
+  // (fix round 3) EMB_TRIM_PARTS=<slot>: the slot's visible gear pixels and Metal 2 trim per part (who owns an over-ceiling share)
+  if (const char* ps = std::getenv("EMB_TRIM_PARTS")) {
+    const int want = std::atoi(ps);
+    std::map<std::string, std::pair<int, int>> per;
+    for (size_t k = 0; k < code.size(); k++) {
+      if (code[k] < 2 || owner[k] < 0 || (size_t)owner[k] >= g_items.size()) continue;
+      const Item& it = g_items[(size_t)owner[k]];
+      if (partTierSlot((int)(it.part - P.parts.data())) != want) continue;
+      auto& e = per[P.s(it.part->name)];
+      e.first++;
+      if (region[k] == (uint8_t)Region::Trim && codeSlot(code[k]) == Slot::Metal2) e.second++;
+    }
+    std::printf("    trim parts facing %d slot %d:", facing, want);
+    for (const auto& kv : per) std::printf(" %s %d/%d", kv.first.c_str(), kv.second.second, kv.second.first);
+    std::printf("\n");
+  }
+  if (const char* mp = std::getenv("EMB_TRIM_MAP")) {
+    const int want = std::atoi(mp);
+    std::printf("    trim map facing %d slot %d:\n", facing, want);
+    for (int y = fo.by0; y <= fo.by1; y++) {
+      std::string line = "      ";
+      for (int x = fo.bx0; x <= fo.bx1; x++) {
+        const size_t k = (size_t)y * CW + x;
+        char ch = code[k] >= 2 ? ',' : ' ';
+        if (code[k] >= 2 && owner[k] >= 0 && (size_t)owner[k] < g_items.size() && partTierSlot((int)(g_items[(size_t)owner[k]].part - P.parts.data())) == want)
+          ch = region[k] == (uint8_t)Region::Trim ? (codeSlot(code[k]) == Slot::Metal2 ? 'R' : 'r') : codeStep(code[k]) == 0 ? 'o' : (char)('a' + std::min(25, (int)region[k]));
+        line += ch;
+      }
+      std::printf("%s\n", line.c_str());
+    }
+  }
+  return m;
+}
+// the tiers' trim bands (C12b, STYLE_P2 27.2; D78: the bands stand): T3 3-14 %, T4 6-20, T5-T6 10-24; a helm's and a
+// shield's ceiling 36 %, the cloak's 30 %
+// (D93) the levels depend on what is drawn where (parts, flags, regions, tiers), never on the colours: looks that differ only
+// in their ramps share them (a census of one outfit in many dyes measures once). Every compose input but the ramps is hashed
+static uint64_t trimKey(const DollRecipe& r) {
+  uint64_t h = 0xCBF29CE484222325ull;
+  auto mix = [&](const void* p, size_t n) { const uint8_t* b = (const uint8_t*)p; for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 0x100000001B3ull; } };
+  auto mixS = [&](const std::string& t) { mix(t.data(), t.size()); const uint8_t z = 0; mix(&z, 1); };
+  mix(&r.body, sizeof r.body); mixS(r.bodyKey); mix(&r.elf, 1); mix(&r.build, sizeof r.build); mix(&r.family, 1);
+  for (int p : r.parts) mix(&p, sizeof p);
+  for (const std::string& f : r.flags) mixS(f);
+  mix(r.region, sizeof r.region); mix(r.fin, sizeof r.fin); mix(r.finTiles, sizeof r.finTiles); mix(r.pieceTier, sizeof r.pieceTier); mix(&r.rare, 1);
+  mix(&r.blade, 1); mix(&r.guiseHead, 1); mixS(r.motif); mix(r.forgeAx, sizeof r.forgeAx); mix(&r.armourFam, sizeof r.armourFam); mix(&r.sheen, 1);
+  mix(r.shape, sizeof r.shape); mix(&r.helmVariant, 1); mix(&r.pauldronTop, 1); mix(&r.kitCloak, 1); mix(&r.pauldronTopAlloy, 1);
+  mix(&r.layerCloakT3, 1); mix(&r.irisBands, 1); mix(&r.dropHang, 1);
+  const uint32_t fx = fixRules();
+  mix(&fx, sizeof fx);
+  return h;
+}
+static void tuneTrimUncached(DollRecipe& r);
+void tuneTrim(DollRecipe& r) {
+  for (int g = 0; g < 2; g++)
+    for (int s = 0; s < 8; s++) { r.trimLevel[g][s] = 0; r.trimCeil[g][s] = 0; }
+  if (!fixOn(FIX_TRIM4)) return;
+  bool any = false;
+  for (int s : {0, 1, 2, 4, 5, 6}) any = any || r.pieceTier[s] >= 3;
+  if (!any) return;
+  struct L8 { int8_t f[2][8], c[2][8]; };
+  static thread_local std::unordered_map<uint64_t, L8> cache;
+  const uint64_t key = trimKey(r);
+  auto it = cache.find(key);
+  if (it != cache.end() && !std::getenv("EMB_TRIM_DEBUG")) {
+    std::memcpy(r.trimLevel, it->second.f, sizeof r.trimLevel);
+    std::memcpy(r.trimCeil, it->second.c, sizeof r.trimCeil);
+    return;
+  }
+  tuneTrimUncached(r);
+  if (cache.size() > 20000) cache.clear();
+  L8 v;
+  std::memcpy(v.f, r.trimLevel, sizeof r.trimLevel);
+  std::memcpy(v.c, r.trimCeil, sizeof r.trimCeil);
+  cache[key] = v;
+}
+static void tuneTrimUncached(DollRecipe& r) {
+  static const double kLo[7] = {0, 0, 0, 0.03, 0.06, 0.10, 0.10}, kHi[7] = {0, 0, 0.03, 0.14, 0.20, 0.24, 0.24};
+  static const int kSlots[6] = {0, 1, 2, 4, 5, 6};
+  int tt[8] = {};
+  bool any = false;
+  for (int s : kSlots) {
+    if (r.pieceTier[s] < 3) continue;
+    tt[s] = std::min(6, r.pieceTier[s] + ((r.rare >> s & 1) ? 1 : 0));
+    any = true;
+  }
+  if (!any) return;
+  auto lo = [&](int s) { return kLo[tt[s]]; };
+  auto hi = [&](int s) { double h = kHi[tt[s]]; if (s == 1 || s == 2) h = std::max(h, 0.36); if (s == 6) h = std::max(h, 0.30); return h; };
+  // (fix round 2) per facing pair g (0: the idle D, 1: the idle R, the frames C12b reads) and slot: the share as C12b reads it;
+  // a facing showing under 20 px of the piece is not read, nor one where the cloak shows no trim (drawn in its own colours there)
+  struct Sh { double v = 0; bool seen = false; };
+  auto measure = [&](Sh out[2][8]) {
+    for (int g = 0; g < 2; g++) {
+      const TrimShare m = trimShares(r, g ? 2 : 0);
+      for (int s = 0; s < 8; s++) {
+        out[g][s] = Sh{};
+        if (m.px[s] < 20 || (s == 6 && !m.trim[s])) continue;
+        out[g][s].v = (double)m.trim[s] / m.px[s];
+        out[g][s].seen = true;
+      }
+    }
+  };
+  const bool dbg = std::getenv("EMB_TRIM_DEBUG") != nullptr;
+  Sh cur[2][8];
+  measure(cur);
+  // each (facing pair, slot) outside its band walks its own list of (edges, ceiling) levels, all of them a step at a time (their
+  // pixels are their own: a slot's pieces, a facing's views); the first level at its target (the floor + 2 points under, the
+  // ceiling - 2 over) is kept, else the first inside the band, else the one nearest it (never one farther than D78's band alone)
+  struct Cand { int8_t f, c; };
+  // the floor walks the edges in order, each first at 1 px (c 1), then at the tier's width
+  // (fix round 3) then on past the four edges into the plate rims, the lowest lame first (floor 5 .. 10: 1 .. 6 lines)
+  static const Cand kFloor[] = {{1, 1}, {1, 0}, {2, 1}, {2, 0}, {3, 1}, {3, 0}, {4, 1}, {4, 0}, {5, 1}, {5, 0}, {6, 1}, {6, 0},
+                                {7, 1}, {7, 0}, {8, 1}, {8, 0}, {9, 1}, {9, 0}, {10, 1}, {10, 0}};
+  constexpr int kNFloor = (int)(sizeof kFloor / sizeof kFloor[0]);
+  // the ceiling at T4-T6: the band's added rows 2 px to 1, then off; then on into the edges at 1 px where narrowing the band
+  // sinks the piece under its floor
+  static const Cand kCeil[] = {{0, 1}, {0, 2}, {1, 1}, {2, 1}, {1, 2}, {2, 2}, {3, 1}, {3, 2}, {4, 1}, {4, 2}};
+  static const Cand kCeil3[] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8}, {0, 9}, {0, 10}, {0, 11}, {0, 12}, {0, 13}, {0, 14}, {0, 15}, {0, 16}};
+  const Cand* list[2][8] = {};
+  int nList[2][8] = {}, kind[2][8] = {};   // kind 1 floor, -1 ceiling
+  double bestV[2][8] = {};
+  Cand best[2][8] = {};
+  int bestRank[2][8] = {};
+  auto viol = [&](int s, const Sh& x) { return x.seen ? std::max(0.0, lo(s) - x.v) + std::max(0.0, x.v - hi(s)) : 0.0; };
+  bool anyKind = false;
+  for (int g = 0; g < 2; g++)
+    for (int s : kSlots) {
+      bestRank[g][s] = 9;
+      if (!tt[s] || !cur[g][s].seen) continue;
+      if (dbg) std::printf("    tuneTrim %c slot %d T%d level 0: %.1f %% (band %.0f-%.0f)\n", "DR"[g], s, tt[s], cur[g][s].v * 100, lo(s) * 100, hi(s) * 100);
+      const bool under = cur[g][s].v < lo(s) - 1e-9, over = cur[g][s].v > hi(s) + 1e-9;
+      if (!under && !over) continue;
+      bestV[g][s] = viol(s, cur[g][s]);
+      bestRank[g][s] = 2;
+      if (tt[s] >= 4 && under) { kind[g][s] = 1; list[g][s] = kFloor; nList[g][s] = kNFloor; }
+      else if (over) { kind[g][s] = -1; list[g][s] = tt[s] >= 4 ? kCeil : kCeil3; nList[g][s] = tt[s] >= 4 ? 10 : 16; }
+      anyKind = anyKind || kind[g][s] != 0;
+    }
+  if (!anyKind) return;
+  bool done[2][8] = {};
+  for (int step = 0; step < kNFloor; step++) {
+    bool act = false;
+    for (int g = 0; g < 2; g++)
+      for (int s : kSlots) {
+        if (!kind[g][s] || done[g][s]) continue;
+        // (fix round 3) the plate rims (floor 5 on) only where the four edges never reach the band: a slot they bring inside
+        // keeps their level (the signed-off lines' tuned pieces as fix round 2 laid them)
+        if (step >= nList[g][s] || (kind[g][s] == 1 && step == 8 && bestRank[g][s] <= 1)) {
+          done[g][s] = true; r.trimLevel[g][s] = best[g][s].f; r.trimCeil[g][s] = best[g][s].c; continue;
+        }
+        r.trimLevel[g][s] = list[g][s][step].f;
+        r.trimCeil[g][s] = list[g][s][step].c;
+        act = true;
+      }
+    if (!act) break;
+    Sh nw[2][8];
+    measure(nw);
+    for (int g = 0; g < 2; g++)
+      for (int s : kSlots) {
+        if (!kind[g][s] || done[g][s]) continue;
+        const double v = viol(s, nw[g][s]);
+        const bool in = v < 1e-9;
+        const bool atTarget = in && nw[g][s].seen && (kind[g][s] == 1 ? nw[g][s].v >= lo(s) + 0.02 - 1e-9 : nw[g][s].v <= hi(s) - 0.02 + 1e-9);
+        const int rank = atTarget ? 0 : in ? 1 : 2;
+        if (dbg)
+          std::printf("    tuneTrim step %d %c slot %d T%d floor %d cut %d: %.1f %%%s\n", step, "DR"[g], s, tt[s], r.trimLevel[g][s], r.trimCeil[g][s], nw[g][s].v * 100,
+                      rank == 0 ? " (target)" : rank == 1 ? " (in band)" : "");
+        if (rank < bestRank[g][s] || (rank == 2 && bestRank[g][s] == 2 && v < bestV[g][s] - 1e-9)) { bestRank[g][s] = rank; bestV[g][s] = v; best[g][s] = list[g][s][step]; }
+        if (rank == 0) done[g][s] = true;
+      }
+  }
+  for (int g = 0; g < 2; g++)
+    for (int s : kSlots) {
+      if (!kind[g][s]) continue;
+      r.trimLevel[g][s] = best[g][s].f;
+      r.trimCeil[g][s] = best[g][s].c;
+    }
+  // (fix round 2) EMB_TRIM_STUCK: a (facing, slot) the rule leaves outside its band, with what its visible pixels are made of
+  if (std::getenv("EMB_TRIM_STUCK"))
+    for (int g = 0; g < 2; g++) {
+      bool stuck = false;
+      for (int s : kSlots) stuck = stuck || (kind[g][s] && bestRank[g][s] == 2);
+      if (!stuck) continue;
+      const TrimShare m = trimShares(r, g ? 2 : 0);
+      for (int s : kSlots) {
+        if (!kind[g][s] || bestRank[g][s] != 2) continue;
+        std::printf("    TRIMSTUCK %s %c slot %d T%d %s: level 0 %.1f %% -> %d of %d (%.1f %%) at floor %d cut %d; visible seam %d gem %d outline %d glow %d plain %d\n",
+                    r.bodyKey.c_str(), "DR"[g], s, tt[s], kind[g][s] > 0 ? "under" : "over", cur[g][s].v * 100, m.trim[s], m.px[s], m.px[s] ? 100.0 * m.trim[s] / m.px[s] : 0.0,
+                    best[g][s].f, best[g][s].c, m.seam[s], m.gem[s], m.outline[s], m.glow[s], m.px[s] - m.trim[s] - m.seam[s] - m.gem[s] - m.outline[s] - m.glow[s]);
+      }
+    }
+}
+
+// (fix round 2, C14) the materials touching on the idle D and R and the lit top-left edge, as C14 reads them (the same probe)
+void contactRead(const DollRecipe& r, ContactRead& out) {
+  std::memset(out.touch, 0, sizeof out.touch);
+  for (int g = 0; g < 2; g++) {
+    out.edge[g].clear();
+    const FrameProbe f = probeFrame(r, RigPart::Loco, g ? 2 : 0, Clip::Idle, 0, 0, true);
+    if (!f.ok) continue;
+    auto at = [&](int x, int y) -> uint8_t { return x < 0 || y < 0 || x >= f.w || y >= f.h ? 0 : f.code[(size_t)y * f.w + x]; };
+    std::vector<int> rowMin((size_t)f.h, -1), colMin((size_t)f.w, -1);
+    for (int y = 0; y < f.h; y++)
+      for (int x = 0; x < f.w; x++) {
+        const uint8_t a = at(x, y);
+        if (a < 2 || codeStep(a) == 0) continue;
+        if (codeSlot(a) != Slot::Ink) {
+          if (rowMin[(size_t)y] < 0) rowMin[(size_t)y] = x;
+          if (colMin[(size_t)x] < 0) colMin[(size_t)x] = y;
+        }
+        for (int d = 0; d < 2; d++) {
+          const uint8_t b = at(x + (d == 0), y + (d == 1));
+          if (b < 2 || codeStep(b) == 0 || codeSlot(a) == codeSlot(b)) continue;
+          uint16_t& c = out.touch[(int)codeSlot(a)][(int)codeSlot(b)];
+          if (c < 0xFFFF) c++;
+        }
+      }
+    std::vector<uint8_t> seen((size_t)f.w * f.h, 0);
+    auto add = [&](int x, int y) { const size_t k = (size_t)y * f.w + x; if (!seen[k]) { seen[k] = 1; out.edge[g].push_back(f.code[k]); } };
+    for (int y = 0; y < f.h; y++) if (rowMin[(size_t)y] >= 0) add(rowMin[(size_t)y], y);
+    for (int x = 0; x < f.w; x++) if (colMin[(size_t)x] >= 0) add(x, colMin[(size_t)x]);
+  }
+}
+void partContacts(DollRecipe& r, const HumanLook& L) {
+  // C14 reads the kits (a tiered look: the ladder, the forge, the envelope); an untiered townsfolk look keeps rampsOf's parting
+  // and costs no composing here. The read is composed once per drawing (cached by what is drawn, never the colours)
+  if (L.topTier() < 1) return;
+  static thread_local std::unordered_map<uint64_t, ContactRead> cache;
+  const uint64_t key = trimKey(r) ^ 0x7C14C14C14C14C14ull;
+  auto it = cache.find(key);
+  if (it == cache.end()) {
+    ContactRead v;
+    contactRead(r, v);
+    if (cache.size() > 20000) cache.clear();
+    it = cache.emplace(key, std::move(v)).first;
+  }
+  // (C14's own yardsticks) a dark sheen's, KNAPPED's, FURNACE's and GLASS's lit edge is their own step 1: no lift
+  const bool body = L.forge[HumanLook::TIER_BODY] != 0;
+  const bool edgeOwn = body && (L.sheen == 3 || L.metalKind == 7 || L.metalKind == 8 || r.has("glass"));
+  partByContact(r.ramps, L, it->second, edgeOwn, std::getenv("EMB_C14_DEBUG") != nullptr);
+}
+
+// (D93) the band's selftests on synthetic views: a T6 plate with no R lands in 10-24 % by the floor mode; a T3 piece with every
+// edge marked R lands under 14 % by the ceiling mode; a gem and a seam are never touched. Returns the number missed
+int trimSelftests(std::vector<std::string>* missed) {
+  int miss = 0;
+  auto fail = [&](const char* w) { miss++; if (missed) missed->push_back(w); };
+  // a 14 x 18 torso: outline ring (step 0), body steps 1-3 in Metal
+  auto plate = [](ViewRec& v) {
+    v.w = 14; v.h = 18;
+    v.cells.assign(14 * 18, 0);
+    v.regions.assign(14 * 18, 0);
+    for (int y = 0; y < 18; y++)
+      for (int x = 0; x < 14; x++) {
+        const bool neck = y < 2 && x >= 5 && x <= 8;
+        if (neck) continue;
+        const bool ring = x == 0 || y == 0 || x == 13 || y == 17 || (y == 2 && x >= 5 && x <= 8) || ((x == 4 || x == 9) && y < 2);
+        v.cells[(size_t)y * 14 + x] = code(Slot::Metal, ring ? 0 : 1 + (x + y) % 3);
+      }
+  };
+  auto share = [](const ViewRec& v, const std::vector<uint8_t>& reg, const std::vector<int8_t>& row) {
+    int n = 0, t = 0;
+    for (size_t k = 0; k < v.cells.size(); k++) {
+      if (v.cells[k] < 2) continue;
+      n++;
+      if (reg[k] == (uint8_t)Region::Trim && row[k] != -2 && codeStep(v.cells[k]) >= 1) t++;
+    }
+    return n ? (double)t / n : 0.0;
+  };
+  std::vector<uint8_t> reg;
+  std::vector<int8_t> row;
+  {
+    ViewRec v;
+    plate(v);
+    double got = -1;
+    for (int lv = 1; lv <= 4; lv++) {   // the floor's edges in order at T6's width
+      trimBand(v, 2, reg, row, lv, TE_HEM | TE_NECK | TE_ARM, 2, 0);
+      const double sh = share(v, reg, row);
+      if (sh > 0.24) break;
+      got = sh;
+      if (sh >= 0.12) break;
+    }
+    if (!(got >= 0.10 && got <= 0.24)) fail("a T6 plate with no R did not land in 10-24 %");
+    // a gem and a seam on the hem are never touched
+    ViewRec g = v;
+    for (int x = 3; x <= 6; x++) g.regions[(size_t)16 * 14 + x] = (uint8_t)Region::Gem;
+    for (int x = 7; x <= 10; x++) g.regions[(size_t)16 * 14 + x] = (uint8_t)Region::Seam;
+    trimBand(g, 2, reg, row, 4, TE_HEM | TE_NECK | TE_ARM, 2, 0);
+    bool touched = false;
+    for (int x = 3; x <= 10; x++) touched |= reg[(size_t)16 * 14 + x] == (uint8_t)Region::Trim;
+    if (touched) fail("the floor mode laid trim over a gem or a seam");
+  }
+  {
+    ViewRec v;
+    plate(v);   // every edge marked R, in runs (the drawn rim broken at the corners and the neck)
+    for (int y = 1; y < 17; y++)
+      for (int x = 1; x < 13; x++) {
+        const int k = y * 14 + x;
+        if (v.cells[(size_t)k] < 2 || codeStep(v.cells[(size_t)k]) == 0) continue;
+        if (x == 1 || x == 12 || y == 16 || y == 3) v.regions[(size_t)k] = (uint8_t)Region::Trim;
+      }
+    double got = 1;
+    for (int lv = 1; lv <= 16; lv++) {   // the ceiling's runs at T3, shortest first
+      trimBand(v, 0, reg, row, 0, 0, 0, lv);
+      got = share(v, reg, row);
+      if (got <= 0.12) break;
+    }
+    if (got >= 0.14) fail("a T3 piece with every edge marked R did not land under 14 %");
+  }
+  {
+    // (fix round 3) the plate rims: a lamellar body (internal step-0 lines at rows 6, 10 and 14, a 2-row seam at 10-11) with
+    // its hem drawn R: floor 5 rims the lowest lame only (row 13), floor 6 the next (row 9, over the 2-row seam: one line), a
+    // gem on row 13 stays, a lone pixel is never laid, nothing on a line or the outer ring
+    ViewRec v;
+    plate(v);
+    for (int x = 1; x < 13; x++) {
+      v.cells[(size_t)6 * 14 + x] = code(Slot::Metal, 0);
+      v.cells[(size_t)14 * 14 + x] = code(Slot::Metal, 0);
+      v.regions[(size_t)10 * 14 + x] = (uint8_t)Region::Seam;
+      v.regions[(size_t)11 * 14 + x] = (uint8_t)Region::Seam;
+      v.regions[(size_t)16 * 14 + x] = (uint8_t)Region::Trim;
+    }
+    v.regions[(size_t)13 * 14 + 3] = (uint8_t)Region::Gem;
+    v.regions[(size_t)13 * 14 + 4] = (uint8_t)Region::Gem;
+    v.regions[(size_t)13 * 14 + 11] = (uint8_t)Region::Gem;   // (leaves x 12 alone: a 1 px run)
+    auto rimRows = [&](int lv) {
+      trimBand(v, 2, reg, row, lv, TE_HEM | TE_PLATE, 2, 0);
+      std::vector<int> n(18, 0);
+      for (int y = 0; y < 18; y++)
+        for (int x = 0; x < 14; x++) if (row[(size_t)y * 14 + x] >= 0 && (row[(size_t)y * 14 + x] & kBandRim)) n[(size_t)y]++;
+      return n;
+    };
+    const std::vector<int> a = rimRows(4), b = rimRows(5), c = rimRows(6);
+    int sa = 0;
+    for (int y = 0; y < 18; y++) sa += a[(size_t)y];
+    if (sa) fail("floor 4 laid a plate rim");
+    if (b[13] != 8 || b[9] || c[13] != 8 || c[9] != 12 || c[5]) fail("the plate rims did not take the lowest lames in order");
+    trimBand(v, 2, reg, row, 6, TE_HEM | TE_PLATE, 2, 0);
+    for (int x : {3, 4, 11, 12}) if (reg[(size_t)13 * 14 + x] == (uint8_t)Region::Trim) fail("a plate rim over a gem or a lone pixel");
+    for (int x = 0; x < 14; x++)
+      if (reg[(size_t)14 * 14 + x] == (uint8_t)Region::Trim || reg[(size_t)10 * 14 + x] == (uint8_t)Region::Trim) fail("a plate rim on its line");
+  }
+  return miss;
+}
 
 FrameInfo frameInfo(const DollRecipe& r0, RigPart part, int facing, Clip clip, int variant, int i) {
   struct DeathFlag { DeathFlag(bool v) { g_deathPart = v; } ~DeathFlag() { g_deathPart = false; } } deathFlag(part == RigPart::Death);

@@ -526,6 +526,26 @@ std::string describeEnvelope();                    // rpg_test --envelope: the t
     cape; the bandit chief's look calls `gear::rankTiers` after its outfit lines (T2 at home, T3 where liftRank lifts);
     lookTier: an alloy draws T4 or more, a masterwork T5 only from band 4; `wpn=` takes every family name (unarmed and
     crossbow included) and an unknown value is an error naming the tag.
+- **The wave-2 fix round 4 (2026-10-29; PLAN D90-D98; DOLL is the code owner)**:
+  - **Flags (ADD)**: `herokit` (HumanLook::forgeKit set: the hero's and heroine's road), so a fitted view can leave the
+    signed-off lines out (D91); `king` (Role::King, set by census::rankSlots) for the king's cape views (D96).
+  - **C3d's hidden-grip proof** (D90): facing U, the far arm (the right fist facing L, the left facing R) and turned frames
+    only; h1 the grip (or a carry's hand mark) on an opaque non-weapon figure pixel (its outline included), h2 every
+    8-connected group of weapon pixels touching a non-weapon figure pixel; no clearance round the grip is asked. Facing D
+    and on the near arm a missing H pixel fails as before. Messages name the term.
+  - **C12f's T1 bare body** (D91): t1Figure keeps `shield/arm` (the limb) and drops the shield; the head caps skip
+    headwear/cloth/** and kin/*/headwear/** on untiered looks (rows and columns), never maps/headwear/helm/**.
+  - **The relic invariant** (D92): frontArea counts the opaque pixels of the front walk's frame 0 (noHeld) whose owner is no
+    head-anchored part (head, face, ears, hair, beard, helm, crest, headwear).
+  - **The trim band's tuning** (D93): per slot, after the marked runs widen, the band extends along the piece's edges (hem,
+    neck, arm openings, pauldron lower rim) to the slot's floor + 2 points, or narrows its own rows (then at T3 repaints
+    the shortest R runs in the piece's metal) to the ceiling - 2 points; marked runs and drawn R at T4-T6 are kept. The
+    level is chosen once per look and slot (the armour slots and the cloak, never the weapon in hand) on the idle D and R
+    and laid on every frame of the look.
+  - **The king** (D96): rankSlots gives a T5 king `cloak noble` at his tier as CAPE, his over-layer cleared; the cloak ramp
+    of a king is his realm's colour darkened without D88's lift, the Heartland king's pinned to e25ea41's five steps.
+  - **One kit, one look** (D97): ladderKit makes the shield item for every `wpn=` (the Rng draws stay in step) and carries
+    it only for one-handed weapons; fillLadder sets trimColor from it either way. wearGear is unchanged (rig 1).
 
 ## 4. Parts: anchors, layers, channels, keys
 
@@ -1563,3 +1583,45 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   and trim count. `--doll-recipe T --orphans`: the lone pixels in every DEATH frame and the part that drew them.
   `ENV_DEBUG_TAG=<tag>` (`--doll-envelope --scope all`): one look's parts, its T1 pixels outside the outline, and its part
   extents from the head anchor. `B8_DEBUG=1`: where each orphan is.
+
+### DOLL, the wave-2 fix round 4, r1 (2026-10-29; PLAN D90-D98; exe w2f4 = rpg_test_w2f4.exe, doll_gallery_w2f4.exe, BDIR build-proto, embedded pool = fr3's gen)
+- **HumanLook ADD (D96).** `HumanLook::king` (1: Role::King; census::rankSlots sets it; derived, never saved; key() at rig 2 only
+  when set). The looks macros read and print `king=`. Resolver flags ADD: `herokit` (HumanLook::forgeKit: the Heartland kit's road,
+  the hero lines among it) and `king`.
+- **The king (D96).** census::rankSlots: a T5 king's cloak tier is his body's (the long cloak, `cloak noble`, his tier's views) and his
+  alloy's over-layer is NONE (HumanLook::forgeShape bits 11-13; every other bit kept): one Cloak-slot piece, no shoulder drape. The
+  resolver dyes his cape his cloak colour (else his tabard's) darkened to luma 91 where lighter; doll_ramps passes it by D88's lift
+  and pins the Heartland king's (forgeKit or maker Heartland) five steps to e25ea41's: #220813 #631B27 #A53C3C #ED7A5D #FFB684 (read
+  from rpg_test_w0's nking frames). C14 reads a king's lit edge against his cape's own step 3. `--doll-ladder` prints and gates
+  "D96 king cape" on nking: columns left|right of the axis facing D and U within 1, steps 2-3 within dE 6 of e25ea41's, 0 Cloak
+  pixels at step 4, 0 lone Cloak pixels within 2 px of a boot, fall + lying Cloak pixels 90 % or more of e25ea41's 2,406.
+- **One kit, one look (D97).** gear::ladderKit makes the kit's shield item whenever its people bears one (every `wpn=`; the Rng draws
+  stay in step) and carries it (`hasShield`) only with a one-handed weapon (`LadderKit::shieldMade`). The kit macros and
+  alloyKitLook take the trim from it when it is not carried (gear::shieldTrimOf, wearGear's own rule; wearGear unchanged).
+  `--doll-envelope` adds "D97 one kit one look": 12 peoples x man and woman x T1-T6 x seeds 1..3, the ten weapons equal in every
+  field but the hands' (432 lines; 408 differed before).
+- **C3d's hidden-grip proof (D90).** Facing U, the far arm and turned frames: a gripping arm with no H pixel passes only on h1 (the grip
+  on an opaque non-weapon figure pixel; an unowned outline pixel counts as the body's where the weaponless frame has it) and h2
+  (every 8-connected group of weapon pixels touches a non-weapon figure pixel); the rest of C3d then applies (the tip mark, the off
+  fist on the haft line). Messages name h1 / h2; "[ruling proposed]" is gone. `--report` prints the C3d residual grouped by arm
+  part, key, facing and failing term, with its looks and up to 6 frames. Selftests: 8 new (C3 ALL CAUGHT).
+- **C12f T1 and the head caps (D91).** t1Figure's bare body keeps `shield/arm` (the limb; its outline counts); the head caps skip
+  headwear/cloth/** and kin/*/headwear/** on untiered looks (rows and columns), never headwear/helm/**. `--doll-envelope --scope
+  all` prints "T1 residual (D91)" by collar (with herokit marked) and, with `--report`, every look: tag, collar, body, build, hair
+  and the pixels outside. Selftests: a shield bearer's bare body has its shield arm; a collar 2 px past it fails; a row-0 helm 6
+  rows over the crown fails; a helm is never cloth (C12f 15/15).
+- **The relic invariant on the body (D92).** `--doll-ladder` measures the front walk's frame 0 without held, shield, sheath and fx
+  parts, counting the pixels no head-anchored part draws (head, face, ears, hair, beard, helm, crest, plume, headwear; an unowned
+  outline pixel beside a counted one). Each line's four numbers and steps are always printed, with the whole figure's for reference.
+- **The trim band by rule (D93; FIX_TRIM4).** resolve ends with tuneTrim: per armour slot (body, helm, shield, gloves, boots, cloak;
+  never the weapon or the back), C12b's own measure on the idle D and R (trimShares). A slot outside its band walks a list of
+  levels until both facings sit inside it (floor + 2 points under, ceiling - 2 over), else keeps the nearest: DollRecipe::trimLevel
+  (the floor: the band continues along the hem, the neck opening, the arm openings, a pauldron's lower rim; each first at 1 px,
+  then at the tier's width; runs of 2 px or more; never into G, N, drawn R, step 0 or clear; helms are left to their maps) and
+  trimCeil (T4-T6: the band's added rows 2 px to 1, then off; drawn R kept. T3: the shortest drawn R runs, 2 px up to every run,
+  laid as drawn material). A view with no region layer takes the floor's edges. The levels are cached by everything composed
+  but the ramps; they ride on the recipe, so every frame of a look reads the same rule. Selftests: a T6 plate with no R lands in
+  10-24 %, a T3 piece with every edge R lands under 14 %, a gem and a seam are never touched. `EMB_TRIM_DEBUG=1` prints the walk.
+- **C14 (fix round 4).** The metal's step-2-only move off the hair searches in 0.5 % steps (FIX_C14). `--doll-recipe` prints the
+  cloak, metal, metal 2, leather, accent, hair, skin and both cloth ramps; `EMB_C14_DEBUG=1` prints an unparted metal-hair pair.
+- **Freeze attribution.** FixRule bits ADD: FIX_KIT 256 (D97), FIX_KING 512 (D96), FIX_TRIM4 1024 (D93), FIX_C14 2048; FIX_ALL 4095.

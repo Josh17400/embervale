@@ -10,6 +10,8 @@
 # arms and angle, a202 / a337, and crouches a row deeper): st_2b's low coil hung the staff 8-10 rows under the soles
 # and no angle on st_2b holds both fists on the haft above the ground; hit 1's follow facing L keeps a225 standing a
 # row taller (no bob), its staff 3 rows under the soles before.
+# (wave-2 fix round 4, ACTIONS; C3d) hit 3's follow facing U on the hit-2 follow arms (st_2f): st_3f's fist sat under a
+# cape's edge with one pixel showing, the grip under the cape (2 lines).
 
 body man
 clip idle D part drawn family staff variant 1 when staff
@@ -76,7 +78,7 @@ clip strike U family staff variant 2 when staff
 f armL=st_3s armR=st_3s weapon=180,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=44 at=0,-1
 f armL=st_3s armR=st_3s weapon=180,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=66 at=0,-1
 clip follow U family staff variant 2 when staff
-f armL=st_3f armR=st_3f weapon=157.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=140 at=0,-1
+f armL=st_2f armR=st_2f weapon=157.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=140 at=0,-1
 f armL=st_guard armR=st_guard weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=140 at=0,-1
 clip block U family staff variant 0 when staff
 f armL=st_blk armR=st_blk weapon=180,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30 at=0,1
@@ -218,7 +220,7 @@ clip strike U family staff variant 2 when staff
 f armL=st_3s armR=st_3s weapon=180,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=44 at=0,-1
 f armL=st_3s armR=st_3s weapon=180,back legs=buckle neck=rest sheath=drawn torso=rest fx=a1 bob=2 ms=66 at=0,-1
 clip follow U family staff variant 2 when staff
-f armL=st_3f armR=st_3f weapon=157.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=140 at=0,-1
+f armL=st_2f armR=st_2f weapon=157.5,back legs=buckle neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=140 at=0,-1
 f armL=st_guard armR=st_guard weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=140 at=0,-1
 clip block U family staff variant 0 when staff
 f armL=st_blk armR=st_blk weapon=180,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=30 at=0,1

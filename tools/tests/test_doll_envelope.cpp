@@ -255,7 +255,16 @@ bool brimPart(const std::string& n) {
   return false;
 }
 struct Head { int rows = -99, ornRows = -99, cols = 0, colsBrim = 0, colsFlare = 0, px = 0; std::string worst, worstCol; };
-Head headOf(const Fig& f, int who) {
+// (wave-2 fix round 4, D91) P2b's cloth headwear: headwear/cloth/** and the kin's headwear (kin/*/headwear/**: the child's
+// conical hat and veil); never a helm (headwear/helm/**)
+bool clothHat(const std::string& n) {
+  if (n.find("headwear/cloth/") != std::string::npos) return true;
+  const size_t k = n.find("kin/");
+  return k != std::string::npos && n.find("/headwear/", k) != std::string::npos && n.find("headwear/helm/") == std::string::npos;
+}
+// untiered: an untiered look (no ladder tier: P2b's census looks); its cloth headwear is out of the head caps, rows and
+// columns (D91: row 0 is "today's rules"); on a tiered look D80 stands (out of the columns, rows capped)
+Head headOf(const Fig& f, int who, bool untiered = false) {
   Head h;
   if (!f.ok) return h;
   const int crown = f.p.headY + crownOffset(who);
@@ -268,11 +277,13 @@ Head headOf(const Fig& f, int who) {
       h.px++;
       const int up = crown - y;
       const int col = x < f.p.headX ? f.p.headX - x : x > f.p.headX + 15 ? x - (f.p.headX + 15) : 0;
+      const bool cloth = clothHat(it->part);
+      if (cloth && untiered) continue;
       if (ornIt(*it) || f.slot(k) == doll::Slot::Plume) h.ornRows = std::max(h.ornRows, up);
       else {
         if (up > h.rows) { h.rows = up; h.worst = it->part; }
-        // (wave-2 fix round, D80) P2b's cloth headwear (headwear/cloth/**) is out of the column caps at every tier; its rows stand
-        if (it->part.find("headwear/cloth/") != std::string::npos) continue;
+        // (wave-2 fix round, D80) P2b's cloth headwear is out of the column caps at every tier; its rows stand on tiered looks
+        if (cloth) continue;
         if (flarePart(it->part)) h.colsFlare = std::max(h.colsFlare, col);
         else if (brimPart(it->part)) h.colsBrim = std::max(h.colsBrim, col);
         else if (col > h.cols) { h.cols = col; h.worstCol = it->part; }
@@ -350,11 +361,14 @@ int cloakBackOf(const Fig& f, int facing) {
 }
 bool g_t1dbg = false;   // (debug) ENV_DEBUG_TAG=<tag>: the T1 pixels outside, for that look only
 // T1 inside the bare body's outline + 1 px (the hood's rows inside the hair's 2-row rise exempt)
-int t1Outside(const Fig& f, const Fig& bare, int who, int helmTier = 1) {
+std::vector<std::string> g_t1res;   // (D91) the T1 residual list
+int t1Outside(const Fig& f, const Fig& bare, int who, int helmTier = 1, std::string* where = nullptr) {
   if (!f.ok || !bare.ok) return 0;
   std::set<std::pair<int, int>> dil;
   for (int k = 0; k < bare.p.w * bare.p.h; k++) {
-    if (!bare.fig(k)) continue;
+    // (D91) the bare body's shield arm (`shield/arm`, the limb: heldIt counts it with the shield) is part of its outline
+    const bool shArm = bare.opaque(k) && bare.it(k) && bare.it(k)->part == "shield/arm";
+    if (!bare.fig(k) && !shArm) continue;
     const int x = k % bare.p.w - bare.p.px, y = k / bare.p.w - bare.p.py;
     for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) dil.insert({x + dx, y + dy});
   }
@@ -373,6 +387,7 @@ int t1Outside(const Fig& f, const Fig& bare, int who, int helmTier = 1) {
     if (it && helmTier >= 2 && helmIt(*it)) continue;
     if (std::getenv("ENV_DEBUG") || g_t1dbg) std::printf("      T1 outside:%d,%d %s (anchor %d,%d pivot %d,%d)\n", x, y, it ? it->part.c_str() : "?", it ? it->ax : 0,
                                                it ? it->ay : 0, f.p.px, f.p.py);
+    if (where && where->size() < 160) *where += fmt(" %s(%d,%d)", it ? it->part.c_str() : "?", x, y);
     out++;
   }
   return out;
@@ -650,6 +665,7 @@ std::vector<Built> buildLooks(const std::string& text) {
   return v;
 }
 
+doll::DollRecipe t1Figure(const doll::DollRecipe& r, bool bare);   // (below)
 int envelopeSelftests() {
   int caught = 0, want = 0;
   auto expect = [&](bool failed, const char* what) {
@@ -676,6 +692,39 @@ int envelopeSelftests() {
       const int out = t1Outside(probe(b, RigPart::Loco, 0, Clip::Walk, 0, 0), probe(bare, RigPart::Loco, 0, Clip::Walk, 0, 0), 0, 4);
       expect(out > 0, "a T4 body (helm left out) inside a T1's bare outline");
     }
+  }
+  // (wave-2 fix round 4, D91) a shield bearer's bare body has two arms (the shield arm kept, the shield gone); a collar 2 px
+  // past that outline on the shield side still fails; a row-0 helm 6 rows over the crown fails; a helm is never cloth
+  {
+    const Built b = build(Look{"st_t1", 0, "hero=1,kit=heartland:1:7,palette=look"});
+    const doll::DollRecipe own = t1Figure(b.r, true);
+    const Fig bf = probeR(own, RigPart::Loco, 0, Clip::Walk, 0, 0);
+    int armPx = 0, shieldPx = 0;
+    for (int k = 0; bf.ok && k < bf.p.w * bf.p.h; k++) {
+      if (!bf.opaque(k) || !bf.it(k)) continue;
+      if (bf.it(k)->part == "shield/arm") armPx++;
+      else if (bf.it(k)->has(Role::Shield)) shieldPx++;
+    }
+    expect(b.r.has("shield") && armPx > 0 && !shieldPx, "a shield bearer's bare body without its shield arm (or with its shield)");
+    Fig f = bf;
+    int sx = -1, sy = -1;   // the shield arm's outermost pixel on its shoulder rows; a collar pixel 2 px past it
+    for (int k = 0; bf.ok && k < bf.p.w * bf.p.h; k++)
+      if (bf.opaque(k) && bf.it(k) && bf.it(k)->part == "shield/arm") {
+        const int x = k % bf.p.w;
+        if (sy < 0 || std::abs(x - bf.p.px) > std::abs(sx - bf.p.px) || (x == sx && k / bf.p.w < sy)) { sx = x; sy = k / bf.p.w; }
+      }
+    int bodyItem = -1;
+    for (size_t i = 0; i < f.p.items.size() && bodyItem < 0; i++) if (!heldIt(f.p.items[i])) bodyItem = (int)i;
+    if (sx >= 0 && bodyItem >= 0) {
+      const int ox = sx + (sx < f.p.px ? -3 : 3);   // (outward: 2 px past the bare outline + 1)
+      const int k = f.p.at(ox, sy);
+      if (k >= 0) { f.p.code[(size_t)k] = f.p.code[(size_t)bf.p.at(sx, sy)]; f.p.owner[(size_t)k] = (int16_t)bodyItem; }
+    }
+    expect(sx >= 0 && t1Outside(f, bf, 0, 1) > 0, "a collar 2 px past the bare outline + 1 on the shield side");
+    Head h;
+    h.rows = 6;
+    expect(!headRule(0, h).empty(), "a row-0 helm 6 rows over the crown");
+    expect(!clothHat("headwear/helm/kettle") && clothHat("kin/child/headwear/conical") && clothHat("headwear/cloth/coif"), "a helm read as cloth headwear");
   }
   // a T5 cloak 10 px behind
   expect(!cloakRule(5, 0, 10).empty(), "a T5 cloak 10 px behind");
@@ -1936,6 +1985,9 @@ doll::DollRecipe t1Figure(const doll::DollRecipe& r, bool bare) {
                   for (const auto& rr : P.parts[(size_t)pi].roles) {
                     const Role ro = (Role)rr.cat;
                     if (ro == Role::Cloak) return true;
+                    // (wave-2 fix round 4, D91) `shield/arm` is the shield bearer's left ARM (the limb in the shield pose): the bare
+                    // body keeps it (the shield arm without the shield), so the shield side's outline is the arm's, not the torso's
+                    if (bare && ro == Role::Shield && P.s(rr.value) == "arm") continue;
                     if (bare && (ro == Role::Armour || ro == Role::Helm || ro == Role::Headwear || ro == Role::Pauldron || ro == Role::Shield ||
                                  ro == Role::Held || ro == Role::Sheath || ro == Role::Overlay || ro == Role::Fx))
                       return true;
@@ -1965,8 +2017,10 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
   if (!s.empty()) w.push_back(s);
   const std::string c = cloakRule(tc, cloakSideOf(id), std::max(cloakBackOf(ir, 2), cloakBackOf(il, 3)));
   if (!c.empty()) w.push_back(c);
+  bool untiered = true;
+  for (int i = 0; i < HumanLook::TIER_SLOTS; i++) untiered = untiered && !b.L.tier[i] && !b.r.pieceTier[i];
   for (const Fig* f : {&id, &ir}) {
-    const std::string h = headRule(th, headOf(*f, b.who));
+    const std::string h = headRule(th, headOf(*f, b.who, untiered));
     if (!h.empty()) { w.push_back(h); break; }
   }
   const int bk = b.who * 100 + b.L.build;
@@ -2010,9 +2064,23 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
     // kept) with the cloak left out (it has its own caps)
     const doll::DollRecipe noCloak = t1Figure(b.r, false), own = t1Figure(b.r, true);
     const Fig fd = probeR(noCloak, RigPart::Loco, 0, Clip::Walk, 0, 0), fr = probeR(noCloak, RigPart::Loco, 2, Clip::Idle, 0, 0);
-    const int od = t1Outside(fd, probeR(own, RigPart::Loco, 0, Clip::Walk, 0, 0), b.who, th);
-    const int orr = t1Outside(fr, probeR(own, RigPart::Loco, 2, Clip::Idle, 0, 0), b.who, th);
-    if (od || orr) w.push_back(fmt("T1 %d px (D) and %d px (R) outside the bare outline + 1", od, orr));
+    std::string wd, wr;
+    const int od = t1Outside(fd, probeR(own, RigPart::Loco, 0, Clip::Walk, 0, 0), b.who, th, &wd);
+    const int orr = t1Outside(fr, probeR(own, RigPart::Loco, 2, Clip::Idle, 0, 0), b.who, th, &wr);
+    if (od || orr) {
+      w.push_back(fmt("T1 %d px (D) and %d px (R) outside the bare outline + 1", od, orr));
+      // (D91) the T1 residual list: tag, collar, body, build, hair, pixel (HELMS fits the collars from it)
+      std::string collar = "-", hair = "-";
+      for (int pi : b.r.parts) {
+        const std::string n = doll::pool::get().s(doll::pool::get().parts[(size_t)pi].name);
+        if (n.find("collar/") != std::string::npos) collar = n.substr(n.find("collar/"));
+        if (n.rfind("hair/", 0) == 0) hair = n.substr(5);
+      }
+      std::string flags;
+      for (const std::string& fl : b.r.flags) if (fl == "herokit" || fl == "shield") flags += " " + fl;
+      g_t1res.push_back(fmt("%c %-10s %-18s %-5s build %d hair %-18s D:%s R:%s%s", src, b.tag.c_str(), collar.c_str(), b.who ? "woman" : "man", (int)b.L.build,
+                            hair.c_str(), wd.empty() ? " -" : wd.c_str(), wr.empty() ? " -" : wr.c_str(), flags.c_str()));
+    }
   }
   if (w.empty()) return;
   cs.fails++;
@@ -2031,6 +2099,7 @@ int runAllScope(int a, int b, std::vector<std::string>& printed) {
   gear::installLadderMacros();
   std::map<char, CapStat> st;
   std::map<int, Built> bare;
+  g_t1res.clear();
   {   // the census: A B D E G K T
     std::vector<std::pair<char, HumanLook>> cl;
     dollCensusLooks((uint64_t)a, (uint64_t)b, cl);
@@ -2064,6 +2133,17 @@ int runAllScope(int a, int b, std::vector<std::string>& printed) {
     fr += fmt(" T%d max %d (median %d, %zu looks);", kv.first, kv.second.back(), kv.second[kv.second.size() / 2], kv.second.size());
   }
   printed.push_back("  skirt flare past the bare hips facing D (reported):" + fr);
+  {   // (D91) the T1 residual list (the collars HELMS fits; herokit marks the hero's road, left out of the fitted views)
+    std::map<std::string, int> byCollar;
+    for (const std::string& r : g_t1res) {
+      const size_t a = r.find("collar/");
+      byCollar[a == std::string::npos ? std::string("(no collar)") : r.substr(a, r.find(' ', a) - a) + (r.find("herokit") != std::string::npos ? " herokit" : "")]++;
+    }
+    std::string bc;
+    for (const auto& kv : byCollar) bc += fmt(" %s x%d;", kv.first.c_str(), kv.second);
+    printed.push_back(fmt("  T1 residual (D91): %zu look(s):", g_t1res.size()) + bc);
+    if (g_report) for (const std::string& r : g_t1res) printed.push_back("      " + r);
+  }
   printed.push_back(fmt("%s %-24s %4d checks, %4d failed", fails ? "FAIL:" : "ok   ", "C12f caps (every look)", looks, fails));
   art::setRigVersion(was);
   return fails ? 1 : 0;
@@ -2116,21 +2196,89 @@ void kitTagGate(Line& g) {
   }
 }
 
+// (wave-2 fix round 4, D97: one kit, one look) a kit tag draws one figure whatever it carries: over the ten weapons, at
+// T1-T6, man and woman, the 12 peoples and seeds 1..3, every field the looks macros fill is equal but the hands' (the weapon,
+// its forms and metal, the shield and its paint, the back item, their tier, Rare, Mythic and glint bits)
+int kitLookGate(Line& g, bool report) {
+  gear::installLadderMacros();
+  static const char* const kWpn[10] = {"sword", "axe", "mace", "dagger", "greatsword", "spear", "bow", "crossbow", "staff", "unarmed"};
+  auto strip = [](const std::string& d) {
+    std::string out;
+    size_t a = 0;
+    while (a < d.size()) {
+      size_t b = d.find(',', a);
+      if (b == std::string::npos) b = d.size();
+      std::string kv = d.substr(a, b - a);
+      a = b + 1;
+      const size_t e = kv.find('=');
+      const std::string k = kv.substr(0, e);
+      static const char* const kHands[] = {"weapon", "weaponColor", "bladeForm", "polearmForm", "bowForm", "shield", "shieldStyle", "shieldForm",
+                                           "shieldField", "shieldDevice", "backItem", "tierWeapon", "tierShield", "tierBack", "bladeKind",
+                                           "forgeWeapon", "forgeShield", "forgeBack", "glowColor"};
+      bool hand = false;
+      for (const char* h : kHands) hand = hand || k == h;
+      if (hand) continue;
+      if (k == "rare" || k == "mythic" || k == "glow") {   // the per-slot bits without the hands' (shield 2, weapon 3, back 7; glint 1 weapon, 8 shield)
+        long v = std::strtol(kv.c_str() + e + 1, nullptr, 10);
+        v &= k == "glow" ? ~(1L | 8L) : ~((1L << 2) | (1L << 3) | (1L << 7));
+        if (!v) continue;
+        kv = k + "=" + std::to_string(v);
+      }
+      out += kv + ",";
+    }
+    return out;
+  };
+  int lines = 0, bad = 0;
+  for (int p = 0; p < 12; p++)
+    for (int who = 0; who < 2; who++)
+      for (int t = 1; t <= 6; t++)
+        for (int sd = 1; sd <= 3; sd++) {
+          std::string ref, refW;
+          bool same = true;
+          std::string diff;
+          for (const char* w : kWpn) {
+            HumanLook L = who ? a3Woman() : a3Hero();
+            std::string err;
+            doll::applyLookSpec(L, fmt("kit=%s:%d:%d,wpn=%s", kLPeople[p], t, sd, w), nullptr, nullptr, &err);
+            const std::string f = strip(gear::describeLook(L));
+            if (ref.empty()) { ref = f; refW = w; continue; }
+            if (f != ref && same) {
+              same = false;
+              // the first differing field
+              size_t i = 0;
+              while (i < f.size() && i < ref.size() && f[i] == ref[i]) i++;
+              const size_t s0 = f.rfind(',', i) == std::string::npos ? 0 : f.rfind(',', i) + 1;
+              diff = fmt("%s vs %s: %s", w, refW.c_str(), f.substr(s0, f.find(',', i) - s0).c_str());
+            }
+          }
+          lines++;
+          if (same) g.ok();
+          else {
+            bad++;
+            g.bad(fmt("D97 kit=%s:%d:%d %s: %s", kLPeople[p], t, sd, who ? "woman" : "man", diff.c_str()));
+          }
+        }
+  if (report) std::printf("  D97 kit test: %d kit lines x 10 weapons, %d with a field that differs but the hands'\n", lines, bad);
+  return bad;
+}
+
 int runEnvelope(const std::string& text, bool self, std::vector<std::string>& printed) {
   const int was = art::rigVersion();
   art::setRigVersion(2);
   const std::vector<Built> looks = buildLooks(text);
-  Line g{"C12f envelope"}, c3b{"C3b helm by tier"}, lad{"C12f ladder lines"}, mot{"C13 drawn motion"}, b10{"B10 by tier (env)"}, kt{"D64 kit tags"};
+  Line g{"C12f envelope"}, c3b{"C3b helm by tier"}, lad{"C12f ladder lines"}, mot{"C13 drawn motion"}, b10{"B10 by tier (env)"}, kt{"D64 kit tags"},
+      kl{"D97 one kit one look"};
   envelopeLooksGate(looks, g, c3b, lad, nullptr);
   kitTagGate(kt);
+  kitLookGate(kl, g_report);
   motionGate(looks, mot);
   atlasGate(looks, b10, nullptr);
   int fails = 0;
   for (const std::string& n : lad.notes) printed.push_back(n);
-  for (Line* l : {&g, &c3b, &lad, &mot, &b10, &kt}) { printed.push_back(l->text()); fails += l->fails ? 1 : 0; }
+  for (Line* l : {&g, &c3b, &lad, &mot, &b10, &kt, &kl}) { printed.push_back(l->text()); fails += l->fails ? 1 : 0; }
   if (self) {
     const int miss = envelopeSelftests();
-    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f selftests", 11, miss));
+    printed.push_back(fmt("%s %-24s %4d checks, %4d failed", miss ? "FAIL:" : "ok   ", "C12f selftests", 15, miss));
     fails += miss ? 1 : 0;
   }
   art::setRigVersion(was);
@@ -2281,7 +2429,15 @@ int recipeCmd(int argc, char** argv) {
     const Measured m = measure(b);
     std::printf("\n  area %d (D %d R %d) shoulders %d head px %d rows %d cloak D %d back %d\n", m.area, m.areaD, m.areaR, m.shoulders, m.headArea,
                 m.hd.rows, m.cloakD, m.cloakBack);
-    // --map: the idle D and R frames as slot letters (a Skin b Hair c Eyes d Face e Ink f Cloth1 g Cloth2 h Accent i Linen j Cloth3
+    // (wave-2 fix round 4) the ramps that set a figure's colours (D96: the king's cape steps)
+    for (doll::Slot sl : {doll::Slot::Cloak, doll::Slot::Metal, doll::Slot::Metal2, doll::Slot::Leather, doll::Slot::Accent, doll::Slot::Hair, doll::Slot::Skin, doll::Slot::Cloth1, doll::Slot::Cloth2}) {
+      static const char* const nm[] = {"skin", "hair", "eyes", "face", "ink", "cloth1", "cloth2", "accent", "linen", "cloth3", "leather", "metal", "metal2",
+                                       "head", "cloak", "pattern", "plume", "field", "device", "glow", "fx", "blade"};
+      std::printf("  ramp %-7s", nm[(int)sl]);
+      for (int q = 0; q < 5; q++) { const uint32_t c = b.r.ramps.c[(int)sl][q]; std::printf(" #%02X%02X%02X", c & 255u, c >> 8 & 255u, c >> 16 & 255u); }
+      std::printf("\n");
+    }
+    // --map: the idleD and R frames as slot letters (a Skin b Hair c Eyes d Face e Ink f Cloth1 g Cloth2 h Accent i Linen j Cloth3
     // k Leather l Metal m Metal2 n Head o Cloak p Pattern q Plume r Field s Device t Glow u Fx v Blade) with the step, and the
     // part under each pixel by index
     // (wave-2 fix round 3) --orphans: every DEATH frame's lone pixels (no 8-neighbour; B8 craft) with the part that drew them

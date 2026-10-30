@@ -7,6 +7,10 @@
 # (wave-2 fix round 3, ACTIONS; C3d) a shield bearer facing L (the dagger in the far fist) blocks and winds hit 1 up with
 # the dagger cocked back at the hip, the blade up behind the body (dg_3w, a045 behind): on dg_1w a180 the far fist sat
 # behind the torso and the blade under the shield, so neither read (72 lines, every T5 shield bearer).
+# (wave-2 fix round 4, ACTIONS; C3d) a shield bearer facing U keeps the dagger fist wholly clear of a cape: the block holds
+# the dagger at the guard (oh_g) while the shield takes the blow, hit 1's windup rides the dagger's raised arm (dg_3w), its
+# follow the strike arm (dg_1s) (dg_1w / dg_1f showed two hand pixels past the cape's edge, the grip under it: 10 lines);
+# hit 2's windup facing L cocks the blade level behind the head (a000: at a023 its point stood a pixel clear of the helm, D90).
 
 body man
 clip windup R family dagger variant 0
@@ -52,7 +56,7 @@ clip follow D family dagger variant 1
 f armL=idle armR=dg_2f weapon=292,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 hip=-1,0 ms=56
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=48
 clip windup L family dagger variant 1
-f armL=lie armR=dg_2w weapon=23,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56
+f armL=lie armR=dg_2w weapon=0,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56
 clip strike L family dagger variant 1
 f armL=lie armR=dg_2s weapon=203,front expr=fierce fx=a1 legs=lunge sheath=- bob=0 lean=-1 at=-1,0 ms=88
 clip follow L family dagger variant 1
@@ -115,11 +119,11 @@ clip follow L family dagger variant 0 when shield
 f armL=- armR=dg_1f weapon=158,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=56 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup U family dagger variant 0 when shield
-f armL=- armR=dg_1w weapon=90,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=56 sharm=guard shield=guard
+f armL=- armR=dg_3w weapon=90,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=56 sharm=guard shield=guard
 clip strike U family dagger variant 0 when shield
 f armL=- armR=dg_1s weapon=45,back fx=a1 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=88 sharm=guard shield=guard
 clip follow U family dagger variant 0 when shield
-f armL=- armR=dg_1f weapon=67,back fx=a2 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=56 sharm=shtuck shield=guard
+f armL=- armR=dg_1s weapon=67,back fx=a2 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=56 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup R family dagger variant 1 when shield
 f armL=- armR=dg_3w weapon=135,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=56 sharm=shtuck shield=guard
@@ -136,7 +140,7 @@ clip follow D family dagger variant 1 when shield
 f armL=- armR=dg_1f weapon=292,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 hip=-1,0 ms=56 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup L family dagger variant 1 when shield
-f armL=- armR=dg_2w weapon=23,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56 sharm=guard shield=guard
+f armL=- armR=dg_2w weapon=0,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56 sharm=guard shield=guard
 clip strike L family dagger variant 1 when shield
 f armL=- armR=dg_2s weapon=203,front expr=fierce fx=a1 legs=lunge sheath=- bob=0 lean=-1 at=-1,0 ms=88 sharm=guard shield=guard
 clip follow L family dagger variant 1 when shield
@@ -190,9 +194,9 @@ f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=guard shield=guard
 f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=block shield=block expr=fierce fx=spark lean=1 bob=2 at=3,0 ms=50
 f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=block shield=block expr=fierce lean=1 bob=2 at=2,0 ms=70
 clip block U family dagger when shield
-f armL=- armR=dg_1w weapon=90,back legs=drawn sheath=- sharm=guard shield=guard bob=1 at=0,1 ms=30
-f armL=- armR=dg_1w weapon=90,back legs=buckle sheath=- sharm=block shield=block fx=spark bob=2 at=0,2 ms=50
-f armL=- armR=dg_1w weapon=90,back legs=buckle sheath=- sharm=block shield=block bob=2 at=0,1 ms=70
+f armL=- armR=oh_g weapon=90,back legs=drawn sheath=- sharm=guard shield=guard bob=1 at=0,1 ms=30
+f armL=- armR=oh_g weapon=90,back legs=buckle sheath=- sharm=block shield=block fx=spark bob=2 at=0,2 ms=50
+f armL=- armR=oh_g weapon=90,back legs=buckle sheath=- sharm=block shield=block bob=2 at=0,1 ms=70
 
 body woman
 clip windup R family dagger variant 0
@@ -238,7 +242,7 @@ clip follow D family dagger variant 1
 f armL=idle armR=dg_2f weapon=292,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 hip=-1,0 ms=56
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=48
 clip windup L family dagger variant 1
-f armL=lie armR=dg_2w weapon=23,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56
+f armL=lie armR=dg_2w weapon=0,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56
 clip strike L family dagger variant 1
 f armL=lie armR=dg_2s weapon=203,front expr=fierce fx=a1 legs=lunge sheath=- bob=0 lean=-1 at=-1,0 ms=88
 clip follow L family dagger variant 1
@@ -301,11 +305,11 @@ clip follow L family dagger variant 0 when shield
 f armL=- armR=dg_1f weapon=158,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=56 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup U family dagger variant 0 when shield
-f armL=- armR=dg_1w weapon=90,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=56 sharm=guard shield=guard
+f armL=- armR=dg_3w weapon=90,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=56 sharm=guard shield=guard
 clip strike U family dagger variant 0 when shield
 f armL=- armR=dg_1s weapon=45,back fx=a1 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=88 sharm=guard shield=guard
 clip follow U family dagger variant 0 when shield
-f armL=- armR=dg_1f weapon=67,back fx=a2 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=56 sharm=shtuck shield=guard
+f armL=- armR=dg_1s weapon=67,back fx=a2 legs=drawn sheath=- bob=0 lean=-1 at=0,-1 ms=56 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup R family dagger variant 1 when shield
 f armL=- armR=dg_3w weapon=135,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=56 sharm=shtuck shield=guard
@@ -322,7 +326,7 @@ clip follow D family dagger variant 1 when shield
 f armL=- armR=dg_1f weapon=292,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 hip=-1,0 ms=56 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=48 sharm=shtuck shield=guard
 clip windup L family dagger variant 1 when shield
-f armL=- armR=dg_2w weapon=23,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56 sharm=guard shield=guard
+f armL=- armR=dg_2w weapon=0,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=56 sharm=guard shield=guard
 clip strike L family dagger variant 1 when shield
 f armL=- armR=dg_2s weapon=203,front expr=fierce fx=a1 legs=lunge sheath=- bob=0 lean=-1 at=-1,0 ms=88 sharm=guard shield=guard
 clip follow L family dagger variant 1 when shield
@@ -376,6 +380,6 @@ f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=guard shield=guard
 f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=block shield=block expr=fierce fx=spark lean=1 bob=2 at=3,0 ms=50
 f armL=- armR=dg_3w weapon=45,back legs=buckle sheath=- sharm=block shield=block expr=fierce lean=1 bob=2 at=2,0 ms=70
 clip block U family dagger when shield
-f armL=- armR=dg_1w weapon=90,back legs=drawn sheath=- sharm=guard shield=guard bob=1 at=0,1 ms=30
-f armL=- armR=dg_1w weapon=90,back legs=buckle sheath=- sharm=block shield=block fx=spark bob=2 at=0,2 ms=50
-f armL=- armR=dg_1w weapon=90,back legs=buckle sheath=- sharm=block shield=block bob=2 at=0,1 ms=70
+f armL=- armR=oh_g weapon=90,back legs=drawn sheath=- sharm=guard shield=guard bob=1 at=0,1 ms=30
+f armL=- armR=oh_g weapon=90,back legs=buckle sheath=- sharm=block shield=block fx=spark bob=2 at=0,2 ms=50
+f armL=- armR=oh_g weapon=90,back legs=buckle sheath=- sharm=block shield=block bob=2 at=0,1 ms=70

@@ -90,6 +90,26 @@ regions
 |..NNNN.
 |.......
 
+# (ARMOUR fix2 r1, b8tip.py) steel: the 1 px tip dropped (it parted from the flare on the fall's lean, B8)
+view U key rest origin 3 4 when metal-steel replace
+|.....vv
+|....vyv
+|vvvvyyv
+|vyyyyxv
+|vxwwwwv
+|vxyyxwv
+|vxwwwwv
+|.vvvvvv
+regions
+|......G
+|.....RR
+|....RR.
+|.PPPP..
+|..NNNN.
+|..PPP..
+|..NNNN.
+|.......
+
 view U key up origin 3 6
 |......v
 |.....vv

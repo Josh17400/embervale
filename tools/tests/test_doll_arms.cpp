@@ -1473,6 +1473,53 @@ std::string shieldCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare,
   }
   return "";
 }
+// (wave-2 fix round 4, D90) the hidden-grip proof, every term on the composed frame p (bare: the same frame without the
+// weapon, which tells the body's own outline from the weapon's where the outline pass owns a pixel):
+//   h1 covered: the grip mark lies on an opaque pixel of a non-weapon part of the figure (or the outline round them);
+//      on a clear pixel "the fist missing in the open", on a weapon pixel "a weapon in front with no fist";
+//   h2 attached: every 8-connected group of visible weapon pixels touches a non-weapon pixel of the figure.
+// No clearance round the grip is asked (a fist at the silhouette's edge has its blade leave the body right there).
+// Returns "" when both hold, else the failing term.
+std::string hiddenGripProof(const doll::FrameProbe& p, const doll::FrameProbe* bare, int wi, int gx, int gy) {
+  const bool bareOk = bare && bare->w == p.w && bare->h == p.h;
+  auto heldLib = [&](int o) { return o >= 0 && o < (int)p.items.size() && isLibraryHeld(p.items[(size_t)o]); };
+  // a weapon pixel: written by a library weapon, or an unowned (outline) pixel the weaponless frame does not have
+  auto weaponPx = [&](int k) {
+    if (k < 0 || !opaque(p, k)) return false;
+    const int o = ownerOf(p, k);
+    if (o == wi || heldLib(o)) return true;
+    return o < 0 && bareOk && !opaque(*bare, k);
+  };
+  auto figurePx = [&](int k) { return k >= 0 && opaque(p, k) && !weaponPx(k); };
+  const int gk = p.at(gx, gy);
+  if (gk < 0 || !opaque(p, gk)) return fmt("h1: the grip (%d,%d) on a clear pixel (the fist missing in the open)", gx - p.px, gy - p.py);
+  if (weaponPx(gk)) return fmt("h1: the grip (%d,%d) on a weapon pixel (a weapon in front with no fist)", gx - p.px, gy - p.py);
+  std::vector<uint8_t> seen((size_t)p.w * p.h, 0);
+  for (int k0 = 0; k0 < p.w * p.h; k0++) {
+    if (seen[(size_t)k0] || ownerOf(p, k0) != wi || !opaque(p, k0)) continue;
+    std::vector<int> st{k0};
+    seen[(size_t)k0] = 1;
+    bool touch = false;
+    int n = 0, fx = k0 % p.w, fy = k0 / p.w;
+    while (!st.empty()) {
+      const int k = st.back();
+      st.pop_back();
+      n++;
+      const int x = k % p.w, y = k / p.w;
+      for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const int q = p.at(x + dx, y + dy);
+          if (q < 0) continue;
+          if (figurePx(q)) touch = true;
+          else if (!seen[(size_t)q] && weaponPx(q)) { seen[(size_t)q] = 1; st.push_back(q); }
+        }
+    }
+    if (!touch) return fmt("h2: %d weapon pixel(s) from (%d,%d) clear of the body (a weapon floating)", n, fx - p.px, fy - p.py);
+  }
+  return "";
+}
+
 // d: the grips. bare: the same frame without the weapon (the fist's own hand pixels)
 // (wave-2 fix round, D81) twoHand: the off fist is asked (DRAWN and ACTION frames and the guard; never a LOCO, RUN or DEATH
 // carry: D5 carries spears and staffs in the right fist); upright: no weapon pixel more than 2 rows below the sole row
@@ -1523,12 +1570,17 @@ std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, b
   // (wave-2 fix round, D81: every library weapon checked, the spear and the greatsword among them) a gripping hand the body
   // hides by design draws no H pixel: facing U (the hands before the chest, the back toward us), or the far arm (the right fist
   // facing L, the left facing R); as C3c's hidden far hand, nothing to touch there
-  const bool hidden = facing == 1 || (facing == 3 && !onL) || (facing == 2 && onL);
-  // (not exempt without the planner's ruling: the message names the case so the judge and the planner can count it)
-  if (!handPx && hidden) return arm.part + ": no hand pixels (region H) on the gripping arm [hidden hand: facing U or the far arm; ruling proposed]";
-  if (!handPx) return arm.part + ": no hand pixels (region H) on the gripping arm";
-  if (gx < hx0 - 1 || gx > hx1 + 1 || gy < hy0 - 1 || gy > hy1 + 1) return w.part + fmt(": the grip (%d,%d) outside the fist", gx - p.px, gy - p.py);
-  if (covered) return w.part + fmt(": %d weapon pixel(s) over the fist", covered);
+  // (wave-2 fix round 4, D90) and on turned frames (fall, roll, lying: the probe's turn); such a frame with no H pixel passes
+  // only on the hidden-grip proof (h1 covered, h2 attached), never by a waiver
+  const bool hidden = p.turn || facing == 1 || (facing == 3 && !onL) || (facing == 2 && onL);
+  if (!handPx && !hidden) return arm.part + ": no hand pixels (region H) on the gripping arm";
+  if (!handPx) {
+    const std::string why = hiddenGripProof(p, bare, wi, gx, gy);
+    if (!why.empty()) return arm.part + ": no hand pixels (region H) on the hidden gripping arm; " + why;
+  } else {
+    if (gx < hx0 - 1 || gx > hx1 + 1 || gy < hy0 - 1 || gy > hy1 + 1) return w.part + fmt(": the grip (%d,%d) outside the fist", gx - p.px, gy - p.py);
+    if (covered) return w.part + fmt(": %d weapon pixel(s) over the fist", covered);
+  }
   if (!bow) {
     if (!p.tip) return w.part + ": no tip mark";
     const double reach = std::hypot(p.tipX - gx, p.tipY - gy);
@@ -1595,7 +1647,24 @@ bool dropLibraryHeld(int p) {
   return false;
 }
 
+struct C3dRes { int n = 0; std::set<std::string> looks; std::vector<std::string> frames; };
+std::map<std::string, C3dRes> g_c3dRes;
+void printC3dResidual() {
+  if (g_c3dRes.empty()) return;
+  int tot = 0;
+  for (const auto& kv : g_c3dRes) tot += kv.second.n;
+  std::printf("  C3d residual (D90): %d frame(s) in %zu group(s), by arm part, key and facing | failing term\n", tot, g_c3dRes.size());
+  for (const auto& kv : g_c3dRes) {
+    std::string lk;
+    int i = 0;
+    for (const std::string& t : kv.second.looks) { if (i++ == 8) { lk += fmt(" +%d", (int)kv.second.looks.size() - 8); break; } lk += " " + t; }
+    std::string fr;
+    for (const std::string& f : kv.second.frames) fr += (fr.empty() ? "" : ", ") + f;
+    std::printf("    %4d  %s\n          looks %zu:%s\n          frames: %s\n", kv.second.n, kv.first.c_str(), kv.second.looks.size(), lk.c_str(), fr.c_str());
+  }
+}
 void gateC3(Line& g, const std::vector<Look>& looks) {
+  g_c3dRes.clear();
   for (const Look& l : looks) {
     const Built b = build(l);
     if (!armoured(b.L) && !fighter(b.L) && !b.L.helmet && !b.L.helmStyle) continue;
@@ -1631,7 +1700,23 @@ void gateC3(Line& g, const std::vector<Look>& looks) {
           // (D81) the off fist on DRAWN and ACTION frames and the guard only; the carry is one-handed
           const bool askOff = twoHand && (part == RigPart::Drawn || part == RigPart::Action);
           const std::string gc = gripCheck(p, bare.ok ? &bare : nullptr, askOff, f.clip != Clip::Fall && f.clip != Clip::Lying, p.turn ? 3 : f.facing);
-          if (!gc.empty()) g.bad("C3d " + nm + ": " + gc); else g.ok();
+          if (!gc.empty()) {
+            g.bad("C3d " + nm + ": " + gc);
+            // (D90) the residual list, grouped by arm part, key and facing (the arm keys are shared across looks)
+            const int fr = p.gripFrom >= 0 && p.gripFrom < (int)p.items.size() ? p.gripFrom : -1;
+            const std::string term = gc.find("h1:") != std::string::npos ? "h1" : gc.find("h2:") != std::string::npos ? "h2"
+                                   : gc.find("outside the fist") != std::string::npos ? "grip outside the fist"
+                                   : gc.find("over the fist") != std::string::npos ? "weapon over the fist"
+                                   : gc.find("no hand pixels") != std::string::npos ? "no H pixel (near arm / facing D)"
+                                   : gc.find("off the haft") != std::string::npos ? "off fist off the haft"
+                                   : gc.find("tip mark") != std::string::npos ? "tip mark" : gc.find("below the soles") != std::string::npos ? "below the soles" : "other";
+            const std::string key = (fr >= 0 ? p.items[(size_t)fr].part + " key " + p.items[(size_t)fr].key : std::string("(no grip mark)")) +
+                                    fmt(" facing %c%s", "DURL"[f.facing & 3], p.turn ? " turned" : "") + " | " + term;
+            C3dRes& r = g_c3dRes[key];
+            r.n++;
+            r.looks.insert(l.tag);
+            if (r.frames.size() < 6) r.frames.push_back(fmt("%s %s v%d %c%d", partName(part), art::clipName(f.clip), f.variant, "DURL"[f.facing & 3], f.i));
+          } else g.ok();
         }
         if (f.clip == Clip::Lying) {
           const std::string lc = lyingCheck(p, hasHelm, hasShield, fighter(b.L), b.r.guiseHead);
@@ -2076,6 +2161,35 @@ int selftestC3(bool report) {
     fill(q, w, 50, 31, 50, 47, doll::Slot::Leather);
     expect(gripCheck(q, &bare, true, true).empty(), "(a weapon 2 rows below the soles reads clean)");
   }
+  {   // (wave-2 fix round 4, D90) the hidden-grip proof: facing U the fist is before the chest, the blade rises over the
+      // shoulder; the body covers the grip (h1) and every weapon piece touches the body (h2)
+    doll::FrameProbe p = synth(80, 60);
+    const int body = addItem(p, "armour/man/plate", doll::Role::Armour, A::Neck, doll::Layer::Torso);
+    const int w = addItem(p, "held/weapons/arming_sword", doll::Role::Held, A::Grip, doll::Layer::Back, 0, "sword.straight");
+    const int arm = addItem(p, "arms/adult/action/onehand/sw_r", doll::Role::Arms, A::ShoulderR, doll::Layer::ArmNear, 1);
+    fill(p, body, 30, 30, 50, 50, doll::Slot::Metal);
+    fill(p, arm, 44, 32, 47, 44, doll::Slot::Metal);
+    fill(p, w, 46, 14, 46, 29, doll::Slot::Blade);   // the blade above the shoulder, touching it at row 29
+    p.grip = true; p.gripX = 46; p.gripY = 36; p.gripFrom = arm; p.tip = true; p.tipX = 46; p.tipY = 14;
+    doll::FrameProbe bare = p;
+    for (int k = 0; k < bare.w * bare.h; k++) if (bare.owner[(size_t)k] == w) { bare.code[(size_t)k] = 0; bare.owner[(size_t)k] = -1; }
+    expect(gripCheck(p, &bare, false, true, 1).empty(), "(a clean facing-U strike, the fist hidden, reads clean)");
+    doll::FrameProbe q = p;   // the fist at the silhouette's edge: the blade leaves the body right beside the grip
+    fill(q, w, 51, 36, 60, 36, doll::Slot::Blade);
+    for (int k = 0; k < q.w * q.h; k++) if (q.owner[(size_t)k] == w && k / q.w < 30) { q.code[(size_t)k] = 0; q.owner[(size_t)k] = -1; }
+    q.gripX = 50; q.gripY = 36; q.tipX = 60; q.tipY = 36;
+    expect(gripCheck(q, &bare, false, true, 1).empty(), "(a facing-U fist at the silhouette's edge, its blade leaving there, reads clean)");
+    q = p; q.gripX = 46; q.gripY = 20;   // the grip up on the blade
+    expect(!gripCheck(q, &bare, false, true, 1).empty(), "a hidden grip on the blade (a weapon in front with no fist)");
+    q = p; q.gripX = 56; q.gripY = 20;   // the grip in the air
+    expect(!gripCheck(q, &bare, false, true, 1).empty(), "a hidden grip on a clear pixel (the fist missing in the open)");
+    q = p;   // a 2 px gap between the blade and the shoulder
+    clearPx(q, 46, 29); clearPx(q, 46, 28);
+    expect(!gripCheck(q, &bare, false, true, 1).empty(), "a 2 px gap between the blade and the shoulder (a weapon floating)");
+    expect(!gripCheck(p, &bare, false, true, 0).empty(), "a facing-D frame with no H pixel although h1 and h2 hold");
+    expect(!gripCheck(p, &bare, false, true, 2).empty(), "the near arm (the right fist facing R) with no H pixel");
+    expect(gripCheck(p, &bare, false, true, 3).empty(), "(the far arm, the right fist facing L, on the proof reads clean)");
+  }
   {   // e: lying without the helm, the shield away, the weapon away
     doll::FrameProbe p = synth(80, 40);
     const int body = addItem(p, "wear/tunic", doll::Role::Garment, A::Neck, doll::Layer::Torso);
@@ -2162,6 +2276,7 @@ int selftestC6(bool report) {
 int runGates(const std::vector<Look>& looks, bool selftests, std::vector<Line>* out) {
   Line c3{"C3 gear"}, c4{"C4 armour change"}, c5{"C5 families"}, c6{"C6 weapons"}, st{"C3-C6 selftests"};
   gateC3(c3, looks);
+  if (g_report) printC3dResidual();
   gateC4(c4, looks);
   gateC5(c5, looks);
   gateC6(c6);

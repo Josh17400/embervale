@@ -37,6 +37,8 @@ art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home);
 // staff on the back, amulet and ring glints), each piece in ITS maker culture's silhouettes and its metal. Fields of L
 // that no worn piece sets keep their value (so call it on a fresh appearanceLook).
 void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf);
+// (P2c wave-2 fix round 4, D97) the trim colour wearGear takes from a worn shield (the item's tint, else its metal's light)
+uint32_t shieldTrimOf(const Item& shield, const cult::Culture* maker);
 
 // (M8b Treasure, VIEW lane) a Mythic piece's glow on the hero's and a companion's sheet: this exact red-orange
 // (rgba(255, 104, 40)); it wins over a Legendary's colour. The view tells a Mythic wearer by it (rising embers and a

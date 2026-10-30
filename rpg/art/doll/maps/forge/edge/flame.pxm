@@ -38,9 +38,11 @@ tags tile overlay edge on-edge:hem
 # (envelope r1, FORGE-MATERIAL; A5 "flame and sparkle pixels, 1 px speckle") the tongue re-cut as a plane: a 2 x 2 lit
 # tongue on its flank under a 3 px lit lip, period 5, no step-4 point (the old z made a white speck every 4 px along every
 # hem and its 1 px y tongue read as glitter); the fire's light is the view's own (render.cpp), not the hem's pixels.
+# (FINISH wave-2 fix2 r2, C19 A5) the tongue a column wider on its flank and its tip lit inside the dark (vyv): a 3 x 2
+# lit tongue closed in step 0, +2 lit px facing R on the Mythic's hem.
 view D key rest origin 1 2
 |.....
 |.....
 |yyyxw
-|vyyxv
-|.vvv.
+|vyyyv
+|.vyv.

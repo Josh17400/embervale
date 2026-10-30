@@ -114,7 +114,9 @@ Parsed parse(const WLook& w) {
 }
 doll::DollRecipe recipeOf(const Parsed& p) {
   doll::DollRecipe r = doll::resolve(p.L);
-  r.ramps = p.lookPal ? doll::rampsOf(p.L) : doll::a3Palette(p.L.body == 1 ? 1 : 0);
+  // (fix round 2) EMB_WEAR_GAME_RAMPS: the ramps as the game draws them (resolve's, with its last partings: D39's alloyface field,
+  // C14's contact parting) for before/after boards; the freeze keeps reading rampsOf's (the manifest's own basis)
+  if (!(p.lookPal && std::getenv("EMB_WEAR_GAME_RAMPS"))) r.ramps = p.lookPal ? doll::rampsOf(p.L) : doll::a3Palette(p.L.body == 1 ? 1 : 0);
   if (p.bare) for (doll::Region g : {doll::Region::Thigh, doll::Region::Knee, doll::Region::Shin}) r.region[(int)g] = (uint8_t)doll::Slot::Skin;
   return r;
 }
@@ -1389,7 +1391,8 @@ int freeze(const char* file, bool write) {
       std::map<std::string, int> cause;
       static const struct { uint32_t bit; const char* name; } kRules[] = {
           {doll::FIX_CLOAK, "rule D73 cloak ladder"}, {doll::FIX_T2, "rule D74 T2 cowl"}, {doll::FIX_T4, "rule D75 T4 size 4"}, {doll::FIX_TRIM, "rule D78 trim band"},
-          {doll::FIX_SHIELD, "rule D82 shield guard"}, {doll::FIX_RELIC, "rule D83-D84 relic / Mythic"}, {doll::FIX_LINES, "rule D86 lines"}, {doll::FIX_COLOUR, "rule D88 colour"}};
+          {doll::FIX_SHIELD, "rule D82 shield guard"}, {doll::FIX_RELIC, "rule D83-D84 relic / Mythic"}, {doll::FIX_LINES, "rule D86 lines"}, {doll::FIX_COLOUR, "rule D88 colour"},
+          {doll::FIX_KIT, "rule D97 one kit"}, {doll::FIX_KING, "rule D96 king"}, {doll::FIX_TRIM4, "rule D93 trim band"}, {doll::FIX_C14, "rule fr4 C14"}};
       std::set<std::string> byRule;
       for (const auto& ru : kRules) {
         doll::fixRules() = doll::FIX_ALL & ~ru.bit;
