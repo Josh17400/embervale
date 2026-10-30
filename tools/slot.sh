@@ -14,6 +14,10 @@
 #   tools/slot.sh build_hero/embervale.exe --script tools/scripts/creator.txt
 #   tools/slot.sh --status          # list the current holders
 #
+# While the owner is playing a game the cap drops to EMB_SLOTS_GAMING (default 2; tools/game_cap.sh decides, rechecked
+# every wait loop): only slots 1..2 can be taken then, so jobs already holding slots 3-5 finish and nothing new starts
+# until fewer than 2 run. Owner rule 2026-10-30, to keep RAM free for the game.
+#
 # Environment: EMB_SLOTS (cap, default 5), EMB_SLOT_ROOT (lock directory), EMB_SLOT_WAIT (max seconds to wait
 # for a slot, default 3600; exit code 75 on timeout), EMB_SLOT_MAX_AGE (stale age, default 10800).
 
@@ -66,11 +70,15 @@ if [ $# -eq 0 ]; then
   exit 2
 fi
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cap() { local c; c="$(bash "$HERE/game_cap.sh" 2>/dev/null)"; case "$c" in ""|*[!0-9]*) echo "$N" ;; *) echo "$c" ;; esac; }
+
 SLOT=""
 start=$(now)
 announced=0
 while [ -z "$SLOT" ]; do
-  for i in $(seq 1 "$N"); do
+  C="$(cap)"
+  for i in $(seq 1 "$C"); do
     d="$ROOT/$i"
     if mkdir "$d" 2>/dev/null; then
       echo "$$ $(now) $*" > "$d/owner"
@@ -87,7 +95,7 @@ while [ -z "$SLOT" ]; do
       echo "slot.sh: no free slot after ${MAXWAIT}s" >&2
       exit 75
     fi
-    if [ $announced -eq 0 ]; then echo "slot.sh: all $N slots busy, waiting..." >&2; announced=1; fi
+    if [ $announced -eq 0 ]; then echo "slot.sh: all $C slots busy (cap $C$( [ "$C" -lt "$N" ] && echo ', a game is open'; true)), waiting..." >&2; announced=1; fi
     sleep 3
   fi
 done
