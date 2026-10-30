@@ -366,6 +366,7 @@ class View {
   std::vector<FloatText> texts_;
   // (M5 fixer) the location / quest column's box as the HUD last drew it (screen): spoken lines keep out of it
   float hudColLeft_ = 1e9f, hudColBottom_ = 0;
+  float colFoeFade_ = 0, colFoeT_ = -1;   // (C10 fix) the column's fade while the hero's foe stands under it, eased
   float bossBarX0_ = 0, bossBarX1_ = 0;
   float bossBarBottom_ = 0;   // (M6 fixer) the bottom of a world boss's top bar this frame (0: none): banners keep below it
   float quickBarR_ = 0;       // (M9 fixer) the desktop quick-cast bar's right end this frame (0: none drawn)

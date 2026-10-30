@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include "rpg/art/art_props.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/war.h"
 #include "rpg/view/script_api.h"
@@ -322,16 +323,58 @@ bool cmdWar(ScriptCtx& c) {
   if (where == "road") {
     const Map& M = g.world.over;
     const int px = (int)(g.pl().p.x / TILE), py = (int)(g.pl().p.y / TILE);
-    for (int r = 8; r < 110; r += 2)
-      for (int k = 0; k < 72; k++) {
-        const float a = k * 0.0873f;
+    // (fix, C10 T4 playtest: "the bandit 3 tiles east stands under a tree's crown") the road is where the fighter
+    // goal's duels are staged: a foe spawned up to 4 tiles east of the stand tile must be in full view. A tree's crown
+    // and a building's roof rise above the tile they stand on, so none may stand in the strip east of the hero nor in
+    // the rows just below it (an ElderTree's spread and the souk's cloth canopies count too); the duel tiles stay open
+    // duelCover: how much stands over the duel (0: none). A crown or a roof hiding the hero's or the foe's body (the
+    // tiles 0 and 3 east: a crown spreads a tile each side of its trunk and rises about three tiles over it) weighs 10,
+    // anything else in the strip 1. -1: the duel tiles east are not open ground
+    auto duelCover = [&](int x, int y) {
+      for (int dx = 1; dx <= 4; dx++)
+        if (!M.in(x + dx, y) || M.blocked(x + dx, y)) return -1;
+      int n = 0;
+      // (a tree or a roof in the rows above stands behind the duel and is drawn first: only the stand row and the rows
+      // below count)
+      for (int yy = y; yy <= y + 7; yy++)
+        for (int xx = x - 2; xx <= x + 6; xx++) {
+          if (!M.in(xx, yy)) continue;
+          const bool body = yy <= y + 3 && (std::abs(xx - x) <= 1 || std::abs(xx - (x + 3)) <= 1);
+          if (M.bldgAt[(size_t)yy * M.w + xx] >= 0) { n += body || yy <= y + 5 ? 10 : 1; continue; }
+          if (yy > y + 4 || xx > x + 5) continue;
+          const int q = M.propAt(xx, yy);
+          if (!q) continue;
+          const art::Prop pr = (art::Prop)(q - 1);
+          if (art::isTreeProp(pr) || pr == art::Prop::ElderTree || pr == art::Prop::Canopy) n += body ? 10 : 1;
+        }
+      return n;
+    };
+    // the nearest kingdom road tile with nothing over the duel; else, within the search, the one least covered (the
+    // hero's and the foe's bodies in view before the strip's edges), nearer first among equals
+    int bestX = -1, bestY = -1, bestN = 1 << 30, bestR = 0;
+    for (int r = 8; r < 110 && bestN > 0; r += 2) {
+      const int steps = std::max(72, (int)(r * 6.3f));
+      for (int k = 0; k < steps && bestN > 0; k++) {
+        const float a = k * 6.2832f / (float)steps;
         const int x = px + (int)std::lround(std::cos(a) * r), y = py + (int)std::lround(std::sin(a) * r);
         if (!M.in(x, y) || M.at(x, y) != Ground::Road || M.blocked(x, y) || g.world.siteAt(x, y, 8) >= 0) continue;
         const int32_t gx = g.world.ox + x, gy = g.world.oy + y;
         if (!g.realm.landOwner(g.world.src->kingdomAt(gx, gy), gx, gy)) continue;
-        standAt(g, x, y);
-        return true;
+        const int n = duelCover(x, y);
+        if (n < 0 || n >= bestN) continue;
+        bestN = n; bestX = x; bestY = y; bestR = r;
       }
+    }
+    if (bestX >= 0) {
+      standAt(g, bestX, bestY);
+      // (C10 T4 playtest: "the first pose after goto faced north until d was tapped again") the hero faces the duel's
+      // open tiles east, where the staged foe stands
+      g.pl().face = 2;
+      g.pl().aim = Vec2(1, 0);
+      if (bestN == 0) std::printf("script: war goto road: an open stretch (no tree or roof by the duel tiles east) %d tiles away\n", bestR);
+      else std::printf("script: war goto road: no open stretch near; the least covered kingdom road %d tiles away (cover %d)\n", bestR, bestN);
+      return true;
+    }
     c.fail("war goto road: no kingdom road near");
     return true;
   }

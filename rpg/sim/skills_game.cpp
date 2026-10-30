@@ -1059,6 +1059,9 @@ int SkillOps::spawnPerson(Game& g, Role role, Vec2 where, int level) {
   a.maxHp = 46.0f; a.dmg = 9.0f; a.xp = 18;
   g.applyLevel(a, level);
   a.look.weapon = 1;
+  // (fix, C10 T4 playtest: "a spawned BANDIT ARCHER carries a sword") the staged body is always a swordsman (ranged
+  // off above), so it drops the archer's (or an elite's) name spawnHuman's roll gave it
+  a.name = "BANDIT";
   if (role != Role::Bandit) {   // a man-at-arms: mail and a shield (what tagsOf reads from the look)
     a.role = role;
     a.look.shield = true; a.look.shieldStyle = 2; a.look.armorStyle = 2; a.look.helmet = true;

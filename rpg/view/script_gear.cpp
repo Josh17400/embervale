@@ -97,6 +97,13 @@ void giveGear(Game& g, ItemKind k, int sub, const GearArgs& A) {
     // equip the new piece in place of whatever holds that slot (useItem swaps it; a legendary refused by attunement
     // leaves the old piece worn, so the look and the stats never go stale)
     g.useItem((int)g.inv.size() - 1);
+    // (fix, C10 T4 playtest: "gear6 bow equip gives no arrows, k says OUT OF ARROWS") a bow handed over to be used
+    // comes with a quiver when the pack holds none, so the live shot can be loosed
+    if (k == ItemKind::Bow) {
+      bool any = false;
+      for (const Item& q : g.inv) if (q.kind == ItemKind::Arrows && q.count > 0) any = true;
+      if (!any) g.inv.push_back(makeArrows(20));
+    }
   }
 }
 

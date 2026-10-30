@@ -91,8 +91,23 @@ bool cmdGotoCulture(ScriptCtx& c) {
       cells.push_back({ci, cj, d});
     }
   std::sort(cells.begin(), cells.end(), [](const Cell& a, const Cell& b) { return a.d < b.d; });
+  // (fix, C10 playtest: "gotoculture other town landed in a frontier town with no guards") "other" is the playtests'
+  // setup call for a foreign town's streets and its watch: it prefers a place that keeps one (a kingdom's own, not a
+  // frontier place, nor an abandoned or ruined one; Game's guard rule, warGuardsWanted). It looks a little past the
+  // nearest hit for one (up to eight culture cells further) and takes an unwatched place only when none lies that near.
+  auto watched = [&](const ew::SitePlan& s) {
+    if (!s.kingdom) return false;
+    if (const realm::SettlementState* st = g.realm.settlement(s.id)) {
+      if (st->flags & (realm::SS_ABANDONED | realm::SS_RUINED)) return false;
+      if ((st->flags & realm::SS_FRONTIER) && !st->owner) return false;
+    }
+    return true;
+  };
+  int nWatched = 0;
+  double reach = 1e300;
   std::vector<std::pair<ew::SitePlan, double>> hits;
   for (const Cell& cl : cells) {
+    if (other && cl.d > reach) break;
     if (!other && (int)S.atlas().family(cl.ci, cl.cj).archetype != want) continue;
     // the settlements whose culture qualifies, in the regions of this cell (dialects of kingdoms seated elsewhere
     // count by their own culture, so check each plan's culture)
@@ -106,12 +121,16 @@ bool cmdGotoCulture(ScriptCtx& c) {
           const cult::Culture& sc = S.culture(s.culture);
           if (other ? (cult::familyOf(sc.id) == hereFam || seen(cult::familyOf(sc.id))) : (int)sc.archetype != want) continue;
           hits.push_back({s, std::hypot((double)(s.ex - px), (double)(s.ey - py))});
+          if (other && watched(s)) nWatched++;
         }
       }
-    if ((int)hits.size() > nth) break;
+    if (!other ? (int)hits.size() > nth : nWatched > nth) break;
+    if (other && (int)hits.size() > nth && reach > 1e299) reach = cl.d + 8.0 * ew::CCELL;
   }
   if ((int)hits.size() <= nth) { c.fail("gotoculture " + what + ": no such settlement within 12 culture cells"); return true; }
   std::sort(hits.begin(), hits.end(), [](const std::pair<ew::SitePlan, double>& a, const std::pair<ew::SitePlan, double>& b) { return a.second < b.second; });
+  if (other && nWatched > nth)   // the watched places first, nearest first; the rest after them
+    std::stable_partition(hits.begin(), hits.end(), [&](const std::pair<ew::SitePlan, double>& h) { return watched(h.first); });
   const ew::SitePlan& s = hits[(size_t)nth].first;
   if (g.inside) g.debugLeave();
   g.teleportGlobal(s.ex, s.ey + 3);
@@ -144,6 +163,8 @@ bool cmdGotoCulture(ScriptCtx& c) {
   const cult::Culture& sc = S.culture(s.culture);
   std::printf("script: gotoculture %s -> %s (%s, %s) at %d,%d (%.0f tiles away)\n", what.c_str(), s.name.c_str(), sc.name.c_str(),
               cult::archetypeName(sc.archetype), s.ex, s.ey, hits[(size_t)nth].second);
+  if (other) std::printf("script: gotoculture other: %s (%d of %d places found keep one; kingdom %llu)\n", watched(s) ? "keeps a watch" : "keeps NO watch",
+                         nWatched, (int)hits.size(), (unsigned long long)s.kingdom);
   return true;
 }
 

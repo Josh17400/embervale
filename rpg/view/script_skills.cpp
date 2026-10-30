@@ -106,10 +106,18 @@ bool cmdSkill(ScriptCtx& c) {
     const Vec2 at = g.pl().p + Vec2((float)std::atof(c.arg(3).c_str()) * TILE, (float)std::atof(c.arg(4).c_str()) * TILE);
     int level = std::max(1, g.plLevel);
     bool unaware = false;
+    bool alone = false;
     for (size_t i = 5; i < c.a.size(); i++) {
       if (squashSk(c.a[i]) == "unaware") unaware = true;
+      if (squashSk(c.a[i]) == "alone") alone = true;
       if (squashSk(c.a[i]) == "level" && i + 1 < c.a.size()) level = std::atoi(c.a[i + 1].c_str());
     }
+    // (C10 T4 playtest: "a second bandit spawned and overlapped the first, awake, and turned the hero away") "alone":
+    // the sentries staged before (skill foe ... unaware, asleep or woken) leave first, so each staged duel is one on one
+    if (alone)
+      g.actors.erase(std::remove_if(g.actors.begin(), g.actors.end(),
+                                    [&](const Actor& a) { return a.id != g.pl().id && (a.skillTag & SkillOps::TAG_DOZE); }),
+                     g.actors.end());
     int id = -1;
     art::Monster m = art::Monster::Wolf;
     if (kind == "bandit") id = SkillOps::spawnPerson(g, Role::Bandit, at, level);
@@ -138,7 +146,7 @@ bool cmdSkill(ScriptCtx& c) {
   else c.fail("skill: set | use | perk | points | book | sneak | foe | gold");
   return true;
 }
-EMB_SCRIPT_CMD("skill", "skill set|use|perk <skill> <n> / points <n> / book <skill> [read] / sneak 0|1 / foe <kind> <dx> <dy> [unaware] [level L] / gold <n> / kit <family> <class> [shield] / clearing <r> (M9)", cmdSkill);
+EMB_SCRIPT_CMD("skill", "skill set|use|perk <skill> <n> / points <n> / book <skill> [read] / sneak 0|1 / foe <kind> <dx> <dy> [unaware] [alone] [level L] / gold <n> / kit <family> <class> [shield] / clearing <r> (M9)", cmdSkill);
 
 bool expSkill(ScriptCtx& c) {
   skills::Skill s;

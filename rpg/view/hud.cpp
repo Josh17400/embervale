@@ -984,6 +984,29 @@ void View::drawHud(Game& g) {
       if (s.x + half > R - 180 && s.x - half < R && s.y - 3.0f * half < T + 165 && s.y > T + 60) { hudA = 0.3f; backA = 0.22f; break; }
     }
   }
+  // (fix, C10 T4 playtest: "the bandit stands under the goal panel") any live foe in the hero's own fight (within 10
+  // tiles of him) standing under the column fades it the same way, eased in and out over a fraction of a second so
+  // the column never blinks as the foe steps in and out from under it
+  {
+    float want = 0.0f;
+    if (!g.inside && g.mode == Mode::Play) {
+      const float cl = hudColLeft_ < 1e8f ? std::min(hudColLeft_ - 4.0f, R - 60.0f) : R - 180.0f;
+      const float cb = hudColBottom_ > 0 ? hudColBottom_ + 4.0f : T + 165.0f;
+      for (const Actor& a : g.actors) {
+        if (!a.hostile || a.st == AState::Dead || a.id == g.pl().id) continue;
+        if (len2(a.p - g.pl().p) > (10.0f * TILE) * (10.0f * TILE)) continue;
+        const Vec2 s = toUi(a.p);
+        const float half = (a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 8.0f) * kw;
+        if (s.x + half > cl && s.x - half < R && s.y - 3.0f * half < cb && s.y > T + 60) { want = 1.0f; break; }
+      }
+    }
+    const float dt = colFoeT_ < 0 ? 1.0f : std::clamp(t_ - colFoeT_, 0.0f, 0.1f);
+    colFoeT_ = t_;
+    colFoeFade_ += (want - colFoeFade_) * std::min(1.0f, dt * 9.0f);
+    const float e = colFoeFade_ * colFoeFade_ * (3.0f - 2.0f * colFoeFade_);
+    hudA = std::min(hudA, 1.0f - 0.7f * e);
+    backA = std::min(backA, 0.58f - 0.36f * e);
+  }
   // minimap + location
   if (showMini) drawMinimap(g, R - 70, T + 24, 64);
   auto fa = [&](Color c) { c.a *= hudA; return c; };

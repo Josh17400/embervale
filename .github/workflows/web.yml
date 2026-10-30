@@ -271,14 +271,26 @@ jobs:
       - name: Endless generator golden test
         run: ./build-native/rpg_test --endless --golden
 
+      # Pinned, not 'latest': Emscripten 6.0.13 silently dead-code eliminated the IDBFS the page mounts (the live site
+      # hung on its loading screen with "IDBFS is not defined"). Move the pin on purpose and run the page check below.
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          version: 6.0.13
 
       - name: Build for the web
         run: |
           emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
           cmake --build build-web --target embervale -j4
+
+      # web/index.html reaches the runtime only through these Module exports (CMakeLists.txt EXPORTED_RUNTIME_METHODS);
+      # one missing means the page cannot start or cannot keep saves. Blocking.
+      - name: Check the page's runtime exports
+        run: |
+          emcc --version | head -1
+          for f in FS IDBFS addRunDependency removeRunDependency; do
+            grep -q "Module\[\"$f\"\]" build-web/embervale.js || { echo "embervale.js lacks Module.$f"; exit 1; }
+          done
+          grep -q indexedDB build-web/embervale.js || { echo "embervale.js has no IndexedDB code (IDBFS dropped)"; exit 1; }
 
       - name: Assemble site
         run: |

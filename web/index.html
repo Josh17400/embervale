@@ -36,13 +36,20 @@
   var Module = {
     canvas: document.getElementById('canvas'),
     // saves live in IndexedDB: mount it at /save and load it before the game starts
+    // Only the exports listed in CMakeLists.txt (Module.FS / IDBFS / addRunDependency / removeRunDependency) are used,
+    // never Emscripten's internal globals, and a missing save store never stops the game: it starts without saved games
+    // and says so in the console (an Emscripten update once dropped IDBFS and the page hung on the loading screen).
     preRun: [function () {
-      FS.mkdir('/save');
-      FS.mount(IDBFS, {}, '/save');
-      addRunDependency('syncfs');
-      FS.syncfs(true, function (err) {
+      var fs = Module.FS, idb = Module.IDBFS;
+      try {
+        fs.mkdir('/save');
+        if (!idb) throw new Error('IDBFS missing from the build (EXPORTED_RUNTIME_METHODS)');
+        fs.mount(idb, {}, '/save');
+      } catch (e) { console.warn('saves disabled:', e && e.message ? e.message : e); return; }
+      Module.addRunDependency('syncfs');
+      fs.syncfs(true, function (err) {
         if (err) console.log('save load failed', err);
-        removeRunDependency('syncfs');
+        Module.removeRunDependency('syncfs');
       });
     }],
     onRuntimeInitialized: function () {

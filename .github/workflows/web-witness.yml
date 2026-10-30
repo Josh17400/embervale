@@ -20,9 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned, not 'latest': Emscripten 6.0.13 silently dead-code eliminated the IDBFS the page mounts (the live site
+      # hung on its loading screen with "IDBFS is not defined"). Move the pin on purpose and run the page check below.
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          version: 6.0.13
 
       - name: Build for the web with the Witness bridge
         run: |
@@ -36,6 +38,9 @@ jobs:
           grep -q 'WitnessEmscripten' build-web-witness/embervale.js
           for f in witness_emscripten_inbuf witness_emscripten_recv witness_emscripten_closed; do
             grep -q "_$f" build-web-witness/embervale.js || { echo "missing export $f"; exit 1; }
+          done
+          for f in FS IDBFS addRunDependency removeRunDependency; do
+            grep -q "Module\[\"$f\"\]" build-web-witness/embervale.js || { echo "embervale.js lacks Module.$f"; exit 1; }
           done
           ls -la build-web-witness/embervale.js build-web-witness/embervale.wasm
 

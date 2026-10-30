@@ -161,6 +161,9 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/main.cpp AND TARGET rpg_art)
     set_target_properties(embervale PROPERTIES SUFFIX ".js")
     target_link_options(embervale PRIVATE
       -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728 -sSTACK_SIZE=4194304
-      -lidbfs.js "-sEXPORTED_RUNTIME_METHODS=['FS','addRunDependency','removeRunDependency']")
+      # IDBFS must be listed here, not only linked: from Emscripten 6.0.13 a -l library symbol nothing in the build
+      # references is dead-code eliminated, so the page's preRun hit "IDBFS is not defined" and never started (the web
+      # build stuck on "forging the world..." from 2026-10-20). Exporting it keeps it and gives web/index.html Module.IDBFS.
+      -lidbfs.js "-sEXPORTED_RUNTIME_METHODS=['FS','IDBFS','addRunDependency','removeRunDependency']")
   endif()
 endif()
