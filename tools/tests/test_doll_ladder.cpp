@@ -42,6 +42,7 @@ std::string dollSliceLooksText();   // test_doll_arms.cpp: the gates' matrix (th
 namespace dollladder {
 
 bool g_report = false;
+std::string g_lineId;   // (D99, --report) the source-L line gateC12 is reading ("" on the hero's line)
 
 std::string fmt(const char* f, ...) {
   char b[1024];
@@ -287,6 +288,59 @@ Richness richness(const Built& b, const Frame& f) {
   return R;
 }
 
+// ---------------------------------------------------------------- C12b colours in sight (D99)
+// The worn kit: gear parts (C12a), every part on a tier slot (gloves, boots) and the neck piece (the T2 cowl, D74). The rest
+// of the figure is the person and the clothes under the kit.
+bool isKit(const Frame& f, const Pix& p) {
+  if (p.item < 0 || (size_t)p.item >= f.p.items.size()) return false;
+  const doll::FrameProbe::It& it = f.p.items[(size_t)p.item];
+  return gearItem(it) || doll::partTierSlot(it.partIndex) >= 0 || it.has(doll::Role::Neck) || it.has(doll::Role::Headwear);
+}
+// one pixel of a tier's idle frame, for the colour term: where (pivot-relative), its colour, and its piece: the kit's tier
+// slot (0 body .. 7; -1 a kit part on no tier slot: the cowl, a sheath, an overlay) or kNotKit (the person, the clothes)
+constexpr int kNotKit = -100;
+struct CPix { std::pair<int, int> at; uint32_t colour; int piece; };
+using KitMap = std::map<std::pair<int, int>, int>;   // where the tier's kit is drawn -> its piece
+int pieceOf(const Frame& f, const Pix& p) {
+  if (!isKit(f, p)) return kNotKit;
+  return doll::partTierSlot(f.p.items[(size_t)p.item].partIndex);
+}
+std::vector<CPix> cpixOf(const Built& b, const Frame& f) {
+  std::vector<CPix> v;
+  for (const auto& kv : f.px) v.push_back(CPix{kv.first, colourOf(b.r, kv.second.code), pieceOf(f, kv.second)});
+  return v;
+}
+KitMap kitMap(const std::vector<CPix>& v) {
+  KitMap m;
+  for (const CPix& p : v) if (p.piece != kNotKit) m[p.at] = p.piece;
+  return m;
+}
+// (D99) is a pixel of the tier below still in sight to compare? Yes where the tier draws no kit over it, and where the tier
+// draws the SAME piece there (helm over helm, boots over boots: like is read against like, so a piece that loses colours
+// is a fall). No where the tier lays a different piece over it: the eye reads the new piece, whose colours count on the
+// tier's side (a closed helm over the face, plate over the shirt, a skirt of plates over the greaves, a cloak over the back).
+bool inSight(const CPix& below, const KitMap& kitAbove) {
+  const auto it = kitAbove.find(below.at);
+  return it == kitAbove.end() || (below.piece != kNotKit && it->second == below.piece);
+}
+// the tier below's colours in sight of the tier: never more than its whole figure's, so a view the whole-figure count
+// passes still passes
+std::set<uint32_t> coloursInSight(const std::vector<CPix>& below, const KitMap& kitAbove) {
+  std::set<uint32_t> s;
+  for (const CPix& p : below)
+    if (inSight(p, kitAbove)) s.insert(p.colour);
+  return s;
+}
+int distinctColours(const std::vector<CPix>& v) {
+  std::set<uint32_t> s;
+  for (const CPix& p : v) s.insert(p.colour);
+  return (int)s.size();
+}
+// C12b's colour floor: 80 % of the tier below's colours in sight, 75 % on a styled body
+bool coloursHold(int below, int tier, bool styled) { return styled ? tier * 4 >= below * 3 : tier * 5 >= below * 4; }
+// C12b's step-4 form: a styled body holds 3 glints or more; otherwise never more than one fewer than the tier below
+bool step4Holds(int below, int tier, bool styled) { return styled ? tier >= 3 : tier >= below - 1; }
+
 // ---------------------------------------------------------------- C14 value
 // touching materials part by 18 luma at step 2; the lit top-left edge 40 over the darkest day ground; plate 3 vs 1 by 60
 constexpr uint32_t kDarkGround = 0xFF1E2A24u;   // #242A1E: the darkest day ground (a forest floor in shade, luma 40)
@@ -406,6 +460,43 @@ struct Band { double lo, hi; };
 // take a rim's ceiling; the bodies' ceilings carry the gorget and fauld hems the maps draw (lt3's mail 10-13 %)
 const Band kTrimBand[7] = {{0, 0}, {0, 0}, {0, 0.03}, {0.03, 0.14}, {0.06, 0.20}, {0.10, 0.24}, {0.10, 0.24}};
 constexpr double kRimCeil = 0.36;
+// C12b's trim band for a slot at its tier and facing. Helms and shields take a rim's ceiling; the cloak's is a third higher
+// (D41: the pauldrons cover its plain front); (D99) a body facing R or L takes the cloak's ceiling for D41's reason: the near
+// pauldron and sleeve cover the torso's side, so its hem and the pauldron's 1 px rim are a larger share of what shows.
+// Facing D the bands stand, and the floors stand in every facing.
+Band trimBandOf(int slot, int tt, int facing) {
+  Band bd = kTrimBand[tt];
+  if (slot == 1 || slot == 2) bd.hi = std::max(bd.hi, kRimCeil);
+  if (slot == 6) bd.hi = std::max(bd.hi, 0.30);
+  if (slot == 0 && facing != 0 && facing != 1) bd.hi = std::max(bd.hi, 0.30);
+  return bd;
+}
+// (D99, --report) a colour fall that stands: the colours of each side by slot (kit slots 0-7, the person, the clothes),
+// the tier below's counted only where they stay in sight
+std::string pixGroup(const Frame& f, const Pix& p) {
+  static const char* const kSlot[8] = {"body", "helm", "shield", "weapon", "gloves", "boots", "cloak", "gear7"};
+  if (p.item < 0 || (size_t)p.item >= f.p.items.size()) return "other";
+  const doll::FrameProbe::It& it = f.p.items[(size_t)p.item];
+  const int ts = doll::partTierSlot(it.partIndex);
+  if (isKit(f, p)) return ts >= 0 && ts < 8 ? kSlot[ts] : it.has(doll::Role::Neck) ? "cowl" : "gear";
+  using doll::Role;
+  if (it.has(Role::Legs) || it.has(Role::Arms) || it.has(Role::Garment) || it.has(Role::Belt)) return "clothes";
+  return "person";
+}
+void reportColourFall(const Built& A, const Frame& a, const Built& B, const Frame& b, const KitMap& kitB, int t, char fc) {
+  auto line = [](const Built& X, const Frame& f, const KitMap* cover) {
+    std::map<std::string, std::set<uint32_t>> m;
+    for (const auto& kv : f.px) {
+      if (cover && !inSight(CPix{kv.first, 0, pieceOf(f, kv.second)}, *cover)) continue;
+      m[pixGroup(f, kv.second)].insert(colourOf(X.r, kv.second.code));
+    }
+    std::string s;
+    for (const auto& g : m) s += fmt("%s%s %d", s.empty() ? "" : ", ", g.first.c_str(), (int)g.second.size());
+    return s;
+  };
+  std::printf("    C12 colour fall %s lt%d %c: lt%d in sight: %s | lt%d: %s\n", (g_lineId.empty() ? "hero" : g_lineId.c_str()), t, fc, t - 1, line(A, a, &kitB).c_str(), t,
+              line(B, b, nullptr).c_str());
+}
 // flavourRow: rule e compares the T3 flavour row (lt3 jade3 imp3 fjord3) of the ladder looks; one people's kit line (source L)
 // carries only lt1..lt6, so the caller turns it off there (integrator, wave 2 int3: it failed all 72 lines whatever the art)
 void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
@@ -444,14 +535,11 @@ void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
         // (wave-2 fix round, D78) C12b counts the tier's own trim (R recoloured, or added by the trim band, from T3); at T1-T2
         // R is drawn material: reported, not gated
         if (tt <= 2) { g.ok(); continue; }
-        Band bd = kTrimBand[tt];
-        if (s == 1 || s == 2) bd.hi = std::max(bd.hi, kRimCeil);
         // the weapon and the cloak: their trim is drawn in their own colours where the maps mark no R (the sword's guard,
         // the noble cloak's hem: P2b views, ADD-only); a ceiling still holds
         if ((s == 3 || s == 6) && !rich[t].trim[s]) { g.ok(); continue; }
-        // (forge round 2, D41) the pauldrons draw over the cloak's front: the cloak shows less of its plain inside, so its hem
-        // (the trim) is a larger share of what shows; the ceiling a third higher
-        if (s == 6) bd.hi = std::max(bd.hi, 0.30);
+        // (forge round 2, D41; D99) the cloak's ceiling, and a body's in profile: trimBandOf
+        const Band bd = trimBandOf(s, tt, facing);
         if (sh < bd.lo - 1e-9 || sh > bd.hi + 1e-9)
           g.bad(fmt("b: lt%d %c slot %d (T%d) trim %.1f %% (band %.0f-%.0f %%; %d of %d gear px)", t, fc, s, tt, sh * 100, bd.lo * 100, bd.hi * 100, rich[t].trim[s], rich[t].px[s]));
         else g.ok();
@@ -462,12 +550,22 @@ void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
       if (t >= 2 && t <= 5) {
         // (silhouettes i2) a culture alloy's styled body (its round-2 metal read: one to three glints, STYLE_P2 28.8, the
         // blind panel's "1-2 px highlight specks") holds 3 glints or more instead of the tier below's count, and 75 % of its colours
-        const bool alloyBody = line[t]->r.has("alloyshape");
-        if (alloyBody ? rich[t].step4 < 3 : rich[t].step4 < rich[t - 1].step4 - 1) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
+        // (D99) a styled body: a culture alloy's, or any body drawn in a forge style (an alloy or a material's hero style:
+        // PARADE, STARFALL, ...) at T4 or above; its glints come from its own drawn metal (C17)
+        const HumanLook& U = line[t]->L;
+        const bool styled = line[t]->r.has("alloyshape") ||
+                            (U.forge[HumanLook::TIER_BODY] && U.tier[HumanLook::TIER_BODY] >= 4);
+        if (!step4Holds(rich[t - 1].step4, rich[t].step4, styled)) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
         else g.ok();
-        // (i2) leather and a teal cap to grey mail is a step up in fewer colours: 80 % of the tier below, at least
-        if (alloyBody ? rich[t].colours * 4 < rich[t - 1].colours * 3 : rich[t].colours * 5 < rich[t - 1].colours * 4) g.bad(fmt("b: lt%d %c: colours fall %d -> %d", t, fc, rich[t - 1].colours, rich[t].colours));
-        else g.ok();
+        // (i2) leather and a teal cap to grey mail is a step up in fewer colours: 80 % of the tier below, at least.
+        // (D99) the tier below counts the colours the tier leaves in sight: a face under a closed helm and a shirt under
+        // plate are the step up, not a loss; the tier below's own kit always counts (coloursInSight)
+        const std::vector<CPix> below = cpixOf(*line[t - 1], fr[t - 1]), above = cpixOf(*line[t], fr[t]);
+        const int seen = (int)coloursInSight(below, kitMap(above)).size(), now = distinctColours(above);
+        if (!coloursHold(seen, now, styled)) {
+          g.bad(fmt("b: lt%d %c: colours fall %d -> %d (%d in sight of lt%d's %d)", t, fc, seen, now, seen, t - 1, rich[t - 1].colours));
+          if (g_report) reportColourFall(*line[t - 1], fr[t - 1], *line[t], fr[t], kitMap(above), t, fc);
+        } else g.ok();
       }
     }
     // c, silhouette
@@ -768,6 +866,55 @@ int selftests(bool report) {
     Line g{"st"};
     gateC12(g, v);
     expect(g.fails > 0, "C12: six identical tiers");
+  }
+  // C12b (D99): the colour term reads the colours the tier leaves in sight. Synthetic views: the tier below has a face
+  // (10 colours, at rows 0-1) and clothes (6 colours, at row 2) over 20 kit colours; the tier above's kit covers them or not.
+  {
+    auto view = [](int kitCols, int kitBase, bool face, bool clothes, bool helm, bool plate) {
+      std::vector<CPix> v;
+      for (int i = 0; i < kitCols; i++) v.push_back(CPix{{i, 10}, 0xFF000100u + (uint32_t)(kitBase + i), 0});
+      if (face) for (int i = 0; i < 10; i++) v.push_back(CPix{{i, i < 5 ? 0 : 1}, 0xFF010000u + (uint32_t)i, helm ? 1 : kNotKit});
+      if (clothes) for (int i = 0; i < 6; i++) v.push_back(CPix{{i, 2}, 0xFF020000u + (uint32_t)i, plate ? 0 : kNotKit});
+      return v;
+    };
+    auto holds = [](const std::vector<CPix>& below, const std::vector<CPix>& above, bool styled) {
+      return coloursHold((int)coloursInSight(below, kitMap(above)).size(), distinctColours(above), styled);
+    };
+    // a closed helm over the face: the helm's own pixels sit where the face was, in two of the kit's colours
+    auto helmed = [](std::vector<CPix> v) { for (CPix& p : v) if (p.at.second <= 1) { p.colour = 0xFF000100u + (uint32_t)(p.at.first % 2); } return v; };
+    auto plated = [](std::vector<CPix> v) { for (CPix& p : v) if (p.at.second == 2) { p.colour = 0xFF000102u; } return v; };
+    const std::vector<CPix> t3 = view(20, 0, true, true, false, false);
+    {
+      const std::vector<CPix> t4 = helmed(view(20, 0, true, true, true, false));
+      expect(holds(t3, t4, false) && !coloursHold(distinctColours(t3), distinctColours(t4), false),
+             "C12b: a closed T4 helm over the T3 face, gear colours equal, passes (the whole-figure count fails it)");
+      expect(!holds(t3, helmed(view(14, 0, true, true, true, false)), false), "C12b: the same T4 with its gear colours cut to 70 % fails");
+      expect(holds(t3, plated(view(20, 0, true, true, false, true)), false) &&
+                 coloursInSight(t3, kitMap(plated(view(20, 0, true, true, false, true)))).size() == (size_t)distinctColours(t3) - 6,
+             "C12b: T4 plate over the T3 clothes, gear colours equal, passes");
+      expect(!holds(t3, view(20, 0, false, true, false, false), false), "C12b: a face lost where no kit covers it is still a fall");
+    }
+    {
+      // like against like: a T4 helm (piece 1, 10 colours) under a T5 helm of 1 colour in the same place is compared and
+      // falls; T5 tassets (piece 0) laid over the T4 greaves (piece 5) are a new piece and pass with the gear's colours equal
+      std::vector<CPix> h4 = view(10, 0, false, false, false, false), h5 = h4;
+      for (int i = 0; i < 10; i++) h4.push_back(CPix{{i, 0}, 0xFF030000u + (uint32_t)i, 1});
+      for (int i = 0; i < 10; i++) h5.push_back(CPix{{i, 0}, 0xFF030000u, 1});
+      expect(!holds(h4, h5, true), "C12b: a helm over the helm below that loses its colours is a fall");
+      std::vector<CPix> g4 = view(20, 0, false, false, false, false), g5 = g4;
+      for (int i = 0; i < 8; i++) g4.push_back(CPix{{i, 5}, 0xFF040000u + (uint32_t)i, 5});
+      for (int i = 0; i < 8; i++) g5.push_back(CPix{{i, 5}, 0xFF000100u + (uint32_t)(i % 3), 0});
+      expect(holds(g4, g5, false) && !coloursHold(distinctColours(g4), distinctColours(g5), true),
+             "C12b: tassets over the greaves below, gear colours equal, pass (the whole-figure count fails them)");
+    }
+  }
+  // C12b (D99): a styled body's glints; a body's trim in profile
+  expect(step4Holds(16, 3, true) && !step4Holds(16, 2, true) && !step4Holds(16, 3, false),
+         "C12b: a T5 PARADE body with 3 step-4 pixels passes, with 2 fails");
+  {
+    auto inBand = [](double sh, int facing) { const Band b = trimBandOf(0, 4, facing); return sh >= b.lo - 1e-9 && sh <= b.hi + 1e-9; };
+    expect(inBand(0.25, 2) && !inBand(0.32, 2) && !inBand(0.22, 0) && !inBand(0.04, 2),
+           "C12b: a T4 body facing R passes at 25 %, fails at 32 % (and under the floor); facing D 22 % fails");
   }
   // C13: a pulse with the wrong period; a phase hash that puts everyone in step
   {
@@ -1199,8 +1346,10 @@ int runLadderScope(int a, int b, bool allWeapons, bool finish, bool self, std::v
             ls.push_back(Look{fmt("lt%d", t), who, fmt("kit=%s:%d:%d,wpn=%s,palette=look", kPeople[p], t, sd, kWpn[w]), {}});
           std::vector<Built> bl = buildAll(ls);
           Line one{"line"};
-          gateC12(one, bl, false);
           const std::string id = fmt("%s %s %s s%d", kPeople[p], kWpn[w], who ? "woman" : "man", sd);
+          g_lineId = id;
+          gateC12(one, bl, false);
+          g_lineId.clear();
           lines++;
           if (one.fails) { linesBad++; c12.bad(id + ": " + one.first + (one.fails > 1 ? fmt(" (+%d)", one.fails - 1) : "")); }
           else c12.ok();

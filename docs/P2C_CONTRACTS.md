@@ -747,6 +747,19 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
   `envelope:people:<people>` prints the ledger under each figure, and the bow and crossbow boards read "draw, loose".
   Roots `%TEMP%\claude\emb_P2c\wave2f\areas\<KEY>\doll\`, reports `...\wave2f\areas\<KEY>\report.txt`, the keys board
   `...\wave2f\keys\<KEY>.txt`.
+- **D99's reads** (fix round 4, judge round 3; test_doll_ladder.cpp, DOLL):
+  - Colours (amended after judge round c12_r1): the tier counts its whole figure's colours; the tier below counts
+    coloursInSight(): each pixel's colour unless the tier's kit at that pixel is a different piece (pieceOf: the part's
+    tier slot, -1 for a kit part on none, or not kit). The kit (isKit) is gearItem (armour, helm, shield, pauldron, held,
+    sheath, cloak, overlay), a part on a tier slot, or a `neck` or `headwear` part; the rest is the person and the
+    clothes. 80 % of the tier below, 75 % on a styled body. C12d's 48-colour check still counts the whole figure (B8).
+  - The styled body: one test (`alloyshape`, or a forge style on the body, HumanLook::forge, at T4 or above) drives both of its
+    forms, colours 75 % and step-4 3 or more.
+  - Trim: the body slot's ceiling facing R and L is max(band, 30 %). trimBand and every rendered pixel are unchanged.
+  - `--report` prints each still-failing colour view's colours by slot, person and clothes (the tier below's in sight
+    against the tier's).
+  - The freeze is hard against `%TEMP%\claude\emb_P2c\wave2\freeze_final.txt` (`--doll-wear --freeze-check F`, 0 changed).
+  - The planner's measurement and boards are in `%TEMP%\claude\emb_P2c\wave2\fix2\d99\`.
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 

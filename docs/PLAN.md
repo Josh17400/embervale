@@ -1868,6 +1868,15 @@ restated, owners for the bandit chief's line and the two-alloy king), the gates 
 C16, C19), the waves, the judge's focus and the risks. Art direction: STYLE_P2 28.4, 29.1, 29.3, 29.4, 29.6, 29.10 and 29.11
 (new); data and hooks: P2C_CONTRACTS 1, 3d and 7. The loot proposal's marks (Q3) wait for the batch after this round.
 
+**Revised on 2026-10-29 (fix round 4's judge round 3: one item, C12 on source L, 19 of 72 lines).** The planner measured
+it. The 17 colour falls are the measure, not the art: the code counts the face's 14-16 colours, which a closed helm hides,
+and the clothes, which plate covers. Every higher tier reads as the richer kit at 1x and 3x. The heartland glint fall
+compares two drawn styles' brightest steps, and the four trim overruns are profile views where a winged pauldron hides the
+torso. What changed: decision D99 (C12b reads the colours the tier leaves in sight, a styled body's glint form from T4,
+the body's ceiling in profile; amended after judge round c12_r1, which measured the first reading, gear colours only, at
+40 falling views and the hero's line failing), the restated C12b, and a short block in "The wave-2 fix round 4" (DOLL's gate code; no art; no frame
+changes). STYLE_P2 29.11 gains one line, and P2C_CONTRACTS 7 the hook.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -2717,6 +2726,23 @@ form9 means no shield.
 - **The freeze** is reported this round with every changed frame on a signed-off look attributed to D95, D96, D93's trim or
   item 4; after the round the packager writes the new manifest from the final build and the check is hard (D94).
 
+**Restated by fix round 4's judge round 3 (2026-10-29; D99; each change has a selftest that trips it):**
+- **C12b, colours** (D99 as amended after judge round c12_r1): the tier counts its whole figure; the tier below counts
+  the colours the tier leaves in sight. A pixel of the tier below is in sight where the tier draws no kit over it, or
+  draws the same piece there (helm over helm, boots over boots: like against like). Where the tier lays a different
+  piece over it (a closed helm over the face, plate over the shirt, a skirt of plates over the greaves, a cloak over the
+  back), the eye reads the new piece, whose colours count on the tier's side. The kit is C12a's gear parts, every part on
+  a tier slot (gloves, boots) and the neck and head pieces (the T2 cowl). The thresholds are 80 % of the tier below, and
+  75 % on a styled body (a forge-style body at T4 or above: `alloyshape`, or a body with a forge style at T4+).
+- **C12b, step 4**: a styled body holds 3 or more step-4 metal pixels; below T4 it is "never more than one fewer than the
+  tier below".
+- **C12b, trim**: facing R and L, the body slot's ceiling is 30 % (the cloak's, D41). Facing D the bands stand, and the
+  floors stand in every facing. trimBand does not change.
+- **The freeze** is hard against %TEMP%\claude\emb_P2c\wave2\freeze_final.txt (0 changed; D94 closed it; D99 rules no
+  exception).
+- **tools/doll/freeze/p2c_freeze.txt** is the owner-signed baseline in the repo: a byte copy of freeze_final.txt (39,152
+  frames, pool bfebaa79e8d2fb35; `EMB_RIG=2 rpg_test --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt`).
+
 ### Constants that interact (budgets and timing)
 
 | constant | value | arithmetic |
@@ -3354,6 +3380,74 @@ below was measured on build/rpg_test.exe of 10:35, pool 2,544,378 B):
   asks 45), and its T4 helm adds -39 px on the man (smaller than the hair it covers); imperial m s2's T4 shoulders add +1
   and its helm +34; jade m s1's helm +34 and shoulders +6. Each needs: imperial m s2 +8 px, jade m s1 +3, river m s3 +41,
   river w s3 +32; the areas aim at 15-20 px of margin, and the judge sees river s3's T4 plainly bigger than its T3 at 1x.
+
+Fix round 4's round-3 judge (2026-10-29; .tmp/judge/w2fix2_r3 on build/ at 83d8018, pool 2,570,727 B, hash
+bfebaa79e8d2fb35; 1 item, "C12 source L 19 / 72") adds D99. The planner measured the 72 lines itself: idle D and R of
+every look, rebuilt from doll_gallery's 12x frames, counts equal to the gate's (highland m s2 lt4 D 36 -> 20); the table
+and the boards are in %TEMP%\claude\emb_P2c\wave2\fix2\d99:
+- **D99. The ladder's richness is read on the gear, never on the face** (the judge's C12 item, ruled a measurement
+  artefact). C12b's row says "gear colours", but test_doll_ladder.cpp's richness() counts every colour of the figure.
+  Measured over the 72 lines (576 view-steps, T1 to T5):
+  - the person brings 14 colours on the man (hair 5, skin 4, lash, eye white, mouth, iris, glint) and 16 on the woman. A
+    closed helm with gauntlets hides nearly all of them, more than the term allows to fall (20 % of a 36-44 colour
+    figure, 25 % on an alloy body). So every closed helm after an open one fails, whatever the gear does;
+  - 26 views fail today, on 17 lines. 18 of them pass once the person's colours are left out on both sides. The other 8
+    still fall, because the higher tier also covers the clothes (cloth 1, cloth 2 and the scarf's accent: 4-9 colours),
+    and at T5 a coloured alloy's trim is its own metal one step up (contracts 8, alloys i3, "T5+ trim"), so it shares 4
+    of its 5 colours with the body. 11 more views fall in the same way, but today a face coming back hides it (a closed
+    T4 helm before an open T5: imperial m s2 has 39 non-person colours at T4 and 23 at T5). With the person and the
+    clothes' cloth ramps both left out, 4 views remain: heartland m s1-s3 and marsh m s3, T1 to T2 facing R. There the
+    T2 cowl and capelet are drawn in cloth 1, and they count below;
+  - the eye, at 1x and 3x with every failing pair and the 11 hidden ones side by side: each higher tier reads as the
+    heavier, more finished kit (a closed helm, plate over the clothes, the officer's or the long cloak, the crest, the
+    gem). None reads poorer, and the judge's 3x read agrees. The rule counts what the gear shows:
+  - **the colour term counts the colours the tier leaves in sight** (amended after judge round c12_r1; the first reading,
+    gear colours only with the person and clothes left out on both sides, was built and measured by the judge: 40 views
+    fell on source L, 18 lines, and the hero's line failed at lt2 R 21 -> 16, because leaving categories out of both
+    sides also drops the lower tier's covered colours that the whole figure needed to pass, and gear-colour counts do not
+    track a matched alloy kit, a cowl behind the capelet or a T1 gambeson). The tier counts its whole figure, as before.
+    The tier below counts a pixel's colour only where it stays in sight to compare: where the tier draws no kit over it,
+    or the same piece (the tier slot: helm over helm, boots over boots; the cowl over the cowl). Where the tier lays a
+    different piece over it (a closed helm over the face, plate over the shirt, the T5 skirt of plates over the T4
+    greaves, the long cloak over the back), the eye reads the new piece, and its colours count on the tier's side. The
+    kit is C12a's gear parts, every part on a tier slot and the neck and head pieces; the rest is the person and the
+    clothes. The count of the tier below never exceeds its whole figure's, so no view the old term passed can fail, and
+    a piece that loses colours under the same piece is still a fall. The thresholds stand: 80 % of the tier below, and 75
+    % on a styled body. Measured (build-proto, EMB_RIG=2, seeds 1..3): source L 0 of 576 view-steps fall (the old term 26,
+    the gear-only reading 40), the hero's line 118 / 118; the last four that fell under the person-only reading (highland
+    m and w s2 T3 -> T4 D, imperial m and w s3 T4 -> T5) read as the richer kit at 1x and 3x, and pass at 77 %, 76 %, 85 %
+    and 93 % once a closed helm's plates and the T5 tassets are read as new pieces;
+  - **a styled body** is the upper tier's body drawn in a forge style at T4 or above: a culture alloy (`alloyshape`) or
+    a material's hero style (`forge-parade`, `forge-starfall` and the rest). On source L every body from T4 up is one
+    (T4: 72 alloys; T5: 66 alloys and 6 PARADE; T6: 66 alloys and 6 STARFALL). A styled body takes the alloy body's two
+    forms (75 % of the colours, and 3 or more step-4 metal pixels, the 3 glints of STYLE_P2 27.2), for the reason
+    silhouettes i2 gave the alloys: its glints come from its own drawn metal (C17). Below T4, "never more than one
+    step-4 pixel fewer than the tier below" stands. This rules heartland m s2 lt5. Its T4, seed 2's brass alloy, draws
+    16 (D) and 22 (R) step-4 pixels on its crown's spikes, pauldron rims and device; the T5 PARADE draws 14 and 16. Both
+    are far over the 3 glints, and the T5 reads the brighter of the two (broad pale planes, a gem). No pixel moves: the
+    T5 kit is lt5's, which is signed off;
+  - **trim in profile**: facing R and L, the body slot's ceiling is the cloak's 30 %, for D41's reason: the near
+    pauldron and sleeve cover the torso's side, so the hem and the pauldron's rim are a larger share of what shows.
+    Facing D the bands stand, and the floors stand in every facing. Today four views are over: dune w s1 lt4 R (22.5 %),
+    imperial m s3 lt4 R (20.5 %), imperial w s3 lt4 R (24.3 %) and river w s3 lt5 R (T6, 25.3 %). Each is a winged
+    pauldron (`pauldron_winged4_r` or `winged5_r`, 8-10 R pixels, its 1 px rim) over a torso that shows its hem (9 R of
+    19-30 px). At 8x they are clean 1 px rims, the T4 line 29.11 asks for on every rim. trimBand (compose) does not
+    change, so no frame changes;
+  - C12a, C12c, C12f's 0.05 steps and head terms, the trim floors, the glow term, C13 and C17's glint count all stand;
+    C12d's 48 colours keeps counting the whole figure (it is B8's);
+  - selftests: a T4 whose closed helm hides a T3 face, with equal gear colours, passes. The same T4 with its gear
+    colours cut to 70 % of the T3's fails (a real fall is still caught). A T4 whose plate covers the T3's clothes, with
+    equal gear colours, passes. A face lost where no kit covers it is still a fall. A helm over the helm below that loses
+    its colours is a fall; tassets over the greaves below, with equal gear colours, pass. A T5 PARADE body with 3 step-4 metal pixels passes, and with 2 it fails. A body slot at
+    T4 facing R passes at 25 % and fails at 32 %, and facing D at 22 % it fails;
+  - nothing is drawn for C12 this round, and no signed-off look changes: `--freeze-check` against
+    %TEMP%\claude\emb_P2c\wave2\freeze_final.txt stays at 0 changed, with no exception ruled. After D99, a view whose
+    colours in sight still fall is a real fall. DOLL lists it with its colours by slot (the tier below against the tier),
+    and the piece that lost colours goes to its owner: HELMS for a helm, ARMOUR for a body, cloak or the T2 cowl,
+    SHIELDS for a shield, FINISH for the finish tiles. Colour comes back only the drawn ways (the cowl's people's edge,
+    29.11; T4's 3-colour device and metal-2 rim; the T5 gem and the brow gem, 27.2), as a `when` view (ADD) wherever a
+    signed-off look shares the view. A hue is never added just to pass, and a residual on a signed-off line comes to the
+    planner with its numbers.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -5489,6 +5583,39 @@ build (D94), then the Batch A marks (D86), the owner's pack and the flip.
     drawn.
 12. Verdict: PASS, or FAIL items each with a repro, the number, the threshold and the check.
 
+**Judge round 3 and D99** (2026-10-29: .tmp/judge/w2fix2_r3 failed one line of 42, ladder_finish_L, "C12 source L 19 /
+72"; every other line rc 0, rig 1 unchanged, the pool 2,570,727 B). D99 rules it a measurement artefact, so this block is
+gate code only. Nothing is drawn, the pool does not move, and no frame changes:
+- **DOLL** (engineer-high; BDIR build-proto; tools/tests/test_doll_ladder.cpp only):
+  - Core (as amended after judge round c12_r1): the tier below counts the colours the tier leaves in sight
+    (coloursInSight: a pixel counts unless the tier draws a different piece over it; the tier counts its whole figure).
+    Make one `styled` test (the upper tier's body has `alloyshape`, or a `forge-<style>` flag at T4 or above) and use it for both
+    forms, colours 75 % and step-4 3 or more. In the trim band test, for the body slot facing R and L, raise the ceiling
+    to at least 30 %, as the cloak's. Add D99's selftests to `selftests()`. With `--report`, print each
+    still-failing colour view's colours by slot, the person and the clothes (the tier below's in sight against the
+    tier's). C12d's 48-colour check keeps the whole figure (B8). Append to contracts 8.
+  - Done (build-proto, EMB_RIG=2):
+    - `--doll-ladder --finish --scope ladder --seeds 1..3 --report` reports C12 source L 72 / 72 and C13 and C14 at 0;
+    - `--doll-ladder --finish --report` reports 0, and C12 on the hero's line still passes 118 / 118 or more;
+    - `--doll-ladder --selftest` reports ALL CAUGHT, D99's five included;
+    - `--doll --gates --parity` reports 0;
+    - `--doll-wear --freeze-check %TEMP%\claude\emb_P2c\wave2\freeze_final.txt` reports 0 changed;
+    - rig 1 is unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0, `--arms --seeds 1..3` ALL OK);
+    - WSL clang 18 gives the same numbers.
+  - If a view's colours in sight still fall after D99, it is real: list it, and its owner draws it under D99's last
+    clause. Never move a threshold to pass it.
+- **ART** (HELMS, ARMOUR, SHIELDS, FINISH): no map work for C12. Draw only if DOLL lists a real fall, and then only that
+  view, by D99's drawn ways (ADD `when` views where a signed-off look shares the view; within the pool's 50 KB headroom;
+  `$X --doll-wear --freeze-check` at 0 changed before delivering).
+- **The gate** (the judge, round 4: this block's items plus the cheap harness):
+  1. `sh .tmp/judge/w2_gates.sh .tmp/judge/w2fix2_r4`: every line rc 0, with the freeze line against freeze_final.txt;
+     rig 1; the pool;
+  2. ladder_finish_L 72 / 72, and D99's selftests ALL CAUGHT;
+  3. the eye, at true 1x and 3x on grass and dark ground: the 26 pairs that fail today and the 11 that a returning face
+     hides (%TEMP%\claude\emb_P2c\wave2\fix2\d99 lists them), each higher tier reading as the richer kit; heartland m s2's
+     T4 and T5 side by side; the four profile trims at 8x as clean rims;
+  4. Verdict: PASS, or FAIL items each with a repro, the number, the threshold and the check.
+
 ### Waves
 
 1. **Wave 0** (the planner; done, again on 2026-10-23 for the ladder and on 2026-10-24 for the forge styles): this
@@ -5551,7 +5678,9 @@ build (D94), then the Batch A marks (D86), the owner's pack and the flip.
 7c. **The wave-2 fix round 4** (2026-10-29; "The wave-2 fix round 4"): the same six areas on the fr3 tree; DOLL's first
    block (w2f4: D90-D93, D96, D97) unblocks HELMS's collars, ARMOUR's relic growth and king's cape, FINISH's trim review and
    ACTIONS's hidden-fist residual; every other item starts at hour 0; then the integration, the verifier gate, the judge
-   (its gate in that section), the new freeze manifest (D94), the Batch A marks and the flip pack.
+   (its gate in that section), the new freeze manifest (D94), the Batch A marks and the flip pack. Judge round 3 failed one
+   item (C12 on source L). D99 turns it into DOLL's gate code alone ("Judge round 3 and D99"), then the integration
+   build, the verifier gate and the judge's round 4. The freeze is now hard against freeze_final.txt.
 8. **Wave 3, the flip** (SWITCH, serial; not started before the owner's go), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
@@ -5610,6 +5739,10 @@ build (D94), then the Batch A marks (D86), the owner's pack and the flip.
      T3; trim as clean bands on every people's T4-T6; the four relics bulkier in the body in order, the onion untouched;
      slim T1 starters; every hidden fist reading as held at 12x; one kit wearing one helm across the weapons. Its gate is
      in "The wave-2 fix round 4".
+   - **D99** (fix round 4, judge round 3; amended after c12_r1): richness is read on what the tier leaves in sight.
+     Closed helms, plate over the clothes and a new piece laid over another are steps up, so the judge reads each higher tier beside the one below at true 1x and 3x, as the richer kit (D99's pairs). A
+     face hidden by a closed helm, a coloured alloy's own-metal trim and a winged pauldron's rim in profile are not
+     defects.
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; until the flip at rig 2 through EMB_RIG=2, with the phone as a first launch at NEAR; after the flip, rig 2 by

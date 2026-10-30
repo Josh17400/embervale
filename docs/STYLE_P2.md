@@ -1998,6 +1998,12 @@ The owner's freeze sign-off (2026-10-29) and fix round 4 add (PLAN D90-D98):
   trim do not change with the weapon. Only the hands do.
 - **The relics climb in the body** (D92). Gilded, obsidian, emberforged and starmetal grow in the shoulders, the arms and the
   skirt, each plainly bulkier than the one before; their helms (the onion, the crystal) climb on the helm's own ladder.
+- **Richness is in the gear** (D99, after fix round 4's judge). A closed helm that hides the face, plate that covers
+  the clothes and a new piece laid over another (tassets over greaves, a cloak over the back) are steps up, even though
+  the figure then shows fewer colours. What must never thin from one tier to the
+  next is the gear's own palette and finish: the metal's planes and glints, the trim band, the leather fittings, the
+  cloak, the crest or plume, the device and the gem. Colour is added only the drawn ways: the cowl's people's edge, T4's
+  three-colour device and metal-2 rim, the T5 gem and the brow gem. Never add a hue just to raise a count.
 
 ---
 
