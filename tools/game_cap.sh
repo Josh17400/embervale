@@ -7,7 +7,8 @@
 # Owner rule (2026-10-30): "if i have a game open im playing instead of witness having 5 headless windows open only
 # allow 2 so i can keep playing my game". A game counts as open when a process runs from a Steam, Epic, GOG, Xbox or
 # EA game folder, or the owner's own Embervale (Desktop\Embervale.exe). The answer is cached for 30 s in the slot
-# directory, so many waiters share one check.
+# directory, so many waiters share one check. Witness 0.7.12+ applies the same rule to its own game instances
+# (WITNESS_MAX_PROCS_GAMING); this script covers everything else that goes through tools/slot.sh (builds, rpg_test ...).
 #
 # Environment: EMB_SLOTS (normal cap, default 5), EMB_SLOTS_GAMING (cap while a game is open, default 2),
 # EMB_GAME_RE (extra regex of exe paths that count as a game).
@@ -32,7 +33,7 @@ if [ -f "$CACHE" ] && [ $(( now - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) )
 else
   re='\\steamapps\\common\\|\\Epic Games\\|\\GOG Galaxy\\Games\\|\\GOG Games\\|\\XboxGames\\|\\EA Games\\|\\Desktop\\Embervale\.exe$'
   [ -n "${EMB_GAME_RE:-}" ] && re="$re|$EMB_GAME_RE"
-  game="$(powershell.exe -NoProfile -NonInteractive -Command "\$re='$re'; Get-Process | Where-Object { \$_.Path -and \$_.Path -match \$re -and \$_.ProcessName -notmatch 'crash|Launcher|Helper|Updater|EasyAntiCheat|redist|webhelper' } | Select-Object -First 1 -ExpandProperty ProcessName" 2>/dev/null | tr -d '\r')"
+  game="$(powershell.exe -NoProfile -NonInteractive -Command "\$re='$re'; Get-CimInstance Win32_Process -Property Name,ExecutablePath | Where-Object { \$_.ExecutablePath -and \$_.ExecutablePath -match \$re -and \$_.Name -notmatch '^crashpad|crash_?handler|CrashReport|Launcher|Helper|Updater|EasyAntiCheat|redist|webhelper|Lossless|wallpaper|vrserver|vrmonitor' } | Select-Object -First 1 -ExpandProperty Name" 2>/dev/null | tr -d '')"
   printf '%s' "$game" > "$CACHE.$$" && mv -f "$CACHE.$$" "$CACHE"
 fi
 
