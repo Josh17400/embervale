@@ -8,7 +8,7 @@
 #pragma once
 #include <cstdint>
 #include <memory>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_building.h"
 #include "rpg/art/art_props.h"
 #include "rpg/culture/culture.h"

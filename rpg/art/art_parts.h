@@ -7,7 +7,7 @@
 // right, commercial 16-bit quality; walls join seamlessly (runs, corners, diagonals, gate joins).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_building.h"
 #include "rpg/art/art_props.h"
 #include "rpg/build/parts.h"

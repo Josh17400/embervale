@@ -6,7 +6,7 @@
 // palette, deterministic, transparent = 0, anchored bottom-centre unless said otherwise.
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_human.h"
 
 namespace art {

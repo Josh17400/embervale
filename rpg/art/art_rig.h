@@ -22,7 +22,7 @@
 #include <cmath>
 #include <cstdint>
 #include <vector>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_human.h"
 #include "rpg/art/art_life.h"
 

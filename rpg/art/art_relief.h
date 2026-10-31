@@ -6,7 +6,7 @@
 // shaded east sides), a selective 1 px outline, cast shadows to the lower right, and the cohesive palette.
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_props.h"
 
 namespace art {

@@ -2,7 +2,7 @@
 // in art_handcart.cpp). Part of rpg/art.h (include that). P2a HOLDERS scales it with the rig (art::bodyScale()).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 
 namespace art {
 

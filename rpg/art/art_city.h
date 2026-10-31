@@ -10,7 +10,7 @@
 // canopy carry their own; the view adds the rest by prop_traits propShadow).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_props.h"
 #include "rpg/culture/style.h"
 
