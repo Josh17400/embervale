@@ -9,7 +9,7 @@
 // and one legendary per water (a name and a tale, caught once).
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <cmath>

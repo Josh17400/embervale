@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "engine/music_style.h"
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"

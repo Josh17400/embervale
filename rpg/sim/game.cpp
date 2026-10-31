@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"

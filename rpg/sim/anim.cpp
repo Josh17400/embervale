@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cmath>
 #include "rpg/art/doll/doll.h"
-#include "rpg/art/doll/doll_internal.h"   // (P2b) the elder's own walk clip (pool::clipsOf on "man.elder")
 #include "rpg/sim/game.h"
 #include "rpg/sim/skill_ops.h"
 
@@ -303,15 +302,14 @@ int tableBody(const art::HumanLook& L) {
 // an elder's walk from the "<body>.elder" clip set when the pool draws one (its own plants: the stoop's shorter step);
 // else the adult's table (walkTable reads the base sets only). The same arithmetic as art::doll::walkTable.
 art::doll::WalkTable elderWalk(art::doll::BodySet base) {
-  using namespace art::doll::pool;
   const art::doll::WalkTable adult = art::doll::walkTable(base, art::doll::Gait::Walk, 2);
-  const Pool& P = get();
   const std::string key = std::string(art::doll::bodySetName(base)) + ".elder";
-  const uint16_t id = P.strId(key);
-  if (id == 0xFFFF) return adult;
-  const ClipRec* c = nullptr;
-  for (const ClipRec* x : clipsOf(key, (uint8_t)art::RigPart::Loco, -1, -1))
-    if (x->body == id && x->clip == (uint8_t)art::Clip::Walk && x->facing == 2) c = x;
+  // (SOLID 2b.1) doll::clipsOf, not pool::clipsOf: `own` is the old `body == strId(key)` test (false when the key is
+  // not in the pool), and `plants` are the clip's frames' plant anchors
+  const std::vector<art::doll::ClipInfo> clips = art::doll::clipsOf(key, art::RigPart::Loco);
+  const art::doll::ClipInfo* c = nullptr;
+  for (const art::doll::ClipInfo& x : clips)
+    if (x.own && x.clip == (uint8_t)art::Clip::Walk && x.facing == 2) c = &x;
   if (!c || !c->nFrames) return adult;
   art::doll::WalkTable t;
   t.frames = std::min<int>(c->nFrames, 16);
@@ -319,8 +317,8 @@ art::doll::WalkTable elderWalk(art::doll::BodySet base) {
   float adv[16] = {}, total = 0;
   bool planted = true;
   for (int i = 0; i < t.frames; i++) {
-    const FrameRec& f = P.frames[c->firstFrame + (uint32_t)i];
-    if (f.plant0 == kNoPlant || f.plant1 == kNoPlant) { planted = false; break; }
+    const art::doll::ClipPlant& f = c->plants[(size_t)i];
+    if (f.plant0 == art::doll::kClipNoPlant || f.plant1 == art::doll::kClipNoPlant) { planted = false; break; }
     adv[i] = std::max(0.0f, (f.plant0 - f.plant1) / 16.0f);
     total += adv[i];
   }

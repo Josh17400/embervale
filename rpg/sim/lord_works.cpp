@@ -22,7 +22,7 @@
 #include <climits>
 #include <cstddef>
 #include <unordered_set>
-#include "rpg/art/art_props.h"
+#include "rpg/core/art_ids.h"   // art::Prop and its predicates (SOLID 2b.1: the vocabulary, not the painter)
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/home.h"

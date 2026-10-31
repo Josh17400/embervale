@@ -14,7 +14,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/skill_ops.h"

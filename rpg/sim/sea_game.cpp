@@ -10,7 +10,7 @@
 // sea_foes.cpp (the serpent, the kraken, merrow, pirates).
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <chrono>

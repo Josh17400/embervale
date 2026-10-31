@@ -8,7 +8,7 @@
 //     swimmer is pulled back to the last dry footing, eased strokes all the way.
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <array>

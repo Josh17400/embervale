@@ -40,7 +40,7 @@
 #include <vector>
 #include "rpg/art.h"
 #include "rpg/build/blueprint.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/world.h"
 #include "rpg/world/economy.h"

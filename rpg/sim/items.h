@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "rpg/art.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 
 // Values are saved (writeItem): append only. Gloves, Boots and Cloak arrived with SAVE_VER 3 (M0).
 // M6 Steel appends Material: a crafting material (ore, ingot, hide, leather...; sub = craft::Stuff, rpg/sim/craft.h).

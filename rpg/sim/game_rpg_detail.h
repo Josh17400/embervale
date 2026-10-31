@@ -8,7 +8,7 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/jobs_ops.h"

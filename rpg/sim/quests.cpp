@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"

@@ -17,7 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/skills.h"
 

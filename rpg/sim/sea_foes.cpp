@@ -13,7 +13,7 @@
 // kraken with more arms in the water.
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@ namespace {
 constexpr float kPi = 3.14159265f;
 enum : uint8_t { SW_SERPENT = 1, SW_KRAKEN, SW_TENTACLE, SW_MERROW, SW_PIRATE };
 enum : uint8_t { MV_NONE, MV_RISE, MV_SWEEP, MV_SLAM, MV_THRUST, MV_SINK, MV_DECK, MV_JUMP, MV_GONE };
-constexpr uint64_t kBossSlainTag = 65;   // foes::MK_FOES_BOSS_SLAIN
+constexpr uint64_t kBossSlainTag = ::foes::MK_FOES_BOSS_SLAIN;   // (SOLID 2b.1) the named tag (65), not a restated literal
 
 Sea::Swimmer* swimmerOf(Game& g, int id) {
   for (Sea::Swimmer& s : g.sea.live.swimmers) if (s.id == id) return &s;

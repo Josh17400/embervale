@@ -17,7 +17,7 @@
 #include <iterator>
 #include <string>
 #include <unordered_map>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"

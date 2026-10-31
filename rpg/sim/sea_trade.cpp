@@ -12,7 +12,7 @@
 //   - the Sailor's hook (15.1): a skiff of their own at the start, or the first boat at half price.
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <cmath>
