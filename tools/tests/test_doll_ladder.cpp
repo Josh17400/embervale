@@ -29,6 +29,7 @@
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/gear_look.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
 
 using art::Clip;
@@ -36,8 +37,6 @@ using art::HumanLook;
 using art::RigPart;
 using art::RigSheet;
 namespace doll = art::doll;
-
-std::string dollSliceLooksText();   // test_doll_arms.cpp: the gates' matrix (the ladder looks, embedded)
 
 namespace dollladder {
 
@@ -85,7 +84,7 @@ HumanLook a3Woman() {
   return L;
 }
 
-struct Look { std::string tag; int who = 0; std::string spec; std::vector<std::string> gaits; };
+using dolltest::Look;   // (doll_test_common.h)
 std::vector<Look> parseLooks(const std::string& text) {
   std::vector<Look> v;
   size_t a = 0;
@@ -106,16 +105,7 @@ std::vector<Look> parseLooks(const std::string& text) {
   }
   return v;
 }
-std::string readFile(const char* file) {
-  std::string t;
-  FILE* f = std::fopen(file, "rb");
-  if (!f) return t;
-  char buf[4096];
-  size_t n;
-  while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) t.append(buf, n);
-  std::fclose(f);
-  return t;
-}
+using dolltest::readFile;   // (doll_test_common.h)
 
 struct Built { std::string tag; HumanLook L; doll::DollRecipe r; bool lookPal = false; std::string bad; };
 Built build(const Look& l) {
@@ -1550,6 +1540,7 @@ int dollLadderGates(bool report, std::vector<std::string>& printed) {
   dollladder::g_report = report;
   return dollladder::runLadderGates(dollladder::parseLooks(dollSliceLooksText()), true, true, printed);
 }
+RPG_DOLL_GATE(20, "ladder", dollLadderGates);   // runs before the B table
 
 RPG_TEST_CMD("--expand-looks", "P2c the ladder looks macros expanded: --expand-looks FILE (each line's fields and what it resolves to)", dollladder::expandCmd);
 RPG_TEST_CMD("--doll-ladder", "P2c ladder gates C12 C13 C14 [--looks f] [--pool f] [--finish] [--report] [--selftest]; --scope ladder [--seeds a..b] [--peoples all] (C12-C14 over source L)", dollladder::ladderCmd);

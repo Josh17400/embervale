@@ -52,15 +52,12 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_internal.h"
 #include "rpg/sim/gear_forge.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
 #if __has_include("tools/tests/doll_motion.h")
 #include "tools/tests/doll_motion.h"
 #define EMB_DOLL_MOTION 1
 #endif
-
-std::string dollSliceLooksText();   // (test_doll_arms.cpp: the slice looks file, embedded)
-std::string dollForgeLooksText();   // (test_doll_forge.cpp: tools/doll/forge_looks.txt, embedded)
-std::string dollArmsLooksText();    // (test_doll_arms.cpp: tools/doll/arms_looks.txt, embedded; M8-M12)
 
 namespace wear {
 namespace {

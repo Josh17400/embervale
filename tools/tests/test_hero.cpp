@@ -13,13 +13,6 @@
 #include "rpg/sim/gear.h"
 #include "tools/tests/tests.h"
 
-// rpg_test links only rpg_sim (headless), but these checks need the human painter and HumanLook::key(). Until the
-// build links rpg_art into rpg_test, compile the two painter files into this unit. When it does, define
-// EMB_RPG_TEST_HAS_ART for rpg_test (or delete these lines) so the symbols are not defined twice.
-#ifndef EMB_RPG_TEST_HAS_ART
-#include "rpg/art/art_core.cpp"
-#include "rpg/art/art_human.cpp"
-#endif
 #include "rpg/culture/culture.h"
 
 // M3 (people lane): the census (rpg/sim/looks.cpp) and the hero's appearance look (rpg/sim/player.cpp)

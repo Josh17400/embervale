@@ -30,6 +30,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
 
 namespace dollenv {
@@ -138,16 +139,7 @@ std::vector<Look> parseLooks(const std::string& text) {
   }
   return v;
 }
-std::string readFile(const char* file) {
-  std::string t;
-  FILE* f = std::fopen(file, "rb");
-  if (!f) return t;
-  char buf[4096];
-  size_t n;
-  while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) t.append(buf, n);
-  std::fclose(f);
-  return t;
-}
+using dolltest::readFile;   // (doll_test_common.h)
 struct Built { std::string tag; int who = 0; HumanLook L; doll::DollRecipe r; std::string bad; };
 Built build(const Look& l) {
   gear::installLadderMacros();
@@ -2116,8 +2108,6 @@ void capsOn(const Built& b, char src, CapStat& cs, std::map<int, Built>& bare) {
 }
 
 }  // namespace dollenv
-void dollCensusLooks(uint64_t a, uint64_t b, std::vector<std::pair<char, art::HumanLook>>& out);   // test_doll.cpp
-std::string dollSliceLooksText();   // test_doll_arms.cpp (the gates' matrix with the forge looks)
 namespace dollenv {
 
 int runAllScope(int a, int b, std::vector<std::string>& printed) {
@@ -2178,7 +2168,6 @@ int runAllScope(int a, int b, std::vector<std::string>& printed) {
 
 }  // namespace dollenv
 
-std::string dollArmsLooksText();   // test_doll_arms.cpp: the matrices M8-M12 (tools/doll/arms_looks.txt, embedded)
 // ---------------------------------------------------------------- the commands
 namespace dollenv {
 
@@ -2562,6 +2551,7 @@ int dollEnvelopeGates(bool report, std::vector<std::string>& printed) {
   f += dollenv::runAdefects(dollenv::kEnvelopeLooks, true, printed);
   return f;
 }
+RPG_DOLL_GATE(120, "envelope", dollEnvelopeGates);   // runs after the B table
 int dollHeadGates(bool report, bool selftest, std::vector<std::string>& printed) {
   dollenv::g_report = report;
   return dollenv::headGates(selftest, printed);

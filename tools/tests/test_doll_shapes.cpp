@@ -33,6 +33,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
 
 namespace dollshapes {
@@ -932,7 +933,6 @@ bool readFrozen(const char* path, uint32_t (*t)[36][3], int* cells) {
   return true;
 }
 }  // namespace dollshapes
-namespace wear { std::vector<int> frozenLookCells(const char* manifest); }
 namespace dollshapes {
 // rpg_test --forge-frozen MANIFEST [--from-inc INC] [--out FILE]: write the frozen cells (keys from INC, else the compiled table)
 int frozenCmd(int argc, char** argv) {

@@ -26,12 +26,8 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
-
-int dollShapeGates(bool report, std::vector<std::string>& printed, const std::vector<std::pair<std::string, art::HumanLook>>& forgeLooks);
-int forgeShapeData(int w0, int w1, int s0, int s1, bool report, bool selftest, std::vector<std::string>& printed);
-int forgeSilhouettes(int w0, int w1, bool report, bool selftest, std::vector<std::string>& printed);
-int dollHeadGates(bool report, bool selftest, std::vector<std::string>& printed);   // test_doll_envelope.cpp: C16k
 
 namespace dollforge {
 
@@ -971,6 +967,7 @@ int mechCmd(int argc, char** argv) {
 std::string dollForgeLooksText() { return dollforge::kForgeLooks; }
 // (P2c forge) the drawn gates in rpg_test --doll --gates (test_doll.cpp)
 int dollForgeGates(bool report, std::vector<std::string>& printed) { return dollforge::dollForgeGatesImpl(report, printed); }
+RPG_DOLL_GATE(110, "forge", dollForgeGates);   // runs after the B table
 
 // ---------------------------------------------------------------- C1 source F (rpg_test --doll-coverage --scope forge)
 // every forge look (tools/doll/forge_looks.txt) resolves with nothing missing, and every forge value it asks for is drawn:
