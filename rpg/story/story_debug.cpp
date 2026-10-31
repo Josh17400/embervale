@@ -8,7 +8,6 @@
 #include <string>
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"

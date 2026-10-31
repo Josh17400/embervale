@@ -21,7 +21,6 @@
 #include "rpg/story/saga.h"
 #include "rpg/sim/common.h"
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/radiant.h"
 #include "rpg/story/story_internal.h"

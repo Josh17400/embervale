@@ -21,7 +21,7 @@ foreign-internal rpg/story/offers.cpp rpg/sim/game_internal.h
 foreign-internal rpg/story/places.cpp rpg/sim/game_internal.h
 foreign-internal rpg/story/rumours.cpp rpg/sim/game_internal.h
 foreign-internal rpg/story/story.cpp rpg/sim/game_internal.h
-foreign-internal rpg/story/story_game.cpp rpg/sim/game_internal.h
+foreign-internal rpg/story/story_detail.h rpg/sim/game_internal.h
 foreign-internal rpg/view/render.cpp rpg/story/story_internal.h
 foreign-internal rpg/view/render_anim.cpp rpg/story/story_internal.h
 foreign-internal rpg/view/scripts/homestead.cpp rpg/sim/game_internal.h
