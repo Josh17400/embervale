@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include "rpg/art/art_human.h"
+#include "rpg/sim/looks.h"
 #include "tools/tests/tests.h"
 
 enum class Role : uint8_t;   // rpg/sim/world.h
@@ -33,13 +34,6 @@ inline std::string readFile(const char* file) {
 // ---------------------------------------------------------------- in their own namespaces, and outside the doll tests
 namespace dollmotion { void setMapsRoot(const std::string& dir); }   // test_doll_motion.cpp (--maps)
 namespace wear { std::vector<int> frozenLookCells(const char* manifest); }   // test_doll_wear.cpp (test_doll_shapes.cpp's --forge-frozen)
-
-// rpg/sim/looks.cpp: the census (test_doll.cpp dresses its residents with it)
-namespace census {
-struct Rank { bool royal = false, capital = false; };
-void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner, uint64_t seed,
-           const Rank& rank);
-}  // namespace census
 
 // ---------------------------------------------------------------- the embedded looks texts
 std::string dollSliceLooksText();   // test_doll_arms.cpp: the gates' matrix (the ladder looks, then the forge looks whose tags it lacks)

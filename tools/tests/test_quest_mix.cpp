@@ -39,12 +39,12 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/radiant.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
-#include "rpg/story/story_internal.h"
+#include "rpg/story/story_api.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 

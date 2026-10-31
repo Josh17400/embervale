@@ -24,11 +24,8 @@
 #include "rpg/sim/loot_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/looks.h"
 #include "tools/tests/tests.h"
-
-namespace census {
-void ageLook(art::HumanLook& L, int years, bool childRole, bool elder, uint64_t seed);
-}  // namespace census
 
 namespace {
 
