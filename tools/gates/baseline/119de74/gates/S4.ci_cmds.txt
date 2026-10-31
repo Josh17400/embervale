@@ -1,0 +1,68 @@
+rpg_test --seeds 1..20
+save_test
+rpg_test --endless --seeds 1..10 --no-budget
+rpg_test --window --seeds 1..5
+rpg_test --towns --seeds 1..10
+rpg_test --realm --seeds 1..10
+rpg_test --history 2000 --seeds 1..20
+rpg_test --wards --seeds 1..10
+rpg_test --story --seeds 1..5
+rpg_test --sagalib
+rpg_test --sagas 2000 --seeds 1..5
+rpg_test --campaigns --seeds 1..5
+rpg_test --voice
+rpg_test --voice --lane
+rpg_test --life --seeds 1..5
+rpg_test --folk --seeds 1..5
+rpg_test --gear --seeds 1..3
+rpg_test --power-curve
+rpg_test --loot-audit
+rpg_test --foes --seeds 1..3
+rpg_test --arms --seeds 1..3
+rpg_test --arms --seeds 1..3 --rig=1
+rpg_test --loot
+rpg_test --loot-sources --seeds 1..3
+rpg_test --powers
+rpg_test --skills
+rpg_test --spells
+rpg_test --sea --seeds 1..3
+rpg_test --sail --seeds 1..3
+rpg_test --relief --seeds 1..3 --no-budget
+rpg_test --climb --seeds 1..3
+rpg_test --rise --seeds 1..3
+rpg_test --save-soak 100
+rpg_test --service --seeds 1..3
+rpg_test --lord --seeds 1..3
+rpg_test --quest-mix --seeds 1..20 --gates --p1b --gates-p1b --ports
+rpg_test --town-motion --seeds 1..8 --city --gates
+rpg_test --jobs --seeds 1..3
+rpg_test --life-p1 --seeds 1..3 --hooks
+rpg_test --story-p1 --seeds 1..3
+rpg_test --story-events --seeds 1..3
+rpg_test --content-p1b --seeds 1..3 --gates
+rpg_test --radiant --seeds 1..3
+rpg_test --p1b-engine --seeds 1..5
+rpg_test --rig
+rpg_test --anim --gates
+rpg_test --doll --gates
+rpg_test --doll-coverage --scope all --seeds 1..20 --gates
+rpg_test --doll-variety --seeds 1..3 --gates
+rpg_test --doll-ladder --selftest
+rpg_test --home --seeds 1..3
+rpg_test --companion --seeds 1..3
+rpg_test --banter --seeds 1..3
+rpg_test --quests
+rpg_test --mainquest
+rpg_test --towns --golden
+rpg_test --villages --strict
+rpg_test --structure --strict
+rpg_test --city-unique --strict
+rpg_test --plan-controls
+rpg_test --dialogue --seeds 1..3
+rpg_test --cultures 400 --seeds 1..5
+rpg_test --builder --seeds 1..12 --strict --society-strict
+rpg_test --biomes --seeds 1..5 --strict
+rpg_test --forest --seeds 1..20
+rpg_test --specialties --seeds 1..20
+rpg_test --golden
+rpg_test --endless --golden

@@ -1,0 +1,185 @@
+  pool: 870 parts, 28641 views, 2224 clips, 5364 frames, 6 body sets; 2570937 bytes (embedded, hash c8df3de9a5fc8245)
+doll contract: 0 failure(s)
+  B1 parity: kept frames (idles, swing keys) 0 px differing in all; 48 walk frames for review (48 differ from A3)
+ok    B1 parity                  16 checks,    0 failed
+  B10 ladder lt4      RUN      80.5 KB (base 78, D19 96)
+  B10 ladder lt4      DRAWN   268.8 KB (base 256, D19 320)
+  B10 ladder lt5      LOCO    159.8 KB (base 146, D19 228)
+  B10 ladder lt5      RUN      90.2 KB (base 78, D19 119)
+  B10 ladder lt5      DRAWN   294.4 KB (base 256, D19 400)
+  B10 ladder lt5      DEATH    53.0 KB (base 52, D19 59)
+  B10 ladder lt6      LOCO    160.2 KB (base 146, D19 228)
+  B10 ladder lt6      RUN     104.6 KB (base 78, D19 119)
+  B10 ladder lt6      DRAWN   308.1 KB (base 256, D19 400)
+  B10 ladder lt6      DEATH    56.7 KB (base 52, D19 59)
+  B10 ladder lt6m     LOCO    160.4 KB (base 146, D19 228)
+  B10 ladder lt6m     RUN     103.6 KB (base 78, D19 119)
+  B10 ladder lt6m     DRAWN   307.1 KB (base 256, D19 400)
+  B10 ladder lt6m     DEATH    57.7 KB (base 52, D19 59)
+  B10 ladder lt6w     LOCO    170.5 KB (base 155, D19 237)
+  B10 ladder lt6w     RUN     112.8 KB (base 93, D19 135)
+  B10 ladder lt6w     DRAWN   293.1 KB (base 256, D19 400)
+  B10 ladder lt6w     DEATH    56.8 KB (base 56, D19 63)
+  B10 ladder fm_gilt  RUN      78.9 KB (base 78, D19 96)
+  B10 ladder fm_gilt  DRAWN   269.6 KB (base 256, D19 320)
+  B10 ladder fm_star  RUN      85.7 KB (base 78, D19 96)
+  B10 ladder fm_star  DRAWN   266.3 KB (base 256, D19 320)
+  B10 ladder fm_myth  LOCO    160.4 KB (base 146, D19 228)
+  B10 ladder fm_myth  RUN     103.6 KB (base 78, D19 119)
+  B10 ladder fm_myth  DRAWN   307.1 KB (base 256, D19 400)
+  B10 ladder fm_myth  DEATH    57.7 KB (base 52, D19 59)
+  B10 ladder f5_steel RUN      81.3 KB (base 78, D19 119)
+  B10 ladder f5_steel DRAWN   264.9 KB (base 256, D19 400)
+  B10 ladder f5_gilt  LOCO    159.8 KB (base 146, D19 228)
+  B10 ladder f5_gilt  RUN      90.2 KB (base 78, D19 119)
+  B10 ladder f5_gilt  DRAWN   294.4 KB (base 256, D19 400)
+  B10 ladder f5_gilt  DEATH    53.0 KB (base 52, D19 59)
+  B10 ladder f5_obsid RUN      81.3 KB (base 78, D19 119)
+  B10 ladder f5_obsid DRAWN   264.9 KB (base 256, D19 400)
+  B10 ladder f5_ember RUN      80.7 KB (base 78, D19 119)
+  B10 ladder f5_star  LOCO    146.5 KB (base 146, D19 228)
+  B10 ladder f5_star  RUN      97.5 KB (base 78, D19 119)
+  B10 ladder f5_star  DRAWN   285.9 KB (base 256, D19 400)
+  B10 ladder f5_star  DEATH    53.0 KB (base 52, D19 59)
+  B10 ladder fw_star  RUN      82.6 KB (base 78, D19 96)
+  B10 ladder fw_star  DRAWN   257.0 KB (base 256, D19 320)
+  B10 ladder a_hl1    RUN      79.8 KB (base 78, D19 96)
+  B10 ladder a_hl3    RUN      84.8 KB (base 78, D19 119)
+  B10 ladder a_hl3    DRAWN   269.6 KB (base 256, D19 400)
+  B10 ladder a_fj2    RUN      76.8 KB (base 73, D19 91)
+  B10 ladder a_jade3  LOCO    171.3 KB (base 155, D19 237)
+  B10 ladder a_jade3  RUN     109.8 KB (base 93, D19 135)
+  B10 ladder a_jade3  DRAWN   301.9 KB (base 256, D19 400)
+  B10 ladder a_jade3  DEATH    58.7 KB (base 56, D19 63)
+  B10 ladder a_star3  LOCO    152.3 KB (base 146, D19 228)
+  B10 ladder a_star3  RUN      87.4 KB (base 78, D19 119)
+  B10 ladder a_star3  DRAWN   285.9 KB (base 256, D19 400)
+  B10 ladder mr_1     RUN      80.3 KB (base 73, D19 91)
+  B10 ladder mr_1     DRAWN   274.5 KB (base 256, D19 320)
+  B10 ladder mr_2     DRAWN   261.2 KB (base 256, D19 320)
+  B10 ladder mr_3     LOCO    155.0 KB (base 146, D19 182)
+  B10 ladder mr_3     RUN      86.9 KB (base 78, D19 96)
+  B10 ladder mr_3     DRAWN   293.6 KB (base 256, D19 320)
+  B10 ladder mr_4     RUN      75.4 KB (base 73, D19 91)
+  B10 ladder mr_5     LOCO    160.7 KB (base 146, D19 228)
+  B10 ladder mr_5     RUN      88.6 KB (base 78, D19 119)
+  B10 ladder mr_5     DRAWN   293.4 KB (base 256, D19 400)
+  B10 ladder mr_5     DEATH    55.1 KB (base 52, D19 59)
+  B10 ladder mr_6     LOCO    147.2 KB (base 146, D19 228)
+  B10 ladder mr_6     RUN      82.2 KB (base 78, D19 119)
+  B10 ladder mr_6     DRAWN   276.1 KB (base 256, D19 400)
+  B10 ladder ncapt_hl RUN      85.6 KB (base 78, D19 96)
+  B10 ladder ncapt_hl DRAWN   278.1 KB (base 256, D19 320)
+  B10 ladder g_dune1  LOCO    157.3 KB (base 146, D19 228)
+  B10 ladder g_dune1  RUN      88.0 KB (base 78, D19 119)
+  B10 ladder g_dune1  DRAWN   288.4 KB (base 256, D19 400)
+  B10 ladder g_mars2  DRAWN   256.4 KB (base 256, D19 320)
+  B10 ladder g_fj1    LOCO    152.2 KB (base 146, D19 228)
+  B10 ladder g_fj1    RUN      96.8 KB (base 78, D19 119)
+  B10 ladder g_fj1    DRAWN   291.4 KB (base 256, D19 400)
+  B10 ladder g_fj1    DEATH    52.1 KB (base 52, D19 59)
+  B10 ladder g_step1  LOCO    147.5 KB (base 146, D19 228)
+  B10 ladder g_step1  RUN      93.8 KB (base 78, D19 119)
+  B10 ladder g_step1  DRAWN   283.4 KB (base 256, D19 400)
+  B10 ladder g_sylv1w RUN      77.3 KB (base 73, D19 91)
+  B10 ladder g_sylv1w DRAWN   265.6 KB (base 256, D19 320)
+  B10 ladder g_hl1    RUN      79.8 KB (base 78, D19 96)
+  B10 ladder g_hl3    RUN      91.1 KB (base 78, D19 119)
+  B10 ladder g_hl3    DRAWN   277.5 KB (base 256, D19 400)
+  B10 ladder g_hl3    DEATH    52.3 KB (base 52, D19 59)
+  B10 ladder g_jd3a   RUN      83.8 KB (base 73, D19 91)
+  B10 ladder g_jd3a   DRAWN   258.4 KB (base 256, D19 320)
+  B10 ladder g_jd2w   LOCO    150.0 KB (base 146, D19 228)
+  B10 ladder g_jd2w   RUN      91.7 KB (base 73, D19 114)
+  B10 ladder g_jd2w   DRAWN   273.4 KB (base 256, D19 400)
+  B10 ladder g_star3  LOCO    152.3 KB (base 146, D19 228)
+  B10 ladder g_star3  RUN      87.4 KB (base 78, D19 119)
+  B10 ladder g_star3  DRAWN   285.9 KB (base 256, D19 400)
+  B10 ladder g_sun1   LOCO    157.0 KB (base 146, D19 228)
+  B10 ladder g_sun1   RUN      95.6 KB (base 78, D19 119)
+  B10 ladder g_sun1   DRAWN   298.0 KB (base 256, D19 400)
+  B10 ladder g_sun1   DEATH    52.1 KB (base 52, D19 59)
+  B10 ladder g_cov2w  RUN      75.7 KB (base 73, D19 91)
+  B10 ladder g_cov5w  RUN      80.9 KB (base 73, D19 91)
+  B10 bake: v1 sheet p50 0.164 p95 <t>; one facing's LOCO p50 0.406 p95 <t>
+  B10 atlas and speed: one facing's LOCO bakes in <t> at p95 (the v1 sheet's 0.192; the plan's 0.385)
+  B10 M7 watch (72 looks): worst LOCO 127.6 KB (m7_man_elf_fur_hood_staff), RUN 63.6 KB (m7_man_human_travel_hood_sword); 0 over budget
+  ramps: the generator's worst step is chemise step 0 at delta E 5.3 (gate 6)
+SYNTH ALL CAUGHT
+  wear selftest: ALL CAUGHT
+  C3 selftest: ALL CAUGHT
+  C4 selftest: ALL CAUGHT
+  C5 selftest: ALL CAUGHT
+  C6 selftest: ALL CAUGHT
+    relics hero T5 body: gilded 510 obsidian 513 ember 517 starmetal 520 (steps +0.6% +0.8% +0.6%; 2 % aimed) | whole figure 762 737 721 770
+    relics hero T6 body: gilded 546 obsidian 548 ember 551 starmetal 558 (steps +0.4% +0.5% +1.3%; 2 % aimed) | whole figure 746 764 745 854
+    relics heroine T5 body: gilded 459 obsidian 465 ember 467 starmetal 477 (steps +1.3% +0.4% +2.1%; 2 % aimed) | whole figure 740 714 685 742
+    relics heroine T6 body: gilded 497 obsidian 502 ember 508 starmetal 516 (steps +1.0% +1.2% +1.6%; 2 % aimed) | whole figure 724 741 715 826
+    D96 king nking: cape columns left|right D 3|3 U 9|8; steps 2-3 dE 0.0 0.0 off e25ea41's; 0 Cloak px at step 4; 0 lone Cloak px by a boot; fall + lying Cloak px 4256 (177 % of e25ea41's 2406)
+ok    B2 heights                288 checks,    0 failed
+ok    faces                      12 checks,    0 failed
+ok    hands                       6 checks,    0 failed
+ok    B8 craft                 12424 checks,    0 failed
+ok    B9 fitted pairs           118 checks,    0 failed
+FAIL: B10 atlas and speed      1693 checks,    1 failed; first: one facing's LOCO bakes in <t> at p95 (the v1 sheet's 0.192; the plan's 0.385)
+ok    ramps dE 6                 49 checks,    0 failed
+ok    B11 leg mass (D U)         96 checks,    0 failed
+ok    B11 limbs (R L)          2305 checks,    0 failed
+ok    B11 wear (R L)           10200 checks,    0 failed
+ok    B12 boots                2322 checks,    0 failed
+ok    B11 selftest                1 checks,    0 failed
+ok    C3 gear                  14631 checks,    0 failed
+ok    C4 armour change           54 checks,    0 failed
+ok    C5 families                11 checks,    0 failed
+ok    C6 weapons                538 checks,    0 failed
+ok    C3-C6 selftests             1 checks,    0 failed
+  C12-C14 selftest: ALL CAUGHT
+ok    C12 the ladder reads      141 checks,    0 failed
+ok    C13 the living finish     419 checks,    0 failed
+ok    C14 value                 621 checks,    0 failed
+ok    C15 the alloys           7636 checks,    0 failed
+ok    C15c alloy neighbours    1005 checks,    0 failed
+ok    relic invariant             9 checks,    0 failed
+ok    D96 king cape               6 checks,    0 failed
+ok    C12-C14 selftests           1 checks,    0 failed
+  C16 C17 selftest: ALL CAUGHT
+ok    C1 source F                65 checks,    0 failed
+ok    C16a hero styles           45 checks,    0 failed
+ok    C16s silhouettes           45 checks,    0 failed
+ok    C17 metal and sheen       898 checks,    0 failed
+ok    C17 blades                 61 checks,    0 failed
+ok    C12a T2 to T3               2 checks,    0 failed
+ok    C16 C17 selftests           1 checks,    0 failed
+  C16o C16n visor selftest: ALL CAUGHT
+ok    C16o outline             1219 checks,    0 failed
+ok    C16m motif                170 checks,    0 failed
+ok    C16n noise                130 checks,    0 failed
+ok    C17 visor                  31 checks,    0 failed
+ok    C16o n visor selftests      1 checks,    0 failed
+  C12f selftests: 15 of 15 caught
+  C19 selftests: 19 of 19 caught
+  C12f ladder hero     area: T1 808 (1.00) T2 910 (1.13) T3 1050 (1.30) T4 1226 (1.52) T5 1382 (1.71) T6 1492 (1.85)
+  C12f ladder hero     heads: T2-T3 160->238 OD 0.207 T3-T4 238->254 OD 0.296 T4-T5 254->443 OD 0.183 T5-T6 443->568 OD 0.259
+  C12f ladder hero     T2 head budget: 160 px now, 226 or less (T3's 238 / 1.05)
+  C12f ladder heroine  area: T1 725 (1.00) T2 865 (1.19) T3 997 (1.38) T4 1186 (1.64) T5 1347 (1.86) T6 1459 (2.01)
+  C12f ladder heroine  heads: T2-T3 160->235 OD 0.209 T3-T4 235->254 OD 0.297 T4-T5 254->443 OD 0.176 T5-T6 443->534 OD 0.256
+  C12f ladder heroine  T2 head budget: 160 px now, 223 or less (T3's 235 / 1.05)
+  C12f guard eg3: area 1026 (1.27 of e1 808, 1.19 of eg0 859) shoulders 20 cape D 11 / 11 rows, back R 1
+ok    C12f envelope              62 checks,    0 failed
+ok    C3b helm by tier           60 checks,    0 failed
+ok    C12f ladder lines          20 checks,    0 failed
+ok    C13 drawn motion           26 checks,    0 failed
+ok    B10 by tier (env)         150 checks,    0 failed
+ok    D64 kit tags                7 checks,    0 failed
+ok    D97 one kit one look      432 checks,    0 failed
+ok    C12f selftests             15 checks,    0 failed
+ok    C19 A1                     17 checks,    0 failed
+ok    C19 A2                     19 checks,    0 failed
+ok    C19 A3                     21 checks,    0 failed
+ok    C19 A4                     36 checks,    0 failed
+ok    C19 A5                     19 checks,    0 failed
+ok    C19 A6                     24 checks,    0 failed
+ok    C19 A7                     17 checks,    0 failed
+ok    C19 A8                    672 checks,    0 failed
+ok    C19 selftests              19 checks,    0 failed
+doll: 1 failure(s)

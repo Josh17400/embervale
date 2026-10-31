@@ -1,0 +1,14 @@
+doll       1812 sprites  d8818081069d5e68
+monsters     16 sprites  607e3543a29be1ec
+props        74 sprites  8cf048d0ba49e6fe
+buildings    80 sprites  cbcceb30b152b6d5
+walls        17 sprites  b317366cc39c18b7
+icons        70 sprites  246f135187536eb5
+fx           12 sprites  e0ecd0fcb344c159
+TOTAL 5e4a8a57bb4212f8
+monst+new    12 sprites  9eddb8cca73868c3
+props+new   180 sprites  45456cdd0486cc0f
+bldgs+new   152 sprites  7d0bb57d1c5295dd
+icons+new   112 sprites  d7efef6a9cdcd742
+fx+new        9 sprites  061fd76c895fbd6d
+(rig 2, the default; --rig=1: the v1 fallback's lines)

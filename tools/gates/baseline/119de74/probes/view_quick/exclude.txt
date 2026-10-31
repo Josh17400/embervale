@@ -1,0 +1,2 @@
+# tools/gates/baseline/119de74/probes/view_quick/exclude.txt - "<script>[/<png>]  # cause" left out of witness_pack --check.
+# None (the quick set holds no PNG that was unstable across fresh A/A runs; see ../view_all/exclude.txt).

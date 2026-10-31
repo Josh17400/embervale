@@ -1,0 +1,10 @@
+# tools/gates/witness_pack/draw_every.txt - scripts witness_pack.mjs draws EVERY frame for (as the scripted loop does),
+# because a check of theirs counts work the view does a little per drawn frame. Costly (a draw is ~50 ms at 1440 x 810):
+# keep the list short. One per line: "<script>  # why".
+m4_view_map                    # expect m4 border: the world map fetches one chunk per drawn frame (worldmap.cpp: fetched >= 1)
+m7c_edge_faubourgs             # mapwaitplans: the map's road / river plans advance only in drawn frames (times out otherwise)
+m7c_edge_faubourgs_phone       # mapwaitplans (as above)
+m7c_integration_tour           # mapwaitplans (as above)
+m7c_survey_map_phone           # mapwaitplans (as above)
+m7c_city_cultures              # mapwaitplans (as above)
+m7c_survey_map_cultures        # mapwaitplans (as above)

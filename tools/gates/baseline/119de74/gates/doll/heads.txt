@@ -1,0 +1,5 @@
+ok    C16k heads (data)          75 checks,    0 failed
+ok    C16k a head each          768 checks,    0 failed
+ok    C16k heads apart (1x)     666 checks,    0 failed
+ok    C16k stability              1 checks,    0 failed
+doll-heads: 0 failure(s)

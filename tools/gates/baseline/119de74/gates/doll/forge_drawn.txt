@@ -1,0 +1,14 @@
+  C16 C17 selftest: ALL CAUGHT
+ok    C1 source F                65 checks,    0 failed
+ok    C16a hero styles           45 checks,    0 failed
+ok    C16s silhouettes           45 checks,    0 failed
+ok    C17 metal and sheen       898 checks,    0 failed
+ok    C17 blades                 61 checks,    0 failed
+ok    C12a T2 to T3               2 checks,    0 failed
+ok    C16 C17 selftests           1 checks,    0 failed
+  C16o C16n visor selftest: ALL CAUGHT
+ok    C16o outline             1219 checks,    0 failed
+ok    C16m motif                170 checks,    0 failed
+ok    C16n noise                130 checks,    0 failed
+ok    C17 visor                  31 checks,    0 failed
+ok    C16o n visor selftests      1 checks,    0 failed

@@ -1,0 +1,61 @@
+# size_allow.txt: today's big-but-cohesive files and functions, exempt from size_report.sh's limits
+# (file > 2000 lines, function > 300 lines). Source: SOLID_PLAN.md 2.2 "Big but cohesive, leave as is",
+# section 8 "Do not touch" and the "Optional later" list. Everything else over a limit is reported as OVER.
+#   file <glob>         exempts the file's line count only
+#   func <glob> <name>  exempts a function (name as size_report prints it, or * for every function in the file)
+# Add a line only with the owner's OK; a step that splits something removes its line.
+
+# --- generated and vendored (never edited by hand)
+file rpg/art/doll/gen/**
+func rpg/art/doll/gen/** *
+file engine/witness.h
+func engine/witness.h *
+file engine/witness_impl.cpp
+
+# --- data tables (cohesive data; splitting risks order-dependent ids)
+file rpg/story/lib_tales*
+func rpg/story/lib_tales* *
+file rpg/story/tales2/**
+func rpg/story/tales2/** *
+file rpg/story/arch/**
+func rpg/story/arch/** *
+file rpg/story/campaigns/**
+func rpg/story/campaigns/** *
+file rpg/story/req/**
+func rpg/story/req/** *
+file rpg/story/jobs/**
+func rpg/story/jobs/** *
+file rpg/culture/priors.cpp
+func rpg/culture/priors.cpp *
+file rpg/sim/gear_forge_shapes.inc
+
+# --- big but cohesive, leave as is (plan 2.2)
+file rpg/sim/interior_v4.cpp
+func rpg/sim/interior_v4.cpp *
+file rpg/art/art_home.cpp
+func rpg/art/art_home.cpp *
+file rpg/art/art_market.cpp
+func rpg/art/art_market.cpp *
+file rpg/view/worldmap.cpp
+# (worldmap's drawWorldMap and paintMapTile are NOT exempt: wave 3 splits them)
+file rpg/view/terrain.cpp
+func rpg/view/terrain.cpp View::groundPixel
+func rpg/view/terrain.cpp View::reliefPixel
+func rpg/view/terrain.cpp ecoPixel
+func rpg/view/terrain.cpp urbPixel
+func rpg/view/terrain.cpp pavePixel
+
+# --- do not touch / optional later (plan 8 and "Optional later")
+file rpg/art/art_human.cpp
+func rpg/art/art_human.cpp *
+file rpg/art/art_building.cpp
+func rpg/art/art_building.cpp *
+file rpg/art/art_props.cpp
+func rpg/art/art_props.cpp *
+
+# --- test lanes: one subject per file
+file tools/tests/test_doll.cpp
+file tools/tests/test_doll_motion.cpp
+file tools/tests/test_doll_envelope.cpp
+file tools/tests/test_doll_arms.cpp
+file tools/preview/doll_gallery.cpp

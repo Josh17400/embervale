@@ -1,0 +1,3 @@
+rig default: 2 (this process started at rig 2, the default)
+rig contract: 0 failure(s)
+rig: 0 failures

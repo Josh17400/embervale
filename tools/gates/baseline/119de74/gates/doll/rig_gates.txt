@@ -1,0 +1,370 @@
+rig default: 2 (this process started at rig 2, the default)
+rig contract: 0 failure(s)
+ R5 frames: unarmed walk f2 v0 #2: 7 transparent px enclosed
+ R5 frames: unarmed walk f2 v0 #5: 8 transparent px enclosed
+ R5 frames: unarmed walk f3 v0 #2: 7 transparent px enclosed
+ R5 frames: unarmed walk f3 v0 #5: 8 transparent px enclosed
+ R5 frames: unarmed follow f1 v2 #0: 1 transparent px enclosed
+ R5 frames: unarmed roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: unarmed roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: unarmed windup f2 v0 #0: 1 transparent px enclosed
+ R5 frames: unarmed windup f2 v1 #0: 3 transparent px enclosed
+ R5 frames: unarmed windup f2 v2 #0: 3 transparent px enclosed
+ R5 frames: unarmed strike f2 v0 #0: 1 transparent px enclosed
+ R5 frames: unarmed strike f2 v1 #0: 3 transparent px enclosed
+ R5 frames: unarmed follow f2 v0 #0: 2 transparent px enclosed
+ R5 frames: unarmed follow f2 v0 #1: 2 transparent px enclosed
+ R5 frames: unarmed follow f2 v1 #0: 1 transparent px enclosed
+ R5 frames: unarmed follow f2 v1 #1: 2 transparent px enclosed
+ R5 frames: unarmed follow f2 v2 #0: 1 transparent px enclosed
+ R5 frames: unarmed follow f2 v2 #1: 2 transparent px enclosed
+ R5 frames: unarmed cast f2 v0 #0: 2 transparent px enclosed
+ R5 frames: unarmed block f2 v0 #0: 1 transparent px enclosed
+ R5 frames: unarmed block f2 v0 #1: 1 transparent px enclosed
+ R5 frames: unarmed block f2 v0 #2: 1 transparent px enclosed
+ R5 frames: unarmed windup f3 v0 #0: 2 transparent px enclosed
+ R5 frames: unarmed windup f3 v1 #0: 2 transparent px enclosed
+ R5 frames: unarmed windup f3 v2 #0: 2 transparent px enclosed
+ R5 frames: unarmed cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: unarmed block f3 v0 #0: 2 transparent px enclosed
+ R5 frames: unarmed block f3 v0 #1: 2 transparent px enclosed
+ R5 frames: unarmed block f3 v0 #2: 2 transparent px enclosed
+ R5 frames: dagger windup f1 v1 #0: 1 transparent px enclosed
+ R5 frames: dagger strike f1 v0 #0: 1 transparent px enclosed
+ R5 frames: dagger roll f1 v0 #0: 3 transparent px enclosed
+ R5 frames: dagger roll f1 v0 #3: 3 transparent px enclosed
+ R5 frames: dagger cast f2 v0 #0: 2 transparent px enclosed
+ R5 frames: dagger windup f3 v1 #0: 1 transparent px enclosed
+ R5 frames: dagger follow f3 v0 #1: 2 transparent px enclosed
+ R5 frames: dagger follow f3 v1 #1: 2 transparent px enclosed
+ R5 frames: dagger follow f3 v2 #1: 2 transparent px enclosed
+ R5 frames: dagger cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: dagger roll f3 v0 #3: 1 transparent px enclosed
+ R5 frames: sword windup f0 v2 #0: 2 transparent px enclosed
+ R5 frames: sword strike f0 v0 #0: 2 transparent px enclosed
+ R5 frames: sword strike f0 v1 #0: 2 transparent px enclosed
+ R5 frames: sword strike f0 v2 #0: 1 transparent px enclosed
+ R5 frames: sword strike f0 v2 #1: 1 transparent px enclosed
+ R5 frames: sword follow f0 v0 #0: 38 transparent px enclosed
+ R5 frames: sword follow f0 v0 #1: 3 transparent px enclosed
+ R5 frames: sword follow f0 v1 #1: 3 transparent px enclosed
+ R5 frames: sword follow f0 v2 #0: 1 transparent px enclosed
+ R5 frames: sword follow f0 v2 #1: 3 transparent px enclosed
+ R5 frames: sword cast f0 v0 #0: 1 transparent px enclosed
+ R5 frames: sword cast f0 v0 #1: 1 transparent px enclosed
+ R5 frames: sword block f0 v0 #0: 1 transparent px enclosed
+ R5 frames: sword block f0 v0 #2: 1 transparent px enclosed
+ R5 frames: sword roll f0 v0 #0: 2 transparent px enclosed
+ R5 frames: sword windup f1 v2 #0: 6 transparent px enclosed
+ R5 frames: sword strike f1 v0 #0: 1 transparent px enclosed
+ R5 frames: sword strike f1 v2 #0: 21 transparent px enclosed
+ R5 frames: sword strike f1 v2 #1: 21 transparent px enclosed
+ R5 frames: sword follow f1 v0 #0: 20 transparent px enclosed
+ R5 frames: sword follow f1 v0 #1: 3 transparent px enclosed
+ R5 frames: sword follow f1 v1 #1: 3 transparent px enclosed
+ R5 frames: sword follow f1 v2 #1: 3 transparent px enclosed
+ R5 frames: sword cast f1 v0 #0: 1 transparent px enclosed
+ R5 frames: sword cast f1 v0 #1: 1 transparent px enclosed
+ R5 frames: sword block f1 v0 #0: 1 transparent px enclosed
+ R5 frames: sword block f1 v0 #1: 1 transparent px enclosed
+ R5 frames: sword block f1 v0 #2: 2 transparent px enclosed
+ R5 frames: sword roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: sword roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: sword windup f2 v1 #0: 1 transparent px enclosed
+ R5 frames: sword strike f2 v0 #0: 77 transparent px enclosed
+ R5 frames: sword strike f2 v1 #0: 23 transparent px enclosed
+ R5 frames: sword follow f2 v0 #0: 1 transparent px enclosed
+ R5 frames: sword follow f2 v0 #1: 1 transparent px enclosed
+ R5 frames: sword follow f2 v1 #1: 1 transparent px enclosed
+ R5 frames: sword follow f2 v2 #0: 11 transparent px enclosed
+ R5 frames: sword follow f2 v2 #1: 1 transparent px enclosed
+ R5 frames: sword cast f2 v0 #0: 2 transparent px enclosed
+ R5 frames: sword block f2 v0 #0: 8 transparent px enclosed
+ R5 frames: sword block f2 v0 #1: 2 transparent px enclosed
+ R5 frames: sword block f2 v0 #2: 6 transparent px enclosed
+ R5 frames: sword roll f2 v0 #3: 2 transparent px enclosed
+ R5 frames: sword strike f3 v0 #0: 65 transparent px enclosed
+ R5 frames: sword strike f3 v1 #0: 20 transparent px enclosed
+ R5 frames: sword strike f3 v2 #0: 64 transparent px enclosed
+ R5 frames: sword strike f3 v2 #1: 64 transparent px enclosed
+ R5 frames: sword follow f3 v0 #0: 1 transparent px enclosed
+ R5 frames: sword follow f3 v2 #0: 1 transparent px enclosed
+ R5 frames: sword cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: sword block f3 v0 #0: 2 transparent px enclosed
+ R5 frames: sword block f3 v0 #2: 1 transparent px enclosed
+ R5 frames: greatsword windup f0 v1 #1: 1 transparent px enclosed
+ R5 frames: greatsword windup f0 v2 #0: 2 transparent px enclosed
+ R5 frames: greatsword windup f0 v2 #1: 1 transparent px enclosed
+ R5 frames: greatsword strike f0 v1 #0: 2 transparent px enclosed
+ R5 frames: greatsword strike f0 v1 #1: 2 transparent px enclosed
+ R5 frames: greatsword strike f0 v2 #0: 3 transparent px enclosed
+ R5 frames: greatsword strike f0 v2 #1: 3 transparent px enclosed
+ R5 frames: greatsword follow f0 v0 #0: 2 transparent px enclosed
+ R5 frames: greatsword follow f0 v1 #0: 1 transparent px enclosed
+ R5 frames: greatsword follow f0 v2 #0: 4 transparent px enclosed
+ R5 frames: greatsword windup f1 v0 #1: 4 transparent px enclosed
+ R5 frames: greatsword windup f1 v1 #0: 4 transparent px enclosed
+ R5 frames: greatsword windup f1 v1 #1: 4 transparent px enclosed
+ R5 frames: greatsword windup f1 v2 #0: 4 transparent px enclosed
+ R5 frames: greatsword windup f1 v2 #1: 2 transparent px enclosed
+ R5 frames: greatsword strike f1 v0 #0: 3 transparent px enclosed
+ R5 frames: greatsword strike f1 v0 #1: 3 transparent px enclosed
+ R5 frames: greatsword strike f1 v1 #0: 4 transparent px enclosed
+ R5 frames: greatsword strike f1 v1 #1: 4 transparent px enclosed
+ R5 frames: greatsword strike f1 v2 #0: 3 transparent px enclosed
+ R5 frames: greatsword strike f1 v2 #1: 3 transparent px enclosed
+ R5 frames: greatsword follow f1 v0 #0: 2 transparent px enclosed
+ R5 frames: greatsword follow f1 v0 #1: 4 transparent px enclosed
+ R5 frames: greatsword follow f1 v1 #0: 4 transparent px enclosed
+ R5 frames: greatsword follow f1 v1 #1: 4 transparent px enclosed
+ R5 frames: greatsword follow f1 v2 #0: 13 transparent px enclosed
+ R5 frames: greatsword follow f1 v2 #1: 4 transparent px enclosed
+ R5 frames: greatsword cast f1 v0 #0: 4 transparent px enclosed
+ R5 frames: greatsword cast f1 v0 #1: 4 transparent px enclosed
+ R5 frames: greatsword block f1 v0 #0: 4 transparent px enclosed
+ R5 frames: greatsword block f1 v0 #1: 4 transparent px enclosed
+ R5 frames: greatsword block f1 v0 #2: 4 transparent px enclosed
+ R5 frames: greatsword roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: greatsword roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: greatsword windup f2 v0 #0: 2 transparent px enclosed
+ R5 frames: greatsword windup f2 v2 #1: 1 transparent px enclosed
+ R5 frames: greatsword strike f2 v2 #0: 2 transparent px enclosed
+ R5 frames: greatsword strike f2 v2 #1: 2 transparent px enclosed
+ R5 frames: greatsword follow f2 v0 #1: 9 transparent px enclosed
+ R5 frames: greatsword follow f2 v1 #1: 9 transparent px enclosed
+ R5 frames: greatsword follow f2 v2 #0: 2 transparent px enclosed
+ R5 frames: greatsword follow f2 v2 #1: 9 transparent px enclosed
+ R5 frames: greatsword cast f2 v0 #0: 2 transparent px enclosed
+ R5 frames: greatsword block f2 v0 #1: 1 transparent px enclosed
+ R5 frames: greatsword block f2 v0 #2: 1 transparent px enclosed
+ R5 frames: greatsword windup f3 v0 #0: 2 transparent px enclosed
+ R5 frames: greatsword windup f3 v2 #1: 3 transparent px enclosed
+ R5 frames: greatsword strike f3 v2 #0: 4 transparent px enclosed
+ R5 frames: greatsword strike f3 v2 #1: 4 transparent px enclosed
+ R5 frames: greatsword follow f3 v0 #0: 1 transparent px enclosed
+ R5 frames: greatsword follow f3 v0 #1: 9 transparent px enclosed
+ R5 frames: greatsword follow f3 v1 #1: 9 transparent px enclosed
+ R5 frames: greatsword follow f3 v2 #0: 2 transparent px enclosed
+ R5 frames: greatsword follow f3 v2 #1: 9 transparent px enclosed
+ R5 frames: greatsword cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: greatsword block f3 v0 #1: 1 transparent px enclosed
+ R5 frames: greatsword block f3 v0 #2: 1 transparent px enclosed
+ R5 frames: greatsword roll f3 v0 #0: 1 transparent px enclosed
+ R5 frames: axe windup f0 v0 #0: 2 transparent px enclosed
+ R5 frames: axe windup f0 v2 #0: 2 transparent px enclosed
+ R5 frames: axe strike f0 v0 #0: 1 transparent px enclosed
+ R5 frames: axe strike f0 v1 #0: 7 transparent px enclosed
+ R5 frames: axe follow f0 v0 #0: 6 transparent px enclosed
+ R5 frames: axe roll f0 v0 #1: 3 transparent px enclosed
+ R5 frames: axe roll f0 v0 #2: 3 transparent px enclosed
+ R5 frames: axe windup f1 v0 #0: 4 transparent px enclosed
+ R5 frames: axe windup f1 v1 #0: 1 transparent px enclosed
+ R5 frames: axe windup f1 v2 #0: 4 transparent px enclosed
+ R5 frames: axe strike f1 v0 #0: 1 transparent px enclosed
+ R5 frames: axe strike f1 v1 #0: 12 transparent px enclosed
+ R5 frames: axe follow f1 v0 #1: 1 transparent px enclosed
+ R5 frames: axe follow f1 v1 #1: 1 transparent px enclosed
+ R5 frames: axe follow f1 v2 #0: 46 transparent px enclosed
+ R5 frames: axe follow f1 v2 #1: 1 transparent px enclosed
+ R5 frames: axe roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: axe roll f1 v0 #1: 3 transparent px enclosed
+ R5 frames: axe roll f1 v0 #2: 3 transparent px enclosed
+ R5 frames: axe roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: axe windup f2 v1 #0: 3 transparent px enclosed
+ R5 frames: axe strike f2 v0 #0: 1 transparent px enclosed
+ R5 frames: axe follow f2 v0 #0: 20 transparent px enclosed
+ R5 frames: axe follow f2 v0 #1: 1 transparent px enclosed
+ R5 frames: axe follow f2 v1 #1: 1 transparent px enclosed
+ R5 frames: axe follow f2 v2 #0: 11 transparent px enclosed
+ R5 frames: axe follow f2 v2 #1: 1 transparent px enclosed
+ R5 frames: axe cast f2 v0 #0: 3 transparent px enclosed
+ R5 frames: axe roll f2 v0 #0: 2 transparent px enclosed
+ R5 frames: axe roll f2 v0 #1: 3 transparent px enclosed
+ R5 frames: axe roll f2 v0 #2: 3 transparent px enclosed
+ R5 frames: axe roll f2 v0 #3: 1 transparent px enclosed
+ R5 frames: axe windup f3 v0 #0: 1 transparent px enclosed
+ R5 frames: axe windup f3 v2 #0: 1 transparent px enclosed
+ R5 frames: axe strike f3 v1 #0: 1 transparent px enclosed
+ R5 frames: axe follow f3 v0 #0: 16 transparent px enclosed
+ R5 frames: axe follow f3 v0 #1: 3 transparent px enclosed
+ R5 frames: axe follow f3 v1 #1: 3 transparent px enclosed
+ R5 frames: axe follow f3 v2 #0: 7 transparent px enclosed
+ R5 frames: axe follow f3 v2 #1: 3 transparent px enclosed
+ R5 frames: axe cast f3 v0 #0: 7 transparent px enclosed
+ R5 frames: axe roll f3 v0 #1: 3 transparent px enclosed
+ R5 frames: axe roll f3 v0 #2: 3 transparent px enclosed
+ R5 frames: axe roll f3 v0 #3: 1 transparent px enclosed
+ R5 frames: mace windup f0 v2 #0: 2 transparent px enclosed
+ R5 frames: mace strike f0 v0 #0: 3 transparent px enclosed
+ R5 frames: mace roll f0 v0 #3: 1 transparent px enclosed
+ R5 frames: mace windup f1 v0 #0: 3 transparent px enclosed
+ R5 frames: mace windup f1 v2 #0: 4 transparent px enclosed
+ R5 frames: mace strike f1 v1 #0: 19 transparent px enclosed
+ R5 frames: mace follow f1 v1 #0: 3 transparent px enclosed
+ R5 frames: mace roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: mace roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: mace strike f2 v2 #0: 9 transparent px enclosed
+ R5 frames: mace strike f2 v2 #1: 9 transparent px enclosed
+ R5 frames: mace follow f2 v1 #0: 1 transparent px enclosed
+ R5 frames: mace cast f2 v0 #0: 3 transparent px enclosed
+ R5 frames: mace windup f3 v0 #0: 1 transparent px enclosed
+ R5 frames: mace strike f3 v1 #0: 3 transparent px enclosed
+ R5 frames: mace strike f3 v2 #0: 4 transparent px enclosed
+ R5 frames: mace strike f3 v2 #1: 4 transparent px enclosed
+ R5 frames: mace follow f3 v0 #1: 2 transparent px enclosed
+ R5 frames: mace follow f3 v1 #1: 2 transparent px enclosed
+ R5 frames: mace follow f3 v2 #0: 19 transparent px enclosed
+ R5 frames: mace follow f3 v2 #1: 2 transparent px enclosed
+ R5 frames: mace cast f3 v0 #0: 7 transparent px enclosed
+ R5 frames: spear windup f0 v1 #1: 2 transparent px enclosed
+ R5 frames: spear follow f0 v0 #0: 1 transparent px enclosed
+ R5 frames: spear follow f0 v1 #0: 1 transparent px enclosed
+ R5 frames: spear follow f0 v2 #0: 1 transparent px enclosed
+ R5 frames: spear block f0 v0 #0: 1 transparent px enclosed
+ R5 frames: spear block f0 v0 #1: 16 transparent px enclosed
+ R5 frames: spear roll f0 v0 #3: 1 transparent px enclosed
+ R5 frames: spear strike f1 v0 #0: 4 transparent px enclosed
+ R5 frames: spear strike f1 v0 #1: 4 transparent px enclosed
+ R5 frames: spear strike f1 v1 #0: 3 transparent px enclosed
+ R5 frames: spear strike f1 v1 #1: 3 transparent px enclosed
+ R5 frames: spear strike f1 v2 #0: 7 transparent px enclosed
+ R5 frames: spear strike f1 v2 #1: 7 transparent px enclosed
+ R5 frames: spear follow f1 v0 #0: 1 transparent px enclosed
+ R5 frames: spear follow f1 v1 #0: 1 transparent px enclosed
+ R5 frames: spear follow f1 v2 #0: 1 transparent px enclosed
+ R5 frames: spear block f1 v0 #0: 9 transparent px enclosed
+ R5 frames: spear block f1 v0 #1: 12 transparent px enclosed
+ R5 frames: spear block f1 v0 #2: 10 transparent px enclosed
+ R5 frames: spear roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: spear roll f1 v0 #3: 4 transparent px enclosed
+ R5 frames: spear windup f2 v0 #1: 3 transparent px enclosed
+ R5 frames: spear windup f2 v1 #1: 3 transparent px enclosed
+ R5 frames: spear windup f2 v2 #1: 3 transparent px enclosed
+ R5 frames: spear strike f2 v0 #0: 3 transparent px enclosed
+ R5 frames: spear strike f2 v0 #1: 3 transparent px enclosed
+ R5 frames: spear follow f2 v0 #0: 4 transparent px enclosed
+ R5 frames: spear follow f2 v0 #2: 1 transparent px enclosed
+ R5 frames: spear follow f2 v1 #0: 2 transparent px enclosed
+ R5 frames: spear follow f2 v1 #1: 1 transparent px enclosed
+ R5 frames: spear follow f2 v2 #0: 3 transparent px enclosed
+ R5 frames: spear follow f2 v2 #1: 1 transparent px enclosed
+ R5 frames: spear cast f2 v0 #0: 3 transparent px enclosed
+ R5 frames: spear block f2 v0 #0: 1 transparent px enclosed
+ R5 frames: spear block f2 v0 #1: 2 transparent px enclosed
+ R5 frames: spear block f2 v0 #2: 1 transparent px enclosed
+ R5 frames: spear windup f3 v0 #1: 3 transparent px enclosed
+ R5 frames: spear windup f3 v1 #1: 3 transparent px enclosed
+ R5 frames: spear windup f3 v2 #1: 3 transparent px enclosed
+ R5 frames: spear strike f3 v0 #0: 3 transparent px enclosed
+ R5 frames: spear strike f3 v0 #1: 3 transparent px enclosed
+ R5 frames: spear strike f3 v2 #0: 2 transparent px enclosed
+ R5 frames: spear strike f3 v2 #1: 2 transparent px enclosed
+ R5 frames: spear follow f3 v1 #0: 2 transparent px enclosed
+ R5 frames: spear follow f3 v2 #0: 3 transparent px enclosed
+ R5 frames: spear cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: staff windup f0 v0 #0: 2 transparent px enclosed
+ R5 frames: staff windup f0 v0 #1: 4 transparent px enclosed
+ R5 frames: staff windup f0 v1 #0: 6 transparent px enclosed
+ R5 frames: staff windup f0 v1 #1: 6 transparent px enclosed
+ R5 frames: staff windup f0 v2 #1: 13 transparent px enclosed
+ R5 frames: staff follow f0 v0 #0: 1 transparent px enclosed
+ R5 frames: staff follow f0 v0 #1: 3 transparent px enclosed
+ R5 frames: staff follow f0 v1 #1: 3 transparent px enclosed
+ R5 frames: staff follow f0 v2 #1: 3 transparent px enclosed
+ R5 frames: staff windup f1 v0 #0: 5 transparent px enclosed
+ R5 frames: staff windup f1 v2 #1: 15 transparent px enclosed
+ R5 frames: staff roll f1 v0 #0: 3 transparent px enclosed
+ R5 frames: staff roll f1 v0 #3: 3 transparent px enclosed
+ R5 frames: staff windup f2 v1 #0: 1 transparent px enclosed
+ R5 frames: staff windup f2 v1 #1: 1 transparent px enclosed
+ R5 frames: staff windup f2 v2 #1: 2 transparent px enclosed
+ R5 frames: staff strike f2 v0 #0: 1 transparent px enclosed
+ R5 frames: staff strike f2 v0 #1: 1 transparent px enclosed
+ R5 frames: staff follow f2 v0 #1: 3 transparent px enclosed
+ R5 frames: staff follow f2 v1 #1: 3 transparent px enclosed
+ R5 frames: staff follow f2 v2 #1: 3 transparent px enclosed
+ R5 frames: staff cast f2 v0 #0: 2 transparent px enclosed
+ R5 frames: staff block f2 v0 #0: 1 transparent px enclosed
+ R5 frames: staff block f2 v0 #1: 1 transparent px enclosed
+ R5 frames: staff block f2 v0 #2: 1 transparent px enclosed
+ R5 frames: staff roll f2 v0 #3: 3 transparent px enclosed
+ R5 frames: staff windup f3 v2 #1: 3 transparent px enclosed
+ R5 frames: staff strike f3 v0 #0: 2 transparent px enclosed
+ R5 frames: staff strike f3 v0 #1: 2 transparent px enclosed
+ R5 frames: staff follow f3 v0 #1: 4 transparent px enclosed
+ R5 frames: staff follow f3 v1 #1: 4 transparent px enclosed
+ R5 frames: staff follow f3 v2 #1: 4 transparent px enclosed
+ R5 frames: staff cast f3 v0 #0: 6 transparent px enclosed
+ R5 frames: staff block f3 v0 #0: 2 transparent px enclosed
+ R5 frames: staff block f3 v0 #1: 2 transparent px enclosed
+ R5 frames: staff block f3 v0 #2: 2 transparent px enclosed
+ R5 frames: staff roll f3 v0 #3: 9 transparent px enclosed
+ R5 frames: bow cast f0 v0 #0: 3 transparent px enclosed
+ R5 frames: bow cast f0 v0 #1: 3 transparent px enclosed
+ R5 frames: bow draw f0 v0 #0: 8 transparent px enclosed
+ R5 frames: bow draw f0 v0 #1: 15 transparent px enclosed
+ R5 frames: bow draw f0 v0 #2: 16 transparent px enclosed
+ R5 frames: bow release f0 v0 #0: 8 transparent px enclosed
+ R5 frames: bow roll f0 v0 #0: 5 transparent px enclosed
+ R5 frames: bow roll f0 v0 #3: 5 transparent px enclosed
+ R5 frames: bow cast f1 v0 #0: 5 transparent px enclosed
+ R5 frames: bow cast f1 v0 #1: 5 transparent px enclosed
+ R5 frames: bow draw f1 v0 #0: 12 transparent px enclosed
+ R5 frames: bow draw f1 v0 #1: 19 transparent px enclosed
+ R5 frames: bow draw f1 v0 #2: 21 transparent px enclosed
+ R5 frames: bow release f1 v0 #0: 16 transparent px enclosed
+ R5 frames: bow roll f1 v0 #0: 4 transparent px enclosed
+ R5 frames: bow roll f1 v0 #3: 2 transparent px enclosed
+ R5 frames: bow cast f2 v0 #0: 22 transparent px enclosed
+ R5 frames: bow cast f2 v0 #1: 22 transparent px enclosed
+ R5 frames: bow draw f2 v0 #0: 47 transparent px enclosed
+ R5 frames: bow draw f2 v0 #1: 39 transparent px enclosed
+ R5 frames: bow draw f2 v0 #2: 31 transparent px enclosed
+ R5 frames: bow release f2 v0 #0: 35 transparent px enclosed
+ R5 frames: bow cast f3 v0 #0: 24 transparent px enclosed
+ R5 frames: bow cast f3 v0 #1: 24 transparent px enclosed
+ R5 frames: bow draw f3 v0 #0: 55 transparent px enclosed
+ R5 frames: bow draw f3 v0 #1: 49 transparent px enclosed
+ R5 frames: bow draw f3 v0 #2: 39 transparent px enclosed
+ R5 frames: bow release f3 v0 #0: 37 transparent px enclosed
+ R5 frames: bow roll f3 v0 #0: 2 transparent px enclosed
+ R5 frames: bow roll f3 v0 #3: 2 transparent px enclosed
+ R6 sizes: DEATH 48 KB (48)
+ R6 sizes: LOCO 130 KB (128)
+ R8 tips: unarmed: no tip path in the pose data
+ R8 tips: dagger: the tip travels 15 px along, 5 sideways (8, 2)
+ R8 tips: sword: no tip path in the pose data
+ R8 tips: greatsword: hit 1 falls 34 px through 333 deg (24, 100); hit 2 sweeps 117 deg (160)
+ R8 tips: axe: the head falls 30 px through 94 deg, ends at -25 (20, 60, low)
+ R8 tips: bow: the draw hand travels 5 px back (6)
+ R10 left / weapon hand: sword facing 0 windup: no grip / hand pose data
+ R10 left / weapon hand: sword facing 0 strike: no grip / hand pose data
+ R10 left / weapon hand: sword facing 0 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 0 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 1 windup: no grip / hand pose data
+ R10 left / weapon hand: sword facing 1 strike: no grip / hand pose data
+ R10 left / weapon hand: sword facing 1 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 1 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 2 windup: no grip / hand pose data
+ R10 left / weapon hand: sword facing 2 strike: no grip / hand pose data
+ R10 left / weapon hand: sword facing 2 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 2 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 3 windup: no grip / hand pose data
+ R10 left / weapon hand: sword facing 3 strike: no grip / hand pose data
+ R10 left / weapon hand: sword facing 3 follow: no grip / hand pose data
+ R10 left / weapon hand: sword facing 3 follow: no grip / hand pose data
+ P3 kin / humanoids: humanoid 1: not on v2
+ P3 kin / humanoids: humanoid 2: not on v2
+ P3 kin / humanoids: humanoid 3: not on v2
+ok R2 heights 216 checks, 0 failed
+ok R4 faces 8 checks, 0 failed
+ok R4 hands 18 checks, 0 failed
+FAIL: R5 frames 838 checks, 329 failed; first: unarmed walk f2 v0 #2: 7 transparent px enclosed
+ok R7 families 224 checks, 0 failed
+FAIL: R8 tips 9 checks, 6 failed; first: unarmed: no tip path in the pose data
+ok R9 variants 96 checks, 0 failed
+FAIL: R10 left / weapon hand 320 checks, 16 failed; first: sword facing 0 windup: no grip / hand pose data
+ok P1 postures 124 checks, 0 failed
+ok P2 seats / pillows 26 checks, 0 failed
+FAIL: P3 kin / humanoids 5 checks, 3 failed; first: humanoid 1: not on v2
+ok H2 holders 23 checks, 0 failed

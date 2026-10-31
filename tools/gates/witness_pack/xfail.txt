@@ -1,0 +1,7 @@
+# tools/gates/witness_pack/xfail.txt - scripts that FAIL at 119de74 under Witness for a reason that is not the gate's to
+# fix (game code is frozen in wave 0). A failure of one of these is written XFAIL (not FAIL) in scripts.txt; a PASS stays
+# PASS. Their PNGs are still hashed and compared. One per line: "<script>  # cause".
+m9_fx_perf             # expect magicfx ms_worst <= 3.0: a WALL-CLOCK draw-time budget (3.0-7.5 ms measured under load); not deterministic in any harness
+m9_fx_perf_phone       # (as above)
+m6_beasts_foes         # expect beasts plates 1 (line 37): 0 plates at the fixed 1/60 step, deterministic, also with draw_every and under the game's own engine (--scripted): a game/script look
+m2_sim_quests          # expect sidequest complete protect (line 33ff): the giver offers no COLLECT REWARD at the fixed 1/60 step, deterministic, also with draw_every and under the game's own engine (--scripted): a game/script look

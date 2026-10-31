@@ -1,0 +1,77 @@
+ freeze CHANGED slice_lt4 action 0 0 1 0
+ freeze CHANGED slice_lt4 action 0 0 1 1
+ freeze CHANGED slice_lt4 action 0 0 1 2
+ freeze CHANGED slice_lt4 action 0 1 1 0
+ freeze CHANGED slice_lt4 action 0 1 1 1
+ freeze CHANGED slice_lt4 action 0 1 1 2
+ freeze CHANGED slice_lt4 action 0 1 1 3
+ freeze CHANGED slice_lt4 action 0 1 1 4
+ freeze CHANGED slice_lt4 action 0 1 1 5
+ freeze CHANGED slice_lt4 action 0 1 2 0
+ freeze CHANGED slice_lt4 action 0 1 2 1
+ freeze CHANGED slice_lt4 action 0 1 2 2
+ freeze CHANGED slice_lt4 action 0 1 2 3
+ freeze CHANGED slice_lt4 action 0 1 2 4
+ freeze CHANGED slice_lt4 action 0 1 2 5
+ freeze CHANGED slice_lt4 action 0 10 0 0
+ freeze CHANGED slice_lt4 action 0 10 0 1
+ freeze CHANGED slice_lt4 action 0 10 0 2
+ freeze CHANGED slice_lt4 action 0 10 0 3
+ freeze CHANGED slice_lt4 action 0 3 0 0
+ freeze: 39152 frames checked, 5466 changed, 0 gone, 0 new frames, 0 looks not in the manifest; 0 changed as ruled (freeze_accepted.txt)
+ freeze rig: manifest drawn at rig 2, checked at rig 1; MISMATCH: rig-gated fields (the alloy shield paint) differ, so compare at the manifest's rig or re-sign
+ freeze changed arms_m8_brigandine_mb0_t4 134 frames
+ freeze changed arms_m8_brigandine_wb0_t4 134 frames
+ freeze changed arms_m8_lamellar_mb0_t4 134 frames
+ freeze changed arms_m8_lamellar_wb0_t4 134 frames
+ freeze changed arms_m8_leaf_mb0_t4 134 frames
+ freeze changed arms_m8_leaf_wb0_t4 134 frames
+ freeze changed arms_m8_leather_mb0_t4 134 frames
+ freeze changed arms_m8_leather_wb0_t4 134 frames
+ freeze changed arms_m8_mail_mb0_t4 134 frames
+ freeze changed arms_m8_mail_wb0_t4 134 frames
+ freeze changed arms_m8_padded_mb0_t4 134 frames
+ freeze changed arms_m8_padded_wb0_t4 134 frames
+ freeze changed arms_m8_plate_mb0_t4 134 frames
+ freeze changed arms_m8_plate_wb0_t4 134 frames
+ freeze changed arms_m8_scale_mb0_t4 134 frames
+ freeze changed arms_m8_scale_wb0_t4 134 frames
+ freeze changed forge_g_cov3w 134 frames
+ freeze changed slice_a_fj2 133 frames
+ freeze changed slice_a_hl1 94 frames
+ freeze changed slice_a_hl2 134 frames
+ freeze changed slice_a_hl3 16 frames
+ freeze changed slice_a_star3 16 frames
+ freeze changed slice_f5_ember 64 frames
+ freeze changed slice_f5_gilt 16 frames
+ freeze changed slice_f5_obsid 104 frames
+ freeze changed slice_f5_star 16 frames
+ freeze changed slice_f5_steel 16 frames
+ freeze changed slice_fm_bronze 118 frames
+ freeze changed slice_fm_ember 5 frames
+ freeze changed slice_fm_gilt 134 frames
+ freeze changed slice_fm_home 120 frames
+ freeze changed slice_fm_iron 134 frames
+ freeze changed slice_fm_obsid 104 frames
+ freeze changed slice_fm_star 134 frames
+ freeze changed slice_fm_steel 134 frames
+ freeze changed slice_fm_tan 6 frames
+ freeze changed slice_fw_bronze 118 frames
+ freeze changed slice_fw_star 129 frames
+ freeze changed slice_fw_steel 134 frames
+ freeze changed slice_g_cov3w 134 frames
+ freeze changed slice_g_hl1 94 frames
+ freeze changed slice_g_hl2 134 frames
+ freeze changed slice_g_hl3 16 frames
+ freeze changed slice_g_mars2 134 frames
+ freeze changed slice_g_star3 16 frames
+ freeze changed slice_g_step1 16 frames
+ freeze changed slice_g_sylv1w 122 frames
+ freeze changed slice_lt4 134 frames
+ freeze changed slice_lt5 16 frames
+ freeze changed slice_mr_1 126 frames
+ freeze changed slice_mr_2 134 frames
+ freeze changed slice_mr_3 94 frames
+ freeze changed slice_mr_5 131 frames
+ freeze changed slice_mr_6 8 frames
+ doll-wear: <t>

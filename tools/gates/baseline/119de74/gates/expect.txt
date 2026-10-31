@@ -1,0 +1,9 @@
+# Expected values for the step gates (SOLID_PLAN 4.1). Never rewritten during the plan (4.4).
+# step_gates.sh --expect KEY=VALUE overrides one for a run (the negative test passes a wrong TOTAL).
+ART_TOTAL_RIG2=5e4a8a57bb4212f8
+ART_TOTAL_RIG1=317eef6efe4d8229
+VILLAGE_GROUPS=65
+SAVE_VER=23
+CLANG_CMDS=68
+# S6.freeze1 checks rig 1 against its own manifest, tools/doll/freeze/p2c_freeze_rig1.txt (kept by D107 when
+# p2c_freeze.txt was re-signed at rig 2): 39152 frames, 0 changed. Nothing is already red.

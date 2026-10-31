@@ -1,0 +1,14 @@
+6 warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+1 warning C4244: 'argument': conversion from 'const float' to 'int', possible loss of data
+20 warning C4244: 'argument': conversion from 'const int' to 'float', possible loss of data
+2 warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+318 warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+1 warning C4244: 'initializing': conversion from 'const int' to 'const float', possible loss of data
+1 warning C4244: 'initializing': conversion from 'const int' to 'float', possible loss of data
+1 warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+1 warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+4 warning C4244: 'initializing': conversion from 'int' to 'const float', possible loss of data
+6 warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+2 warning C4267: 'argument': conversion from 'size_t' to '_Ty', possible loss of data
+3 warning C4723: potential divide by 0
+42 warning D9025 : overriding '/fp:fast' with '/fp:precise'

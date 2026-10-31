@@ -1,0 +1,11 @@
+# tools/gates/witness_pack/fresh.txt - with witness_pack.mjs --reuse, the scripts still run on a newly launched instance each
+# because some state of theirs is not made identical by a Witness reset. One per line: "<script>  # why".
+p2c_menus          # the EQUIP paperdoll shots (doll_t1..t6, mythic) differ after some earlier scripts on the same instance (fresh: identical; the hero/party shots never differ): doll state outlasts a Witness reset (game-side leak, reported)
+p2c_menus_phone    # (as above)
+paperdoll              # paperdoll_1_jade.png differs after some earlier scripts on the same instance (fresh: identical): the doll leak above
+m6_menu_tap_phone      # m6_menutap_2_doll.png: the doll leak above
+m3b_towns_seats        # m3b_court_marsh.png differs after some earlier scripts (fresh: identical): town art state outlasts a reset (game-side, reported)
+m7c_art_streets_phone  # m7c_art_st_sun_heart_phone.png: as above
+m10_fix_r1_trial       # 'spell realtrial: this land's kingdom has no trial' after some earlier scripts (fresh: PASS): hidden-land / trial state outlasts a reset (game-side, reported)
+# (also seen leaking on a reused instance, before fresh became the default: m3_arch_tour m3_marsh_night.png,
+# m4_view_warprops ..._burned_night.png, m7c_art_walls m7c_art_wl_sun_vertex.png, p2c_menus_flip_phone equip shots)

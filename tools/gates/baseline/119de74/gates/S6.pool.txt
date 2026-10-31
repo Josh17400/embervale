@@ -1,0 +1,1 @@
+pxc --check: rpg\art\doll\gen\doll_pool.cpp is up to date (870 parts, 2570937 bytes of the 2621440 B budget, hash c8df3de9a5fc8245)

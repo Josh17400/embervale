@@ -1,0 +1,5 @@
+# tools/gates/witness_pack/scripted.txt - scripts that ALWAYS run on a fresh hidden `embervale.exe --witness --script`
+# instance (the game's own script engine stepped at 1/60 by Witness; still no visible window), because the pool replay
+# (reset + one `call` per line) cannot reproduce them while the game's engine PASSes them. Enforced like any script.
+# One per line: "<script>  # why".
+m9_magic_alteration    # pool replay: 'expect surface: 0 tiles of OIL, wanted 2' (deterministic); the game's engine PASSes it (114 s): a replay timing gap, not a game issue

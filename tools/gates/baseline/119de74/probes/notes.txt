@@ -1,0 +1,32 @@
+probes baseline at 119de74 (SOLID_PLAN step 0.2), recorded 2026-10-30. Never rewritten (plan 4.4), except perf.txt (see below).
+
+sim_digest_msvc.txt   rpg_test --sim-digest v2 (MSVC Release, build-solid-probes), re-recorded 2026-10-31 (judge round 2): 20 seeds x 28
+                      checkpoints = 560 (wander t=0..120 s every 10 s, then a seeded SKIRMISH t=122..150 every 2 s: a bandit
+                      spawned beside the bot every 3 s while fewer than 3 hostiles stand near, every 4th foe a wolf, the bot
+                      fights them, so enemy windups / strikes / cooldowns / hits are hashed). digest d738839aac54ce70.
+                      A/A: 3 runs byte-identical (run side by side); --check 560/560, 20/20 seeds.
+                      v2 also closes a home screen the bot's interact opens (Mode::Build, as the view's closeBuild): in v1 it
+                      stayed open and froze the sim for the rest of the run in 9 of 20 seeds.
+sim_digest_clang.txt  the same on WSL clang (~/emb_solid_probes/build-native): digest 88140c5437cb4ab5. A/A: 3 runs identical; --check 560/560.
+                      MSVC and clang records differ from each other (float code generation); each build checks against its own.
+                      Exclusions: none (20/20 seeds stable). Two sources of A/A drift were removed inside the probe, not excluded:
+                      the stream worker thread (streamThreads off, syncStreams on: 5/20 seeds drifted with it on) and the realm's
+                      wall-clock time slice (focusBudgetMs unbounded: 1-4/20 seeds drifted). Both are timing effects of the probe's
+                      setup, not sim bugs; the game itself runs both, so the digest does not cover the threaded stream path.
+audio_hashes.txt      audio_pack.sh (audio_preview full, --sea, --falls): 202 WAVs + 3 exit codes. A/A: 3 runs identical (202/202).
+                      ALREADY RED at 119de74: audio_preview full exits 2 ("CHECK FAILED (1 problem)": "an sfx does not stand clearly
+                      above the music", quietest gameplay sfx margin -8.1 dB, phone -5.1 dB). Recorded as "full __rc__ 2" and judged
+                      "same as baseline". Report to the owner before wave 1.
+perf.txt              perf_pack.sh: rpg_test --cityperf (seeds 1-3), --chunkbench, and the frame line on ONE hidden --witness instance
+                      (perf_frame.mjs: median wall ms per Witness step and per drawn frame; the windowed EMB_PERF loop is never started).
+                      Recorded ALONE (see its header), 7 runs. p99 and worst are info only.
+                      Gate (judge round 2): a --check takes 5 runs; limit = record median x (1 + noise/sqrt(5) + 3 %), never under
+                      record + 0.005 ms (was noise + 3 % with a 0.02 ms floor, which gated only chunkbench against a 10 % slowdown).
+                      "Quiet" is the machine's idle level (lowest 5 s CPU mean while waiting) + 5 %, taint above idle + 15 %; the
+                      wait is capped at 240 s for a --check (then measured and flagged NOT ALONE). This PC idles at ~14-15 %.
+
+Negative tests (throwaway worktrees, removed), digest v2: kPlanMean 0.30f -> 0.31f in rpg/sim/anim.cpp (every hostile human's
+windup): sim-digest FAIL exit 1, 11 of 20 seeds, first at seed 1 t=122 s (skirmish), actor index 2 id 317 mode (st, stT..) | target
+(.. atkCd ..); v1 missed it (260/260). kWalk 0.62f -> 0.615f in rpg/sim/life_game.cpp: FAIL exit 1, 17 of 20 seeds, first at seed 1
+t=10 s, actor index 5 id 210 position|anim. (v1: kWalk 0.63f: 13 of 20.) kAmbGain 0.5f -> 0.51f in engine/audio.cpp: audio_pack FAIL,
+28 of 205 lines (bed_*.wav and the sea/falls beds).

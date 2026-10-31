@@ -1,0 +1,71 @@
+OVER file 5364 rpg/view/render.cpp
+OVER file 5260 rpg/sim/life_game.cpp
+OVER file 3749 rpg/art/doll/doll_compose.cpp
+OVER file 3468 rpg/view/hud.cpp
+OVER file 3227 rpg/build/builder.cpp
+OVER file 2945 engine/audio.cpp
+OVER file 2912 rpg/art/art_monsters.cpp
+OVER file 2891 rpg/sim/game_rpg.cpp
+OVER file 2772 rpg/world/chunkgen.cpp
+OVER file 2635 rpg/sim/magic_game.cpp
+OVER file 2632 rpg/sim/game.cpp
+OVER file 2306 rpg/main.cpp
+OVER file 2238 rpg/story/story.cpp
+OVER file 2025 rpg/world/town_urban.cpp
+OVER func 1983 rpg/main.cpp:324 main
+OVER func 1702 rpg/view/render.cpp:2678 View::drawWorld
+OVER func 1604 rpg/world/chunkgen.cpp:1167 EndlessSource::Impl::chunk
+OVER func 976 rpg/view/worldmap.cpp:1565 View::drawWorldMap
+OVER func 940 rpg/world/town_market.cpp:326 Gen::markets
+OVER func 883 rpg/art/art_walls.cpp:244 wallTileImpl
+OVER func 821 rpg/art/doll/doll_ramps.cpp:489 rampsOf
+OVER func 787 rpg/art/doll/doll_compose.cpp:2027 composeFrame
+OVER func 756 rpg/view/hud.cpp:870 View::drawHud
+OVER func 740 rpg/view/worldmap.cpp:802 paintMapTile
+OVER func 725 engine/audio.cpp:680 Audio::trigger
+OVER func 688 tools/preview/rig_gallery.cpp:310 main
+OVER func 638 rpg/world/town_build.cpp:814 Gen::buildCompound
+OVER func 618 rpg/sim/quests.cpp:267 Game::offerFor
+OVER func 556 rpg/sim/party_talk.cpp:451 Game::partyChoose
+OVER func 542 rpg/art/doll/doll_compose.cpp:1342 glassPass
+OVER func 538 rpg/sim/war_game.cpp:226 Game::warStep
+OVER func 532 rpg/world/town_urban.cpp:1152 Gen::cityDress
+OVER func 480 tools/tests/test_home.cpp:429 playB
+OVER func 478 rpg/sim/looks.cpp:351 dress
+OVER func 477 tools/tests/test_quests.cpp:156 questsSeed
+OVER func 474 rpg/view/render.cpp:2163 View::update
+OVER func 472 tools/save_test.cpp:576 main
+OVER func 457 rpg/view/render_powers.cpp:145 View::drawPowerFx
+OVER func 455 rpg/story/caster.cpp:196 castScript
+OVER func 450 rpg/world/region.cpp:990 EndlessSource::Impl::buildRegion
+OVER func 448 rpg/view/render_anim.cpp:91 View::drawHumanBody
+OVER func 441 tools/tests/test_folk_sim.cpp:143 folkSimCmd
+OVER func 439 rpg/sim/foes_game.cpp:408 Game::foeStep
+OVER func 432 rpg/view/buildmode.cpp:456 View::drawBuild
+OVER func 428 rpg/view/script_war.cpp:117 cmdWar
+OVER func 422 rpg/world/town_market.cpp:1361 Gen::tradeYards
+OVER func 416 rpg/sim/ai.cpp:389 Game::updateFolk
+OVER func 411 tools/tests/test_service.cpp:60 serviceSeed
+OVER func 376 rpg/build/builder.cpp:710 cultureHome
+OVER func 374 tools/tests/test_lord.cpp:133 lordSeed
+OVER func 367 rpg/sim/ai.cpp:914 Game::updateAI
+OVER func 360 rpg/sim/service_orders.cpp:382 ServiceOps::ordersStep
+OVER func 357 tools/tests/test_life.cpp:43 lifeSeed
+OVER func 351 rpg/art/art_items.cpp:713 paintIcon
+OVER func 350 rpg/art/art_walls.cpp:1160 gateHouseImpl
+OVER func 347 rpg/sim/census.cpp:233 buildCensusStep
+OVER func 342 rpg/sim/gear_forge.cpp:1205 solveShapes
+OVER func 342 tools/tests/seed_run.cpp:116 runSeed
+OVER func 336 rpg/sim/game_rpg.cpp:1720 Game::dialogueChooseInner
+OVER func 336 rpg/world/region.cpp:322 EndlessSource::Impl::makeStart
+OVER func 335 tools/tests/test_wards.cpp:182 wardsSeed
+OVER func 334 rpg/world/town_lots.cpp:60 Gen::lots
+OVER func 331 rpg/view/witness_state.cpp:156 witnessState
+OVER func 330 rpg/view/hud.cpp:1993 View::drawMenu
+OVER func 325 rpg/world/vignettes.cpp:284 EndlessSource::Impl::planVignettes
+OVER func 318 rpg/view/paperdoll.cpp:680 View::drawPartyPage
+OVER func 317 rpg/world/chunkgen.cpp:821 EndlessSource::Impl::stampSite
+OVER func 314 tools/tests/test_towns.cpp:1189 cmdTowns
+OVER func 313 rpg/story/dsl.cpp:865 validate
+OVER func 307 rpg/view/home_view.cpp:69 View::homeCollect
+size_report: files=567 over=70 allowed=25 (file>2000 func>300)

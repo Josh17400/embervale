@@ -1,0 +1,47 @@
+# tools/gates/view_pack_quick.txt - the view pack's quick set (docs/SOLID_PLAN.md wave 0, step 0.2): about 40 game
+# scripts with shots, run by tools/gates/witness_pack.mjs --quick (and view_pack.sh --quick) on hidden --witness
+# instances. HUD, menus, dialogue, shop, map, town, interior, ruin/keep, sea, relief, doll, death, night, title, phone.
+# (creator, inn, m2_ui_screens and p2c_menus_creator left the list: their `expect mode creator` cannot run under
+# Witness, see witness_pack.mjs "Not runnable".)
+opening
+dialogue_tap
+interiors
+fight
+bounty
+view_map
+view_relief
+view_screen
+view_settings
+view_walk
+m4_view_journal
+m4_view_map
+m3b_interiors
+m8b_view_shop
+m8b_view_pack
+m8b_view_doll
+m8b_view_forge
+m9_ui_spells
+m9_ui_skills
+m8_view_party
+m5_folk_tavern
+m7b_art_city
+m3_towns_tour
+town_day_night
+m10_art_sea
+m10_sea_sail
+m11_world_relief
+m2_world_peaks
+p2a_death
+p2c_menus
+p2b_slice
+paperdoll
+m6_arms_doll
+m6_menu_tap_phone
+p2c_menus_phone
+m8b_view_shop_phone
+p2a_death_phone
+m10_art_sea_phone
+m4_story_ruin
+m0b_keep_tower
+m6_foes_boss
+m9_fx_night

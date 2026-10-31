@@ -1,0 +1,16 @@
+# tools/gates/witness_pack/v1_known.txt - rig-2 v1 people frames that witness_pack measures at the baseline (119de74).
+# "<script> <max frames>  # why". run_scripts.sh's visible runs reported "v1draws rig2: 0 scripts" at 119de74 (PLAN.md
+# P2c flip); on hidden --witness instances these scripts draw a few v1 frames at rig 2 (state.screen.v1DrawsRun; the
+# same counts on a fresh `--witness --script` run and with every frame drawn they grow), so they are a Witness-vs-
+# visible difference recorded here, not a new stray. A listed script over its count, or any unlisted script with rig-2
+# v1 frames (and no `rig 1` line), is counted in "v1draws rig2: N" and fails W2.scripts.
+# Recorded from the 119de74 --all run (2026-10-30, build-witness-gates); counts equal on 2 runs for defence and
+# m3b_builder_capitals.
+defence 2
+m3b_builder_capitals 8
+m3b_towns_seats 9
+m4_view_warprops 4
+m4_wards_raid 2
+m7b_city_tour 2
+sim_city 1
+sim_defence 2
