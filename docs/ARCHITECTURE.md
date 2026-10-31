@@ -1,7 +1,7 @@
 # Embervale architecture
 
 How the code is layered, the patterns it repeats, the rules for new code, and a cookbook for the common additions.
-Written for the tree after wave 1 of `docs/SOLID_PLAN.md`; each later wave's docs step updates it. The folder-by-folder
+Written for the tree after wave 2 of `docs/SOLID_PLAN.md`; each later wave's docs step updates it. The folder-by-folder
 map is `README.md`.
 
 ## 1. Layers
@@ -15,16 +15,63 @@ app (rpg/main.cpp)
        -> sim + story (rpg/sim, rpg/story)
             -> world (rpg/world)
                  -> culture / build (rpg/culture, rpg/build)
-                      -> engine leaf headers (mathx.h, color.h, music_style.h)
-sim   -> header-only art and doll data (art enums, doll.h, doll_forge.h, doll_envelope.h); never painter functions
-art   -> culture/build blueprints, doll, world leaf headers (biomes.h, coords.h, ids.h)
+                      -> core (rpg/core: common.h, art_ids.h)
+                           -> engine leaf headers (mathx.h, color.h, canvas.h, sound_ids.h, music_style.h)
+sim   -> core/art_ids.h and header-only doll data (doll.h, doll_forge.h, doll_envelope.h); painter headers only where
+         listed below, and never painter functions
+art   -> core, culture/build blueprints, doll, world leaf headers (biomes.h, coords.h, ids.h)
 tools/tests -> any public header; internals only through the seams listed in tools/gates/layers_allow.txt
 ```
 
-- `tools/gates/check_layers.sh` checks the arrows. Today's exceptions are listed in `tools/gates/layers_allow.txt`;
-  that list may only shrink.
-- Wave 2 adds the narrow seam headers (`rpg/core/`, `engine/canvas.h`, `engine/sound_ids.h`, `story_api.h` ...). Until
-  then the sim includes `engine/audio.h` for the sound ids and painters include `engine/pix.h` for `Canvas`.
+- `tools/gates/check_layers.sh` checks the arrows it can: nothing in `rpg/world`, `rpg/culture` or `rpg/build`
+  includes `rpg/sim` (0 exceptions since wave 2), the sim never includes the view, no file includes another folder's
+  `*_internal.h`, and the mark mix constant is written only in `rpg/sim/mark_tags.h`. The remaining exceptions (story
+  and view files that still need `game_internal.h` / `story_internal.h`, and white-box tests) are listed in
+  `tools/gates/layers_allow.txt`; that list may only shrink.
+- `rpg/world` names the sim only through the declarations in `rpg/world/map.h` (`propSolid`, `bldgStoreysV7`,
+  `bldgHearthV7`, the open-front helpers, the name makers), whose definitions stay in `rpg/sim` because they belong to
+  its FP group (section 4). It never includes a `rpg/sim` header.
+
+### 1.1 The seam headers (wave 2)
+
+Narrow headers so a file can name a thing without pulling in the code behind it. Each says at its top who may include
+it; include the seam, not the wide header beside it.
+
+| Header | Holds | Who may include it |
+|---|---|---|
+| `engine/sound_ids.h` | `Sfx`, `Music`, `Sting` (append only: saved and named by tools) | anyone that names a sound; only code that plays sounds needs `engine/audio.h` |
+| `engine/canvas.h` | `rgba()`, `Canvas` | painters, culture/build, core, tools; code that bakes or blits textures needs `engine/pix.h` |
+| `rpg/core/common.h` | TILE, SIM_DT, hashes, value noise, IRect, BinW/BinR (`rpg/sim/common.h` forwards here) | anyone |
+| `rpg/core/art_ids.h` | the art vocabulary: `Prop` with its predicates, footprints and stall geometry; `Monster`, `Species`, `Building` + `BuildingFacts`, `Posture`, the Fx ids, `HumanLook`, `MonsterLook` | anyone |
+| `rpg/world/records.h` | the plain world records: `MapKind`, `SiteType`, `Role`, `Bldg`, `Site`, `Kingdom`, `Spawn`, `Den`, `WORLDGEN_*`, `MapBits`, plus `siteTypeName` and `bldgRiseTiles` | world and up |
+| `rpg/world/map.h` | `Map` (the tile map), the `bldg*` helpers (`bldgArch`, `bldgRequest`, `bldgBlueprint`, open fronts, the V7 storey and hearth rules), `propSolid`, the name makers | world and up |
+| `rpg/world/rooms.h` | interior rooms and storeys: `Stairs`, `RoomKind`, `RoomInfo`, the trial layouts (the geometry contract) | world and up |
+| `rpg/sim/world.h` | `World` (the Active Window onto the endless world), `genCave` / `genRuin` / `genInterior`, the record size asserts | sim, story, view, tools; never world |
+| `rpg/sim/mark_tags.h` | **the saved-tag registry**: `enum class Mk`, `kMarkRanges` (each lane's range), `kMarkTags` (every saved tag by name, owner and value), `markKey`, and the static_asserts that keep the values unique | sim, story, tools/tests (the view gets it through `game_internal.h`) |
+| `rpg/sim/monster_stats.h` | `mstat`, `heavyWindup`, `monsterName` | sim, story, view, tools |
+| `rpg/sim/sim_text.h` | text helpers scripts and tests share (`dirWord`, `giverTown`, the titles ...) | sim, story, view/scripts, tools/tests |
+| `rpg/sim/looks.h` | `census::Rank`, `census::dress`, `census::ageLook`, `appearanceLook` | sim, view (creator, paperdoll, scripts), tools |
+| `rpg/story/story_api.h` | what other lanes use of the story: `isStoryPerson`, `isDroveBeast`, the person/drove/herald slot ranges, the `MK_*` names, `kingdomName`, `siteByIdLoad`, `scriptById` ... | any lane; never includes a `*_internal.h` |
+| `doll::clipsOf` (`rpg/art/doll/doll.h`) | a body key's clips without `doll_internal.h` | sim (`anim.cpp`), tools |
+
+### 1.2 Painter headers the sim may include
+
+The sim names art vocabulary through `rpg/core/art_ids.h`. These are the only painter headers it includes, each for an
+enum or a plain struct that still lives beside its painter (never to call a painter):
+
+| Sim file | Painter header | For |
+|---|---|---|
+| `rpg/sim/game.h` | `rpg/art/art_life.h` | `art::Bubble` (`Actor::bubble`) |
+| `rpg/sim/home.h` | `rpg/art/art_home.h`, `rpg/art/art_life.h` | `art::Crop`, `art::FarmObj`, `art::Critter` |
+| `rpg/sim/craft.h`, `rpg/sim/items.h` | `rpg/art/art_items.h` | `art::Icon` |
+| `rpg/sim/deco.h` | `rpg/art/art_props.h` | `art::RoomStyle`, `art::FloorStyle` |
+| `rpg/sim/party.h`, `rpg/sim/looks.h` | `rpg/art/art_human.h` | the human look helpers |
+| `rpg/sim/monster_stats.h` | `rpg/art/art_monsters.h` | the monster vocabulary |
+| `rpg/sim/anim.h`, `rpg/sim/life_ops.h`, `rpg/sim/gear_look.cpp`, `rpg/sim/looks.cpp` | `rpg/art/art_rig.h` (+ `art_fx.h` in `anim.h`, `art_rise.h` in `looks.cpp`) | `art::rigVersion`, clip and fx ids |
+| `rpg/sim/party_graves.cpp` | `rpg/art/art_party.h` | `art::GraveLook`, `art::HoundLook` (forward-declared in `game.h`) |
+| `rpg/sim/foes.h`, `rpg/sim/gear_ladder.h`, `rpg/sim/gear_look.h`; `rpg/story/dsl.cpp` | `rpg/art.h` (all painters) | not yet narrowed: the next trim's candidates |
+
+A new sim file uses `rpg/core/art_ids.h`; one that needs another painter header adds a row here in the same change.
 
 ## 2. The lane pattern
 
@@ -64,11 +111,12 @@ These tables register themselves, so adding a row needs no edit in a central fil
 | story archetypes | `rpg/story/arch/index.cpp` | append in library order (the order is an id: never reorder) |
 
 Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
-- sounds: the `Sfx` enum (`engine/audio.h`), its name in `Audio::sfxName` and its recipe (`case Sfx::...`) in `engine/audio.cpp`;
-- props: the `Prop` enum (`rpg/art/art_props.h`), the size (`propW`/`propH`/`propFrames` in `rpg/art/art_props.cpp`,
+- sounds: the `Sfx` enum (`engine/sound_ids.h`), its name in `Audio::sfxName` and its recipe (`case Sfx::...`) in `engine/audio.cpp`;
+- props: the `Prop` enum (`rpg/core/art_ids.h`, with its predicates and footprints), the size (`propW`/`propH`/`propFrames` in `rpg/art/art_props.cpp`,
   through `kPropInfo` or the family's own `*PropW`), the sprite (`propSprite`) and how the renderer treats it
   (`rpg/view/prop_traits.cpp`);
-- saved mark tags: `enum class Mk` in `rpg/sim/game_internal.h`;
+- saved mark tags: the register `kMarkTags` in `rpg/sim/mark_tags.h` (every lane's tags by name, owner and value;
+  the lanes keep their named constants in their own files, and `enum class Mk` holds the SIM lane's);
 - quest types: `enum class QType` in `rpg/sim/game.h`;
 - wayside places: `rpg/world/vignettes.cpp`.
 
@@ -98,11 +146,16 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
    commands go in `tools/tests/test_<subject>.cpp`.
 4. **One table row per kind**: a sound, a prop family, a dialogue lane, a vignette, a quest type, a saved mark tag (its
    number is never changed or reused). Section 3 says where each table is today.
-5. **Shared words** (enums and plain structs used by several layers) belong in one header-only place that includes
-   nothing above it (`rpg/core/` from wave 2).
-6. **Include the narrowest header.** No file includes another folder's `*_internal.h`, except tests through the seams
-   in `layers_allow.txt`. Private seams (`game_rpg_detail.h`, `life_ops.h`, `build_detail.h`, `hud_layout.h`,
-   `rpg/view/scripts/script_util.h`) are included only by the files their headers name.
+5. **Shared words** (enums and plain structs used by several layers) live in `rpg/core/` (`common.h`, `art_ids.h`),
+   header-only and including nothing above the engine leaf headers. World records shared by the generator and the sim
+   live in `rpg/world/records.h` and `rpg/world/map.h`.
+6. **Include the narrowest header** (section 1.1): the sim includes `engine/sound_ids.h`, not `engine/audio.h`;
+   painters include `engine/canvas.h`, not `engine/pix.h`; vocabulary comes from `rpg/core/art_ids.h`, not `rpg/art.h`;
+   other lanes use `rpg/story/story_api.h`, `rpg/sim/sim_text.h`, `rpg/sim/monster_stats.h` or `rpg/sim/looks.h`
+   rather than an `*_internal.h`. When you remove an include, give every file that relied on it an explicit one. No
+   file includes another folder's `*_internal.h`, except the files listed in `layers_allow.txt`. Private seams
+   (`game_rpg_detail.h`, `life_ops.h`, `build_detail.h`, `hud_layout.h`, `rpg/view/scripts/script_util.h`) are
+   included only by the files their headers name.
 7. **Size guardrails.** A hand-written logic file stays under about 2,000 lines and a function under about 300 (new
    code: under about 150). A file over that is split along its section banners before anything is added
    (`tools/gates/size_report.sh`). Data tables and generated files are exempt.
@@ -119,13 +172,13 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 ## 6. How do I add X
 
 **A sound.**
-1. Append an id to `enum class Sfx` in `engine/audio.h` (before `COUNT`; never in the middle).
+1. Append an id to `enum class Sfx` in `engine/sound_ids.h` (before `COUNT`; never in the middle).
 2. Give it a name in `Audio::sfxName` and a recipe (`case Sfx::<Name>:`) in `engine/audio.cpp`.
 3. Play it from the sim with an event or from the view with `Audio::play(Sfx::<Name>)` on the View's `Audio`.
 4. Check: `audio_preview` renders it; `tools/gates/audio_pack.sh` shows only the new WAV as new.
 
 **A prop family.**
-1. Append the `Prop` ids in `rpg/art/art_props.h` (append only), with an `is<Family>Prop` range test.
+1. Append the `Prop` ids in `rpg/core/art_ids.h` (append only), with an `is<Family>Prop` range test there.
 2. Give the family its size and frames (`<family>PropW/H/Frames`) and its painter, and route them in `propW`, `propH`,
    `propFrames` and `propSprite` in `rpg/art/art_props.cpp` (or the family's own `art_<family>.cpp`).
 3. Tell the renderer how to treat it in `rpg/view/prop_traits.cpp` (flat, nature, tree, shadow, light).
@@ -151,12 +204,17 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
    beside the other lanes' calls there.
 4. Check: `rpg_test --dialogue --seeds 1..3`.
 
-**A saved mark.**
-1. Append one line to `enum class Mk` in `rpg/sim/game_internal.h` with the next unused number and a comment saying
-   what the key and value mean. Never renumber or reuse a value.
-2. Read and write it through `Game::marks` with a key mixed from a stable id (site Gid, npcKey, quest id) and the tag.
-   Marks are already saved, so no save change and no `SAVE_VER` bump is needed.
-3. Check: `save_test` ALL OK and `rpg_test --save-soak 100`.
+**A saved mark.** (`rpg/sim/mark_tags.h` is the registry of every saved tag.)
+1. Pick the next unused value in your lane's range (`kMarkRanges` in `rpg/sim/mark_tags.h`). Never renumber or reuse a
+   value: tags are part of the save format.
+2. Name it where the lane keeps its tags (the SIM lane: `enum class Mk` in `mark_tags.h`; FOES: `foes.h` `MK_FOES_*`;
+   STORY: the `MK_*` in `story_api.h`; FELLOWS: `PartyOps::MK_*` ...), with a comment saying what the key and the value
+   mean.
+3. Add its one row to `kMarkTags` in `mark_tags.h` (name, owner, value, share 0, what the key is). The static_asserts
+   at the bottom fail the build if the value repeats one already there or falls outside the ranges.
+4. Read and write it as `Game::marks[gsim::markKey(id, tag)]` with a stable id (site Gid, npcKey, quest id). Never
+   restate the mix constant (`check_layers.sh` fails on it). Marks are already saved: no save change, no `SAVE_VER` bump.
+5. Check: `rpg_test --marks`, `save_test` ALL OK and `rpg_test --save-soak 100`.
 
 **A whole lane.**
 1. Model: `rpg/sim/<lane>.h/.cpp`, rules and data with no `Game`.
