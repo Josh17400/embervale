@@ -1,5 +1,5 @@
 // SOLID 1.3 STORY: the story block of the save (Engine::serialize / deserialize, its versions v1-v4 and the v3
-// repetition guard). Moved byte for byte from story.cpp; the game's save is rpg/sim/game_rpg.cpp (SAVE_VER).
+// repetition guard). Moved byte for byte from story.cpp; the game's save is rpg/sim/game_save.cpp (SAVE_VER).
 #include "rpg/story/story.h"
 #include <algorithm>
 #include <cctype>

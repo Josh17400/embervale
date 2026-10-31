@@ -60,6 +60,7 @@ These tables register themselves, so adding a row needs no edit in a central fil
 | script commands | `rpg/view/script_api.h` | `EMB_SCRIPT_CMD("name", "help", fn);` in a `rpg/view/scripts/*.cpp` file (`expect:<what>` extends `expect`) |
 | rpg_test commands | `tools/tests/tests.h` | `RPG_TEST_CMD("--flag", "help", fn);` in a `tools/tests/test_*.cpp` file |
 | per-seed checks | `tools/tests/tests.h` | `RPG_SEED_CHECK("name", fn);` (run by `rpg_test --seeds`) |
+| doll gates | `tools/tests/doll_test_common.h` | `RPG_DOLL_GATE(order, "name", fn);` in a `tools/tests/test_doll*.cpp` file; `rpg_test --doll --gates` runs them by order key (unique; a repeat is a FAIL) |
 | story archetypes | `rpg/story/arch/index.cpp` | append in library order (the order is an id: never reorder) |
 
 Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
