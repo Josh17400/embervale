@@ -18,6 +18,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/mark_tags.h"   // markKey
 #include "rpg/story/story.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/scripts/script_util.h"
@@ -47,8 +48,7 @@ void playerGlobal(const Game& g, int32_t& gx, int32_t& gy) {
   gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
 }
 bool slain(const Game& g, ew::Gid id, uint64_t tag) {
-  // gsim::markKey (rpg/sim/game_internal.h), restated: the view does not include the sim's internals
-  const uint64_t k = ew::mix64(id ^ (tag * 0xD1B54A32D192ED03ull));
+  const uint64_t k = gsim::markKey(id, (gsim::Mk)tag);
   return g.marks.count(k) != 0;
 }
 

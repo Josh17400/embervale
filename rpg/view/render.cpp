@@ -19,7 +19,9 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/sim/life.h"
-#include "rpg/story/story_internal.h"
+#include "rpg/sim/mark_tags.h"   // markKey, the biome-seen key
+#include "rpg/sim/monster_stats.h"   // heavyWindup
+#include "rpg/story/story_api.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/magic_state.h"
@@ -2482,12 +2484,12 @@ void View::update(Game& g, float dt) {
     const bool inTown = outdoors && g.map().kind == MapKind::Overworld && g.settlementAt(g.pl().p) >= 0;
     if (e != hereEco_ && e >= 0 && !inTown && g.mode == Mode::Play) {
       // the first visit to a biome this adventure: a quiet banner naming it (Game::marks keeps it with the save;
-      // the key is game_internal.h markKey(0x7E000 + eco, Mk::Biome = 8))
-      const uint64_t key = ew::mix64((0x7E000ull + (uint64_t)e) ^ (8ull * 0xD1B54A32D192ED03ull));
+      // the key is mark_tags.h markKey(kBiomeSeenIdBase + eco, kBiomeSeenTag = 8))
+      const uint64_t key = gsim::markKey(gsim::kBiomeSeenIdBase + (uint64_t)e, (gsim::Mk)gsim::kBiomeSeenTag);
       // (M3c fixer, review: a stale or wrong banner) a banner still waiting behind a big one, or not yet shown, gives
       // way to the land the player now stands in (its biome stays unmarked, so it greets them next time)
       if (biomeBannerT_ >= 3.9f && biomeBannerEco_ >= 0 && biomeBannerEco_ != e) {
-        g.marks.erase(ew::mix64((0x7E000ull + (uint64_t)biomeBannerEco_) ^ (8ull * 0xD1B54A32D192ED03ull)));
+        g.marks.erase(gsim::markKey(gsim::kBiomeSeenIdBase + (uint64_t)biomeBannerEco_, (gsim::Mk)gsim::kBiomeSeenTag));
         biomeBannerT_ = 0;
         biomeBannerEco_ = -1;
       }
@@ -2503,7 +2505,7 @@ void View::update(Game& g, float dt) {
     // shown only while the player is still out in that land: indoors or elsewhere it fades out at once (one still
     // waiting is dropped and its biome unmarked)
     if (biomeBannerT_ > 0 && biomeBannerEco_ >= 0 && (!outdoors || inTown || (e >= 0 && e != biomeBannerEco_))) {
-      if (biomeBannerT_ >= 3.9f) g.marks.erase(ew::mix64((0x7E000ull + (uint64_t)biomeBannerEco_) ^ (8ull * 0xD1B54A32D192ED03ull)));
+      if (biomeBannerT_ >= 3.9f) g.marks.erase(gsim::markKey(gsim::kBiomeSeenIdBase + (uint64_t)biomeBannerEco_, (gsim::Mk)gsim::kBiomeSeenTag));
       biomeBannerT_ = biomeBannerT_ >= 3.9f ? 0.0f : std::min(biomeBannerT_, 0.3f);
       if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
     }
@@ -4174,9 +4176,8 @@ void View::drawWorld(Game& g) {
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
           if (a.heavy) {
             // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
-            // (the sim's heavyWindup, game_internal.h)
-            const float wu = a.mon == Monster::Troll || a.mon == Monster::Yeti ? 0.9f : a.mon == Monster::Blightspawn ? 0.75f :
-                             a.mon == Monster::Golem ? 1.0f : 0.8f;   // (M6: the golem's slam, game_internal.h heavyWindup)
+            // (the sim's heavyWindup, monster_stats.h)
+            const float wu = gsim::heavyWindup(a.mon);
             float k = clampf(a.stT / wu, 0, 1);
             Vec2 c = a.p + a.aim * 10.0f;
             float r = 26.0f + a.radius;

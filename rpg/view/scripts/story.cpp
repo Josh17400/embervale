@@ -33,7 +33,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story.h"
-#include "rpg/story/story_internal.h"
+#include "rpg/story/story_api.h"
 #include "rpg/view/script_api.h"
 
 namespace {
