@@ -25,7 +25,9 @@ FetchContent_Declare(SDL3
 FetchContent_MakeAvailable(SDL3)
 
 # --- shared engine (renderer + audio) ---
-add_library(engine STATIC engine/audio.cpp engine/pix.cpp)
+# engine/audio/*.cpp: empty for now (SOLID wave 2 step 2a.1); wave 3 splits audio.cpp into it without a CMake edit
+file(GLOB ENGINE_AUDIO CONFIGURE_DEPENDS engine/audio/*.cpp)
+add_library(engine STATIC engine/audio.cpp engine/pix.cpp ${ENGINE_AUDIO})
 target_include_directories(engine PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(engine PUBLIC SDL3::SDL3)
 
@@ -128,7 +130,9 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/sim/game.cpp)
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/main.cpp AND TARGET rpg_art)
   file(GLOB RPG_VIEW CONFIGURE_DEPENDS rpg/view/*.cpp rpg/view/scripts/*.cpp)   # scripts/: the test commands register themselves, so they stay sources of the executable (never a static library)
-  add_executable(embervale WIN32 rpg/main.cpp ${RPG_VIEW})
+  # rpg/app/*.cpp: empty for now (SOLID wave 2 step 2a.1); wave 3 moves main.cpp's pieces into it without a CMake edit
+  file(GLOB RPG_APP CONFIGURE_DEPENDS rpg/app/*.cpp)
+  add_executable(embervale WIN32 rpg/main.cpp ${RPG_VIEW} ${RPG_APP})
   target_link_libraries(embervale PRIVATE rpg_sim rpg_art engine)
   # Witness (engine/witness.h): a test harness drives the game headless over a local socket when it is started with
   # WITNESS_ADDR set or --witness (rpg/main.cpp). On by default on the desktop.
