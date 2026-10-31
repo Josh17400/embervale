@@ -49,7 +49,7 @@ bool propSolid(Prop p) {
 }
 
 // ---------------------------------------------------------------- interior pieces
-// How an interior's walls are seen (rpg/sim/rooms.h has the geometry contract):
+// How an interior's walls are seen (rpg/world/rooms.h has the geometry contract):
 //  - the back wall (rows 0..1 over every inner column) is a tall face drawn over both rows and one row above the map;
 //  - partitions (inner wall tiles) are cut-away walls one tile high: a tile with floor below shows a 16 px face, any
 //    other inner wall tile shows the wall's top. An N-S run hanging from the back wall puts its top over row 1;

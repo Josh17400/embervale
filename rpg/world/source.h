@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
-#include "rpg/sim/world.h"
+#include "rpg/world/records.h"   // Bldg, Site, Kingdom, Spawn, Den
 #include "rpg/world/coords.h"
 #include "rpg/world/economy.h"
 #include "rpg/world/geology.h"

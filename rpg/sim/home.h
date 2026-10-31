@@ -38,7 +38,9 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "rpg/art.h"
+#include "rpg/core/art_ids.h"
+#include "rpg/art/art_home.h"   // art::Crop, art::FarmObj
+#include "rpg/art/art_life.h"   // art::Critter
 #include "rpg/build/blueprint.h"
 #include "rpg/core/common.h"
 #include "rpg/sim/items.h"

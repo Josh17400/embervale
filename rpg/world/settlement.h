@@ -12,6 +12,7 @@
 #include <functional>
 #include <utility>
 #include <vector>
+#include "rpg/world/map.h"   // Map (SettlementOut::buf)
 #include "rpg/world/source.h"
 #include "rpg/world/town_plan.h"
 

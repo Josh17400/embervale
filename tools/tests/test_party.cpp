@@ -28,6 +28,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include "rpg/art/art_party.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"

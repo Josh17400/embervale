@@ -136,7 +136,7 @@ struct MagicOps {
   static bool landed(const Game& g, const magic::Tradition& t);       // its land has been set foot on (sea LF_LANDED)
   static Item focusOf(Game& g, const magic::Tradition& t);            // its focus (a staff-kind item), sold only there
   static void findSongLand(Game& g);                                   // the nearest hidden land of this world
-  // the trials (rpg/sim/rooms.h TrialLayout): a site made a trial of a culture's tradition (scripts, tests; the WORLD
+  // the trials (rpg/world/rooms.h TrialLayout): a site made a trial of a culture's tradition (scripts, tests; the WORLD
   // lane's ew trialOf sites are registered by step); a rite passed
   static bool markTrial(Game& g, int site, const cult::Culture& c, int which);
   static void passRite(Game& g, uint32_t traditionId, int which);

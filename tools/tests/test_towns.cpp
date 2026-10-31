@@ -28,6 +28,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "rpg/art.h"   // art::mix
 #include "rpg/culture/society.h"
 #include "rpg/sim/interior_v4.h"
 #include "rpg/world/dmath.h"

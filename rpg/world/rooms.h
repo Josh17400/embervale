@@ -1,7 +1,7 @@
 // M0b: rooms and storeys inside buildings (VISION_PLAN 15.7, binding). genInterior (WORLDGEN_V7+) lays a building's
 // floors out as rooms with a purpose, partitioned by interior walls with doors, and records them on the Map so the
 // game (renting "your" room), the renderer and the tests (no bed in a common room, every room reachable, stairs iff
-// 2+ storeys) can all read the same facts. Included by world.h; nothing here is saved (maps regenerate from seeds).
+// 2+ storeys) can all read the same facts. Included by world/map.h; nothing here is saved (maps regenerate from seeds).
 //
 // GEOMETRY CONTRACT (the generator builds it, the interior art draws it, the tests check it):
 //  - Every wall is Ground::InteriorWall. The outer shell is as before: rows 0..1 are the back wall (row 1 is its face

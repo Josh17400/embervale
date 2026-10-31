@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include "rpg/art/art_party.h"   // art::GraveLook, HoundLook
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/home.h"

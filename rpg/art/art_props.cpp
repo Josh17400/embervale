@@ -3301,7 +3301,7 @@ Canvas doorPiece(RoomStyle rs, int open = 0) {
   return c;
 }
 
-// ---- M0b partitions: cut-away walls one tile high (rpg/sim/rooms.h). The face is the foot of the room's back wall
+// ---- M0b partitions: cut-away walls one tile high (rpg/world/rooms.h). The face is the foot of the room's back wall
 //      (its last 16 rows), so a partition reads as the same wall cut down; the top is the wall's section seen from
 //      above, lit on its top-left rims, with a bright lip where it turns down into its own face.
 uint32_t edgeInk(const Ramp& R) { return mix(R[0], kInk, 0.45f); }

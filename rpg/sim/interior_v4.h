@@ -1,5 +1,5 @@
 // M0b interiors (WORLDGEN_V7, VISION_PLAN 15.7): buildings laid out as rooms with a purpose on one or more floors.
-// genInterior (rpg/sim/dungeon.cpp) calls genInteriorRooms for V7 buildings; rpg/sim/rooms.h has the geometry contract.
+// genInterior (rpg/sim/dungeon.cpp) calls genInteriorRooms for V7 buildings; rpg/world/rooms.h has the geometry contract.
 // M3b (VISION_PLAN 15.14): the floor plan derives from the builder's blueprint (bldgBlueprint: its InteriorShape and
 // body volume): a round body has a round floor, a courtyard plan an open court, an L its wing as a room, a long hall
 // its long hearth, a cross its nave and transepts; inns are planned in their culture's own way; seats of power by the

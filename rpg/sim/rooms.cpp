@@ -1,5 +1,5 @@
 // M0b rooms (rooms.h): names for the HUD and the tests.
-#include "rpg/sim/rooms.h"
+#include "rpg/world/rooms.h"
 
 const char* roomKindName(RoomKind k) {
   static const char* n[] = {"HALL",    "COTTAGE",   "KITCHEN", "BEDROOM", "GUEST ROOM", "PRIVATE QUARTERS", "CORRIDOR",

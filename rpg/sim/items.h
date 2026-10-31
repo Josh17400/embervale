@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "rpg/art.h"
+#include "rpg/art/art_items.h"   // art::Icon
 #include "rpg/core/common.h"
 
 // Values are saved (writeItem): append only. Gloves, Boots and Cloak arrived with SAVE_VER 3 (M0).

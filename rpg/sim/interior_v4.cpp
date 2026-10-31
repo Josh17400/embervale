@@ -2,7 +2,7 @@
 //
 // A building is planned once per call, for all of its floors (cheap: geometry only), so the floors agree:
 //   1. a template per building type picks the floor size from the footprint and carves rooms out of each floor
-//      (rpg/sim/rooms.h contract: E-W partitions are a cap row over a face row, N-S partitions one column, doors are
+//      (rpg/world/rooms.h contract: E-W partitions are a cap row over a face row, N-S partitions one column, doors are
 //      single doorway tiles with wall on both sides); whatever is left is the floor's main room (common room, hall,
 //      nave, corridor...);
 //   2. the stairs: floor f's StairsUp stands below a horizontal wall face, and floor f+1's StairsDown on the same tile;

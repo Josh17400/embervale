@@ -6,7 +6,8 @@
 // use. Header-only and pure: rpg_sim, the generator, the HUD and the tests all read it.
 #pragma once
 #include <cstdint>
-#include "rpg/art.h"
+#include "rpg/core/art_ids.h"
+#include "rpg/art/art_props.h"   // art::kTableGoods, kTableShades, kClothGoods, kStallForms
 
 namespace ew {
 

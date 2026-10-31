@@ -3,7 +3,7 @@
 #pragma once
 #include <algorithm>
 #include "rpg/culture/culture.h"
-#include "rpg/sim/world.h"
+#include "rpg/world/records.h"   // bldgRiseTiles
 #include "rpg/world/coords.h"
 
 namespace ew {

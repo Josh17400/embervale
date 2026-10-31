@@ -11,7 +11,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "rpg/art.h"
+#include "rpg/core/art_ids.h"
+#include "rpg/art/art_life.h"   // art::Bubble (Actor::bubble)
 #include "rpg/sim/appearance.h"
 #include "rpg/sim/backgrounds.h"
 #include "rpg/core/common.h"
@@ -35,6 +36,8 @@
 #include "rpg/sim/war.h"
 #include "rpg/sim/world.h"
 #include "rpg/story/story.h"
+
+namespace art { struct GraveLook; struct HoundLook; }   // rpg/art/art_party.h (Game::partyGraveLook / partyHoundLook)
 
 // Creator: the character creator after NEW GAME (the world exists; the player picks looks and a background).
 // Forge (M6): the crafting screen at a workstation (Game::bench; rpg/view/craft_ui.cpp draws it, the NUMBERS lane).

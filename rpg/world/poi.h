@@ -20,7 +20,7 @@
 // name of its own ("THE ELDER OAK OF <REGION>"), no spawns. Its LandmarkPlan (same name) lets the map label it.
 #pragma once
 #include <cstdint>
-#include "rpg/sim/world.h"
+#include "rpg/world/records.h"   // SiteType, siteTypeName
 
 namespace ew {
 

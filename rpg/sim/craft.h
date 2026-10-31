@@ -14,7 +14,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "rpg/art.h"
+#include "rpg/core/art_ids.h"
+#include "rpg/art/art_items.h"   // art::Icon
 #include "rpg/core/common.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/items.h"

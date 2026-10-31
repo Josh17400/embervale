@@ -44,7 +44,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic.h"
 #include "rpg/sim/magic_ops.h"
-#include "rpg/sim/rooms.h"
+#include "rpg/world/rooms.h"
 #include "rpg/world/source.h"
 #include "rpg/view/script_api.h"
 

@@ -4,7 +4,7 @@
 // The painters that draw these live in rpg/art/art_*.h (each includes this file); HumanLook::key() is in art_human.cpp.
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"   // rgba() (HumanLook's default colours)
+#include "engine/canvas.h"   // rgba() (HumanLook's default colours)
 
 namespace art {
 
@@ -34,7 +34,7 @@ enum class Prop : uint8_t {
   Cupboard, Wardrobe, Stool, Bench, Cradle, SpinningWheel, Loom, Desk, Workbench, Hearth, Forge,
   TableSmall, TableMeal, TableWork, TableL, TableM, TableR, CounterL, CounterM, CounterR,
   Filler,         // invisible, solid: the extra footprint tiles of a multi-tile piece
-  // ---- M0b rooms and storeys (WORLDGEN_V7 genInterior; rpg/sim/rooms.h has the geometry contract). Phase A painted
+  // ---- M0b rooms and storeys (WORLDGEN_V7 genInterior; rpg/world/rooms.h has the geometry contract). Phase A painted
   //      placeholders; the interior-art lane paints them for real. Stairs and doors are walk-through.
   StairsUp,       // a flight climbing north into the wall face above its tile: the steps fill the tile and rise over the
                   // face into a dark opening (16x40). Walking onto it takes you up a floor

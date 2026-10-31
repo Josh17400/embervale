@@ -1,18 +1,16 @@
 // World records: the plain data the world generator and the sim share (MapKind, SiteType, Role, Bldg, Site, Kingdom,
-// Spawn, Den, the WORLDGEN_* versions and the Map bit constants). No logic that calls into build or art: those helpers
-// (bldgRequest, bldgBlueprint, bldgArch, bldgRiseTiles...) and Map / World stay in rpg/sim/world.h, which includes this.
-// Any layer from world/ up may include it (SOLID 2a.3); it includes nothing from rpg/sim/.
+// Spawn, Den, the WORLDGEN_* versions and the Map bit constants), plus siteTypeName and the generator constant
+// bldgRiseTiles (art vocabulary only). No logic that calls into build or the painters: those helpers (bldgRequest,
+// bldgBlueprint, bldgArch...) and Map / World stay in rpg/sim/world.h, which includes this.
+// Any layer from world/ up may include it (SOLID 2a.3); it includes rpg/core and rpg/world only (SOLID 2c).
 #pragma once
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string>
-// IRect: rpg/core/common.h once it exists (SOLID 2a.2); until then the includer (rpg/sim/world.h) brings it first
-#if __has_include("rpg/core/common.h")
 #include "rpg/core/common.h"
-#endif
-#include "rpg/art/art_building.h"
-#include "rpg/art/art_monsters.h"
+#include "rpg/core/art_ids.h"
+#include "rpg/culture/style.h"   // art::ArchStyle (Bldg::arch)
 #include "rpg/world/biomes.h"
 #include "rpg/world/ids.h"
 
@@ -63,6 +61,27 @@ enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest,
                             Harbourmaster, Shipwright, Sailor, Pirate,
                             Steward, Warlord, Envoy,   // (M12) the player's reeve in a held village, a warlord, a court's envoy
                             COUNT };
+
+const char* siteTypeName(SiteType t);
+
+// WORLDGEN_V5 placement: how many tiles a building's sprite may rise above its footprint's top row (roof, steeple,
+// cone), generous on purpose. A generator constant (never measured from the art), so art changes never move buildings.
+inline int bldgRiseTiles(art::Building t) {
+  if (t == art::Building::Windmill) return 6;   // (M1 fixer) a tall tower mill whose sails reach over its cap
+  switch (art::artBase(t)) {   // M1 economy: the production buildings rise like their frames (the windmill like a tower)
+    case art::Building::Tower: case art::Building::Temple: return 5;
+    case art::Building::Keep: case art::Building::Inn: return 4;
+    default: return 3;
+  }
+}
+// WORLDGEN_V7: the same with the building's storeys: a 2-storey house, stone house or shop rises like an inn.
+inline int bldgRiseTiles(art::Building t, int storeys) {
+  int r = bldgRiseTiles(t);
+  t = art::artBase(t);
+  if (storeys >= 2 && (t == art::Building::House || t == art::Building::StoneHouse || t == art::Building::Shop || t == art::Building::Farmhouse))
+    r = std::max(r, 4);
+  return r;
+}
 
 struct Bldg {
   ew::Gid id = 0;          // M1: stable identity (endless worlds: makeId(region, IdKind::Bldg, ...); classic: legacyBldgId)

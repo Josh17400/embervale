@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "rpg/art/art_props.h"   // art::RoomStyle, FloorStyle
 #include "rpg/sim/world.h"
 
 enum class Deco : uint8_t {

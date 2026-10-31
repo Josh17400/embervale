@@ -21,7 +21,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "rpg/art.h"
+#include "rpg/core/art_ids.h"
 #include "rpg/sim/backgrounds.h"
 #include "rpg/sim/items.h"
 

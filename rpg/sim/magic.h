@@ -308,7 +308,7 @@ struct Growth {
 };
 // a Dreamweft bubble: foes inside move, swing and burn at DREAM_SLOW
 struct Bubble { Vec2 p; float r = 0, life = 0, age = 0; uint32_t spell = 0; };
-// the Trial of the Threshold the hero stands in (rpg/sim/rooms.h TrialLayout; MagicOps runs its puzzle)
+// the Trial of the Threshold the hero stands in (rpg/world/rooms.h TrialLayout; MagicOps runs its puzzle)
 struct TrialRun {
   uint64_t site = 0;             // the trial's site id (0: not in a trial)
   uint32_t gatesOpen = 0;        // bit per TrialLayout gate
