@@ -7,6 +7,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
+#include "rpg/sim/looks.h"   // appearanceLook
 #include "rpg/sim/skill_ops.h"
 #include "rpg/world/source.h"
 
