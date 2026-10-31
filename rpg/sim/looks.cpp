@@ -18,6 +18,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
+#include "rpg/sim/looks.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
 // Dresses a person in a culture: people from its mix, skin and hair from its ranges, the dress cut per sex, headwear,
@@ -26,7 +27,7 @@
 // king and the jarls the culture's regalia. Pure function of its arguments (the galleries and tests call it too).
 namespace census {
 
-struct Rank { bool royal = false, capital = false; };
+// (census::Rank is declared in rpg/sim/looks.h)
 
 namespace {
 struct Stream {   // a private hash stream (never the caller's Rng)
