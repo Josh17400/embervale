@@ -22,6 +22,7 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
 #include "rpg/world/source.h"
@@ -30,7 +31,6 @@
 void worldMapSetGeo(bool on);
 bool worldMapGeo();
 void worldMapSetZoomLevel(int zi);
-void worldMapCentreTile(double gx, double gy);
 void worldMapRequestSelect(int site);
 
 namespace {

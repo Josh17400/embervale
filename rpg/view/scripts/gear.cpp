@@ -22,14 +22,11 @@
 #include "rpg/sim/gear.h"
 #include "rpg/story/dsl.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-std::string low(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 
 bool kindOf(const std::string& w, ItemKind& k, int& sub) {
   struct K { const char* n; ItemKind k; int sub; };

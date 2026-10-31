@@ -25,6 +25,7 @@
 #include <string>
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"
 #include "rpg/world/biomes.h"
 #include "rpg/world/settlement.h"
@@ -32,7 +33,6 @@
 #include "rpg/world/town_plan.h"
 
 // (rpg/view/worldmap.cpp)
-void worldMapCentreTile(double gx, double gy);
 void worldMapForcePlan(bool on);
 int worldMapPlanCount();
 bool worldMapHasPlan(uint64_t site);

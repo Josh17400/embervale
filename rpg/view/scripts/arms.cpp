@@ -16,15 +16,12 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-std::string low(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 int32_t floorDivI(int32_t a, int32_t b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 
 // the family of the culture cell nearest the player whose archetype is `want` (0 when the world has no source)

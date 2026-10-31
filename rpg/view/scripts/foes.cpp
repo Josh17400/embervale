@@ -20,6 +20,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/story/story.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/source.h"
 
 namespace census {
@@ -30,10 +31,6 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
 
 namespace {
 
-std::string low(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 int floorDivI(int32_t a, int32_t b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 // where the player is on the overworld (inside: the door or entrance they went in by)
 void playerGlobal(const Game& g, int32_t& gx, int32_t& gy) {

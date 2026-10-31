@@ -54,14 +54,11 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-std::string lw(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 int cur(Game& g) { return g.home.plots.empty() ? -1 : (int)g.home.plots.size() - 1; }
 
 const char* const kCropWords[] = {"wheat", "barley", "oats", "rye", "potato", "turnip", "cabbage", "carrot", "onion", "flax", "beans",
@@ -367,10 +364,6 @@ int nearestActor(Game& g, const std::string& who) {
     if (d < bd) { bd = d; best = (int)i; }
   }
   return best;
-}
-std::string up(std::string s) {
-  for (char& ch : s) if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 32);
-  return s;
 }
 
 bool cmdHomeB(ScriptCtx& c) {

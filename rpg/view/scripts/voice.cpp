@@ -27,14 +27,11 @@
 #include "rpg/sim/party_voice.h"
 #include "rpg/story/story.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-std::string lw(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 int memberArg(ScriptCtx& c, size_t i) {
   const std::string w = c.arg(i);
   const int m = w.empty() ? 0 : std::atoi(w.c_str());
