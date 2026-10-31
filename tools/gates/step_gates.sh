@@ -22,6 +22,7 @@
 #
 # Lines (each heavy one through tools/slot.sh; S4 and S8 start first and run beside S1 and the rest):
 #   S1.build    tools\build.bat (all targets): rc 0, every baseline exe present, no new warning kind, warnings <= base
+#               (D9025, the /fp:precise override notice, is left out and counted against the /fp:precise TUs; chk_build)
 #   S2.seeds    rpg_test --seeds 1..20: "20 passed, 0 failed", output equal to baseline
 #   S3.save     save_test: ALL OK, output equal to baseline (load-sensitive byte counts masked, see unstable.txt :mask);  S3.fixtures  git diff <base> -- tests/fixtures empty and
 #               nothing untracked there;  S3.savever  SAVE_VER is 23
@@ -94,24 +95,31 @@ wave_end_ok() { [ $ALL -eq 1 ] && return 0; [ -n "$ONLY" ] && gate_selected "$1"
 
 # ---------------------------------------------------------------- checks
 chk_build() {   # S1
-  local name="$1" log="$2" rc="$3" miss="" e new tot btot
+  # D9025 ("overriding '/fp:fast' with '/fp:precise'") is a per-TU command-line notice, one per /fp:precise source the
+  # build compiled, not a code warning: it is left out of the kinds and the total, and instead its count may not exceed
+  # the /fp:precise compile edges in <bdir>/build.ninja (equal on a fresh build). Baselines are read with CR stripped.
+  local name="$1" log="$2" rc="$3" miss="" e new tot btot d9 prec
   if [ "$rc" -ne 0 ] || grep -q 'ninja: build stopped' "$log"; then echo "FAIL build rc=$rc: $(grep -m1 -E 'error|FAILED' "$log" | cut -c1-120)"; return; fi
   ls "$BABS"/*.exe 2>/dev/null | xargs -n1 basename | sort > "$OUT/logs/S1.exes"
   # warning kinds: the message without path and line, one count per kind
   tr -d '\r' < "$log" | grep -E 'warning [A-Z]+[0-9]+' | sed -E 's/^.*(warning [A-Z]+[0-9]+ ?:.*)$/\1/' | sort | uniq -c | sed -E 's/^ +//' > "$OUT/logs/S1.warnings"
-  tot=$(awk '{s+=$1} END {print s+0}' "$OUT/logs/S1.warnings")
   if [ -n "$REC" ]; then
     cp "$OUT/logs/S1.exes" "$REC/S1.exes.txt"; cp "$OUT/logs/S1.warnings" "$REC/S1.warnings.txt"
-    echo "PASS recorded $(wc -l < "$OUT/logs/S1.exes") exes, $tot warning lines ($(wc -l < "$OUT/logs/S1.warnings") kinds)"; return
+    echo "PASS recorded $(wc -l < "$OUT/logs/S1.exes") exes, $(awk '{s+=$1} END {print s+0}' "$OUT/logs/S1.warnings") warning lines ($(wc -l < "$OUT/logs/S1.warnings") kinds)"; return
   fi
   [ -f "$BL/S1.exes.txt" ] || { echo "FAIL no baseline $BL/S1.exes.txt"; return; }
-  miss=$(comm -23 "$BL/S1.exes.txt" "$OUT/logs/S1.exes" | tr '\n' ' ')
+  miss=$(comm -23 <(tr -d '\r' < "$BL/S1.exes.txt") "$OUT/logs/S1.exes" | tr '\n' ' ')
   [ -n "$miss" ] && { echo "FAIL missing exes: $miss"; return; }
-  new=$(cut -d' ' -f2- "$OUT/logs/S1.warnings" | sort -u | comm -23 - <(cut -d' ' -f2- "$BL/S1.warnings.txt" | sort -u) | head -2 | tr '\n' ' ')
-  btot=$(awk '{s+=$1} END {print s+0}' "$BL/S1.warnings.txt")
+  d9=$(grep -E ' warning D9025 ' "$OUT/logs/S1.warnings" | awk '{s+=$1} END {print s+0}')
+  prec=$(tr -d '\r' < "$BABS/build.ninja" 2>/dev/null | grep -cE '^ +FLAGS = .*/fp:precise')
+  grep -vE ' warning D9025 ' "$OUT/logs/S1.warnings" > "$OUT/logs/S1.warnings.code"
+  tot=$(awk '{s+=$1} END {print s+0}' "$OUT/logs/S1.warnings.code")
+  new=$(cut -d' ' -f2- "$OUT/logs/S1.warnings.code" | sort -u | comm -23 - <(tr -d '\r' < "$BL/S1.warnings.txt" | grep -vE ' warning D9025 ' | cut -d' ' -f2- | sort -u) | head -2 | tr '\n' ' ')
+  btot=$(tr -d '\r' < "$BL/S1.warnings.txt" | grep -vE ' warning D9025 ' | awk '{s+=$1} END {print s+0}')
   [ -n "$new" ] && { echo "FAIL new warning kind: $new"; return; }
   [ "$tot" -gt "$btot" ] && { echo "FAIL $tot warning lines > baseline $btot (fresh build)"; return; }
-  echo "PASS $(wc -l < "$OUT/logs/S1.exes") exes, warnings $tot <= $btot, $(grep -oE '\[[0-9]+/[0-9]+\]' "$log" | tail -1 || true)$(grep -q 'no work to do' "$log" && echo ' no work to do')"
+  [ "$d9" -gt "$prec" ] && { echo "FAIL D9025 $d9 > $prec /fp:precise compile edges in build.ninja"; return; }
+  echo "PASS $(wc -l < "$OUT/logs/S1.exes") exes, warnings $tot <= $btot, D9025 $d9 of $prec /fp:precise TUs, $(grep -oE '\[[0-9]+/[0-9]+\]' "$log" | tail -1 || true)$(grep -q 'no work to do' "$log" && echo ' no work to do')"
 }
 chk_seeds() {   # S2: rpg_test --seeds ends "<n> passed, 0 failed"
   local r ok; r=$(base_cmp "$1" "$2"); ok=$?

@@ -219,7 +219,7 @@ run_perf() {
 gate_run W6.perf chk_probe -- run_perf
 if [ $W7 -eq 1 ]; then
   CFG="$OUT/witness15/witness.gates.json"
-  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "$REPO/../witness/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --parallel 2 --model sonnet --effort low
+  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "${WITNESS_HOME:-$REPO/../witness}/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --parallel 2 --model sonnet --effort low
 else gate_skip W7.play "waves 3 and 4 only (--w7)"; fi
 # wall vs the sum of the line durations (how much ran side by side)
 sumd=$(cat "$OUT"/res/*.txt 2>/dev/null | awk '{ if ($4 ~ /^[0-9]+s$/) s += $4 + 0 } END { print s + 0 }')

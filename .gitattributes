@@ -1,0 +1,4 @@
+# Gate scripts and their baseline records are compared byte for byte and run by bash, so they are LF in every checkout
+# whatever core.autocrlf says (a CRLF baseline broke S1's exe-list compare in default-config clones).
+tools/gates/** text=auto eol=lf
+*.sh text=auto eol=lf

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # check_layers.sh: the one-way layer check (SOLID plan 0.3, gate S10). Lists forbidden includes per folder and
-# fails on any violation that is not in tools/gates/layers_allow.txt (today's knots; that file may only shrink).
+# fails on any violation that is not in tools/gates/layers_allow.txt (today's knots; that file may only shrink, with
+# renamed files mapped through git and per-folder counts: see the GREW block).
 # Neighbours: move_check.sh (was it only moved?), size_report.sh (size guardrails), step_gates.sh (runs us as S10).
 #
 # Usage: tools/gates/check_layers.sh [--root DIR] [--allow FILE] [--emit] [--quiet]
@@ -106,18 +107,30 @@ END {
 NEW=$(grep -c '^NEW' "$TMP/report"); STALE=$(grep -c '^STALE' "$TMP/report")
 TOTAL=$(wc -l < "$TMP/found" | tr -d ' '); NALLOW=$(wc -l < "$TMP/allow" | tr -d ' ')
 
-# The allowlist may only shrink: every line must also be in the wave-0 record (multiset).
+# The allowlist may only shrink against the wave-0 record. A file moved since 119de74 keeps its entries under its new
+# path (git diff -M --name-status 119de74..HEAD renames map the record's paths first), and a knot may move between files
+# of one folder (a split routing it through the step's private header): per (rule, folder, target) the allowlist may
+# hold at most as many lines as the mapped record. Anything else is growth.
 GREW=0
 if [ -f "$BASE_ALLOW" ] && [ "$(cd "$(dirname "$ALLOW")" && pwd)/$(basename "$ALLOW")" != "$BASE_ALLOW" ]; then
-  grep -vE '^[[:space:]]*(#|$)' "$BASE_ALLOW" | sed 's/[[:space:]]*#.*$//; s/[[:space:]]\+/ /g; s/ $//' | LC_ALL=C sort > "$TMP/base"
-  LC_ALL=C comm -23 "$TMP/allow" "$TMP/base" > "$TMP/grown"
+  : > "$TMP/renames"
+  if git -C "$ROOT" rev-parse -q --verify '119de74^{commit}' >/dev/null 2>&1; then
+    git -C "$ROOT" diff -M --name-status 119de74 HEAD 2>/dev/null | tr -d '\r' | gawk -F'\t' '$1 ~ /^R/ { print $2 "\t" $3 }' > "$TMP/renames"
+  fi
+  grep -vE '^[[:space:]]*(#|$)' "$BASE_ALLOW" | sed 's/[[:space:]]*#.*$//; s/[[:space:]]\+/ /g; s/ $//' \
+    | gawk -v RN="$TMP/renames" 'BEGIN { while ((getline l < RN) > 0) { split(l, a, "\t"); to[a[1]] = a[2] } }
+        { if ($2 in to) $2 = to[$2]; print }' | LC_ALL=C sort > "$TMP/base"
+  gawk -v BASEF="$TMP/base" '
+    function key(r, f, t,   d) { d = f; if (d ~ /\//) sub(/\/[^\/]*$/, "", d); else d = "."; return r " " d " " t }
+    BEGIN { while ((getline b < BASEF) > 0) { split(b, x, " "); cap[key(x[1], x[2], x[3])]++ } }
+    { k = key($1, $2, $3); used[k]++; if (used[k] > cap[k]) print }' "$TMP/allow" > "$TMP/grown"
   GREW=$(wc -l < "$TMP/grown" | tr -d ' ')
   [ "$GREW" -gt 0 ] && sed 's/^/GREW  /' "$TMP/grown" >> "$TMP/report"
 fi
 
 [ "$QUIET" = 1 ] || grep -v '^#COUNTS' "$TMP/report"
 if [ "$NEW" -eq 0 ] && [ "$GREW" -eq 0 ]; then
-  echo "check_layers: PASS violations=$TOTAL allowed=$NALLOW new=0 stale=$STALE"
+  echo "check_layers: PASS violations=$TOTAL allowed=$NALLOW new=0 stale=$STALE allowlist_grew=0"
   exit 0
 fi
 echo "check_layers: FAIL violations=$TOTAL allowed=$NALLOW new=$NEW stale=$STALE allowlist_grew=$GREW"

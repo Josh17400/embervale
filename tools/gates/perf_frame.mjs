@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 delete process.env.WITNESS_WATCH;   // (before any launch: Witness passes its environment on, and WITNESS_WATCH=1 shows the game window)
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const WITNESS = process.env.WITNESS_DIR || path.resolve(REPO, "../witness");
+const WITNESS = process.env.WITNESS_HOME || process.env.WITNESS_DIR || path.resolve(REPO, "../witness");   // WITNESS_HOME (shared by every gate tool); WITNESS_DIR kept as an alias
 const { openGame } = await import(pathToFileURL(path.join(WITNESS, "src/core/launch.js")).href);
 
 const argv = process.argv.slice(2);

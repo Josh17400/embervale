@@ -28,8 +28,10 @@ done
 case "$BDIR" in /*|?:*) ;; *) BDIR="$REPO/$BDIR" ;; esac
 [ -f "$BDIR/embervale.exe" ] || { echo "witness_smoke: $BDIR/embervale.exe not found" >&2; exit 2; }
 mkdir -p "$OUT/shots"
-W="$(cd "$REPO/../witness" 2>/dev/null && pwd)/bin/witness.js"
-[ -f "$W" ] || { echo "witness_smoke: Witness not found at ../witness" >&2; exit 2; }
+# Witness: WITNESS_HOME (the one variable witness_pack.mjs, perf_frame.mjs and firstlaunch.mjs read too), else ../witness
+WH="${WITNESS_HOME:-$REPO/../witness}"
+W="$(cd "$WH" 2>/dev/null && pwd)/bin/witness.js"
+[ -f "$W" ] || { echo "witness_smoke: Witness not found at $WH (set WITNESS_HOME)" >&2; exit 2; }
 CFG="$OUT/witness.gates.json"
 REPO_W=$(cygpath -m "$REPO"); EXE_W=$(cygpath -m "$BDIR/embervale.exe"); SHOTS_W=$(cygpath -m "$OUT/shots")
 node -e '

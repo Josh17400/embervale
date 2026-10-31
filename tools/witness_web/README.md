@@ -36,6 +36,9 @@ From Git Bash, in the repo root (`C:/Users/joshu/Documents/embervale`), with `..
    (cd tools/witness_web && npm init -y >/dev/null && npm i -D playwright && npx playwright install webkit chromium)
    export WITNESS_PLAYWRIGHT=$PWD/tools/witness_web
    ```
+   `firstlaunch.mjs` (wave gate W5) looks in this folder, then `WITNESS_PLAYWRIGHT`, then `WITNESS_HOME` (the Witness
+   folder every gate tool reads, default `../witness`), then the main checkout's `tools/witness_web` next to Witness
+   (`$WITNESS_HOME/../embervale`), then `NODE_PATH` and the global npm folder. A clone anywhere needs only `WITNESS_HOME`.
 3. Doctor (tools/witness_web/witness.json serves `site-witness/` on 127.0.0.1:8090 with Python's http.server and opens
    `index.html?witness=...`; its `launch.device` is already `iphone-15-landscape`):
    ```

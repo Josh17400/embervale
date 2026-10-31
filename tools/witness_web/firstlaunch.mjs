@@ -7,11 +7,29 @@
 // port, the site folder is served here (a plain static server) for the run.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { delimiter, dirname, extname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
-const require = createRequire(import.meta.url);
-const { chromium, devices } = require('playwright');
+// Playwright, first found of: this folder's node_modules; WITNESS_PLAYWRIGHT (a folder holding node_modules/playwright,
+// Witness's own variable); WITNESS_HOME and the folders above it; the main checkout's tools/witness_web next to Witness
+// (<WITNESS_HOME>/../embervale, where tools/witness_web/README.md installs it); NODE_PATH; the global npm folder.
+function loadPlaywright() {
+  const here = fileURLToPath(import.meta.url);
+  const wh = process.env.WITNESS_HOME || resolve(dirname(here), '../../../witness');
+  const bases = [here];
+  if (process.env.WITNESS_PLAYWRIGHT) bases.push(join(resolve(process.env.WITNESS_PLAYWRIGHT), 'package.json'));
+  bases.push(join(resolve(wh), 'package.json'), join(resolve(wh), '../embervale/tools/witness_web/package.json'));
+  for (const b of bases) { try { return createRequire(b)('playwright'); } catch { /* next */ } }
+  // flat folders that hold the packages themselves: NODE_PATH entries, the global npm folder
+  const flat = String(process.env.NODE_PATH || '').split(delimiter).filter(Boolean).map((d) => resolve(d));
+  try { const g = execSync('npm root -g', { encoding: 'utf8', windowsHide: true, timeout: 15000 }).trim(); if (g) flat.push(g); } catch { /* none */ }
+  for (const d of flat) { try { return createRequire(here)(join(d, 'playwright')); } catch { /* next */ } }
+  console.error(`firstlaunch: Playwright not found (looked from: ${[...bases.map((b) => dirname(b)), ...flat].join(', ')}); run npm i in tools/witness_web or set WITNESS_PLAYWRIGHT`);
+  process.exit(2);
+}
+const { chromium, devices } = loadPlaywright();
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 && i + 1 < args.length ? args[i + 1] : def; };
