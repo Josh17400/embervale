@@ -6,7 +6,7 @@
 // Painted in the game's high 3/4 view with the light from the top-left (lit tops and west faces, mid-tone south faces,
 // shaded east sides), a selective 1 px outline, cast shadows to the lower right, and the cohesive palette.
 #pragma once
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_props.h"
 
 namespace cult { struct Heraldry; }

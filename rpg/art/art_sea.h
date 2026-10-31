@@ -7,7 +7,7 @@
 // outline, cast shadows to the lower right, and the game's cohesive palette (art_internal.h ramps).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_props.h"
 
 namespace art {

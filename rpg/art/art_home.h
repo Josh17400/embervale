@@ -14,7 +14,7 @@
 // where a fence meets its gate.
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/art/art_building.h"
 #include "rpg/art/art_monsters.h"
 #include "rpg/art/art_props.h"

@@ -1,7 +1,7 @@
 // EMBERVALE art API: item icons (painted in art_items.cpp). Part of rpg/art.h (include that).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 
 namespace art {
 
