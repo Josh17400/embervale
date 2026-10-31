@@ -410,7 +410,6 @@ void rock(Canvas& c, float cx, float cy, float rx, float ry, const Ramp& R, uint
 }  // namespace
 
 // humanoid monsters (skeleton, draugr, goblin) are painted by the human rig in art_human.cpp
-enum Species { kHuman = 0, kSkeletonSp, kDraugrSp, kGoblinSp };
 Canvas humanoidCell(Species sp, int frame);
 // one standing human figure (HUMAN_W x HUMAN_H, idle pose, not outlined): statues and other props reuse the rig
 Canvas humanFigureStill(const HumanLook& look, int facing);

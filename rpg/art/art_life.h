@@ -11,6 +11,7 @@
 #pragma once
 #include <cstdint>
 #include "engine/pix.h"
+#include "rpg/core/art_ids.h"
 #include "engine/music_style.h"
 #include "rpg/art/art_human.h"
 #include "rpg/art/art_props.h"
@@ -18,51 +19,6 @@
 namespace art {
 
 // ---------------------------------------------------------------- postures ("poses"; art::Posture: the rig has its own internal Pose)
-// Values are runtime only (Actor::posture); append anyway.
-enum class Posture : uint8_t {
-  None,       // the standing sheet (humanSheet) decides: idle, walk, attack, hurt
-  Sit,        // seated on a chair / bench / stool / cushion (the culture's furniture)
-  SitEat,     // seated, eating (a spoon or bread to the mouth)
-  SitDrink,   // seated, a mug raised
-  Eat,        // standing, eating from the hand
-  Drink,      // standing, a mug
-  Cheer,      // standing, a mug raised high (a toast, a festival)
-  Hammer,     // the smith at the anvil: hammer up / down
-  Hoe,        // the farmer in the field
-  Sweep,      // a broom: shopkeepers, servants, the innkeeper
-  Chop,       // an axe: woodcutters, the woodpile
-  Stir,       // a ladle in a pot: the cook, the innkeeper's kitchen
-  Carry,      // a sack or basket on the shoulder (walk frames: the view picks them while moving)
-  Fish,       // a rod held out over the water
-  Sleep,      // lying in bed under the blanket (drawn OVER the bed prop: PostureInfo::lying)
-  Wave,       // a hand raised in greeting
-  Play,       // children at tag: arms up, a hop (run frames)
-  Dance,      // festival / tavern dancing (a turning step)
-  Lute,       // the bard plucking a lute (the culture's string instrument)
-  Drum,       // a hand drum
-  Flute,      // a flute / pipe
-  Pray,       // hands joined, head bowed (temples, shrines)
-  Beg,        // sitting on the ground, a bowl held out (Outfit::Rags)
-  Lamp,       // the lamplighter's pole raised to a lamp
-  Read,       // a book or a ledger held open (scholars, the exchange's clerks)
-  // ---- ART lane, phase B (appended): seated on the floor (cushions round a low table, sleeping mats, the ground):
-  //      cross-legged. seatFit(...).sit / seatedPosture() map Sit / SitEat / SitDrink onto these for floor seats.
-  SitFloor,      // cross-legged on a cushion / mat / the ground
-  SitFloorEat,   // cross-legged, eating
-  SitFloorDrink, // cross-legged, a cup raised
-  // ---- M7 Home (lead, phase A; ART lane paints it): astride a horse (art::horseSheet / riderSeat): legs either side,
-  //      the reins in the hands; phase A stand-in: the seated sheet
-  Ride,
-  // ---- M8 Fellowship (lead, phase A; ART lane paints them; stand-ins: the floor-seated and the praying sheets)
-  Downed,     // a companion at 0 HP, bleeding out: slumped on one knee, a hand pressed to the wound, the head low
-  Kneel,      // kneeling on one knee: binding a friend's wounds, mourning at a grave (ART phase B: variant 0 binds the
-              //   wounds, both hands low before the knee winding linen; variant 1 mourns, the head bowed, a hand on the
-              //   raised knee: humanPostureSheet(look, Kneel, 1) at a grave)
-  // ---- P2b New People (lead, phase A; POSES-B paints it on the doll, VIEW-B syncs it to the oars): seated on a rowboat's
-  //      thwart: reach, catch and pull. v1 stand-in (rig 1 never asks for it): the seated sheet
-  Row,
-  COUNT
-};
 constexpr int POSTURE_FRAMES = 4;   // columns per pose sheet
 // How the view draws a pose. The sheet has POSTURE_FRAMES columns x 3 rows (0 facing down, 1 up, 2 right; flip for
 // left) of HUMAN_W x HUMAN_H cells, anchored like the standing sheet (bottom-centre at the actor's feet) plus dy.

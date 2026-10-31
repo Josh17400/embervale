@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 #include "engine/pix.h"
+#include "rpg/core/art_ids.h"
 #include "rpg/culture/style.h"
 
 namespace bld { struct Blueprint; }   // rpg/build/blueprint.h (the builder)
@@ -22,70 +23,6 @@ namespace art {
 // edge (front steps, porch posts); everything above the footprint is roof and wall height. So the footprint's
 // top-left tile corner sits at canvas (BLDG_PAD_X, h - BLDG_PAD_B - hTiles*16).
 // The door is always in the bottom row at tile column doorCol = wTiles/2 (Bldg::doorX), painted on the front wall.
-enum class Building : uint8_t {
-  House,       // cottage in the local style
-  StoneHouse,  // the same, built in stone
-  Inn,         // two storeys, hanging sign with a mug, lanterns
-  Smithy,      // open forge bay, anvil sign, big chimney
-  Shop,        // general store, awning and sign
-  Temple,      // stone, steeple/bell tower (dome in the desert), rose window
-  Keep,        // castle keep for the city lord (jarl): crenellations, corner towers, banners
-  Tower,       // mage tower, tall round, conical roof
-  Farmhouse,   // wide barn
-  Hut,         // small shack (village / bandits)
-  Palace,      // M1: the king's palace in a capital (multi-storey hall, throne room). Until the towns lane paints it,
-               // paintedAs() draws it as a Keep
-  Barracks,    // M1: the royal guard's barracks in a palace compound (and city garrisons); painted as a StoneHouse
-               // until it has its own look
-  // M1 economy (owner 2026-10-05, rpg/world/economy.h): the production buildings that make each settlement's living.
-  // Each paints on the frame of a base type (artBase) with its own trade's sign, yard and machinery.
-  Windmill,    // a round tapering tower under a cap, four lattice sails (2 storeys: the stone floor, the millstone loft)
-  Watermill,   // a stone mill house with an undershot water wheel on its river side (BuildingFacts::variant bit 0: west)
-  Granary,     // a raised barn of grain (on the farm frame), the sheaf sign
-  Bakery,      // a shop front with the loaf sign, an oven chimney
-  Butcher,     // a shop front with the ham sign
-  Tanner,      // a workshop house with the hide sign (stretching frames in its yard)
-  Fishmonger,  // a shop front with the fish sign
-  Smelter,     // a stone furnace house (on the smithy frame), the ingot sign, a tall stack
-  Sawmill,     // an open timber shed (on the farm frame), the saw sign
-  Weaver,      // a shop front with the spool sign
-  // ---- M3b "Builders & Societies" (VISION_PLAN 15.14): the purposes the society generator (rpg/culture/society.h)
-  //      asks for. Their LOOK comes from the builder (rpg/build/blueprint.h: culture x purpose x wealth parts), so a
-  //      steppe mead hall is a feasting tent and an imperial bathhouse a domed hall. artBase() only names the class of
-  //      building whose clearance (riseBudgetTiles) they share.
-  Guildhall,   // the craft guilds' hall (towns, cities; with the Exchange the seat of a merchant republic)
-  Exchange,    // the merchants' exchange / counting house on the market square (mercantile cities)
-  MeadHall,    // a long feasting hall round a fire (fjordfolk, highland; the steppe's feasting tent)
-  Bathhouse,   // public baths (imperial, dune, jade, river)
-  TeaHouse,    // a tea house (jade, steppe)
-  Lodge,       // a warrior lodge / wardens' hall (sworn warrior bands, elven wardens)
-  CouncilHall, // the elders' or the high council's hall (clan elders, the elven high council, the moot)
-  COUNT
-};
-// M1 economy: the class a building's clearance follows (bldgRiseTiles, riseBudgetTiles) and, for the production
-// buildings, the trade it is built for. M3b: the massing itself is the builder's (bld::design), never artBase's.
-inline Building artBase(Building b) {
-  switch (b) {
-    case Building::Windmill: return Building::Tower;
-    case Building::Watermill: return Building::StoneHouse;
-    case Building::Granary: case Building::Sawmill: return Building::Farmhouse;
-    case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver: return Building::Shop;
-    case Building::Tanner: return Building::House;
-    case Building::Smelter: return Building::Smithy;
-    // M3b purposes: the clearance class only (the builder gives each its own massing per culture)
-    case Building::Guildhall: return Building::StoneHouse;
-    case Building::Exchange: return Building::Shop;
-    case Building::MeadHall: return Building::Farmhouse;
-    case Building::Bathhouse: return Building::StoneHouse;
-    case Building::TeaHouse: return Building::Inn;
-    case Building::Lodge: return Building::Barracks;
-    case Building::CouncilHall: return Building::Temple;
-    default: return b;
-  }
-}
-// M1: the type whose painter draws b while a new type has no look of its own yet. The palace and the barracks have
-// their own painters now (art_building.cpp), so every type paints as itself.
-inline Building paintedAs(Building b) { return b; }
 constexpr int BLDG_PAD_X = 8;
 constexpr int BLDG_PAD_B = 4;
 
@@ -112,48 +49,7 @@ struct BuildingInfo {
 // variation per pane. Same size as the sprite.
 Canvas buildingNight(const Canvas& sprite, const std::vector<uint8_t>& glass, uint32_t seed);
 
-// M0b: what the world generator decided about a building that its exterior must show (VISION_PLAN 15.7: the exterior
-// and the interior agree). Bldg carries these (world.h bldgFacts). The defaults reproduce the classic M0 look.
-struct BuildingFacts {
-  int storeys = 0;      // storeys the walls show (window rows, floor beams, wall height); 0 = defaultStoreys(type).
-                        // From WORLDGEN_V7 the interior has exactly this many floors joined by stairs.
-  bool hearth = true;   // false: nothing inside burns a fire, so the roof carries NO chimney. true: chimneys as the
-                        // style and the type decide (a style without chimneys may still show none: chimney => hearth,
-                        // not the reverse)
-  // M1 kingdom identity (VISION_PLAN 15.8): the ruling kingdom's banner colours (rgba, banner == 0: none) and emblem.
-  // Keeps, palaces, barracks and inns fly it where the painter sees fit.
-  uint32_t banner = 0, banner2 = 0;
-  int emblem = 0;
-  int variant = 0;      // M1 economy: type-specific detail (the watermill: bit 0 = its wheel on the west side)
-  // M4 Banners (VISION_PLAN 4.5): war damage drawn over the building (Bldg::charred): 0 whole (the classic pixels and
-  // keys), 1 scorched (soot over the windows and eaves, singed roof patches), 2 burned out (roof holed to the rafters,
-  // blackened walls, no glass lit at night), 3 being rebuilt (scaffolding and fresh timber over a scorched shell)
-  int charred = 0;
-};
-// The storeys each type showed before M0b (and still shows for worlds before WORLDGEN_V7): inns and keeps 2, mage
-// towers 3, everything else 1. Header-only: the simulation (which does not link the art) needs it.
-inline int defaultStoreys(Building b) {
-  switch (b) {
-    case Building::Inn: case Building::Keep: case Building::Barracks: case Building::Palace: case Building::Windmill:
-    case Building::Guildhall: case Building::TeaHouse: return 2;
-    case Building::Tower: return 3;
-    default: return 1;
-  }
-}
 
-// M3b: how many tiles a building's sprite may rise above its footprint's top row. MIRRORS the generator's clearance
-// (world.h bldgRiseTiles / rpg/world/town_rules.h townRiseTiles: a generator constant, never measured from the art):
-// the builder plans its massing under it and the painter fits every volume under it (arch_gallery --check holds them
-// together on real worlds).
-inline int riseBudgetTiles(Building t, int storeys) {
-  if (t == Building::Palace) return 7;
-  if (t == Building::Barracks) return 4;
-  if (t == Building::Windmill) return 6;
-  const Building b = artBase(t);
-  int r = (b == Building::Tower || b == Building::Temple) ? 5 : ((b == Building::Keep || b == Building::Inn) ? 4 : 3);
-  if (storeys >= 2 && (b == Building::House || b == Building::StoneHouse || b == Building::Shop || b == Building::Farmhouse)) r = r > 4 ? r : 4;
-  return r;
-}
 
 // M3b (VISION_PLAN 15.14): a building is painted from its BLUEPRINT and nothing else. The builder (rpg/build/
 // blueprint.h: bld::design, or bldgBlueprint(Bldg) in rpg/sim/world.h) decides form, massing, storeys, roofs,
