@@ -374,6 +374,55 @@ bool partTagged(int part, const char* tag) {
   for (uint16_t t : P.parts[(size_t)part].tags) if (P.s(t) == tag) return true;
   return false;
 }
+static_assert(kClipNoPlant == pool::kNoPlant, "ClipPlant mirrors the pool's no-plant mark");
+std::vector<ClipInfo> clipsOf(const std::string& bodyKey, RigPart part) {
+  const pool::Pool& P = pool::get();
+  const uint16_t own = P.strId(bodyKey);
+  std::vector<ClipInfo> out;
+  for (const pool::ClipRec* c : pool::clipsOf(bodyKey, pool::poolPart(part), -1, -1)) {
+    ClipInfo i;
+    i.body = c->body; i.clip = c->clip; i.part = c->part; i.facing = c->facing; i.family = c->family; i.variant = c->variant;
+    i.posture = c->posture; i.cycle16 = c->cycle16; i.firstFrame = c->firstFrame; i.nFrames = c->nFrames; i.when = c->when;
+    i.own = own != 0xFFFF && c->body == own;
+    for (uint32_t k = 0; k < c->nFrames && c->firstFrame + k < P.frames.size(); k++)
+      i.plants.push_back(ClipPlant{P.frames[c->firstFrame + k].plant0, P.frames[c->firstFrame + k].plant1});
+    out.push_back(std::move(i));
+  }
+  return out;
+}
+int clipsOfCheck(std::vector<std::string>* bad) {
+  const pool::Pool& P = pool::get();
+  std::vector<uint16_t> keys;
+  for (const pool::ClipRec& c : P.clips)
+    if (std::find(keys.begin(), keys.end(), c.body) == keys.end()) keys.push_back(c.body);
+  int n = 0;
+  auto miss = [&](const std::string& key, int part, size_t k, const char* what) {
+    if (bad) bad->push_back(key + " part " + std::to_string(part) + " clip " + std::to_string(k) + ": " + what);
+  };
+  for (uint16_t id : keys) {
+    const std::string& key = P.s(id);
+    for (int p = 0; p < (int)RigPart::COUNT; p++) {
+      const std::vector<const pool::ClipRec*> want = pool::clipsOf(key, pool::poolPart((RigPart)p), -1, -1);
+      const std::vector<ClipInfo> got = clipsOf(key, (RigPart)p);
+      n++;
+      if (got.size() != want.size()) { miss(key, p, 0, "count"); continue; }
+      for (size_t k = 0; k < want.size(); k++) {
+        const pool::ClipRec& w = *want[k];
+        const ClipInfo& g = got[k];
+        if (g.body != w.body || g.clip != w.clip || g.part != w.part || g.facing != w.facing || g.family != w.family ||
+            g.variant != w.variant || g.posture != w.posture || g.cycle16 != w.cycle16 || g.firstFrame != w.firstFrame ||
+            g.nFrames != w.nFrames || g.when != w.when || g.own != (w.body == id) || g.plants.size() != w.nFrames) {
+          miss(key, p, k, "fields");
+          continue;
+        }
+        for (uint32_t f = 0; f < w.nFrames; f++)
+          if (g.plants[f].plant0 != P.frames[w.firstFrame + f].plant0 || g.plants[f].plant1 != P.frames[w.firstFrame + f].plant1)
+            miss(key, p, k, "plants");
+      }
+    }
+  }
+  return n;
+}
 
 }  // namespace doll
 }  // namespace art
