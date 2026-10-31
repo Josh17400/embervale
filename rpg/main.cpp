@@ -115,6 +115,7 @@
 #include "rpg/world/source.h"
 
 #include "rpg/app/app.h"
+#include "rpg/app/save_store.h"
 
 #ifdef EMB_WITNESS
 #include <map>
@@ -125,12 +126,10 @@
 #endif
 
 namespace {
-std::string g_savePath;
 void newWorld(Game& g, uint64_t s) {
   g.newEndlessGame(s);
   if (!g.streamThreads) g.world.streamer.reset();   // (Witness) no prefetch worker: every chunk is made on demand, in order
 }
-int g_savesWritten = 0;   // saves written this session (the Witness snapshot reports it: a harness run never writes one)
 
 // every event the game pushes itself (a script's or the harness's keys, clicks and fingers) goes through pushEvent.
 // (Witness watch mode, WITNESS_WATCH=1) the window is shown, but only that injected input may reach gameplay: the
@@ -156,40 +155,6 @@ bool SDLCALL realInputFilter(void*, SDL_Event* e) {
   }
 }
 
-bool readSave(std::vector<uint8_t>& out) {
-  if (g_savePath.empty()) return false;
-  FILE* f = std::fopen(g_savePath.c_str(), "rb");
-  if (!f) return false;
-  std::fseek(f, 0, SEEK_END);
-  long n = std::ftell(f);
-  std::fseek(f, 0, SEEK_SET);
-  if (n <= 0 || n > 16 * 1024 * 1024) { std::fclose(f); return false; }
-  out.resize((size_t)n);
-  size_t got = std::fread(out.data(), 1, out.size(), f);
-  std::fclose(f);
-  return got == out.size();
-}
-void writeSave(const Game& g) {
-  if (g_savePath.empty() || g.mode == Mode::Title || g.mode == Mode::Creator) return;   // the creator saves when done
-  // (M2 fixer round 2) never mid-journey: the fare (or a death's lost gold and full health) is taken when the journey
-  // begins but the move happens at the arrival, and the journey is not saved, so a save on the road kept the cost and
-  // left the hero where they started. The last save (from before the journey) stands; the next one follows the arrival.
-  if (g.travelling()) return;
-  std::vector<uint8_t> buf;
-  g.serialize(buf);
-  std::string tmp = g_savePath + ".tmp";
-  if (FILE* f = std::fopen(tmp.c_str(), "wb")) {
-    std::fwrite(buf.data(), 1, buf.size(), f);
-    std::fclose(f);
-    std::remove(g_savePath.c_str());
-    std::rename(tmp.c_str(), g_savePath.c_str());
-    g_savesWritten++;
-  }
-#ifdef __EMSCRIPTEN__
-  // persist the in-memory file system to IndexedDB (mounted at /save by the web shell)
-  EM_ASM(FS.syncfs(false, function(err) { if (err) console.log('save sync failed', err); }););
-#endif
-}
 
 #ifdef __EMSCRIPTEN__
 // (P2a) a whole-number query parameter of the page's URL (?rig=2: the owner's preview of the v2 people); 0 when absent
@@ -384,22 +349,6 @@ void AppSetup::witnessFlags(int argc, char** argv) {
 
 App::App(AppSetup s, Pix& p, Audio& a, Game& g, View& v) : AppSetup(std::move(s)), pix(p), audio(a), game(g), view(v) {}
 
-void App::probeSave() {
-  hasSave = false;
-  if (!noSave || (saveOverride && *saveOverride)) {
-    std::vector<uint8_t> buf;
-    if (readSave(buf) && !buf.empty()) {
-      Game probe(1);
-      hasSave = probe.deserialize(buf);
-      int v = Game::saveVersion(buf);
-      // owner, 2026-10-04: old saves are not carried over; say so instead of silently starting fresh (a damaged or
-      // newer file gets a notice too: it is never loaded, and the next save replaces it)
-      if (!hasSave && ((v > 0 && v < Game::currentSaveVersion()) || Game::saveFromOlderGenerator(buf))) view.titleNote = "THIS SAVE IS FROM AN OLDER VERSION - START A NEW ADVENTURE";
-      else if (!hasSave) view.titleNote = "THIS SAVE COULD NOT BE LOADED - START A NEW ADVENTURE";
-    }
-  }
-  if (noSave) hasSave = false;   // (the override above only shows the title's notice; a test run never continues it)
-}
 
 
 void App::startNew(uint64_t s) {
@@ -2210,11 +2159,7 @@ int main(int argc, char** argv) {
   SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
   SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) { SDL_Log("SDL_Init failed: %s", SDL_GetError()); return 1; }
-#ifdef __EMSCRIPTEN__
-  g_savePath = "/save/save.bin";
-#else
-  if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { g_savePath = std::string(pref) + "save.bin"; SDL_free(pref); }
-#endif
+  g_savePath = userFilePath("save.bin");
   if (s.scripted || s.witness) g_savePath.clear();   // belt and braces: a script or harness never reads or writes the real save
   // test hook: read the title's save from another file (e.g. an old-format save, to see the title's notice). Test runs
   // (--shot, --play, --seed) still never write it.
@@ -2273,11 +2218,7 @@ int main(int argc, char** argv) {
   s.touchUIStart = view.touchUI;   // (a Witness reset puts it back: a test's finger turns the controls on)
   {   // M1: screen fit and the player's settings (a small file of its own next to the save; scripts use defaults)
     std::string settingsPath;
-#ifdef __EMSCRIPTEN__
-    settingsPath = "/save/settings.bin";
-#else
-    if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { settingsPath = std::string(pref) + "settings.bin"; SDL_free(pref); }
-#endif
+    settingsPath = userFilePath("settings.bin");
     if (s.scripted || s.witness) settingsPath.clear();
     // (Witness, WITNESS_RECORD) the canvas pinned at 480 x 270: EMB_SCREEN / EMB_BORDER / EMB_HUD / EMB_SAFE and the
     // settings file never change what a run sees (the canvas size feeds the NPC sleep box: Game::sleepHalfW)
