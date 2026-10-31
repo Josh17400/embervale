@@ -14,7 +14,7 @@
 #include <set>
 #include <string>
 #include "rpg/sim/foes.h"
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 

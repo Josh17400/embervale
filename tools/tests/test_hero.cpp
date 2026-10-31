@@ -14,14 +14,7 @@
 #include "tools/tests/tests.h"
 
 #include "rpg/culture/culture.h"
-
-// M3 (people lane): the census (rpg/sim/looks.cpp) and the hero's appearance look (rpg/sim/player.cpp)
-namespace census {
-struct Rank { bool royal = false, capital = false; };
-void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner,
-           uint64_t seed, const Rank& rank);
-}  // namespace census
-art::HumanLook appearanceLook(const Appearance& a, const cult::Culture* home);
+#include "rpg/sim/looks.h"
 
 namespace {
 

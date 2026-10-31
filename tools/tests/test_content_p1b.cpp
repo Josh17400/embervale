@@ -29,7 +29,7 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"

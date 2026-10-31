@@ -16,7 +16,7 @@
 #include <set>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/sim/gear.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"

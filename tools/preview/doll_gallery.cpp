@@ -69,13 +69,8 @@
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/world.h"
+#include "rpg/sim/looks.h"
 #include "tools/preview/rig_preview.h"
-
-namespace census {
-struct Rank { bool royal = false, capital = false; };
-void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner, uint64_t seed,
-           const Rank& rank);
-}  // namespace census
 
 namespace {
 namespace doll = art::doll;

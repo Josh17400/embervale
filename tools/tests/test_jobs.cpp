@@ -21,7 +21,7 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/radiant.h"
