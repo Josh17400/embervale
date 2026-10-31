@@ -558,6 +558,27 @@ int findPart(const std::string& name);   // -1: none
 bool partHasRole(int part, Role role, const std::string& value);
 bool partServes(int part, BodySet b);
 bool partTagged(int part, const char* tag);
+// (SOLID 2a.5) a pool clip as other lanes read it (anim.cpp's elder walk) without doll_internal.h: pool::ClipRec's
+// fields as recorded, `own` (the clip is the body key's own set's, not the base set's it falls back to) and every frame's
+// plant anchors (x 16; kClipNoPlant: none)
+constexpr int16_t kClipNoPlant = -32768;   // == pool::kNoPlant
+struct ClipPlant { int16_t plant0 = kClipNoPlant, plant1 = kClipNoPlant; };
+struct ClipInfo {
+  uint16_t body = 0;   // the pool string id of the clip's body set
+  uint8_t clip = 0, part = 0, facing = 0, family = 255, variant = 0, posture = 255;   // 255: none
+  uint16_t cycle16 = 0;
+  uint32_t firstFrame = 0;
+  uint16_t nFrames = 0;
+  uint16_t when = 0;
+  bool own = false;
+  std::vector<ClipPlant> plants;   // nFrames entries
+};
+// pool::clipsOf(bodyKey, part, -1, -1) as ClipInfo, in the same order: the clips of a body key ("man.elder") for a RigPart,
+// the modifier set's first, then the base set's; no recipe, so conditioned clips are skipped
+std::vector<ClipInfo> clipsOf(const std::string& bodyKey, RigPart part = RigPart::Loco);
+// (test hook: rpg_test --doll-clips) compares clipsOf with pool::clipsOf record by record (every field, every frame's
+// plants) for every body key the pool's clips name and every RigPart; returns the comparisons made, each mismatch in *bad
+int clipsOfCheck(std::vector<std::string>* bad);
 
 }  // namespace doll
 }  // namespace art
