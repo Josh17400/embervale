@@ -2,6 +2,7 @@
 // helpers (inline) and the prototypes that link builder.cpp, build_geom.cpp, build_forms.cpp, build_culture.cpp and
 // build_finish.cpp. Include only from rpg/build/build*.cpp; the public face is blueprint.h.
 #pragma once
+#include "rpg/art/art_building.h"   // BLDG_PAD_X / BLDG_PAD_B (the sprite margins the finish pass keeps inside)
 #include "rpg/build/blueprint.h"
 #include <algorithm>
 #include <cstdint>

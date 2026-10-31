@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/world/settlement.h"
 #include "rpg/world/town_plan.h"
 

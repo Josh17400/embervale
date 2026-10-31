@@ -10,7 +10,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "rpg/art/art_building.h"
+#include "rpg/core/art_ids.h"
 #include "rpg/culture/culture.h"
 
 namespace cult {

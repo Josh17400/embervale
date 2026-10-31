@@ -11,7 +11,7 @@
 // GROUND lane owns this header and rpg/build/parts*.cpp and may APPEND fields / enum values.
 #pragma once
 #include <cstdint>
-#include "rpg/art/art_building.h"
+#include "rpg/core/art_ids.h"
 #include "rpg/culture/culture.h"
 
 namespace bld {
