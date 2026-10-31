@@ -22,7 +22,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "rpg/sim/game_internal.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 #include "rpg/story/saga.h"

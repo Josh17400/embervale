@@ -16,7 +16,8 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/monster_stats.h"   // monsterName (SOLID 2b.2: was game_internal.h)
+#include "rpg/sim/sim_text.h"        // monsterPlural
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/party_voice.h"
@@ -24,6 +25,8 @@
 #include "rpg/world/dmath.h"
 #include "rpg/world/poi.h"
 #include "rpg/world/source.h"
+using gsim::monsterName;     // (SOLID 2b.2) game_internal.h brought these in with its `using namespace gsim`
+using gsim::monsterPlural;
 
 namespace story {
 

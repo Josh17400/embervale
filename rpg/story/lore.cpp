@@ -17,7 +17,6 @@
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
 
