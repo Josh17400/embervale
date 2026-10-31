@@ -10,7 +10,7 @@
 //   - the player's own march (a conquest) is watched here too: its end told, the conquest adopted by lord_game.cpp.
 #include <algorithm>
 #include <cmath>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/lord_ops.h"
 #include "rpg/sim/service.h"

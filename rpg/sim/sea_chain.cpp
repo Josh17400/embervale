@@ -14,7 +14,7 @@
 // done for them raises it by 15 (questDone), so three or four of their jobs make the hero a friend (25).
 #include "rpg/sim/sea_ops.h"
 
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 
 #include <algorithm>
 #include <cmath>

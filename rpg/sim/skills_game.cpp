@@ -12,7 +12,7 @@
 #include <iterator>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"

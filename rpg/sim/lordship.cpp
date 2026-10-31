@@ -3,7 +3,7 @@
 #include "rpg/sim/lordship.h"
 #include <algorithm>
 #include <cmath>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/world.h"
 
 namespace lord {

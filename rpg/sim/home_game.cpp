@@ -20,7 +20,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/game_internal.h"

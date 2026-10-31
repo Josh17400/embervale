@@ -15,7 +15,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"

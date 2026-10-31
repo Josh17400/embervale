@@ -14,7 +14,7 @@
 #include "rpg/art.h"
 #include "rpg/sim/appearance.h"
 #include "rpg/sim/backgrounds.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"

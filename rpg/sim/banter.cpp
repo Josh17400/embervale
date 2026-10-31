@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"

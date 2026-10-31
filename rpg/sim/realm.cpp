@@ -12,7 +12,7 @@
 #include <cstring>
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/world/source.h"
 
 namespace realm {

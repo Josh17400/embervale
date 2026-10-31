@@ -28,7 +28,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 
 // A staircase on this floor. (x, y) is the trigger tile; (ax, ay) is where the player stands after arriving on this
 // floor through it (a free floor tile next to it, never the trigger itself). x < 0: none.

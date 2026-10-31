@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <initializer_list>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/life.h"
 
 namespace census {   // (P2b FOLK-SIM, rpg/sim/looks.cpp) the doll's look fields and the census age on a look

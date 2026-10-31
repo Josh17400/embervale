@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 #include "rpg/culture/culture.h"
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"

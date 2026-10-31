@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/world/ids.h"
 
 class Game;

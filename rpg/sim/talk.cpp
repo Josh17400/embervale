@@ -6,7 +6,7 @@
 #include <set>
 #include <utility>
 #include "engine/font5x7.h"
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 #include "rpg/sim/game.h"
 
 namespace speech {

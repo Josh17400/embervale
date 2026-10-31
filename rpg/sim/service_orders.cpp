@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/service_ops.h"
 #include "rpg/sim/war.h"

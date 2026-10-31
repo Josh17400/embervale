@@ -2,7 +2,7 @@
 // the lead).
 #include "rpg/sim/service.h"
 #include <algorithm>
-#include "rpg/sim/common.h"
+#include "rpg/core/common.h"
 
 namespace service {
 namespace {
