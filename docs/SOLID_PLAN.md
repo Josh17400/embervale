@@ -1021,6 +1021,7 @@ code item that fails twice goes to engineer-high. Each wave gets at most 4 judge
 - D4: wave 5 runs tests on every branch and pull request; deploy stays main-only.
 - D5: no optional items for now.
 - D7: the usual ship routine after each wave that passes the judge.
+- D1 (2026-10-31, after wave 2 shipped at a2cd551): the owner approved waves 3-5 ("yeah continue on").
 
 ---
 
