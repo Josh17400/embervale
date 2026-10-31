@@ -1,7 +1,7 @@
 // World records: the plain data the world generator and the sim share (MapKind, SiteType, Role, Bldg, Site, Kingdom,
 // Spawn, Den, the WORLDGEN_* versions and the Map bit constants), plus siteTypeName and the generator constant
 // bldgRiseTiles (art vocabulary only). No logic that calls into build or the painters: those helpers (bldgRequest,
-// bldgBlueprint, bldgArch...) and Map / World stay in rpg/sim/world.h, which includes this.
+// bldgBlueprint, bldgArch...) and Map are in rpg/world/map.h, World in rpg/sim/world.h; both include this.
 // Any layer from world/ up may include it (SOLID 2a.3); it includes rpg/core and rpg/world only (SOLID 2c).
 #pragma once
 #include <algorithm>
