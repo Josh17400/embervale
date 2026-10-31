@@ -70,6 +70,14 @@ enum or a plain struct that still lives beside its painter (never to call a pain
 | `rpg/sim/anim.h`, `rpg/sim/life_ops.h`, `rpg/sim/gear_look.cpp`, `rpg/sim/looks.cpp` | `rpg/art/art_rig.h` (+ `art_fx.h` in `anim.h`, `art_rise.h` in `looks.cpp`) | `art::rigVersion`, clip and fx ids |
 | `rpg/sim/party_graves.cpp` | `rpg/art/art_party.h` | `art::GraveLook`, `art::HoundLook` (forward-declared in `game.h`) |
 | `rpg/sim/foes.h`, `rpg/sim/gear_ladder.h`, `rpg/sim/gear_look.h`; `rpg/story/dsl.cpp` | `rpg/art.h` (all painters) | not yet narrowed: the next trim's candidates |
+| `rpg/sim/anim.cpp` | `rpg/art/doll/doll.h` | the clip and gait tables: `doll::clipsOf`, `doll::walkTable`, `doll::WalkTable`, `doll::BodySet`, `doll::Gait`, `doll::ClipInfo`, `doll::kGaitSwitch`, `doll::kClipNoPlant` |
+| `rpg/sim/gear_ladder.cpp` | `rpg/art/doll/doll.h`, `rpg/art/doll/doll_envelope.h`, `rpg/art/doll/doll_forge.h` | `doll::alloyRamp`, `doll::alloyFamilyAt`, `doll::setLookSpecHook` (doll.h); `doll::fixOn` and the `FIX_*` rule bits (doll_envelope.h); the `doll::forge` axis vocabulary (doll_forge.h) |
+| `rpg/sim/gear_forge.cpp` | `rpg/art/doll/doll_forge.h` | the `doll::forge` axis vocabulary |
+| `rpg/sim/gear_look.cpp` | `rpg/art/doll/doll.h` | `doll::hairVariants` |
+| `rpg/sim/looks.cpp` | `rpg/art/doll/doll_envelope.h`, `rpg/art/doll/doll_forge.h` | `doll::fixOn(FIX_KING)` (doll_envelope.h); the `doll::forge` axis vocabulary (doll_forge.h) |
+
+The doll rows are table and look queries (clip lists, walk tables, alloy ramps, hair counts, the forge axes and fix-rule
+bits); none of them paints.
 
 A new sim file uses `rpg/core/art_ids.h`; one that needs another painter header adds a row here in the same change.
 
