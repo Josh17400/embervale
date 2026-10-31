@@ -10,7 +10,7 @@
 // it asks the lead / main session); the classification function is in rpg/build/registry.cpp.
 #pragma once
 #include <cstdint>
-#include "rpg/art/art_building.h"
+#include "rpg/core/art_ids.h"
 #include "rpg/art/art_props.h"
 
 namespace bld {

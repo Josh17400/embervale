@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <vector>
 #include "rpg/culture/culture.h"
-#include "rpg/sim/world.h"
+#include "rpg/world/records.h"
 
 namespace ew {
 
