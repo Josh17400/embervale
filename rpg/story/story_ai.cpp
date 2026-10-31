@@ -7,7 +7,7 @@
 #include <map>
 #include <set>
 #include <string>
-#include "engine/audio.h"
+#include "engine/sound_ids.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/sim/talk.h"
