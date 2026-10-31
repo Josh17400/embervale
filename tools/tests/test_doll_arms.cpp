@@ -41,6 +41,7 @@
 #include "rpg/art.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_internal.h"
+#include "tools/tests/doll_test_common.h"
 #include "tools/tests/tests.h"
 
 using art::Clip;
@@ -1122,7 +1123,7 @@ HumanLook a3Woman() {
   return L;
 }
 
-struct Look { std::string tag; int who = 0; std::string spec; std::vector<std::string> gaits; };
+using dolltest::Look;   // (doll_test_common.h)
 std::vector<Look> parseLooks(const std::string& text) {
   std::vector<Look> v;
   size_t a = 0;
@@ -2346,7 +2347,7 @@ int dollArmsGates(bool report, std::vector<std::string>& printed) {
   }
   return fails;
 }
-std::string dollForgeLooksText();   // test_doll_forge.cpp: tools/doll/forge_looks.txt (embedded)
+RPG_DOLL_GATE(10, "arms", dollArmsGates);   // runs before the B table
 // (P2c forge) the gates' matrix: the ladder looks, then the forge looks whose tags the ladder file lacks
 std::string dollSliceLooksText() {
   std::string out = dollarms::kSliceLooks;

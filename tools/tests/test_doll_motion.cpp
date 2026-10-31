@@ -28,6 +28,7 @@
 #include "rpg/art/art_human.h"
 #include "rpg/art/art_rig.h"
 #include "rpg/art/doll/doll_internal.h"
+#include "tools/tests/doll_test_common.h"
 
 namespace dollmotion {
 namespace doll = art::doll;
@@ -2977,7 +2978,6 @@ int selftestAll(bool report) {
 
 }  // namespace cp
 
-void setMapsRoot(const std::string& dir);   // (test_doll.cpp's --maps)
 void setMapsRoot(const std::string& dir) { cp::g_maps = dir; cp::g_pxm.clear(); }
 
 void limbsChecks(const LookFrames& f, std::vector<Fail>& out, bool report) {

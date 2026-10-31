@@ -105,29 +105,9 @@
 #include "rpg/sim/gear_look.h"
 #include "rpg/sim/life.h"
 #include "tools/tests/doll_motion.h"
+#include "tools/tests/doll_test_common.h"   // the census, the other doll files' entry points, the gate registry
 #include "tools/tests/tests.h"
 
-namespace dollmotion { void setMapsRoot(const std::string& dir); }   // test_doll_motion.cpp (--maps)
-
-namespace census {
-struct Rank { bool royal = false, capital = false; };
-void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner, uint64_t seed,
-           const Rank& rank);
-}  // namespace census
-
-// (P2c SLICE-DOLL) the gear gates C3-C6 and the slice looks (test_doll_arms.cpp)
-int dollArmsGates(bool report, std::vector<std::string>& printed);
-std::string dollSliceLooksText();
-int dollLadderGates(bool report, std::vector<std::string>& printed);   // test_doll_ladder.cpp
-int dollLadderCoverage(int argc, char** argv);   // test_doll_ladder.cpp: --doll-coverage --scope ladder (C1 source L)
-std::vector<std::pair<std::string, art::HumanLook>> dollSpecLooks(const std::string& text);   // test_doll_envelope.cpp (D79)
-std::string dollSourceLText(int a, int b);
-std::string dollSliceLooksText();   // test_doll_arms.cpp
-std::string dollArmsLooksText();    // test_doll_arms.cpp
-int dollForgeGates(bool report, std::vector<std::string>& printed);   // test_doll_forge.cpp: C16 a b c s, C17, C1 F, C12a
-int dollForgeCoverage(int argc, char** argv);   // test_doll_forge.cpp: --doll-coverage --scope forge
-int dollEnvelopeGates(bool report, std::vector<std::string>& printed);   // test_doll_envelope.cpp: C12f C3b C13 B10 by tier, C19
-int dollEnvelopeCoverage(int argc, char** argv);   // test_doll_envelope.cpp: --doll-coverage --scope envelope
 namespace {
 
 using art::HumanLook;
@@ -1873,24 +1853,21 @@ int dollCmd(int argc, char** argv) {
     gateRamps(rp);
     gateLegs(b11);
     gateLimbs(b11l, b12, b11w, b11s);
-    std::vector<std::string> armsLines;
-    const int armsFails = dollArmsGates(g_report, armsLines);   // (P2c) C3 gear, C4 armour change, C5 families, C6 weapons
-    std::vector<std::string> ladderLines;
-    const int ladderFails = dollLadderGates(g_report, ladderLines);   // (P2c ladder) C12 C13 C14 and their selftests
+    // (SOLID 1.7) the other files' gates from the RPG_DOLL_GATE registry (doll_test_common.h), in key order: (P2c) arms
+    // C3-C6 and (P2c ladder) C12-C14 run before the table below, (P2c forge) C16 C17 C1-F C12a and (P2c envelope) C12f
+    // C3b B10-by-tier C13 C19 after it; every gate's lines print after the table
+    const std::vector<DollGate> reg = sortedDollGates(&gateFails);
+    std::vector<std::vector<std::string>> regLines(reg.size());
+    for (size_t i = 0; i < reg.size(); i++)
+      if (reg[i].order < kDollGateAfterTable) gateFails += reg[i].run(g_report, regLines[i]);
     for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp, &b11, &b11l, &b11w, &b12, &b11s}) {
       std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g->fails ? "FAIL:" : "ok   ", g->id, g->checks, g->fails, g->fails ? "; first: " : "", g->first.c_str());
       gateFails += g->fails ? 1 : 0;
     }
-    for (const std::string& l : armsLines) std::printf("%s\n", l.c_str());
-    gateFails += armsFails;
-    for (const std::string& l : ladderLines) std::printf("%s\n", l.c_str());
-    gateFails += ladderFails;
-    std::vector<std::string> forgeLines;
-    gateFails += dollForgeGates(g_report, forgeLines);   // (P2c forge) C16 a b c s, C17, C1 source F, C12a restated
-    for (const std::string& l : forgeLines) std::printf("%s\n", l.c_str());
-    std::vector<std::string> envLines;
-    gateFails += dollEnvelopeGates(g_report, envLines);   // (P2c envelope) C12f, C3b and B10 by tier, C13 drawn motion, C19
-    for (const std::string& l : envLines) std::printf("%s\n", l.c_str());
+    for (size_t i = 0; i < reg.size(); i++) {
+      if (reg[i].order >= kDollGateAfterTable) gateFails += reg[i].run(g_report, regLines[i]);
+      for (const std::string& l : regLines[i]) std::printf("%s\n", l.c_str());
+    }
   }
   art::setRigVersion(was);
   const int bad = g_contract + gateFails;

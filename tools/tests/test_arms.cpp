@@ -21,12 +21,6 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
 
-// the icon painters (before P2a rpg_test linked rpg_sim only and test_hero.cpp compiled art_core and art_human in;
-// P2a links rpg_art and defines EMB_RPG_TEST_HAS_ART)
-#ifndef EMB_RPG_TEST_HAS_ART
-#include "rpg/art/art_items.cpp"
-#endif
-
 namespace {
 
 int g_bad = 0;
