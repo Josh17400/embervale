@@ -11,6 +11,7 @@
 // The ANIM lane owns anim.cpp; the view (rpg/view/render_anim.cpp) draws what it picks.
 #pragma once
 #include <cstdint>
+#include "engine/mathx.h"
 #include "rpg/art/art_fx.h"
 #include "rpg/art/art_rig.h"
 

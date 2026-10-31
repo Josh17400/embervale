@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/core/art_ids.h"
 #include "rpg/culture/style.h"
 

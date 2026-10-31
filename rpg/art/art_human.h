@@ -1,7 +1,7 @@
 // EMBERVALE art API: humans (painted in art_human.cpp). Part of rpg/art.h (include that).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/core/art_ids.h"
 
 namespace art {

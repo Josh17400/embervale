@@ -10,7 +10,7 @@
 // sprites (the renderer draws them).
 #pragma once
 #include <cstdint>
-#include "engine/pix.h"
+#include "engine/canvas.h"
 #include "rpg/core/art_ids.h"
 #include "engine/music_style.h"
 #include "rpg/art/art_human.h"
