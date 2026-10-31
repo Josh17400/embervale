@@ -23,7 +23,7 @@
 #include <cstdlib>
 #include <string>
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/skills.h"
@@ -50,7 +50,7 @@ bool skillWord(const std::string& w, skills::Skill& out) {
 bool monsterWord(const std::string& w, art::Monster& out) {
   const std::string q = squashSk(w);
   for (int m = 0; m < (int)art::Monster::COUNT; m++) {
-    const std::string n = squashSk(monsterName((art::Monster)m));
+    const std::string n = squashSk(gsim::monsterName((art::Monster)m));
     if (q == n) { out = (art::Monster)m; return true; }
   }
   return false;

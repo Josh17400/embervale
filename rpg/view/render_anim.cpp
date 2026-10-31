@@ -12,7 +12,7 @@
 #include "rpg/art/art_sea.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/gear_look.h"
-#include "rpg/story/story_internal.h"
+#include "rpg/story/story_api.h"
 #include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
 
