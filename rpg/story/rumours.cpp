@@ -13,9 +13,10 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
-#include "rpg/sim/game_internal.h"
+#include "rpg/sim/sim_text.h"   // dirWord (SOLID 2b.2: was game_internal.h)
 #include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
+using gsim::dirWord;   // (SOLID 2b.2) game_internal.h brought it in with its `using namespace gsim`
 
 namespace story {
 
