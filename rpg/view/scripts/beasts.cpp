@@ -25,15 +25,12 @@
 #include "rpg/sim/game.h"
 #include "rpg/story/dsl.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 
 void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& ms);   // render.cpp
 
 namespace {
 
-std::string low(std::string s) {
-  for (char& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32);
-  return s;
-}
 
 struct BeastArgs {
   int n = 1;

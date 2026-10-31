@@ -20,6 +20,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 
 namespace census {
 struct Rank { bool royal = false, capital = false; };
@@ -29,7 +30,6 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
 
 namespace {
 
-uint32_t hexc(uint32_t rgb) { return rgba((int)(rgb >> 16 & 255), (int)(rgb >> 8 & 255), (int)(rgb & 255)); }
 uint32_t parseHex(const std::string& s) { return hexc((uint32_t)std::strtoul(s.c_str(), nullptr, 16)); }
 
 // the slice's covered values only: everything else a census look may carry is cleared

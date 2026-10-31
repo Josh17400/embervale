@@ -26,25 +26,11 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-// loaded settlements, nearest to the player first
-std::vector<int> nearestSettlements(Game& g) {
-  std::vector<std::pair<float, int>> d;
-  const float px = g.pl().p.x / TILE, py = g.pl().p.y / TILE;
-  for (size_t i = 0; i < g.world.sites.size(); i++) {
-    const Site& s = g.world.sites[i];
-    if (!s.settlement()) continue;
-    const float dx = s.ex - px, dy = s.ey - py;
-    d.push_back({dx * dx + dy * dy, (int)i});
-  }
-  std::sort(d.begin(), d.end());
-  std::vector<int> out;
-  for (auto& e : d) out.push_back(e.second);
-  return out;
-}
 ew::Gid ownerOf(Game& g, const Site& s) { return s.kingdom >= 0 ? g.world.kingdoms[(size_t)s.kingdom].id : 0; }
 ew::Gid homeOf(Game& g, const Site& s) { return s.homeKingdom >= 0 ? g.world.kingdoms[(size_t)s.homeKingdom].id : 0; }
 // a kingdom of the realm other than `not` (the nearest by seat)

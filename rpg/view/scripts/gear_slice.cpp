@@ -29,11 +29,11 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear_ladder.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"   // (envelope fix r2) View::settleBakes and draw: what `settle` waits on
 
 namespace {
 
-uint32_t hexc(uint32_t rgb) { return rgba((int)(rgb >> 16 & 255), (int)(rgb >> 8 & 255), (int)(rgb & 255)); }
 
 void a3Hero(art::HumanLook& L) {
   art::HumanLook n;

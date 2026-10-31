@@ -34,6 +34,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/war.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"
 #include "rpg/world/source.h"
 
@@ -41,20 +42,6 @@ namespace {
 
 float g_markAtk = -1, g_markDef = -1;
 
-std::vector<int> nearestSettlements(Game& g) {
-  std::vector<std::pair<float, int>> d;
-  const float px = g.pl().p.x / TILE, py = g.pl().p.y / TILE;
-  for (size_t i = 0; i < g.world.sites.size(); i++) {
-    const Site& s = g.world.sites[i];
-    if (!s.settlement()) continue;
-    const float dx = s.ex - px, dy = s.ey - py;
-    d.push_back({dx * dx + dy * dy, (int)i});
-  }
-  std::sort(d.begin(), d.end());
-  std::vector<int> out;
-  for (auto& e : d) out.push_back(e.second);
-  return out;
-}
 // teleport onto the free tile nearest (tx, ty) (window tiles); never onto a doorstep
 void standAt(Game& g, int tx, int ty) {
   g.teleportGlobal(g.world.ox + tx, g.world.oy + ty);

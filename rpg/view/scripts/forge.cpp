@@ -21,15 +21,12 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/scripts/script_util.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/source.h"
 
 namespace {
 
-std::string up(std::string s) {
-  for (char& ch : s) if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 32);
-  return s;
-}
 
 int recipeIndex(const Game& g, const std::string& id) {
   for (size_t i = 0; i < g.bench.recipes.size(); i++) if (g.bench.recipes[i].id == id) return (int)i;

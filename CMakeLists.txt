@@ -127,7 +127,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/sim/game.cpp)
   endif()
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/main.cpp AND TARGET rpg_art)
-  file(GLOB RPG_VIEW CONFIGURE_DEPENDS rpg/view/*.cpp)
+  file(GLOB RPG_VIEW CONFIGURE_DEPENDS rpg/view/*.cpp rpg/view/scripts/*.cpp)   # scripts/: the test commands register themselves, so they stay sources of the executable (never a static library)
   add_executable(embervale WIN32 rpg/main.cpp ${RPG_VIEW})
   target_link_libraries(embervale PRIVATE rpg_sim rpg_art engine)
   # Witness (engine/witness.h): a test harness drives the game headless over a local socket when it is started with
