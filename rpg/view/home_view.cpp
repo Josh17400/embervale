@@ -66,23 +66,23 @@ int houseStage(const home::Plot& p, home::Obj kind) {
 }
 }  // namespace
 
-void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
-  homeLights_.clear();
+void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
+  home_.homeLights_.clear();
   if (g.home.plots.empty()) return;
-  Pix& P = *v.pix_;
+  Pix& P = *pix_;
   // (a farm first seen paints ~60 sprites: they are spread over frames, ~3 ms of painting a frame; a piece not painted
   // yet waits a frame or two, the ghost and the building site never wait)
   double bakeMs = 0;
   auto tex = [&](uint64_t key, auto&& paint) -> const Tex& {
-    auto it = v.sprites_.homeTex_.find(key);
-    if (it != v.sprites_.homeTex_.end()) return it->second;
+    auto it = sprites_.homeTex_.find(key);
+    if (it != sprites_.homeTex_.end()) return it->second;
     const auto t0 = std::chrono::steady_clock::now();
-    const Tex& t = v.sprites_.homeTex_[key] = P.bake(paint());
+    const Tex& t = sprites_.homeTex_[key] = P.bake(paint());
     bakeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return t;
   };
   // ((Witness) every piece now: no picture may depend on CPU speed)
-  auto can = [&](uint64_t key) { return v.witness || bakeMs < 3.0 || v.sprites_.homeTex_.count(key) != 0; };
+  auto can = [&](uint64_t key) { return witness || bakeMs < 3.0 || sprites_.homeTex_.count(key) != 0; };
   const World& W = g.world;
   const home::Ui& U = g.home.ui;
   const bool building = g.mode == Mode::Build;
@@ -102,13 +102,13 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
     const Color tint = fits ? Color(0.62f, 1.0f, 0.62f, 0.8f) : Color(1.0f, 0.48f, 0.42f, 0.8f);
     for (int y = 0; y < h; y++)
       for (int x = 0; x < w; x++) {
-        HomeDraw c;
+        HomeView::HomeDraw c;
         c.ui = 1; c.tint = tint;
         c.x = (U.gx + x) * 16.0f; c.y = (U.gy + y) * 16.0f; c.sw = 16; c.sh = 16;
         c.sortY = 1e9f - 1;
-        homeDraws_.push_back(c);
+        home_.homeDraws_.push_back(c);
       }
-    HomeDraw d;
+    HomeView::HomeDraw d;
     d.tint = Color(tint.r, tint.g, tint.b, 0.82f);
     d.sortY = 1e9f;
     if (ok == home::Obj::Trophy || oi.prop == art::Prop::COUNT) {
@@ -117,13 +117,13 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
       d.tex = &t; d.sw = t.w; d.sh = t.h;
     } else {
       const art::Prop pr = oi.prop;
-      if ((int)pr >= (int)v.sprites_.props_.size()) return;
-      d.tex = &v.sprites_.props_[(size_t)pr];
-      d.sw = art::propW(pr); d.sh = v.sprites_.props_[(size_t)pr].h;
+      if ((int)pr >= (int)sprites_.props_.size()) return;
+      d.tex = &sprites_.props_[(size_t)pr];
+      d.sw = art::propW(pr); d.sh = sprites_.props_[(size_t)pr].h;
     }
     d.x = U.gx * 16.0f + w * 8.0f - d.sw / 2.0f;
     d.y = (U.gy + h) * 16.0f - d.sh;
-    homeDraws_.push_back(d);
+    home_.homeDraws_.push_back(d);
     return;
   }
   // ---------------------------------------------------------------- the yards in view
@@ -168,12 +168,12 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
           const uint64_t key = hkey(10, (uint64_t)joins | ((uint64_t)k << 4), (uint64_t)(uint32_t)tx & 0xFFFFFu, ((uint64_t)(uint32_t)ty & 0x3FFFu) << 42);
           if (!can(key)) continue;
           const Tex& t = tex(key, [&] { return art::yardGroundTile(joins, k - 1, tx, ty); });
-          HomeDraw d;
+          HomeView::HomeDraw d;
           d.sortY = -2e9f + (float)(ly + y);
           d.flat = true;
           d.tex = &t; d.sw = t.w; d.sh = t.h;
           d.x = wx; d.y = wy;
-          homeDraws_.push_back(d);
+          home_.homeDraws_.push_back(d);
         }
     }
     // ground edits: flats (drawn before the shadow pass)
@@ -195,12 +195,12 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
         if (!can(k == 1 ? hkey(1, joins, v) : hkey(2, joins, v, wet))) continue;
         const Tex& t = k == 1 ? tex(hkey(1, joins, v), [&] { return art::pathTile(joins, 0, v); })
                               : tex(hkey(2, joins, v, wet), [&] { return art::farmlandTile(joins, wet, v); });
-        HomeDraw d;
+        HomeView::HomeDraw d;
         d.sortY = -1e9f + (float)(ly + y);
         d.flat = true;
         d.tex = &t; d.sw = t.w; d.sh = t.h;
         d.x = wx; d.y = wy;
-        homeDraws_.push_back(d);
+        home_.homeDraws_.push_back(d);
       }
     // crops
     for (const home::CropRec& c : p.crops) {
@@ -208,7 +208,7 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
       const uint32_t v = (uint32_t)((p.gx + c.x) * 31 + (p.gy + c.y) * 17) & 7u;
       if (!can(hkey(3, c.kind, c.stage * 2u + (wilt ? 1u : 0u), v))) continue;
       const Tex& t = tex(hkey(3, c.kind, c.stage * 2u + (wilt ? 1u : 0u), v), [&] { return art::cropSprite((art::Crop)c.kind, c.stage, v, wilt); });
-      HomeDraw d;
+      HomeView::HomeDraw d;
       d.tex = &t; d.sw = t.w; d.sh = t.h;
       d.x = (lx + c.x) * 16.0f + 8.0f - t.w / 2.0f;
       d.y = (ly + c.y) * 16.0f + 16.0f - t.h;
@@ -218,7 +218,7 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
         d.shadow = 3;
         d.shw = 12; d.shh = 4; d.shx = (lx + c.x) * 16.0f + 4.0f; d.shy = (ly + c.y) * 16.0f + 12.0f; d.shA = 0.45f;
       }
-      homeDraws_.push_back(d);
+      home_.homeDraws_.push_back(d);
     }
     // yard objects
     auto objAt = [&](int x, int y, home::Obj a, home::Obj b) {
@@ -251,7 +251,7 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
       if (!can(hkey(4, (uint64_t)fa | styleKey << 8, L.joins | (L.turned ? 16u : 0u) | (uint64_t)L.stage << 5, L.variant))) continue;
       const Tex& t = tex(hkey(4, (uint64_t)fa | styleKey << 8, L.joins | (L.turned ? 16u : 0u) | (uint64_t)L.stage << 5, L.variant),
                          [&] { return art::farmObjSprite(L); });
-      HomeDraw d;
+      HomeView::HomeDraw d;
       d.tex = &t; d.sw = t.w; d.sh = t.h;
       d.x = bx + w * 8.0f - t.w / 2.0f;
       d.y = by - t.h;
@@ -274,33 +274,33 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
         // (M7 fix) thrown further down-right, out from under the sprite (it hid under the trough, the rack, the crate)
         d.shw = sw; d.shh = sh; d.shx = bx + w * 8.0f - sw / 2 + 5; d.shy = by - sh * 0.45f; d.shA = 0.78f;
       }
-      homeDraws_.push_back(d);
+      home_.homeDraws_.push_back(d);
       // lights: a lantern's flame and pool, a campfire's flicker (and its smoke)
       if (ok == home::Obj::Lantern && night) {
-        const float k = 0.9f + 0.1f * std::sin(v.t_ * 8 + o.x * 1.3f);
-        homeLights_.push_back({Vec2(bx + 8.0f, by - t.h + 6.0f), 30, Color(1.0f, 0.92f, 0.66f), 1.0f * k});
-        homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 88, Color(1.0f, 0.70f, 0.38f), 0.78f * k});
+        const float k = 0.9f + 0.1f * std::sin(t_ * 8 + o.x * 1.3f);
+        home_.homeLights_.push_back({Vec2(bx + 8.0f, by - t.h + 6.0f), 30, Color(1.0f, 0.92f, 0.66f), 1.0f * k});
+        home_.homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 88, Color(1.0f, 0.70f, 0.38f), 0.78f * k});
       } else if (ok == home::Obj::Forge && night) {
         // (M7 fix r3, review: "the yard forge gives no light at night") its fire bed (paintForge: on the hearth block
         // under the hood, left of the anvil) glows by night as it does by day
-        const float k = 0.85f + 0.15f * std::sin(v.t_ * 11 + o.x) * std::sin(v.t_ * 5.3f + o.y);
+        const float k = 0.85f + 0.15f * std::sin(t_ * 11 + o.x) * std::sin(t_ * 5.3f + o.y);
         const float fx = bx + 13.0f, fy = by - 30.0f;
-        homeLights_.push_back({Vec2(fx, fy), 26, Color(1.0f, 0.74f, 0.40f), 1.0f * k});
-        homeLights_.push_back({Vec2(fx, fy + 14.0f), 78, Color(1.0f, 0.50f, 0.22f), 0.6f * k});
+        home_.homeLights_.push_back({Vec2(fx, fy), 26, Color(1.0f, 0.74f, 0.40f), 1.0f * k});
+        home_.homeLights_.push_back({Vec2(fx, fy + 14.0f), 78, Color(1.0f, 0.50f, 0.22f), 0.6f * k});
       } else if (ok == home::Obj::Campfire) {
-        const float k = 0.82f + 0.18f * std::sin(v.t_ * 13 + o.y) * std::sin(v.t_ * 7.1f + o.x);
+        const float k = 0.82f + 0.18f * std::sin(t_ * 13 + o.y) * std::sin(t_ * 7.1f + o.x);
         if (night) {
-          homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 34, Color(1.0f, 0.78f, 0.42f), 0.95f * k});
-          homeLights_.push_back({Vec2(bx + 8.0f, by - 2.0f), 92, Color(1.0f, 0.55f, 0.25f), 0.62f * k});
+          home_.homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 34, Color(1.0f, 0.78f, 0.42f), 0.95f * k});
+          home_.homeLights_.push_back({Vec2(bx + 8.0f, by - 2.0f), 92, Color(1.0f, 0.55f, 0.25f), 0.62f * k});
         }
-        if (hashf((int)(v.t_ * 12), o.x * 7 + o.y, 77) < 0.18f && v.fx_.parts_.size() < 560) {   // a wisp of smoke, now and then
+        if (hashf((int)(t_ * 12), o.x * 7 + o.y, 77) < 0.18f && fx_.parts_.size() < 560) {   // a wisp of smoke, now and then
           Particle q;
-          q.p = Vec2(bx + 7.0f + hashf((int)(v.t_ * 31), o.x, 3) * 3, by - 10.0f);
-          q.v = Vec2(2.0f + hashf((int)(v.t_ * 17), o.y, 5) * 4, -10.0f - hashf((int)(v.t_ * 13), o.x, 9) * 4);
+          q.p = Vec2(bx + 7.0f + hashf((int)(t_ * 31), o.x, 3) * 3, by - 10.0f);
+          q.v = Vec2(2.0f + hashf((int)(t_ * 17), o.y, 5) * 4, -10.0f - hashf((int)(t_ * 13), o.x, 9) * 4);
           q.life = q.max = 2.4f;
           q.c = Color(0.72f, 0.70f, 0.70f);
           q.size = 1; q.grav = -1.2f; q.kind = 2;
-          v.fx_.parts_.push_back(q);
+          fx_.parts_.push_back(q);
         }
       }
     }
@@ -314,21 +314,21 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
         return art::scaffoldSprite(p.hw, p.hh, si.storeys, prog, p.houseSeed);
       });
       const float fx = (lx + p.hx) * 16.0f, fb = (ly + p.hy + p.hh) * 16.0f;
-      HomeDraw d;
+      HomeView::HomeDraw d;
       d.tex = &t; d.sw = t.w; d.sh = t.h;
       d.x = fx + p.hw * 8.0f - t.w / 2.0f;
       d.y = fb + (t.w > p.hw * 16 ? (float)art::BLDG_PAD_B : 0.0f) - t.h;
       d.sortY = fb - 1.0f;
-      homeDraws_.push_back(d);
+      home_.homeDraws_.push_back(d);
     }
     // the plot's border while its yard is being laid out
     if (building && U.mode == home::UiMode::Yard && U.plot == pi) {
-      HomeDraw b;
+      HomeView::HomeDraw b;
       b.ui = 2;
       b.x = lx * 16.0f; b.y = ly * 16.0f; b.sw = p.w * 16; b.sh = p.h * 16;
       b.tint = Color(0.98f, 0.84f, 0.45f, 0.9f);
       b.sortY = 1e9f - 2;
-      homeDraws_.push_back(b);
+      home_.homeDraws_.push_back(b);
     }
   }
   // ---------------------------------------------------------------- the build ghost (the yard)
@@ -346,13 +346,13 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
     const Color tint = fits ? Color(0.62f, 1.0f, 0.62f, 0.8f) : Color(1.0f, 0.48f, 0.42f, 0.8f);
     for (int y = 0; y < h; y++)
       for (int x = 0; x < w; x++) {
-        HomeDraw c;
+        HomeView::HomeDraw c;
         c.ui = 1; c.tint = tint;
         c.x = (lx + x) * 16.0f; c.y = (ly + y) * 16.0f; c.sw = 16; c.sh = 16;
         c.sortY = 1e9f - 1;
-        homeDraws_.push_back(c);
+        home_.homeDraws_.push_back(c);
       }
-    HomeDraw d;
+    HomeView::HomeDraw d;
     d.tint = Color(tint.r, tint.g, tint.b, fits ? 0.8f : 0.6f);   // red: see-through, so what is in the way shows
     d.sortY = 1e9f;
     if (fa != art::FarmObj::COUNT) {
@@ -370,7 +370,7 @@ void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
       d.tex = &t; d.sw = t.w; d.sh = t.h;
       d.x = lx * 16.0f; d.y = ly * 16.0f;
     }
-    homeDraws_.push_back(d);
+    home_.homeDraws_.push_back(d);
   }
 }
 

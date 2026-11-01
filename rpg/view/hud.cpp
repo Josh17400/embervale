@@ -332,7 +332,7 @@ void View::draw(Game& g, bool hasSave) {
   if (g.mode != Mode::Title && g.mode != Mode::Creator) {
     drawMarkers(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));
     party_.companionOverlays(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8) the wound, the binding
-    powers_.drawPowerFx(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8b) the worn powers' effects
+    drawPowerFx(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8b) the worn powers' effects
     MagicLane::drawMagicFx(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
     ReliefLane::drawReliefOver(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
     SeaLane::drawSeaOver(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
@@ -411,7 +411,7 @@ void View::draw(Game& g, bool hasSave) {
     if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build && !(party_.radial_.open && g.mode == Mode::Play)) fx_.drawToasts(*this);
     if (g.mode == Mode::Shop) drawShop(g);
     if (g.mode == Mode::Forge) drawForge(g);   // M6 (craft_ui.cpp)
-    if (g.mode == Mode::Build) home_.drawBuild(*this, g);   // M7 (buildmode.cpp)
+    if (g.mode == Mode::Build) drawBuild(g);   // M7 (buildmode.cpp)
     if (g.mode == Mode::Menu) drawMenu(g);
     if (g.mode == Mode::LevelUp) drawLevelUp(g);
     if (g.mode == Mode::Dead) drawDead(g);
@@ -2069,7 +2069,7 @@ void View::drawMenu(Game& g) {
       drawPaperdoll(g, 8, 30, Pix::W - 16, Pix::H - 36);
       break;
     case kPartyTab:   // (M8) the companions' paper doll and the remembered (paperdoll.cpp)
-      party_.drawPartyPage(*this, g);
+      drawPartyPage(g);
       break;
     case kSkillsTab:  // (M9) the skills and their perk constellations (skills_ui.cpp)
       SkillsLane::drawSkillsPage(*this, g);
@@ -2208,5 +2208,5 @@ std::string View::moodWord(const Game& g, ew::Gid site, uint32_t* color) {
 }
 
 // (Witness, View::witnessRelease) the menu strip's PARTY flag and the quick bar's last extent back to their start
-static void witnessResetHud() { g_partyTab = false; g_quickBarR = 0; }
+static void witnessResetHud() { g_partyTab = false; g_quickBarR = 0; }
 EMB_VIEW_RESET(witnessResetHud);

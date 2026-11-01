@@ -39,11 +39,9 @@ struct HomeView {
     uint8_t ui = 0;
   };
   std::vector<HomeDraw> homeDraws_;
-  void homeCollect(View& v, Game& g, const Map& m, Vec2 cam);
   void drawHomeDraw(View& v, const HomeDraw& d, Vec2 cam);
   bool drawMounted(View& v, Game& g, const Actor& a, Vec2 cam);
   int buildSel_ = 0, buildScroll_ = 0, buildTab_ = 0;   // the Mode::Build screens' UI state (free for the lane)
-  void drawBuild(View& v, Game& g);
   void buildKey(View& v, Game& g, int key);
   void buildTap(View& v, Game& g, Vec2 p);
   std::vector<LightPool> homeLights_;

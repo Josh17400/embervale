@@ -344,7 +344,7 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
   // (M7) the player's property: yard objects, crops, ground edits, the building site (kind 8: idx into homeDraws_;
   //      collected by the VIEW lane's homeCollect, rpg/view/home_view.cpp)
   home_.homeDraws_.clear();
-  if (g.mode != Mode::Title) home_.homeCollect(*this, g, m, cam);
+  if (g.mode != Mode::Title) homeCollect(g, m, cam);
   else home_.homeLights_.clear();
   home_.drawHomeFlats(*this, cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
   for (int i = 0; i < (int)home_.homeDraws_.size(); i++)

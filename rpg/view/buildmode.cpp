@@ -453,13 +453,13 @@ const home::Plot* uiPlot(const Game& g) {
 }  // namespace
 
 // ---------------------------------------------------------------- drawing
-void HomeView::drawBuild(View& v, Game& g) {
-  Pix& P = *v.pix_;
+void View::drawBuild(Game& g) {
+  Pix& P = *pix_;
   home::Ui& U = g.home.ui;
-  const bool touch = v.touchUI;
+  const bool touch = touchUI;
   if (!uiPlot(g)) {
     const Rect M = modalRect();
-    v.panel(M.x + M.w / 2 - 110, M.y + M.h / 2 - 24, 220, 48);
+    panel(M.x + M.w / 2 - 110, M.y + M.h / 2 - 24, 220, 48);
     P.text(M.x + M.w / 2, M.y + M.h / 2 - 12, "NO PROPERTY HERE", 1, kDimC, 1);
     P.text(M.x + M.w / 2, M.y + M.h / 2 + 2, touch ? "TAP TO CLOSE" : "ESC TO CLOSE", 1, kDimC, 1);
     return;
@@ -469,7 +469,7 @@ void HomeView::drawBuild(View& v, Game& g) {
     const std::string s = std::to_string(g.gold);
     const float w = (float)P.textW(s, 1);
     P.textS(rx - w, y, s, 1, kGoldC);
-    P.blit(v.sprites_.iconTex(v, art::Icon::Gold, 0), rx - w - 17, y - 5);
+    P.blit(sprites_.iconTex(*this, art::Icon::Gold, 0), rx - w - 17, y - 5);
   };
   auto btn = [&](const Rect& r, const std::string& label, bool hot, bool enabled = true) {
     if (!enabled) {
@@ -478,7 +478,7 @@ void HomeView::drawBuild(View& v, Game& g) {
       P.text(r.x + r.w / 2, r.y + (r.h - 7) / 2, label, 1, Color(0.42f, 0.40f, 0.36f), 1);
       return;
     }
-    v.button(r.x, r.y, r.w, r.h, label, hot);
+    button(r.x, r.y, r.w, r.h, label, hot);
     P.rect(r.x + 1, r.y + 1, r.w - 2, 1, Color(1, 0.92f, 0.7f, hot ? 0.35f : 0.12f));
   };
   // a scroll button: a small solid triangle (the font has no caret)
@@ -495,22 +495,22 @@ void HomeView::drawBuild(View& v, Game& g) {
   if (U.mode == UiMode::Yard || U.mode == UiMode::Decorate) {
     const bool inside = U.mode == UiMode::Decorate;
     const std::vector<Cat>& cs = cats(inside);
-    if (catOf(inside, U.sel) >= 0) buildCat_ = catOf(inside, U.sel);
-    buildCat_ = std::clamp(buildCat_, 0, (int)cs.size() - 1);
+    if (catOf(inside, U.sel) >= 0) home_.buildCat_ = catOf(inside, U.sel);
+    home_.buildCat_ = std::clamp(home_.buildCat_, 0, (int)cs.size() - 1);
     const SideLay L = sideLay(touch);
-    v.panel(L.panel.x, L.panel.y, L.panel.w, L.panel.h, 0.94f);
+    panel(L.panel.x, L.panel.y, L.panel.w, L.panel.h, 0.94f);
     P.textS(L.panel.x + 7, L.panel.y + 6, inside ? "DECORATE" : "YARD", 1, kGoldC);
     gold(L.panel.x + L.panel.w - 7, L.panel.y + 6);
     for (int i = 0; i < (int)cs.size() && i < 5; i++) {
       const Rect& r = L.tabs[i];
-      const bool on = i == buildCat_;
+      const bool on = i == home_.buildCat_;
       P.rect(r.x, r.y, r.w, r.h, on ? Color(0.34f, 0.25f, 0.13f, 0.98f) : Color(0.13f, 0.11f, 0.10f, 0.95f));
       P.frame(r.x, r.y, r.w, r.h, on ? kGoldC : Color(0.40f, 0.33f, 0.22f));
       if (on) P.rect(r.x + 1, r.y + r.h - 2, r.w - 2, 2, kGoldC);
       P.text(r.x + r.w / 2, r.y + (r.h - 7) / 2, cs[(size_t)i].tab, 1, on ? Color(1, 0.95f, 0.8f) : kDimC, 1);
     }
     // the grid of pieces
-    const Cat& cat = cs[(size_t)buildCat_];
+    const Cat& cat = cs[(size_t)home_.buildCat_];
     const cult::Culture* C = nullptr;
     if (g.world.src) {
       uint64_t cid = p.style;
@@ -535,35 +535,35 @@ void HomeView::drawBuild(View& v, Game& g) {
       const art::FarmObj fa = home::farmObjArt(o);
       if (fa != art::FarmObj::COUNT) {
         const uint64_t key = (0xB1ull << 56) | (uint64_t)fa << 40 | (C ? (C->id & 0xFFFFFFFFull) : 0);
-        auto it = v.sprites_.homeTex_.find(key);
-        if (it == v.sprites_.homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           art::FarmObjLook lk;
           lk.kind = fa;
           lk.style = C ? &C->arch : nullptr;
           if (fa == art::FarmObj::Fence || fa == art::FarmObj::Gate) lk.joins = 2 | 8;
           if (oi.flags & home::OBJ_ANIMALS) lk.stage = 2;
-          it = v.sprites_.homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Path || o == Obj::Farmland) {
         const uint64_t key = (0xB2ull << 56) | (uint64_t)o;
-        auto it = v.sprites_.homeTex_.find(key);
-        if (it == v.sprites_.homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           Canvas c(32, 16);
           const Canvas a = o == Obj::Path ? art::pathTile(2, 0, 1) : art::farmlandTile(2, false, 1);
           const Canvas b = o == Obj::Path ? art::pathTile(8, 0, 2) : art::farmlandTile(8, false, 2);
           for (int y = 0; y < 16; y++)
             for (int x = 0; x < 16; x++) { c.set(x, y, a.px[(size_t)y * a.w + x]); c.set(16 + x, y, b.px[(size_t)y * b.w + x]); }
-          it = v.sprites_.homeTex_.emplace(key, P.bake(c)).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(c)).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Trophy) {
         const uint64_t key = (0xB3ull << 56) | 1;
-        auto it = v.sprites_.homeTex_.find(key);
-        if (it == v.sprites_.homeTex_.end()) it = v.sprites_.homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) it = sprites_.homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
         t = &it->second; sw = t->w; sh = t->h;
-      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < v.sprites_.props_.size()) {
-        t = &v.sprites_.props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
+      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < sprites_.props_.size()) {
+        t = &sprites_.props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
       }
       if (t) {
         const float fitW = r.w - 4, fitH = r.h - 22;
@@ -622,12 +622,12 @@ void HomeView::drawBuild(View& v, Game& g) {
     btn(L.place, "PLACE " + std::to_string(si.price), fits, fits);
     btn(L.done, "DONE", false);
     // a hint over the world, once: how to move the ghost (gone for good after the first move or placement)
-    if (buildHintGx_ == INT32_MIN) { buildHintGx_ = U.gx; buildHintGy_ = U.gy; }
-    else if (U.gx != buildHintGx_ || U.gy != buildHintGy_) buildHintDone_ = true;
+    if (home_.buildHintGx_ == INT32_MIN) { home_.buildHintGx_ = U.gx; home_.buildHintGy_ = U.gy; }
+    else if (U.gx != home_.buildHintGx_ || U.gy != home_.buildHintGy_) home_.buildHintDone_ = true;
     const float hx = ((float)Pix::SL + L.panel.x) / 2;   // (at the top: the bottom is where the yard's gate usually is)
     const std::string hint = touch ? "TAP OR DRAG ON THE GROUND TO MOVE" : "ARROWS MOVE   Q E PICK   R TURN   ENTER PLACE";
     const float hw = (float)P.textW(hint, 1) + 10;
-    if (!buildHintDone_ && U.placedKey < 0 && hw < L.panel.x - Pix::SL - 8) {
+    if (!home_.buildHintDone_ && U.placedKey < 0 && hw < L.panel.x - Pix::SL - 8) {
       const float hy = (float)Pix::ST + 7;
       P.rect(hx - hw / 2, hy - 3, hw, 13, Color(0.04f, 0.03f, 0.05f, 0.6f));
       P.text(hx, hy, hint, 1, Color(0.95f, 0.9f, 0.8f, 0.9f), 1);
@@ -637,7 +637,7 @@ void HomeView::drawBuild(View& v, Game& g) {
   // ================================================================ the modal screens
   const Rect M = modalRect();
   P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0, 0, 0, 0.35f));
-  v.panel(M.x, M.y, M.w, M.h, 0.95f);
+  panel(M.x, M.y, M.w, M.h, 0.95f);
   // ---------------------------------------------------------------- SHELL
   if (U.mode == UiMode::Shell) {
     const ShellLay S = shellLay(touch);
@@ -683,10 +683,10 @@ void HomeView::drawBuild(View& v, Game& g) {
       q.state = home::PlotState::Built;
       if (!q.houseSeed) q.houseSeed = (uint32_t)ew::mix64(p.id ^ 0x5348454C4Cull);
       const uint64_t key = (0xB4ull << 56) ^ ((uint64_t)U.sel << 48) ^ (style & 0xFFFFFFFFFFFull) ^ ((uint64_t)q.houseSeed << 20);
-      auto it = v.sprites_.homeTex_.find(key);
-      if (it == v.sprites_.homeTex_.end()) {
+      auto it = sprites_.homeTex_.find(key);
+      if (it == sprites_.homeTex_.end()) {
         const Bldg b = home::houseBldg(q, g);
-        it = v.sprites_.homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
+        it = sprites_.homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
       }
       const Tex& t = it->second;
       float sc = 1.0f;
@@ -696,7 +696,7 @@ void HomeView::drawBuild(View& v, Game& g) {
       const float dx = std::floor(pv.x + (pv.w - dw) / 2), dy = std::floor(pv.y + pv.h - 10 - dh);
       // its ground shadow, thrown down-right
       const float sw = dw * 0.9f, shh = std::max(6.0f, dh * 0.12f);
-      P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
+      P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
       P.blitEx(t, 0, 0, t.w, t.h, dx, dy, dw, dh, false, Color(1, 1, 1, 1));
     }
     // the style picker
@@ -745,12 +745,12 @@ void HomeView::drawBuild(View& v, Game& g) {
     for (const home::PlacedObj& o : p.inside) if ((home::objInfo((Obj)o.kind).flags & home::OBJ_STORAGE) && (int)o.data == U.store) sname = home::objInfo((Obj)o.kind).name;
     for (const home::PlacedObj& o : p.outside) if ((home::objInfo((Obj)o.kind).flags & home::OBJ_STORAGE) && (int)o.data == U.store) sname = home::objInfo((Obj)o.kind).name;
     const std::string heads[2] = {"PACK " + std::to_string(g.inv.size()), sname + " " + std::to_string(st.size()) + "/" + std::to_string(home::STORE_STACKS)};
-    int* scrolls[2] = {&packScroll_, &storeScroll_};
+    int* scrolls[2] = {&home_.packScroll_, &home_.storeScroll_};
     const int counts[2] = {(int)g.inv.size(), (int)st.size()};
     for (int c = 0; c < 2; c++) {
       const Rect& r = S.col[c];
       *scrolls[c] = std::clamp(*scrolls[c], 0, std::max(0, counts[c] - S.rows));
-      P.textS(r.x + 2, M.y + 21, heads[c], 1, c == storeSide_ ? kGoldC : kTextC);
+      P.textS(r.x + 2, M.y + 21, heads[c], 1, c == home_.storeSide_ ? kGoldC : kTextC);
       arrowBtn(S.up[c], true, *scrolls[c] > 0);
       arrowBtn(S.down[c], false, *scrolls[c] + S.rows < counts[c]);
       P.rect(r.x, r.y, r.w, r.h, Color(0.10f, 0.09f, 0.08f, 0.9f));
@@ -761,10 +761,10 @@ void HomeView::drawBuild(View& v, Game& g) {
         if (i >= (int)items.size()) break;
         const Item& it = items[(size_t)i];
         const float ry = r.y + k * S.rowH;
-        const bool sel = c == storeSide_ && i == storeSel_;
+        const bool sel = c == home_.storeSide_ && i == home_.storeSel_;
         if (sel) { P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(0.32f, 0.24f, 0.13f, 0.95f)); P.frame(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, kGoldC); }
         else if (k & 1) P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(1, 1, 1, 0.03f));
-        P.blit(v.sprites_.itemTex(v, g, it), r.x + 3, ry + (S.rowH - 16) / 2);
+        P.blit(sprites_.itemTex(*this, g, it), r.x + 3, ry + (S.rowH - 16) / 2);
         bool worn = false;
         if (c == 0) for (int w : g.worn()) if (w == i) worn = true;
         const std::string cnt = it.stackable() && it.count > 1 ? " X" + std::to_string(it.count) : "";
@@ -793,10 +793,10 @@ void HomeView::drawBuild(View& v, Game& g) {
     const std::vector<home::Meal> meals = home::knownMeals(g);
     P.textS(M.x + 8, M.y + 6, std::string("COOK AT THE ") + stationName(U.station), 1, kGoldC);
     gold(M.x + M.w - 8, M.y + 6);
-    cookScroll_ = std::clamp(cookScroll_, 0, std::max(0, (int)meals.size() - S.rows));
+    home_.cookScroll_ = std::clamp(home_.cookScroll_, 0, std::max(0, (int)meals.size() - S.rows));
     U.sel = std::clamp(U.sel, 0, std::max(0, (int)meals.size() - 1));
-    arrowBtn(S.up, true, cookScroll_ > 0);
-    arrowBtn(S.down, false, cookScroll_ + S.rows < (int)meals.size());
+    arrowBtn(S.up, true, home_.cookScroll_ > 0);
+    arrowBtn(S.down, false, home_.cookScroll_ + S.rows < (int)meals.size());
     P.rect(S.list.x, S.list.y, S.list.w, S.list.h, Color(0.10f, 0.09f, 0.08f, 0.9f));
     P.frame(S.list.x, S.list.y, S.list.w, S.list.h, Color(0.36f, 0.30f, 0.21f));
     auto canCook = [&](const home::Meal& m) {
@@ -806,7 +806,7 @@ void HomeView::drawBuild(View& v, Game& g) {
       return true;
     };
     for (int k = 0; k < S.rows; k++) {
-      const int i = cookScroll_ + k;
+      const int i = home_.cookScroll_ + k;
       if (i >= (int)meals.size()) break;
       const home::Meal& m = meals[(size_t)i];
       const float ry = S.list.y + k * S.rowH;
@@ -825,7 +825,7 @@ void HomeView::drawBuild(View& v, Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon(in, tint);
         const bool have = heldOf(g, in) > 0;
-        P.blitEx(v.sprites_.iconTex(v, ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
+        P.blitEx(sprites_.iconTex(*this, ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
         if (!have) P.rect(ix + 3, ry + S.rowH / 2, 10, 1, kBadC);
         ix += 17;
       }
@@ -841,7 +841,7 @@ void HomeView::drawBuild(View& v, Game& g) {
       float fed = 0;
       uint8_t q = 0;
       home::mealBuff(out, fed, q);
-      P.blitEx(v.sprites_.itemTex(v, g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
+      P.blitEx(sprites_.itemTex(*this, g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
       P.textS(d.x + 48, d.y + 9, fitText(m.name, d.w - 54), 1, kGoldC);
       for (int s = 0; s < 3; s++) {   // the quality as three pips
         const float sx = d.x + 48 + s * 9, sy = d.y + 21;
@@ -861,7 +861,7 @@ void HomeView::drawBuild(View& v, Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon((home::Ingr)k, tint);
         const int have = heldOf(g, (home::Ingr)k);
-        P.blit(v.sprites_.iconTex(v, ic, tint), d.x + 8, y - 4);
+        P.blit(sprites_.iconTex(*this, ic, tint), d.x + 8, y - 4);
         P.text(d.x + 28, y, ingrName((home::Ingr)k), 1, kTextC);
         // (M7 fixer r2, review: "'FLOUR 3/1' reads backwards") what it takes, then what the pack holds
         P.text(d.x + d.w - 8, y, "NEED " + std::to_string(need[k]) + "  HAVE " + std::to_string(std::min(have, 99)), 1, have >= need[k] ? kGoodC : kBadC, 2);
@@ -874,14 +874,14 @@ void HomeView::drawBuild(View& v, Game& g) {
       btn(S.cook, "COOK", ok, ok);
     } else btn(S.cook, "COOK", false, false);
     if (!U.why.empty()) P.text(d.x, S.done.y - 10, fitText(U.why, d.w), 1, kBadC);
-    else if (!cookNote_.empty() && cookNoteSel_ == U.sel && v.t_ - cookNoteT_ < 4.0f) P.text(d.x + 8, d.y + d.h - 34 - 23, fitText(cookNote_, d.w - 16), 1, kGoodC);   // (in the panel, over the station's line)
+    else if (!home_.cookNote_.empty() && home_.cookNoteSel_ == U.sel && t_ - home_.cookNoteT_ < 4.0f) P.text(d.x + 8, d.y + d.h - 34 - 23, fitText(home_.cookNote_, d.w - 16), 1, kGoodC);   // (in the panel, over the station's line)
     btn(S.done, "DONE", false);
     return;
   }
   // ---------------------------------------------------------------- BUY (and anything else): what the sim says, DONE
   P.textS(M.x + 8, M.y + 6, fitText(plotName(g, p), M.w - 120), 1, kGoldC);
   gold(M.x + M.w - 8, M.y + 6);
-  if (!U.why.empty()) v.wrapText(M.x + 12, M.y + 30, M.w - 24, U.why, kTextC);
+  if (!U.why.empty()) wrapText(M.x + 12, M.y + 30, M.w - 24, U.why, kTextC);
   const ListLay S = listLay(touch);
   btn(S.done, "DONE", false);
 }

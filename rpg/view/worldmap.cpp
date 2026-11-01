@@ -2695,5 +2695,5 @@ bool View::mapTabKey(Game& g, int key) {
 
 // (Witness, View::witnessRelease) the world map back to its start: centre, zoom, painted tiles, plans and pointers (its
 // textures were destroyed with every other one made since Pix::markTextures)
-static void witnessResetWorldMap() { S = MapState(); }
+static void witnessResetWorldMap() { S = MapState(); }
 EMB_VIEW_RESET(witnessResetWorldMap);

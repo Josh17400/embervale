@@ -82,7 +82,6 @@ struct PartyUi {
   void drawGrave(View& v, Game& g, int fallen, Vec2 cam, bool shadow);
   void drawPartyMinimap(View& v, Game& g, float x, float y, int size, int ox, int oy);
   void drawPartyWorldMap(View& v, Game& g, Vec2 (*toScr)(void*, double, double), void* ctx, float w, float h);
-  void drawPartyPage(View& v, Game& g);
   void partyPageKey(View& v, Game& g, int key);
   void partyPageTap(View& v, Game& g, Vec2 p);
 };

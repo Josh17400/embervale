@@ -20,5 +20,4 @@ struct PowerView {
   std::vector<PowerFx> powerFx_;
   void powerEvent(View& v, Game& g, const Event& e);    // Ev::Power (update's event pass)
   void powerUpdate(Game& g, float dt);         // age the effects (update, after partyUpdate)
-  void drawPowerFx(View& v, Game& g, Vec2 cam);         // world space, after the lighting (draw, with companionOverlays)
 };

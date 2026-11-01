@@ -380,6 +380,10 @@ class View {
   // ---- M7 Home: the property's draws, the Mode::Build screens and the HUD's home pills live in HomeView (home_view.h)
   friend struct HomeView;
   HomeView home_;   // (home_view.h)
+  // (kept View members, as the size gate names them; they read and write HomeView's state) the property's draws for
+  // drawWorld's sorted pass (Drawable kind 8); the Mode::Build screens (buildmode.cpp)
+  void homeCollect(Game& g, const Map& m, Vec2 cam);
+  void drawBuild(Game& g);
   void shopDeal(Game& g);   // buy or sell the selected row (a worn item asks twice)
   void drawLevelUp(Game& g);
   void drawTitle(Game& g, bool hasSave);
@@ -490,6 +494,7 @@ class View {
   void drawBeastPlates(Game& g);   // the elites' name plates and a world boss's bar: the UI layer (STYLE_P2 18)
   friend struct PartyUi;
   PartyUi party_;   // (party_ui.h)
+  void drawPartyPage(Game& g);   // the menu's PARTY page (paperdoll.cpp; a View member as the size gate names it)
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
   // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
@@ -536,6 +541,7 @@ class View {
   // ---- M8b Treasure (POWERS lane): the worn powers' effects in the world (PowerView, power_view.h)
   friend struct PowerView;
   PowerView powers_;   // (power_view.h)
+  void drawPowerFx(Game& g, Vec2 cam);   // the worn powers' effects, world space after the lighting (render_powers.cpp)
 
   // ---- M9 Arcana & Mastery: the SPELLFX lane (MagicLane) and the UI lane (SkillsLane); entry points in lane_entry.h
  public:
