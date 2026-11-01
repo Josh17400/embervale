@@ -215,8 +215,13 @@ class Audio {
 
   float rnd();                       // audio-thread RNG, 0..1
   float rnd(float lo, float hi) { return lo + (hi - lo) * rnd(); }
+  float rndCall(float lo, float hi);   // rnd(lo, hi) kept out of line (engine/audio/sfx.cpp: bit identity)
   void add(const Note& n);
   void trigger(Sfx s, float pitch, float vol, uint32_t arg = 0);
+  // (engine/audio/sfx.cpp) one voice per sound effect, generated from SFX_LIST: trigger() plays Audio::fx<name>
+#define EMB_SFX_ARM(name, trim) void fx##name(float k, float V, uint32_t arg);
+  SFX_LIST(EMB_SFX_ARM)
+#undef EMB_SFX_ARM
   void spellMotif(uint32_t arg, float V);   // (M9) Sfx::SpellMotif's notes
   void riseSting(int which, float k, float V);   // (M12) playSting's notes (arg bit 30 on the SpellMotif slot)
   void push(const Event& e);                // the play queue (main thread -> audio thread)
