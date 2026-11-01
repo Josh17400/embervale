@@ -107,8 +107,9 @@ bool uniqueIsMythic(Unique u);       // Tempest .. Wolfking
 std::string affixText(Affix a, int value);
 // M8b: four affix slots (Mythic carries four strong ones and its power). Saved: SAVE_VER 19 writes kItemAffixes pairs.
 constexpr int kItemAffixes = 4;
-// Item::flags
-enum : uint8_t { IF_CRAFTED = 1, IF_STOLEN = 2, IF_QUESTREWARD = 4, IF_SHOP = 8 };
+// Item::flags. (P3 LOOT, ARMOUR_SPAWN_RARITY section 6) IF_KIT: a piece of a companion's own kit (made once at their join);
+// it never reaches the hero's pack as kit, and selling or breaking it down is refused. A free bit of the saved byte.
+enum : uint8_t { IF_CRAFTED = 1, IF_STOLEN = 2, IF_QUESTREWARD = 4, IF_SHOP = 8, IF_KIT = 16 };
 
 struct Item {
   ItemKind kind = ItemKind::Misc;
@@ -165,6 +166,9 @@ Item makeFood(int which);                  // 0-8 (4-8: M2 wayside fish, smoked 
 Item makeArrows(int n);
 Item makeMisc(int which);                  // pelts, bones, gems, ore... (8-12: M2 hides and herbs)
 ItemKind randomArmorSlot(Rng& r);         // Armor, Helmet, Shield, Gloves, Boots or Cloak (one draw)
+// (P3 LOOT) an old maker's piece (a relic) reads the same one draw through its own table: body 40, helm 25, shield 15,
+// gloves 10, boots 10, never a cloak (cloaks are cloth)
+ItemKind relicArmorSlot(Rng& r);
 Item randomLoot(Rng& r, int level, bool boss);
 
 void writeItem(BinW& w, const Item& it);

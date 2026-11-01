@@ -6,6 +6,7 @@
 #include "rpg/sim/gear.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 
@@ -1129,6 +1130,62 @@ std::string gearName(const Item& it, const cult::Culture* maker) {
   Item t = it;
   finishGear(t, maker);
   return t.name;
+}
+
+// ===================================================================================================== P3 LOOT
+// (docs/FIX_BATCH_P3.md 8.1) the shared "better" rule, the metal ranks, the relics, the shelf cap and the view's words.
+int verdictAt(const Item& it, const Item* worn, int level, int* pct) {
+  if (pct) *pct = 0;
+  if (!worn) return 1;
+  const float a = powerScore(it, level), b = powerScore(*worn, level);
+  const float d = (a - b) / std::max(1.0f, b);
+  if (pct) *pct = (int)std::lround(d * 100.0f);
+  return d > 0.03f ? 1 : d < -0.03f ? -1 : 0;
+}
+
+bool metalKind(ItemKind k) { return k == ItemKind::Weapon || armourish(k); }
+
+uint8_t alloyForBand(const cult::Culture* c, int band) {
+  if (!c || c->arms.alloys.empty() || band < RELIC_BAND) return 0;
+  const int n = (int)c->arms.alloys.size();
+  const int want = band >= alloyRankBand(3) ? 3 : band >= alloyRankBand(2) ? 2 : 1;
+  return (uint8_t)std::min(want, n);
+}
+
+const char* alloyRankWord(int rank) {
+  static const char* const w[] = {"", "EVERYDAY METAL", "WARRIORS' METAL", "MASTERWORK"};
+  return w[rank >= 1 && rank <= 3 ? rank : 0];
+}
+
+bool isRelic(const Item& it) {
+  return metalKind(it.kind) && it.culture == 0 && it.mat == Mat::Steel && bandOf(std::max(1, (int)it.ilvl)) >= RELIC_BAND;
+}
+int relicRank(const Item& it) { return isRelic(it) ? std::clamp(bandOf(it.ilvl) - 3, 1, 4) : 0; }
+
+bool relicChosen(float drawn, int pct) {
+  if (pct <= 0) return false;
+  if (pct >= 100) return true;
+  uint32_t bits = 0;
+  std::memcpy(&bits, &drawn, sizeof bits);
+  return hash32(bits ^ 0x0A1D3E11u) % 100u < (uint32_t)pct;
+}
+
+Item makeGearCapped(Rng& r, ItemKind kind, int sub, int ilvl, Rarity rarity, const cult::Culture* c, int capRank, Mat mat) {
+  if (capRank > 0 && mat == Mat::None && c && metalKind(kind)) {
+    const uint8_t al = alloyForBand(c, bandOf(std::clamp(ilvl, 1, MAX_D)));
+    if (al > capRank) return makeGearC(r, kind, sub, ilvl, rarity, c, Mat::Alloy, (uint8_t)capRank);
+  }
+  return makeGearC(r, kind, sub, ilvl, rarity, c, mat);
+}
+
+std::string metalWord(const Item& it, const cult::Culture* maker) { return matWord(it, maker); }
+
+std::string makerLine(const Item& it, const cult::Culture* maker) {
+  std::string who = maker ? maker->adjective + " WORK" : std::string("HEARTLAND WORK");
+  const std::string mw = matWord(it, maker);
+  if (!mw.empty()) who += ", " + mw;
+  else if (it.mat != Mat::None) who += std::string(", ") + matName(it.mat);
+  return who;
 }
 
 }  // namespace gear
