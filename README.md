@@ -70,8 +70,10 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 
 | File | What it holds |
 |---|---|
-| `rpg/sim/game.h` | class `Game`, its types (Actor, Quest, Input, `QType`, the `DLG_*` option ranges) and every lane's hook declarations |
-| `rpg/sim/game.cpp` | session, world, movement and `Game::update`: **the update order** |
+| `rpg/sim/game_types.h` | **the plain types Game is made of**: Mode, Input, Actor, Projectile, Pickup, Event, Quest and `QType`, the dialogue (`DlgOpt`, **the `DLG_*` option ranges**, Dialogue), Lodging, Travel, Shop. It includes no lane header (`magic_status.h` holds the statuses `Actor` needs), so code that needs only the types includes this, not `game.h` |
+| `rpg/sim/game.h` | class `Game`: its data, the members view, main, scripts and tests call, and the friend list of the lanes' Ops and Hooks structs |
+| `rpg/sim/sim_schedule.cpp` | `Game::update`: **the update order, the determinism contract** (one function, one comment per step; never reorder) |
+| `rpg/sim/game.cpp` | session, world and movement; `StreamOps` (the endless window's upkeep, NPC level of detail) and `ClimbOps` |
 | `rpg/sim/game_internal.h` | sim-private shared pieces (includes the seams below) |
 | `rpg/sim/mark_tags.h` | **the saved mark tags**: every tag by name, owner and value (`kMarkTags`), the lanes' ranges, `markKey` |
 | `rpg/sim/world.h` | `World`, the Active Window onto the endless world, and the cave / ruin / interior generators |
@@ -79,23 +81,33 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 | `rpg/sim/game_save.cpp` | **the save format**: `SAVE_VER`, serialize/deserialize byte for byte, with every save block listed in write order at its top |
 | `rpg/sim/game_items.cpp` | inventory, loot drops, chests (`LootOps::chestSource`) |
 | `rpg/sim/game_quests.cpp` | the quest core: targets, progress, turn-in |
+| `rpg/sim/quest_ops.h` | `QuestOps`: the quests' machinery (offer builders, the quest types' ticks, markers, escorts, the main quest's stages), defined in `quests.cpp`, `quest_offers.cpp` and `game_quests.cpp`; Game keeps what view, scripts and the story engine call (`offerFor`, `acceptQuest`, `hasOffer` ...) |
 | `rpg/sim/quest_offers.cpp` | `offerFor`: the offer dispatcher, one builder per offer kind, and `offerPitch` |
 | `rpg/sim/game_combat.cpp` | combat: `meleeHit`, **`damage` (its modifier chain, the stages numbered in order)**, `kill`, XP and level-up, arrows, `castSpell`, projectiles, pickups |
-| `rpg/sim/ai_beasts.cpp` | `updateAI`'s per-species steps (`beastStep` keeps the windup and strike inline: /fp:fast rounding) |
-| `rpg/sim/game_dialogue.cpp` | greetings, talk, `dialogueChoose`: the option dispatch to each lane's `*Choose` hook by `DLG_*` range |
+| `rpg/sim/ai_ops.h`, `rpg/sim/ai.cpp` | `AiOps`: the actors' behaviour (friendly folk, guards, town defence, the hostiles' choice of target in `ai.cpp`) |
+| `rpg/sim/ai_beasts.cpp` | `AiOps::updateAI`'s per-species steps (`beastStep` keeps the windup and strike inline: /fp:fast rounding) |
+| `rpg/sim/game_dialogue.cpp` | greetings, talk, `dialogueChoose` (it asks `gsim::dlgRoute` which lane takes an option) |
+| `rpg/sim/dlg_routes.cpp` | **the dialogue routing**: `kDlgRoutes`, one `{lo, hi, choose}` row per `DLG_*` range in the old check order (story first, the lord last), with a static_assert that the ranges are sorted and do not overlap |
 | `rpg/sim/game_shop.cpp` | shop stock, buying, selling, prices |
 | `rpg/sim/game_rpg.cpp` | interaction, rest and the inn; `game_rpg_detail.h` is the private header of these six files |
-| `rpg/sim/life.h` / `rpg/sim/life.cpp`, `rpg/sim/life_game.cpp`, `rpg/sim/life_ops.h` | townsfolk: model, the `Game::life*` hooks, and `LifeOps` (the lane's internals) |
+| `rpg/sim/life.h` / `rpg/sim/life.cpp`, `rpg/sim/life_game.cpp`, `rpg/sim/life_hooks.h`, `rpg/sim/life_ops.h` | townsfolk: model; `LifeHooks` (the hooks the core calls: `LifeHooks::step` ..., defined in `life_game.cpp`, `life_raids.cpp`, `life_quests.cpp`); and `LifeOps` (the lane's internals) |
 | `rpg/sim/life_spots.cpp`, `rpg/sim/life_paths.cpp`, `rpg/sim/life_spawn.cpp`, `rpg/sim/life_street.cpp`, `rpg/sim/life_indoors.cpp`, `rpg/sim/life_critters.cpp`, `rpg/sim/life_incidents.cpp`, `rpg/sim/life_lines.cpp` | `LifeOps` by cluster: outdoor spots, **paths (A\* for town folk)**, spawning residents, street life, interiors, village animals, overheard talk and incidents, lines |
 | `rpg/sim/interior_v4.cpp` | building interiors (its own FP group: stays in `rpg/sim`) |
-| `rpg/sim/magic*.cpp` (`magic_launch.cpp`: `MagicOps::launch`, one function per spell form group), `skills*`, `party*`, `home*`, `foes*`, `craft*`, `war*`, `sea*`, `lord*`, `service*`, `realm*`, `gear*` | the other lanes, each as `<lane>.h/.cpp` + `<lane>_game.cpp` + `<lane>_ops.h` |
+| `rpg/sim/magic*.cpp` (`magic_launch.cpp`: `MagicOps::launch`, one function per spell form group), `skills*`, `party*`, `home*`, `foes*`, `craft*`, `war*`, `sea*`, `lord*`, `service*`, `realm*`, `gear*` | the other lanes, each as `<lane>.h/.cpp` + `<lane>_game.cpp` + `<lane>_ops.h` (FOES and NUMBERS/FORGE keep their core hooks apart in `foe_hooks.h` / `craft_hooks.h`, like `life_hooks.h`) |
+| `rpg/sim/realm_ops.h`, `war_ops.h`, `story_ops.h`, `travel_ops.h`, `wayside_ops.h`, `stream_ops.h` | the hooks that were Game members, one Ops struct per lane: `RealmOps::step` (`realm_game.cpp`), `WarOps` (`war_game.cpp`), `StoryOps` (`rpg/story/story_game.cpp`), `TravelOps` (`travel.cpp`, `prep_interior.cpp`), `WaysideOps` (`wayside.cpp`), `StreamOps` (`game.cpp`) |
 | `rpg/sim/gear.cpp`, `rpg/sim/items.cpp` | items and gear stats: the loot /fp:precise group (`RPG_LOOT_FP` in CMake) |
 
 ### `rpg/view/`: View
 
 | File | What it holds |
 |---|---|
-| `rpg/view/view.h` | class `View` |
+| `rpg/view/view.h` | class `View`: a facade over its parts (value members, below); it keeps its public API, and the `EMB_VIEW_RESET` registry |
+| `rpg/view/terrain_bake.h/.cpp` | `TerrainBaker` (`View::bake_`): the chunk cache, the job queue, the background bakers, prefetch, `pumpBake`, `settleBakes` (the bake itself stays in `terrain.cpp`) |
+| `rpg/view/sprite_cache.h/.cpp` | `SpriteCache` (`View::sprites_`): every texture cache (people, buildings, walls, forts, heraldry, kingdoms, styled props), `trimCaches`, `peopleMB` |
+| `rpg/view/camera.h/.cpp` | `Camera` (`View::camera_`): `cam_`, zoom, `toUi`/`toWorld`, `uiInsetsToWorld` (the projection's float bodies stay in `render.cpp`) |
+| `rpg/view/fx_state.h` | `FxState` (`View::fx_`): particles, floating lines, toasts, shake (header only) |
+| `rpg/view/view_probe.h` | `ViewProbe`: the test and Witness hooks; included only by `rpg/view/scripts/` and `witness_state.cpp` (`ViewProbe::m4Stats(c.view)`) |
+| `party_ui.h`, `loot_view.h`, `realm_hud.h`, `life_view.h`, `home_view.h`, `lens_state.h`, `weather_view.h`, `hud_extents.h`, `power_view.h`, `lane_entry.h` | the lanes' view parts (`PartyUi`, `LootView`, `RealmHud` ...), each a value member of View; `lane_entry.h` holds the magic, skills, sea, relief and rise entry points over their opaque states; `loot_card.h` is all of the rarity painter that `view.h` needs (`loot_paint.h` is included by the loot files only) |
 | `rpg/view/render.cpp` | `View::drawWorld` (the world frame, in named passes) and `View::update` (`updateCamera` keeps the camera snap and hold) |
 | `rpg/view/render_sorted.cpp` | the drawable list: the push order, the one sort and the sorted draw (`drawPropSorted` ...; `DrawKind`), over a `FrameCtx`; `render_internal.h` is the private header of these two files |
 | `rpg/view/terrain.cpp` | ground tiles and their bake (`groundPixel`, relief levels and cliff faces), kerbs (`urbKerbCheck`) |
@@ -127,7 +139,8 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 ## Where new code goes
 
 The full rules are in `docs/ARCHITECTURE.md`. In short:
-- new gameplay goes in its lane (`<lane>.h/.cpp`, `<lane>_game.cpp`, `<lane>_ops.h`), never as new members on Game or View;
+- new gameplay goes in its lane (`<lane>.h/.cpp`, `<lane>_game.cpp`, `<lane>_ops.h`), never as new members on Game or View
+  (a new view state is a part: its own header and one value member of View);
 - a test script command goes in `rpg/view/scripts/<subject>.cpp`, an rpg_test command in `tools/tests/test_<subject>.cpp`;
 - a sound is one `X(Name, trim)` row appended to `SFX_LIST` in `engine/sound_ids.h` plus its voice `Audio::fx<Name>` in
   `engine/audio/sfx.cpp`; a saved mark is one row in

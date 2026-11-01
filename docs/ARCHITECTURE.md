@@ -89,8 +89,36 @@ A lane is one game system (townsfolk, magic, the sea, fellows, the homestead ...
 | Part | Holds | Example |
 |---|---|---|
 | `<lane>.h` / `<lane>.cpp` | the model: rules and data, no `Game` | `rpg/sim/magic.h`, `rpg/sim/life.h` |
-| `<lane>_game.cpp` | the glue: the `Game::<lane>*` hooks that Game calls | `rpg/sim/magic_game.cpp`, `rpg/sim/life_game.cpp` |
-| `<lane>_ops.h` | `struct <Lane>Ops`: the lane's internals, a `friend` of `Game` (see the friend list in `game.h`) | `rpg/sim/magic_ops.h`, `rpg/sim/life_ops.h` |
+| `<lane>_game.cpp` | the glue: the bodies of the lane's hooks that the core calls (`LifeHooks::step`, `MagicOps::choose` ...) | `rpg/sim/magic_game.cpp`, `rpg/sim/life_game.cpp` |
+| `<lane>_ops.h` | `struct <Lane>Ops`: the lane's hooks and internals as static functions taking `Game&`, a `friend` of `Game` (see the friend list in `game.h`) | `rpg/sim/magic_ops.h`, `rpg/sim/war_ops.h` |
+
+Since wave 4 a hook called only from inside `rpg/sim` and `rpg/story` is not a Game member: it lives in its lane's
+struct (`Game::lifeStep` became `LifeHooks::step(Game&, float)`). A hook that view, main or the gate tools still call
+stays a Game member, so those layers did not change. Where each lane's hooks live:
+
+| Struct | Header | Bodies | What it holds |
+|---|---|---|---|
+| `LifeHooks` | `life_hooks.h` | `life_game.cpp` and its cluster files, `life_raids.cpp`, `life_quests.cpp` | townsfolk and citizens: step, talk, choose, raids |
+| `FoeHooks` | `foe_hooks.h` | `foes_game.cpp` | elites, champions, uniques, boss phases, world bosses, culture arms |
+| `CraftHooks` | `craft_hooks.h` | `craft_game.cpp` | crafting's talk and choose |
+| `HomeOps`, `PartyOps`, `PartyTalkOps`, `LootOps`, `PowerOps`, `ClimbOps` | their lane headers (`ClimbOps` in `game.h`) | their lane files | the existing Ops structs, now holding the hooks too |
+| `RealmOps` | `realm_ops.h` | `realm_game.cpp` | `RealmOps::step`, the living world's step |
+| `WarOps` | `war_ops.h` | `war_game.cpp` | siege camps, patrols, refugees, the war's talk, choose and kills |
+| `TravelOps` | `travel_ops.h` | `travel.cpp`, `prep_interior.cpp` | travel behind the fade, the interior made ahead |
+| `WaysideOps` | `wayside_ops.h` | `wayside.cpp` | vignettes, ambushes, tolls, stones, graves, rumours |
+| `QuestOps` | `quest_ops.h` | `quests.cpp`, `quest_offers.cpp`, `game_quests.cpp` | offer builders, quest ticks, markers, escorts, the main quest |
+| `AiOps` | `ai_ops.h` | `ai.cpp`, `ai_beasts.cpp` | beasts by species, friendly folk, town defence, target choice |
+| `StreamOps` | `stream_ops.h` | `game.cpp` | the endless window's upkeep, NPC level of detail, dens, roaming spawns |
+| `StoryOps` | `story_ops.h` | `rpg/story/story_game.cpp` | story quests, rumours and news, lore, boards, heralds |
+
+`LifeHooks`, `FoeHooks` and `CraftHooks` are kept apart from `LifeOps`, `FoeOps` and `CraftOps` because those headers
+carry file-local helpers that clash in other files: the core includes the small hooks header and nothing else of the
+lane. `JobOps` absorbed `QuestMixOps`.
+
+**Header split.** `rpg/sim/game_types.h` holds the plain types (Mode, Input, Actor, Projectile, Pickup, Event, Quest,
+`QType`, `DlgOpt`, the `DLG_*` ranges, Dialogue, Lodging, Travel, Shop) and includes no lane header (the magic statuses
+that `Actor` needs are in `magic_status.h`). `rpg/sim/game.h` holds class `Game` and includes `game_types.h`. Include
+`game_types.h` when the types are enough.
 
 A big lane splits its Ops by cluster: `LifeOps` is declared in `life_ops.h` and defined across `life_spots.cpp`,
 `life_paths.cpp`, `life_spawn.cpp`, `life_street.cpp`, `life_indoors.cpp`, `life_critters.cpp`, `life_incidents.cpp`
@@ -98,13 +126,37 @@ and `life_lines.cpp`. A cluster keeps its own internal calls inside its file, an
 the header.
 
 Game calls a lane from a few fixed places:
-- the update step (`Game::update` in `rpg/sim/game.cpp`; a separate `sim_schedule.cpp` comes in wave 4);
-- the dialogue dispatch (`Game::dialogueChoose` in `rpg/sim/game_dialogue.cpp`), which hands an option to the lane
-  whose `DLG_*` range (`rpg/sim/game.h`) holds its action;
+- the update step: `Game::update` in `rpg/sim/sim_schedule.cpp`, one function with one comment per step. **That file is
+  the determinism contract**: the steps run in that order every update, and saves, Witness replays and the sim digest
+  depend on it. Never reorder it; a new step goes in with its reason written beside it;
+- the dialogue routing: `Game::dialogueChoose` (`rpg/sim/game_dialogue.cpp`) asks `gsim::dlgRoute`
+  (`rpg/sim/dlg_routes.cpp`), whose table `kDlgRoutes` has one `{lo, hi, choose}` row per `DLG_*` range
+  (`rpg/sim/game_types.h`) in the old check order (story first, the lord last); a static_assert keeps the ranges
+  sorted and apart, so at most one lane takes an option;
 - the save (`rpg/sim/game_save.cpp`), when the lane keeps state.
 
 On the view side a lane gets its own files (`rpg/view/<lane>_ui.cpp`, `render_<lane>.cpp`) and, for tests, its own
 `rpg/view/scripts/<subject>.cpp`.
+
+### 2.2 View parts (wave 4)
+
+`View` (`rpg/view/view.h`) is a facade over value members, one per part. It keeps its public API (`settleBakes`,
+`peopleMB` and the projection names forward to the parts). A part's method that needs the rest of the view takes
+`View& v`. Float bodies stay in the files they were compiled in (/fp:fast rounding), so a part's `.cpp` can be small.
+
+| Part | Member | Files | What it holds |
+|---|---|---|---|
+| `TerrainBaker` | `bake_` | `terrain_bake.h/.cpp` | the chunk cache, the job queue, the worker threads, prefetch, `pumpBake`, `settleBakes` (the bake itself stays in `terrain.cpp`) |
+| `SpriteCache` | `sprites_` | `sprite_cache.h/.cpp` | every texture cache: people, buildings, walls, forts, heraldry, kingdoms, styled props; `trimCaches`, `peopleMB` |
+| `Camera` | `camera_` | `camera.h/.cpp` | `cam_`, zoom, `toUi`/`toWorld`, `uiInsetsToWorld` (`camera.cpp` holds only the zoom step) |
+| `FxState` | `fx_` | `fx_state.h` | particles, floating lines, toasts, shake |
+| `ViewProbe` | (static hooks) | `view_probe.h` | the test and Witness hooks and counters; included only by `rpg/view/scripts/` and `witness_state.cpp` (`ViewProbe::m4Stats(c.view)`) |
+| lane parts | `party_`, `loot_`, `realm_`, `life_`, `home_`, `lens_`, `weather_`, `hudx_`, `powers_` | `party_ui.h`, `loot_view.h`, `realm_hud.h`, `life_view.h`, `home_view.h`, `lens_state.h`, `weather_view.h`, `hud_extents.h`, `power_view.h` | each lane's view state and its methods |
+| opaque lanes | `MagicFxState` ... | `lane_entry.h` | the entry points of the magic, skills, sea, relief and rise lanes, whose state is an opaque struct defined in their own `.cpp` |
+
+`view.h` includes `loot_card.h` (what an item card showed), not the rarity painter `loot_paint.h`. Four bodies over 300
+lines (`homeCollect`, `drawBuild`, `drawPartyPage`, `drawPowerFx`) stay View members, because the size gate tracks a
+function by its full name.
 
 ### 2.1 Staged functions (wave 3)
 
@@ -138,6 +190,8 @@ These tables register themselves, so adding a row needs no edit in a central fil
 | per-seed checks | `tools/tests/tests.h` | `RPG_SEED_CHECK("name", fn);` (run by `rpg_test --seeds`) |
 | doll gates | `tools/tests/doll_test_common.h` | `RPG_DOLL_GATE(order, "name", fn);` in a `tools/tests/test_doll*.cpp` file; `rpg_test --doll --gates` runs them by order key (unique; a repeat is a FAIL) |
 | story archetypes | `rpg/story/arch/index.cpp` | append in library order (the order is an id: never reorder) |
+| Witness view resets | `rpg/view/view.h` | file-scope presentation state (function statics, memos by actor id) registers its reset beside that state with `EMB_VIEW_RESET(fn);`; `View::witnessRelease` runs every registered reset (in no set order: each touches only its own file's state), so none can be forgotten |
+| dialogue routes | `rpg/sim/dlg_routes.cpp` | one `{lo, hi, choose}` row in `kDlgRoutes` for a new `DLG_*` range (the static_assert checks the order) |
 
 Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
 - sounds: one `X(Name, trim)` row in `SFX_LIST` (`engine/sound_ids.h`) generates the `Sfx` id, its name in `Audio::sfxName`,
@@ -147,7 +201,7 @@ Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
   (`rpg/view/prop_traits.cpp`);
 - saved mark tags: the register `kMarkTags` in `rpg/sim/mark_tags.h` (every lane's tags by name, owner and value;
   the lanes keep their named constants in their own files, and `enum class Mk` holds the SIM lane's);
-- quest types: `enum class QType` in `rpg/sim/game.h`;
+- quest types: `enum class QType` in `rpg/sim/game_types.h`;
 - wayside places: `rpg/world/vignettes.cpp`.
 
 ## 4. Determinism and floating point
@@ -159,7 +213,7 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
   `items.cpp`: each changes bits in goldens.
 - **Worldgen** uses integer maths and `rpg/world/dmath.h`.
 - **RNG.** Never pass two RNG draws as arguments of one call (the evaluation order is unspecified).
-- **Fixed orders.** `Game::update`'s order, `damage()`'s modifier chain, RNG draw order, the drawable push order and
+- **Fixed orders.** `Game::update`'s order (`rpg/sim/sim_schedule.cpp`), `damage()`'s modifier chain, RNG draw order, the drawable push order and
   sort ties in `render.cpp`, the Bx draw order in `rpg/build`, and `rpg/story/arch/index.cpp`'s order are contracts.
 - **Saves.** `SAVE_VER` is 23 and lives only in `rpg/sim/game_save.cpp`, whose header lists every block in write order.
   Enum values (Prop, Monster, Sfx, QType, Building, Mk ...) are append only.
@@ -197,7 +251,8 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
    code: under about 150). A file over that is split along its section banners before anything is added
    (`tools/gates/size_report.sh`). Data tables and generated files are exempt.
 8. **No new process-wide mutable globals** in sim, art or view. Per-world state lives in Game as runtime-only fields
-   marked "never saved"; per-frame screen state lives in View; any file-scope state registers a Witness reset.
+   marked "never saved"; per-frame screen state lives in View or one of its parts; any file-scope state registers a
+   Witness reset with `EMB_VIEW_RESET(fn)` next to it.
 9. **Determinism.** Section 4: integer/dmath worldgen, one RNG draw per argument list, no code moved between FP groups,
    the fixed orders kept exactly.
 10. **Generated and vendored files** are never edited by hand: `rpg/art/doll/gen/` (made by `tools/doll/pxc.mjs`),
@@ -236,10 +291,11 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 3. Tests never touch the player's save.
 
 **A dialogue lane.**
-1. Reserve a new `DLG_<LANE>` .. `DLG_<LANE>_END` option range in `rpg/sim/game.h` (after the last one).
-2. Write `<lane>Talk` (adds options) and `bool <lane>Choose(const DlgOpt&)` (handles them) in `<lane>_game.cpp`.
-3. Add one line to the range dispatch in `Game::dialogueChoose` (`rpg/sim/game_dialogue.cpp`) and the talk call
-   beside the other lanes' calls there.
+1. Reserve a new `DLG_<LANE>` .. `DLG_<LANE>_END` option range in `rpg/sim/game_types.h` (after the last one).
+2. Write `<Lane>Ops::talk` (adds options) and `static bool <Lane>Ops::choose(Game&, const DlgOpt&)` (handles them) in
+   `<lane>_game.cpp`.
+3. Add one row `{DLG_<LANE>, DLG_<LANE>_END, &<Lane>Ops::choose}` to `kDlgRoutes` (`rpg/sim/dlg_routes.cpp`) in range
+   order, and the talk call beside the other lanes' calls in `rpg/sim/game_dialogue.cpp`.
 4. Check: `rpg_test --dialogue --seeds 1..3`.
 
 **A saved mark.** (`rpg/sim/mark_tags.h` is the registry of every saved tag.)
@@ -258,7 +314,8 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 1. Model: `rpg/sim/<lane>.h/.cpp`, rules and data with no `Game`.
 2. Hooks: `rpg/sim/<lane>_ops.h` with `struct <Lane>Ops`, plus one `friend struct <Lane>Ops;` line in `game.h`'s
    friend list; glue in `rpg/sim/<lane>_game.cpp`.
-3. Wire it: one call in `Game::update`, one dispatch row for its dialogue range, and a save block appended at the end
+3. Wire it: one commented step in `Game::update` (`rpg/sim/sim_schedule.cpp`), one `kDlgRoutes` row for its dialogue
+   range, and a save block appended at the end
    of `serialize`/`deserialize` in `game_save.cpp` (bump `SAVE_VER` and list the block in the header; old saves must
    still load, so `deserialize` reads it only when the version is new enough).
 4. View: its own `rpg/view/<lane>_ui.cpp` / `render_<lane>.cpp`; test commands in `rpg/view/scripts/<lane>.cpp`;
