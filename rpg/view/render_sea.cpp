@@ -1273,7 +1273,7 @@ void View::drawSeaHud(Game& g) {
     float px = L + 4, py = B - ph - 4;
     if (touchUI) {   // the phone: up the left edge, clear above the stick (and right of the party's portraits)
       py = B - 55.0f - 40.0f - ph;
-      if (partyColB_ > 0 && partyColB_ > py - 4) px = std::max(px, partyColR_ + 4.0f);
+      if (party_.partyColB_ > 0 && party_.partyColB_ > py - 4) px = std::max(px, party_.partyColR_ + 4.0f);
     }
     S.hudX0 = px; S.hudY0 = py; S.hudX1 = px + pw; S.hudY1 = py + ph;
     seaPanel(P, px, py, pw, ph);

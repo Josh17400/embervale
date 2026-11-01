@@ -160,43 +160,43 @@ void drawTaleMark(Pix& P, const MarkTex& m, const Actor& a, Vec2 cam, float t) {
 // (a 5 x 3 puff, then the bubble a pixel high, then settled), a slow one-pixel bob, a fade over its last third of a
 // second (Actor::bubbleT: the seconds it has left). Whole pixels only (crisp at 1x on the phone). Over a quest giver's
 // "!" it steps aside to the right.
-void View::drawBubbles(Game& g, Vec2 cam) {
-  Pix& P = *pix_;
+void LifeView::drawBubbles(View& v, Game& g, Vec2 cam) {
+  Pix& P = *v.pix_;
   static std::vector<int> live;
   live.clear();
   for (const Actor& a : g.actors) {
     if (a.bubble == art::Bubble::None || !(a.bubbleT > 0) || a.st == AState::Dead) continue;
 #ifdef EMB_WITNESS
-    if (!wHide.empty() && witnessHides(g, a)) continue;   // (Witness reset param hide)
+    if (!v.wHide.empty() && v.witnessHides(g, a)) continue;   // (Witness reset param hide)
 #endif
     if (a.p.x < cam.x - 24 || a.p.x > cam.x + Pix::W + 24 || a.p.y < cam.y - 8 || a.p.y > cam.y + Pix::H + 48) continue;
     live.push_back(a.id);
     BubbleSeen& bs = bubbleSeen_[a.id];
-    if (bs.kind != (uint8_t)a.bubble || a.bubbleT > bs.maxT + 0.05f || t_ - bs.seen > 0.5f) { bs.kind = (uint8_t)a.bubble; bs.t0 = t_; bs.maxT = a.bubbleT; }
+    if (bs.kind != (uint8_t)a.bubble || a.bubbleT > bs.maxT + 0.05f || v.t_ - bs.seen > 0.5f) { bs.kind = (uint8_t)a.bubble; bs.t0 = v.t_; bs.maxT = a.bubbleT; }
     bs.maxT = std::min(bs.maxT, a.bubbleT);
-    bs.seen = t_;
-    const float age = t_ - bs.t0;
+    bs.seen = v.t_;
+    const float age = v.t_ - bs.t0;
     const uint64_t key = 0x4Dull << 56 | (uint64_t)a.bubble;
-    const Tex& t = sprites_.cachedTex(*this, key, [](uint64_t k) { return art::bubbleSprite((art::Bubble)(k & 255)); });
+    const Tex& t = v.sprites_.cachedTex(v, key, [](uint64_t k) { return art::bubbleSprite((art::Bubble)(k & 255)); });
     // the head: the standing figure's top (a seated or sleeping body sits lower: its pose's dy)
     float dy = 0;
     if (a.human && a.posture != art::Posture::None) dy = (float)art::postureInfo(a.posture).dy;
     // (P2a) a person's crown from the rig they are drawn with (v1: HUMAN_H - 3 = 21)
-    const float headY = a.p.y - (a.human ? (float)rigFor(a.look).headTop : (a.critter ? (float)art::critterCellH((art::Critter)(a.critter - 1)) : 18.0f)) + dy;
+    const float headY = a.p.y - (a.human ? (float)v.rigFor(a.look).headTop : (a.critter ? (float)art::critterCellH((art::Critter)(a.critter - 1)) : 18.0f)) + dy;
     float ax = a.p.x, hy = headY;
     bool seatedDrawn = a.human && art::postureInfo(a.posture).seated;
     // (fixer M5 r3) a human's bubble rides on the head as it was drawn this frame (a posture's sink or a seat's fit is
     // applied only when the figure is drawn in it: a seated posture drawn standing put the bubble over the face)
     if (a.human) {
-      auto dh = drawnHead_.find(a.id);
-      if (dh != drawnHead_.end() && dh->second.t == t_) {
+      auto dh = v.drawnHead_.find(a.id);
+      if (dh != v.drawnHead_.end() && dh->second.t == v.t_) {
         ax = dh->second.x;
         hy = dh->second.y + 1.0f;
-        seatedDrawn = seatedDrawn && hy > a.p.y - (float)rigFor(a.look).headTop - 3.0f + 4.0f;   // drawn sunk: it really sits
+        seatedDrawn = seatedDrawn && hy > a.p.y - (float)v.rigFor(a.look).headTop - 3.0f + 4.0f;   // drawn sunk: it really sits
       }
     }
     int cx = (int)std::floor(ax - cam.x) + (g.rewardWaiting(a) ? 9 : 2);
-    int by = (int)std::floor(hy - cam.y) - 1 + (int)std::lround(std::sin(t_ * 2.2f + a.id * 0.9f) * 0.6f);
+    int by = (int)std::floor(hy - cam.y) - 1 + (int)std::lround(std::sin(v.t_ * 2.2f + a.id * 0.9f) * 0.6f);
     // (M5 fixer r2) a sitter with its back to us faces a table: its bubble rises beside the head, not over the tabletop
     if (a.human && a.face == 1 && a.useX >= 0 && seatedDrawn) { cx += 9; by += 4; }
     // a sleeper's bubble floats up from the pillow, beside the head (never over the face)
@@ -208,7 +208,7 @@ void View::drawBubbles(Game& g, Vec2 cam) {
       const art::BedFit bf = art::bedFit(bk, -1);
       const float bx = a.useX * 16.0f + 8.0f - bf.w / 2.0f, btop = a.useY * 16.0f + 16.0f - bf.h;
       cx = (int)std::floor(bx + bf.headX + 12 - cam.x);
-      by = (int)std::floor(btop + bf.headY - 8 - cam.y) + (int)std::lround(std::sin(t_ * 1.4f + a.id * 0.9f) * 0.8f);
+      by = (int)std::floor(btop + bf.headY - 8 - cam.y) + (int)std::lround(std::sin(v.t_ * 1.4f + a.id * 0.9f) * 0.8f);
     }
     const float alpha = clampf(a.bubbleT / 0.33f, 0, 1);
     if (age < 0.05f) {   // the puff
@@ -224,13 +224,13 @@ void View::drawBubbles(Game& g, Vec2 cam) {
     m5Count_.bubbles++;
   }
   // forget the actors whose bubbles have gone
-  if (drawnHead_.size() > 512)
-    for (auto it = drawnHead_.begin(); it != drawnHead_.end();) {
-      if (t_ - it->second.t > 1.0f) it = drawnHead_.erase(it); else ++it;
+  if (v.drawnHead_.size() > 512)
+    for (auto it = v.drawnHead_.begin(); it != v.drawnHead_.end();) {
+      if (v.t_ - it->second.t > 1.0f) it = v.drawnHead_.erase(it); else ++it;
     }
   if (bubbleSeen_.size() > live.size() + 32)
     for (auto it = bubbleSeen_.begin(); it != bubbleSeen_.end();) {
-      if (t_ - it->second.seen > 1.0f) it = bubbleSeen_.erase(it); else ++it;
+      if (v.t_ - it->second.seen > 1.0f) it = bubbleSeen_.erase(it); else ++it;
     }
 }
 
@@ -289,7 +289,7 @@ void View::drawIncidentGround(Game& g, Vec2 cam) {
 
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
-  drawBubbles(g, cam);
+  life_.drawBubbles(*this, g, cam);
   s_markView = this;   // (P2b VIEW-B) headLine reads the drawn frames' tops
   const Color outline(0.09f, 0.06f, 0.08f);
   const Color hi(1.0f, 0.86f, 0.38f), gold(1.0f, 0.64f, 0.10f), goldShade(0.74f, 0.33f, 0.05f);

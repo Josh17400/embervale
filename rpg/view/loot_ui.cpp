@@ -42,7 +42,7 @@ struct View::LootPainter {
   void beam(float x, float y, float w, float h, Color c, int sy, int sh, bool add) { P.blitEx(v.sprites_.beamTex(v), 0, sy, 16, sh, x, y, w, h, false, c, add ? 1 : 0); }
   void pool(float x, float y, float w, float h, Color c) { P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, y, w, h, false, c, 1); }
   void shadow(float x, float y, float w, float h, float a) { P.blitEx(v.sprites_.shadow_, 0, 0, 14, 6, x, y, w, h, false, Color(1, 1, 1, a)); }
-  void noted(Rarity) { v.lootCount_.frames++; }
+  void noted(Rarity) { v.loot_.lootCount_.frames++; }
   void icon(const Item& it, float x, float y, float size) { if (g) P.blitEx(v.sprites_.itemTex(v, *g, it), 0, 0, 16, 16, x, y, size, size); }
 };
 
@@ -128,34 +128,34 @@ const Tex* SpriteCache::mythicAuraTex(View& v, const art::HumanLook& L) {
   return &(mythicAura_[k] = v.pix_->bake(out));
 }
 
-void View::mythicAuraAt(const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc) {
+void LootView::mythicAuraAt(View& v, const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc) {
   if (!L.glow || L.glowColor != kMythicGlow) return;
-  const Tex* au = sprites_.mythicAuraTex(*this, L);
+  const Tex* au = v.sprites_.mythicAuraTex(v, L);
   if (!au) return;
-  const int v = (int)(t_ * 9.0f) % AURA_V;
-  const int sx = ((row * art::HUMAN_FRAMES + frame) * AURA_V + v) * AURA_CW;
-  pix_->blitEx(*au, sx, 0, AURA_CW, AURA_CH, x - AURA_PAD * sc, y - AURA_PAD * sc, AURA_CW * sc, AURA_CH * sc, flip, Color(1, 1, 1, 0.95f));
+  const int vf = (int)(v.t_ * 9.0f) % View::AURA_V;
+  const int sx = ((row * art::HUMAN_FRAMES + frame) * View::AURA_V + vf) * View::AURA_CW;
+  v.pix_->blitEx(*au, sx, 0, View::AURA_CW, View::AURA_CH, x - View::AURA_PAD * sc, y - View::AURA_PAD * sc, View::AURA_CW * sc, View::AURA_CH * sc, flip, Color(1, 1, 1, 0.95f));
 }
 
 // ------------------------------------------------------------------------------------------------ the View's wrappers
-void View::rarityText(float x, float y, const std::string& s, Rarity r, float alpha, int align, bool shadow) {
-  LootPainter lp{*this, nullptr, *pix_};
+void LootView::rarityText(View& v, float x, float y, const std::string& s, Rarity r, float alpha, int align, bool shadow) {
+  View::LootPainter lp{v, nullptr, *v.pix_};
   if (r == Rarity::Mythic) lootCount_.mythicText++;
-  lootp::rarityText(lp, t_, x, y, s, r, alpha, align, shadow);
+  lootp::rarityText(lp, v.t_, x, y, s, r, alpha, align, shadow);
 }
-void View::rarityFrame(float x, float y, float w, float h, Rarity r, bool hot, bool small) {
-  LootPainter lp{*this, nullptr, *pix_};
-  lootp::rarityFrame(lp, t_, x, y, w, h, r, hot, small);
+void LootView::rarityFrame(View& v, float x, float y, float w, float h, Rarity r, bool hot, bool small) {
+  View::LootPainter lp{v, nullptr, *v.pix_};
+  lootp::rarityFrame(lp, v.t_, x, y, w, h, r, hot, small);
 }
-void View::rarityIcon(const Game& g, const Item& it, float x, float y, float size) {
-  LootPainter lp{*this, &g, *pix_};
-  lootp::rarityIcon(lp, t_, it, x, y, size);
+void LootView::rarityIcon(View& v, const Game& g, const Item& it, float x, float y, float size) {
+  View::LootPainter lp{v, &g, *v.pix_};
+  lootp::rarityIcon(lp, v.t_, it, x, y, size);
 }
-void View::cmpArrow(float x, float y, int dir) {
-  LootPainter lp{*this, nullptr, *pix_};
+void LootView::cmpArrow(View& v, float x, float y, int dir) {
+  View::LootPainter lp{v, nullptr, *v.pix_};
   lootp::arrow(lp, x, y, dir);
 }
-const Item* View::wornFor(const Game& g, const Item& it, int selfIndex, bool& isWorn) const {
+const Item* LootView::wornFor(const Game& g, const Item& it, int selfIndex, bool& isWorn) const {
   isWorn = false;
   if (!itemEquippable(it.kind)) return nullptr;
   int* e = const_cast<Game&>(g).equipSlot(it.kind);
@@ -163,20 +163,20 @@ const Item* View::wornFor(const Game& g, const Item& it, int selfIndex, bool& is
   if (*e == selfIndex) { isWorn = true; return nullptr; }
   return &g.inv[(size_t)*e];
 }
-int View::cmpVerdict(const Game& g, const Item& it, const Item* vs) const { return lootp::verdict(it, vs, g.plLevel); }
+int LootView::cmpVerdict(const Game& g, const Item& it, const Item* vs) const { return lootp::verdict(it, vs, g.plLevel); }
 // (M8b fixer r2, review: "tapping the greyed ATTUNED FULL button does nothing") the pack's use: a great piece that
 // cannot be worn now is not handed to Game::equip (its notice would hide behind the open menu): the card's reason line
 // blinks and the refusal sounds instead
-void View::packUse(Game& g, int i) {
+void LootView::packUse(View& v, Game& g, int i) {
   if (i < 0 || i >= (int)g.inv.size()) return;
   bool isWorn = false;
   const Item* vs = wornFor(g, g.inv[(size_t)i], i, isWorn);
-  if (!isWorn && attuneWhy(g, g.inv[(size_t)i], vs)) { lootBlockFlash_ = 1.2f; if (audio_) audio_->play(Sfx::MenuBack); return; }
+  if (!isWorn && attuneWhy(g, g.inv[(size_t)i], vs)) { lootBlockFlash_ = 1.2f; if (v.audio_) v.audio_->play(Sfx::MenuBack); return; }
   g.useItem(i);
 }
 // (M8b fixer r2) why a great piece cannot be worn now (0 it can; 1 below level 10; 2 every attunement taken, name: a
 // worn great piece other than the one it would replace), as Game::equip judges it (game_rpg.cpp)
-int View::attuneWhy(const Game& g, const Item& it, const Item* vs, std::string* name) const {
+int LootView::attuneWhy(const Game& g, const Item& it, const Item* vs, std::string* name) const {
   if (!itemEquippable(it.kind) || !gear::attunes(it)) return 0;
   const int slots = gear::attunementSlots(g.plLevel);
   if (slots == 0) return 1;
@@ -195,8 +195,8 @@ int View::attuneWhy(const Game& g, const Item& it, const Item* vs, std::string* 
   return 2;
 }
 
-float View::itemCard(const Game& g, const Item& it, float x, float y, float w, float maxY, bool cmp, const Item* vs, bool worn, bool bigIcon) {
-  LootPainter lp{*this, &g, *pix_};
+float LootView::itemCard(View& v, const Game& g, const Item& it, float x, float y, float w, float maxY, bool cmp, const Item* vs, bool worn, bool bigIcon) {
+  View::LootPainter lp{v, &g, *v.pix_};
   lootp::CardCtx X;
   X.level = g.plLevel;
   X.attuned = g.craft.live.stats.legendaries;
@@ -206,7 +206,7 @@ float View::itemCard(const Game& g, const Item& it, float x, float y, float w, f
   X.skills = &g.skills;          // (M9) the family / armour lines at the hero's levels, what a book teaches
   X.book = &g.arcana.book;
   lootp::CardInfo info;
-  const float yb = lootp::itemCard(lp, t_, X, it, x, y, w, maxY, cmp, vs, worn, bigIcon, &info);
+  const float yb = lootp::itemCard(lp, v.t_, X, it, x, y, w, maxY, cmp, vs, worn, bigIcon, &info);
   lootCount_.cards++;
   if (info.compare) lootCount_.compares++;
   if (it.rarity == Rarity::Mythic) lootCount_.mythicText++;
@@ -217,18 +217,18 @@ float View::itemCard(const Game& g, const Item& it, float x, float y, float w, f
 // ------------------------------------------------------------------------------------------------ the loot on the ground
 // The sorted world pass draws each pickup here (the beam stands behind its icon; actors and props south of it are drawn
 // after and stand in front, so a beam never hides them); loot_paint.h lootGround draws it.
-void View::drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob) {
-  LootPainter lp{*this, &g, *pix_};
+void LootView::drawLootGround(View& v, Game& g, const Pickup& k, int idx, Vec2 cam, float bob) {
+  View::LootPainter lp{v, &g, *v.pix_};
   const int r = k.gold > 0 || !itemEquippable(k.item.kind) ? 0 : (int)k.item.rarity;
   if (r > 0) lootCount_.beams[std::min(r, 5)]++;
   const float d = std::sqrt(len2(k.p - g.pl().p));
   const float near = clampf((d - 12.0f) / 36.0f, 0.35f, 1.0f);   // the beam fades as the hero walks right up to it
   if (k.gold > 0) {
     lp.shadow(std::floor(k.p.x - cam.x) - 5, std::floor(k.p.y - cam.y) - 2, 10, 4, 0.8f);
-    pix_->blit(sprites_.iconTex(*this, art::Icon::Gold, 0), std::floor(k.p.x - cam.x) - 8, std::floor(k.p.y - cam.y) - 16 + bob);
+    v.pix_->blit(v.sprites_.iconTex(v, art::Icon::Gold, 0), std::floor(k.p.x - cam.x) - 8, std::floor(k.p.y - cam.y) - 16 + bob);
     return;
   }
-  lootp::lootGround(lp, t_, &k.item, r, k.p.x - cam.x, k.p.y - cam.y, bob, near, idx);
+  lootp::lootGround(lp, v.t_, &k.item, r, k.p.x - cam.x, k.p.y - cam.y, bob, near, idx);
   // (M8b fixer r2, review: "Legendary and Mythic pieces are washed out by a beam drawn over them") a beam rises over
   // the ground north of its pickup, which the sorted pass has already drawn: a piece lying in that column is drawn
   // again on top, so every beam stands behind every other piece (its own colours, never bleached by a neighbour's)
@@ -239,24 +239,24 @@ void View::drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob
       const Pickup& o = g.pickups[j];
       const float dy = k.p.y - o.p.y;
       if (dy <= 0 || dy > reach + 16 || std::fabs(o.p.x - k.p.x) > 20) continue;
-      const float ob = std::sin(t_ * 4 + (float)j) * 1.5f;   // its bob (render.cpp's sorted pass)
+      const float ob = std::sin(v.t_ * 4 + (float)j) * 1.5f;   // its bob (render.cpp's sorted pass)
       const float ox = std::floor(o.p.x - cam.x), oy = std::floor(o.p.y - cam.y);
-      if (o.gold > 0) pix_->blit(sprites_.iconTex(*this, art::Icon::Gold, 0), ox - 8, oy - 16 + ob);
+      if (o.gold > 0) v.pix_->blit(v.sprites_.iconTex(v, art::Icon::Gold, 0), ox - 8, oy - 16 + ob);
       else lp.icon(o.item, ox - 8, oy - 16 + ob, 16);
     }
   }
 }
 
 // the lights loot carries into the dark (drawLighting): the pool at the foot and the column above it
-void View::lootLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
+void LootView::lootLights(View& v, Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
   // (M8b fix) only what can light the view: the biggest blob reaches 58 px, the column 40 px above the foot
-  const float vx0 = camera_.cam_.x - 64, vy0 = camera_.cam_.y - 64, vx1 = camera_.cam_.x + (float)Pix::W + 64, vy1 = camera_.cam_.y + (float)Pix::H + 104;
+  const float vx0 = v.camera_.cam_.x - 64, vy0 = v.camera_.cam_.y - 64, vx1 = v.camera_.cam_.x + (float)Pix::W + 64, vy1 = v.camera_.cam_.y + (float)Pix::H + 104;
   for (size_t i = 0; i < g.pickups.size(); i++) {
     const Pickup& k = g.pickups[i];
     if (k.gold || !itemEquippable(k.item.kind) || k.item.rarity == Rarity::Common) continue;
     if (k.p.x < vx0 || k.p.y < vy0 || k.p.x > vx1 || k.p.y > vy1) continue;
     const Color rc = colU(rarityColor(k.item.rarity));
-    const float tt = t_ + (float)i * 0.71f;
+    const float tt = v.t_ + (float)i * 0.71f;
     switch (k.item.rarity) {
       case Rarity::Uncommon: light(k.p + Vec2(0, -4), 16, rc, 0.30f); break;
       case Rarity::Rare: light(k.p + Vec2(0, -4), 26, rc, 0.45f); light(k.p + Vec2(0, -22), 22, rc, 0.36f); break;
@@ -278,14 +278,14 @@ void View::lootLights(Game& g, const std::function<void(Vec2, float, Color, floa
   }
   // a Mythic wearer smoulders: a small warm flicker round them
   for (const Actor& a : g.actors)
-    if (mythicWearer(a) && a.st != AState::Dead && a.p.x >= vx0 && a.p.y >= vy0 && a.p.x <= vx1 && a.p.y <= vy1) light(a.p + Vec2(0, -10), 34, Color(1.0f, 0.45f, 0.18f), 0.30f + 0.08f * std::sin(t_ * 11 + a.id));
+    if (mythicWearer(a) && a.st != AState::Dead && a.p.x >= vx0 && a.p.y >= vy0 && a.p.x <= vx1 && a.p.y <= vy1) light(a.p + Vec2(0, -10), 34, Color(1.0f, 0.45f, 0.18f), 0.30f + 0.08f * std::sin(v.t_ * 11 + a.id));
 }
 
 // once a frame (update): the chime for an Epic or better piece coming into view, the embers off a Mythic wearer
-void View::lootUpdate(Game& g, float dt) {
+void LootView::lootUpdate(View& v, Game& g, float dt) {
   lootBlockFlash_ = std::max(0.0f, lootBlockFlash_ - dt);
   if (g.mode == Mode::Play) {
-    const float vx0 = camera_.cam_.x - 8, vy0 = camera_.cam_.y - 8, vx1 = camera_.cam_.x + (float)Pix::W + 8, vy1 = camera_.cam_.y + (float)Pix::H + 8;
+    const float vx0 = v.camera_.cam_.x - 8, vy0 = v.camera_.cam_.y - 8, vx1 = v.camera_.cam_.x + (float)Pix::W + 8, vy1 = v.camera_.cam_.y + (float)Pix::H + 8;
     int best = -1;
     // (M8b fixer r3) a piece chimes once: the flag rides on the pickup itself, so the pull toward the hero and an endless
     // window shift (both move k.p) no longer make it a 'new' find
@@ -295,17 +295,17 @@ void View::lootUpdate(Game& g, float dt) {
       k.sighted = true;
       best = std::max(best, (int)k.item.rarity);
     }
-    if (best >= (int)Rarity::Epic && t_ - lootChimeT_ > 0.6f) {
-      audio_->play(Sfx::LootChime, best == (int)Rarity::Mythic ? 1.26f : best == (int)Rarity::Legendary ? 1.12f : 1.0f, best >= (int)Rarity::Legendary ? 0.9f : 0.75f);
-      lootChimeT_ = t_;
+    if (best >= (int)Rarity::Epic && v.t_ - lootChimeT_ > 0.6f) {
+      v.audio_->play(Sfx::LootChime, best == (int)Rarity::Mythic ? 1.26f : best == (int)Rarity::Legendary ? 1.12f : 1.0f, best >= (int)Rarity::Legendary ? 0.9f : 0.75f);
+      lootChimeT_ = v.t_;
       lootCount_.chimes++;
     }
   }
   // (M8b fixer r3) the Mythic aura sheets: a handful of looks at most (the hero, companions); past that start again,
   // here between frames (the draw's glow list holds pointers into the cache until the frame is presented)
-  if (sprites_.mythicAura_.size() > 16) {
-    for (auto& kv : sprites_.mythicAura_) pix_->destroy(kv.second);
-    sprites_.mythicAura_.clear();
+  if (v.sprites_.mythicAura_.size() > 16) {
+    for (auto& kv : v.sprites_.mythicAura_) v.pix_->destroy(kv.second);
+    v.sprites_.mythicAura_.clear();
   }
   // embers rising off a Mythic wearer (the hero, a companion: gear_look's flame glow on their sheet)
   emberT_ += dt;
@@ -315,19 +315,19 @@ void View::lootUpdate(Game& g, float dt) {
     emberT_ = 0;
     for (const Actor& a : g.actors) {
       if (!mythicWearer(a) || a.st == AState::Dead) continue;
-      if (a.p.x < camera_.cam_.x - 24 || a.p.y < camera_.cam_.y - 24 || a.p.x > camera_.cam_.x + (float)Pix::W + 24 || a.p.y > camera_.cam_.y + (float)Pix::H + 24) continue;
-      const uint32_t h = hash32((uint32_t)a.id * 2654435761u ^ (uint32_t)(t_ * 197.0f));
+      if (a.p.x < v.camera_.cam_.x - 24 || a.p.y < v.camera_.cam_.y - 24 || a.p.x > v.camera_.cam_.x + (float)Pix::W + 24 || a.p.y > v.camera_.cam_.y + (float)Pix::H + 24) continue;
+      const uint32_t h = hash32((uint32_t)a.id * 2654435761u ^ (uint32_t)(v.t_ * 197.0f));
       Particle q;
       const int side = (h & 1u) ? 1 : -1;
       q.p = a.p + Vec2((float)(side * (4 + (int)((h >> 1) % 3u))), -2.0f - (float)((h >> 8) % 18u));
       q.v = Vec2((float)((int)((h >> 16) % 9u) - 4) * 1.5f, -16.0f - (float)((h >> 20) % 10u));
       q.life = q.max = 0.55f + 0.04f * (float)((h >> 24) % 6u);
-      const Color fc = flameAt(t_, (float)(h % 7u), 0.2f + 0.1f * (float)((h >> 4) % 4u));
+      const Color fc = flameAt(v.t_, (float)(h % 7u), 0.2f + 0.1f * (float)((h >> 4) % 4u));
       q.c = fc;
       q.size = ((h >> 12) % 3u) == 0 ? 2 : 1;
       q.grav = -6;
       q.layer = 0;   // a solid pixel (an additive one vanishes on a sunlit field): the hot core of an ember
-      fx_.parts_.push_back(q);
+      v.fx_.parts_.push_back(q);
       lootCount_.embers++;
     }
   }
@@ -340,13 +340,13 @@ void View::lootUpdate(Game& g, float dt) {
 
 // an item's pickup notice (Ev::Notice in the rarity's colour, Game::addItem): the toast keeps the rarity (its name is
 // drawn in the ladder colour, a Mythic's in the flame) and an Epic or better find chimes, unless it just did on sight
-void View::lootNotice(Game& g, const Event& e, Toast& t) {
+void LootView::lootNotice(View& v, Game& g, const Event& e, Toast& t) {
   (void)g;
   for (int r = 1; r < RARITIES; r++)
     if ((uint32_t)e.a == rarityColor((Rarity)r)) t.rarity = r;
-  if (t.rarity >= (int)Rarity::Epic && t_ - lootChimeT_ > 3.0f) {
-    audio_->play(Sfx::LootChime, t.rarity == (int)Rarity::Mythic ? 1.26f : t.rarity == (int)Rarity::Legendary ? 1.12f : 1.0f, 0.8f);
-    lootChimeT_ = t_;
+  if (t.rarity >= (int)Rarity::Epic && v.t_ - lootChimeT_ > 3.0f) {
+    v.audio_->play(Sfx::LootChime, t.rarity == (int)Rarity::Mythic ? 1.26f : t.rarity == (int)Rarity::Legendary ? 1.12f : 1.0f, 0.8f);
+    lootChimeT_ = v.t_;
     lootCount_.chimes++;
   }
 }

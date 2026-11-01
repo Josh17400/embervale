@@ -74,7 +74,7 @@ int partyUseHere(const Game& g, int& idx) {
   return 0;
 }
 
-art::Posture View::partyPosture(const Game& g, const Actor& a) const {
+art::Posture PartyUi::partyPosture(const Game& g, const Actor& a) const {
   if (a.comp && a.human && a.st == AState::Down) {
     const int mi = companionIndex(g, a);
     if (mi >= 0 && g.party.members[(size_t)mi].state == party::State::Downed) return art::Posture::Downed;
@@ -89,34 +89,34 @@ art::Posture View::partyPosture(const Game& g, const Actor& a) const {
   return a.posture;
 }
 
-bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, float flash) {
+bool PartyUi::drawCompanionBody(View& v, Game& g, const Actor& a, Vec2 cam, float alpha, float flash) {
   const int mi = companionIndex(g, a);
   if (mi < 0) return false;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const party::Member& m = g.party.members[(size_t)mi];
   if (!a.human) {
     // ---- the hound
-    const Tex& t = sprites_.houndTex(*this, m, g);
+    const Tex& t = v.sprites_.houndTex(v, m, g);
     Vec2 dirv = len2(a.vel) > 4.0f ? a.vel : a.aim;
     int row = 0;
     bool flip = false;
     if (std::fabs(dirv.x) >= std::fabs(dirv.y) * 0.9f) { row = 2; flip = dirv.x < 0; }
     else row = dirv.y > 0 ? 0 : 1;
     const float own = (float)(hash32((uint32_t)m.id * 0x9E3779B1u) % 1000u) * 0.001f;
-    int fr = art::HF_IDLE + ((int)(t_ * 2.2f + own * 5) & 1);
+    int fr = art::HF_IDLE + ((int)(v.t_ * 2.2f + own * 5) & 1);
     switch (a.st) {
       case AState::Walk: fr = art::HF_RUN + (int)(a.animT * 11) % 4; break;
       case AState::Windup: fr = art::HF_BITE; break;
       case AState::Strike: case AState::Recover: fr = art::HF_BITE + 1; break;
       case AState::Down: fr = art::HF_DOWN; break;
       default:
-        if (m.state == party::State::Waiting || (len2(a.vel) < 1.0f && len2(a.p - g.pl().p) < 30.0f * 30.0f && std::fmod(t_ * 0.07f + own, 1.0f) < 0.45f)) fr = art::HF_SIT;
+        if (m.state == party::State::Waiting || (len2(a.vel) < 1.0f && len2(a.p - g.pl().p) < 30.0f * 30.0f && std::fmod(v.t_ * 0.07f + own, 1.0f) < 0.45f)) fr = art::HF_SIT;
         break;
     }
     const float x = std::floor(a.p.x - art::HOUND_W / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - art::HOUND_H + 2 - cam.y + 0.5f);
     P.blitEx(t, fr * art::HOUND_W, row * art::HOUND_H, art::HOUND_W, art::HOUND_H, x, y, (float)art::HOUND_W, (float)art::HOUND_H, flip, Color(1, 1, 1, alpha));
     if (flash > 0) P.blitEx(t, fr * art::HOUND_W, row * art::HOUND_H, art::HOUND_W, art::HOUND_H, x, y, (float)art::HOUND_W, (float)art::HOUND_H, flip, Color(1, 1, 1, flash), 1);
-    drawnHead_[a.id] = DrawnHead{a.p.x, y + cam.y + 4, t_};
+    v.drawnHead_[a.id] = View::DrawnHead{a.p.x, y + cam.y + 4, v.t_};
     return true;
   }
   if (!riding(g, m)) return false;
@@ -127,13 +127,13 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
   const bool rig2 = art::rigVersion() >= 2;
   const int HW = art::horseCellW(), HH = art::horseCellH();
   const uint64_t key = vtag(rig2 ? 0x52 : 0x51, (uint64_t)(bi.coat & 0xFFFFFFu) << 16 ^ (seedv & 0xFFFFu));
-  auto it = sprites_.partyTex_.find(key);
-  if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
+  auto it = v.sprites_.partyTex_.find(key);
+  if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
   const Tex& ht = it->second;
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
   bool gallop = false;
-  const int fr = compHorseFrame(a, t_, gallop);
+  const int fr = compHorseFrame(a, v.t_, gallop);
   const float fx = std::floor(a.p.x - cam.x + 0.5f), fy = std::floor(a.p.y + 2 - cam.y + 0.5f);
   const float hx = fx - HW / 2.0f, hy = fy - HH + 2;
   const int cx = fr * HW, cy = row * HH;
@@ -155,15 +155,15 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
     horsePart(0, 0, HW, HH, c, blend);
     // (P2a LENS) the rider on v2 where the painters cover the look (as the hero's, home_view.cpp): the hip anchor on
     // the saddle's seat point; recorded for the night lift (the horse is not)
-    RideGhost g2;
-    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) {
+    View::RideGhost g2;
+    if (rig2 && v.drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) {
       headY = g2.y;
     } else {
       // (P2c SWITCH) the v1 rider only when the doll did not draw it
-      const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride);
-      const Tex& rider = rt ? *rt : sprites_.humanTex(*this, a.look);
-      if (blend == 0) v1Draws++;
-      if (blend == 0) P.recordBlits(&liftRecs_);
+      const Tex* rt = v.sprites_.poseTex(v, a.look, art::Posture::Ride);
+      const Tex& rider = rt ? *rt : v.sprites_.humanTex(v, a.look);
+      if (blend == 0) v.v1Draws++;
+      if (blend == 0) P.recordBlits(&v.liftRecs_);
       P.blitEx(rider, 0, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
       P.recordBlits(nullptr);
     }
@@ -175,15 +175,15 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
   };
   layer(Color(1, 1, 1, alpha), 0);
   if (flash > 0) layer(Color(1, 1, 1, flash), 1);
-  drawnHead_[a.id] = DrawnHead{fx + cam.x, headY + cam.y, t_};
+  v.drawnHead_[a.id] = View::DrawnHead{fx + cam.x, headY + cam.y, v.t_};
   return true;
 }
 
-void View::drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done) {
+void PartyUi::drawCompanionShadow(View& v, Game& g, const Actor& a, Vec2 cam, bool& done) {
   done = false;
   const int mi = companionIndex(g, a);
   if (mi < 0) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const party::Member& m = g.party.members[(size_t)mi];
   if (m.state == party::State::With && g.mode != Mode::Title) {
     // (fixer M8 r2, review: "companions cannot be told apart from the market crowd") a thin party-gold ring on the
@@ -209,7 +209,7 @@ void View::drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done) {
     // (fixer M8 r1, review: "no visible blood") wider than the lying body from the first second, so it shows round it
     const float w = 20.0f + 10.0f * k, h = std::max(6.0f, w * 0.38f);
     const float x = std::floor(a.p.x - w / 2 + 2 - cam.x), y = std::floor(a.p.y - h / 2 - 1 - cam.y);
-    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, x - 2, y - 1, w + 4, h + 2, false, Color(1, 1, 1, 0.6f));
+    P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, x - 2, y - 1, w + 4, h + 2, false, Color(1, 1, 1, 0.6f));
     for (int j = 0; j < (int)h; j++) {
       const float t = (j + 0.5f) / h * 2 - 1;
       const float hw = std::floor(w / 2 * std::sqrt(std::max(0.0f, 1 - t * t)));
@@ -223,21 +223,21 @@ void View::drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done) {
   if (!a.human) {   // the hound: a shadow as long as its body (longer side-on)
     const bool side = std::fabs((len2(a.vel) > 4.0f ? a.vel : a.aim).x) >= 0.6f;
     const float w = side ? 20.0f : 13.0f, h = side ? 6.0f : 7.0f;
-    P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, std::floor(a.p.x - w / 2 + 1 - cam.x), std::floor(a.p.y - h / 2 - cam.y), w, h, false, Color(1, 1, 1, 0.85f));
+    P.blitEx(v.sprites_.shadow_, 0, 0, v.sprites_.shadow_.w, v.sprites_.shadow_.h, std::floor(a.p.x - w / 2 + 1 - cam.x), std::floor(a.p.y - h / 2 - cam.y), w, h, false, Color(1, 1, 1, 0.85f));
     done = true;
     return;
   }
   if (riding(g, m)) {
     const bool side = a.face >= 2;
     const float w = side ? 32.0f : 18.0f, h = side ? 8.0f : 10.0f;
-    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false, Color(1, 1, 1, 0.85f));
+    P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false, Color(1, 1, 1, 0.85f));
     done = true;
   }
 }
 
-void View::companionOverlays(Game& g, Vec2 cam) {
+void PartyUi::companionOverlays(View& v, Game& g, Vec2 cam) {
   if (g.party.members.empty() || g.mode == Mode::Title) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   for (size_t i = 1; i < g.actors.size(); i++) {
     const Actor& a = g.actors[i];
     const int mi = companionIndex(g, a);
@@ -272,9 +272,9 @@ void View::companionOverlays(Game& g, Vec2 cam) {
     } else {
       // the wound: a pulsing blood drop over them, quicker as the clock runs out
       const float left = clampf(m.downT / party::DOWNED_SECS, 0, 1);
-      const float pu = 0.5f + 0.5f * std::sin(t_ * (left < 0.33f ? 12.0f : 6.0f));
+      const float pu = 0.5f + 0.5f * std::sin(v.t_ * (left < 0.33f ? 12.0f : 6.0f));
       static const char* kDrop[9] = {"...o...", "..oHo..", "..oHo..", ".oHMMo.", "oHWMMSo", "oHMMMSo", "oMMMSSo", ".oSSSo.", "..ooo.."};
-      const float bob = std::floor(std::sin(t_ * 3) * 1.0f);
+      const float bob = std::floor(std::sin(v.t_ * 3) * 1.0f);
       for (int j = 0; j < 9; j++)
         for (int q = 0; q < 7; q++) {
           const char ch = kDrop[j][q];
@@ -288,7 +288,7 @@ void View::companionOverlays(Game& g, Vec2 cam) {
 }
 
 // ---------------------------------------------------------------- graves
-void View::graveDraws(Game& g, const Map& m, Vec2 cam, std::vector<int>& out) {
+void PartyUi::graveDraws(Game& g, const Map& m, Vec2 cam, std::vector<int>& out) {
   out.clear();
   if (g.inside || m.kind != MapKind::Overworld || g.party.fallen.empty()) return;
   for (int fi = 0; fi < (int)g.party.fallen.size(); fi++) {
@@ -299,9 +299,9 @@ void View::graveDraws(Game& g, const Map& m, Vec2 cam, std::vector<int>& out) {
   }
 }
 
-void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
+void PartyUi::drawGrave(View& v, Game& g, int fi, Vec2 cam, bool shadow) {
   if (fi < 0 || fi >= (int)g.party.fallen.size()) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const party::Fallen& f = g.party.fallen[(size_t)fi];
   const Vec2 at = graveAt(g, f);
   if (shadow) {
@@ -309,7 +309,7 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
     // field stones and the marker are all the sprite (art::graveSprite); here only the soft shadow it throws on the
     // ground, down-right of the mound (the light is top-left)
     const float ox = std::floor(at.x - cam.x), oy = std::floor(at.y - cam.y - 9);
-    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, ox - 8 + 2, oy - 6 + 3, 19, 14, false, Color(1, 1, 1, 0.5f));
+    P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, ox - 8 + 2, oy - 6 + 3, 19, 14, false, Color(1, 1, 1, 0.5f));
     return;
   }
   const cult::Culture* C = f.culture && g.world.src ? &g.world.src->culture(f.culture) : nullptr;
@@ -322,8 +322,8 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
   L.flowers = false;   // (the bundle below, drawn bigger than the sprite's own sprig)
   L.seed = S.seed;
   const uint64_t key = vtag(0x61, L.key());
-  auto it = sprites_.partyTex_.find(key);
-  if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, P.bake(art::graveSprite(L))).first;
+  auto it = v.sprites_.partyTex_.find(key);
+  if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(key, P.bake(art::graveSprite(L))).first;
   const Tex& t = it->second;
   P.blit(t, std::floor(at.x - t.w / 2.0f - cam.x), std::floor(at.y - t.h - cam.y + 1));
   if (f.graveFlags & party::GF_FLOWERS) {
@@ -348,9 +348,9 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
 
 // (P2a LENS) the party's words over the world, in the UI layer through toUi (STYLE_P2 18): the tapped card's name over
 // its companion, a fallen companion's name over their grave when the player stands near
-void View::partyWorldText(Game& g) {
-  Pix& P = *pix_;
-  const float k = camera_.uiPerWorld(*this);
+void PartyUi::partyWorldText(View& v, Game& g) {
+  Pix& P = *v.pix_;
+  const float k = v.camera_.uiPerWorld(v);
   if (g.mode == Mode::Play && !g.party.members.empty() && partyTagT_ > 0 && !radial_.open)
     for (size_t i = 1; i < g.actors.size(); i++) {
       const Actor& a = g.actors[i];
@@ -358,11 +358,11 @@ void View::partyWorldText(Game& g) {
       if (mi < 0 || mi != partySel_ || a.st == AState::Dead) continue;
       const party::Member& m = g.party.members[(size_t)mi];
       if (m.state != party::State::With) continue;
-      const Vec2 s = camera_.toUi(*this, a.p);
-      const float lift = riding(g, m) ? (float)rigFor(a.look).markerY + 14.0f : a.human ? (float)rigFor(a.look).markerY + 6.0f : 24.0f;   // (v1: 44 / 36 / 24)
+      const Vec2 s = v.camera_.toUi(v, a.p);
+      const float lift = riding(g, m) ? (float)v.rigFor(a.look).markerY + 14.0f : a.human ? (float)v.rigFor(a.look).markerY + 6.0f : 24.0f;   // (v1: 44 / 36 / 24)
       float ty = std::floor(s.y - lift * k);
       const float half = (float)P.textW(m.name, 1) / 2.0f;
-      if (tagOn_ && s.x + half + 3 > tagX0_ && s.x - half - 3 < tagX1_ && ty + 9 > tagY0_ && ty - 1 < tagY1_) ty = std::floor(tagY0_ - 12);   // over the faced one's tag
+      if (v.tagOn_ && s.x + half + 3 > v.tagX0_ && s.x - half - 3 < v.tagX1_ && ty + 9 > v.tagY0_ && ty - 1 < v.tagY1_) ty = std::floor(v.tagY0_ - 12);   // over the faced one's tag
       P.rect(std::floor(s.x - half - 3), ty - 1, std::floor(half * 2 + 6), 10, Color(0.04f, 0.03f, 0.05f, 0.7f));
       P.textS(std::floor(s.x), ty, m.name, 1, Color(1.0f, 0.86f, 0.46f), 1);
     }
@@ -375,15 +375,15 @@ void View::partyWorldText(Game& g) {
       const bool prompt = partyUseHere(g, useIdx) == 1 && useIdx == gt.fi;   // (the VISIT prompt names them instead)
       if (d2 >= 56.0f * 56.0f || prompt) continue;
       const float a = clampf((56.0f - std::sqrt(d2)) / 20.0f, 0, 1);
-      const Vec2 s = camera_.toUi(*this, Vec2(gt.x, gt.top));
+      const Vec2 s = v.camera_.toUi(v, Vec2(gt.x, gt.top));
       P.textS(std::floor(s.x), std::floor(s.y - 9), f.name, 1, Color(0.92f, 0.88f, 0.78f, 0.9f * a), 1);
     }
   graveTops_.clear();
 }
 
 // ---------------------------------------------------------------- the maps
-void View::drawPartyMinimap(Game& g, float x, float y, int size, int ox, int oy) {
-  Pix& P = *pix_;
+void PartyUi::drawPartyMinimap(View& v, Game& g, float x, float y, int size, int ox, int oy) {
+  Pix& P = *v.pix_;
   const float k = size / 64.0f;
   if (!g.inside)
     for (const party::Fallen& f : g.party.fallen) {   // a small grey stone
@@ -401,7 +401,7 @@ void View::drawPartyMinimap(Game& g, float x, float y, int size, int ox, int oy)
     else continue;
     if (ax < 1 || ay < 1 || ax >= 63 || ay >= 63) continue;
     // a friendly green diamond (a waiting one pale), outlined so it reads on grass
-    const Color c = m.state == party::State::Downed ? (((int)(t_ * 4)) & 1 ? Color(1, 0.3f, 0.25f) : Color(0.5f, 0.1f, 0.1f))
+    const Color c = m.state == party::State::Downed ? (((int)(v.t_ * 4)) & 1 ? Color(1, 0.3f, 0.25f) : Color(0.5f, 0.1f, 0.1f))
                   : m.state == party::State::Waiting ? Color(0.62f, 0.86f, 0.62f) : Color(0.36f, 0.95f, 0.45f);
     const float px = std::floor(x + ax * k), py = std::floor(y + ay * k);
     P.rect(px - 1, py - 2, 3, 5, Color(0.04f, 0.06f, 0.04f, 0.9f));
@@ -411,8 +411,8 @@ void View::drawPartyMinimap(Game& g, float x, float y, int size, int ox, int oy)
   }
 }
 
-void View::drawPartyWorldMap(Game& g, Vec2 (*toScr)(void*, double, double), void* ctx, float w, float h) {
-  Pix& P = *pix_;
+void PartyUi::drawPartyWorldMap(View& v, Game& g, Vec2 (*toScr)(void*, double, double), void* ctx, float w, float h) {
+  Pix& P = *v.pix_;
   for (const party::Fallen& f : g.party.fallen) {
     const Vec2 s = toScr(ctx, f.gx + 0.5, f.gy + 0.5);
     if (s.x < -6 || s.y < -6 || s.x > w + 6 || s.y > h + 6) continue;

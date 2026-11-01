@@ -306,7 +306,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   const float sc = 3;
   P.rect(std::floor(kDollCX - 13), kDollFootY, 26, 2, Color(0.02f, 0.01f, 0.03f, 0.55f));
   P.rect(std::floor(kDollCX - 9), kDollFootY + 2, 18, 1, Color(0.02f, 0.01f, 0.03f, 0.35f));
-  mythicAuraAt(g.pl().look, frame, face == 3 ? 2 : face, face == 3, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, sc);
+  loot_.mythicAuraAt(*this, g.pl().look, frame, face == 3 ? 2 : face, face == 3, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, sc);
   P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, kDollCX - art::HUMAN_W * sc / 2,
            kDollFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
   noteMenuV1(kMenuPaperdoll, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), stage);
@@ -334,7 +334,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
     if (cardOpen && sx + kBox <= kDX - 10) continue;   // both slot columns sit under the card
     P.rect(sx, sy, kBox, kBox, sel ? Color(0.3f, 0.22f, 0.12f, 0.95f) : Color(0.1f, 0.085f, 0.08f, 0.95f));
     // (M8b) the slot's frame is the worn piece's rarity (a Mythic's burns); an empty slot keeps the quiet frame
-    if (eq >= 0) rarityFrame(sx, sy, kBox, kBox, g.inv[eq].rarity, false);
+    if (eq >= 0) loot_.rarityFrame(*this, sx, sy, kBox, kBox, g.inv[eq].rarity, false);
     else P.frame(sx, sy, kBox, kBox, Color(0.42f, 0.34f, 0.22f));
     P.rect(sx + 1, sy + 1, kBox - 2, 1, Color(1, 1, 1, 0.06f));
     if (sel) selCursor(P, t_, sx, sy, kBox, kBox);
@@ -357,15 +357,15 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   if (eq >= 0) {
     const Item& it = g.inv[eq];
     P.rect(kDX - 1, kTopY + 13, 34, 34, Color(0.04f, 0.03f, 0.05f, 0.6f));
-    rarityFrame(kDX - 1, kTopY + 13, 34, 34, it.rarity);
+    loot_.rarityFrame(*this, kDX - 1, kTopY + 13, 34, 34, it.rarity);
     P.blitEx(sprites_.itemTex(*this, g, it), 0, 0, 16, 16, kDX, kTopY + 14, 32, 32);
     {   // (M8b) the name in its ladder colour (a Mythic's in the flame), wrapped to two lines, the rarity after it
       const auto nl = wrapD(it.name, std::max(8, (int)((kDW - 40) / 6)));
-      for (size_t q = 0; q < nl.size() && q < 2; q++) rarityText(kDX + 38, kTopY + 15 + (float)q * 9, nl[q], it.rarity);
+      for (size_t q = 0; q < nl.size() && q < 2; q++) loot_.rarityText(*this, kDX + 38, kTopY + 15 + (float)q * 9, nl[q], it.rarity);
       if (nl.size() < 2) {   // RARITY  ITEM LEVEL N (15.27.3: the item level shows wherever the piece is described)
         float rx = kDX + 38;
         {   // (M8b fixer r2) COMMON too, as the item card says it
-          rarityText(rx, kTopY + 24, rarityName(it.rarity), it.rarity, 0.85f);
+          loot_.rarityText(*this, rx, kTopY + 24, rarityName(it.rarity), it.rarity, 0.85f);
           rx += (float)P.textW(rarityName(it.rarity), 1) + 6;
         }
         if (it.ilvl) P.text(rx, kTopY + 24, "ITEM LEVEL " + std::to_string((int)it.ilvl), 1, kDimC);
@@ -416,11 +416,11 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       bool hot = k == S.cand, worn = idx == eq;
       P.rect(kDX, ry, kDW - 28, kRowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
       if (hot) P.frame(kDX, ry, kDW - 28, kRowH - 2, kGoldC);
-      rarityIcon(g, it, kDX + 3, ry + 3, 16);   // (M8b) in its rarity's cell
+      loot_.rarityIcon(*this, g, it, kDX + 3, ry + 3, 16);   // (M8b) in its rarity's cell
       std::string nm = it.name;
       const int maxC = std::max(8, (int)((kDW - 28 - 22 - 40) / 6));
       if ((int)nm.size() > maxC) nm = nm.substr(0, (size_t)maxC);
-      rarityText(kDX + 22, ry + 8, nm, it.rarity);
+      loot_.rarityText(*this, kDX + 22, ry + 8, nm, it.rarity);
       const char* unit = "";
       int v = headline(it, unit, g.plLevel);
       if (worn) P.text(kDX + kDW - 32, ry + 8, "WORN", 1, kGoldC, 2);
@@ -430,7 +430,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
         int d = eq >= 0 ? v - headline(g.inv[eq], unit, g.plLevel) : v;
         std::string ds = (d > 0 ? "+" : "") + std::to_string(d);
         P.text(kDX + kDW - 40, ry + 8, ds, 1, d > 0 ? kUp : (d < 0 ? kDown : kDimC), 2);
-        cmpArrow(kDX + kDW - 38, ry + 8, cmpVerdict(g, it, eq >= 0 ? &g.inv[(size_t)eq] : nullptr));
+        loot_.cmpArrow(*this, kDX + kDW - 38, ry + 8, loot_.cmpVerdict(g, it, eq >= 0 ? &g.inv[(size_t)eq] : nullptr));
       }
     }
     if ((int)c.size() > kListRows) {
@@ -471,7 +471,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       lsc = menuDollScale(pl, lst, std::floor(lst.x + lst.w / 2), lst.y + lst.h - 2, want);
     }
     const float cw = lsc > 0 ? pw - 14 - lst.w - 4 : pw - 14;
-    itemCard(g, g.inv[(size_t)c[S.cand]], px + 7, py + 7, cw, py + ph - 5, true, eq >= 0 && !wearingHot ? &g.inv[(size_t)eq] : nullptr, wearingHot);
+    loot_.itemCard(*this, g, g.inv[(size_t)c[S.cand]], px + 7, py + 7, cw, py + ph - 5, true, eq >= 0 && !wearingHot ? &g.inv[(size_t)eq] : nullptr, wearingHot);
     if (lsc > 0) {
       const float fx = std::floor(lst.x + lst.w / 2), fy = lst.y + lst.h - 2;
       P.rect(lst.x, lst.y, lst.w, lst.h, Color(0.03f, 0.025f, 0.04f, 0.7f));
@@ -677,9 +677,9 @@ int suppliesOf(const party::Member& m) {
 }
 }  // namespace
 
-void View::drawPartyPage(Game& g) {
-  Pix& P = *pix_;
-  const PartyLay L = partyLay(Pix::W, Pix::H, touchUI);
+void PartyUi::drawPartyPage(View& v, Game& g) {
+  Pix& P = *v.pix_;
+  const PartyLay L = partyLay(Pix::W, Pix::H, v.touchUI);
   const int n = (int)g.party.members.size();
   if (n == 0 && !g.party.fallen.empty()) partyPage_ = 1;
   if (g.party.fallen.empty()) partyPage_ = 0;
@@ -691,10 +691,10 @@ void View::drawPartyPage(Game& g) {
     const bool sel = partyPage_ == 0 && i == partySel_;
     P.rect(x, y, L.chipS, L.chipS, sel ? Color(0.30f, 0.22f, 0.12f, 0.95f) : Color(0.10f, 0.085f, 0.08f, 0.95f));
     const bool dim = m.state == party::State::Waiting || m.state == party::State::Home || m.state == party::State::Left;
-    const Tex& pt = sprites_.portraitTex(*this, g, m, m.state == party::State::Downed ? 2 : 0);
+    const Tex& pt = v.sprites_.portraitTex(v, g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 0, 0, art::PORTRAIT_W, art::PORTRAIT_H, x + 1, y + 1, (float)art::PORTRAIT_W, (float)art::PORTRAIT_H, false,
              dim ? Color(0.6f, 0.6f, 0.66f, 0.85f) : Color(1, 1, 1, 1));
-    portraitFinish(m.id, x + 1, y + 1, 1, dim ? 0.5f : 1.0f);
+    v.portraitFinish(m.id, x + 1, y + 1, 1, dim ? 0.5f : 1.0f);
     P.frame(x, y, L.chipS, L.chipS, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
   }
   if (n == 0) P.text(18, L.chipY + 9, "NO ONE TRAVELS WITH YOU NOW", 1, kDimC);
@@ -706,16 +706,16 @@ void View::drawPartyPage(Game& g) {
       P.text(nx, L.chipY + 15, party::stateName(m.state), 1, m.state == party::State::Downed ? Color(1, 0.45f, 0.38f) : kDimC);
     }
   }
-  if (!g.party.fallen.empty()) button(L.remX, L.chipY + 2, L.remW, 22, "REMEMBERED", partyPage_ == 1);
+  if (!g.party.fallen.empty()) v.button(L.remX, L.chipY + 2, L.remW, 22, "REMEMBERED", partyPage_ == 1);
   P.rect(16, L.chipY + L.chipS + 4, (float)Pix::W - 32, 1, Color(0.4f, 0.32f, 0.2f));
-  const float noteA = clampf(2.5f - (t_ - partyNoteT), 0, 1);
+  const float noteA = clampf(2.5f - (v.t_ - partyNoteT), 0, 1);
 
   if (partyPage_ == 1) {
     // ---- REMEMBERED: the fallen, the newest first; the picked one's stone beside the list
     const int nf = (int)g.party.fallen.size();
     partyScroll_ = std::clamp(partyScroll_, 0, std::max(0, nf - 1));
     const float lx = 18, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), top = L.dTop;
-    const float rh = touchUI ? 24.0f : 18.0f;
+    const float rh = v.touchUI ? 24.0f : 18.0f;
     const int rows = std::max(3, (int)((Pix::H - 20 - top) / rh));
     const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
     for (int r = 0; r < rows && first + r < nf; r++) {
@@ -792,14 +792,14 @@ void View::drawPartyPage(Game& g) {
   const bool hound = m.voc == party::Vocation::Hound;
   P.rect(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.03f, 0.025f, 0.04f, 0.55f));
   P.frame(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.3f, 0.24f, 0.15f));
-  heroStage(P, sprites_.light_, L.figCX, L.figFootY, 0.62f);
+  heroStage(P, v.sprites_.light_, L.figCX, L.figFootY, 0.62f);
   // (fixer M8 r2, review: "a crude upscaled walk frame, side-on mid-stride, changing between the tabs") the doll stands
   // still, facing the player, in the idle pose (every layer of their gear readable), and turns only on < TURN >
   const int turn = partyDollTurn_ & 3;
   if (hound) {
-    const Tex& ht = sprites_.houndTex(*this, m, g);
+    const Tex& ht = v.sprites_.houndTex(v, m, g);
     static const int rowOf[4] = {2, 0, 2, 1};   // (r3) in profile first: an animal reads as itself side-on, then front, other side, back
-    const int fr = art::HF_IDLE + ((int)(t_ * 2) & 1);
+    const int fr = art::HF_IDLE + ((int)(v.t_ * 2) & 1);
     // (fixer M8 r3, review: "a tiny sprite low in an empty panel, under a glow not centred on it") the animal scaled
     // by its own drawn size (a pup fills a third of its cell), an integer scale for crisp pixels, as big as the stage
     // allows; its feet on the stage's floor disc, the body in the glow
@@ -834,22 +834,22 @@ void View::drawPartyPage(Game& g) {
     const int frame = 0;   // idle: standing, both feet on the stage
     // (P2c SWITCH) rig 2: the companion on the doll (breathing, the living finish) at the largest whole multiple the
     // stage holds under its numbers (the T6 envelope's room kept)
-    const MenuStage pst{L.stageX + 1, L.stageY + 32, L.stageW - 2, L.figFootY + 4 - (L.stageY + 32)};
-    const int psc = menuDollScale(look, pst, L.figCX, L.figFootY, (int)L.figScale);
-    if (!(psc > 0 && drawMenuDoll(look, kMenuParty, face, MenuGait::Idle, L.figCX, L.figFootY, psc, pst, 1.0f, 0, (int)m.id))) {
-    const Tex& t = dollTex(*pix_, look);
+    const View::MenuStage pst{L.stageX + 1, L.stageY + 32, L.stageW - 2, L.figFootY + 4 - (L.stageY + 32)};
+    const int psc = v.menuDollScale(look, pst, L.figCX, L.figFootY, (int)L.figScale);
+    if (!(psc > 0 && v.drawMenuDoll(look, View::kMenuParty, face, View::MenuGait::Idle, L.figCX, L.figFootY, psc, pst, 1.0f, 0, (int)m.id))) {
+    const Tex& t = dollTex(*v.pix_, look);
     const float sc = L.figScale;
-    mythicAuraAt(look, frame, face == 3 ? 2 : face, face == 3, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, sc);
+    v.loot_.mythicAuraAt(v, look, frame, face == 3 ? 2 : face, face == 3, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, sc);
     P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, L.figCX - art::HUMAN_W * sc / 2,
              L.figFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
-    noteMenuV1(kMenuParty, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), pst);
+    v.noteMenuV1(View::kMenuParty, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, (int)(art::HUMAN_W * sc), (int)(art::HUMAN_H * sc), pst);
     }
   }
   P.text(L.figCX, L.figFootY + 8, "LEVEL " + std::to_string(party::levelFor(g.plLevel)), 1, kDimC, 1);
   {   // (fixer M8 r2) < TURN > at the stage's foot, and what their gear makes of them at its head (as the hero's EQUIP)
     const float bw = 16, bh = 13, by = L.figFootY + 5;
-    button(L.stageX + 3, by, bw, bh, "<", false);
-    button(L.stageX + L.stageW - bw - 3, by, bw, bh, ">", false);
+    v.button(L.stageX + 3, by, bw, bh, "<", false);
+    v.button(L.stageX + L.stageW - bw - 3, by, bw, bh, ">", false);
     const int ai = partySel_ < (int)partyActor_.size() ? partyActor_[(size_t)partySel_] : -1;
     const party::Body b = party::bodyFor(m, g.plLevel);
     const float armor = ai > 0 ? g.actors[(size_t)ai].armor : b.armor, dmg = ai > 0 ? g.actors[(size_t)ai].dmg : b.dmg;
@@ -867,25 +867,25 @@ void View::drawPartyPage(Game& g) {
     P.rect(sx, sy, L.box, L.box, sel ? Color(0.3f, 0.22f, 0.12f, 0.95f) : Color(0.1f, 0.085f, 0.08f, 0.95f));
     const Item* it = wornBy(m, kPSlots[i].slot);
     // (M8b) the companion's slots framed in their worn pieces' rarity, as the hero's are
-    if (it && kPSlots[i].slot != kSupplies) rarityFrame(sx, sy, L.box, L.box, it->rarity, false);
+    if (it && kPSlots[i].slot != kSupplies) v.loot_.rarityFrame(v, sx, sy, L.box, L.box, it->rarity, false);
     else P.frame(sx, sy, L.box, L.box, Color(0.42f, 0.34f, 0.22f));
     P.rect(sx + 1, sy + 1, L.box - 2, 1, Color(1, 1, 1, 0.06f));
-    if (sel) selCursor(P, t_, sx, sy, L.box, L.box);
+    if (sel) selCursor(P, v.t_, sx, sy, L.box, L.box);
     if (kPSlots[i].slot == kSupplies) {
       const int sup = suppliesOf(m);
-      P.blitEx(sprites_.iconTex(*this, art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
+      P.blitEx(v.sprites_.iconTex(v, art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
       if (sup) P.textS(sx + L.box - 2, sy + L.box - 9, std::to_string(sup), 1, kTextC, 2);
     } else if (it) {
-      P.blitEx(sprites_.itemTex(*this, g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
+      P.blitEx(v.sprites_.itemTex(v, g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
     } else {
-      P.blitEx(sprites_.iconTex(*this, kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
+      P.blitEx(v.sprites_.iconTex(v, kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }
   }
   // ---- the detail column: STORY or GEAR
   const float dx = L.dX, dw = L.dW;
-  const float tabH = touchUI ? 22.0f : 16.0f;
-  button(dx, L.dTop - 2, 58, tabH, "STORY", partyFocus_ == 0);
-  button(dx + 62, L.dTop - 2, 52, tabH, "GEAR", partyFocus_ == 1);
+  const float tabH = v.touchUI ? 22.0f : 16.0f;
+  v.button(dx, L.dTop - 2, 58, tabH, "STORY", partyFocus_ == 0);
+  v.button(dx + 62, L.dTop - 2, 52, tabH, "GEAR", partyFocus_ == 1);
   float y = L.dTop + tabH + 6;
   const int per = std::max(12, (int)(dw / 6));
   if (partyFocus_ == 0) {
@@ -941,11 +941,11 @@ void View::drawPartyPage(Game& g) {
       P.text(dx, y, fitTextD("THEY DRINK A POTION BELOW A QUARTER HEALTH", dw), 1, kDimC);
       y += 4;
     } else if (it) {
-      rarityIcon(g, *it, dx, y + 9, 16);
-      rarityText(dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), it->rarity);
+      v.loot_.rarityIcon(v, g, *it, dx, y + 9, 16);
+      v.loot_.rarityText(v, dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), it->rarity);
       const std::string made = makerLine(g, *it);
       if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
-      button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
+      v.button(dx + dw - 86, y + 8, 86, v.touchUI ? 22.0f : 18.0f, v.touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
       y += 12;
       // (M8b fix, 15.27.2 "show in plain words") what the piece does for them: its affixes and power, a hero-only one
       // (it works only on the hero: gear::affixWorksForCompanion) marked so
@@ -976,14 +976,14 @@ void View::drawPartyPage(Game& g) {
       const bool hot = k == partyPack_;
       P.rect(dx, ry, dw, L.rowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
       if (hot) P.frame(dx, ry, dw, L.rowH - 2, kGoldC);
-      const float isz = touchUI ? 16.0f : 12.0f;
-      rarityIcon(g, pi, dx + 3, ry + std::floor((L.rowH - 2 - isz) / 2), isz);
+      const float isz = v.touchUI ? 16.0f : 12.0f;
+      v.loot_.rarityIcon(v, g, pi, dx + 3, ry + std::floor((L.rowH - 2 - isz) / 2), isz);
       const std::string nm = pi.name + (pi.count > 1 ? " (" + std::to_string(pi.count) + ")" : std::string());
-      rarityText(dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 52), pi.rarity);
+      v.loot_.rarityText(v, dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 52), pi.rarity);
       P.text(dx + dw - 4, ry + std::floor((L.rowH - 2 - 7) / 2), ps.slot == kSupplies ? "GIVE" : "EQUIP", 1, hot ? kGoldC : kDimC, 2);
       // (M8b) better or worse than what they wear there (gear::powerScore at their level: the hero's, as Game::partyEquip)
       if (ps.slot != kSupplies && itemEquippable(pi.kind))
-        cmpArrow(dx + dw - 4 - (float)P.textW("EQUIP", 1) - 10, ry + std::floor((L.rowH - 2 - 7) / 2), cmpVerdict(g, pi, it));
+        v.loot_.cmpArrow(v, dx + dw - 4 - (float)P.textW("EQUIP", 1) - 10, ry + std::floor((L.rowH - 2 - 7) / 2), v.loot_.cmpVerdict(g, pi, it));
     }
     if ((int)c.size() > rows) P.text(dx + dw, y - 14, std::to_string(partyPack_ + 1) + "/" + std::to_string(c.size()), 1, kDimC, 2);
   }
@@ -996,9 +996,9 @@ void View::drawPartyPage(Game& g) {
   }
 }
 
-void View::partyPageKey(Game& g, int key) {
+void PartyUi::partyPageKey(View& v, Game& g, int key) {
   const int n = (int)g.party.members.size();
-  auto mv = [&]() { audio_->play(Sfx::MenuMove); };
+  auto mv = [&]() { v.audio_->play(Sfx::MenuMove); };
   if (key == SDLK_N && !g.party.fallen.empty()) { partyPage_ ^= 1; partyScroll_ = 0; mv(); return; }
   if (partyPage_ == 1) {
     const int nf = (int)g.party.fallen.size();
@@ -1035,8 +1035,8 @@ void View::partyPageKey(Game& g, int key) {
     partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES THE " + nm : who + " PUTS ON THE " + nm) : who + " CANNOT USE THAT";
     if (partyNote.size() > 46) partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES IT" : who + " PUTS IT ON") : who + " CANNOT USE THAT";
     partyNoteC = ok ? Color(0.6f, 0.95f, 0.6f) : Color(1, 0.55f, 0.48f);
-    partyNoteT = t_;
-    audio_->play(ok ? Sfx::Buy : Sfx::MenuBack);
+    partyNoteT = v.t_;
+    v.audio_->play(ok ? Sfx::Buy : Sfx::MenuBack);
     return;
   }
   if ((key == SDLK_X || key == SDLK_BACKSPACE) && ps.slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], ps.slot)) {
@@ -1045,24 +1045,24 @@ void View::partyPageKey(Game& g, int key) {
     partyNote = ok ? "YOU TAKE BACK THE " + nm : who + " KEEPS IT FOR NOW";
     if (partyNote.size() > 46) partyNote = ok ? "YOU TAKE IT BACK" : who + " KEEPS IT FOR NOW";
     partyNoteC = ok ? kTextC : Color(1, 0.55f, 0.48f);
-    partyNoteT = t_;
-    audio_->play(ok ? Sfx::Pickup : Sfx::MenuBack);
+    partyNoteT = v.t_;
+    v.audio_->play(ok ? Sfx::Pickup : Sfx::MenuBack);
   }
 }
 
-void View::partyPageTap(Game& g, Vec2 p) {
-  const PartyLay L = partyLay(Pix::W, Pix::H, touchUI);
+void PartyUi::partyPageTap(View& v, Game& g, Vec2 p) {
+  const PartyLay L = partyLay(Pix::W, Pix::H, v.touchUI);
   const int n = (int)g.party.members.size();
   for (int i = 0; i < n; i++)
-    if (inR(p, 18 + i * L.chipPitch - 2, L.chipY - 2, L.chipS + 4, L.chipS + 4)) { partySel_ = i; partyPage_ = 0; partyPack_ = 0; audio_->play(Sfx::MenuMove); return; }
-  if (!g.party.fallen.empty() && inR(p, L.remX, L.chipY, L.remW, 26)) { partyPage_ ^= 1; partyScroll_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (inR(p, 18 + i * L.chipPitch - 2, L.chipY - 2, L.chipS + 4, L.chipS + 4)) { partySel_ = i; partyPage_ = 0; partyPack_ = 0; v.audio_->play(Sfx::MenuMove); return; }
+  if (!g.party.fallen.empty() && inR(p, L.remX, L.chipY, L.remW, 26)) { partyPage_ ^= 1; partyScroll_ = 0; v.audio_->play(Sfx::MenuMove); return; }
   if (partyPage_ == 1) {
     const int nf = (int)g.party.fallen.size();
-    const float lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), rh = touchUI ? 24.0f : 18.0f;
+    const float lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), rh = v.touchUI ? 24.0f : 18.0f;
     const int rows = std::max(3, (int)((Pix::H - 20 - L.dTop) / rh));
     const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
     for (int r = 0; r < rows && first + r < nf; r++)
-      if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; audio_->play(Sfx::MenuMove); return; }
+      if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; v.audio_->play(Sfx::MenuMove); return; }
     return;
   }
   if (n == 0) return;
@@ -1070,28 +1070,28 @@ void View::partyPageTap(Game& g, Vec2 p) {
   const bool hound = g.party.members[(size_t)partySel_].voc == party::Vocation::Hound;
   {   // (fixer M8 r2) the doll's < TURN > (a finger-sized reach round the small buttons)
     const float by = L.figFootY + 5;
-    if (inR(p, L.stageX, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 3) & 3; audio_->play(Sfx::MenuMove); return; }
-    if (inR(p, L.stageX + L.stageW - 24, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 1) & 3; audio_->play(Sfx::MenuMove); return; }
+    if (inR(p, L.stageX, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 3) & 3; v.audio_->play(Sfx::MenuMove); return; }
+    if (inR(p, L.stageX + L.stageW - 24, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 1) & 3; v.audio_->play(Sfx::MenuMove); return; }
   }
   for (int i = 0; i < kNPSlots; i++) {
     if (hound && kPSlots[i].slot != kSupplies) continue;
     if (inR(p, pslotX(L, i) - 2, pslotY(L, i) - 2, L.box + 4, L.box + 4)) {
       // a tap on the worn slot already picked takes its piece back
-      if (partyFocus_ == 1 && partySlot_ == i && kPSlots[i].slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], kPSlots[i].slot)) { partyPageKey(g, SDLK_X); return; }
+      if (partyFocus_ == 1 && partySlot_ == i && kPSlots[i].slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], kPSlots[i].slot)) { partyPageKey(v, g, SDLK_X); return; }
       partyFocus_ = 1; partySlot_ = i; partyPack_ = 0;
-      audio_->play(Sfx::MenuMove);
+      v.audio_->play(Sfx::MenuMove);
       return;
     }
   }
-  const float tabH = touchUI ? 22.0f : 16.0f;
-  if (inR(p, L.dX, L.dTop - 4, 58, tabH + 4)) { partyFocus_ = 0; audio_->play(Sfx::MenuMove); return; }
-  if (inR(p, L.dX + 62, L.dTop - 4, 52, tabH + 4)) { partyFocus_ = 1; if (partySlot_ < 0) partySlot_ = hound ? kNPSlots - 1 : 3; audio_->play(Sfx::MenuMove); return; }
+  const float tabH = v.touchUI ? 22.0f : 16.0f;
+  if (inR(p, L.dX, L.dTop - 4, 58, tabH + 4)) { partyFocus_ = 0; v.audio_->play(Sfx::MenuMove); return; }
+  if (inR(p, L.dX + 62, L.dTop - 4, 52, tabH + 4)) { partyFocus_ = 1; if (partySlot_ < 0) partySlot_ = hound ? kNPSlots - 1 : 3; v.audio_->play(Sfx::MenuMove); return; }
   if (partyFocus_ != 1 || partySlot_ < 0) return;
   const PSlot& ps = kPSlots[partySlot_];
   float y = L.dTop + tabH + 6;
   if (ps.slot == kSupplies) y += 4 + 10;
   else if (wornBy(g.party.members[(size_t)partySel_], ps.slot)) {
-    if (inR(p, L.dX + L.dW - 86, y + 6, 86, (touchUI ? 22.0f : 18.0f) + 4)) { partyPageKey(g, SDLK_X); return; }
+    if (inR(p, L.dX + L.dW - 86, y + 6, 86, (v.touchUI ? 22.0f : 18.0f) + 4)) { partyPageKey(v, g, SDLK_X); return; }
     y += 12;
   }
   y += 22;
@@ -1099,9 +1099,9 @@ void View::partyPageTap(Game& g, Vec2 p) {
   const int rows = std::max(2, (int)(((float)Pix::H - 14 - y) / L.rowH));
   const int first = std::clamp(partyPack_ - rows + 1, 0, std::max(0, (int)c.size() - rows));
   for (int r = 0; r < rows && first + r < (int)c.size(); r++)
-    if (inR(p, L.dX, y + r * L.rowH, L.dW, L.rowH)) { partyPack_ = first + r; partyPageKey(g, SDLK_RETURN); return; }
+    if (inR(p, L.dX, y + r * L.rowH, L.dW, L.rowH)) { partyPack_ = first + r; partyPageKey(v, g, SDLK_RETURN); return; }
 }
 
 // (Witness, View::witnessRelease) the PARTY page's last word back to none (its time is t_, which starts again at 0)
-static void witnessResetPaperdoll() { partyNote.clear(); partyNoteC = Color(); partyNoteT = -100; }
+static void witnessResetPaperdoll() { partyNote.clear(); partyNoteC = Color(); partyNoteT = -100; }
 EMB_VIEW_RESET(witnessResetPaperdoll);

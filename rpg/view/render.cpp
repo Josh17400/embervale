@@ -1844,24 +1844,24 @@ const Tex& SpriteCache::kingdomTex(View& v, int kind, const Kingdom& k, uint32_t
 // The site is looked up once per 8 x 8-tile block of the world (global tiles, so a window shift keeps the cache) and
 // the style once per site; tiles outside settlements keep the classic look.
 // (M5) the settlement (its Site::id) a tile of the overworld lies in, cached per 8 x 8-tile block of the world (0: none)
-ew::Gid View::siteIdAt(const Game& g, int tx, int ty) {
+ew::Gid LifeView::siteIdAt(View& v, const Game& g, int tx, int ty) {
   if (!g.world.endless) return 0;
   const uint64_t wid = (uint64_t)g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uintptr_t)&g.world;
-  if (wid != sprites_.sitePropsWorld_ || sprites_.propSiteBlock_.size() > 8192) { sprites_.sitePropsWorld_ = wid; sprites_.siteProps_.clear(); sprites_.propSiteBlock_.clear(); }
+  if (wid != v.sprites_.sitePropsWorld_ || v.sprites_.propSiteBlock_.size() > 8192) { v.sprites_.sitePropsWorld_ = wid; v.sprites_.siteProps_.clear(); v.sprites_.propSiteBlock_.clear(); }
   const int32_t gx = tx + g.world.ox, gy = ty + g.world.oy;
   const uint64_t bk = ((uint64_t)(uint32_t)(gx >> 3) << 32) | (uint32_t)(gy >> 3);
-  auto bi = sprites_.propSiteBlock_.find(bk);
-  if (bi != sprites_.propSiteBlock_.end()) return (ew::Gid)bi->second;
+  auto bi = v.sprites_.propSiteBlock_.find(bk);
+  if (bi != v.sprites_.propSiteBlock_.end()) return (ew::Gid)bi->second;
   int si = g.world.siteAt(tx, ty, 2);
   if (si >= 0 && !g.world.sites[(size_t)si].settlement()) si = -1;
   const uint64_t sid = si >= 0 ? (uint64_t)g.world.sites[(size_t)si].id : 0;
-  sprites_.propSiteBlock_[bk] = sid;
+  v.sprites_.propSiteBlock_[bk] = sid;
   return (ew::Gid)sid;
 }
 // (M5) a settlement's mood flags where a tile lies (life::MF_*; 0 outside settlements), and the scripts' forcing
-uint16_t View::lifeFlagsAt(const Game& g, int tx, int ty) {
+uint16_t LifeView::lifeFlagsAt(View& v, const Game& g, int tx, int ty) {
   if (g.mode == Mode::Title) return 0;
-  const ew::Gid sid = siteIdAt(g, tx, ty);
+  const ew::Gid sid = siteIdAt(v, g, tx, ty);
   if (!sid) return 0;
   uint16_t f = g.life.find(sid) ? g.life.moodFlags(sid) : 0;
   if (forceFest_ >= 0) f = (uint16_t)(forceFest_ ? (f | life::MF_FESTIVAL) : (f & ~life::MF_FESTIVAL));
@@ -1869,7 +1869,7 @@ uint16_t View::lifeFlagsAt(const Game& g, int tx, int ty) {
   if (festivalHere(g, sid)) f |= life::MF_FESTIVAL;
   return f;
 }
-bool View::festivalHere(const Game& g, ew::Gid site) {
+bool LifeView::festivalHere(const Game& g, ew::Gid site) {
   if (forceFest_ >= 0) return forceFest_ != 0;
   return site && g.life.find(site) && (g.life.festival(site, g.day) || (g.life.moodFlags(site) & life::MF_FESTIVAL));
 }
@@ -1877,7 +1877,7 @@ const art::PropStyle* SpriteCache::propStyleAt(View& v, const Game& g, int tx, i
   static const art::PropStyle classic;
   if (!g.world.endless) return &classic;
   int si = -1;
-  const uint64_t sid = (uint64_t)v.siteIdAt(g, tx, ty);
+  const uint64_t sid = (uint64_t)v.life_.siteIdAt(v, g, tx, ty);
   if (!sid) return &classic;
   auto it = siteProps_.find(sid);
   if (it != siteProps_.end()) return &it->second;
@@ -1984,7 +1984,7 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
       break;
     }
     case Ev::Discover: {
-      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f; v.bannerState_.clear();
+      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f; v.realm_.bannerState_.clear();
       // (M2) what was found heads the line: "DISCOVERED - HUNTER'S CAMP", "WONDER DISCOVERED - ELDER TREE" (a settlement
       // keeps the plain word: the arrival banner adds its trade and kingdom to it in update())
       if (e.a >= 0 && e.a < (int)g.world.sites.size()) {
@@ -1995,7 +1995,7 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
       break;
     }
     case Ev::LevelUp:
-      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f; v.bannerState_.clear();
+      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f; v.realm_.bannerState_.clear();
       // a bigger moment: a layered fanfare, two rings of light and a column of rising sparks
       v.audio_->play(Sfx::LevelUp, 0.5f, 1.2f);
       v.audio_->play(Sfx::QuestDone, 1.5f, 0.8f);
@@ -2019,17 +2019,17 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
         toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started || t.s == added; }), toasts_.end());
       }
       if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole && !bannerSays) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
-      if (e.f == 0 || e.f == 1) { v.bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
+      if (e.f == 0 || e.f == 1) { v.realm_.bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
     case Ev::Notice: {
-      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); v.lootNotice(g, e, t); toasts_.push_back(t); }
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); v.loot_.lootNotice(v, g, e, t); toasts_.push_back(t); }
       break;
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
-    case Ev::Border: v.heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
-    case Ev::News: v.newsEvent(g, e); break;       // (M4) a world event heard of
-    case Ev::Banter: case Ev::PartyAlert: v.partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
+    case Ev::Border: v.realm_.heraldEvent(v, g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
+    case Ev::News: v.realm_.newsEvent(v, g, e); break;       // (M4) a world event heard of
+    case Ev::Banter: case Ev::PartyAlert: v.party_.partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
     case Ev::Power: v.powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
     case Ev::Spell: v.magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
     case Ev::Skill: v.skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
@@ -2065,15 +2065,15 @@ void View::update(Game& g, float dt) {
   }
   for (const Event& e : g.events) fx_.spawnParticles(*this, e, g);
   g.events.clear();
-  partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
+  party_.partyUpdate(*this, g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
   powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
   magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
   seaUpdate(g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
   reliefUpdate(g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
   riseUpdate(g, dt);    // (M12) the herald's banners of the player's rise (render_rise.cpp)
-  lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
+  loot_.lootUpdate(*this, g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   updateBanners(g);   // (M1, M4) the arrival banner
-  if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
+  if (realm_.herald_.t > 0 && g.mode == Mode::Play) realm_.herald_.t -= dt;
   if (fx_.toasts_.size() > 5) fx_.toasts_.erase(fx_.toasts_.begin(), fx_.toasts_.begin() + (fx_.toasts_.size() - 5));
   float VW = 0, VH = 0;   // the world view (VW x VH world px), as lensUpdate left it
   const bool camHeld = camera_.updateCamera(*this, g, dt, VW, VH);
@@ -2105,34 +2105,34 @@ void View::updateBanners(Game& g) {
       if (const realm::SettlementState* st = g.realm.settlement(S.id))
         flags = st->flags & (realm::SS_BESIEGED | realm::SS_BURNED | realm::SS_OCCUPIED | realm::SS_FAMINE | realm::SS_RUINED | realm::SS_ABANDONED);
     }
-    const bool changed = cs >= 0 && cs == arriveSite_ && (own != arriveOwner_ || flags != arriveFlags_);
-    if (cs != arriveSite_ || changed) {
+    const bool changed = cs >= 0 && cs == realm_.arriveSite_ && (own != realm_.arriveOwner_ || flags != realm_.arriveFlags_);
+    if (cs != realm_.arriveSite_ || changed) {
       if (cs >= 0) {
         const Site& S = g.world.sites[(size_t)cs];
         std::string line, state;
         uint32_t stc = 0;
-        arrivalText(g, cs, line, state, stc);
+        realm_.arrivalText(g, cs, line, state, stc);
         const bool arrival = fx_.banner_.find(" OF ") != std::string::npos || fx_.banner_.find(" VILLAGE") != std::string::npos ||
                              fx_.banner_.find(" TOWN") != std::string::npos || fx_.banner_.find(" CITY") != std::string::npos;
         if (!line.empty()) {
-          if (fx_.bannerT_ > 0 && fx_.banner_ == "DISCOVERED") { fx_.banner_ = "DISCOVERED  -  " + line; bannerState_ = state; bannerStateCol_ = stc; }
+          if (fx_.bannerT_ > 0 && fx_.banner_ == "DISCOVERED") { fx_.banner_ = "DISCOVERED  -  " + line; realm_.bannerState_ = state; realm_.bannerStateCol_ = stc; }
           else if (fx_.bannerT_ <= 0 || arrival || changed) {
             fx_.banner_ = line; fx_.bannerSub_ = S.name; fx_.bannerT_ = changed ? 4.0f : 3.5f;
-            bannerState_ = state; bannerStateCol_ = stc;
+            realm_.bannerState_ = state; realm_.bannerStateCol_ = stc;
             // (fixer M4 r1, review: three bands stacked on arrival) the arrival banner names the kingdom: the border
             // herald's plaque gives way to it rather than stacking above it
-            herald_.t = 0;
+            realm_.herald_.t = 0;
           }
         }
-      } else if (arriveSite_ >= 0 && arriveSite_ < (int)g.world.sites.size() && fx_.bannerT_ > 0.5f &&
-                 fx_.bannerSub_ == g.world.sites[(size_t)arriveSite_].name) {
+      } else if (realm_.arriveSite_ >= 0 && realm_.arriveSite_ < (int)g.world.sites.size() && fx_.bannerT_ > 0.5f &&
+                 fx_.bannerSub_ == g.world.sites[(size_t)realm_.arriveSite_].name) {
         // (fixer M4 r2) left the place (a teleport, a quick walk out): its arrival banner fades out now instead of
         // naming a town the hero no longer stands in
         fx_.bannerT_ = 0.5f;
       }
-      arriveSite_ = cs;
-      arriveOwner_ = own;
-      arriveFlags_ = flags;
+      realm_.arriveSite_ = cs;
+      realm_.arriveOwner_ = own;
+      realm_.arriveFlags_ = flags;
     }
   }
 }
@@ -2151,7 +2151,7 @@ bool Camera::updateCamera(View& v, Game& g, float dt, float& VW, float& VH) {
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
     Vec2 want(p.p.x - VW / 2.0f + p.aim.x * 10, p.p.y - 10 - VH / 2.0f + p.aim.y * 6);
-    if (g.mode == Mode::Build) v.buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
+    if (g.mode == Mode::Build) v.home_.buildCamWant(v, g, want);   // (M7) the build ghost in view, clear of the panel
     // (M7) the ridden horse's hooves: the walk's even four-beat, the gallop's three quick beats and a pause
     {
       float& strideT = v.strideT_;
@@ -2367,14 +2367,14 @@ void View::updateMusic(Game& g, float dt) {
     else if (combatT_ > 0) want = Music::Combat;
     else if (g.inside && g.subBldg >= 0) want = Music::Town;
     else if (g.inside) want = Music::Cave;
-    else if (nearSiege(g)) want = Music::Wild;   // (M4) a besieged town has no jig: the land's music in the Ominous mood
+    else if (realm_.nearSiege(g)) want = Music::Wild;   // (M4) a besieged town has no jig: the land's music in the Ominous mood
     else if (g.curSite >= 0 && (g.world.sites[g.curSite].type == SiteType::City || g.world.sites[g.curSite].type == SiteType::Town || g.world.sites[g.curSite].type == SiteType::Village)) want = Music::Town;
     else if (g.isNight()) want = Music::Night;
   }
   // (M5) the life of the place: the bard's piece in the gathering place (or faintly from its door at night), the
   // festival's music on the plaza, the crowd, the animals, the alarm bell through a night raid
   bool festive = false;
-  want = lifeMusic(g, want, dt, festive);
+  want = life_.lifeMusic(*this, g, want, dt, festive);
   // M3: the Town / Wild / Night pieces play in the culture of the place (the settlement's, else the land's: its
   // kingdom's dialect or its culture cell's family), so crossing a border changes the music (VISION_PLAN 5.6). Looked
   // up a few times a second; a change of style crossfades like a change of piece.
@@ -2388,14 +2388,14 @@ void View::updateMusic(Game& g, float dt) {
     musicStyle_ = C ? C->music.pack() : 0;
   }
   const uint64_t style = (want == Music::Town || want == Music::Wild || want == Music::Night || want == Music::Combat || want == Music::Tavern) ? musicStyle_ : 0;
-  if (want != music_ || style != musicStyleOn_ || festive != musicFestive_) {
+  if (want != music_ || style != musicStyleOn_ || festive != life_.musicFestive_) {
     music_ = want;
     musicStyleOn_ = style;
-    musicFestive_ = festive;
+    life_.musicFestive_ = festive;
     const MusicStyle ms = MusicStyle::unpack(style);
     audio_->setMusic(want, style ? &ms : nullptr, festive);
   }
-  m5Stats_.music = (int)want;
+  life_.m5Stats_.music = (int)want;
 }
 
 // (M3c LIFE) the land under the player and its biome banner (update)
@@ -2437,7 +2437,7 @@ void View::updateBiomeBanner(Game& g, float dt, bool outdoors) {
       if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
     }
   }
-  if (biomeBannerT_ > 0 && ((fx_.bannerT_ <= 0 && herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+  if (biomeBannerT_ > 0 && ((fx_.bannerT_ <= 0 && realm_.herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
 }
 
 // the weather (update)
@@ -2518,7 +2518,7 @@ void View::updateAmbience(Game& g, bool outdoors) {
     if (g.travel.phase != TravelPhase::None) lvl *= 0.5f;
     ambLevel_ = lvl;
     audio_->setAmbient((uint8_t)ecoInfo(he).amb, lvl);
-    audio_->setMood(nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
+    audio_->setMood(realm_.nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
     audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
   }
 }
@@ -2782,19 +2782,19 @@ void View::drawWorld(Game& g) {
   beasts::plates.clear();   // (P2a LENS) the UI pass (drawBeastPlates) takes this frame's; a `ui 0` frame leaves them
   liftRecs_.clear();
   g_occRecs.clear();
-  graveTops_.clear();
+  party_.graveTops_.clear();
   {   // (M4) last frame's overlay counts for the scripts (the map's are kept from its own draw)
-    const int mk = m4Stats_.mapMarkers, bp = m4Stats_.borderPx;
-    m4Stats_ = m4Count_;
-    m4Stats_.mapMarkers = mk; m4Stats_.borderPx = bp;
-    m4Count_ = M4Stats();
+    const int mk = realm_.m4Stats_.mapMarkers, bp = realm_.m4Stats_.borderPx;
+    realm_.m4Stats_ = realm_.m4Count_;
+    realm_.m4Stats_.mapMarkers = mk; realm_.m4Stats_.borderPx = bp;
+    realm_.m4Count_ = M4Stats();
   }
   {   // (M5) the same for the life overlays (the sound's numbers are kept: update() sets them)
-    const int mu = m5Stats_.music;
-    const float tl = m5Stats_.tavernLevel, cr = m5Stats_.crowd;
-    m5Stats_ = m5Count_;
-    m5Stats_.music = mu; m5Stats_.tavernLevel = tl; m5Stats_.crowd = cr;
-    m5Count_ = M5Stats();
+    const int mu = life_.m5Stats_.music;
+    const float tl = life_.m5Stats_.tavernLevel, cr = life_.m5Stats_.crowd;
+    life_.m5Stats_ = life_.m5Count_;
+    life_.m5Stats_.music = mu; life_.m5Stats_.tavernLevel = tl; life_.m5Stats_.crowd = cr;
+    life_.m5Count_ = M5Stats();
   }
   fadePaintMs_ = bake_.arriving_ || g.travelling() ? 10.0 : 0.0;   // (M2: an arrival paints its buildings in travelArrive, within its budget)
   const Map* mp = nullptr;
@@ -2846,10 +2846,10 @@ void View::drawWorld(Game& g) {
   // (M5) a festival's bunting hangs overhead, over everyone walking under it
   if (g.mode != Mode::Title && m.kind == MapKind::Overworld) {
     P.recordOthers(recOcc ? &g_occRecs : nullptr);   // (P2a LENS fix r3) the bunting hangs over the folk under it
-    drawFestival(g, m, cam);
+    life_.drawFestival(*this, g, m, cam);
     P.recordOthers(nullptr);
   } else {
-    festLights_.clear();
+    life_.festLights_.clear();
   }
   // particles (world layer)
   for (const Particle& q : fx_.parts_) {
@@ -2950,7 +2950,7 @@ void View::drawLighting(Game& g) {
       }
       if (!interior && art::isStall((Prop)(pr - 1))) {   // (M1 fixer) an open stall's lantern at dusk
         if (dark > 0.15f && m.kind == MapKind::Overworld && ew::stallOpen(tx + g.world.ox, ty + g.world.oy, g.hour) &&
-            !(lifeFlagsAt(g, tx, ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
+            !(life_.lifeFlagsAt(*this, g, tx, ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
           const float f = 0.9f + 0.1f * std::sin(t_ * 7 + tx * 1.3f);
           const float k = std::min(1.0f, dark * 2.2f) * f;
           int lx, ly;   // (stall facings) the lantern hangs where its facing puts it, its warm pool on the ground below
@@ -2962,7 +2962,7 @@ void View::drawLighting(Game& g) {
       }
       if (!interior && (Prop)(pr - 1) == Prop::MarketTable) {   // (M1 fixer round 2) an open table's candle lantern
         if (dark > 0.15f && m.kind == MapKind::Overworld && ew::stallOpen(tx + g.world.ox, ty + g.world.oy, g.hour) &&
-            !(lifeFlagsAt(g, tx, ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
+            !(life_.lifeFlagsAt(*this, g, tx, ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
           const float f = 0.9f + 0.1f * std::sin(t_ * 7 + tx * 1.7f);
           const float k = std::min(1.0f, dark * 2.2f) * f;
           light(Vec2(tx * 16 + 27.5f, ty * 16 - 6.0f), 26, Color(1.0f, 0.86f, 0.55f), 0.9f * k);
@@ -3025,8 +3025,8 @@ void View::drawLighting(Game& g) {
     }
   // (M5) a festival's paper lanterns at the doors and stalls: a warm bead of light and a soft pool on the ground below
   if (!g.inside && m.kind == MapKind::Overworld && dark > 0.15f)
-    for (size_t i = 0; i < festLights_.size(); i++) {
-      const Vec2 lp = festLights_[i];
+    for (size_t i = 0; i < life_.festLights_.size(); i++) {
+      const Vec2 lp = life_.festLights_[i];
       const float f = 0.88f + 0.12f * std::sin(t_ * 6.3f + (float)i * 1.9f);
       const float k = std::min(1.0f, dark * 2.0f) * f;
       light(lp, 26, Color(1.0f, 0.80f, 0.52f), 0.9f * k);
@@ -3034,7 +3034,7 @@ void View::drawLighting(Game& g) {
     }
   // (M7) the yard's lanterns and campfires (home_view.cpp homeCollect: their flame and pool)
   if (!g.inside && dark > 0.12f)
-    for (const LightPool& lp : homeLights_) light(lp.p, lp.r, lp.c, lp.k * std::min(1.0f, dark * 2.0f));
+    for (const LightPool& lp : home_.homeLights_) light(lp.p, lp.r, lp.c, lp.k * std::min(1.0f, dark * 2.0f));
   // (P1b) a beacon a story lit: a tight bloom at the fire and a wide warm pool over the hilltop round the tower
   for (const Vec2& bf : g_beaconFires) {
     const float f = 0.88f + 0.12f * std::sin(t_ * 7.3f + bf.x * 0.01f);
@@ -3044,7 +3044,7 @@ void View::drawLighting(Game& g) {
   g_beaconFires.clear();
   {   // (M4) the siege camps' tent lanterns and the red smoulder of burned-out buildings (realm_render.cpp)
     static std::vector<LightPool> pools;
-    m4Lights(g, m, cam, dark, pools);
+    realm_.m4Lights(*this, g, m, cam, dark, pools);
     for (const LightPool& lp : pools) light(lp.p, lp.r, lp.c, lp.k);
   }
   for (const Projectile& pr : g.projs) {
@@ -3069,14 +3069,14 @@ void View::drawLighting(Game& g) {
     if (a.mon == Monster::Golem) light(a.p + Vec2(0, -18.0f * beasts::drawScale(a)), 34, beasts::runeLight(a), 0.55f * (0.85f + 0.15f * std::sin(t_ * 5 + a.id)));
     if (const uint32_t ac = beasts::auraOf(a)) light(a.p + Vec2(0, -3), 40, col(ac), 0.5f * std::min(1.0f, dark * 1.5f));
   }
-  lootLights(g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
+  loot_.lootLights(*this, g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
   magicLights(g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
   seaLights(g, light);    // (M10) boat lanterns, the lighthouse's lamp (render_sea.cpp)
   riseLights(g, light);   // (M12) the watchtowers' lanterns (rise_world.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
   drawNightLift(g, dark);        // (P2a LENS) people a step brighter than the ground they stand on
-  m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
+  realm_.m4Emissive(*this, g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
 }
 
 // (M3c LIFE) the weather of the land: wx_ (eased in update from the eco's Sky) painted in screen space. Every layer is
@@ -3168,8 +3168,8 @@ void View::drawBeastPlates(Game& g) {
       const float by = std::max(biomeBannerY(half), (wb ? T + 21.0f : 0.0f) + 10);   // (M9 fixer) under the quick bar too
       placed.push_back({Pix::W / 2.0f - half, by - 4, Pix::W / 2.0f + half, by + 11});
     }
-    if (herald_.t > 0) {   // and the herald's ribbon
-      const float hw = (float)P.textW(herald_.title, 1) / 2 + 40;
+    if (realm_.herald_.t > 0) {   // and the herald's ribbon
+      const float hw = (float)P.textW(realm_.herald_.title, 1) / 2 + 40;
       const float hy = std::max(T + 5, wb ? T + 24.0f : 0.0f);
       placed.push_back({Pix::W / 2.0f - hw - 30, hy, Pix::W / 2.0f + hw + 30, hy + 28});
     }
@@ -3463,7 +3463,7 @@ void View::drawWeatherSky(Game& g) {
 //     its own events); a toast (the Cheer posture starting) raises a cheer; through a night raid the alarm bell tolls
 //     between the sim's strokes, so it rings on and on.
 // Combat, a boss, caves, the title and death keep their music (the crowd and the bleed fall silent).
-Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
+Music LifeView::lifeMusic(View& v, Game& g, Music want, float dt, bool& festive) {
   festive = false;
   float gain = 1, muffle = 0, crowd = 0, lively = 0;
   const bool calm = want == Music::Town || want == Music::Night || want == Music::Wild;
@@ -3536,8 +3536,8 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
     if (want != Music::Tavern) { gain = heldGain_ + (gain - heldGain_) * clampf(1.0f - levelHoldT_ / 2.2f, 0, 1); muffle = heldMuffle_ * clampf(levelHoldT_ / 2.2f, 0, 1); }
   }
   if (!calm && want != Music::Tavern) { crowd *= 0.3f; }
-  audio_->setMusicLevel(gain, muffle);
-  audio_->setCrowd(crowd, lively);
+  v.audio_->setMusicLevel(gain, muffle);
+  v.audio_->setCrowd(crowd, lively);
   m5Stats_.tavernLevel = want == Music::Tavern ? gain : 0.0f;
   m5Stats_.crowd = crowd;
 
@@ -3546,7 +3546,7 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
   // the animals' voices
   critterVoiceT_ -= dt;
   if (critterVoiceT_ <= 0) {
-    Rng r((uint32_t)(t_ * 1000.0f) ^ 0xA11Eu);
+    Rng r((uint32_t)(v.t_ * 1000.0f) ^ 0xA11Eu);
     critterVoiceT_ = r.range(1.4f, 4.0f);
     const Actor* pick = nullptr;
     int seen = 0;
@@ -3555,16 +3555,16 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
       if (r.f() * (float)(++seen) < 1.0f) pick = &a;   // a fair pick among them
     }
     if (pick) {
-      const float d = len(pick->p - pp), v = 0.55f * clampf(1.0f - d / 240.0f, 0.15f, 1.0f);
+      const float d = len(pick->p - pp), vol = 0.55f * clampf(1.0f - d / 240.0f, 0.15f, 1.0f);
       const art::Critter k = (art::Critter)(pick->critter - 1);
       const float pv = 0.92f + 0.16f * (float)(pick->critterVar % 7u) / 6.0f;   // each animal its own voice
       switch (k) {
-        case art::Critter::Dog: if (r.f() < 0.45f || g.isNight()) audio_->play(Sfx::Bark, pv, v); break;
-        case art::Critter::Chicken: audio_->play(Sfx::Cluck, pv, v * 0.8f); break;
-        case art::Critter::Rooster: audio_->play(Sfx::Cluck, pv * 0.82f, v); break;
-        case art::Critter::Duck: audio_->play(Sfx::Cluck, pv * 0.62f, v * 0.7f); break;
-        case art::Critter::Cat: if (r.f() < 0.5f) audio_->play(Sfx::Meow, pv, v * 0.8f); break;
-        case art::Critter::Goat: audio_->play(Sfx::Meow, pv * 0.48f, v * 0.9f); break;
+        case art::Critter::Dog: if (r.f() < 0.45f || g.isNight()) v.audio_->play(Sfx::Bark, pv, vol); break;
+        case art::Critter::Chicken: v.audio_->play(Sfx::Cluck, pv, vol * 0.8f); break;
+        case art::Critter::Rooster: v.audio_->play(Sfx::Cluck, pv * 0.82f, vol); break;
+        case art::Critter::Duck: v.audio_->play(Sfx::Cluck, pv * 0.62f, vol * 0.7f); break;
+        case art::Critter::Cat: if (r.f() < 0.5f) v.audio_->play(Sfx::Meow, pv, vol * 0.8f); break;
+        case art::Critter::Goat: v.audio_->play(Sfx::Meow, pv * 0.48f, vol * 0.9f); break;
         default: break;
       }
     }
@@ -3575,7 +3575,7 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
     if (!a.human || !a.npc) continue;
     uint8_t& lp = lastPosture_[a.id];
     if (a.posture == art::Posture::Cheer && lp != (uint8_t)art::Posture::Cheer && cheerT_ <= 0 && len2(a.p - pp) < 260.0f * 260.0f) {
-      audio_->play(Sfx::Cheer, 1.0f, 0.6f * clampf(1.0f - len(a.p - pp) / 300.0f, 0.2f, 1.0f));
+      v.audio_->play(Sfx::Cheer, 1.0f, 0.6f * clampf(1.0f - len(a.p - pp) / 300.0f, 0.2f, 1.0f));
       cheerT_ = 2.5f;
     }
     lp = (uint8_t)a.posture;
@@ -3589,7 +3589,7 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
       tollT_ = 4.5f;
       const Site& as = g.world.sites[(size_t)g.alarmSite];
       const float pd = len(Vec2(as.r.cx() * 16.0f + 8, as.r.cy() * 16.0f + 8) - pp) / 16.0f;
-      if (g.isNight() && !g.inside && pd < 50) audio_->play(Sfx::Bell, 0.89f, clampf(1.15f - pd / 40.0f, 0.25f, 0.9f));
+      if (g.isNight() && !g.inside && pd < 50) v.audio_->play(Sfx::Bell, 0.89f, clampf(1.15f - pd / 40.0f, 0.25f, 0.9f));
     }
   } else alarmWas_ = -1;
   return want;
@@ -3613,7 +3613,7 @@ static void festColours(const Game& g, int si, uint32_t& ca, uint32_t& cb) {
 // else Road) through its middle, at least three rows apart, each crossed by a string of pennants between two poles set
 // on the run's end tiles (free of props and buildings). Planned once per settlement and window; the poles join the
 // y-sorted scene, the strings and their night lanterns hang overhead (drawFestival).
-void View::festivalPlan(Game& g, const Map& m, Vec2 cam) {
+void LifeView::festivalPlan(Game& g, const Map& m, Vec2 cam) {
   if (g.inside || m.kind != MapKind::Overworld || g.mode == Mode::Title) { festSpans_.clear(); festPlanKey_ = 0; return; }
   // the festive settlements whose area reaches the view
   uint64_t key = (uint64_t)g.world.ox * 0x9E3779B97F4A7C15ull ^ (uint64_t)g.world.oy * 0xC2B2AE3D27D4EB4Full ^ (uint64_t)m.bldgs.size();
@@ -3691,12 +3691,12 @@ void View::festivalPlan(Game& g, const Map& m, Vec2 cam) {
 }
 
 // a festival pole: a turned post with a pennant at its top (lit from the top-left), standing on the tile's foot
-void View::drawFestPole(const FestSpan& s, bool right, Vec2 cam) {
-  Pix& P = *pix_;
+void LifeView::drawFestPole(View& v, const FestSpan& s, bool right, Vec2 cam) {
+  Pix& P = *v.pix_;
   const int tx = right ? s.x1 : s.x0;
   const float bx = std::floor(tx * 16.0f + 8.0f - cam.x), by = std::floor(s.y * 16.0f + 13.0f - cam.y);
   const Color hi(0.72f, 0.54f, 0.34f), mid(0.52f, 0.36f, 0.22f), lo(0.33f, 0.22f, 0.14f), ink(0.16f, 0.10f, 0.08f);
-  P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, bx - 5, by - 2, 10, 4, false, Color(1, 1, 1, 0.8f));
+  P.blitEx(v.sprites_.shadow_, 0, 0, v.sprites_.shadow_.w, v.sprites_.shadow_.h, bx - 5, by - 2, 10, 4, false, Color(1, 1, 1, 0.8f));
   P.rect(bx - 2, by - 33, 4, 34, ink);                 // the outline
   P.rect(bx - 1, by - 32, 1, 32, hi);                   // the lit side
   P.rect(bx, by - 32, 1, 32, lo);                       // the shaded side
@@ -3719,20 +3719,20 @@ void View::drawFestPole(const FestSpan& s, bool right, Vec2 cam) {
 // the kingdom's colours (else a festive pair by the settlement); at night paper lanterns hang along the strings and one
 // by every door, on the side its windows leave free (their glow: festLights_, added by the light pass). Drawn over the
 // scene: the strings hang overhead, the lanterns on the walls.
-void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
+void LifeView::drawFestival(View& v, Game& g, const Map& m, Vec2 cam) {
   festLights_.clear();
   if (g.inside) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float dark = clampf((0.62f - g.daylight()) / 0.45f, 0, 1);
   auto buntingTex = [&](int w, uint32_t ca, uint32_t cb, uint32_t seed) -> const Tex& {
     const uint64_t key = (uint64_t)w << 40 ^ (uint64_t)(ca & 0xFFFFFF) << 16 ^ (uint64_t)(cb & 0xFFFFFF) ^ (uint64_t)(seed & 1u) << 62;
-    auto it = sprites_.festTex_.find(key);
-    return it != sprites_.festTex_.end() ? it->second : (sprites_.festTex_[key] = pix_->bake(art::festivalBunting(w, ca, cb, seed)));
+    auto it = v.sprites_.festTex_.find(key);
+    return it != v.sprites_.festTex_.end() ? it->second : (v.sprites_.festTex_[key] = v.pix_->bake(art::festivalBunting(w, ca, cb, seed)));
   };
   auto lanternTex = [&](uint32_t lc, uint32_t seed) -> const Tex& {
     const uint64_t key = (uint64_t)0x1A ^ ((uint64_t)(lc & 0xFFFFFF) << 8) ^ (1ull << 61) ^ ((uint64_t)(seed & 3u) << 4);
-    auto it = sprites_.festTex_.find(key);
-    return it != sprites_.festTex_.end() ? it->second : (sprites_.festTex_[key] = pix_->bake(art::festivalLantern(lc, seed & 3u)));
+    auto it = v.sprites_.festTex_.find(key);
+    return it != v.sprites_.festTex_.end() ? it->second : (v.sprites_.festTex_[key] = v.pix_->bake(art::festivalLantern(lc, seed & 3u)));
   };
   static const uint32_t warm[3] = {0xFF3040D6u, 0xFF3C96ECu, 0xFF5AC8F0u};   // red, orange and gold paper
   // a string from (ax, ay) to (bx, by) (map pixels): the bunting stepped down the slope in 2 px strips, and at night a
@@ -3765,7 +3765,7 @@ void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
   for (const FestSpan& s : festSpans_) string(s.x0 * 16.0f + 9.0f, s.y * 16.0f + 13.0f - 31.0f, s.x1 * 16.0f + 7.0f, s.y * 16.0f + 13.0f - 31.0f, s.ca, s.cb, s.seed);
   // ---- the houses: strings between eaves that line up, a lantern by each door at night
   static std::vector<int> vis;
-  bldgsIn(g, m, cam.x - 180, cam.y - 80, cam.x + Pix::W + 180, cam.y + Pix::H + 140, vis);
+  v.bldgsIn(g, m, cam.x - 180, cam.y - 80, cam.x + Pix::W + 180, cam.y + Pix::H + 140, vis);
   struct SiteF { int site; bool fest; uint32_t ca, cb, seed; };
   static std::vector<SiteF> sites;
   sites.clear();
@@ -3813,13 +3813,13 @@ void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
     // the door's lantern, on the side of the door its windows leave free
     if (dark > 0.05f && !a.open.open) {
       const float doorCx = a.doorX() * 16.0f + 8.0f, hy = (a.r.y + a.r.h) * 16.0f - 27.0f;
-      auto tex = sprites_.bldgTex_.find(sprites_.bldgKey(m, a, bi));
-      auto win = sprites_.bldgWin_.find(sprites_.bldgKey(m, a, bi));
+      auto tex = v.sprites_.bldgTex_.find(v.sprites_.bldgKey(m, a, bi));
+      auto win = v.sprites_.bldgWin_.find(v.sprites_.bldgKey(m, a, bi));
       float side = 0;
       for (int sd : {1, -1}) {
         const float lx = doorCx + sd * 11.0f;
         bool clear = lx > a.r.x * 16.0f + 3 && lx < (a.r.x + a.r.w) * 16.0f - 3;
-        if (clear && tex != sprites_.bldgTex_.end() && win != sprites_.bldgWin_.end()) {
+        if (clear && tex != v.sprites_.bldgTex_.end() && win != v.sprites_.bldgWin_.end()) {
           const float top = (a.r.y + a.r.h) * 16.0f + art::BLDG_PAD_B - tex->second.h;
           for (const Vec2& wc : win->second) {
             const Vec2 wp(a.r.x * 16.0f - art::BLDG_PAD_X + wc.x, top + wc.y);
@@ -3832,7 +3832,7 @@ void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
       const float lx = doorCx + side * 11.0f;
       if (lx < cam.x - 16 || lx > cam.x + Pix::W + 16 || hy < cam.y - 20 || hy > cam.y + Pix::H + 20) continue;
       const Tex& t = lanternTex(warm[hash32(a.seed ^ 0x1A7E2u) % 3u], a.seed);
-      const float sw = std::sin(t_ * 1.7f + (float)(a.seed & 63u)) * 0.6f;   // a slow sway on its hook
+      const float sw = std::sin(v.t_ * 1.7f + (float)(a.seed & 63u)) * 0.6f;   // a slow sway on its hook
       P.rect(std::floor(lx - cam.x), std::floor(hy - 2 - cam.y), 1, 2, Color(0.22f, 0.16f, 0.12f));   // the hook
       P.blit(t, std::floor(lx - t.w / 2.0f + sw - cam.x + 0.5f), std::floor(hy - cam.y));
       festLights_.push_back(Vec2(lx, hy + t.h * 0.55f));

@@ -18,16 +18,16 @@ struct ViewProbe {
   static const Pix::Layer& worldLayerForTests(const View& v) { return v.pix_->worldLayer(); }
   static const Pix::Layer& uiLayerForTests(const View& v) { return v.pix_->uiLayer(); }
   static void outputSizeForTests(const View& v, int& w, int& h) { w = h = 0; if (v.pix_) v.pix_->outputSize(w, h); }
-  static int journalSection(const View& v) { return v.journalSec_; }
-  static bool heraldShowing(const View& v) { return v.herald_.t > 0; }
-  static const std::string& heraldTitle(const View& v) { return v.herald_.title; }
-  static View::M4Stats m4Stats(const View& v) { return v.m4Stats_; }
-  static View::M5Stats m5Stats(const View& v) { return v.m5Stats_; }
+  static int journalSection(const View& v) { return v.realm_.journalSec_; }
+  static bool heraldShowing(const View& v) { return v.realm_.herald_.t > 0; }
+  static const std::string& heraldTitle(const View& v) { return v.realm_.herald_.title; }
+  static View::M4Stats m4Stats(const View& v) { return v.realm_.m4Stats_; }
+  static View::M5Stats m5Stats(const View& v) { return v.life_.m5Stats_; }
   // (scripts) force a settlement's festival dressing / shutters on or off whatever its census says (-1: its own)
-  static void scriptLifeLook(View& v, int festival, int shuttered) { v.forceFest_ = festival; v.forceShut_ = shuttered; }
+  static void scriptLifeLook(View& v, int festival, int shuttered) { v.life_.forceFest_ = festival; v.life_.forceShut_ = shuttered; }
   // (scripts) `partyview <words...>` / `expect partyview <words...>` (script_partyview.cpp); false with err when refused
   static bool partyViewCommand(View& v, Game& g, const std::vector<std::string>& a, std::string& err);
   static bool partyViewExpect(View& v, Game& g, const std::vector<std::string>& a, std::string& err);
-  static View::LootStats lootStats(const View& v) { return v.lootShown_; }
-  static View::CardInfo lastCard(const View& v) { return v.lastCard_; }
+  static View::LootStats lootStats(const View& v) { return v.loot_.lootShown_; }
+  static View::CardInfo lastCard(const View& v) { return v.loot_.lastCard_; }
 };

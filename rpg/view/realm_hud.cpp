@@ -90,7 +90,7 @@ const Tex& SpriteCache::armsTex(View& v, const cult::Heraldry& h, int size) {
 }
 
 // ---------------------------------------------------------------- events
-void View::heraldEvent(Game& g, const Event& e) {
+void RealmHud::heraldEvent(View& v, Game& g, const Event& e) {
   // whose land the player now stands on (the event carries the name and the colour; the arms and the society's word
   // come from the realm)
   // (fixer M6b r2) never inside a building or dungeon: the player's position there is the interior's, so the land
@@ -105,7 +105,7 @@ void View::heraldEvent(Game& g, const Event& e) {
   const ew::Gid was = herald_.kingdom;
   // (fixer M4 r1) crossing into a kingdom by arriving in one of its settlements (or the settlement changing hands under
   // the player): the arrival banner already says whose it is, so the herald's plaque does not stack over it
-  const bool quiet = fx_.bannerT_ > 0 && !g.inside && g.settlementAt(g.pl().p) >= 0;
+  const bool quiet = v.fx_.bannerT_ > 0 && !g.inside && g.settlementAt(g.pl().p) >= 0;
   herald_ = Herald();
   herald_.kingdom = land;
   herald_.wild = land == 0;
@@ -122,22 +122,22 @@ void View::heraldEvent(Game& g, const Event& e) {
     herald_.top = was ? "LEAVING THE REALM" : "ENTERING";
   }
   // a herald's two notes (quiet: it is a crossing, not a fanfare)
-  audio_->play(Sfx::Discover, land ? 0.9f : 0.75f, 0.45f);
+  v.audio_->play(Sfx::Discover, land ? 0.9f : 0.75f, 0.45f);
   // the first-visit biome banner waits behind the herald (it shares the top centre)
-  if (biomeBannerT_ > 0) biomeBannerT_ = std::min(biomeBannerT_ + 2.8f, 4.0f);
+  if (v.biomeBannerT_ > 0) v.biomeBannerT_ = std::min(v.biomeBannerT_ + 2.8f, 4.0f);
 }
 
-void View::newsEvent(Game& g, const Event& e) {
+void RealmHud::newsEvent(View& v, Game& g, const Event& e) {
   (void)g;
   if (e.s.empty()) return;
   Toast t;
   t.s = "NEWS: " + e.s;
   t.c = Color(0.98f, 0.86f, 0.62f);
-  fx_.toasts_.push_back(t);
+  v.fx_.toasts_.push_back(t);
 }
 
 // ---------------------------------------------------------------- the arrival banner's words
-void View::arrivalText(Game& g, int cs, std::string& line, std::string& state, uint32_t& stateCol) {
+void RealmHud::arrivalText(Game& g, int cs, std::string& line, std::string& state, uint32_t& stateCol) {
   const Site& S = g.world.sites[(size_t)cs];
   std::string sp = S.special ? std::string(ew::specialtyName((ew::Specialty)S.special)) + " " + siteTypeName(S.type) : std::string();
   if (S.archetype == (uint8_t)ew::Archetype::Market && S.type != SiteType::Village)
@@ -154,9 +154,9 @@ void View::arrivalText(Game& g, int cs, std::string& line, std::string& state, u
 }
 
 // ---------------------------------------------------------------- the herald's ribbon
-void View::drawHerald(Game& g) {
+void RealmHud::drawHerald(View& v, Game& g) {
   if (herald_.t <= 0 || g.mode != Mode::Play) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
   const float total = 2.8f, a = std::clamp(std::min(herald_.t, total - herald_.t) * 3.0f, 0.0f, 1.0f);
   const float slide = std::floor((1 - a) * -8);
@@ -169,7 +169,7 @@ void View::drawHerald(Game& g) {
   const float minX = L + 136, maxX = R - 76 - w;
   if (maxX >= minX) x = std::clamp(x, minX, maxX);
   // (M6 fixer) under a world boss's top bar, never over it (the ribbon shows exactly when the hero walks into its land)
-  const float y = std::max(T + 5, bossBarBottom_ + 3) + slide;
+  const float y = std::max(T + 5, v.bossBarBottom_ + 3) + slide;
   const Color ink(0.03f, 0.025f, 0.04f, 0.78f * a);
   const Color kc = col(herald_.color, a);
   // the ribbon: a dark band with swallow-tail ends in the realm's colour, gold rules top and bottom
@@ -188,7 +188,7 @@ void View::drawHerald(Game& g) {
     const rui::Look k = rui::look(g, herald_.kingdom);
     cult::Heraldry hr;
     rui::arms(k, hr);
-    const Tex& sh = sprites_.armsTex(*this, hr, 16);
+    const Tex& sh = v.sprites_.armsTex(v, hr, 16);
     const Color tint(1, 1, 1, a);
     P.blit(sh, x + 6, y + std::floor((h - sh.h) / 2), false, tint);
     P.blit(sh, x + w - 6 - sh.w, y + std::floor((h - sh.h) / 2), false, tint);
@@ -219,20 +219,20 @@ void stripCells(float lx, float lw, float* x, float* w) {
   }
 }
 }  // namespace
-void View::drawJournalStrip(float lx, float lw, float top) {
+void RealmHud::drawJournalStrip(View& v, float lx, float lw, float top) {
   static const char* kSec[4] = {"QUESTS", "NEWS", "HISTORY", "STANDING"};
   float x[4], w[4];
   stripCells(lx, lw, x, w);
-  const float bh = journalStripH() - 4;
-  for (int i = 0; i < 4; i++) button(x[i], top + 6, w[i], bh, kSec[i], journalSec_ == i);
+  const float bh = v.journalStripH() - 4;
+  for (int i = 0; i < 4; i++) v.button(x[i], top + 6, w[i], bh, kSec[i], journalSec_ == i);
 }
-bool View::journalStripTap(Vec2 p, float lx, float lw, float top) {
+bool RealmHud::journalStripTap(View& v, Vec2 p, float lx, float lw, float top) {
   float x[4], w[4];
   stripCells(lx, lw, x, w);
-  const float bh = journalStripH() - 4;
+  const float bh = v.journalStripH() - 4;
   for (int i = 0; i < 4; i++)
     if (p.x >= x[i] - 1 && p.x < x[i] + w[i] + 2 && p.y >= top + 4 && p.y < top + 8 + bh) {
-      if (journalSec_ != i) { setJournalSection(i); audio_->play(Sfx::MenuMove); }
+      if (journalSec_ != i) { v.setJournalSection(i); v.audio_->play(Sfx::MenuMove); }
       return true;
     }
   return false;
@@ -240,10 +240,10 @@ bool View::journalStripTap(Vec2 p, float lx, float lw, float top) {
 
 // the NEWS and HISTORY sections (journalSec_ 1, 2): a list on the left (the menu's list column), the picked entry on
 // the right; `top` is the list's top (under the strip)
-void View::drawJournalSection(Game& g, float top) {
-  if (journalSec_ == 3) { RiseViewOps::drawStanding(*this, g, top); return; }   // (M12) STANDING (rise_standing.cpp)
-  Pix& P = *pix_;
-  const bool touch = touchUI;
+void RealmHud::drawJournalSection(View& v, Game& g, float top) {
+  if (journalSec_ == 3) { RiseViewOps::drawStanding(v, g, top); return; }   // (M12) STANDING (rise_standing.cpp)
+  Pix& P = *v.pix_;
+  const bool touch = v.touchUI;
   const float pitch = touch ? 24.0f : 12.0f;
   const float lx = 18, lw = std::floor(200 + std::max(0, Pix::W - 480) * 0.4f), div = lx + lw + 8, dx = div + 10, dw = (float)Pix::W - 20 - dx;
   const float listBottom = (float)Pix::H - (touch ? 50.0f : 26.0f);
@@ -259,14 +259,14 @@ void View::drawJournalSection(Game& g, float top) {
     for (const story::LoreEntry& l : lore) { titles.push_back(l.title); cols.push_back(Color(0.86f, 0.80f, 1.0f)); }
   }
   const int n = (int)titles.size();
-  menuSel_ = std::clamp(menuSel_, 0, std::max(0, n - 1));
-  if (menuSel_ < menuScroll_) menuScroll_ = menuSel_;
-  if (menuSel_ >= menuScroll_ + rows) menuScroll_ = menuSel_ - rows + 1;
-  menuScroll_ = std::clamp(menuScroll_, 0, std::max(0, n - rows));
-  for (int r = 0; r < rows && menuScroll_ + r < n; r++) {
-    const int i = menuScroll_ + r;
+  v.menuSel_ = std::clamp(v.menuSel_, 0, std::max(0, n - 1));
+  if (v.menuSel_ < v.menuScroll_) v.menuScroll_ = v.menuSel_;
+  if (v.menuSel_ >= v.menuScroll_ + rows) v.menuScroll_ = v.menuSel_ - rows + 1;
+  v.menuScroll_ = std::clamp(v.menuScroll_, 0, std::max(0, n - rows));
+  for (int r = 0; r < rows && v.menuScroll_ + r < n; r++) {
+    const int i = v.menuScroll_ + r;
     const float rowTop = top + 4 + r * pitch, yy = rowTop + std::floor((pitch - 8) / 2);
-    if (i == menuSel_) P.rect(lx, rowTop, lw, pitch - (touch ? 1 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
+    if (i == v.menuSel_) P.rect(lx, rowTop, lw, pitch - (touch ? 1 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
     else if (touch && (r & 1)) P.rect(lx, rowTop, lw, pitch - 1, Color(0.16f, 0.12f, 0.08f, 0.35f));
     std::string t = titles[(size_t)i];
     const int fit = std::max(4, (int)((lw - 10) / 6));
@@ -274,16 +274,16 @@ void View::drawJournalSection(Game& g, float top) {
     P.text(lx + 4, yy, t, 1, cols[(size_t)i]);
   }
   if (n > rows) {
-    const std::string cnt = std::to_string(menuScroll_ + 1) + "-" + std::to_string(std::min(n, menuScroll_ + rows)) + " OF " + std::to_string(n);
+    const std::string cnt = std::to_string(v.menuScroll_ + 1) + "-" + std::to_string(std::min(n, v.menuScroll_ + rows)) + " OF " + std::to_string(n);
     if (touch) {
-      button(lx, (float)Pix::H - 46, 52, 24, "UP", false);
-      button(lx + lw - 52, (float)Pix::H - 46, 52, 24, "DOWN", false);
+      v.button(lx, (float)Pix::H - 46, 52, 24, "UP", false);
+      v.button(lx + lw - 52, (float)Pix::H - 46, 52, 24, "DOWN", false);
       P.text(lx + lw / 2, (float)Pix::H - 38, cnt, 1, kDim, 1);
     } else P.text(lx + lw / 2, (float)Pix::H - 18, cnt, 1, kDim, 1);
   }
-  P.rect(div, top - journalStripH() + 8, 1, Pix::H - (top - journalStripH()) - 24, Color(0.4f, 0.32f, 0.2f));
+  P.rect(div, top - v.journalStripH() + 8, 1, Pix::H - (top - v.journalStripH()) - 24, Color(0.4f, 0.32f, 0.2f));
   const int per = std::max(10, (int)(dw / 6));
-  float y = top - journalStripH() + 12;
+  float y = top - v.journalStripH() + 12;
   if (n == 0) {
     const char* empty = journalSec_ == 1 ? "NO NEWS YET. INNKEEPERS, TRAVELLERS AND GUARDS TELL WHAT THEY HAVE HEARD."
                                          : "NOTHING PIECED TOGETHER YET. RUINS KEEP THEIR STORIES IN INSCRIPTIONS, GRAVES AND JOURNALS.";
@@ -291,7 +291,7 @@ void View::drawJournalSection(Game& g, float top) {
     return;
   }
   if (journalSec_ == 1) {
-    const realm::WorldEvent& e = *news[(size_t)menuSel_];
+    const realm::WorldEvent& e = *news[(size_t)v.menuSel_];
     for (const std::string& l : wrapW(realm::evTypeName(e.type), per)) { P.text(dx, y, l, 1, evColour(e.type)); y += 10; }
     P.text(dx, y, rui::daysAgo(g.day, e.day), 1, kDim);
     y += 14;
@@ -305,13 +305,13 @@ void View::drawJournalSection(Game& g, float top) {
       if (!k.ok) continue;
       cult::Heraldry hr;
       rui::arms(k, hr);
-      const Tex& sh = sprites_.armsTex(*this, hr, 12);
+      const Tex& sh = v.sprites_.armsTex(v, hr, 12);
       P.blit(sh, dx, y - 2);
       P.text(dx + 16, y + 1, cut(rui::realmTitle(k, false), (int)((dw - 18) / 6)), 1, lift(col(k.color ? k.color : rgba(200, 180, 140))));
       y += 15;
     }
   } else {
-    const story::LoreEntry& l = lore[(size_t)menuSel_];
+    const story::LoreEntry& l = lore[(size_t)v.menuSel_];
     for (const std::string& s : wrapW(l.title, per)) { P.text(dx, y, s, 1, Color(0.86f, 0.80f, 1.0f)); y += 10; }
     if (l.total > 0) { P.text(dx, y, std::to_string(l.found) + " OF " + std::to_string(l.total) + " CLUES FOUND", 1, kDim); y += 10; }
     y += 4;
@@ -322,22 +322,22 @@ void View::drawJournalSection(Game& g, float top) {
   }
 }
 
-bool View::journalSectionTap(Game& g, Vec2 p, float top) {
-  if (journalSec_ == 3) return RiseViewOps::standingTap(*this, g, p, top);   // (M12) STANDING (rise_standing.cpp)
-  const bool touch = touchUI;
+bool RealmHud::journalSectionTap(View& v, Game& g, Vec2 p, float top) {
+  if (journalSec_ == 3) return RiseViewOps::standingTap(v, g, p, top);   // (M12) STANDING (rise_standing.cpp)
+  const bool touch = v.touchUI;
   const float pitch = touch ? 24.0f : 12.0f;
   const float lx = 18, lw = std::floor(200 + std::max(0, Pix::W - 480) * 0.4f);
   const float listBottom = (float)Pix::H - (touch ? 50.0f : 26.0f);
   const int rows = std::max(3, (int)((listBottom - top - 6) / pitch));
   const int n = journalSec_ == 1 ? (int)heardNews(g).size() : (int)g.story.lore().size();
-  for (int r = 0; r < rows && menuScroll_ + r < n; r++)
-    if (p.x >= lx && p.x < lx + lw && p.y >= top + 4 + r * pitch && p.y < top + 4 + (r + 1) * pitch) { menuSel_ = menuScroll_ + r; audio_->play(Sfx::MenuMove); return true; }
+  for (int r = 0; r < rows && v.menuScroll_ + r < n; r++)
+    if (p.x >= lx && p.x < lx + lw && p.y >= top + 4 + r * pitch && p.y < top + 4 + (r + 1) * pitch) { v.menuSel_ = v.menuScroll_ + r; v.audio_->play(Sfx::MenuMove); return true; }
   if (touch && n > rows) {
     const float by = (float)Pix::H - 46;
-    if (p.y >= by - 2 && p.y < by + 26 && p.x >= lx && p.x < lx + 52) { menuSel_ = std::max(0, menuSel_ - rows); menuScroll_ = std::max(0, menuScroll_ - rows); return true; }
+    if (p.y >= by - 2 && p.y < by + 26 && p.x >= lx && p.x < lx + 52) { v.menuSel_ = std::max(0, v.menuSel_ - rows); v.menuScroll_ = std::max(0, v.menuScroll_ - rows); return true; }
     if (p.y >= by - 2 && p.y < by + 26 && p.x >= lx + lw - 52 && p.x < lx + lw) {
-      menuScroll_ = std::min(std::max(0, n - rows), menuScroll_ + rows);
-      menuSel_ = std::min(n - 1, std::max(menuSel_ + rows, menuScroll_));
+      v.menuScroll_ = std::min(std::max(0, n - rows), v.menuScroll_ + rows);
+      v.menuSel_ = std::min(n - 1, std::max(v.menuSel_ + rows, v.menuScroll_));
       return true;
     }
   }

@@ -84,7 +84,7 @@ bool SpriteCache::poseBudget(View& v) {
 
 void SpriteCache::poseSpent(View& v, std::chrono::steady_clock::time_point t0) {
   poseFrameMs_ += std::max(0.05, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
-  v.m5Count_.poseBakes++;
+  v.life_.m5Count_.poseBakes++;
 }
 
 // (M3b) a wall tile's texture key: the key itself (M3 look), or the key without its look slot mixed with the look's

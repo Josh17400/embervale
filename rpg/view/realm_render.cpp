@@ -37,7 +37,7 @@ ew::Gid campOwner(Game& g, art::Prop p, int tx, int ty) {
 }  // namespace
 
 const Tex* SpriteCache::warPropTex(View& v, Game& g, art::Prop p, int tx, int ty) {
-  v.m4Count_.warProps++;
+  v.realm_.m4Count_.warProps++;
   const ew::Gid k = campOwner(g, p, tx, ty);
   uint32_t field = 0, trim = 0;
   if (k) {
@@ -47,7 +47,7 @@ const Tex* SpriteCache::warPropTex(View& v, Game& g, art::Prop p, int tx, int ty
       rui::arms(L, h);
       field = h.field;
       trim = h.charge ? h.charge : L.color2;
-      v.m4Count_.warPropsOwned++;
+      v.realm_.m4Count_.warPropsOwned++;
     }
   }
   if (!field && p != art::Prop::Rubble && p != art::Prop::Ash && p != art::Prop::Scaffold) return nullptr;
@@ -57,7 +57,7 @@ const Tex* SpriteCache::warPropTex(View& v, Game& g, art::Prop p, int tx, int ty
   return &(warPropTex_[key] = v.pix_->bake(art::warPropSprite(p, field, trim)));
 }
 
-void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
+void RealmHud::burnedFx(View& v, Game& g, const Map& m, const Bldg& b, int index, float dt) {
   (void)m; (void)index; (void)dt;
   if (b.charred != 1 && b.charred != 2) return;
   m4Count_.burned++;
@@ -70,7 +70,7 @@ void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
   const int cols = out ? 2 + (int)(hb % 2) : 1;
   for (int c = 0; c < cols; c++) {
     const float fx = x0 + w * (0.25f + 0.5f * (float)((hb >> (4 + c * 5)) % 11) / 10.0f);
-    Rng r((uint32_t)(t_ * 1000.0f) * 131u + (uint32_t)c * 977u + hb);
+    Rng r((uint32_t)(v.t_ * 1000.0f) * 131u + (uint32_t)c * 977u + hb);
     // a smoke column: thick dark puffs (two side by side) that billow, drift east and thin out as they rise
     for (int puff = 0; puff < (out ? 2 : 1); puff++) {
       if (r.f() > (out ? 0.07f : 0.03f)) continue;
@@ -83,7 +83,7 @@ void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
       q.size = out ? r.range(3.0f, 5.0f) : r.range(2.0f, 3.0f);
       q.grav = -1.5f;
       q.kind = 2;
-      fx_.parts_.push_back(q);
+      v.fx_.parts_.push_back(q);
     }
     if (out && r.f() < 0.05f) {   // sparks and embers lifting from the ruin
       Particle q;
@@ -93,12 +93,12 @@ void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
       q.c = r.f() < 0.5f ? Color(1.0f, 0.62f, 0.18f) : Color(1.0f, 0.86f, 0.40f);
       q.size = 1;
       q.grav = 8.0f;
-      fx_.parts_.push_back(q);
+      v.fx_.parts_.push_back(q);
     }
   }
 }
 
-void View::m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<LightPool>& out) {
+void RealmHud::m4Lights(View& v, Game& g, const Map& m, Vec2 cam, float dark, std::vector<LightPool>& out) {
   out.clear();
   if (g.inside || g.mode == Mode::Title || m.kind != MapKind::Overworld || dark < 0.12f) return;
   const int tx0 = std::max(0, (int)std::floor(cam.x / 16) - 4), ty0 = std::max(0, (int)std::floor(cam.y / 16) - 4);
@@ -108,7 +108,7 @@ void View::m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<Lig
       const int pr = m.prop[(size_t)ty * m.w + tx];
       if (!pr) continue;
       const art::Prop p = (art::Prop)(pr - 1);
-      const float f = 0.88f + 0.12f * std::sin(t_ * 6.5f + tx * 1.9f + ty);
+      const float f = 0.88f + 0.12f * std::sin(v.t_ * 6.5f + tx * 1.9f + ty);
       if (p == art::Prop::CommandTent || p == art::Prop::WarTent || p == art::Prop::RefugeeTent) {
         // lantern light glowing through the cloth and a pool at the door
         const float big = p == art::Prop::CommandTent ? 1.3f : 1.0f;
@@ -124,11 +124,11 @@ void View::m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<Lig
     // read on a phone; a smaller, hotter ember bed flickers off-centre by the building's hash
     const Vec2 c(b.r.x * 16 + b.r.w * 8.0f, (b.r.y + b.r.h * 0.55f) * 16);
     if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 80 || c.y > cam.y + Pix::H + 80) continue;
-    const float f = 0.75f + 0.25f * std::sin(t_ * 3.1f + b.r.x) * std::sin(t_ * 4.7f + b.r.y);
+    const float f = 0.75f + 0.25f * std::sin(v.t_ * 3.1f + b.r.x) * std::sin(v.t_ * 4.7f + b.r.y);
     out.push_back({c, 30 + b.r.w * 6.0f, Color(1.0f, 0.36f, 0.12f), 0.85f * dark * f});
     const uint32_t hb = hash32((uint32_t)(b.r.x * 73856093) ^ (uint32_t)(b.r.y * 19349663));
     const float ex = b.r.x * 16 + b.r.w * 16.0f * (0.3f + 0.4f * (float)(hb % 9) / 8.0f);
-    const float f2 = 0.7f + 0.3f * std::sin(t_ * 7.3f + (float)(hb & 15));
+    const float f2 = 0.7f + 0.3f * std::sin(v.t_ * 7.3f + (float)(hb & 15));
     out.push_back({Vec2(ex, c.y + 6.0f), 18 + b.r.w * 2.0f, Color(1.0f, 0.55f, 0.18f), 0.7f * dark * f2});
   }
 }
@@ -137,12 +137,12 @@ void View::m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<Lig
 // the night's light map: a burned-out shell's open roof cavity burns from inside (a hot red-orange core and a few
 // white-hot ember beds), a soft halo round the walls, and the smoke above lit from below. Additive, so it reads on
 // a phone at 1x whatever the darkness.
-void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
+void RealmHud::m4Emissive(View& v, Game& g, const Map& m, Vec2 cam, float dark) {
   if (g.inside || g.mode == Mode::Title || m.kind != MapKind::Overworld || dark < 0.15f) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float k = std::min(1.0f, (dark - 0.15f) * 2.4f);
   auto blob = [&](float x, float y, float rw, float rh, Color c) {
-    P.blitEx(sprites_.light_, 0, 0, 64, 64, x - rw - cam.x, y - rh - cam.y, rw * 2, rh * 2, false, c, 1);
+    P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - rw - cam.x, y - rh - cam.y, rw * 2, rh * 2, false, c, 1);
   };
   for (size_t i = 0; i < m.bldgs.size(); i++) {
     const Bldg& b = m.bldgs[i];
@@ -150,11 +150,11 @@ void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
     const float x0 = b.r.x * 16.0f, w = b.r.w * 16.0f, bottom = (b.r.y + b.r.h) * 16.0f;
     if (x0 + w < cam.x - 60 || x0 > cam.x + Pix::W + 60 || bottom < cam.y - 40 || bottom - 140 > cam.y + Pix::H) continue;
     float top = bottom - b.r.h * 16.0f - 24.0f;
-    auto t = sprites_.bldgTex_.find(sprites_.bldgKey(m, b, (int)i));
-    if (t != sprites_.bldgTex_.end()) top = bottom + art::BLDG_PAD_B - t->second.h;
+    auto t = v.sprites_.bldgTex_.find(v.sprites_.bldgKey(m, b, (int)i));
+    if (t != v.sprites_.bldgTex_.end()) top = bottom + art::BLDG_PAD_B - t->second.h;
     const float cx = x0 + w * 0.5f, cy = top + (bottom - top) * 0.46f;   // the gutted roof's cavity
     const uint32_t hb = hash32((uint32_t)(b.r.x * 73856093) ^ (uint32_t)(b.r.y * 19349663));
-    const float f = 0.78f + 0.22f * std::sin(t_ * 3.1f + b.r.x) * std::sin(t_ * 4.7f + b.r.y);
+    const float f = 0.78f + 0.22f * std::sin(v.t_ * 3.1f + b.r.x) * std::sin(v.t_ * 4.7f + b.r.y);
     // the halo round the shell, the deep red bed in the cavity, its hot orange heart
     const float hh = bottom - top;
     blob(cx, cy + 8, w * 1.0f + 24, hh * 0.75f + 14, Color(0.85f, 0.22f, 0.06f, 0.40f * k * f));
@@ -165,7 +165,7 @@ void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
     for (int e = 0; e < 3; e++) {
       const float ex = x0 + w * (0.25f + 0.5f * (float)((hb >> (e * 6)) % 13) / 12.0f);
       const float ey = cy + ((float)((hb >> (e * 6 + 3)) % 9) - 4.0f) * 1.5f;
-      const float fe = 0.6f + 0.4f * std::sin(t_ * (6.0f + e * 1.7f) + (float)e * 2.1f + (float)(hb & 7));
+      const float fe = 0.6f + 0.4f * std::sin(v.t_ * (6.0f + e * 1.7f) + (float)e * 2.1f + (float)(hb & 7));
       blob(ex, ey, 7, 5, Color(1.0f, 0.86f, 0.42f, 0.95f * k * fe));
     }
     // the smoke column over it lit from below: a tall faint glow rising from the cavity
@@ -173,7 +173,7 @@ void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
   }
 }
 
-bool View::nearSiege(Game& g) const {
+bool RealmHud::nearSiege(Game& g) const {
   if (!g.world.endless || g.inside) return false;
   const int32_t gx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
   for (const realm::Siege& s : g.realm.sieges()) {

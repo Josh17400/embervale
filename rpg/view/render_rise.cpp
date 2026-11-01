@@ -199,7 +199,7 @@ void View::riseUpdate(Game& g, float dt) {
   if (!S.showing) {
     if (S.gap > 0) { S.gap -= dt; return; }
     // the herald's ribbon and the biome banner own the top centre while they show
-    if (S.queue.empty() || herald_.t > 0 || biomeBannerT_ > 0) return;
+    if (S.queue.empty() || realm_.herald_.t > 0 || biomeBannerT_ > 0) return;
     S.cur = S.queue.front();
     S.queue.pop_front();
     S.cur.t = 0;

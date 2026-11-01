@@ -76,7 +76,7 @@ void View::drawShop(Game& g) {
       float ty = y + std::floor((L.pitch - 8) / 2) - 2;
       if (touchUI && i != sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
       if (i == sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - (touchUI ? 2 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
-      rarityIcon(g, it, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);   // (M8b) in its rarity's cell
+      loot_.rarityIcon(*this, g, it, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);   // (M8b) in its rarity's cell
       int price = shopPrice(g, it, buying);
       const std::string ps = std::to_string(price);
       std::string suf;
@@ -98,7 +98,7 @@ void View::drawShop(Game& g) {
         if (of != std::string::npos && of > 0) full = full.substr(0, of);
       }
       std::string nm = fitText(full, room) + suf;
-      rarityText(nx, ty, nm, it.rarity);
+      loot_.rarityText(*this, nx, ty, nm, it.rarity);
       bool afford = buying ? g.gold >= price : (purseLeft < 0 || price <= purseLeft);
       if (!buying && !afford) {   // (M6 fixer r2) what he can pay: all his purse (amber: less than it is worth)
         P.text(px, ty, std::to_string(std::max(0, purseLeft)), 1, purseLeft > 0 ? Color(0.95f, 0.66f, 0.3f) : Color(0.55f, 0.5f, 0.45f), 2);
@@ -132,8 +132,8 @@ void View::drawShop(Game& g) {
       // (M8b) the item card with its compare: on the BUY side against what that slot wears; on the SELL side the
       // piece itself (a worn one says so)
       bool isWorn = false;
-      const Item* vs = wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
-      itemCard(g, it, L.dx + 1, L.detailY + 1, L.dw - 1, L.btnY - (touchUI && armed ? 26.0f : 6.0f), true, vs, isWorn);
+      const Item* vs = loot_.wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
+      loot_.itemCard(*this, g, it, L.dx + 1, L.detailY + 1, L.dw - 1, L.btnY - (touchUI && armed ? 26.0f : 6.0f), true, vs, isWorn);
       if (touchUI) {
         if (armed) { wrapText(L.dx, L.btnY - 22, L.dw, "YOU WEAR IT - TAP AGAIN TO SELL", kGold); button(L.btnX, L.btnY, L.btnW, L.btnH, "SELL ANYWAY", true); }
         else button(L.btnX, L.btnY, L.btnW, L.btnH, deal, !cantPay);
@@ -171,8 +171,8 @@ void View::drawShop(Game& g) {
       }
       P.rect(cx + 1, ty0 + 1, cw - 2, 1, Color(1, 1, 1, 0.05f));
       bool isWorn = false;
-      const Item* vs = wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
-      itemCard(g, it, cx + 6, cy0 + 6, cw - 12, cy1 - 4, true, vs, isWorn);
+      const Item* vs = loot_.wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
+      loot_.itemCard(*this, g, it, cx + 6, cy0 + 6, cw - 12, cy1 - 4, true, vs, isWorn);
     }
   }
   if (touchUI) {

@@ -72,7 +72,7 @@ struct SkillsUiOps {
   static Audio& audio(View& v) { return *v.audio_; }
   static const Tex& light(View& v) { return v.sprites_.light_; }
   static void button(View& v, float x, float y, float w, float h, const std::string& label, bool hot) { v.button(x, y, w, h, label, hot); }
-  static void arrow(View& v, float x, float y, int dir) { v.cmpArrow(x, y, dir); }
+  static void arrow(View& v, float x, float y, int dir) { v.loot_.cmpArrow(v, x, y, dir); }
   static const Tex& itemTex(View& v, const Game& g, const Item& it) { return v.sprites_.itemTex(v, g, it); }
   static int& menuTab(View& v) { return v.menuTab_; }
   static std::vector<View::Finger>& fingers(View& v) { return v.fingers_; }

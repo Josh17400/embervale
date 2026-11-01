@@ -112,7 +112,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   bool drawn = false;
   bool floorSeat = false;   // (fixer M5 r3) sat on the bare floor: a cushion goes under them
   // (M8) a downed companion lies in Posture::Downed, the player binding them kneels (party_view.cpp partyPosture)
-  const art::Posture pzA = (a.comp || a.player) ? partyPosture(g, a) : a.posture;
+  const art::Posture pzA = (a.comp || a.player) ? party_.partyPosture(g, a) : a.posture;
   const bool posing = pzA != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk || ((a.st == AState::Down || a.st == AState::Dead) && pzA == art::Posture::Downed));
   // (P2b B11) the hero's fall under the death screen runs on the sim's clock (Game::update steps the body's state time
   // in Mode::Dead every step, drawn or not); the draw keeps no state of its own, so nothing leaks across resets
@@ -245,7 +245,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         const Vec2 feet(std::floor(a.p.x - cam.x) + cam.x, std::floor(a.p.y - cam.y) + cam.y - rowerDy - (float)hipY);
         drawV2(*rt.tex, *f2, an, feet, alpha, false, fi, fc, true);
         if (a.player) heroSprite.part = 4;   // (a posture atlas)
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
         return;
       }
     }
@@ -398,7 +398,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
           const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
           P.blitEx(st, 0, 0, st.w, st.h, sx, sy, (float)st.w, (float)st.h, false, Color(1, 1, 1, alpha));
           drawn = true;
-          m5Count_.posed++;
+          life_.m5Count_.posed++;
         }
       }
       if (drawn) {
@@ -407,7 +407,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
         P.blitEx(*st, 0, 0, st->w, st->h, sx, sy, (float)st->w, (float)st->h, false, Color(1, 1, 1, alpha));
         drawn = true;
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
         v1Draws++;
       }
     }
@@ -445,7 +445,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
             queueLivingFinish(a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
           }
           if (a.player) heroSprite.part = 4;
-          m5Count_.posed++;
+          life_.m5Count_.posed++;
           return;
         }
       }
@@ -455,10 +455,10 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         tp = pt;
         fr = pf;
         if (pi.oneRow || pi.lying) { row = 0; flip = false; }
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
       } else {
         fr = stride ? 1 + (int)(a.animT * 9) % 4 : 0;   // the stand-in this frame: its own standing sheet
-        m5Count_.poseFallback++;
+        life_.m5Count_.poseFallback++;
       }
       bob += (float)art::postureInfo(pz).dy;
     }
@@ -481,7 +481,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     P.rect(x + 1, wy + 1, 14, 1, Color(0.05f, 0.18f, 0.26f, 0.35f * alpha));
     P.rect(x + 4, wy - 1, 2, 1, Color(0.9f, 0.97f, 1.0f, 0.4f * alpha));
     drawn = true;
-    m5Count_.posed++;
+    life_.m5Count_.posed++;
     v1Draws++;
   }
   if (floorSeat && !drawn) {   // (fixer M5 r3) "seated patrons hover with no seat": a cushion under them

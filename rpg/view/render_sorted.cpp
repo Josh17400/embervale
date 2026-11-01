@@ -325,7 +325,7 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
   // (M8) the graves of the fallen companions in view (kind 9: idx = Party::fallen index; party_view.cpp)
   {
     std::vector<int> graves;
-    graveDraws(g, m, cam, graves);
+    party_.graveDraws(g, m, cam, graves);
     for (int fi : graves)
       list.push_back({(float)(g.party.fallen[(size_t)fi].gy - g.world.oy) * 16.0f + 15.5f, DrawKind::Grave, fi, 0, 0});
   }
@@ -343,16 +343,16 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
     }
   // (M7) the player's property: yard objects, crops, ground edits, the building site (kind 8: idx into homeDraws_;
   //      collected by the VIEW lane's homeCollect, rpg/view/home_view.cpp)
-  homeDraws_.clear();
-  if (g.mode != Mode::Title) homeCollect(g, m, cam);
-  else homeLights_.clear();
-  drawHomeFlats(cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
-  for (int i = 0; i < (int)homeDraws_.size(); i++)
-    if (!homeDraws_[(size_t)i].flat) list.push_back({homeDraws_[(size_t)i].sortY, DrawKind::Home, i, 0, 0});
+  home_.homeDraws_.clear();
+  if (g.mode != Mode::Title) home_.homeCollect(*this, g, m, cam);
+  else home_.homeLights_.clear();
+  home_.drawHomeFlats(*this, cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
+  for (int i = 0; i < (int)home_.homeDraws_.size(); i++)
+    if (!home_.homeDraws_[(size_t)i].flat) list.push_back({home_.homeDraws_[(size_t)i].sortY, DrawKind::Home, i, 0, 0});
   // (M5) a festival's poles across the plaza (kind 7: idx = span, tx = 0 west / 1 east pole)
-  festivalPlan(g, m, cam);
-  for (int i = 0; i < (int)festSpans_.size(); i++) {
-    const FestSpan& s = festSpans_[(size_t)i];
+  life_.festivalPlan(g, m, cam);
+  for (int i = 0; i < (int)life_.festSpans_.size(); i++) {
+    const LifeView::FestSpan& s = life_.festSpans_[(size_t)i];
     if (s.y * 16 < cam.y - 40 || s.y * 16 > cam.y + Pix::H + 60 || s.x1 * 16 < cam.x - 40 || s.x0 * 16 > cam.x + Pix::W + 40) continue;
     list.push_back({s.y * 16.0f + 13.0f, DrawKind::FestPole, i, 0, 0});
     list.push_back({s.y * 16.0f + 13.0f, DrawKind::FestPole, i, 1, 0});
@@ -390,10 +390,10 @@ void View::drawShadowSorted(Game& g, FrameCtx& F, const Drawable& d) {
   Pix& P = F.P;
   Vec2 cam = F.cam;
   if (d.kind == DrawKind::Home) {   // (M7) a yard object's or a crop's ground shadow
-    if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeShadow(homeDraws_[(size_t)d.idx], cam);
+    if (d.idx >= 0 && d.idx < (int)home_.homeDraws_.size()) home_.drawHomeShadow(*this, home_.homeDraws_[(size_t)d.idx], cam);
     return;
   }
-  if (d.kind == DrawKind::Grave) { drawGrave(g, d.idx, cam, true); return; }   // (M8) a grave's shadow
+  if (d.kind == DrawKind::Grave) { party_.drawGrave(*this, g, d.idx, cam, true); return; }   // (M8) a grave's shadow
   if (d.kind == DrawKind::Handcart) {   // (P1b) a story's hand cart: the shadow its own model casts, to the lower right
     if (d.idx >= 0 && d.idx < (int)g.story.walkers_.size()) {
       const story::Engine::Walker& w = g.story.walkers_[(size_t)d.idx];
@@ -447,10 +447,10 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
   // the order of every other drawable, ties included, is the same as without the param: only its own pixels go
   if (!wHide.empty() && witnessHides(g, a)) return;
 #endif
-  if (a.player && g.homeRiding()) { drawMountShadow(g, a, cam); return; }   // (M7) the horse's shadow
+  if (a.player && g.homeRiding()) { home_.drawMountShadow(*this, g, a, cam); return; }   // (M7) the horse's shadow
   if (a.comp) {   // (M8) the hound's, a rider's horse's, the blood under the downed (party_view.cpp)
     bool done = false;
-    drawCompanionShadow(g, a, cam, done);
+    party_.drawCompanionShadow(*this, g, a, cam, done);
     if (done) return;
   }
   // (M6 BEASTS) an elite's, a champion's or a named unique's aura: its ground glow round the feet, added under the
@@ -599,9 +599,9 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   bool vendorOpen = g.mode == Mode::Title || m.kind != MapKind::Overworld || ew::stallOpen(d.tx + g.world.ox, d.ty + g.world.oy, g.hour);
   // (M5, 15.12) a hungry or famished town's stalls stay shuttered all day (nothing to sell): packed up like after hours
   if (vendorOpen && g.mode != Mode::Title && m.kind == MapKind::Overworld && (art::isVendorProp(p) || p == Prop::MarketStall) &&
-      (lifeFlagsAt(g, d.tx, d.ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
+      (life_.lifeFlagsAt(*this, g, d.tx, d.ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
     vendorOpen = false;
-    m5Count_.stallsShut++;
+    life_.m5Count_.stallsShut++;
   }
   // (stall facings) a row running north-south (side profiles) steps its cloth along the column instead
   int stallFacing = art::StallS;
@@ -660,11 +660,11 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   bool lampFlameOn = false;
   if (p == Prop::Lamppost && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
     if (life::lampLit(d.tx + g.world.ox, d.ty + g.world.oy, g.hour)) {
-      m5Count_.lampsLit++;
+      life_.m5Count_.lampsLit++;
       lampFlameOn = tp == &sprites_.props_[(int)p];   // the classic lantern: its flame drawn live over the glass (ART lampHead)
     } else {
       tp = &sprites_.lampDarkTex(*this, sprites_.propStyleAt(*this, g, d.tx, d.ty));
-      m5Count_.lampsDark++;
+      life_.m5Count_.lampsDark++;
     }
   }
   const Tex& t = *tp;
@@ -1159,8 +1159,8 @@ void View::drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d) {
   if (m.kind == MapKind::Overworld && g.mode != Mode::Title && windowsLit(g, b)) {
     auto nt = sprites_.bldgNight_.find(sprites_.bldgKey(m, b, d.idx));
     if (nt != sprites_.bldgNight_.end()) tp = &nt->second;
-    m5Count_.winLit++;
-  } else if (m.kind == MapKind::Overworld && g.mode != Mode::Title && !g.inside && g.daylight() <= 0.55f) m5Count_.winDark++;
+    life_.m5Count_.winLit++;
+  } else if (m.kind == MapKind::Overworld && g.mode != Mode::Title && !g.inside && g.daylight() <= 0.55f) life_.m5Count_.winDark++;
   const Tex& t = *tp;
   const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t.h;
   float x = b.r.x * 16.0f - art::BLDG_PAD_X - cam.x, y = top - cam.y;
@@ -1188,7 +1188,7 @@ void View::drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d) {
       q.kind = 2;
       fx_.parts_.push_back(q);
     }
-  if (b.charred && m.kind == MapKind::Overworld) burnedFx(g, m, b, d.idx, 0);   // (M4) a burned building smoulders
+  if (b.charred && m.kind == MapKind::Overworld) realm_.burnedFx(*this, g, m, b, d.idx, 0);   // (M4) a burned building smoulders
 }
 
 void View::drawWallSorted(FrameCtx& F, const Drawable& d) {
@@ -1254,7 +1254,7 @@ void View::drawActorSorted(Game& g, FrameCtx& F, const Drawable& d) {
 #ifdef EMB_WITNESS
   if (!wHide.empty() && witnessHides(g, a)) return;   // (Witness reset param hide) no body, no silhouette through a roof
 #endif
-  if (a.player && g.homeRiding() && drawMounted(g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
+  if (a.player && g.homeRiding() && home_.drawMounted(*this, g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
     if (rideGhost_.t) {   // hidden behind a roof or a crown: the rider's silhouette shows through (as on foot)
       ghostTex = rideGhost_.t; ghostFr = rideGhost_.fr; ghostRow = rideGhost_.row; ghostFlip = rideGhost_.flip;
       ghostSx = rideGhost_.sx; ghostSy = rideGhost_.sy; ghostW = rideGhost_.w; ghostH = rideGhost_.h;
@@ -1274,7 +1274,7 @@ void View::drawActorSorted(Game& g, FrameCtx& F, const Drawable& d) {
   if (fxBehind) drawSwingFx(g, a, cam);
   // (P2a LENS) a human's body blits are recorded: the night lift adds them again after the light map (a mounted
   // companion's rider records itself, not the horse: party_view.cpp)
-  if (a.comp && drawCompanionBody(g, a, cam, alpha, flash)) {
+  if (a.comp && party_.drawCompanionBody(*this, g, a, cam, alpha, flash)) {
     // (M8) the bonded hound, a companion on their horse (party_view.cpp)
   } else if (a.human) {
     drawHumanSorted(g, F, a, alpha, flash);
@@ -1360,7 +1360,7 @@ void View::drawCritterSorted(FrameCtx& F, const Actor& a, float alpha, float fla
   const float x = std::floor(a.p.x - cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - chh + 2 - cam.y + 0.5f);
   P.blitEx(t, fr * cw, row * chh, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, alpha));
   if (flash > 0) P.blitEx(t, fr * cw, row * chh, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
-  m5Count_.critters++;
+  life_.m5Count_.critters++;
 }
 
 bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, float flash) {
@@ -1686,18 +1686,18 @@ void View::drawSortedPass(Game& g, const Map& m, Vec2 cam) {
       case DrawKind::Pickup: {
         const Pickup& k = g.pickups[d.idx];
         float bob = std::sin(t_ * 4 + d.idx) * 1.5f;
-        drawLootGround(g, k, d.idx, cam, bob);   // (M8b) its rarity's glint, beam or pillar (loot_ui.cpp)
+        loot_.drawLootGround(*this, g, k, d.idx, cam, bob);   // (M8b) its rarity's glint, beam or pillar (loot_ui.cpp)
         break;
       }
       case DrawKind::Projectile: drawProjSorted(g, F, d); break;
       case DrawKind::FestPole:   // (M5) a festival pole
-        if (d.idx >= 0 && d.idx < (int)festSpans_.size()) drawFestPole(festSpans_[(size_t)d.idx], d.tx != 0, cam);
+        if (d.idx >= 0 && d.idx < (int)life_.festSpans_.size()) life_.drawFestPole(*this, life_.festSpans_[(size_t)d.idx], d.tx != 0, cam);
         break;
       case DrawKind::Home:   // (M7) a home draw (its ground shadow went down in the shadow pass)
-        if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeDraw(homeDraws_[(size_t)d.idx], cam);
+        if (d.idx >= 0 && d.idx < (int)home_.homeDraws_.size()) home_.drawHomeDraw(*this, home_.homeDraws_[(size_t)d.idx], cam);
         break;
       case DrawKind::Grave:   // (M8) a fallen companion's grave
-        drawGrave(g, d.idx, cam, false);
+        party_.drawGrave(*this, g, d.idx, cam, false);
         break;
       case DrawKind::Sea:  // (M10) a boat (render_sea.cpp)
         drawSeaSorted(g, d.idx, cam);

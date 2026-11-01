@@ -23,6 +23,11 @@
 #include "rpg/view/loot_card.h"
 #include "rpg/view/camera.h"
 #include "rpg/view/fx_state.h"
+#include "rpg/view/home_view.h"
+#include "rpg/view/life_view.h"
+#include "rpg/view/loot_view.h"
+#include "rpg/view/party_ui.h"
+#include "rpg/view/realm_hud.h"
 #include "rpg/view/sprite_cache.h"
 #include "rpg/view/terrain_bake.h"
 
@@ -310,7 +315,8 @@ class View {
   void drawDeco(const Map& m, Vec2 cam, int tx0, int ty0, int tx1, int ty1);
   // render_markers.cpp (town-defence lane): world-space markers over actors ("!" reward waiting, alarm...)
   void drawMarkers(Game& g, Vec2 cam);
-  int arriveSite_ = -2;                      // the settlement the arrival banner last announced
+  friend struct RealmHud;
+  RealmHud realm_;   // (realm_hud.h)
 
   // ---- architecture (render.cpp, M0 architecture lane): wall-tile keys for the current map (art::wallKeys), the
   //      wall-tile / gatehouse sprites, and the chimney mouths of each building sprite (for smoke)
@@ -395,36 +401,9 @@ class View {
   void drawForge(Game& g);
   void forgeKey(Game& g, int key);
   void forgeTap(Game& g, Vec2 p);
-  // ---- M7 Home (rpg/view/home_view.cpp and buildmode.cpp, VIEW lane; the VIEW lane is the only editor of these and
-  //      may ADD members here). The world: drawWorld asks homeCollect for the property's draws (yard objects, crops,
-  //      ground edits, the building site, the build ghost) each frame and y-sorts them with the scene (Drawable kind 8:
-  //      drawHomeDraw blits one); the player on horseback is drawn by drawMounted (true: drawn, the standing figure is
-  //      skipped). The screens: Mode::Build (Game::home.ui: the shell, yard, decorate, storage, cooking and buy screens)
-  //      by drawBuild / buildKey / buildTap (screen coordinates; the world under the panel is the ghost's canvas).
-  struct HomeDraw {
-    float sortY = 0;                 // the y it sorts by (world px: the footprint's bottom edge)
-    const Tex* tex = nullptr;
-    int sx = 0, sy = 0, sw = 0, sh = 0;   // source rect in tex
-    float x = 0, y = 0;              // top-left on screen... in WORLD px (drawHomeDraw subtracts the camera)
-    bool flip = false;
-    Color tint = Color(1, 1, 1, 1);
-    uint8_t shadow = 0;              // 0 none, 1 a small round ground shadow under it, 2 a footprint-wide one
-    bool flat = false;               // a ground edit (drawn flat: sorts under everything standing on its row)
-    // (M7 VIEW lane) added: the ground shadow's ellipse in world px (shadow != 0; drawn in the shadow pass, under
-    // everything standing), a crop's sway (px of lean at the top in the wind, 0 none; phase from x), and UI overlays
-    // drawn as tinted rects instead of a texture (ui 1: a footprint cell of the build ghost, 2: the plot's border)
-    float shx = 0, shy = 0, shw = 0, shh = 0, shA = 0.7f;
-    float sway = 0;
-    uint8_t ui = 0;
-  };
-  std::vector<HomeDraw> homeDraws_;
-  void homeCollect(Game& g, const Map& m, Vec2 cam);
-  void drawHomeDraw(const HomeDraw& d, Vec2 cam);
-  bool drawMounted(Game& g, const Actor& a, Vec2 cam);
-  int buildSel_ = 0, buildScroll_ = 0, buildTab_ = 0;   // the Mode::Build screens' UI state (free for the lane)
-  void drawBuild(Game& g);
-  void buildKey(Game& g, int key);
-  void buildTap(Game& g, Vec2 p);
+  // ---- M7 Home: the property's draws, the Mode::Build screens and the HUD's home pills live in HomeView (home_view.h)
+  friend struct HomeView;
+  HomeView home_;   // (home_view.h)
   void shopDeal(Game& g);   // buy or sell the selected row (a worn item asks twice)
   void drawLevelUp(Game& g);
   void drawTitle(Game& g, bool hasSave);
@@ -504,56 +483,24 @@ class View {
   //      of burned places and the siege camps' light
  public:
   // (M12) 3: STANDING (the army, the holdings, the player's realm, the world's history: realm_hud.cpp)
-  void setJournalSection(int s) { journalSec_ = s < 0 ? 0 : s > 3 ? 3 : s; menuSel_ = 0; menuScroll_ = 0; }
-  // (scripts) the last frame's counts of drawn M4 overlays: war props in an owner's colours, burned buildings smoking,
-  // siege-camp fires lit
-  struct M4Stats { int warProps = 0, warPropsOwned = 0, burned = 0, campFires = 0, mapMarkers = 0, borderPx = 0; };
+  void setJournalSection(int s) { realm_.journalSec_ = s < 0 ? 0 : s > 3 ? 3 : s; menuSel_ = 0; menuScroll_ = 0; }
+  using M4Stats = RealmHud::M4Stats;   // (realm_hud.h)
  private:
-  struct Herald { float t = 0; std::string top, title; uint32_t color = 0; ew::Gid kingdom = 0; bool wild = false; };
-  Herald herald_;
-  M4Stats m4Stats_, m4Count_;
-  int journalSec_ = 0;                        // the QUESTS tab: 0 quests, 1 news, 2 lost history, 3 standing (M12)
-  ew::Gid arriveOwner_ = 0;                   // the owner and state flags the arrival banner last announced
-  uint16_t arriveFlags_ = 0;
-  std::string bannerState_;                   // a third line under the arrival banner ("OCCUPIED BY QIBA")
-  uint32_t bannerStateCol_ = 0;
-  void heraldEvent(Game& g, const Event& e);
-  void newsEvent(Game& g, const Event& e);
-  void drawHerald(Game& g);
-  // the arrival banner's text for the settlement the player stands in (its trade, its current owner in its society's
-  // word, its state); refreshed when the owner or the state changes while the player is there
-  void arrivalText(Game& g, int site, std::string& line, std::string& state, uint32_t& stateCol);
   // the QUESTS tab's section strip (QUESTS | NEWS | HISTORY) and the news / lore lists; journalTap: true when used
   float journalStripH() const { return touchUI ? 26.0f : 16.0f; }
-  void drawJournalStrip(float lx, float lw, float top);
-  bool journalStripTap(Vec2 p, float lx, float lw, float top);
-  void drawJournalSection(Game& g, float top);
-  bool journalSectionTap(Game& g, Vec2 p, float top);
-  void burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt);
-  float burnT_ = 0;
-  struct LightPool { Vec2 p; float r; Color c; float k; };
-  void m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<LightPool>& out);
-  void m4Emissive(Game& g, const Map& m, Vec2 cam, float dark);   // (fixer M4 r3) burned shells glowing over the night
-  bool nearSiege(Game& g) const;              // the player is in or near a besieged settlement (the Siege music)
 
   // ---- M5 "Hearth and Hall" (VIEW / AMBIENCE lane: render.cpp, render_markers.cpp, hud.cpp, worldmap.cpp): the
   //      townsfolk's postures, the village animals, speech bubbles, lamps by the lamplighter's round, shuttered stalls
   //      and festival dressing by the settlement's mood, windows lit by occupancy, the mood on the HUD and the map, the
   //      player's buffs, and the life of the place in sound (the bard's tavern piece, the crowd, animals, the bell)
  public:
-  // (scripts) the last frame's counts of what M5 drew
-  struct M5Stats {
-    int posed = 0, poseFallback = 0, critters = 0, bubbles = 0, lampsLit = 0, lampsDark = 0, stallsShut = 0, bunting = 0,
-        festLanterns = 0, winLit = 0, winDark = 0, poseBakes = 0, speech = 0;
-    int music = 0;            // the Music playing (its enum value)
-    float tavernLevel = 0, crowd = 0;
-  };
+  using M5Stats = LifeView::M5Stats;   // (life_view.h)
   // the word and colour of a settlement's mood (life::Life::moodFlags / mood): "CONTENT", "FESTIVAL", "HUNGRY",
   // "FAMINE", "WAR-TORN", "MOURNING"...; empty when its census is not known
   static std::string moodWord(const Game& g, ew::Gid site, uint32_t* color);
  private:
-  M5Stats m5Stats_, m5Count_;
-  int forceFest_ = -1, forceShut_ = -1;
+  friend struct LifeView;
+  LifeView life_;   // (life_view.h)
   // ---- P2a (rpg/view/render_anim.cpp: the human frame pick, body draw, swing effect and the dead's offset, moved out of
   //      render.cpp pixel-identical at rig 1; the ANIM lane owns render_anim.cpp)
   // a human's body this frame (the standing sheet, a posture, a sleeper in its berth, a bather; the Mythic aura, the hit
@@ -591,47 +538,15 @@ class View {
   void drawPips(const Game& g);
   void drawBeastPlates(Game& g);   // the elites' name plates and a world boss's bar: the UI layer (STYLE_P2 18)
   void drawWeatherSky(Game& g);    // drawWeather's sky (the world layer)
-  void partyWorldText(Game& g);    // party_view.cpp: the tapped companion's name, the graves' names (the UI layer)
-  struct GraveTop { int fi = -1; float x = 0, feet = 0, top = 0; };   // a grave drawn this frame (map px)
-  std::vector<GraveTop> graveTops_;
+  friend struct PartyUi;
+  PartyUi party_;   // (party_ui.h)
   void lensUpdate(Game& g, float dt);
-  ew::Gid siteIdAt(const Game& g, int tx, int ty);   // the settlement a tile lies in (cached per 8 x 8-tile block; 0 none)
-  uint16_t lifeFlagsAt(const Game& g, int tx, int ty);   // its mood flags (life::MF_*; forced by scriptLifeLook)
-  bool festivalHere(const Game& g, ew::Gid site);
-  // speech bubbles: when each actor's current bubble appeared (the pop-in) by Actor::id
-  struct BubbleSeen { uint8_t kind = 0; float t0 = 0, seen = 0, maxT = 0; };
-  std::unordered_map<int, BubbleSeen> bubbleSeen_;
-  void drawBubbles(Game& g, Vec2 cam);
-  bool buffTap(Game& g, Vec2 p);   // (fixer M5 r3) a tap on the HUD's buff icons explains them (true: taken)
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
   // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
   // posture), so markers, plates and bubbles float over hair, a hat or a crest (STYLE_P2 17)
   struct DrawnHead { float x = 0, y = 0, t = -1; bool v2 = false; };
   std::unordered_map<int, DrawnHead> drawnHead_;
-  // festival: bunting strung between eaves across the streets of a festive settlement (drawn over the scene: it hangs
-  // overhead), paper lanterns at doors and stalls lit at night (festLights_: their glow for the light pass)
-  std::vector<Vec2> festLights_;
-  void drawFestival(Game& g, const Map& m, Vec2 cam);
-  // the festival's strings across the plaza: a run of open paving per string, a pole at each end (y-sorted with the
-  // scene: Drawable kind 7), planned once per festive settlement and window
-  struct FestSpan { int x0 = 0, x1 = 0, y = 0; uint32_t ca = 0, cb = 0, seed = 0; };
-  std::vector<FestSpan> festSpans_;
-  uint64_t festPlanKey_ = 0;
-  void festivalPlan(Game& g, const Map& m, Vec2 cam);
-  void drawFestPole(const FestSpan& s, bool right, Vec2 cam);
-  // sound: the bard's tavern piece inside the gathering place and faintly outside its door at night, festival music on
-  // the plaza, the crowd's murmur, animal voices, the alarm bell tolling through a night raid (update())
-  Music lifeMusic(Game& g, Music want, float dt, bool& festive);
-  float tollT_ = 0, critterVoiceT_ = 0, cheerT_ = 0;
-  std::unordered_map<int, uint8_t> lastPosture_;   // Actor::id -> the posture it had (a toast's cheer, a bard's last chord)
-  int bardSite_ = -1, bardBldg_ = -1;               // the gathering place a bard performs in tonight (-1 none)
-  float bardScanT_ = 0;
-  bool musicFestive_ = false;                       // the tavern piece playing is the festival's dance
-  float levelHoldT_ = 0, heldGain_ = 1, heldMuffle_ = 0;   // the street bleed's level held through a crossfade away
-  int alarmWas_ = -1;
-  // HUD: the player's buff icons (Well Fed, Rested, Hungry, Weary)
-  void drawBuffs(Game& g, float x, float y);
 
   // ---- M7 Home, continued (VIEW lane: home_view.cpp, buildmode.cpp, render.cpp, hud.cpp). The yard's lights for
   //      drawLighting (lanterns, campfires: collected with the home draws), the shadow and flat passes of the home draws
@@ -643,29 +558,9 @@ class View {
   bool buildCommand(Game& g, const std::vector<std::string>& a, std::string& err);
   bool buildExpect(Game& g, const std::vector<std::string>& a, std::string& err);
  private:
-  std::vector<LightPool> homeLights_;
-  void drawHomeFlats(Vec2 cam);
-  void drawHomeShadow(const HomeDraw& d, Vec2 cam);
   // (P2a LENS, added: sx, sy, w, h) a v2 frame's own rect in its atlas (w 0: the v1 cell fr x row)
   struct RideGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; int sx = 0, sy = 0, w = 0, h = 0; };
   RideGhost rideGhost_;
-  void drawMountShadow(Game& g, const Actor& a, Vec2 cam);
-  bool buildCamWant(Game& g, Vec2& want);       // Mode::Build: where the camera wants to be (the ghost in view)
-  void buildPointer(Game& g, int phase, Vec2 p); // 1 move, 2 up (screen coords; the down is buildTap)
-  // the HUD's home pills (YARD / DECORATE where the player owns the ground or the house, DISMOUNT on horseback)
-  int homeHere(const Game& g, bool& indoors) const;   // the owned plot the player stands in or whose house he is in (-1)
-  void drawHomeHud(Game& g);
-  bool homeHudTap(Game& g, Vec2 p);              // true: a pill took the tap
-  bool homeHudKey(Game& g, int key);             // B: yard / decorate, F: dismount
-  void openBuild(Game& g, home::UiMode mode, int plot);
-  struct BuildDrag { bool on = false, moved = false; Vec2 start; int gx = 0, gy = 0; int list = -1; float scroll0 = 0; int zone = 0; };
-  BuildDrag buildDrag_;
-  int buildCat_ = 0, storeSel_ = 0, storeSide_ = 0, packScroll_ = 0, storeScroll_ = 0, cookScroll_ = 0;
-  std::string cookNote_;   // (M7 fix r3) the Cook screen's own "COOKED: X (HAVE n)" line (for the meal row cookNoteSel_)
-  int cookNoteSel_ = -1;
-  float cookNoteT_ = -100.0f;   // (t_ when it was set: it shows for a few seconds)
-  bool buildHintDone_ = false;                       // (M7) the yard / decorate move hint was seen and used
-  int buildHintGx_ = INT32_MIN, buildHintGy_ = INT32_MIN;   // the ghost tile the hint was first shown at
 
   // ---- M8 Fellowship (VIEW lane). The party column under the vitals (a framed portrait per companion travelling with
   //      the player: health, the low-health pulse, the bleeding-out fuse and the binding, the stance; waiting / at home
@@ -677,74 +572,8 @@ class View {
  public:
   static constexpr int kPartyTab = 6;          // the menu's PARTY page (menuTab_ id; shown while there is a party or a grave)
  private:
-  struct PartyCard { int member = -1; float x = 0, y = 0, w = 0, h = 0; bool small = false; };
-  std::vector<PartyCard> partyCards_;          // laid out by drawPartyHud this frame (the taps' hit tests)
-  std::vector<int> partyActor_;                // members index -> g.actors index this frame (-1 not in play)
-  float partyColR_ = 0, partyColB_ = 0;        // the column's right edge and foot this frame (0 none: toasts keep clear)
-  int partySel_ = 0;                           // the selected member (the radial's and the PARTY page's)
-  float partyTagT_ = 0;                        // the selected card's name tag, shown for a moment after a tap
-  struct PartyPress { bool on = false; uint64_t id = 0; int member = -1; Vec2 start, cur; float t = 0; bool mouse = false; };
-  PartyPress partyPress_;                      // a finger (or the mouse) held on a card: a hold opens the radial
-  struct Radial {
-    bool open = false, drag = false, armed = false;   // drag: opened by a hold (release picks); armed: the finger moved
-    int member = -1, hot = -1;
-    Vec2 c, from;
-    float t = 0;
-    uint64_t finger = 0;
-    float denyT = 0;                           // a refused order: the wedge flashes and the reason shows
-    int denyWedge = -1;
-    std::string deny;
-  };
-  Radial radial_;
-  struct PartyNote { uint32_t id = 0; int kind = 0; std::string s; float t = 0, life = 3;   // id: Member::id
-                     float held = 0; bool shown = false; };   // (fixer M8 r3) banter: seconds kept waiting; drawn this frame
-  std::vector<PartyNote> banterShow_, alertShow_;
-  // (fixer M8 r1, review: "speech plates and ribbons draw on top of each other and over the town banner") the boxes a
-  // spoken line keeps clear of this frame (screen px): the HUD's bands (hudBands: the arrival banner, the herald, the
-  // biome name, the party ribbon) and every plate already placed (the M5 speech plates, then the banter)
-  struct PlateBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; };
-  std::vector<PlateBox> plateBoxes_;
-  void hudBands(const Game& g, std::vector<PlateBox>& out);
-  bool partyRibbonBox(const Game& g, PlateBox& b, float& textW);   // where the party ribbon stands this frame (false none)
-  // moves a plate (top-left x0, y0; w x h) to the nearest place inside L..R x T..B that overlaps none of `avoid`
-  static void clearPlate(float& x0, float& y0, float w, float h, const std::vector<PlateBox>& avoid, float L, float T, float R, float B);
-  int partyMapSeen_ = -1;                      // Party::mapChanges last seen: a new place clears the old scene's plates
-  std::string partyDeny_;                      // the last refused order's reason by its card (scripts read it)
-  float partyDenyT_ = 0;
-  uint32_t partyDenyId_ = 0;
-  float howlT_ = 30;
-  int partyPage_ = 0, partySlot_ = 0, partyPack_ = 0, partyScroll_ = 0, partyFocus_ = 0;   // the PARTY page's state
-  int partyDollTurn_ = 0;                      // (fixer M8 r2) the companion doll's facing: 0 front, 1 right, 2 back, 3 left (< TURN >)
-  int memberOf(const Game& g, uint32_t id) const;          // members index of a Member::id (-1 gone)
-  int companionIndex(const Game& g, const Actor& a) const; // members index an actor embodies (-1 none)
-  void partyEvent(Game& g, const Event& e);    // Ev::Banter, Ev::PartyAlert (update's event pass)
-  void partyUpdate(Game& g, float dt);         // timers, the hold, the howl
-  void drawPartyHud(Game& g);                  // the column, the alerts (drawHud)
-  void drawPartyRadial(Game& g);               // the radial and the refusals (over the whole HUD)
-  void drawBanter(Game& g, Vec2 cam);          // the banter plates over the speakers (after the lighting)
-  bool partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse);   // 0 down 1 move 2 up; true: taken
-  bool partyKey(Game& g, int key);             // C: the radial; while it is open every key is its
-  void radialOpen(Game& g, int member, bool drag, uint64_t finger);
-  int radialWedgeAt(Vec2 p) const;             // -1 the hub, -2 outside, else the Cmd
-  void radialChoose(Game& g, int cmd);
-  std::string radialWhy(const Game& g, int member, int cmd) const;   // why an order cannot be given now ("" it can)
-  int bestSkill(const Game& g, int member, float& cd, bool& locked) const;   // the Skill wedge's skill (index 0..2, -1 none)
-  art::HoundLook houndLookOf(const party::Member& m, const Game& g) const;
-  void drawPortraitCard(Game& g, int mi, float x, float y, bool small);
-  // the world (party_view.cpp)
-  bool drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, float flash);   // true: drawn (hound, rider)
-  void drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done);
-  void companionOverlays(Game& g, Vec2 cam);   // the wound mark and the binding ring over the downed (after lighting)
-  art::Posture partyPosture(const Game& g, const Actor& a) const;    // Downed / Kneel the sim leaves as None
-  void graveDraws(Game& g, const Map& m, Vec2 cam, std::vector<int>& out);   // the fallen whose graves are in view
-  void drawGrave(Game& g, int fallen, Vec2 cam, bool shadow);
-  void drawPartyMinimap(Game& g, float x, float y, int size, int ox, int oy);
-  void drawPartyWorldMap(Game& g, Vec2 (*toScr)(void*, double, double), void* ctx, float w, float h);
   // the PARTY page (paperdoll.cpp)
   bool partyTabShown(const Game& g) const { return !g.party.members.empty() || !g.party.fallen.empty(); }
-  void drawPartyPage(Game& g);
-  void partyPageKey(Game& g, int key);
-  void partyPageTap(Game& g, Vec2 p);
 
   // ---- M8b Treasure (VIEW lane; rpg/view/loot_ui.cpp, VISION_PLAN 15.27): every rarity-coloured surface draws through
   //      these. rarityText: a name in its ladder colour (Mythic: letter by letter in the animated flame, rarityColorAt);
@@ -754,12 +583,7 @@ class View {
   //      worn piece (green / red pixel arrows per line and an overall verdict from gear::powerScore); the loot on the
   //      ground (beams by rarity, their lights, the chime) and the Mythic wearer's embers.
  public:
-  struct LootStats {
-    int beams[6] = {};        // pickups drawn last frame with their rarity's ground presence (index: rarity)
-    int cards = 0, compares = 0, mythicText = 0, frames = 0;   // item cards, compare panels, Mythic names, rarity frames
-    int chimes = 0;           // LootChime plays so far
-    int embers = 0;           // Mythic wearers drawn with their flame (embers spawned so far)
-  };
+  using LootStats = LootView::LootStats;   // (loot_view.h)
   // (scripts, script_loot.cpp) `lootsel menu <i|last>`, `lootsel shop <buy|sell> <i|last>`, `lootsel doll <slot> <cand>`:
   // put the cursor on a row the way the keys do (the doll's pick opens its compare card); false with err when refused
   bool lootSelect(Game& g, const std::vector<std::string>& a, std::string& err);
@@ -767,34 +591,14 @@ class View {
   // (scripts) what the last item card drew (`expect lootcard ...`, script_loot.cpp)
   using CardInfo = lootp::CardInfo;
  private:
-  LootStats lootShown_, lootCount_;
-  CardInfo lastCard_;
-  float lootChimeT_ = -100;                        // t_ of the last chime (a pickup right after its sighting stays quiet)
-  float emberT_ = 0;
+  friend struct LootView;
+  LootView loot_;   // (loot_view.h)
   // (M8b fixer r3) a Mythic wearer's flame aura sheet (loot_ui.cpp mythicAuraTex), by look; render.cpp draws a cell of it
   // behind the standing body and again additively after the lighting
  public:
   static constexpr int AURA_PAD = 4, AURA_CW = art::HUMAN_W + 2 * AURA_PAD, AURA_CH = art::HUMAN_H + 2 * AURA_PAD, AURA_V = 4;
-  // the aura cell for a Mythic look (nothing for any other) at the figure's top-left (x, y), sc screen px per sprite px
-  void mythicAuraAt(const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc);
  private:
   struct LootPainter;                              // the Pix painter loot_paint.h's templates draw with (loot_ui.cpp)
-  void rarityText(float x, float y, const std::string& s, Rarity r, float alpha = 1, int align = 0, bool shadow = false);
-  void rarityFrame(float x, float y, float w, float h, Rarity r, bool hot = false, bool small = false);
-  void rarityIcon(const Game& g, const Item& it, float x, float y, float size);   // the icon in its rarity cell
-  void cmpArrow(float x, float y, int dir);        // 1 up (green), -1 down (red), 0 even (a grey dash)
-  // the item card at (x, y) w wide down to maxY; cmp: compare against `vs` (nullptr: the slot is empty); worn: the
-  // piece is the one worn (a WORN tag instead of the compare). Returns the y under it.
-  float itemCard(const Game& g, const Item& it, float x, float y, float w, float maxY, bool cmp, const Item* vs, bool worn, bool bigIcon = true);
-  const Item* wornFor(const Game& g, const Item& it, int selfIndex, bool& isWorn) const;   // the slot's worn piece
-  int cmpVerdict(const Game& g, const Item& it, const Item* vs) const;                     // 1 better, -1 worse, 0 even
-  int attuneWhy(const Game& g, const Item& it, const Item* vs, std::string* name = nullptr) const;   // 0 / 1 lv10 / 2 full
-  void packUse(Game& g, int i);   // the pack's EQUIP / USE (a great piece that cannot be worn: the reason blinks)
-  float lootBlockFlash_ = 0;   // (M8b fixer r2) a tap on a disabled EQUIP: the card's reason line blinks a moment
-  void drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob);   // the sorted pass (case 4)
-  void lootLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);
-  void lootUpdate(Game& g, float dt);              // chimes for Epic+ coming into view, the Mythic wearers' embers
-  void lootNotice(Game& g, const Event& e, Toast& t);   // an item pickup notice: its rarity, the chime
 
   // ---- M8b Treasure (POWERS lane; rpg/view/render_powers.cpp). The worn powers' effects in the world: a lightning arc,
   //      a fire patch, a burn, the thorns aura, the time-slow tint, a lifesteal mote, the phoenix's rebirth, a falling

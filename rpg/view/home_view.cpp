@@ -66,23 +66,23 @@ int houseStage(const home::Plot& p, home::Obj kind) {
 }
 }  // namespace
 
-void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
+void HomeView::homeCollect(View& v, Game& g, const Map& m, Vec2 cam) {
   homeLights_.clear();
   if (g.home.plots.empty()) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   // (a farm first seen paints ~60 sprites: they are spread over frames, ~3 ms of painting a frame; a piece not painted
   // yet waits a frame or two, the ghost and the building site never wait)
   double bakeMs = 0;
   auto tex = [&](uint64_t key, auto&& paint) -> const Tex& {
-    auto it = sprites_.homeTex_.find(key);
-    if (it != sprites_.homeTex_.end()) return it->second;
+    auto it = v.sprites_.homeTex_.find(key);
+    if (it != v.sprites_.homeTex_.end()) return it->second;
     const auto t0 = std::chrono::steady_clock::now();
-    const Tex& t = sprites_.homeTex_[key] = P.bake(paint());
+    const Tex& t = v.sprites_.homeTex_[key] = P.bake(paint());
     bakeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return t;
   };
   // ((Witness) every piece now: no picture may depend on CPU speed)
-  auto can = [&](uint64_t key) { return witness || bakeMs < 3.0 || sprites_.homeTex_.count(key) != 0; };
+  auto can = [&](uint64_t key) { return v.witness || bakeMs < 3.0 || v.sprites_.homeTex_.count(key) != 0; };
   const World& W = g.world;
   const home::Ui& U = g.home.ui;
   const bool building = g.mode == Mode::Build;
@@ -117,9 +117,9 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
       d.tex = &t; d.sw = t.w; d.sh = t.h;
     } else {
       const art::Prop pr = oi.prop;
-      if ((int)pr >= (int)sprites_.props_.size()) return;
-      d.tex = &sprites_.props_[(size_t)pr];
-      d.sw = art::propW(pr); d.sh = sprites_.props_[(size_t)pr].h;
+      if ((int)pr >= (int)v.sprites_.props_.size()) return;
+      d.tex = &v.sprites_.props_[(size_t)pr];
+      d.sw = art::propW(pr); d.sh = v.sprites_.props_[(size_t)pr].h;
     }
     d.x = U.gx * 16.0f + w * 8.0f - d.sw / 2.0f;
     d.y = (U.gy + h) * 16.0f - d.sh;
@@ -277,30 +277,30 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
       homeDraws_.push_back(d);
       // lights: a lantern's flame and pool, a campfire's flicker (and its smoke)
       if (ok == home::Obj::Lantern && night) {
-        const float k = 0.9f + 0.1f * std::sin(t_ * 8 + o.x * 1.3f);
+        const float k = 0.9f + 0.1f * std::sin(v.t_ * 8 + o.x * 1.3f);
         homeLights_.push_back({Vec2(bx + 8.0f, by - t.h + 6.0f), 30, Color(1.0f, 0.92f, 0.66f), 1.0f * k});
         homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 88, Color(1.0f, 0.70f, 0.38f), 0.78f * k});
       } else if (ok == home::Obj::Forge && night) {
         // (M7 fix r3, review: "the yard forge gives no light at night") its fire bed (paintForge: on the hearth block
         // under the hood, left of the anvil) glows by night as it does by day
-        const float k = 0.85f + 0.15f * std::sin(t_ * 11 + o.x) * std::sin(t_ * 5.3f + o.y);
+        const float k = 0.85f + 0.15f * std::sin(v.t_ * 11 + o.x) * std::sin(v.t_ * 5.3f + o.y);
         const float fx = bx + 13.0f, fy = by - 30.0f;
         homeLights_.push_back({Vec2(fx, fy), 26, Color(1.0f, 0.74f, 0.40f), 1.0f * k});
         homeLights_.push_back({Vec2(fx, fy + 14.0f), 78, Color(1.0f, 0.50f, 0.22f), 0.6f * k});
       } else if (ok == home::Obj::Campfire) {
-        const float k = 0.82f + 0.18f * std::sin(t_ * 13 + o.y) * std::sin(t_ * 7.1f + o.x);
+        const float k = 0.82f + 0.18f * std::sin(v.t_ * 13 + o.y) * std::sin(v.t_ * 7.1f + o.x);
         if (night) {
           homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 34, Color(1.0f, 0.78f, 0.42f), 0.95f * k});
           homeLights_.push_back({Vec2(bx + 8.0f, by - 2.0f), 92, Color(1.0f, 0.55f, 0.25f), 0.62f * k});
         }
-        if (hashf((int)(t_ * 12), o.x * 7 + o.y, 77) < 0.18f && fx_.parts_.size() < 560) {   // a wisp of smoke, now and then
+        if (hashf((int)(v.t_ * 12), o.x * 7 + o.y, 77) < 0.18f && v.fx_.parts_.size() < 560) {   // a wisp of smoke, now and then
           Particle q;
-          q.p = Vec2(bx + 7.0f + hashf((int)(t_ * 31), o.x, 3) * 3, by - 10.0f);
-          q.v = Vec2(2.0f + hashf((int)(t_ * 17), o.y, 5) * 4, -10.0f - hashf((int)(t_ * 13), o.x, 9) * 4);
+          q.p = Vec2(bx + 7.0f + hashf((int)(v.t_ * 31), o.x, 3) * 3, by - 10.0f);
+          q.v = Vec2(2.0f + hashf((int)(v.t_ * 17), o.y, 5) * 4, -10.0f - hashf((int)(v.t_ * 13), o.x, 9) * 4);
           q.life = q.max = 2.4f;
           q.c = Color(0.72f, 0.70f, 0.70f);
           q.size = 1; q.grav = -1.2f; q.kind = 2;
-          fx_.parts_.push_back(q);
+          v.fx_.parts_.push_back(q);
         }
       }
     }
@@ -375,8 +375,8 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
 }
 
 // the ground edits, before the shadow pass (drawWorld)
-void View::drawHomeFlats(Vec2 cam) {
-  Pix& P = *pix_;
+void HomeView::drawHomeFlats(View& v, Vec2 cam) {
+  Pix& P = *v.pix_;
   for (const HomeDraw& d : homeDraws_) {
     if (!d.flat || !d.tex) continue;
     P.blitEx(*d.tex, d.sx, d.sy, d.sw, d.sh, std::floor(d.x - cam.x + 0.5f), std::floor(d.y - cam.y + 0.5f), (float)d.sw, (float)d.sh, false, d.tint);
@@ -384,17 +384,17 @@ void View::drawHomeFlats(Vec2 cam) {
 }
 
 // a home draw's ground shadow (the shadow pass)
-void View::drawHomeShadow(const HomeDraw& d, Vec2 cam) {
+void HomeView::drawHomeShadow(View& v, const HomeDraw& d, Vec2 cam) {
   if (!d.shadow) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   if (d.shadow == 3) {
-    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(d.shx - cam.x + 0.5f), std::floor(d.shy - cam.y + 0.5f), d.shw, d.shh, false, Color(1, 1, 1, d.shA));
+    P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, std::floor(d.shx - cam.x + 0.5f), std::floor(d.shy - cam.y + 0.5f), d.shw, d.shh, false, Color(1, 1, 1, d.shA));
     return;
   }
 }
 
-void View::drawHomeDraw(const HomeDraw& d, Vec2 cam) {
-  Pix& P = *pix_;
+void HomeView::drawHomeDraw(View& v, const HomeDraw& d, Vec2 cam) {
+  Pix& P = *v.pix_;
   const float x = std::floor(d.x - cam.x + 0.5f), y = std::floor(d.y - cam.y + 0.5f);
   if (d.ui == 1) {   // a footprint cell of the ghost: a tinted wash and a crisp rim
     P.rect(x + 1, y + 1, (float)d.sw - 2, (float)d.sh - 2, Color(d.tint.r, d.tint.g, d.tint.b, 0.22f));
@@ -404,7 +404,7 @@ void View::drawHomeDraw(const HomeDraw& d, Vec2 cam) {
     return;
   }
   if (d.ui == 2) {   // the plot's border: a dashed gold line just inside it, marching slowly
-    const int off = (int)(t_ * 6) % 8;
+    const int off = (int)(v.t_ * 6) % 8;
     const Color c = d.tint, dk(0.1f, 0.07f, 0.03f, 0.55f);
     for (int i = -off; i < d.sw; i += 8) {
       const float a = std::max(0.0f, (float)i), b = std::min((float)d.sw, (float)i + 4);
@@ -422,12 +422,12 @@ void View::drawHomeDraw(const HomeDraw& d, Vec2 cam) {
   }
   if (!d.tex) return;
   // (phase A's shadow kinds 1 and 2 go down with the sprite; the VIEW lane's kind 3 went down in the shadow pass)
-  if (d.shadow == 2) P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, x + 2, y + d.sh - 7, (float)d.sw - 2, 8, false, Color(1, 1, 1, 0.55f));
-  else if (d.shadow == 1) P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, x + d.sw / 2.0f - 6, y + d.sh - 4, 12, 5, false, Color(1, 1, 1, 0.6f));
+  if (d.shadow == 2) P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, x + 2, y + d.sh - 7, (float)d.sw - 2, 8, false, Color(1, 1, 1, 0.55f));
+  else if (d.shadow == 1) P.blitEx(v.sprites_.shadow_, 0, 0, v.sprites_.shadow_.w, v.sprites_.shadow_.h, x + d.sw / 2.0f - 6, y + d.sh - 4, 12, 5, false, Color(1, 1, 1, 0.6f));
   if (d.sway > 0) {
     // the top of the plant leans with the wind: a slow wave that runs across the field (phase from the tile's x)
     const float ph = (d.x + d.y * 0.37f) * 0.11f;
-    const float s = std::sin(t_ * 1.7f - ph) * d.sway + std::sin(t_ * 0.63f - ph * 0.5f) * 0.35f * d.sway;
+    const float s = std::sin(v.t_ * 1.7f - ph) * d.sway + std::sin(v.t_ * 0.63f - ph * 0.5f) * 0.35f * d.sway;
     const int off = (int)std::lround(s);
     const int split = d.sh * 11 / 20;   // the upper rows sway, the stalks' foot stays put
     if (off != 0) {
@@ -452,19 +452,19 @@ int horseFrame(const Actor& a, float t, bool& gallop) {
 }
 }  // namespace
 
-void View::drawMountShadow(Game& g, const Actor& a, Vec2 cam) {
+void HomeView::drawMountShadow(View& v, Game& g, const Actor& a, Vec2 cam) {
   (void)g;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const bool side = a.face >= 2;
   const float hk = art::horseScale();   // (P2a) as long as the rig's horse
   const float w = std::round((side ? 32.0f : 18.0f) * hk), h = std::round((side ? 8.0f : 10.0f) * hk);
-  P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false,
+  P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false,
            Color(1, 1, 1, 0.85f));
 }
 
-bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
-  Pix& P = *pix_;
-  rideGhost_ = RideGhost();
+bool HomeView::drawMounted(View& v, Game& g, const Actor& a, Vec2 cam) {
+  Pix& P = *v.pix_;
+  v.rideGhost_ = View::RideGhost();
   const home::BreedInfo& bi = home::breedInfo((home::Breed)g.home.ridingBreed);
   const uint32_t seedv = g.home.ridingSeed;
   // (P2a LENS fix r1, H3) the horse of the current rig: at rig 2 HOLDERS' k-scaled horse on its 52 x 52 cell
@@ -472,15 +472,15 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   const bool rig2 = art::rigVersion() >= 2;
   const int HW = art::horseCellW(), HH = art::horseCellH();
   const uint64_t key = hkey(6, bi.coat & 0xFFFFFFu, seedv & 0xFFFFu, rig2 ? 2 : 1);
-  auto it = sprites_.homeTex_.find(key);
-  if (it == sprites_.homeTex_.end()) it = sprites_.homeTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
+  auto it = v.sprites_.homeTex_.find(key);
+  if (it == v.sprites_.homeTex_.end()) it = v.sprites_.homeTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
   const Tex& ht = it->second;
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
   bool gallop = false;
-  const int fr = horseFrame(a, t_, gallop);
+  const int fr = horseFrame(a, v.t_, gallop);
   float alpha = 1.0f;
-  if (a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha = 0.5f;
+  if (a.iframes > 0 && a.st != AState::Roll && ((int)(v.t_ * 20) & 1)) alpha = 0.5f;
   const float flash = a.flash > 0 ? a.flash / 0.12f : 0.0f;
   const float fx = std::floor(a.p.x - cam.x + 0.5f), fy = std::floor(a.p.y + 2 - cam.y + 0.5f);
   const float hx = fx - HW / 2.0f, hy = fy - HH + 2;
@@ -501,15 +501,15 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   const int rfr = 0;
   // (P2a LENS) at rig 2 a covered look rides on v2 (the Ride posture's frame, its hip anchor on the saddle's seat
   // point); the body's blits are recorded for the night lift (the horse's are not)
-  RideGhost g2;
+  View::RideGhost g2;
   bool v2 = false;
   auto body = [&](Color c, int blend) {
-    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) { v2 = true; return; }
+    if (rig2 && v.drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) { v2 = true; return; }
     // (P2c SWITCH) the v1 rider only when the doll did not draw it (no v1 sheet baked behind a rig-2 rider)
-    const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride);
-    const Tex& rider = rt ? *rt : sprites_.humanTex(*this, a.look);
-    if (blend == 0) v1Draws++;
-    if (blend == 0) P.recordBlits(&liftRecs_);
+    const Tex* rt = v.sprites_.poseTex(v, a.look, art::Posture::Ride);
+    const Tex& rider = rt ? *rt : v.sprites_.humanTex(v, a.look);
+    if (blend == 0) v.v1Draws++;
+    if (blend == 0) P.recordBlits(&v.liftRecs_);
     P.blitEx(rider, rfr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
     P.recordBlits(nullptr);
   };
@@ -531,26 +531,26 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   layer(full, 0);
   if (flash > 0) layer(Color(1, 1, 1, flash), 1);
   // a gallop throws up a little dust behind the hooves
-  if (gallop && hashf((int)(t_ * 30), a.id, 41) < 0.35f && fx_.parts_.size() < 560) {
+  if (gallop && hashf((int)(v.t_ * 30), a.id, 41) < 0.35f && v.fx_.parts_.size() < 560) {
     Particle q;
     const Vec2 back = a.face == 0 ? Vec2(0, -6) : a.face == 1 ? Vec2(0, 4) : a.face == 2 ? Vec2(-12, 0) : Vec2(12, 0);
-    q.p = a.p + back + Vec2(hashf((int)(t_ * 57), a.id, 3) * 6 - 3, -1);
+    q.p = a.p + back + Vec2(hashf((int)(v.t_ * 57), a.id, 3) * 6 - 3, -1);
     q.v = Vec2(back.x * 0.8f, -6.0f);
     q.life = q.max = 0.5f;
     q.c = Color(0.62f, 0.54f, 0.42f);
     q.size = 2; q.grav = 0; q.kind = 0;
-    fx_.parts_.push_back(q);
+    v.fx_.parts_.push_back(q);
   }
-  if (v2) rideGhost_ = g2;
-  else { const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride); rideGhost_.t = rt ? rt : &sprites_.humanTex(*this, a.look); rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
+  if (v2) v.rideGhost_ = g2;
+  else { const Tex* rt = v.sprites_.poseTex(v, a.look, art::Posture::Ride); v.rideGhost_.t = rt ? rt : &v.sprites_.humanTex(v, a.look); v.rideGhost_.fr = rfr; v.rideGhost_.row = row; v.rideGhost_.flip = flip; v.rideGhost_.x = rx; v.rideGhost_.y = ry; }
   if (a.player) {   // (P2b integration) the hero as drawn, for Witness (state.player.sprite): the rider's frame, not stale
-    HeroSprite& hs = heroSprite;   // (drawHumanBody, which fills it on foot, is not called for the rider)
-    hs = HeroSprite();
+    View::HeroSprite& hs = v.heroSprite;   // (drawHumanBody, which fills it on foot, is not called for the rider)
+    hs = View::HeroSprite();
     hs.on = true; hs.rig = v2 ? 2 : 1; hs.row = row; hs.flip = v2 ? g2.flip : flip;
     if (v2) { hs.x = g2.x; hs.y = g2.y; hs.w = g2.w; hs.h = g2.h; hs.bx1 = g2.w - 1; hs.by1 = g2.h - 1; hs.part = 4; }
     else { hs.x = rx; hs.y = ry; hs.w = art::HUMAN_W; hs.h = art::HUMAN_H; hs.fr = rfr; }
     hs.pivX = fx + sdx; hs.pivY = fy + sdy;   // (screen px of the world layer, as drawHumanBody's)
   }
-  drawnHead_[a.id] = DrawnHead{fx + cam.x, (v2 ? g2.y : ry) + cam.y, t_};
+  v.drawnHead_[a.id] = View::DrawnHead{fx + cam.x, (v2 ? g2.y : ry) + cam.y, v.t_};
   return true;
 }

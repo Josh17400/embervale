@@ -1589,8 +1589,8 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   mapMarkersWar(g, M);
   // (the war's markers and the border lead the legend: the places' icons follow and are cut first)
   std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -30; });   // (M12: and the rise's)
-  m4Stats_.mapMarkers = S.markers;
-  m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
+  realm_.m4Stats_.mapMarkers = S.markers;
+  realm_.m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
   mapQuestPins(g, M);
   mapMarkersHome(g, M);
   mapMarkersParty(g, M);

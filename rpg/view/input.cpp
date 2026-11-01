@@ -54,7 +54,7 @@ Input View::input(Game& g) {
     }
   }
   // (M8) while the companions' radial is open the keyboard is its own (the stick still steers)
-  if (radial_.open && g.mode == Mode::Play) {
+  if (party_.radial_.open && g.mode == Mode::Play) {
     Input keep;
     if (stick_.on) keep.move = in.move;
     in = keep;
@@ -65,7 +65,7 @@ Input View::input(Game& g) {
 void View::menuKey(Game& g, int key) {
   auto back = [&]() { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); };
   if (g.mode == Mode::Forge) { forgeKey(g, key); return; }   // M6 (craft_ui.cpp)
-  if (g.mode == Mode::Build) { buildKey(g, key); return; }   // M7 (buildmode.cpp)
+  if (g.mode == Mode::Build) { home_.buildKey(*this, g, key); return; }   // M7 (buildmode.cpp)
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     g_partyTab = partyTabShown(g);
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
@@ -74,7 +74,7 @@ void View::menuKey(Game& g, int key) {
     if (!mapQE && (key == SDLK_Q || key == SDLK_PAGEUP)) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
-    if (menuTab_ == kPartyTab && g.mode == Mode::Menu) { partyPageKey(g, key); return; }   // (M8) paperdoll.cpp
+    if (menuTab_ == kPartyTab && g.mode == Mode::Menu) { party_.partyPageKey(*this, g, key); return; }   // (M8) paperdoll.cpp
     if (menuTab_ == kSkillsTab && g.mode == Mode::Menu) { skillsPageKey(g, key); return; }   // (M9) skills_ui.cpp
     if (menuTab_ == kSpellsTab && g.mode == Mode::Menu) { spellsPageKey(g, key); return; }   // (M9) spellbook_ui.cpp
     if (menuTab_ == 3 && g.perkPts > 0) {
@@ -84,21 +84,21 @@ void View::menuKey(Game& g, int key) {
       return;
     }
     if (menuTab_ == 2 && mapTabKey(g, key)) return;   // worldmap.cpp
-    if (menuTab_ == 1 && key == SDLK_N) { setJournalSection((journalSec_ + 1) % 4); audio_->play(Sfx::MenuMove); return; }   // (M4) the journal's sections
-    if (menuTab_ == 1 && journalSec_ != 0 && (key == SDLK_RETURN || key == SDLK_SPACE)) return;
+    if (menuTab_ == 1 && key == SDLK_N) { setJournalSection((realm_.journalSec_ + 1) % 4); audio_->play(Sfx::MenuMove); return; }   // (M4) the journal's sections
+    if (menuTab_ == 1 && realm_.journalSec_ != 0 && (key == SDLK_RETURN || key == SDLK_SPACE)) return;
     if (key == SDLK_UP || key == SDLK_W) { menuSel_ = std::max(0, menuSel_ - 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_DOWN || key == SDLK_S) { menuSel_++; audio_->play(Sfx::MenuMove); }
     if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
-      if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) packUse(g, menuSel_);
+      if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) loot_.packUse(*this, g, menuSel_);
       if (menuTab_ == 1) {   // (P1) track the picked quest (a lead row has nothing to track)
         const std::vector<JRow> rows = journalRows(g);
         if (menuSel_ < (int)rows.size() && rows[(size_t)menuSel_].q >= 0 && g.quests[(size_t)rows[(size_t)menuSel_].q].state != QState::Done)
           g.trackedQuest = g.quests[(size_t)rows[(size_t)menuSel_].q].id;
       }
       if (menuTab_ == 4) {
-        if (menuSel_ == 0) { wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; bannerState_.clear(); fx_.bannerT_ = 2; }
+        if (menuSel_ == 0) { wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; realm_.bannerState_.clear(); fx_.bannerT_ = 2; }
         if (menuSel_ == 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
         if (menuSel_ == 2) touchUI = !touchUI;
         if (menuSel_ == 3) { wantSave = true; wantsQuit = true; }
@@ -152,7 +152,7 @@ void View::tap(Game& g, Vec2 p) {
   if (settingsOpen_) { settingsTap(p); return; }
   if (g.mode == Mode::Creator) { creatorTap(g, p); return; }
   if (g.mode == Mode::Forge) { forgeTap(g, p); return; }   // M6 (craft_ui.cpp: it maps the tap into its own box)
-  if (g.mode == Mode::Build) { buildTap(g, p); return; }   // M7 (buildmode.cpp: screen coordinates; the ghost on the world)
+  if (g.mode == Mode::Build) { home_.buildTap(*this, g, p); return; }   // M7 (buildmode.cpp: screen coordinates; the ghost on the world)
   if (g.mode == Mode::Dead) { if (modeT_ > 1.2f) g.respawn(); return; }
   if (g.mode == Mode::Paused) { g.mode = Mode::Play; return; }
   // the dialogue, the shop and the menu are laid out in a 480-wide box (drawDialogue / drawShop / drawMenu): the tap
@@ -258,14 +258,14 @@ void View::tap(Game& g, Vec2 p) {
         for (int r = 0; r < L.rows && menuScroll_ + r < n; r++) {
           if (inR(C.lx, top + 10 + r * L.pitch, C.lw, L.pitch)) {
             int i = menuScroll_ + r;
-            if (i == menuSel_) packUse(g, i);
+            if (i == menuSel_) loot_.packUse(*this, g, i);
             menuSel_ = i;
             return;
           }
         }
         if (paged(C, n)) return;
         const float bw = std::floor((C.dw - 20) / 2);
-        if (n > 0 && inR(C.dx, L.btnY, bw, L.btnH)) packUse(g, menuSel_);   // (M8b fixer r2) an idle button says why
+        if (n > 0 && inR(C.dx, L.btnY, bw, L.btnH)) loot_.packUse(*this, g, menuSel_);   // (M8b fixer r2) an idle button says why
         if (n > 0 && inR(C.dx + bw + 8, L.btnY, bw, L.btnH) && g.inv[menuSel_].kind != ItemKind::Quest) g.dropItem(menuSel_);
         // keyboard / mouse: scroll by clicking the list edges
         if (!touchUI && inR(C.lx, top + 4, C.lw, 6)) menuScroll_ = std::max(0, menuScroll_ - 5), menuSel_ = std::max(0, menuSel_ - 5);
@@ -273,8 +273,8 @@ void View::tap(Game& g, Vec2 p) {
         break;
       }
       case 1: {
-        if (journalStripTap(p, questCols().lx, questCols().lw, top)) return;
-        if (journalSec_ != 0) { journalSectionTap(g, p, top + journalStripH()); return; }
+        if (realm_.journalStripTap(*this, p, questCols().lx, questCols().lw, top)) return;
+        if (realm_.journalSec_ != 0) { realm_.journalSectionTap(*this, g, p, top + journalStripH()); return; }
         top += journalStripH();
         MenuLay L = menuLay(touchUI);
         L.rows = std::max(3, L.rows - (int)std::ceil(journalStripH() / L.pitch));
@@ -304,7 +304,7 @@ void View::tap(Game& g, Vec2 p) {
         paperdollTap(g, p);
         break;
       case kPartyTab:   // (M8) paperdoll.cpp
-        partyPageTap(g, p);
+        party_.partyPageTap(*this, g, p);
         break;
       case kSkillsTab:  // (M9) skills_ui.cpp
         skillsPageTap(g, p);
@@ -315,7 +315,7 @@ void View::tap(Game& g, Vec2 p) {
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;
         const float bw = std::clamp(std::floor(Pix::W * 0.36f), 140.0f, 220.0f), bx = std::floor((Pix::W - bw) / 2), by = sysTop(top, sh, touchUI);
-        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; bannerState_.clear(); fx_.bannerT_ = 2; }
+        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; realm_.bannerState_.clear(); fx_.bannerT_ = 2; }
         if (inR(bx, by + pitch, bw, sh)) { menuSel_ = 1; openSettings(); audio_->play(Sfx::MenuSelect); }
         if (inR(bx, by + pitch * 2, bw, sh)) { menuSel_ = 2; touchUI = !touchUI; }
         if (inR(bx, by + pitch * 3, bw, sh)) { wantSave = true; wantsQuit = true; }
@@ -364,8 +364,8 @@ void View::event(const SDL_Event& e, Game& g) {
       break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
       if (g.mode == Mode::Play && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT)
-        partyPointer(g, 2, 1ull << 62, logical(e.button.x, e.button.y), true);   // (M8) a card clicked / the radial's wedge
-      if (g.mode == Mode::Build && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT) buildPointer(g, 2, logical(e.button.x, e.button.y));
+        party_.partyPointer(*this, g, 2, 1ull << 62, logical(e.button.x, e.button.y), true);   // (M8) a card clicked / the radial's wedge
+      if (g.mode == Mode::Build && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT) home_.buildPointer(*this, g, 2, logical(e.button.x, e.button.y));
       if (onMap && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT && mapPtr(2, 1ull << 62, logical(e.button.x, e.button.y)))
         tap(g, logical(e.button.x, e.button.y));
       break;
@@ -390,8 +390,8 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode == Mode::Paused) { if (k == SDLK_ESCAPE || k == SDLK_RETURN || k == SDLK_SPACE) g.mode = Mode::Play; break; }
       if (g.mode == Mode::Creator) { creatorKey(g, (int)k); break; }
       if (g.mode != Mode::Play) { menuKey(g, k); break; }
-      if (partyKey(g, (int)k)) break;     // (M8) C: the companions' orders (the radial takes every key while open)
-      if (homeHudKey(g, (int)k)) break;   // (M7) B: yard / decorate, F: dismount
+      if (party_.partyKey(*this, g, (int)k)) break;     // (M8) C: the companions' orders (the radial takes every key while open)
+      if (home_.homeHudKey(*this, g, (int)k)) break;   // (M7) B: yard / decorate, F: dismount
       switch (k) {
         case SDLK_ESCAPE: g.mode = Mode::Paused; break;
         // (M2 fixer round 2) no menu on the road: it stopped the journey mid-gather (and its SYSTEM tab saved and quit
@@ -422,8 +422,8 @@ void View::event(const SDL_Event& e, Game& g) {
     }
     case SDL_EVENT_MOUSE_MOTION:
       mouse_ = logical(e.motion.x, e.motion.y);
-      if (g.mode == Mode::Play && e.motion.which != SDL_TOUCH_MOUSEID) partyPointer(g, 1, 1ull << 62, mouse_, true);   // (M8) the radial's hover
-      if (g.mode == Mode::Build && e.motion.which != SDL_TOUCH_MOUSEID && (e.motion.state & SDL_BUTTON_LMASK)) buildPointer(g, 1, mouse_);
+      if (g.mode == Mode::Play && e.motion.which != SDL_TOUCH_MOUSEID) party_.partyPointer(*this, g, 1, 1ull << 62, mouse_, true);   // (M8) the radial's hover
+      if (g.mode == Mode::Build && e.motion.which != SDL_TOUCH_MOUSEID && (e.motion.state & SDL_BUTTON_LMASK)) home_.buildPointer(*this, g, 1, mouse_);
       if (onMap && e.motion.which != SDL_TOUCH_MOUSEID) mapPtr(1, 1ull << 62, mouse_);
       break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
@@ -436,14 +436,14 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       if (g.mode == Mode::Play) {
         // (M8) a click on a companion's card selects it (a second click, or a right click, opens the radial)
-        if (e.button.button == SDL_BUTTON_LEFT && partyPointer(g, 0, 1ull << 62, p, true)) break;
-        if (e.button.button == SDL_BUTTON_RIGHT && !radial_.open && partyPointer(g, 0, 1ull << 62, p, true)) {
-          const int mi = partyPress_.member;
-          partyPress_.on = false;
-          radialOpen(g, mi, false, 0);
+        if (e.button.button == SDL_BUTTON_LEFT && party_.partyPointer(*this, g, 0, 1ull << 62, p, true)) break;
+        if (e.button.button == SDL_BUTTON_RIGHT && !party_.radial_.open && party_.partyPointer(*this, g, 0, 1ull << 62, p, true)) {
+          const int mi = party_.partyPress_.member;
+          party_.partyPress_.on = false;
+          party_.radialOpen(*this, g, mi, false, 0);
           break;
         }
-        if (e.button.button == SDL_BUTTON_LEFT && homeHudTap(g, p)) break;   // (M7) the home pills
+        if (e.button.button == SDL_BUTTON_LEFT && home_.homeHudTap(*this, g, p)) break;   // (M7) the home pills
         if (e.button.button == SDL_BUTTON_LEFT) kAttack_ = true;
         else if (e.button.button == SDL_BUTTON_RIGHT) kBow_ = true;
         break;
@@ -488,8 +488,8 @@ void View::event(const SDL_Event& e, Game& g) {
           break;
         }
       }
-      if (partyPointer(g, 0, (uint64_t)e.tfinger.fingerID, p, false)) break;   // (M8) a companion's card: tap selects, hold orders
-      if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
+      if (party_.partyPointer(*this, g, 0, (uint64_t)e.tfinger.fingerID, p, false)) break;   // (M8) a companion's card: tap selects, hold orders
+      if (home_.homeHudTap(*this, g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
       if (const int q = SkillsUiOps::quickAt(*this, g, p); q >= 0 && buttonAt(p) != B_ATTACK) {   // (M9) a quick-cast button
         SkillsUiOps::quickDown(*this, g, q, (uint64_t)e.tfinger.fingerID, p);
         Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = 100 + q; f.t0 = gestureMs();
@@ -498,7 +498,7 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       int b = buttonAt(p);
       // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
-      if (b < 0 && buffTap(g, p)) break;
+      if (b < 0 && life_.buffTap(*this, g, p)) break;
       Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = gestureMs();
       if (b == B_MENU) { if (!g.travelling()) { g.mode = Mode::Menu; menuTab_ = g.perkPts > 0 ? 3 : 0; menuSel_ = 0; audio_->play(Sfx::MenuSelect); } break; }
       if (b == B_ATTACK) {
@@ -540,8 +540,8 @@ void View::event(const SDL_Event& e, Game& g) {
         if (g.mode == Mode::Play && (r > 1.35f || r < 0.74f)) { camera_.zoomStep(*this, r > 1 ? 1 : -1); camera_.pinch_.d0 = std::max(8.0f, d); camera_.pinch_.done++; }
       }
       if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
-      if (g.mode == Mode::Build) buildPointer(g, 1, p);   // (M7) the ghost or a list dragged
-      if (g.mode == Mode::Play) partyPointer(g, 1, (uint64_t)e.tfinger.fingerID, p, false);   // (M8) the held radial
+      if (g.mode == Mode::Build) home_.buildPointer(*this, g, 1, p);   // (M7) the ghost or a list dragged
+      if (g.mode == Mode::Play) party_.partyPointer(*this, g, 1, (uint64_t)e.tfinger.fingerID, p, false);   // (M8) the held radial
       if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.cur = p;
       for (auto& f : fingers_) if (f.id == e.tfinger.fingerID) f.cur = p;
       SkillsUiOps::quickMove(*this, (uint64_t)e.tfinger.fingerID, p);   // (M9) a swipe off a quick button: dual-cast
@@ -553,13 +553,13 @@ void View::event(const SDL_Event& e, Game& g) {
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);
         const Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
-        if (e.type == SDL_EVENT_FINGER_CANCELED) { if (radial_.drag && radial_.finger == (uint64_t)e.tfinger.fingerID) radial_.open = false; partyPress_.on = false; }
-        else partyPointer(g, 2, (uint64_t)e.tfinger.fingerID, p, false);
+        if (e.type == SDL_EVENT_FINGER_CANCELED) { if (party_.radial_.drag && party_.radial_.finger == (uint64_t)e.tfinger.fingerID) party_.radial_.open = false; party_.partyPress_.on = false; }
+        else party_.partyPointer(*this, g, 2, (uint64_t)e.tfinger.fingerID, p, false);
       }
       if (g.mode == Mode::Build) {   // (M7) a drag ends; a still tap on a list row acts now
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);
-        buildPointer(g, 2, logical(e.tfinger.x * ww, e.tfinger.y * wh));
+        home_.buildPointer(*this, g, 2, logical(e.tfinger.x * ww, e.tfinger.y * wh));
       }
       if (onMap) {
         int ww, wh;

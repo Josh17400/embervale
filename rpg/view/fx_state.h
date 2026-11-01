@@ -27,6 +27,9 @@ struct Particle {
 struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; int actor = -1; Vec2 off; };
 struct Toast { std::string s; Color c; float t = 0; int rarity = -1; };   // (M8b) rarity: an item notice (its name in the ladder colour)
 
+// a pool of light added to the light map at night (the lanes' lamps, fires, yard lights: drawLighting)
+struct LightPool { Vec2 p; float r; Color c; float k; };
+
 struct FxState {
   Vec2 shakeOff_;
   std::vector<Particle> parts_;

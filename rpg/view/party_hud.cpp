@@ -237,22 +237,22 @@ void perimPoint(int i, int w, int h, int& px, int& py) {
 }  // namespace
 
 // ---------------------------------------------------------------- look-ups
-int View::memberOf(const Game& g, uint32_t id) const {
+int PartyUi::memberOf(const Game& g, uint32_t id) const {
   for (int i = 0; i < (int)g.party.members.size(); i++) if (g.party.members[(size_t)i].id == id) return i;
   return -1;
 }
-int View::companionIndex(const Game& g, const Actor& a) const {
+int PartyUi::companionIndex(const Game& g, const Actor& a) const {
   if (!a.comp) return -1;
   const int mi = a.comp - 1;
   return mi < (int)g.party.members.size() ? mi : -1;
 }
 
 // the sim's look for the animal (Game::partyHoundLook: age from the days since it was taken in, collar by the bond)
-art::HoundLook View::houndLookOf(const party::Member& m, const Game& g) const {
+art::HoundLook PartyUi::houndLookOf(const party::Member& m, const Game& g) const {
   return g.partyHoundLook(memberOf(g, m.id));
 }
 const Tex& SpriteCache::houndTex(View& v, const party::Member& m, const Game& g) {
-  const art::HoundLook L = v.houndLookOf(m, g);
+  const art::HoundLook L = v.party_.houndLookOf(m, g);
   const uint64_t k = ptag(0x21, L.key());
   auto it = partyTex_.find(k);
   if (it == partyTex_.end()) it = partyTex_.emplace(k, v.pix_->bake(art::houndSheet(L))).first;
@@ -260,13 +260,13 @@ const Tex& SpriteCache::houndTex(View& v, const party::Member& m, const Game& g)
 }
 namespace art { Canvas portraitDoll(const HumanLook& look, int mood, std::vector<finish::GlowPx>* glow); }   // art_party_portrait.cpp (P2c SWITCH)
 const Tex& SpriteCache::portraitTex(View& v, const Game& g, const party::Member& m, int mood) {
-  const int mi = v.memberOf(g, m.id);
+  const int mi = v.party_.memberOf(g, m.id);
   const bool hound = m.voc == party::Vocation::Hound;
   uint64_t lk = 0;
   art::HumanLook look;
-  if (hound) lk = v.houndLookOf(m, g).key();
+  if (hound) lk = v.party_.houndLookOf(m, g).key();
   else {
-    const int ai = mi >= 0 && mi < (int)v.partyActor_.size() ? v.partyActor_[(size_t)mi] : -1;
+    const int ai = mi >= 0 && mi < (int)v.party_.partyActor_.size() ? v.party_.partyActor_[(size_t)mi] : -1;
     if (ai > 0) look = g.actors[(size_t)ai].look;
     else {   // not in play (waiting, at home): their look is dressed afresh now and then, not every frame
       if (g_lookMemo.size() > 32) g_lookMemo.clear();
@@ -292,11 +292,11 @@ const Tex& SpriteCache::portraitTex(View& v, const Game& g, const party::Member&
     }
     v.v1Draws++;   // a painted bust at rig 2 (Witness: v1Draws 0 at rig 2)
   }
-  const Canvas c = hound ? art::houndPortrait(v.houndLookOf(m, g), mood) : art::portraitSprite(look, mood);
+  const Canvas c = hound ? art::houndPortrait(v.party_.houndLookOf(m, g), mood) : art::portraitSprite(look, mood);
   return partyTex_.emplace(k, v.pix_->bake(c)).first->second;
 }
 
-int View::bestSkill(const Game& g, int mi, float& cd, bool& locked) const {
+int PartyUi::bestSkill(const Game& g, int mi, float& cd, bool& locked) const {
   cd = 0; locked = true;
   if (mi < 0 || mi >= (int)g.party.members.size()) return -1;
   const party::Member& m = g.party.members[(size_t)mi];
@@ -314,7 +314,7 @@ int View::bestSkill(const Game& g, int mi, float& cd, bool& locked) const {
   return best;
 }
 
-std::string View::radialWhy(const Game& g, int mi, int cmd) const {
+std::string PartyUi::radialWhy(const Game& g, int mi, int cmd) const {
   if (mi < 0 || mi >= (int)g.party.members.size()) return "THEY ARE GONE";
   const party::Member& m = g.party.members[(size_t)mi];
   using party::Cmd;
@@ -346,7 +346,7 @@ std::string View::radialWhy(const Game& g, int mi, int cmd) const {
 }
 
 // ---------------------------------------------------------------- events and timers
-void View::partyEvent(Game& g, const Event& e) {
+void PartyUi::partyEvent(Game& g, const Event& e) {
   // the speaker by Member::id (Event::id): e.a, their index when it was said, may name someone else by now (a member
   // who died that step is already gone from the list); staged events without an id use the index
   uint32_t id = e.id;
@@ -392,7 +392,7 @@ void View::partyEvent(Game& g, const Event& e) {
   if ((n.kind == 2 || n.kind == 1) && mi >= 0) partySel_ = mi;   // the one in trouble is the one the radial opens on
 }
 
-void View::partyUpdate(Game& g, float dt) {
+void PartyUi::partyUpdate(View& v, Game& g, float dt) {
   // the members' actors this frame
   partyActor_.assign(g.party.members.size(), -1);
   for (size_t i = 1; i < g.actors.size(); i++) {
@@ -412,7 +412,7 @@ void View::partyUpdate(Game& g, float dt) {
   if (partyPress_.on && play && !radial_.open) {
     partyPress_.t += dt;
     if (partyPress_.t >= kHoldSecs && len2(partyPress_.cur - partyPress_.start) < 10.0f * 10.0f) {
-      radialOpen(g, partyPress_.member, true, partyPress_.id);
+      radialOpen(v, g, partyPress_.member, true, partyPress_.id);
       radial_.from = partyPress_.cur;
       partyPress_.on = false;
     }
@@ -428,7 +428,7 @@ void View::partyUpdate(Game& g, float dt) {
     // bracket the player on a phone") a line runs its clock only while it is on show over its speaker: it waits out
     // the arrival card and the herald, and for a free place by its speaker (drawBanter marks it shown); a line kept
     // waiting too long is let go unsaid
-    const bool cards = (fx_.bannerT_ > 0 && !fx_.bannerSub_.empty()) || herald_.t > 0;
+    const bool cards = (v.fx_.bannerT_ > 0 && !v.fx_.bannerSub_.empty()) || v.realm_.herald_.t > 0;
     for (size_t i = 0; i < banterShow_.size();) {
       PartyNote& n = banterShow_[i];
       if (n.shown && !cards) n.t += dt;
@@ -460,16 +460,16 @@ void View::partyUpdate(Game& g, float dt) {
       howlT_ -= dt;
       if (howlT_ <= 0) {
         const float d = len(at - g.pl().p);
-        audio_->play(Sfx::Howl, 0.94f + 0.12f * (float)(hash32((uint32_t)(t_ * 1000)) % 100u) / 100.0f, clampf(1.0f - d / 400.0f, 0.35f, 0.9f));
-        howlT_ = 45.0f + (float)(hash32((uint32_t)(t_ * 977) ^ 0x4F1Bu) % 60u);
+        v.audio_->play(Sfx::Howl, 0.94f + 0.12f * (float)(hash32((uint32_t)(v.t_ * 1000)) % 100u) / 100.0f, clampf(1.0f - d / 400.0f, 0.35f, 0.9f));
+        howlT_ = 45.0f + (float)(hash32((uint32_t)(v.t_ * 977) ^ 0x4F1Bu) % 60u);
       }
     }
   }
 }
 
 // ---------------------------------------------------------------- the column
-void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
-  Pix& P = *pix_;
+void PartyUi::drawPortraitCard(View& v, Game& g, int mi, float x, float y, bool small) {
+  Pix& P = *v.pix_;
   const party::Member& m = g.party.members[(size_t)mi];
   const int ai = mi < (int)partyActor_.size() ? partyActor_[(size_t)mi] : -1;
   float hp = 1;
@@ -478,7 +478,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
   const bool downed = m.state == party::State::Downed;
   const bool low = !downed && m.state == party::State::With && hp * 100 < party::LOW_HP_PCT;
   const int mood = downed ? 2 : low ? 1 : 0;
-  const Tex& pt = sprites_.portraitTex(*this, g, m, mood);
+  const Tex& pt = v.sprites_.portraitTex(v, g, m, mood);
   const bool sel = mi == partySel_;
   const uint32_t vc = vocColour(m.voc);
   if (small) {
@@ -488,14 +488,14 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     P.rect(x, y, s, s, Color(0.06f, 0.05f, 0.07f, 0.85f));
     P.rect(x + 2, y + 2, s - 4, s - 4, colU(mulc(vc, 0.35f), 0.85f));
     P.blitEx(pt, kFaceX, kFaceY, kFace, kFace, x + 2, y + 2, (float)kFace, (float)kFace, false, Color(0.62f, 0.62f, 0.68f, 0.85f));
-    portraitFinish(m.id, x + 2, y + 2, 1, 0.6f, kFaceX, kFaceY, kFace, kFace);
+    v.portraitFinish(m.id, x + 2, y + 2, 1, 0.6f, kFaceX, kFaceY, kFace, kFace);
     P.frame(x, y, s, s, sel ? kGoldP : Color(0.40f, 0.33f, 0.22f, 0.9f));
     const bool home = m.state == party::State::Home;
     const char* const* bg = home ? kBadgeHome : kBadgeWait;
     const GlyphPal pal = home ? kIconPal[6] : kIconPal[1];
     const uint64_t bk = ptag(0x31, home ? 6 : 1);
-    auto it = sprites_.partyTex_.find(bk);
-    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(bk, pix_->bake(paintGlyph(bg, 7, pal))).first;
+    auto it = v.sprites_.partyTex_.find(bk);
+    if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(bk, v.pix_->bake(paintGlyph(bg, 7, pal))).first;
     P.blit(it->second, x + s - 6, y + s - 6);
     return;
   }
@@ -509,13 +509,13 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
   }
   P.rect(x + 3, y + 3, 9, 6, Color(1, 0.95f, 0.85f, downed ? 0.03f : 0.07f));
   P.blit(pt, x + 3, y + 3);
-  portraitFinish(m.id, x + 3, y + 3, 1);
+  v.portraitFinish(m.id, x + 3, y + 3, 1);
   if (low) {   // the low-health pulse: a red wash over the bust and a beating frame
-    const float k = 0.5f + 0.5f * std::sin(t_ * 9);
+    const float k = 0.5f + 0.5f * std::sin(v.t_ * 9);
     P.rect(x + 3, y + 3, 24, 24, Color(0.9f, 0.1f, 0.08f, 0.10f + 0.12f * k));
   }
   // the frame (outer lit top-left, shaded bottom-right; inner dark), corner studs
-  const Color fo = sel ? kGoldP : low ? Color(0.85f + 0.15f * std::sin(t_ * 9), 0.28f, 0.2f) : Color(0.62f, 0.50f, 0.30f);
+  const Color fo = sel ? kGoldP : low ? Color(0.85f + 0.15f * std::sin(v.t_ * 9), 0.28f, 0.2f) : Color(0.62f, 0.50f, 0.30f);
   P.rect(x, y, w, 1, fo);
   P.rect(x, y, 1, w, fo);
   P.rect(x, y + w - 1, w, 1, Color(fo.r * 0.62f, fo.g * 0.62f, fo.b * 0.62f));
@@ -523,7 +523,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
   P.frame(x + 1, y + 1, w - 2, w - 2, Color(0.20f, 0.15f, 0.10f));
   P.frame(x + 2, y + 2, w - 4, w - 4, Color(0.05f, 0.04f, 0.05f, 0.8f));
   for (float cx : {x, x + w - 2}) for (float cy : {y, y + w - 2}) P.rect(cx, cy, 2, 2, sel ? Color(1, 0.95f, 0.7f) : Color(0.9f, 0.75f, 0.4f));
-  if (sel) P.frame(x - 1, y - 1, w + 2, w + 2, Color(kGoldP.r, kGoldP.g, kGoldP.b, 0.35f + 0.2f * std::sin(t_ * 3)));
+  if (sel) P.frame(x - 1, y - 1, w + 2, w + 2, Color(kGoldP.r, kGoldP.g, kGoldP.b, 0.35f + 0.2f * std::sin(v.t_ * 3)));
   // the health bar (or the binding's progress while they are down)
   const float by = y + w + 1;
   P.rect(x, by, w, 4, Color(0.04f, 0.03f, 0.05f, 0.9f));
@@ -545,7 +545,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     const int fw = (int)w + 2, fh = (int)w + 2, per = 2 * (fw + fh) - 4;
     const float k = clampf(m.downT / party::DOWNED_SECS, 0, 1);
     const int lit = (int)std::lround(per * k);
-    const float pulse = 0.65f + 0.35f * std::sin(t_ * (k < 0.33f ? 14.0f : 7.0f));
+    const float pulse = 0.65f + 0.35f * std::sin(v.t_ * (k < 0.33f ? 14.0f : 7.0f));
     for (int i = 0; i < per; i++) {
       int px = 0, py = 0;
       perimPoint(i, fw, fh, px, py);
@@ -579,16 +579,16 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     static const char* const* const kBadges[4] = {kBadgeFollow, kBadgeAttack, kBadgeDefend, kBadgePassive};
     static const int kBadgePal[4] = {0, 2, 3, 5};
     const uint64_t bk = ptag(0x31, 10 + bi);
-    auto it = sprites_.partyTex_.find(bk);
-    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(bk, pix_->bake(paintGlyph(kBadges[bi], 7, kIconPal[kBadgePal[bi]]))).first;
+    auto it = v.sprites_.partyTex_.find(bk);
+    if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(bk, v.pix_->bake(paintGlyph(kBadges[bi], 7, kIconPal[kBadgePal[bi]]))).first;
     P.rect(x + w - 11, y + w - 11, 11, 11, Color(0.05f, 0.04f, 0.06f, 0.92f));
     P.frame(x + w - 11, y + w - 11, 11, 11, Color(0.62f, 0.50f, 0.30f));
     P.blit(it->second, x + w - 9, y + w - 9);
   }
 }
 
-void View::drawPartyHud(Game& g) {
-  Pix& P = *pix_;
+void PartyUi::drawPartyHud(View& v, Game& g) {
+  Pix& P = *v.pix_;
   partyCards_.clear();
   partyColR_ = 0; partyColB_ = 0;
   if (g.party.members.empty()) return;
@@ -601,7 +601,7 @@ void View::drawPartyHud(Game& g) {
   for (int mi = 0; mi < (int)g.party.members.size(); mi++) {
     const party::State s = g.party.members[(size_t)mi].state;
     if (s != party::State::With && s != party::State::Downed) continue;
-    drawPortraitCard(g, mi, x, y, false);
+    drawPortraitCard(v, g, mi, x, y, false);
     partyCards_.push_back({mi, x - 2, y - 2, kCard + 6, kPitch, false});
     y += kPitch;
   }
@@ -612,10 +612,10 @@ void View::drawPartyHud(Game& g) {
     const party::State s = g.party.members[(size_t)mi].state;
     if (s != party::State::Waiting && s != party::State::Home) continue;
     if (shown >= 4) { extra++; continue; }
-    const float pitch = touchUI ? kSmallCellT : kSmallPitch;
+    const float pitch = v.touchUI ? kSmallCellT : kSmallPitch;
     const float sx = x + (shown & 1) * pitch, sy = y + (shown / 2) * pitch;
-    drawPortraitCard(g, mi, sx, sy, true);
-    if (touchUI) {   // the bust's whole cell, centred on it
+    drawPortraitCard(v, g, mi, sx, sy, true);
+    if (v.touchUI) {   // the bust's whole cell, centred on it
       const float pad = (kSmallCellT - kSmall) / 2;
       partyCards_.push_back({mi, sx - pad, sy - pad + 2, kSmallCellT, kSmallCellT, true});
       smallR = std::max(smallR, sx + kSmall + 4);
@@ -624,7 +624,7 @@ void View::drawPartyHud(Game& g) {
     }
     shown++;
   }
-  if (shown) y += ((shown + 1) / 2) * (touchUI ? kSmallCellT : kSmallPitch);
+  if (shown) y += ((shown + 1) / 2) * (v.touchUI ? kSmallCellT : kSmallPitch);
   if (extra) { P.textS(x + 2, y, "+" + std::to_string(extra), 1, kDimP); y += 10; }
   partyColR_ = std::max(x + kCard + 4, smallR);
   partyColB_ = y;
@@ -635,7 +635,7 @@ void View::drawPartyHud(Game& g) {
       const party::Member& m = g.party.members[(size_t)c.member];
       const float a = clampf(partyTagT_ / 0.3f, 0, 1);
       const std::string l1 = m.name, l2 = std::string(party::vocationName(m.voc)) + " - " + party::stateName(m.state);
-      const std::string l3 = touchUI ? "HOLD FOR ORDERS" : "C: ORDERS";
+      const std::string l3 = v.touchUI ? "HOLD FOR ORDERS" : "C: ORDERS";
       const float tw = (float)std::max(P.textW(l1, 1), std::max(P.textW(l2, 1), P.textW(l3, 1))) + 8;
       const float tx = c.x + c.w + 3, ty = c.y + 2;
       P.rect(tx, ty, tw, 31, Color(0.05f, 0.04f, 0.06f, 0.82f * a));
@@ -661,7 +661,7 @@ void View::drawPartyHud(Game& g) {
   // the alert ribbon (the oldest waiting one): the member's face and the line in the kind's colour, top centre
   PlateBox rb;
   float tw = 0;
-  if (!radial_.open && partyRibbonBox(g, rb, tw)) {   // (r3: it steps away while the order ring is open)
+  if (!radial_.open && partyRibbonBox(v, g, rb, tw)) {   // (r3: it steps away while the order ring is open)
     const PartyNote& n = alertShow_.front();
     const int mi = memberOf(g, n.id);
     // (fixer M8 r3) the words and the face fade first (a squared), the dark plate last: no half-faded glyphs ever
@@ -679,11 +679,11 @@ void View::drawPartyHud(Game& g) {
     float tx = ax + 7;
     if (mi >= 0) {
       const party::Member& m = g.party.members[(size_t)mi];
-      const Tex& pt = sprites_.portraitTex(*this, g, m, n.kind == 2 || n.kind == 4 ? 2 : n.kind == 1 ? 1 : n.kind == 3 || n.kind == 5 || n.kind == 8 ? 3 : 0);
+      const Tex& pt = v.sprites_.portraitTex(v, g, m, n.kind == 2 || n.kind == 4 ? 2 : n.kind == 1 ? 1 : n.kind == 3 || n.kind == 5 || n.kind == 8 ? 3 : 0);
       P.rect(ax + 3, ay + 2, 16, 16, Color(0.02f, 0.02f, 0.03f, a));
       P.rect(ax + 4, ay + 3, 14, 14, colU(mulc(vocColour(m.voc), 0.5f), a));
       P.blitEx(pt, kFaceX, kFaceY, kFace, kFace, ax + 4, ay + 3, (float)kFace, (float)kFace, false, Color(1, 1, 1, a));
-      portraitFinish(m.id, ax + 4, ay + 3, 1, a, kFaceX, kFaceY, kFace, kFace);
+      v.portraitFinish(m.id, ax + 4, ay + 3, 1, a, kFaceX, kFaceY, kFace, kFace);
       P.frame(ax + 3, ay + 2, 16, 16, Color(kc.r, kc.g, kc.b, 0.9f * a));
       tx = ax + 24;
     }
@@ -692,7 +692,7 @@ void View::drawPartyHud(Game& g) {
 }
 
 // ---------------------------------------------------------------- the radial
-void View::radialOpen(Game& g, int mi, bool drag, uint64_t finger) {
+void PartyUi::radialOpen(View& v, Game& g, int mi, bool drag, uint64_t finger) {
   if (mi < 0 || mi >= (int)g.party.members.size()) return;
   radial_ = Radial();
   radial_.open = true; radial_.drag = drag; radial_.member = mi; radial_.finger = finger;
@@ -705,17 +705,17 @@ void View::radialOpen(Game& g, int mi, bool drag, uint64_t finger) {
   // (fixer M8 r2, review: "the wheel opens over the portraits, HP bars and downed timers") right of the portrait
   // column, with room for the wedges' words on its left (touch); a held finger picks by the way it slides (phase 1)
   const float colR = partyColR_ > 0 ? partyColR_ : L + kCard + 8;
-  radial_.c = Vec2(std::floor(colR + kRO + (touchUI ? kRLabel : 8.0f)), std::floor(clampf(cy, T + 44 + kRO, B - kRO - 6)));
+  radial_.c = Vec2(std::floor(colR + kRO + (v.touchUI ? kRLabel : 8.0f)), std::floor(clampf(cy, T + 44 + kRO, B - kRO - 6)));
   radial_.from = radial_.c;
   radial_.hot = drag ? -1 : openHot(g.party.members[(size_t)mi]);
-  audio_->play(Sfx::MenuSelect, 1.15f, 0.8f);
+  v.audio_->play(Sfx::MenuSelect, 1.15f, 0.8f);
 }
 
-int View::radialWedgeAt(Vec2 p) const {
+int PartyUi::radialWedgeAt(const View& v, Vec2 p) const {
   const Vec2 d = p - radial_.c;
   const float r = len(d);
   if (r < kRI - 2) return -1;
-  if (r > kRO + (touchUI ? kRLabel + 6 : 16.0f)) return -2;   // (fixer M8 r2) a tap on a wedge's word counts
+  if (r > kRO + (v.touchUI ? kRLabel + 6 : 16.0f)) return -2;   // (fixer M8 r2) a tap on a wedge's word counts
   float a = std::atan2(d.y, d.x) + 1.5707963f;   // 0 at the top, clockwise
   const float step = 6.2831853f / kWedges;
   a += step / 2;
@@ -724,7 +724,7 @@ int View::radialWedgeAt(Vec2 p) const {
   return std::clamp((int)(a / step), 0, kWedges - 1);
 }
 
-void View::radialChoose(Game& g, int cmd) {
+void PartyUi::radialChoose(View& v, Game& g, int cmd) {
   const int mi = radial_.member;
   if (cmd < 0 || cmd >= kWedges || mi < 0 || mi >= (int)g.party.members.size()) return;
   std::string why = radialWhy(g, mi, cmd);
@@ -733,18 +733,18 @@ void View::radialChoose(Game& g, int cmd) {
   if (!why.empty()) {
     radial_.deny = why; radial_.denyT = 1.4f; radial_.denyWedge = cmd;
     partyDeny_ = why; partyDenyT_ = 2.2f; partyDenyId_ = id;
-    audio_->play(Sfx::MenuBack, 0.8f, 0.9f);
+    v.audio_->play(Sfx::MenuBack, 0.8f, 0.9f);
     if (radial_.drag) radial_.open = false;   // a held radial closes on the release; the reason stays by the card
     return;
   }
-  audio_->play(Sfx::MenuSelect, 1.0f, 0.9f);
+  v.audio_->play(Sfx::MenuSelect, 1.0f, 0.9f);
   partyDeny_.clear(); partyDenyT_ = 0;
   radial_.open = false;
   const int now = memberOf(g, id);
   if (now >= 0) partySel_ = now;
 }
 
-bool View::partyKey(Game& g, int key) {
+bool PartyUi::partyKey(View& v, Game& g, int key) {
   if (g.mode != Mode::Play || g.party.members.empty()) return false;
   if (!radial_.open) {
     if (key != SDLK_C) return false;
@@ -752,11 +752,11 @@ bool View::partyKey(Game& g, int key) {
     // the selected one, else the first one travelling with the player
     if (g.party.members[(size_t)partySel_].state == party::State::Left)
       for (int i = 0; i < (int)g.party.members.size(); i++) if (g.party.members[(size_t)i].state == party::State::With) { partySel_ = i; break; }
-    radialOpen(g, partySel_, false, 0);
+    radialOpen(v, g, partySel_, false, 0);
     return true;
   }
   switch (key) {
-    case SDLK_ESCAPE: radial_.open = false; audio_->play(Sfx::MenuBack); return true;
+    case SDLK_ESCAPE: radial_.open = false; v.audio_->play(Sfx::MenuBack); return true;
     case SDLK_C: case SDLK_TAB: {   // the next companion (not one who left)
       const int n = (int)g.party.members.size();
       for (int k = 1; k <= n; k++) {
@@ -764,7 +764,7 @@ bool View::partyKey(Game& g, int key) {
         if (g.party.members[(size_t)mi].state == party::State::Left) continue;
         if (mi == radial_.member) { radial_.open = false; return true; }
         const int hot = radial_.hot;
-        radialOpen(g, mi, false, 0);
+        radialOpen(v, g, mi, false, 0);
         radial_.hot = hot;
         return true;
       }
@@ -772,19 +772,19 @@ bool View::partyKey(Game& g, int key) {
       return true;
     }
     case SDLK_LEFT: case SDLK_A: case SDLK_UP: case SDLK_W:
-      radial_.hot = radial_.hot < 0 ? 0 : (radial_.hot + kWedges - 1) % kWedges; audio_->play(Sfx::MenuMove); return true;
+      radial_.hot = radial_.hot < 0 ? 0 : (radial_.hot + kWedges - 1) % kWedges; v.audio_->play(Sfx::MenuMove); return true;
     case SDLK_RIGHT: case SDLK_D: case SDLK_DOWN: case SDLK_S:
-      radial_.hot = radial_.hot < 0 ? 0 : (radial_.hot + 1) % kWedges; audio_->play(Sfx::MenuMove); return true;
+      radial_.hot = radial_.hot < 0 ? 0 : (radial_.hot + 1) % kWedges; v.audio_->play(Sfx::MenuMove); return true;
     case SDLK_RETURN: case SDLK_SPACE: case SDLK_E: case SDLK_J: case SDLK_KP_ENTER:
-      if (radial_.hot >= 0) radialChoose(g, radial_.hot);
+      if (radial_.hot >= 0) radialChoose(v, g, radial_.hot);
       return true;
     default:
-      if (key >= SDLK_1 && key < SDLK_1 + kWedges) { radial_.hot = key - SDLK_1; radialChoose(g, radial_.hot); }
+      if (key >= SDLK_1 && key < SDLK_1 + kWedges) { radial_.hot = key - SDLK_1; radialChoose(v, g, radial_.hot); }
       return true;   // while it is open every key is the radial's
   }
 }
 
-bool View::partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
+bool PartyUi::partyPointer(View& v, Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
   if (g.mode != Mode::Play || g.party.members.empty()) return false;
   // (fixer M8 r1, review: "cards are under the 44 pt touch minimum") a finger lands on a card within a few pixels of
   // its frame (the column has open ground to its right and below); the nearest card's centre wins between two
@@ -792,8 +792,8 @@ bool View::partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
     const PartyCard* best = nullptr;
     float bd = 1e30f;
     for (const PartyCard& c : partyCards_) {
-      const float m = c.small ? (touchUI ? 0.0f : 3.0f) : 5.0f;   // (r3: a touch bust's box is already its whole cell)
-      const float mr = c.small && touchUI ? 0.0f : m + 3;
+      const float m = c.small ? (v.touchUI ? 0.0f : 3.0f) : 5.0f;   // (r3: a touch bust's box is already its whole cell)
+      const float mr = c.small && v.touchUI ? 0.0f : m + 3;
       if (q.x < c.x - m || q.y < c.y - m || q.x >= c.x + c.w + mr || q.y >= c.y + c.h + m) continue;
       const float d2 = len2(q - Vec2(c.x + c.w / 2, c.y + c.h / 2));
       if (d2 < bd) { bd = d2; best = &c; }
@@ -803,13 +803,13 @@ bool View::partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
   if (phase == 0) {
     if (radial_.open) {
       if (radial_.drag && id != radial_.finger) return false;   // another finger: the stick, the buttons
-      const int w = radialWedgeAt(p);
+      const int w = radialWedgeAt(v, p);
       // (fixer M8 r2, review: "a tap gives the order at once, before a phone player can see what the icon means")
       // on touch the first tap on a wedge lights it and the caption says what it does; a tap on the lit one gives it
-      if (w >= 0 && !mouse && touchUI && w != radial_.hot) { radial_.hot = w; radial_.denyT = 0; audio_->play(Sfx::MenuMove, 1.0f, 0.6f); return true; }
-      if (w >= 0) { radial_.hot = w; radialChoose(g, w); return true; }
-      if (w == -1) { radial_.open = false; audio_->play(Sfx::MenuBack); return true; }
-      if (const PartyCard* c = cardAt(p)) { radialOpen(g, c->member, false, 0); return true; }   // another card: the radial moves to them
+      if (w >= 0 && !mouse && v.touchUI && w != radial_.hot) { radial_.hot = w; radial_.denyT = 0; v.audio_->play(Sfx::MenuMove, 1.0f, 0.6f); return true; }
+      if (w >= 0) { radial_.hot = w; radialChoose(v, g, w); return true; }
+      if (w == -1) { radial_.open = false; v.audio_->play(Sfx::MenuBack); return true; }
+      if (const PartyCard* c = cardAt(p)) { radialOpen(v, g, c->member, false, 0); return true; }   // another card: the radial moves to them
       radial_.open = false;
       return true;   // a tap outside only closes it
     }
@@ -835,18 +835,18 @@ bool View::partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
           while (an >= 6.2831853f) an -= 6.2831853f;
           hot = std::clamp((int)(an / step), 0, kWedges - 1);
         }
-        if (hot != radial_.hot && hot >= 0) audio_->play(Sfx::MenuMove, 1.0f, 0.6f);
+        if (hot != radial_.hot && hot >= 0) v.audio_->play(Sfx::MenuMove, 1.0f, 0.6f);
         radial_.hot = hot;
       }
       return true;
     }
-    if (radial_.open && !radial_.drag && mouse) { const int w = radialWedgeAt(p); if (w >= 0) radial_.hot = w; return false; }
+    if (radial_.open && !radial_.drag && mouse) { const int w = radialWedgeAt(v, p); if (w >= 0) radial_.hot = w; return false; }
     if (partyPress_.on && partyPress_.id == id) { partyPress_.cur = p; return true; }
     return false;
   }
   // phase 2: up
   if (radial_.open && radial_.drag && id == radial_.finger) {
-    if (radial_.armed && radial_.hot >= 0) radialChoose(g, radial_.hot);
+    if (radial_.armed && radial_.hot >= 0) radialChoose(v, g, radial_.hot);
     else if (!radial_.armed) { radial_.drag = false; radial_.hot = openHot(g.party.members[(size_t)radial_.member]); }   // held still: it stays open for taps
     else radial_.open = false;   // let go over the hub or outside: nothing
     return true;
@@ -855,16 +855,16 @@ bool View::partyPointer(Game& g, int phase, uint64_t id, Vec2 p, bool mouse) {
     partyPress_.on = false;
     const int mi = partyPress_.member;
     if (mi < 0 || mi >= (int)g.party.members.size()) return true;
-    if (mi == partySel_ && partyTagT_ > 0) radialOpen(g, mi, false, 0);   // a tap on the selected card: the orders
-    else { partySel_ = mi; partyTagT_ = 3.0f; audio_->play(Sfx::MenuMove); }
+    if (mi == partySel_ && partyTagT_ > 0) radialOpen(v, g, mi, false, 0);   // a tap on the selected card: the orders
+    else { partySel_ = mi; partyTagT_ = 3.0f; v.audio_->play(Sfx::MenuMove); }
     return true;
   }
   return false;
 }
 
-void View::drawPartyRadial(Game& g) {
+void PartyUi::drawPartyRadial(View& v, Game& g) {
   if (!radial_.open || radial_.member < 0 || radial_.member >= (int)g.party.members.size()) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const party::Member& m = g.party.members[(size_t)radial_.member];
   const float k = clampf(radial_.t / 0.14f, 0, 1), ease = 1 - (1 - k) * (1 - k);
   // (fixer M8 r3) a firmer veil: the world's name tags and prompts sink under the ring and its words
@@ -878,8 +878,8 @@ void View::drawPartyRadial(Game& g) {
     const bool dis = !radialWhy(g, radial_.member, w).empty();
     const int st = w == radial_.hot ? 1 : dis ? 2 : 0;
     const uint64_t key = ptag(0x41, (uint64_t)(w * 4 + st));
-    auto it = sprites_.partyTex_.find(key);
-    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, pix_->bake(paintWedge(w, st))).first;
+    auto it = v.sprites_.partyTex_.find(key);
+    if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(key, v.pix_->bake(paintWedge(w, st))).first;
     const float a = -1.5707963f + w * step;
     const Vec2 dir(std::cos(a), std::sin(a));
     const float slide = (1 - ease) * -10.0f;   // the wedges slide out from the hub as it opens
@@ -889,8 +889,8 @@ void View::drawPartyRadial(Game& g) {
       P.blitEx(it->second, 0, 0, kRN, kRN, wx, wy, (float)kRN, (float)kRN, false, Color(1.0f, 0.2f, 0.15f, 0.55f), 1);
     // the icon at the wedge's middle (whole pixels), dimmed when the order cannot be given
     const uint64_t ik = ptag(0x42, (uint64_t)w);
-    auto ii = sprites_.partyTex_.find(ik);
-    if (ii == sprites_.partyTex_.end()) ii = sprites_.partyTex_.emplace(ik, pix_->bake(paintGlyph(kIcons[w], 11, kIconPal[w]))).first;
+    auto ii = v.sprites_.partyTex_.find(ik);
+    if (ii == v.sprites_.partyTex_.end()) ii = v.sprites_.partyTex_.emplace(ik, v.pix_->bake(paintGlyph(kIcons[w], 11, kIconPal[w]))).first;
     const float mr = (kRO + kRI) / 2 + 1;
     const float ix = std::floor(c.x + dir.x * (mr + slide) - 5.5f + 0.5f), iy = std::floor(c.y + dir.y * (mr + slide) - 5.5f + 0.5f);
     P.blitEx(ii->second, 0, 0, 11, 11, ix + 1, iy + 1, 11, 11, false, Color(0, 0, 0, 0.45f * ease));
@@ -907,7 +907,7 @@ void View::drawPartyRadial(Game& g) {
       P.rect(px - 1, py - 1, 3, 3, Color(0.1f, 0.07f, 0.04f, ease));
       P.rect(px, py, 1, 1, Color(1, 0.92f, 0.6f, ease));
     }
-    if (!touchUI) {   // the keyboard's digit by the rim
+    if (!v.touchUI) {   // the keyboard's digit by the rim
       const float px = c.x + dir.x * (kRO + 7), py = c.y + dir.y * (kRO + 7);
       P.textS(std::floor(px) + 1, std::floor(py) - 3, std::to_string(w + 1), 1, Color(kDimP.r, kDimP.g, kDimP.b, ease), 1);
     } else {   // (fixer M8 r2) the wedge's word just outside the rim, pushed out along its side
@@ -923,13 +923,13 @@ void View::drawPartyRadial(Game& g) {
   {
     const uint32_t vc = vocColour(m.voc);
     const uint64_t hk = ptag(0x43, vc);
-    auto it = sprites_.partyTex_.find(hk);
-    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(hk, pix_->bake(paintHub(vc))).first;
+    auto it = v.sprites_.partyTex_.find(hk);
+    if (it == v.sprites_.partyTex_.end()) it = v.sprites_.partyTex_.emplace(hk, v.pix_->bake(paintHub(vc))).first;
     const Tex& ht = it->second;
     P.blitEx(ht, 0, 0, ht.w, ht.h, std::floor(c.x - ht.w / 2.0f), std::floor(c.y - ht.h / 2.0f), (float)ht.w, (float)ht.h, false, Color(1, 1, 1, ease));
-    const Tex& pt = sprites_.portraitTex(*this, g, m, m.state == party::State::Downed ? 2 : 0);
+    const Tex& pt = v.sprites_.portraitTex(v, g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 3, 1, 18, 18, std::floor(c.x - 9), std::floor(c.y - 10), 18, 18, false, Color(1, 1, 1, ease));
-    portraitFinish(m.id, std::floor(c.x - 9), std::floor(c.y - 10), 1, ease, 3, 1, 18, 18);
+    v.portraitFinish(m.id, std::floor(c.x - 9), std::floor(c.y - 10), 1, ease, 3, 1, 18, 18);
   }
   // the caption beside the ring: who, the chosen order, and what it means now
   {
@@ -946,7 +946,7 @@ void View::drawPartyRadial(Game& g) {
         if (!why.empty()) c3 = Color(0.95f, 0.7f, 0.5f);
       } else if (!why.empty()) { l3 = why; c3 = Color(0.95f, 0.7f, 0.5f); }
     } else {
-      l2 = touchUI ? (radial_.drag ? "SLIDE TO AN ORDER" : "TAP AN ORDER") : "1-7 OR ARROWS";
+      l2 = v.touchUI ? (radial_.drag ? "SLIDE TO AN ORDER" : "TAP AN ORDER") : "1-7 OR ARROWS";
       // (r3) one not travelling with the player: where they are now, under the prompt
       if (m.state == party::State::Waiting) l3 = "WAITING FOR YOU";
       else if (m.state == party::State::Home) l3 = "AT HOME";
@@ -958,12 +958,12 @@ void View::drawPartyRadial(Game& g) {
     int tw = std::max(P.textW(l1, 1), P.textW(l2, 1));
     for (const std::string& s : l3s) tw = std::max(tw, P.textW(s, 1));
     const float bw = (float)tw + 12, bh = 26.0f + 9.0f * l3s.size();
-    float bx = c.x + kRO + (touchUI ? kRLabel + 4 : 14), by = std::floor(c.y - bh / 2);
+    float bx = c.x + kRO + (v.touchUI ? kRLabel + 4 : 14), by = std::floor(c.y - bh / 2);
     if (bx + bw > (float)(Pix::W - Pix::SR) - 4) { bx = std::floor(c.x - bw / 2); by = c.y + kRO + 10; }
     {   // (fixer M8 r2, review: "the tooltip overlaps the JOINS YOU ribbon") below the ribbon when they would meet
       PlateBox rb;
       float rtw = 0;
-      if (partyRibbonBox(g, rb, rtw) && bx < rb.x1 + 2 && bx + bw > rb.x0 - 2 && by < rb.y1 + 2 && by + bh > rb.y0 - 2) by = rb.y1 + 4;
+      if (partyRibbonBox(v, g, rb, rtw) && bx < rb.x1 + 2 && bx + bw > rb.x0 - 2 && by < rb.y1 + 2 && by + bh > rb.y0 - 2) by = rb.y1 + 4;
     }
     P.rect(bx + 2, by + 2, bw, bh, Color(0, 0, 0, 0.3f * ease));
     P.rect(bx, by, bw, bh, Color(0.05f, 0.04f, 0.06f, 0.9f * ease));
@@ -976,7 +976,7 @@ void View::drawPartyRadial(Game& g) {
 }
 
 // ---------------------------------------------------------------- plate layout (fixer M8 r1)
-void View::clearPlate(float& x0, float& y0, float w, float h, const std::vector<PlateBox>& avoid, float L, float T, float R, float B) {
+void PartyUi::clearPlate(float& x0, float& y0, float w, float h, const std::vector<PlateBox>& avoid, float L, float T, float R, float B) {
   auto hits = [&](float x, float y) {
     for (const PlateBox& b : avoid)
       if (x < b.x1 + 2 && x + w > b.x0 - 2 && y < b.y1 + 2 && y + h > b.y0 - 2) return true;
@@ -1000,66 +1000,66 @@ void View::clearPlate(float& x0, float& y0, float w, float h, const std::vector<
   x0 = bx; y0 = by;
 }
 
-bool View::partyRibbonBox(const Game& g, PlateBox& b, float& textW) {
+bool PartyUi::partyRibbonBox(View& v, const Game& g, PlateBox& b, float& textW) {
   if (alertShow_.empty() || g.mode != Mode::Play) return false;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float T = (float)Pix::ST;
   const PartyNote& n = alertShow_.front();
   const int mi = memberOf(g, n.id);
-  float ay = std::max(T + 30, bossBarBottom_ + 8);
-  if (herald_.t > 0 || (biomeBannerT_ > 0 && !biomeBanner_.empty())) ay += 24;
-  if (biomeBannerT_ > 0 && !biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
-    ay = std::max(ay, biomeBannerY(std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
-  if (fx_.bannerT_ > 0) ay = std::max(ay, T + (bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
+  float ay = std::max(T + 30, v.bossBarBottom_ + 8);
+  if (v.realm_.herald_.t > 0 || (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty())) ay += 24;
+  if (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
+    ay = std::max(ay, v.biomeBannerY(std::min((float)P.textW(v.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
+  if (v.fx_.bannerT_ > 0) ay = std::max(ay, T + (v.realm_.bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
   textW = (float)P.textW(n.s, 1);
   const float w = textW + (mi >= 0 ? 30.0f : 14.0f), h = 20;
   b.x0 = std::floor(Pix::W / 2.0f - w / 2); b.y0 = ay; b.x1 = b.x0 + w; b.y1 = ay + h;
   // (fixer M8 r3, review: "E: TALK is drawn over the half-faded JOINS YOU ribbon: ghost glyphs") never under the
   // faced person's name tag: the ribbon steps above it (else below)
-  if (tagOn_ && b.x0 < tagX1_ + 2 && b.x1 > tagX0_ - 2 && b.y0 < tagY1_ + 2 && b.y1 > tagY0_ - 2) {
-    const float up = tagY0_ - 3 - h;
-    const float floorY = fx_.bannerT_ > 0 ? T + (bannerState_.empty() ? 88.0f : 99.0f) : T + 30;   // (never into the banner)
+  if (v.tagOn_ && b.x0 < v.tagX1_ + 2 && b.x1 > v.tagX0_ - 2 && b.y0 < v.tagY1_ + 2 && b.y1 > v.tagY0_ - 2) {
+    const float up = v.tagY0_ - 3 - h;
+    const float floorY = v.fx_.bannerT_ > 0 ? T + (v.realm_.bannerState_.empty() ? 88.0f : 99.0f) : T + 30;   // (never into the banner)
     if (up >= floorY) { b.y0 = up; b.y1 = up + h; }
-    else { b.y0 = tagY1_ + 3; b.y1 = b.y0 + h; }
+    else { b.y0 = v.tagY1_ + 3; b.y1 = b.y0 + h; }
   }
   return true;
 }
 
-void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
-  Pix& P = *pix_;
+void PartyUi::hudBands(View& v, const Game& g, std::vector<PlateBox>& out) {
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
   auto add = [&](float x0, float y0, float x1, float y1) { PlateBox b; b.x0 = x0; b.y0 = y0; b.x1 = x1; b.y1 = y1; out.push_back(b); };
-  if (fx_.bannerT_ > 0 && g.mode != Mode::Dialogue) add(0, T + 49, (float)Pix::W, T + (bannerState_.empty() ? 85.0f : 96.0f));
-  if (herald_.t > 0 && g.mode == Mode::Play) {   // (as drawHerald lays it out)
-    const int tw = std::max(P.textW(herald_.title, 1), P.textW(herald_.top, 1));
-    const float side = !herald_.wild ? 22.0f : 10.0f, w = tw + side * 2 + 12;
+  if (v.fx_.bannerT_ > 0 && g.mode != Mode::Dialogue) add(0, T + 49, (float)Pix::W, T + (v.realm_.bannerState_.empty() ? 85.0f : 96.0f));
+  if (v.realm_.herald_.t > 0 && g.mode == Mode::Play) {   // (as drawHerald lays it out)
+    const int tw = std::max(P.textW(v.realm_.herald_.title, 1), P.textW(v.realm_.herald_.top, 1));
+    const float side = !v.realm_.herald_.wild ? 22.0f : 10.0f, w = tw + side * 2 + 12;
     float x = std::floor(Pix::W / 2.0f - w / 2);
     const float minX = L + 136, maxX = R - 76 - w;
     if (maxX >= minX) x = std::clamp(x, minX, maxX);
-    const float y = std::max(T + 5, bossBarBottom_ + 3);
+    const float y = std::max(T + 5, v.bossBarBottom_ + 3);
     add(x - 4, y, x + w + 4, y + 27);
   }
-  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && fx_.bannerT_ <= 0 && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
-    const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = biomeBannerY(half);
+  if (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty() && v.fx_.bannerT_ <= 0 && v.realm_.herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+    const float half = std::min((float)P.textW(v.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = v.biomeBannerY(half);
     add(Pix::W / 2.0f - half, y - 4, Pix::W / 2.0f + half, y + 11);
   }
   PlateBox rb;
   float tw = 0;
-  if (partyRibbonBox(g, rb, tw)) out.push_back(rb);
+  if (partyRibbonBox(v, g, rb, tw)) out.push_back(rb);
   if (radial_.open) {   // the order ring and its caption to its right
     const Vec2 c = radial_.c;
-    const float lw = touchUI ? kRLabel : 6.0f;
+    const float lw = v.touchUI ? kRLabel : 6.0f;
     add(c.x - kRO - lw, c.y - kRO - 12, c.x + kRO + lw, c.y + kRO + 12);
     add(c.x + kRO + lw + 4, c.y - 34, c.x + kRO + lw + 176, c.y + 34);
   }
-  if (tagOn_) add(tagX0_ - 2, tagY0_ - 2, tagX1_ + 2, tagY1_ + 2);   // the faced person's name and E: TALK
+  if (v.tagOn_) add(v.tagX0_ - 2, v.tagY0_ - 2, v.tagX1_ + 2, v.tagY1_ + 2);   // the faced person's name and E: TALK
   if (g.mode == Mode::Play) {
     // (P2a) world sizes in UI px: k UI px per world px; heights from the rig's metrics
-    const float k = camera_.uiPerWorld(*this);
-    const art::RigMetrics& RM = rigFor(g.pl().look);
+    const float k = v.camera_.uiPerWorld(v);
+    const art::RigMetrics& RM = v.rigFor(g.pl().look);
     // (fixer M8 r2, review: "plates cover the mounted hero's head and the companion's horse") the hero, on foot or
     // in the saddle: no spoken line is laid over them
-    const Vec2 hs = camera_.toUi(*this, g.pl().p);
+    const Vec2 hs = v.camera_.toUi(v, g.pl().p);
     if (g.homeRiding()) add(hs.x - 15 * k, hs.y - (RM.markerY + 10) * k, hs.x + 15 * k, hs.y + 3 * k);
     else add(hs.x - 8 * k, hs.y - RM.markerY * k, hs.x + 8 * k, hs.y + 2 * k);
     // (fixer M8 r2, review: "the binding ring is hidden under the name label and the I'M DOWN plate") the wound mark
@@ -1068,27 +1068,27 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
       const Actor& a = g.actors[i];
       const int mi = companionIndex(g, a);
       if (mi < 0 || a.st == AState::Dead || g.party.members[(size_t)mi].state != party::State::Downed) continue;
-      const Vec2 s = camera_.toUi(*this, a.p);
-      const float cx = std::floor(s.x), cy = std::floor(s.y - (a.human ? (float)rigFor(a.look).plateY : 22.0f) * k);
+      const Vec2 s = v.camera_.toUi(v, a.p);
+      const float cx = std::floor(s.x), cy = std::floor(s.y - (a.human ? (float)v.rigFor(a.look).plateY : 22.0f) * k);
       add(cx - 11 * k, cy - 11 * k, cx + 11 * k, cy + 11 * k);
     }
   }
 }
 
 // ---------------------------------------------------------------- banter
-void View::drawBanter(Game& g, Vec2 cam) {
+void PartyUi::drawBanter(View& v, Game& g, Vec2 cam) {
   (void)cam;   // (P2a) the UI layer: the speakers are projected through toUi
   if (banterShow_.empty() || g.mode != Mode::Play) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   // (fixer M8 r1) clear of the banner, the herald, the ribbon and every plate already drawn (the townsfolk's lines,
   // the other companions'): the nearest free place, over the speaker first
   std::vector<PlateBox> avoid = plateBoxes_;
-  hudBands(g, avoid);
+  hudBands(v, g, avoid);
   // (fixer M8 r3) the arrival card and the herald first: the lines wait for them (partyUpdate holds their clocks)
-  if ((fx_.bannerT_ > 0 && !fx_.bannerSub_.empty()) || herald_.t > 0) return;
+  if ((v.fx_.bannerT_ > 0 && !v.fx_.bannerSub_.empty()) || v.realm_.herald_.t > 0) return;
   // one spoken plate at a time on a phone (two on a wide screen): the rest wait their turn, the oldest first
-  const int cap = touchUI ? 1 : 2;
+  const int cap = v.touchUI ? 1 : 2;
   int onShow = 0;
   for (PartyNote& n : banterShow_) {
     if (onShow >= cap) break;
@@ -1113,8 +1113,8 @@ void View::drawBanter(Game& g, Vec2 cam) {
     Vec2 head;
     if (ai > 0) {
       const Actor& sp = g.actors[(size_t)ai];
-      head = camera_.toUi(*this, sp.p);
-      const float top = (sp.human ? (float)rigFor(sp.look).markerY : 20.0f) * camera_.uiPerWorld(*this);
+      head = v.camera_.toUi(v, sp.p);
+      const float top = (sp.human ? (float)v.rigFor(sp.look).markerY : 20.0f) * v.camera_.uiPerWorld(v);
       if (head.x > L + 4 && head.x < R - 4 && head.y - top > T + 4 && head.y < B - 4) {
         overHead = true;
         cx = std::floor(head.x);
@@ -1133,13 +1133,13 @@ void View::drawBanter(Game& g, Vec2 cam) {
     if (y0 < T + 4) y0 = T + 4;
     // off the party column, the location / quest column, the name tag, the touch cluster
     if (partyColR_ > 0 && cx - w / 2.0f - 4 < partyColR_ && y0 < partyColB_) cx = partyColR_ + w / 2.0f + 6;
-    if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {
-      const float left = hudColLeft_ - w / 2.0f - 5;
+    if (y0 < v.hudColBottom_ && cx + w / 2.0f + 3 > v.hudColLeft_) {
+      const float left = v.hudColLeft_ - w / 2.0f - 5;
       if (left >= L + w / 2.0f + 4) cx = left;
-      else y0 = hudColBottom_ + 2;
+      else y0 = v.hudColBottom_ + 2;
     }
-    if (tagOn_ && cx + w / 2.0f + 3 > tagX0_ && cx - w / 2.0f - 3 < tagX1_ && y0 - 1 < tagY1_ && y0 + h + 1 > tagY0_) y0 = std::floor(tagY0_ - 3 - h);
-    if (touchUI) {   // the bottom-right buttons (the same berth the speech plates keep, hud.cpp clearOfTouch)
+    if (v.tagOn_ && cx + w / 2.0f + 3 > v.tagX0_ && cx - w / 2.0f - 3 < v.tagX1_ && y0 - 1 < v.tagY1_ && y0 + h + 1 > v.tagY0_) y0 = std::floor(v.tagY0_ - 3 - h);
+    if (v.touchUI) {   // the bottom-right buttons (the same berth the speech plates keep, hud.cpp clearOfTouch)
       const float bx0 = R - 128, by0 = B - 116;
       if (cx + w / 2.0f + 3 > bx0 && y0 + h > by0) { if (cx - bx0 < y0 + h - by0) cx = bx0 - w / 2.0f - 4; else y0 = by0 - h - 2; }
       const float sx1 = L + 124, sy0 = B - 84;   // the stick
