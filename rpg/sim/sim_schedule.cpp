@@ -34,6 +34,7 @@
 #include "rpg/sim/war_ops.h"
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -149,7 +150,7 @@ void Game::update(float dt, const Input& in) {
     if (ms > perf.sysWorstMs[sys]) perf.sysWorstMs[sys] = ms;
   };
   using PC = PerfCounters;
-  timed(PC::S_QUEST, [&] { questTick(dt); WaysideOps::tick(*this, dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
+  timed(PC::S_QUEST, [&] { QuestOps::questTick(*this, dt); WaysideOps::tick(*this, dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
   timed(PC::S_REALM, [&] { RealmOps::step(*this, dt); });   // M4: the living world (realm_game.cpp, REALM lane)
   timed(PC::S_WAR, [&] { WarOps::step(*this, dt); });       // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
   timed(PC::S_STORY, [&] { storyStep(dt); });   // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)

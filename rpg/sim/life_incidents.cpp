@@ -3,6 +3,7 @@
 // (overheardP1b, the P1b items' gossip, is defined in life_game.cpp: it reads rpg/story/story_internal.h.)
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 Actor* LifeOps::actorById(Game& g, int id) {
   const int k = id >= 0 ? g.findActor(id) : -1;
@@ -88,7 +89,7 @@ uint32_t LifeOps::overheard(Game& g, const Actor& speaker, int partnerId, bool f
   // (P1 fixer) the job named is the one this person offers when asked (makeOffer: their pool job this week), so the
   // lead's words, its qtype and the lead closing on taking the job all agree
   bool ok = false;
-  const Quest q = g.makeOffer(giver, &ok);
+  const Quest q = QuestOps::makeOffer(g, giver, &ok);
   if (!ok) return 0;
   const life::Resident* gr = residentOf(g, giver);
   const uint32_t h = mixu(g.npcKey(giver), (uint64_t)g.day);
@@ -624,7 +625,7 @@ void LifeOps::incidentLead(Game& g, Actor* victim) {
     fn = firstName(victim->name);
     if (g.offersWork(*victim)) {
       bool ok = false;
-      const Quest q = g.makeOffer(*victim, &ok);   // (P1 fixer: the job they really offer when asked)
+      const Quest q = QuestOps::makeOffer(g, *victim, &ok);   // (P1 fixer: the job they really offer when asked)
       if (ok) L.qtype = (uint8_t)q.type;
     }
   }

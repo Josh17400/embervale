@@ -22,6 +22,7 @@
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -273,7 +274,7 @@ bool WaysideOps::useProp(Game& g, Prop p, int tx, int ty) {
   // an heirloom brought back for this grave is laid on it
   for (Quest& q : g.quests)
     if (q.type == QType::Heirloom && q.state == QState::Complete && (q.flags & QF_GRAVE) && q.giverSite == si) {
-      g.completeQuest(q);
+      QuestOps::completeQuest(g, q);
       g.dlg.text = "YOU LAY THE " + q.subject + " ON THE CAIRN. A WARM WIND PASSES THROUGH THE GRASS, AND SOMETHING GLINTS AMONG THE STONES.";
       return true;
     }
@@ -296,7 +297,7 @@ bool WaysideOps::useProp(Game& g, Prop p, int tx, int ty) {
   const bool heirloom = (ew::mix64(s.id ^ 0x9EAull) & 1) != 0;
   if (heirloom) {
     bool danger = false;
-    const int t = g.pickRadiant(gr.f() < 0.5f ? SiteType::Ruin : SiteType::Cave, gx, gy, gr, danger);
+    const int t = QuestOps::pickRadiant(g, gr.f() < 0.5f ? SiteType::Ruin : SiteType::Cave, gx, gy, gr, danger);
     if (t >= 0) {
       const Site& T = g.world.sites[(size_t)t];
       static const char* const keep[] = {"SWORD", "SIGNET RING", "HORN", "LOCKET", "SHIELD BOSS", "AMULET"};

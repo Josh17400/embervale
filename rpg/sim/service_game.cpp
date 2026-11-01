@@ -14,6 +14,7 @@
 #include "rpg/sim/service_ops.h"
 #include "rpg/sim/talk.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 using service::Rank;
@@ -312,7 +313,7 @@ void ServiceOps::finishOrder(Game& g, uint32_t id, bool done) {
   const service::OrderKind kind = o->kind;
   for (Quest& q : g.quests) {
     if (q.type != QType::Campaign || q.stage != (int)id || q.state == QState::Done) continue;
-    if (done) { q.state = QState::Complete; g.completeQuest(q); }
+    if (done) { q.state = QState::Complete; QuestOps::completeQuest(g, q); }
     else { q.state = QState::Done; q.flags |= QF_FAILED; g.emit(Ev::QuestUpdate, g.pl().p, q.id, 1, "QUEST FAILED: " + q.title); }
   }
   if (done) g.service.ordersDone++;   // (completeQuest -> questDone gave the merit)
@@ -388,7 +389,7 @@ bool ServiceOps::arrive(Game& g, uint32_t id) {
   g.realm.addRep(from, ok ? 6 : 2);
   g.realm.renown().fame += ok ? 15 : 3;
   for (Quest& q : g.quests)
-    if (q.type == QType::Envoy && q.stage == (int)id && q.state == QState::Active) { q.state = QState::Complete; g.completeQuest(q); }
+    if (q.type == QType::Envoy && q.stage == (int)id && q.state == QState::Active) { q.state = QState::Complete; QuestOps::completeQuest(g, q); }
   const std::string A = kingdomName(g, from), B = kingdomName(g, to);
   std::string line;
   switch (kind) {
@@ -659,8 +660,8 @@ void ServiceOps::questDone(Game& g, const Quest& q) {
     const int merit = o ? o->merit : 10;
     rise(g, RiseEv::OrderDone, (float)merit, "ORDERS CARRIED OUT: " + q.title + ". +" + std::to_string(merit) + " MERIT.", g.service.sworn);
     g.realm.addRep(g.service.sworn, 3);
-    g.say(g.turnInLine(q));   // (the army's thanks, by the order's kind: quests.cpp)
+    g.say(QuestOps::turnInLine(g, q));   // (the army's thanks, by the order's kind: quests.cpp)
     addMerit(g, merit);
   }
-  if (q.type == QType::Envoy) g.say(g.turnInLine(q));   // (the court's thanks, by what its word won)
+  if (q.type == QType::Envoy) g.say(QuestOps::turnInLine(g, q));   // (the court's thanks, by what its word won)
 }

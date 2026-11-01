@@ -23,6 +23,7 @@
 #include "rpg/world/coords.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/stream.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 uint64_t strHash64(const std::string& s) {
@@ -48,7 +49,7 @@ const char* const kIdle[] = {"NOT NOW. I NEED TO THINK.", "YOU KNOW WHAT HAS TO 
       H.findActor = [](const Game& g, int id) { return g.findActor(id); };                                                        \
       H.accept = [](Game& g, const Quest& q) { g.acceptQuest(q); };                                                               \
       H.complete = [](Game& g, int qid) {                                                                                          \
-        for (Quest& q : g.quests) if (q.id == qid && q.state == QState::Complete) { g.completeQuest(q); break; }                  \
+        for (Quest& q : g.quests) if (q.id == qid && q.state == QState::Complete) { QuestOps::completeQuest(g, q); break; }       \
       };                                                                                                                           \
       H.spawnMonster = [](Game& g, int m, float x, float y, int level, bool boss) {                                               \
         return g.spawnMonster((art::Monster)m, Vec2(x, y), level, boss);                                                          \

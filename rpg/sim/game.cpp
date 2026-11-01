@@ -30,6 +30,7 @@
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -258,7 +259,7 @@ void Game::finishCreator() {
   recalcPlayer();
   pl().hp = pl().maxHp; mp = maxMp; stamina = maxSt;
   mode = Mode::Play;
-  if (int oq = openingQuest(); oq >= 0) {
+  if (int oq = QuestOps::openingQuest(*this); oq >= 0) {
     trackedQuest = oq;
     emit(Ev::QuestUpdate, pl().p, oq, 0, "QUEST STARTED: A BLADE OF YOUR OWN");
   }
@@ -1293,7 +1294,7 @@ void Game::streamSitePeople(int si) {
     if (counts && !whole && folk >= FOLK_CAP) continue;
     if (st.type == SiteType::Vignette && WaysideOps::spawn(*this, si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
     spawnHuman(sp, Vec2(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f));
-    questSpawned(actors.back());   // M2: a named bandit chief (quests.cpp)
+    QuestOps::questSpawned(*this, actors.back());   // M2: a named bandit chief (quests.cpp)
     // M2 town defence: a town's or city's watch keeps a post on the square (where the market and the crowd are), so a
     // big town's guards are on the spot when beasts get in, not a long run away at the walls
     if (sp.npc) LifeHooks::spawned(*this, actors.back(), sp);   // M5: bound to its resident, placed by its plan (life_game.cpp)
@@ -1409,7 +1410,7 @@ void Game::updateSpawning(float dt) {
   }
   if (noWildSpawns) return;
   // the opening (shirt only, VISION_PLAN 15.1): no roaming beasts around the start village until the first weapon
-  if (eqWeapon < 0 && !hasFlag(SF_FIRST_WEAPON) && openingQuest() >= 0) {
+  if (eqWeapon < 0 && !hasFlag(SF_FIRST_WEAPON) && QuestOps::openingQuest(*this) >= 0) {
     const Site& home = world.sites[world.startSite];
     int dx = home.r.cx() - ptx, dy = home.r.cy() - pty;
     if (dx * dx + dy * dy < 40 * 40) return;
@@ -1610,7 +1611,7 @@ void Game::enterSite(int si) {
   pl().face = 1;
   exitArmed_ = false;
   loadMapActors();
-  questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
+  QuestOps::questMapLoaded(*this);   // M2: an heirloom's chest, a missing person (quests.cpp)
   HomeOps::mapLoaded(*this);    // M7 (home_game.cpp)
   storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
@@ -1658,7 +1659,7 @@ void Game::enterBuilding(int bi, int col) {
   stairsNorth_ = false;
   stairsArrive_ = -1;
   loadMapActors();
-  questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
+  QuestOps::questMapLoaded(*this);   // M2: a parcel's recipient (quests.cpp)
   HomeOps::mapLoaded(*this);    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
   storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
@@ -1752,7 +1753,7 @@ void Game::leaveSub() {
     if (tx < lo || ty < lo || tx >= hi || ty >= hi) placePlayerAt(tx, ty);   // (the door's tile: free, so exact)
   }
   pl().face = 0;
-  if (si >= 0) questLeftSite(si);   // M2: a missing person led out is safe (quests.cpp)
+  if (si >= 0) QuestOps::questLeftSite(*this, si);   // M2: a missing person led out is safe (quests.cpp)
   story::syncNow(*this);            // (P1b) a story's walker who waited at the door (or came out of the dark) is beside them
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.8f);

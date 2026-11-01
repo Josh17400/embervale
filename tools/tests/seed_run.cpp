@@ -16,6 +16,7 @@
 #include <tuple>
 #include <vector>
 #include "tools/tests/tests.h"
+#include "rpg/sim/quest_ops.h"
 
 // ---- the opening, played by a bot (M0: the real start is shirt only). Also used by metrics.cpp and test_defence.cpp.
 // Walk to the start village inn, talk to the innkeeper (who hands over the old blade), walk back out.
@@ -81,7 +82,7 @@ bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in) {
   int px = (int)std::floor(p.p.x / TILE), py = (int)std::floor((p.p.y - 2) / TILE);
   if (!g.inside) {
     if (armed) return true;
-    const Quest* oq = g.questById(g.openingQuest());
+    const Quest* oq = g.questById(QuestOps::openingQuest(g));
     if (!oq || oq->giverBldg < 0) return true;
     const Bldg& B = g.world.over.bldgs[oq->giverBldg];
     int ax = B.doorX(), ay = B.doorY() + 1;
@@ -298,9 +299,9 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     int geared = 0;
     for (const Item& it : g.inv) if (it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow || it.kind == ItemKind::Armor || it.kind == ItemKind::Arrows) geared++;
     if (geared || g.eqWeapon >= 0) { out("FAIL: the start is not shirt-only (%d weapon/armour items)\n", geared); bad++; }
-    if (g.openingQuest() < 0 || g.trackedQuest != g.openingQuest()) { out("FAIL: the opening quest is not tracked at the start\n"); bad++; }
+    if (QuestOps::openingQuest(g) < 0 || g.trackedQuest != QuestOps::openingQuest(g)) { out("FAIL: the opening quest is not tracked at the start\n"); bad++; }
     int tx = 0, ty = 0;
-    const Quest* oq = g.questById(g.openingQuest());
+    const Quest* oq = g.questById(QuestOps::openingQuest(g));
     if (oq && (!g.questTarget(oq->id, tx, ty) || tx != g.world.over.bldgs[oq->giverBldg].doorX())) { out("FAIL: the opening quest does not point at the inn door\n"); bad++; }
   }
   {

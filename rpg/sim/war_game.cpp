@@ -25,6 +25,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/war_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 double nowMs() {
@@ -753,7 +754,7 @@ void WarOps::step(Game& gm, float dt) {
       }
       if (!giverNear) {
         gm.say("A RIDER FROM " + q.giverName + " FINDS YOU WITH YOUR PAY: " + std::to_string(q.gold) + " GOLD.");
-        gm.completeQuest(q);
+        QuestOps::completeQuest(gm, q);
       }
     }
   }

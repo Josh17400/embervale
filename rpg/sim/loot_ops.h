@@ -4,12 +4,13 @@
 #pragma once
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/quest_ops.h"
 
 struct LootOps {
   static void dropLoot(Game& g, const Actor& a);   // kill(): the loot a fallen actor drops (game_items.cpp)
   static void openChest(Game& g, int tx, int ty);   // interact(): a chest of the current map opened (game_items.cpp)
-  static void completeQuest(Game& g, Quest& q) { g.completeQuest(q); }
-  static void giveFirstWeapon(Game& g, Quest& q) { g.giveFirstWeapon(q); }
+  static void completeQuest(Game& g, Quest& q) { QuestOps::completeQuest(g, q); }
+  static void giveFirstWeapon(Game& g, Quest& q) { QuestOps::giveFirstWeapon(g, q); }
   static std::vector<Item> shopStock(Game& g, const Actor& a);   // openShop: what a merchant has this restock period (game_shop.cpp)
   // (M8b, 15.27.4) what a chest at (tx, ty) of the current map is as a loot source: a dungeon's hoard (the chest by its
   // boss: LootSrc::Hoard, boost 1), a ruin's cache or a chest at a wayside place / wonder / shrine off the road

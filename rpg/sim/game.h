@@ -661,7 +661,6 @@ class Game {
   // background traits (VISION_PLAN 15.1), applied where they act; small and visible in dialogue, shops and stats
   float blessingSecs() const;          // how long a shrine or temple blessing lasts
   float priceFactor(Role seller) const;   // what this background pays at a seller (1 = list price)
-  int openingQuest() const;            // id of the opening quest "A BLADE OF YOUR OWN" while it is open (-1 otherwise)
 
   // persistence. Only the current SAVE_VER loads (owner, 2026-10-04: old saves are not a concern); an older save is
   // refused and the title says so (saveVersion tells the UI which case it is). M2: SAVE_VER 6.
@@ -795,7 +794,6 @@ class Game {
   bool navStep(Actor& a, Vec2 goal, float speed, float dt);   // walk toward goal around buildings; false = no path
   int homeDoor(Actor& a);              // the building a townsperson shelters in (chosen once), -1 none
   void updateFolk(Actor& a, float dt);   // friendly NPC behaviour (guards, militia, fleeing, wandering)
-  void giveFirstWeapon(Quest& q);      // the opening: the start village innkeeper hands over the old blade
   Rng rng_;
   void emit(Ev t, Vec2 p, int a = 0, float f = 1, const std::string& s = "") { events.push_back({t, p, a, f, s}); }
   void sfx(int s, Vec2 p, float pitch = 1, float vol = 1);
@@ -854,16 +852,9 @@ class Game {
   int spawnHuman(const Spawn& sp, Vec2 p);
   void makeLook(Actor& a, Role r, Rng& rr);
   void applyLevel(Actor& a, int level);
-  void questKill(const Actor& a);
-  void checkDungeonCleared(int site);
-  Quest makeOffer(const Actor& npc, bool* ok = nullptr);   // (P1 fixer) ok: false when nothing could be offered
   bool hasOffer(const Actor& npc) const;
   void acceptQuest(const Quest& q);
-  void completeQuest(Quest& q);
-  void advanceMain(int stage);
   std::string greeting(const Actor& a, int salt = 0);   // (M7b salt: another pick when the first was said lately)
-  std::string questReminder(const Quest& q) const;              // (M7b) the giver's own words while the job is under way
-  std::string acceptLine(const Quest& q) const;                 // (M7b) the giver's words when the job is taken
   // ---- M2 SIM lane
   // travel behind the fade (travel.cpp)
   int frameWorkCalls_ = 0;             // frameWork ran this session (else update pumps a thread-less streamer itself)
@@ -1006,11 +997,11 @@ class Game {
   friend struct ServiceOps;            // M12 SERVICE: enlisting, ranks, orders, missions (rpg/sim/service_ops.h)
   friend struct LordOps;               // M12 LORD: the lordship and the player's realm (rpg/sim/lord_ops.h)
   friend struct JobOps;                // P1 JOBS: the job pools and the leads (rpg/sim/jobs_ops.h, jobs.cpp)
-  friend struct QuestMixOps;           // P1 lead: rpg_test --quest-mix asks the game's own offer code (test_quest_mix.cpp)
   friend struct RealmOps;              // M4 REALM: the living world's hook (rpg/sim/realm_ops.h, realm_game.cpp)
   friend struct WarOps;                // M4 WARDS: the war's hooks (rpg/sim/war_ops.h, war_game.cpp)
   friend struct TravelOps;             // M2 SIM: travel behind the fade, the interior made ahead (rpg/sim/travel_ops.h)
   friend struct WaysideOps;            // M2 SIM: wayside life, tolls, rumours (rpg/sim/wayside_ops.h, wayside.cpp)
+  friend struct QuestOps;              // M2 SIM: the quests' machinery (rpg/sim/quest_ops.h, quests.cpp, quest_offers.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,
@@ -1049,23 +1040,6 @@ class Game {
   std::vector<std::pair<int, gear::GearStats>> compStats_;
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
-  int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);
-  int pickDestination(int32_t gx, int32_t gy, Rng& r);   // Deliver: a settlement 150-700 tiles away
-  void questTick(float dt);            // per step: Protect waves, escorts, Deliver recipients, failures
-  void questMapLoaded();               // a cave, ruin or building map was just made: quest chests and people
-  bool questTargetM2(const Quest& q, int& tx, int& ty) const;   // the M2 types' markers (false: the classic rules)
-  std::string questStatusM2(const Quest& q) const;              // the M2 types' journal lines ("" none)
-  std::string turnInLine(const Quest& q) const;                 // what the giver says when the reward is collected
-  std::string questDialogue(Actor& a);                          // M2 quest talk with this NPC: options added to dlg
-  void questLeftSite(int site);        // the player came out of a site: escorts follow, missing persons are safe
-  bool questChest(int tx, int ty);     // a quest chest in the current map was opened (true: handled)
-  void questSpawned(Actor& a);         // a person just streamed in: a named chief, a Deliver recipient
-  void questActorDown(const Actor& a); // someone fell: a farmer, a missing person
-  bool isRecipient(const Quest& q, const Actor& a) const;
-  void questFail(Quest& q, const std::string& why);
-  int escortFor(const Quest& q) const; // actors index of the quest's missing person (-1 none)
-  void spawnEscort(Quest& q, Vec2 at);
-  Vec2 questChestTile(const Quest& q) const;   // a far floor tile of the current dungeon map (tile coordinates)
   // wayside life (wayside.cpp)
   float tollAskT_ = 0;                 // the troll asked a moment ago (no repeat while the player stays on the bridge)
   Vec2 offBridge_;                     // the player's last position off a toll bridge (the troll's demand turns them back)
@@ -1088,19 +1062,8 @@ class Game {
   void beastAttack(Actor& a, Actor& p, float dist, float dt, const BeastKind& k);
   void beastPackAttack(Actor& a, Actor& p, float dist, bool inMelee, const BeastKind& k);
   void beastWander(Actor& a, float dt, float slow);
-  // offerFor's pieces (quest_offers.cpp): one builder per kind of offer (false: it does not fit), the pitch
+  // offerFor's pieces (quest_offers.cpp, QuestOps::offerBuild ... offerPitch)
   struct OfferCtx;                     // one offer being built (the giver, the dice, the grammar's variables)
-  bool offerBuild(OfferCtx& oc, int kind);
-  bool offerClear(OfferCtx& oc, int kind);
-  bool offerBounty(OfferCtx& oc, int kind);
-  bool offerHunt(OfferCtx& oc);
-  bool offerDeliver(OfferCtx& oc);
-  bool offerHeirloom(OfferCtx& oc);
-  bool offerStolen(OfferCtx& oc);
-  bool offerSupply(OfferCtx& oc);
-  bool offerMissing(OfferCtx& oc);
-  bool offerProtect(OfferCtx& oc);
-  void offerPitch(OfferCtx& oc, int madeKind);
 };
 
 // M11 CLIMB: moving over the relief (rpg/sim/game.cpp moveActor, ai.cpp navStep): the internals the tests and scripts

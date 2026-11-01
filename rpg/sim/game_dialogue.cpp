@@ -9,6 +9,7 @@
 #include "rpg/sim/craft_hooks.h"
 #include "rpg/sim/war_ops.h"
 #include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -438,7 +439,7 @@ void Game::talkToInner(Actor& a) {
     if (q.state == QState::Complete && q.type != QType::Main && isGiver(q, a)) {
       bool bounty = q.type == QType::Bounty || q.type == QType::Hunt || q.type == QType::NamedBandit;
       dlg.opts.push_back({std::string(bounty ? "COLLECT BOUNTY (+" : "COLLECT REWARD (+") + std::to_string(q.gold) + " GOLD)", A_TURNIN, q.id});
-      speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, turnInLine(q));
+      speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, QuestOps::turnInLine(*this, q));
     }
   // ---- 3. the main quest's hooks (the lord of the capital)
   for (auto& q : quests) {
@@ -456,13 +457,13 @@ void Game::talkToInner(Actor& a) {
   // ---- 4. a job of theirs under way: what is still to do, in their own words (the journal keeps q.desc)
   for (auto& q : quests)
     if (q.state == QState::Active && q.type != QType::Main && q.type != QType::Retrieve && isGiver(q, a)) {
-      speech::propose(dlg, speech::P_QUEST, Topic::QuestActive, questReminder(q));
+      speech::propose(dlg, speech::P_QUEST, Topic::QuestActive, QuestOps::questReminder(*this, q));
       break;
     }
   // ---- 5. the opening: the start village innkeeper hands over the old blade (VISION_PLAN 15.1)
   for (auto& q : quests)
     if (q.type == QType::Retrieve && q.state == QState::Active && isGiver(q, a)) {
-      giveFirstWeapon(q);
+      QuestOps::giveFirstWeapon(*this, q);
       std::string t = "THE ROAD TOOK ALL BUT YOUR SHIRT, EH? HERE, TAKE MY FATHER'S OLD BLADE FROM OVER THE HEARTH, AND A DRAUGHT FOR THE ROAD.";
       // point at the job the journal now tracks, so the advice matches the quest (not a made-up favour)
       const Quest* nxt = nullptr;
@@ -472,7 +473,7 @@ void Game::talkToInner(Actor& a) {
       speech::propose(dlg, speech::P_URGENT, Topic::Reward, t);
       break;
     }
-  if (std::string t = questDialogue(a); !t.empty()) speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, t);   // M2: a parcel's recipient
+  if (std::string t = QuestOps::questDialogue(*this, a); !t.empty()) speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, t);   // M2: a parcel's recipient
   // ---- 6. the options of their trade
   if (hasOffer(a)) dlg.opts.push_back({a.role == Role::Innkeeper ? "ANY WORK GOING?" : "DO YOU NEED HELP?", A_ASK, 0});
   if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper ||
@@ -806,7 +807,7 @@ void Game::dialogueChooseInner(int oi) {
         const std::string rj = day <= 2 ? std::string() : story::radiant::offerFor(*this, actors[(size_t)ai]);
         if (!rj.empty() && storyBeginJob(actors[(size_t)ai], rj)) return;
       }
-      pendingOffer_ = makeOffer(actors[ai]);
+      pendingOffer_ = QuestOps::makeOffer(*this, actors[ai]);
       dlg.text = pendingPitch_.empty() ? "THERE IS SOMETHING. " + pendingOffer_.desc + " I'LL PAY " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
       // (fixer M7b r3) a giver who has not yet said who they are does so before the pitch (the title then names them)
       if (actors[(size_t)ai].npc && actors[(size_t)ai].human && talkNamed(actors[(size_t)ai]) && actors[(size_t)ai].role != Role::King &&
@@ -818,7 +819,7 @@ void Game::dialogueChooseInner(int oi) {
       return;
     case A_ACCEPT:
       acceptQuest(pendingOffer_);
-      dlg.text = acceptLine(pendingOffer_);
+      dlg.text = QuestOps::acceptLine(*this, pendingOffer_);
       if (ai >= 0 && actors[(size_t)ai].npc && actors[(size_t)ai].human) {
         const Actor& ga = actors[(size_t)ai];
         talkMem.flag(npcKey(ga), speech::TM_KNOWS_PLAYER, day);
@@ -837,7 +838,7 @@ void Game::dialogueChooseInner(int oi) {
     case A_DELIVER:
       for (auto& q : quests)
         if (q.id == o.arg && q.type == QType::Deliver && q.state == QState::Active) {
-          completeQuest(q);   // the recipient pays (the parcel leaves the pack)
+          QuestOps::completeQuest(*this, q);   // the recipient pays (the parcel leaves the pack)
           dlg.text = "AT LAST! YOU HAVE MY THANKS, AND " + std::to_string(q.gold) + " GOLD AS PROMISED. TELL " + q.giverName + " IT CAME SAFE.";
           break;
         }
@@ -879,7 +880,7 @@ void Game::dialogueChooseInner(int oi) {
       int gold0 = 0;
       const size_t inv0 = inv.size();
       for (auto& q : quests)
-        if (q.id == o.arg && q.state == QState::Complete) { gold0 = q.gold; completeQuest(q); break; }
+        if (q.id == o.arg && q.state == QState::Complete) { gold0 = q.gold; QuestOps::completeQuest(*this, q); break; }
       std::string extra;
       for (size_t k = inv0; k < inv.size(); k++)
         if (inv[k].flags & IF_QUESTREWARD) {
@@ -897,7 +898,7 @@ void Game::dialogueChooseInner(int oi) {
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_MAIN:
-      advanceMain(o.arg);
+      QuestOps::advanceMain(*this, o.arg);
       if (o.arg == 1) dlg.text = "LEGEND SAYS THE EMBER CROWN CAN BIND A DRAGON'S SOUL. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN THE OLD RUINS. I HAVE MARKED THEM ON YOUR MAP. BRING THEM TO ME.";
       else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON " + lairName() + ". TAKE THIS GOLD FOR SUPPLIES.";
       if (o.arg == 3) giveGold(300);

@@ -28,6 +28,7 @@
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/travel_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 double nowMs() {
@@ -341,7 +342,7 @@ void TravelOps::arriveNow(Game& g) {
   if (toSite) TravelOps::arriveInOpen(g, s);   // (respawns too: waking north of a house hid the hero under its roof)
   // a missing person found in the cave left with the player: led out, they are safe (as leaveSub does). Sites are
   // never removed, but a window move re-indexes nothing, so the index still names the cave.
-  if (leftSite >= 0 && leftSite < (int)g.world.sites.size() && g.travel.kind != 2) g.questLeftSite(leftSite);
+  if (leftSite >= 0 && leftSite < (int)g.world.sites.size() && g.travel.kind != 2) QuestOps::questLeftSite(g, leftSite);
   // the journey's hours: the day rolls over, shops restock (every 2 days), a rented room runs out
   if (g.travel.hours > 0) {
     g.hour += g.travel.hours;

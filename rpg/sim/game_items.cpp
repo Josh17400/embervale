@@ -5,6 +5,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/loot_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 // ------------------------------------------------------------------ inventory
 void Game::giveGold(int g) {
@@ -278,7 +279,7 @@ void LootOps::dropLoot(Game& gm, const Actor& a) {
 }
 
 void LootOps::openChest(Game& gm, int tx, int ty) {
-  if (gm.questChest(tx, ty)) return;   // M2: an Heirloom's chest holds the keepsake (quests.cpp)
+  if (QuestOps::questChest(gm, tx, ty)) return;   // M2: an Heirloom's chest holds the keepsake (quests.cpp)
   Map& m = gm.map();
   size_t i = (size_t)ty * m.w + tx;
   m.prop[i] = (uint8_t)((int)Prop::ChestOpen + 1);

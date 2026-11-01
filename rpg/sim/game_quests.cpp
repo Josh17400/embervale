@@ -5,6 +5,7 @@
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/quest_ops.h"
 
 const Quest* Game::questById(int id) const {
   for (auto& q : quests) if (q.id == id) return &q;
@@ -67,7 +68,7 @@ void Game::finishErrand(int qid, bool success) {
     if (success) {
       const bool keyed = q.giverSlot >= 0 || q.giverBldg >= 0;
       const uint64_t key = npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot);
-      completeQuest(q);
+      QuestOps::completeQuest(*this, q);
       if (!keyed) { auto it = npcQuestsDone.find(key); if (it != npcQuestsDone.end() && --it->second <= 0) npcQuestsDone.erase(it); }
     } else {
       q.state = QState::Done;
@@ -89,40 +90,40 @@ void Game::finishErrand(int qid, bool success) {
   }
 }
 
-void Game::completeQuest(Quest& q) {
+void QuestOps::completeQuest(Game& g, Quest& q) {
   q.state = QState::Done;
   // M2: a quest's own items (a parcel, a keepsake) go to whoever the quest was for
-  for (int i = (int)inv.size() - 1; i >= 0; i--) if (inv[(size_t)i].kind == ItemKind::Quest && inv[(size_t)i].questId == q.id) dropItem(i);
-  giveGold(q.gold);
-  gainXp(q.xp);
-  npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
-  PartyOps::quest(*this, q, true);   // M8: the companions' view of the job done (party_game.cpp)
-  SeaOps::questDone(*this, q);   // M10: a hidden land's people warm to the hero; a fishmonger takes the fish (sea_chain.cpp)
-  ServiceOps::questDone(*this, q);   // M12: a campaign order or a diplomacy mission done (service_game.cpp)
-  LordOps::questDone(*this, q);      // M12: a fief's task done (lord_game.cpp)
-  JobOps::questDone(*this, q);       // P1: the week's pool job done (jobs.cpp)
-  emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
-  sfx((int)Sfx::QuestDone, pl().p);
+  for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].kind == ItemKind::Quest && g.inv[(size_t)i].questId == q.id) g.dropItem(i);
+  g.giveGold(q.gold);
+  g.gainXp(q.xp);
+  g.npcQuestsDone[g.npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
+  PartyOps::quest(g, q, true);   // M8: the companions' view of the job done (party_game.cpp)
+  SeaOps::questDone(g, q);   // M10: a hidden land's people warm to the hero; a fishmonger takes the fish (sea_chain.cpp)
+  ServiceOps::questDone(g, q);   // M12: a campaign order or a diplomacy mission done (service_game.cpp)
+  LordOps::questDone(g, q);      // M12: a fief's task done (lord_game.cpp)
+  JobOps::questDone(g, q);       // P1: the week's pool job done (jobs.cpp)
+  g.emit(Ev::QuestUpdate, g.pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
+  g.sfx((int)Sfx::QuestDone, g.pl().p);
   // occasional item reward (M6, 7.5 rule 5): by the quest's danger, never by the player's level; Uncommon to Epic
-  Rng r(hash32((uint32_t)q.id * 977u) ^ (uint32_t)seed);
+  Rng r(hash32((uint32_t)q.id * 977u) ^ (uint32_t)g.seed);
   if (r.f() < 0.5f) {
     int D = 1;
-    if (q.target >= 0 && q.target < (int)world.sites.size()) D = world.sites[(size_t)q.target].level;
-    else if (q.hasPos && world.src) D = world.src->danger(q.tgx, q.tgy);
-    else if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) D = world.sites[(size_t)q.giverSite].level;
-    if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) D = std::max(D, world.sites[(size_t)q.giverSite].level);
-    const cult::Culture* gc = q.giverSite >= 0 && q.giverSite < (int)world.sites.size() ? world.cultureOf(q.giverSite) : nullptr;
-    if (gc && world.src) gc = &world.src->culture(gc->id);
+    if (q.target >= 0 && q.target < (int)g.world.sites.size()) D = g.world.sites[(size_t)q.target].level;
+    else if (q.hasPos && g.world.src) D = g.world.src->danger(q.tgx, q.tgy);
+    else if (q.giverSite >= 0 && q.giverSite < (int)g.world.sites.size()) D = g.world.sites[(size_t)q.giverSite].level;
+    if (q.giverSite >= 0 && q.giverSite < (int)g.world.sites.size()) D = std::max(D, g.world.sites[(size_t)q.giverSite].level);
+    const cult::Culture* gc = q.giverSite >= 0 && q.giverSite < (int)g.world.sites.size() ? g.world.cultureOf(q.giverSite) : nullptr;
+    if (gc && g.world.src) gc = &g.world.src->culture(gc->id);
     // (M8b, 15.27.4) a quest's reward: Uncommon to Epic by its danger and the finder's level gate; a hard mission (the
     // target well beyond the hero, or a war's) is boosted a step
     gear::DropSource ds;
     ds.D = std::clamp(D, 1, gear::MAX_D);
     ds.src = gear::LootSrc::Quest;
-    ds.playerLevel = plLevel;
+    ds.playerLevel = g.plLevel;
     ds.culture = gc ? gc->id : 0;
     ds.atLeast = Rarity::Uncommon;
     ds.atMost = Rarity::Epic;
-    const bool hard = ds.D >= plLevel + 3 || (q.flags & QF_DANGER);
+    const bool hard = ds.D >= g.plLevel + 3 || (q.flags & QF_DANGER);
     ds.boost = (int8_t)((hard ? 1 : 0) + (q.type == QType::War ? 1 : 0));
     const Rarity rar = gear::rollRarity(r, ds);
     static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots,
@@ -131,132 +132,132 @@ void Game::completeQuest(Quest& q) {
     const int sub = k == ItemKind::Weapon ? r.irange(5) : 0;
     Item it = gear::makeGearC(r, k, sub, gear::itemLevelFor(ds), rar, gc);
     it.flags |= IF_QUESTREWARD;
-    addItem(it);
+    g.addItem(it);
   }
-  if (trackedQuest == q.id) {
+  if (g.trackedQuest == q.id) {
     // next: an open local job first (a nearby, level-fitting step), the main quest only when nothing else is open
-    trackedQuest = -1;
-    for (auto& o : quests) if (o.state != QState::Done && o.type != QType::Main) { trackedQuest = o.id; break; }
-    if (trackedQuest < 0) for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; break; }
+    g.trackedQuest = -1;
+    for (auto& o : g.quests) if (o.state != QState::Done && o.type != QType::Main) { g.trackedQuest = o.id; break; }
+    if (g.trackedQuest < 0) for (auto& o : g.quests) if (o.state != QState::Done) { g.trackedQuest = o.id; break; }
   }
 }
 
-void Game::questKill(const Actor& a) {
-  for (auto& q : quests) {
+void QuestOps::questKill(Game& g, const Actor& a) {
+  for (auto& q : g.quests) {
     if (q.state != QState::Active || q.type != QType::Hunt) continue;
     if (a.human || a.mon != q.mon) continue;
     q.have++;
     if (q.have >= q.need) {
       q.state = QState::Complete;
-      std::string m = rewardReadyMsg(world, q);
-      emit(Ev::QuestUpdate, a.p, q.id, 2, m);
-      say(m);
-      sfx((int)Sfx::QuestStart, a.p, 1.2f);
+      std::string m = rewardReadyMsg(g.world, q);
+      g.emit(Ev::QuestUpdate, a.p, q.id, 2, m);
+      g.say(m);
+      g.sfx((int)Sfx::QuestStart, a.p, 1.2f);
     }
-    else emit(Ev::Text, a.p + Vec2(0, -26), (int)rgba(255, 220, 120), 0, std::to_string(q.have) + "/" + std::to_string(q.need));
+    else g.emit(Ev::Text, a.p + Vec2(0, -26), (int)rgba(255, 220, 120), 0, std::to_string(q.have) + "/" + std::to_string(q.need));
   }
 }
 
-void Game::checkDungeonCleared(int si) {
-  Site& st = world.sites[si];
+void QuestOps::checkDungeonCleared(Game& g, int si) {
+  Site& st = g.world.sites[si];
   if (st.cleared) return;
   st.cleared = true;
-  dungeonsCleared++;
-  emit(Ev::QuestUpdate, pl().p, -1, 3, st.name + " CLEARED");
-  sfx((int)Sfx::QuestDone, pl().p, 0.9f);
+  g.dungeonsCleared++;
+  g.emit(Ev::QuestUpdate, g.pl().p, -1, 3, st.name + " CLEARED");
+  g.sfx((int)Sfx::QuestDone, g.pl().p, 0.9f);
   bool forQuest = false;
-  for (auto& q : quests) {
+  for (auto& q : g.quests) {
     if (q.state == QState::Active && q.target == si && (q.type == QType::Clear || q.type == QType::Bounty || q.type == QType::NamedBandit)) {
       q.state = QState::Complete;
       forQuest = true;
-      std::string m = (q.type == QType::NamedBandit ? q.subject + " IS DEAD. " : std::string()) + rewardReadyMsg(world, q);
-      emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
-      say(m);
+      std::string m = (q.type == QType::NamedBandit ? q.subject + " IS DEAD. " : std::string()) + rewardReadyMsg(g.world, q);
+      g.emit(Ev::QuestUpdate, g.pl().p, q.id, 2, m);
+      g.say(m);
     }
     if (q.type == QType::Main && st.mainQuest && q.stage == 1) {
       q.have++;
       Item shard; shard.kind = ItemKind::Quest; shard.name = "EMBER SHARD"; shard.icon = art::Icon::Sigil; shard.tint = rgba(255, 120, 40);
       shard.rarity = Rarity::Legendary; shard.questId = q.id; shard.value = 0;
-      addItem(shard);
-      if (q.have >= 3) advanceMain(2);
-      else emit(Ev::QuestUpdate, pl().p, q.id, 2, "EMBER SHARDS " + std::to_string(q.have) + "/3");
+      g.addItem(shard);
+      if (q.have >= 3) QuestOps::advanceMain(g, 2);
+      else g.emit(Ev::QuestUpdate, g.pl().p, q.id, 2, "EMBER SHARDS " + std::to_string(q.have) + "/3");
     }
   }
-  if (si == world.lair) {
-    for (auto& q : quests) if (q.type == QType::Main && q.stage == 3) advanceMain(4);
+  if (si == g.world.lair) {
+    for (auto& q : g.quests) if (q.type == QType::Main && q.stage == 3) QuestOps::advanceMain(g, 4);
   }
   // the wrong camp: never silent. Point at the place the bounty or job actually wants cleared.
-  if (!forQuest && !st.mainQuest && si != world.lair) {
+  if (!forQuest && !st.mainQuest && si != g.world.lair) {
     const Quest* want = nullptr;
     float bd = 1e30f;
-    for (const auto& q : quests) {
+    for (const auto& q : g.quests) {
       if (q.state != QState::Active || (q.type != QType::Clear && q.type != QType::Bounty) || q.target < 0 || q.target == si) continue;
-      const Site& t = world.sites[q.target];
-      float d = std::hypot((float)(t.ex - st.ex), (float)(t.ey - st.ey)) * (q.id == trackedQuest ? 0.01f : 1.0f);
+      const Site& t = g.world.sites[q.target];
+      float d = std::hypot((float)(t.ex - st.ex), (float)(t.ey - st.ey)) * (q.id == g.trackedQuest ? 0.01f : 1.0f);
       if (d < bd) { bd = d; want = &q; }
     }
     if (want) {
-      const Site& t = world.sites[want->target];
+      const Site& t = g.world.sites[want->target];
       std::string m = "NOT YOUR TARGET: " + t.name + " IS " + dirWord(t.ex - st.ex, t.ey - st.ey, false) + " OF HERE";
-      emit(Ev::Notice, pl().p, (int)rgba(255, 170, 70), 0, m);
-      say(m);
+      g.emit(Ev::Notice, g.pl().p, (int)rgba(255, 170, 70), 0, m);
+      g.say(m);
     }
   }
 }
 
-void Game::advanceMain(int stage) {
+void QuestOps::advanceMain(Game& g, int stage) {
   int pendingMain = 0;   // a stage that completes immediately chains into the next one
-  for (auto& q : quests) {
+  for (auto& q : g.quests) {
     if (q.type != QType::Main) continue;
     q.stage = stage;
-    const Site& cap = world.sites[world.capital];
+    const Site& cap = g.world.sites[g.world.capital];
     switch (stage) {
       case 1:
         q.title = "THE EMBER SHARDS";
-        q.desc = "THE " + lordTitleAt(world, world.capital) + " SAYS ONLY THE EMBER CROWN CAN BIND THE DRAGON ASHFANG. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN ANCIENT RUINS. RECOVER ALL THREE.";
+        q.desc = "THE " + lordTitleAt(g.world, g.world.capital) + " SAYS ONLY THE EMBER CROWN CAN BIND THE DRAGON ASHFANG. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN ANCIENT RUINS. RECOVER ALL THREE.";
         q.need = 3; q.have = 0;
-        for (auto& s : world.sites) if (s.mainQuest) s.discovered = true;
-        emit(Ev::QuestUpdate, pl().p, q.id, 0, "MAIN QUEST: THE EMBER SHARDS");
-        sfx((int)Sfx::QuestStart, pl().p);
+        for (auto& s : g.world.sites) if (s.mainQuest) s.discovered = true;
+        g.emit(Ev::QuestUpdate, g.pl().p, q.id, 0, "MAIN QUEST: THE EMBER SHARDS");
+        g.sfx((int)Sfx::QuestStart, g.pl().p);
         // warlords the player already slew before hearing of the shards still count (otherwise the quest soft-locks)
-        for (auto& s : world.sites) {
+        for (auto& s : g.world.sites) {
           if (!s.mainQuest || !s.cleared) continue;
           q.have++;
           Item shard; shard.kind = ItemKind::Quest; shard.name = "EMBER SHARD"; shard.icon = art::Icon::Sigil; shard.tint = rgba(255, 120, 40);
           shard.rarity = Rarity::Legendary; shard.questId = q.id; shard.value = 0;
-          addItem(shard);
+          g.addItem(shard);
         }
         if (q.have >= 3) pendingMain = 2;
         break;
       case 2:
-        q.title = "RETURN TO THE " + lordTitleAt(world, world.capital);
-        q.desc = "YOU HAVE ALL THREE EMBER SHARDS. BRING THEM TO THE " + lordTitleAt(world, world.capital) + " IN " + cap.name + ".";
-        q.target = world.capital;
-        emit(Ev::QuestUpdate, pl().p, q.id, 2, "ALL SHARDS FOUND! RETURN TO " + cap.name);
-        sfx((int)Sfx::QuestDone, pl().p);
+        q.title = "RETURN TO THE " + lordTitleAt(g.world, g.world.capital);
+        q.desc = "YOU HAVE ALL THREE EMBER SHARDS. BRING THEM TO THE " + lordTitleAt(g.world, g.world.capital) + " IN " + cap.name + ".";
+        q.target = g.world.capital;
+        g.emit(Ev::QuestUpdate, g.pl().p, q.id, 2, "ALL SHARDS FOUND! RETURN TO " + cap.name);
+        g.sfx((int)Sfx::QuestDone, g.pl().p);
         break;
       case 3:
         q.title = "DRAGONSLAYER";
-        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO " + lairName() + " AND END THE DRAGON.";
-        q.target = world.lair;
-        world.sites[world.lair].discovered = true;
+        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO " + g.lairName() + " AND END THE DRAGON.";
+        q.target = g.world.lair;
+        g.world.sites[g.world.lair].discovered = true;
         // the shards are consumed
-        for (int i = (int)inv.size() - 1; i >= 0; i--) if (inv[i].kind == ItemKind::Quest && inv[i].name == "EMBER SHARD") dropItem(i);
-        emit(Ev::QuestUpdate, pl().p, q.id, 0, "MAIN QUEST: DRAGONSLAYER");
-        sfx((int)Sfx::QuestStart, pl().p);
+        for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[i].kind == ItemKind::Quest && g.inv[i].name == "EMBER SHARD") g.dropItem(i);
+        g.emit(Ev::QuestUpdate, g.pl().p, q.id, 0, "MAIN QUEST: DRAGONSLAYER");
+        g.sfx((int)Sfx::QuestStart, g.pl().p);
         break;
       case 4:
         q.state = QState::Done;
         q.title = "DRAGONSLAYER";
         q.desc = "ASHFANG IS DEAD. THE SONGS OF EMBERVALE WILL CARRY YOUR NAME. THE WORLD IS STILL YOURS TO EXPLORE.";
-        gainXp(1500);
-        emit(Ev::QuestUpdate, pl().p, q.id, 1, "ASHFANG IS SLAIN! YOU ARE THE DRAGONSLAYER");
-        sfx((int)Sfx::QuestDone, pl().p);
+        g.gainXp(1500);
+        g.emit(Ev::QuestUpdate, g.pl().p, q.id, 1, "ASHFANG IS SLAIN! YOU ARE THE DRAGONSLAYER");
+        g.sfx((int)Sfx::QuestDone, g.pl().p);
         break;
       default: break;
     }
   }
-  if (pendingMain) advanceMain(pendingMain);
+  if (pendingMain) QuestOps::advanceMain(g, pendingMain);
 }
 
 bool Game::questTarget(int qid, int& tx, int& ty) const {
@@ -307,7 +308,7 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
       break;
     }
   }
-  if (questTargetM2(*q, tx, ty)) return true;   // M2 quest types (quests.cpp)
+  if (QuestOps::questTargetM2(*this, *q, tx, ty)) return true;   // M2 quest types (quests.cpp)
   // an open hunt points at the quarry: the nearest one about (outdoors), else the nearest den of its kind, else the
   // giver's home (where the beasts are said to roam)
   if (q->type == QType::Hunt && q->state == QState::Active) {
@@ -366,8 +367,8 @@ bool Game::rewardWaiting(const Actor& a) const {
   return false;
 }
 
-int Game::openingQuest() const {
-  for (const Quest& q : quests) if (q.type == QType::Retrieve && q.state == QState::Active && q.giverSlot < 0) return q.id;
+int QuestOps::openingQuest(const Game& g) {
+  for (const Quest& q : g.quests) if (q.type == QType::Retrieve && q.state == QState::Active && q.giverSlot < 0) return q.id;
   return -1;
 }
 
@@ -415,7 +416,7 @@ std::string Game::questStatus(const Quest& q) const {
   const std::string inTown = town.empty() ? "" : " IN " + town;
   if (q.type == QType::Retrieve)
     return fitLine({"TALK TO THE INNKEEPER" + inTown, "TALK TO THE INNKEEPER"});
-  if (std::string m2 = questStatusM2(q); !m2.empty()) return m2;   // M2 quest types (quests.cpp)
+  if (std::string m2 = QuestOps::questStatusM2(*this, q); !m2.empty()) return m2;   // M2 quest types (quests.cpp)
   if (q.state == QState::Complete)
     return fitLine({"RETURN TO " + q.giverName + inTown, "RETURN TO " + q.giverName, "RETURN TO" + inTown});
   if (q.type == QType::Hunt) {
@@ -435,24 +436,24 @@ std::string Game::questStatus(const Quest& q) const {
 }
 
 // The opening: the start village innkeeper hands over an old blade (and a draught for the road) for a small favour.
-void Game::giveFirstWeapon(Quest& q) {
-  Rng r(hash32((uint32_t)seed ^ 0xB1ADEu));
+void QuestOps::giveFirstWeapon(Game& g, Quest& q) {
+  Rng r(hash32((uint32_t)g.seed ^ 0xB1ADEu));
   // (M6) an item-level-1 heirloom in the old heartland make: worn below a new bronze sword's 8
   Item w = gear::makeGearC(r, ItemKind::Weapon, (int)WeaponType::Sword, 1, Rarity::Common, nullptr, Mat::Iron);
   w.name = "OLD BLADE"; w.power = 7; w.value = 12; w.ench = Ench::None; w.enchPow = 0;
-  addItem(w);
+  g.addItem(w);
   Item pot = makePotion(PotionType::Health, 0); pot.count = 1;
-  addItem(pot);
+  g.addItem(pot);
   q.state = QState::Done;
-  storyFlags |= SF_FIRST_WEAPON;
-  gainXp(q.xp);
-  emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
-  sfx((int)Sfx::QuestDone, pl().p);
-  if (trackedQuest == q.id) {
+  g.storyFlags |= SF_FIRST_WEAPON;
+  g.gainXp(q.xp);
+  g.emit(Ev::QuestUpdate, g.pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
+  g.sfx((int)Sfx::QuestDone, g.pl().p);
+  if (g.trackedQuest == q.id) {
     // next: an open local job first (a nearby, level-fitting step), the main quest only when nothing else is open
-    trackedQuest = -1;
-    for (auto& o : quests) if (o.state != QState::Done && o.type != QType::Main) { trackedQuest = o.id; break; }
-    if (trackedQuest < 0) for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; break; }
+    g.trackedQuest = -1;
+    for (auto& o : g.quests) if (o.state != QState::Done && o.type != QType::Main) { g.trackedQuest = o.id; break; }
+    if (g.trackedQuest < 0) for (auto& o : g.quests) if (o.state != QState::Done) { g.trackedQuest = o.id; break; }
   }
 }
 

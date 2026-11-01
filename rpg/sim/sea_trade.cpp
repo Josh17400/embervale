@@ -19,6 +19,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/talk.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/quest_ops.h"
 
 using namespace sea;
 
@@ -528,7 +529,7 @@ bool SeaOps::choose(Game& g, const DlgOpt& o) {
         if (si >= 0) if (const Kingdom* K = g.world.kingdomOf(si)) mainK = K->id;
         g.realm.openContact((uint32_t)q.giverId, mainK, g.day);
         q.state = QState::Complete;
-        g.completeQuest(q);
+        QuestOps::completeQuest(g, q);
         d.text = "A KINGDOM NOBODY KNEW? ... THEN WE SHALL SEND ENVOYS. YOU HAVE DONE THIS REALM A GREAT SERVICE.";
         g.realm.renown().fame += 30;
         if (mainK) g.realm.addRep(mainK, 10);

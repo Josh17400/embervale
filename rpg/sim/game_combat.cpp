@@ -31,6 +31,7 @@
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/loot_ops.h"
 #include "rpg/sim/war_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -406,7 +407,7 @@ void Game::kill(Actor& a, int killer) {
     return;
   }
   sfx((int)Sfx::EnemyDie, a.p, a.boss ? 0.7f : 1.0f);
-  questActorDown(a);   // M2: a farmer who asked for help, a missing person (quests.cpp)
+  QuestOps::questActorDown(*this, a);   // M2: a farmer who asked for help, a missing person (quests.cpp)
   // only the player's own blows, arrows and fire earn XP, the kill count and hunt progress: a wolf the town guard
   // cuts down is not the player's kill
   const bool byPlayer = killer == pl().id;
@@ -444,7 +445,7 @@ void Game::kill(Actor& a, int killer) {
   // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own
   // (fixer M8 r1) a companion's kill is the party's: it counts toward hunt quests and saga Kill goals like the player's
   const bool byParty = byPlayer || (killer >= 0 && party.indexOfActor(killer) >= 0);
-  if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
+  if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) QuestOps::questKill(*this, a);
   WarOps::kill(*this, a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
   storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
@@ -458,14 +459,14 @@ void Game::kill(Actor& a, int killer) {
       if (o.id != a.id && o.site == a.site && o.hostile && o.st != AState::Dead && !o.npc) left++;
     if (a.boss || left == 0) {
       const bool was = world.sites[a.site].cleared;
-      checkDungeonCleared(a.site);
+      QuestOps::checkDungeonCleared(*this, a.site);
       if (!was && a.boss && left > 0)
         emit(Ev::Text, a.p + Vec2(0, -34), (int)rgba(255, 200, 120), 0,
              "CHIEF SLAIN - " + std::to_string(left) + (left == 1 ? " BANDIT FIGHTS ON" : " BANDITS FIGHT ON"));
     }
   } else if (a.boss) {
-    if (inside && subSite >= 0) checkDungeonCleared(subSite);
-    else if (!inside && a.site >= 0) checkDungeonCleared(a.site);
+    if (inside && subSite >= 0) QuestOps::checkDungeonCleared(*this, subSite);
+    else if (!inside && a.site >= 0) QuestOps::checkDungeonCleared(*this, a.site);
   }
 }
 

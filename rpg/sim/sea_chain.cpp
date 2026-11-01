@@ -20,6 +20,7 @@
 #include <cmath>
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/quest_ops.h"
 
 using namespace sea;
 
@@ -110,7 +111,7 @@ void SeaOps::seaQuestStep(Game& g, int kind, uint32_t land, int32_t tgx, int32_t
     q.subject = line;
     q.hasPos = tgx != 0 || tgy != 0;
     q.tgx = tgx; q.tgy = tgy;
-    if (done) { q.state = QState::Complete; g.completeQuest(q); }
+    if (done) { q.state = QState::Complete; QuestOps::completeQuest(g, q); }
     else g.emit(Ev::QuestUpdate, g.pl().p, q.id, 1, q.title + ": " + line);
   }
 }
@@ -149,7 +150,7 @@ void SeaOps::firstContact(Game& g, uint32_t land) {
   g.realm.renown().fame += 50;
   // the chain is over (whatever step it stood at: the hero found another way in)
   for (Quest& q : g.quests)
-    if (q.type == QType::Sea && q.stage == 1 && (uint32_t)q.giverId == land && q.state == QState::Active) { q.state = QState::Complete; g.completeQuest(q); }
+    if (q.type == QType::Sea && q.stage == 1 && (uint32_t)q.giverId == land && q.state == QState::Active) { q.state = QState::Complete; QuestOps::completeQuest(g, q); }
   // a few seconds on (the landing's moment first): a quest to tell the nearest mainland king (wordQuest)
   g.sea.live.wordLand = land;
   g.sea.live.wordT = 4.0f;
