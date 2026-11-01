@@ -309,95 +309,59 @@ void Gen::marketLots() {
   }
 }
 
-// The market (M1 fixer round 2: a planned market, never a vending grid nor a scatter). One market place on the main
-// square, laid out the way a town would plan it:
-//  - the trades' stalls in one or two rows, each row a few groups of two or three stalls touching, a walkway of two or
-//    three tiles between the groups, the rows aligned one behind the other with a wide aisle (four tiles of open
-//    paving) between them, the rows kept clear of the square's edges; every trade keeps one stall at most in the whole
-//    town (a capital's eight trades are eight stalls), each row built alike (cloth booths, canvas tents or shingled
-//    timber booths: the view draws the row's form);
-//  - the rest of the market in the open: trestle tables and cloths spread on the paving in a line of their own across
-//    the square, each selling something no other table sells (cheese, eggs, spices, flowers, honey, baskets, wool,
-//    cider; pots, rugs, gourds, furs), a walkway round every one;
-//  - stock stacked at the groups' ends, the traders' carts at the row ends, a keeper behind every counter;
-//  - a market town's market also runs along its main street (the lots kept for it), always a run of two or more;
-//  - a group of one never stands alone: a stall that cannot find a neighbour is not built (its trade sells from a table).
-// Villages: one or two stalls (a pair, or a stall and a cart) on the green by the well, a bench and a tree beside it.
-void Gen::markets() {
-  reserved.assign((size_t)W * H, 0);
-  stalls.clear();
-  if (squares.empty()) return;
-  const Square& S = squares[0];
-  const bool mk = arch == Archetype::Market;
-  // ---- the trades: one stall each at most; the town's own trade among the first few (a village's first of all)
-  const int own = tradeOf(spec);
-  std::vector<int> pool{own};
-  auto addP = [&](int t) { if (std::find(pool.begin(), pool.end(), t) == pool.end()) pool.push_back(t); };
-  if (village) {
-    addP(spec == Specialty::Farming ? (int)StallTrade::Bread : (spec == Specialty::Herding ? (int)StallTrade::Cloth : (int)StallTrade::Produce));
-    addP(spec == Specialty::Farming ? (int)StallTrade::Meat : (int)StallTrade::Bread);
-  } else {
-    for (int t = 0; t < (int)StallTrade::COUNT; t++) {
-      if (t == (int)StallTrade::Fish && spec != Specialty::Fishing && arch != Archetype::Port && !city) continue;   // inland towns
-      if (t == (int)StallTrade::Timber && spec != Specialty::Lumber && !city) continue;
-      addP(t);
-    }
-    for (size_t i = pool.size(); i > 1; i--) std::swap(pool[i - 1], pool[(size_t)rng.irange((int)i)]);
-    const size_t at = (size_t)std::min((int)pool.size() - 1, rng.irange(3));
-    auto it = std::find(pool.begin(), pool.end(), own);
-    pool.erase(it);
-    pool.insert(pool.begin() + (std::ptrdiff_t)at, own);
-  }
+// (SOLID 3.3) markets() and tradeYards(): a method per stage, in the old order (the same Rng draws), shared state here
+namespace {
+class MarketPlanner {
+ public:
+  explicit MarketPlanner(Gen& g) : G(g) {}
+ private:
+  using Square = Gen::Square;
+  using Stall = Gen::Stall;
+  Gen& G;
+  Square S{};
+  bool mk = false, bigFirst = false;
+  int own = 0, nTrade = 0, nIsl = 0, maxRows = 0, walk = 0, rowGap = 0;
+  std::vector<int> pool;
   size_t nextT = 0;
-  // ---- how big
-  int nTrade, nIsl, maxRows;
-  if (village) { nTrade = 1 + rng.irange(2) + (mk ? 1 : 0); nIsl = 0; maxRows = 1; }
-  else if (capital) { nTrade = 7 + rng.irange(2); nIsl = 4 + rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
-  else if (city) { nTrade = 5 + rng.irange(2) + (mk ? 1 : 0); nIsl = 2 + rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
-  // (stalls fixer round 2) a town's market has four stalls or more: room for a pair seen from the front and a pair
-  // turned (from behind or in profile)
-  else { nTrade = mk ? 6 + rng.irange(2) : 4 + rng.irange(2); nIsl = mk ? 3 + rng.irange(2) : rng.irange(3); maxRows = 2; }
-  nTrade = std::min(nTrade, (int)pool.size());
-  // ---- the rhythm (by the town's own draw)
-  const int walk = 2 + rng.irange(2);   // the walkway between two groups of a row
-  const int rowGap = city ? 7 : 6 + rng.irange(2);
-  const bool bigFirst = rng.f() < 0.5f;   // a row of five: three then two, or two then three
-
-  // ---- where a stall may stand. mode 0: on a square; mode 1: on the verge north of a main street (the street its
-  // aisle); mode 2 (a village's green too cramped, a town with no room left): on open ground with two clear rows
-  // before it. (qx, qy): the square's centrepiece, which keeps a plaza round it.
-  auto tallNear = [&](int x0, int y0, int x1, int y1) {
-    for (int y = y0; y <= y1; y++)
-      for (int x = x0; x <= x1; x++) {
-        if (!in(x, y)) continue;
-        const int p = M.prop[I(x, y)];
-        if (p && !lowProp((Prop)(p - 1))) return true;
-      }
-    return false;
-  };
   bool strictView = true;   // cities: two open rows past the aisle (false: one, for a cramped square)
   bool relaxed = false;     // the last resort for a cramped square: only no house right past the aisle
   bool small = false;       // another (smaller) square: its well or statue keeps a smaller plaza
   int nearX = -1, nearY = -1, nearR = 0;   // mode 2: within nearR of this tile (a village: its well)
+  // the walking space of the market (aisles and the ways round the rows' ends): a later stall's aisle may share it
+  std::vector<uint8_t> walkMk, endMk;   // (endMk: the ways round a row's ends; a row grown by a stall moves them on)
+  bool extending = false;       // a stall added to a row's end may stand on that row's end way
+  std::vector<int> rowYs;       // the market's east-west rows (their counters' row)
+  bool firstBack = false;   // (stalls fixer round 2) the retry of a market that came out all fronts: its first row turned
+  bool firstSide = false;   // (and the next retry: a side row first, its counters turned toward the centrepiece)
+  int lv0 = 0, CX = 0, CY = 0, R = 0;
+  IRect Z{}, all{};
+  // ---- where a stall may stand. mode 0: on a square; mode 1: on the verge north of a main street (the street its
+  // aisle); mode 2 (a village's green too cramped, a town with no room left): on open ground with two clear rows
+  // before it. (qx, qy): the square's centrepiece, which keeps a plaza round it.
+  bool tallNear(int x0, int y0, int x1, int y1) const {
+    for (int y = y0; y <= y1; y++)
+      for (int x = x0; x <= x1; x++) {
+        if (!G.in(x, y)) continue;
+        const int p = G.M.prop[G.I(x, y)];
+        if (p && !lowProp((Prop)(p - 1))) return true;
+      }
+    return false;
+  }
   // (stall facings, owner 2026-10-05) a stall faces one of four ways (art_props.h StallFacing): its frame here is F, the
   // way to its customers (its aisle), and A, the way its counter runs on to the next stall of its row. An east-west
   // counter (S, N) is x - 1 .. x + 1 on row y; a north-south one (E, W) is y - 2 .. y on column x (the prop on its
   // south tile). Which of each pair by the parity of the prop's global tile (the view reads it back from the map).
   struct Frame { int fx, fy, ax, ay; };
-  auto frameOf = [](int f) -> Frame {
+  static Frame frameOf(int f) {
     switch (f) {
       case art::StallN: return {0, -1, 1, 0};
       case art::StallE: return {1, 0, 0, 1};
       case art::StallW: return {-1, 0, 0, 1};
       default: return {0, 1, 1, 0};
     }
-  };
-  auto parityOk = [&](int f, int x, int y) { return art::stallFacingOf(f >= art::StallE, O.gx + x, O.gy + y) == f; };
-  // the walking space of the market (aisles and the ways round the rows' ends): a later stall's aisle may share it
-  std::vector<uint8_t> walkMk((size_t)W * H, 0);
-  std::vector<uint8_t> endMk((size_t)W * H, 0);   // the ways round a row's ends (a row grown by a stall moves them on)
-  bool extending = false;                          // a stall added to a row's end may stand on that row's end way
-  auto stallOk = [&](int x, int y, int mode, int qx, int qy, int lv, int f) {
+  }
+  bool parityOk(int f, int x, int y) const { return art::stallFacingOf(f >= art::StallE, G.O.gx + x, G.O.gy + y) == f; }
+  bool stallOk(int x, int y, int mode, int qx, int qy, int lv, int f) {
     if (!parityOk(f, x, y)) return false;
     const Frame F = frameOf(f);
     int bx0 = 1 << 30, by0 = 1 << 30, bx1 = -(1 << 30), by1 = -(1 << 30);   // the stall's box (counter, keeper's walk)
@@ -405,40 +369,40 @@ void Gen::markets() {
       int dx, dy;
       art::stallCounterTile(f, ci, dx, dy);
       const int tx = x + dx, ty = y + dy;
-      if (!in(tx - 2 * F.fx, ty - 2 * F.fy) || !in(tx + 4 * F.fx, ty + 4 * F.fy)) return false;
-      const size_t i = I(tx, ty);
-      const uint8_t k = mask[i];
+      if (!G.in(tx - 2 * F.fx, ty - 2 * F.fy) || !G.in(tx + 4 * F.fx, ty + 4 * F.fy)) return false;
+      const size_t i = G.I(tx, ty);
+      const uint8_t k = G.mask[i];
       if (mode == 0 ? k != K_SQUARE : (mode == 1 ? (k != K_NONE && k != K_YARD) : (k != K_NONE && k != K_YARD && k != K_SQUARE))) return false;
-      if (M.prop[i] || front[i] || cover[i] || (reserved[i] && !(extending && endMk[i])) || M.bldgAt[i] >= 0 || M.wall[i] || water[i] || (noBuild[i] & 3))
+      if (G.M.prop[i] || G.front[i] || G.cover[i] || (G.reserved[i] && !(extending && endMk[i])) || G.M.bldgAt[i] >= 0 || G.M.wall[i] || G.water[i] || (G.noBuild[i] & 3))
         return false;
-      if (groundSolid(M.at(tx, ty)) || M.at(tx, ty) == Ground::Bridge || lvl[i] != lv) return false;
-      if (mode == 1 && (dist(tx, ty) > (mk ? 0.7f : 0.5f) || inCompound(tx, ty, 1))) return false;
-      if (mode == 2 && inCompound(tx, ty, 1)) return false;
-      if (mode == 2 && (nearR > 0 ? std::max(std::abs(tx - nearX), std::abs(ty - nearY)) > nearR : dist(tx, ty) > 0.7f)) return false;
+      if (groundSolid(G.M.at(tx, ty)) || G.M.at(tx, ty) == Ground::Bridge || G.lvl[i] != lv) return false;
+      if (mode == 1 && (G.dist(tx, ty) > (mk ? 0.7f : 0.5f) || G.inCompound(tx, ty, 1))) return false;
+      if (mode == 2 && G.inCompound(tx, ty, 1)) return false;
+      if (mode == 2 && (nearR > 0 ? std::max(std::abs(tx - nearX), std::abs(ty - nearY)) > nearR : G.dist(tx, ty) > 0.7f)) return false;
       // the aisle: two rows of open ground before the counter (public ground on a square or a street)
       for (int d = 1; d <= 2; d++) {
         const int ax = tx + F.fx * d, ay = ty + F.fy * d;
-        const size_t j = I(ax, ay);
-        if (!walkable(ax, ay)) return false;
-        const uint8_t ka = mask[j];
+        const size_t j = G.I(ax, ay);
+        if (!G.walkable(ax, ay)) return false;
+        const uint8_t ka = G.mask[j];
         const bool pub = ka == K_SQUARE || ka == K_MAIN || (mode == 0 && ka == K_LANE) || (walkMk[j] && ka == K_YARD);
-        if (mode == 2 ? (ka == K_FIELD || ka == K_COMPOUND || front[j]) : !pub) return false;
-        if (M.prop[j] || (reserved[j] && !walkMk[j]) || M.bldgAt[j] >= 0 || M.wall[j] || groundSolid(M.at(ax, ay)) || lvl[j] != lv) return false;
+        if (mode == 2 ? (ka == K_FIELD || ka == K_COMPOUND || G.front[j]) : !pub) return false;
+        if (G.M.prop[j] || (G.reserved[j] && !walkMk[j]) || G.M.bldgAt[j] >= 0 || G.M.wall[j] || groundSolid(G.M.at(ax, ay)) || G.lvl[j] != lv) return false;
         if (mode == 1 && d == 1 && ka != K_MAIN) return false;
       }
       // past the aisle the counter looks out over open ground, not into the back of a house
-      if (!village && mode == 0)
-        for (int d = 3; d <= (city ? 4 : 3); d++) {
-          const size_t j = I(tx + F.fx * d, ty + F.fy * d);
-          if (M.bldgAt[j] >= 0 || (cover[j] && ((d == 3 && !relaxed) || strictView)) || M.wall[j]) return false;
+      if (!G.village && mode == 0)
+        for (int d = 3; d <= (G.city ? 4 : 3); d++) {
+          const size_t j = G.I(tx + F.fx * d, ty + F.fy * d);
+          if (G.M.bldgAt[j] >= 0 || (G.cover[j] && ((d == 3 && !relaxed) || strictView)) || G.M.wall[j]) return false;
         }
       // behind: the keeper's walk (clear of every house's front and the apron before it, so a stall never backs onto
       // a facade), nobody's door, nobody's wall under the awning
       for (int d = 1; d <= 2; d++) {
         const int bx = tx - F.fx * d, by = ty - F.fy * d;
-        const size_t j = I(bx, by);
-        if (M.bldgAt[j] >= 0 || front[j] || M.wall[j]) return false;
-        if (d == 1 && (M.prop[j] || cover[j] || reserved[j] || groundSolid(M.at(bx, by)) || water[j])) return false;
+        const size_t j = G.I(bx, by);
+        if (G.M.bldgAt[j] >= 0 || G.front[j] || G.M.wall[j]) return false;
+        if (d == 1 && (G.M.prop[j] || G.cover[j] || G.reserved[j] || groundSolid(G.M.at(bx, by)) || G.water[j])) return false;
         bx0 = std::min(bx0, bx); bx1 = std::max(bx1, bx); by0 = std::min(by0, by); by1 = std::max(by1, by);
       }
       bx0 = std::min(bx0, tx); bx1 = std::max(bx1, tx); by0 = std::min(by0, ty); by1 = std::max(by1, ty);
@@ -447,14 +411,14 @@ void Gen::markets() {
     // fountain wants more room)
     if (qx >= 0) {
       // (M1 fixer round 2: a row south of it stands clear of its top, the awning never rising into the basin or the well)
-      const int up = small ? 3 : (village ? 3 : (city ? 5 : 4)) - (relaxed ? 1 : 0), down = small ? 3 : 5, side = small ? 4 : (village ? 4 : (city ? 6 : 5));
+      const int up = small ? 3 : (G.village ? 3 : (G.city ? 5 : 4)) - (relaxed ? 1 : 0), down = small ? 3 : 5, side = small ? 4 : (G.village ? 4 : (G.city ? 6 : 5));
       const int cx = x, cy = f >= art::StallE ? y - 1 : (f == art::StallN ? y + 1 : y);   // the stall's middle
       if (cy > qy - up && cy < qy + down && std::abs(cx - qx) < side + (f >= art::StallE ? -1 : 0)) return false;
     }
     // nothing tall crowding the roof (the fountain, the well, trees, banners, lamps)
     return !tallNear(bx0 - 1, by0 - (f == art::StallS ? 0 : 1), bx1 + 1, by1 + (f == art::StallN ? 0 : 1));
-  };
-  auto place = [&](int x, int y, int trade, int f) {
+  }
+  bool place(int x, int y, int trade, int f) {
     const Frame F = frameOf(f);
     int c[3][2];
     for (int ci = 0; ci < 3; ci++) {
@@ -462,25 +426,24 @@ void Gen::markets() {
       c[ci][0] += x; c[ci][1] += y;
     }
     // the counter is solid across its three tiles: each must leave the ways round it open
-    if (!putSolid(c[0][0], c[0][1], art::stallProp(trade))) return false;
-    if (!putSolid(c[1][0], c[1][1], Prop::Filler)) { M.setP(c[0][0], c[0][1], 0); return false; }
-    if (!putSolid(c[2][0], c[2][1], Prop::Filler)) { M.setP(c[0][0], c[0][1], 0); M.setP(c[1][0], c[1][1], 0); return false; }
+    if (!G.putSolid(c[0][0], c[0][1], art::stallProp(trade))) return false;
+    if (!G.putSolid(c[1][0], c[1][1], Prop::Filler)) { G.M.setP(c[0][0], c[0][1], 0); return false; }
+    if (!G.putSolid(c[2][0], c[2][1], Prop::Filler)) { G.M.setP(c[0][0], c[0][1], 0); G.M.setP(c[1][0], c[1][1], 0); return false; }
     for (int ci = 0; ci < 3; ci++) {
       const int tx = c[ci][0], ty = c[ci][1];
-      if (mask[I(tx, ty)] == K_NONE) set(tx, ty, K_YARD);
-      reserved[I(tx - F.fx, ty - F.fy)] = 1;   // the keeper's walk
+      if (G.mask[G.I(tx, ty)] == K_NONE) G.set(tx, ty, K_YARD);
+      G.reserved[G.I(tx - F.fx, ty - F.fy)] = 1;   // the keeper's walk
       for (int d = 1; d <= 2; d++) {           // the trodden aisle
-        const size_t j = I(tx + F.fx * d, ty + F.fy * d);
-        reserved[j] = 1;
+        const size_t j = G.I(tx + F.fx * d, ty + F.fy * d);
+        G.reserved[j] = 1;
         walkMk[j] = 1;
-        if (mask[j] == K_NONE) set(tx + F.fx * d, ty + F.fy * d, K_YARD);
+        if (G.mask[j] == K_NONE) G.set(tx + F.fx * d, ty + F.fy * d, K_YARD);
       }
     }
-    stalls.push_back(Stall{x, y, trade});
+    G.stalls.push_back(Stall{x, y, trade});
     return true;
-  };
-  auto facingOf = [&](const Stall& s) { return art::stallFacingAt([&](int px, int py) { return M.propAt(px, py); }, s.x, s.y, O.gx, O.gy); };
-
+  }
+  int facingOf(const Stall& s) const { return art::stallFacingAt([&](int px, int py) { return G.M.propAt(px, py); }, s.x, s.y, G.O.gx, G.O.gy); }
   // ---- a row: n stalls in groups of two or three (never one, unless n is 1), a walkway between the groups. Every
   // start between a0 and a1 (along the row: x for an east-west row on line y, y for a north-south one on line x) is
   // tried; the row's ends must open onto walkable ground (a row never runs into a house or the square's edge). The best
@@ -488,8 +451,8 @@ void Gen::markets() {
   // (stalls fixer round 2, "side stalls next to each other read as one tall strip") a side row's stalls never touch:
   // a tile of open ground between each two of a group (the step along is 4, not 3), so no two side roofs merge into
   // one column
-  auto stepOf = [](int f) { return f >= art::StallE ? 4 : 3; };
-  auto pattern = [&](int n, int f) {
+  static int stepOf(int f) { return f >= art::StallE ? 4 : 3; }
+  std::vector<int> pattern(int n, int f) const {
     std::vector<int> g;
     switch (n) {
       case 1: g = {1}; break;
@@ -508,12 +471,12 @@ void Gen::markets() {
       x += walk - (stepOf(f) - 3);
     }
     return off;
-  };
-  auto at = [](int f, int line, int a, int& x, int& y) {
+  }
+  static void at(int f, int line, int a, int& x, int& y) {
     if (f >= art::StallE) { x = line; y = a; } else { x = a; y = line; }
-  };
+  }
   struct RowFit { int x = 0; int score = -(1 << 30); bool ok = false; };
-  auto fitRow = [&](int line, int n, int mode, int a0, int a1, int prefA, int qx, int qy, int lv, int alignA, int f) {
+  RowFit fitRow(int line, int n, int mode, int a0, int a1, int prefA, int qx, int qy, int lv, int alignA, int f) {
     RowFit best;
     const std::vector<int> off = pattern(n, f);
     const Frame F = frameOf(f);
@@ -533,19 +496,19 @@ void Gen::markets() {
         for (int e : {lo - 2, lo - 1, hi + 1, hi + 2}) {
           int x, y;
           at(f, line, e, x, y);
-          if (!walkable(x, y) || !walkable(x + F.fx, y + F.fy)) { ok = false; break; }
+          if (!G.walkable(x, y) || !G.walkable(x + F.fx, y + F.fy)) { ok = false; break; }
         }
       }
       if (!ok) continue;
       const int mid = s + off.back() / 2;
-      int sc = -std::abs(mid - prefA) * 3 + (int)(hashAt(s, line, 487u + (uint32_t)f) % 5u);
+      int sc = -std::abs(mid - prefA) * 3 + (int)(G.hashAt(s, line, 487u + (uint32_t)f) % 5u);
       if (alignA >= 0) sc -= std::abs(mid - alignA) * 6;   // a later row centred on the first
       if (sc > best.score) { best.x = s; best.score = sc; best.ok = true; }
     }
     return best;
-  };
+  }
   // a whole row or nothing (a counter that would cut a way off leaves no lone stall behind: the row is taken back)
-  auto putRow = [&](int line, int s, int n, int f) {
+  int putRow(int line, int s, int n, int f) {
     const std::vector<int> off = pattern(n, f);
     const Frame F = frameOf(f);
     const bool ns = f >= art::StallE;
@@ -555,11 +518,11 @@ void Gen::markets() {
     std::vector<uint8_t> keep;
     for (int yy = ya; yy <= yb; yy++)
       for (int xx = xa; xx <= xb; xx++) {
-        if (!in(xx, yy)) continue;
-        const size_t i = I(xx, yy);
-        keep.push_back(reserved[i]); keep.push_back(mask[i]); keep.push_back(M.prop[i]); keep.push_back(walkMk[i]); keep.push_back(endMk[i]);
+        if (!G.in(xx, yy)) continue;
+        const size_t i = G.I(xx, yy);
+        keep.push_back(G.reserved[i]); keep.push_back(G.mask[i]); keep.push_back(G.M.prop[i]); keep.push_back(walkMk[i]); keep.push_back(endMk[i]);
       }
-    const size_t st0 = stalls.size(), t0 = nextT;
+    const size_t st0 = G.stalls.size(), t0 = nextT;
     int made = 0;
     for (int o : off) {
       int x, y;
@@ -575,43 +538,40 @@ void Gen::markets() {
           int x, y;
           at(f, line, e, x, y);
           x += F.fx * d; y += F.fy * d;
-          if (!in(x, y)) continue;
-          if (d == 1 || e == lo - 2 || e == hi + 2) { reserved[I(x, y)] = 1; walkMk[I(x, y)] = 1; endMk[I(x, y)] = 1; }
+          if (!G.in(x, y)) continue;
+          if (d == 1 || e == lo - 2 || e == hi + 2) { G.reserved[G.I(x, y)] = 1; walkMk[G.I(x, y)] = 1; endMk[G.I(x, y)] = 1; }
         }
       return made;
     }
     size_t k = 0;
     for (int yy = ya; yy <= yb; yy++)
       for (int xx = xa; xx <= xb; xx++) {
-        if (!in(xx, yy)) continue;
-        const size_t i = I(xx, yy);
-        reserved[i] = keep[k++]; mask[i] = keep[k++]; M.prop[i] = keep[k++]; walkMk[i] = keep[k++]; endMk[i] = keep[k++];
+        if (!G.in(xx, yy)) continue;
+        const size_t i = G.I(xx, yy);
+        G.reserved[i] = keep[k++]; G.mask[i] = keep[k++]; G.M.prop[i] = keep[k++]; walkMk[i] = keep[k++]; endMk[i] = keep[k++];
       }
-    stalls.resize(st0);
+    G.stalls.resize(st0);
     nextT = t0;
     return 0;
-  };
-  std::vector<int> rowYs;   // the market's east-west rows (their counters' row)
+  }
   // ---- the rows on one square: searched over the area A, the market's own zone Zp preferred. The first row as long as
   // it can be (up to its share) near the zone's top, its counters facing south over its aisle; the second faces it
   // across a wide shared aisle (its counters toward the north: from the camera we see its back), or, where that has
   // no room, stands a wide aisle behind or before the first facing south; what is left (a grand market, or a town's
   // draw) goes in a short row down the market's west or east side, its counters turned in toward the walking space
   // (side profiles). Returns the stalls placed.
-  bool firstBack = false;   // (stalls fixer round 2) the retry of a market that came out all fronts: its first row turned
-  bool firstSide = false;   // (and the next retry: a side row first, its counters turned toward the centrepiece)
-  auto squareRows = [&](const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
+  int squareRows(const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
     int placed = 0, firstMid = -1;
     std::vector<int> mine;
-    const size_t st0 = stalls.size();
+    const size_t st0 = G.stalls.size();
     count = std::min(count, (int)(pool.size() - nextT));
-    const int prefX = Zp.x + Zp.w / 2 + (int)(hashAt(Zp.x, Zp.y, 491u) % 5u) - 2;
-    const int targetY0 = Zp.y + 1 + (int)(hashAt(Zp.x, Zp.y, 499u) % 2u);
+    const int prefX = Zp.x + Zp.w / 2 + (int)(G.hashAt(Zp.x, Zp.y, 491u) % 5u) - 2;
+    const int targetY0 = Zp.y + 1 + (int)(G.hashAt(Zp.x, Zp.y, 499u) % 2u);
     // a short row down a side: a grand market's last stalls, a third of the towns with four or more
     // (stalls fixer round 2, "some markets still face the camera only") every market of four or more on a square
     // tries a side row, so it never shows only fronts
     int side = 0;
-    if (mode == 0 && count >= 4 && !village) side = 2;
+    if (mode == 0 && count >= 4 && !G.village) side = 2;
     bool turn = false;   // the last pass: a later row faces the first across the aisle (its back to us), never south
     const int rowsCount = count - side;
     auto rowsPass = [&](int target, int rmax) {
@@ -622,7 +582,7 @@ void Gen::markets() {
       // the first row as long as it can be (stalls fixer round 2: leaving the side row its pair)
       if (r == 0) want = std::max(want, std::min(3, target - placed));
       int by = -1, bx = 0, bn = 0, bs = -(1 << 30), bf = art::StallS;
-      for (int n = want; n >= (village ? 1 : 2); n--) {
+      for (int n = want; n >= (G.village ? 1 : 2); n--) {
         if (r > 0 && n < 2) break;
         for (int y = A.y - 1; y <= A.y + A.h; y++)
           for (int f : {art::StallS, art::StallN}) {
@@ -662,7 +622,7 @@ void Gen::markets() {
               if (mid < Zp.x || mid > Zp.x + Zp.w) sc -= 30;
             } else {
               if (across) sc += 24;                              // the rows face each other over the walking space
-              if (ew::stallFormAt(O.gy + y) != ew::stallFormAt(O.gy + mine[0])) sc += 6;   // the next row built otherwise
+              if (ew::stallFormAt(G.O.gy + y) != ew::stallFormAt(G.O.gy + mine[0])) sc += 6;   // the next row built otherwise
             }
             if (sc > bs) { bs = sc; by = y; bx = fr.x; bn = n; bf = f; }
           }
@@ -699,10 +659,10 @@ void Gen::markets() {
     const int sideWant = std::min((int)(pool.size() - nextT), count - placed);
     if (sideWant >= 2 && !mine.empty()) {
       int lo = 1 << 30, hi = -(1 << 30), top = 1 << 30, bot = -(1 << 30);
-      for (const Stall& s : stalls)
+      for (const Stall& s : G.stalls)
         if (std::find(mine.begin(), mine.end(), s.y) != mine.end()) { lo = std::min(lo, s.x - 1); hi = std::max(hi, s.x + 1); top = std::min(top, s.y); bot = std::max(bot, s.y); }
       const int midY = (top + bot) / 2 + 1;
-      const bool westFirst = (hashAt(lo, top, 563u) & 1u) != 0;
+      const bool westFirst = (G.hashAt(lo, top, 563u) & 1u) != 0;
       for (int n = std::min(3, sideWant); n >= 2 && placed < count; n--) {
         int bl = -1, ba = 0, bs = -(1 << 30), bf = art::StallE;
         for (int f : {art::StallE, art::StallW})
@@ -725,7 +685,7 @@ void Gen::markets() {
     // (stalls fixer round 2, "some markets still face the camera only") while no stall of this square is turned, what
     // is left first goes in a row facing the first across the aisle (its back to us), else in a side row further out
     auto allFront = [&]() {
-      for (size_t i = st0; i < stalls.size(); i++) if (facingOf(stalls[i]) != art::StallS) return false;
+      for (size_t i = st0; i < G.stalls.size(); i++) if (facingOf(G.stalls[i]) != art::StallS) return false;
       return true;
     };
     if (placed < count && allFront()) {
@@ -737,12 +697,12 @@ void Gen::markets() {
     // no room down a side: what is left goes in the rows after all (a third row where the second had no room), else a
     // pair grows into a three at whichever end has room
     if (placed < count) rowsPass(count, rowsMax + (mine.size() >= (size_t)rowsMax ? 0 : 1));
-    for (size_t i = st0; i < stalls.size() && placed < count && nextT < pool.size(); i++) {
-      const Stall s = stalls[i];
+    for (size_t i = st0; i < G.stalls.size() && placed < count && nextT < pool.size(); i++) {
+      const Stall s = G.stalls[i];
       const int f = facingOf(s);
       const Frame F = frameOf(f);
       auto stallAt = [&](int x, int y) {
-        const int q = M.propAt(x, y);
+        const int q = G.M.propAt(x, y);
         return q && art::isStall((Prop)(q - 1)) && facingOf(Stall{x, y, 0}) == f;
       };
       int gl = 0, gh = 0;
@@ -761,38 +721,37 @@ void Gen::markets() {
         const bool ns = f >= art::StallE;
         const int o1 = dir < 0 ? (ns ? -3 : -2) : (ns ? 1 : 2), o2 = o1 + dir;   // past the new counter's end
         for (int o : {o1, o2})
-          if (ok && (!walkable(nx + o * F.ax, ny + o * F.ay) || !walkable(nx + o * F.ax + F.fx, ny + o * F.ay + F.fy))) ok = false;
+          if (ok && (!G.walkable(nx + o * F.ax, ny + o * F.ay) || !G.walkable(nx + o * F.ax + F.fx, ny + o * F.ay + F.fy))) ok = false;
         if (!ok || !place(nx, ny, pool[nextT], f)) continue;
         nextT++;
         placed++;
         for (int o : {o1, o2})
           for (int d = 0; d <= 1; d++) {
             const int x = nx + o * F.ax + F.fx * d, y = ny + o * F.ay + F.fy * d;
-            if (!in(x, y) || (d == 0 && o == o1)) continue;
-            reserved[I(x, y)] = 1; walkMk[I(x, y)] = 1; endMk[I(x, y)] = 1;
+            if (!G.in(x, y) || (d == 0 && o == o1)) continue;
+            G.reserved[G.I(x, y)] = 1; walkMk[G.I(x, y)] = 1; endMk[G.I(x, y)] = 1;
           }
         break;
       }
     }
     return placed;
-  };
-
+  }
   // (stalls fixer round 2, "some markets still face the camera only") a market of three or more that came out all
   // fronts (a cramped square: no side row, no row across the aisle) is taken back and laid out again with its first row
   // turned to show its back; if that leaves it smaller than two stalls or still all fronts, the first layout stands
-  auto mixedRows = [&](const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
-    const size_t st0 = stalls.size(), t0 = nextT, ry0 = rowYs.size();
-    const std::vector<uint8_t> kR = reserved, kM = mask, kP = M.prop, kW = walkMk, kE = endMk;
+  int mixedRows(const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
+    const size_t st0 = G.stalls.size(), t0 = nextT, ry0 = rowYs.size();
+    const std::vector<uint8_t> kR = G.reserved, kM = G.mask, kP = G.M.prop, kW = walkMk, kE = endMk;
     auto restore = [&]() {
-      reserved = kR; mask = kM; M.prop = kP; walkMk = kW; endMk = kE;
-      stalls.resize(st0); nextT = t0; rowYs.resize(ry0);
+      G.reserved = kR; G.mask = kM; G.M.prop = kP; walkMk = kW; endMk = kE;
+      G.stalls.resize(st0); nextT = t0; rowYs.resize(ry0);
     };
     auto allFr = [&]() {
-      for (size_t i = st0; i < stalls.size(); i++) if (facingOf(stalls[i]) != art::StallS) return false;
+      for (size_t i = st0; i < G.stalls.size(); i++) if (facingOf(G.stalls[i]) != art::StallS) return false;
       return true;
     };
     int got = squareRows(Zp, A, qx, qy, lv, count, rowsMax, mode);
-    if (got < 3 || village || !allFr()) return got;
+    if (got < 3 || G.village || !allFr()) return got;
     // (the retries look over a cramped square with the view relaxed too: one open row past the aisle)
     const bool sv = strictView;
     for (int k = 0; k < 4; k++) {
@@ -813,9 +772,9 @@ void Gen::markets() {
       if (g3 == got - 1 && nextT < pool.size()) {
         int xl = 1 << 30, xh = -(1 << 30), ry = -1;
         bool one = true;
-        for (size_t i = st0; i < stalls.size(); i++) {
-          if (ry >= 0 && stalls[i].y != ry) one = false;
-          ry = stalls[i].y; xl = std::min(xl, stalls[i].x); xh = std::max(xh, stalls[i].x);
+        for (size_t i = st0; i < G.stalls.size(); i++) {
+          if (ry >= 0 && G.stalls[i].y != ry) one = false;
+          ry = G.stalls[i].y; xl = std::min(xl, G.stalls[i].x); xh = std::max(xh, G.stalls[i].x);
         }
         for (int k = 0; k < 4 && one; k++) {
           const int side = k & 1, f = (k < 2) == (side == 1) ? art::StallE : art::StallW;   // out first, then in
@@ -833,22 +792,14 @@ void Gen::markets() {
     }
     restore();
     return squareRows(Zp, A, qx, qy, lv, count, rowsMax, mode);
-  };
-  const int lv0 = lvl[I(S.x, S.y)];
-  const int CX = cpX >= 0 ? cpX : S.x, CY = cpX >= 0 ? cpY : S.y;   // the centrepiece
-  IRect Z = mktZone.w > 0 ? mktZone : IRect{S.x - (int)S.r - 2, S.y - (int)S.r - 2, (int)S.r * 2 + 5, (int)S.r * 2 + 5};
-  const int R = (int)(S.r * 1.25f) + 3;
-  IRect all{std::min(Z.x, S.x - R), std::min(Z.y, S.y - R), 0, 0};
-  all.w = std::max(Z.x + Z.w, S.x + R + 1) - all.x;
-  all.h = std::max(Z.y + Z.h, S.y + R + 1) - all.y;
-
-  if (village) {
+  }
     // ---- the village market: on the green by the well (a pair of stalls touching, or a stall and the trader's cart)
+  void villageMarket() {
     int wx = -1, wy = -1;
     for (int r = 0; r <= 7 && wx < 0; r++)
       for (int oy = -r; oy <= r && wx < 0; oy++)
         for (int ox = -r; ox <= r; ox++)
-          if (std::max(std::abs(ox), std::abs(oy)) == r && M.propAt(S.x + ox, S.y + oy) == (int)Prop::Well + 1) { wx = S.x + ox; wy = S.y + oy; break; }
+          if (std::max(std::abs(ox), std::abs(oy)) == r && G.M.propAt(S.x + ox, S.y + oy) == (int)Prop::Well + 1) { wx = S.x + ox; wy = S.y + oy; break; }
     if (wx < 0) { wx = CX; wy = CY; }
     // the green first (two stalls, else one), then open ground beside the well, then anywhere near the heart
     int got = 0;
@@ -877,7 +828,7 @@ void Gen::markets() {
             if (tw > -4 && tw < 3 && off < 3 * n / 2 + 3) continue;   // the well against the counter or the keeper's back
             const bool facing = tw >= 3 && tw <= 7 && off <= 3 * n;
             const int sc = fr.score - std::abs(tw - 4) * (facing ? 6 : 3) - off * 2 + (facing ? 40 : 0) +
-                           (f == art::StallS ? 6 : (f == art::StallN ? 2 : 3)) + (int)(hashAt(wx, wy, 571u + (uint32_t)f) % 9u);
+                           (f == art::StallS ? 6 : (f == art::StallN ? 2 : 3)) + (int)(G.hashAt(wx, wy, 571u + (uint32_t)f) % 9u);
             if (sc > bs) { bs = sc; by = line; bx = fr.x; bf = f; }
           }
         }
@@ -887,26 +838,26 @@ void Gen::markets() {
     nearR = 0;
     // a bench facing the well, a tree at the green's edge if none shades it (on the green itself or the grass by it)
     auto greenOk = [&](int x, int y) {
-      if (!in(x, y)) return false;
-      const size_t i = I(x, y);
-      const uint8_t k = mask[i];
+      if (!G.in(x, y)) return false;
+      const size_t i = G.I(x, y);
+      const uint8_t k = G.mask[i];
       if (k != K_NONE && k != K_SQUARE && k != K_YARD) return false;
-      if (M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || front[i] || reserved[i] || cover[i] || water[i]) return false;
-      return !groundSolid(M.at(x, y)) && M.at(x, y) != Ground::Bridge;
+      if (G.M.bldgAt[i] >= 0 || G.M.wall[i] || G.M.prop[i] || G.front[i] || G.reserved[i] || G.cover[i] || G.water[i]) return false;
+      return !groundSolid(G.M.at(x, y)) && G.M.at(x, y) != Ground::Bridge;
     };
     const int bxs[6] = {wx - 2, wx + 2, wx - 1, wx + 1, wx - 3, wx + 3};
     for (int k = 0; k < 6; k++) {
       const int x = bxs[k], y = wy + 2;
-      if (greenOk(x, y) && putSolid(x, y, Prop::Bench)) break;
+      if (greenOk(x, y) && G.putSolid(x, y, Prop::Bench)) break;
     }
     bool tree = false;
     for (int oy = -6; oy <= 6 && !tree; oy++)
       for (int ox = -6; ox <= 6; ox++) {
-        const int q = M.propAt(wx + ox, wy + oy);
+        const int q = G.M.propAt(wx + ox, wy + oy);
         if (q && treeLike((Prop)(q - 1))) { tree = true; break; }
       }
     if (!tree) {
-      const Prop t = townTree(bio, eco, 3u);
+      const Prop t = townTree(G.bio, G.eco, 3u);
       bool done = false;
       for (int r = 3; r <= 6 && !done; r++)
         for (int oy = -r; oy <= r && !done; oy++)
@@ -918,19 +869,20 @@ void Gen::markets() {
             for (int qy = -3; qy <= 1 && clear; qy++)
               for (int qx = -2; qx <= 2; qx++) {
                 const int ax = x + qx, ay = y + qy;
-                if (!in(ax, ay) || M.bldgAt[I(ax, ay)] >= 0 || front[I(ax, ay)] || reserved[I(ax, ay)] || (M.prop[I(ax, ay)] && !lowProp((Prop)(M.prop[I(ax, ay)] - 1)))) { clear = false; break; }
+                if (!G.in(ax, ay) || G.M.bldgAt[G.I(ax, ay)] >= 0 || G.front[G.I(ax, ay)] || G.reserved[G.I(ax, ay)] || (G.M.prop[G.I(ax, ay)] && !lowProp((Prop)(G.M.prop[G.I(ax, ay)] - 1)))) { clear = false; break; }
               }
-            if (clear && putSolid(x, y, t)) done = true;
+            if (clear && G.putSolid(x, y, t)) done = true;
           }
     }
-  } else {
+  }
     // ---- the street market first (a market town's, or a town whose draw kept lots for it): runs of two or three
     // stalls touching on the verge of the main street, each where a lot was kept
+  int streetMarket() {   // (returns the stalls placed along the main street)
     int streetN = 0;
     std::vector<int> streetYs;
     // (stalls fixer round 2) the square keeps four of the trades (a pair from the front and a pair turned)
-    if (lotStalls > 0 && nTrade >= 6) {
-      const int want = std::min(std::min(lotStalls, mk ? 3 : 2), nTrade - 4);
+    if (G.lotStalls > 0 && nTrade >= 6) {
+      const int want = std::min(std::min(G.lotStalls, mk ? 3 : 2), nTrade - 4);
       for (int pass = 0; pass < 2 && streetN < want; pass++) {
         const int n = std::min(want - streetN, 3);
         if (n < 2) break;
@@ -943,7 +895,7 @@ void Gen::markets() {
           const RowFit f = fitRow(y, n, 1, S.x - span, S.x + span, S.x, CX, CY, lv0, -1, art::StallS);   // facing the street
           if (!f.ok) continue;
           bool apart = true;   // its own run along the street, clear of the square's market
-          for (const Stall& o : stalls) if (std::abs(o.x - f.x) <= 10 && std::abs(o.y - y) <= 6) apart = false;
+          for (const Stall& o : G.stalls) if (std::abs(o.x - f.x) <= 10 && std::abs(o.y - y) <= 6) apart = false;
           if (!apart) continue;
           const int sc = f.score - std::abs(y - S.y) * 3;
           if (sc > bs) { bs = sc; by = y; bx = f.x; }
@@ -955,9 +907,12 @@ void Gen::markets() {
         streetN += made;
       }
     }
+    return streetN;
+  }
     // ---- the rows on the market's side of the main square; if it is too cramped, anywhere on the square; then (a
     // city's other market places) its other squares; then with the view relaxed; never a lone stall
     // (one market place: a later try only when no row stood at all; what does not fit sells from the tables below)
+  void squareMarkets(int streetN) {
     const int onSquare = nTrade - streetN;
     int got = mixedRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
     if (!got) {
@@ -969,233 +924,233 @@ void Gen::markets() {
       got = mixedRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
       relaxed = false;
     }
-    if (city && got > 0 && got < 4 && got < onSquare)   // a city's cramped square: a second block of stalls on it
+    if (G.city && got > 0 && got < 4 && got < onSquare)   // a city's cramped square: a second block of stalls on it
       got += squareRows(all, all, CX, CY, lv0, onSquare - got, 1, 0);
-    if (city && got < 4 && squares.size() > 1) {
+    if (G.city && got < 4 && G.squares.size() > 1) {
       std::vector<size_t> order;
-      for (size_t k = 1; k < squares.size(); k++) order.push_back(k);
+      for (size_t k = 1; k < G.squares.size(); k++) order.push_back(k);
       std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-        return std::abs(squares[a].x - S.x) + std::abs(squares[a].y - S.y) < std::abs(squares[b].x - S.x) + std::abs(squares[b].y - S.y);
+        return std::abs(G.squares[a].x - S.x) + std::abs(G.squares[a].y - S.y) < std::abs(G.squares[b].x - S.x) + std::abs(G.squares[b].y - S.y);
       });
       for (size_t k : order) {
         if (got >= 4 || nextT + 2 > pool.size()) break;
-        const Square& Q = squares[k];
-        if (!in(Q.x, Q.y) || Q.role == 3) continue;   // (M7b: never in the temple close)
+        const Square& Q = G.squares[k];
+        if (!G.in(Q.x, Q.y) || Q.role == 3) continue;   // (M7b: never in the temple close)
         small = true;
         const int r = (int)Q.r + 2;
         const IRect QA{Q.x - r - 1, Q.y - r, r * 2 + 3, r * 2 + 1};
-        got += squareRows(QA, QA, Q.x, Q.y, lvl[I(Q.x, Q.y)], std::min(3, (int)(pool.size() - nextT)), 1, 0);
+        got += squareRows(QA, QA, Q.x, Q.y, G.lvl[G.I(Q.x, Q.y)], std::min(3, (int)(pool.size() - nextT)), 1, 0);
         small = false;
       }
     }
     if (!got && !streetN)   // a town with no room on its square: open ground near the heart
-      for (int rad = 8; rad <= 18 && stalls.empty(); rad += 5)
+      for (int rad = 8; rad <= 18 && G.stalls.empty(); rad += 5)
         squareRows(IRect{S.x - rad, S.y - rad, rad * 2 + 1, rad * 2 + 1}, IRect{S.x - rad, S.y - rad, rad * 2 + 1, rad * 2 + 1}, CX, CY, lv0,
-                   std::max(2, nTrade - (int)stalls.size()), 1, 2);
-
+                   std::max(2, nTrade - (int)G.stalls.size()), 1, 2);
+  }
     // ---- the open tables and cloths: in lines across the open paving parallel to the stall rows (the first a wide
     // aisle behind or before them, its middle under theirs), a pitch of six (a walkway of four) between them, a walkway
     // round each; none in a stall's aisle or its keeper's walk, none in the centrepiece's plaza; each selling goods no
     // other table or cloth of the town sells
+  void openTables() {
+    int need = nIsl + std::max(0, nTrade - (int)G.stalls.size());   // the stalls that found no room sell here
+    const uint32_t mh = G.hashAt(S.x, S.y, 541u);
+    const int clothEvery = 2 + (int)(mh % 3u);   // every second, third or fourth is a cloth on the paving
+    bool usedT[art::kTableGoods] = {}, usedC[art::kClothGoods] = {};
+    int made = 0;
+    // a unit (two tiles) at (x, y) on a square of level lv whose centrepiece stands at (qx, qy)
+    auto unitOk = [&](int x, int y, int lv, int qx, int qy) {
+      if (!G.in(x - 1, y - 2) || !G.in(x + 2, y + 3)) return false;
+      for (int dx = 0; dx <= 1; dx++) {
+        const int tx = x + dx;
+        if (G.get(tx, y) != K_SQUARE || G.lvl[G.I(tx, y)] != lv) return false;
+        const size_t i = G.I(tx, y);
+        if (G.front[i] || G.cover[i] || (G.noBuild[i] & 3) || groundSolid(G.M.at(tx, y))) return false;
+      }
+      // a clear ring round it (the seller's tile behind, two rows of customers before), off every aisle
+      for (int qy2 = y - 1; qy2 <= y + 2; qy2++)
+        for (int qx2 = x - 1; qx2 <= x + 2; qx2++) {
+          const size_t j = G.I(qx2, qy2);
+          if (G.M.prop[j] || G.reserved[j] || G.M.bldgAt[j] >= 0 || G.M.wall[j] || G.water[j] || G.front[j] || !G.walkable(qx2, qy2)) return false;
+        }
+      if (std::abs(x - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;   // the centrepiece's plaza
+      if (std::abs(x + 1 - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;
+      if (tallNear(x - 1, y - 2, x + 2, y)) return false;
+      for (const Stall& s : G.stalls) {   // (stall facings) clear of every stall's counter by a walkway
+        const bool ns = facingOf(s) >= art::StallE;
+        const int cx0 = ns ? s.x : s.x - 1, cx1 = ns ? s.x : s.x + 1, cy0 = ns ? s.y - 2 : s.y, cy1 = s.y;
+        if (x + 1 >= cx0 - 3 && x <= cx1 + 3 && y >= cy0 - 4 && y <= cy1 + 4) return false;
+      }
+      return true;
+    };
+    auto putUnit = [&](int x, int y, bool cloth) {
+      if (!G.putSolid(x, y, cloth ? Prop::GroundCloth : Prop::MarketTable)) return false;
+      if (!G.putSolid(x + 1, y, Prop::Filler)) { G.M.setP(x, y, 0); return false; }
+      if (cloth) usedC[ew::clothGoodsAt(G.O.gx + x, G.O.gy + y)] = true;
+      else usedT[ew::tableGoodsAt(G.O.gx + x, G.O.gy + y)] = true;
+      for (int qy = y - 1; qy <= y + 2; qy++)
+        for (int qx = x - 1; qx <= x + 2; qx++) G.reserved[G.I(qx, qy)] = 1;
+      made++;
+      need--;
+      // the seller (a table may stand unminded a while; a cloth never)
+      if (cloth || G.rng.f() < 0.85f) G.addSpawn(Role::Merchant, x, y - 1);
+      return true;
+    };
+    // a line on row y of area A: units out from midX, a pitch of six (a walkway of four); the x's and their kinds
+    auto lineAt = [&](const IRect& A, int y, int want, int midX, int lv, int qx, int qy, std::vector<std::pair<int, bool>>& xs) {
+      xs.clear();
+      bool uT[art::kTableGoods], uC[art::kClothGoods];
+      std::copy(usedT, usedT + art::kTableGoods, uT);
+      std::copy(usedC, usedC + art::kClothGoods, uC);
+      for (int d = 0; d <= A.w && (int)xs.size() < want; d++)
+        for (int sd : {-1, 1}) {
+          if ((d == 0 && sd > 0) || (int)xs.size() >= want) continue;
+          const int x = midX - 1 + sd * d;
+          if (x < A.x - 1 || x > A.x + A.w) continue;
+          bool spaced = true;
+          for (auto& o : xs) if (std::abs(o.first - x) < 5) spaced = false;
+          if (!spaced || !unitOk(x, y, lv, qx, qy)) continue;
+          const bool cloth = ((made + (int)xs.size()) % clothEvery) == clothEvery - 1;
+          const int gx = G.O.gx + x, gy = G.O.gy + y;
+          bool& u = cloth ? uC[ew::clothGoodsAt(gx, gy)] : uT[ew::tableGoodsAt(gx, gy)];
+          if (u) continue;
+          u = true;
+          xs.push_back({x, cloth});
+        }
+    };
+    // lines over area A (two or more each, an aisle apart), the first near idealY
+    auto lines = [&](const IRect& A, int midX, int idealY, int lv, int qx, int qy, int maxLines) {
+      std::vector<int> lineYs;
+      for (int line = 0; line < maxLines && need > 0; line++) {
+        int bestY = -1, bestS = -(1 << 30);
+        std::vector<std::pair<int, bool>> bestXs, xs;
+        const int ideal = lineYs.empty() ? idealY : lineYs.back() + 5;
+        for (int y = A.y; y <= A.y + A.h; y++) {
+          bool close = false;   // an aisle's width from the other lines (and from the stalls: unitOk)
+          for (int ly : lineYs) if (std::abs(y - ly) < 5) close = true;
+          if (close) continue;
+          lineAt(A, y, need, midX, lv, qx, qy, xs);
+          if (xs.size() < 2) continue;   // a line is two or more (a lone table in the open reads as dropped there)
+          const int sc = (int)xs.size() * 100 - std::abs(y - ideal) * 8;
+          if (sc > bestS) { bestS = sc; bestY = y; bestXs = xs; }
+        }
+        if (bestY < 0) break;
+        lineYs.push_back(bestY);
+        for (auto& u : bestXs) putUnit(u.first, bestY, u.second);
+      }
+    };
+    // the main square: centred under the stall rows, a wide aisle behind the last row, within two aisles of the rows
     {
-      int need = nIsl + std::max(0, nTrade - (int)stalls.size());   // the stalls that found no room sell here
-      const uint32_t mh = hashAt(S.x, S.y, 541u);
-      const int clothEvery = 2 + (int)(mh % 3u);   // every second, third or fourth is a cloth on the paving
-      bool usedT[art::kTableGoods] = {}, usedC[art::kClothGoods] = {};
-      int made = 0;
-      // a unit (two tiles) at (x, y) on a square of level lv whose centrepiece stands at (qx, qy)
-      auto unitOk = [&](int x, int y, int lv, int qx, int qy) {
-        if (!in(x - 1, y - 2) || !in(x + 2, y + 3)) return false;
-        for (int dx = 0; dx <= 1; dx++) {
-          const int tx = x + dx;
-          if (get(tx, y) != K_SQUARE || lvl[I(tx, y)] != lv) return false;
-          const size_t i = I(tx, y);
-          if (front[i] || cover[i] || (noBuild[i] & 3) || groundSolid(M.at(tx, y))) return false;
+      int mid = Z.x + Z.w / 2, lo = 1 << 30, hi = -(1 << 30), top = 1 << 30, bot = -(1 << 30);
+      for (const Stall& s : G.stalls)
+        if (facingOf(s) <= art::StallN && std::find(rowYs.begin(), rowYs.end(), s.y) != rowYs.end()) {
+          lo = std::min(lo, s.x); hi = std::max(hi, s.x); top = std::min(top, s.y); bot = std::max(bot, s.y);
         }
-        // a clear ring round it (the seller's tile behind, two rows of customers before), off every aisle
-        for (int qy2 = y - 1; qy2 <= y + 2; qy2++)
-          for (int qx2 = x - 1; qx2 <= x + 2; qx2++) {
-            const size_t j = I(qx2, qy2);
-            if (M.prop[j] || reserved[j] || M.bldgAt[j] >= 0 || M.wall[j] || water[j] || front[j] || !walkable(qx2, qy2)) return false;
-          }
-        if (std::abs(x - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;   // the centrepiece's plaza
-        if (std::abs(x + 1 - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;
-        if (tallNear(x - 1, y - 2, x + 2, y)) return false;
-        for (const Stall& s : stalls) {   // (stall facings) clear of every stall's counter by a walkway
-          const bool ns = facingOf(s) >= art::StallE;
-          const int cx0 = ns ? s.x : s.x - 1, cx1 = ns ? s.x : s.x + 1, cy0 = ns ? s.y - 2 : s.y, cy1 = s.y;
-          if (x + 1 >= cx0 - 3 && x <= cx1 + 3 && y >= cy0 - 4 && y <= cy1 + 4) return false;
-        }
-        return true;
-      };
-      auto putUnit = [&](int x, int y, bool cloth) {
-        if (!putSolid(x, y, cloth ? Prop::GroundCloth : Prop::MarketTable)) return false;
-        if (!putSolid(x + 1, y, Prop::Filler)) { M.setP(x, y, 0); return false; }
-        if (cloth) usedC[ew::clothGoodsAt(O.gx + x, O.gy + y)] = true;
-        else usedT[ew::tableGoodsAt(O.gx + x, O.gy + y)] = true;
-        for (int qy = y - 1; qy <= y + 2; qy++)
-          for (int qx = x - 1; qx <= x + 2; qx++) reserved[I(qx, qy)] = 1;
-        made++;
-        need--;
-        // the seller (a table may stand unminded a while; a cloth never)
-        if (cloth || rng.f() < 0.85f) addSpawn(Role::Merchant, x, y - 1);
-        return true;
-      };
-      // a line on row y of area A: units out from midX, a pitch of six (a walkway of four); the x's and their kinds
-      auto lineAt = [&](const IRect& A, int y, int want, int midX, int lv, int qx, int qy, std::vector<std::pair<int, bool>>& xs) {
-        xs.clear();
-        bool uT[art::kTableGoods], uC[art::kClothGoods];
-        std::copy(usedT, usedT + art::kTableGoods, uT);
-        std::copy(usedC, usedC + art::kClothGoods, uC);
-        for (int d = 0; d <= A.w && (int)xs.size() < want; d++)
-          for (int sd : {-1, 1}) {
-            if ((d == 0 && sd > 0) || (int)xs.size() >= want) continue;
-            const int x = midX - 1 + sd * d;
-            if (x < A.x - 1 || x > A.x + A.w) continue;
-            bool spaced = true;
-            for (auto& o : xs) if (std::abs(o.first - x) < 5) spaced = false;
-            if (!spaced || !unitOk(x, y, lv, qx, qy)) continue;
-            const bool cloth = ((made + (int)xs.size()) % clothEvery) == clothEvery - 1;
-            const int gx = O.gx + x, gy = O.gy + y;
-            bool& u = cloth ? uC[ew::clothGoodsAt(gx, gy)] : uT[ew::tableGoodsAt(gx, gy)];
-            if (u) continue;
-            u = true;
-            xs.push_back({x, cloth});
-          }
-      };
-      // lines over area A (two or more each, an aisle apart), the first near idealY
-      auto lines = [&](const IRect& A, int midX, int idealY, int lv, int qx, int qy, int maxLines) {
-        std::vector<int> lineYs;
-        for (int line = 0; line < maxLines && need > 0; line++) {
-          int bestY = -1, bestS = -(1 << 30);
-          std::vector<std::pair<int, bool>> bestXs, xs;
-          const int ideal = lineYs.empty() ? idealY : lineYs.back() + 5;
-          for (int y = A.y; y <= A.y + A.h; y++) {
-            bool close = false;   // an aisle's width from the other lines (and from the stalls: unitOk)
-            for (int ly : lineYs) if (std::abs(y - ly) < 5) close = true;
-            if (close) continue;
-            lineAt(A, y, need, midX, lv, qx, qy, xs);
-            if (xs.size() < 2) continue;   // a line is two or more (a lone table in the open reads as dropped there)
-            const int sc = (int)xs.size() * 100 - std::abs(y - ideal) * 8;
-            if (sc > bestS) { bestS = sc; bestY = y; bestXs = xs; }
-          }
-          if (bestY < 0) break;
-          lineYs.push_back(bestY);
-          for (auto& u : bestXs) putUnit(u.first, bestY, u.second);
-        }
-      };
-      // the main square: centred under the stall rows, a wide aisle behind the last row, within two aisles of the rows
-      {
-        int mid = Z.x + Z.w / 2, lo = 1 << 30, hi = -(1 << 30), top = 1 << 30, bot = -(1 << 30);
-        for (const Stall& s : stalls)
-          if (facingOf(s) <= art::StallN && std::find(rowYs.begin(), rowYs.end(), s.y) != rowYs.end()) {
-            lo = std::min(lo, s.x); hi = std::max(hi, s.x); top = std::min(top, s.y); bot = std::max(bot, s.y);
-          }
-        IRect A = all;
-        if (lo <= hi) {
-          mid = (lo + hi) / 2;
-          const int y0 = std::max(all.y, top - 2 * rowGap - 2), y1 = std::min(all.y + all.h, bot + 2 * rowGap + 2);
-          A = IRect{all.x, y0, all.w, y1 - y0};
-        }
-        lines(A, mid, rowYs.empty() ? Z.y + Z.h / 2 : bot + rowGap, lv0, CX, CY, 4);
+      IRect A = all;
+      if (lo <= hi) {
+        mid = (lo + hi) / 2;
+        const int y0 = std::max(all.y, top - 2 * rowGap - 2), y1 = std::min(all.y + all.h, bot + 2 * rowGap + 2);
+        A = IRect{all.x, y0, all.w, y1 - y0};
       }
-      // what is left: a table at the end of a stall row, a walkway past its last counter (the row runs on in the open)
-      for (size_t ri = 0; ri < rowYs.size() && need > 0; ri++) {
-        const int y = rowYs[ri];
-        int lo = 1 << 30, hi = -(1 << 30);
-        for (const Stall& s : stalls) if (s.y == y && facingOf(s) <= art::StallN) { lo = std::min(lo, s.x); hi = std::max(hi, s.x); }
-        for (int x : {hi + 5, lo - 6}) {
-          if (need < 1 || !unitOk(x, y, lv0, CX, CY)) continue;
-          const bool cloth = (made % clothEvery) == clothEvery - 1;
-          if (cloth ? usedC[ew::clothGoodsAt(O.gx + x, O.gy + y)] : usedT[ew::tableGoodsAt(O.gx + x, O.gy + y)]) continue;
-          putUnit(x, y, cloth);
-        }
-      }
-      // a city's other market places: a line of tables on its nearest other squares
-      if (city && need > 1)
-        for (size_t k = 1; k < squares.size() && need > 1; k++) {
-          const Square& Q = squares[k];
-          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
-          const int r = (int)(Q.r * 1.25f) + 2;
-          lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
-        }
-      // (M3) a market the square left short of its size (a cramped square: the houses of a strung-out river town
-      // crowd it) spills over: a line of tables on the town's second square, then single tables on whatever open
-      // paving the square still has. Only when short: a market of the right size keeps its approved layout.
-      const int minVendors = town ? 3 : (capital ? 9 : 6);
-      if ((int)stalls.size() + made < minVendors) {
-        for (size_t k = 1; k < squares.size() && (int)stalls.size() + made < minVendors; k++) {
-          const Square& Q = squares[k];
-          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
-          const int r = (int)(Q.r * 1.25f) + 2;
-          need = std::max(need, minVendors - (int)stalls.size() - made);
-          lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
-        }
-        for (int y = all.y - 4; y <= all.y + all.h + 4 && (int)stalls.size() + made < minVendors; y++)
-          for (int x = all.x - 4; x <= all.x + all.w + 4 && (int)stalls.size() + made < minVendors; x++) {
-            if (!unitOk(x, y, lv0, CX, CY)) continue;
-            const bool cloth = (made % clothEvery) == clothEvery - 1;
-            if (cloth ? usedC[ew::clothGoodsAt(O.gx + x, O.gy + y)] : usedT[ew::tableGoodsAt(O.gx + x, O.gy + y)]) continue;
-            putUnit(x, y, cloth);
-          }
+      lines(A, mid, rowYs.empty() ? Z.y + Z.h / 2 : bot + rowGap, lv0, CX, CY, 4);
+    }
+    // what is left: a table at the end of a stall row, a walkway past its last counter (the row runs on in the open)
+    for (size_t ri = 0; ri < rowYs.size() && need > 0; ri++) {
+      const int y = rowYs[ri];
+      int lo = 1 << 30, hi = -(1 << 30);
+      for (const Stall& s : G.stalls) if (s.y == y && facingOf(s) <= art::StallN) { lo = std::min(lo, s.x); hi = std::max(hi, s.x); }
+      for (int x : {hi + 5, lo - 6}) {
+        if (need < 1 || !unitOk(x, y, lv0, CX, CY)) continue;
+        const bool cloth = (made % clothEvery) == clothEvery - 1;
+        if (cloth ? usedC[ew::clothGoodsAt(G.O.gx + x, G.O.gy + y)] : usedT[ew::tableGoodsAt(G.O.gx + x, G.O.gy + y)]) continue;
+        putUnit(x, y, cloth);
       }
     }
+    // a city's other market places: a line of tables on its nearest other squares
+    if (G.city && need > 1)
+      for (size_t k = 1; k < G.squares.size() && need > 1; k++) {
+        const Square& Q = G.squares[k];
+        if (!G.in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
+        const int r = (int)(Q.r * 1.25f) + 2;
+        lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, G.lvl[G.I(Q.x, Q.y)], Q.x, Q.y, 1);
+      }
+    // (M3) a market the square left short of its size (a cramped square: the houses of a strung-out river town
+    // crowd it) spills over: a line of tables on the town's second square, then single tables on whatever open
+    // paving the square still has. Only when short: a market of the right size keeps its approved layout.
+    const int minVendors = G.town ? 3 : (G.capital ? 9 : 6);
+    if ((int)G.stalls.size() + made < minVendors) {
+      for (size_t k = 1; k < G.squares.size() && (int)G.stalls.size() + made < minVendors; k++) {
+        const Square& Q = G.squares[k];
+        if (!G.in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
+        const int r = (int)(Q.r * 1.25f) + 2;
+        need = std::max(need, minVendors - (int)G.stalls.size() - made);
+        lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, G.lvl[G.I(Q.x, Q.y)], Q.x, Q.y, 1);
+      }
+      for (int y = all.y - 4; y <= all.y + all.h + 4 && (int)G.stalls.size() + made < minVendors; y++)
+        for (int x = all.x - 4; x <= all.x + all.w + 4 && (int)G.stalls.size() + made < minVendors; x++) {
+          if (!unitOk(x, y, lv0, CX, CY)) continue;
+          const bool cloth = (made % clothEvery) == clothEvery - 1;
+          if (cloth ? usedC[ew::clothGoodsAt(G.O.gx + x, G.O.gy + y)] : usedT[ew::tableGoodsAt(G.O.gx + x, G.O.gy + y)]) continue;
+          putUnit(x, y, cloth);
+        }
+    }
   }
-
   // ---- stock stacked at the ends of each group (where the walkway between two groups is wide enough to spare a
   // tile), the traders' carts at the row ends, the keepers behind their counters
   // (stall facings) along a row: the tile past each end of a stall's counter, and the stall three tiles on
-  std::vector<std::pair<int, int>> ends;   // (tile index, stall)
-  for (size_t i = 0; i < stalls.size(); i++) {
-    const Stall& s = stalls[i];
-    const int f = facingOf(s);
-    const Frame F = frameOf(f);
-    bool loN = false, hiN = false;   // a stall touching on that side
-    int loGap = 99, hiGap = 99;
-    for (const Stall& o : stalls) {
-      if (&o == &s || facingOf(o) != f) continue;
-      const int da = (o.x - s.x) * F.ax + (o.y - s.y) * F.ay, dp = (o.x - s.x) * F.ay + (o.y - s.y) * F.ax;
-      if (dp != 0 || da == 0) continue;
-      if (da == -stepOf(f)) loN = true;
-      if (da == stepOf(f)) hiN = true;
-      if (da < 0) loGap = std::min(loGap, -da - 3);
-      if (da > 0) hiGap = std::min(hiGap, da - 3);
+  void stockEnds() {
+    std::vector<std::pair<int, int>> ends;   // (tile index, stall)
+    for (size_t i = 0; i < G.stalls.size(); i++) {
+      const Stall& s = G.stalls[i];
+      const int f = facingOf(s);
+      const Frame F = frameOf(f);
+      bool loN = false, hiN = false;   // a stall touching on that side
+      int loGap = 99, hiGap = 99;
+      for (const Stall& o : G.stalls) {
+        if (&o == &s || facingOf(o) != f) continue;
+        const int da = (o.x - s.x) * F.ax + (o.y - s.y) * F.ay, dp = (o.x - s.x) * F.ay + (o.y - s.y) * F.ax;
+        if (dp != 0 || da == 0) continue;
+        if (da == -stepOf(f)) loN = true;
+        if (da == stepOf(f)) hiN = true;
+        if (da < 0) loGap = std::min(loGap, -da - 3);
+        if (da > 0) hiGap = std::min(hiGap, da - 3);
+      }
+      // (a walkway between two groups takes stock on one side only, so two tiles of it stay open)
+      const int loA = f >= art::StallE ? -3 : -2, hiA = f >= art::StallE ? 1 : 2;   // past the counter's ends
+      if (!loN && loGap >= 5) ends.push_back({(int)G.I(s.x + F.ax * loA, s.y + F.ay * loA), (int)i});
+      if (!hiN && hiGap >= 3) ends.push_back({(int)G.I(s.x + F.ax * hiA, s.y + F.ay * hiA), (int)i});
     }
-    // (a walkway between two groups takes stock on one side only, so two tiles of it stay open)
-    const int loA = f >= art::StallE ? -3 : -2, hiA = f >= art::StallE ? 1 : 2;   // past the counter's ends
-    if (!loN && loGap >= 5) ends.push_back({(int)I(s.x + F.ax * loA, s.y + F.ay * loA), (int)i});
-    if (!hiN && hiGap >= 3) ends.push_back({(int)I(s.x + F.ax * hiA, s.y + F.ay * hiA), (int)i});
+    for (auto& e : ends) {
+      const Stall& s = G.stalls[(size_t)e.second];
+      const Frame F = frameOf(facingOf(s));
+      const int x = e.first % G.W, y = e.first / G.W;
+      if (!clutterOk(x, y) || G.lvl[G.I(x, y)] != G.lvl[G.I(s.x, s.y)]) continue;
+      const uint32_t h = G.hashAt(x, y, 401u);
+      if ((h >> 7) % 3 == 0) continue;   // not every end is stacked
+      if (!G.putSolid(x, y, stockFor(s.trade, h))) continue;
+      G.reserved[G.I(x, y)] = 1;
+      // a second piece behind it at some ends
+      if ((h >> 3) % 3 != 0 && clutterOk(x - F.fx, y - F.fy)) G.putSolid(x - F.fx, y - F.fy, (h >> 5) & 1 ? Prop::Barrel : Prop::Crate);
+    }
   }
-  auto clutterOk = [&](int x, int y) {
-    if (!in(x, y)) return false;
-    const size_t i = I(x, y);
-    const uint8_t k = mask[i];
+  bool clutterOk(int x, int y) const {
+    if (!G.in(x, y)) return false;
+    const size_t i = G.I(x, y);
+    const uint8_t k = G.mask[i];
     if (k != K_SQUARE && k != K_NONE && k != K_YARD) return false;
-    if (M.prop[i] || front[i] || reserved[i] || M.bldgAt[i] >= 0 || M.wall[i] || groundSolid(M.at(x, y)) || water[i]) return false;
+    if (G.M.prop[i] || G.front[i] || G.reserved[i] || G.M.bldgAt[i] >= 0 || G.M.wall[i] || groundSolid(G.M.at(x, y)) || G.water[i]) return false;
     if (y > CY - 3 && y < CY + 3 && std::abs(x - CX) < 4) return false;   // the centrepiece's plaza
     return true;
-  };
-  for (auto& e : ends) {
-    const Stall& s = stalls[(size_t)e.second];
-    const Frame F = frameOf(facingOf(s));
-    const int x = e.first % W, y = e.first / W;
-    if (!clutterOk(x, y) || lvl[I(x, y)] != lvl[I(s.x, s.y)]) continue;
-    const uint32_t h = hashAt(x, y, 401u);
-    if ((h >> 7) % 3 == 0) continue;   // not every end is stacked
-    if (!putSolid(x, y, stockFor(s.trade, h))) continue;
-    reserved[I(x, y)] = 1;
-    // a second piece behind it at some ends
-    if ((h >> 3) % 3 != 0 && clutterOk(x - F.fx, y - F.fy)) putSolid(x - F.fx, y - F.fy, (h >> 5) & 1 ? Prop::Barrel : Prop::Crate);
   }
   // the traders' carts (a market town's wagons by its stalls; a village's by its stall): past a row's end, or behind it
-  const int carts = mk ? 2 + rng.irange(2) : (city ? 1 + rng.irange(2) : 1);
-  {
+  void tradersCarts() {
+    const int carts = mk ? 2 + G.rng.irange(2) : (G.city ? 1 + G.rng.irange(2) : 1);
     std::vector<std::pair<int, int>> spots;
-    for (const Stall& s : stalls) {
+    for (const Stall& s : G.stalls) {
       const int f = facingOf(s);
       const Frame F = frameOf(f);
       bool lft = true, rgt = true;
-      for (const Stall& o : stalls) {
+      for (const Stall& o : G.stalls) {
         if (&o == &s || facingOf(o) != f) continue;
         const int da = (o.x - s.x) * F.ax + (o.y - s.y) * F.ay, dp = (o.x - s.x) * F.ay + (o.y - s.y) * F.ax;
         if (dp == 0 && std::abs(da) <= 9) { if (da < 0) lft = false; if (da > 0) rgt = false; }
@@ -1216,26 +1171,27 @@ void Gen::markets() {
     for (auto& sp : spots) {
       if ((int)made.size() >= carts) break;
       const int x = sp.first, y = sp.second;
-      if (!clutterOk(x, y) || !clutterOk(x - 1, y) || !clutterOk(x + 1, y) || cover[I(x, y)] || tallNear(x - 1, y - 1, x + 1, y)) continue;
+      if (!clutterOk(x, y) || !clutterOk(x - 1, y) || !clutterOk(x + 1, y) || G.cover[G.I(x, y)] || tallNear(x - 1, y - 1, x + 1, y)) continue;
       bool near = false;
       for (auto& m : made) if (std::abs(m.first - x) + std::abs(m.second - y) < 6) near = true;
       if (near) continue;
-      if (!putSolid(x, y, Prop::Cart)) continue;
-      for (int dx = -1; dx <= 1; dx++) reserved[I(x + dx, y)] = 1;
+      if (!G.putSolid(x, y, Prop::Cart)) continue;
+      for (int dx = -1; dx <= 1; dx++) G.reserved[G.I(x + dx, y)] = 1;
       made.push_back({x, y});
     }
   }
   // the keepers: someone behind every counter, on the inside of whichever way it faces
-  for (const Stall& s : stalls) {
-    const art::StallKeeperSpot k = art::stallKeeperSpot(facingOf(s));
-    addSpawn(Role::Merchant, s.x + k.postDx, s.y + k.postDy);
+  void keepers() {
+    for (const Stall& s : G.stalls) {
+      const art::StallKeeperSpot k = art::stallKeeperSpot(facingOf(s));
+      G.addSpawn(Role::Merchant, s.x + k.postDx, s.y + k.postDy);
+    }
   }
-
   // ---- what the place lives from, in plain sight of its market: beside the stall of its own trade, at the market's
   // edge (a village's green), never in the middle of the walking space
-  {
+  void showTrade() {
     Prop show[2];
-    switch (spec) {
+    switch (G.spec) {
       case Specialty::Lumber: show[0] = Prop::LogPile; show[1] = Prop::Woodpile; break;
       case Specialty::Mining: show[0] = Prop::Crate; show[1] = Prop::Barrel; break;   // (the ore is in the mine's yard)
       case Specialty::Fishing: show[0] = Prop::DryingRack; show[1] = Prop::Barrel; break;
@@ -1243,26 +1199,538 @@ void Gen::markets() {
       default: show[0] = Prop::Sacks; show[1] = Prop::Haystack; break;
     }
     int ax = S.x, ay = S.y;
-    for (const Stall& s : stalls) if (s.trade == own) { ax = s.x; ay = s.y; break; }
+    for (const Stall& s : G.stalls) if (s.trade == own) { ax = s.x; ay = s.y; break; }
     int done = 0;
     for (int r = 3; r <= 7 && done < 2; r++)
       for (int oy = -r; oy <= r && done < 2; oy++)
         for (int ox = -r; ox <= r && done < 2; ox++) {
           if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
           const int x = ax + ox, y = ay + oy;
-          if (!clutterOk(x, y) || cover[I(x, y)] || hashAt(x, y, 503u) % 3 == 0) continue;
+          if (!clutterOk(x, y) || G.cover[G.I(x, y)] || G.hashAt(x, y, 503u) % 3 == 0) continue;
           const Prop p = show[done];
           const bool tall = !lowProp(p);
           if (tall && tallNear(x - 1, y - 2, x + 1, y + 1)) continue;
-          bool edge = mask[I(x, y)] != K_SQUARE;
-          for (int d = 0; d < 4 && !edge; d++) if (get(x + D4X[d], y + D4Y[d]) != K_SQUARE) edge = true;
+          bool edge = G.mask[G.I(x, y)] != K_SQUARE;
+          for (int d = 0; d < 4 && !edge; d++) if (G.get(x + D4X[d], y + D4Y[d]) != K_SQUARE) edge = true;
           if (!edge) continue;
-          if (!putSolid(x, y, p)) continue;
-          if (mask[I(x, y)] == K_NONE) set(x, y, K_YARD);
+          if (!G.putSolid(x, y, p)) continue;
+          if (G.mask[G.I(x, y)] == K_NONE) G.set(x, y, K_YARD);
           done++;
         }
   }
+  bool yardOk(int x, int y, bool tall) const {
+    if (!G.freeTile(x, y) || G.inCompound(x, y, 1) || G.reserved.empty() || G.reserved[G.I(x, y)]) return false;
+    if (tall && G.cover[G.I(x, y)]) return false;
+    return G.get(x, y) != K_FIELD;
+  }
+  // (M1 fixer) every solid yard prop leaves the ways round it open (putSolid)
+  bool put(int x, int y, Prop p) {
+    const bool tall = !lowProp(p);
+    if (!yardOk(x, y, tall)) return false;
+    if (!G.putSolid(x, y, p)) return false;
+    G.set(x, y, K_YARD);
+    return true;
+  }
+  // round a building: its sides (low stock against the walls), then two steps out (tall frames clear of its roof)
+  int around(const Bldg& b, Prop p, int n) {
+    int done = 0;
+    const bool tall = !lowProp(p);
+    const int off = tall ? 2 : 1;
+    const int ys[3] = {b.r.y + b.r.h - 1, b.r.y + b.r.h - 2, b.r.y};
+    for (int k = 0; k < 6 && done < n; k++) {
+      const bool west = ((G.hashAt(b.r.x, b.r.y, 457u) >> k) & 1) != 0;
+      const int x = west ? b.r.x - off : b.r.x + b.r.w - 1 + off;
+      const int y = ys[k % 3];
+      if (put(x, y, p)) done++;
+    }
+    return done;
+  }
+  void stockYards() {
+    for (const Bldg& b : G.M.bldgs) {
+      switch (b.type) {
+        case Building::Windmill: case Building::Watermill: around(b, Prop::Sacks, 2); break;
+        case Building::Granary: around(b, Prop::Sacks, 2); around(b, Prop::Haystack, 1); break;
+        case Building::Bakery: around(b, Prop::Woodpile, 1); around(b, Prop::Sacks, 1); break;
+        case Building::Butcher: around(b, Prop::Barrel, 1); break;
+        case Building::Fishmonger: around(b, Prop::Barrel, 1); around(b, Prop::DryingRack, 1); break;
+        case Building::Smelter: around(b, Prop::OrePile, 1); around(b, Prop::Woodpile, 1); break;
+        case Building::Sawmill: around(b, Prop::LogPile, 2); around(b, Prop::Woodpile, 1); break;
+        case Building::Tanner: around(b, Prop::HideRack, 2); around(b, Prop::Barrel, 1); break;
+        case Building::Weaver: around(b, Prop::Baskets, 1); break;
+        default: break;
+      }
+    }
+  }
+  // (M1 fixer) the trade by the road in: where a main street leaves the houses, the first thing a traveller passes
+  // says what the place lives from (logs waiting for the cart, an ore cart, haystacks, a trough, a drying rack)
+  void roadTrade() {
+    Prop by[2];
+    switch (G.spec) {
+      case Specialty::Lumber: by[0] = Prop::LogPile; by[1] = Prop::Stump; break;
+      case Specialty::Mining: by[0] = Prop::OreCart; by[1] = Prop::OrePile; break;
+      case Specialty::Fishing: by[0] = Prop::DryingRack; by[1] = Prop::Barrel; break;
+      case Specialty::Herding: by[0] = Prop::HideRack; by[1] = Prop::Barrel; break;   // (the beasts are in their pen)
+      default: by[0] = Prop::Haystack; by[1] = Prop::Sacks; break;
+    }
+    int made = 0;
+    const int want = G.village ? 2 : 3;
+    std::vector<std::pair<int, int>> at;
+    for (size_t i = 0; i < G.mainTiles.size() && made < want; i++) {
+      const auto& s = G.mainTiles[(i * 7919u) % G.mainTiles.size()];
+      const float d = G.dist(s.first, s.second);
+      if (d < 0.8f || d > 1.15f) continue;
+      bool far = true;
+      for (auto& a : at) if (std::abs(a.first - s.first) + std::abs(a.second - s.second) < 12) far = false;
+      if (!far) continue;
+      for (int k = 0; k < 4; k++) {
+        const int x = s.first + D4X[k] * 2, y = s.second + D4Y[k] * 2;
+        if (!G.in(x, y) || G.cover[G.I(x, y)] || G.get(x + D4X[k] * -1, y + D4Y[k] * -1) == K_FIELD) continue;
+        // (M3c fixer round 3, review: "every gate gets the same haystack and boulder pressed against the right-hand
+        // gate tower") the road in leaves a walled town through its gate: the trade's pile stands well clear of the
+        // wall and its towers (3 tiles), out along the road, or not at all
+        {
+          bool nearWall = false;
+          for (int oy = -3; oy <= 3 && !nearWall; oy++)
+            for (int ox = -3; ox <= 3; ox++) if (G.in(x + ox, y + oy) && G.M.wall[G.I(x + ox, y + oy)]) { nearWall = true; break; }
+          if (nearWall) continue;
+        }
+        if (!put(x, y, by[0])) continue;
+        // its companion a step further from the road
+        put(x + (D4X[k] ? D4X[k] : 1), y + D4Y[k], by[1]) || put(x + (D4X[k] ? 0 : -1), y + (D4Y[k] ? D4Y[k] : 1), by[1]);
+        // (M1 fixer round 2) on a trodden yard of its own, not loose on the grass (the ground only)
+        if (G.spec != Specialty::Farming && G.spec != Specialty::None)
+          for (int oy = -1; oy <= 1; oy++)
+            for (int ox = -1; ox <= 1; ox++) {
+              const int qx = x + ox, qy = y + oy;
+              if (!G.in(qx, qy) || G.water[G.I(qx, qy)] || G.M.bldgAt[G.I(qx, qy)] >= 0 || G.front[G.I(qx, qy)] || G.lvl[G.I(qx, qy)] != G.lvl[G.I(x, y)]) continue;
+              const uint8_t km = G.get(qx, qy);
+              if ((km == K_NONE || km == K_YARD) && !groundSolid(G.M.at(qx, qy)) && G.M.at(qx, qy) != Ground::Bridge && (std::abs(ox) + std::abs(oy) < 2 || G.hashAt(qx, qy, 599u) % 3u))
+                G.M.setG(qx, qy, Ground::Dirt);
+            }
+        at.push_back({s.first, s.second});
+        made++;
+        break;
+      }
+    }
+  }
+  // (M1 fixer round 2) the herders' work yard: a fenced pen against the tannery, a lean-to for the flock at its back,
+  // the sheep (and a cow or two) inside, the trough and the hay, a gate toward the yard
+  void herdPen() {
+    int tb = -1;
+    for (size_t i = 0; i < G.M.bldgs.size(); i++) if (G.M.bldgs[i].type == Building::Tanner) { tb = (int)i; break; }
+    if (tb >= 0) {
+      const Bldg b = G.M.bldgs[(size_t)tb];
+      const int L0 = G.lvl[G.I(b.r.x, b.r.y + b.r.h - 1)];
+      auto penOk = [&](int x0, int y0, int pw, int ph) {
+        // (M3 terraced: on whichever terrace by the tannery has the room, all of it on one level)
+        const int L = G.terraced && G.in(x0, y0) ? (int)G.lvl[G.I(x0, y0)] : L0;
+        for (int y = y0 - 1; y <= y0 + ph; y++)
+          for (int x = x0 - 1; x <= x0 + pw; x++) {
+            if (!G.in(x, y) || x < 1 || y < 1 || x >= G.W - 1 || y >= G.H - 1) return false;
+            const size_t i = G.I(x, y);
+            const bool inner = x >= x0 && x < x0 + pw && y >= y0 && y < y0 + ph;
+            if (G.M.bldgAt[i] >= 0 || G.M.wall[i] || G.front[i]) return false;   // the ring: nobody's house or door
+            if (!inner) continue;
+            if (G.mask[i] != K_NONE || G.M.prop[i] || G.cover[i] || G.water[i] || G.noBuild[i] || G.lvl[i] != L || G.inCompound(x, y, 1) || G.face(x, y)) return false;
+            if (groundSolid(G.M.at(x, y)) || G.M.at(x, y) == Ground::Bridge || (!G.reserved.empty() && G.reserved[i])) return false;
+          }
+        return true;
+      };
+      static const int sizes[6][2] = {{8, 5}, {7, 5}, {6, 5}, {5, 5}, {7, 4}, {6, 4}};
+      bool done = false;
+      const int reach = G.village ? 16 : 10;
+      for (int si = 0; si < 6 && !done; si++) {
+        const int pw = sizes[si][0], ph = sizes[si][1];
+        // as near the tannery as it fits (beside it best, its front rows level with the building's; else behind it or
+        // a little way off across a lane), never in front of its door
+        struct PC { int x, y, d; };
+        std::vector<PC> cand;
+        for (int y0 = b.r.y - ph - reach + 2; y0 <= b.r.y + b.r.h + reach / 2; y0++)
+          for (int x0 = b.r.x - pw - reach; x0 <= b.r.x + b.r.w + reach; x0++) {
+            const int gx0 = std::max(b.r.x - (x0 + pw), x0 - (b.r.x + b.r.w)), gy0 = std::max(b.r.y - (y0 + ph), y0 - (b.r.y + b.r.h));
+            if (y0 + ph > b.r.y + b.r.h + 1 && x0 + pw > b.r.x - 1 && x0 < b.r.x + b.r.w + 1) continue;   // its front
+            const int d = std::max(0, gx0) * 2 + std::max(0, gy0) * 3 + std::abs((y0 + ph) - (b.r.y + b.r.h));
+            cand.push_back({x0, y0, d});
+          }
+        std::stable_sort(cand.begin(), cand.end(), [](const PC& a, const PC& c) { return a.d < c.d; });
+        for (size_t ci = 0; ci < cand.size() && !done && ci < 1500; ci++) {
+          const int x0 = cand[ci].x, y0 = cand[ci].y;
+          if (!penOk(x0, y0, pw, ph)) continue;
+          const bool west = x0 + pw / 2 < b.r.cx();
+          // the fence (a gate in the side toward the tannery, at its front row; a post that would shut a way stays out)
+          const int gx = west ? x0 + pw - 1 : x0, gy = y0 + ph - 2;
+          std::vector<int> fence;
+          int gaps = 0;
+          for (int y = y0; y < y0 + ph; y++)
+            for (int x = x0; x < x0 + pw; x++) {
+              G.set(x, y, K_FIELD);
+              const bool edgeY = y == y0 || y == y0 + ph - 1, edgeX = x == x0 || x == x0 + pw - 1;
+              if ((!edgeY && !edgeX) || (x == gx && y == gy)) continue;
+              if (!G.putSolid(x, y, edgeY ? Prop::FenceH : Prop::FenceV)) { gaps++; continue; }
+              fence.push_back((int)G.I(x, y));
+            }
+          if (gaps > 0) {   // a pen with holes is no pen: take it down
+            for (int f : fence) G.M.setP(f % G.W, f / G.W, 0);
+            for (int y = y0; y < y0 + ph; y++) for (int x = x0; x < x0 + pw; x++) G.set(x, y, K_NONE);
+            continue;
+          }
+          // the lean-to at the back, the hay and the trough, the beasts
+          const int sx = x0 + pw / 2, sy = y0 + 1;
+          if (G.M.propAt(sx - 1, sy) == 0 && G.M.propAt(sx + 1, sy) == 0 && G.putSolid(sx, sy, Prop::PenShelter)) {
+            if (!G.putSolid(sx - 1, sy, Prop::Filler) || !G.putSolid(sx + 1, sy, Prop::Filler)) { G.M.setP(sx - 1, sy, 0); G.M.setP(sx, sy, 0); G.M.setP(sx + 1, sy, 0); }
+          }
+          // the trough inside a roomy pen; outside by the gate where the pen is small
+          if (pw >= 7) G.putSolid(west ? x0 + 1 : x0 + pw - 2, y0 + ph - 2, Prop::Trough);
+          else put(west ? x0 + pw : x0 - 1, y0 + ph - 1, Prop::Trough);
+          const bool cows = G.hashAt(x0, y0, 577u) % 3u == 0;
+          int beasts = 0;
+          for (int y = y0 + 2; y < y0 + ph - 1; y++)
+            for (int x = x0 + 1; x < x0 + pw - 1; x++) {
+              if (G.M.prop[G.I(x, y)] || beasts >= 5) continue;
+              bool crowd = false;   // (never two side by side, nor one right below another)
+              for (int k = 0; k < 4; k++) {
+                const int q = G.M.propAt(x + D4X[k], y + D4Y[k]);
+                if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
+              }
+              if (crowd) continue;
+              G.M.setProp(x, y, cows && beasts == 1 ? Prop::Cow : Prop::Sheep);   // (inside the fence: no way runs through)
+              // (M7c integration) nor one that walls off a corner of the pen from its gate
+              if (!G.penOpen(x0, y0, pw, ph, west ? gx - 1 : gx + 1, gy)) { G.M.setP(x, y, 0); continue; }
+              beasts++;
+            }
+          // (a pen too small to keep its corners open for two still holds a pair: a herding village's flock)
+          for (int y = y0 + 2; y < y0 + ph - 1 && beasts < 2; y++)
+            for (int x = x0 + 1; x < x0 + pw - 1 && beasts < 2; x++) {
+              if (G.M.prop[G.I(x, y)] || (x == (west ? gx - 1 : gx + 1) && y == gy)) continue;
+              bool crowd = false;
+              for (int k = 0; k < 4; k++) {
+                const int q = G.M.propAt(x + D4X[k], y + D4Y[k]);
+                if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
+              }
+              if (crowd) continue;
+              G.M.setProp(x, y, Prop::Sheep);
+              beasts++;
+            }
+          done = true;
+        }
+      }
+    }
+  }
+  void mine() {
+    // the mine: a timbered adit into the highest ground at the edge, near the smelter, a path to the streets, ore
+    // carts, the spoil heap. (M1 fixer round 2) The adit is cut into the foot of a hill of its own (Prop::MineHill: a
+    // grassy knoll whose south face is a cliff of rock, five tiles across and four deep), the track runs out of it
+    // along the path, the yard before it is trodden earth; a mouth no path from the streets can reach is never used.
+    int smx = G.cx, smy = G.cy;
+    for (const Bldg& b : G.M.bldgs) if (b.type == Building::Smelter) { smx = b.r.cx(); smy = b.r.cy(); }
+    struct Cand { int x, y, score; };
+    std::vector<Cand> cands;
+    // (fixer M7b r2, review: "a city mine can't be reached", "a mining city without its mine") a planned city's edge
+    // is its wall lane and terraces: when no mouth there works, a third pass looks further in (and may open onto a
+    // street)
+    float dLo = 0.85f, dHi = 1.35f;
+    bool wide = false;
+    auto gather = [&]() {
+    cands.clear();
+    for (int y = 6; y < G.H - 3; y++)
+      for (int x = 5; x < G.W - 5; x++) {
+        const float d = G.dist(x, y);
+        if (d < dLo || d > dHi) continue;
+        bool ok = true;
+        for (int dx = -1; dx <= 1 && ok; dx++) {
+          if (!yardOk(x + dx, y, true) || G.lvl[G.I(x + dx, y)] != G.lvl[G.I(x, y)]) ok = false;
+          for (int dy = 1; dy <= 2 && ok; dy++) if (G.M.bldgAt[G.I(x + dx, y - dy)] >= 0 || G.M.wall[G.I(x + dx, y - dy)] || G.front[G.I(x + dx, y - dy)]) ok = false;
+        }
+        // (M3) the mouth opens onto a yard of its own, not straight onto a street (its track runs out along the path)
+        if (!ok || !G.walkable(x, y + 1) || G.M.prop[G.I(x, y + 1)] || G.get(x, y + 1) == K_FIELD || (G.isStreet(x, y + 1) && !wide)) continue;
+        // (integer scores: the same order on every platform)
+        const int rise = (int)G.lvl[G.I(x, y - 2)] - (int)G.lvl[G.I(x, y + 1)];
+        const int d2 = (x - smx) * (x - smx) + (y - smy) * (y - smy);
+        int r = 0;
+        while ((r + 1) * (r + 1) <= d2) r++;
+        const int score = rise * 300 - r * 8 + (int)(G.hashAt(x, y, 461u) % 50u);
+        cands.push_back({x, y, score});
+      }
+    std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return a.score > b.score; });
+    };
+    gather();
+    auto hillOk = [&](int x, int y, int L) {   // a tile of the hill: open ground of the town's own, a tile clear of houses
+      if (!G.in(x, y) || x < 2 || y < 2 || x >= G.W - 2 || y >= G.H - 2) return false;
+      const size_t i = G.I(x, y);
+      if (G.mask[i] != K_NONE || G.water[i] || G.front[i] || G.cover[i] || G.noBuild[i] || G.lvl[i] != L || G.M.prop[i]) return false;
+      if (G.reserved[i] || groundSolid(G.M.at(x, y)) || G.M.at(x, y) == Ground::Bridge || G.inCompound(x, y, 1)) return false;
+      for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          const size_t j = G.I(x + ox, y + oy);
+          if (G.M.bldgAt[j] >= 0 || G.M.wall[j] || G.mask[j] == K_FIELD || G.mask[j] == K_MAIN) return false;
+        }
+      return true;
+    };
+    bool mined = false;
+    // (M7c) the streets joined to the heart (a planned city's scrap of wall lane cut off by a compound or a precinct is
+    // no way to the mine): the mine's path ends on one of these
+    std::vector<uint8_t> joined;
+    if (G.planned) {
+      joined.assign((size_t)G.W * G.H, 0);
+      std::vector<int> st;
+      for (int oy = -3; oy <= 3; oy++)
+        for (int ox = -3; ox <= 3; ox++)
+          if (G.in(G.cx + ox, G.cy + oy) && G.isStreet(G.cx + ox, G.cy + oy) && !joined[G.I(G.cx + ox, G.cy + oy)]) { joined[G.I(G.cx + ox, G.cy + oy)] = 1; st.push_back((int)G.I(G.cx + ox, G.cy + oy)); }
+      while (!st.empty()) {
+        const int c = st.back();
+        st.pop_back();
+        const int px = c % G.W, py = c / G.W;
+        for (int d = 0; d < 4; d++) {
+          const int nx = px + D4X[d], ny = py + D4Y[d];
+          if (!G.in(nx, ny) || joined[G.I(nx, ny)] || !G.isStreet(nx, ny) || G.M.wall[G.I(nx, ny)]) continue;
+          joined[G.I(nx, ny)] = 1;
+          st.push_back((int)G.I(nx, ny));
+        }
+      }
+    }
+    // pass 0: a mouth with room for its hill; pass 1 (a crowded edge): a bare adit any path reaches, the spoil and
+    // the boulders round it
+    // (M7c) the search's map is kept between the tries (only the tiles a try touched are reset): a crowded city edge
+    // tries hundreds of mouths
+    std::vector<int> prev((size_t)G.W * G.H, -2), touched;
+    for (int pass = 0; pass < (G.planned ? 3 : 2) && !mined; pass++) {
+      if (pass == 2) { dLo = 0.45f; dHi = 1.5f; wide = true; gather(); }
+      int tries = 0;
+      for (size_t ci = 0; ci < cands.size() && tries < (pass ? 300 : 120); ci++) {
+        const int bx = cands[ci].x, by = cands[ci].y;
+        const bool hill = pass == 0;
+        const int L = G.lvl[G.I(bx, by)];
+        if (hill) {   // (cheap first) room for the hill: its footprint, and a row over it clear of every house's front
+          bool room = true;
+          for (int dy = 0; dy <= 3 && room; dy++)
+            for (int dx = -2; dx <= 2; dx++) {
+              if (dy == 0 && std::abs(dx) <= 1) continue;   // (the mouth row's middle: yardOk above)
+              if (!hillOk(bx + dx, by - dy, L)) { room = false; break; }
+            }
+          for (int dx = -2; dx <= 2 && room; dx++) {
+            const int x = bx + dx, y = by - 4;
+            if (!G.in(x, y) || G.M.bldgAt[G.I(x, y)] >= 0 || G.front[G.I(x, y)] || G.M.wall[G.I(x, y)]) room = false;
+          }
+          if (!room) continue;
+        }
+        tries++;
+        // the path from its mouth to the streets (searched first: no path, no mine here)
+        for (int t : touched) prev[(size_t)t] = -2;
+        touched.clear();
+        std::queue<int> q;
+        prev[G.I(bx, by + 1)] = -1;
+        touched.push_back((int)G.I(bx, by + 1));
+        q.push((int)G.I(bx, by + 1));
+        int found = -1;
+        while (!q.empty() && found < 0) {
+          const int c = q.front(); q.pop();
+          const int px = c % G.W, py = c / G.W;
+          if (G.isStreet(px, py) && (joined.empty() || joined[(size_t)c])) { found = c; break; }
+          if (std::abs(px - bx) + std::abs(py - by) > 40) continue;
+          for (int d = 0; d < 4; d++) {
+            const int nx = px + D4X[d], ny = py + D4Y[d];
+            if (!G.in(nx, ny) || prev[G.I(nx, ny)] != -2 || !G.walkable(nx, ny) || G.get(nx, ny) == K_FIELD || G.get(nx, ny) == K_ROWYARD) continue;   // ((M7c) never through a row house's walled back yard)
+            if (ny <= by && std::abs(nx - bx) <= 2) continue;   // not back through the mouth's or the hill's tiles
+            prev[G.I(nx, ny)] = c;
+            touched.push_back((int)G.I(nx, ny));
+            q.push((int)G.I(nx, ny));
+          }
+        }
+        if (found < 0) continue;
+        // the mouth (and the hill) are solid: each tile only where the ways round it stay open, else none of it
+        std::vector<int> laid;
+        bool ok = true;
+        auto lay = [&](int x, int y, Prop p) {
+          if (!ok) return;
+          if (!G.putSolid(x, y, p)) { ok = false; return; }
+          laid.push_back((int)G.I(x, y));
+        };
+        lay(bx, by, hill ? Prop::MineHill : Prop::MineEntrance);
+        lay(bx - 1, by, Prop::Filler);
+        lay(bx + 1, by, Prop::Filler);
+        if (hill) {
+          lay(bx - 2, by, Prop::Filler);
+          lay(bx + 2, by, Prop::Filler);
+          for (int dy = 1; dy <= 3; dy++)
+            for (int dx = -2; dx <= 2; dx++) lay(bx + dx, by - dy, Prop::Filler);
+        }
+        if (!ok) { for (int k : laid) G.M.setP(k % G.W, k / G.W, 0); continue; }
+        if (hill)
+          for (int dy = 0; dy <= 3; dy++)
+            for (int dx = -2; dx <= 2; dx++) G.set(bx + dx, by - dy, K_YARD);
+        else
+          for (int dx = -1; dx <= 1; dx++) G.set(bx + dx, by, K_YARD);
+        // the path trodden to earth, the track laid along its first stretch out of the adit
+        std::vector<int> path;
+        for (int c = prev[(size_t)found]; c >= 0; c = prev[(size_t)c]) path.push_back(c);
+        path.push_back((int)G.I(bx, by + 1));
+        std::reverse(path.begin(), path.end());   // from the mouth outward
+        for (int c : path) {
+          const int px = c % G.W, py = c / G.W;
+          if (G.get(px, py) == K_NONE || G.get(px, py) == K_YARD) { G.set(px, py, K_YARD); G.M.setG(px, py, Ground::Dirt); G.M.setP(px, py, 0); }
+        }
+        // the yard before the mouth: trodden earth a few tiles either side (its ground now, the yard's mark once the
+        // carts and the spoil stand on it)
+        std::vector<int> yard;
+        for (int y = by + 1; y <= by + 2; y++)
+          for (int x = bx - 4; x <= bx + 4; x++)
+            if (G.in(x, y) && G.get(x, y) == K_NONE && !G.M.prop[G.I(x, y)] && !G.front[G.I(x, y)] && !G.water[G.I(x, y)] && G.lvl[G.I(x, y)] == L && !groundSolid(G.M.at(x, y))) {
+              G.M.setG(x, y, Ground::Dirt);
+              yard.push_back((int)G.I(x, y));
+            }
+        int railed = 0;
+        for (int c : path) {
+          const int px = c % G.W, py = c / G.W;
+          if (railed >= 9 || G.isStreet(px, py) || G.M.prop[(size_t)c]) break;
+          G.M.setProp(px, py, Prop::MineRail);
+          railed++;
+        }
+        // the ore cart on a spur of track beside the mouth, the spoil heap tipped at the other side
+        const int sd = (G.hashAt(bx, by, 593u) & 1) ? 1 : -1;
+        bool cart = false;
+        for (int s : {sd, -sd}) {
+          if (cart) break;
+          if (yardOk(bx + s, by + 1, false) && yardOk(bx + 2 * s, by + 1, true) && put(bx + 2 * s, by + 1, Prop::OreCart)) {
+            G.M.setP(bx + s, by + 1, 0);
+            if (!G.M.prop[G.I(bx + s, by + 1)]) G.M.setProp(bx + s, by + 1, Prop::MineRail);
+            cart = true;
+            put(bx - 3 * s, by + 1, Prop::OrePile) || put(bx - 3 * s, by + 2, Prop::OrePile);
+            put(bx - 4 * s, by + 1, Prop::Rock);
+            put(bx + 3 * s, by + 2, Prop::Crate);
+          }
+        }
+        if (!cart) { put(bx - 3, by + 1, Prop::OrePile) || put(bx + 3, by + 1, Prop::OrePile); }
+        if (!hill) {
+          put(bx + 4, by, Prop::Boulder) || put(bx - 4, by, Prop::Boulder);
+          put(bx - 3, by, Prop::Rock) || put(bx + 3, by, Prop::Rock);
+        }
+        for (int k : yard) if (G.mask[(size_t)k] == K_NONE) G.mask[(size_t)k] = K_YARD;
+        mined = true;
+        break;
+      }
+    }
+  }
+  void lumber() {
+    // stumps where the wood was cut back from the houses, logs waiting to be hauled
+    for (int t = 0, n = 0; t < 300 && n < 9; t++) {
+      const float a = G.rng.f() * D_TAU, rr = G.rng.range(1.0f, 1.3f);
+      const int x = G.cx + (int)std::floor(dcos(a) * G.rx * rr), y = G.cy + (int)std::floor(dsin(a) * G.ry * rr);
+      if (!G.in(x, y) || !yardOk(x, y, false)) continue;
+      if (!G.putSolid(x, y, n % 4 == 3 ? Prop::Log : Prop::Stump)) continue;
+      n++;
+    }
+  }
+  void fishing() {
+    // drying racks along the shore
+    int racks = 0;
+    for (int y = 2; y < G.H - 2 && racks < (G.village ? 2 : 3); y++)
+      for (int x = 2; x < G.W - 2 && racks < (G.village ? 2 : 3); x++) {
+        if (G.dist(x, y) > 1.2f || !yardOk(x, y, true) || G.hashAt(x, y, 467u) % 3) continue;
+        bool shore = false;
+        for (int oy = 0; oy <= 2 && !shore; oy++)
+          for (int ox = -2; ox <= 2; ox++) if (G.in(x + ox, y + oy) && G.water[G.I(x + ox, y + oy)]) { shore = true; break; }
+        bool crowded = false;
+        for (int oy = -2; oy <= 1 && !crowded; oy++)
+          for (int ox = -2; ox <= 2; ox++) {
+            const int q = G.in(x + ox, y + oy) ? G.M.prop[G.I(x + ox, y + oy)] : 0;
+            if (q && !lowProp((Prop)(q - 1))) { crowded = true; break; }
+          }
+        if (!shore || crowded) continue;
+        if (!G.putSolid(x, y, Prop::DryingRack)) continue;
+        G.set(x, y, K_YARD);
+        racks++;
+      }
+  }
+ public:
+  void markets() {
+    // ---- the trades: one stall each at most; the town's own trade among the first few (a village's first of all)
+    S = G.squares[0];
+    mk = G.arch == Archetype::Market;
+    own = tradeOf(G.spec);
+    pool = std::vector<int>{own};
+    auto addP = [&](int t) { if (std::find(pool.begin(), pool.end(), t) == pool.end()) pool.push_back(t); };
+    if (G.village) {
+      addP(G.spec == Specialty::Farming ? (int)StallTrade::Bread : (G.spec == Specialty::Herding ? (int)StallTrade::Cloth : (int)StallTrade::Produce));
+      addP(G.spec == Specialty::Farming ? (int)StallTrade::Meat : (int)StallTrade::Bread);
+    } else {
+      for (int t = 0; t < (int)StallTrade::COUNT; t++) {
+        if (t == (int)StallTrade::Fish && G.spec != Specialty::Fishing && G.arch != Archetype::Port && !G.city) continue;   // inland towns
+        if (t == (int)StallTrade::Timber && G.spec != Specialty::Lumber && !G.city) continue;
+        addP(t);
+      }
+      for (size_t i = pool.size(); i > 1; i--) std::swap(pool[i - 1], pool[(size_t)G.rng.irange((int)i)]);
+      const size_t at = (size_t)std::min((int)pool.size() - 1, G.rng.irange(3));
+      auto it = std::find(pool.begin(), pool.end(), own);
+      pool.erase(it);
+      pool.insert(pool.begin() + (std::ptrdiff_t)at, own);
+    }
+    nextT = 0;
+    // ---- how big
+    if (G.village) { nTrade = 1 + G.rng.irange(2) + (mk ? 1 : 0); nIsl = 0; maxRows = 1; }
+    else if (G.capital) { nTrade = 7 + G.rng.irange(2); nIsl = 4 + G.rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
+    else if (G.city) { nTrade = 5 + G.rng.irange(2) + (mk ? 1 : 0); nIsl = 2 + G.rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
+    // (stalls fixer round 2) a town's market has four stalls or more: room for a pair seen from the front and a pair
+    // turned (from behind or in profile)
+    else { nTrade = mk ? 6 + G.rng.irange(2) : 4 + G.rng.irange(2); nIsl = mk ? 3 + G.rng.irange(2) : G.rng.irange(3); maxRows = 2; }
+    nTrade = std::min(nTrade, (int)pool.size());
+    // ---- the rhythm (by the town's own draw)
+    walk = 2 + G.rng.irange(2);   // the walkway between two groups of a row
+    rowGap = G.city ? 7 : 6 + G.rng.irange(2);
+    bigFirst = G.rng.f() < 0.5f;   // a row of five: three then two, or two then three
+    walkMk.assign((size_t)G.W * G.H, 0);
+    endMk.assign((size_t)G.W * G.H, 0);
+    lv0 = G.lvl[G.I(S.x, S.y)];
+    CX = G.cpX >= 0 ? G.cpX : S.x; CY = G.cpX >= 0 ? G.cpY : S.y;   // the centrepiece
+    Z = G.mktZone.w > 0 ? G.mktZone : IRect{S.x - (int)S.r - 2, S.y - (int)S.r - 2, (int)S.r * 2 + 5, (int)S.r * 2 + 5};
+    R = (int)(S.r * 1.25f) + 3;
+    all = IRect{std::min(Z.x, S.x - R), std::min(Z.y, S.y - R), 0, 0};
+    all.w = std::max(Z.x + Z.w, S.x + R + 1) - all.x;
+    all.h = std::max(Z.y + Z.h, S.y + R + 1) - all.y;
+    if (G.village) {
+      villageMarket();
+    } else {
+      const int streetN = streetMarket();
+      squareMarkets(streetN);
+      openTables();
+    }
+    stockEnds();
+    tradersCarts();
+    keepers();
+    showTrade();
+  }
+  void tradeYards() {
+    stockYards();
+    roadTrade();
+    if (G.spec == Specialty::Herding) herdPen();
+    // the specialisation out at the edge
+    if (G.spec == Specialty::Mining) mine();
+    else if (G.spec == Specialty::Lumber) lumber();
+    else if (G.spec == Specialty::Fishing) fishing();
+  }
+};
+}  // namespace
+
+// The market (M1 fixer round 2: a planned market, never a vending grid nor a scatter). One market place on the main
+// square, laid out the way a town would plan it:
+//  - the trades' stalls in one or two rows, each row a few groups of two or three stalls touching, a walkway of two or
+//    three tiles between the groups, the rows aligned one behind the other with a wide aisle (four tiles of open
+//    paving) between them, the rows kept clear of the square's edges; every trade keeps one stall at most in the whole
+//    town (a capital's eight trades are eight stalls), each row built alike (cloth booths, canvas tents or shingled
+//    timber booths: the view draws the row's form);
+//  - the rest of the market in the open: trestle tables and cloths spread on the paving in a line of their own across
+//    the square, each selling something no other table sells (cheese, eggs, spices, flowers, honey, baskets, wool,
+//    cider; pots, rugs, gourds, furs), a walkway round every one;
+//  - stock stacked at the groups' ends, the traders' carts at the row ends, a keeper behind every counter;
+//  - a market town's market also runs along its main street (the lots kept for it), always a run of two or more;
+//  - a group of one never stands alone: a stall that cannot find a neighbour is not built (its trade sells from a table).
+// Villages: one or two stalls (a pair, or a stall and a cart) on the green by the well, a bench and a tree beside it.
+void Gen::markets() {
+  reserved.assign((size_t)W * H, 0);
+  stalls.clear();
+  if (squares.empty()) return;
+  MarketPlanner(*this).markets();
 }
+
 
 // The squares that hold no market: benches round the centrepiece, a shade tree at the edge, a lamp
 void Gen::squareDress() {
@@ -1359,427 +1827,9 @@ void Gen::squareDress() {
 
 // ------------------------------------------------------------------------------------------------ the trades' yards
 void Gen::tradeYards() {
-  auto yardOk = [&](int x, int y, bool tall) {
-    if (!freeTile(x, y) || inCompound(x, y, 1) || reserved.empty() || reserved[I(x, y)]) return false;
-    if (tall && cover[I(x, y)]) return false;
-    return get(x, y) != K_FIELD;
-  };
-  // (M1 fixer) every solid yard prop leaves the ways round it open (putSolid)
-  auto put = [&](int x, int y, Prop p) {
-    const bool tall = !lowProp(p);
-    if (!yardOk(x, y, tall)) return false;
-    if (!putSolid(x, y, p)) return false;
-    set(x, y, K_YARD);
-    return true;
-  };
-  // round a building: its sides (low stock against the walls), then two steps out (tall frames clear of its roof)
-  auto around = [&](const Bldg& b, Prop p, int n) {
-    int done = 0;
-    const bool tall = !lowProp(p);
-    const int off = tall ? 2 : 1;
-    const int ys[3] = {b.r.y + b.r.h - 1, b.r.y + b.r.h - 2, b.r.y};
-    for (int k = 0; k < 6 && done < n; k++) {
-      const bool west = ((hashAt(b.r.x, b.r.y, 457u) >> k) & 1) != 0;
-      const int x = west ? b.r.x - off : b.r.x + b.r.w - 1 + off;
-      const int y = ys[k % 3];
-      if (put(x, y, p)) done++;
-    }
-    return done;
-  };
-  for (const Bldg& b : M.bldgs) {
-    switch (b.type) {
-      case Building::Windmill: case Building::Watermill: around(b, Prop::Sacks, 2); break;
-      case Building::Granary: around(b, Prop::Sacks, 2); around(b, Prop::Haystack, 1); break;
-      case Building::Bakery: around(b, Prop::Woodpile, 1); around(b, Prop::Sacks, 1); break;
-      case Building::Butcher: around(b, Prop::Barrel, 1); break;
-      case Building::Fishmonger: around(b, Prop::Barrel, 1); around(b, Prop::DryingRack, 1); break;
-      case Building::Smelter: around(b, Prop::OrePile, 1); around(b, Prop::Woodpile, 1); break;
-      case Building::Sawmill: around(b, Prop::LogPile, 2); around(b, Prop::Woodpile, 1); break;
-      case Building::Tanner: around(b, Prop::HideRack, 2); around(b, Prop::Barrel, 1); break;
-      case Building::Weaver: around(b, Prop::Baskets, 1); break;
-      default: break;
-    }
-  }
-  // (M1 fixer) the trade by the road in: where a main street leaves the houses, the first thing a traveller passes
-  // says what the place lives from (logs waiting for the cart, an ore cart, haystacks, a trough, a drying rack)
-  {
-    Prop by[2];
-    switch (spec) {
-      case Specialty::Lumber: by[0] = Prop::LogPile; by[1] = Prop::Stump; break;
-      case Specialty::Mining: by[0] = Prop::OreCart; by[1] = Prop::OrePile; break;
-      case Specialty::Fishing: by[0] = Prop::DryingRack; by[1] = Prop::Barrel; break;
-      case Specialty::Herding: by[0] = Prop::HideRack; by[1] = Prop::Barrel; break;   // (the beasts are in their pen)
-      default: by[0] = Prop::Haystack; by[1] = Prop::Sacks; break;
-    }
-    int made = 0;
-    const int want = village ? 2 : 3;
-    std::vector<std::pair<int, int>> at;
-    for (size_t i = 0; i < mainTiles.size() && made < want; i++) {
-      const auto& s = mainTiles[(i * 7919u) % mainTiles.size()];
-      const float d = dist(s.first, s.second);
-      if (d < 0.8f || d > 1.15f) continue;
-      bool far = true;
-      for (auto& a : at) if (std::abs(a.first - s.first) + std::abs(a.second - s.second) < 12) far = false;
-      if (!far) continue;
-      for (int k = 0; k < 4; k++) {
-        const int x = s.first + D4X[k] * 2, y = s.second + D4Y[k] * 2;
-        if (!in(x, y) || cover[I(x, y)] || get(x + D4X[k] * -1, y + D4Y[k] * -1) == K_FIELD) continue;
-        // (M3c fixer round 3, review: "every gate gets the same haystack and boulder pressed against the right-hand
-        // gate tower") the road in leaves a walled town through its gate: the trade's pile stands well clear of the
-        // wall and its towers (3 tiles), out along the road, or not at all
-        {
-          bool nearWall = false;
-          for (int oy = -3; oy <= 3 && !nearWall; oy++)
-            for (int ox = -3; ox <= 3; ox++) if (in(x + ox, y + oy) && M.wall[I(x + ox, y + oy)]) { nearWall = true; break; }
-          if (nearWall) continue;
-        }
-        if (!put(x, y, by[0])) continue;
-        // its companion a step further from the road
-        put(x + (D4X[k] ? D4X[k] : 1), y + D4Y[k], by[1]) || put(x + (D4X[k] ? 0 : -1), y + (D4Y[k] ? D4Y[k] : 1), by[1]);
-        // (M1 fixer round 2) on a trodden yard of its own, not loose on the grass (the ground only)
-        if (spec != Specialty::Farming && spec != Specialty::None)
-          for (int oy = -1; oy <= 1; oy++)
-            for (int ox = -1; ox <= 1; ox++) {
-              const int qx = x + ox, qy = y + oy;
-              if (!in(qx, qy) || water[I(qx, qy)] || M.bldgAt[I(qx, qy)] >= 0 || front[I(qx, qy)] || lvl[I(qx, qy)] != lvl[I(x, y)]) continue;
-              const uint8_t km = get(qx, qy);
-              if ((km == K_NONE || km == K_YARD) && !groundSolid(M.at(qx, qy)) && M.at(qx, qy) != Ground::Bridge && (std::abs(ox) + std::abs(oy) < 2 || hashAt(qx, qy, 599u) % 3u))
-                M.setG(qx, qy, Ground::Dirt);
-            }
-        at.push_back({s.first, s.second});
-        made++;
-        break;
-      }
-    }
-  }
-  // (M1 fixer round 2) the herders' work yard: a fenced pen against the tannery, a lean-to for the flock at its back,
-  // the sheep (and a cow or two) inside, the trough and the hay, a gate toward the yard
-  if (spec == Specialty::Herding) {
-    int tb = -1;
-    for (size_t i = 0; i < M.bldgs.size(); i++) if (M.bldgs[i].type == Building::Tanner) { tb = (int)i; break; }
-    if (tb >= 0) {
-      const Bldg b = M.bldgs[(size_t)tb];
-      const int L0 = lvl[I(b.r.x, b.r.y + b.r.h - 1)];
-      auto penOk = [&](int x0, int y0, int pw, int ph) {
-        // (M3 terraced: on whichever terrace by the tannery has the room, all of it on one level)
-        const int L = terraced && in(x0, y0) ? (int)lvl[I(x0, y0)] : L0;
-        for (int y = y0 - 1; y <= y0 + ph; y++)
-          for (int x = x0 - 1; x <= x0 + pw; x++) {
-            if (!in(x, y) || x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false;
-            const size_t i = I(x, y);
-            const bool inner = x >= x0 && x < x0 + pw && y >= y0 && y < y0 + ph;
-            if (M.bldgAt[i] >= 0 || M.wall[i] || front[i]) return false;   // the ring: nobody's house or door
-            if (!inner) continue;
-            if (mask[i] != K_NONE || M.prop[i] || cover[i] || water[i] || noBuild[i] || lvl[i] != L || inCompound(x, y, 1) || face(x, y)) return false;
-            if (groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge || (!reserved.empty() && reserved[i])) return false;
-          }
-        return true;
-      };
-      static const int sizes[6][2] = {{8, 5}, {7, 5}, {6, 5}, {5, 5}, {7, 4}, {6, 4}};
-      bool done = false;
-      const int reach = village ? 16 : 10;
-      for (int si = 0; si < 6 && !done; si++) {
-        const int pw = sizes[si][0], ph = sizes[si][1];
-        // as near the tannery as it fits (beside it best, its front rows level with the building's; else behind it or
-        // a little way off across a lane), never in front of its door
-        struct PC { int x, y, d; };
-        std::vector<PC> cand;
-        for (int y0 = b.r.y - ph - reach + 2; y0 <= b.r.y + b.r.h + reach / 2; y0++)
-          for (int x0 = b.r.x - pw - reach; x0 <= b.r.x + b.r.w + reach; x0++) {
-            const int gx0 = std::max(b.r.x - (x0 + pw), x0 - (b.r.x + b.r.w)), gy0 = std::max(b.r.y - (y0 + ph), y0 - (b.r.y + b.r.h));
-            if (y0 + ph > b.r.y + b.r.h + 1 && x0 + pw > b.r.x - 1 && x0 < b.r.x + b.r.w + 1) continue;   // its front
-            const int d = std::max(0, gx0) * 2 + std::max(0, gy0) * 3 + std::abs((y0 + ph) - (b.r.y + b.r.h));
-            cand.push_back({x0, y0, d});
-          }
-        std::stable_sort(cand.begin(), cand.end(), [](const PC& a, const PC& c) { return a.d < c.d; });
-        for (size_t ci = 0; ci < cand.size() && !done && ci < 1500; ci++) {
-          const int x0 = cand[ci].x, y0 = cand[ci].y;
-          if (!penOk(x0, y0, pw, ph)) continue;
-          const bool west = x0 + pw / 2 < b.r.cx();
-          // the fence (a gate in the side toward the tannery, at its front row; a post that would shut a way stays out)
-          const int gx = west ? x0 + pw - 1 : x0, gy = y0 + ph - 2;
-          std::vector<int> fence;
-          int gaps = 0;
-          for (int y = y0; y < y0 + ph; y++)
-            for (int x = x0; x < x0 + pw; x++) {
-              set(x, y, K_FIELD);
-              const bool edgeY = y == y0 || y == y0 + ph - 1, edgeX = x == x0 || x == x0 + pw - 1;
-              if ((!edgeY && !edgeX) || (x == gx && y == gy)) continue;
-              if (!putSolid(x, y, edgeY ? Prop::FenceH : Prop::FenceV)) { gaps++; continue; }
-              fence.push_back((int)I(x, y));
-            }
-          if (gaps > 0) {   // a pen with holes is no pen: take it down
-            for (int f : fence) M.setP(f % W, f / W, 0);
-            for (int y = y0; y < y0 + ph; y++) for (int x = x0; x < x0 + pw; x++) set(x, y, K_NONE);
-            continue;
-          }
-          // the lean-to at the back, the hay and the trough, the beasts
-          const int sx = x0 + pw / 2, sy = y0 + 1;
-          if (M.propAt(sx - 1, sy) == 0 && M.propAt(sx + 1, sy) == 0 && putSolid(sx, sy, Prop::PenShelter)) {
-            if (!putSolid(sx - 1, sy, Prop::Filler) || !putSolid(sx + 1, sy, Prop::Filler)) { M.setP(sx - 1, sy, 0); M.setP(sx, sy, 0); M.setP(sx + 1, sy, 0); }
-          }
-          // the trough inside a roomy pen; outside by the gate where the pen is small
-          if (pw >= 7) putSolid(west ? x0 + 1 : x0 + pw - 2, y0 + ph - 2, Prop::Trough);
-          else put(west ? x0 + pw : x0 - 1, y0 + ph - 1, Prop::Trough);
-          const bool cows = hashAt(x0, y0, 577u) % 3u == 0;
-          int beasts = 0;
-          for (int y = y0 + 2; y < y0 + ph - 1; y++)
-            for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-              if (M.prop[I(x, y)] || beasts >= 5) continue;
-              bool crowd = false;   // (never two side by side, nor one right below another)
-              for (int k = 0; k < 4; k++) {
-                const int q = M.propAt(x + D4X[k], y + D4Y[k]);
-                if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
-              }
-              if (crowd) continue;
-              M.setProp(x, y, cows && beasts == 1 ? Prop::Cow : Prop::Sheep);   // (inside the fence: no way runs through)
-              // (M7c integration) nor one that walls off a corner of the pen from its gate
-              if (!penOpen(x0, y0, pw, ph, west ? gx - 1 : gx + 1, gy)) { M.setP(x, y, 0); continue; }
-              beasts++;
-            }
-          // (a pen too small to keep its corners open for two still holds a pair: a herding village's flock)
-          for (int y = y0 + 2; y < y0 + ph - 1 && beasts < 2; y++)
-            for (int x = x0 + 1; x < x0 + pw - 1 && beasts < 2; x++) {
-              if (M.prop[I(x, y)] || (x == (west ? gx - 1 : gx + 1) && y == gy)) continue;
-              bool crowd = false;
-              for (int k = 0; k < 4; k++) {
-                const int q = M.propAt(x + D4X[k], y + D4Y[k]);
-                if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
-              }
-              if (crowd) continue;
-              M.setProp(x, y, Prop::Sheep);
-              beasts++;
-            }
-          done = true;
-        }
-      }
-    }
-  }
-  // the specialisation out at the edge
-  if (spec == Specialty::Mining) {
-    // the mine: a timbered adit into the highest ground at the edge, near the smelter, a path to the streets, ore
-    // carts, the spoil heap. (M1 fixer round 2) The adit is cut into the foot of a hill of its own (Prop::MineHill: a
-    // grassy knoll whose south face is a cliff of rock, five tiles across and four deep), the track runs out of it
-    // along the path, the yard before it is trodden earth; a mouth no path from the streets can reach is never used.
-    int smx = cx, smy = cy;
-    for (const Bldg& b : M.bldgs) if (b.type == Building::Smelter) { smx = b.r.cx(); smy = b.r.cy(); }
-    struct Cand { int x, y, score; };
-    std::vector<Cand> cands;
-    // (fixer M7b r2, review: "a city mine can't be reached", "a mining city without its mine") a planned city's edge
-    // is its wall lane and terraces: when no mouth there works, a third pass looks further in (and may open onto a
-    // street)
-    float dLo = 0.85f, dHi = 1.35f;
-    bool wide = false;
-    auto gather = [&]() {
-    cands.clear();
-    for (int y = 6; y < H - 3; y++)
-      for (int x = 5; x < W - 5; x++) {
-        const float d = dist(x, y);
-        if (d < dLo || d > dHi) continue;
-        bool ok = true;
-        for (int dx = -1; dx <= 1 && ok; dx++) {
-          if (!yardOk(x + dx, y, true) || lvl[I(x + dx, y)] != lvl[I(x, y)]) ok = false;
-          for (int dy = 1; dy <= 2 && ok; dy++) if (M.bldgAt[I(x + dx, y - dy)] >= 0 || M.wall[I(x + dx, y - dy)] || front[I(x + dx, y - dy)]) ok = false;
-        }
-        // (M3) the mouth opens onto a yard of its own, not straight onto a street (its track runs out along the path)
-        if (!ok || !walkable(x, y + 1) || M.prop[I(x, y + 1)] || get(x, y + 1) == K_FIELD || (isStreet(x, y + 1) && !wide)) continue;
-        // (integer scores: the same order on every platform)
-        const int rise = (int)lvl[I(x, y - 2)] - (int)lvl[I(x, y + 1)];
-        const int d2 = (x - smx) * (x - smx) + (y - smy) * (y - smy);
-        int r = 0;
-        while ((r + 1) * (r + 1) <= d2) r++;
-        const int score = rise * 300 - r * 8 + (int)(hashAt(x, y, 461u) % 50u);
-        cands.push_back({x, y, score});
-      }
-    std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return a.score > b.score; });
-    };
-    gather();
-    auto hillOk = [&](int x, int y, int L) {   // a tile of the hill: open ground of the town's own, a tile clear of houses
-      if (!in(x, y) || x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return false;
-      const size_t i = I(x, y);
-      if (mask[i] != K_NONE || water[i] || front[i] || cover[i] || noBuild[i] || lvl[i] != L || M.prop[i]) return false;
-      if (reserved[i] || groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge || inCompound(x, y, 1)) return false;
-      for (int oy = -1; oy <= 1; oy++)
-        for (int ox = -1; ox <= 1; ox++) {
-          const size_t j = I(x + ox, y + oy);
-          if (M.bldgAt[j] >= 0 || M.wall[j] || mask[j] == K_FIELD || mask[j] == K_MAIN) return false;
-        }
-      return true;
-    };
-    bool mined = false;
-    // (M7c) the streets joined to the heart (a planned city's scrap of wall lane cut off by a compound or a precinct is
-    // no way to the mine): the mine's path ends on one of these
-    std::vector<uint8_t> joined;
-    if (planned) {
-      joined.assign((size_t)W * H, 0);
-      std::vector<int> st;
-      for (int oy = -3; oy <= 3; oy++)
-        for (int ox = -3; ox <= 3; ox++)
-          if (in(cx + ox, cy + oy) && isStreet(cx + ox, cy + oy) && !joined[I(cx + ox, cy + oy)]) { joined[I(cx + ox, cy + oy)] = 1; st.push_back((int)I(cx + ox, cy + oy)); }
-      while (!st.empty()) {
-        const int c = st.back();
-        st.pop_back();
-        const int px = c % W, py = c / W;
-        for (int d = 0; d < 4; d++) {
-          const int nx = px + D4X[d], ny = py + D4Y[d];
-          if (!in(nx, ny) || joined[I(nx, ny)] || !isStreet(nx, ny) || M.wall[I(nx, ny)]) continue;
-          joined[I(nx, ny)] = 1;
-          st.push_back((int)I(nx, ny));
-        }
-      }
-    }
-    // pass 0: a mouth with room for its hill; pass 1 (a crowded edge): a bare adit any path reaches, the spoil and
-    // the boulders round it
-    // (M7c) the search's map is kept between the tries (only the tiles a try touched are reset): a crowded city edge
-    // tries hundreds of mouths
-    std::vector<int> prev((size_t)W * H, -2), touched;
-    for (int pass = 0; pass < (planned ? 3 : 2) && !mined; pass++) {
-      if (pass == 2) { dLo = 0.45f; dHi = 1.5f; wide = true; gather(); }
-      int tries = 0;
-      for (size_t ci = 0; ci < cands.size() && tries < (pass ? 300 : 120); ci++) {
-        const int bx = cands[ci].x, by = cands[ci].y;
-        const bool hill = pass == 0;
-        const int L = lvl[I(bx, by)];
-        if (hill) {   // (cheap first) room for the hill: its footprint, and a row over it clear of every house's front
-          bool room = true;
-          for (int dy = 0; dy <= 3 && room; dy++)
-            for (int dx = -2; dx <= 2; dx++) {
-              if (dy == 0 && std::abs(dx) <= 1) continue;   // (the mouth row's middle: yardOk above)
-              if (!hillOk(bx + dx, by - dy, L)) { room = false; break; }
-            }
-          for (int dx = -2; dx <= 2 && room; dx++) {
-            const int x = bx + dx, y = by - 4;
-            if (!in(x, y) || M.bldgAt[I(x, y)] >= 0 || front[I(x, y)] || M.wall[I(x, y)]) room = false;
-          }
-          if (!room) continue;
-        }
-        tries++;
-        // the path from its mouth to the streets (searched first: no path, no mine here)
-        for (int t : touched) prev[(size_t)t] = -2;
-        touched.clear();
-        std::queue<int> q;
-        prev[I(bx, by + 1)] = -1;
-        touched.push_back((int)I(bx, by + 1));
-        q.push((int)I(bx, by + 1));
-        int found = -1;
-        while (!q.empty() && found < 0) {
-          const int c = q.front(); q.pop();
-          const int px = c % W, py = c / W;
-          if (isStreet(px, py) && (joined.empty() || joined[(size_t)c])) { found = c; break; }
-          if (std::abs(px - bx) + std::abs(py - by) > 40) continue;
-          for (int d = 0; d < 4; d++) {
-            const int nx = px + D4X[d], ny = py + D4Y[d];
-            if (!in(nx, ny) || prev[I(nx, ny)] != -2 || !walkable(nx, ny) || get(nx, ny) == K_FIELD || get(nx, ny) == K_ROWYARD) continue;   // ((M7c) never through a row house's walled back yard)
-            if (ny <= by && std::abs(nx - bx) <= 2) continue;   // not back through the mouth's or the hill's tiles
-            prev[I(nx, ny)] = c;
-            touched.push_back((int)I(nx, ny));
-            q.push((int)I(nx, ny));
-          }
-        }
-        if (found < 0) continue;
-        // the mouth (and the hill) are solid: each tile only where the ways round it stay open, else none of it
-        std::vector<int> laid;
-        bool ok = true;
-        auto lay = [&](int x, int y, Prop p) {
-          if (!ok) return;
-          if (!putSolid(x, y, p)) { ok = false; return; }
-          laid.push_back((int)I(x, y));
-        };
-        lay(bx, by, hill ? Prop::MineHill : Prop::MineEntrance);
-        lay(bx - 1, by, Prop::Filler);
-        lay(bx + 1, by, Prop::Filler);
-        if (hill) {
-          lay(bx - 2, by, Prop::Filler);
-          lay(bx + 2, by, Prop::Filler);
-          for (int dy = 1; dy <= 3; dy++)
-            for (int dx = -2; dx <= 2; dx++) lay(bx + dx, by - dy, Prop::Filler);
-        }
-        if (!ok) { for (int k : laid) M.setP(k % W, k / W, 0); continue; }
-        if (hill)
-          for (int dy = 0; dy <= 3; dy++)
-            for (int dx = -2; dx <= 2; dx++) set(bx + dx, by - dy, K_YARD);
-        else
-          for (int dx = -1; dx <= 1; dx++) set(bx + dx, by, K_YARD);
-        // the path trodden to earth, the track laid along its first stretch out of the adit
-        std::vector<int> path;
-        for (int c = prev[(size_t)found]; c >= 0; c = prev[(size_t)c]) path.push_back(c);
-        path.push_back((int)I(bx, by + 1));
-        std::reverse(path.begin(), path.end());   // from the mouth outward
-        for (int c : path) {
-          const int px = c % W, py = c / W;
-          if (get(px, py) == K_NONE || get(px, py) == K_YARD) { set(px, py, K_YARD); M.setG(px, py, Ground::Dirt); M.setP(px, py, 0); }
-        }
-        // the yard before the mouth: trodden earth a few tiles either side (its ground now, the yard's mark once the
-        // carts and the spoil stand on it)
-        std::vector<int> yard;
-        for (int y = by + 1; y <= by + 2; y++)
-          for (int x = bx - 4; x <= bx + 4; x++)
-            if (in(x, y) && get(x, y) == K_NONE && !M.prop[I(x, y)] && !front[I(x, y)] && !water[I(x, y)] && lvl[I(x, y)] == L && !groundSolid(M.at(x, y))) {
-              M.setG(x, y, Ground::Dirt);
-              yard.push_back((int)I(x, y));
-            }
-        int railed = 0;
-        for (int c : path) {
-          const int px = c % W, py = c / W;
-          if (railed >= 9 || isStreet(px, py) || M.prop[(size_t)c]) break;
-          M.setProp(px, py, Prop::MineRail);
-          railed++;
-        }
-        // the ore cart on a spur of track beside the mouth, the spoil heap tipped at the other side
-        const int sd = (hashAt(bx, by, 593u) & 1) ? 1 : -1;
-        bool cart = false;
-        for (int s : {sd, -sd}) {
-          if (cart) break;
-          if (yardOk(bx + s, by + 1, false) && yardOk(bx + 2 * s, by + 1, true) && put(bx + 2 * s, by + 1, Prop::OreCart)) {
-            M.setP(bx + s, by + 1, 0);
-            if (!M.prop[I(bx + s, by + 1)]) M.setProp(bx + s, by + 1, Prop::MineRail);
-            cart = true;
-            put(bx - 3 * s, by + 1, Prop::OrePile) || put(bx - 3 * s, by + 2, Prop::OrePile);
-            put(bx - 4 * s, by + 1, Prop::Rock);
-            put(bx + 3 * s, by + 2, Prop::Crate);
-          }
-        }
-        if (!cart) { put(bx - 3, by + 1, Prop::OrePile) || put(bx + 3, by + 1, Prop::OrePile); }
-        if (!hill) {
-          put(bx + 4, by, Prop::Boulder) || put(bx - 4, by, Prop::Boulder);
-          put(bx - 3, by, Prop::Rock) || put(bx + 3, by, Prop::Rock);
-        }
-        for (int k : yard) if (mask[(size_t)k] == K_NONE) mask[(size_t)k] = K_YARD;
-        mined = true;
-        break;
-      }
-    }
-  } else if (spec == Specialty::Lumber) {
-    // stumps where the wood was cut back from the houses, logs waiting to be hauled
-    for (int t = 0, n = 0; t < 300 && n < 9; t++) {
-      const float a = rng.f() * D_TAU, rr = rng.range(1.0f, 1.3f);
-      const int x = cx + (int)std::floor(dcos(a) * rx * rr), y = cy + (int)std::floor(dsin(a) * ry * rr);
-      if (!in(x, y) || !yardOk(x, y, false)) continue;
-      if (!putSolid(x, y, n % 4 == 3 ? Prop::Log : Prop::Stump)) continue;
-      n++;
-    }
-  } else if (spec == Specialty::Fishing) {
-    // drying racks along the shore
-    int racks = 0;
-    for (int y = 2; y < H - 2 && racks < (village ? 2 : 3); y++)
-      for (int x = 2; x < W - 2 && racks < (village ? 2 : 3); x++) {
-        if (dist(x, y) > 1.2f || !yardOk(x, y, true) || hashAt(x, y, 467u) % 3) continue;
-        bool shore = false;
-        for (int oy = 0; oy <= 2 && !shore; oy++)
-          for (int ox = -2; ox <= 2; ox++) if (in(x + ox, y + oy) && water[I(x + ox, y + oy)]) { shore = true; break; }
-        bool crowded = false;
-        for (int oy = -2; oy <= 1 && !crowded; oy++)
-          for (int ox = -2; ox <= 2; ox++) {
-            const int q = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
-            if (q && !lowProp((Prop)(q - 1))) { crowded = true; break; }
-          }
-        if (!shore || crowded) continue;
-        if (!putSolid(x, y, Prop::DryingRack)) continue;
-        set(x, y, K_YARD);
-        racks++;
-      }
-  }
+  MarketPlanner(*this).tradeYards();
 }
+
 
 
 // ------------------------------------------------------------------------------------------------ (M2) the plazas

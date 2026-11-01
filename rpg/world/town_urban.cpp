@@ -1149,159 +1149,178 @@ int Gen::rowHouses(int want) {
 }
 
 // ------------------------------------------------------------------------------------------------ the dress
-void Gen::cityDress() {
-  const Ground lawn = base == Ground::Grass ? Ground::Meadow : base;
-  const bool winter = bio == Biome::Snow;
-  auto openTile = [&](int x, int y) {
-    if (!in(x, y)) return false;
-    const size_t i = I(x, y);
-    return M.bldgAt[i] < 0 && !M.wall[i] && !M.prop[i] && !front[i] && !water[i] && !groundSolid(M.at(x, y)) && (reserved.empty() || !reserved[i]);
-  };
+// (SOLID 3.3) cityDress(): a method per part of the dress, in the old order; the shared helpers are methods, the shared
+// state is held here (no draw from the Rng, as ever)
+namespace {
+class CityDresser {
+ public:
+  explicit CityDresser(Gen& g) : G(g) {}
+ private:
+  using Precinct = Gen::Precinct;
+  using GatePlan = Gen::GatePlan;
+  Gen& G;
+  Ground lawn = Ground::Meadow;
+  bool winter = false;
+  // the park (parkPlan): its rectangle and middle, its hash and landscape, the gates, the pond
+  struct Gate { int x, y; };
+  int x0 = 0, y0 = 0, pw = 0, ph = 0;
+  int mx = 0, my = 0;
+  uint32_t ps = 0;
+  int style = 0;
+  Gate gN{}, gS{}, gW{}, gE{};
+  bool flip = false, flipV = false;
+  int pcx = 0, pcy = 0, prx = 0, pry = 0;
+
+  bool openTile(int x, int y) const {
+    if (!G.in(x, y)) return false;
+    const size_t i = G.I(x, y);
+    return G.M.bldgAt[i] < 0 && !G.M.wall[i] && !G.M.prop[i] && !G.front[i] && !G.water[i] && !groundSolid(G.M.at(x, y)) && (G.reserved.empty() || !G.reserved[i]);
+  }
   // a market's ground: an aisle or a keeper's post, or within two tiles of a stall, a table or a cloth (nothing of the
   // street's furniture may shut one in)
-  auto nearMarket = [&](int x, int y) {
-    if (!reserved.empty() && in(x, y) && reserved[I(x, y)]) return true;
+  bool nearMarket(int x, int y) const {
+    if (!G.reserved.empty() && G.in(x, y) && G.reserved[G.I(x, y)]) return true;
     for (int oy = -2; oy <= 2; oy++)
       for (int ox = -2; ox <= 2; ox++) {
-        const int pr = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
+        const int pr = G.in(x + ox, y + oy) ? G.M.prop[G.I(x + ox, y + oy)] : 0;
         if (!pr) continue;
         const Prop pp = (Prop)(pr - 1);
         if (art::isVendorProp(pp) || pp == Prop::Filler || pp == Prop::MarketTable || pp == Prop::GroundCloth || pp == Prop::Fountain) return true;
       }
     return false;
-  };
-  // (fixer M7b r3, review: "the rich quarter stands on bare dirt with weeds, its compounds bare dirt yards: it reads as
-  // a village") the rich quarter is kept: its open ground and its yards laid to lawn, the weeds and wild flowers cut
-  // (its trees, bushes and beds stay). Not in the snow or the desert (their own ground is what a garden there is).
-  if (!winter && bio != Biome::Desert && bio != Biome::Beach)
-    for (int y = 1; y < H - 1; y++)
-      for (int x = 1; x < W - 1; x++) {
-        const size_t i = I(x, y);
-        const uint8_t k = mask[i];
-        if ((k != K_NONE && k != K_YARD && k != K_ROWYARD && k != K_COMPOUND) || M.bldgAt[i] >= 0 || M.wall[i] || water[i]) continue;
-        const Ground g = M.at(x, y);
-        if (g != Ground::Dirt && g != Ground::Grass && g != Ground::Sand) continue;
-        if (districtAt(x, y) != District::Noble) continue;   // (the costly test last)
-        M.setG(x, y, Ground::Meadow);
-        const int pr = M.prop[i];
-        if (pr == (int)Prop::TallGrass + 1 || pr == (int)Prop::Flowers1 + 1) M.setP(x, y, 0);
-      }
-  // --- the back yards: a garden wall round each (shared between neighbours), the yard's own ground and a tree, a bed
-  // or the household's clutter
-  for (size_t bi = 0; bi < M.bldgs.size(); bi++) {
-    const Bldg b = M.bldgs[bi];
-    if (!(b.row & bld::ROW_YARD)) continue;
-    int depth = 0;
-    while (depth < 10 && get(b.r.x, b.r.y - depth - 1) == K_ROWYARD) depth++;
-    if (depth < 2) continue;
-    const District q = districtAt(b.r.cx(), b.r.y);
-    const int top = b.r.y - depth;
-    const bool eastEnd = get(b.r.x + b.r.w, b.r.y - 1) != K_ROWYARD;
-    const Ground yg = q == District::Noble || q == District::Temple ? lawn : Ground::Dirt;
-    // the wall: along the back, down the west side (a neighbour's east side), down the east side where no yard is
-    for (int y = top; y < b.r.y; y++)
-      for (int x = b.r.x; x < b.r.x + b.r.w; x++) {
-        if (get(x, y) != K_ROWYARD) continue;
-        M.setG(x, y, yg);
-        const bool wallT = y == top || x == b.r.x || (x == b.r.x + b.r.w - 1 && get(x + 1, y) != K_ROWYARD);
-        if (wallT && !M.prop[I(x, y)]) M.setProp(x, y, Prop::GardenWall);
-      }
-    // inside: the tree at the back (its crown over the roofs), a bed or the clutter by the house
-    const int ix0 = b.r.x + 1, ix1 = b.r.x + b.r.w - (eastEnd ? 2 : 1);
-    if (ix1 < ix0) continue;
-    const uint32_t h = hashAt(b.r.x, b.r.y, 0x7A2Du);
-    const int tx = ix0 + (int)(h % (uint32_t)(ix1 - ix0 + 1)), ty = top + 1;
-    if (ty < b.r.y && !M.prop[I(tx, ty)] && treesF > 0.3f && (q == District::Noble || q == District::Temple || (h >> 4) % 3u == 0)) {
-      const Prop tree = winter ? townTree(bio, eco, h) : ((h >> 8) % 3u ? Prop::FruitTree : townTree(bio, eco, h));
-      M.setProp(tx, ty, tree);
-    }
-    const int cxn = tx == ix0 ? ix1 : ix0, cyn = b.r.y - 1;
-    if (cyn > top && !M.prop[I(cxn, cyn)]) {
-      Prop p = Prop::Barrel;
-      if (q == District::Noble) p = winter ? Prop::SnowBush : Prop::FlowerBed;
-      else if (q == District::Crafts) p = (h >> 12) % 2u ? Prop::Woodpile : Prop::Crate;
-      else if (q == District::Poor) p = (h >> 12) % 2u ? Prop::Crate : Prop::Barrel;
-      else p = (h >> 12) % 3u ? Prop::Barrel : Prop::Woodpile;
-      M.setProp(cxn, cyn, p);
+  }
+  // the park
+  bool inPark(int x, int y) const { return G.in(x, y) && G.get(x, y) == K_PARK; }
+  bool isPath(int x, int y) const { return inPark(x, y) && G.plan[G.I(x, y)] == (uint8_t)Urb::ParkPath; }
+  bool isPond(int x, int y) const { return inPark(x, y) && (G.M.at(x, y) == Ground::Water || G.M.at(x, y) == Ground::Ice); }
+  void path(int x, int y) {
+    if (!inPark(x, y) || isPond(x, y)) return;
+    G.M.setG(x, y, Ground::Dirt);
+    G.M.setP(x, y, 0);
+    G.plan[G.I(x, y)] = (uint8_t)Urb::ParkPath;
+  }
+  // a walk along a quadratic curve a -> c (control b), sampled finely (integer: t = k / N), 8-connected
+  void curve(int ax, int ay, int bx, int by, int cx2, int cy2) {
+    const int N = 4 * (std::abs(cx2 - ax) + std::abs(cy2 - ay) + std::abs(bx - ax) + std::abs(by - ay)) + 8;
+    const int64_t NN = (int64_t)N * N;
+    for (int k = 0; k <= N; k++) {
+      const int64_t u = N - k;
+      const int64_t qx = u * u * ax + 2 * u * k * bx + (int64_t)k * k * cx2, qy = u * u * ay + 2 * u * k * by + (int64_t)k * k * cy2;
+      path((int)((qx * 2 + NN) / (2 * NN)), (int)((qy * 2 + NN) / (2 * NN)));
     }
   }
-  // --- the park (fixer M7b r1, review: "every city park is the same template in every culture and seed"): one of four
-  // landscapes, picked by the plan's hash (the culture leaning it), laid out organically from the gates the lane ring
-  // gives it:
-  //   0 the landscape garden: a pond to one side, a serpentine walk between two gates round it, a branch from a third
-  //   1 the pond loop: a pond in the middle, an oval walk round it, spokes out to the gates
-  //   2 the formal green: an oval walk with a broad axis through a round plaza, hedges along two sides, paired beds
-  //   3 the grove meadow: two curving walks crossing off-centre, groves of trees in the corners, wild flowers
-  // then the pavilion beside a walk, benches facing the walks, trees in clumps (never a lone grid), all integer maths
-  if (park.w > 0) {
-    const int x0 = park.x, y0 = park.y, pw = park.w, ph = park.h;
-    const int mx = x0 + pw / 2, my = y0 + ph / 2;
-    const uint32_t ps = hashAt(x0 * 3 + 1, y0 * 5 + 2, 0x9A41u);
-    int style = (int)(ps % 4u);
+  // an oval walk round (cx, cy), radii rx, ry (tiles): the ring between the ellipse and the one a tile outside it
+  void oval(int cx2, int cy2, int rx, int ry) {
+    auto inside = [&](int dx, int dy, int ax, int ay) { return (int64_t)dx * dx * ay * ay + (int64_t)dy * dy * ax * ax <= (int64_t)ax * ax * ay * ay; };
+    for (int y = cy2 - ry - 1; y <= cy2 + ry + 1; y++)
+      for (int x = cx2 - rx - 1; x <= cx2 + rx + 1; x++)
+        if (inside(x - cx2, y - cy2, rx + 1, ry + 1) && !inside(x - cx2, y - cy2, rx, ry)) path(x, y);
+  }
+  // the gates: on the park's edge (the lane ring runs round it), one per side, a hashed way along the side
+  Gate gateOn(int side, uint32_t salt) const {
+    const uint32_t h = G.hashAt(x0 + side * 7, y0 + side * 3, salt);
+    if (side == 0) return Gate{x0 + 3 + (int)(h % (uint32_t)std::max(1, pw - 6)), y0};            // north
+    if (side == 1) return Gate{x0 + 3 + (int)(h % (uint32_t)std::max(1, pw - 6)), y0 + ph - 1};   // south
+    if (side == 2) return Gate{x0, y0 + 2 + (int)(h % (uint32_t)std::max(1, ph - 4))};            // west
+    return Gate{x0 + pw - 1, y0 + 2 + (int)(h % (uint32_t)std::max(1, ph - 4))};                   // east
+  }
+  // the pond: a wobbly oval of open water (ice in the snow lands), never on the park's edge
+  void pond(int cx2, int cy2, int rx, int ry) {
+    pcx = cx2; pcy = cy2; prx = rx; pry = ry;
+    for (int y = y0 + 2; y < y0 + ph - 2; y++)
+      for (int x = x0 + 2; x < x0 + pw - 2; x++) {
+        if (!inPark(x, y) || G.M.prop[G.I(x, y)]) continue;
+        if (G.blob(x, y, cx2, cy2, (float)rx, (float)ry, ps ^ 0x90DD0Du) < 0.92f) { G.M.setG(x, y, winter ? Ground::Ice : Ground::Water); G.M.setP(x, y, 0); }
+      }
+    // no spurs or notches: a water tile with fewer than two wet sides goes back to lawn, a lawn tile with three or
+    // four wet sides fills in (twice: the shoreline the view rounds off)
+    for (int pass = 0; pass < 2; pass++)
+      for (int y = y0 + 1; y < y0 + ph - 1; y++)
+        for (int x = x0 + 1; x < x0 + pw - 1; x++) {
+          if (!inPark(x, y) || G.M.prop[G.I(x, y)]) continue;
+          const int n = (int)isPond(x - 1, y) + (int)isPond(x + 1, y) + (int)isPond(x, y - 1) + (int)isPond(x, y + 1);
+          if (isPond(x, y) && n < 2) G.M.setG(x, y, lawn);
+          else if (!isPond(x, y) && n >= 3 && x > x0 + 1 && y > y0 + 1 && x < x0 + pw - 2 && y < y0 + ph - 2) G.M.setG(x, y, winter ? Ground::Ice : Ground::Water);
+        }
+  }
+  // the avenues' walks
+  Urb cls(int x, int y) const { return G.in(x, y) && G.isStreet(x, y) ? (Urb)G.plan[G.I(x, y)] : Urb::None; }
+  bool carriage(int x, int y) const { const Urb u = cls(x, y); return u == Urb::Avenue || u == Urb::Gutter || u == Urb::Street || u == Urb::Lane || u == Urb::Alley; }
+  void richLawns() {
+    // (fixer M7b r3, review: "the rich quarter stands on bare dirt with weeds, its compounds bare dirt yards: it reads as
+    // a village") the rich quarter is kept: its open ground and its yards laid to lawn, the weeds and wild flowers cut
+    // (its trees, bushes and beds stay). Not in the snow or the desert (their own ground is what a garden there is).
+    if (!winter && G.bio != Biome::Desert && G.bio != Biome::Beach)
+      for (int y = 1; y < G.H - 1; y++)
+        for (int x = 1; x < G.W - 1; x++) {
+          const size_t i = G.I(x, y);
+          const uint8_t k = G.mask[i];
+          if ((k != K_NONE && k != K_YARD && k != K_ROWYARD && k != K_COMPOUND) || G.M.bldgAt[i] >= 0 || G.M.wall[i] || G.water[i]) continue;
+          const Ground g = G.M.at(x, y);
+          if (g != Ground::Dirt && g != Ground::Grass && g != Ground::Sand) continue;
+          if (G.districtAt(x, y) != District::Noble) continue;   // (the costly test last)
+          G.M.setG(x, y, Ground::Meadow);
+          const int pr = G.M.prop[i];
+          if (pr == (int)Prop::TallGrass + 1 || pr == (int)Prop::Flowers1 + 1) G.M.setP(x, y, 0);
+        }
+  }
+  void backYards() {
+    // --- the back yards: a garden wall round each (shared between neighbours), the yard's own ground and a tree, a bed
+    // or the household's clutter
+    for (size_t bi = 0; bi < G.M.bldgs.size(); bi++) {
+      const Bldg b = G.M.bldgs[bi];
+      if (!(b.row & bld::ROW_YARD)) continue;
+      int depth = 0;
+      while (depth < 10 && G.get(b.r.x, b.r.y - depth - 1) == K_ROWYARD) depth++;
+      if (depth < 2) continue;
+      const District q = G.districtAt(b.r.cx(), b.r.y);
+      const int top = b.r.y - depth;
+      const bool eastEnd = G.get(b.r.x + b.r.w, b.r.y - 1) != K_ROWYARD;
+      const Ground yg = q == District::Noble || q == District::Temple ? lawn : Ground::Dirt;
+      // the wall: along the back, down the west side (a neighbour's east side), down the east side where no yard is
+      for (int y = top; y < b.r.y; y++)
+        for (int x = b.r.x; x < b.r.x + b.r.w; x++) {
+          if (G.get(x, y) != K_ROWYARD) continue;
+          G.M.setG(x, y, yg);
+          const bool wallT = y == top || x == b.r.x || (x == b.r.x + b.r.w - 1 && G.get(x + 1, y) != K_ROWYARD);
+          if (wallT && !G.M.prop[G.I(x, y)]) G.M.setProp(x, y, Prop::GardenWall);
+        }
+      // inside: the tree at the back (its crown over the roofs), a bed or the clutter by the house
+      const int ix0 = b.r.x + 1, ix1 = b.r.x + b.r.w - (eastEnd ? 2 : 1);
+      if (ix1 < ix0) continue;
+      const uint32_t h = G.hashAt(b.r.x, b.r.y, 0x7A2Du);
+      const int tx = ix0 + (int)(h % (uint32_t)(ix1 - ix0 + 1)), ty = top + 1;
+      if (ty < b.r.y && !G.M.prop[G.I(tx, ty)] && G.treesF > 0.3f && (q == District::Noble || q == District::Temple || (h >> 4) % 3u == 0)) {
+        const Prop tree = winter ? townTree(G.bio, G.eco, h) : ((h >> 8) % 3u ? Prop::FruitTree : townTree(G.bio, G.eco, h));
+        G.M.setProp(tx, ty, tree);
+      }
+      const int cxn = tx == ix0 ? ix1 : ix0, cyn = b.r.y - 1;
+      if (cyn > top && !G.M.prop[G.I(cxn, cyn)]) {
+        Prop p = Prop::Barrel;
+        if (q == District::Noble) p = winter ? Prop::SnowBush : Prop::FlowerBed;
+        else if (q == District::Crafts) p = (h >> 12) % 2u ? Prop::Woodpile : Prop::Crate;
+        else if (q == District::Poor) p = (h >> 12) % 2u ? Prop::Crate : Prop::Barrel;
+        else p = (h >> 12) % 3u ? Prop::Barrel : Prop::Woodpile;
+        G.M.setProp(cxn, cyn, p);
+      }
+    }
+  }
+  // the park's landscape: its style (the culture leaning it), the gates, the pond and the walks
+  void parkPlan() {
+    x0 = G.park.x; y0 = G.park.y; pw = G.park.w; ph = G.park.h;
+    mx = x0 + pw / 2; my = y0 + ph / 2;
+    ps = G.hashAt(x0 * 3 + 1, y0 * 5 + 2, 0x9A41u);
+    style = (int)(ps % 4u);
     if ((ps >> 8) % 3u == 0) {   // a lean per people: the jade and the elves love water, the steppe its open grass
       using A = cult::Archetype;
-      if (cultureIs((int)A::Jade) || cultureIs((int)A::Sylvan) || cultureIs((int)A::Marsh)) style = (ps >> 10) % 2u ? 0 : 1;
-      else if (cultureIs((int)A::Imperial) || cultureIs((int)A::Dune) || cultureIs((int)A::SunTemple)) style = 2;
-      else if (cultureIs((int)A::Steppe) || cultureIs((int)A::Highland)) style = 3;
+      if (G.cultureIs((int)A::Jade) || G.cultureIs((int)A::Sylvan) || G.cultureIs((int)A::Marsh)) style = (ps >> 10) % 2u ? 0 : 1;
+      else if (G.cultureIs((int)A::Imperial) || G.cultureIs((int)A::Dune) || G.cultureIs((int)A::SunTemple)) style = 2;
+      else if (G.cultureIs((int)A::Steppe) || G.cultureIs((int)A::Highland)) style = 3;
     }
     if (winter && style <= 1 && pw < 15) style = 3;   // (a small snowbound green: no frozen puddle)
-    auto inPark = [&](int x, int y) { return in(x, y) && get(x, y) == K_PARK; };
-    auto isPath = [&](int x, int y) { return inPark(x, y) && plan[I(x, y)] == (uint8_t)Urb::ParkPath; };
-    auto isPond = [&](int x, int y) { return inPark(x, y) && (M.at(x, y) == Ground::Water || M.at(x, y) == Ground::Ice); };
-    auto path = [&](int x, int y) {
-      if (!inPark(x, y) || isPond(x, y)) return;
-      M.setG(x, y, Ground::Dirt);
-      M.setP(x, y, 0);
-      plan[I(x, y)] = (uint8_t)Urb::ParkPath;
-    };
-    // a walk along a quadratic curve a -> c (control b), sampled finely (integer: t = k / N), 8-connected
-    auto curve = [&](int ax, int ay, int bx, int by, int cx2, int cy2) {
-      const int N = 4 * (std::abs(cx2 - ax) + std::abs(cy2 - ay) + std::abs(bx - ax) + std::abs(by - ay)) + 8;
-      const int64_t NN = (int64_t)N * N;
-      for (int k = 0; k <= N; k++) {
-        const int64_t u = N - k;
-        const int64_t qx = u * u * ax + 2 * u * k * bx + (int64_t)k * k * cx2, qy = u * u * ay + 2 * u * k * by + (int64_t)k * k * cy2;
-        path((int)((qx * 2 + NN) / (2 * NN)), (int)((qy * 2 + NN) / (2 * NN)));
-      }
-    };
-    // an oval walk round (cx, cy), radii rx, ry (tiles): the ring between the ellipse and the one a tile outside it
-    auto oval = [&](int cx2, int cy2, int rx, int ry) {
-      auto inside = [&](int dx, int dy, int ax, int ay) { return (int64_t)dx * dx * ay * ay + (int64_t)dy * dy * ax * ax <= (int64_t)ax * ax * ay * ay; };
-      for (int y = cy2 - ry - 1; y <= cy2 + ry + 1; y++)
-        for (int x = cx2 - rx - 1; x <= cx2 + rx + 1; x++)
-          if (inside(x - cx2, y - cy2, rx + 1, ry + 1) && !inside(x - cx2, y - cy2, rx, ry)) path(x, y);
-    };
-    // the gates: on the park's edge (the lane ring runs round it), one per side, a hashed way along the side
-    struct Gate { int x, y; };
-    auto gateOn = [&](int side, uint32_t salt) {
-      const uint32_t h = hashAt(x0 + side * 7, y0 + side * 3, salt);
-      if (side == 0) return Gate{x0 + 3 + (int)(h % (uint32_t)std::max(1, pw - 6)), y0};            // north
-      if (side == 1) return Gate{x0 + 3 + (int)(h % (uint32_t)std::max(1, pw - 6)), y0 + ph - 1};   // south
-      if (side == 2) return Gate{x0, y0 + 2 + (int)(h % (uint32_t)std::max(1, ph - 4))};            // west
-      return Gate{x0 + pw - 1, y0 + 2 + (int)(h % (uint32_t)std::max(1, ph - 4))};                   // east
-    };
-    const Gate gN = gateOn(0, 0x9A42u), gS = gateOn(1, 0x9A43u), gW = gateOn(2, 0x9A44u), gE = gateOn(3, 0x9A45u);
-    const bool flip = (ps >> 4) & 1u, flipV = (ps >> 5) & 1u;
-    // the pond: a wobbly oval of open water (ice in the snow lands), never on the park's edge
-    int pcx = mx, pcy = my, prx = 0, pry = 0;
-    auto pond = [&](int cx2, int cy2, int rx, int ry) {
-      pcx = cx2; pcy = cy2; prx = rx; pry = ry;
-      for (int y = y0 + 2; y < y0 + ph - 2; y++)
-        for (int x = x0 + 2; x < x0 + pw - 2; x++) {
-          if (!inPark(x, y) || M.prop[I(x, y)]) continue;
-          if (blob(x, y, cx2, cy2, (float)rx, (float)ry, ps ^ 0x90DD0Du) < 0.92f) { M.setG(x, y, winter ? Ground::Ice : Ground::Water); M.setP(x, y, 0); }
-        }
-      // no spurs or notches: a water tile with fewer than two wet sides goes back to lawn, a lawn tile with three or
-      // four wet sides fills in (twice: the shoreline the view rounds off)
-      for (int pass = 0; pass < 2; pass++)
-        for (int y = y0 + 1; y < y0 + ph - 1; y++)
-          for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-            if (!inPark(x, y) || M.prop[I(x, y)]) continue;
-            const int n = (int)isPond(x - 1, y) + (int)isPond(x + 1, y) + (int)isPond(x, y - 1) + (int)isPond(x, y + 1);
-            if (isPond(x, y) && n < 2) M.setG(x, y, lawn);
-            else if (!isPond(x, y) && n >= 3 && x > x0 + 1 && y > y0 + 1 && x < x0 + pw - 2 && y < y0 + ph - 2) M.setG(x, y, winter ? Ground::Ice : Ground::Water);
-          }
-    };
+    gN = gateOn(0, 0x9A42u); gS = gateOn(1, 0x9A43u); gW = gateOn(2, 0x9A44u); gE = gateOn(3, 0x9A45u);
+    flip = (ps >> 4) & 1u; flipV = (ps >> 5) & 1u;
+    pcx = mx; pcy = my; prx = 0; pry = 0;
     switch (style) {
       case 0: {   // the landscape garden
         const int qx = flip ? x0 + pw / 3 : x0 + pw - 1 - pw / 3, qy = flipV ? y0 + ph / 3 + 1 : y0 + ph - 1 - ph / 3 - 1;
@@ -1342,19 +1361,23 @@ void Gen::cityDress() {
         break;
       }
     }
+  }
+  void parkHedge() {
     // the hedge (the formal green only, along its north and south sides; open at the walks, in runs of three or more)
     if (style == 2) {
-      auto hedgeOk = [&](int x, int y) { return inPark(x, y) && !isPath(x, y) && !isPond(x, y) && !front[I(x, y)] && !M.prop[I(x, y)] && !isPath(x, y + 1) && !isPath(x, y - 1); };
+      auto hedgeOk = [&](int x, int y) { return inPark(x, y) && !isPath(x, y) && !isPond(x, y) && !G.front[G.I(x, y)] && !G.M.prop[G.I(x, y)] && !isPath(x, y + 1) && !isPath(x, y - 1); };
       for (int y : {y0, y0 + ph - 1}) {
         int run = 0;
         for (int x = x0 + 1; x <= x0 + pw - 1; x++) {
           const bool ok = x < x0 + pw - 1 && hedgeOk(x, y) && !isPath(x - 1, y) && !isPath(x + 1, y);
           if (ok) { run++; continue; }
-          if (run >= 3) for (int k = 1; k <= run; k++) M.setProp(x - k, y, winter ? Prop::SnowBush : Prop::Hedge);
+          if (run >= 3) for (int k = 1; k <= run; k++) G.M.setProp(x - k, y, winter ? Prop::SnowBush : Prop::Hedge);
           run = 0;
         }
       }
     }
+  }
+  void parkPavilion() {
     // the pavilion (3 x 2: the prop on the bottom middle, Filler on the rest): on lawn beside a walk, as near the
     // style's place for it as the ground allows (by the pond, at the plaza's north side, at the walks' crossing)
     {
@@ -1365,60 +1388,68 @@ void Gen::cityDress() {
           bool ok = true;
           for (int yy = y - 1; yy <= y && ok; yy++)
             for (int xx = x - 1; xx <= x + 1; xx++)
-              if (!inPark(xx, yy) || M.prop[I(xx, yy)] || isPath(xx, yy) || isPond(xx, yy)) { ok = false; break; }
+              if (!inPark(xx, yy) || G.M.prop[G.I(xx, yy)] || isPath(xx, yy) || isPond(xx, yy)) { ok = false; break; }
           if (!ok || !isPath(x, y + 1)) continue;   // its steps come down onto a walk
-          const int d = std::abs(x - wantX) * 2 + std::abs(y - wantY) * 3 + (int)(hashAt(x, y, 0x9A46u) % 3u);
+          const int d = std::abs(x - wantX) * 2 + std::abs(y - wantY) * 3 + (int)(G.hashAt(x, y, 0x9A46u) % 3u);
           if (best < 0 || d < best) { best = d; bx = x; by = y; }
         }
       if (best >= 0) {
-        for (int y = by - 1; y <= by; y++) for (int x = bx - 1; x <= bx + 1; x++) M.setProp(x, y, Prop::Filler);
-        M.setProp(bx, by, Prop::Pavilion);
+        for (int y = by - 1; y <= by; y++) for (int x = bx - 1; x <= bx + 1; x++) G.M.setProp(x, y, Prop::Filler);
+        G.M.setProp(bx, by, Prop::Pavilion);
         // flower beds either side of its steps (the formal green and the landscape garden)
         if (style == 0 || style == 2)
           for (int s : {-2, 2})
-            if (inPark(bx + s, by) && !M.prop[I(bx + s, by)] && !isPath(bx + s, by) && !isPond(bx + s, by)) M.setProp(bx + s, by, winter ? Prop::SnowBush : Prop::FlowerBed);
+            if (inPark(bx + s, by) && !G.M.prop[G.I(bx + s, by)] && !isPath(bx + s, by) && !isPond(bx + s, by)) G.M.setProp(bx + s, by, winter ? Prop::SnowBush : Prop::FlowerBed);
       }
     }
+  }
+  void parkBeds() {
     // the formal green's paired beds along its axis
     if (style == 2)
       for (int s : {-1, 1})
         for (int k = 1; k <= 2; k++) {
           const int fx = mx + s * (3 + k * 3);
           for (int fy : {my - 1, my + 1})
-            if (inPark(fx, fy) && !M.prop[I(fx, fy)] && !isPath(fx, fy) && !isPond(fx, fy)) M.setProp(fx, fy, winter ? Prop::SnowBush : Prop::FlowerBed);
+            if (inPark(fx, fy) && !G.M.prop[G.I(fx, fy)] && !isPath(fx, fy) && !isPond(fx, fy)) G.M.setProp(fx, fy, winter ? Prop::SnowBush : Prop::FlowerBed);
         }
+  }
+  void parkMargin() {
     // the pond's margin: reeds at its edge, lily pads on open water, a few mossy stones
     for (int y = y0 + 1; y < y0 + ph - 1; y++)
       for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-        if (!inPark(x, y) || M.prop[I(x, y)]) continue;
-        const uint32_t h = hashAt(x, y, 0x9A47u);
+        if (!inPark(x, y) || G.M.prop[G.I(x, y)]) continue;
+        const uint32_t h = G.hashAt(x, y, 0x9A47u);
         if (isPond(x, y)) {
-          if (!winter && h % 9u == 0 && isPond(x - 1, y) && isPond(x + 1, y) && isPond(x, y - 1) && isPond(x, y + 1)) M.setProp(x, y, Prop::LilyPad);
+          if (!winter && h % 9u == 0 && isPond(x - 1, y) && isPond(x + 1, y) && isPond(x, y - 1) && isPond(x, y + 1)) G.M.setProp(x, y, Prop::LilyPad);
           continue;
         }
         if (isPath(x, y)) continue;
         const bool shore = isPond(x - 1, y) || isPond(x + 1, y) || isPond(x, y - 1) || isPond(x, y + 1);
-        if (shore && !winter && h % 3u == 0) M.setProp(x, y, Prop::Reeds);
-        else if (shore && h % 11u == 1) M.setProp(x, y, winter ? Prop::SnowRock : Prop::MossRock);
+        if (shore && !winter && h % 3u == 0) G.M.setProp(x, y, Prop::Reeds);
+        else if (shore && h % 11u == 1) G.M.setProp(x, y, winter ? Prop::SnowRock : Prop::MossRock);
       }
+  }
+  void parkBenches() {
     // benches beside the walks: on lawn with a walk to the south (a bench faces south), spaced along
     for (int y = y0 + 1; y < y0 + ph - 1; y++)
       for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || M.prop[I(x, y)]) continue;
-        if (!isPath(x, y + 1) || hashAt(x, y, 0x9A48u) % 4u) continue;
+        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || G.M.prop[G.I(x, y)]) continue;
+        if (!isPath(x, y + 1) || G.hashAt(x, y, 0x9A48u) % 4u) continue;
         bool near = false;
         for (int oy = -1; oy <= 1 && !near; oy++)
           for (int ox = -3; ox <= 3; ox++)
-            if (in(x + ox, y + oy) && M.prop[I(x + ox, y + oy)] == (int)Prop::Bench + 1) { near = true; break; }
-        if (!near) M.setProp(x, y, Prop::Bench);
+            if (G.in(x + ox, y + oy) && G.M.prop[G.I(x + ox, y + oy)] == (int)Prop::Bench + 1) { near = true; break; }
+        if (!near) G.M.setProp(x, y, Prop::Bench);
       }
+  }
+  void parkTrees() {
     // trees in clumps: two to four groves (their places hashed), dense within, sparse elsewhere, a tile clear of the
     // walks, the water and each other; the grove meadow plants most
-    const Prop tree = townTree(bio, eco, 11u), tree2 = townTree(bio, eco, 11u + (ps >> 16) % 7u);
+    const Prop tree = townTree(G.bio, G.eco, 11u), tree2 = townTree(G.bio, G.eco, 11u + (ps >> 16) % 7u);
     const int groves = 2 + (int)((ps >> 12) % 3u);
     int gx[4], gy[4];
     for (int k = 0; k < groves; k++) {
-      const uint32_t h = hashAt(x0 + k * 13, y0 + k * 7, 0x9A49u);
+      const uint32_t h = G.hashAt(x0 + k * 13, y0 + k * 7, 0x9A49u);
       // (into the corners and along the edges, away from the middle where the walks meet)
       gx[k] = (k & 1) ? x0 + 2 + (int)(h % (uint32_t)std::max(1, pw / 3)) : x0 + pw - 3 - (int)(h % (uint32_t)std::max(1, pw / 3));
       gy[k] = (k & 2) ? y0 + 2 + (int)((h >> 8) % (uint32_t)std::max(1, ph / 3)) : y0 + ph - 3 - (int)((h >> 8) % (uint32_t)std::max(1, ph / 3));
@@ -1426,261 +1457,316 @@ void Gen::cityDress() {
     const uint32_t dense = style == 3 ? 2u : 3u, sparse = style == 2 ? 40u : 16u;
     for (int y = y0 + 1; y < y0 + ph - 1; y++)
       for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || M.prop[I(x, y)]) continue;
+        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || G.M.prop[G.I(x, y)]) continue;
         bool clear = true;
         for (int oy = -1; oy <= 1 && clear; oy++)
           for (int ox = -1; ox <= 1; ox++)
-            if (!in(x + ox, y + oy) || isPath(x + ox, y + oy) || isPond(x + ox, y + oy) || (M.prop[I(x + ox, y + oy)] && M.prop[I(x + ox, y + oy)] != (int)Prop::Reeds + 1)) { clear = false; break; }
+            if (!G.in(x + ox, y + oy) || isPath(x + ox, y + oy) || isPond(x + ox, y + oy) || (G.M.prop[G.I(x + ox, y + oy)] && G.M.prop[G.I(x + ox, y + oy)] != (int)Prop::Reeds + 1)) { clear = false; break; }
         if (!clear) continue;
         int near = 99;
         for (int k = 0; k < groves; k++) near = std::min(near, std::abs(x - gx[k]) + std::abs(y - gy[k]));
-        const uint32_t h = hashAt(x, y, 0x7AEEu);
+        const uint32_t h = G.hashAt(x, y, 0x7AEEu);
         if (h % (near <= 3 ? dense : sparse)) continue;
-        M.setProp(x, y, (hashAt(x, y, 0x7AEFu) % 5u) ? ((h >> 9) % 3u == 0 ? tree2 : tree) : (winter ? tree : Prop::FruitTree));
+        G.M.setProp(x, y, (G.hashAt(x, y, 0x7AEFu) % 5u) ? ((h >> 9) % 3u == 0 ? tree2 : tree) : (winter ? tree : Prop::FruitTree));
       }
     // bushes under the groves and wild flowers in the meadow
     for (int y = y0 + 1; y < y0 + ph - 1; y++)
       for (int x = x0 + 1; x < x0 + pw - 1; x++) {
-        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || M.prop[I(x, y)]) continue;
+        if (!inPark(x, y) || isPath(x, y) || isPond(x, y) || G.M.prop[G.I(x, y)]) continue;
         if (isPath(x, y + 1) || isPath(x, y - 1) || isPath(x - 1, y) || isPath(x + 1, y)) continue;
         int near = 99;
         for (int k = 0; k < groves; k++) near = std::min(near, std::abs(x - gx[k]) + std::abs(y - gy[k]));
-        const uint32_t h = hashAt(x, y, 0x9A4Au);
-        if (near <= 4 && h % 7u == 0) M.setProp(x, y, winter ? Prop::SnowBush : ((h >> 8) % 3u ? Prop::Bush : Prop::BerryBush));
-        else if (!winter && style != 2 && h % 9u == 1) M.setProp(x, y, (h >> 8) % 3u == 0 ? Prop::Flowers1 : ((h >> 8) % 3u == 1 ? Prop::Flowers2 : Prop::Flowers3));
+        const uint32_t h = G.hashAt(x, y, 0x9A4Au);
+        if (near <= 4 && h % 7u == 0) G.M.setProp(x, y, winter ? Prop::SnowBush : ((h >> 8) % 3u ? Prop::Bush : Prop::BerryBush));
+        else if (!winter && style != 2 && h % 9u == 1) G.M.setProp(x, y, (h >> 8) % 3u == 0 ? Prop::Flowers1 : ((h >> 8) % 3u == 1 ? Prop::Flowers2 : Prop::Flowers3));
       }
   }
-  // --- the market square's market cross, by the stalls (where the square's centrepiece is something else)
-  if (!squares.empty() && mktZone.w > 0) {
-    bool have = false;
-    for (int y = mktZone.y - 6; y < mktZone.y + mktZone.h + 6 && !have; y++)
-      for (int x = mktZone.x - 6; x < mktZone.x + mktZone.w + 6; x++)
-        if (in(x, y) && M.prop[I(x, y)] == (int)Prop::MarketCross + 1) { have = true; break; }
-    const int mx = mktZone.x + mktZone.w / 2, my = mktZone.y + mktZone.h / 2;
-    for (int r = 0; r <= 12 && !have; r++)
-      for (int oy = -r; oy <= r && !have; oy++)
-        for (int ox = -r; ox <= r && !have; ox++) {
-          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
-          const int x = mx + ox, y = my + oy;
-          if (!in(x, y) || get(x, y) != K_SQUARE || M.prop[I(x, y)] || front[I(x, y)] || cover[I(x, y)] || nearMarket(x, y)) continue;
-          bool clear = true;   // a tile of open paving round it, no roof over its shaft
-          for (int qy = y - 4; qy <= y + 1 && clear; qy++)
-            for (int qx = x - 1; qx <= x + 1; qx++) {
-              if (!in(qx, qy)) { clear = false; break; }
-              const size_t j = I(qx, qy);
-              if (M.bldgAt[j] >= 0 || front[j] || (qy >= y - 1 && (M.prop[j] || get(qx, qy) != K_SQUARE))) { clear = false; break; }
+  void marketCross() {
+    // --- the market square's market cross, by the stalls (where the square's centrepiece is something else)
+    if (!G.squares.empty() && G.mktZone.w > 0) {
+      bool have = false;
+      for (int y = G.mktZone.y - 6; y < G.mktZone.y + G.mktZone.h + 6 && !have; y++)
+        for (int x = G.mktZone.x - 6; x < G.mktZone.x + G.mktZone.w + 6; x++)
+          if (G.in(x, y) && G.M.prop[G.I(x, y)] == (int)Prop::MarketCross + 1) { have = true; break; }
+      const int mx = G.mktZone.x + G.mktZone.w / 2, my = G.mktZone.y + G.mktZone.h / 2;
+      for (int r = 0; r <= 12 && !have; r++)
+        for (int oy = -r; oy <= r && !have; oy++)
+          for (int ox = -r; ox <= r && !have; ox++) {
+            if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+            const int x = mx + ox, y = my + oy;
+            if (!G.in(x, y) || G.get(x, y) != K_SQUARE || G.M.prop[G.I(x, y)] || G.front[G.I(x, y)] || G.cover[G.I(x, y)] || nearMarket(x, y)) continue;
+            bool clear = true;   // a tile of open paving round it, no roof over its shaft
+            for (int qy = y - 4; qy <= y + 1 && clear; qy++)
+              for (int qx = x - 1; qx <= x + 1; qx++) {
+                if (!G.in(qx, qy)) { clear = false; break; }
+                const size_t j = G.I(qx, qy);
+                if (G.M.bldgAt[j] >= 0 || G.front[j] || (qy >= y - 1 && (G.M.prop[j] || G.get(qx, qy) != K_SQUARE))) { clear = false; break; }
+              }
+            if (clear && G.putSolid(x, y, Prop::MarketCross)) have = true;
+          }
+    }
+  }
+  void noticeBoard() {
+    // --- the city's notice board on its square, a few tiles from the centrepiece (as rpg/story/places.cpp would stand one
+    // at runtime: open paving round it, a tile to read it from, nothing over its roof), so it stands there from the start
+    // and nobody idles on its tile when it goes up
+    if (!G.squares.empty()) {
+      int best = -1, bx = 0, by = 0;
+      for (int y = G.cy - 12; y <= G.cy + 12; y++)
+        for (int x = G.cx - 12; x <= G.cx + 12; x++) {
+          if (!G.in(x - 2, y - 3) || !G.in(x + 2, y + 2) || G.M.at(x, y) != Ground::Plaza || G.get(x, y) != K_SQUARE) continue;
+          const int d2 = (x - G.cx) * (x - G.cx) + (y - G.cy) * (y - G.cy);
+          if (d2 < 9 || nearMarket(x, y)) continue;
+          bool ok = true;
+          for (int oy = -1; oy <= 1 && ok; oy++)
+            for (int ox = -1; ox <= 1; ox++) {
+              const size_t j = G.I(x + ox, y + oy);
+              if (G.M.prop[j] || G.M.bldgAt[j] >= 0 || G.M.wall[j] || G.front[j] || groundSolid(G.M.at(x + ox, y + oy)) || G.get(x + ox, y + oy) != K_SQUARE) { ok = false; break; }
             }
-          if (clear && putSolid(x, y, Prop::MarketCross)) have = true;
+          for (int ox : {-2, 2}) if (ok && (G.M.prop[G.I(x + ox, y)] || G.M.bldgAt[G.I(x + ox, y)] >= 0)) ok = false;
+          if (ok && (G.M.prop[G.I(x, y + 2)] || G.M.bldgAt[G.I(x, y + 2)] >= 0 || G.front[G.I(x, y + 2)])) ok = false;
+          for (int oy = -3; oy <= -2 && ok; oy++)
+            for (int ox = -1; ox <= 1; ox++) if (G.M.prop[G.I(x + ox, y + oy)] || G.M.bldgAt[G.I(x + ox, y + oy)] >= 0) { ok = false; break; }
+          if (!ok) continue;
+          const int d = (int)std::sqrt((float)d2);
+          const int score = 400 - std::abs(d - 5) * 30 + (int)(G.hashAt(x, y, 0xB0A2u) % 13u);
+          if (score > best) { best = score; bx = x; by = y; }
         }
+      if (best >= 0) G.putSolid(bx, by, Prop::NoticeBoard);
+    }
   }
-  // --- the city's notice board on its square, a few tiles from the centrepiece (as rpg/story/places.cpp would stand one
-  // at runtime: open paving round it, a tile to read it from, nothing over its roof), so it stands there from the start
-  // and nobody idles on its tile when it goes up
-  if (!squares.empty()) {
-    int best = -1, bx = 0, by = 0;
-    for (int y = cy - 12; y <= cy + 12; y++)
-      for (int x = cx - 12; x <= cx + 12; x++) {
-        if (!in(x - 2, y - 3) || !in(x + 2, y + 2) || M.at(x, y) != Ground::Plaza || get(x, y) != K_SQUARE) continue;
-        const int d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-        if (d2 < 9 || nearMarket(x, y)) continue;
-        bool ok = true;
-        for (int oy = -1; oy <= 1 && ok; oy++)
+  void templeClose() {
+    // --- the temple close: lawn beds either side of the way to the door, edged with flower beds
+    for (const Precinct& pc : G.precincts) {
+      if (pc.role != 3) continue;
+      const IRect& s = pc.sq;
+      int doorX = s.x + s.w / 2;
+      for (const Bldg& b : G.M.bldgs)
+        if (b.r.y + b.r.h == s.y && b.doorX() >= s.x && b.doorX() < s.x + s.w) { doorX = b.doorX(); break; }
+      for (int y = s.y + 1; y < s.y + s.h - 1; y++)
+        for (int x = s.x + 1; x < s.x + s.w - 1; x++) {
+          if (std::abs(x - doorX) <= 2 || G.get(x, y) != K_SQUARE || G.M.prop[G.I(x, y)] || G.front[G.I(x, y)] || nearMarket(x, y)) continue;
+          G.M.setG(x, y, winter ? Ground::Snow : Ground::Grass);
+          const bool rim = y == s.y + 1 || y == s.y + s.h - 2 || std::abs(x - doorX) == 3 || x == s.x + 1 || x == s.x + s.w - 2;
+          if (rim && (x + y) % 2 == 0) G.M.setProp(x, y, winter ? Prop::SnowBush : Prop::FlowerBed);
+        }
+    }
+  }
+  void avenueWalks() {
+    // --- the avenues' open walks: tree pits and lamps where no house front is (a crown never hides a facade), a corner
+    // stone at every junction corner of the better quarters' walks, planters along the rich quarter's fronts
+    for (int y = 2; y < G.H - 2; y++)
+      for (int x = 2; x < G.W - 2; x++) {
+        if (cls(x, y) != Urb::Sidewalk) continue;
+        const size_t i = G.I(x, y);
+        if (G.M.prop[i] || G.front[i] || (G.noBuild[i] & 2)) continue;
+        const District q = G.districtAt(x, y);
+        // the outer corner of a walk at a junction: carriage on two sides and between them
+        bool corner = false;
+        for (int k = 0; k < 4 && !corner; k++) {
+          const int ax = (k & 1) ? 1 : -1, ay = (k & 2) ? 1 : -1;
+          // (fixer M7b r2, review: "a bollard on every step of the diagonal avenue's walk") a junction's corner: the walk
+          // runs on two tiles or more along both streets (a slanting walk's step has a one-tile arm)
+          if (carriage(x + ax, y) && carriage(x, y + ay) && carriage(x + ax, y + ay) && cls(x - ax, y) == Urb::Sidewalk && cls(x - 2 * ax, y) == Urb::Sidewalk &&
+              cls(x, y - ay) == Urb::Sidewalk && cls(x, y - 2 * ay) == Urb::Sidewalk)
+            corner = true;
+        }
+        if (nearMarket(x, y)) continue;
+        if (corner) {
+          if (q != District::Poor) G.putSolid(x, y, Prop::Bollard);
+          continue;
+        }
+        bool avenueSide = false;
+        for (int d = 0; d < 4; d++) if (cls(x + D4X[d], y + D4Y[d]) == Urb::Avenue) avenueSide = true;
+        if (!avenueSide || G.cover[i]) continue;
+        bool clear = true;   // no house front, door or stall within reach of a crown
+        for (int oy = -3; oy <= 1 && clear; oy++)
           for (int ox = -1; ox <= 1; ox++) {
-            const size_t j = I(x + ox, y + oy);
-            if (M.prop[j] || M.bldgAt[j] >= 0 || M.wall[j] || front[j] || groundSolid(M.at(x + ox, y + oy)) || get(x + ox, y + oy) != K_SQUARE) { ok = false; break; }
+            const int qx = x + ox, qy = y + oy;
+            if (!G.in(qx, qy)) continue;
+            const size_t j = G.I(qx, qy);
+            if (G.M.bldgAt[j] >= 0 || G.front[j] || (G.M.prop[j] && (qx != x || qy != y) && propSolid((Prop)(G.M.prop[j] - 1)))) { clear = false; break; }
           }
-        for (int ox : {-2, 2}) if (ok && (M.prop[I(x + ox, y)] || M.bldgAt[I(x + ox, y)] >= 0)) ok = false;
-        if (ok && (M.prop[I(x, y + 2)] || M.bldgAt[I(x, y + 2)] >= 0 || front[I(x, y + 2)])) ok = false;
-        for (int oy = -3; oy <= -2 && ok; oy++)
-          for (int ox = -1; ox <= 1; ox++) if (M.prop[I(x + ox, y + oy)] || M.bldgAt[I(x + ox, y + oy)] >= 0) { ok = false; break; }
-        if (!ok) continue;
-        const int d = (int)std::sqrt((float)d2);
-        const int score = 400 - std::abs(d - 5) * 30 + (int)(hashAt(x, y, 0xB0A2u) % 13u);
-        if (score > best) { best = score; bx = x; by = y; }
+        if (!clear) continue;
+        const int ph = (x + y) % 12;
+        // (fixer M7b r3, review: "street lamps one tile apart, posts stacked"; a slanting walk keeps x + y on every step,
+        // so its phase put a lamp or a tree on each one) a lamp keeps three tiles from every other lamp and two from a
+        // tree, a tree three from another: lamps and trees alternate down the avenue
+        auto spaced = [&](bool lamp) {
+          for (int oy = -3; oy <= 3; oy++)
+            for (int ox = -3; ox <= 3; ox++) {
+              if (!G.in(x + ox, y + oy) || (!ox && !oy)) continue;
+              const int pr = G.M.prop[G.I(x + ox, y + oy)];
+              if (!pr) continue;
+              const Prop pp = (Prop)(pr - 1);
+              const int dd = std::max(std::abs(ox), std::abs(oy));
+              if (pp == Prop::Lamppost && (lamp || dd <= 2)) return false;
+              if (art::isTreeProp(pp) && (!lamp || dd <= 2)) return false;
+            }
+          return true;
+        };
+        // (a tree stands back from a kerb's face: never on a walk's front row with the carriageway right below it, where
+        // its trunk and pit sat on the kerb stones)
+        const bool kerbFace = carriage(x, y + 1) || cls(x, y + 1) == Urb::Gutter;
+        if (ph == 0 && G.treesF > 0.2f && !kerbFace && spaced(false)) G.putSolid(x, y, winter ? Prop::SnowPine : townTree(G.bio, G.eco, (uint32_t)(x * 7 + y * 3)));
+        else if (ph == 6 && spaced(true)) G.putSolid(x, y, Prop::Lamppost);
       }
-    if (best >= 0) putSolid(bx, by, Prop::NoticeBoard);
   }
-  // --- the temple close: lawn beds either side of the way to the door, edged with flower beds
-  for (const Precinct& pc : precincts) {
-    if (pc.role != 3) continue;
-    const IRect& s = pc.sq;
-    int doorX = s.x + s.w / 2;
-    for (const Bldg& b : M.bldgs)
-      if (b.r.y + b.r.h == s.y && b.doorX() >= s.x && b.doorX() < s.x + s.w) { doorX = b.doorX(); break; }
-    for (int y = s.y + 1; y < s.y + s.h - 1; y++)
-      for (int x = s.x + 1; x < s.x + s.w - 1; x++) {
-        if (std::abs(x - doorX) <= 2 || get(x, y) != K_SQUARE || M.prop[I(x, y)] || front[I(x, y)] || nearMarket(x, y)) continue;
-        M.setG(x, y, winter ? Ground::Snow : Ground::Grass);
-        const bool rim = y == s.y + 1 || y == s.y + s.h - 2 || std::abs(x - doorX) == 3 || x == s.x + 1 || x == s.x + s.w - 2;
-        if (rim && (x + y) % 2 == 0) M.setProp(x, y, winter ? Prop::SnowBush : Prop::FlowerBed);
+  void planters() {
+    for (const Bldg& b : G.M.bldgs) {
+      if (!b.row && !(townIsHome(b.type) && b.wealth >= 3)) continue;
+      if (G.districtAt(b.r.cx(), b.r.cy()) != District::Noble || b.r.w < 4) continue;
+      const int fy = b.r.y + b.r.h;
+      for (int x : {b.r.x, b.r.x + b.r.w - 1}) {
+        if (std::abs(x - b.doorX()) < 2 || !G.in(x, fy) || cls(x, fy) != Urb::Sidewalk || G.M.prop[G.I(x, fy)] || G.front[G.I(x, fy)] || nearMarket(x, fy)) continue;
+        if (G.hashAt(x, fy, 0x91A7u) % 2u) continue;
+        G.putSolid(x, fy, Prop::Planter);
       }
+    }
   }
-  // --- the avenues' open walks: tree pits and lamps where no house front is (a crown never hides a facade), a corner
-  // stone at every junction corner of the better quarters' walks, planters along the rich quarter's fronts
-  auto cls = [&](int x, int y) { return in(x, y) && isStreet(x, y) ? (Urb)plan[I(x, y)] : Urb::None; };
-  auto carriage = [&](int x, int y) { const Urb u = cls(x, y); return u == Urb::Avenue || u == Urb::Gutter || u == Urb::Street || u == Urb::Lane || u == Urb::Alley; };
-  for (int y = 2; y < H - 2; y++)
-    for (int x = 2; x < W - 2; x++) {
-      if (cls(x, y) != Urb::Sidewalk) continue;
-      const size_t i = I(x, y);
-      if (M.prop[i] || front[i] || (noBuild[i] & 2)) continue;
-      const District q = districtAt(x, y);
-      // the outer corner of a walk at a junction: carriage on two sides and between them
-      bool corner = false;
-      for (int k = 0; k < 4 && !corner; k++) {
-        const int ax = (k & 1) ? 1 : -1, ay = (k & 2) ? 1 : -1;
-        // (fixer M7b r2, review: "a bollard on every step of the diagonal avenue's walk") a junction's corner: the walk
-        // runs on two tiles or more along both streets (a slanting walk's step has a one-tile arm)
-        if (carriage(x + ax, y) && carriage(x, y + ay) && carriage(x + ax, y + ay) && cls(x - ax, y) == Urb::Sidewalk && cls(x - 2 * ax, y) == Urb::Sidewalk &&
-            cls(x, y - ay) == Urb::Sidewalk && cls(x, y - 2 * ay) == Urb::Sidewalk)
-          corner = true;
-      }
-      if (nearMarket(x, y)) continue;
-      if (corner) {
-        if (q != District::Poor) putSolid(x, y, Prop::Bollard);
-        continue;
-      }
-      bool avenueSide = false;
-      for (int d = 0; d < 4; d++) if (cls(x + D4X[d], y + D4Y[d]) == Urb::Avenue) avenueSide = true;
-      if (!avenueSide || cover[i]) continue;
-      bool clear = true;   // no house front, door or stall within reach of a crown
-      for (int oy = -3; oy <= 1 && clear; oy++)
-        for (int ox = -1; ox <= 1; ox++) {
-          const int qx = x + ox, qy = y + oy;
-          if (!in(qx, qy)) continue;
-          const size_t j = I(qx, qy);
-          if (M.bldgAt[j] >= 0 || front[j] || (M.prop[j] && (qx != x || qy != y) && propSolid((Prop)(M.prop[j] - 1)))) { clear = false; break; }
+  void lampsOntoWalks() {
+    // (fixer M7b r2, review: "lamp posts stand on bare dirt beside the sidewalk instead of on it") a street lamp the town
+    // set on open ground right behind a walk steps onto the walk (else it goes)
+    for (int y = 2; y < G.H - 2; y++)
+      for (int x = 2; x < G.W - 2; x++) {
+        if (G.M.prop[G.I(x, y)] != (int)Prop::Lamppost + 1 || G.isStreet(x, y)) continue;
+        int wx = -1, wy = -1;
+        for (int d = 0; d < 4 && wx < 0; d++) {
+          const int nx = x + D4X[d], ny = y + D4Y[d];
+          if (cls(nx, ny) == Urb::Sidewalk && !G.M.prop[G.I(nx, ny)] && !G.front[G.I(nx, ny)] && !nearMarket(nx, ny)) { wx = nx; wy = ny; }
         }
-      if (!clear) continue;
-      const int ph = (x + y) % 12;
-      // (fixer M7b r3, review: "street lamps one tile apart, posts stacked"; a slanting walk keeps x + y on every step,
-      // so its phase put a lamp or a tree on each one) a lamp keeps three tiles from every other lamp and two from a
-      // tree, a tree three from another: lamps and trees alternate down the avenue
-      auto spaced = [&](bool lamp) {
-        for (int oy = -3; oy <= 3; oy++)
+        bool byWalk = wx >= 0;
+        for (int d = 0; d < 4 && !byWalk; d++) byWalk = cls(x + D4X[d], y + D4Y[d]) == Urb::Sidewalk;
+        if (!byWalk) continue;
+        G.M.setP(x, y, 0);
+        if (wx >= 0) G.putSolid(wx, wy, Prop::Lamppost);
+        // (M7c fixer, review: "yellow-green diamond patches by lamp posts") the lamp's old tile was the scrap of turf it
+        // stood on, one tile among the paved yards behind the walk: it drew as a lone green diamond on the paving. It
+        // takes the paving round it (two paved sides or more)
+        {
+          const Ground g0 = G.M.at(x, y);
+          if (g0 != Ground::Road && g0 != Ground::Plaza && !G.water[G.I(x, y)] && G.M.bldgAt[G.I(x, y)] < 0 && !G.M.wall[G.I(x, y)]) {
+            int nRoad = 0, nPlaza = 0;
+            for (int d = 0; d < 4; d++) {
+              const Ground q = G.M.at(x + D4X[d], y + D4Y[d]);
+              if (q == Ground::Road) nRoad++;
+              else if (q == Ground::Plaza) nPlaza++;
+            }
+            if (nRoad + nPlaza >= 2) G.M.setG(x, y, nPlaza > nRoad ? Ground::Plaza : Ground::Road);
+          }
+        }
+      }
+  }
+  void lampSpacing() {
+    // (fixer M7b r3) no two street lamps of a walk within three tiles of each other (the town's own lamps, moved onto a
+    // walk above, met the avenue's: two posts stacked one tile apart)
+    for (int y = 2; y < G.H - 2; y++)
+      for (int x = 2; x < G.W - 2; x++) {
+        if (G.M.prop[G.I(x, y)] != (int)Prop::Lamppost + 1 || !G.isStreet(x, y)) continue;
+        bool near = false;
+        for (int oy = -3; oy <= 0 && !near; oy++)
           for (int ox = -3; ox <= 3; ox++) {
-            if (!in(x + ox, y + oy) || (!ox && !oy)) continue;
-            const int pr = M.prop[I(x + ox, y + oy)];
-            if (!pr) continue;
-            const Prop pp = (Prop)(pr - 1);
-            const int dd = std::max(std::abs(ox), std::abs(oy));
-            if (pp == Prop::Lamppost && (lamp || dd <= 2)) return false;
-            if (art::isTreeProp(pp) && (!lamp || dd <= 2)) return false;
+            if ((oy == 0 && ox >= 0) || !G.in(x + ox, y + oy)) continue;
+            if (G.M.prop[G.I(x + ox, y + oy)] == (int)Prop::Lamppost + 1 && G.isStreet(x + ox, y + oy)) { near = true; break; }
           }
-        return true;
-      };
-      // (a tree stands back from a kerb's face: never on a walk's front row with the carriageway right below it, where
-      // its trunk and pit sat on the kerb stones)
-      const bool kerbFace = carriage(x, y + 1) || cls(x, y + 1) == Urb::Gutter;
-      if (ph == 0 && treesF > 0.2f && !kerbFace && spaced(false)) putSolid(x, y, winter ? Prop::SnowPine : townTree(bio, eco, (uint32_t)(x * 7 + y * 3)));
-      else if (ph == 6 && spaced(true)) putSolid(x, y, Prop::Lamppost);
-    }
-  for (const Bldg& b : M.bldgs) {
-    if (!b.row && !(townIsHome(b.type) && b.wealth >= 3)) continue;
-    if (districtAt(b.r.cx(), b.r.cy()) != District::Noble || b.r.w < 4) continue;
-    const int fy = b.r.y + b.r.h;
-    for (int x : {b.r.x, b.r.x + b.r.w - 1}) {
-      if (std::abs(x - b.doorX()) < 2 || !in(x, fy) || cls(x, fy) != Urb::Sidewalk || M.prop[I(x, fy)] || front[I(x, fy)] || nearMarket(x, fy)) continue;
-      if (hashAt(x, fy, 0x91A7u) % 2u) continue;
-      putSolid(x, fy, Prop::Planter);
-    }
-  }
-  // (fixer M7b r2, review: "lamp posts stand on bare dirt beside the sidewalk instead of on it") a street lamp the town
-  // set on open ground right behind a walk steps onto the walk (else it goes)
-  for (int y = 2; y < H - 2; y++)
-    for (int x = 2; x < W - 2; x++) {
-      if (M.prop[I(x, y)] != (int)Prop::Lamppost + 1 || isStreet(x, y)) continue;
-      int wx = -1, wy = -1;
-      for (int d = 0; d < 4 && wx < 0; d++) {
-        const int nx = x + D4X[d], ny = y + D4Y[d];
-        if (cls(nx, ny) == Urb::Sidewalk && !M.prop[I(nx, ny)] && !front[I(nx, ny)] && !nearMarket(nx, ny)) { wx = nx; wy = ny; }
-      }
-      bool byWalk = wx >= 0;
-      for (int d = 0; d < 4 && !byWalk; d++) byWalk = cls(x + D4X[d], y + D4Y[d]) == Urb::Sidewalk;
-      if (!byWalk) continue;
-      M.setP(x, y, 0);
-      if (wx >= 0) putSolid(wx, wy, Prop::Lamppost);
-      // (M7c fixer, review: "yellow-green diamond patches by lamp posts") the lamp's old tile was the scrap of turf it
-      // stood on, one tile among the paved yards behind the walk: it drew as a lone green diamond on the paving. It
-      // takes the paving round it (two paved sides or more)
-      {
-        const Ground g0 = M.at(x, y);
-        if (g0 != Ground::Road && g0 != Ground::Plaza && !water[I(x, y)] && M.bldgAt[I(x, y)] < 0 && !M.wall[I(x, y)]) {
-          int nRoad = 0, nPlaza = 0;
-          for (int d = 0; d < 4; d++) {
-            const Ground q = M.at(x + D4X[d], y + D4Y[d]);
-            if (q == Ground::Road) nRoad++;
-            else if (q == Ground::Plaza) nPlaza++;
-          }
-          if (nRoad + nPlaza >= 2) M.setG(x, y, nPlaza > nRoad ? Ground::Plaza : Ground::Road);
-        }
-      }
-    }
-  // (fixer M7b r3) no two street lamps of a walk within three tiles of each other (the town's own lamps, moved onto a
-  // walk above, met the avenue's: two posts stacked one tile apart)
-  for (int y = 2; y < H - 2; y++)
-    for (int x = 2; x < W - 2; x++) {
-      if (M.prop[I(x, y)] != (int)Prop::Lamppost + 1 || !isStreet(x, y)) continue;
-      bool near = false;
-      for (int oy = -3; oy <= 0 && !near; oy++)
-        for (int ox = -3; ox <= 3; ox++) {
-          if ((oy == 0 && ox >= 0) || !in(x + ox, y + oy)) continue;
-          if (M.prop[I(x + ox, y + oy)] == (int)Prop::Lamppost + 1 && isStreet(x + ox, y + oy)) { near = true; break; }
-        }
-      if (near) M.setP(x, y, 0);
-    }
-  // corner stones flanking every gate's throat, just inside
-  for (const GatePlan& g : gatePlan) {
-    for (int s : {-2, 2}) {
-      const int x = g.dx == 0 ? g.x + s : g.x + g.dx * 2, y = g.dx == 0 ? g.y + g.dy * 2 : g.y + s;
-      if (openTile(x, y) && !isStreet(x, y) && !wallAt(x, y) && !nearMarket(x, y)) putSolid(x, y, Prop::Bollard);
-    }
-  }
-  // --- the dune city's souk (fixer M7b r1, review: "a jumbled stripy mass"): awnings strung over the carriageway of its
-  // market avenues near the heart in bays of six or seven tiles, every bay one cloth across the whole street on its
-  // poles, an open bay to the sky between them (the drain's line sets the street's way); never over a junction, a
-  // stall's aisle or a bend
-  if (cultureIs((int)cult::Archetype::Dune)) {
-    auto gut = [&](int x, int y) { return in(x, y) && cls(x, y) == Urb::Gutter; };
-    for (int y = 2; y < H - 2; y++)
-      for (int x = 2; x < W - 2; x++) {
-        if (!gut(x, y) || dist(x, y) > 0.42f || dist(x, y) < 0.12f) continue;
-        const bool ew = gut(x - 1, y) && gut(x + 1, y), ns = gut(x, y - 1) && gut(x, y + 1);
-        if (ew == ns) continue;   // (a bend, a junction or a two-tile band's end: open)
-        const int along = ew ? x : y;
-        if (((along % 7) + 7) % 7 == 0) continue;   // the open bay
-        // the band across the street: the drain and the carriage either side of it
-        const int px = ew ? 0 : 1, py = ew ? 1 : 0;
-        bool ok = true;
-        for (int k = -1; k <= 1 && ok; k++) {
-          const int tx = x + px * k, ty = y + py * k;
-          const Urb u = cls(tx, ty);
-          if ((u != Urb::Avenue && u != Urb::Gutter) || M.prop[I(tx, ty)] || nearMarket(tx, ty)) { ok = false; break; }
-          for (int d = 0; d < 4; d++) {
-            const Urb v = cls(tx + D4X[d], ty + D4Y[d]);
-            if (v == Urb::Street || v == Urb::Lane || v == Urb::Alley || get(tx + D4X[d], ty + D4Y[d]) == K_SQUARE) { ok = false; break; }
-          }
-        }
-        if (!ok) continue;
-        for (int k = -1; k <= 1; k++) M.setProp(x + px * k, y + py * k, Prop::Canopy);
-      }
-    // a bay cut down to a tile or two by a junction is taken down (no stub of cloth)
-    for (int y = 2; y < H - 2; y++)
-      for (int x = 2; x < W - 2; x++) {
-        if (M.prop[I(x, y)] != (int)Prop::Canopy + 1 || !gut(x, y)) continue;
-        const bool ew = gut(x - 1, y) && gut(x + 1, y);
-        auto canopy = [&](int qx, int qy) { return in(qx, qy) && M.prop[I(qx, qy)] == (int)Prop::Canopy + 1; };
-        int n = 1;
-        for (int k = 1; k < 8 && canopy(x + (ew ? k : 0), y + (ew ? 0 : k)); k++) n++;
-        for (int k = 1; k < 8 && canopy(x - (ew ? k : 0), y - (ew ? 0 : k)); k++) n++;
-        if (n >= 3) continue;
-        for (int k = -1; k <= 1; k++) {
-          const int tx = x + (ew ? 0 : k), ty = y + (ew ? k : 0);
-          if (canopy(tx, ty)) M.setP(tx, ty, 0);
-        }
+        if (near) G.M.setP(x, y, 0);
       }
   }
+  void gateStones() {
+    // corner stones flanking every gate's throat, just inside
+    for (const GatePlan& g : G.gatePlan) {
+      for (int s : {-2, 2}) {
+        const int x = g.dx == 0 ? g.x + s : g.x + g.dx * 2, y = g.dx == 0 ? g.y + g.dy * 2 : g.y + s;
+        if (openTile(x, y) && !G.isStreet(x, y) && !G.wallAt(x, y) && !nearMarket(x, y)) G.putSolid(x, y, Prop::Bollard);
+      }
+    }
+  }
+  void souk() {
+    // --- the dune city's souk (fixer M7b r1, review: "a jumbled stripy mass"): awnings strung over the carriageway of its
+    // market avenues near the heart in bays of six or seven tiles, every bay one cloth across the whole street on its
+    // poles, an open bay to the sky between them (the drain's line sets the street's way); never over a junction, a
+    // stall's aisle or a bend
+    if (G.cultureIs((int)cult::Archetype::Dune)) {
+      auto gut = [&](int x, int y) { return G.in(x, y) && cls(x, y) == Urb::Gutter; };
+      for (int y = 2; y < G.H - 2; y++)
+        for (int x = 2; x < G.W - 2; x++) {
+          if (!gut(x, y) || G.dist(x, y) > 0.42f || G.dist(x, y) < 0.12f) continue;
+          const bool ew = gut(x - 1, y) && gut(x + 1, y), ns = gut(x, y - 1) && gut(x, y + 1);
+          if (ew == ns) continue;   // (a bend, a junction or a two-tile band's end: open)
+          const int along = ew ? x : y;
+          if (((along % 7) + 7) % 7 == 0) continue;   // the open bay
+          // the band across the street: the drain and the carriage either side of it
+          const int px = ew ? 0 : 1, py = ew ? 1 : 0;
+          bool ok = true;
+          for (int k = -1; k <= 1 && ok; k++) {
+            const int tx = x + px * k, ty = y + py * k;
+            const Urb u = cls(tx, ty);
+            if ((u != Urb::Avenue && u != Urb::Gutter) || G.M.prop[G.I(tx, ty)] || nearMarket(tx, ty)) { ok = false; break; }
+            for (int d = 0; d < 4; d++) {
+              const Urb v = cls(tx + D4X[d], ty + D4Y[d]);
+              if (v == Urb::Street || v == Urb::Lane || v == Urb::Alley || G.get(tx + D4X[d], ty + D4Y[d]) == K_SQUARE) { ok = false; break; }
+            }
+          }
+          if (!ok) continue;
+          for (int k = -1; k <= 1; k++) G.M.setProp(x + px * k, y + py * k, Prop::Canopy);
+        }
+      // a bay cut down to a tile or two by a junction is taken down (no stub of cloth)
+      for (int y = 2; y < G.H - 2; y++)
+        for (int x = 2; x < G.W - 2; x++) {
+          if (G.M.prop[G.I(x, y)] != (int)Prop::Canopy + 1 || !gut(x, y)) continue;
+          const bool ew = gut(x - 1, y) && gut(x + 1, y);
+          auto canopy = [&](int qx, int qy) { return G.in(qx, qy) && G.M.prop[G.I(qx, qy)] == (int)Prop::Canopy + 1; };
+          int n = 1;
+          for (int k = 1; k < 8 && canopy(x + (ew ? k : 0), y + (ew ? 0 : k)); k++) n++;
+          for (int k = 1; k < 8 && canopy(x - (ew ? k : 0), y - (ew ? 0 : k)); k++) n++;
+          if (n >= 3) continue;
+          for (int k = -1; k <= 1; k++) {
+            const int tx = x + (ew ? 0 : k), ty = y + (ew ? k : 0);
+            if (canopy(tx, ty)) G.M.setP(tx, ty, 0);
+          }
+        }
+    }
+  }
+ public:
+  void dress() {
+    lawn = G.base == Ground::Grass ? Ground::Meadow : G.base;
+    winter = G.bio == Biome::Snow;
+    richLawns();
+    backYards();
+    // --- the park (fixer M7b r1, review: "every city park is the same template in every culture and seed"): one of four
+    // landscapes, picked by the plan's hash (the culture leaning it), laid out organically from the gates the lane ring
+    // gives it:
+    //   0 the landscape garden: a pond to one side, a serpentine walk between two gates round it, a branch from a third
+    //   1 the pond loop: a pond in the middle, an oval walk round it, spokes out to the gates
+    //   2 the formal green: an oval walk with a broad axis through a round plaza, hedges along two sides, paired beds
+    //   3 the grove meadow: two curving walks crossing off-centre, groves of trees in the corners, wild flowers
+    // then the pavilion beside a walk, benches facing the walks, trees in clumps (never a lone grid), all integer maths
+    if (G.park.w > 0) {
+      parkPlan();
+      parkHedge();
+      parkPavilion();
+      parkBeds();
+      parkMargin();
+      parkBenches();
+      parkTrees();
+    }
+    marketCross();
+    noticeBoard();
+    templeClose();
+    avenueWalks();
+    planters();
+    lampsOntoWalks();
+    lampSpacing();
+    gateStones();
+    souk();
+  }
+};
+}  // namespace
+
+void Gen::cityDress() {
+  CityDresser(*this).dress();
 }
+
 
 // ------------------------------------------------------------------------------------------------ the fabric layer
 // Every tile's class, upkeep and quarter, from the finished plan. A planned city's streets keep the class their band
