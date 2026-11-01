@@ -42,6 +42,10 @@ inline Faction monsterFaction(Monster m) {
   }
 }
 
+// (SOLID 4.1) an option in one of the lanes' ranges (game_types.h DLG_*) handed to its lane's choose
+// (dlg_routes.cpp: one row per range, in the order dialogueChoose always asked them). true: handled
+bool dlgRoute(Game& g, const DlgOpt& o);
+
 // dialogue option actions (DlgOpt::action). M2 appends the wayside and quest ones.
 enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK, A_BED,
               A_DELIVER, A_ESCORT, A_TOLLPAY, A_TOLLREFUSE, A_NEWS, A_GRAVE,

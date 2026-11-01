@@ -926,19 +926,8 @@ void Game::dialogueChooseInner(int oi) {
       return;
     }
     default:
-      // M4: the lanes' own option ranges (game.h DLG_*)
-      if (o.action >= DLG_STORY && o.action < DLG_WAR && StoryOps::choose(*this, o)) return;
-      if (o.action >= DLG_WAR && o.action < DLG_END && WarOps::choose(*this, o)) return;
-      if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && LifeHooks::choose(*this, o)) return;
-      if (o.action >= DLG_FOES && o.action < DLG_CRAFT && FoeHooks::choose(*this, o)) return;      // M6
-      if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && CraftHooks::choose(*this, o)) return;  // M6
-      if (o.action >= DLG_HOME && o.action < DLG_HOME_END && HomeOps::choose(*this, o)) return;  // M7
-      if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && PartyTalkOps::choose(*this, o)) return;  // M8 (party_talk.cpp)
-      if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
-      if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
-      if (o.action >= DLG_SEA && o.action < DLG_SEA_END && SeaOps::choose(*this, o)) return;          // M10 (sea_game.cpp)
-      if (o.action >= DLG_SERVICE && o.action < DLG_SERVICE_END && ServiceOps::choose(*this, o)) return;  // M12 (service_game.cpp)
-      if (o.action >= DLG_LORD && o.action < DLG_LORD_END && LordOps::choose(*this, o)) return;          // M12 (lord_game.cpp)
+      // the lanes' own option ranges (game_types.h DLG_*), routed by the table in dlg_routes.cpp
+      if (dlgRoute(*this, o)) return;
       mode = Mode::Play;
       return;
   }
