@@ -2244,74 +2244,86 @@ constexpr float kGreatLurkerS = 1.75f;
 
 const Ramp kHornR = ramp5(rgba(46, 34, 42), rgba(86, 70, 68), rgba(136, 118, 100), rgba(188, 172, 142), rgba(234, 226, 200));
 
+// (SOLID 5.1) the quadrupeds' painters, out of paintCell's switch as they were
+void wolfCell(Canvas& cell, Monster m, int f, int, bool) {
+  Quad q;
+  bool ice = m == Monster::IceWolf;
+  q.fur = ice ? ramp5(rgba(92, 108, 150), rgba(146, 166, 200), rgba(198, 214, 232), rgba(230, 240, 248), rgba(255, 255, 255))
+              : ramp5(rgba(44, 40, 60), rgba(78, 74, 90), rgba(118, 112, 118), rgba(158, 150, 146), rgba(198, 190, 176));
+  q.belly = ice ? kSnow : ramp5(rgba(110, 96, 96), rgba(160, 146, 132), rgba(204, 192, 170), rgba(226, 218, 196), rgba(244, 238, 220));
+  q.eye = ice ? rgba(110, 220, 255) : rgba(250, 200, 60);
+  q.nose = kInk;
+  q.bodyLen = 13; q.bodyR = 4.2f; q.legLen = 7; q.legW = 2.4f; q.headR = 3.4f; q.snout = 4.0f;
+  q.ears = 0; q.tail = 0; q.saddle = true; q.seed = ice ? 7 : 3;
+  quadruped(cell, q, f);
+}
+void boarCell(Canvas& cell, Monster, int f, int, bool) {
+  Quad q;
+  q.fur = ramp5(rgba(46, 30, 38), rgba(78, 50, 46), rgba(112, 74, 56), rgba(148, 104, 72), rgba(182, 140, 98));
+  q.belly = ramp5(rgba(80, 56, 52), rgba(122, 88, 70), rgba(160, 120, 92), rgba(190, 152, 116), rgba(214, 184, 146));
+  q.eye = rgba(240, 90, 60); q.nose = rgba(196, 120, 120);
+  q.bodyLen = 12; q.bodyR = 5.0f; q.legLen = 4.5f; q.legW = 2.4f; q.headR = 3.6f; q.snout = 3.0f;
+  q.ears = 0; q.tail = 1; q.tusks = true; q.mane = true; q.seed = 5;
+  quadruped(cell, q, f);
+}
+void bearCell(Canvas& cell, Monster, int f, int, bool) {
+  Quad q;
+  q.fur = ramp5(rgba(46, 28, 36), rgba(80, 46, 40), rgba(120, 72, 48), rgba(158, 104, 64), rgba(194, 142, 92));
+  q.belly = ramp5(rgba(80, 50, 44), rgba(118, 78, 56), rgba(150, 104, 70), rgba(180, 134, 90), rgba(206, 166, 116));
+  q.eye = rgba(40, 20, 24); q.nose = kInk;
+  q.bodyLen = 16; q.bodyR = 6.5f; q.legLen = 6.5f; q.legW = 3.6f; q.headR = 4.4f; q.snout = 3.0f;
+  q.ears = 1; q.tail = 2; q.hump = true; q.seed = 9;
+  quadruped(cell, q, f);
+}
+
+// one row per species, in the Monster enum's order: its v1 cell (monsterCellW / monsterCellH) and its painter (paintCell:
+// the cell, the frame, the golem's material, the great lurker's form)
+struct MonsterInfo {
+  int w, h;
+  void (*paint)(Canvas& cell, Monster m, int f, int golemKind, bool great);
+};
+constexpr MonsterInfo kMonsterInfo[] = {
+  {32, 22, wolfCell},                                                                           // Wolf
+  {28, 20, boarCell},                                                                           // Boar
+  {36, 28, bearCell},                                                                           // Bear
+  {20, 16, [](Canvas& cell, Monster, int f, int, bool) { slime(cell, f); }},                    // Slime
+  {28, 18, [](Canvas& cell, Monster, int f, int, bool) { spider(cell, f, false); }},            // Spider
+  {24, 20, [](Canvas& cell, Monster, int f, int, bool) { bat(cell, f); }},                      // Bat
+  {24, 24, [](Canvas& cell, Monster, int f, int, bool) { cell = humanoidCell(kSkeletonSp, f); }},   // Skeleton
+  {24, 24, [](Canvas& cell, Monster, int f, int, bool) { cell = humanoidCell(kDraugrSp, f); }},     // Draugr
+  {24, 24, [](Canvas& cell, Monster, int f, int, bool) { cell = humanoidCell(kGoblinSp, f); }},     // Goblin
+  {36, 34, [](Canvas& cell, Monster, int f, int, bool) { troll(cell, f); }},                    // Troll
+  {24, 28, [](Canvas& cell, Monster, int f, int, bool) { wraith(cell, f); }},                   // Wraith
+  {26, 16, [](Canvas& cell, Monster, int f, int, bool) { mudcrab(cell, f); }},                  // Mudcrab
+  {32, 22, wolfCell},                                                                           // IceWolf
+  {28, 18, [](Canvas& cell, Monster, int f, int, bool) { spider(cell, f, true); }},             // FrostSpider
+  {28, 30, [](Canvas& cell, Monster, int f, int, bool) { sandworm(cell, f); }},                 // Sandworm
+  {80, 56, [](Canvas& cell, Monster, int f, int, bool) { dragon(cell, f); }},                   // Dragon
+  // ---- M3c Wildlands wildlife (LIFE lane)
+  {32, 24, [](Canvas& cell, Monster, int f, int, bool) { scorpion(cell, f); }},                 // Scorpion
+  {32, 22, [](Canvas& cell, Monster, int f, int, bool) { hyena(cell, f); }},                    // Hyena
+  {44, 16, [](Canvas& cell, Monster, int f, int, bool great) { lurker(cell, f, great ? kGreatLurkerS : 1.0f); }},   // Lurker
+  {38, 38, [](Canvas& cell, Monster, int f, int, bool) { yeti(cell, f); }},                     // Yeti
+  {20, 24, [](Canvas& cell, Monster, int f, int, bool) { wisp(cell, f); }},                     // Wisp
+  {32, 22, [](Canvas& cell, Monster, int f, int, bool) { emberHound(cell, f); }},               // EmberHound
+  {26, 28, [](Canvas& cell, Monster, int f, int, bool) { blightspawn(cell, f); }},              // Blightspawn
+  // ---- M6 Steel (BEASTS lane)
+  {34, 32, [](Canvas& cell, Monster, int f, int, bool) { harpy(cell, f); }},                    // Harpy (M6 BEASTS: room for the wingspan)
+  // Golem: the fists rise over the head on the wind-up (fixer r4: 44 rows clipped them flat)
+  {40, 50, [](Canvas& cell, Monster, int f, int golemKind, bool) { golem(cell, f, golemKind); }},   // Golem
+  // ---- M10 Beyond the Mist (phase A stand-ins; the ART lane paints them)
+  {72, 46, [](Canvas& cell, Monster, int f, int, bool) { seaSerpent(cell, f); }},               // SeaSerpent (M10 ART: the coils, the neck and the head over the swell)
+  {64, 40, [](Canvas& cell, Monster, int f, int, bool) { krakenBody(cell, f); }},               // Kraken (the mantle and its arms spread on the water)
+  {28, 28, [](Canvas& cell, Monster, int f, int, bool) { merrow(cell, f); }},                   // Merrow
+};
+static_assert(sizeof(kMonsterInfo) / sizeof(kMonsterInfo[0]) == (size_t)Monster::COUNT, "one kMonsterInfo row per Monster");
+
 // one cell of a species' sheet (no outline); golemKind: the golem's material
 Canvas paintCell(Monster m, int f, int golemKind, bool great = false) {
   great = great && m == Monster::Lurker;
   const int cw = great ? kGreatLurkerW : monsterCellW(m), chh = great ? kGreatLurkerH : monsterCellH(m);
   Canvas cell(cw, chh);
-  switch (m) {
-    case Monster::Wolf: case Monster::IceWolf: {
-      Quad q;
-      bool ice = m == Monster::IceWolf;
-      q.fur = ice ? ramp5(rgba(92, 108, 150), rgba(146, 166, 200), rgba(198, 214, 232), rgba(230, 240, 248), rgba(255, 255, 255))
-                  : ramp5(rgba(44, 40, 60), rgba(78, 74, 90), rgba(118, 112, 118), rgba(158, 150, 146), rgba(198, 190, 176));
-      q.belly = ice ? kSnow : ramp5(rgba(110, 96, 96), rgba(160, 146, 132), rgba(204, 192, 170), rgba(226, 218, 196), rgba(244, 238, 220));
-      q.eye = ice ? rgba(110, 220, 255) : rgba(250, 200, 60);
-      q.nose = kInk;
-      q.bodyLen = 13; q.bodyR = 4.2f; q.legLen = 7; q.legW = 2.4f; q.headR = 3.4f; q.snout = 4.0f;
-      q.ears = 0; q.tail = 0; q.saddle = true; q.seed = ice ? 7 : 3;
-      quadruped(cell, q, f);
-      break;
-    }
-    case Monster::Boar: {
-      Quad q;
-      q.fur = ramp5(rgba(46, 30, 38), rgba(78, 50, 46), rgba(112, 74, 56), rgba(148, 104, 72), rgba(182, 140, 98));
-      q.belly = ramp5(rgba(80, 56, 52), rgba(122, 88, 70), rgba(160, 120, 92), rgba(190, 152, 116), rgba(214, 184, 146));
-      q.eye = rgba(240, 90, 60); q.nose = rgba(196, 120, 120);
-      q.bodyLen = 12; q.bodyR = 5.0f; q.legLen = 4.5f; q.legW = 2.4f; q.headR = 3.6f; q.snout = 3.0f;
-      q.ears = 0; q.tail = 1; q.tusks = true; q.mane = true; q.seed = 5;
-      quadruped(cell, q, f);
-      break;
-    }
-    case Monster::Bear: {
-      Quad q;
-      q.fur = ramp5(rgba(46, 28, 36), rgba(80, 46, 40), rgba(120, 72, 48), rgba(158, 104, 64), rgba(194, 142, 92));
-      q.belly = ramp5(rgba(80, 50, 44), rgba(118, 78, 56), rgba(150, 104, 70), rgba(180, 134, 90), rgba(206, 166, 116));
-      q.eye = rgba(40, 20, 24); q.nose = kInk;
-      q.bodyLen = 16; q.bodyR = 6.5f; q.legLen = 6.5f; q.legW = 3.6f; q.headR = 4.4f; q.snout = 3.0f;
-      q.ears = 1; q.tail = 2; q.hump = true; q.seed = 9;
-      quadruped(cell, q, f);
-      break;
-    }
-    case Monster::Slime: slime(cell, f); break;
-    case Monster::Spider: spider(cell, f, false); break;
-    case Monster::FrostSpider: spider(cell, f, true); break;
-    case Monster::Bat: bat(cell, f); break;
-    case Monster::Skeleton: cell = humanoidCell(kSkeletonSp, f); break;
-    case Monster::Draugr: cell = humanoidCell(kDraugrSp, f); break;
-    case Monster::Goblin: cell = humanoidCell(kGoblinSp, f); break;
-    case Monster::Troll: troll(cell, f); break;
-    case Monster::Wraith: wraith(cell, f); break;
-    case Monster::Mudcrab: mudcrab(cell, f); break;
-    case Monster::Sandworm: sandworm(cell, f); break;
-    case Monster::Dragon: dragon(cell, f); break;
-    // ---- M3c Wildlands wildlife (LIFE lane)
-    case Monster::Scorpion: scorpion(cell, f); break;
-    case Monster::Hyena: hyena(cell, f); break;
-    case Monster::EmberHound: emberHound(cell, f); break;
-    case Monster::Lurker: lurker(cell, f, great ? kGreatLurkerS : 1.0f); break;
-    case Monster::Yeti: yeti(cell, f); break;
-    case Monster::Wisp: wisp(cell, f); break;
-    case Monster::Blightspawn: blightspawn(cell, f); break;
-    // ---- M6 Steel (BEASTS lane)
-    case Monster::Harpy: harpy(cell, f); break;
-    case Monster::Golem: golem(cell, f, golemKind); break;
-    // ---- M10 Beyond the Mist (phase A stand-ins; the ART lane paints them)
-    case Monster::SeaSerpent: seaSerpent(cell, f); break;
-    case Monster::Kraken: krakenBody(cell, f); break;
-    case Monster::Merrow: merrow(cell, f); break;
-    default: break;
-  }
+  if ((int)m < (int)Monster::COUNT) kMonsterInfo[(int)m].paint(cell, m, f, golemKind, great);
   return cell;
 }
 
@@ -2808,63 +2820,11 @@ static int humanoidSpecies(Monster m) {
 }
 int monsterCellW(Monster m) {
   if (rigVersion() >= 2 && humanoidSpecies(m)) { const int w = humanoidCellW2(humanoidSpecies(m)); if (w > 0) return w; }
-  switch (m) {
-    case Monster::Wolf: case Monster::IceWolf: return 32;
-    case Monster::Boar: return 28;
-    case Monster::Bear: return 36;
-    case Monster::Slime: return 20;
-    case Monster::Spider: case Monster::FrostSpider: return 28;
-    case Monster::Bat: return 24;
-    case Monster::Skeleton: case Monster::Draugr: case Monster::Goblin: return 24;
-    case Monster::Troll: return 36;
-    case Monster::Wraith: return 24;
-    case Monster::Mudcrab: return 26;
-    case Monster::Sandworm: return 28;
-    case Monster::Dragon: return 80;
-    case Monster::Scorpion: return 32;
-    case Monster::Hyena: return 32;
-    case Monster::Lurker: return 44;
-    case Monster::Yeti: return 38;
-    case Monster::Wisp: return 20;
-    case Monster::EmberHound: return 32;
-    case Monster::Blightspawn: return 26;
-    case Monster::Harpy: return 34;    // (M6 BEASTS: room for the wingspan)
-    case Monster::Golem: return 40;
-    case Monster::SeaSerpent: return 72;   // (M10 ART: the coils, the neck and the head over the swell)
-    case Monster::Kraken: return 64;       // the mantle and its arms spread on the water
-    case Monster::Merrow: return 28;
-    default: return 24;
-  }
+  return (int)m < (int)Monster::COUNT ? kMonsterInfo[(int)m].w : 24;
 }
 int monsterCellH(Monster m) {
   if (rigVersion() >= 2 && humanoidSpecies(m)) { const int h = humanoidCellH2(humanoidSpecies(m)); if (h > 0) return h; }
-  switch (m) {
-    case Monster::Wolf: case Monster::IceWolf: return 22;
-    case Monster::Boar: return 20;
-    case Monster::Bear: return 28;
-    case Monster::Slime: return 16;
-    case Monster::Spider: case Monster::FrostSpider: return 18;
-    case Monster::Bat: return 20;
-    case Monster::Skeleton: case Monster::Draugr: case Monster::Goblin: return 24;
-    case Monster::Troll: return 34;
-    case Monster::Wraith: return 28;
-    case Monster::Mudcrab: return 16;
-    case Monster::Sandworm: return 30;
-    case Monster::Dragon: return 56;
-    case Monster::Scorpion: return 24;
-    case Monster::Hyena: return 22;
-    case Monster::Lurker: return 16;
-    case Monster::Yeti: return 38;
-    case Monster::Wisp: return 24;
-    case Monster::EmberHound: return 22;
-    case Monster::Blightspawn: return 28;
-    case Monster::Harpy: return 32;
-    case Monster::Golem: return 50;    // (the fists rise over the head on the wind-up; fixer r4: 44 clipped them flat)
-    case Monster::SeaSerpent: return 46;
-    case Monster::Kraken: return 40;
-    case Monster::Merrow: return 28;
-    default: return 24;
-  }
+  return (int)m < (int)Monster::COUNT ? kMonsterInfo[(int)m].h : 24;
 }
 
 Canvas monsterSheet(Monster m) {
