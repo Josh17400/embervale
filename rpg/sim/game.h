@@ -624,9 +624,6 @@ class Game {
   // every loaded settlement not yet known to the realm noted (true: one the realm holds for another owner). realmStep
   // calls it each step (fixer M4 r1: factored out; a load calls realmSync alone before re-entering a building)
   bool realmNoteSites();
-  // two actors on opposite sides of a war between kingdoms (enemy soldiers, an enemy town's guards; war_game.cpp).
-  // Everything else about hostility stays factionsHostile.
-  bool warHostile(const Actor& a, const Actor& b) const;
   // the kingdom whose camp a war prop at overworld tile (tx, ty) belongs to (0: none / not a war prop): the view draws
   // it in that kingdom's colours (art::warPropSprite). war_game.cpp.
   ew::Gid warPropKingdom(int tx, int ty) const;
@@ -901,23 +898,13 @@ class Game {
   int32_t landAt(int32_t gx, int32_t gy) const;   // the landmass id at (or near) a global tile
   bool startJourney(int site, int kind, float hours, int gold);
   void journeyWindow();                // the journey's destination window and wish list (startJourney, beginTravelTo)
-  // ---- M4 hooks. Each is called from the core loop (game.cpp / game_rpg.cpp) and DEFINED in its lane's own file, so
-  //      the lanes never edit each other's files. Keep the calls where phase A put them.
-  //   REALM (rpg/sim/realm_game.cpp): once per update step; ticks the realm at a day change, focuses it on the player,
-  //   registers the settlements the window loads, applies owners (World::setSiteOwner), emits Ev::Border on crossings
-  void realmStep(float dt);
+  // ---- M4: the realm's runtime state (the hooks: RealmOps in realm_ops.h, WarOps in war_ops.h, StoryOps in story_ops.h)
   uint32_t realmSeen_ = 0;             // the realm's eventSerial() last applied (realm_game.cpp)
   uint32_t riseSeen_ = 0;              // (M12) the last realm event id told to the view as a rise banner (realm_game.cpp)
   size_t realmSites_ = 0;              // world.sites already registered with the realm (sites is append-only)
   int realmDay_ = -1;                  // the day the realm last advanced to
   ew::Gid realmLand_ = 0;              // whose land the player stood on (Ev::Border when it changes)
   bool realmLandKnown_ = false;
-  //   WARDS (rpg/sim/war_game.cpp): once per update step (siege camps, patrols, refugees, garrisons, charred overlays,
-  //   guard strength); the war's dialogue (siege commanders, guards' war talk); a kill (siege contributions, reputation)
-  void warStep(float dt);
-  void warTalk(Actor& a);              // may add options (DLG_WAR..) and set dlg.text; called by talkTo before FAREWELL
-  bool warChoose(const DlgOpt& o);     // an option in [DLG_WAR, DLG_END): true handled
-  void warKill(const Actor& victim, int killer);
   //   STORY (rpg/story/story_game.cpp): story quests and campaigns, rumours and news, lore in ruins, notice boards,
   //   heralds
   void storyStep(float dt);
@@ -1035,6 +1022,8 @@ class Game {
   friend struct LordOps;               // M12 LORD: the lordship and the player's realm (rpg/sim/lord_ops.h)
   friend struct JobOps;                // P1 JOBS: the job pools and the leads (rpg/sim/jobs_ops.h, jobs.cpp)
   friend struct QuestMixOps;           // P1 lead: rpg_test --quest-mix asks the game's own offer code (test_quest_mix.cpp)
+  friend struct RealmOps;              // M4 REALM: the living world's hook (rpg/sim/realm_ops.h, realm_game.cpp)
+  friend struct WarOps;                // M4 WARDS: the war's hooks (rpg/sim/war_ops.h, war_game.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,

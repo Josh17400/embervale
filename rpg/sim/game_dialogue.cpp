@@ -7,6 +7,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/craft_hooks.h"
+#include "rpg/sim/war_ops.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -499,7 +500,7 @@ void Game::talkToInner(Actor& a) {
     }
   };
   hook(speech::P_BARK, Topic::Bark, [&] { LifeHooks::talk(*this, a); });   // M5: barks of need, feed / employ / supply / befriend (life_game.cpp)
-  hook(speech::P_NEWS, Topic::War, [&] { warTalk(a); });     // M4: the war's talk (siege commanders, guards' news of the front)
+  hook(speech::P_NEWS, Topic::War, [&] { WarOps::talk(*this, a); });     // M4: the war's talk (siege commanders, guards' news of the front)
   {   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp; the SAGA lane proposes at P_STORY / P_NEWS)
     const std::string before = dlg.text;
     const int bp = dlg.pri;
@@ -924,7 +925,7 @@ void Game::dialogueChooseInner(int oi) {
     default:
       // M4: the lanes' own option ranges (game.h DLG_*)
       if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
-      if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
+      if (o.action >= DLG_WAR && o.action < DLG_END && WarOps::choose(*this, o)) return;
       if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && LifeHooks::choose(*this, o)) return;
       if (o.action >= DLG_FOES && o.action < DLG_CRAFT && FoeHooks::choose(*this, o)) return;      // M6
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && CraftHooks::choose(*this, o)) return;  // M6

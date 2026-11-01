@@ -30,6 +30,8 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/realm_ops.h"
+#include "rpg/sim/war_ops.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -146,8 +148,8 @@ void Game::update(float dt, const Input& in) {
   };
   using PC = PerfCounters;
   timed(PC::S_QUEST, [&] { questTick(dt); waysideTick(dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
-  timed(PC::S_REALM, [&] { realmStep(dt); });   // M4: the living world (realm_game.cpp, REALM lane)
-  timed(PC::S_WAR, [&] { warStep(dt); });       // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
+  timed(PC::S_REALM, [&] { RealmOps::step(*this, dt); });   // M4: the living world (realm_game.cpp, REALM lane)
+  timed(PC::S_WAR, [&] { WarOps::step(*this, dt); });       // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
   timed(PC::S_STORY, [&] { storyStep(dt); });   // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)
   timed(PC::S_LIFESTEP, [&] { LifeHooks::step(*this, dt); }); // M5: the townsfolk's actors by their plans (life_game.cpp, TOWNSFOLK lane)
   timed(PC::S_RAID, [&] { LifeHooks::raidStep(*this, dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)

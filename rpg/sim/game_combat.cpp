@@ -30,6 +30,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/loot_ops.h"
+#include "rpg/sim/war_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -444,7 +445,7 @@ void Game::kill(Actor& a, int killer) {
   // (fixer M8 r1) a companion's kill is the party's: it counts toward hunt quests and saga Kill goals like the player's
   const bool byParty = byPlayer || (killer >= 0 && party.indexOfActor(killer) >= 0);
   if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
-  warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
+  WarOps::kill(*this, a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
   storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
   LifeHooks::kill(*this, a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
