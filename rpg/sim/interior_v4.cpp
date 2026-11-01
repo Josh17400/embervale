@@ -15,6 +15,7 @@
 #include "rpg/sim/interior_v4.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -403,9 +404,10 @@ struct Plan {
 };
 
 // (M3b) a debugging aid: EMB_INTERIOR_WHY=1 counts which line of the templates turned a plan down (printed by the
-// tests); nope(line) returns false
-int gNopeLine[8192];
-bool nope(int line) { if (line >= 0 && line < 8192) gNopeLine[line]++; return false; }
+// tests); nope(line) returns false. Atomic (relaxed): the interior prep worker (std::async, prep_interior.cpp) plans on
+// its own thread while the main thread may plan too, so the counters are shared between threads
+std::atomic<int> gNopeLine[8192];
+bool nope(int line) { if (line >= 0 && line < 8192) gNopeLine[line].fetch_add(1, std::memory_order_relaxed); return false; }
 
 int oddUp(int v) { return v % 2 == 0 ? v + 1 : v; }
 // (M3b fixer) the peoples whose halls burn a long hearth down their middle (a stone-kerbed trench of embers): the
@@ -5955,8 +5957,8 @@ art::RoomStyle wallStyleOf(const Bldg& b, const Plan& P, Rng& r) {
 const char* interiorTemplate(const Bldg& b, const bld::Blueprint& bp, uint32_t seed) { return tmplName(makePlan(b, bp, seed).tmpl); }
 
 void interiorWhy(int* lines, int n, bool reset) {
-  for (int i = 0; i < n && i < 8192; i++) lines[i] = gNopeLine[i];
-  if (reset) for (int& v : gNopeLine) v = 0;
+  for (int i = 0; i < n && i < 8192; i++) lines[i] = gNopeLine[i].load(std::memory_order_relaxed);
+  if (reset) for (std::atomic<int>& v : gNopeLine) v.store(0, std::memory_order_relaxed);
 }
 
 namespace {

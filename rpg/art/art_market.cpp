@@ -2213,6 +2213,11 @@ Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facin
   return c;
 }
 
+Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facing, const PropStyle& st, const MarketSnow& snow) {
+  const MarketSnowScope scope(snow);
+  return marketStallStyled(trade, awning, form, closed, facing, st);
+}
+
 void stallOrigin(int facing, int& dx, int& dy) {
   const StallCanvas sc = stallCanvas(facing & 3);
   dx = sc.x0;

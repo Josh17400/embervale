@@ -160,20 +160,19 @@ Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) 
 Canvas paintInteriorPiece(uint64_t key) { return art::interiorPiece((uint32_t)key); }
 Canvas paintStall(uint64_t key) { return art::marketStallVariant((int)(key & 255)); }
 Canvas paintTradeStall(uint64_t key) {
-  if ((key >> 16) & 1) art::setMarketSnow(13.0f, (uint32_t)(key & 0xFFFFu));   // (fixer M5 r3) a snowy town's stalls carry snow on their roofs
-  Canvas c = art::marketStallFacing((int)(key & 15), (int)((key >> 4) & 15), (int)((key >> 8) & 15), ((key >> 12) & 1) != 0, (int)((key >> 13) & 3));
-  art::setMarketSnow(1e9f);
-  return c;
+  art::MarketSnow snow;
+  if ((key >> 16) & 1) snow = art::MarketSnow{13.0f, (uint32_t)(key & 0xFFFFu)};   // (fixer M5 r3) a snowy town's stalls carry snow on their roofs
+  static const art::PropStyle classic;   // the classic style: exactly marketStallFacing
+  return art::marketStallStyled((int)(key & 15), (int)((key >> 4) & 15), (int)((key >> 8) & 15), ((key >> 12) & 1) != 0, (int)((key >> 13) & 3),
+                                classic, snow);
 }
 // (stall facings) the market's 3/4 models: their ground shadows and the carts
 Canvas paintStallShadow(uint64_t key) { return art::marketStallShadow((int)(key & 15), (int)((key >> 4) & 3)); }
 Canvas paintTableShadow(uint64_t key) { return art::marketTableShadow((int)(key & 15)); }
 Canvas paintClothShadow(uint64_t) { return art::groundClothShadow(); }
 Canvas paintCart(uint64_t key) {
-  if ((key >> 8) & 1) art::setMarketSnow(4.0f);
-  Canvas c = (key >> 9) & 1 ? art::marketCartBroken((int)(key & 15)) : art::marketCart((int)(key & 15));
-  art::setMarketSnow(1e9f);
-  return c;
+  const art::MarketSnowScope snow((key >> 8) & 1 ? art::MarketSnow{4.0f} : art::MarketSnow{});
+  return (key >> 9) & 1 ? art::marketCartBroken((int)(key & 15)) : art::marketCart((int)(key & 15));
 }
 // (fixer M5 r3) the market's props lie under snow where the trees carry it (the snow lands, high taiga)
 bool snowyTile(const Map& m, int tx, int ty) {
