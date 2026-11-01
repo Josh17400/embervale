@@ -246,7 +246,7 @@ quiet_wait() {
       lim=$(( $(cpu_idle) + ${QUIET_ABOVE:-15} ))
       if [ "$(cpu_nsamp)" -ge 10 ] && [ "$c" -le "$lim" ]; then QUIET_OK=1; break; fi
     fi
-    [ $((SECONDS - t0)) -ge "$max" ] && break
+    if [ $((SECONDS - t0)) -ge "$max" ]; then [ "$QUIET_CPU" = "?" ] && { c="$(cpu_avg 1)"; [ -n "$c" ] && QUIET_CPU="$c"; }; break; fi
     sleep 1
   done
   [ -n "$IDLE_SEEN" ] && [ "$(cpu_nsamp)" -ge 10 ] && cpu_idle_note "$IDLE_SEEN"
