@@ -149,6 +149,14 @@ void PartyOps::mapChanged(Game& g) {
     a.look.shield = v == party::Vocation::Warrior;
     a.culture = cul;
     a.partyTag = (uint8_t)(party::PT_MERC0 + k);
+    // (P3 PARTY) a sellsword parted from waits at his table as himself, in the kit he left with
+    const int pi = g.party.partedOf(0, b.id, k);
+    if (pi >= 0) {
+      const Member& pm = g.party.parted[(size_t)pi].m;
+      a.name = pm.name;
+      a.look = g.partyLook(pm);
+      a.culture = pm.culture;
+    }
     a.face = 0;
     a.speed = 40; a.maxHp = a.hp = 60;
     g.actors.push_back(a);
@@ -188,8 +196,15 @@ Game::PartyOffer Game::partyOffer(const Actor& a) const {
   if (a.partyTag >= party::PT_MERC0 && a.partyTag < party::PT_MERC0 + party::MERC_MAX) {
     const int si = a.site;
     o.origin = party::Origin::Mercenary;
-    o.voc = PartyOps::mercVoc(mercSeed(a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].id : 0, a.partyTag - party::PT_MERC0));
+    const ew::Gid inn = a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].id : 0;
+    o.voc = PartyOps::mercVoc(mercSeed(inn, a.partyTag - party::PT_MERC0));
     o.wage = PartyOps::mercWage(*this, si);
+    // (P3 PARTY) a sellsword parted from is himself again: his vocation, and his anger until the apology at his table
+    const int pi = party.partedOf(0, inn, a.partyTag - party::PT_MERC0);
+    if (pi >= 0) {
+      o.voc = party.parted[(size_t)pi].m.voc;
+      if (party.parted[(size_t)pi].angry) { o.why = "ANGRY"; return o; }
+    }
     if (party.people() >= cap) { o.why = "FULL"; return o; }
     if ((int)party.members.size() >= party::MAX_RECORDS) { o.why = "RECORDS"; return o; }   // (fixer M8 r1) waiting ones count
     if (gold < o.wage) { o.why = "BROKE"; return o; }
@@ -281,6 +296,24 @@ int Game::partyRecruit(Actor& who, party::Origin origin) {
     if (!o.ok) return -1;
     const int k = who.partyTag - party::PT_MERC0;
     const ew::Gid inn = who.bldg >= 0 && who.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)who.bldg].id : 0;
+    // (P3 PARTY, rule 8) a sellsword parted from comes back as himself, with his record and the kit he left with, for a
+    // day's wage up front as any hire (nothing made again)
+    if (const int pi = party.partedOf(0, inn, k); pi >= 0) {
+      gold -= o.wage;
+      marks[markKey(inn * 4 + (uint64_t)k, (Mk)PartyOps::MK_HIRED)] = day;
+      const Vec2 at = who.p;
+      const int oldId = who.id;
+      const int ai = findActor(oldId);
+      if (ai > 0) actors.erase(actors.begin() + ai);
+      const int mi = PartyOps::rejoin(*this, pi, at);
+      if (mi < 0) return -1;
+      party::Member& back = party.members[(size_t)mi];
+      back.wage = o.wage;
+      back.paidUntil = day;
+      if (dlg.actor == oldId) dlg.actor = back.actor;
+      sfx((int)Sfx::Coin, pl().p, 1.0f, 0.7f);
+      return mi;
+    }
     const uint32_t seed = mercSeed(inn, k);
     Member m = stranger(*this, who.name, seedFemale(seed), who.culture, seed, party::Origin::Mercenary, PartyOps::mercVoc(seed));
     m.wage = o.wage;
@@ -355,6 +388,18 @@ int Game::partyRecruit(Actor& who, party::Origin origin) {
   const ew::Gid npc = life::npcId(c->site, r.idx);
   for (const party::Member& o : party.members) if (o.npc == npc) return -1;   // (already one of the party: partyCommand)
   if (party.people() >= party::capacity(plLevel)) return -1;
+  // (P3 PARTY, rule 8) a friend parted from comes back as themselves: their record from the parted roll, never a new join
+  if (const int pi = party.partedOf(npc, 0, 0); pi >= 0) {
+    const Vec2 at = who.p;
+    const int oldId = who.id;
+    r.actor = -1;
+    const int ai = findActor(oldId);
+    if (ai > 0) actors.erase(actors.begin() + ai);   // (the street body goes; the companion takes its place)
+    const int mi = PartyOps::rejoin(*this, pi, at);
+    if (mi >= 0 && dlg.actor == oldId) dlg.actor = party.members[(size_t)mi].actor;
+    if (mi >= 0) sfx((int)Sfx::QuestStart, pl().p, 1.1f, 0.6f);
+    return mi;
+  }
   const Site& S = world.sites[(size_t)who.site];
   Member m;
   m.id = party.nextId++;

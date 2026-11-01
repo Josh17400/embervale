@@ -1,0 +1,67 @@
+# P3 PARTY (FIX_BATCH_P3 2.2, 8.2): the owner's companion rules 1-8 in the game. A friend in their own kit (TAKE BACK on it
+# refused in their voice), a worse gift declined, a better one worn, the dismissal handing the gift back ("1 GIFT COMES
+# BACK"), the friend asked back at home coming back as themselves (expect party same), then a death laying everything
+# they carried on the ground where they fell, with nothing in the grave.
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p3_party.txt     (p3_party_*.png)
+seed 3
+0.3  newgame
++0.05 hour 11
++0.1 god 1
++0.2 party recruit 1
++0.1 walk east 1.0
++3.5 expect party members 1
++0.1 expect party kit 0
++0.1 party snap friend 0
++0.1 partyview page 0 gear 6
++0.4 shot p3_party_01_own_kit.png
++0.1 key Escape
++0.3 party takeback weapon 0 refused
++0.4 shot p3_party_02_kit_refused.png
++3.0 party give worse 0 refused
++0.4 shot p3_party_03_worse_declined.png
++0.1 partyview page 0 gear 6
++0.4 shot p3_party_04_worse_in_pack.png
++0.1 key Escape
++0.2 party give better 0
++0.1 partyview page 0 gear 6
++0.4 shot p3_party_05_gift_worn.png
++0.1 key Escape
++0.2 party dismiss 0
++0.3 shot p3_party_06_gift_back.png
++0.1 expect party members 0
++0.1 expect party parted 1
++2.0 party recruit 1
++0.3 expect party members 1
++0.1 expect party parted 0
++0.1 expect party same friend
++0.1 expect party kit 0
++0.2 shot p3_party_07_rejoined.png
++3.0 partyview page 0 gear 6
++0.4 shot p3_party_08_rejoined_page.png
++0.1 key Escape
++0.2 party give better 0
++0.1 walk south 0.8
++0.3 party cmd wait 0
++0.1 walk east 1.2
++0.3 party kill 0
++0.8 expect party members 0
++0.1 expect party fallen 1
++0.1 shot p3_party_09_death_pile.png
+# the kit's look, before (b3463ce: the culture id only, iron or leather) and after (P3: their people's make) on the same
+# warrior, at hero level 12 (band 2: iron both) and 30 (band 4: the people's alloy)
++3.0 party ally warrior
++0.1 partyview level 12
++0.1 party kitstyle old 0
++0.1 partyview page 0 gear 3
++0.4 shot p3_party_10_kit_l12_before.png
++0.1 party kitstyle new 0
++0.4 shot p3_party_11_kit_l12_after.png
++0.1 key Escape
++0.1 partyview level 30
++0.1 party kitstyle old 0
++0.1 partyview page 0 gear 3
++0.4 shot p3_party_12_kit_l30_before.png
++0.1 party kitstyle new 0
++0.4 shot p3_party_13_kit_l30_after.png
++0.1 key Escape
++0.2 quit

@@ -85,41 +85,54 @@ void PartyOps::alert(Game& g, int mi, int kind, const std::string& s) {
   }
 }
 
-// a kit of their own people's make (the paper doll shows it in their culture's style)
-void PartyOps::kit(Game& g, Member& m, int level) {
+// a kit of their own people's make (the paper doll shows it in their culture's style). (P3 PARTY, owner's rule 1) made
+// once, when they join, in their own people's make (makeGearC with their culture: it climbs the metal ladder as any find
+// does); its item level is the place's danger capped at the hero's level + 4, its rarity rolled with the hero as the
+// finder; every piece IF_KIT (never reaches the hero's pack while they live)
+namespace {
+struct KitPiece { ItemKind k = ItemKind::Misc; int sub = 0; int slot = 0; Mat mat = Mat::None; };
+// the kit by vocation (fixer M8 r1: the kit reads as the trade): a warrior in metal with a helm, an archer or a rogue in
+// leather under a travel cloak, a mage or a healer in their own dress with good boots. Mat::None: the band's metal
+// (a warrior wears iron up to band 2: kitMat)
+constexpr int kKitMax = 4;
+constexpr KitPiece kKit[(int)party::Vocation::COUNT][kKitMax] = {
+    {{ItemKind::Weapon, (int)WeaponType::Sword, party::S_WEAPON, Mat::None}, {ItemKind::Shield, 0, party::S_SHIELD, Mat::None},
+     {ItemKind::Armor, 0, party::S_ARMOR, Mat::Iron}, {ItemKind::Helmet, 0, party::S_HELMET, Mat::Iron}},
+    {{ItemKind::Bow, 0, party::S_BOW, Mat::None}, {ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON, Mat::None},
+     {ItemKind::Armor, 0, party::S_ARMOR, Mat::Leather}, {ItemKind::Cloak, 0, party::S_CLOAK, Mat::None}},
+    {{ItemKind::Staff, 0, party::S_STAFF, Mat::None}, {ItemKind::Boots, 0, party::S_BOOTS, Mat::Leather}, {}, {}},
+    {{ItemKind::Weapon, (int)WeaponType::Mace, party::S_WEAPON, Mat::None}, {ItemKind::Boots, 0, party::S_BOOTS, Mat::Leather}, {}, {}},
+    {{ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON, Mat::None}, {ItemKind::Armor, 0, party::S_ARMOR, Mat::Leather},
+     {ItemKind::Cloak, 0, party::S_CLOAK, Mat::None}, {}},
+    {{}, {}, {}, {}},
+};
+// a warrior's iron stays iron up to band 2; from band 3 their armour is the band's metal in their people's make
+Mat kitMat(const KitPiece& p, int ilvl) { return p.mat == Mat::Iron && gear::bandOf(ilvl) > 2 ? Mat::None : p.mat; }
+}  // namespace
+
+void PartyOps::kit(Game& g, Member& m, int level, uint32_t salt) {
   if (m.voc == party::Vocation::Hound) return;
-  Rng gr(hash32(m.lookSeed ^ 0x6EA2u) ^ (uint32_t)g.seed);
-  const int il = std::clamp(level, 1, gear::MAX_D);
-  // (M8b, 15.27.5 "companions use the same rules") each piece's rarity is rolled as a find of their level is
-  // (LootSrc::Companion: the NUMBERS lane's gate; Common at low levels), its affixes and power made by makeGear
+  Rng gr(hash32(m.lookSeed ^ 0x6EA2u ^ salt) ^ (uint32_t)g.seed);
+  const int hero = std::max(1, g.plLevel);
+  const int il = std::clamp(std::min(level, hero + 4), 1, gear::MAX_D);
+  // (M8b, 15.27.5 "companions use the same rules") each piece's rarity is rolled as a find is (LootSrc::Companion: the
+  // NUMBERS lane's gate), with the hero as the finder (P3: a death drops the kit as ordinary gear, so it may hold nothing
+  // a find there could not)
   gear::DropSource src;
-  src.D = il; src.playerLevel = il; src.src = gear::LootSrc::Companion; src.culture = m.culture;
-  auto put = [&](ItemKind k, int sub, int slot, Mat mat = Mat::None) {
+  src.D = il; src.playerLevel = hero; src.src = gear::LootSrc::Companion; src.culture = m.culture;
+  const cult::Culture* maker = m.culture && g.world.src ? &g.world.src->culture(m.culture) : nullptr;
+  for (const KitPiece& p : kKit[(int)m.voc]) {
+    if (p.k == ItemKind::Misc) continue;
     Rarity rar = gear::rollRarity(gr, src);
     // (M8b fix) a companion's kit rolls only affixes and powers that work for a companion (gear::CompanionRolls); a
     // Mythic of a kind with no companion-working Mythic power is made a Legendary (never a Mythic with a dead power)
     gear::CompanionRolls only;
-    if (rar == Rarity::Mythic && gear::mythicPowersFor(k).empty()) rar = Rarity::Legendary;
-    Item it = gear::makeGear(gr, k, sub, il, rar, m.culture, mat);
+    if (rar == Rarity::Mythic && gear::mythicPowersFor(p.k).empty()) rar = Rarity::Legendary;
+    Item it = gear::makeGearC(gr, p.k, p.sub, il, rar, maker, kitMat(p, il));
+    if (!maker && m.culture) it.culture = m.culture;   // (the id alone, as makeGear keeps it)
+    it.flags |= party::IF_KIT;
     m.inv.push_back(it);
-    m.eq[(size_t)slot] = (int16_t)(m.inv.size() - 1);
-  };
-  switch (m.voc) {
-    case party::Vocation::Warrior: put(ItemKind::Weapon, (int)WeaponType::Sword, party::S_WEAPON); put(ItemKind::Shield, 0, party::S_SHIELD); break;
-    case party::Vocation::Archer: put(ItemKind::Bow, 0, party::S_BOW); put(ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON); break;
-    case party::Vocation::Mage: put(ItemKind::Staff, 0, party::S_STAFF); break;
-    case party::Vocation::Healer: put(ItemKind::Weapon, (int)WeaponType::Mace, party::S_WEAPON); break;
-    case party::Vocation::Rogue: put(ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON); break;
-    default: break;
-  }
-  // (fixer M8 r1, review: "two recruits from the same place look almost identical") the kit reads as the trade: a
-  // warrior in iron with a helm, an archer or a rogue in leather under a travel cloak, a mage or a healer in cloth (their
-  // own dress shows through); the same armour on everyone made a party of clones
-  switch (m.voc) {
-    case party::Vocation::Warrior: put(ItemKind::Armor, 0, party::S_ARMOR, Mat::Iron); put(ItemKind::Helmet, 0, party::S_HELMET, Mat::Iron); break;
-    case party::Vocation::Archer: case party::Vocation::Rogue:
-      put(ItemKind::Armor, 0, party::S_ARMOR, Mat::Leather); put(ItemKind::Cloak, 0, party::S_CLOAK); break;
-    default: put(ItemKind::Boots, 0, party::S_BOOTS, Mat::Leather); break;   // (cloth folk: their own dress, good boots)
+    m.eq[(size_t)p.slot] = (int16_t)(m.inv.size() - 1);
   }
 }
 
@@ -211,12 +224,25 @@ void PartyOps::dieForGood(Game& g, int mi, const std::string& cause) {
   }
   f.day = g.day; f.cause = cause; f.seed = hash32(m.id * 2654435761u ^ (uint32_t)g.day);
   f.days = m.days; f.kills = m.kills; f.bond = m.bond;
-  f.belongings = m.inv;
+  // (P3 PARTY, rule 6) the grave holds nothing to take: everything they had lies where they fell (below)
   if (m.voc == party::Vocation::Hound) { f.species = m.species; f.rite = 1; f.weapon = 0; }
   else {
     f.species = 0xFF;
     f.rite = (uint8_t)(hash32((uint32_t)m.culture ^ (uint32_t)(m.culture >> 32) ^ 0x6A7Eu) % (uint32_t)art::GRAVE_RITES);
     f.weapon = g.partyLook(m).weapon;
+  }
+  // (P3 PARTY, rule 5: "if they die they drop everything") their kit worn and stowed, the hero's gifts and the rest of
+  // their pack lie on the ground where the body went down: their party body, or for a death in their census life their
+  // census body on the hero's map. Nothing goes into the hero's pack; with no body here, what they carried is lost
+  {
+    Vec2 fellAt;
+    bool onMap = false;
+    if (ai > 0) { fellAt = g.actors[(size_t)ai].p; onMap = true; }
+    else if (res && res->actor >= 0) {
+      const int ri = g.findActor(res->actor);
+      if (ri > 0) { fellAt = g.actors[(size_t)ri].p; onMap = true; }
+    }
+    dropAll(g, m, fellAt, onMap);
   }
   // left to die: the player was far off and not binding the wounds (the others remember it)
   const Vec2 at = ai > 0 ? g.actors[(size_t)ai].p : g.pl().p;
@@ -261,6 +287,110 @@ void PartyOps::leave(Game& g, int mi, bool angry) {
   }
 }
 
+// ================================================================ P3 PARTY: the one door, gifts back, partings, the death pile
+bool PartyOps::toHero(Game& g, Member& m, int e) {
+  if (e < 0 || e >= (int)m.inv.size() || party::isKit(m.inv[(size_t)e])) return false;   // their own kit never leaves them
+  const Item it = m.inv[(size_t)e];
+  m.inv.erase(m.inv.begin() + e);
+  for (int16_t& x : m.eq) { if (x == e) x = -1; else if (x > e) x--; }
+  g.addItem(it, false);
+  return true;
+}
+
+bool PartyOps::wearKit(Member& m, int slot) {
+  if (slot < 0 || slot >= party::SLOTS || m.eq[(size_t)slot] >= 0) return false;
+  for (size_t i = 0; i < m.inv.size(); i++) {
+    if (!party::isKit(m.inv[i]) || party::slotOf(m.inv[i].kind) != slot) continue;
+    bool worn = false;
+    for (int16_t x : m.eq) worn = worn || x == (int)i;
+    if (worn) continue;
+    m.eq[(size_t)slot] = (int16_t)i;
+    return true;
+  }
+  return false;
+}
+
+int PartyOps::giftsBack(Game& g, int mi) {
+  Member& m = g.party.members[(size_t)mi];
+  int n = 0;
+  for (int e = 0; e < (int)m.inv.size();) {
+    const Item& it = m.inv[(size_t)e];
+    if (party::slotOf(it.kind) >= 0 && !party::isKit(it) && toHero(g, m, e)) { n++; continue; }   // (potions, food stay theirs)
+    e++;
+  }
+  for (int s = 0; s < party::SLOTS; s++) wearKit(m, s);
+  const int ai = actorOf(g, mi);
+  if (ai > 0 && n) { g.actors[(size_t)ai].look = g.partyLook(m); body(g, m, g.actors[(size_t)ai]); }
+  return n;
+}
+
+void PartyOps::part(Game& g, int mi, bool angry) {
+  Member& m = g.party.members[(size_t)mi];
+  const int n = giftsBack(g, mi);
+  if (n > 0) g.say(std::to_string(n) + (n == 1 ? " GIFT COMES BACK FROM " : " GIFTS COME BACK FROM ") + m.name + ".");
+  const bool merc = m.origin == party::Origin::Mercenary && m.hiredAt;
+  // (rule 7) every living parting of a sellsword starts his week today (his table stands empty for 7 days)
+  if (merc) g.marks[markKey(m.hiredAt * 4 + m.mercSlot, (Mk)MK_HIRED)] = g.day;
+  leave(g, mi, angry);
+  // (rule 8) a friend who can be met again waits whole in the parted roll; the rest (the animal, a saga's ally, a
+  // stranger with no census home) go as before, with nothing kept
+  if (merc || (m.npc && m.res >= 0)) {
+    party::Parted p;
+    p.m = party::savedForm(m);
+    p.day = g.day;
+    p.angry = angry && merc;
+    party::Party::syncParted(p);
+    std::vector<party::Parted>& R = g.party.parted;
+    const int old = g.party.partedOf(m.npc, m.hiredAt, m.mercSlot);
+    if (old >= 0) R.erase(R.begin() + old);
+    R.push_back(std::move(p));
+    while ((int)R.size() > party::MAX_PARTED) R.erase(R.begin());   // the friend parted longest ago is forgotten
+  }
+  removeMember(g, mi);
+}
+
+int PartyOps::rejoin(Game& g, int pi, Vec2 at) {
+  if (pi < 0 || pi >= (int)g.party.parted.size() || (int)g.party.members.size() >= party::MAX_RECORDS) return -1;
+  Member m = g.party.parted[(size_t)pi].m;
+  g.party.parted.erase(g.party.parted.begin() + pi);
+  // (rule 8) the same person: health full, back from home, no bond grown for the days away
+  m.state = State::With;
+  if (m.stance == party::Cmd::Wait || m.stance == party::Cmd::Skill || m.stance == party::Cmd::Home) m.stance = party::Cmd::Follow;
+  m.hp = -1; m.downT = 0; m.reviveT = 0; m.leftDay = -1; m.lastDay = g.day; m.homePlot = 0; m.actor = -1;
+  m.flags = (uint16_t)(m.flags & ~(party::MF_CARRIED | party::MF_DOWN_WAIT | party::MF_DOWN_HOME));
+  // an old save's companion parted holding no kit piece: their kit is made now, once, as a first join's is
+  if (m.voc != party::Vocation::Hound && !party::holdsKit(m)) {
+    const int si = m.site ? g.world.siteHandle(m.site) : -1;
+    kit(g, m, si >= 0 ? std::max(1, g.world.sites[(size_t)si].level) : std::max(1, g.plLevel), hash32(m.id ^ 0xA6A1u) | 1u);
+  }
+  g.party.members.push_back(std::move(m));
+  const int mi = (int)g.party.members.size() - 1;
+  if (life::Resident* r = resident(g, g.party.members[(size_t)mi])) r->flags |= life::RF_AWAY | life::RF_COMPANION;
+  spawn(g, mi, at);
+  alert(g, mi, 5, g.party.members[(size_t)mi].name + " JOINS YOU AGAIN.");
+  return mi;
+}
+
+void PartyOps::dropAll(Game& g, Member& m, Vec2 at, bool onMap) {
+  std::vector<Item> all;
+  all.swap(m.inv);
+  m.eq.fill(-1);
+  if (!onMap) return;
+  // one Pickup per item, set round the body by a hash of its seed (no new random draw), within a tile; the ground loot's
+  // own rules from here (the magnet at 40 px, taken at 9, a potion waits for room on the belt, gone after 240 s)
+  for (size_t k = 0; k < all.size(); k++) {
+    Item it = all[k];
+    it.flags = (uint8_t)(it.flags & ~party::IF_KIT);
+    const uint32_t h = hash32(it.seed ^ (uint32_t)(k * 0x9E3779B1u) ^ 0xD20Bu);
+    // (a ring round the body, 8-14 px out: under the body itself the pieces would be hidden by it)
+    const float ang = (float)(h & 1023u) * (6.2831853f / 1024.0f), rad = 8.0f + (float)((h >> 10) % 7u);
+    Pickup pk;
+    pk.p = at + Vec2(std::cos(ang) * rad, std::sin(ang) * rad * 0.8f);
+    pk.item = it;
+    g.pickups.push_back(pk);
+  }
+}
+
 // (fixer M8 r1) a member back in their census life (at home, left, waiting near their street) who died there (a raid,
 // a beast, any hand: lifeKill -> Life::residentDied marks RF_DEAD) is dead for good: a Fallen record and a grave, never
 // a body that can be called back to follow the player while their kin grieve
@@ -270,6 +400,16 @@ void PartyOps::censusDeaths(Game& g) {
     const life::Resident* r = resident(g, m);
     if (!r || !(r->flags & life::RF_DEAD)) continue;
     dieForGood(g, mi, m.state == State::Home ? "DIED AT HOME" : "DIED FAR FROM YOU");
+  }
+}
+
+// (P3 PARTY) a parted census companion who dies in their own life is a census death (their kin grieve; a census body
+// drops nothing, no grave is laid): their record leaves the roll
+void PartyOps::partedDeaths(Game& g) {
+  auto& P = g.party.parted;
+  for (int i = (int)P.size() - 1; i >= 0; i--) {
+    const life::Resident* r = resident(g, P[(size_t)i].m);
+    if (r && (r->flags & life::RF_DEAD)) P.erase(P.begin() + i);
   }
 }
 
@@ -315,10 +455,11 @@ void PartyOps::applyDeed(Game& g, const party::Party::Pending& d) {
     Member& m = g.party.members[(size_t)i];
     if (m.state == State::With && m.approval < party::APPROVAL_LEAVE) {
       alert(g, i, 6, m.name + " HAS LEFT YOU.");
-      leave(g, i, true);
-      // a sellsword simply goes; so does (fixer M8 r2) a stranger with no census home to be found at (a saga's ally,
-      // someone rescued, a sworn one: npc 0), whose record could never be made amends with nor parted from
-      if (m.origin == party::Origin::Mercenary || m.res < 0) removeMember(g, i);
+      // a sellsword goes (P3: his record waits at his table, ANGRY until the apology there); so does (fixer M8 r2) a
+      // stranger with no census home to be found at (a saga's ally, someone rescued, a sworn one: npc 0). A census
+      // companion stays a member, Left, the record whole. Every one of them hands the hero's gifts back first
+      if (m.origin == party::Origin::Mercenary || m.res < 0) part(g, i, true);
+      else { giftsBack(g, i); leave(g, i, true); }
     }
   }
 }
@@ -477,7 +618,12 @@ bool PartyOps::actorStep(Game& g, Actor& a, float dt) {
 void PartyOps::step(Game& g, float dt) {
   const int mk = g.mapKey();
   if (mk != g.party.mapSeen) { g.party.mapSeen = mk; g.party.mapChanges++; PartyOps::mapChanged(g); }
-  if (g.party.members.empty() && g.party.pending.empty() && g.party.fallen.empty() && g.party.walkOffs == 0) { g.party.actorMs = 0; return; }
+  if (g.party.members.empty() && g.party.pending.empty() && g.party.fallen.empty() && g.party.walkOffs == 0) {
+    g.party.actorMs = 0;
+    // (P3 PARTY) friends parted from may die in their own lives meanwhile (the slow tick's clock)
+    if (!g.party.parted.empty() && (g.party.slowT -= dt) <= 0) { g.party.slowT = 0.25f; PartyOps::partedDeaths(g); }
+    return;
+  }
   const auto t0 = std::chrono::steady_clock::now();
   g.party.banterT += dt;
   if (g.party.shieldWallT > 0) g.party.shieldWallT -= dt;
@@ -496,6 +642,7 @@ void PartyOps::step(Game& g, float dt) {
   if (g.party.slowT <= 0) {
     g.party.slowT = 0.25f;
     PartyOps::censusDeaths(g);
+    if (!g.party.parted.empty()) PartyOps::partedDeaths(g);
     PartyOps::placesStep(g);
     PartyOps::gravesStep(g);
   }
@@ -853,20 +1000,33 @@ bool Game::partyCommand(int mi, party::Cmd c) {
   }
 }
 
+// (P3 PARTY, the owner's rules 2-4) a gift is worn only when it is better than what they wear there: gear::powerScore at
+// their own level (party::levelFor, the level their gear is synced to) more than GIFT_BETTER_PCT % over the worn piece's
+// (the compare arrow's rule). An empty slot always takes it. A tie or worse, or a piece their vocation never uses, is
+// declined in their own voice and nothing moves. On accept their own kit piece there is stowed with them (only `eq`
+// moves); a gift it displaces goes back to the hero through the one door
 bool Game::partyEquip(int mi, int ii) {
   if (mi < 0 || mi >= (int)party.members.size() || ii < 0 || ii >= (int)inv.size()) return false;
   Member& m = party.members[(size_t)mi];
   const int slot = party::slotOf(inv[(size_t)ii].kind);
   if (slot < 0 || m.voc == party::Vocation::Hound) return false;
+  if (party::vocationSkips(m.voc, slot)) { partySay(mi, party::giftLine(*this, m, 1)); return false; }
+  const int we = m.eq[(size_t)slot];
+  const Item* worn = we >= 0 && we < (int)m.inv.size() ? &m.inv[(size_t)we] : nullptr;
+  if (worn && party::giftVerdict(inv[(size_t)ii], worn, party::levelFor(plLevel)) <= 0) { partySay(mi, party::giftLine(*this, m, 0)); return false; }
   Item it = inv[(size_t)ii];
   it.count = 1;
+  it.flags = (uint8_t)(it.flags & ~party::IF_KIT);   // (a gift is the hero's: never a kit piece)
   // off the player first (the pack's indices close up)
   for (int* s : {&eqWeapon, &eqBow, &eqStaff, &eqArmor, &eqHelmet, &eqShield, &eqRing, &eqAmulet, &eqGloves, &eqBoots, &eqCloak}) {
     if (*s == ii) *s = -1;
     else if (*s > ii) (*s)--;
   }
   inv.erase(inv.begin() + ii);
-  if (m.eq[(size_t)slot] >= 0) partyUnequip(mi, slot);
+  if (worn) {   // their own piece stays with them, stowed; a gift goes back to the hero
+    m.eq[(size_t)slot] = -1;
+    if (!party::isKit(m.inv[(size_t)we])) PartyOps::toHero(*this, m, we);
+  }
   m.inv.push_back(it);
   m.eq[(size_t)slot] = (int16_t)(m.inv.size() - 1);
   recalcPlayer();
@@ -875,15 +1035,16 @@ bool Game::partyEquip(int mi, int ii) {
   return true;
 }
 
+// TAKE BACK (the party page): only what the hero gave comes back (a kit piece is refused, in their voice), and they put
+// their stowed kit piece for that slot back on (rule 4: closes strip-and-sell)
 bool Game::partyUnequip(int mi, int slot) {
   if (mi < 0 || mi >= (int)party.members.size() || slot < 0 || slot >= party::SLOTS) return false;
   Member& m = party.members[(size_t)mi];
   const int e = m.eq[(size_t)slot];
   if (e < 0 || e >= (int)m.inv.size()) return false;
-  const Item it = m.inv[(size_t)e];
-  m.inv.erase(m.inv.begin() + e);
-  for (int16_t& x : m.eq) { if (x == e) x = -1; else if (x > e) x--; }
-  addItem(it, false);
+  if (party::isKit(m.inv[(size_t)e])) { partySay(mi, party::giftLine(*this, m, 2)); return false; }
+  if (!PartyOps::toHero(*this, m, e)) return false;
+  PartyOps::wearKit(m, slot);
   const int ai = PartyOps::actorOf(*this, mi);
   if (ai > 0) { actors[(size_t)ai].look = partyLook(m); PartyOps::body(*this, m, actors[(size_t)ai]); }
   return true;
@@ -914,9 +1075,9 @@ void Game::partyDismiss(int mi) {
   Member& m = party.members[(size_t)mi];
   if (m.state == State::Downed) return;   // (fixer M8 r1) nobody walks off while bleeding out
   if (life::Resident* r = PartyOps::resident(*this, m)) r->flags = (uint16_t)(r->flags & ~(life::RF_AWAY | life::RF_COMPANION));
-  if (m.origin == party::Origin::Mercenary && m.hiredAt) marks.erase(markKey(m.hiredAt * 4 + m.mercSlot, (Mk)PartyOps::MK_HIRED));   // back to their inn
-  PartyOps::leave(*this, mi, false);
-  PartyOps::removeMember(*this, mi);
+  // (P3 PARTY) the gifts come back, a sellsword's week starts today, and the record waits in the parted roll (the live
+  // bug: removeMember alone took the hero's gifts and the whole record with them)
+  PartyOps::part(*this, mi, false);
 }
 
 void Game::partySay(int mi, const std::string& line, float secs) {

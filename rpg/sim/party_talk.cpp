@@ -67,6 +67,9 @@ enum PartyDlg : int {
   P_GRIEVE_SORRY,           // ... I'll do better
   P_BACK,                   // ... back to the first page
   P_GRAVE_WORDS,            // at a grave: say a few words
+  // (P3 PARTY)
+  P_MERC_AMENDS,            // a sellsword parted from in anger, at his table: I was wrong (arg: Party::parted index)
+  P_MERC_AMENDS_YES,        // ... the apology made properly: he takes his wage again
   P_CMD = DLG_PARTY + 100,  // + party::Cmd (arg: members index)
 };
 using party::Member;
@@ -403,6 +406,19 @@ void PartyTalkOps::folkTalk(Game& g, Actor& a) {
     }
   // ---- would they come along?
   const Game::PartyOffer o = g.partyOffer(a);
+  // (P3 PARTY) a sellsword who left in anger keeps his record: his table says ANGRY until the apology is made there
+  if (o.origin == party::Origin::Mercenary && o.why == "ANGRY") {
+    const ew::Gid inn = a.bldg >= 0 && a.bldg < (int)g.world.over.bldgs.size() ? g.world.over.bldgs[(size_t)a.bldg].id : 0;
+    const int pi = g.party.partedOf(0, inn, a.partyTag - party::PT_MERC0);
+    if (pi >= 0) {
+      const Member& pm = g.party.parted[(size_t)pi].m;
+      const bool rebuffed = (pm.talkBits & party::voice::TB_REBUFF) && pm.lastTalkDay >= 0 && pm.lastTalkDay < g.day && pm.leftDay < g.day;
+      speech::propose(g.dlg, speech::P_STORY, Topic::Companion,
+                      rebuffed ? "YOU CAME BACK. I DIDN'T THINK YOU WOULD." : "WITH YOU? AFTER WHAT YOU DID? YOU OWE ME AN APOLOGY FIRST.");
+      g.dlg.opts.push_back({"I WAS WRONG. I'M SORRY.", P_MERC_AMENDS, pi});
+      return;
+    }
+  }
   if (o.origin == party::Origin::Mercenary && (o.ok || o.why == "BROKE" || o.why == "FULL" || o.why == "RECORDS")) {
     // a hireling says what they are before anyone asks (their own trade's line, over a greeting)
     static const char* const k[] = {"YOU LOOK LIKE YOU COULD USE ANOTHER SWORD. MINE IS FOR HIRE, IF THE PRICE IS RIGHT.",
@@ -653,6 +669,33 @@ bool PartyTalkOps::choose(Game& g, const DlgOpt& o) {
       }
       g.dlg.text = "ALL RIGHT. ONE MORE CHANCE. I'LL GET MY THINGS. DON'T MAKE ME REGRET IT.";
       g.dlg.opts = {{"YOU WON'T.", A_BYE, 0}};
+      return true;
+    }
+    // ---- (P3 PARTY) a sellsword parted from in anger, at his table: the census companion's own steps
+    case P_MERC_AMENDS: {
+      if (o.arg < 0 || o.arg >= (int)g.party.parted.size()) return false;
+      Member* m = &g.party.parted[(size_t)o.arg].m;
+      const bool another = (m->talkBits & party::voice::TB_REBUFF) && m->lastTalkDay >= 0 && m->lastTalkDay < g.day && m->leftDay < g.day;
+      if (!another) {
+        g.dlg.text = "SORRY? WORDS ARE CHEAP, AND I'VE HEARD THEM BEFORE. COME BACK ANOTHER DAY, IF YOU STILL MEAN IT.";
+        m->talkBits |= party::voice::TB_REBUFF;
+        m->lastTalkDay = g.day;
+        g.dlg.opts = {{"I'LL COME BACK.", A_BYE, 0}};
+        return true;
+      }
+      g.dlg.text = "YOU CAME BACK, AS YOU SAID YOU WOULD. ALL RIGHT. SAY IT, THEN, AND SAY IT PROPERLY THIS TIME.";
+      g.dlg.opts = {{"I WAS WRONG, AND I'LL DO BETTER.", P_MERC_AMENDS_YES, o.arg}, {"FORGET IT.", A_BYE, 0}};
+      return true;
+    }
+    case P_MERC_AMENDS_YES: {
+      if (o.arg < 0 || o.arg >= (int)g.party.parted.size()) return false;
+      party::Parted& p = g.party.parted[(size_t)o.arg];
+      p.angry = false;
+      p.m.approval = (int8_t)std::max<int>(p.m.approval, party::APPROVAL_COMPLAIN + 10);
+      p.m.talkBits = (p.m.talkBits & ~party::voice::TB_REBUFF) | party::voice::TB_AMENDS;
+      p.m.flags = (uint16_t)(p.m.flags & ~party::MF_COMPLAINED);
+      g.dlg.text = "ALL RIGHT. I HEARD YOU. PAY ME THE DAY UP FRONT, AND I'LL WALK WITH YOU AGAIN.";
+      g.dlg.opts = {{"HERE'S YOUR WAGE.", P_HIRE_YES, 0}, {"NOT TODAY.", A_BYE, 0}};
       return true;
     }
     // ---- the kin of companions, and of the fallen

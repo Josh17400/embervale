@@ -11,16 +11,28 @@
 //   party near [m]                     the member stands beside the player
 //   party talk [m]                     the player steps up to the member and presses use (their conversation opens)
 //   party stats                        print the party (stdout)
+//   (P3 PARTY) party give <better|worse|equal|INDEX> [m] [refused]   a gift for the slot they fill (made for the test, or the
+//                                      pack's INDEX): taken, or with "refused" it must be declined (nothing moves)
+//   party takeback <SLOT> [m] [refused]  TAKE BACK (slot: weapon bow staff armor helmet shield ring amulet gloves boots
+//                                      cloak, or its number): a gift comes back, a kit piece must be refused
+//   party kitstyle <old|new> [m]       their kit made again at the hero's level, as P3 makes it or as b3463ce did (the
+//                                      owner pack's before / after)
+//   party snap <NAME> [m]              remember the member as they are (id, bond, approval, memories, kit seeds by slot)
 //   expect party members <n> | with <n> | fallen <n> | state <with|downed|waiting|home|left> [m] |
-//                approval <min> <max> [m] | near <tiles> [m] | banter | share <lo> <hi>
+//                approval <min> <max> [m] | near <tiles> [m] | banter | share <lo> <hi> |
+//                same <NAME> (the snapped friend is a member again, the same: id, bond, approval, memories, kit by slot) |
+//                parted <n> | kit [m] (they wear their own kit; no IF_KIT in the hero's pack)
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <utility>
+#include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"
@@ -63,6 +75,55 @@ int stateWord(const std::string& w) {
   static const char* const words[] = {"with", "downed", "waiting", "home", "left", "dead"};
   static_assert(sizeof(words) / sizeof(words[0]) == (size_t)party::State::COUNT, "a word for every state");
   for (int k = 0; k < (int)party::State::COUNT; k++) if (w == words[k]) return k;
+  return -1;
+}
+
+// (P3 PARTY) what `party snap` keeps and `expect party same` compares
+struct Snap {
+  uint32_t id = 0;
+  uint8_t bond = 0;
+  int8_t approval = 0;
+  std::vector<std::pair<int, int32_t>> mem;   // deed, day
+  std::vector<std::pair<int, uint32_t>> kit;  // slot, kit seed worn there
+};
+std::vector<std::pair<std::string, Snap>>& snaps() { static std::vector<std::pair<std::string, Snap>> s; return s; }
+Snap snapOf(const party::Member& m) {
+  Snap s;
+  s.id = m.id; s.bond = m.bond; s.approval = m.approval;
+  for (const party::Memory& x : m.mem) s.mem.push_back({(int)x.deed, x.day});
+  for (int k = 0; k < party::SLOTS; k++) {
+    const int e = m.eq[(size_t)k];
+    if (e >= 0 && e < (int)m.inv.size() && party::isKit(m.inv[(size_t)e])) s.kit.push_back({k, m.inv[(size_t)e].seed});
+  }
+  return s;
+}
+int slotWord(const std::string& w) {
+  static const char* const words[] = {"weapon", "bow", "staff", "armor", "helmet", "shield", "ring", "amulet", "gloves", "boots", "cloak"};
+  static_assert(sizeof(words) / sizeof(words[0]) == (size_t)party::SLOTS, "a word for every slot");
+  for (int k = 0; k < party::SLOTS; k++) if (w == words[k]) return k;
+  if (!w.empty() && w[0] >= '0' && w[0] <= '9') { const int k = std::atoi(w.c_str()); return k < party::SLOTS ? k : -1; }
+  return -1;
+}
+// a test gift for the first slot they fill: better than what they wear there (at their level), plainly worse, or equal
+int giftFor(Game& g, const party::Member& m, const std::string& how) {
+  int s = -1;
+  for (int k : {party::S_WEAPON, party::S_BOW, party::S_STAFF, party::S_ARMOR, party::S_BOOTS}) if (s < 0 && m.eq[(size_t)k] >= 0) s = k;
+  if (s < 0) return -1;
+  const Item& w = m.inv[(size_t)m.eq[(size_t)s]];
+  const int L = party::levelFor(g.plLevel);
+  Rng r(hash32(m.id * 7919u ^ (uint32_t)g.inv.size() ^ 0x61F7u));
+  Item it;
+  if (how == "equal") { it = w; it.flags = 0; it.seed ^= 0x5A5A5A5Au; }
+  else if (how == "worse") it = gear::makeGear(r, w.kind, w.sub, 1, Rarity::Common, 0, w.mat);
+  else {
+    it = gear::makeGear(r, w.kind, w.sub, gear::MAX_D, Rarity::Mythic, 0, Mat::None);
+    for (int k = 0; k < 40; k++) {
+      Item t = gear::makeGear(r, w.kind, w.sub, std::min(gear::MAX_D, L + 4), (Rarity)std::min(5, 2 + k / 8), 0, Mat::None);
+      if (party::giftVerdict(t, &w, L) > 0) { it = t; break; }
+    }
+  }
+  g.inv.push_back(it);
+  return (int)g.inv.size() - 1;
   return -1;
 }
 
@@ -277,10 +338,75 @@ bool cmdParty(ScriptCtx& c) {
     g.update(SIM_DT, Input());
     return true;
   }
+  if (what == "give") {   // party give <better|worse|equal|INDEX> [m] [refused]
+    const int m = memberArg(c, 3);
+    if (m < 0) return true;
+    const std::string how = lw(c.arg(2));
+    const int ii = !how.empty() && how[0] >= '0' && how[0] <= '9' ? std::atoi(how.c_str()) : giftFor(g, g.party.members[(size_t)m], how);
+    if (ii < 0 || ii >= (int)g.inv.size()) { c.fail("party give: no such piece " + how); return true; }
+    const bool wantRefused = lw(c.arg(4)) == "refused";
+    const bool ok = g.partyEquip(m, ii);
+    if (!ok && !wantRefused) c.fail("party give " + how + ": declined (" + g.party.lastBanter + ")");
+    else if (ok && wantRefused) c.fail("party give " + how + ": taken, should be declined");
+    return true;
+  }
+  if (what == "takeback") {   // party takeback <SLOT> [m] [refused]
+    const int m = memberArg(c, 3);
+    const int s = slotWord(lw(c.arg(2)));
+    if (m < 0) return true;
+    if (s < 0) { c.fail("party takeback: unknown slot " + c.arg(2)); return true; }
+    const bool wantRefused = lw(c.arg(4)) == "refused";
+    const bool ok = g.partyUnequip(m, s);
+    if (!ok && !wantRefused) c.fail("party takeback " + c.arg(2) + ": refused (" + g.party.lastBanter + ")");
+    else if (ok && wantRefused) c.fail("party takeback " + c.arg(2) + ": given back, should be refused");
+    return true;
+  }
+  if (what == "kitstyle") {   // party kitstyle <old|new> [m]: their kit made again at the hero's level, as P3 makes it
+    // (new: their people's make, IF_KIT) or as b3463ce made it (old: the culture id only, iron or leather armour), for
+    // the owner pack's before / after of the same companion
+    const int m = memberArg(c, 3);
+    if (m < 0) return true;
+    party::Member& M = g.party.members[(size_t)m];
+    M.inv.clear();
+    M.eq.fill(-1);
+    if (lw(c.arg(2)) == "old") {
+      Rng gr(hash32(M.lookSeed ^ 0x6EA2u) ^ (uint32_t)g.seed);
+      const int il = std::clamp(g.plLevel, 1, gear::MAX_D);
+      gear::DropSource src;
+      src.D = il; src.playerLevel = il; src.src = gear::LootSrc::Companion; src.culture = M.culture;
+      auto put = [&](ItemKind k, int sub, int slot, Mat mat) {
+        Rarity rar = gear::rollRarity(gr, src);
+        gear::CompanionRolls only;
+        if (rar == Rarity::Mythic && gear::mythicPowersFor(k).empty()) rar = Rarity::Legendary;
+        M.inv.push_back(gear::makeGear(gr, k, sub, il, rar, M.culture, mat));
+        M.eq[(size_t)slot] = (int16_t)(M.inv.size() - 1);
+      };
+      using party::Vocation;
+      if (M.voc == Vocation::Warrior) { put(ItemKind::Weapon, (int)WeaponType::Sword, party::S_WEAPON, Mat::None); put(ItemKind::Shield, 0, party::S_SHIELD, Mat::None);
+                                        put(ItemKind::Armor, 0, party::S_ARMOR, Mat::Iron); put(ItemKind::Helmet, 0, party::S_HELMET, Mat::Iron); }
+      if (M.voc == Vocation::Archer) { put(ItemKind::Bow, 0, party::S_BOW, Mat::None); put(ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON, Mat::None); }
+      if (M.voc == Vocation::Mage) put(ItemKind::Staff, 0, party::S_STAFF, Mat::None);
+      if (M.voc == Vocation::Healer) put(ItemKind::Weapon, (int)WeaponType::Mace, party::S_WEAPON, Mat::None);
+      if (M.voc == Vocation::Rogue) put(ItemKind::Weapon, (int)WeaponType::Dagger, party::S_WEAPON, Mat::None);
+      if (M.voc == Vocation::Archer || M.voc == Vocation::Rogue) { put(ItemKind::Armor, 0, party::S_ARMOR, Mat::Leather); put(ItemKind::Cloak, 0, party::S_CLOAK, Mat::None); }
+      if (M.voc == Vocation::Mage || M.voc == Vocation::Healer) put(ItemKind::Boots, 0, party::S_BOOTS, Mat::Leather);
+    } else PartyOps::kit(g, M, std::max(1, g.plLevel));
+    const int ai = actorOf(g, m);
+    if (ai > 0) { g.actors[(size_t)ai].look = g.partyLook(M); PartyOps::body(g, M, g.actors[(size_t)ai]); }
+    return true;
+  }
+  if (what == "snap") {   // party snap <NAME> [m]
+    const int m = memberArg(c, 3);
+    if (m < 0) return true;
+    auto& S = snaps();
+    for (size_t i = 0; i < S.size(); i++) if (S[i].first == c.arg(2)) { S.erase(S.begin() + (std::ptrdiff_t)i); break; }
+    S.push_back({c.arg(2), snapOf(g.party.members[(size_t)m])});
+    return true;
+  }
   c.fail("party: unknown " + c.arg(1));
   return true;
 }
-EMB_SCRIPT_CMD("party","party recruit [n] | cmd ORDER [m] | deed WORD [w] | down|kill|revive|near|talk|burn [m] | approval V [m] | bond V [m] | stats: stage M8 companions", cmdParty);
+EMB_SCRIPT_CMD("party","party recruit [n] | cmd ORDER [m] | deed WORD [w] | down|kill|revive|near|talk|burn [m] | approval V [m] | bond V [m] | stats | give HOW [m] | takeback SLOT [m] | snap NAME [m]: stage M8 companions", cmdParty);
 
 bool expParty(ScriptCtx& c) {
   Game& g = c.game;
@@ -290,6 +416,29 @@ bool expParty(ScriptCtx& c) {
   if (what == "with") { if (g.party.with() != num(3)) c.fail("expect party with: " + std::to_string(g.party.with())); return true; }
   if (what == "fallen") { if ((int)g.party.fallen.size() != num(3)) c.fail("expect party fallen: " + std::to_string(g.party.fallen.size())); return true; }
   if (what == "banter") { if (g.party.lastBanter.empty()) c.fail("expect party banter: nothing said"); return true; }
+  if (what == "parted") { if ((int)g.party.parted.size() != num(3)) c.fail("expect party parted: " + std::to_string(g.party.parted.size())); return true; }
+  if (what == "same") {   // expect party same <NAME>: the snapped friend is a member again, the same person
+    const Snap* s = nullptr;
+    for (const auto& e : snaps()) if (e.first == c.arg(3)) s = &e.second;
+    if (!s) { c.fail("expect party same: no snap " + c.arg(3)); return true; }
+    const party::Member* m = g.party.byId(s->id);
+    if (!m) { c.fail("expect party same: " + c.arg(3) + " is not a member"); return true; }
+    const Snap now = snapOf(*m);
+    std::string why;
+    if (now.bond != s->bond) why += " bond " + std::to_string(s->bond) + "->" + std::to_string(now.bond);
+    if (now.approval != s->approval) why += " approval " + std::to_string(s->approval) + "->" + std::to_string(now.approval);
+    if (now.mem != s->mem) why += " memories";
+    if (now.kit != s->kit) why += " kit seeds by slot";
+    if (!why.empty()) c.fail("expect party same " + c.arg(3) + ":" + why);
+    return true;
+  }
+  if (what == "kit") {   // expect party kit [m]: they wear their own kit, and no kit piece is in the hero's pack
+    const int m = memberArg(c, 3);
+    if (m < 0) return true;
+    if (!party::holdsKit(g.party.members[(size_t)m])) c.fail("expect party kit: no kit piece");
+    for (const Item& it : g.inv) if (party::isKit(it)) { c.fail("expect party kit: a kit piece in the hero's pack"); break; }
+    return true;
+  }
   if (what == "share") {
     const double tot = g.party.stats.dmgPlayer + g.party.stats.dmgParty;
     const int pct = tot > 0 ? (int)std::lround(100.0 * g.party.stats.dmgParty / tot) : 0;
@@ -349,6 +498,6 @@ bool expParty(ScriptCtx& c) {
   c.fail("expect party: unknown " + c.arg(2));
   return true;
 }
-EMB_SCRIPT_CMD("expect:party", "expect party members N | with N | fallen N | state S [m] | approval MIN MAX [m] | near TILES [m] | banter | share LO HI", expParty);
+EMB_SCRIPT_CMD("expect:party", "expect party members N | with N | fallen N | state S [m] | approval MIN MAX [m] | near TILES [m] | banter | share LO HI | same NAME | parted N | kit [m]", expParty);
 
 }  // namespace

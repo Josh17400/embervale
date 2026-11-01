@@ -44,7 +44,8 @@
 //   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
 //   home     (v14) u32 byte length + the home block (home::Homes::serialize: its own version byte first)
 //   talk     (v15) u32 byte length + the talk block (speech::Memory::serialize: its own version byte first)
-//   party    (v16) u32 byte length + the party block (party::Party::serialize: its own version byte first)
+//   party    (v16) u32 byte length + the party block (party::Party::serialize: its own version byte first; v24: block
+//                  version 5, the parted roll)
 //   skills   (v20) u32 byte length + the skills block (skills::Skills::serialize: its own version byte first)
 //   magic    (v20) u32 byte length + the magic block (magic::Book::serialize: its own version byte first)
 //   sea      (v21) u32 byte length + the sea block (sea::Sea::serialize: its own version byte first)
@@ -55,7 +56,11 @@
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 23;  // 23: P1 Fresh Roads (the jobs block after the lordship block: the weekly job
+static constexpr uint32_t SAVE_VER = 24;  // 24: P3 PARTY (the party block v5: the parted roll after the fallen; a
+                                          //    companion's kit pieces carry IF_KIT in the item flags byte already
+                                          //    saved). A SAVE_VER 23 save still loads: the same layout, its party
+                                          //    block v4 read with an empty parted roll (SAVE_VER_MIN 23).
+                                          // 23: P1 Fresh Roads (the jobs block after the lordship block: the weekly job
                                           //    pools and the journal's leads; QType::Errand; ENDLESS_GEN_VER 27, saga
                                           //    SAGA_GEN_VER 2). Old saves are refused ("start a new adventure").
                                           // 22: M12 Rise and Fall (the service and lordship blocks after the sea block;
@@ -98,7 +103,7 @@ static constexpr uint32_t SAVE_VER = 23;  // 23: P1 Fresh Roads (the jobs block 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
 // the oldest SAVE_VER that still loads (M10: only the current one; M9's SAVE_VER 19 exception ended with the generator
 // change, owner: old saves are not a concern)
-static constexpr uint32_t SAVE_VER_MIN = 23;   // (P1) only the current one
+static constexpr uint32_t SAVE_VER_MIN = 23;   // (P1) only the current one; (P3) 24 still reads 23 (the party block v4)
 int Game::saveVersion(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC || r.bad) return 0;

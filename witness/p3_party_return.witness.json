@@ -1,0 +1,18 @@
+[
+  { "name": "P3 PARTY: a friend sent home hands the gift back and comes back as themselves when asked again at home",
+    "seed": 3, "params": { "god": true, "hour": 10 },
+    "steps": [ { "at": 0.3, "call": ["party", "recruit", "1"], "expect": "state.mode == 'play'" },
+               { "at": 0.4, "call": ["expect", "party", "members", "1"] },
+               { "at": 0.5, "call": ["party", "snap", "friend", "0"] },
+               { "at": 0.6, "call": ["party", "takeback", "weapon", "0", "refused"] },
+               { "at": 0.7, "call": ["party", "give", "worse", "0", "refused"] },
+               { "at": 0.8, "call": ["party", "give", "better", "0"] },
+               { "at": 1.0, "call": ["party", "dismiss", "0"] },
+               { "at": 1.1, "call": ["expect", "party", "members", "0"] },
+               { "at": 1.2, "call": ["expect", "party", "parted", "1"] },
+               { "at": 3.0, "call": ["party", "recruit", "1"] },
+               { "at": 3.2, "call": ["expect", "party", "members", "1"] },
+               { "at": 3.3, "call": ["expect", "party", "parted", "0"] },
+               { "at": 3.4, "call": ["expect", "party", "same", "friend"] },
+               { "at": 3.5, "call": ["expect", "party", "kit", "0"], "expect": "state.mode == 'play'" } ] }
+]

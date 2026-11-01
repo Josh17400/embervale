@@ -12,7 +12,10 @@
 //     90-tile walk, into the inn and out again, approval moved by scripted deeds per personality, downed -> bound in
 //     time -> 30 %, carried through a door bleeding (the time halved), the save round trip with a party, a downed and
 //     a carried member; downed and left -> dead for good with a grave stamped in the home village (solid, found by
-//     partyGraveAt, the grave talk, a keepsake), the census death and its grief, Abandoned among the others
+//     partyGraveAt, the grave talk, nothing to take: P3), the census death and its grief, Abandoned among the others
+//   - (P3 PARTY, namespace p3rules below, first) the owner's companion rules 1-8: every case of ARMOUR_SPAWN_RARITY.md
+//     section 9's --companion list, by name, and a seeded fuzz of give / take back / swap / dismiss / leave / rejoin /
+//     death (each kit seed lives once; no IF_KIT in the hero's pack or on the ground)
 //   - each vocation's ways (party_test_ways: test_party_ways.cpp): a taunt pulls a wolf off the player, the archer
 //     shoots from >= 3 tiles, the healer heals, the rogue stabs from behind, the mage's bolts, the hound's bites;
 //     Passive takes ~nothing, Defend stays within 3 tiles; the paths (city avenues and gate, a ramp, inn upstairs and
@@ -26,10 +29,13 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "rpg/art/art_party.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"
 #include "rpg/world/source.h"
@@ -37,6 +43,10 @@
 
 // test_party_ways.cpp
 int partyWaysTests(uint64_t seed);
+// the P3 PARTY rules (below, in namespace p3rules)
+int partyRulesTests(uint64_t seed);
+int partyRulesFuzz(uint64_t seed);
+int partyRulesMissing();
 
 namespace {
 
@@ -356,10 +366,9 @@ void play(uint64_t seed) {
     g.update(SIM_DT, use);
     if (g.mode != Mode::Dialogue) fail(sd(seed) + "the use button at the grave opened nothing");
     g.mode = Mode::Play;
+    // (P3 PARTY, rule 6) the grave holds nothing to take: everything they carried lies where they fell
     const size_t had = g.inv.size();
-    const bool kept = g.partyGraveAct(0, 2);
-    if (!kept || g.inv.size() < had) fail(sd(seed) + "no keepsake could be taken from the grave");
-    if (g.partyGraveAct(0, 2)) fail(sd(seed) + "a second keepsake was taken");
+    if (!f.belongings.empty() || g.partyGraveAct(0, 2) || g.inv.size() != had) fail(sd(seed) + "the grave holds a keepsake to take (P3: they drop everything where they fell)");
     g.partyGraveAct(0, 1);
     if (!g.partyGraveLook(0).flowers) fail(sd(seed) + "the flowers laid do not show on the grave");
     // after a save and a load the grave is stamped again
@@ -691,6 +700,14 @@ int companionCmd(int argc, char** argv) {
   };
   tables();
   saveBlock();
+  // (P3 PARTY) the owner's companion rules first (the gift at dismissal first), then the seeded fuzz over every seed
+  if (!shareOnly) {
+    for (uint64_t s = a; s <= b; s++) { g_curSeed = s; g_bad += partyRulesTests(s); }
+    g_bad += partyRulesMissing();
+    lap("rules");
+    for (uint64_t s = a; s <= b; s++) { g_curSeed = s; g_bad += partyRulesFuzz(s); }
+    lap("rules fuzz");
+  }
   if (!shareOnly) {
     recruiting(a, std::max(b, a + 5));
     lap("recruiting");
@@ -705,3 +722,754 @@ int companionCmd(int argc, char** argv) {
 }  // namespace
 
 RPG_TEST_CMD("--companion", "M8 Fellowship: tables, the party block, recruiting over 20 towns, origins, following, doors, deeds, downed / carried / dead for good, graves, vocations, stances, paths, waiting, the house, the damage share in 3 bands (hard) [--seeds A..B] [--soft-share] [--vocations]", companionCmd);
+
+// ================================================================ P3 PARTY: the owner's companion rules, every case by name, and the fuzz
+// rpg_test --companion, P3 PARTY part (FIX_BATCH_P3 2.2 / 8.2): the owner's companion rules 1-8 (ARMOUR_SPAWN_RARITY.md
+// section 6) on real games, every case of its section 9 --companion list by name (the gift at dismissal first), and a
+// seeded fuzz. Every check is a FAIL unless said otherwise.
+//   - a gift handed back at dismissal (the live bug: partyDismiss -> removeMember took it), TAKE BACK refused on a kit
+//     piece, a worse or equal gift declined (both packs unchanged), a better gift worn with the kit stowed, TAKE BACK of a
+//     gift re-wearing the kit, a gift-for-gift swap returning the first gift, an unpaid and an angry sellsword returning
+//     exactly the gifts, a death dropping exactly what they carried as ground loot within a tile (no IF_KIT, nothing into
+//     the pack, an empty grave), the kit's item level at most the hero's + 4 on every recruit path, the hire mark on
+//     every living parting of a sellsword (his table empty 7 days, standing on the 7th, MERC_FALLEN after his death),
+//     leaving and coming back with the hero 10 levels higher (a census friend asked back at home; a sellsword dismissed,
+//     unpaid or angry rehired after his week), an angry census companion and an angry sellsword's apology, the parted
+//     roll through a save and a load, a version-4 party block, damaged blocks, a parted friend's census death, the 33rd
+//     parting, an old save's companion with no kit
+//   - the fuzz (seeds A..B): give, take back, swap, dismiss, leave, rejoin, death in a seeded order; after every step no
+//     IF_KIT in the hero's pack or on the ground, and each kit seed lives once (pack, members, parted roll, ground), never
+//     made again
+namespace p3rules {
+
+using party::Member;
+
+int g_rb = 0;
+std::set<std::string> g_named;   // the cases checked (printed the first time each runs)
+void bad(uint64_t seed, const std::string& m) { out("FAIL: companion: rules: seed %llu: %s\n", (unsigned long long)seed, m.c_str()); g_rb++; }
+void named(const char* c) { if (g_named.insert(c).second) out("companion: rules: %s\n", c); }
+
+const char* const kCases[] = {
+    "a gift handed back at dismissal (the live bug)",
+    "TAKE BACK refused on a kit piece",
+    "a worse or equal gift declined, both packs unchanged",
+    "a better gift worn, the kit stowed",
+    "TAKE BACK of a gift re-wears the kit piece",
+    "a gift-for-gift swap returns the first gift",
+    "an unpaid sellsword returns exactly the gifts",
+    "an angry sellsword returns exactly the gifts",
+    "a death drops exactly what they carried as ground loot within a tile, no IF_KIT, nothing into the pack, an empty grave",
+    "the kit's item level at most the hero's level + 4 on every recruit path",
+    "the hire mark set to the day on every living parting of a sellsword, his table empty 7 days and standing on the 7th",
+    "MERC_FALLEN after a sellsword's death: his table never stands again",
+    "a census companion dismissed and asked back at home with the hero 10 levels higher comes back the same",
+    "a sellsword dismissed and rehired after his week with the hero 10 levels higher comes back the same",
+    "a sellsword unpaid and rehired after his week comes back the same",
+    "a sellsword angry, ANGRY at his table until his apology, then rehired the same",
+    "an angry census companion's record unchanged by the leave and the apology on a later day, approval at least -30",
+    "the parted roll through a save and a load",
+    "a version-4 party block loads with an empty parted roll",
+    "damaged party blocks with a parted roll refused or loaded without a crash",
+    "a parted census companion's death removes their record, no pile and no grave",
+    "the 33rd parting forgets the friend parted longest ago",
+    "an old save's companion who parts with no kit piece gets their kit at the return",
+};
+
+void steps(Game& g, int n) {
+  for (int f = 0; f < n; f++) {
+    g.update(SIM_DT, Input());
+    g.events.clear();
+    if (g.mode != Mode::Play) g.mode = Mode::Play;
+  }
+}
+void setup(Game& g, uint64_t seed) {
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play;
+  g.noWildSpawns = true;
+  g.godMode = true;
+  g.plLevel = party::LEADERSHIP_LEVEL;   // (room for two people; the kit's cap reads it)
+  g.gold = 100000;
+  steps(g, 10);
+}
+// the start village's adults who are no key people, in census order (the dead and the away keep their place, so the n-th
+// is always the same person)
+bool adult(const life::Resident& r) {
+  return !(r.flags & life::RF_KEY) && r.job != life::Job::Child && r.job != life::Job::Elder && r.age >= 18 && r.age <= 62;
+}
+// the n-th of them, befriended (a reason to come), as a body at the player's side (resident -1: none, or dead)
+Actor censusBody(Game& g, int skip) {
+  Actor a;
+  a.id = -99; a.npc = true; a.human = true; a.site = -1; a.resident = -1;
+  const life::Census* c = g.life.census(g.world, g.world.startSite);
+  if (!c) return a;
+  int n = 0;
+  for (const life::Resident& r : c->res) {
+    if (!adult(r)) continue;
+    if (n++ < skip) continue;
+    if (r.flags & life::RF_DEAD) return a;
+    a.site = g.world.startSite; a.resident = r.idx; a.p = g.pl().p + Vec2(18, 0);
+    g.life.befriend(c->site, r.idx);
+    return a;
+  }
+  return a;
+}
+int recruitCensus(Game& g, int skip) {
+  Actor a = censusBody(g, skip);
+  if (a.resident < 0) return -1;
+  return g.partyRecruit(a, party::Origin::Resident);
+}
+std::vector<uint32_t> gearSeeds(const std::vector<Item>& v) {
+  std::vector<uint32_t> s;
+  for (const Item& it : v) if (party::slotOf(it.kind) >= 0) s.push_back(it.seed);
+  std::sort(s.begin(), s.end());
+  return s;
+}
+std::map<int, uint32_t> kitBySlot(const Member& m) {
+  std::map<int, uint32_t> k;
+  for (int s = 0; s < party::SLOTS; s++) {
+    const int e = m.eq[(size_t)s];
+    if (e >= 0 && e < (int)m.inv.size() && party::isKit(m.inv[(size_t)e])) k[s] = m.inv[(size_t)e].seed;
+  }
+  return k;
+}
+std::vector<uint32_t> kitSeeds(const Member& m) {
+  std::vector<uint32_t> s;
+  for (const Item& it : m.inv) if (party::isKit(it)) s.push_back(it.seed);
+  std::sort(s.begin(), s.end());
+  return s;
+}
+int countSeed(const std::vector<Item>& v, uint32_t seed) { int n = 0; for (const Item& it : v) n += it.seed == seed && party::slotOf(it.kind) >= 0; return n; }
+bool packHasKit(const Game& g) { for (const Item& it : g.inv) if (party::isKit(it)) return true; return false; }
+int slotWorn(const Member& m) {
+  for (int s : {party::S_WEAPON, party::S_ARMOR, party::S_BOW, party::S_STAFF, party::S_BOOTS})
+    if (m.eq[(size_t)s] >= 0 && m.eq[(size_t)s] < (int)m.inv.size()) return s;
+  return -1;
+}
+uint32_t g_giftSalt = 1;
+// a piece for slot s of the kind they wear there: better (verdict > 0 at their level than `than`) or plainly worse
+Item makeFor(const Game& g, const Member& m, int s, int want, const Item* than) {
+  const int e = m.eq[(size_t)s];
+  const Item& w = m.inv[(size_t)e];
+  const int L = party::levelFor(g.plLevel);
+  Rng r(hash32(m.id * 7919u ^ g_giftSalt++ ^ (uint32_t)g.seed));
+  if (want < 0) return gear::makeGear(r, w.kind, w.sub, 1, Rarity::Common, 0, w.mat);
+  const Item& ref = than ? *than : w;
+  for (int k = 0; k < 40; k++) {
+    const Rarity rr = (Rarity)std::min(5, 2 + k / 8);
+    Item it = gear::makeGear(r, w.kind, w.sub, std::min(gear::MAX_D, L + 4), rr, 0, Mat::None);
+    if (party::giftVerdict(it, &ref, L) > 0) return it;
+  }
+  return gear::makeGear(r, w.kind, w.sub, gear::MAX_D, Rarity::Mythic, 0, Mat::None);
+}
+int toPack(Game& g, const Item& it) {
+  g.inv.push_back(it);
+  for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].seed == it.seed && g.inv[(size_t)i].kind == it.kind) return i;
+  return -1;
+}
+int memberById(const Game& g, uint32_t id) {
+  for (size_t i = 0; i < g.party.members.size(); i++) if (g.party.members[i].id == id) return (int)i;
+  return -1;
+}
+// the record a return must restore (rule 8): id, bond, approval, memories, flags, days, kills, VOICE fields, kit by slot
+std::string sameWhy(const Member& a, const Member& b, bool approvalToo = true) {
+  if (a.id != b.id) return "id";
+  if (a.bond != b.bond) return "bond " + std::to_string(a.bond) + " -> " + std::to_string(b.bond);
+  if (party::unlockedSkills(a) != party::unlockedSkills(b)) return "skills";
+  if (approvalToo && a.approval != b.approval) return "approval";
+  if (a.mem.size() != b.mem.size()) return "memories";
+  for (size_t i = 0; i < a.mem.size(); i++) if (a.mem[i].deed != b.mem[i].deed || a.mem[i].day != b.mem[i].day || a.mem[i].delta != b.mem[i].delta) return "a memory";
+  if ((a.flags & (party::MF_QUEST_DONE | party::MF_QUEST_OFFERED | party::MF_PUP)) != (b.flags & (party::MF_QUEST_DONE | party::MF_QUEST_OFFERED | party::MF_PUP))) return "flags";
+  if (a.days != b.days || a.kills != b.kills) return "days / kills";
+  if (a.quest != b.quest || a.questState != b.questState) return "the VOICE fields";
+  if (a.horse != b.horse || a.hasLook != b.hasLook || a.lookSeed != b.lookSeed) return "horse / look";
+  if (kitBySlot(a) != kitBySlot(b)) return "the kit by slot";
+  for (const Item& it : b.inv) if (party::isKit(it) && party::slotOf(it.kind) < 0) return "a kit flag on a supply";
+  return std::string();
+}
+
+// ---- the sellswords: a town in the loaded window whose inn keeps one
+struct Inn { int bi = -1; ew::Gid id = 0; int slot = -1; };
+Inn findInn(Game& g) {
+  Inn I;
+  for (size_t si = 0; si < g.world.sites.size() && I.bi < 0; si++) {
+    const Site& S = g.world.sites[si];
+    if (S.type != SiteType::Town && S.type != SiteType::City) continue;
+    for (int b = S.bldgFirst; b < S.bldgFirst + S.bldgCount && b < (int)g.world.over.bldgs.size(); b++)
+      if (PartyOps::mercsAt(g, b) > 0) { I.bi = b; I.id = g.world.over.bldgs[(size_t)b].id; I.slot = 0; break; }
+  }
+  return I;
+}
+int mercActor(Game& g, int slot) {
+  for (size_t i = 1; i < g.actors.size(); i++) if (g.actors[i].partyTag == party::PT_MERC0 + slot) return (int)i;
+  return -1;
+}
+// into the inn (a fresh map: its sellswords stand, or not); the merc actor of the slot (-1 none)
+int enterInn(Game& g, const Inn& I) {
+  if (g.inside) g.debugLeave();
+  steps(g, 2);
+  if (!g.debugEnterBuilding(I.bi, 0)) return -1;
+  steps(g, 3);
+  return mercActor(g, I.slot);
+}
+int hire(Game& g, const Inn& I) {
+  const int ai = enterInn(g, I);
+  if (ai < 0) return -1;
+  return g.partyRecruit(g.actors[(size_t)ai], party::Origin::Mercenary);
+}
+uint64_t hireKey(const Inn& I) { return markKey(I.id * 4 + (uint64_t)I.slot, (Mk)PartyOps::MK_HIRED); }
+int32_t hireMark(const Game& g, const Inn& I) { auto it = g.marks.find(hireKey(I)); return it == g.marks.end() ? -999 : it->second; }
+bool chooseOpt(Game& g, const std::string& label) {
+  for (size_t o = 0; o < g.dlg.opts.size(); o++) if (g.dlg.opts[o].label == label) { g.dialogueChoose((int)o); return true; }
+  return false;
+}
+
+// ================================================================ the cases
+void giftsCases(Game& g, uint64_t seed) {
+  // a census friend with a better gift, sent home: the gift comes back once, their kit and record wait in the roll
+  int mi = recruitCensus(g, 0);
+  if (mi < 0) { bad(seed, "no census person of the start village would join"); return; }
+  {
+    Member& m = g.party.members[(size_t)mi];
+    const int s = slotWorn(m);
+    const std::map<int, uint32_t> kit = kitBySlot(m);
+    if (s < 0 || kit.empty()) { bad(seed, "a new companion wears no kit"); return; }
+    const Item gift = makeFor(g, m, s, 1, nullptr);
+    const int ii = toPack(g, gift);
+    if (!g.partyEquip(mi, ii)) bad(seed, "a better gift was not taken");
+    const std::vector<uint32_t> pack = gearSeeds(g.inv);
+    const uint32_t id = m.id;
+    const ew::Gid npc = m.npc;
+    g.partyDismiss(mi);
+    std::vector<uint32_t> want = pack;
+    want.push_back(gift.seed);
+    std::sort(want.begin(), want.end());
+    if (gearSeeds(g.inv) != want || countSeed(g.inv, gift.seed) != 1) bad(seed, "the gift did not come back exactly once at the dismissal");
+    if (packHasKit(g)) bad(seed, "a kit piece reached the hero's pack at the dismissal");
+    const int pi = g.party.partedOf(npc, 0, 0);
+    if (pi < 0 || g.party.parted[(size_t)pi].m.id != id || kitBySlot(g.party.parted[(size_t)pi].m) != kit) bad(seed, "the record (and the kit as it left) is not in the parted roll");
+    named(kCases[0]);
+  }
+  // take back, declines, a better gift, take back of a gift, the swap
+  mi = recruitCensus(g, 1);
+  if (mi < 0) { bad(seed, "a second census person would not join"); return; }
+  Member& m = g.party.members[(size_t)mi];
+  const int s = slotWorn(m);
+  const uint32_t kitSeed = m.inv[(size_t)m.eq[(size_t)s]].seed;
+  {
+    const std::vector<uint32_t> pack = gearSeeds(g.inv), mine = gearSeeds(m.inv);
+    if (g.partyUnequip(mi, s) || gearSeeds(g.inv) != pack || gearSeeds(m.inv) != mine) bad(seed, "TAKE BACK moved a kit piece");
+    else named(kCases[1]);
+  }
+  {
+    Item same = m.inv[(size_t)m.eq[(size_t)s]];
+    same.flags = 0; same.seed ^= 0x5A5A5A5Au;
+    const Item worse = makeFor(g, m, s, -1, nullptr);
+    const int a = toPack(g, same);
+    const std::vector<uint32_t> pack = gearSeeds(g.inv), mine = gearSeeds(m.inv);
+    const bool took1 = g.partyEquip(mi, a);
+    const int b = toPack(g, worse);
+    const std::vector<uint32_t> pack2 = gearSeeds(g.inv);
+    const bool took2 = g.partyEquip(mi, b);
+    if (took1 || took2 || gearSeeds(m.inv) != mine || gearSeeds(g.inv) != pack2 || pack2.size() != pack.size() + 1) bad(seed, "a worse or equal gift was taken, or a pack changed");
+    else named(kCases[2]);
+  }
+  const Item g1 = makeFor(g, m, s, 1, nullptr);
+  {
+    if (!g.partyEquip(mi, toPack(g, g1))) bad(seed, "a better gift was declined");
+    const int e = m.eq[(size_t)s];
+    bool stowed = false;
+    for (size_t i = 0; i < m.inv.size(); i++) stowed |= m.inv[i].seed == kitSeed && party::isKit(m.inv[i]) && (int)i != e;
+    if (e < 0 || m.inv[(size_t)e].seed != g1.seed || !stowed) bad(seed, "a better gift is not worn with the kit piece stowed");
+    else named(kCases[3]);
+  }
+  {
+    if (!g.partyUnequip(mi, s) || countSeed(g.inv, g1.seed) != 1 || m.eq[(size_t)s] < 0 || m.inv[(size_t)m.eq[(size_t)s]].seed != kitSeed)
+      bad(seed, "TAKE BACK of a gift did not return it and re-wear the kit piece");
+    else named(kCases[4]);
+  }
+  {
+    int ii = -1;
+    for (size_t i = 0; i < g.inv.size(); i++) if (g.inv[i].seed == g1.seed) ii = (int)i;
+    g.partyEquip(mi, ii);
+    const Item g2 = makeFor(g, m, s, 1, &g1);
+    const bool ok = g.partyEquip(mi, toPack(g, g2));
+    if (!ok || countSeed(g.inv, g1.seed) != 1 || countSeed(m.inv, g1.seed) != 0 || m.inv[(size_t)m.eq[(size_t)s]].seed != g2.seed || countSeed(m.inv, kitSeed) != 1)
+      bad(seed, "a gift-for-gift swap did not return the first gift (or moved the kit)");
+    else named(kCases[5]);
+  }
+  // a death: everything they carry on the ground where they fell
+  {
+    g.inv.push_back(makePotion(PotionType::Health, 1));
+    for (size_t i = 0; i < g.inv.size(); i++) if (g.inv[i].kind == ItemKind::Potion) { g.partyGive(mi, (int)i); break; }
+    const int ai = PartyOps::actorOf(g, mi);
+    if (ai < 0) { bad(seed, "the companion has no body in play"); return; }
+    const Vec2 at = g.actors[(size_t)ai].p;
+    g.pl().p = at + Vec2(120, 0);   // (out of the magnet's reach)
+    std::vector<std::pair<uint32_t, int>> carried;
+    for (const Item& it : m.inv) carried.push_back({it.seed, it.count});
+    std::sort(carried.begin(), carried.end());
+    const size_t had = g.pickups.size(), fallen = g.party.fallen.size();
+    const std::vector<uint32_t> pack = gearSeeds(g.inv);
+    const size_t packN = g.inv.size();
+    PartyOps::dieForGood(g, mi, "TESTED");
+    std::vector<std::pair<uint32_t, int>> ground;
+    bool far = false, kit = false;
+    for (size_t k = had; k < g.pickups.size(); k++) {
+      ground.push_back({g.pickups[k].item.seed, g.pickups[k].item.count});
+      far |= len(g.pickups[k].p - at) > (float)TILE;
+      kit |= party::isKit(g.pickups[k].item);
+    }
+    std::sort(ground.begin(), ground.end());
+    const bool grave = g.party.fallen.size() == fallen + 1 && g.party.fallen.back().belongings.empty();
+    if (ground != carried || far || kit || gearSeeds(g.inv) != pack || g.inv.size() != packN || !grave)
+      bad(seed, "a death did not lay exactly what they carried within a tile (" + std::to_string(ground.size()) + " of " + std::to_string(carried.size()) +
+                    (far ? ", too far" : "") + (kit ? ", IF_KIT on the ground" : "") + (grave ? "" : ", the grave holds something") + ")");
+    else named(kCases[8]);
+    g.pickups.resize(had);
+  }
+}
+
+void kitCapCase(Game& g, uint64_t seed) {
+  const int was = g.plLevel;
+  g.plLevel = 2;
+  bool ok = true;
+  auto capped = [&](const Member& m) { for (const Item& it : m.inv) if (party::isKit(it) && it.ilvl > g.plLevel + 4) return false; return party::holdsKit(m); };
+  const int mi = recruitCensus(g, 2);
+  if (mi >= 0) { ok &= capped(g.party.members[(size_t)mi]); g.partyDismiss(mi); } else ok = false;
+  for (party::Origin o : {party::Origin::Saga, party::Origin::Rescued, party::Origin::Mercenary}) {
+    const int k = g.partyRecruitStranger("CAPTEST", false, g.world.sites[(size_t)g.world.startSite].culture, 4242u + (uint32_t)o, o, g.pl().p + Vec2(14, 0));
+    if (k < 0) { ok = false; continue; }
+    ok &= capped(g.party.members[(size_t)k]);
+    PartyOps::removeMember(g, k);
+  }
+  Member x;
+  x.voc = party::Vocation::Warrior; x.lookSeed = 99;
+  PartyOps::kit(g, x, 45);
+  ok &= capped(x);
+  g.plLevel = was;
+  if (!ok) bad(seed, "a kit piece above the hero's level + 4 on a recruit path");
+  else named(kCases[9]);
+}
+
+void mercCases(Game& g, uint64_t seed) {
+  const Inn I = findInn(g);
+  if (I.bi < 0) { out("companion: rules: seed %llu: no inn with a sellsword in the window (the sellsword cases run on another seed)\n", (unsigned long long)seed); return; }
+  // dismissed: the mark, the week, the same man back
+  int mi = hire(g, I);
+  if (mi < 0) { bad(seed, "the sellsword could not be hired"); return; }
+  Member before = g.party.members[(size_t)mi];
+  const Item gift = makeFor(g, before, slotWorn(before), 1, nullptr);
+  g.partyEquip(mi, toPack(g, gift));
+  before = g.party.members[(size_t)mi];
+  const int lvl0 = party::levelFor(g.plLevel);
+  g.partyDismiss(mi);
+  bool markOk = hireMark(g, I) == g.day;
+  const int day0 = g.day;
+  bool emptyWeek = true;
+  for (int d = 1; d < 7; d++) { g.day = day0 + d; emptyWeek &= enterInn(g, I) < 0; }
+  g.day = day0 + 7;
+  g.plLevel += 10;
+  int ai = enterInn(g, I);
+  const bool stands = ai > 0 && g.actors[(size_t)ai].name == before.name;
+  if (!markOk || !emptyWeek || !stands) bad(seed, std::string("the dismissed sellsword's week") + (markOk ? "" : " (mark)") + (emptyWeek ? "" : " (stood early)") + (stands ? "" : " (not standing on the 7th as himself)"));
+  else named(kCases[10]);
+  mi = ai > 0 ? g.partyRecruit(g.actors[(size_t)ai], party::Origin::Mercenary) : -1;
+  auto backSame = [&](int k, const Member& was, int lvl, bool approvalToo) -> std::string {
+    if (k < 0) return "not rehired";
+    const Member& now = g.party.members[(size_t)k];
+    const std::string w = sameWhy(was, now, approvalToo);
+    if (!w.empty()) return w;
+    if (party::levelFor(g.plLevel) < lvl) return "level below the one he left at";
+    if (countSeed(g.inv, gift.seed) != 1) return "the gift is not in the pack exactly once";
+    return std::string();
+  };
+  {
+    Member was = before;
+    // (his gift came back at the parting: the record compared without it, and the kit worn again where it held)
+    for (int e = (int)was.inv.size() - 1; e >= 0; e--) if (!party::isKit(was.inv[(size_t)e]) && party::slotOf(was.inv[(size_t)e].kind) >= 0) { was.inv.erase(was.inv.begin() + e); for (int16_t& x : was.eq) { if (x == e) x = -1; else if (x > e) x--; } }
+    for (int s = 0; s < party::SLOTS; s++) PartyOps::wearKit(was, s);
+    const std::string w = backSame(mi, was, lvl0, true);
+    if (!w.empty()) bad(seed, "the rehired sellsword is not the same man: " + w); else named(kCases[13]);
+    before = was;
+  }
+  if (mi < 0) return;
+  // unpaid: the gift back, the mark, rehired after the week the same
+  {
+    const Item g2 = makeFor(g, g.party.members[(size_t)mi], slotWorn(g.party.members[(size_t)mi]), 1, nullptr);
+    g.partyEquip(mi, toPack(g, g2));
+    const std::vector<uint32_t> pack = gearSeeds(g.inv);
+    const Member was = g.party.members[(size_t)mi];
+    const long goldWas = g.gold;
+    g.gold = 0;
+    g.day++;
+    steps(g, 3);
+    std::vector<uint32_t> want = pack; want.push_back(g2.seed); std::sort(want.begin(), want.end());
+    const bool gone = memberById(g, was.id) < 0;
+    if (!gone || gearSeeds(g.inv) != want || hireMark(g, I) != g.day) bad(seed, "an unpaid sellsword did not return exactly the gifts (or set his mark)");
+    else named(kCases[6]);
+    g.gold = goldWas;
+    const int pu = g.party.partedOf(0, I.id, I.slot);
+    if (pu >= 0) before = g.party.parted[(size_t)pu].m;   // (as he left: a day's bond earned with the hero, the gift handed back)
+    g.day += 7;
+    ai = enterInn(g, I);
+    mi = ai > 0 ? g.partyRecruit(g.actors[(size_t)ai], party::Origin::Mercenary) : -1;
+    const std::string w = mi >= 0 ? sameWhy(before, g.party.members[(size_t)mi], true) : std::string("not rehired");
+    if (!w.empty()) bad(seed, "the unpaid sellsword rehired is not the same man: " + w); else named(kCases[14]);
+  }
+  if (mi < 0) return;
+  // angry: the gift back, ANGRY at his table until his apology (refused the first day), then his wage
+  {
+    const Item g3 = makeFor(g, g.party.members[(size_t)mi], slotWorn(g.party.members[(size_t)mi]), 1, nullptr);
+    g.partyEquip(mi, toPack(g, g3));
+    const std::vector<uint32_t> pack = gearSeeds(g.inv);
+    g.party.members[(size_t)mi].approval = -100;
+    const uint32_t id = g.party.members[(size_t)mi].id;
+    g.deed(party::Deed::KilledInnocent, 0, 3);
+    steps(g, 2);
+    std::vector<uint32_t> want = pack; want.push_back(g3.seed); std::sort(want.begin(), want.end());
+    const int pi = g.party.partedOf(0, I.id, I.slot);
+    if (memberById(g, id) >= 0 || gearSeeds(g.inv) != want || pi < 0 || !g.party.parted[(size_t)pi].angry || hireMark(g, I) != g.day)
+      bad(seed, "an angry sellsword did not return exactly the gifts (or keep his record, angry, or set his mark)");
+    else named(kCases[7]);
+    g.day += 7;
+    ai = enterInn(g, I);
+    bool angryOk = ai > 0 && g.partyOffer(g.actors[(size_t)ai]).why == "ANGRY" && g.partyRecruit(g.actors[(size_t)ai], party::Origin::Mercenary) < 0;
+    // the apology at his table: refused today, taken on a later day
+    if (ai > 0) { HomeOps::talkTo(g, g.actors[(size_t)ai]); angryOk &= chooseOpt(g, "I WAS WRONG. I'M SORRY."); g.mode = Mode::Play; }
+    angryOk &= g.party.partedOf(0, I.id, I.slot) >= 0 && g.party.parted[(size_t)g.party.partedOf(0, I.id, I.slot)].angry;
+    g.day++;
+    ai = enterInn(g, I);
+    int back = -1;
+    if (ai > 0) {
+      HomeOps::talkTo(g, g.actors[(size_t)ai]);
+      angryOk &= chooseOpt(g, "I WAS WRONG. I'M SORRY.") && chooseOpt(g, "I WAS WRONG, AND I'LL DO BETTER.") && chooseOpt(g, "HERE'S YOUR WAGE.");
+      g.mode = Mode::Play;
+      back = memberById(g, id);
+    }
+    if (!angryOk || back < 0 || g.party.members[(size_t)back].approval < party::APPROVAL_COMPLAIN + 10) bad(seed, "the angry sellsword's ANGRY and apology at his table");
+    else named(kCases[15]);
+    if (back >= 0) {
+      // his death: the slot never stands again
+      PartyOps::dieForGood(g, back, "TESTED");
+      g.pickups.clear();
+      g.day += 30;
+      if (hireMark(g, I) != PartyOps::MERC_FALLEN || enterInn(g, I) >= 0) bad(seed, "a dead sellsword's table stands again");
+      else named(kCases[11]);
+    }
+  }
+  if (g.inside) g.debugLeave();
+  steps(g, 2);
+}
+
+void returnCases(Game& g, uint64_t seed) {
+  // a census friend sent home and asked back at home, the hero 10 levels higher
+  int mi = recruitCensus(g, 3);
+  if (mi < 0) { bad(seed, "no census person for the return case"); return; }
+  {
+    Member& m = g.party.members[(size_t)mi];
+    m.bond = 33; m.approval = 21; m.days = 9; m.kills = 4;
+    m.mem.push_back({party::Deed::Mercy, 3, g.day, 0x77});
+    const Item gift = makeFor(g, m, slotWorn(m), 1, nullptr);
+    g.partyEquip(mi, toPack(g, gift));
+    const int lvl = party::levelFor(g.plLevel);
+    const Member was0 = g.party.members[(size_t)mi];
+    g.partyDismiss(mi);
+    const Member was = g.party.parted.back().m;   // (as it left: the gift handed back)
+    g.plLevel += 10;
+    g.day += 3;
+    steps(g, 2);
+    const Actor a = censusBody(g, 3);
+    Actor body = a;
+    const Game::PartyOffer o = g.partyOffer(body);
+    const int k = o.ok ? g.partyRecruit(body, o.origin) : -1;
+    std::string w = k < 0 ? "not back (" + o.why + ")" : sameWhy(was, g.party.members[(size_t)k]);
+    if (w.empty() && was.id != was0.id) w = "id";
+    if (w.empty() && party::levelFor(g.plLevel) < lvl) w = "level";
+    if (w.empty() && countSeed(g.inv, gift.seed) != 1) w = "the gift is not in the pack exactly once";
+    if (w.empty()) { const uint8_t b = g.party.members[(size_t)k].bond; g.day++; steps(g, 2); g.day--; if (g.party.members[(size_t)k].bond > b + 2) w = "bond grew for the days away"; }
+    if (!w.empty()) bad(seed, "a census friend asked back is not the same: " + w);
+    else named(kCases[12]);
+    if (k >= 0) g.partyDismiss(k);
+  }
+  // an angry census companion: stays a member, Left; the apology on a later day lifts approval, nothing else changes
+  mi = recruitCensus(g, 4);
+  if (mi >= 0) {
+    g.party.members[(size_t)mi].approval = -100;
+    const Member was = g.party.members[(size_t)mi];
+    g.deed(party::Deed::KilledInnocent, 0, 3);
+    steps(g, 2);
+    const int k = memberById(g, was.id);
+    std::string why;
+    Member left;
+    if (k < 0 || g.party.members[(size_t)k].state != party::State::Left) why = "not a member, Left";
+    else {
+      left = g.party.members[(size_t)k];
+      Member trimmed = left;   // (the deed that drove them off is a memory of the deed, not of the leave)
+      if (trimmed.mem.size() == was.mem.size() + 1) trimmed.mem.pop_back();
+      const std::string w = sameWhy(was, trimmed, false);
+      if (!w.empty()) why = "the leave changed " + w;
+    }
+    if (k >= 0 && why.empty()) {
+      Actor body;
+      body.id = g.pl().id + 777777; body.npc = true; body.human = true; body.site = g.world.startSite; body.resident = was.res; body.p = g.pl().p + Vec2(16, 0);
+      g.actors.push_back(body);
+      HomeOps::talkTo(g, g.actors.back());
+      if (!chooseOpt(g, "I WAS WRONG. I'M SORRY.")) why = "no apology offered (" + g.dlg.text + ")";
+      g.mode = Mode::Play;
+      g.day++;
+      HomeOps::talkTo(g, g.actors.back());
+      if (why.empty() && !(chooseOpt(g, "I WAS WRONG. I'M SORRY.") && chooseOpt(g, "I WAS WRONG, AND I'LL DO BETTER."))) why = "the apology on a later day (" + g.dlg.text + ")";
+      g.mode = Mode::Play;
+      const int k2 = memberById(g, was.id);
+      if (why.empty() && (k2 < 0 || g.party.members[(size_t)k2].approval < party::APPROVAL_COMPLAIN + 10)) why = "approval not lifted to -30";
+      if (why.empty()) { const std::string w = sameWhy(left, g.party.members[(size_t)k2], false); if (!w.empty()) why = "the apology changed " + w; }
+      for (size_t q = 1; q < g.actors.size(); q++) if (g.actors[q].id == body.id) { g.actors.erase(g.actors.begin() + (std::ptrdiff_t)q); break; }
+      if (k2 >= 0) g.partyDismiss(k2);
+    }
+    if (!why.empty()) bad(seed, "an angry census companion: " + why);
+    else named(kCases[16]);
+  }
+}
+
+void rollCases(Game& g, uint64_t seed) {
+  // through a save and a load
+  {
+    std::vector<uint8_t> a, b;
+    g.serialize(a);
+    Game h(1);
+    if (g.party.parted.empty() || !h.deserialize(a)) bad(seed, "the save with a parted roll did not load");
+    else {
+      std::vector<uint8_t> pa, pb;
+      g.party.serialize(pa); h.party.serialize(pb);
+      h.serialize(b);
+      if (pa != pb || a != b || h.party.parted.size() != g.party.parted.size()) bad(seed, "the parted roll did not round-trip");
+      else named(kCases[17]);
+    }
+  }
+  // a version-4 block (save_v23): the same bytes without the roll's count
+  {
+    party::Party P = g.party;
+    P.parted.clear();
+    std::vector<uint8_t> v5;
+    P.serialize(v5);
+    std::vector<uint8_t> v4(v5.begin(), v5.end() - 1);
+    v4[0] = 4;
+    party::Party Q;
+    Q.parted.resize(3);
+    if (!Q.deserialize(v4) || !Q.parted.empty() || Q.members.size() != P.members.size()) bad(seed, "a version-4 party block did not load with an empty roll");
+    else named(kCases[18]);
+    std::vector<uint8_t> v3 = v4;
+    v3[0] = 3;
+    if (party::Party().deserialize(v3)) bad(seed, "a version-3 party block loaded");
+  }
+  // damaged blocks
+  {
+    std::vector<uint8_t> a;
+    g.party.serialize(a);
+    uint64_t h = 0x9A28ull ^ seed;
+    int loaded = 0;
+    for (int i = 0; i < 200; i++) {
+      std::vector<uint8_t> d = a;
+      h = ew::mix64(h);
+      if (i % 3 == 0) d.resize((size_t)(h % d.size()));
+      else for (int k = 0; k < 1 + (int)(h % 6); k++) d[(size_t)(ew::mix64(h + k) % d.size())] ^= (uint8_t)(1 + (h >> (8 + k)) % 255);
+      party::Party R;
+      if (R.deserialize(d)) { loaded++; std::vector<uint8_t> again; R.serialize(again); }
+    }
+    named(kCases[19]);
+    (void)loaded;
+  }
+  // a parted census companion's death in their own life
+  {
+    const int mi = recruitCensus(g, 5);
+    if (mi >= 0) {
+      const Member m = g.party.members[(size_t)mi];
+      g.partyDismiss(mi);
+      const size_t had = g.party.parted.size(), piles = g.pickups.size(), graves = g.party.fallen.size();
+      life::Census* c = g.life.findMut(m.site);
+      if (c && m.res >= 0 && m.res < (int)c->res.size()) c->res[(size_t)m.res].flags |= life::RF_DEAD;
+      steps(g, 30);
+      if (g.party.partedOf(m.npc, 0, 0) >= 0 || g.party.parted.size() != had - 1 || g.pickups.size() != piles || g.party.fallen.size() != graves)
+        bad(seed, "a parted census companion's death did not remove their record (or left a pile or a grave)");
+      else named(kCases[20]);
+    }
+  }
+  // the 33rd parting
+  {
+    std::vector<party::Parted> keep = g.party.parted;
+    g.party.parted.clear();
+    for (int i = 0; i < party::MAX_PARTED; i++) {
+      party::Parted p;
+      p.m.id = g.party.nextId++; p.m.name = "OLD FRIEND " + std::to_string(i); p.m.npc = 0xF00D0000ull + (uint64_t)i; p.m.res = 0; p.day = i;
+      party::Party::syncParted(p);
+      g.party.parted.push_back(p);
+    }
+    const uint32_t oldest = g.party.parted.front().m.id;
+    const int mi = recruitCensus(g, 6);
+    if (mi >= 0) {
+      const uint32_t id = g.party.members[(size_t)mi].id;
+      g.partyDismiss(mi);
+      bool gone = true;
+      for (const party::Parted& p : g.party.parted) gone &= p.m.id != oldest;
+      if ((int)g.party.parted.size() != party::MAX_PARTED || !gone || g.party.parted.back().m.id != id) bad(seed, "the 33rd parting did not forget the oldest");
+      else named(kCases[21]);
+    }
+    g.party.parted = keep;
+  }
+  // an old save's companion (no IF_KIT on their gear): everything comes back as gifts once; their kit is made at the return
+  {
+    const int mi = recruitCensus(g, 7);
+    if (mi >= 0) {
+      Member& m = g.party.members[(size_t)mi];
+      for (Item& it : m.inv) it.flags = (uint8_t)(it.flags & ~party::IF_KIT);
+      const size_t gearN = gearSeeds(m.inv).size(), packN = gearSeeds(g.inv).size();
+      g.partyDismiss(mi);
+      const bool allBack = gearSeeds(g.inv).size() == packN + gearN;
+      const Actor body = censusBody(g, 7);
+      Actor b2 = body;
+      const int k = g.partyRecruit(b2, party::Origin::Resident);
+      bool ok = allBack && k >= 0 && party::holdsKit(g.party.members[(size_t)k]);
+      if (k >= 0) for (const Item& it : g.party.members[(size_t)k].inv) ok &= !party::isKit(it) || countSeed(g.inv, it.seed) == 0;
+      if (!ok) bad(seed, "an old save's companion: the gear did not all come back, or no (new) kit at the return");
+      else named(kCases[22]);
+      if (k >= 0) g.partyDismiss(k);
+    }
+  }
+}
+
+// ================================================================ the fuzz
+struct Fuzz {
+  std::set<uint32_t> kit;       // every kit seed seen with IF_KIT
+  std::set<uint32_t> retired;   // kit seeds that lost IF_KIT (a death's pile, an old save's gift): never IF_KIT again
+  std::string why;
+  void see(const std::vector<Item>& v, std::map<uint32_t, int>& n, bool mayKit) {
+    for (const Item& it : v) {
+      if (party::slotOf(it.kind) < 0) continue;
+      if (kit.count(it.seed)) n[it.seed]++;
+      if (party::isKit(it)) {
+        if (!mayKit && why.empty()) why = "an IF_KIT item in the hero's pack or on the ground";
+        if (retired.count(it.seed) && why.empty()) why = "a kit was made again (a retired kit seed is IF_KIT again)";
+        if (!kit.count(it.seed)) { kit.insert(it.seed); n[it.seed]++; }
+      } else if (kit.count(it.seed)) retired.insert(it.seed);
+    }
+  }
+  bool check(const Game& g) {
+    std::map<uint32_t, int> n;
+    for (const Member& m : g.party.members) see(m.inv, n, true);
+    for (const party::Parted& p : g.party.parted) see(p.m.inv, n, true);
+    see(g.inv, n, false);
+    std::vector<Item> ground;
+    for (const Pickup& k : g.pickups) if (k.gold == 0) ground.push_back(k.item);
+    see(ground, n, false);
+    for (const auto& e : n) if (e.second > 1 && why.empty()) why = "a kit seed lives twice";
+    return why.empty();
+  }
+};
+
+}  // namespace p3rules
+
+using namespace p3rules;
+
+int partyRulesTests(uint64_t seed) {
+  g_rb = 0;
+  Game g(seed);
+  setup(g, seed);
+  giftsCases(g, seed);
+  kitCapCase(g, seed);
+  returnCases(g, seed);
+  mercCases(g, seed);
+  rollCases(g, seed);
+  return g_rb;
+}
+
+int partyRulesMissing() {
+  int n = 0;
+  for (const char* c : kCases)
+    if (!g_named.count(c)) { out("FAIL: companion: rules: never checked over these seeds: %s\n", c); n++; }
+  out("companion: rules: %zu of %zu cases checked\n", g_named.size(), sizeof(kCases) / sizeof(kCases[0]));
+  return n;
+}
+
+int partyRulesFuzz(uint64_t seed) {
+  g_rb = 0;
+  Game g(seed);
+  setup(g, seed);
+  Rng r(hash32((uint32_t)seed * 0x9E3779B1u ^ 0xF022u));
+  Fuzz F;
+  int ops[9] = {0};
+  const life::Census* c = g.life.census(g.world, g.world.startSite);
+  const int folk = 8;
+  for (int step = 0; step < 160 && F.why.empty(); step++) {
+    const int op = r.irange(9);
+    const int nm = (int)g.party.members.size();
+    const int mi = nm ? r.irange(nm) : -1;
+    const bool with = mi >= 0 && g.party.members[(size_t)mi].state == party::State::With;
+    switch (op) {
+      case 0: case 1: {   // someone joins: new, or back from the roll
+        if (!c) break;
+        Actor a = censusBody(g, r.irange(folk));
+        if (a.resident >= 0 && g.partyRecruit(a, party::Origin::Resident) >= 0) ops[0]++;
+        break;
+      }
+      case 2: case 3: {   // a gift, better or worse (a swap when a gift is worn)
+        if (!with || g.party.members[(size_t)mi].voc == party::Vocation::Hound) break;
+        const Member& m = g.party.members[(size_t)mi];
+        const int s = slotWorn(m);
+        if (s < 0) break;
+        const Item it = makeFor(g, m, s, op == 2 ? 1 : -1, nullptr);
+        g.partyEquip(mi, toPack(g, it));
+        ops[1]++;
+        break;
+      }
+      case 4: {   // take back
+        if (mi < 0) break;
+        g.partyUnequip(mi, r.irange(party::SLOTS));
+        ops[2]++;
+        break;
+      }
+      case 5: {   // dismissed
+        if (!with) break;
+        g.partyDismiss(mi);
+        ops[3]++;
+        break;
+      }
+      case 6: {   // angry (a census friend stays Left; brought round at once so the fuzz goes on)
+        if (!with) break;
+        g.party.members[(size_t)mi].approval = -100;
+        g.deed(party::Deed::KilledInnocent, 0, 3);
+        p3rules::steps(g, 1);
+        for (Member& m : g.party.members) if (m.state == party::State::Left) { m.state = party::State::Home; m.approval = -30; }
+        ops[4]++;
+        break;
+      }
+      case 7: {   // a death where they stand (the hero takes up some of it: the magnet)
+        if (!with || PartyOps::actorOf(g, mi) < 0) break;
+        const int ai = PartyOps::actorOf(g, mi);
+        g.pl().p = g.actors[(size_t)ai].p + Vec2(r.irange(2) ? 10.0f : 90.0f, 0);
+        PartyOps::dieForGood(g, mi, "FUZZ");
+        p3rules::steps(g, 40);
+        ops[5]++;
+        break;
+      }
+      default: {   // time, levels, the ground's 240 s
+        g.plLevel = std::min(60, g.plLevel + r.irange(3));
+        if (r.irange(4) == 0) g.day++;
+        p3rules::steps(g, 3);
+        break;
+      }
+    }
+    p3rules::steps(g, 1);
+    if (!F.check(g)) bad(seed, "fuzz step " + std::to_string(step) + " (op " + std::to_string(op) + "): " + F.why);
+  }
+  // the roll through a save and a load, and the invariant on the loaded game
+  {
+    std::vector<uint8_t> a;
+    g.serialize(a);
+    Game h(1);
+    if (!h.deserialize(a)) bad(seed, "fuzz: the save did not load");
+    else if (!F.check(h)) bad(seed, "fuzz: after a load: " + F.why);
+  }
+  out("companion: rules fuzz: seed %llu: %d joins, %d gifts, %d take-backs, %d dismissals, %d angry, %d deaths; %zu kit seeds, %zu parted%s\n",
+      (unsigned long long)seed, ops[0], ops[1], ops[2], ops[3], ops[4], ops[5], F.kit.size(), g.party.parted.size(), g_rb ? "" : ": each kit seed lives once, no IF_KIT in the pack or on the ground");
+  return g_rb;
+}

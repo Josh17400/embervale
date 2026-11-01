@@ -239,7 +239,7 @@ struct PartyOps {
   static void dropActor(Game& g, int mi);              // the member's body leaves play (the record stays)
   static life::Resident* resident(Game& g, const party::Member& m);
   static void alert(Game& g, int mi, int kind, const std::string& s);
-  static void kit(Game& g, party::Member& m, int level);
+  static void kit(Game& g, party::Member& m, int level, uint32_t salt = 0);   // (P3) salt: a remade kit (old saves) is new
   static void body(Game& g, const party::Member& m, Actor& a);
   static bool baseLook(Game& g, const party::Member& m, art::HumanLook& out);   // (fixer M8 r1) street look, before gear
   static void fixLook(Game& g, party::Member& m);      // Member::look fixed once their census has dressed them
