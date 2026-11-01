@@ -12,6 +12,18 @@
 #include "rpg/sim/skills.h"
 #include "rpg/sim/loot_ops.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/view/scripts, tools/preview/rig_gallery.cpp, tools/tests):
+//     TAG_DOZE, buyMul, choose, cooked, damage, detectMul, dodged, drawMul, farmed, fedMul, findActor, forged,
+//     harvestBonus, horseMul, keepSaddle, knockMul, loot, losesTrail, mealHeal, preStrike, produceMul, projectiles,
+//     rainMaker, reachAdd, recalc, respec, respecCost, rollCostMul, rollMul, rolled, secondHelping, setLevel,
+//     shootArrow, shopStock, spawnMonster, spawnPerson, speedMul, stableFee, staminaRegenMul, strikeMul, struck,
+//     studyMul, swing, swingCost, swingShape, swingTime, takePerk, taken, takenMul, talk, teaches, traded,
+//     trainCost, unstaggerable.
+//   the view (shop_ui.cpp):
+//     sellMul.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct SkillOps {
   // ---- the one doorway for gains (Game::skillUse calls it): `base` use points of an act of skill s (1 = one ordinary
   //      act); levels, the slowing curve, the character XP of a skill-up (gainXp), Ev::Skill for the view

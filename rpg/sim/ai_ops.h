@@ -5,6 +5,8 @@
 #pragma once
 #include "rpg/sim/game.h"
 
+// API (SOLID 5.6): no stable test/script API. Every member is internal to the lane: only rpg/sim and rpg/story
+// call it (tests and scripts go through Game's public members), and it may change with the lane.
 struct AiOps {
   static void heavySlam(Game& g, Actor& a);
   static void updateTownDefence(Game& g, float dt);

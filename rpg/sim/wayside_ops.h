@@ -3,6 +3,8 @@
 #pragma once
 #include "rpg/sim/game.h"
 
+// API (SOLID 5.6): no stable test/script API. Every member is internal to the lane: only rpg/sim and rpg/story
+// call it (tests and scripts go through Game's public members), and it may change with the lane.
 struct WaysideOps {
   // M2 wayside: the toll a troll bridge asks (10-25 gold; Game::tollPaid: whether the player may cross it today)
   static int tollOf(const Game& g, int site);

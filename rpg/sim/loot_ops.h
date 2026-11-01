@@ -6,6 +6,11 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/quest_ops.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/app, tools/tests):
+//     chestSource, completeQuest, dropLoot, giveFirstWeapon, openChest, shopSrc, shopStock.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct LootOps {
   static void dropLoot(Game& g, const Actor& a);   // kill(): the loot a fallen actor drops (game_items.cpp)
   static void openChest(Game& g, int tx, int ty);   // interact(): a chest of the current map opened (game_items.cpp)

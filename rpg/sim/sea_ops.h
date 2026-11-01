@@ -31,6 +31,15 @@
 #include "rpg/sim/sea.h"
 #include "rpg/world/source.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/view/scripts, tools/save_test.cpp, tools/tests):
+//     background, beginStorm, beginVoyage, board, boatNear, buyBoat, castLine, chainPlaces, choose, disembark,
+//     findActor, fishItem, giveBoat, heroGx, heroGy, hurtBoat, landing, moorStart, passable, questDone,
+//     seaQuestStep, spawnPirates, spawnSwimmer, talk, tellOfLand.
+//   the view (hud_layout.h, render_sea.cpp):
+//     aboardBoat, interactLabel.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct SeaOps {
   // ---- the hooks
   static bool input(Game& g, const Input& in, float dt);
