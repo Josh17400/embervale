@@ -33,6 +33,7 @@
 #include "engine/pix.h"
 #include "rpg/art.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_look_fields.h"
 
 namespace {
 bool g_verbose = false;
@@ -79,39 +80,11 @@ struct Cat {
 // pre-M0 enum sizes
 constexpr int kOutfits = 10, kHairs = 6, kMonsters = 16, kProps = 74, kBuildings = 10, kIcons = 35, kFx = 12;
 
-// (P2c flip) a hash_looks.txt field: the doll's looks fields (doll::applyLookField), then the ladder fields art_hash reads
-// itself (the sim's macros are not linked here; the specs are already expanded)
+// (P2c flip) a hash_looks.txt field: the doll's looks fields (doll::applyLookField), then the ladder fields (SOLID 5.4: the
+// one setter the gear ladder uses too, doll::applyLadderLookField; the sim's macros are not linked here, the specs are
+// already expanded)
 bool hashLookField(art::HumanLook& L, const std::string& k, const std::string& v) {
-  if (art::doll::applyLookField(L, k, v)) return true;
-  const long long n = std::strtoll(v.c_str(), nullptr, 0);
-  auto col = [&]() {
-    std::string s = v;
-    if (!s.empty() && s[0] == '#') s = s.substr(1);
-    const uint32_t x = (uint32_t)std::strtoul(s.c_str(), nullptr, 16);
-    return rgba((int)(x >> 16 & 255), (int)(x >> 8 & 255), (int)(x & 255));
-  };
-  static const char* const kTier[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
-  static const char* const kForge[8] = {"forgeBody", "forgeHelm", "forgeShield", "forgeWeapon", "forgeGloves", "forgeBoots", "forgeCloak", "forgeBack"};
-  for (int s = 0; s < 8; s++) {
-    if (k == kTier[s]) { L.tier[s] = (uint8_t)(n < 0 ? 0 : n > 6 ? 6 : n); return true; }
-    if (k == kForge[s]) { L.forge[s] = std::strtoull(v.c_str(), nullptr, 0); return true; }
-  }
-  if (k == "rare") L.rare = (decltype(L.rare))n;
-  else if (k == "mythic") L.mythic = (decltype(L.mythic))n;
-  else if (k == "metalKind") L.metalKind = (decltype(L.metalKind))n;
-  else if (k == "bladeKind") L.bladeKind = (decltype(L.bladeKind))n;
-  else if (k == "motif") L.motif = (decltype(L.motif))n;
-  else if (k == "kitVar") L.kitVar = (decltype(L.kitVar))n;
-  else if (k == "floor") L.floor = (decltype(L.floor))n;
-  else if (k == "alloyFam") L.alloyFam = (decltype(L.alloyFam))n;
-  else if (k == "gemColor") L.gemColor = col();
-  else if (k == "king") L.king = (decltype(L.king))n;
-  else if (k == "forgeKit") L.forgeKit = (decltype(L.forgeKit))n;
-  else if (k == "alloyRank") L.alloyRank = (decltype(L.alloyRank))n;
-  else if (k == "forgeGuise") L.forgeGuise = (decltype(L.forgeGuise))n;
-  else if (k == "forgeShape") L.forgeShape = (decltype(L.forgeShape))std::strtoull(v.c_str(), nullptr, 0);
-  else return false;
-  return true;
+  return art::doll::applyLookField(L, k, v) || art::doll::applyLadderLookField(L, k, v);
 }
 struct HashLook { std::string tag; art::HumanLook L; };
 // tools/doll/hash_looks.txt: `tag who spec` per line (# comments); every field must be read, or the run fails (exit 2)

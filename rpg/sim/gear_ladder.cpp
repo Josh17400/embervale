@@ -10,6 +10,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/art/doll/doll_look_fields.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
@@ -715,34 +716,11 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
   for (const KV& kv : tiers) {
     const int n = (int)std::strtol(kv.v.c_str(), nullptr, 0);
     using H = art::HumanLook;
-    static const char* const kSlot[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
-    bool done = false;
     if (kv.k == "tier") {
       // every slot the look wears takes n (the census's rule: rankTiers), keeping the metal it has
       for (uint8_t& t : L.tier) t = 0;
       rankTiers(L, n, false);
-      done = true;
-    }
-    for (int s = 0; s < 8 && !done; s++)
-      if (kv.k == kSlot[s]) { L.tier[s] = (uint8_t)std::clamp(n, 0, 6); done = true; }
-    if (!done) {
-      if (kv.k == "rare") L.rare = (uint8_t)n;
-      else if (kv.k == "mythic") L.mythic = (uint8_t)n;
-      else if (kv.k == "metalKind") L.metalKind = (uint8_t)n;
-      else if (kv.k == "bladeKind") L.bladeKind = (uint8_t)n;
-      else if (kv.k == "motif") L.motif = (uint8_t)n;
-      else if (kv.k == "kitVar") L.kitVar = (uint8_t)n;
-      else if (kv.k == "floor") L.floor = (uint8_t)n;
-      else if (kv.k == "alloyFam") L.alloyFam = (uint8_t)n;
-      else if (kv.k == "forgeKit") L.forgeKit = (uint8_t)n;
-      else if (kv.k == "alloyRank") L.alloyRank = (uint8_t)n;
-      else if (kv.k == "forgeGuise") L.forgeGuise = (uint16_t)n;
-      else if (kv.k == "king") L.king = (uint8_t)n;   // (D96)
-      else if (kv.k == "gemColor") {
-        const uint32_t rgb = (uint32_t)std::strtoul(kv.v.c_str() + (!kv.v.empty() && kv.v[0] == '#' ? 1 : 0), nullptr, 16);
-        L.gemColor = kv.v == "0" ? 0u : hexc(rgb);
-      } else addBad(kv.k);
-    }
+    } else if (!art::doll::applyLadderLookField(L, kv.k, kv.v)) addBad(kv.k);   // (SOLID 5.4) the one ladder setter, shared with art_hash
     (void)H::TIER_BODY;
   }
   // (P2c forge, contracts 3c) the forge macros, last: mat= (the kit's armour re-materialled: cloth padded, leather leather, the
@@ -851,14 +829,8 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       bool any = false;
       for (uint8_t x : sv) any |= x != 0;
       L.forgeShape = any ? FG::packShapeAxes(sv) : 0u;
-    } else if (kv.k == "forgeShape") {
-      L.forgeShape = (uint32_t)std::strtoul(kv.v.c_str(), nullptr, 0);
-    } else {
-      static const char* const kSlot[8] = {"forgeBody", "forgeHelm", "forgeShield", "forgeWeapon", "forgeGloves", "forgeBoots", "forgeCloak", "forgeBack"};
-      bool done = false;
-      for (int sl = 0; sl < 8; sl++)
-        if (kv.k == kSlot[sl]) { L.forge[sl] = std::strtoull(kv.v.c_str(), nullptr, 0); done = true; }
-      if (!done) addBad(kv.k);
+    } else if (!art::doll::applyLadderLookField(L, kv.k, kv.v)) {   // forgeShape, forgeBody..forgeBack: the one ladder setter
+      addBad(kv.k);
     }
   }
 }

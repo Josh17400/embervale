@@ -69,14 +69,26 @@ int archChecks(uint64_t seed);
 //        static int myCmd(int argc, char** argv) { ...; return failures ? 1 : 0; }
 //        RPG_TEST_CMD("--endless", "endless generator checks [--seeds A..B]", myCmd);
 //      `rpg_test --endless [args]` then runs myCmd with the full argv (main.cpp checks the registry first).
-//      `rpg_test --help` lists every command.
+//      `rpg_test --help` lists every command with its kind; `rpg_test --list-ci` prints the CI list (main.cpp's kCiList,
+//      one "rpg_test <args>" / "save_test" per line, equal to tools/gates/ci_cmds.sh's extract of web.yml; CI diffs the two).
+// (SOLID 5.4) what a command is for. Gate: a pass/fail check (nonzero exit on any FAIL; CI or the gate harness runs it).
+// Report: numbers for a reader, never gated. Tool: a debugging dump or a file writer. A command registers as a Gate
+// unless main.cpp's kKinds names it (testKindOf), so a new check needs no edit there; a new report or tool adds one row.
+enum class TestKind : uint8_t { Gate, Report, Tool };
 struct TestCmd {
   const char* flag;
   const char* help;
   int (*run)(int argc, char** argv);
+  TestKind kind = TestKind::Gate;
 };
+TestKind testKindOf(const char* flag);
+const char* testKindName(TestKind k);
 std::vector<TestCmd>& testCmds();
-inline int registerTestCmd(const TestCmd& c) { testCmds().push_back(c); return (int)testCmds().size(); }
+inline int registerTestCmd(TestCmd c) {
+  c.kind = testKindOf(c.flag);
+  testCmds().push_back(c);
+  return (int)testCmds().size();
+}
 #define RPG_TEST_CAT2(a, b) a##b
 #define RPG_TEST_CAT(a, b) RPG_TEST_CAT2(a, b)
 #define RPG_TEST_CMD(flag, help, fn) static const int RPG_TEST_CAT(rpgTestReg_, __LINE__) = registerTestCmd(TestCmd{flag, help, fn})

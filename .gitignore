@@ -17,5 +17,8 @@ tools/witness_web/node_modules/
 /--*/
 /.claude/worktrees/
 .tmp/
-tools/witness_web/package.json
 tools/witness_web/package-lock.json
+
+# (SOLID 5.4) Python caches and the alloy tool's local state; tools/witness_web/package.json is tracked (its lock is not)
+__pycache__/
+tools/doll/alloys/state.pkl
