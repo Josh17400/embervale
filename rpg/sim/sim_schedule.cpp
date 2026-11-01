@@ -29,6 +29,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/foe_hooks.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -150,7 +151,7 @@ void Game::update(float dt, const Input& in) {
   timed(PC::S_STORY, [&] { storyStep(dt); });   // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)
   timed(PC::S_LIFESTEP, [&] { LifeHooks::step(*this, dt); }); // M5: the townsfolk's actors by their plans (life_game.cpp, TOWNSFOLK lane)
   timed(PC::S_RAID, [&] { LifeHooks::raidStep(*this, dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
-  timed(PC::S_FOE, [&] { foeStep(dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
+  timed(PC::S_FOE, [&] { FoeHooks::step(*this, dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
   timed(PC::S_HOME, [&] { HomeOps::step(*this, dt); });     // M7: the player's plots, crops, animals, building, riding (home_game.cpp)
   timed(PC::S_PARTY, [&] { PartyOps::step(*this, dt); });   // M8: companions, deeds, the downed, graves, banter (party_game.cpp)
   timed(PC::S_LIFETICK, [&] { life.tick(*this, dt); });   // M5: needs, plans, stock and moods in aggregate (life.cpp)

@@ -28,6 +28,7 @@
 #include "rpg/story/story.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/foe_hooks.h"
 
 using art::Monster;
 using art::Prop;
@@ -231,7 +232,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     }
   }
   // ---- 8. the lanes' multipliers: foes (M6), the party (M8), the armour skills (M9), magic's statuses (M9)
-  dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
+  dmg = FoeHooks::hit(*this, v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
   dmg = PartyOps::hit(*this, v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
   if (v.player) dmg = SkillOps::takenMul(*this, attacker, dmg);   // M9: the worn armour class, perks (skills_game.cpp)
   dmg = MagicOps::hurtMul(*this, v, dmg, attacker, ench);         // M9: statuses and wards (magic_game.cpp)
@@ -435,7 +436,7 @@ void Game::kill(Actor& a, int killer) {
     }
   }
   PartyOps::killed(*this, a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
-  foeKilled(a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
+  FoeHooks::killed(*this, a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
   dropLoot(a);
   // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow
   // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own

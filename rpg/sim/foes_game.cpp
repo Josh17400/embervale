@@ -31,6 +31,7 @@
 #include <system_error>
 #include <thread>
 #include <tuple>
+#include "rpg/sim/foe_hooks.h"
 #endif
 
 using FAffix = foes::Affix;
@@ -319,20 +320,20 @@ struct FoeOps {
 };
 bool FoeOps::suppress = false;
 
-void Game::foeSpawned(Actor& a, int D) {
+void FoeHooks::spawned(Game& g, Actor& a, int D) {
   if (!a.human && a.mon == art::Monster::Golem) a.armor = a.armor * 2.0f + 4.0f;   // stone: blades skid off it
   if (FoeOps::suppress || a.npc || a.player) return;
   if (a.boss) {
     if (!a.human && a.mon != art::Monster::Dragon) { a.rank = (uint8_t)Rank::Boss; a.dropD = std::max(1, D); }
     return;
   }
-  if (noWildSpawns) return;   // the arenas and the quiet suites: every foe plain, as in M5
-  const int eco = FoeOps::ecoAt(*this, a.p);
-  const uint64_t h = FoeOps::spawnHash(*this, a);
+  if (g.noWildSpawns) return;   // the arenas and the quiet suites: every foe plain, as in M5
+  const int eco = FoeOps::ecoAt(g, a.p);
+  const uint64_t h = FoeOps::spawnHash(g, a);
   if (!a.human && D >= foes::CHAMPION_MIN_D) {
     uint16_t aff = 0;
     int pid = 0;
-    const uint64_t pk = FoeOps::packKey(*this, a);
+    const uint64_t pk = FoeOps::packKey(g, a);
     if (foes::championPack(pk, D, a.mon, false, aff, pid)) {
       FoeOps::applyRank(a, Rank::Champion, aff, D, eco, (uint32_t)pk);
       a.pack = pid;
@@ -344,77 +345,77 @@ void Game::foeSpawned(Actor& a, int D) {
   if (r.rank == Rank::Elite) FoeOps::applyRank(a, Rank::Elite, r.affixes, D, eco, (uint32_t)h);
 }
 
-float Game::foeHit(Actor& victim, float dmg, int attacker) {
+float FoeHooks::hit(Game& g, Actor& victim, float dmg, int attacker) {
   if (dmg <= 0) return dmg;
   // a boss behind its shield (the shield phase)
   if (!victim.player && victim.bossPhase > 0 && victim.affixT2 > 0 && (victim.boss || victim.rank == (uint8_t)Rank::WorldBoss)) {
     dmg *= 0.15f;
-    emit(Ev::Sparkle, victim.p + Vec2(0, -10));
+    g.emit(Ev::Sparkle, victim.p + Vec2(0, -10));
   }
   // warded: a ward-bearer within 5 tiles halves the blow on its allies (not on itself)
   if (!victim.player && victim.hostile) {
-    for (const Actor& w : actors) {
+    for (const Actor& w : g.actors) {
       if (w.id == victim.id || w.st == AState::Dead || !(w.affixes & affixBit(FAffix::Warded)) || w.faction != victim.faction) continue;
       if (len2(w.p - victim.p) > (5.0f * TILE) * (5.0f * TILE)) continue;
       dmg *= 0.5f;
-      emit(Ev::Sparkle, victim.p + Vec2(0, -8));
+      g.emit(Ev::Sparkle, victim.p + Vec2(0, -8));
       break;
     }
   }
   if (attacker >= 0 && attacker != victim.id) {
-    const int ai = findActor(attacker);
+    const int ai = g.findActor(attacker);
     if (ai > 0) {
-      Actor& at = actors[(size_t)ai];
+      Actor& at = g.actors[(size_t)ai];
       if (at.st != AState::Dead && has(at, FAffix::Vampiric)) {
         const float heal = dmg * 0.3f;
-        if (at.hp < at.maxHp) { at.hp = std::min(at.maxHp, at.hp + heal); emit(Ev::Heal, at.p); }
+        if (at.hp < at.maxHp) { at.hp = std::min(at.maxHp, at.hp + heal); g.emit(Ev::Heal, at.p); }
       }
-      if (has(at, FAffix::Frostbound) && !(victim.player && godMode)) {
+      if (has(at, FAffix::Frostbound) && !(victim.player && g.godMode)) {
         victim.slowT = std::max(victim.slowT, 1.6f);
-        emit(Ev::Frost, victim.p);
+        g.emit(Ev::Frost, victim.p);
       }
     }
   }
   return dmg;
 }
 
-void Game::foeKilled(const Actor& a, int killer) {
+void FoeHooks::killed(Game& g, const Actor& a, int killer) {
   if (!a.unique || a.player) return;
-  const bool byPlayer = killer == pl().id;
+  const bool byPlayer = killer == g.pl().id;
   int32_t gx = 0, gy = 0;
-  if (!inside) { gx = world.ox + (int)std::floor(a.p.x / TILE); gy = world.oy + (int)std::floor(a.p.y / TILE); }
-  else FoeOps::playerGlobal(*this, gx, gy);
+  if (!g.inside) { gx = g.world.ox + (int)std::floor(a.p.x / TILE); gy = g.world.oy + (int)std::floor(a.p.y / TILE); }
+  else FoeOps::playerGlobal(g, gx, gy);
   if (a.rank == (uint8_t)Rank::Named) {
-    marks[markKey(a.unique, mk(foes::MK_FOES_NAMED_SLAIN))] = std::max(1, day);
-    realm.beastSlain((uint8_t)a.mon, gx, gy, day, (uint8_t)Rank::Named, byPlayer);
+    g.marks[markKey(a.unique, mk(foes::MK_FOES_NAMED_SLAIN))] = std::max(1, g.day);
+    g.realm.beastSlain((uint8_t)a.mon, gx, gy, g.day, (uint8_t)Rank::Named, byPlayer);
     if (byPlayer) {
-      realm.renown().fame += 10;
-      emit(Ev::Notice, a.p, (int)rgba(255, 210, 90), 0, a.name + " IS SLAIN  +10 FAME");
-      sfx((int)Sfx::QuestDone, a.p, 0.9f);
+      g.realm.renown().fame += 10;
+      g.emit(Ev::Notice, a.p, (int)rgba(255, 210, 90), 0, a.name + " IS SLAIN  +10 FAME");
+      g.sfx((int)Sfx::QuestDone, a.p, 0.9f);
     }
   } else if (a.rank == (uint8_t)Rank::WorldBoss) {
-    marks[markKey(a.unique, mk(foes::MK_FOES_BOSS_SLAIN))] = std::max(1, day);
-    realm.lairSlain(a.unique, day);   // (M12) its lair raids no more
-    realm.beastSlain((uint8_t)a.mon, gx, gy, day, (uint8_t)Rank::WorldBoss, byPlayer);
+    g.marks[markKey(a.unique, mk(foes::MK_FOES_BOSS_SLAIN))] = std::max(1, g.day);
+    g.realm.lairSlain(a.unique, g.day);   // (M12) its lair raids no more
+    g.realm.beastSlain((uint8_t)a.mon, gx, gy, g.day, (uint8_t)Rank::WorldBoss, byPlayer);
     if (byPlayer) {
-      realm.renown().fame += 40;
-      emit(Ev::Notice, a.p, (int)rgba(255, 190, 60), 0, a.name + " HAS FALLEN!  +40 FAME");
-      emit(Ev::Shake, a.p, 0, 6.0f);
-      sfx((int)Sfx::Roar, a.p, 0.6f);
+      g.realm.renown().fame += 40;
+      g.emit(Ev::Notice, a.p, (int)rgba(255, 190, 60), 0, a.name + " HAS FALLEN!  +40 FAME");
+      g.emit(Ev::Shake, a.p, 0, 6.0f);
+      g.sfx((int)Sfx::Roar, a.p, 0.6f);
     }
   }
 }
 
-void Game::foeStep(float dt) {
+void FoeHooks::step(Game& gm, float dt) {
   if (dt <= 0) return;
   std::vector<SpawnReq> reqs;
-  Actor& P0 = pl();
+  Actor& P0 = gm.pl();
   const Vec2 pp = P0.p;
   const bool plAlive = P0.st != AState::Dead;
   // ---- the actors
-  const size_t n0 = actors.size();
+  const size_t n0 = gm.actors.size();
   for (size_t i = 1; i < n0; i++) {
-    Actor& a = actors[i];
+    Actor& a = gm.actors[i];
     if (a.npc) continue;
     // ranks staged by a script (`elite`): the multipliers and the look the spawn would have given
     if (a.rank && !a.dropD && a.st != AState::Dead && a.rank != (uint8_t)Rank::Boss) {
@@ -424,7 +425,7 @@ void Game::foeStep(float dt) {
       // (M6 fixer) a name the script gave a named unique or a world boss stands (it is what the plate is checked for)
       const std::string given = a.name != monsterName(a.mon) && (a.rank == (uint8_t)Rank::Named || a.rank == (uint8_t)Rank::WorldBoss) ? a.name : std::string();
       a.affixes = 0;
-      FoeOps::applyRank(a, (Rank)a.rank, aff, std::max(1, a.level), FoeOps::ecoAt(*this, a.p), (uint32_t)a.id * 2654435761u);
+      FoeOps::applyRank(a, (Rank)a.rank, aff, std::max(1, a.level), FoeOps::ecoAt(gm, a.p), (uint32_t)a.id * 2654435761u);
       a.overlays |= ov;
       if (tint) a.bodyTint = tint;
       if (!given.empty()) a.name = given;
@@ -439,24 +440,24 @@ void Game::foeStep(float dt) {
           r.home = a.home; r.level = std::max(1, a.level - 1); r.wild = a.wild; r.den = a.den;
           reqs.push_back(r);
         }
-        emit(Ev::Dust, a.p);
-        emit(Ev::Text, a.p + Vec2(0, -20), (int)foes::affixInfo(FAffix::Splitting).aura, 0, "SPLITS!");
+        gm.emit(Ev::Dust, a.p);
+        gm.emit(Ev::Text, a.p + Vec2(0, -20), (int)foes::affixInfo(FAffix::Splitting).aura, 0, "SPLITS!");
       }
       if (has(a, FAffix::Volatile)) {
         if (a.stT < 1.0f) {
-          if (a.stT <= dt + 1e-4f) emit(Ev::Text, a.p + Vec2(0, -22), (int)rgba(255, 200, 60), 0, "!!");
-          if (crossed(a.stT, dt, 0.2f)) { emit(Ev::Sparkle, a.p + Vec2(0, -6)); sfx((int)Sfx::Fireball, a.p, 2.0f, 0.35f); }
+          if (a.stT <= dt + 1e-4f) gm.emit(Ev::Text, a.p + Vec2(0, -22), (int)rgba(255, 200, 60), 0, "!!");
+          if (crossed(a.stT, dt, 0.2f)) { gm.emit(Ev::Sparkle, a.p + Vec2(0, -6)); gm.sfx((int)Sfx::Fireball, a.p, 2.0f, 0.35f); }
         } else {
           a.affixes &= (uint16_t)~affixBit(FAffix::Volatile);
-          emit(Ev::Explode, a.p, 0, 1.3f);
-          emit(Ev::Shake, a.p, 0, 3.5f);
-          sfx((int)Sfx::Explode, a.p, 0.9f);
+          gm.emit(Ev::Explode, a.p, 0, 1.3f);
+          gm.emit(Ev::Shake, a.p, 0, 3.5f);
+          gm.sfx((int)Sfx::Explode, a.p, 0.9f);
           const float r = 36.0f;
-          for (size_t k = 0; k < actors.size(); k++) {
-            Actor& v = actors[k];
+          for (size_t k = 0; k < gm.actors.size(); k++) {
+            Actor& v = gm.actors[k];
             if (v.st == AState::Dead || v.id == a.id || !(v.player || v.npc) || !factionsHostile(a.faction, v.faction)) continue;
             if (len2(v.p - a.p) > r * r) continue;
-            damage(v, a.dmg * 1.6f, a.p, -1);
+            gm.damage(v, a.dmg * 1.6f, a.p, -1);
           }
         }
       }
@@ -507,28 +508,28 @@ void Game::foeStep(float dt) {
             for (int k = 0; k < 7; k++) {
               const float an = (float)k * (TAU / 7.0f) + (float)phaseIdx;
               const float rr = k == 0 ? 0.0f : 30.0f + (float)(k % 3) * 12.0f;
-              FoeOps::dropRune(*this, pp + Vec2(std::cos(an) * rr, std::sin(an) * rr * 0.7f), a.dmg * 0.35f, a.id);
+              FoeOps::dropRune(gm, pp + Vec2(std::cos(an) * rr, std::sin(an) * rr * 0.7f), a.dmg * 0.35f, a.id);
             }
             break;
           }
           case foes::Phase::Shield:
             what = "RAISES A WARD!";
             a.affixT2 = 5.0f;
-            sfx((int)Sfx::Block, a.p, 0.6f);
+            gm.sfx((int)Sfx::Block, a.p, 0.6f);
             break;
           default: break;
         }
-        emit(Ev::Text, a.p + Vec2(0, -(34.0f + a.radius * 1.5f)), (int)kBossCol, 0, what);   // (fixer r4) over its head, not its body
-        emit(Ev::Shake, a.p, 0, 4.0f);
-        sfx((int)Sfx::Roar, a.p, 0.8f + 0.1f * (float)phaseIdx);
-        if (len2(a.p - pp) < (22.0f * TILE) * (22.0f * TILE)) emit(Ev::Notice, pp, (int)kBossCol, 0, a.name + " " + what);
+        gm.emit(Ev::Text, a.p + Vec2(0, -(34.0f + a.radius * 1.5f)), (int)kBossCol, 0, what);   // (fixer r4) over its head, not its body
+        gm.emit(Ev::Shake, a.p, 0, 4.0f);
+        gm.sfx((int)Sfx::Roar, a.p, 0.8f + 0.1f * (float)phaseIdx);
+        if (len2(a.p - pp) < (22.0f * TILE) * (22.0f * TILE)) gm.emit(Ev::Notice, pp, (int)kBossCol, 0, a.name + " " + what);
       }
     }
     // ---- a champion pack made whole: three that share their affixes (the rest of a den's pack stays with them)
     if (a.pack > 0 && a.affixT2 < 0) {
       int members = 0;
       for (size_t k = 1; k < n0; k++) {
-        Actor& o = actors[k];
+        Actor& o = gm.actors[k];
         if (o.pack != a.pack || o.st == AState::Dead) continue;
         members++;
         o.affixT2 = 0;
@@ -537,7 +538,7 @@ void Game::foeStep(float dt) {
         SpawnReq r;
         r.kind = Req::Mate; r.mon = a.mon; r.p = a.p + Vec2((float)(k - 1) * 14.0f, (float)(k % 2) * 10.0f - 5.0f);
         r.home = a.home; r.level = a.level; r.wild = a.wild; r.den = a.den; r.pack = a.pack; r.affixes = a.affixes;
-        r.eco = FoeOps::ecoAt(*this, a.p); r.aggro = a.aggro;
+        r.eco = FoeOps::ecoAt(gm, a.p); r.aggro = a.aggro;
         reqs.push_back(r);
       }
     }
@@ -550,11 +551,11 @@ void Game::foeStep(float dt) {
     const float t = a.affixT;
     const float pd2 = len2(pp - a.p);
     if (has(a, FAffix::Summoner)) {
-      if (std::fmod(t, 12.0f) > 11.2f && crossed(t, dt, 0.2f)) emit(Ev::Sparkle, a.p + Vec2(0, -12));
+      if (std::fmod(t, 12.0f) > 11.2f && crossed(t, dt, 0.2f)) gm.emit(Ev::Sparkle, a.p + Vec2(0, -12));
       if (crossed(t, dt, 12.0f)) {
         int near = 0;
         for (size_t k = 1; k < n0; k++) {
-          const Actor& o = actors[k];
+          const Actor& o = gm.actors[k];
           if (o.st != AState::Dead && o.mon == foes::minionOf(a.mon) && o.id != a.id && !o.rank && len2(o.p - a.p) < (8.0f * TILE) * (8.0f * TILE)) near++;
         }
         if (near < 4) {
@@ -565,8 +566,8 @@ void Game::foeStep(float dt) {
             r.home = a.home; r.level = std::max(1, a.level - 2); r.wild = a.wild; r.den = -1;
             reqs.push_back(r);
           }
-          emit(Ev::Text, a.p + Vec2(0, -24), (int)foes::affixInfo(FAffix::Summoner).aura, 0, "SUMMONS!");
-          sfx((int)Sfx::Frost, a.p, 0.6f);
+          gm.emit(Ev::Text, a.p + Vec2(0, -24), (int)foes::affixInfo(FAffix::Summoner).aura, 0, "SUMMONS!");
+          gm.sfx((int)Sfx::Frost, a.p, 0.6f);
         }
       }
     }
@@ -576,59 +577,59 @@ void Game::foeStep(float dt) {
       Vec2 behind = pp + back * 22.0f;
       const Vec2 alts[] = {back, norm(back + Vec2(-back.y, back.x)), norm(back - Vec2(-back.y, back.x)), Vec2(-back.y, back.x), Vec2(back.y, -back.x)};
       for (const Vec2& d : alts)
-        if (bodyFree(pp + d * 22.0f, a.radius, a.flying)) { behind = pp + d * 22.0f; break; }
+        if (gm.bodyFree(pp + d * 22.0f, a.radius, a.flying)) { behind = pp + d * 22.0f; break; }
       const float ph = std::fmod(t, 6.0f);
-      if (ph > 5.3f && crossed(t, dt, 0.15f)) emit(Ev::Sparkle, behind + Vec2(0, -6));
-      if (crossed(t, dt, 6.0f) && bodyFree(behind, a.radius, a.flying)) {
-        emit(Ev::Sparkle, a.p + Vec2(0, -8));
+      if (ph > 5.3f && crossed(t, dt, 0.15f)) gm.emit(Ev::Sparkle, behind + Vec2(0, -6));
+      if (crossed(t, dt, 6.0f) && gm.bodyFree(behind, a.radius, a.flying)) {
+        gm.emit(Ev::Sparkle, a.p + Vec2(0, -8));
         a.p = behind;
         a.knock = Vec2();
         a.aim = norm(pp - a.p);
         a.face = faceOf(a.aim);
         a.atkCd = std::min(a.atkCd, 0.25f);
-        emit(Ev::Sparkle, a.p + Vec2(0, -8));
-        sfx((int)Sfx::Frost, a.p, 1.6f, 0.6f);
+        gm.emit(Ev::Sparkle, a.p + Vec2(0, -8));
+        gm.sfx((int)Sfx::Frost, a.p, 1.6f, 0.6f);
       }
     }
     if (has(a, FAffix::Burning) && a.st == AState::Walk && crossed(t, dt, 0.35f))
-      FoeOps::dropFire(*this, a.p, std::max(2.0f, a.dmg * 0.25f), a.id, 2.6f);
+      FoeOps::dropFire(gm, a.p, std::max(2.0f, a.dmg * 0.25f), a.id, 2.6f);
   }
   // ---- fire on the ground: it burns the player who stands in it; it fades out quietly (never bursts)
-  for (size_t k = 0; k < projs.size();) {
-    Projectile& pr = projs[k];
+  for (size_t k = 0; k < gm.projs.size();) {
+    Projectile& pr = gm.projs[k];
     if (FoeOps::isRune(pr)) {
       if (pr.life <= dt * 1.5f) {   // the rune flares into fire
         pr.kind = ProjKind::Fireball; pr.life = 3.2f; pr.radius = 6;
-        emit(Ev::Explode, pr.p, 0, 0.5f);
+        gm.emit(Ev::Explode, pr.p, 0, 0.5f);
       }
       k++;
       continue;
     }
     if (!FoeOps::isFire(pr)) { k++; continue; }
-    if (pr.life <= dt * 1.5f) { projs.erase(projs.begin() + (std::ptrdiff_t)k); continue; }
-    if (plAlive && len2(pl().p + Vec2(0, -6) - pr.p) < (pr.radius + 5.0f) * (pr.radius + 5.0f) && pl().iframes <= 0)
-      damage(pl(), pr.dmg, pr.p, -1, Ench::Fire, 1.0f);
+    if (pr.life <= dt * 1.5f) { gm.projs.erase(gm.projs.begin() + (std::ptrdiff_t)k); continue; }
+    if (plAlive && len2(gm.pl().p + Vec2(0, -6) - pr.p) < (pr.radius + 5.0f) * (pr.radius + 5.0f) && gm.pl().iframes <= 0)
+      gm.damage(gm.pl(), pr.dmg, pr.p, -1, Ench::Fire, 1.0f);
     k++;
   }
   // ---- what the step queued
   for (const SpawnReq& r : reqs) {
-    const int id = FoeOps::spawnPlain(*this, r.mon, r.p, r.level);
-    const int i = findActor(id);
+    const int id = FoeOps::spawnPlain(gm, r.mon, r.p, r.level);
+    const int i = gm.findActor(id);
     if (i < 0) continue;
-    Actor& m = actors[(size_t)i];
+    Actor& m = gm.actors[(size_t)i];
     m.home = r.home; m.goal = m.p; m.wild = r.wild; m.den = r.den; m.aggro = r.aggro;
     // (M6 fixer) a split-off never joins its den (the den may just have been called cleared by the parent's death,
     // and its young would re-award it), and a champion's mate joins only a den that still has someone alive in it
     if (r.kind == Req::Split) m.den = -1;
     else if (m.den >= 0) {
       bool alive = false;
-      for (const Actor& o : actors) if (o.id != m.id && o.den == m.den && o.st != AState::Dead && !o.npc && !o.player) { alive = true; break; }
+      for (const Actor& o : gm.actors) if (o.id != m.id && o.den == m.den && o.st != AState::Dead && !o.npc && !o.player) { alive = true; break; }
       if (!alive) m.den = -1;
     }
     switch (r.kind) {
       case Req::Minion:
         m.maxHp *= 0.6f; m.hp = m.maxHp; m.xp = std::max(1, m.xp / 3); m.scalePct = 85; m.den = -1;
-        emit(Ev::Sparkle, m.p + Vec2(0, -6));
+        gm.emit(Ev::Sparkle, m.p + Vec2(0, -6));
         break;
       case Req::Split:
         m.maxHp *= 0.4f; m.hp = m.maxHp; m.dmg *= 0.6f; m.xp = std::max(1, m.xp / 3); m.scalePct = 70; m.radius *= 0.8f;
@@ -642,22 +643,22 @@ void Game::foeStep(float dt) {
   }
   // ---- the land's great beasts (twice a second): named uniques at their lairs, world bosses on their routes, ruin
   //      wardens, and the world bosses' raids (once a game day)
-  if (!crossed(time, dt, 0.5f) || noWildSpawns || !world.endless || !world.src || travelling()) return;
-  ew::EndlessSource& src = *world.src;
-  foeWarmedTick_ = false;
+  if (!crossed(gm.time, dt, 0.5f) || gm.noWildSpawns || !gm.world.endless || !gm.world.src || gm.travelling()) return;
+  ew::EndlessSource& src = *gm.world.src;
+  gm.foeWarmedTick_ = false;
   int32_t pgx = 0, pgy = 0;
-  FoeOps::playerGlobal(*this, pgx, pgy);
-  if (!inside && plAlive) {
+  FoeOps::playerGlobal(gm, pgx, pgy);
+  if (!gm.inside && plAlive) {
     const int32_t rx = floorDivI(pgx, ew::REGION), ry = floorDivI(pgy, ew::REGION);
     // (M6 integration) a cold region or kingdom cell costs a few ms to generate: warm one of each per tick, the
     // player's own first, and leave the cold ones for the next ticks (nine at once hitched the frame by 40-80 ms)
     // (M6 fixer r3, review: "foes step still costs up to 18 ms on a plain overland walk") ONE cold region or kingdom
     // cell per tick in all (named uniques, world bosses and the raids' warm-up share the budget), never one of each
-    bool& coldNamed = foeWarmedTick_;
-    bool& coldBoss = foeWarmedTick_;
+    bool& coldNamed = gm.foeWarmedTick_;
+    bool& coldBoss = gm.foeWarmedTick_;
     auto namedWarm = [&](int32_t x, int32_t y) {
       if (foes::namedReady(src, x, y)) return true;
-      if (syncStreams) { (void)foes::namedInRegion(src, x, y); return true; }
+      if (gm.syncStreams) { (void)foes::namedInRegion(src, x, y); return true; }
       if (warmOffThread(src, false, x, y)) return false;
       if (coldNamed) return false;
       coldNamed = true;
@@ -666,7 +667,7 @@ void Game::foeStep(float dt) {
     };
     auto bossWarm = [&](int32_t x, int32_t y) {
       if (foes::bossReady(src, x, y)) return true;
-      if (syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, x, y); k++) {} return foes::bossReady(src, x, y); }
+      if (gm.syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, x, y); k++) {} return foes::bossReady(src, x, y); }
       if (warmOffThread(src, true, x, y)) return false;
       if (coldBoss) return false;
       coldBoss = true;
@@ -679,8 +680,8 @@ void Game::foeStep(float dt) {
         for (const foes::NamedUnique& u : foes::namedInRegion(src, rx + dx, ry + dy)) {
           const int64_t ddx = u.gx - pgx, ddy = u.gy - pgy;
           if (ddx * ddx + ddy * ddy > 26ll * 26ll) continue;
-          if (FoeOps::slainNamed(*this, u.id) || FoeOps::present(*this, u.id)) continue;
-          FoeOps::spawnNamed(*this, u);
+          if (FoeOps::slainNamed(gm, u.id) || FoeOps::present(gm, u.id)) continue;
+          FoeOps::spawnNamed(gm, u);
         }
       }
     // (M6 fixer r2) the outer ring the innkeepers' rumours read ("ANY BEASTS ABOUT?", foeChoose), one cold one per tick
@@ -695,16 +696,16 @@ void Game::foeStep(float dt) {
         if (!bossWarm(kx + dx, ky + dy)) continue;
         bool ok = false;
         const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
-        if (!ok || FoeOps::slainBoss(*this, b.id) || FoeOps::present(*this, b.id)) continue;
+        if (!ok || FoeOps::slainBoss(gm, b.id) || FoeOps::present(gm, b.id)) continue;
         int32_t bx = 0, by = 0;
-        foes::worldBossAt(b, day, hour, bx, by);
+        foes::worldBossAt(b, gm.day, gm.hour, bx, by);
         const int64_t ddx = bx - pgx, ddy = by - pgy;
         if (ddx * ddx + ddy * ddy > 30ll * 30ll) continue;
         // never in the start's own country (a passing route may cut a corner of it: it keeps to the far side then)
         const ew::GTile sp = src.start().spawn;
         if ((int64_t)(bx - sp.x) * (bx - sp.x) + (int64_t)(by - sp.y) * (by - sp.y) < 220ll * 220ll) continue;
-        const int lx = bx - world.ox, ly = by - world.oy;
-        if (!world.over.in(lx, ly)) continue;
+        const int lx = bx - gm.world.ox, ly = by - gm.world.oy;
+        if (!gm.world.over.in(lx, ly)) continue;
         // (M6 fixer r2) outside a raid a roaming world boss keeps clear of the settlements (its route between two haunts
         // may pass by a town, and a neighbouring cell's town was never checked): it comes into play only in the open
         // country, 40 tiles or more from any settlement, and on dry walkable ground with room for its body
@@ -713,27 +714,27 @@ void Game::foeStep(float dt) {
           bool townNear = false;
           for (const ew::SettlementNode& nd : near)
             if ((int64_t)(nd.x - bx) * (nd.x - bx) + (int64_t)(nd.y - by) * (nd.y - by) < 40ll * 40ll) { townNear = true; break; }
-          if (townNear || world.over.blocked(lx, ly)) continue;
-          const Ground gr = world.over.at(lx, ly);
+          if (townNear || gm.world.over.blocked(lx, ly)) continue;
+          const Ground gr = gm.world.over.at(lx, ly);
           if (gr == Ground::Road || gr == Ground::Plaza || gr == Ground::Bridge) continue;
         }
-        FoeOps::spawnWorldBoss(*this, b, freeSpotClear(lx, ly, b.mon == art::Monster::Dragon ? 2 : 1));
-        emit(Ev::Notice, pp, (int)kBossCol, 0, "THE GROUND SHAKES. " + b.name + " IS NEAR");
-        emit(Ev::Shake, pp, 0, 3.0f);
+        FoeOps::spawnWorldBoss(gm, b, gm.freeSpotClear(lx, ly, b.mon == art::Monster::Dragon ? 2 : 1));
+        gm.emit(Ev::Notice, pp, (int)kBossCol, 0, "THE GROUND SHAKES. " + b.name + " IS NEAR");
+        gm.emit(Ev::Shake, pp, 0, 3.0f);
       }
   }
   // a ruin's stone warden (one ruin in three keeps one; it stays dead: killedSlots under its own slot)
-  if (inside && subSite >= 0 && subSite < (int)world.sites.size() && subBldg < 0) {
-    const Site& s = world.sites[(size_t)subSite];
+  if (gm.inside && gm.subSite >= 0 && gm.subSite < (int)gm.world.sites.size() && gm.subBldg < 0) {
+    const Site& s = gm.world.sites[(size_t)gm.subSite];
     constexpr int WARDEN_SLOT = 9001;
-    if (s.type == SiteType::Ruin && hmix(s.id ^ seed, 0x3A2Dull) % 3 == 0) {
+    if (s.type == SiteType::Ruin && hmix(s.id ^ gm.seed, 0x3A2Dull) % 3 == 0) {
       bool here = false;
-      for (const Actor& a : actors) if (a.slot == WARDEN_SLOT && a.site == subSite) { here = true; break; }
-      auto it = killedSlots.find(mapKey());
-      const bool dead = it != killedSlots.end() && it->second.count(WARDEN_SLOT);
+      for (const Actor& a : gm.actors) if (a.slot == WARDEN_SLOT && a.site == gm.subSite) { here = true; break; }
+      auto it = gm.killedSlots.find(gm.mapKey());
+      const bool dead = it != gm.killedSlots.end() && it->second.count(WARDEN_SLOT);
       if (!here && !dead) {
         // a free floor tile 9-16 tiles from the player (the deep hall), the first in a fixed scan order
-        const Map& m = map();
+        const Map& m = gm.map();
         const int ptx = (int)std::floor(pp.x / TILE), pty = (int)std::floor(pp.y / TILE);
         int bx = -1, by = -1, bestD = 1 << 30;
         for (int y = 1; y < m.h - 1; y++)
@@ -745,11 +746,11 @@ void Game::foeStep(float dt) {
             if (score < bestD) { bestD = score; bx = x; by = y; }
           }
         if (bx >= 0) {
-          const int id = FoeOps::spawnPlain(*this, art::Monster::Golem, Vec2(bx * TILE + 8.0f, by * TILE + 10.0f), std::max(1, s.level + 1));
-          const int i = findActor(id);
+          const int id = FoeOps::spawnPlain(gm, art::Monster::Golem, Vec2(bx * TILE + 8.0f, by * TILE + 10.0f), std::max(1, s.level + 1));
+          const int i = gm.findActor(id);
           if (i >= 0) {
-            Actor& g = actors[(size_t)i];
-            g.fromMap = true; g.slot = WARDEN_SLOT; g.site = subSite;
+            Actor& g = gm.actors[(size_t)i];
+            g.fromMap = true; g.slot = WARDEN_SLOT; g.site = gm.subSite;
             g.name = "RUIN WARDEN";
             g.maxHp *= 1.3f; g.hp = g.maxHp; g.xp = (int)(g.xp * 1.3f);
             g.overlays |= art::MO_MOSS | art::MO_EYES;
@@ -764,23 +765,23 @@ void Game::foeStep(float dt) {
   //      (BeastRaid: damage, news naming the beast); a settlement the player is near sees it happen (the M5 raid:
   //      the bell, the guards, the outcome)
   const uint64_t dayKey = markKey(0, mk(foes::MK_FOES_RAIDDAY));
-  auto dit = marks.find(dayKey);
-  const int last = dit == marks.end() ? 0 : dit->second;
-  if (last == day) return;
+  auto dit = gm.marks.find(dayKey);
+  const int last = dit == gm.marks.end() ? 0 : dit->second;
+  if (last == gm.day) return;
   {
     // (M6 integration) the twenty-five kingdom cells round the player warmed one per tick before the day is counted
     const int32_t wkx = ew::EndlessSource::kcellOf(pgx), wky = ew::EndlessSource::kcellOf(pgy);
     for (int dy = -2; dy <= 2; dy++)
       for (int dx = -2; dx <= 2; dx++)
         if (!foes::bossReady(src, wkx + dx, wky + dy)) {
-          if (syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, wkx + dx, wky + dy); k++) {} continue; }
+          if (gm.syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, wkx + dx, wky + dy); k++) {} continue; }
           if (warmOffThread(src, true, wkx + dx, wky + dy)) return;   // (fixer round 2) the worker makes it
-          if (foeWarmedTick_) return;   // (M6 fixer r3) this tick already generated one: the next tick warms this
+          if (gm.foeWarmedTick_) return;   // (M6 fixer r3) this tick already generated one: the next tick warms this
           (void)foes::bossWarmStep(src, wkx + dx, wky + dy);   // (fixer r4) one slice a tick
           return;
         }
   }
-  marks[dayKey] = day;
+  gm.marks[dayKey] = gm.day;
   // (M12 REALM lane) one schedule for the raids, the lair's (rpg/sim/realm_rise.cpp): every world boss round the player
   // is known to the realm as a lair (its own sleeping and waking rhythm); on a lair's raid day, when its target is a
   // loaded settlement near the player, the raid comes in front of them here and the realm is told (damage 0: the
@@ -791,65 +792,65 @@ void Game::foeStep(float dt) {
       bool ok = false;
       const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
       if (!ok) continue;
-      realm.noteLair(b.id, b.lairX, b.lairY, (uint8_t)b.mon, (uint8_t)std::clamp(b.D, 1, 255), day);
-      if (FoeOps::slainBoss(*this, b.id)) { realm.lairSlain(b.id, day); continue; }
+      gm.realm.noteLair(b.id, b.lairX, b.lairY, (uint8_t)b.mon, (uint8_t)std::clamp(b.D, 1, 255), gm.day);
+      if (FoeOps::slainBoss(gm, b.id)) { gm.realm.lairSlain(b.id, gm.day); continue; }
     }
-  if (last == 0 || day <= last) return;   // the first day seen only starts the count
+  if (last == 0 || gm.day <= last) return;   // the first day seen only starts the count
   for (int dy = -2; dy <= 2; dy++)
     for (int dx = -2; dx <= 2; dx++) {
       bool ok = false;
       const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
-      if (!ok || FoeOps::slainBoss(*this, b.id)) continue;
-      const realm::Lair* L = realm.lair(b.id);
-      if (!L || L->slain || !L->wokeDay || (int)L->nextRaid != day) continue;
-      const ew::Gid tid = realm.lairTarget(*L);
-      const int si = tid ? world.siteHandle(tid) : -1;
+      if (!ok || FoeOps::slainBoss(gm, b.id)) continue;
+      const realm::Lair* L = gm.realm.lair(b.id);
+      if (!L || L->slain || !L->wokeDay || (int)L->nextRaid != gm.day) continue;
+      const ew::Gid tid = gm.realm.lairTarget(*L);
+      const int si = tid ? gm.world.siteHandle(tid) : -1;
       if (si < 0) continue;
-      const Site& s = world.sites[(size_t)si];
-      const int64_t pdx = world.ox + s.ex - pgx, pdy = world.oy + s.ey - pgy;
-      const bool live = !inside && plAlive && !life.raid.site && pdx * pdx + pdy * pdy <= 110ll * 110ll && !FoeOps::present(*this, b.id);
+      const Site& s = gm.world.sites[(size_t)si];
+      const int64_t pdx = gm.world.ox + s.ex - pgx, pdy = gm.world.oy + s.ey - pgy;
+      const bool live = !gm.inside && plAlive && !gm.life.raid.site && pdx * pdx + pdy * pdy <= 110ll * 110ll && !FoeOps::present(gm, b.id);
       if (!live) continue;   // (the realm's tick raids tomorrow)
       int32_t bx = 0, by = 0;
-      foes::worldBossAt(b, day, 12.0f, bx, by);
+      foes::worldBossAt(b, gm.day, 12.0f, bx, by);
       // the raid comes in front of the player: the beast and a few of its kind at the edge of town, on its side
-      Vec2 dir((float)(bx - (world.ox + s.ex)), (float)(by - (world.oy + s.ey)));
+      Vec2 dir((float)(bx - (gm.world.ox + s.ex)), (float)(by - (gm.world.oy + s.ey)));
       dir = len2(dir) > 1.0f ? norm(dir) : Vec2(0, 1);
       const int rad = std::max(s.r.w, s.r.h) / 2 + 10;
       const int ex = s.ex + (int)std::lround(dir.x * (float)rad), ey = s.ey + (int)std::lround(dir.y * (float)rad);
-      if (!world.over.in(ex, ey)) continue;
-      FoeOps::spawnWorldBoss(*this, b, freeSpotClear(ex, ey, 1));
+      if (!gm.world.over.in(ex, ey)) continue;
+      FoeOps::spawnWorldBoss(gm, b, gm.freeSpotClear(ex, ey, 1));
       const Vec2 heart(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f);
       life::Life::RaidLive R0;
-      R0.site = s.id; R0.si = si; R0.night = day;
-      for (size_t k = 1; k < actors.size(); k++)
-        if (actors[k].unique == b.id) {
-          Actor& a = actors[k];
+      R0.site = s.id; R0.si = si; R0.night = gm.day;
+      for (size_t k = 1; k < gm.actors.size(); k++)
+        if (gm.actors[k].unique == b.id) {
+          Actor& a = gm.actors[k];
           a.aggro = true; a.home = heart; a.goal = heart; a.wild = false;
           R0.ids.push_back(a.id);
         }
       const art::Monster mm = foes::minionOf(b.mon);
       for (int k = 0; k < 3; k++) {
-        const int id = FoeOps::spawnPlain(*this, mm, Vec2((ex + k - 1) * TILE + 8.0f, (ey + 1) * TILE + 10.0f), std::max(1, b.D - 3));
-        const int i = findActor(id);
+        const int id = FoeOps::spawnPlain(gm, mm, Vec2((ex + k - 1) * TILE + 8.0f, (ey + 1) * TILE + 10.0f), std::max(1, b.D - 3));
+        const int i = gm.findActor(id);
         if (i < 0) continue;
-        Actor& a = actors[(size_t)i];
+        Actor& a = gm.actors[(size_t)i];
         a.aggro = true; a.home = heart; a.goal = heart;
         R0.ids.push_back(id);
       }
-      life.raid = R0;
+      gm.life.raid = R0;
       const std::string sname = s.name;
-      realm.lairRaid(b.id, tid, 0, day);   // the news, and the lair rests; the damage is the defence's to decide
-      emit(Ev::Notice, pp, (int)kBossCol, 0, b.name + " FALLS ON " + sname + "!");
-      emit(Ev::Shake, pp, 0, 4.0f);
-      sfx((int)Sfx::Roar, pp, 0.7f);
+      gm.realm.lairRaid(b.id, tid, 0, gm.day);   // the news, and the lair rests; the damage is the defence's to decide
+      gm.emit(Ev::Notice, pp, (int)kBossCol, 0, b.name + " FALLS ON " + sname + "!");
+      gm.emit(Ev::Shake, pp, 0, 4.0f);
+      gm.sfx((int)Sfx::Roar, pp, 0.7f);
     }
 }
 
-void Game::foeWarm() {
-  if (!world.endless || !world.src) return;
-  ew::EndlessSource& src = *world.src;
+void FoeHooks::warm(Game& g) {
+  if (!g.world.endless || !g.world.src) return;
+  ew::EndlessSource& src = *g.world.src;
   int32_t pgx = 0, pgy = 0;
-  FoeOps::playerGlobal(*this, pgx, pgy);
+  FoeOps::playerGlobal(g, pgx, pgy);
   const int32_t rx = floorDivI(pgx, ew::REGION), ry = floorDivI(pgy, ew::REGION);
   for (int dy = -1; dy <= 1; dy++)
     for (int dx = -1; dx <= 1; dx++) (void)foes::namedInRegion(src, rx + dx, ry + dy);
@@ -858,17 +859,17 @@ void Game::foeWarm() {
     for (int dx = -1; dx <= 1; dx++) { bool ok = false; (void)foes::worldBossOf(src, kx + dx, ky + dy, ok); }
 }
 
-void Game::foeTalk(Actor& a) {
-  if (!a.npc || !a.human || !world.endless || !world.src) return;
+void FoeHooks::talk(Game& g, Actor& a) {
+  if (!a.npc || !a.human || !g.world.endless || !g.world.src) return;
   if (a.role != Role::Innkeeper && a.role != Role::Guard && a.role != Role::Hunter && a.role != Role::Traveller) return;
-  dlg.opts.push_back({"ANY BEASTS ABOUT?", DLG_FOES + 1, 0});
+  g.dlg.opts.push_back({"ANY BEASTS ABOUT?", DLG_FOES + 1, 0});
 }
 
-bool Game::foeChoose(const DlgOpt& o) {
-  if (o.action != DLG_FOES + 1 || !world.src) return false;
-  ew::EndlessSource& src = *world.src;
+bool FoeHooks::choose(Game& g, const DlgOpt& o) {
+  if (o.action != DLG_FOES + 1 || !g.world.src) return false;
+  ew::EndlessSource& src = *g.world.src;
   int32_t pgx = 0, pgy = 0;
-  FoeOps::playerGlobal(*this, pgx, pgy);
+  FoeOps::playerGlobal(g, pgx, pgy);
   // the nearest named beast still alive within two regions, and the world boss of this kingdom cell
   const foes::NamedUnique* best = nullptr;
   std::vector<foes::NamedUnique> found;
@@ -876,9 +877,9 @@ bool Game::foeChoose(const DlgOpt& o) {
   // (M6 fixer r2) only the regions already generated (foeStep warms the 5x5 one per tick): asking never stalls a frame
   for (int dy = -2; dy <= 2; dy++)
     for (int dx = -2; dx <= 2; dx++) {
-      if (!syncStreams && !foes::namedReady(src, rx + dx, ry + dy)) continue;
+      if (!g.syncStreams && !foes::namedReady(src, rx + dx, ry + dy)) continue;
       for (const foes::NamedUnique& u : foes::namedInRegion(src, rx + dx, ry + dy))
-        if (!FoeOps::slainNamed(*this, u.id)) found.push_back(u);
+        if (!FoeOps::slainNamed(g, u.id)) found.push_back(u);
     }
   int64_t bd = -1;
   for (const foes::NamedUnique& u : found) {
@@ -894,13 +895,13 @@ bool Game::foeChoose(const DlgOpt& o) {
     else if (dist < 160) t = best->rumour + " ITS LAIR IS OUT TO THE " + dw + ", HALF A MORNING FROM HERE.";
     else if (dist < 320) t = best->rumour + " ITS LAIR IS A GOOD DAY OUT TO THE " + dw + ".";
     else t = best->rumour + " ITS LAIR IS FAR OFF TO THE " + dw + ".";
-    marks[markKey(best->id, mk(foes::MK_FOES_RUMOUR))] = 1;
+    g.marks[markKey(best->id, mk(foes::MK_FOES_RUMOUR))] = 1;
   }
   bool ok = false;
   const foes::WorldBoss b = foes::worldBossOf(src, ew::EndlessSource::kcellOf(pgx), ew::EndlessSource::kcellOf(pgy), ok);
-  if (ok && !FoeOps::slainBoss(*this, b.id)) {
+  if (ok && !FoeOps::slainBoss(g, b.id)) {
     int32_t bx = 0, by = 0;
-    foes::worldBossAt(b, day, hour, bx, by);
+    foes::worldBossAt(b, g.day, g.hour, bx, by);
     // (M7b) the great beast as its own thought, said whole: what it is, where it was seen (never glued on with "AND")
     const std::string kind = b.kind;
     const bool vowel = !kind.empty() && std::string("AEIOU").find(kind[0]) != std::string::npos;
@@ -910,8 +911,8 @@ bool Game::foeChoose(const DlgOpt& o) {
     t = t.empty() ? boss : speech::fitsPanel(t + " " + boss) ? t + " " + boss : t;
   }
   if (t.empty()) t = "NOTHING WORSE THAN WOLVES ROUND HERE, THE GODS BE THANKED.";
-  dlg.text = t;
-  for (size_t k = 0; k < dlg.opts.size(); k++)
-    if (dlg.opts[k].action == o.action) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)k); break; }
+  g.dlg.text = t;
+  for (size_t k = 0; k < g.dlg.opts.size(); k++)
+    if (g.dlg.opts[k].action == o.action) { g.dlg.opts.erase(g.dlg.opts.begin() + (std::ptrdiff_t)k); break; }
   return true;
 }

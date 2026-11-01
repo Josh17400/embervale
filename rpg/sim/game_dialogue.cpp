@@ -5,6 +5,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/party_voice.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/foe_hooks.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -514,7 +515,7 @@ void Game::talkToInner(Actor& a) {
       else dlg.text = before;
     }
   }
-  hook(speech::P_NEWS, Topic::Foe, [&] { foeTalk(a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
+  hook(speech::P_NEWS, Topic::Foe, [&] { FoeHooks::talk(*this, a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
   hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
   hook(speech::P_SERVICE, Topic::Home, [&] { HomeOps::talk(*this, a); });    // M7: deeds, builders, horses, recipes and cooking
   hook(speech::P_SERVICE, Topic::Companion, [&] { PartyTalkOps::folkTalk(*this, a); });   // M8: offers to join, kin of companions and the fallen
@@ -924,7 +925,7 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
       if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
       if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && LifeHooks::choose(*this, o)) return;
-      if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
+      if (o.action >= DLG_FOES && o.action < DLG_CRAFT && FoeHooks::choose(*this, o)) return;      // M6
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
       if (o.action >= DLG_HOME && o.action < DLG_HOME_END && HomeOps::choose(*this, o)) return;  // M7
       if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && PartyTalkOps::choose(*this, o)) return;  // M8 (party_talk.cpp)

@@ -27,6 +27,7 @@
 #include "rpg/story/story_internal.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/foe_hooks.h"
 
 using art::Monster;
 using art::Prop;
@@ -189,7 +190,7 @@ void Game::beginWorld() {
     }
   }
   updateLocation();
-  foeWarm();
+  FoeHooks::warm(*this);
 }
 
 void Game::resetPlayer() {
@@ -994,7 +995,7 @@ int Game::spawnMonster(Monster m, Vec2 p, int level, bool boss) {
     // generic level scaling would push Ashfang past 4000 HP: a slog, not a fight. Keep it a few minutes long.
     a.maxHp = 700.0f + a.level * 60.0f; a.hp = a.maxHp;
   }
-  foeSpawned(a, level);   // M6: rank, affixes, variant look (foes_game.cpp; never adds actors itself)
+  FoeHooks::spawned(*this, a, level);   // M6: rank, affixes, variant look (foes_game.cpp; never adds actors itself)
   actors.push_back(a);
   return a.id;
 }
@@ -1023,7 +1024,7 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
       // bandits: the place's danger band 4 or more); ladder fields only, rig 1 never reads them
       retierLook(a.look, gear::bandOf(st.level) >= 4 ? 3 : 2, nullptr);
     }
-    foeSpawned(a, st.level);   // M6: bandits in their land's poorer arms, elites (foes_game.cpp)
+    FoeHooks::spawned(*this, a, st.level);   // M6: bandits in their land's poorer arms, elites (foes_game.cpp)
   } else {
     a.npc = true; a.role = sp.role;
     // (M4) a guard serves the settlement's CURRENT owner (Site::kingdom; its colours come from makeLook), and the king on

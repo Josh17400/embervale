@@ -932,28 +932,8 @@ class Game {
   void storyKill(const Actor& victim, bool byPlayer);
   void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
   bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
-  // ---- M6 Steel hooks (VISION_PLAN 7, 15.11). Called from the core loop and DEFINED in the lane's own file.
-  //   FOES (rpg/sim/foes_game.cpp): elites, champion packs, named uniques, boss phases, world bosses, soldiers' and
-  //   bandits' culture arms.
-  //   a monster or a bandit just came into play (end of spawnMonster / spawnHuman for bandits, after applyLevel): roll its
-  //   rank and affixes, set its variant look, name and stats. D: the danger it was spawned at (its level)
-  void foeSpawned(Actor& a, int D);
-  //   once per update step (after raidStep): affix behaviours (summoner, blinking, burning trail, warded, regenerating,
-  //   frenzied), boss phases, champion packs, named uniques near the player, roaming world bosses and their raids
-  void foeStep(float dt);
+  // ---- M6 Steel hooks (VISION_PLAN 7, 15.11): FoeHooks (foe_hooks.h), CraftHooks (craft_hooks.h)
   bool foeWarmedTick_ = false;   // (M6 fixer r3) foeStep generated a cold region or kingdom cell this tick (one per tick)
-  //   (M6 fixer r2) generate the named uniques' regions and the world bosses' kingdom cells round the player now (a new
-  //   game's start, behind the loading): each cold one costs a frame hitch of tens of ms when foeStep meets it in play
-  void foeWarm();
-  //   a blow is about to land on `victim` (damage(), after armour): returns the damage to apply (warded, armoured...) and
-  //   applies on-hit effects (vampiric healing, frost-bound slows, the volatile's...). attacker: actor id or -1
-  float foeHit(Actor& victim, float dmg, int attacker);
-  //   something died (kill(), before the loot drops): splitting, volatile, a named unique or world boss slain (marks,
-  //   news, the realm's BeastSlain)
-  void foeKilled(const Actor& a, int killer);
-  //   talkTo: innkeepers and guards warn of the named uniques and world bosses near (options in [DLG_FOES, DLG_CRAFT))
-  void foeTalk(Actor& a);
-  bool foeChoose(const DlgOpt& o);
   //   NUMBERS / FORGE (rpg/sim/craft_game.cpp): the smith's, smelter's and tanner's work and lessons as dialogue options
   //   in [DLG_CRAFT, DLG_M6_END) (smelt, forge, tan, apprentice, study a foreign piece, steal patterns), and the forge
   //   screen they may open
@@ -1050,6 +1030,7 @@ class Game {
   friend struct LifeOps;               // M5 TOWNSFOLK: the actors' internals (life_game.cpp)
   friend struct LifeHooks;             // M5 TOWNSFOLK / CITIZENS: the hooks into the core loop (rpg/sim/life_hooks.h)
   friend struct FoeOps;                // M6 FOES: the foes' internals (foes_game.cpp)
+  friend struct FoeHooks;              // M6 FOES: the hooks into the core loop (rpg/sim/foe_hooks.h)
   friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
   friend struct LootOps;               // M8b SOURCES: the loot internals for the tests (rpg/sim/loot_ops.h)
   friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
