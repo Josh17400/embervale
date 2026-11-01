@@ -22,7 +22,7 @@
 //
 // M11 (FALLS lane): --falls: the falls' roar at three sizes, a walk up to a fall, a window shift's jump, walking away.
 //
-//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls] [--mixes]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
 //                                                  --cultures: only the culture pieces; --wild: only the beds and moods;
 //                                                  --tavern: only the tavern
 #include "engine/audio.h"
@@ -774,9 +774,51 @@ int magicVoices(const fs::path& dir) {
   return problems;
 }
 
+// (P3 E) --mixes: two 20 s scenes as the game plays them (render_sea.cpp's call volumes), for the owner's ear rather
+// than a check: sailing a sloop under the Wild music (boarding, the sail bracing, merrow calling, into the Mist), and
+// fishing off a harbour (a bite, the reel won against rising tension, a second bite reeled until the line parts).
+int ownerMixes(const fs::path& dir) {
+  struct Ev { float t; Sfx s; float k, v; bool toMist; };
+  Audio::SeaSound sloop, mist, harbour;
+  sloop.open = 0.9f; sloop.wind = 0.8f; sloop.creak = 0.6f;
+  mist = sloop; mist.wind = 0.4f; mist.mist = 1.0f;
+  harbour.surf = 0.6f; harbour.gulls = 1.0f; harbour.open = 0.3f;
+  const std::vector<Ev> sail = {{1.0f, Sfx::SailFlap, 1.0f, 0.7f, false},     {5.5f, Sfx::SailFlap, 1.0f, 0.45f, false},
+                                {8.0f, Sfx::MerrowChatter, 0.95f, 0.5f, false}, {8.7f, Sfx::MerrowChatter, 1.1f, 0.5f, false},
+                                {11.5f, Sfx::SailFlap, 1.0f, 0.45f, false},    {13.0f, Sfx::MerrowChatter, 1.0f, 0.5f, false},
+                                {15.0f, Sfx::MistWhisper, 1.0f, 0.6f, true}};
+  std::vector<Ev> fish = {{2.0f, Sfx::FishPlop, 1.0f, 0.8f, false}};
+  for (int i = 0; i < 16; i++) fish.push_back({2.6f + 0.42f * (float)i, Sfx::ReelClick, 0.9f + 0.6f * (float)i / 15.0f, 0.5f, false});
+  fish.push_back({12.0f, Sfx::FishPlop, 1.0f, 0.8f, false});
+  for (int i = 0; i < 12; i++) fish.push_back({12.6f + 0.4f * (float)i, Sfx::ReelClick, 1.0f + 0.5f * (float)i / 11.0f, 0.5f, false});
+  fish.push_back({17.6f, Sfx::LineSnap, 1.0f, 0.8f, false});
+  const struct { const char* name; const Audio::SeaSound* bed; const std::vector<Ev>* ev; } scenes[2] = {
+      {"mix_sailing_wild", &sloop, &sail}, {"mix_fishing_wild", &harbour, &fish}};
+  for (const auto& sc : scenes) {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Wild);
+    a->setSea(*sc.bed);
+    std::vector<float> all;
+    float t = 0;
+    for (const Ev& e : *sc.ev) {
+      auto part = renderFor(*a, e.t - t);
+      all.insert(all.end(), part.begin(), part.end());
+      t = e.t;
+      if (e.toMist) a->setSea(mist);
+      a->play(e.s, e.k, e.v);
+    }
+    auto tail = renderFor(*a, 20.0f - t);
+    all.insert(all.end(), tail.begin(), tail.end());
+    const Levels L = levels(all);
+    std::printf("%-17s peak %.3f clip %d\n", sc.name, L.peak, L.clipped);
+    writeWav(dir / (std::string(sc.name) + ".wav"), all);
+  }
+  return 0;
+}
+
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false, seaOnly = false, fallsOnly = false;
+  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false, seaOnly = false, fallsOnly = false, mixesOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
     else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
@@ -784,10 +826,11 @@ int main(int argc, char** argv) {
     else if (std::string(argv[i]) == "--magic") magicOnly = true;
     else if (std::string(argv[i]) == "--sea") seaOnly = true;
     else if (std::string(argv[i]) == "--falls") fallsOnly = true;
+    else if (std::string(argv[i]) == "--mixes") mixesOnly = true;
     else if (argv[i][0] == '-') {
       // An unknown flag (e.g. --help) must never become the output directory: that once dumped 200 MB of WAVs
       // into a folder named "--help" in the repo root.
-      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls]\n");
+      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls] [--mixes]\n");
       return std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" ? 0 : 2;
     } else dir = argv[i];
   }
@@ -820,6 +863,7 @@ int main(int argc, char** argv) {
     problems = fallsSounds(dir);
     return problems ? 2 : 0;
   }
+  if (mixesOnly) return ownerMixes(dir);
   if (seaOnly) {
     problems = seaSounds(dir);
     return problems ? 2 : 0;
