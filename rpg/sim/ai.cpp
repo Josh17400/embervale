@@ -20,6 +20,8 @@
 #include "rpg/story/story_internal.h"
 #include "rpg/world/economy.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/ai_ops.h"
+#include "rpg/sim/game.h"
 
 using art::Monster;
 using art::Prop;
@@ -59,22 +61,22 @@ int Game::shelteredCount(int site) const {
 
 // Hostiles fight the nearest enemy (factionsHostile), with the player counted 1.5x closer so they stay the main
 // target; the current target counts a little closer still, so a monster doesn't flip between two victims.
-int Game::pickTarget(const Actor& a) const {
-  const Actor& p = actors[0];
+int AiOps::pickTarget(const Game& g, const Actor& a) {
+  const Actor& p = g.actors[0];
   int best = 0;
   float bs = 1e30f;
   if (p.st != AState::Dead && factionsHostile(a.faction, p.faction)) bs = len(p.p - a.p) / 1.5f * (a.target == p.id ? 0.8f : 1.0f);
   // (M8) inside a cave, a ruin or a building only the player's companions share the player's danger
-  if ((inside && party.empty()) || a.mon == Monster::Dragon) return 0;
+  if ((g.inside && g.party.empty()) || a.mon == Monster::Dragon) return 0;
   // (M8) with companions about, a pack spreads over the party: a body two foes already crowd draws the next one less
   // (only while a party is in play, so the solo fight is as it was)
   bool spread = false;   // (a companion in the fight: one holding back is no one to spread to)
-  for (const party::Member& m : party.members) spread |= m.state == party::State::With && m.stance != party::Cmd::Passive;
+  for (const party::Member& m : g.party.members) spread |= m.state == party::State::With && m.stance != party::Cmd::Passive;
   auto crowd = [&](const Actor& t) {
     int n = 0;
-    for (int hi : hostiles_) {
-      if (hi <= 0 || hi >= (int)actors.size()) continue;
-      const Actor& o = actors[(size_t)hi];
+    for (int hi : g.hostiles_) {
+      if (hi <= 0 || hi >= (int)g.actors.size()) continue;
+      const Actor& o = g.actors[(size_t)hi];
       if (o.id == a.id || !o.hostile || !o.aggro || o.st == AState::Dead || o.target != t.id) continue;
       if (len2(o.p - t.p) < (5.0f * TILE) * (5.0f * TILE)) n++;
     }
@@ -85,16 +87,16 @@ int Game::pickTarget(const Actor& a) const {
   };
   if (spread && bs < 1e29f) bs += crowd(p);
   float reach = a.aggroR * (a.aggro ? 1.4f : 1.0f);
-  for (size_t i = 1; i < actors.size(); i++) {
-    const Actor& e = actors[i];
+  for (size_t i = 1; i < g.actors.size(); i++) {
+    const Actor& e = g.actors[i];
     if (e.id == a.id || !e.npc || e.st == AState::Dead || e.fly || e.indoors) continue;
-    if (inside && !e.comp) continue;
+    if (g.inside && !e.comp) continue;
     if (!factionsHostile(a.faction, e.faction)) continue;
     float d = len(e.p - a.p);
     if (d > reach) continue;
     float sc = d * (a.target == e.id ? 0.8f : 1.0f);
     if (e.comp) {   // M8: a taunt pulls, a downed or passive companion is let be (party_game.cpp partyAggro)
-      const float m = PartyOps::aggro(*this, a, e);
+      const float m = PartyOps::aggro(g, a, e);
       if (m <= 0) continue;
       sc *= m;
       if (spread) sc += crowd(e);
@@ -105,11 +107,11 @@ int Game::pickTarget(const Actor& a) const {
 }
 
 // The building a townsperson runs to when trouble comes: the nearest door to where they live (houses first).
-int Game::homeDoor(Actor& a) {
+int AiOps::homeDoor(Game& g, Actor& a) {
   if (a.homeBldg >= 0) return a.homeBldg;
-  if (a.homeBldg == -2 || a.site < 0 || a.site >= (int)world.sites.size() || inside) return -1;
-  const Site& s = world.sites[a.site];
-  const Map& m = world.over;
+  if (a.homeBldg == -2 || a.site < 0 || a.site >= (int)g.world.sites.size() || g.inside) return -1;
+  const Site& s = g.world.sites[a.site];
+  const Map& m = g.world.over;
   int best = -1;
   float bd = 1e30f;
   // (M5) a resident out on their day's business (life_game.cpp: Actor::home is their own door) makes for home when it
@@ -200,7 +202,7 @@ bool ClimbOps::longSearch(Game& g, const Actor& a, int sx, int sy, int gx, int g
       const bool isGoal = nx == gx && ny == gy;
       if (!isGoal) {
         if (m.blocked(nx, ny)) continue;
-        if (over && g.yardBarred(a, nx, ny)) continue;
+        if (over && ClimbOps::yardBarred(g, a, nx, ny)) continue;
         if (over && m.bldgAt[(size_t)ny * m.w + nx] >= 0) continue;
       }
       const int nl = loc(nx, ny);
@@ -221,50 +223,50 @@ bool ClimbOps::longSearch(Game& g, const Actor& a, int sx, int sy, int gx, int g
 // Walk toward `goal` (a world point): straight when the way is clear, otherwise along a 4-connected tile path
 // found by a bounded breadth-first search (re-planned on every tile, so moving targets are fine); (M11) beyond that
 // search's box, the long A* above, its way cached and walked.
-bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
-  const Map& m = map();
+bool ClimbOps::navStep(Game& g, Actor& a, Vec2 goal, float speed, float dt) {
+  const Map& m = g.map();
   Vec2 d = goal - a.p;
   float l = len(d);
   if (l < 0.5f) return true;
   // in plain sight: walk straight (sample the body box along the segment)
   bool clear = true;
   for (float t = 4.0f; t < l; t += 4.0f)
-    if (!bodyFree(a.p + d * (t / l), a.radius, false) || yardBarred(a, tileX(a.p + d * (t / l)), tileY(a.p + d * (t / l)))) { clear = false; break; }
+    if (!ClimbOps::bodyFree(g, a.p + d * (t / l), a.radius, false) || ClimbOps::yardBarred(g, a, tileX(a.p + d * (t / l)), tileY(a.p + d * (t / l)))) { clear = false; break; }
   if (clear) {
-    moveActor(a, d * (std::min(speed * dt, l) / l));
+    ClimbOps::moveActor(g, a, d * (std::min(speed * dt, l) / l));
     a.face = faceOf(d);
     a.navNext = -1;
     return true;
   }
-  navStats.requests++;
+  g.navStats.requests++;
   const auto clk0 = std::chrono::steady_clock::now();
   auto clocked = [&](bool r) {
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - clk0).count();
-    navStats.ms += ms;
-    navStats.worstMs = std::max(navStats.worstMs, ms);
+    g.navStats.ms += ms;
+    g.navStats.worstMs = std::max(g.navStats.worstMs, ms);
     return r;
   };
   int sx = tileX(a.p), sy = tileY(a.p), gx = tileX(goal), gy = tileY(goal);
   // ---- (M11) a cached long way, or a failure held a moment
-  const int key = mapKey();
-  const int32_t ox = inside ? 0 : world.ox, oy = inside ? 0 : world.oy;
-  size_t ci = navPaths_.size();
-  for (size_t i = 0; i < navPaths_.size(); i++)
-    if (navPaths_[i].id == a.id) { ci = i; break; }
-  if (ci < navPaths_.size()) {
-    NavPath& np = navPaths_[ci];
+  const int key = g.mapKey();
+  const int32_t ox = g.inside ? 0 : g.world.ox, oy = g.inside ? 0 : g.world.oy;
+  size_t ci = g.navPaths_.size();
+  for (size_t i = 0; i < g.navPaths_.size(); i++)
+    if (g.navPaths_[i].id == a.id) { ci = i; break; }
+  if (ci < g.navPaths_.size()) {
+    Game::NavPath& np = g.navPaths_[ci];
     np.t += dt;
     const int32_t moved = std::max(std::abs(gx + ox - np.gx), std::abs(gy + oy - np.gy));
     bool drop = np.key != key;
     if (!drop && np.fail) {
-      if (np.t < NAV_FAIL_HOLD && moved <= 2) { navStats.failHeld++; return clocked(false); }
+      if (np.t < NAV_FAIL_HOLD && moved <= 2) { g.navStats.failHeld++; return clocked(false); }
       drop = true;
     }
     if (!drop && (np.at * 2 >= (int)np.tiles.size() || np.stuck > 0.6f || (moved > 3 && np.t > 0.5f))) drop = true;
-    if (drop) { navPaths_.erase(navPaths_.begin() + (std::ptrdiff_t)ci); ci = navPaths_.size(); }
+    if (drop) { g.navPaths_.erase(g.navPaths_.begin() + (std::ptrdiff_t)ci); ci = g.navPaths_.size(); }
   }
-  auto followCached = [&](NavPath& np) {
-    navStats.cacheFollows++;
+  auto followCached = [&](Game::NavPath& np) {
+    g.navStats.cacheFollows++;
     a.navNext = -1;
     auto centre = [&](int k) { return tileCentre(np.tiles[(size_t)k * 2] - ox, np.tiles[(size_t)k * 2 + 1] - oy); };
     const int n = (int)np.tiles.size() / 2;
@@ -277,7 +279,7 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
         const Vec2 e = centre(k), de = e - a.p;
         const float le = len(de);
         bool ok = true;
-        for (float t = 4.0f; t < le && ok; t += 4.0f) ok = bodyFree(a.p + de * (t / le), a.radius, false);
+        for (float t = 4.0f; t < le && ok; t += 4.0f) ok = ClimbOps::bodyFree(g, a.p + de * (t / le), a.radius, false);
         if (ok) { np.at = k; break; }
       }
       c = centre(np.at);
@@ -286,14 +288,14 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     const float lc = len(dc);
     if (lc > 0.01f) {
       const Vec2 before = a.p;
-      moveActor(a, dc * (std::min(speed * dt, lc) / lc));
+      ClimbOps::moveActor(g, a, dc * (std::min(speed * dt, lc) / lc));
       a.face = faceOf(dc);
       if (len2(a.p - before) < 0.0004f) np.stuck += dt;
       else np.stuck = std::max(0.0f, np.stuck - dt);
     }
     return true;
   };
-  if (ci < navPaths_.size()) return clocked(followCached(navPaths_[ci]));
+  if (ci < g.navPaths_.size()) return clocked(followCached(g.navPaths_[ci]));
   int goalIdx = gy * m.w + gx;
   a.navT -= dt;
   bool atNext = false;
@@ -313,12 +315,12 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     int ww = x1 - x0 + 1, hh = y1 - y0 + 1;
     bool found = false;
     if (ww <= 112 && hh <= 112) {
-      navPrev_.assign((size_t)ww * hh, -1);
+      g.navPrev_.assign((size_t)ww * hh, -1);
       auto loc = [&](int x, int y) { return (y - y0) * ww + (x - x0); };
       std::vector<int> q;
       q.reserve(256);
       q.push_back(loc(sx, sy));
-      navPrev_[(size_t)loc(sx, sy)] = loc(sx, sy);
+      g.navPrev_[(size_t)loc(sx, sy)] = loc(sx, sy);
       static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
       for (size_t h = 0; h < q.size() && !found; h++) {
         int cx = q[h] % ww + x0, cy = q[h] / ww + y0;
@@ -326,47 +328,47 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
           int nx = cx + dx[k], ny = cy + dy[k];
           if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
           int li = loc(nx, ny);
-          if (navPrev_[(size_t)li] >= 0) continue;
+          if (g.navPrev_[(size_t)li] >= 0) continue;
           if (m.blocked(nx, ny) && !(nx == gx && ny == gy)) continue;
-          if (m.kind == MapKind::Overworld && yardBarred(a, nx, ny)) continue;   // (M7) not through the player's yard
+          if (m.kind == MapKind::Overworld && ClimbOps::yardBarred(g, a, nx, ny)) continue;   // (M7) not through the player's yard
           // (owner) a building's ways in (an open front's bays: only the pillars block there) are no street to walk along
           if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && !(nx == gx && ny == gy)) continue;
-          navPrev_[(size_t)li] = q[h];
+          g.navPrev_[(size_t)li] = q[h];
           if (nx == gx && ny == gy) { found = true; break; }
           q.push_back(li);
         }
       }
       if (found) {
         int cur = loc(gx, gy), start = loc(sx, sy);
-        while (navPrev_[(size_t)cur] != start && navPrev_[(size_t)cur] != cur) cur = navPrev_[(size_t)cur];
+        while (g.navPrev_[(size_t)cur] != start && g.navPrev_[(size_t)cur] != cur) cur = g.navPrev_[(size_t)cur];
         if (cur == start) return clocked(false);
         a.navNext = (cur / ww + y0) * m.w + (cur % ww + x0);
-        navStats.shortFound++;
+        g.navStats.shortFound++;
       }
     }
     if (!found) {
-      navStats.shortFails++;
+      g.navStats.shortFails++;
       // (M11) the long search: the way by a ramp 16-24 tiles along the face, up stacked faces, a switchback trail
-      navStats.longSearches++;
+      g.navStats.longSearches++;
       std::vector<int32_t> way;
       int nodes = 0;
-      const bool ok = ClimbOps::longSearch(*this, a, sx, sy, gx, gy, way, nodes);
-      navStats.nodes += nodes;
-      navStats.worstNodes = std::max(navStats.worstNodes, nodes);
-      if (navPaths_.size() >= NAV_CACHE) navPaths_.erase(navPaths_.begin());
-      NavPath np;
+      const bool ok = ClimbOps::longSearch(g, a, sx, sy, gx, gy, way, nodes);
+      g.navStats.nodes += nodes;
+      g.navStats.worstNodes = std::max(g.navStats.worstNodes, nodes);
+      if (g.navPaths_.size() >= NAV_CACHE) g.navPaths_.erase(g.navPaths_.begin());
+      Game::NavPath np;
       np.id = a.id; np.gx = gx + ox; np.gy = gy + oy; np.key = key;
       if (!ok) {
-        navStats.longFails++;
+        g.navStats.longFails++;
         np.fail = true;
-        navPaths_.push_back(std::move(np));
+        g.navPaths_.push_back(std::move(np));
         return clocked(false);
       }
-      navStats.longFound++;
+      g.navStats.longFound++;
       for (size_t k = 0; k < way.size(); k += 2) { way[k] += ox; way[k + 1] += oy; }
       np.tiles = std::move(way);
-      navPaths_.push_back(std::move(np));
-      return clocked(followCached(navPaths_.back()));
+      g.navPaths_.push_back(std::move(np));
+      return clocked(followCached(g.navPaths_.back()));
     }
   }
   Vec2 c = tileCentre(a.navNext % m.w, a.navNext / m.w);
@@ -374,12 +376,12 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
   float lc = len(dc);
   if (lc > 0.01f) {
     Vec2 before = a.p;
-    moveActor(a, dc * (std::min(speed * dt, lc) / lc));
+    ClimbOps::moveActor(g, a, dc * (std::min(speed * dt, lc) / lc));
     a.face = faceOf(dc);
     if (len2(a.p - before) < 0.0001f) {
       a.navT = std::min(a.navT, 0.1f);   // wedged on a corner: re-plan soon
       // (M5) standing inside a solid tile (a prop the window streamed in under them): a step out to the nearest open one
-      if (m.blocked(tileX(a.p), tileY(a.p))) { a.p = freeSpot(tileX(a.p), tileY(a.p)); a.navNext = -1; }
+      if (m.blocked(tileX(a.p), tileY(a.p))) { a.p = ClimbOps::freeSpot(g, tileX(a.p), tileY(a.p)); a.navNext = -1; }
     }
   }
   return clocked(true);
@@ -387,34 +389,34 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
 
 // Friendly NPCs: guards (and militia) fight what threatens the town, everyone else runs home and hides, and
 // otherwise they stroll around where they live.
-void Game::updateFolk(Actor& a, float dt) {
-  Actor& p = pl();
-  bool talking = mode == Mode::Dialogue && dlg.actor == a.id;
+void AiOps::updateFolk(Game& g, Actor& a, float dt) {
+  Actor& p = g.pl();
+  bool talking = g.mode == Mode::Dialogue && g.dlg.actor == a.id;
   // (P1b) a story's walker, a bout's moment, a person waiting inside a site, a drove's beast (rpg/story/story_game.cpp)
-  if ((story::isStoryPerson(a) || story::isDroveBeast(a)) && story::folkStep(*this, a, dt)) return;
+  if ((story::isStoryPerson(a) || story::isDroveBeast(a)) && story::folkStep(g, a, dt)) return;
   // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
-  if (!a.human && a.critter && LifeHooks::folk(*this, a, dt)) return;
+  if (!a.human && a.critter && LifeHooks::folk(g, a, dt)) return;
   // M8: a sellsword for hire at an inn, a body walking home out of sight (party_recruit.cpp)
-  if (a.partyTag && PartyOps::folk(*this, a, dt)) return;
+  if (a.partyTag && PartyOps::folk(g, a, dt)) return;
   // M2: a beast that keeps a wayside place (the toll bridge's troll) holds its ground until it is crossed
   if (!a.human) {
     a.st = AState::Idle;
     if (len2(p.p - a.p) < (5.0f * TILE) * (5.0f * TILE)) a.face = faceOf(p.p - a.p);
-    if (len2(a.home - a.p) > 4.0f) moveActor(a, norm(a.home - a.p) * std::min(a.speed * 0.4f * dt, len(a.home - a.p)));
+    if (len2(a.home - a.p) > 4.0f) ClimbOps::moveActor(g, a, norm(a.home - a.p) * std::min(a.speed * 0.4f * dt, len(a.home - a.p)));
     return;
   }
   // M2: a missing person (quests.cpp): cowers where they were found, then follows the player out, keeping out of fights;
   // once safe they walk off home (questTick puts them away out of sight)
-  if (a.quest > 0) { folkMissing(a, dt, talking); return; }
-  bool town = !inside && a.site >= 0 && a.fromMap && a.site < (int)world.sites.size() && isSettlement(world.sites[a.site].type);
-  const SiteAlarm* al = nullptr;
-  if (town) { auto it = alarms_.find(a.site); if (it != alarms_.end()) al = &it->second; }
+  if (a.quest > 0) { AiOps::folkMissing(g, a, dt, talking); return; }
+  bool town = !g.inside && a.site >= 0 && a.fromMap && a.site < (int)g.world.sites.size() && isSettlement(g.world.sites[a.site].type);
+  const Game::SiteAlarm* al = nullptr;
+  if (town) { auto it = g.alarms_.find(a.site); if (it != g.alarms_.end()) al = &it->second; }
   const bool ringing = al && al->ringing;
   const bool hurt = a.militia && a.hp < a.maxHp * 0.4f;   // militia run when badly hurt
   // (M4) a kingdom's soldiers and captains (road patrols, siege camps, checkpoints) fight like the watch
   const bool soldier = a.role == Role::Soldier || a.role == Role::Captain;
   const bool guard = a.role == Role::Guard || soldier;
-  if ((guard || (a.militia && !hurt)) && folkGuard(a, dt, town, ringing, soldier, guard)) return;
+  if ((guard || (a.militia && !hurt)) && AiOps::folkGuard(g, a, dt, town, ringing, soldier, guard)) return;
   if (talking) { a.face = faceOf(p.p - a.p); a.st = AState::Idle; return; }
   // (M4) soldiers and refugees go where the war sends them (war_game.cpp sets a.goal each step; a.special the pace)
   if (soldier || a.role == Role::Refugee) {
@@ -422,62 +424,62 @@ void Game::updateFolk(Actor& a, float dt) {
     const float l = len(d);
     const float pace = a.special > 0 ? a.special : 0.5f;
     if (l > 4.0f) {
-      if (!navStep(a, a.goal, a.speed * pace, dt)) moveActor(a, d * (a.speed * pace * dt / l));
+      if (!ClimbOps::navStep(g, a, a.goal, a.speed * pace, dt)) ClimbOps::moveActor(g, a, d * (a.speed * pace * dt / l));
       a.st = AState::Walk;
     } else a.st = AState::Idle;
     return;
   }
   // townsfolk run home and hide from monsters on the loose (and from the bell); they come back out when it's over
-  if (town && !guard && folkShelter(a, dt, ringing)) return;
+  if (town && !guard && AiOps::folkShelter(g, a, dt, ringing)) return;
   // M5: a resident with a plan lives it (work, meals, the tavern, sleep; life_game.cpp, TOWNSFOLK lane)
-  if (!guard && LifeHooks::folk(*this, a, dt)) return;
+  if (!guard && LifeHooks::folk(g, a, dt)) return;
   // M2 capital square life (owner note 6): the people whose place is out on a city's square linger near it by day and
   // go home at night (indoors until morning: updateTownDefence lets them out at dawn)
   const bool squareGoer = town && !guard && !a.stallKeeper && (a.role == Role::Villager || a.role == Role::Child) &&
-                          world.sites[(size_t)a.site].type == SiteType::City &&
-                          world.over.at((int)std::floor(a.home.x / TILE), (int)std::floor((a.home.y - 2) / TILE)) == Ground::Plaza;
+                          g.world.sites[(size_t)a.site].type == SiteType::City &&
+                          g.world.over.at((int)std::floor(a.home.x / TILE), (int)std::floor((a.home.y - 2) / TILE)) == Ground::Plaza;
   // (M5) a stall's keeper goes home for the night too (back at the counter in the morning: lifeSpawnAllowed)
-  const bool keeperHome = town && a.stallKeeper && (hour >= 21.5f || hour < 6.0f);
-  if ((squareGoer || keeperHome) && !talking && (hour >= 21.0f || hour < 6.0f)) {
-    const int b = homeDoor(a);
+  const bool keeperHome = town && a.stallKeeper && (g.hour >= 21.5f || g.hour < 6.0f);
+  if ((squareGoer || keeperHome) && !talking && (g.hour >= 21.0f || g.hour < 6.0f)) {
+    const int b = AiOps::homeDoor(g, a);
     // (fixer M5 r3, review: "stall keepers still at closed stalls at 02:00") deep in the night they went home hours ago
     // (still out only after a jump of the clock): indoors at once; one with no door of their own leaves the street too
-    if (b < 0 || hour >= 23.0f || hour < 5.0f) { a.indoors = true; a.nightHome = true; a.st = AState::Idle; return; }
+    if (b < 0 || g.hour >= 23.0f || g.hour < 5.0f) { a.indoors = true; a.nightHome = true; a.st = AState::Idle; return; }
     {
-      const Bldg& B = world.over.bldgs[(size_t)b];
+      const Bldg& B = g.world.over.bldgs[(size_t)b];
       const Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
       if (len2(a.p - door) < 7.0f * 7.0f) { a.indoors = true; a.nightHome = true; a.st = AState::Idle; return; }
-      if (!navStep(a, door, a.speed * 0.6f, dt)) moveActor(a, norm(door - a.p) * (a.speed * 0.5f * dt));
+      if (!ClimbOps::navStep(g, a, door, a.speed * 0.6f, dt)) ClimbOps::moveActor(g, a, norm(door - a.p) * (a.speed * 0.5f * dt));
       a.st = AState::Walk;
       return;
     }
   }
   a.thinkT -= dt;
-  if (a.stallKeeper && folkStall(a, dt)) return;
+  if (a.stallKeeper && AiOps::folkStall(g, a, dt)) return;
   if (a.thinkT <= 0 && !a.stallKeeper) {
-    a.thinkT = 2.0f + rng_.f() * 4.0f;
+    a.thinkT = 2.0f + g.rng_.f() * 4.0f;
     if (!a.lifeBits) { a.lifeA = -1; a.lifeT = 0; }   // (P1: a new goal: progress is counted afresh)
     // (P1 Fresh Roads) out of doors a stroll more often than a stand (a short pause between), over the whole square
-    if (rng_.f() < (inside ? 0.45f : 0.3f)) a.goal = a.p;
+    if (g.rng_.f() < (g.inside ? 0.45f : 0.3f)) a.goal = a.p;
     else {
-      float range = inside ? 3.0f : (squareGoer ? 5.0f : 6.0f);
+      float range = g.inside ? 3.0f : (squareGoer ? 5.0f : 6.0f);
       // (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left; clang goes left to right)
       // (P1) a square's own folk walk its lanes between the stalls: one way or the other (a diagonal into a stall's corner
       //  is a walk that never starts), as far across as up and down (same draws as ever)
-      const bool lanes = squareGoer && !inside;
+      const bool lanes = squareGoer && !g.inside;
       auto wander = [&]() {
-        float gy = rng_.range(-range * 0.4f, range * 0.4f) * TILE;
-        float gx = rng_.range(-range, range) * TILE;
+        float gy = g.rng_.range(-range * 0.4f, range * 0.4f) * TILE;
+        float gx = g.rng_.range(-range, range) * TILE;
         if (lanes) { if (std::fabs(gx) * 0.4f > std::fabs(gy)) gy = 0; else { gy *= 2.0f; gx = 0; } }
         return a.home + Vec2(gx, gy);
       };
       a.goal = wander();
       // (M2 fixer round 3) indoors a stop keeps a few px clear of the walls and furniture: a person idling with their
       // body against a side wall was drawn half into it
-      if (inside) {
-        for (int k = 0; k < 4 && !bodyFree(a.goal, a.radius + 4.0f, false); k++)
+      if (g.inside) {
+        for (int k = 0; k < 4 && !ClimbOps::bodyFree(g, a.goal, a.radius + 4.0f, false); k++)
           a.goal = wander();
-        if (!bodyFree(a.goal, a.radius + 4.0f, false)) a.goal = a.p;
+        if (!ClimbOps::bodyFree(g, a.goal, a.radius + 4.0f, false)) a.goal = a.p;
       }
     }
   }
@@ -486,15 +488,15 @@ void Game::updateFolk(Actor& a, float dt) {
   if (l > 3) {
     Vec2 before = a.p;
     // (P1) out in a town the way round a stall row or a fence is found (navStep: straight when in plain sight)
-    if (!inside && town && !guard) navStep(a, a.goal, a.speed * 0.45f, dt);
-    else moveActor(a, d * (1.0f / l) * (a.speed * 0.45f * dt));
+    if (!g.inside && town && !guard) ClimbOps::navStep(g, a, a.goal, a.speed * 0.45f, dt);
+    else ClimbOps::moveActor(g, a, d * (1.0f / l) * (a.speed * 0.45f * dt));
     a.face = faceOf(d);
     a.st = AState::Walk;
     // (P1) no nearer to the goal for 1.5 s (shouldering a guard at his post, a corner that pushes back): another way.
     // lifeT / lifeA: the TOWNSFOLK lane's scratch, free on a generator spawn: the time without progress and the nearest
     // the walker has come (px)
     bool noWay = len2(a.p - before) < 0.0004f;
-    if (!inside && town && !a.lifeBits) {
+    if (!g.inside && town && !a.lifeBits) {
       const int dist = (int)len(a.goal - a.p);
       if (a.lifeA < 0 || dist < a.lifeA) { a.lifeA = dist; a.lifeT = 0; }
       else if ((a.lifeT += dt) > 1.5f) noWay = true;
@@ -502,18 +504,18 @@ void Game::updateFolk(Actor& a, float dt) {
     if (noWay) {
       a.lifeA = -1; a.lifeT = 0;
       a.goal = a.p;
-      if (!inside) a.thinkT = std::min(a.thinkT, 0.6f);   // (P1: blocked: another way soon, not a long stare at the obstacle)
+      if (!g.inside) a.thinkT = std::min(a.thinkT, 0.6f);   // (P1: blocked: another way soon, not a long stare at the obstacle)
       // (P1) wedged on a corner (the body caught in a solid): a step back toward home, through the snag, never stuck
-      if (!inside && !bodyFree(a.p, a.radius, false) && len2(a.home - a.p) > 1.0f) a.p += norm(a.home - a.p) * std::min(a.speed * 0.3f * dt, len(a.home - a.p));
+      if (!g.inside && !ClimbOps::bodyFree(g, a.p, a.radius, false) && len2(a.home - a.p) > 1.0f) a.p += norm(a.home - a.p) * std::min(a.speed * 0.3f * dt, len(a.home - a.p));
     }
   } else a.st = AState::Idle;
 }
 
 // M2: a missing person (quests.cpp): cowers where they were found, then follows the player out, keeping out of fights;
 // once safe they walk off home
-void Game::folkMissing(Actor& a, float dt, bool talking) {
-  Actor& p = pl();
-  const Quest* q = questById(a.quest);
+void AiOps::folkMissing(Game& g, Actor& a, float dt, bool talking) {
+  Actor& p = g.pl();
+  const Quest* q = g.questById(a.quest);
   const bool following = q && q->type == QType::Missing && q->state == QState::Active && (q->flags & QF_FOUND);
   if (talking) { a.face = faceOf(p.p - a.p); a.st = AState::Idle; return; }
   if (q && q->type == QType::Missing && q->state == QState::Active && !following) {
@@ -523,35 +525,35 @@ void Game::folkMissing(Actor& a, float dt, bool talking) {
   }
   if (!following) {   // safe: off home, away from the player
     const Vec2 away = norm(a.p - p.p + Vec2(0.01f, 0.0f));
-    moveActor(a, away * (a.speed * 0.5f * dt));
+    ClimbOps::moveActor(g, a, away * (a.speed * 0.5f * dt));
     a.face = faceOf(away); a.st = AState::Walk;
     return;
   }
   // keep a stride behind the player; a beast close by: step away from it (toward the player's far side)
   const Actor* threat = nullptr;
   float td = 64.0f * 64.0f;
-  for (int hi : hostiles_) {
-    if (hi < 0 || hi >= (int)actors.size()) continue;
-    const Actor& e = actors[(size_t)hi];
+  for (int hi : g.hostiles_) {
+    if (hi < 0 || hi >= (int)g.actors.size()) continue;
+    const Actor& e = g.actors[(size_t)hi];
     if (e.player || e.st == AState::Dead || !e.hostile) continue;
     const float d2 = len2(e.p - a.p);
     if (d2 < td) { td = d2; threat = &e; }
   }
   if (len2(p.p - a.p) > (12.0f * TILE) * (12.0f * TILE)) {   // left behind (a door, a corner): catch up
-    a.p = freeSpot((int)std::floor(p.p.x / TILE), (int)std::floor(p.p.y / TILE) + 1);
+    a.p = ClimbOps::freeSpot(g, (int)std::floor(p.p.x / TILE), (int)std::floor(p.p.y / TILE) + 1);
     a.navNext = -1;
   }
   Vec2 goal = p.p - p.aim * 18.0f;
   if (threat) goal = p.p + norm(p.p - threat->p) * 26.0f;
   const float run = std::max(a.speed * 1.5f, 80.0f);
   if (len2(goal - a.p) > 10.0f * 10.0f) {
-    if (!navStep(a, goal, run, dt)) moveActor(a, norm(goal - a.p) * (run * dt));
+    if (!ClimbOps::navStep(g, a, goal, run, dt)) ClimbOps::moveActor(g, a, norm(goal - a.p) * (run * dt));
     a.st = AState::Walk;
   } else { a.st = AState::Idle; a.face = faceOf(p.p - a.p); }
 }
 
 // the watch, the militia and (M4) soldiers: find the nearest foe and fight it (true: this step is done)
-bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, bool guard) {
+bool AiOps::folkGuard(Game& g, Actor& a, float dt, bool town, bool ringing, bool soldier, bool guard) {
   // (M4) a militiaman looks for the beast on his own clock (Actor::special, unused by townsfolk): thinkT is also the
   // stroll's timer and the flight's (fleeing pins it at 1 s), which kept militia from ever taking up arms once they
   // had started to run, or for up to six seconds after a stroll began
@@ -563,9 +565,9 @@ bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, 
     const int chasing = a.target;
     a.target = -1;
     float bd = 1e30f;
-    const Site* st = town ? &world.sites[a.site] : nullptr;
+    const Site* st = town ? &g.world.sites[a.site] : nullptr;
     auto consider = [&](const Actor& e) {
-      if (e.id == a.id || e.st == AState::Dead || e.fly || e.indoors || !warFoes(*this, a, e)) return;
+      if (e.id == a.id || e.st == AState::Dead || e.fly || e.indoors || !warFoes(g, a, e)) return;
       if (e.id == a.unreach && a.unreachT > 0) return;   // no way to it from here: leave it for someone else
       float d2 = len2(e.p - a.p);
       bool nearMe = d2 < (guard ? 110.0f * 110.0f : 90.0f * 90.0f);
@@ -590,25 +592,25 @@ bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, 
       if (!nearMe && !inTown) return;
       // militia defend their own street (M4: further from home while the bell rings; in a frontier village, where no
       // watch will come, the whole village is theirs to defend)
-      const float reachM = ringing ? (warFrontier(*this, a.site) ? 40.0f : 16.0f) : 10.0f;
+      const float reachM = ringing ? (warFrontier(g, a.site) ? 40.0f : 16.0f) : 10.0f;
       if (a.militia && len2(e.p - a.home) > (reachM * TILE) * (reachM * TILE)) return;
       // a guard posted at a besieged gate, or a soldier of a camp, keeps to its post against the men across the field
       // unless they come close (the war is the realm's; the street fights are the player's to start)
       if (e.npc && e.faction == Faction::Army && !e.hostile && !a.hostile && d2 > 70.0f * 70.0f && !inTown) return;
       if (d2 < bd) { bd = d2; a.target = e.id; }
     };
-    for (int hi : hostiles_)
-      if (hi >= 0 && hi < (int)actors.size()) consider(actors[(size_t)hi]);
+    for (int hi : g.hostiles_)
+      if (hi >= 0 && hi < (int)g.actors.size()) consider(g.actors[(size_t)hi]);
     // the watch fights soldiers of an enemy kingdom (in hostiles_) and, when hostile to the player, the player; a
     // soldier also fights the guards of the town it besieges (guards are no "hostiles" of the townsfolk)
-    if (a.hostile && pl().st != AState::Dead) consider(pl());
+    if (a.hostile && g.pl().st != AState::Dead) consider(g.pl());
     if (soldier || a.hostile)
-      for (size_t k = 1; k < actors.size(); k++)
-        if (actors[k].npc && actors[k].realm && !actors[k].hostile && actors[k].faction != Faction::Army) consider(actors[k]);
+      for (size_t k = 1; k < g.actors.size(); k++)
+        if (g.actors[k].npc && g.actors[k].realm && !g.actors[k].hostile && g.actors[k].faction != Faction::Army) consider(g.actors[k]);
   }
-  int ti = a.target >= 0 ? findActor(a.target) : -1;
-  if (ti >= 0 && actors[ti].st != AState::Dead && !actors[ti].fly) {
-    Actor& t = actors[ti];
+  int ti = a.target >= 0 ? g.findActor(a.target) : -1;
+  if (ti >= 0 && g.actors[ti].st != AState::Dead && !g.actors[ti].fly) {
+    Actor& t = g.actors[ti];
     Vec2 d = t.p - a.p;
     float l = len(d);
     a.aim = norm(d);
@@ -616,8 +618,8 @@ bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, 
     if (a.militia) a.look.weapon = militiaTool(a.role);
     float reach = a.range + t.radius;
     if (a.st == AState::Windup) {
-      if (l > reach - 3) moveActor(a, a.aim * (a.speed * 0.6f * dt));   // step into the blow
-      if (a.stT > 0.3f) { a.st = AState::Strike; a.stT = 0; meleeHit(a); sfx((int)Sfx::Swing, a.p, guard ? 1.0f : 1.15f, 0.8f); }
+      if (l > reach - 3) ClimbOps::moveActor(g, a, a.aim * (a.speed * 0.6f * dt));   // step into the blow
+      if (a.stT > 0.3f) { a.st = AState::Strike; a.stT = 0; g.meleeHit(a); g.sfx((int)Sfx::Swing, a.p, guard ? 1.0f : 1.15f, 0.8f); }
       return true;
     }
     if (a.st == AState::Strike) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; a.atkCd = guard ? 0.8f : 1.3f; } return true; }
@@ -625,21 +627,21 @@ bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, 
       // (M2) the watch runs when the bell rings: a big town's guards must reach the square before the beasts do harm
       const float chase = a.speed * (guard && ringing ? 1.6f : 1.2f);
       const Vec2 before = a.p;
-      const bool stepped = navStep(a, t.p, chase, dt);
+      const bool stepped = ClimbOps::navStep(g, a, t.p, chase, dt);
       if (stepped && len2(a.p - before) < 1e-4f && l < reach + 14.0f) {
         // (M6 fixer r2, rpg_test seed 36: two guards stood 21 px from their wolves for 30 s) wedged right beside the
         // target: a beast standing inside a solid tile (the window streamed a prop in under it) steps out to open
         // ground, and a target just past the reach of a guard who cannot close in is struck anyway (the step into the
         // blow and the swing's own reach carry it)
-        const Map& mm = map();
-        if (mm.blocked(tileX(t.p), tileY(t.p))) { t.p = freeSpot(tileX(t.p), tileY(t.p)); t.navNext = -1; }
+        const Map& mm = g.map();
+        if (mm.blocked(tileX(t.p), tileY(t.p))) { t.p = ClimbOps::freeSpot(g, tileX(t.p), tileY(t.p)); t.navNext = -1; }
         else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; return true; }
       }
       if (!stepped) {
         // no path (a wall, water or a house row in between): don't grind against it; give the target up for a
         // while unless it is right there
         if (l > 3.0f * TILE) { a.unreach = t.id; a.unreachT = 6.0f; a.target = -1; thinkClock = 0; a.st = AState::Idle; return true; }
-        moveActor(a, a.aim * (chase * dt));
+        ClimbOps::moveActor(g, a, a.aim * (chase * dt));
       }
       a.st = AState::Walk;
     } else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
@@ -651,30 +653,30 @@ bool Game::folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, 
 }
 
 // townsfolk run home and hide from monsters on the loose (and from the bell) (true: this step is done)
-bool Game::folkShelter(Actor& a, float dt, bool ringing) {
+bool AiOps::folkShelter(Game& g, Actor& a, float dt, bool ringing) {
   const Actor* threat = nullptr;
   float td = 150.0f * 150.0f;   // (M2: from 100 px; folk start running sooner)
   // a threat is a monster on the hunt (aggro) or one right beside them; a pack dozing at its den by the
   // fields does not send the whole street indoors. (M4) A beast walking the streets themselves is a threat however
   // calm it looks (villagers no longer stroll past a wolf in the lane), and so are a kingdom's soldiers storming it
-  const Site& home = world.sites[a.site];
-  for (int hi : hostiles_) {
-    if (hi < 0 || hi >= (int)actors.size()) continue;
-    const Actor& e = actors[(size_t)hi];
-    if (e.player || e.st == AState::Dead || e.fly || len2(e.p - a.p) >= td || !warFoes(*this, a, e)) continue;
+  const Site& home = g.world.sites[a.site];
+  for (int hi : g.hostiles_) {
+    if (hi < 0 || hi >= (int)g.actors.size()) continue;
+    const Actor& e = g.actors[(size_t)hi];
+    if (e.player || e.st == AState::Dead || e.fly || len2(e.p - a.p) >= td || !warFoes(g, a, e)) continue;
     const int ex = tileX(e.p), ey = tileY(e.p);
     const bool inStreets = !e.npc && ex >= home.r.x && ey >= home.r.y && ex < home.r.x + home.r.w && ey < home.r.y + home.r.h;
     if (e.aggro || inStreets || len2(e.p - a.p) < 48.0f * 48.0f) { td = len2(e.p - a.p); threat = &e; }
   }
   if (threat || ringing) {
-    if (threat) alarms_[a.site].lastThreatT = time;
+    if (threat) g.alarms_[a.site].lastThreatT = g.time;
     a.fleeT += dt;
     bool ran = false;
     // (P1) a stall's keeper stands inside the stall against its counter: out by the stall's open side first (a step,
     // through the snag), then the run for a door like anyone
-    if (a.stallKeeper && !bodyFree(a.p, a.radius, false)) {
+    if (a.stallKeeper && !ClimbOps::bodyFree(g, a.p, a.radius, false)) {
       int kx = (int)std::floor(a.home.x / TILE), ky = (int)std::floor(a.home.y / TILE), kf = art::StallS;
-      art::stallOfKeeper([&](int x, int y) { return world.over.propAt(x, y); }, a.home.x, a.home.y, world.ox, world.oy, kx, ky, kf);
+      art::stallOfKeeper([&](int x, int y) { return g.world.over.propAt(x, y); }, a.home.x, a.home.y, g.world.ox, g.world.oy, kx, ky, kf);
       const art::StallKeeperSpot kks = art::stallKeeperSpot(kf);
       const Vec2 d = tileCentre(kx + kks.postDx, ky + kks.postDy) - a.p;
       const float l = len(d);
@@ -693,7 +695,7 @@ bool Game::folkShelter(Actor& a, float dt, bool ringing) {
       a.homeBldg = -1;
       Vec2 h = a.home;
       a.home = a.p;
-      homeDoor(a);
+      AiOps::homeDoor(g, a);
       a.home = h;
     }
     // after 16 s with every door out of reach (cut off by the threat or the river) they give up running for a door:
@@ -701,12 +703,12 @@ bool Game::folkShelter(Actor& a, float dt, bool ringing) {
     // where they stand and only scramble away when the threat closes in. The flight clock stops at 16 s.
     const bool cower = a.fleeT > 16.0f;
     if (cower) a.fleeT = 16.0f + 1e-3f;
-    int b = homeDoor(a);
+    int b = AiOps::homeDoor(g, a);
     if (b >= 0) {
-      const Bldg& B = world.over.bldgs[b];
+      const Bldg& B = g.world.over.bldgs[b];
       Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
       if (len2(a.p - door) < 7.0f * 7.0f) { a.indoors = true; a.st = AState::Idle; return true; }
-      if (!cower) ran = navStep(a, door, a.speed * 1.4f, dt);
+      if (!cower) ran = ClimbOps::navStep(g, a, door, a.speed * 1.4f, dt);
     }
     if (cower && !(threat && len2(threat->p - a.p) < 56.0f * 56.0f)) {
       if (threat) a.face = faceOf(threat->p - a.p);   // watching it, frozen to the spot
@@ -717,7 +719,7 @@ bool Game::folkShelter(Actor& a, float dt, bool ringing) {
     if (!ran) {
       if (!threat) { a.st = AState::Idle; return true; }
       Vec2 away = norm(a.p - threat->p);
-      moveActor(a, away * (a.speed * 1.35f * dt));
+      ClimbOps::moveActor(g, a, away * (a.speed * 1.35f * dt));
       a.face = faceOf(away);
     }
     a.st = AState::Walk;
@@ -731,7 +733,7 @@ bool Game::folkShelter(Actor& a, float dt, bool ringing) {
 
 // (M1 economy) a stall keeper minds the counter while the stall is open, and strolls the square off duty (true: this
 // step is done)
-bool Game::folkStall(Actor& a, float dt) {
+bool AiOps::folkStall(Game& g, Actor& a, float dt) {
   // (M1 economy) a stall keeper minds the counter while the stall is open: back behind it, facing the customers.
   // (M1 fixer) The way back (from shelter, from a door across the square) goes round the stalls by the path finder
   // to the keeper's tile behind the counter, then the last step in; after the stall's closing hour the keeper is off
@@ -740,17 +742,17 @@ bool Game::folkStall(Actor& a, float dt) {
   // (stalls fixer round 3) The stall from the keeper's spot (a side or back keeper stands on their post tile, behind
   // the counter's middle); a table's or cloth's seller stands on its tile (facing S)
   int stx = (int)std::floor(a.home.x / TILE), sty = (int)std::floor(a.home.y / TILE), sf = art::StallS;
-  art::stallOfKeeper([&](int x, int y) { return world.over.propAt(x, y); }, a.home.x, a.home.y, world.ox, world.oy, stx, sty, sf);
+  art::stallOfKeeper([&](int x, int y) { return g.world.over.propAt(x, y); }, a.home.x, a.home.y, g.world.ox, g.world.oy, stx, sty, sf);
   const art::StallKeeperSpot ks = art::stallKeeperSpot(sf);
   const int pox = stx + ks.postDx, poy = sty + ks.postDy;
-  if (ew::stallOpen(stx + world.ox, sty + world.oy, hour)) {
+  if (ew::stallOpen(stx + g.world.ox, sty + g.world.oy, g.hour)) {
     // (P1 Fresh Roads) a keeper is not a statue: every 35-60 game minutes (their own rhythm) they step out from behind
     // the counter for stock (a few tiles back from the stall and back again with a crate on the shoulder), and between
     // times they cry their wares with a wave now and then
     {
       const uint32_t kh = hash32((uint32_t)a.slot * 2654435761u ^ (uint32_t)(stx * 73856093) ^ (uint32_t)(sty * 19349663));
       const float period = 35.0f + (float)(kh % 26u);
-      const float mins = (float)std::fmod((double)day * 1440.0 + (double)hour * 60.0 + (double)((kh >> 8) % 60u), (double)period);
+      const float mins = (float)std::fmod((double)g.day * 1440.0 + (double)g.hour * 60.0 + (double)((kh >> 8) % 60u), (double)period);
       const float brk = 9.0f + (float)((kh >> 20) % 4u), back = brk - 2.4f;   // (the break: 9-12 game minutes, the last 2.4 the walk back)
       if (mins < brk) {
         // the stock: an open tile 2..5 steps from the post (never in the stall, a wall or a house), by the keeper's hash
@@ -761,22 +763,22 @@ bool Game::folkStall(Actor& a, float dt) {
           const uint32_t hk = hash32(kh + (uint32_t)k * 0x9E3779B9u);
           const int dx = (int)(hk % 9u) - 4, dy = (int)((hk >> 4) % 9u) - 4, d = std::abs(dx) + std::abs(dy);
           const int tx = pox + dx, ty = poy + dy;
-          if (d < 3 || d > 6 || len2(tileCentre(tx, ty) - a.home) < (3.4f * TILE) * (3.4f * TILE) || (tx == stx && ty == sty) || !world.over.in(tx, ty) || world.over.blocked(tx, ty) ||
-              world.over.bldgAt[(size_t)ty * world.over.w + tx] >= 0 || world.over.propAt(tx, ty))
+          if (d < 3 || d > 6 || len2(tileCentre(tx, ty) - a.home) < (3.4f * TILE) * (3.4f * TILE) || (tx == stx && ty == sty) || !g.world.over.in(tx, ty) || g.world.over.blocked(tx, ty) ||
+              g.world.over.bldgAt[(size_t)ty * g.world.over.w + tx] >= 0 || g.world.over.propAt(tx, ty))
             continue;
-          if (!bodyFree(tileCentre(tx, ty), a.radius, false)) continue;
+          if (!ClimbOps::bodyFree(g, tileCentre(tx, ty), a.radius, false)) continue;
           // (in plain sight of the post: a straight walk there and back, never a search that finds no way)
           const Vec2 from = tileCentre(pox, poy), sd = tileCentre(tx, ty) - from;
           const float sl = len(sd);
           bool clear = true;
-          for (float t = 4.0f; t < sl && clear; t += 4.0f) clear = bodyFree(from + sd * (t / sl), a.radius, false);
+          for (float t = 4.0f; t < sl && clear; t += 4.0f) clear = ClimbOps::bodyFree(g, from + sd * (t / sl), a.radius, false);
           if (!clear) continue;
           stock = tileCentre(tx, ty);
           break;
         }
         const Vec2 to = mins < back ? stock : tileCentre(pox, poy);
         a.posture = mins < back ? art::Posture::None : art::Posture::Carry;
-        if ((tileX(a.p) == stx && tileY(a.p) == sty) || (mins < back && !bodyFree(a.p, a.radius, false))) {   // out from behind the counter by the stall's opening (a step, not a jump)
+        if ((tileX(a.p) == stx && tileY(a.p) == sty) || (mins < back && !ClimbOps::bodyFree(g, a.p, a.radius, false))) {   // out from behind the counter by the stall's opening (a step, not a jump)
           const Vec2 d = tileCentre(pox, poy) - a.p;
           const float l = len(d);
           if (l > 0.5f) a.p += d * (std::min(l, a.speed * 0.5f * dt) / l);
@@ -785,14 +787,14 @@ bool Game::folkStall(Actor& a, float dt) {
           return true;
         }
         if (len2(to - a.p) > 9.0f) {
-          if (!navStep(a, to, a.speed * 0.5f, dt)) moveActor(a, norm(to - a.p) * (a.speed * 0.45f * dt));
+          if (!ClimbOps::navStep(g, a, to, a.speed * 0.5f, dt)) ClimbOps::moveActor(g, a, norm(to - a.p) * (a.speed * 0.45f * dt));
           a.face = faceOf(to - a.p);
           a.st = AState::Walk;
         } else a.st = AState::Idle;
         return true;
       }
       if (a.posture == art::Posture::Carry) a.posture = art::Posture::None;
-      const float cry = (float)std::fmod((double)time + (double)(kh % 97u), 13.0 + (double)((kh >> 16) % 9u));
+      const float cry = (float)std::fmod((double)g.time + (double)(kh % 97u), 13.0 + (double)((kh >> 16) % 9u));
       if (len2(a.home - a.p) < 9.0f) a.posture = cry < 1.3f ? art::Posture::Wave : art::Posture::None;
     }
     a.goal = a.home;
@@ -805,7 +807,7 @@ bool Game::folkStall(Actor& a, float dt) {
       return true;
     }
     const Vec2 post = tileCentre(pox, poy);
-    if (!navStep(a, post, a.speed * 0.5f, dt)) moveActor(a, norm(post - a.p) * (a.speed * 0.45f * dt));
+    if (!ClimbOps::navStep(g, a, post, a.speed * 0.5f, dt)) ClimbOps::moveActor(g, a, norm(post - a.p) * (a.speed * 0.45f * dt));
     a.face = faceOf(post - a.p);
     a.st = AState::Walk;
     return true;
@@ -814,8 +816,8 @@ bool Game::folkStall(Actor& a, float dt) {
   // square behind the stall
   if (tileX(a.p) == stx && tileY(a.p) == sty) { a.p = tileCentre(pox, poy); a.thinkT = 0; }
   if (a.thinkT <= 0) {
-    a.thinkT = 3.0f + rng_.f() * 5.0f;
-    const float side = rng_.range(-4.0f, 4.0f), back = rng_.range(1.0f, 4.0f);
+    a.thinkT = 3.0f + g.rng_.f() * 5.0f;
+    const float side = g.rng_.range(-4.0f, 4.0f), back = g.rng_.range(1.0f, 4.0f);
     a.goal = tileCentre(pox, poy) + Vec2(side * (float)std::abs(ks.postDy) + back * (float)ks.postDx, side * (float)std::abs(ks.postDx) + back * (float)ks.postDy) * TILE;
   }
   return false;
@@ -824,29 +826,29 @@ bool Game::folkStall(Actor& a, float dt) {
 // Town defence, once per frame after the actors moved: people at their door go inside, settlements count the
 // hostiles within their footprint and ring the bell at 3 or more, and the hidden come back out ~30 s after the
 // last threat. Nothing here is saved: after a load everyone is simply back on the street.
-void Game::updateTownDefence(float dt) {
-  if (inside) { alarmSite = -1; return; }
-  for (size_t i = 1; i < actors.size();) {
-    if (!actors[i].indoors) { i++; continue; }
-    Actor s = actors[i];
+void AiOps::updateTownDefence(Game& g, float dt) {
+  if (g.inside) { g.alarmSite = -1; return; }
+  for (size_t i = 1; i < g.actors.size();) {
+    if (!g.actors[i].indoors) { i++; continue; }
+    Actor s = g.actors[i];
     s.indoors = false; s.st = AState::Idle; s.stT = 0; s.navNext = -1; s.knock = Vec2(); s.target = -1;
-    sfx((int)Sfx::Door, s.p, 1.15f, 0.35f);
-    sheltered_.push_back(s);
-    actors.erase(actors.begin() + i);
+    g.sfx((int)Sfx::Door, s.p, 1.15f, 0.35f);
+    g.sheltered_.push_back(s);
+    g.actors.erase(g.actors.begin() + i);
   }
-  collectHostiles();   // (indices moved: people went indoors)
-  const Actor& p = pl();
-  for (int si : activeSites_) {
-    const Site& st = world.sites[si];
+  g.collectHostiles();   // (indices moved: people went indoors)
+  const Actor& p = g.pl();
+  for (int si : g.activeSites_) {
+    const Site& st = g.world.sites[si];
     if (!isSettlement(st.type)) continue;
-    SiteAlarm& al = alarms_[si];
+    Game::SiteAlarm& al = g.alarms_[si];
     int n = 0, near = 0;   // inside the footprint (the bell) / prowling at its edge (keeps folk indoors)
-    const ew::Gid ownerK = st.kingdom >= 0 ? world.kingdoms[(size_t)st.kingdom].id : 0;
-    for (int hi : hostiles_) {
-      const Actor& e = actors[(size_t)hi];
+    const ew::Gid ownerK = st.kingdom >= 0 ? g.world.kingdoms[(size_t)st.kingdom].id : 0;
+    for (int hi : g.hostiles_) {
+      const Actor& e = g.actors[(size_t)hi];
       if (e.player || e.st == AState::Dead) continue;
       // (M4) a kingdom's soldiers at war with the owner, storming its streets, ring the bell too
-      const bool enemyArmy = e.faction == Faction::Army && e.realm && ownerK && e.realm != ownerK && realm.atWar(e.realm, ownerK);
+      const bool enemyArmy = e.faction == Faction::Army && e.realm && ownerK && e.realm != ownerK && g.realm.atWar(e.realm, ownerK);
       if (!factionsHostile(Faction::Town, e.faction) && !enemyArmy) continue;
       int tx = tileX(e.p), ty = tileY(e.p);
       bool in = tx >= st.r.x - 1 && ty >= st.r.y - 1 && tx < st.r.x + st.r.w + 1 && ty < st.r.y + st.r.h + 1;
@@ -862,145 +864,145 @@ void Game::updateTownDefence(float dt) {
       if (in || (stray && edge6) || (hunting && tx >= st.r.x - 14 && ty >= st.r.y - 14 && tx < st.r.x + st.r.w + 14 && ty < st.r.y + st.r.h + 14)) near++;
     }
     al.hostiles = n;
-    if (near > 0) al.lastThreatT = time;
+    if (near > 0) al.lastThreatT = g.time;
     Vec2 c = tileCentre(st.r.cx(), st.r.cy());
     float pd = len(c - p.p) / TILE;
     if (n >= 3 && !al.ringing) {
       al.ringing = true; al.bellT = 0; al.quietT = 0;
       if (pd < 50) {
-        say("THE TOWN IS UNDER ATTACK!");
-        emit(Ev::Notice, p.p, (int)rgba(255, 96, 70), 0, "THE BELL OF " + st.name + " IS RINGING");
+        g.say("THE TOWN IS UNDER ATTACK!");
+        g.emit(Ev::Notice, p.p, (int)rgba(255, 96, 70), 0, "THE BELL OF " + st.name + " IS RINGING");
       }
     }
     if (al.ringing) {
       al.bellT -= dt;
       if (al.bellT <= 0) {
         al.bellT = 4.5f;
-        if (pd < 50) sfx((int)Sfx::Bell, c, 1.0f, clampf(1.25f - pd / 40.0f, 0.3f, 1.0f));
+        if (pd < 50) g.sfx((int)Sfx::Bell, c, 1.0f, clampf(1.25f - pd / 40.0f, 0.3f, 1.0f));
       }
       if (n == 0) {
         al.quietT += dt;
         if (al.quietT > 6.0f) {
           al.ringing = false;
-          if (pd < 50) say("THE BELL FALLS SILENT. " + st.name + " IS SAFE.");
+          if (pd < 50) g.say("THE BELL FALLS SILENT. " + st.name + " IS SAFE.");
         }
       } else al.quietT = 0;
     }
   }
   // the hidden come back out once it has been quiet for a while (healed: they patched themselves up indoors)
-  for (size_t i = 0; i < sheltered_.size();) {
-    Actor& s = sheltered_[i];
-    auto it = alarms_.find(s.site);
-    bool safe = it == alarms_.end() || (!it->second.ringing && time - it->second.lastThreatT > 30.0f);
-    if (s.nightHome && (hour >= 21.0f || hour < 6.0f)) safe = false;   // (M2) home for the night: out again at dawn
+  for (size_t i = 0; i < g.sheltered_.size();) {
+    Actor& s = g.sheltered_[i];
+    auto it = g.alarms_.find(s.site);
+    bool safe = it == g.alarms_.end() || (!it->second.ringing && g.time - it->second.lastThreatT > 30.0f);
+    if (s.nightHome && (g.hour >= 21.0f || g.hour < 6.0f)) safe = false;   // (M2) home for the night: out again at dawn
     int b = s.homeBldg;
-    if (safe && b >= 0 && b < (int)world.over.bldgs.size()) {
-      const Bldg& B = world.over.bldgs[b];
+    if (safe && b >= 0 && b < (int)g.world.over.bldgs.size()) {
+      const Bldg& B = g.world.over.bldgs[b];
       Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
-      const IRect sr = s.site >= 0 && s.site < (int)world.sites.size() ? world.sites[s.site].r : IRect{};
-      for (int hi : hostiles_) {
-        const Actor& e = actors[(size_t)hi];
+      const IRect sr = s.site >= 0 && s.site < (int)g.world.sites.size() ? g.world.sites[s.site].r : IRect{};
+      for (int hi : g.hostiles_) {
+        const Actor& e = g.actors[(size_t)hi];
         if (e.player || e.st == AState::Dead || !factionsHostile(s.faction, e.faction) || len2(e.p - door) >= 140.0f * 140.0f) continue;
         int tx = tileX(e.p), ty = tileY(e.p);
         bool inTown = tx >= sr.x - 1 && ty >= sr.y - 1 && tx < sr.x + sr.w + 1 && ty < sr.y + sr.h + 1;
         const bool stray = e.den < 0 && e.site < 0;
-        if ((e.aggro && e.target != pl().id) || inTown || stray) safe = false;   // (not a pack dozing at its den or fighting the player)
+        if ((e.aggro && e.target != g.pl().id) || inTown || stray) safe = false;   // (not a pack dozing at its den or fighting the player)
       }
       if (safe) {
         s.p = door; s.vel = Vec2(); s.fleeT = 0; s.fleeing = false; s.hp = s.maxHp; s.face = 0; s.nightHome = false;
         s.homeBldg = -1;   // out of whatever door sheltered them; the next alarm sends them home again (homeDoor)
-        s.goal = s.home; s.thinkT = 0.5f + rng_.f() * 2.0f; s.st = AState::Walk; s.stT = 0;
+        s.goal = s.home; s.thinkT = 0.5f + g.rng_.f() * 2.0f; s.st = AState::Walk; s.stT = 0;
         if (s.militia) s.look.weapon = calmTool(s.role);
-        sfx((int)Sfx::Door, door, 1.1f, 0.3f);
-        actors.push_back(s);
-        sheltered_.erase(sheltered_.begin() + (long)i);
+        g.sfx((int)Sfx::Door, door, 1.1f, 0.3f);
+        g.actors.push_back(s);
+        g.sheltered_.erase(g.sheltered_.begin() + (long)i);
         continue;
       }
     } else if (safe) {   // no door to come out of: drop them back where they live
-      s.p = freeSpot(tileX(s.home), tileY(s.home));
-      actors.push_back(s);
-      sheltered_.erase(sheltered_.begin() + (long)i);
+      s.p = ClimbOps::freeSpot(g, tileX(s.home), tileY(s.home));
+      g.actors.push_back(s);
+      g.sheltered_.erase(g.sheltered_.begin() + (long)i);
       continue;
     }
     i++;
   }
-  alarmSite = -1;
-  for (auto& kv : alarms_)
-    if (kv.second.ringing && activeSites_.count(kv.first) && (alarmSite < 0 || kv.first == curSite)) alarmSite = kv.first;
+  g.alarmSite = -1;
+  for (auto& kv : g.alarms_)
+    if (kv.second.ringing && g.activeSites_.count(kv.first) && (g.alarmSite < 0 || kv.first == g.curSite)) g.alarmSite = kv.first;
 }
 
-void Game::updateAI(Actor& a, float dt) {
-  if (MagicOps::aiOverride(*this, a, dt)) return;   // (M9) frozen, frightened, charmed, blinded (magic_game.cpp)
-  if (SeaOps::aiOverride(*this, a, dt)) return;     // (M10) the swimmers and pirates afloat (sea_game.cpp)
+void AiOps::updateAI(Game& g, Actor& a, float dt) {
+  if (MagicOps::aiOverride(g, a, dt)) return;   // (M9) frozen, frightened, charmed, blinded (magic_game.cpp)
+  if (SeaOps::aiOverride(g, a, dt)) return;     // (M10) the swimmers and pirates afloat (sea_game.cpp)
   float slow = a.slowT > 0 ? 0.55f : 1.0f;
   if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return; }
 
   // ---- friendly NPCs (M4: and the kingdoms' men-at-arms even when they are the player's enemies: a guard of a town the
   //      player assaults, an enemy patrol, a besieger's soldier fight as soldiers, not as beasts)
-  if (!a.hostile || (a.npc && a.human && (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Captain))) { updateFolk(a, dt); return; }
+  if (!a.hostile || (a.npc && a.human && (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Captain))) { AiOps::updateFolk(g, a, dt); return; }
   // (P1b) a calmed site's creatures stand down; a bout's opponent fights the player only (rpg/story/story_game.cpp)
-  if (story::hostileStep(*this, a, dt)) return;
+  if (story::hostileStep(g, a, dt)) return;
 
   // ---- hostiles: fight the nearest enemy (the player counted 1.5x closer); the leash only holds outside towns
   a.thinkT -= dt;
   const bool think = a.thinkT <= 0;
-  if (think) a.target = actors[(size_t)pickTarget(a)].id;
-  int ti = a.mon == Monster::Dragon || a.target < 0 ? 0 : findActor(a.target);
-  if (ti < 0 || actors[(size_t)ti].st == AState::Dead || actors[(size_t)ti].indoors) ti = 0;
-  Actor& p = actors[(size_t)ti];   // the target (usually the player)
+  if (think) a.target = g.actors[(size_t)AiOps::pickTarget(g, a)].id;
+  int ti = a.mon == Monster::Dragon || a.target < 0 ? 0 : g.findActor(a.target);
+  if (ti < 0 || g.actors[(size_t)ti].st == AState::Dead || g.actors[(size_t)ti].indoors) ti = 0;
+  Actor& p = g.actors[(size_t)ti];   // the target (usually the player)
   Vec2 toP = p.p - a.p;
   float dist = len(toP);
   if (think) {
     a.thinkT = 0.25f;
-    float sense = a.aggroR * (isNight() && !inside ? 0.8f : 1.0f);
-    if (p.player && background == Background::Hunter && a.faction == Faction::Wild) sense *= 0.7f;   // the hunter's quiet step
-    if (p.player) sense *= SkillOps::detectMul(*this, a);   // (M9) sneaking, the worn armour's noise, Stealth perks
+    float sense = a.aggroR * (g.isNight() && !g.inside ? 0.8f : 1.0f);
+    if (p.player && g.background == Background::Hunter && a.faction == Faction::Wild) sense *= 0.7f;   // the hunter's quiet step
+    if (p.player) sense *= SkillOps::detectMul(g, a);   // (M9) sneaking, the worn armour's noise, Stealth perks
     if (p.st != AState::Dead && !a.fleeing && dist < sense) a.aggro = true;
     // (M8b) Shadowstep: the hero rolled out of sight; nothing that hunts the hero sees them while it lasts
-    if (p.player && PowerOps::unseen(*this) && a.mon != Monster::Dragon) { a.aggro = false; a.target = -1; }
+    if (p.player && PowerOps::unseen(g) && a.mon != Monster::Dragon) { a.aggro = false; a.target = -1; }
     // (M9) SHADOW STRIKE / MATCHLESS leave the hero unseen; VANISH: sneaking far enough off, a foe loses the trail
-    if (p.player && a.mon != Monster::Dragon && (SkillOps::hidden(*this) || (a.aggro && SkillOps::losesTrail(*this, a, dist)))) { a.aggro = false; a.target = -1; }
+    if (p.player && a.mon != Monster::Dragon && (SkillOps::hidden(g) || (a.aggro && SkillOps::losesTrail(g, a, dist)))) { a.aggro = false; a.target = -1; }
     // packs are tied to their den: past the leash (or once the prey is long gone) they give up and go home.
     // Inside a settlement the leash doesn't hold: whatever got in fights until the guards end it.
     float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;
-    bool inTown = !inside && settlementAt(a.p) >= 0;
+    bool inTown = !g.inside && g.settlementAt(a.p) >= 0;
     if (!inTown && len(a.p - a.home) > leash && dist > 6 * TILE && !a.boss) a.aggro = false;
     // (M3c) a lurker never strays far from its water: it slides back once the prey is out of the shallows
     if (a.mon == Monster::Lurker && !inTown && len(a.p - a.home) > 9.0f * TILE && dist > 3 * TILE) a.aggro = false;
-    if (!a.boss && !inside && dist > std::max(a.aggroR * 2.4f, 15.0f * TILE)) a.aggro = false;
+    if (!a.boss && !g.inside && dist > std::max(a.aggroR * 2.4f, 15.0f * TILE)) a.aggro = false;
     if (p.st == AState::Dead) a.aggro = false;
     if (!a.aggro) a.fleeing = false;
     if (!a.aggro && a.st != AState::Windup) {
-      if (rng_.f() < 0.25f && a.mon != Monster::Lurker) {   // (a lurker lies still in the shallows)
+      if (g.rng_.f() < 0.25f && a.mon != Monster::Lurker) {   // (a lurker lies still in the shallows)
         float r = a.wild ? 5.0f : 3.0f;
-        const float gy = rng_.range(-r, r) * TILE;   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
-        const float gx = rng_.range(-r, r) * TILE;
+        const float gy = g.rng_.range(-r, r) * TILE;   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
+        const float gx = g.rng_.range(-r, r) * TILE;
         a.goal = a.home + Vec2(gx, gy);
       }
     }
   }
 
-  if (a.mon == Monster::Dragon) { beastDragon(a, p, toP, dist, dt); return; }   // dragon: its own dance (ai_beasts.cpp)
-  beastStep(a, p, toP, dist, dt, slow);   // the behaviour sets of every other hostile (ai_beasts.cpp)
+  if (a.mon == Monster::Dragon) { AiOps::beastDragon(g, a, p, toP, dist, dt); return; }   // dragon: its own dance (ai_beasts.cpp)
+  AiOps::beastStep(g, a, p, toP, dist, dt, slow);   // the behaviour sets of every other hostile (ai_beasts.cpp)
 }
 
-void Game::heavySlam(Actor& a) {
+void AiOps::heavySlam(Game& g, Actor& a) {
   // a ground slam in front of the brute: big damage and knockback, no cone check. Rolling through it is the answer.
   // (M6) the golem's slam is wider: the ground cracks round its fists
   const bool golem = a.mon == Monster::Golem;
   Vec2 c = a.p + a.aim * (golem ? 12.0f : 10.0f);
   float r = (golem ? 32.0f : 26.0f) + a.radius;
-  for (Actor& v : actors) {
+  for (Actor& v : g.actors) {
     if (v.id == a.id || v.st == AState::Dead || v.fly) continue;
     if (!(v.player || v.npc) || !factionsHostile(a.faction, v.faction)) continue;
     if (len2(v.p - c) > (r + v.radius) * (r + v.radius)) continue;
     // (M3c) the yeti's slam is frost-bitten: it slows whoever it catches
     const bool yeti = a.mon == Monster::Yeti;
-    damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id, yeti ? Ench::Frost : Ench::None, yeti ? 2.0f : 0.0f);
+    g.damage(v, a.dmg * 2.1f * (0.9f + g.rng_.f() * 0.2f), a.p, a.id, yeti ? Ench::Frost : Ench::None, yeti ? 2.0f : 0.0f);
     if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * (golem ? 230.0f : 190.0f);
   }
-  emit(Ev::Shake, c, 0, golem ? 6.0f : 4.5f);
-  if (golem) for (int k = 0; k < 10; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 0.628f) * r * 0.9f, std::sin(k * 0.628f) * r * 0.6f));
-  for (int k = 0; k < 6; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 1.047f) * r * 0.6f, std::sin(k * 1.047f) * r * 0.4f));
-  sfx((int)Sfx::HitHeavy, a.p, 0.55f);
+  g.emit(Ev::Shake, c, 0, golem ? 6.0f : 4.5f);
+  if (golem) for (int k = 0; k < 10; k++) g.emit(Ev::Dust, c + Vec2(std::cos(k * 0.628f) * r * 0.9f, std::sin(k * 0.628f) * r * 0.6f));
+  for (int k = 0; k < 6; k++) g.emit(Ev::Dust, c + Vec2(std::cos(k * 1.047f) * r * 0.6f, std::sin(k * 1.047f) * r * 0.4f));
+  g.sfx((int)Sfx::HitHeavy, a.p, 0.55f);
 }

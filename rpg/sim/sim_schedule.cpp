@@ -35,6 +35,7 @@
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/wayside_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/ai_ops.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -132,16 +133,16 @@ void Game::update(float dt, const Input& in) {
       // aside (two of them leave each other be)
       const bool aFixed = a.npc && a.useX >= 0, bFixed = b.npc && b.useX >= 0;
       if (aFixed && bFixed) continue;
-      if (aFixed) { if (!b.player) moveActor(b, push * 2.0f); continue; }
-      if (bFixed) { if (!a.player) moveActor(a, push * -2.0f); continue; }
-      if (aYields && !bYields) { if (!a.player) moveActor(a, push * -2.0f); continue; }
-      if (bYields && !aYields) { if (!b.player) moveActor(b, push * 2.0f); continue; }
-      if (!a.player) moveActor(a, push * -1.0f);
-      if (!b.player) moveActor(b, push);
-      if (a.player && b.npc) moveActor(b, push);
+      if (aFixed) { if (!b.player) ClimbOps::moveActor(*this, b, push * 2.0f); continue; }
+      if (bFixed) { if (!a.player) ClimbOps::moveActor(*this, a, push * -2.0f); continue; }
+      if (aYields && !bYields) { if (!a.player) ClimbOps::moveActor(*this, a, push * -2.0f); continue; }
+      if (bYields && !aYields) { if (!b.player) ClimbOps::moveActor(*this, b, push * 2.0f); continue; }
+      if (!a.player) ClimbOps::moveActor(*this, a, push * -1.0f);
+      if (!b.player) ClimbOps::moveActor(*this, b, push);
+      if (a.player && b.npc) ClimbOps::moveActor(*this, b, push);
     }
   // 6. the town bells and the watch; then each lane's world step, timed for --perf, in this fixed order
-  updateTownDefence(dt);
+  AiOps::updateTownDefence(*this, dt);
   // (M6 fixer) each subsystem's step timed for --perf (PerfCounters::sysWorstMs): the hitches' suspects
   auto timed = [&](int sys, auto&& fn) {
     const auto t0 = std::chrono::steady_clock::now();

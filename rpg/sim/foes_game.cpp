@@ -32,6 +32,7 @@
 #include <thread>
 #include <tuple>
 #include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/game.h"
 #endif
 
 using FAffix = foes::Affix;
@@ -217,8 +218,8 @@ struct FoeOps {
   }
   // a spawn of the foes' own (minions, split-offs, pack mates, named uniques, world bosses): no rolls
   static int spawnPlain(Game& g, art::Monster m, Vec2 p, int level) {
-    if (!g.bodyFree(p, gsim::mstat(m).radius, gsim::mstat(m).flying))
-      p = g.freeSpot((int)std::floor(p.x / TILE), (int)std::floor(p.y / TILE));
+    if (!ClimbOps::bodyFree(g, p, gsim::mstat(m).radius, gsim::mstat(m).flying))
+      p = ClimbOps::freeSpot(g, (int)std::floor(p.x / TILE), (int)std::floor(p.y / TILE));
     suppress = true;
     const int id = g.spawnMonster(m, p, level, false);
     suppress = false;
@@ -269,7 +270,7 @@ struct FoeOps {
   static void spawnNamed(Game& g, const foes::NamedUnique& u) {
     const int lx = u.gx - g.world.ox, ly = u.gy - g.world.oy;
     if (!g.world.over.in(lx, ly)) return;
-    const Vec2 at = g.freeSpot(lx, ly);
+    const Vec2 at = ClimbOps::freeSpot(g, lx, ly);
     const int id = spawnPlain(g, u.mon, at, u.D);
     const int i = g.findActor(id);
     if (i < 0) return;
@@ -577,10 +578,10 @@ void FoeHooks::step(Game& gm, float dt) {
       Vec2 behind = pp + back * 22.0f;
       const Vec2 alts[] = {back, norm(back + Vec2(-back.y, back.x)), norm(back - Vec2(-back.y, back.x)), Vec2(-back.y, back.x), Vec2(back.y, -back.x)};
       for (const Vec2& d : alts)
-        if (gm.bodyFree(pp + d * 22.0f, a.radius, a.flying)) { behind = pp + d * 22.0f; break; }
+        if (ClimbOps::bodyFree(gm, pp + d * 22.0f, a.radius, a.flying)) { behind = pp + d * 22.0f; break; }
       const float ph = std::fmod(t, 6.0f);
       if (ph > 5.3f && crossed(t, dt, 0.15f)) gm.emit(Ev::Sparkle, behind + Vec2(0, -6));
-      if (crossed(t, dt, 6.0f) && gm.bodyFree(behind, a.radius, a.flying)) {
+      if (crossed(t, dt, 6.0f) && ClimbOps::bodyFree(gm, behind, a.radius, a.flying)) {
         gm.emit(Ev::Sparkle, a.p + Vec2(0, -8));
         a.p = behind;
         a.knock = Vec2();

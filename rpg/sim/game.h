@@ -756,7 +756,6 @@ class Game {
   float exploreT_ = 0;
   float spawnT_ = 0;
   bool exitArmed_ = false;
-  bool pillarHit(float x, float y, float rx, float ry) const;   // (owner) a body against an open front's pillars
   int leaveCol_ = -1;          // (owner) the interior exit column walked out by (an open front's bays: the matching bay)
   bool stairsArmed_ = false;   // M0b: the player has stepped off the stairs they arrived by
   bool stairsLatch_ = false;   // M0b: just arrived by the stairs: they stay asleep until the stick is let go or the
@@ -771,7 +770,6 @@ class Game {
   // what each merchant has left this restock period (every 2 days): buying must not refill the shelf
   std::map<uint64_t, std::pair<int, std::vector<Item>>> shopCache_;
   int findActor(int id) const;
-  Vec2 freeSpot(int tx, int ty) const;
   void placePlayerAt(int tx, int ty);   // endless: recentres the window first when the tile is off its middle
   void maybeRecentre();                 // M1: keep the player in the window's middle (VISION_PLAN 2.9)
   void windowMoved(int dx, int dy);     // M1: the window moved by (dx, dy) tiles: translate everything overworld
@@ -783,17 +781,11 @@ class Game {
   bool perfectRoll_ = false;   // this roll already earned its slow-mo blip
   void updateDens(int ptx, int pty);
   int denClearedDay(int den) const;    // -1 = not cleared
-  void heavySlam(Actor& a);
   // town defence (M0, ai.cpp)
   struct SiteAlarm { float lastThreatT = -99, bellT = 0, quietT = 0; bool ringing = false; int hostiles = 0; };
   std::map<int, SiteAlarm> alarms_;    // per active settlement (derived each frame, never saved)
   std::vector<Actor> sheltered_;       // townsfolk hiding indoors; they come back out ~30 s after the threat ends
   std::vector<int> navPrev_;           // path-finding scratch
-  void updateTownDefence(float dt);
-  int pickTarget(const Actor& a) const;            // hostiles: the actors index to fight (0 = the player)
-  bool navStep(Actor& a, Vec2 goal, float speed, float dt);   // walk toward goal around buildings; false = no path
-  int homeDoor(Actor& a);              // the building a townsperson shelters in (chosen once), -1 none
-  void updateFolk(Actor& a, float dt);   // friendly NPC behaviour (guards, militia, fleeing, wandering)
   Rng rng_;
   void emit(Ev t, Vec2 p, int a = 0, float f = 1, const std::string& s = "") { events.push_back({t, p, a, f, s}); }
   void sfx(int s, Vec2 p, float pitch = 1, float vol = 1);
@@ -805,7 +797,6 @@ class Game {
   void recalcPlayer();
   void updatePlayer(float dt, const Input& in);
   void updateActor(Actor& a, float dt);
-  void updateAI(Actor& a, float dt);
   void updateProjectiles(float dt);
   void updatePickups(float dt);
   void updateSpawning(float dt);
@@ -819,16 +810,6 @@ class Game {
   void collectHostiles();
   bool sleepy(const Actor& a) const;   // NPC LOD: far off screen with nothing to react to
   void updateLocation();
-  void moveActor(Actor& a, Vec2 delta);
-  bool solidAt(float x, float y, bool flying) const;
-  bool bodyFree(Vec2 p, float r, bool flying, uint8_t swim = 0) const;   // an actor of radius r fits here (moveActor's box)
-  // (M10) a point is a wall for a swimmer (Actor::swim 1: anything but water, or a prop on the water; 2: the land's own
-  // rules ashore, water free)
-  bool swimSolid(float x, float y, uint8_t swim) const;
-  // (M7 fixer r2) townsfolk keep out of the player's yards (a villager stood on the new crops and shouldered the hero off
-  // the row): true when tile (tx, ty) of the overworld lies in an owned plot that `a` (a friendly NPC that is not one of
-  // the farm's own actors) is not already in. The way out stays open to one who is in.
-  bool yardBarred(const Actor& a, int tx, int ty) const;
   void meleeHit(Actor& a);
   void damage(Actor& victim, float dmg, Vec2 from, int attacker, Ench ench = Ench::None, float enchPow = 0, bool crit = false);
   void kill(Actor& a, int killer);
@@ -1002,6 +983,7 @@ class Game {
   friend struct TravelOps;             // M2 SIM: travel behind the fade, the interior made ahead (rpg/sim/travel_ops.h)
   friend struct WaysideOps;            // M2 SIM: wayside life, tolls, rumours (rpg/sim/wayside_ops.h, wayside.cpp)
   friend struct QuestOps;              // M2 SIM: the quests' machinery (rpg/sim/quest_ops.h, quests.cpp, quest_offers.cpp)
+  friend struct AiOps;                 // the actors' behaviour: beasts, folk, town defence (rpg/sim/ai_ops.h, ai.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,
@@ -1043,25 +1025,10 @@ class Game {
   // wayside life (wayside.cpp)
   float tollAskT_ = 0;                 // the troll asked a moment ago (no repeat while the player stays on the bridge)
   Vec2 offBridge_;                     // the player's last position off a toll bridge (the troll's demand turns them back)
-  // ---- (SOLID 3.5) the pieces the big sim functions were split into: private helpers in one marked block (wave 4
-  //      re-homes them). Each runs exactly the code (and draws exactly the dice) of the stretch it was cut from.
   // the key killedSlots[0] holds for an overworld spawn of a site (M1: 4096 slots per site; saves store site id + slot)
   static int owKillKey(int site, int slot) { return site * 4096 + (slot & 4095); }   // (game.cpp, game_combat.cpp)
-  // updateFolk's pieces (ai.cpp): the missing person, the watch's fight, the flight from danger, the stall keeper
-  // (true: this step is done)
-  void folkMissing(Actor& a, float dt, bool talking);
-  bool folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, bool guard);
-  bool folkShelter(Actor& a, float dt, bool ringing);
-  bool folkStall(Actor& a, float dt);
   // updateAI's behaviour sets (ai_beasts.cpp): p the target, toP / dist from the hostile to it
   struct BeastKind;                    // the kind flags (pack, brute, kite ...) and the windup
-  static BeastKind beastKindOf(const Actor& a);
-  void beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt);
-  void beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow);
-  void beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow, const BeastKind& k);
-  void beastAttack(Actor& a, Actor& p, float dist, float dt, const BeastKind& k);
-  void beastPackAttack(Actor& a, Actor& p, float dist, bool inMelee, const BeastKind& k);
-  void beastWander(Actor& a, float dt, float slow);
   // offerFor's pieces (quest_offers.cpp, QuestOps::offerBuild ... offerPitch)
   struct OfferCtx;                     // one offer being built (the giver, the dice, the grammar's variables)
 };
@@ -1069,10 +1036,10 @@ class Game {
 // M11 CLIMB: moving over the relief (rpg/sim/game.cpp moveActor, ai.cpp navStep): the internals the tests and scripts
 // drive (rpg_test --climb, rpg/view/script_climb.cpp)
 struct ClimbOps {
-  static void moveActor(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
-  static bool navStep(Game& g, Actor& a, Vec2 goal, float speed, float dt) { return g.navStep(a, goal, speed, dt); }
-  static bool bodyFree(const Game& g, Vec2 p, float r, bool flying = false, uint8_t swim = 0) { return g.bodyFree(p, r, flying, swim); }
-  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static void moveActor(Game& g, Actor& a, Vec2 d);
+  static bool navStep(Game& g, Actor& a, Vec2 goal, float speed, float dt);   // walk toward goal around buildings; false = no path
+  static bool bodyFree(const Game& g, Vec2 p, float r, bool flying = false, uint8_t swim = 0);   // an actor of radius r fits here (moveActor's box)
+  static Vec2 freeSpot(const Game& g, int tx, int ty);
   static void clearPaths(Game& g) { g.navPaths_.clear(); }
   // the factor the ground under a body asks of it now (Map::reliefSpeed; 1 flying, swimming, aboard; the player's
   // sure-footed horse; softened a little by a high Athletics): what Actor::reliefK eases toward
@@ -1080,8 +1047,16 @@ struct ClimbOps {
   // the long path search (ai.cpp): an A* over the start and goal's box plus 40 tiles; the way as local tile pairs
   // (x, y; the goal's last) and the expansions it took
   static bool longSearch(Game& g, const Actor& a, int sx, int sy, int gx, int gy, std::vector<int32_t>& out, int& nodes);
-  static bool yardBarred(const Game& g, const Actor& a, int tx, int ty) { return g.yardBarred(a, tx, ty); }
+  // (M7 fixer r2) townsfolk keep out of the player's yards (a villager stood on the new crops and shouldered the hero off
+  // the row): true when tile (tx, ty) of the overworld lies in an owned plot that `a` (a friendly NPC that is not one of
+  // the farm's own actors) is not already in. The way out stays open to one who is in. (home_game.cpp)
+  static bool yardBarred(const Game& g, const Actor& a, int tx, int ty);
   // scripts: a town guard at `at` (map pixels; hostile: one hostile to the hero, who chases them as the watch chases a
   // wanted man); its Actor::id
   static int spawnGuard(Game& g, Vec2 at, bool hostile);
+  static bool pillarHit(const Game& g, float x, float y, float rx, float ry);   // (owner) a body against an open front's pillars
+  static bool solidAt(const Game& g, float x, float y, bool flying);
+  // (M10) a point is a wall for a swimmer (Actor::swim 1: anything but water, or a prop on the water; 2: the land's own
+  // rules ashore, water free)
+  static bool swimSolid(const Game& g, float x, float y, uint8_t swim);
 };

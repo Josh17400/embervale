@@ -28,6 +28,7 @@
 #include "rpg/sim/home.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/travel_ops.h"
+#include "rpg/sim/game.h"
 
 // ---------------------------------------------------------------- HomeOps: shared helpers
 void HomeOps::dropAt(Game& g, int i) {
@@ -157,12 +158,12 @@ void Game::homeDismount(home::Dismount why) {
   else if (why == home::Dismount::Water) say("THE HORSE WILL NOT WADE INTO THE WET: YOU DISMOUNT");
 }
 
-bool Game::yardBarred(const Actor& a, int tx, int ty) const {
-  if (home.plots.empty() || inside || a.player || !a.npc || a.hostile || (a.lifeBits & LB_HOMESTEAD)) return false;
-  const int pi = home.plotAt(world.ox + tx, world.oy + ty);
+bool ClimbOps::yardBarred(const Game& g, const Actor& a, int tx, int ty) {
+  if (g.home.plots.empty() || g.inside || a.player || !a.npc || a.hostile || (a.lifeBits & LB_HOMESTEAD)) return false;
+  const int pi = g.home.plotAt(g.world.ox + tx, g.world.oy + ty);
   if (pi < 0) return false;
   const int ax = (int)std::floor(a.p.x / TILE), ay = (int)std::floor((a.p.y - 2) / TILE);
-  return home.plotAt(world.ox + ax, world.oy + ay) != pi;
+  return g.home.plotAt(g.world.ox + ax, g.world.oy + ay) != pi;
 }
 
 // ---------------------------------------------------------------- the step
@@ -261,7 +262,7 @@ void HomeOps::step(Game& g, float dt) {
     // the nearest free tile (in front of the door when they were on the house), never left trapped in it
     if (!g.inside)
       for (Actor& a : g.actors) {
-        if (a.hp <= 0 || a.flying || a.fly || g.bodyFree(a.p, a.radius, false)) continue;
+        if (a.hp <= 0 || a.flying || a.fly || ClimbOps::bodyFree(g, a.p, a.radius, false)) continue;
         const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor((a.p.y - 2) / TILE);
         const int pi = g.home.plotAt(g.world.ox + tx, g.world.oy + ty);
         if (pi < 0) continue;
@@ -273,7 +274,7 @@ void HomeOps::step(Game& g, float dt) {
           home::doorOf(P, dx, dy);
           sx = P.gx + dx - g.world.ox; sy = P.gy + dy + 1 - g.world.oy;
         }
-        a.p = g.freeSpot(sx, sy);
+        a.p = ClimbOps::freeSpot(g, sx, sy);
         a.vel = Vec2();
         a.knock = Vec2();
       }

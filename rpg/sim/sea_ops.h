@@ -69,7 +69,7 @@ struct SeaOps {
   static void ev(Game& g, sea::SeaEv k, Vec2 p, float f = 1, uint32_t id = 0, const std::string& s = "", Vec2 q = Vec2());
   static void tell(Game& g, const std::string& s) { g.say(s); }
   static void snd(Game& g, int s, Vec2 p, float pitch = 1, float vol = 1) { g.sfx(s, p, pitch, vol); }
-  static void move(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
+  static void move(Game& g, Actor& a, Vec2 d) { ClimbOps::moveActor(g, a, d); }
   static int findActor(const Game& g, int id) { return g.findActor(id); }
   static Rng& rng(Game& g) { return g.rng_; }
   static void hit(Game& g, Actor& v, float dmg, Vec2 from, int attacker) { g.damage(v, dmg, from, attacker, Ench::None, 0, false); }

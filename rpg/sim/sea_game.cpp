@@ -18,6 +18,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/magic_ops.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/game.h"
 
 using namespace sea;
 using gsim::faceOf;
@@ -60,7 +61,7 @@ bool SeaOps::landing(const Game& g, Vec2& out) {
       const int tx = tx0 + dx, ty = ty0 + dy;
       if (!m.in(tx, ty) || groundWater(m.at(tx, ty)) || m.at(tx, ty) == Ground::Void) continue;
       const Vec2 c((float)tx * TILE + 8.0f, (float)ty * TILE + 10.0f);
-      if (!g.bodyFree(c, 4.5f, false)) continue;
+      if (!ClimbOps::bodyFree(g, c, 4.5f, false)) continue;
       const float d = len2(c - p.p);
       if (d < best) { best = d; out = c; found = true; }
     }
@@ -131,7 +132,7 @@ bool SeaOps::board(Game& g, int i) {
   Boat& b = g.sea.boats[(size_t)i];
   const HullInfo& H = hullInfo(b.hull);
   const Vec2 at = boatPx(g, b);
-  if (!g.bodyFree(at, H.radius, false, 1)) return false;
+  if (!ClimbOps::bodyFree(g, at, H.radius, false, 1)) return false;
   Actor& p = g.pl();
   Sea::Live& L = g.sea.live;
   if (!L.swimming) L.heroRadius = p.radius;
@@ -231,7 +232,7 @@ void SeaOps::sailStep(Game& g, const Input& in, float dt) {
       L.helm += std::clamp(std::clamp(diff * 1.5f, -1.0f, 1.0f) - L.helm, -3.0f * dt, 3.0f * dt);
       L.heading = wrapPi(L.heading + std::clamp(diff, -H.turn * 1.2f * dt, H.turn * 1.2f * dt));
       const Vec2 before = p.p;
-      g.moveActor(p, norm(d) * std::min(dist, L.speed * TILE * dt));
+      ClimbOps::moveActor(g, p, norm(d) * std::min(dist, L.speed * TILE * dt));
       if (len2(p.p - before) < 0.0001f) L.moorT += dt * 2;   // (fouled on something: give up sooner)
       else L.stuckT = 0;
       if (len2(p.p - before) < 0.0001f && L.speed > 0.3f) L.stuckT += dt;
@@ -307,7 +308,7 @@ void SeaOps::sailStep(Game& g, const Input& in, float dt) {
     if (throttle > 0.3f) L.stuckT += dt;
   } else L.stuckT = std::max(0.0f, L.stuckT - dt);
   const Vec2 before = p.p;
-  if (L.speed > 0.01f) g.moveActor(p, dir * (L.speed * TILE * dt));
+  if (L.speed > 0.01f) ClimbOps::moveActor(g, p, dir * (L.speed * TILE * dt));
   // (fixer M10 r1) pinned (the bow on a pier or a bank, or the hull pressed against one) with the helm asking for way:
   // she pivots off toward the open water, a little faster than the rudder pulls her back, so she slides clear along
   // the obstacle instead of sitting at 0.0 knots (seeds 3 and 7: a sloop given at the berth, the helm held out)
@@ -333,7 +334,7 @@ void SeaOps::sailStep(Game& g, const Input& in, float dt) {
     if (push > 0.01f) {
       const Vec2 dp = windV * (push * TILE * dt);
       const Vec2 to = p.p + dp + windV * H.radius;
-      if (sailableAs(g, b.hull, keel, (int)std::floor(to.x / TILE), (int)std::floor(to.y / TILE))) g.moveActor(p, dp);
+      if (sailableAs(g, b.hull, keel, (int)std::floor(to.x / TILE), (int)std::floor(to.y / TILE))) ClimbOps::moveActor(g, p, dp);
     }
   }
   // the hull heels to a wind on the beam (the view tilts the sail), eased

@@ -393,7 +393,7 @@ bool PartyOps::useSkill(Game& g, Actor& a, Member& m, int k, bool ordered) {
     case party::Skill::Flank: {
       if (!t || len(t->p - a.p) > 5.0f * T) return false;
       const Vec2 back = t->p - norm(t->aim + Vec2(0.0001f, 0)) * (t->radius + a.radius + 4.0f);
-      if (g.bodyFree(back, a.radius, false)) { a.p = back; a.navNext = -1; g.emit(Ev::Dust, a.p); }
+      if (ClimbOps::bodyFree(g, back, a.radius, false)) { a.p = back; a.navNext = -1; g.emit(Ev::Dust, a.p); }
       a.aim = norm(t->p - a.p + Vec2(0.0001f, 0)); a.face = faceOf(a.aim);
       g.damage(*t, a.dmg * 2.0f, a.p, a.id);
       g.party.stats.flanks++;
@@ -454,7 +454,7 @@ bool PartyOps::useSkill(Game& g, Actor& a, Member& m, int k, bool ordered) {
       }
       if (best < 0) return false;
       g.pickups[(size_t)best].p = p.p + Vec2(10, 6);
-      a.p = g.freeSpot((int)std::floor((p.p.x + 12) / T), (int)std::floor((p.p.y + 4) / T));
+      a.p = ClimbOps::freeSpot(g, (int)std::floor((p.p.x + 12) / T), (int)std::floor((p.p.y + 4) / T));
       g.party.stats.fetches++;
       done = true;
       break;
@@ -569,10 +569,10 @@ bool PartyOps::fight(Game& g, Actor& a, Member& m, int mi, float dt) {
       Vec2 away = norm(a.p - t.p + Vec2(0.0001f, 0));
       m.kiteT += dt;
       const Vec2 before = a.p;
-      g.moveActor(a, away * (a.speed * 0.8f * dt));
+      ClimbOps::moveActor(g, a, away * (a.speed * 0.8f * dt));
       if (len2(a.p - before) < 0.01f) {
         const Vec2 side(-away.y * (float)m.orbit, away.x * (float)m.orbit);
-        g.moveActor(a, side * (a.speed * 0.8f * dt));
+        ClimbOps::moveActor(g, a, side * (a.speed * 0.8f * dt));
         if (len2(a.p - before) < 0.01f) m.orbit = -m.orbit;
       }
       a.face = faceOf(d);
@@ -606,7 +606,7 @@ bool PartyOps::fight(Game& g, Actor& a, Member& m, int mi, float dt) {
       const Vec2 on = t.p + Vec2(std::cos(ang), std::sin(ang)) * std::max(want + 4.0f, 18.0f);
       const Vec2 goal = len(back - a.p) < 10.0f ? back : on;
       const Vec2 before = a.p;
-      g.moveActor(a, norm(goal - a.p + Vec2(0.0001f, 0)) * std::min(a.speed * 1.2f * dt, len(goal - a.p)));
+      ClimbOps::moveActor(g, a, norm(goal - a.p + Vec2(0.0001f, 0)) * std::min(a.speed * 1.2f * dt, len(goal - a.p)));
       if (len2(a.p - before) < 0.01f) m.orbit = -m.orbit;
       a.face = faceOf(d);
       a.st = AState::Walk;

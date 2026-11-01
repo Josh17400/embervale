@@ -213,7 +213,7 @@ void LifeHooks::raidStep(Game& g, float dt) {
       R.site = s.id; R.si = si; R.night = nightIx;
       for (int k = 0; k <= n; k++) {
         const bool elite = k == n;
-        const Vec2 at = g.freeSpot(bx + (k % 3) - 1, by + (k / 3) - 1);
+        const Vec2 at = ClimbOps::freeSpot(g, bx + (k % 3) - 1, by + (k / 3) - 1);
         const int id = g.spawnMonster(mon, at, lvl + (elite ? 3 : 0), false);
         const int ai = g.findActor(id);
         if (ai < 0) continue;

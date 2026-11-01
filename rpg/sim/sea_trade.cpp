@@ -20,6 +20,7 @@
 #include "rpg/sim/talk.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 using namespace sea;
 
@@ -171,7 +172,7 @@ void SeaOps::tradeStep(Game& g, float dt) {
     Vec2 at;
     const int tx = px + dx, ty = py + dy;
     if (!g.world.over.in(tx, ty)) continue;
-    Vec2 spot = g.freeSpot(tx, ty);
+    Vec2 spot = ClimbOps::freeSpot(g, tx, ty);
     if (!coastNear(g, spot, 6, at)) at = spot;
     if (groundWater(g.world.over.at((int)std::floor(at.x / TILE), (int)std::floor(at.y / TILE)))) continue;
     Actor a;

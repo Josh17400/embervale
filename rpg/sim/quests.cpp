@@ -26,6 +26,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 using art::Monster;
 using art::Prop;
@@ -615,7 +616,7 @@ void QuestOps::questMapLoaded(Game& g) {
     if (solidDirty) g.sub.rebuildSolid();
     for (Quest& q : g.quests) {
       if (q.state != QState::Active || q.target != g.subSite || q.type != QType::Missing || QuestOps::escortFor(g, q) >= 0) continue;
-      if (q.flags & QF_FOUND) QuestOps::spawnEscort(g, q, g.freeSpot((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE) + 1));
+      if (q.flags & QF_FOUND) QuestOps::spawnEscort(g, q, ClimbOps::freeSpot(g, (int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE) + 1));
       else {
         const int idx = farTile(g.sub, chestIdx);
         if (idx < 0) continue;
@@ -649,7 +650,7 @@ void QuestOps::questLeftSite(Game& g, int si) {
     if (q.type != QType::Missing || q.state != QState::Active || q.target != si || !(q.flags & QF_FOUND)) continue;
     q.state = QState::Complete;
     q.flags |= QF_ESCORTED;
-    QuestOps::spawnEscort(g, q, g.freeSpot((int)std::floor(g.pl().p.x / TILE) + 1, (int)std::floor(g.pl().p.y / TILE) + 1));
+    QuestOps::spawnEscort(g, q, ClimbOps::freeSpot(g, (int)std::floor(g.pl().p.x / TILE) + 1, (int)std::floor(g.pl().p.y / TILE) + 1));
     g.emit(Ev::Text, g.actors.back().p + Vec2(0, -24), (int)rgba(255, 240, 200), 0, "DAYLIGHT! THANK YOU!");
     const std::string m = q.subject + " IS SAFE. " + rewardReadyMsg(g.world, q);
     g.emit(Ev::QuestUpdate, g.pl().p, q.id, 2, m);
@@ -847,7 +848,7 @@ void QuestOps::questTick(Game& gm, float dt) {
       const float ang = (i - (n - 1) * 0.5f) * 0.28f;
       const Vec2 dir(out.x * std::cos(ang) - out.y * std::sin(ang), out.x * std::sin(ang) + out.y * std::cos(ang));
       const Vec2 at0 = fp + dir * (17.0f * TILE);
-      const Vec2 at = gm.freeSpot((int)std::floor(at0.x / TILE), (int)std::floor(at0.y / TILE));
+      const Vec2 at = ClimbOps::freeSpot(gm, (int)std::floor(at0.x / TILE), (int)std::floor(at0.y / TILE));
       int id;
       if (z == 2) {
         Spawn sp;

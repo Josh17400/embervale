@@ -31,6 +31,7 @@
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/wayside_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/ai_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -265,8 +266,8 @@ void Game::finishCreator() {
   }
 }
 
-Vec2 Game::freeSpot(int tx, int ty) const {
-  const Map& m = map();
+Vec2 ClimbOps::freeSpot(const Game& g, int tx, int ty) {
+  const Map& m = g.map();
   for (int r = 0; r < 12; r++)
     for (int oy = -r; oy <= r; oy++)
       for (int ox = -r; ox <= r; ox++) {
@@ -290,7 +291,7 @@ Vec2 Game::freeSpotClear(int tx, int ty, int rad) const {
         if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
         if (clear(tx + ox, ty + oy)) return Vec2((tx + ox) * TILE + 8.0f, (ty + oy) * TILE + 10.0f);
       }
-  return freeSpot(tx, ty);
+  return ClimbOps::freeSpot(*this, tx, ty);
 }
 void Game::placePlayerAt(int tx, int ty) {
   if (world.endless && !inside) {
@@ -306,7 +307,7 @@ void Game::placePlayerAt(int tx, int ty) {
       prefetchFrom_ = Vec2();
     }
   }
-  pl().p = freeSpot(tx, ty);
+  pl().p = ClimbOps::freeSpot(*this, tx, ty);
   pl().vel = Vec2();
   pl().knock = Vec2();
 }
@@ -444,8 +445,8 @@ uint64_t Game::lootKey(int tx, int ty) const {
 }
 
 // ------------------------------------------------------------------ collision
-bool Game::solidAt(float x, float y, bool flying) const {
-  const Map& m = map();
+bool ClimbOps::solidAt(const Game& gm, float x, float y, bool flying) {
+  const Map& m = gm.map();
   int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
   if (!m.in(tx, ty)) return true;
   if (flying) {
@@ -463,9 +464,9 @@ bool Game::solidAt(float x, float y, bool flying) const {
 
 // (owner 2026-10-06) an open front's pillars are thinner than a body, so the body's whole width is held against them
 // (its four corners alone would slip past a 3 px column)
-bool Game::pillarHit(float x, float y, float rx, float ry) const {
-  if (inside) return false;
-  const Map& m = world.over;
+bool ClimbOps::pillarHit(const Game& g, float x, float y, float rx, float ry) {
+  if (g.inside) return false;
+  const Map& m = g.world.over;
   const int ty0 = (int)std::floor((y - ry) / TILE), ty1 = (int)std::floor((y + ry) / TILE);
   const int tx0 = (int)std::floor((x - rx) / TILE), tx1 = (int)std::floor((x + rx) / TILE);
   for (int ty = ty0; ty <= ty1; ty++)
@@ -485,14 +486,14 @@ bool Game::pillarHit(float x, float y, float rx, float ry) const {
   return false;
 }
 
-bool Game::swimSolid(float x, float y, uint8_t swim) const {
-  const Map& m = map();
+bool ClimbOps::swimSolid(const Game& g, float x, float y, uint8_t swim) {
+  const Map& m = g.map();
   const int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
   if (!m.in(tx, ty)) return true;
   if (m.fallAt(tx, ty)) return true;                                            // (M11) a waterfall: a wall to swimmers and boats
   if (groundWater(m.at(tx, ty))) return m.solid[(size_t)ty * m.w + tx] != 0;   // a prop on the water: a post, a hull
   if (swim == 1) return true;                                                   // the sea's own: the land is a wall
-  return solidAt(x, y, false);                                                  // amphibious: the land's rules ashore
+  return ClimbOps::solidAt(g, x, y, false);                                                  // amphibious: the land's rules ashore
 }
 
 float ClimbOps::reliefTarget(const Game& g, const Actor& a) {
@@ -529,22 +530,22 @@ int ClimbOps::spawnGuard(Game& g, Vec2 at, bool hostile) {
   return id;
 }
 
-bool Game::bodyFree(Vec2 p, float r, bool flying, uint8_t swim) const {
+bool ClimbOps::bodyFree(const Game& g, Vec2 p, float r, bool flying, uint8_t swim) {
   float ry = r * 0.6f;
   if (swim)   // (M10) a swimmer: its four corners on its own ground
-    return !swimSolid(p.x - r, p.y - ry, swim) && !swimSolid(p.x + r, p.y - ry, swim) && !swimSolid(p.x - r, p.y + ry, swim) &&
-           !swimSolid(p.x + r, p.y + ry, swim);
-  return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying) &&
-         (flying || !pillarHit(p.x, p.y, r, ry));
+    return !ClimbOps::swimSolid(g, p.x - r, p.y - ry, swim) && !ClimbOps::swimSolid(g, p.x + r, p.y - ry, swim) && !ClimbOps::swimSolid(g, p.x - r, p.y + ry, swim) &&
+           !ClimbOps::swimSolid(g, p.x + r, p.y + ry, swim);
+  return !ClimbOps::solidAt(g, p.x - r, p.y - ry, flying) && !ClimbOps::solidAt(g, p.x + r, p.y - ry, flying) && !ClimbOps::solidAt(g, p.x - r, p.y + ry, flying) && !ClimbOps::solidAt(g, p.x + r, p.y + ry, flying) &&
+         (flying || !ClimbOps::pillarHit(g, p.x, p.y, r, ry));
 }
 
-void Game::moveActor(Actor& a, Vec2 d) {
+void ClimbOps::moveActor(Game& g, Actor& a, Vec2 d) {
   if (a.fly) { a.p += d; return; }
   // (M11 CLIMB) the relief's pace (Map::reliefSpeed: a hillside or an earth ramp 0.8, stone stairs 0.9): the factor the
   // ground under the feet asks for, eased in and out over about 0.15 s of walking (0.2 of pace per a.speed * 0.15 px
   // moved, at most 8 px) so a tile's edge never snaps it. Flying, swimming and boats keep 1 (ClimbOps::reliefTarget).
   {
-    const float tgt = ClimbOps::reliefTarget(*this, a);
+    const float tgt = ClimbOps::reliefTarget(g, a);
     const float span = std::clamp(a.speed * 0.15f, 3.0f, 8.0f);
     const float stepK = 0.2f * std::sqrt(d.x * d.x + d.y * d.y) / span;
     a.reliefK = tgt > a.reliefK ? std::min(tgt, a.reliefK + stepK) : std::max(tgt, a.reliefK - stepK);
@@ -556,21 +557,21 @@ void Game::moveActor(Actor& a, Vec2 d) {
   float rx = a.radius, ry = a.radius * 0.6f;
   bool fl = a.flying || a.fly;
   // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
-  const bool gatePass = a.player && !inside && !war.gateTiles.empty();
-  const bool yardCheck = !home.plots.empty() && a.npc && !inside;   // (M7) townsfolk keep out of the player's yards
+  const bool gatePass = a.player && !g.inside && !g.war.gateTiles.empty();
+  const bool yardCheck = !g.home.plots.empty() && a.npc && !g.inside;   // (M7) townsfolk keep out of the player's yards
   const uint8_t sw = a.swim;            // (M10) a swimmer's ground (a boat aboard, the sea's creatures)
   auto solidP = [&](float x, float y) {
-    if (yardCheck && yardBarred(a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
-    if (sw) return swimSolid(x, y, sw);
-    if (!solidAt(x, y, fl)) return false;
-    if (!fl && map().fallAt((int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;   // (M11) a waterfall: never waded
+    if (yardCheck && ClimbOps::yardBarred(g, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
+    if (sw) return ClimbOps::swimSolid(g, x, y, sw);
+    if (!ClimbOps::solidAt(g, x, y, fl)) return false;
+    if (!fl && g.map().fallAt((int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;   // (M11) a waterfall: never waded
     // (M10) the hero wading or swimming in the shallows (SeaOps::passable; the Sailor swims farther)
-    if (a.player && SeaOps::passable(*this, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
-    return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
+    if (a.player && SeaOps::passable(g, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
+    return !(gatePass && warGatePass(g, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
   };
   auto hit = [&](float x, float y) {
     return solidP(x - rx, y - ry) || solidP(x + rx, y - ry) || solidP(x - rx, y + ry) || solidP(x + rx, y + ry) ||
-           (!fl && pillarHit(x, y, rx, ry));
+           (!fl && ClimbOps::pillarHit(g, x, y, rx, ry));
   };
   // (M3c fixer round 2, review: "the hero stops dead on tree trunks when walking straight through dense woods") the
   // player's slide looks up to most of a tile (14 px) to either side of the blocked axis for the nearest opening (the side
@@ -586,11 +587,11 @@ void Game::moveActor(Actor& a, Vec2 d) {
       if (!hit(a.p.x - 2, a.p.y + st)) { a.p.x -= 0.6f; return; }
       if (!hit(a.p.x + 2, a.p.y + st)) { a.p.x += 0.6f; return; }
     }
-    if (!a.player || inside) return;
+    if (!a.player || g.inside) return;
     // (only out in the open, 3 tiles clear of buildings and walls: by a building the wide search could hop the hero into
     // the next bay of an open front or the next doorway, where walking straight is meant)
     {
-      const Map& om = world.over;
+      const Map& om = g.world.over;
       const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor(a.p.y / TILE);
       for (int oy = -3; oy <= 3; oy++)
         for (int ox = -3; ox <= 3; ox++)
@@ -716,12 +717,12 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (ml > 0.15f) p.aim = norm(mv);
 
   // knockback decays
-  if (len2(p.knock) > 0.01f) { moveActor(p, p.knock * dt); p.knock *= std::pow(0.001f, dt); }
+  if (len2(p.knock) > 0.01f) { ClimbOps::moveActor(*this, p, p.knock * dt); p.knock *= std::pow(0.001f, dt); }
 
   switch (p.st) {
     case AState::Roll: {
       float k = 1.0f - p.stT / 0.34f;
-      moveActor(p, p.vel * (dt * (0.45f + k)));
+      ClimbOps::moveActor(*this, p, p.vel * (dt * (0.45f + k)));
       if (p.stT >= 0.34f) { p.st = AState::Idle; p.stT = 0; }
       if (((int)(p.stT * 30)) % 3 == 0) emit(Ev::Dust, p.p);
       return;
@@ -734,7 +735,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       break;
     case AState::Strike:
       if (!p.hitDone) { meleeHit(p); p.hitDone = true; }
-      moveActor(p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
+      ClimbOps::moveActor(*this, p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
       if (p.stT >= 0.11f * AnimOps::heroPace(*this)) { p.st = AState::Recover; p.stT = 0; }   // (M9) a mace lands slow, a dagger quick
       break;
     case AState::Recover:
@@ -755,7 +756,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   slow *= story::burdenMul(*this);   // (P1b) a story's heavy load (a body carried home, a cask): x0.7
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
-      moveActor(p, mv * (p.speed * slow * dt));
+      ClimbOps::moveActor(*this, p, mv * (p.speed * slow * dt));
       p.face = faceOf(mv);
       if (p.st != AState::Walk) { p.st = AState::Walk; }
       const float stepPeriod = kHeroStepPeriod;
@@ -766,7 +767,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       }
     } else if (p.st == AState::Walk) p.st = AState::Idle;
   } else if (p.st == AState::Windup || p.st == AState::Cast) {
-    if (ml > 0.15f) moveActor(p, mv * (p.speed * 0.35f * dt));
+    if (ml > 0.15f) ClimbOps::moveActor(*this, p, mv * (p.speed * 0.35f * dt));
   }
 
   // (M9) sneaking on / off (Stealth: SkillOps)
@@ -946,7 +947,7 @@ void Game::updateActor(Actor& a, float dt) {
   }
   // troll regeneration pauses for a moment after every wound (and fire stops it, see damage())
   if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
-  if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
+  if (len2(a.knock) > 0.01f) { ClimbOps::moveActor(*this, a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
   if (a.powTag == powers::PT_WOLF && PowerOps::wolfStep(*this, a, dt)) return;   // (M8b) a spectral wolf (powers.cpp)
   if (a.comp && PartyOps::actorStep(*this, a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
   if (a.st == AState::Down) {
@@ -961,7 +962,7 @@ void Game::updateActor(Actor& a, float dt) {
     }
     return;
   }
-  updateAI(a, dt);
+  AiOps::updateAI(*this, a, dt);
 }
 
 // ------------------------------------------------------------------ spawning
@@ -1312,7 +1313,7 @@ void Game::streamSitePeople(int si) {
       const bool heartNear = whole || hdx * hdx + hdy * hdy <= (float)((guardOut - 4) * (guardOut - 4));
       if (heartNear && posted < (st.type == SiteType::City ? 4 : 2) && posted < 5) {
         Actor& g = actors.back();
-        g.p = freeSpot(st.ex + post[posted][0], st.ey + post[posted][1]);
+        g.p = ClimbOps::freeSpot(*this, st.ex + post[posted][0], st.ey + post[posted][1]);
         g.home = g.p; g.goal = g.p;
       }
     }
@@ -1336,7 +1337,7 @@ void Game::streamSitePeople(int si) {
         if (!world.over.in(tx, ty)) continue;
         Spawn gs;
         gs.npc = true; gs.role = Role::Guard; gs.slot = slot; gs.site = si; gs.x = tx; gs.y = ty;
-        const Vec2 at = freeSpot(tx, ty);
+        const Vec2 at = ClimbOps::freeSpot(*this, tx, ty);
         spawnHuman(gs, at);
         perf.spawnedNpcs++;
       }
@@ -1453,7 +1454,7 @@ void Game::updateSpawning(float dt) {
       const float jy = rng_.range(-12, 12);   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
       const float jx = rng_.range(-12, 12);
       Vec2 at = sp + Vec2(jx, jy);
-      if (solidAt(at.x, at.y, false)) at = sp;
+      if (ClimbOps::solidAt(*this, at.x, at.y, false)) at = sp;
       int id = spawnMonster(m, at, lvl, false);
       actors[findActor(id)].wild = true;
     }
@@ -1499,8 +1500,8 @@ void Game::updateDens(int ptx, int pty) {
         float a = k * TAU / n + r.f();
         int tx = dn.x + (int)std::lround(std::cos(a) * 1.5f), ty = dn.y + (int)std::lround(std::sin(a) * 1.2f);
         Vec2 at(tx * TILE + 8.0f, ty * TILE + 10.0f);
-        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
-        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = freeSpot(dn.x, dn.y);
+        if (!ClimbOps::bodyFree(*this, at, mstat(dn.mon).radius, false)) at = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
+        if (!ClimbOps::bodyFree(*this, at, mstat(dn.mon).radius, false)) at = ClimbOps::freeSpot(*this, dn.x, dn.y);
         int id = spawnMonster(dn.mon, at, lvl, false);
         Actor& m = actors[findActor(id)];
         m.den = i;
@@ -1775,9 +1776,9 @@ void Game::debugSpawn(Monster m, int n, float dist) {
     Vec2 at = pl().p + Vec2(std::cos(a) * dist, std::sin(a) * dist * 0.7f);
     // never inside rock or water (the whole body, or it can't move): walk the ring inward until it fits
     const MStat& ms = mstat(m);
-    for (float k = 1.0f; k > 0.15f && !bodyFree(at, ms.radius, ms.flying); k -= 0.1f)
+    for (float k = 1.0f; k > 0.15f && !ClimbOps::bodyFree(*this, at, ms.radius, ms.flying); k -= 0.1f)
       at = pl().p + Vec2(std::cos(a) * dist * k, std::sin(a) * dist * 0.7f * k);
-    if (!bodyFree(at, ms.radius, ms.flying)) { int tx = (int)(at.x / TILE), ty = (int)(at.y / TILE); at = freeSpot(tx, ty); }
+    if (!ClimbOps::bodyFree(*this, at, ms.radius, ms.flying)) { int tx = (int)(at.x / TILE), ty = (int)(at.y / TILE); at = ClimbOps::freeSpot(*this, tx, ty); }
     int id = spawnMonster(m, at, 1, false);
     actors[findActor(id)].aggro = true;
   }

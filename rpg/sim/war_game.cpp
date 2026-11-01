@@ -372,7 +372,7 @@ void WarOps::step(Game& gm, float dt) {
           const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
           const uint32_t jh = hash32((uint32_t)slot * 2246822519u ^ c.siege);
           const int jx = first ? (int)(jh % 3) - 1 : 0, jy = first ? (int)((jh >> 4) % 3) - 1 : 1;
-          ids.push_back(spawnMan(Role::Soldier, c.kingdom, gm.freeSpot(pt.first - gm.world.ox + jx, pt.second - gm.world.oy + jy), slot, level, -1));
+          ids.push_back(spawnMan(Role::Soldier, c.kingdom, ClimbOps::freeSpot(gm, pt.first - gm.world.ox + jx, pt.second - gm.world.oy + jy), slot, level, -1));
           men++;
           if (!first) { reinforce = 7.0f; break; }
         }
@@ -423,7 +423,7 @@ void WarOps::step(Game& gm, float dt) {
             // inside the walls, two steps in from the gate nearest the camp (a village: by its heart)
             int dx = S->ex, dy = S->ey + 2;
             if (gateX != S->ex || gateY != S->ey) { dx = gateX; dy = gateY + (gateY > S->ey ? -3 : 3); }
-            dids.push_back(spawnMan(Role::Captain, sg->defender, gm.freeSpot(dx, dy), dSlot, level + 1, si));
+            dids.push_back(spawnMan(Role::Captain, sg->defender, ClimbOps::freeSpot(gm, dx, dy), dSlot, level + 1, si));
             const int i = findId(dids.back());
             if (i > 0) gm.actors[(size_t)i].special = 0.4f;
           }
@@ -435,7 +435,7 @@ void WarOps::step(Game& gm, float dt) {
         for (int k = men; k < 2 && !c.posts.empty(); k++) {
           const auto& pt = c.posts[(size_t)k % c.posts.size()];
           const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
-          ids.push_back(spawnMan(Role::Soldier, c.kingdom, gm.freeSpot(pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
+          ids.push_back(spawnMan(Role::Soldier, c.kingdom, ClimbOps::freeSpot(gm, pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
           const int i = findId(ids.back());
           if (i > 0) gm.actors[(size_t)i].special = 0.35f;
         }
@@ -447,13 +447,13 @@ void WarOps::step(Game& gm, float dt) {
         for (int k = sitting; k < wantSit && !c.posts.empty(); k++) {
           const auto& pt = c.posts[(size_t)k % c.posts.size()];
           const int slot = (SLOT_SOLDIER + (gm.war.nextSlot++ % 4000)) & ~1;
-          ids.push_back(spawnMan(Role::Refugee, 0, gm.freeSpot(pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
+          ids.push_back(spawnMan(Role::Refugee, 0, ClimbOps::freeSpot(gm, pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
         }
         for (int k = walking; k < 2; k++) {
           const int slot = (SLOT_SOLDIER + (gm.war.nextSlot++ % 4000)) | 1;
           const float t = k == 0 ? 0.35f : 0.75f;
           const int wx = (int)std::lround(cx + (c.walkX - gm.world.ox - cx) * t), wy = (int)std::lround(cy + (c.walkY - gm.world.oy - cy) * t);
-          ids.push_back(spawnMan(Role::Refugee, 0, gm.freeSpot(wx, wy), slot, level, -1));
+          ids.push_back(spawnMan(Role::Refugee, 0, ClimbOps::freeSpot(gm, wx, wy), slot, level, -1));
           const int i = findId(ids.back());
           if (i > 0) gm.actors[(size_t)i].goal = tileC(k == 0 ? c.walkX - gm.world.ox : cx, k == 0 ? c.walkY - gm.world.oy : cy);
         }
@@ -561,7 +561,7 @@ void WarOps::step(Game& gm, float dt) {
         if (l < 0.05f) continue;
         const float mx = 60.0f * dt;   // a shuffle, never a jump
         if (l > mx) v = v * (mx / l);
-        gm.moveActor(gm.actors[men[i]], v);
+        ClimbOps::moveActor(gm, gm.actors[men[i]], v);
       }
     }
   }
@@ -698,7 +698,7 @@ void WarOps::step(Game& gm, float dt) {
           for (int k = 0; k < n; k++) {
             const auto& t = pt.path[(size_t)std::min((int)pt.path.size() - 1, k)];
             const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
-            pt.ids.push_back(spawnMan(Role::Soldier, K, gm.freeSpot(t.first - gm.world.ox, t.second - gm.world.oy), slot, level, -1));
+            pt.ids.push_back(spawnMan(Role::Soldier, K, ClimbOps::freeSpot(gm, t.first - gm.world.ox, t.second - gm.world.oy), slot, level, -1));
           }
           std::reverse(pt.ids.begin(), pt.ids.end());   // the one spawned furthest along the road leads
           pt.at = std::min((int)pt.path.size() - 1, n);

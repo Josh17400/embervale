@@ -113,7 +113,7 @@ void PartyOps::mapChanged(Game& g) {
   for (int y = 2; y < M.h - 2; y++)
     for (int x = 1; x < M.w - 1; x++) {
       if (M.blocked(x, y) || y >= M.exitY - 1) continue;
-      if (!g.bodyFree(Vec2(x * T + 8.0f, y * T + 10.0f), 6.0f, false)) continue;
+      if (!ClimbOps::bodyFree(g, Vec2(x * T + 8.0f, y * T + 10.0f), 6.0f, false)) continue;
       spots.push_back(y * M.w + x);
     }
   std::sort(spots.begin(), spots.end(), [&](int a, int c) { return hash32((uint32_t)a ^ (uint32_t)b.id) < hash32((uint32_t)c ^ (uint32_t)b.id); });
@@ -163,7 +163,7 @@ bool PartyOps::folk(Game& g, Actor& a, float dt) {
     Vec2 away = norm(a.p - p.p + Vec2(0.0001f, 0.0f));
     if (g.inside) away = norm(Vec2(g.sub.exitX * T + 8.0f, (g.sub.exitY + 1) * T) - a.p + Vec2(0.0001f, 0.0f));   // out of the door
     const Vec2 goal = a.p + away * (3.0f * T);
-    if (!g.navStep(a, goal, a.speed * 0.9f, dt)) g.moveActor(a, away * (a.speed * 0.9f * dt));
+    if (!ClimbOps::navStep(g, a, goal, a.speed * 0.9f, dt)) ClimbOps::moveActor(g, a, away * (a.speed * 0.9f * dt));
     a.st = AState::Walk;
     a.posture = art::Posture::None;
     return true;
@@ -173,7 +173,7 @@ bool PartyOps::folk(Game& g, Actor& a, float dt) {
     a.st = AState::Idle;
     if (talking || len2(g.pl().p - a.p) < (4.0f * T) * (4.0f * T)) a.face = faceOf(g.pl().p - a.p);
     else a.face = 0;
-    if (len2(a.home - a.p) > 4.0f) g.moveActor(a, norm(a.home - a.p) * std::min(a.speed * 0.5f * dt, len(a.home - a.p)));
+    if (len2(a.home - a.p) > 4.0f) ClimbOps::moveActor(g, a, norm(a.home - a.p) * std::min(a.speed * 0.5f * dt, len(a.home - a.p)));
     return true;
   }
   return false;
@@ -466,7 +466,7 @@ bool PartyOps::denInteract(Game& g) {
     if (d.mon != art::Monster::Wolf && d.mon != art::Monster::IceWolf) continue;
     if (g.denClearedDay((int)i) < 0 || g.marks.count(markKey(d.id, (Mk)MK_PUP))) continue;
     std::string why;
-    const int mi = g.partyAdoptAnimal(1, hash32((uint32_t)d.id ^ (uint32_t)(d.id >> 32) ^ 0x9A9Au), g.freeSpot(d.x, d.y + 1), why);
+    const int mi = g.partyAdoptAnimal(1, hash32((uint32_t)d.id ^ (uint32_t)(d.id >> 32) ^ 0x9A9Au), ClimbOps::freeSpot(g, d.x, d.y + 1), why);
     // (fixer M8 r1) the den is marked only once its pup is taken: a full party leaves it there for later
     if (mi >= 0) {
       g.marks[markKey(d.id, (Mk)MK_PUP)] = g.day;

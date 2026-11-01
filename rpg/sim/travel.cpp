@@ -29,6 +29,7 @@
 #include "rpg/world/source.h"
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 namespace {
 double nowMs() {
@@ -335,7 +336,7 @@ void TravelOps::arriveNow(Game& g) {
     g.prefetchFrom_ = Vec2();
   }
   g.travel.syncChunks = g.world.sstats.syncChunks - sync0;
-  g.pl().p = g.freeSpot(g.travel.gx - g.world.ox, g.travel.gy - g.world.oy);
+  g.pl().p = ClimbOps::freeSpot(g, g.travel.gx - g.world.ox, g.travel.gy - g.world.oy);
   g.pl().vel = Vec2(); g.pl().knock = Vec2();
   g.pl().face = 0; g.pl().aim = Vec2(0, 1);
   g.pl().st = AState::Idle; g.pl().stT = 0;

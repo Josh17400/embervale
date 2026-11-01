@@ -63,10 +63,10 @@ Vec2 PartyOps::slotBehind(const Game& g, int mi) {
 
 Vec2 PartyOps::spotBehind(Game& g, int mi) {
   const Vec2 v = slotBehind(g, mi);
-  const Vec2 s = g.freeSpot(tileOf(v.x), tileOf(v.y - 2));
+  const Vec2 s = ClimbOps::freeSpot(g, tileOf(v.x), tileOf(v.y - 2));
   // (a wall, a stairwell or a doorway behind the player: beside the player instead, where the way to them is open)
   if (len2(s - g.pl().p) < (3.0f * T) * (3.0f * T) && walkable(g, s, g.pl().p, 4.5f, freeAt)) return s;
-  const Vec2 near = g.freeSpot(tileOf(g.pl().p.x), tileOf(g.pl().p.y - 2) + 1);
+  const Vec2 near = ClimbOps::freeSpot(g, tileOf(g.pl().p.x), tileOf(g.pl().p.y - 2) + 1);
   return near;
 }
 
@@ -137,7 +137,7 @@ bool PartyOps::moveTo(Game& g, Actor& a, Member& m, Vec2 goal, float speed, floa
       Vec2 c = tr[(size_t)m.trailAt];
       while (len2(c - a.p) < 7.0f * 7.0f && m.trailAt + 1 < (int)tr.size()) c = tr[(size_t)++m.trailAt];
       if (len2(c - a.p) < 7.0f * 7.0f) { m.trailAt = -1; return true; }   // (the newest crumb reached)
-      if (!g.navStep(a, c, speed, dt)) g.moveActor(a, norm(c - a.p) * std::min(speed * dt, len(c - a.p)));
+      if (!ClimbOps::navStep(g, a, c, speed, dt)) ClimbOps::moveActor(g, a, norm(c - a.p) * std::min(speed * dt, len(c - a.p)));
       // no headway on this footstep (a body that cannot fit where the player passed): on to the next ones
       if (len2(a.p - m.lastPos) > (0.5f * T) * (0.5f * T)) { m.lastPos = a.p; m.stuckT = 0; }
       else if ((m.stuckT += dt) > 0.6f) {
@@ -153,7 +153,7 @@ bool PartyOps::moveTo(Game& g, Actor& a, Member& m, Vec2 goal, float speed, floa
       return true;
     }
   }
-  const bool ok = g.navStep(a, goal, speed, dt);
+  const bool ok = ClimbOps::navStep(g, a, goal, speed, dt);
   if (len2(a.p - m.lastPos) > (0.5f * T) * (0.5f * T)) { m.lastPos = a.p; m.stuckT = 0; }
   else m.stuckT += dt;
   if ((!ok || m.stuckT > 0.8f) && !tr.empty()) pickCrumb(g, a, m);
@@ -328,7 +328,7 @@ void PartyOps::placesStep(Game& g) {
         const bool site = m.mapKind == 1 && g.subSite >= 0 && g.world.sites[(size_t)g.subSite].id == m.mapId;
         if (bldg || site) { here = g.sub.in(m.gx, m.gy); at = Vec2(m.gx * T + 8.0f, m.gy * T + 10.0f); }
       }
-      if (here && ai < 0) spawn(g, mi, g.freeSpot(tileOf(at.x), tileOf(at.y - 2)));
+      if (here && ai < 0) spawn(g, mi, ClimbOps::freeSpot(g, tileOf(at.x), tileOf(at.y - 2)));
       else if (!here && ai > 0) dropActor(g, mi);
       continue;
     }
@@ -349,7 +349,7 @@ void PartyOps::placesStep(Game& g) {
         at = Vec2((lx + std::clamp(gx, 1, (int)P.w - 2)) * T + 8.0f, (ly + std::clamp(gy - 1, 1, (int)P.h - 2)) * T + 10.0f);
       }
       if (here && ai < 0) {
-        const int id = spawn(g, mi, g.freeSpot(tileOf(at.x), tileOf(at.y - 2)));
+        const int id = spawn(g, mi, ClimbOps::freeSpot(g, tileOf(at.x), tileOf(at.y - 2)));
         const int k = g.findActor(id);
         if (k > 0) g.actors[(size_t)k].lifeA = -1;   // (homeLife places them at once)
       } else if (!here && ai > 0) dropActor(g, mi);
@@ -378,7 +378,7 @@ void PartyOps::homeLife(Game& g, Actor& a, Member& m, float dt) {
       if (!g.world.over.blocked(x, y)) a.goal = Vec2(x * T + 8.0f, y * T + 10.0f);
     }
     if (len2(a.goal - a.p) > 6.0f * 6.0f) {
-      if (!g.navStep(a, a.goal, a.speed * 0.5f, dt)) a.goal = a.p;
+      if (!ClimbOps::navStep(g, a, a.goal, a.speed * 0.5f, dt)) a.goal = a.p;
       a.st = AState::Walk;
     } else if (len2(g.pl().p - a.p) < (5.0f * T) * (5.0f * T)) a.face = faceOf(g.pl().p - a.p);
     return;

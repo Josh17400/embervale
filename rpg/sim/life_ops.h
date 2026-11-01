@@ -481,7 +481,7 @@ struct LifeOps {
     const Vec2 d = b - a;
     const float l = len(d);
     for (float t = 5.0f; t < l; t += 5.0f)
-      if (!g.bodyFree(a + d * (t / l), r, false)) return false;
+      if (!ClimbOps::bodyFree(g, a + d * (t / l), r, false)) return false;
     return true;
   }
 
@@ -489,14 +489,14 @@ struct LifeOps {
   // a body caught on a corner: back to the middle of its own tile when that is free, else of the nearest walkable one
   static void unwedge(Game& g, Actor& a) {
     Vec2 c = tileCentre(tileX(a.p), tileY(a.p));
-    if (!g.bodyFree(c, a.radius, false)) c = snapWalk(g, a.p);
-    if (g.bodyFree(c, a.radius, false)) a.p = c;
+    if (!ClimbOps::bodyFree(g, c, a.radius, false)) c = snapWalk(g, a.p);
+    if (ClimbOps::bodyFree(g, c, a.radius, false)) a.p = c;
   }
   static void stepToward(Game& g, Actor& a, Vec2 to, float speed, float dt) {
     const Vec2 d = to - a.p;
     const float l = len(d);
     if (l < 0.01f) return;
-    g.moveActor(a, d * (std::min(speed * dt, l) / l));
+    ClimbOps::moveActor(g, a, d * (std::min(speed * dt, l) / l));
     a.face = faceOf(d);
     a.st = AState::Walk;
   }

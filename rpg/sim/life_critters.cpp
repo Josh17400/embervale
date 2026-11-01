@@ -2,6 +2,7 @@
 // A handful of dogs, cats, hens, goats, pigs and ducks near the player (critters) and how each moves (critterFolk).
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/game.h"
 
 // ---------------------------------------------------------------- village animals
 void LifeOps::critters(Game& g, int si) {
@@ -78,7 +79,7 @@ bool LifeOps::critterFolk(Game& g, Actor& a, float dt) {
       return true;
     }
     const Vec2 away = norm(a.p - threat->p);
-    g.moveActor(a, away * (a.speed * 1.2f * dt));
+    ClimbOps::moveActor(g, a, away * (a.speed * 1.2f * dt));
     a.face = faceOf(away); a.st = AState::Walk;
     return true;
   }
@@ -113,7 +114,7 @@ bool LifeOps::critterFolk(Game& g, Actor& a, float dt) {
     const uint32_t hh = mixu(a.id, (uint64_t)(g.time * 7));
     if (hh % 3u == 0) {
       a.goal = a.home + Vec2((float)((int)(hh >> 8) % 41 - 20), (float)((int)(hh >> 16) % 25 - 12));
-      if (!g.bodyFree(a.goal, a.radius, false)) a.goal = a.p;
+      if (!ClimbOps::bodyFree(g, a.goal, a.radius, false)) a.goal = a.p;
       a.posture = Posture::None;
     } else {
       a.goal = a.p;

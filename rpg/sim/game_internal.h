@@ -154,8 +154,8 @@ struct HomeOps {
   static int findActor(const Game& g, int id) { return g.findActor(id); }
   static void makeLook(Game& g, Actor& a, Role r, Rng& rr) { g.makeLook(a, r, rr); }
   static int spawnMonster(Game& g, art::Monster m, Vec2 p, int level) { return g.spawnMonster(m, p, level, false); }
-  static void moveActor(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
-  static bool bodyFree(const Game& g, Vec2 p, float r) { return g.bodyFree(p, r, false); }
+  static void moveActor(Game& g, Actor& a, Vec2 d) { ClimbOps::moveActor(g, a, d); }
+  static bool bodyFree(const Game& g, Vec2 p, float r) { return ClimbOps::bodyFree(g, p, r, false); }
   static const std::vector<int>& hostiles(const Game& g) { return g.hostiles_; }
   static void travelHomeOnRespawn(Game& g, int32_t gx, int32_t gy);
   // the census and resident an actor embodies (false: not a resident)
@@ -177,7 +177,7 @@ struct HomeOps {
   static void clearHomeActors(Game& g);
   static int raidStart(Game& g, int plot);             // home::forceRaid
   static void wakeActors(Game& g) { g.homeActT_ = 0; } // the home actors are reconciled on the next step
-  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static Vec2 freeSpot(const Game& g, int tx, int ty) { return ClimbOps::freeSpot(g, tx, ty); }
   static void talkTo(Game& g, Actor& a) { g.talkTo(a); }   // (tests, scripts) open a conversation
   static void interact(Game& g) { g.interact(); }           // (tests, scripts) the use button
   // ---- home_interior.cpp
