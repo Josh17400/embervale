@@ -9,6 +9,7 @@
 #include <vector>
 #include "engine/audio.h"
 #include "engine/pix.h"
+#include "rpg/app/script_runner.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -18,13 +19,6 @@
 #include "rpg/view/witness_state.h"
 #endif
 
-// ---------------------------------------------------------------- test scripts
-struct ScriptCmd {
-  float t = 0;
-  std::vector<std::string> a;   // a[0] is the command
-  int line = 0;
-  std::string text;
-};
 
 // the command line and what it decides, before any platform object exists (main fills it, the App keeps it)
 struct AppSetup {
