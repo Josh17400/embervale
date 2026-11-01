@@ -129,6 +129,7 @@ bool findPath(const Map& m, int sx, int sy, int gx, int gy, std::vector<int>& pa
   return true;
 }
 
+// test helpers shared by the command-line flags and the script commands
 void App::doGoto(const std::string& w, bool enterIt) {
   SiteType want = SiteType::City;
   if (w == "town" || w == "market") want = SiteType::Town; else if (w == "village") want = SiteType::Village; else if (w == "cave") want = SiteType::Cave;
@@ -196,6 +197,9 @@ void App::doTalk(int step) {
     }
 }
 
+// test helper: a full armour set of one band (1 leather .. 7 emberforged), equipped, plus a weapon and a bow.
+// (M8b, LootSrc::Debug) made by the gear rules at the band's middle item level (never the classic makers): the armour,
+// weapon and bow Common, the ring and amulet Uncommon (a jewel's worth is its affix), so every piece passes lootValid
 void App::giveGear(int band, const std::string& weaponName) {
   band = std::clamp(band, 1, 7);
   const int il = (gear::bandLo(band) + gear::bandHi(band)) / 2;
@@ -479,6 +483,8 @@ void App::stepWalk(float dt) {
   setMove(false, false, false, false);   // the nearest reachable tile: wait there (an actor may still come within reach)
 }
 
+// M2: commands registered through rpg/view/script_api.h. A command that returns false is retried every frame (script
+// time stands still) until it returns true or its timeout passes.
 void App::callExt(float dt) {
   ScriptCtx ctx{game, view, extRun.cmd.a, extRun.cmd.line, scriptT, extRun.waited, [&](const std::string& m) { fail(extRun.cmd.line, m); },
                 [&](float x, float y) {
@@ -507,6 +513,8 @@ bool App::modeByName(const std::string& s, Mode& m) {
   return false;
 }
 
+// one script command (the built-in ones in their original order: input, the autopilot, travel and buildings here, the
+// rest in runStateCmd)
 void App::runCmd(const ScriptCmd& c) {
   const std::string& op = c.a[0];
   auto arg = [&](size_t i) { return i < c.a.size() ? c.a[i] : std::string(); };
@@ -655,7 +663,17 @@ void App::runCmd(const ScriptCmd& c) {
     game.debugKit();
   } else if (op == "gear") {
     giveGear(std::atoi(arg(1).c_str()), arg(2));
-  } else if (op == "chestgo") {
+  } else {
+    runStateCmd(c);
+  }
+}
+
+// runCmd's second half: the chests, equipment, the clock, the menu, pos and every expect check, then the registered
+// commands (rpg/view/script_api.h). runCmd has printed the line.
+void App::runStateCmd(const ScriptCmd& c) {
+  const std::string& op = c.a[0];
+  auto arg = [&](size_t i) { return i < c.a.size() ? c.a[i] : std::string(); };
+  if (op == "chestgo") {
     // (M8b SOURCES) chestgo [hoard|explore|chest]: stand beside the nearest closed chest of the current map (of that
     // loot source: LootOps::chestSource), facing it, so `key e` opens it through the real Game::openChest
     const std::string want = arg(1);

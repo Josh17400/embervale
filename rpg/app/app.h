@@ -38,7 +38,7 @@ struct AppSetup {
   int32_t atX = 0, atY = 0;      // --at GX,GY: start on that global tile (M1)
   std::vector<ScriptCmd> script;
   bool scripted = false;
-  bool witness = false;          // a Witness harness drives this run (see "Witness" in main.cpp)
+  bool witness = false;          // a Witness harness drives this run (rpg/app/witness_driver.cpp)
   bool watch = false;            // WITNESS_WATCH=1: a person watches the harness play
   const char* recordEnv = nullptr;   // WITNESS_RECORD=<file.jsonl>
   bool recordSync = false;       // a WITNESS_RECORD session (normal play that must replay step for step)
@@ -58,9 +58,7 @@ struct App : AppSetup {
   Game& game;
   View& view;
   bool hasSave = false;
-#ifdef EMB_WITNESS
   int recordIds = 1;   // the actor id counter when the world in play began (a WITNESS_RECORD header carries it)
-#endif
   int lastChestX = -1, lastChestY = -1;   // (M8b) the chest the script's chestgo stood at (chestaway steps clear of it)
 
   // ---- the frame loop
@@ -70,6 +68,8 @@ struct App : AppSetup {
   double acc = 0, fpsT = 0;
   int fpsN = 0;
   bool shotTaken = false;
+  int afterTravel = 0;           // EMB_TIMING: frames still to report after a journey's fade lifts
+  bool wasTravelling = false;
 
   // ---- script driver state
   size_t scriptNext = 0;
@@ -156,13 +156,29 @@ struct App : AppSetup {
   bool startExt(const std::string& name, const ScriptCmd& c);
   static bool modeByName(const std::string& s, Mode& m);
   void runCmd(const ScriptCmd& c);
+  void runStateCmd(const ScriptCmd& c);
   void scriptStep(float dt);
   // --perf / script summary
   long long chunksMade();
   void printSummary();
-  // the frame loop
+  // the frame loop (rpg/main.cpp; the measurements in rpg/app/app_perf.cpp)
   void frame();
+  void frameEvents();
+  void frameRequests();
+  Uint64 timingMark();
+  void frameSteps(double frameDt, Uint64& simT0, Uint64& simT1);
+  void frameShots(double wall);
+  void perfSecond();
+  void frameStats(Uint64 work0, int walkShifts0, Uint64 simT0, Uint64 simT1, Uint64 updT1);
   int shutdown();
+  // the frame loop's WITNESS_RECORD hooks (rpg/app/recorder.cpp; no-ops without EMB_WITNESS, below)
+  bool recordFilter(SDL_Event& e);
+  void recordSteps(double frameDt, Uint64& simT0, Uint64& simT1);
+  void recordCreatorStart();
+  void recordFocusLost(bool pause);
+  void recordPlayStart();
+  void recordFinish();
+  void recordStop();
 #ifdef EMB_WITNESS
   // WITNESS_RECORD and the replay's start
   void recordBegin(const std::string& params);
@@ -183,6 +199,25 @@ struct App : AppSetup {
   void wSnapshot(witness::Json& j);
   bool wScreenshot(witness_image& img);
   void wCall(const char* name, witness::Value args, witness::Json& result);
-  void runWitness();
 #endif
+  void runWitness();   // (rpg/app/witness_driver.cpp; a no-op without EMB_WITNESS, below)
 };
+
+#ifndef EMB_WITNESS
+// without EMB_WITNESS there is no recorder and no harness: the hooks do nothing (witness and recordSync stay false)
+inline bool App::recordFilter(SDL_Event&) { return true; }
+inline void App::recordSteps(double, Uint64&, Uint64&) {}
+inline void App::recordCreatorStart() {}
+inline void App::recordFocusLost(bool) {}
+inline void App::recordPlayStart() {}
+inline void App::recordFinish() {}
+inline void App::recordStop() {}
+inline void App::runWitness() {}
+#endif
+
+// before the frame loop (rpg/app/app_setup.cpp): the human rig (EMB_LEGACY_OUTLINE, EMB_RIG, the web's ?rig=) and the
+// platform's few differences
+void chooseRig();
+bool witnessWindowHidden();               // the harness's window: hidden on the desktop, the page's canvas on the web
+void openWebWitnessAudio(bool witness);   // (web witness mode) the page's AudioContext, fed silence
+bool touchPlatform();                     // iOS and Android start with the touch controls

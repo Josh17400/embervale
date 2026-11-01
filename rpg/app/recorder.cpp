@@ -7,7 +7,9 @@
 #include <new>
 #include "engine/witness.h"
 #include "rpg/app/app.h"
+#include "rpg/app/save_store.h"
 #include "rpg/app/script_runner.h"
+#include "rpg/view/witness_state.h"
 
 // WITNESS_RECORD=<file.jsonl> in normal play: a replay `witness replay` re-simulates, one line per sim step. It begins
 // when play does (--play, or the creator handing over); the header holds the seed the world used and the params the
@@ -223,4 +225,85 @@ void App::simStep(float dt) {
   else if (game.mode == Mode::Title) game.time += dt;
   view.update(game, dt);
 }
+
+// ---------------------------------------------------------------- the frame loop's WITNESS_RECORD hooks (app.h: no-ops
+// without EMB_WITNESS)
+// false: the view must not see this event either
+bool App::recordFilter(SDL_Event& e) {
+  // a key's auto-repeat is not recorded (a replay presses each key once), so it does not reach the view either
+  if (recordSync && (e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && e.key.repeat) return false;
+  if (witness_recording() && !recordEvent(e)) return false;   // (a late release of what a lost focus let go of)
+  return true;
+}
+
+void App::recordSteps(double frameDt, Uint64& simT0, Uint64& simT1) {
+  simT0 = timingMark();
+  // WITNESS_RECORD: every recorded step is the replay's step (simStep: input, sim, view update), so a replay
+  // re-runs the session call for call; menus and dialogue step once a frame at its dt, a lost-focus pause not at all
+  if (game.mode == Mode::Play) {
+    acc += frameDt;
+    int steps = 0;
+    while (acc >= SIM_DT && steps < 8) {
+      simStep(SIM_DT);
+      witness_record_frame(SIM_DT);
+      acc -= SIM_DT; steps++;
+    }
+    if (steps == 8) acc = 0;
+    saveT += (float)frameDt;
+    if (!noSave && saveT > 20.0f) { saveT = 0; writeSave(game); }
+  } else {
+    acc = 0;
+    if (game.mode == Mode::Title) { game.time += (float)frameDt; view.update(game, (float)frameDt); }
+    else if (game.mode != Mode::Paused) { simStep((float)frameDt); witness_record_frame(frameDt); }
+  }
+  simT1 = SDL_GetPerformanceCounter();
+}
+
+void App::recordCreatorStart() {
+  {
+    StartSpec sp;
+    sp.creator = true; sp.background = (int)game.background; sp.name = game.app.name;
+    sp.ids = recordIds;   // the title world handed out ids before this one began: the replay's fresh Game starts there
+    recordBegin(specJson(sp));
+    rec = RecHeld();   // (a new playthrough's recording holds nothing yet)
+    wStart = WitnessExtra();
+    wStart.hasStart = !game.inside;
+    wStart.startGX = game.world.ox + (int)std::floor(game.pl().p.x / TILE);
+    wStart.startGY = game.world.oy + (int)std::floor((game.pl().p.y - 2) / TILE);
+  }
+}
+
+void App::recordFocusLost(bool pause) {
+  if (witness_recording()) recLetGo(pause);
+}
+
+void App::recordPlayStart() {
+  StartSpec sp;
+  sp.god = god; sp.enter = enter; sp.hour = hourSet; sp.atSet = atSet; sp.atX = atX; sp.atY = atY;
+  sp.talk = talkStep; sp.menu = menuTab;
+  if (gotoWhat) sp.scene = gotoWhat;
+  if (fight) sp.fight = fight;
+  applyStart(startSeed, sp);
+  sp.ids = recordIds;
+  recordBegin(specJson(sp));
+}
+
+void App::recordFinish() {
+  if (recordSync && witness_recording()) {
+    // the state the recording ended in, next to it (<file>.state.json, the harness's snapshot): a replay of the file
+    // can be checked against it for an exact match (`witness replays` lists only the .jsonl)
+    WitnessExtra x = wStart;
+    x.scriptBusy = false;   // (a harness replay has no script of its own)
+    x.savesWritten = g_savesWritten;
+    x.saveEnabled = !noSave;
+    const std::string st = witnessJsonString([&](witness::Json& j) { witnessState(j, game, view, x); });
+    if (FILE* f = std::fopen((std::string(recordEnv) + ".state.json").c_str(), "wb")) {
+      std::fwrite(st.data(), 1, st.size(), f);
+      std::fclose(f);
+    }
+  }
+}
+
+void App::recordStop() { witness_record_stop(); }
+
 #endif
