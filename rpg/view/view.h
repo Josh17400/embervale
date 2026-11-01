@@ -45,6 +45,8 @@ void witnessResetPaperdoll();   // paperdoll.cpp: the PARTY page's last word
 void witnessResetPartyHud();    // party_hud.cpp: the members' remembered looks
 void witnessResetHud();         // hud.cpp: the menu strip's PARTY flag, the quick bar's extent
 
+namespace wmap { struct MapFrame; }   // (SOLID 3.4d) worldmap_internal.h
+
 class View {
  public:
   bool init(Pix& pix, Audio& audio);
@@ -623,6 +625,22 @@ class View {
   void drawMinimap(Game& g, float x, float y, int size);
   // worldmap.cpp (M1): the pannable, zoomable world map of the MAP tab
   void drawWorldMap(Game& g, float x, float y, float w, float h);
+  // ---- (SOLID 3.4d) drawWorldMap's pieces, in this order (worldmap.cpp; the markers in worldmap_markers.cpp);
+  //      wmap::MapFrame (worldmap_internal.h): the frame's rectangle, zoom, labels, boxes and pins
+  void mapTiles(Game& g, wmap::MapFrame& M);
+  void mapPlans(Game& g, wmap::MapFrame& M);
+  void mapBiomeCensus(Game& g, wmap::MapFrame& M);
+  void mapRealmLabels(Game& g, wmap::MapFrame& M);
+  void mapMarkersPlaces(Game& g, wmap::MapFrame& M);
+  void mapMarkersWar(Game& g, wmap::MapFrame& M);
+  void mapQuestPins(Game& g, wmap::MapFrame& M);
+  void mapMarkersHome(Game& g, wmap::MapFrame& M);
+  void mapMarkersParty(Game& g, wmap::MapFrame& M);
+  void placeLabels(Game& g, wmap::MapFrame& M);
+  void mapQuestMarks(Game& g, wmap::MapFrame& M);
+  void mapMarkersSea(Game& g, wmap::MapFrame& M);
+  void mapHero(Game& g, wmap::MapFrame& M);
+  void mapGeologyAndScale(Game& g, wmap::MapFrame& M);
   void worldMapZoom(int dz, Vec2 at);          // dz < 0 closer; `at` keeps that box point still (-1: the centre)
   void worldMapCentre(Game& g, int site);      // on a place (-1: the hero)
   bool worldMapKey(Game& g, int key);          // Q E - + zoom, arrows pan, C centre; false: not a map key
