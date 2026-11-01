@@ -240,6 +240,42 @@ struct BaseRect {
   size_t at(int32_t gx, int32_t gy) const { return (size_t)(gy - y0) * w + (gx - x0); }
 };
 
+inline bool waterG(uint8_t g) { return g == (uint8_t)Ground::Water || g == (uint8_t)Ground::DeepWater; }
+
+// (SOLID 3.2) what the stages of the chunk pipeline share (EndlessSource::Impl::chunk is the driver; the stages live
+// in chunkgen.cpp, chunk_roads.cpp, chunk_relief.cpp and chunk_flora.cpp): the chunk, the base rect (a 2-tile border),
+// the masks on the 1-tile border grid, the stamp, the 3 x 3 regions round the chunk, the dune aprons, the level grid
+// (LB tiles round the chunk) with the river grids, and the relief bits
+struct ChunkCtx {
+  static constexpr int BR = 2;                         // base border
+  static constexpr int BW = CHUNK + 2 * BR;            // 36
+  static constexpr int RW = CHUNK + 2;                 // relief / road grid (1-tile border): 34
+  static constexpr int LB = 7, LW = CHUNK + 2 * LB;    // the level grid (chunk_relief.cpp)
+  struct DuneApron { int32_t cx, cy, rx, ry; };
+  ChunkData& c;
+  const int32_t cx, cy, x0, y0;
+  BaseRect B;                                          // stages 1-2 (BW x BW round the chunk)
+  std::vector<uint8_t> reserved;                       // the chunk's taken tiles (CHUNK x CHUNK)
+  std::vector<uint8_t> used, road, entrance;           // RW x RW: town ground, the road code, cave mouths
+  std::vector<uint8_t> trailT;                         // (M11 fixer r2) a summit trail's tiles: its ways up are stairs
+  std::vector<uint8_t> townH;                          // (M3) a terraced town's own relief (its height byte + 1)
+  Stamp S;
+  std::shared_ptr<const RegionData> RD[9];             // the regions round the chunk's (RD[4] its own)
+  std::vector<DuneApron> aprons;                       // (M3c fixer round 2) the dune folk's desert round their towns
+  uint64_t apronSeed = 0;
+  std::vector<uint8_t> lev, lakeL, rivG, flowG;        // LW x LW: the levels, lake water, the rivers' tiles and flow
+  std::vector<uint8_t> terr, coreG;                    // LW x LW: inside some place's terraces, on its own flat
+  std::vector<uint8_t> bits;                           // RW x RW: the relief bits (Map::height)
+  ChunkCtx(ChunkData& out, int32_t cx_, int32_t cy_)
+      : c(out), cx(cx_), cy(cy_), x0(cx_ * CHUNK), y0(cy_ * CHUNK), S{out, x0, y0, reserved} {}
+  ChunkCtx(const ChunkCtx&) = delete;
+  ChunkCtx& operator=(const ChunkCtx&) = delete;
+  // the 1-tile border grid
+  bool rin(int32_t gx, int32_t gy) const { return gx >= x0 - 1 && gy >= y0 - 1 && gx < x0 + CHUNK + 1 && gy < y0 + CHUNK + 1; }
+  size_t ri(int32_t gx, int32_t gy) const { return (size_t)(gy - (y0 - 1)) * RW + (gx - (x0 - 1)); }
+  Eco apronEco(int32_t x, int32_t y, Biome fam) const;   // the apron's eco there for land of family fam, or Eco::COUNT
+};
+
 }  // namespace gen
 
 struct EndlessSource::Impl {
@@ -527,6 +563,22 @@ struct EndlessSource::Impl {
   bool prepareChunk(int32_t cx, int32_t cy, double budgetMs);
   void stampSite(const SitePlan& p, gen::Stamp& S);
   void stampDen(const DenPlan& d, gen::Stamp& S);
+  // the chunk's stages, in the order chunk() calls them (SOLID 3.2; gen::ChunkCtx holds what they share)
+  void chunkBase(gen::ChunkCtx& X);         // 1-2: base land, rivers, lakes; the dune aprons (chunkgen.cpp)
+  void chunkTowns(gen::ChunkCtx& X);        // 3: settlement buffers
+  void chunkHarbours(gen::ChunkCtx& X);     // 3b: the harbours
+  void chunkStamps(gen::ChunkCtx& X);       // 4: site and den stamps
+  void chunkRoads(gen::ChunkCtx& X);        // 5: roads and tracks (chunk_roads.cpp)
+  void chunkLevels(gen::ChunkCtx& X);       // 6: relief: the level grid (chunk_relief.cpp)
+  void chunkRiverBeds(gen::ChunkCtx& X);    //    the rivers' beds
+  void chunkFlats(gen::ChunkCtx& X);        //    the places' flats and terraces
+  void chunkReliefBits(gen::ChunkCtx& X);   //    the cliff, ramp, stair, slope and fall bits
+  void chunkEcotones(gen::ChunkCtx& X);     // 6b: ecotones (chunkgen.cpp)
+  void chunkBoardwalks(gen::ChunkCtx& X);   // 6a: the marsh boardwalks
+  void chunkMassifs(gen::ChunkCtx& X);      // 6b: massifs
+  void chunkPeaks(gen::ChunkCtx& X);        // 6c: peaks
+  void chunkCairns(gen::ChunkCtx& X);       // 6d: cairns
+  void chunkFlora(gen::ChunkCtx& X);        // 7: vegetation (chunk_flora.cpp)
   struct TownEntry { std::shared_ptr<SettlementOut> out; uint64_t used = 0; };
   std::unordered_map<Gid, TownEntry> towns;
   uint64_t townClock = 0;
