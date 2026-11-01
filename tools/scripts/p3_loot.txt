@@ -1,0 +1,31 @@
+# P3 LOOT (docs/FIX_BATCH_P3.md 8.1): the loot rules as the player meets them. The start town's smith sells a real
+# choice of body armour (B9: a leather coat and a bronze one); an old maker's coat found in a band-5 ruin reads OLD
+# MAKERS' WORK: OBSIDIAN (2 OF 4) on its card (ruling 2); a people's band-5 coat names its alloy's rank, WARRIORS' METAL
+# (ruling 1). The card rows come from gear::makerLine (VIEW draws them from it once its card switches).
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p3_loot.txt   (p3_loot_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 expect lootshelf leather bronze
++0.1 lootsel shop buy 4
++0.4 shot p3_loot_0_smith_shelf.png
++0.1 key Escape
++0.2 plevel 30
++0.1 gear6 body ilvl 37 rarity 2 none
++0.1 expect lootmaker OLD MAKERS' WORK: OBSIDIAN (2 OF 4)
++0.1 lootsel menu last
++0.5 expect lootcard rarity rare
++0.1 shot p3_loot_1_relic_card.png
++0.1 key Escape
++0.2 gear6 body ilvl 36 rarity 1 here
++0.1 expect lootmaker WARRIORS' METAL
++0.1 lootsel menu last
++0.5 expect lootcard rarity uncommon
++0.1 shot p3_loot_2_alloy_card.png
++0.1 key Escape
++0.3 quit

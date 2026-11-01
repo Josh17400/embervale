@@ -891,10 +891,43 @@ bool WarOps::choose(Game& g, const DlgOpt& o) {
   return true;
 }
 
+bool WarOps::spoils(Game& g, const Actor& victim, uint32_t siege) {
+  const bool captain = victim.role == Role::Captain;
+  if (!captain && victim.role != Role::Soldier && victim.role != Role::Guard) return false;
+  const uint64_t mk = gsim::markKey(siege, (gsim::Mk)gsim::kTagWarSpoils);
+  const auto had = g.marks.find(mk);   // (written only when a piece drops: no empty mark for every siege fought)
+  if (had != g.marks.end() && had->second >= gsim::WAR_SPOILS_MAX) return false;
+  Rng r(hash32((uint32_t)victim.id * 2246822519u ^ siege * 3266489917u ^ (uint32_t)g.seed ^ (uint32_t)(g.seed >> 32) ^ 0x5B011u));
+  if (r.f() >= (captain ? 0.50f : 0.10f)) return false;
+  gear::DropSource ds;
+  const int tx = (int)std::floor(victim.p.x / TILE), ty = (int)std::floor(victim.p.y / TILE);
+  ds.D = std::clamp(g.inside ? std::max(1, victim.level) : g.world.zoneLevel(tx, ty), 1, gear::MAX_D);
+  ds.playerLevel = g.plLevel;
+  ds.src = gear::LootSrc::Spoils;
+  ds.rank = captain ? 1 : 0;   // a captain: an elite's luck
+  if (captain) ds.atLeast = Rarity::Uncommon;
+  const cult::Culture* maker = nullptr;
+  if (victim.culture && g.world.src) maker = &g.world.src->culture(victim.culture);
+  else {
+    const auto k = g.world.kingdomById.find(victim.realm);
+    if (k != g.world.kingdomById.end()) maker = g.world.cultureOfKingdom(k->second);
+    if (maker && g.world.src) maker = &g.world.src->culture(maker->id);
+  }
+  ds.culture = maker ? maker->id : 0;
+  Pickup p;
+  const float jy = r.range(-6, 6), jx = r.range(-8, 8);
+  p.p = victim.p + Vec2(jx, jy);
+  p.item = gear::rollDropC(r, ds, maker);
+  g.pickups.push_back(p);
+  g.marks[mk] += 1;
+  return true;
+}
+
 void WarOps::kill(Game& g, const Actor& victim, int killer) {
   if (!victim.npc || !victim.human) return;
   const bool byPlayer = killer == g.pl().id;
   if (!byPlayer || !victim.realm) return;
+  bool spoiled = false;
   for (Quest& q : g.quests) {
     if (q.type != QType::War || q.state != QState::Active) continue;
     const realm::Siege* sg = siegeById(g, (uint32_t)q.stage);
@@ -918,6 +951,7 @@ void WarOps::kill(Game& g, const Actor& victim, int killer) {
     if (q.flags & QF_WAR_CAPDEAD) run->captainDead = true;
     // (fixer M4 r3) every non-captain kill counts, before or after the captain falls (the captain is the bonus, not a tally)
     if (assault || victim.role != Role::Captain) q.have = std::min(q.need, q.have + 1);
+    if (!spoiled) { spoiled = true; spoils(g, victim, sg->id); }   // (P3 LOOT) once a kill, whatever quests it counts for
     const bool done = q.have >= q.need && (assault || run->captainDead);
     char line[80];
     std::snprintf(line, sizeof line, "%d/%d%s", q.have, q.need, (!assault && run->captainDead) ? " + CAPTAIN" : "");

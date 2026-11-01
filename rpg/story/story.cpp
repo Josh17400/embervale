@@ -131,10 +131,11 @@ Item storyGear(Rng& r, const gear::DropSource& ds, const cult::Culture* maker) {
 }
 }  // namespace
 
-Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale) {
+Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale, const cult::Culture* maker) {
   Rng r(seed ? seed : 1);
-  const gear::DropSource ds = rewardSource(D, 2, 0, playerLevel, finale ? gear::LootSrc::SagaFinale : gear::LootSrc::Saga);
-  return storyGear(r, ds, nullptr);
+  // (P3 LOOT) made by the hook's people (their forms, their alloys in order), never maker-less (a relic look)
+  const gear::DropSource ds = rewardSource(D, 2, maker ? maker->id : 0, playerLevel, finale ? gear::LootSrc::SagaFinale : gear::LootSrc::Saga);
+  return storyGear(r, ds, maker);
 }
 
 RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed, int playerLevel, gear::LootSrc src) {

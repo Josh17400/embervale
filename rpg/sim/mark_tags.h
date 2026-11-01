@@ -43,7 +43,8 @@ enum class Mk : uint64_t {
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 
 // ---- the register
-// The owner lanes and the ranges they hold (lo..hi inclusive). WARDS and REALM hold ranges but define no tag yet.
+// The owner lanes and the ranges they hold (lo..hi inclusive). REALM holds a range but defines no tag yet; WARDS has
+// one (the war spoils, P3 LOOT).
 enum class MarkOwner : uint8_t { Sim, Story, Wards, Realm, Foes, Craft, Home, Fellows, Jobs, Life, Requests, Tales, Sea, View };
 struct MarkRange { MarkOwner owner; uint64_t lo, hi; };
 inline constexpr MarkRange kMarkRanges[] = {
@@ -77,53 +78,97 @@ inline constexpr int kMarkShareLifeDialogue = 2;
 inline constexpr uint64_t kBiomeSeenTag = 8;          // the view's biome-seen key: markKey(kBiomeSeenIdBase + eco, 8)
 inline constexpr uint64_t kBiomeSeenIdBase = 0x7E000;
 
+// (P3, the SOLID judges' note) one named constant per register row: kMarkTags uses these, never a bare number, and
+// tools/tests/test_marks.cpp static_asserts each lane's own constant (foes.h, story_api.h, PartyOps, the Mk enum) equals
+// its row. The values are saved: never renumber one.
+inline constexpr uint64_t kTagStones = 1;
+inline constexpr uint64_t kTagToll = 2;
+inline constexpr uint64_t kTagGrave = 3;
+inline constexpr uint64_t kTagNews = 4;
+inline constexpr uint64_t kTagHeirChest = 5;
+inline constexpr uint64_t kTagLastOffer = 6;
+inline constexpr uint64_t kTagAmbush = 7;
+inline constexpr uint64_t kTagStoryGiver = 8;
+inline constexpr uint64_t kTagStoryMark = 9;
+inline constexpr uint64_t kTagBoardTaken = 10;
+inline constexpr uint64_t kTagTaleTeller = 11;
+inline constexpr uint64_t kTagTaleHeard = 12;
+inline constexpr uint64_t kTagP1bPlayed = 13;
+inline constexpr uint64_t kTagP1bCooldown = 14;
+inline constexpr uint64_t kTagP1bGossip = 15;
+inline constexpr uint64_t kTagP1bBeacon = 16;
+inline constexpr uint64_t kTagP1bCalm = 17;
+inline constexpr uint64_t kTagWarSpoils = 32;
+inline constexpr uint64_t kTagFoesNamedSlain = 64;
+inline constexpr uint64_t kTagFoesBossSlain = 65;
+inline constexpr uint64_t kTagFoesRumour = 66;
+inline constexpr uint64_t kTagFoesRaidDay = 67;
+inline constexpr uint64_t kTagTheft = 80;
+inline constexpr uint64_t kTagBarred = 81;
+inline constexpr uint64_t kTagLifeKindness = 80;
+inline constexpr uint64_t kTagLifeLastChat = 81;
+inline constexpr uint64_t kTagLifeLastHire = 82;
+inline constexpr uint64_t kTagHomeBeastPatted = 97;
+inline constexpr uint64_t kTagPartyHired = 112;
+inline constexpr uint64_t kTagPartyPup = 113;
+inline constexpr uint64_t kTagJobWeek = 128;
+inline constexpr uint64_t kTagLifeGiverOverheard = 144;
+inline constexpr uint64_t kTagLifeLeadsOverheard = 145;
+inline constexpr uint64_t kTagReqRaise = 176;
+inline constexpr uint64_t kTagSeaEarlySale = 200;
+// (P3 LOOT, ruling 10) the WARDS lane's first tag: a siege (Siege::id) -> the war spoils the hero has taken there (at most
+// WAR_SPOILS_MAX); defined here by the LOOT area (rpg/sim/war_game.cpp WarOps::spoils reads and writes it)
+inline constexpr int WAR_SPOILS_MAX = 3;
+
 struct MarkTag { const char* name; MarkOwner owner; uint64_t value; int share; const char* key; };
 inline constexpr MarkTag kMarkTags[] = {
     // SIM (the Mk enum)
-    {"Mk::Stones", MarkOwner::Sim, 1, 0, "site id"},
-    {"Mk::Toll", MarkOwner::Sim, 2, 0, "site id"},
-    {"Mk::Grave", MarkOwner::Sim, 3, 0, "site id"},
-    {"Mk::News", MarkOwner::Sim, 4, 0, "npcKey"},
-    {"Mk::HeirChest", MarkOwner::Sim, 5, 0, "quest id"},
-    {"Mk::LastOffer", MarkOwner::Sim, 6, 0, "npcKey"},
-    {"Mk::Ambush", MarkOwner::Sim, 7, 0, "site id"},
-    {"Mk::StoryGiver = story::MK_STORY_GIVER", MarkOwner::Sim, 8, kMarkShareBiome, "npcKey"},
-    {"Mk::StoryMark = story::MK_STORY_MARK", MarkOwner::Sim, 9, 0, "script / mark / binding hash"},
-    {"Mk::BoardTaken = story::MK_BOARD_TAKEN", MarkOwner::Sim, 10, 0, "site id ^ entry"},
+    {"Mk::Stones", MarkOwner::Sim, kTagStones, 0, "site id"},
+    {"Mk::Toll", MarkOwner::Sim, kTagToll, 0, "site id"},
+    {"Mk::Grave", MarkOwner::Sim, kTagGrave, 0, "site id"},
+    {"Mk::News", MarkOwner::Sim, kTagNews, 0, "npcKey"},
+    {"Mk::HeirChest", MarkOwner::Sim, kTagHeirChest, 0, "quest id"},
+    {"Mk::LastOffer", MarkOwner::Sim, kTagLastOffer, 0, "npcKey"},
+    {"Mk::Ambush", MarkOwner::Sim, kTagAmbush, 0, "site id"},
+    {"Mk::StoryGiver = story::MK_STORY_GIVER", MarkOwner::Sim, kTagStoryGiver, kMarkShareBiome, "npcKey"},
+    {"Mk::StoryMark = story::MK_STORY_MARK", MarkOwner::Sim, kTagStoryMark, 0, "script / mark / binding hash"},
+    {"Mk::BoardTaken = story::MK_BOARD_TAKEN", MarkOwner::Sim, kTagBoardTaken, 0, "site id ^ entry"},
     // STORY (story_internal.h)
-    {"story::MK_TALE_TELLER", MarkOwner::Story, 11, 0, "town id x tale (and ^ TELLER_DAY_SALT)"},
-    {"story::MK_TALE_HEARD", MarkOwner::Story, 12, 0, "npcKey"},
-    {"story::MK_P1B_PLAYED", MarkOwner::Story, 13, 0, "script x settlement"},
-    {"story::MK_P1B_COOLDOWN", MarkOwner::Story, 14, 0, "settlement"},
-    {"story::MK_P1B_GOSSIP = LifeOps::MK_P1B_GOSSIP_TAG", MarkOwner::Story, 15, 0, "npcKey / board key"},
-    {"story::MK_P1B_BEACON", MarkOwner::Story, 16, 0, "global tile"},
-    {"story::MK_P1B_CALM", MarkOwner::Story, 17, 0, "site gid"},
+    {"story::MK_TALE_TELLER", MarkOwner::Story, kTagTaleTeller, 0, "town id x tale (and ^ TELLER_DAY_SALT)"},
+    {"story::MK_TALE_HEARD", MarkOwner::Story, kTagTaleHeard, 0, "npcKey"},
+    {"story::MK_P1B_PLAYED", MarkOwner::Story, kTagP1bPlayed, 0, "script x settlement"},
+    {"story::MK_P1B_COOLDOWN", MarkOwner::Story, kTagP1bCooldown, 0, "settlement"},
+    {"story::MK_P1B_GOSSIP = LifeOps::MK_P1B_GOSSIP_TAG", MarkOwner::Story, kTagP1bGossip, 0, "npcKey / board key"},
+    {"story::MK_P1B_BEACON", MarkOwner::Story, kTagP1bBeacon, 0, "global tile"},
+    {"story::MK_P1B_CALM", MarkOwner::Story, kTagP1bCalm, 0, "site gid"},
+    // WARDS (war_game.cpp WarOps::spoils; P3 LOOT)
+    {"WarOps::spoils (war spoils taken)", MarkOwner::Wards, kTagWarSpoils, 0, "siege id"},
     // FOES (foes.h; sea_foes.cpp kBossSlainTag restates 65)
-    {"foes::MK_FOES_NAMED_SLAIN", MarkOwner::Foes, 64, 0, "unique id"},
-    {"foes::MK_FOES_BOSS_SLAIN", MarkOwner::Foes, 65, 0, "world boss id"},
-    {"foes::MK_FOES_RUMOUR", MarkOwner::Foes, 66, 0, "unique id"},
-    {"foes::MK_FOES_RAIDDAY", MarkOwner::Foes, 67, 0, "0"},
+    {"foes::MK_FOES_NAMED_SLAIN", MarkOwner::Foes, kTagFoesNamedSlain, 0, "unique id"},
+    {"foes::MK_FOES_BOSS_SLAIN", MarkOwner::Foes, kTagFoesBossSlain, 0, "world boss id"},
+    {"foes::MK_FOES_RUMOUR", MarkOwner::Foes, kTagFoesRumour, 0, "unique id"},
+    {"foes::MK_FOES_RAIDDAY", MarkOwner::Foes, kTagFoesRaidDay, 0, "0"},
     // CRAFT (craft_game.cpp)
-    {"MK_THEFT", MarkOwner::Craft, 80, kMarkShareLifeDialogue, "npcKey"},
-    {"MK_BARRED", MarkOwner::Craft, 81, kMarkShareLifeDialogue, "npcKey"},
+    {"MK_THEFT", MarkOwner::Craft, kTagTheft, kMarkShareLifeDialogue, "npcKey"},
+    {"MK_BARRED", MarkOwner::Craft, kTagBarred, kMarkShareLifeDialogue, "npcKey"},
     // LIFE dialogue marks in the CRAFT range (LifeOps::markOf(g, si, idx, n) = (Mk)(80 + n))
-    {"LifeOps::markOf 0 (kindness count)", MarkOwner::Life, 80, kMarkShareLifeDialogue, "life::npcId"},
-    {"LifeOps::markOf 1 (last chat day)", MarkOwner::Life, 81, kMarkShareLifeDialogue, "life::npcId"},
-    {"LifeOps::markOf 2 (last hire day)", MarkOwner::Life, 82, 0, "life::npcId"},
+    {"LifeOps::markOf 0 (kindness count)", MarkOwner::Life, kTagLifeKindness, kMarkShareLifeDialogue, "life::npcId"},
+    {"LifeOps::markOf 1 (last chat day)", MarkOwner::Life, kTagLifeLastChat, kMarkShareLifeDialogue, "life::npcId"},
+    {"LifeOps::markOf 2 (last hire day)", MarkOwner::Life, kTagLifeLastHire, 0, "life::npcId"},
     // HOME (home_actors.cpp)
-    {"(Mk)(96 + 1) beast patted", MarkOwner::Home, 97, 0, "plot id ^ seed << 16"},
+    {"(Mk)(96 + 1) beast patted", MarkOwner::Home, kTagHomeBeastPatted, 0, "plot id ^ seed << 16"},
     // FELLOWS (PartyOps, game_internal.h)
-    {"PartyOps::MK_HIRED", MarkOwner::Fellows, 112, 0, "inn bldg id * 4 + slot"},
-    {"PartyOps::MK_PUP", MarkOwner::Fellows, 113, 0, "den id / npcKey / life::npcId"},
+    {"PartyOps::MK_HIRED", MarkOwner::Fellows, kTagPartyHired, 0, "inn bldg id * 4 + slot"},
+    {"PartyOps::MK_PUP", MarkOwner::Fellows, kTagPartyPup, 0, "den id / npcKey / life::npcId"},
     // JOBS (jobs.cpp)
-    {"MK_JOB_WEEK", MarkOwner::Jobs, 128, 0, "npcKey"},
+    {"MK_JOB_WEEK", MarkOwner::Jobs, kTagJobWeek, 0, "npcKey"},
     // LIFE (LifeOps::mkLife, life_ops.h)
-    {"LifeOps::mkLife(0) giver overheard", MarkOwner::Life, 144, 0, "npcKey"},
-    {"LifeOps::mkLife(1) leads overheard", MarkOwner::Life, 145, 0, "site id"},
+    {"LifeOps::mkLife(0) giver overheard", MarkOwner::Life, kTagLifeGiverOverheard, 0, "npcKey"},
+    {"LifeOps::mkLife(1) leads overheard", MarkOwner::Life, kTagLifeLeadsOverheard, 0, "site id"},
     // REQUESTS (req_offers.cpp)
-    {"MK_REQ_RAISE", MarkOwner::Requests, 176, 0, "site id ^ request hash"},
+    {"MK_REQ_RAISE", MarkOwner::Requests, kTagReqRaise, 0, "site id ^ request hash"},
     // SEA (sea_trade.cpp)
-    {"MK_SEA_EARLYSALE", MarkOwner::Sea, 200, 0, "0"},
+    {"MK_SEA_EARLYSALE", MarkOwner::Sea, kTagSeaEarlySale, 0, "0"},
     // VIEW (render.cpp): the biome-seen key
     {"view biome seen", MarkOwner::View, kBiomeSeenTag, kMarkShareBiome, "0x7E000 + eco"},
 };
@@ -162,6 +207,6 @@ constexpr bool rangesDisjoint() {
 static_assert(mark_detail::tagsUnique(), "Game::marks tag values are unique apart from the documented shares");
 static_assert(mark_detail::sharesPaired(), "a documented share has at least two members");
 static_assert(mark_detail::rangesDisjoint(), "the lanes' Game::marks ranges do not overlap");
-static_assert((uint64_t)Mk::BoardTaken == 10 && (uint64_t)Mk::Stones == 1, "the Mk enum's values are saved");
+static_assert((uint64_t)Mk::BoardTaken == kTagBoardTaken && (uint64_t)Mk::Stones == kTagStones, "the Mk enum's values are saved");
 
 }  // namespace gsim

@@ -57,7 +57,9 @@ const char* const kIdle[] = {"NOT NOW. I NEED TO THINK.", "YOU KNOW WHAT HAS TO 
       };                                                                                                                           \
       H.loot = [](Game& g, int level) {                                                                                            \
         Rng r((uint32_t)(g.seed ^ (uint64_t)g.day * 2654435761ull ^ (uint64_t)g.nextQuestId * 40503ull));                        \
-        g.addItem(story::storyLoot(level, g.plLevel, r.next(), false));   /* (M8b) the gear rules, never randomLoot */          \
+        const cult::Culture* mk = g.inside ? nullptr : g.world.cultureAtTile((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)); \
+        if (mk && g.world.src) mk = &g.world.src->culture(mk->id);   /* (P3 LOOT) the land's people make it */ \
+        g.addItem(story::storyLoot(level, g.plLevel, r.next(), false, mk));   /* (M8b) the gear rules, never randomLoot */ \
       };                                                                                                                           \
       H.talkTo = [](Game& g, int id) { const int ai = g.findActor(id); if (ai >= 0) g.talkTo(g.actors[(size_t)ai]); };           \
     }                                                                                                                              \

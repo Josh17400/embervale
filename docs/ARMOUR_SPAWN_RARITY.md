@@ -25,6 +25,14 @@ gear.cpp's rules (`loot_model.py`, `luck_gate.py`, `luck_hours.py` and revision 
 repo). They are not playtest results. Once P2c's `rpg_test --ladder-pace` exists, it replaces them as the measure. The
 owner summary (%TEMP%\claude\emb_P2c\loot\OWNER_SUMMARY.md, outside the repo) is the plain-language version.
 
+**Built (P3 LOOT, 2026-11-01).** Batch B's loot rules (rulings 1, 2, 6, 7 and 10, the IN extras, B9's shelf) are in
+the code at b3463ce + the P3 LOOT commits: rpg/sim/gear.{h,cpp} (alloyForBand, the matMult floor, matBandCap by rank,
+relicChosen and relicArmorSlot, the luck gate in rarityAllowedTop, makerLine / metalWord, verdictAt), game_items.cpp
+(the relic shares, building chests, summons), game_shop.cpp and craft_game.cpp (the caps, the shelf, the commission
+seed), war_game.cpp (WarOps::spoils, mark tag 32), story.cpp (saga loot's maker). `rpg_test --ladder-pace --worlds 1..20
+--report --gates` measures them; its relic hour gives about 0.73 relic armour pieces an hour from band 4, 13-16 % of
+metal armour drops (the design's 1 in 7), and about 0.85 relic weapons, so the "half" stands. Companions: PARTY.
+
 **In one line:** where you are decides the metal, luck decides the finish, old places hold the old makers' metals, and
 every metal keeps its own helmet.
 

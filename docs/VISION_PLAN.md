@@ -4956,6 +4956,16 @@ the same companion (items 4-7 below). This section is the index. Each ruling is 
 **The rule:** where you are decides the metal, luck decides the finish, old places hold the old makers' metals, and
 every metal keeps its own helmet.
 
+**Status (P3 LOOT, 2026-11-01, docs/FIX_BATCH_P3.md 8.1):** the loot half of the rules update is built: alloys in order
+(everyday band 4, warriors' 5, masterwork 6-7; never weaker than the band's step; crafting caps 4/5/6 by rank), relics in
+old places from band 4 (half the metal gear of a ruin's or shrine's dungeon and an outdoor old-place cache, all of a world
+boss's and a dragon's lair's; no culture id; measured at about 14 % of metal armour drops), the luck gate (b)
+(Legendary by luck from 17, Mythic from 27), the shelf and commission cap at the warriors' alloy (a hidden people's
+smiths, and for a commission a capital smith at trust 60, exempt), war spoils (soldiers 10 %, captains 50 % Uncommon or
+better, 3 a siege), saga loot and building chests given their maker, no loot from summons or decoys, a commission seeded
+per smith and restock, a smith's real choice of body armour (leather and the band's metal). `rpg_test --ladder-pace
+--worlds 1..20 --gates` checks them (LP1-LP10). The companion half is PARTY's (8.2), the card and HUD words VIEW's (8.3).
+
 **How it should feel:**
 - Starting armour is plain and slim, and every step up is more detailed, more alive and bulkier.
 - Each land has its metal, and a lucky find is the same metal, finer. Because no roll spends the next land's reveal, a

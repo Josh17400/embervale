@@ -52,6 +52,8 @@ enum class LootSrc : uint8_t {
   Forge,            // the player's own crafting (the craft skill's rolls)
   Companion,        // a companion's own kit (the same rules as the player's)
   Debug,            // scripts and tests that want an exact rarity (rollRarity is not used: makeGear's rarity is)
+  Spoils,           // (P3 LOOT, ruling 10) war spoils: a fallen enemy soldier's or captain's gear at a siege the hero
+                    // fights in (a body roll that always gives gear; the hero is the finder, so the +4 cap holds)
   COUNT
 };
 const char* lootSrcName(LootSrc s);    // "BODY", "CHEST" ... (the --loot report)

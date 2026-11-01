@@ -9,9 +9,12 @@
 #include <cstring>
 #include "rpg/sim/foes.h"
 #include "rpg/sim/mark_tags.h"
+#include "rpg/story/story_api.h"
 #include "tools/tests/tests.h"
 
 namespace {
+
+constexpr bool kTagBiomeSeenCheck() { return gsim::kBiomeSeenTag == gsim::kTagStoryGiver; }
 
 // the lane constants this test can include agree with the register (compile time)
 constexpr uint64_t regValue(const char* name) {
@@ -28,6 +31,21 @@ static_assert(regValue("foes::MK_FOES_RUMOUR") == foes::MK_FOES_RUMOUR, "registe
 static_assert(regValue("foes::MK_FOES_RAIDDAY") == foes::MK_FOES_RAIDDAY, "register: FOES raid day");
 static_assert(regValue("Mk::StoryGiver") == (uint64_t)gsim::Mk::StoryGiver, "register: Mk::StoryGiver");
 static_assert(regValue("Mk::BoardTaken") == (uint64_t)gsim::Mk::BoardTaken, "register: Mk::BoardTaken");
+// (P3) each lane's own constant equals the register's named constant for its row (the rows use the names, not numbers)
+using namespace gsim;
+static_assert((uint64_t)Mk::Stones == kTagStones && (uint64_t)Mk::Toll == kTagToll && (uint64_t)Mk::Grave == kTagGrave, "Mk 1-3");
+static_assert((uint64_t)Mk::News == kTagNews && (uint64_t)Mk::HeirChest == kTagHeirChest && (uint64_t)Mk::LastOffer == kTagLastOffer, "Mk 4-6");
+static_assert((uint64_t)Mk::Ambush == kTagAmbush && (uint64_t)Mk::StoryGiver == kTagStoryGiver, "Mk 7-8");
+static_assert((uint64_t)Mk::StoryMark == kTagStoryMark && (uint64_t)Mk::BoardTaken == kTagBoardTaken, "Mk 9-10");
+static_assert(story::MK_STORY_GIVER == kTagStoryGiver && story::MK_STORY_MARK == kTagStoryMark && story::MK_BOARD_TAKEN == kTagBoardTaken, "story 8-10");
+static_assert(story::MK_TALE_TELLER == kTagTaleTeller && story::MK_TALE_HEARD == kTagTaleHeard, "story tales");
+static_assert(story::MK_P1B_PLAYED == kTagP1bPlayed && story::MK_P1B_COOLDOWN == kTagP1bCooldown && story::MK_P1B_GOSSIP == kTagP1bGossip, "story P1b 13-15");
+static_assert(story::MK_P1B_BEACON == kTagP1bBeacon && story::MK_P1B_CALM == kTagP1bCalm, "story P1b 16-17");
+static_assert(foes::MK_FOES_NAMED_SLAIN == kTagFoesNamedSlain && foes::MK_FOES_BOSS_SLAIN == kTagFoesBossSlain, "foes 64-65");
+static_assert(foes::MK_FOES_RUMOUR == kTagFoesRumour && foes::MK_FOES_RAIDDAY == kTagFoesRaidDay, "foes 66-67");
+// (PartyOps::MK_HIRED / MK_PUP live in game_internal.h, which a test may not include: the register rows and kReg check 112-113)
+static_assert(kTagBiomeSeenCheck(), "the view's biome-seen tag shares StoryGiver's value");
+static_assert(regValue("WarOps::spoils") == kTagWarSpoils && kTagWarSpoils == 32, "register: the WARDS war spoils tag");
 
 struct KeyCase { uint64_t id; uint64_t tag; uint64_t want; const char* what; };
 const KeyCase kKeys[12] = {
@@ -55,6 +73,7 @@ const RegCase kReg[] = {
     {"foes::MK_FOES_NAMED_SLAIN", 64}, {"foes::MK_FOES_BOSS_SLAIN", 65}, {"foes::MK_FOES_RUMOUR", 66}, {"foes::MK_FOES_RAIDDAY", 67},
     {"MK_THEFT", 80}, {"MK_BARRED", 81}, {"PartyOps::MK_HIRED", 112}, {"PartyOps::MK_PUP", 113}, {"MK_JOB_WEEK", 128},
     {"MK_REQ_RAISE", 176}, {"MK_SEA_EARLYSALE", 200}, {"view biome seen", 8},
+    {"WarOps::spoils", 32},   // (P3 LOOT) the first WARDS tag
 };
 
 int marksCmd(int, char**) {

@@ -101,6 +101,7 @@ struct CraftOps {
   // yet known to the player
   static bool studyable(const Game& g, const Item& it) {
     if (!it.culture || !itemEquippable(it.kind)) return false;
+    if (it.flags & IF_KIT) return false;   // (P3 LOOT) a companion's own kit is never broken down
     const craft::SecretKind sk = (it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow) ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern;
     if (!g.craft.knows(it.culture, 0, sk)) return true;
     return it.mat == Mat::Alloy && it.alloy && !g.craft.knows(it.culture, it.alloy, craft::SecretKind::AlloyRecipe);
@@ -159,6 +160,37 @@ void craftMenu(Game& g, bool study, bool canSteal, int price) {
 }
 }  // namespace
 
+// (P3 LOOT) the piece a smith's commission makes this restock: the settlement's band, Uncommon to Rare, in its people's
+// make capped at their warriors' alloy (ruling 7), seeded per smith and restock (day / 2)
+Item CraftHooks::commissionPiece(Game& g, const Actor& a) {
+  const int si = CraftOps::siteOf(g, a);
+  const cult::Culture* c = CraftOps::cultureOf(g, si);
+  const uint64_t key = g.npcKey(a);
+  // (P3 LOOT) seeded per smith and restock (day / 2), never by the hero's purse: the same visit offers the same piece
+  Rng r(hash32((uint32_t)key ^ (uint32_t)(key >> 32) ^ (uint32_t)((g.day / 2) * 131) ^ (uint32_t)g.seed ^ 0xC0A1u));
+  static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots};
+  const ItemKind k = kinds[r.irange(6)];
+  const bool spear = c && c->arms.polearm != cult::Polearm::None;
+  const int sub = k == ItemKind::Weapon ? r.irange(spear ? 6 : 5) : 0;
+  // (M8b) a commission is the smith's best work for the settlement's band: Uncommon or better, a shop's cap (Rare;
+  // the gate by the settlement's band, never the player's level: 7.5 rule 4)
+  gear::DropSource ds;
+  ds.D = std::clamp(si >= 0 ? g.world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
+  ds.src = gear::LootSrc::Shop;
+  ds.playerLevel = ds.D;
+  ds.culture = c ? c->id : 0;
+  ds.atLeast = Rarity::Uncommon;
+  ds.atMost = Rarity::Rare;
+  const Rarity rar = gear::rollRarity(r, ds);
+  // (P3 LOOT, ruling 7) the cap at the warriors' alloy; a hidden people's smiths and a capital smith who trusts the
+  // hero (trust 60) make their masterwork
+  const int tr = g.craft.trust.count(key) ? g.craft.trust[key] : 0;
+  const bool capital = si >= 0 && g.world.sites[(size_t)si].capital;
+  const int cap = !c || c->hidden || (capital && tr >= gear::COMMISSION_TRUST) ? 0 : gear::SHELF_ALLOY_CAP;
+  Item it = gear::makeGearCapped(r, k, sub, ds.D, rar, c, cap);
+  return it;
+}
+
 bool CraftHooks::choose(Game& g, const DlgOpt& o) {
   const int ai = g.findActor(g.dlg.actor);
   if (ai < 0) { g.mode = Mode::Play; return true; }
@@ -184,22 +216,7 @@ bool CraftHooks::choose(Game& g, const DlgOpt& o) {
       const int price = CraftOps::commissionPrice(g, si);
       if (g.gold < price) { g.dlg.text = "THAT'S NOT ENOUGH FOR A PIECE OF MY WORK."; return true; }
       g.gold -= price;
-      Rng r(hash32((uint32_t)key ^ (uint32_t)(g.day * 131) ^ (uint32_t)g.gold));
-      static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots};
-      const ItemKind k = kinds[r.irange(6)];
-      const bool spear = c && c->arms.polearm != cult::Polearm::None;
-      const int sub = k == ItemKind::Weapon ? r.irange(spear ? 6 : 5) : 0;
-      // (M8b) a commission is the smith's best work for the settlement's band: Uncommon or better, a shop's cap (Rare;
-      // the gate by the settlement's band, never the player's level: 7.5 rule 4)
-      gear::DropSource ds;
-      ds.D = std::clamp(si >= 0 ? g.world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
-      ds.src = gear::LootSrc::Shop;
-      ds.playerLevel = ds.D;
-      ds.culture = c ? c->id : 0;
-      ds.atLeast = Rarity::Uncommon;
-      ds.atMost = Rarity::Rare;
-      const Rarity rar = gear::rollRarity(r, ds);
-      Item it = gear::makeGearC(r, k, sub, ds.D, rar, c);
+      Item it = CraftHooks::commissionPiece(g, a);
       it.flags |= IF_CRAFTED;
       g.addItem(it);
       g.sfx((int)Sfx::Buy, g.pl().p);
@@ -244,6 +261,7 @@ bool CraftHooks::choose(Game& g, const DlgOpt& o) {
     }
     case CR_STUDYITEM: {
       if (o.arg < 0 || o.arg >= (int)g.inv.size() || !g.inv[(size_t)o.arg].culture || !g.world.src) { g.mode = Mode::Play; return true; }
+      if (g.inv[(size_t)o.arg].flags & IF_KIT) { g.dlg.text = "THAT IS YOUR COMPANION'S OWN KIT. I WON'T BREAK IT."; g.dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return true; }
       const Item it = g.inv[(size_t)o.arg];
       const cult::Culture& M = g.world.src->culture(it.culture);
       craft::SecretKind sk = (it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow) ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern;

@@ -9,7 +9,8 @@
 //   commission (the dialogue); quest completion of every QType (Game::completeQuest); saga stage rewards, saga finales
 //   and campaign finales (story::rewardRoll, the reward the story engine pays) and `do loot` (story::storyLoot); the
 //   forge (craft::benchMake on the start village's smithy); companions' kits (Game::partyRecruitStranger); the start
-//   weapon (Game::giveFirstWeapon).
+//   weapon (Game::giveFirstWeapon); (P3 LOOT) war spoils (WarOps::spoils: soldiers and captains at a siege, the WAR
+//   SPOILS row) and a RELIC row counting every old maker's piece any source gave (gear::isRelic: band 4+, no culture id).
 // Every equippable item must pass gear::lootValid, and each source keeps its own rules (shops capped, a world boss Epic
 // or better, a campaign finale Epic / Legendary or better, quests Uncommon to Epic, a saga stage Rare at most, the
 // forge under the gate). Prints, per LootSrc, the items audited and the rarity spread at each level. FAILs when a
@@ -27,6 +28,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/loot_ops.h"
 #include "rpg/sim/party.h"
+#include "rpg/sim/war_ops.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
@@ -37,8 +39,11 @@ constexpr int NLV = 4;
 const int kLevels[NLV] = {3, 10, 20, 35};
 constexpr int SRC_START = (int)gear::LootSrc::COUNT;   // the start weapon: a row of its own
 constexpr int SRC_PLAIN = SRC_START + 1;               // (BODY's plain foes alone, rank 0: the ordinary find)
-constexpr int NROWS = SRC_PLAIN + 1;
-const char* rowName(int row) { return row == SRC_START ? "START WEAPON" : row == SRC_PLAIN ? "  (plain foes)" : gear::lootSrcName((gear::LootSrc)row); }
+constexpr int SRC_RELIC = SRC_PLAIN + 1;              // (P3 LOOT) every old maker's piece any source gave (gear::isRelic)
+constexpr int NROWS = SRC_RELIC + 1;
+const char* rowName(int row) {
+  return row == SRC_START ? "START WEAPON" : row == SRC_PLAIN ? "  (plain foes)" : row == SRC_RELIC ? "RELIC" : gear::lootSrcName((gear::LootSrc)row);
+}
 // the floor a source keeps at a level: its guarantee, never past the gate's one step over (gear::rarityAllowedTop)
 Rarity keptFloor(gear::LootSrc src, int L, Rarity want) {
   gear::DropSource ds;
@@ -71,6 +76,11 @@ struct Audit {
     t.by[li][std::clamp((int)it.rarity, 0, RARITIES - 1)]++;
     std::string why;
     if (!gear::lootValid(it, &why)) fail(std::string(rowName(row)) + " (" + where + "): " + why);
+    // (P3 LOOT) an old maker's piece: counted in its own row; only from band 4, never with a culture id
+    if (row != SRC_RELIC && gear::isRelic(it)) {
+      check(it, SRC_RELIC, where);
+      if (gear::bandOf(it.ilvl) < gear::RELIC_BAND || it.culture) fail(std::string("RELIC (") + where + "): " + it.name + " below band 4 or with a culture id");
+    }
   }
   void check(const Item& it, gear::LootSrc s, const char* where) { check(it, (int)s, where); }
   // a rarity rule of a source
@@ -142,6 +152,27 @@ void bodies(Game& g, Audit& A, uint64_t seed) {
     if (p.item.rarity >= Rarity::Legendary) leg++;
   }
   if (leg < 2) A.fail("the dragon's hoard holds " + std::to_string(leg) + " legendaries (2 named ones)");
+  g.pickups.clear();
+}
+
+// ---- (P3 LOOT) war spoils: enemy soldiers and captains slain at a siege (WarOps::spoils, the real roll), a siege each
+void spoils(Game& g, Audit& A, uint64_t seed) {
+  ew::Gid realm = 0;
+  for (const Kingdom& k : g.world.kingdoms) if (k.id) { realm = k.id; break; }
+  if (!realm) { A.fail("no kingdom for the war spoils"); return; }
+  const int L = kLevels[A.li];
+  for (int i = 0; i < 80; i++) {
+    Actor v;
+    v.id = (int)(800000 + seed * 13 + A.li * 1000 + i); v.human = true; v.npc = true; v.realm = realm; v.p = g.pl().p; v.level = 10;
+    v.role = (i & 1) ? Role::Captain : Role::Soldier;
+    g.pickups.clear();
+    if (!WarOps::spoils(g, v, (uint32_t)(0x6000000u + seed * 4096 + (uint64_t)A.li * 256 + (uint64_t)i))) continue;
+    for (const Pickup& p : g.pickups) {
+      A.check(p.item, gear::LootSrc::Spoils, v.role == Role::Captain ? "a captain's spoils" : "a soldier's spoils");
+      if (v.role == Role::Captain) A.rule(p.item.rarity >= keptFloor(gear::LootSrc::Spoils, L, Rarity::Uncommon), p.item, gear::LootSrc::Spoils, "a captain's spoils below Uncommon");
+      A.rule(p.item.ilvl <= L + 4, p.item, gear::LootSrc::Spoils, "spoils above the hero's level + 4");
+    }
+  }
   g.pickups.clear();
 }
 
@@ -346,6 +377,7 @@ int lootSourcesCmd(int argc, char** argv) {
       setLevel(g, kLevels[li]);
       bodies(g, A, seed);
       setLevel(g, kLevels[li]);
+      spoils(g, A, seed);
       shops(g, A);
       quests(g, A, seed);
       setLevel(g, kLevels[li]);
