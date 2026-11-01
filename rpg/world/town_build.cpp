@@ -811,644 +811,683 @@ void Gen::compoundGrounds(int X0, int Y0, int CW, int CH, int gx, int gy, int te
   }
 }
 
-void Gen::buildCompound() {
-  if (compound.w == 0) return;
-  const int X0 = compound.x, Y0 = compound.y, CW = compound.w, CH = compound.h;
-  const cult::Seat seat = hasSoc ? (cult::Seat)seatKind : cult::Seat::Castle;
-  const bool walledC = compoundWalled();
-  const int PW = palW, PH = palH;
-  const int gx = X0 + CW / 2 - 1, gy = Y0 + CH - 1;   // the entrance: the middle three tiles of the south side
-  const Biome gb = bio;
-  const bool dry = gb == Biome::Desert || cArch == (int)cult::Archetype::Dune;
-  const bool cold = gb == Biome::Snow || gb == Biome::Taiga;
-  const Prop tree = dry ? Prop::PalmTree : (cold ? Prop::PineTree : Prop::OakTree);
-  // the grounds: lawns (sand in the desert, snow in the north); a tent court's trampled steppe; a precinct's paving;
-  // the elders' pools
-  {
-    const Ground lawn = base == Ground::Grass ? Ground::Meadow : base;
-    Ground g = lawn;
-    if (seat == cult::Seat::TentCourt || seat == cult::Seat::GreatHall) g = base == Ground::Grass ? Ground::Grass : base;
-    if (seat == cult::Seat::StiltHall) g = base == Ground::Grass ? Ground::Grass : base;
-    for (int y = Y0; y < Y0 + CH; y++)
-      for (int x = X0; x < X0 + CW; x++) { M.setG(x, y, g); M.setP(x, y, 0); }
-  }
-  // the enclosure: a wall (the culture's: a castle curtain, a stockade, a precinct wall) with its gate in the middle of
-  // the south run; a hedge (the culture's fence) round gardens; open ground for a tent court, a grove, the pools
-  if (walledC) {
-    for (int x = X0; x < X0 + CW; x++) { M.wall[I(x, Y0)] = wallByte; M.wall[I(x, Y0 + CH - 1)] = wallByte; }
-    for (int y = Y0; y < Y0 + CH; y++) { M.wall[I(X0, y)] = wallByte; M.wall[I(X0 + CW - 1, y)] = wallByte; }
-    for (int k = 0; k < 3; k++) { M.wall[I(gx + k, gy)] = 0; M.setG(gx + k, gy, Ground::Plaza); set(gx + k, gy, K_SQUARE); }
-    O.gates.push_back({gx, gy});
-    O.wallGaps.push_back(IRect{gx, gy, 3, 1});
-    gateBearing.push_back(-2);
-  } else {
-    for (int k = 0; k < 3; k++) { M.setG(gx + k, gy, Ground::Plaza); set(gx + k, gy, K_SQUARE); }
-  }
-  // helpers
-  auto lawnFree = [&](int x, int y) {
-    return in(x, y) && x > X0 && x < X0 + CW - 1 && y > Y0 && y < Y0 + CH - 1 && get(x, y) == K_COMPOUND && M.bldgAt[I(x, y)] < 0 &&
-           !M.prop[I(x, y)] && !front[I(x, y)] && !groundWater(M.at(x, y));
-  };
+// (SOLID 3.3) buildCompound(): the grounds, the enclosure and the seat first (lay), then a method per seat kind; the
+// shared helpers are methods, the shared state is held here; the same Rng draws in the same order (cr as before)
+namespace {
+class CompoundPlanner {
+ public:
+  explicit CompoundPlanner(Gen& g) : G(g), cr(hash32(g.P.seed ^ 0xF0C0E7u)) {}
+ private:
+  Gen& G;
   // (M3b fixer) the forecourts' own stream (each capital its own layout; the town's other draws unchanged)
-  Rng cr(hash32(P.seed ^ 0xF0C0E7u));
-  // open water laid in the grounds (a pool, a canal, a rill): lawn only, never under a sprite
-  auto pond = [&](int x, int y) {
-    if (!lawnFree(x, y) || cover[I(x, y)]) return false;
-    M.setG(x, y, Ground::Water);
-    M.setP(x, y, 0);
-    O.pools.push_back((int)I(x, y));
-    return true;
-  };
-  auto walk = [&](int x, int y, Ground g) { if (in(x, y) && !M.wall[I(x, y)] && M.bldgAt[I(x, y)] < 0) { set(x, y, K_SQUARE); M.setG(x, y, g); M.setP(x, y, 0); } };
-  auto put = [&](Building t, IRect r, Role o, uint8_t form, uint8_t civic, uint8_t seatB) {
-    curForm = form; curCivic = civic; curSeat = seatB;
-    const uint32_t hs = hash32(P.seed ^ ((uint32_t)M.bldgs.size() * 0x9E3779B1u) ^ 0x5707EE5u);
-    const int bi = putBldg(t, r, o, storeysFor(t, r.w, r.h, hs));
-    curForm = curCivic = curSeat = 0;
-    return bi;
-  };
-  // the path from a door to the walkway, `along` the row before the door
-  auto doorPath = [&](int bi, Ground g) {
-    const Bldg& b = M.bldgs[(size_t)bi];
-    const int dx = b.doorX(), dy = b.r.y + b.r.h;
-    for (int x = std::min(dx, gx + 1); x <= std::max(dx, gx + 1); x++) if (get(x, dy) != K_SQUARE) { set(x, dy, K_YARD); M.setG(x, dy, g); M.setP(x, dy, 0); }
-  };
-  // what the society garrisons in the grounds (the royal guard's barracks for a standing army; the khan's riders in a
-  // tent; huscarls, temple guards and wardens live in the seat itself)
-  bool garrison = !hasSoc;
+  Rng cr;
+  int X0 = 0, Y0 = 0, CW = 0, CH = 0;
+  cult::Seat seat = cult::Seat::Castle;
+  bool walledC = false;
+  int PW = 0, PH = 0;
+  int gx = 0, gy = 0;   // the entrance: the middle three tiles of the south side
+  Biome gb = Biome::Plains;
+  bool dry = false, cold = false;
+  Prop tree = Prop::OakTree;
+  bool garrison = false;
   uint8_t garrisonForm = 0;
-  if (hasSoc)
-    switch (soc.military) {
-      case cult::Military::Levy: case cult::Military::Knights: case cult::Military::Legions: case cult::Military::Mercenaries: garrison = true; break;
-      case cult::Military::HorseArchers: garrison = true; garrisonForm = (uint8_t)bld::Form::Tent; break;
-      default: break;
-    }
-  const uint8_t seatId = hasSoc ? (uint8_t)(seatKind + 1) : 0;
-  const uint8_t seatForm = hasSoc ? cult::seatForm(soc.seat, false) : 0;
-  const Building seatPurpose = Building::Palace;
-  // the seat building: at the head of the grounds (a tent court's and a grove's further in, their court round them)
-  int px = X0 + (CW - PW) / 2, py = Y0 + 3;
-  if (seat == cult::Seat::TentCourt) py = Y0 + 7;
-  if (seat == cult::Seat::TreePalace) py = Y0 + 2;
-  if (seat == cult::Seat::StiltHall) py = Y0 + 3;
-  palaceIdx = put(seatPurpose, IRect{px, py, PW, PH}, Role::King, seatForm, hasSoc ? (uint8_t)bld::CIVIC_SEAT : 0, seatId);
-  seatIdx = palaceIdx;
-  {
-    Bldg& pb = M.bldgs[(size_t)palaceIdx];
-    if (seat == cult::Seat::StiltHall && pb.styled) { pb.arch.foundation = art::Foundation::Stilts; pb.arch.stilts = true; }
+  uint8_t seatId = 0, seatForm = 0;
+  Building seatPurpose = Building::Palace;
+  int px = 0, py = 0;
+  int doorX = 0;
+  int terrace = 0;   // the row before the seat's front
+  Ground walkG = Ground::Plaza;
+  int guardSpots[6][2] = {};
+
+  // helpers
+  bool lawnFree(int x, int y) const {
+    return G.in(x, y) && x > X0 && x < X0 + CW - 1 && y > Y0 && y < Y0 + CH - 1 && G.get(x, y) == K_COMPOUND && G.M.bldgAt[G.I(x, y)] < 0 &&
+           !G.M.prop[G.I(x, y)] && !G.front[G.I(x, y)] && !groundWater(G.M.at(x, y));
   }
-  const int doorX = M.bldgs[(size_t)palaceIdx].doorX();
-  const int terrace = py + PH;   // the row before the seat's front
-  const Ground walkG = seat == cult::Seat::TentCourt || seat == cult::Seat::GreatHall ? Ground::Dirt : Ground::Plaza;
-  // the terrace before the front and the walk to the entrance
-  for (int y = terrace; y <= terrace + 1; y++)
-    for (int x = px + 1; x < px + PW - 1; x++) walk(x, y, walkG);
-  for (int y = terrace + 2; y < gy; y++)
-    for (int x = gx; x < gx + 3; x++) walk(x, y, walkG);
-  int guardSpots[6][2] = {{gx - 1, gy + 1}, {gx + 3, gy + 1}, {gx - 1, gy - 2}, {gx + 3, gy - 2}, {doorX - 2, terrace + 1}, {doorX + 2, terrace + 1}};
-  auto banner = [&](int x, int y) { if (lawnFree(x, y) && !cover[I(x, y)]) { M.setP(x, y, 0); M.setProp(x, y, Prop::Banner); return true; } return false; };
-  auto propAt = [&](int x, int y, Prop p) { if (lawnFree(x, y) && !cover[I(x, y)]) { M.setProp(x, y, p); return true; } return false; };
-  auto fenceRing = [&](int x0, int y0, int w, int h, int gapX, int gapW) {
+  // open water laid in the grounds (a pool, a canal, a rill): lawn only, never under a sprite
+  bool pond(int x, int y) {
+    if (!lawnFree(x, y) || G.cover[G.I(x, y)]) return false;
+    G.M.setG(x, y, Ground::Water);
+    G.M.setP(x, y, 0);
+    G.O.pools.push_back((int)G.I(x, y));
+    return true;
+  }
+  void walk(int x, int y, Ground g) { if (G.in(x, y) && !G.M.wall[G.I(x, y)] && G.M.bldgAt[G.I(x, y)] < 0) { G.set(x, y, K_SQUARE); G.M.setG(x, y, g); G.M.setP(x, y, 0); } }
+  int put(Building t, IRect r, Role o, uint8_t form, uint8_t civic, uint8_t seatB) {
+    G.curForm = form; G.curCivic = civic; G.curSeat = seatB;
+    const uint32_t hs = hash32(G.P.seed ^ ((uint32_t)G.M.bldgs.size() * 0x9E3779B1u) ^ 0x5707EE5u);
+    const int bi = G.putBldg(t, r, o, storeysFor(t, r.w, r.h, hs));
+    G.curForm = G.curCivic = G.curSeat = 0;
+    return bi;
+  }
+  // the path from a door to the walkway, `along` the row before the door
+  void doorPath(int bi, Ground g) {
+    const Bldg& b = G.M.bldgs[(size_t)bi];
+    const int dx = b.doorX(), dy = b.r.y + b.r.h;
+    for (int x = std::min(dx, gx + 1); x <= std::max(dx, gx + 1); x++) if (G.get(x, dy) != K_SQUARE) { G.set(x, dy, K_YARD); G.M.setG(x, dy, g); G.M.setP(x, dy, 0); }
+  }
+  bool banner(int x, int y) { if (lawnFree(x, y) && !G.cover[G.I(x, y)]) { G.M.setP(x, y, 0); G.M.setProp(x, y, Prop::Banner); return true; } return false; }
+  bool propAt(int x, int y, Prop p) { if (lawnFree(x, y) && !G.cover[G.I(x, y)]) { G.M.setProp(x, y, p); return true; } return false; }
+  void fenceRing(int x0, int y0, int w, int h, int gapX, int gapW) {
     // a closed ring of the culture's fence (FenceH along the rows, FenceV down the sides), a gap in its south run
-    auto ok = [&](int x, int y) { return in(x, y) && get(x, y) == K_COMPOUND && M.bldgAt[I(x, y)] < 0 && !M.prop[I(x, y)] && !front[I(x, y)]; };
+    auto ok = [&](int x, int y) { return G.in(x, y) && G.get(x, y) == K_COMPOUND && G.M.bldgAt[G.I(x, y)] < 0 && !G.M.prop[G.I(x, y)] && !G.front[G.I(x, y)]; };
     for (int x = x0; x < x0 + w; x++) {
-      if (ok(x, y0)) M.setProp(x, y0, Prop::FenceH);
-      if ((x < gapX || x >= gapX + gapW) && ok(x, y0 + h - 1)) M.setProp(x, y0 + h - 1, Prop::FenceH);
+      if (ok(x, y0)) G.M.setProp(x, y0, Prop::FenceH);
+      if ((x < gapX || x >= gapX + gapW) && ok(x, y0 + h - 1)) G.M.setProp(x, y0 + h - 1, Prop::FenceH);
     }
     for (int y = y0 + 1; y < y0 + h - 1; y++) {
-      if (ok(x0, y)) M.setProp(x0, y, Prop::FenceV);
-      if (ok(x0 + w - 1, y)) M.setProp(x0 + w - 1, y, Prop::FenceV);
+      if (ok(x0, y)) G.M.setProp(x0, y, Prop::FenceV);
+      if (ok(x0 + w - 1, y)) G.M.setProp(x0 + w - 1, y, Prop::FenceV);
     }
-  };
+  }
   // a building of the grounds fits here: its footprint and a ring round it free, its sprite over nobody's front, its
   // own front and doorstep under nobody's sprite, inside the grounds
-  auto canPut = [&](const IRect& r, Building t) {
+  bool canPut(const IRect& r, Building t) const {
     const int rise = townRiseTiles(t, 2);   // (the builder may give it two storeys)
     if (r.x < X0 + 1 || r.y < Y0 + 1 || r.x + r.w > X0 + CW - 1 || r.y + r.h + 2 > gy) return false;
     for (int y = r.y - 1; y <= r.y + r.h + 1; y++)
-      for (int x = r.x - 1; x <= r.x + r.w; x++) if (!in(x, y) || M.bldgAt[I(x, y)] >= 0 || get(x, y) == K_SQUARE) return false;
+      for (int x = r.x - 1; x <= r.x + r.w; x++) if (!G.in(x, y) || G.M.bldgAt[G.I(x, y)] >= 0 || G.get(x, y) == K_SQUARE) return false;
     for (int y = r.y - rise; y <= r.y + r.h; y++)
-      for (int x = r.x - 1; x <= r.x + r.w; x++) if (in(x, y) && front[I(x, y)]) return false;
-    for (int x = r.x; x < r.x + r.w; x++) if (cover[I(x, r.y + r.h - 1)]) return false;
+      for (int x = r.x - 1; x <= r.x + r.w; x++) if (G.in(x, y) && G.front[G.I(x, y)]) return false;
+    for (int x = r.x; x < r.x + r.w; x++) if (G.cover[G.I(x, r.y + r.h - 1)]) return false;
     for (int y = r.y + r.h; y <= r.y + r.h + 1; y++)
-      for (int x = r.x + r.w / 2 - 1; x <= r.x + r.w / 2 + 1; x++) if (cover[I(x, y)]) return false;
+      for (int x = r.x + r.w / 2 - 1; x <= r.x + r.w / 2 + 1; x++) if (G.cover[G.I(x, y)]) return false;
     return true;
-  };
+  }
   // a formal parterre in [x0, x1] x [y0, y1]: a clipped hedge round its edge, beds of flowers inside in bands of two
   // colours (in the snow: evergreen shrubs on the white); tiles the walks, a building's front or its sprite hold are
   // left as lawn
-  auto parterre = [&](int x0, int y0, int x1, int y1, uint32_t k) {
+  void parterre(int x0, int y0, int x1, int y1, uint32_t k) {
     if (x1 - x0 < 3 || y1 - y0 < 2) return;
     static const Prop fl[3] = {Prop::Flowers1, Prop::Flowers2, Prop::Flowers3};
-    const int a = (int)(hashAt(x0, y0, k) % 3u), b = (a + 1 + (int)(hashAt(x0, y0, k + 1) % 2u)) % 3;
-    const bool winter = bio == Biome::Snow;
+    const int a = (int)(G.hashAt(x0, y0, k) % 3u), b = (a + 1 + (int)(G.hashAt(x0, y0, k + 1) % 2u)) % 3;
+    const bool winter = G.bio == Biome::Snow;
     // (a bed a building, its path or its sprite cuts into is left as lawn: no broken hedges)
     for (int y = y0; y <= y1; y++)
-      for (int x = x0; x <= x1; x++) if (!lawnFree(x, y) || cover[I(x, y)]) return;
+      for (int x = x0; x <= x1; x++) if (!lawnFree(x, y) || G.cover[G.I(x, y)]) return;
     for (int y = y0; y <= y1; y++)
       for (int x = x0; x <= x1; x++) {
-        if (get(x - 1, y) == K_SQUARE || get(x + 1, y) == K_SQUARE || get(x, y + 1) == K_SQUARE) continue;   // (a step off the walks)
+        if (G.get(x - 1, y) == K_SQUARE || G.get(x + 1, y) == K_SQUARE || G.get(x, y + 1) == K_SQUARE) continue;   // (a step off the walks)
         const bool edge = x == x0 || x == x1 || y == y0 || y == y1;
-        if (edge) { M.setProp(x, y, winter ? Prop::SnowBush : Prop::Bush); continue; }
-        if (winter) { if (((x + y) & 1) == 0) M.setProp(x, y, Prop::SnowBush); continue; }
-        M.setG(x, y, Ground::Dirt);
-        M.setProp(x, y, fl[((y - y0) & 1) ? a : b]);
+        if (edge) { G.M.setProp(x, y, winter ? Prop::SnowBush : Prop::Bush); continue; }
+        if (winter) { if (((x + y) & 1) == 0) G.M.setProp(x, y, Prop::SnowBush); continue; }
+        G.M.setG(x, y, Ground::Dirt);
+        G.M.setProp(x, y, fl[((y - y0) & 1) ? a : b]);
       }
-  };
-  switch (seat) {
-    // ---------------------------------------------------------------- the castle and the court palace
-    default:
-    case cult::Seat::Castle:
-    case cult::Seat::CourtPalace: {
-      const bool court = seat == cult::Seat::CourtPalace;
-      // (M3b fixer) each people's forecourt its own, and every capital its own variant of it (the shared template of
-      // banners, a tiered fountain, parterres and paired trees stood before every palace): the jade court paved from
-      // wall to wall with the golden-water stream under the walk, censers and stone lions; the dune palace's chahar
-      // bagh of four green quarters under palms divided by rills; the imperial court's twin canals lined with statues
-      // and the legions' parade ground; the highland chief's trodden bailey; the heartland castle's fountain court with
-      // its gardens, an orchard or a tiltyard
-      using CA = cult::Archetype;
-      const bool jade = court && cArch == (int)CA::Jade, dune = court && cArch == (int)CA::Dune, imperial = court && cArch == (int)CA::Imperial;
-      const bool highland = !court && cArch == (int)CA::Highland;
-      const int fx = gx + 1;
-      int midY = (terrace + 3 + gy - 2) / 2;
-      // the royal guard's barracks on one side of the courtyard, its door on a path to the walkway
-      const bool west = rng.f() < 0.5f;
-      if (garrison) {
-        const int bx = west ? X0 + 2 : X0 + CW - 2 - BAR_W, by = terrace + 4;
-        barracksIdx = put(Building::Barracks, IRect{bx, by, BAR_W, BAR_H}, Role::Guard, garrisonForm, 0, 0);
-        doorPath(barracksIdx, Ground::Road);
-      }
-      if (jade) {
-        for (int y = terrace + 2; y < gy; y++)
-          for (int x = X0 + 1; x < X0 + CW - 1; x++)
-            if (get(x, y) == K_COMPOUND && M.bldgAt[I(x, y)] < 0 && !front[I(x, y)]) M.setG(x, y, Ground::Plaza);
-        // the stream across the court, the walk bridging it
-        const int wy = terrace + 4 + cr.irange(std::max(1, gy - terrace - 9));
-        for (int x = X0 + 2; x < X0 + CW - 2; x++) {
-          if (get(x, wy) == K_SQUARE) { M.setG(x, wy, Ground::Bridge); continue; }
-          pond(x, wy);
-        }
-        // pines in planted squares, set where the seed puts them (never mirrored pairs)
-        const int pines = 2 + cr.irange(3);
-        for (int k = 0, tries = 0; k < pines && tries < 40; tries++) {
-          const int x = X0 + 3 + cr.irange(std::max(1, CW - 6)), y = terrace + 3 + cr.irange(std::max(1, gy - terrace - 5));
-          if (std::abs(x - fx) <= 3 || std::abs(y - wy) <= 1 || !lawnFree(x, y) || !lawnFree(x, y - 1) || cover[I(x, y)]) continue;
-          for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (lawnFree(x + ox, y + oy)) M.setG(x + ox, y + oy, Ground::Grass);
-          M.setProp(x, y, Prop::PineTree);
-          k++;
-        }
-        // bronze censers in pairs up the way, stone lanterns further out, lions at the gate and before the hall
-        const int step = 3 + cr.irange(2);
-        for (int y = terrace + 3 + cr.irange(2); y < gy - 2; y += step)
-          if (std::abs(y - wy) > 1) for (int s : {-1, 3}) propAt(gx + s, y, Prop::Brazier);
-        for (int y = terrace + 4 + cr.irange(3); y < gy - 2; y += 5)
-          if (std::abs(y - wy) > 1) for (int s : {-5, 7}) propAt(gx + s, y, Prop::Lamppost);
-        for (int s : {-2, 4}) propAt(gx + s, gy - 2, Prop::Statue);
-        for (int s : {-3, 3}) propAt(doorX + s, terrace + 2, Prop::Statue);
-        midY = wy + 2;
-      } else if (dune) {
-        // the cross walk, the long rills either side of it, the four green quarters under palms
-        const int cy2 = midY + cr.irange(3) - 1;
-        for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, cy2, Ground::Plaza);
-        // (each rill a run of four tiles or more: a tile or two of water cut short by a building read as a puddle)
-        for (int s : {-1, 1})
-          for (int side = 0; side < 2; side++) {
-            const int a0 = side ? gx + 5 : X0 + 3, a1 = side ? X0 + CW - 4 : gx - 3;
-            int x = a0;
-            while (x <= a1) {
-              int e = x;
-              while (e <= a1 && lawnFree(e, cy2 + s) && !cover[I(e, cy2 + s)]) e++;
-              if (e - x >= 4) for (int k = x; k < e; k++) pond(k, cy2 + s);
-              x = e + 1;
-            }
-          }
-        for (int y = terrace + 2; y < gy - 1; y++)
-          for (int x = X0 + 2; x < X0 + CW - 2; x++)
-            if (lawnFree(x, y) && !cover[I(x, y)] && (base == Ground::Sand || base == Ground::Dirt)) M.setG(x, y, Ground::Grass);   // the irrigated quarters
-        // palms in each quarter, where the seed puts them (one or two, never a mirrored pair)
-        for (int q = 0; q < 4; q++) {
-          const int qx0 = q & 1 ? gx + 5 : X0 + 2, qx1 = q & 1 ? X0 + CW - 3 : gx - 3;
-          const int qy0 = q & 2 ? cy2 + 2 : terrace + 3, qy1 = q & 2 ? gy - 2 : cy2 - 2;
-          if (qx1 < qx0 || qy1 < qy0) continue;
-          const int want = 1 + cr.irange(2);
-          for (int k = 0, t = 0; k < want && t < 16; t++) {
-            const int x = qx0 + cr.irange(qx1 - qx0 + 1), y = qy0 + cr.irange(qy1 - qy0 + 1);
-            if (!lawnFree(x, y) || cover[I(x, y)] || M.bldgAt[I(x, y - 1)] >= 0 || front[I(x, y - 1)]) continue;
-            bool near = false;
-            for (int oy = -2; oy <= 2; oy++) for (int ox = -2; ox <= 2; ox++) if (M.propAt(x + ox, y + oy) == (int)Prop::PalmTree + 1) near = true;
-            if (near) continue;
-            M.setProp(x, y, Prop::PalmTree);
-            k++;
-          }
-        }
-        // lanterns where the rills meet the walks
-        for (int s : {-2, 4}) { propAt(gx + s, cy2 - 2, Prop::Brazier); propAt(gx + s, cy2 + 2, Prop::Brazier); }
-        midY = cy2;
-      } else if (imperial) {
-        // twin canals either side of the way, the emperors' statues along them, cypresses by the walls; the legions'
-        // parade ground (trodden earth, the standards in a row) before the barracks
-        const int y0 = terrace + 3 + cr.irange(2), y1 = gy - 3 - cr.irange(2);
-        const int cw = 1 + cr.irange(2);
-        for (int y = y0; y <= y1; y++)
-          for (int k = 0; k < cw; k++) { pond(gx - 2 - k, y); pond(gx + 4 + k, y); }
-        const int st0 = y0 + cr.irange(2);
-        for (int y = st0; y <= y1; y += 3) { propAt(gx - 3 - cw, y, Prop::Statue); propAt(gx + 5 + cw, y, Prop::Statue); }
-        for (int y = terrace + 3; y < gy - 1; y += 2 + cr.irange(2)) {
-          if (lawnFree(X0 + 2, y) && lawnFree(X0 + 2, y - 1) && !cover[I(X0 + 2, y)]) M.setProp(X0 + 2, y, Prop::PineTree);
-          if (lawnFree(X0 + CW - 3, y) && lawnFree(X0 + CW - 3, y - 1) && !cover[I(X0 + CW - 3, y)]) M.setProp(X0 + CW - 3, y, Prop::PineTree);
-        }
-        if (garrison && barracksIdx >= 0) {
-          const Bldg& bb = M.bldgs[(size_t)barracksIdx];
-          const int gy0 = bb.r.y + bb.r.h + 2, gx0 = bb.r.x, gx1 = bb.r.x + bb.r.w - 1;
-          for (int y = gy0; y <= std::min(gy - 2, gy0 + 3); y++)
-            for (int x = gx0; x <= gx1; x++) if (lawnFree(x, y) && !cover[I(x, y)]) M.setG(x, y, Ground::Dirt);
-          for (int x = gx0; x <= gx1; x += 2) banner(x, gy0);
-        }
-      } else if (highland) {
-        // the chief's bailey: trodden earth round the well, the woodpiles and the peat stack, a cattle pen, a standing
-        // stone where the clan swears its oaths
-        for (int y = terrace + 2; y < gy; y++)
-          for (int x = X0 + 1; x < X0 + CW - 1; x++)
-            if (get(x, y) == K_COMPOUND && blob(x, y, fx, midY, CW * 0.36f, (gy - terrace) * 0.5f, P.seed ^ 0xBA11u) < 1.0f) M.setG(x, y, Ground::Dirt);
-        const int ws = cr.irange(2) ? -4 : 6;
-        propAt(gx + ws, midY, Prop::Well);
-        propAt(X0 + 2 + cr.irange(2), terrace + 2, Prop::Woodpile);
-        propAt(X0 + CW - 3 - cr.irange(2), terrace + 2, Prop::Woodpile);
-        const int pw = 6, ph = 4, pxx = west ? X0 + CW - 2 - pw : X0 + 2, pyy = gy - 2 - ph;
-        bool free = pyy > terrace + 2;
-        for (int y = pyy - 1; y <= pyy + ph && free; y++) for (int x = pxx - 1; x <= pxx + pw && free; x++) if (!lawnFree(x, y) || cover[I(x, y)]) free = false;
-        if (free) {
-          fenceRing(pxx, pyy, pw, ph, pxx + pw / 2, 1);
-          propAt(pxx + 1, pyy + 1, Prop::Haystack);
-          propAt(pxx + 3, pyy + 2, Prop::Cow);
-        }
-        propAt(gx + (ws < 0 ? 6 : -4), terrace + 3 + cr.irange(3), Prop::StandingStone);
-        for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      } else {
-        // the fountain court: a round widening of the walkway (a court palace of another people: two, on the axis)
-        const int fy0 = terrace + 4 + cr.irange(3);
-        const int fys[2] = {fy0, court && gy - 5 - (fy0) >= 6 ? gy - 5 : -1};
-        for (int fy : fys) {
-          if (fy < 0) continue;
-          for (int y = fy - 2; y <= fy + 2; y++)
-            for (int x = fx - 3; x <= fx + 3; x++) {
-              int ddx = x - fx, ddy = y - fy;
-              if (ddx * ddx * 4 + ddy * ddy * 9 > 40) continue;
-              walk(x, y, Ground::Plaza);
-            }
-          M.setProp(fx, fy, Prop::Fountain);
-        }
-        // the gardens: parterres, an orchard in rows, or a tiltyard on one side
-        const int garden = court ? 0 : cr.irange(3);
-        if (garden == 0) {
-          if (court) {
-            for (int side = 0; side < 2; side++) {
-              const int x0 = side == 0 ? X0 + 2 : gx + 7, x1 = side == 0 ? gx - 5 : X0 + CW - 3;
-              if (gy - 2 - (terrace + 3) < 7) { parterre(x0, terrace + 3, x1, gy - 2, 0xBED0u + (uint32_t)side); continue; }
-              parterre(x0, terrace + 3, x1, midY - 1, 0xBED0u + (uint32_t)side);
-              parterre(x0, midY + 1, x1, gy - 2, 0xBED2u + (uint32_t)side);
-            }
-            for (int y = terrace + 3; y < gy - 1; y += 3)
-              for (int s : {-3, 5}) { const int x = gx + s; if (lawnFree(x, y) && !cover[I(x, y)] && lawnFree(x, y - 1)) M.setProp(x, y, tree); }
-          } else compoundGrounds(X0, Y0, CW, CH, gx, gy, terrace);
-        } else if (garden == 1) {
-          // an orchard: fruit trees in staggered rows on the lawns, a bench under them
-          const Prop ft = cold ? Prop::PineTree : (dry ? Prop::PalmTree : (cr.irange(2) ? Prop::OakTree : Prop::AutumnTree));
-          const int sp = 3 + cr.irange(2);
-          for (int y = terrace + 3; y < gy - 1; y += sp)
-            for (int x = X0 + 2 + ((y / sp) & 1); x < X0 + CW - 2; x += sp)
-              if (std::abs(x - fx) >= 4 && lawnFree(x, y) && lawnFree(x, y - 1) && !cover[I(x, y)]) M.setProp(x, y, ft);
-          propAt(gx - 2, midY, Prop::Bench);
-        } else {
-          // a tiltyard on the side away from the barracks: a trodden list behind a rail, a stand of banners; gardens
-          // on the barracks' side
-          const int lx0 = west ? gx + 5 : X0 + 3, lx1 = west ? X0 + CW - 4 : gx - 3;
-          for (int y = terrace + 4; y < gy - 2; y++)
-            for (int x = lx0; x <= lx1; x++) if (lawnFree(x, y) && !cover[I(x, y)]) M.setG(x, y, Ground::Dirt);
-          for (int x = lx0; x <= lx1; x++) { if (lawnFree(x, terrace + 3)) M.setProp(x, terrace + 3, Prop::FenceH); }
-          for (int x = lx0; x <= lx1; x += 3) banner(x, terrace + 2);
-          compoundGrounds(X0, Y0, CW, CH, gx, gy, terrace);
-        }
-        int corners[4][2] = {{X0 + 2, terrace + 2}, {X0 + CW - 3, terrace + 2}, {X0 + 2, gy - 2}, {X0 + CW - 3, gy - 2}};
-        for (auto& c : corners) {
-          int x = c[0], y = c[1];
-          bool ok = lawnFree(x, y) && !cover[I(x, y)] && lawnFree(x, y - 1);
-          for (int oy = -1; oy <= 1 && ok; oy++) for (int ox = -1; ox <= 1; ox++) if (M.bldgAt[I(x + ox, y + oy)] >= 0 || front[I(x + ox, y + oy)]) ok = false;
-          if (ok && cr.irange(4) != 0) { M.setP(x, y, 0); M.setProp(x, y, tree); }
-        }
-        for (int s : {-2, 4}) if (lawnFree(gx + s, gy - 2) && !cover[I(gx + s, gy - 2)]) M.setProp(gx + s, gy - 2, Prop::Statue);
-        for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-        if (cr.irange(2))
-          for (int y = terrace + 3; y < gy - 1; y += 3 + cr.irange(2))
-            for (int s : {-1, 3}) if (lawnFree(gx + s, y)) { M.setP(gx + s, y, 0); M.setProp(gx + s, y, Prop::Lamppost); }
-        midY = fy0;
-      }
-      guardSpots[2][0] = gx; guardSpots[2][1] = midY + 1;
-      guardSpots[3][0] = gx + 2; guardSpots[3][1] = midY + 1;
-      break;
+  }
+  // the grounds, the enclosure, the seat building, the terrace before it and the walk to the entrance
+  void lay() {
+    X0 = G.compound.x; Y0 = G.compound.y; CW = G.compound.w; CH = G.compound.h;
+    seat = G.hasSoc ? (cult::Seat)G.seatKind : cult::Seat::Castle;
+    walledC = G.compoundWalled();
+    PW = G.palW; PH = G.palH;
+    gx = X0 + CW / 2 - 1; gy = Y0 + CH - 1;   // the entrance: the middle three tiles of the south side
+    gb = G.bio;
+    dry = gb == Biome::Desert || G.cArch == (int)cult::Archetype::Dune;
+    cold = gb == Biome::Snow || gb == Biome::Taiga;
+    tree = dry ? Prop::PalmTree : (cold ? Prop::PineTree : Prop::OakTree);
+    // the grounds: lawns (sand in the desert, snow in the north); a tent court's trampled steppe; a precinct's paving;
+    // the elders' pools
+    {
+      const Ground lawn = G.base == Ground::Grass ? Ground::Meadow : G.base;
+      Ground g = lawn;
+      if (seat == cult::Seat::TentCourt || seat == cult::Seat::GreatHall) g = G.base == Ground::Grass ? Ground::Grass : G.base;
+      if (seat == cult::Seat::StiltHall) g = G.base == Ground::Grass ? Ground::Grass : G.base;
+      for (int y = Y0; y < Y0 + CH; y++)
+        for (int x = X0; x < X0 + CW; x++) { G.M.setG(x, y, g); G.M.setP(x, y, 0); }
     }
-    // ---------------------------------------------------------------- the jarl's great hall in its stockade
-    case cult::Seat::GreatHall: {
-      // the huscarls' longhouses down both sides of the yard, their doors on it; the hall's yard of trodden earth
-      // with the fire pit and the woodpiles
-      // (the yard trodden bare in a ragged oval round the fire and down to the gate, grass at its edges)
+    // the enclosure: a wall (the culture's: a castle curtain, a stockade, a precinct wall) with its gate in the middle of
+    // the south run; a hedge (the culture's fence) round gardens; open ground for a tent court, a grove, the pools
+    if (walledC) {
+      for (int x = X0; x < X0 + CW; x++) { G.M.wall[G.I(x, Y0)] = G.wallByte; G.M.wall[G.I(x, Y0 + CH - 1)] = G.wallByte; }
+      for (int y = Y0; y < Y0 + CH; y++) { G.M.wall[G.I(X0, y)] = G.wallByte; G.M.wall[G.I(X0 + CW - 1, y)] = G.wallByte; }
+      for (int k = 0; k < 3; k++) { G.M.wall[G.I(gx + k, gy)] = 0; G.M.setG(gx + k, gy, Ground::Plaza); G.set(gx + k, gy, K_SQUARE); }
+      G.O.gates.push_back({gx, gy});
+      G.O.wallGaps.push_back(IRect{gx, gy, 3, 1});
+      G.gateBearing.push_back(-2);
+    } else {
+      for (int k = 0; k < 3; k++) { G.M.setG(gx + k, gy, Ground::Plaza); G.set(gx + k, gy, K_SQUARE); }
+    }
+    // what the society garrisons in the grounds (the royal guard's barracks for a standing army; the khan's riders in a
+    // tent; huscarls, temple guards and wardens live in the seat itself)
+    garrison = !G.hasSoc;
+    garrisonForm = 0;
+    if (G.hasSoc)
+      switch (G.soc.military) {
+        case cult::Military::Levy: case cult::Military::Knights: case cult::Military::Legions: case cult::Military::Mercenaries: garrison = true; break;
+        case cult::Military::HorseArchers: garrison = true; garrisonForm = (uint8_t)bld::Form::Tent; break;
+        default: break;
+      }
+    seatId = G.hasSoc ? (uint8_t)(G.seatKind + 1) : 0;
+    seatForm = G.hasSoc ? cult::seatForm(G.soc.seat, false) : 0;
+    seatPurpose = Building::Palace;
+    // the seat building: at the head of the grounds (a tent court's and a grove's further in, their court round them)
+    px = X0 + (CW - PW) / 2; py = Y0 + 3;
+    if (seat == cult::Seat::TentCourt) py = Y0 + 7;
+    if (seat == cult::Seat::TreePalace) py = Y0 + 2;
+    if (seat == cult::Seat::StiltHall) py = Y0 + 3;
+    G.palaceIdx = put(seatPurpose, IRect{px, py, PW, PH}, Role::King, seatForm, G.hasSoc ? (uint8_t)bld::CIVIC_SEAT : 0, seatId);
+    G.seatIdx = G.palaceIdx;
+    {
+      Bldg& pb = G.M.bldgs[(size_t)G.palaceIdx];
+      if (seat == cult::Seat::StiltHall && pb.styled) { pb.arch.foundation = art::Foundation::Stilts; pb.arch.stilts = true; }
+    }
+    doorX = G.M.bldgs[(size_t)G.palaceIdx].doorX();
+    terrace = py + PH;   // the row before the seat's front
+    walkG = seat == cult::Seat::TentCourt || seat == cult::Seat::GreatHall ? Ground::Dirt : Ground::Plaza;
+    // the terrace before the front and the walk to the entrance
+    for (int y = terrace; y <= terrace + 1; y++)
+      for (int x = px + 1; x < px + PW - 1; x++) walk(x, y, walkG);
+    for (int y = terrace + 2; y < gy; y++)
+      for (int x = gx; x < gx + 3; x++) walk(x, y, walkG);
+    const int spots[6][2] = {{gx - 1, gy + 1}, {gx + 3, gy + 1}, {gx - 1, gy - 2}, {gx + 3, gy - 2}, {doorX - 2, terrace + 1}, {doorX + 2, terrace + 1}};
+    for (int k = 0; k < 6; k++) { guardSpots[k][0] = spots[k][0]; guardSpots[k][1] = spots[k][1]; }
+  }
+  // ---------------------------------------------------------------- the castle and the court palace
+  void castle() {
+    const bool court = seat == cult::Seat::CourtPalace;
+    // (M3b fixer) each people's forecourt its own, and every capital its own variant of it (the shared template of
+    // banners, a tiered fountain, parterres and paired trees stood before every palace): the jade court paved from
+    // wall to wall with the golden-water stream under the walk, censers and stone lions; the dune palace's chahar
+    // bagh of four green quarters under palms divided by rills; the imperial court's twin canals lined with statues
+    // and the legions' parade ground; the highland chief's trodden bailey; the heartland castle's fountain court with
+    // its gardens, an orchard or a tiltyard
+    using CA = cult::Archetype;
+    const bool jade = court && G.cArch == (int)CA::Jade, dune = court && G.cArch == (int)CA::Dune, imperial = court && G.cArch == (int)CA::Imperial;
+    const bool highland = !court && G.cArch == (int)CA::Highland;
+    const int fx = gx + 1;
+    int midY = (terrace + 3 + gy - 2) / 2;
+    // the royal guard's barracks on one side of the courtyard, its door on a path to the walkway
+    const bool west = G.rng.f() < 0.5f;
+    if (garrison) {
+      const int bx = west ? X0 + 2 : X0 + CW - 2 - BAR_W, by = terrace + 4;
+      G.barracksIdx = put(Building::Barracks, IRect{bx, by, BAR_W, BAR_H}, Role::Guard, garrisonForm, 0, 0);
+      doorPath(G.barracksIdx, Ground::Road);
+    }
+    if (jade) {
       for (int y = terrace + 2; y < gy; y++)
         for (int x = X0 + 1; x < X0 + CW - 1; x++)
-          if (get(x, y) == K_COMPOUND && blob(x, y, gx + 1, (terrace + gy) / 2, 6.5f, (gy - terrace) * 0.55f, P.seed ^ 0x6A11u) < 1.0f) M.setG(x, y, Ground::Dirt);
-      const int lh = 3;
-      for (int side = 0; side < 2; side++) {
-        for (int k = 0; k < 2; k++) {
-          // (every longhouse its own length and set back its own way: four alike in one yard read as a barracks)
-          const int lw = 5 + (int)((hashAt(X0 + side, Y0 + k, 0x10E6u)) % 3u);
-          const int lx = side == 0 ? X0 + 2 + (int)(k & 1) : X0 + CW - 2 - lw - (int)((k + 1) & 1);
-          const int ly = k == 0 ? terrace + 4 : gy - 6;
-          if (!canPut(IRect{lx, ly, lw, lh}, Building::House)) continue;
-          const int bi = put(Building::House, IRect{lx, ly, lw, lh}, k == 0 ? Role::Guard : Role::Villager, (uint8_t)bld::Form::Long, 0, 0);
-          doorPath(bi, Ground::Dirt);
+          if (G.get(x, y) == K_COMPOUND && G.M.bldgAt[G.I(x, y)] < 0 && !G.front[G.I(x, y)]) G.M.setG(x, y, Ground::Plaza);
+      // the stream across the court, the walk bridging it
+      const int wy = terrace + 4 + cr.irange(std::max(1, gy - terrace - 9));
+      for (int x = X0 + 2; x < X0 + CW - 2; x++) {
+        if (G.get(x, wy) == K_SQUARE) { G.M.setG(x, wy, Ground::Bridge); continue; }
+        pond(x, wy);
+      }
+      // pines in planted squares, set where the seed puts them (never mirrored pairs)
+      const int pines = 2 + cr.irange(3);
+      for (int k = 0, tries = 0; k < pines && tries < 40; tries++) {
+        const int x = X0 + 3 + cr.irange(std::max(1, CW - 6)), y = terrace + 3 + cr.irange(std::max(1, gy - terrace - 5));
+        if (std::abs(x - fx) <= 3 || std::abs(y - wy) <= 1 || !lawnFree(x, y) || !lawnFree(x, y - 1) || G.cover[G.I(x, y)]) continue;
+        for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (lawnFree(x + ox, y + oy)) G.M.setG(x + ox, y + oy, Ground::Grass);
+        G.M.setProp(x, y, Prop::PineTree);
+        k++;
+      }
+      // bronze censers in pairs up the way, stone lanterns further out, lions at the gate and before the hall
+      const int step = 3 + cr.irange(2);
+      for (int y = terrace + 3 + cr.irange(2); y < gy - 2; y += step)
+        if (std::abs(y - wy) > 1) for (int s : {-1, 3}) propAt(gx + s, y, Prop::Brazier);
+      for (int y = terrace + 4 + cr.irange(3); y < gy - 2; y += 5)
+        if (std::abs(y - wy) > 1) for (int s : {-5, 7}) propAt(gx + s, y, Prop::Lamppost);
+      for (int s : {-2, 4}) propAt(gx + s, gy - 2, Prop::Statue);
+      for (int s : {-3, 3}) propAt(doorX + s, terrace + 2, Prop::Statue);
+      midY = wy + 2;
+    } else if (dune) {
+      // the cross walk, the long rills either side of it, the four green quarters under palms
+      const int cy2 = midY + cr.irange(3) - 1;
+      for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, cy2, Ground::Plaza);
+      // (each rill a run of four tiles or more: a tile or two of water cut short by a building read as a puddle)
+      for (int s : {-1, 1})
+        for (int side = 0; side < 2; side++) {
+          const int a0 = side ? gx + 5 : X0 + 3, a1 = side ? X0 + CW - 4 : gx - 3;
+          int x = a0;
+          while (x <= a1) {
+            int e = x;
+            while (e <= a1 && lawnFree(e, cy2 + s) && !G.cover[G.I(e, cy2 + s)]) e++;
+            if (e - x >= 4) for (int k = x; k < e; k++) pond(k, cy2 + s);
+            x = e + 1;
+          }
         }
-      }
-      const int fx = gx + 1, fy = terrace + 5;
-      for (int y = fy - 1; y <= fy + 1; y++) for (int x = fx - 2; x <= fx + 2; x++) walk(x, y, Ground::Dirt);
-      M.setProp(fx, fy, Prop::Campfire);
-      for (int s : {-2, 2}) if (get(fx + s, fy) == K_SQUARE) M.setProp(fx + s, fy, Prop::Bench);
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      propAt(X0 + 2, Y0 + 2, Prop::Woodpile);
-      propAt(X0 + CW - 3, Y0 + 2, Prop::Woodpile);
-      propAt(X0 + 2, gy - 2, Prop::Well) || propAt(X0 + 3, gy - 2, Prop::Well);
-      propAt(X0 + CW - 3, gy - 2, Prop::Barrel);
-      for (int s : {-2, 4}) banner(gx + s, gy - 2);
-      if (garrison) {   // (a jarl's realm with a standing levy too: their barracks by the gate)
-        const IRect br{X0 + CW / 2 + 3, gy - 1 - BAR_H - 2, BAR_W, BAR_H};
-        if (br.y > terrace + 2 && canPut(br, Building::Barracks)) { barracksIdx = put(Building::Barracks, br, Role::Guard, garrisonForm, 0, 0); doorPath(barracksIdx, Ground::Dirt); }
-      }
-      break;
-    }
-    // ---------------------------------------------------------------- the khan's tent court
-    case cult::Seat::TentCourt: {
-      // the open court before the great tent, trodden bare; the court tents in a ring round it, doors inward and
-      // south; banners on their poles round the ring; the horse lines (the culture's rope corrals) in the back corners
-      const int ccx = gx + 1 + cr.irange(3) - 1, ccy = terrace + 4 + cr.irange(2);
-      for (int y = Y0 + 1; y < gy; y++)
-        for (int x = X0 + 1; x < X0 + CW - 1; x++) {
-          const int dx = x - ccx, dy = (y - ccy) * 3 / 2;
-          if (get(x, y) == K_COMPOUND && dx * dx + dy * dy <= 7 * 7 + (int)(hashAt(x, y, 0x7E17u) % 9u)) M.setG(x, y, Ground::Dirt);
-        }
-      for (int y = ccy - 2; y <= ccy + 2; y++) for (int x = ccx - 4; x <= ccx + 4; x++) if ((x - ccx) * (x - ccx) + (y - ccy) * (y - ccy) * 4 <= 18) walk(x, y, Ground::Dirt);
-      M.setProp(ccx, ccy, Prop::Campfire);
-      // the court tents: in a ring round the court, staggered so no tent's felt hides another's door (west: two, the
-      // nearer one further in; east: one and the horse lines), and the court's back corners behind the great tent
-      const int tw = 4, th = 3;
-      const int spots[5][2] = {{ccx - 12 - tw / 2, ccy - 6}, {ccx - 7 - tw / 2, ccy + 1}, {ccx + 12 - tw / 2, ccy - 6},
-                               {X0 + 2, Y0 + 1}, {X0 + CW - 2 - tw, Y0 + 1}};
-      for (auto& s : spots) {
-        IRect r{s[0], s[1], tw, th};
-        if (!canPut(r, Building::House)) continue;
-        const int bi = put(Building::House, r, Role::Villager, (uint8_t)bld::Form::Tent, 0, 0);
-        const Bldg& tb = M.bldgs[(size_t)bi];
-        for (int y = tb.r.y + tb.r.h; y <= tb.r.y + tb.r.h + 1; y++) if (get(tb.doorX(), y) == K_COMPOUND) M.setG(tb.doorX(), y, Ground::Dirt);
-        // a tent's household: a barrel or a crate by it, a cooking fire's woodpile
-        propAt(tb.r.x - 1, tb.r.y + tb.r.h - 1, (hashAt(tb.r.x, tb.r.y, 3u) & 1) ? Prop::Barrel : Prop::Crate);
-        propAt(tb.r.x + tb.r.w, tb.r.y + tb.r.h - 1, (hashAt(tb.r.x, tb.r.y, 5u) % 3u) ? Prop::Woodpile : Prop::Haystack);
-      }
-      // (the khan's riders keep their tents and horse lines at the edge of the town: societyServices)
-      // the horse lines: a rope corral in the south-east corner, beasts, a trough and hay
-      {
-        const int cw = 7, chh = 5, cxx = X0 + CW - 2 - cw, cyy = gy - 1 - chh;
-        bool free = cyy > terrace + 2;
-        for (int y = cyy - 1; y <= cyy + chh && free; y++) for (int x = cxx - 1; x <= cxx + cw && free; x++) if (!lawnFree(x, y) || cover[I(x, y)]) free = false;
-        if (free) {
-          fenceRing(cxx, cyy, cw, chh, cxx + cw / 2, 1);
-          propAt(cxx + 1, cyy + 1, Prop::Trough);
-          propAt(cxx + cw - 2, cyy + 1, Prop::Haystack);
-          propAt(cxx + 2, cyy + 3, Prop::Cow);
-          propAt(cxx + 4, cyy + 2, Prop::Cow);
-          if (!M.prop[I(cxx + cw / 2, cyy + chh - 1)]) set(cxx + cw / 2, cyy + chh - 1, K_YARD);
-        }
-      }
-      // the banner ring: tall standards round the court (how many, and where the ring starts, the khan's own)
-      {
-        const int nb = 8 + cr.irange(6);
-        const float a0 = cr.f() * D_TAU, rr = 8.0f + cr.f() * 1.5f;
-        for (int k = 0; k < nb; k++) {
-          const float a = a0 + D_TAU * k / (float)nb;
-          banner(ccx + (int)std::floor(dcos(a) * rr + 0.5f), ccy + (int)std::floor(dsin(a) * rr * 0.65f + 0.5f));
-        }
-      }
-      // the ovoo: the cairn of stones where the court makes its offerings, at the court's edge
-      for (int t = 0; t < 8; t++) {
-        const float a = cr.f() * D_TAU;
-        if (propAt(ccx + (int)std::floor(dcos(a) * 10.0f + 0.5f), ccy + (int)std::floor(dsin(a) * 6.0f + 0.5f), Prop::GraveCairn)) break;
-      }
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      // the court round the fire: logs and benches to sit on at the khan's own places round it, the servants' small
-      // tents and the court's stores at its edge
-      {
-        static const int ring[8][2] = {{-2, 0}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}, {2, 0}, {2, 1}, {-2, 1}};
-        const int k0 = cr.irange(8), n = 3 + cr.irange(3);
-        for (int k = 0; k < n; k++) {
-          const int lx = ccx + ring[(k0 + k * 3) % 8][0], ly = ccy + ring[(k0 + k * 3) % 8][1];
-          if (std::abs(lx - doorX) <= 0 && ly < ccy) continue;   // (round 3: the way from the fire to the khan's gate stays open)
-          if (get(lx, ly) == K_COMPOUND || get(lx, ly) == K_SQUARE) { if (!M.prop[I(lx, ly)] && !cover[I(lx, ly)]) M.setProp(lx, ly, (k + k0) % 3 == 0 ? Prop::Bench : Prop::Log); }
-        }
-      }
-      for (int k = 0; k < 6; k++) {
-        const int tx = X0 + 3 + (int)(hashAt(X0, Y0, 0x7E57u + (uint32_t)k) % (uint32_t)(CW - 6)), ty = terrace + 2 + (int)(hashAt(X0, Y0, 0x7E58u + (uint32_t)k) % (uint32_t)std::max(1, gy - terrace - 4));
-        const int dx = tx - ccx, dy = (ty - ccy) * 3 / 2;
-        if (dx * dx + dy * dy < 11 * 11 || std::abs(tx - (gx + 1)) <= 2) continue;
-        propAt(tx, ty, k < 3 ? Prop::Tent : (k == 3 ? Prop::Haystack : (k == 4 ? Prop::Sacks : Prop::Barrel)));
-      }
-      propAt(X0 + 2, Y0 + 2, Prop::Haystack);
-      propAt(X0 + CW - 3, Y0 + 2, Prop::Crate);
-      break;
-    }
-    // ---------------------------------------------------------------- the temple precinct
-    case cult::Seat::TempleComplex: {
-      // the temple court: the precinct paved from wall to wall before the temple; the priests' houses along the sides,
-      // braziers flanking the processional way, statues of the god at the gate, a fountain of holy water
-      for (int y = terrace; y < gy; y++)
-        for (int x = X0 + 1; x < X0 + CW - 1; x++) if (get(x, y) == K_COMPOUND) { M.setG(x, y, Ground::Plaza); }
-      const int hh = 3;
-      for (int side = 0; side < 2; side++)
-        for (int k = 0; k < 2; k++) {
-          // (the high priest's house and the lesser ones: each its own size and kind, never a mirrored pair)
-          const int hw = 4 + (int)((side + k) & 1);
-          const int hx = side == 0 ? X0 + 2 : X0 + CW - 2 - hw, hy = terrace + 4 + k * (hh + 3) + side;
-          if (!canPut(IRect{hx, hy, hw, hh}, Building::House)) continue;
-          const int bi = put(((side + k) & 1) ? Building::StoneHouse : Building::House, IRect{hx, hy, hw, hh}, Role::Priest, 0, 0, 0);
-          doorPath(bi, Ground::Plaza);
-        }
-      const int bstep = 3 + cr.irange(2);
-      for (int y = terrace + 3 + cr.irange(2); y < gy - 1; y += bstep)
-        for (int s : {-1, 3}) propAt(gx + s, y, Prop::Brazier);
-      // (M3b fixer) no tiered fountain: the sacred well's pool sunk in the paving to one side of the way, an altar of
-      // offerings on the way before the steps
-      {
-        const int side = cr.irange(2) ? -1 : 1;
-        const int pcx = side < 0 ? gx - 4 - cr.irange(2) : gx + 6 + cr.irange(2), pcy = gy - 5 - cr.irange(3);
-        for (int y = pcy - 1; y <= pcy + 1; y++)
-          for (int x = pcx - 1; x <= pcx + 1; x++) pond(x, y);
-        const int ay = terrace + 3;
-        if (get(gx + 1, ay) == K_SQUARE && !M.prop[I(gx + 1, ay)]) M.setProp(gx + 1, ay, Prop::Altar);
-      }
-      for (int s : {-3, 5}) propAt(gx + s, gy - 2, Prop::Statue);
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      // palms (or the land's trees) in the corners of the court
-      for (int c = 0; c < 4; c++) {
-        const int x = c & 1 ? X0 + CW - 3 : X0 + 2, y = c & 2 ? gy - 2 : Y0 + 2;
-        if (lawnFree(x, y) && lawnFree(x, y - 1) && !cover[I(x, y)]) { M.setG(x, y, base == Ground::Grass ? Ground::Grass : base); M.setProp(x, y, tree); }
-      }
-      break;
-    }
-    // ---------------------------------------------------------------- the council spire in its gardens
-    case cult::Seat::CouncilSpire: {
-      fenceRing(X0, Y0, CW, CH, gx, 3);
-      // white walks crossing the gardens: the axis and a cross walk with a fountain where they meet
-      const int my = (terrace + gy) / 2;
-      for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, my, Ground::Plaza);
-      for (int y = my - 1; y <= my + 1; y++) for (int x = gx - 1; x <= gx + 3; x++) walk(x, y, Ground::Plaza);
-      M.setProp(gx + 1, my, Prop::Fountain);
-      for (int s : {-6, 8}) if (get(gx + s, my) == K_SQUARE) M.setProp(gx + s, my, Prop::Statue);
-      // (M3b fixer) the white gardens: a long moon pool on one side of the cross walk, birch groves (where the seed puts
-      // them) on the lawns, a single bed of white flowers; never the two mirrored parterres of every palace
-      {
-        const int ps = cr.irange(2);
-        const int x0 = ps == 0 ? X0 + 4 : gx + 6, x1 = ps == 0 ? gx - 4 : X0 + CW - 5;
-        const int y0 = cr.irange(2) ? terrace + 4 : my + 3, y1 = y0 + 1 + cr.irange(2);
-        for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) pond(x, y);
-        const int groves = 2 + cr.irange(3);
-        for (int k = 0, tries = 0; k < groves && tries < 30; tries++) {
-          const int x = X0 + 3 + cr.irange(std::max(1, CW - 6)), y = terrace + 3 + cr.irange(std::max(1, gy - terrace - 5));
-          if (std::abs(x - (gx + 1)) <= 3 || std::abs(y - my) <= 1 || !lawnFree(x, y) || !lawnFree(x, y - 1) || cover[I(x, y)]) continue;
-          M.setProp(x, y, cold ? Prop::PineTree : Prop::BirchTree);
-          if (lawnFree(x + 2, y + 1) && lawnFree(x + 2, y) && !cover[I(x + 2, y + 1)]) M.setProp(x + 2, y + 1, Prop::BirchTree);
+      for (int y = terrace + 2; y < gy - 1; y++)
+        for (int x = X0 + 2; x < X0 + CW - 2; x++)
+          if (lawnFree(x, y) && !G.cover[G.I(x, y)] && (G.base == Ground::Sand || G.base == Ground::Dirt)) G.M.setG(x, y, Ground::Grass);   // the irrigated quarters
+      // palms in each quarter, where the seed puts them (one or two, never a mirrored pair)
+      for (int q = 0; q < 4; q++) {
+        const int qx0 = q & 1 ? gx + 5 : X0 + 2, qx1 = q & 1 ? X0 + CW - 3 : gx - 3;
+        const int qy0 = q & 2 ? cy2 + 2 : terrace + 3, qy1 = q & 2 ? gy - 2 : cy2 - 2;
+        if (qx1 < qx0 || qy1 < qy0) continue;
+        const int want = 1 + cr.irange(2);
+        for (int k = 0, t = 0; k < want && t < 16; t++) {
+          const int x = qx0 + cr.irange(qx1 - qx0 + 1), y = qy0 + cr.irange(qy1 - qy0 + 1);
+          if (!lawnFree(x, y) || G.cover[G.I(x, y)] || G.M.bldgAt[G.I(x, y - 1)] >= 0 || G.front[G.I(x, y - 1)]) continue;
+          bool near = false;
+          for (int oy = -2; oy <= 2; oy++) for (int ox = -2; ox <= 2; ox++) if (G.M.propAt(x + ox, y + oy) == (int)Prop::PalmTree + 1) near = true;
+          if (near) continue;
+          G.M.setProp(x, y, Prop::PalmTree);
           k++;
         }
-        const int fs = 1 - ps;
-        const int fx0 = fs == 0 ? X0 + 4 : gx + 6, fx1 = fs == 0 ? gx - 4 : X0 + CW - 5;
-        parterre(fx0, my + 2, fx1, std::min(gy - 3, my + 5), 0x5B2Eu + (uint32_t)fs);
       }
-      for (int c = 0; c < 4; c++) {
-        const int x = c & 1 ? X0 + CW - 3 : X0 + 2, y = c & 2 ? gy - 2 : terrace + 2;
-        if (lawnFree(x, y) && lawnFree(x, y - 1) && !cover[I(x, y)]) M.setProp(x, y, cold ? Prop::PineTree : Prop::BirchTree);
+      // lanterns where the rills meet the walks
+      for (int s : {-2, 4}) { propAt(gx + s, cy2 - 2, Prop::Brazier); propAt(gx + s, cy2 + 2, Prop::Brazier); }
+      midY = cy2;
+    } else if (imperial) {
+      // twin canals either side of the way, the emperors' statues along them, cypresses by the walls; the legions'
+      // parade ground (trodden earth, the standards in a row) before the barracks
+      const int y0 = terrace + 3 + cr.irange(2), y1 = gy - 3 - cr.irange(2);
+      const int cw = 1 + cr.irange(2);
+      for (int y = y0; y <= y1; y++)
+        for (int k = 0; k < cw; k++) { pond(gx - 2 - k, y); pond(gx + 4 + k, y); }
+      const int st0 = y0 + cr.irange(2);
+      for (int y = st0; y <= y1; y += 3) { propAt(gx - 3 - cw, y, Prop::Statue); propAt(gx + 5 + cw, y, Prop::Statue); }
+      for (int y = terrace + 3; y < gy - 1; y += 2 + cr.irange(2)) {
+        if (lawnFree(X0 + 2, y) && lawnFree(X0 + 2, y - 1) && !G.cover[G.I(X0 + 2, y)]) G.M.setProp(X0 + 2, y, Prop::PineTree);
+        if (lawnFree(X0 + CW - 3, y) && lawnFree(X0 + CW - 3, y - 1) && !G.cover[G.I(X0 + CW - 3, y)]) G.M.setProp(X0 + CW - 3, y, Prop::PineTree);
       }
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      break;
-    }
-    // ---------------------------------------------------------------- the tree palace and its grove
-    case cult::Seat::TreePalace: {
-      // the elder tree in the court before the palace (its roots spread over five tiles), (fix) beside the processional
-      // walk and never on it: on the axis its trunk and roots stood on the paving and its crown hid the approach; it
-      // stands to one side on the court's lawn, a ring of paving round its roots joined to the walk
-      const int ey = terrace + 9;
-      int ex = -1;
-      const int pref = (hashAt(gx, terrace, 0x6A0Fu) & 1u) ? 1 : -1;
-      for (int sd : {pref, -pref}) {
-        const int cx0 = gx + 1 + sd * 7;
-        bool ok = cx0 - 5 >= X0 + 1 && cx0 + 5 <= X0 + CW - 2;
-        for (int y = ey - 4; y <= ey + 2 && ok; y++)
-          for (int x = cx0 - 5; x <= cx0 + 5; x++) if (!in(x, y) || M.bldgAt[I(x, y)] >= 0 || front[I(x, y)] || M.wall[I(x, y)]) { ok = false; break; }
-        if (ok) { ex = cx0; break; }
+      if (garrison && G.barracksIdx >= 0) {
+        const Bldg& bb = G.M.bldgs[(size_t)G.barracksIdx];
+        const int gy0 = bb.r.y + bb.r.h + 2, gx0 = bb.r.x, gx1 = bb.r.x + bb.r.w - 1;
+        for (int y = gy0; y <= std::min(gy - 2, gy0 + 3); y++)
+          for (int x = gx0; x <= gx1; x++) if (lawnFree(x, y) && !G.cover[G.I(x, y)]) G.M.setG(x, y, Ground::Dirt);
+        for (int x = gx0; x <= gx1; x += 2) banner(x, gy0);
       }
-      if (ex >= 0) {
-        for (int y = ey - 4; y <= ey + 2; y++)
-          for (int x = ex - 5; x <= ex + 5; x++) {
-            const float dx = (x - ex) / 4.2f, dy = (y - (ey - 1)) / 2.7f, d = dx * dx + dy * dy;
-            if (d >= 0.78f && d <= 1.45f) walk(x, y, Ground::Plaza);
+    } else if (highland) {
+      // the chief's bailey: trodden earth round the well, the woodpiles and the peat stack, a cattle pen, a standing
+      // stone where the clan swears its oaths
+      for (int y = terrace + 2; y < gy; y++)
+        for (int x = X0 + 1; x < X0 + CW - 1; x++)
+          if (G.get(x, y) == K_COMPOUND && G.blob(x, y, fx, midY, CW * 0.36f, (gy - terrace) * 0.5f, G.P.seed ^ 0xBA11u) < 1.0f) G.M.setG(x, y, Ground::Dirt);
+      const int ws = cr.irange(2) ? -4 : 6;
+      propAt(gx + ws, midY, Prop::Well);
+      propAt(X0 + 2 + cr.irange(2), terrace + 2, Prop::Woodpile);
+      propAt(X0 + CW - 3 - cr.irange(2), terrace + 2, Prop::Woodpile);
+      const int pw = 6, ph = 4, pxx = west ? X0 + CW - 2 - pw : X0 + 2, pyy = gy - 2 - ph;
+      bool free = pyy > terrace + 2;
+      for (int y = pyy - 1; y <= pyy + ph && free; y++) for (int x = pxx - 1; x <= pxx + pw && free; x++) if (!lawnFree(x, y) || G.cover[G.I(x, y)]) free = false;
+      if (free) {
+        fenceRing(pxx, pyy, pw, ph, pxx + pw / 2, 1);
+        propAt(pxx + 1, pyy + 1, Prop::Haystack);
+        propAt(pxx + 3, pyy + 2, Prop::Cow);
+      }
+      propAt(gx + (ws < 0 ? 6 : -4), terrace + 3 + cr.irange(3), Prop::StandingStone);
+      for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    } else {
+      // the fountain court: a round widening of the walkway (a court palace of another people: two, on the axis)
+      const int fy0 = terrace + 4 + cr.irange(3);
+      const int fys[2] = {fy0, court && gy - 5 - (fy0) >= 6 ? gy - 5 : -1};
+      for (int fy : fys) {
+        if (fy < 0) continue;
+        for (int y = fy - 2; y <= fy + 2; y++)
+          for (int x = fx - 3; x <= fx + 3; x++) {
+            int ddx = x - fx, ddy = y - fy;
+            if (ddx * ddx * 4 + ddy * ddy * 9 > 40) continue;
+            walk(x, y, Ground::Plaza);
           }
-        // the ring joined to the walk by a short path from its near side
-        const int dir = ex > gx + 1 ? -1 : 1;
-        for (int x = ex + dir * 4; x != (dir < 0 ? gx + 2 : gx); x += dir) walk(x, ey - 1, Ground::Plaza);
-        for (int y = ey - 2; y <= ey; y++)
-          for (int x = ex - 2; x <= ex + 2; x++) { set(x, y, K_COMPOUND); M.setG(x, y, Ground::Meadow); M.setP(x, y, (x == ex && y == ey) ? (int)Prop::ElderTree + 1 : (int)Prop::Filler + 1); }
+        G.M.setProp(fx, fy, Prop::Fountain);
       }
-      // the ring of old trees: a wild grove's edge, not an avenue (spacing, depth and kind vary tree by tree; a gap
-      // here and there, a second tree stepped in behind)
-      {
-        static const Prop kinds[5] = {Prop::OakTree, Prop::OakTree2, Prop::BirchTree, Prop::OakTree, Prop::WillowTree};
-        auto grove = [&](int x, int y, uint32_t k) {
-          const uint32_t h = hashAt(x, y, 0x6A0Eu + k);
-          if (h % 7u == 0) return;   // a gap
-          propAt(x, y, cold ? ((h >> 4) & 1 ? Prop::PineTree : Prop::PineTree2) : kinds[(h >> 4) % 5u]);
-        };
-        for (int x = X0 + 1; x < X0 + CW - 1;) {
-          const uint32_t h = hashAt(x, Y0, 0x6A11u);
-          grove(x, Y0 + 1 + (int)(h & 1u), 1);
-          if (std::abs(x - (gx + 1)) > 3) grove(x, gy - 1 - (int)((h >> 1) & 1u), 2);
-          x += 2 + (int)((h >> 2) % 2u);
-        }
-        for (int y = Y0 + 3; y < gy - 1;) {
-          const uint32_t h = hashAt(X0, y, 0x6A12u);
-          grove(X0 + 1 + (int)(h & 1u), y, 3);
-          grove(X0 + CW - 2 - (int)((h >> 1) & 1u), y, 4);
-          y += 2 + (int)((h >> 2) % 2u);
-        }
-      }
-      for (int y = terrace + 2; y < gy - 1; y++)
-        for (int x = X0 + 3; x < X0 + CW - 3; x++) {
-          if (!lawnFree(x, y) || cover[I(x, y)] || get(x - 1, y) == K_SQUARE || get(x + 1, y) == K_SQUARE) continue;
-          const uint32_t h = hashAt(x, y, 0x6E0Fu);
-          if (h % 9u == 0) M.setProp(x, y, Prop::Fern);
-          else if (h % 9u == 1) M.setProp(x, y, (h >> 8) & 1 ? Prop::Flowers2 : Prop::Flowers3);
-          else if (h % 23u == 2) M.setProp(x, y, Prop::Mushrooms);
-        }
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      guardSpots[2][0] = ex - 4; guardSpots[2][1] = ey + 1;
-      guardSpots[3][0] = ex + 4; guardSpots[3][1] = ey + 1;
-      break;
-    }
-    // ---------------------------------------------------------------- the stilt hall over its pools
-    case cult::Seat::StiltHall: {
-      // the pools: open water under and round the hall, reed beds at their edges; plank walks (the culture's decking)
-      // from the entrance to the hall and round its front
-      // (a wobbly oval of open water fading through a reed fringe into the marsh grass: no square tank)
-      {
-        const float pcx = X0 + CW * 0.5f, pcy = Y0 + CH * 0.42f, prx = CW * 0.58f, pry = CH * 0.56f;
-        for (int y = Y0 + 1; y < gy; y++)
-          for (int x = X0 + 1; x < X0 + CW - 1; x++) {
-            if (get(x, y) != K_COMPOUND) continue;
-            const float d = blob(x, y, (int)pcx, (int)pcy, prx, pry, P.seed ^ 0x5717F00Du);
-            if (d < 0.86f) M.setG(x, y, Ground::Water);
-            else if (d < 1.0f) M.setG(x, y, Ground::Swamp);
-            else M.setG(x, y, base == Ground::Grass ? Ground::Grass : base);
+      // the gardens: parterres, an orchard in rows, or a tiltyard on one side
+      const int garden = court ? 0 : cr.irange(3);
+      if (garden == 0) {
+        if (court) {
+          for (int side = 0; side < 2; side++) {
+            const int x0 = side == 0 ? X0 + 2 : gx + 7, x1 = side == 0 ? gx - 5 : X0 + CW - 3;
+            if (gy - 2 - (terrace + 3) < 7) { parterre(x0, terrace + 3, x1, gy - 2, 0xBED0u + (uint32_t)side); continue; }
+            parterre(x0, terrace + 3, x1, midY - 1, 0xBED0u + (uint32_t)side);
+            parterre(x0, midY + 1, x1, gy - 2, 0xBED2u + (uint32_t)side);
           }
+          for (int y = terrace + 3; y < gy - 1; y += 3)
+            for (int s : {-3, 5}) { const int x = gx + s; if (lawnFree(x, y) && !G.cover[G.I(x, y)] && lawnFree(x, y - 1)) G.M.setProp(x, y, tree); }
+        } else G.compoundGrounds(X0, Y0, CW, CH, gx, gy, terrace);
+      } else if (garden == 1) {
+        // an orchard: fruit trees in staggered rows on the lawns, a bench under them
+        const Prop ft = cold ? Prop::PineTree : (dry ? Prop::PalmTree : (cr.irange(2) ? Prop::OakTree : Prop::AutumnTree));
+        const int sp = 3 + cr.irange(2);
+        for (int y = terrace + 3; y < gy - 1; y += sp)
+          for (int x = X0 + 2 + ((y / sp) & 1); x < X0 + CW - 2; x += sp)
+            if (std::abs(x - fx) >= 4 && lawnFree(x, y) && lawnFree(x, y - 1) && !G.cover[G.I(x, y)]) G.M.setProp(x, y, ft);
+        propAt(gx - 2, midY, Prop::Bench);
+      } else {
+        // a tiltyard on the side away from the barracks: a trodden list behind a rail, a stand of banners; gardens
+        // on the barracks' side
+        const int lx0 = west ? gx + 5 : X0 + 3, lx1 = west ? X0 + CW - 4 : gx - 3;
+        for (int y = terrace + 4; y < gy - 2; y++)
+          for (int x = lx0; x <= lx1; x++) if (lawnFree(x, y) && !G.cover[G.I(x, y)]) G.M.setG(x, y, Ground::Dirt);
+        for (int x = lx0; x <= lx1; x++) { if (lawnFree(x, terrace + 3)) G.M.setProp(x, terrace + 3, Prop::FenceH); }
+        for (int x = lx0; x <= lx1; x += 3) banner(x, terrace + 2);
+        G.compoundGrounds(X0, Y0, CW, CH, gx, gy, terrace);
       }
-      for (int y = py; y < py + PH; y++) for (int x = px; x < px + PW; x++) M.setG(x, y, Ground::Water);
-      // (M3b round 3) the hall's door and its landing stay planked: the pools run under the hall, never through its
-      // doorway (water there left every marsh ruler's hall unenterable on foot)
-      M.setG(doorX, py + PH - 1, Ground::Bridge);
-      for (int x = doorX - 1; x <= doorX + 1; x++) walk(x, terrace, Ground::Plaza);
-      for (int y = Y0 + 1; y < gy; y++)
-        for (int x = X0 + 1; x < X0 + CW - 1; x++) {
-          if (get(x, y) != K_COMPOUND || M.bldgAt[I(x, y)] >= 0) continue;
-          const uint32_t h = hashAt(x, y, 0x5717u);
-          if (M.at(x, y) == Ground::Swamp && h % 3u == 0) M.setProp(x, y, Prop::Reeds);
-          else if (M.at(x, y) == Ground::Water && h % 11u == 0 && !cover[I(x, y)]) M.setProp(x, y, Prop::LilyPad);
-        }
-      // a side walk to two elders' houses on the pools
-      const int sy = terrace + 8;
-      for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, sy, Ground::Plaza);
-      for (int side = 0; side < 2; side++) {
-        const int hx = side == 0 ? X0 + 3 : X0 + CW - 3 - 5, hy = sy - 3;
-        // (its doorstep is the side walk itself)
-        bool free = hy > terrace + 1 && hx + 5 < gx - 1 + (side ? 100 : 0) && (side == 0 || hx > gx + 3);
-        for (int y = hy - 3; y < hy + 3 && free; y++) for (int x = hx - 1; x <= hx + 5; x++) if (!in(x, y) || M.bldgAt[I(x, y)] >= 0 || front[I(x, y)]) { free = false; break; }
-        for (int y = hy - 1; y < hy + 3 && free; y++) for (int x = hx - 1; x <= hx + 5; x++) if (get(x, y) == K_SQUARE) { free = false; break; }
-        if (!free) continue;
-        const int bi = put(Building::House, IRect{hx, hy, 5, 3}, Role::Villager, (uint8_t)bld::Form::Long, 0, 0);
-        Bldg& hb = M.bldgs[(size_t)bi];
-        if (hb.styled) { hb.arch.foundation = art::Foundation::Stilts; hb.arch.stilts = true; }
+      int corners[4][2] = {{X0 + 2, terrace + 2}, {X0 + CW - 3, terrace + 2}, {X0 + 2, gy - 2}, {X0 + CW - 3, gy - 2}};
+      for (auto& c : corners) {
+        int x = c[0], y = c[1];
+        bool ok = lawnFree(x, y) && !G.cover[G.I(x, y)] && lawnFree(x, y - 1);
+        for (int oy = -1; oy <= 1 && ok; oy++) for (int ox = -1; ox <= 1; ox++) if (G.M.bldgAt[G.I(x + ox, y + oy)] >= 0 || G.front[G.I(x + ox, y + oy)]) ok = false;
+        if (ok && cr.irange(4) != 0) { G.M.setP(x, y, 0); G.M.setProp(x, y, tree); }
       }
-      for (int x = X0 + 3; x < X0 + CW - 3; x += 4) if (get(x, sy) == K_SQUARE && std::abs(x - (gx + 1)) > 1 && !front[I(x, sy)]) M.setProp(x, sy, Prop::Torch);
-      for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
-      guardSpots[2][0] = gx - 1; guardSpots[2][1] = sy;
-      guardSpots[3][0] = gx + 3; guardSpots[3][1] = sy;
-      break;
+      for (int s : {-2, 4}) if (lawnFree(gx + s, gy - 2) && !G.cover[G.I(gx + s, gy - 2)]) G.M.setProp(gx + s, gy - 2, Prop::Statue);
+      for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+      if (cr.irange(2))
+        for (int y = terrace + 3; y < gy - 1; y += 3 + cr.irange(2))
+          for (int s : {-1, 3}) if (lawnFree(gx + s, y)) { G.M.setP(gx + s, y, 0); G.M.setProp(gx + s, y, Prop::Lamppost); }
+      midY = fy0;
+    }
+    guardSpots[2][0] = gx; guardSpots[2][1] = midY + 1;
+    guardSpots[3][0] = gx + 2; guardSpots[3][1] = midY + 1;
+  }
+  // ---------------------------------------------------------------- the jarl's great hall in its stockade
+  void greatHall() {
+    // the huscarls' longhouses down both sides of the yard, their doors on it; the hall's yard of trodden earth
+    // with the fire pit and the woodpiles
+    // (the yard trodden bare in a ragged oval round the fire and down to the gate, grass at its edges)
+    for (int y = terrace + 2; y < gy; y++)
+      for (int x = X0 + 1; x < X0 + CW - 1; x++)
+        if (G.get(x, y) == K_COMPOUND && G.blob(x, y, gx + 1, (terrace + gy) / 2, 6.5f, (gy - terrace) * 0.55f, G.P.seed ^ 0x6A11u) < 1.0f) G.M.setG(x, y, Ground::Dirt);
+    const int lh = 3;
+    for (int side = 0; side < 2; side++) {
+      for (int k = 0; k < 2; k++) {
+        // (every longhouse its own length and set back its own way: four alike in one yard read as a barracks)
+        const int lw = 5 + (int)((G.hashAt(X0 + side, Y0 + k, 0x10E6u)) % 3u);
+        const int lx = side == 0 ? X0 + 2 + (int)(k & 1) : X0 + CW - 2 - lw - (int)((k + 1) & 1);
+        const int ly = k == 0 ? terrace + 4 : gy - 6;
+        if (!canPut(IRect{lx, ly, lw, lh}, Building::House)) continue;
+        const int bi = put(Building::House, IRect{lx, ly, lw, lh}, k == 0 ? Role::Guard : Role::Villager, (uint8_t)bld::Form::Long, 0, 0);
+        doorPath(bi, Ground::Dirt);
+      }
+    }
+    const int fx = gx + 1, fy = terrace + 5;
+    for (int y = fy - 1; y <= fy + 1; y++) for (int x = fx - 2; x <= fx + 2; x++) walk(x, y, Ground::Dirt);
+    G.M.setProp(fx, fy, Prop::Campfire);
+    for (int s : {-2, 2}) if (G.get(fx + s, fy) == K_SQUARE) G.M.setProp(fx + s, fy, Prop::Bench);
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    propAt(X0 + 2, Y0 + 2, Prop::Woodpile);
+    propAt(X0 + CW - 3, Y0 + 2, Prop::Woodpile);
+    propAt(X0 + 2, gy - 2, Prop::Well) || propAt(X0 + 3, gy - 2, Prop::Well);
+    propAt(X0 + CW - 3, gy - 2, Prop::Barrel);
+    for (int s : {-2, 4}) banner(gx + s, gy - 2);
+    if (garrison) {   // (a jarl's realm with a standing levy too: their barracks by the gate)
+      const IRect br{X0 + CW / 2 + 3, gy - 1 - BAR_H - 2, BAR_W, BAR_H};
+      if (br.y > terrace + 2 && canPut(br, Building::Barracks)) { G.barracksIdx = put(Building::Barracks, br, Role::Guard, garrisonForm, 0, 0); doorPath(G.barracksIdx, Ground::Dirt); }
     }
   }
-  // the royal guard: two before the entrance, two in the court, two at the seat's door
-  for (auto& g : guardSpots) addSpawn(Role::Guard, g[0], g[1]);
+  // ---------------------------------------------------------------- the khan's tent court
+  void tentCourt() {
+    // the open court before the great tent, trodden bare; the court tents in a ring round it, doors inward and
+    // south; banners on their poles round the ring; the horse lines (the culture's rope corrals) in the back corners
+    const int ccx = gx + 1 + cr.irange(3) - 1, ccy = terrace + 4 + cr.irange(2);
+    for (int y = Y0 + 1; y < gy; y++)
+      for (int x = X0 + 1; x < X0 + CW - 1; x++) {
+        const int dx = x - ccx, dy = (y - ccy) * 3 / 2;
+        if (G.get(x, y) == K_COMPOUND && dx * dx + dy * dy <= 7 * 7 + (int)(G.hashAt(x, y, 0x7E17u) % 9u)) G.M.setG(x, y, Ground::Dirt);
+      }
+    for (int y = ccy - 2; y <= ccy + 2; y++) for (int x = ccx - 4; x <= ccx + 4; x++) if ((x - ccx) * (x - ccx) + (y - ccy) * (y - ccy) * 4 <= 18) walk(x, y, Ground::Dirt);
+    G.M.setProp(ccx, ccy, Prop::Campfire);
+    // the court tents: in a ring round the court, staggered so no tent's felt hides another's door (west: two, the
+    // nearer one further in; east: one and the horse lines), and the court's back corners behind the great tent
+    const int tw = 4, th = 3;
+    const int spots[5][2] = {{ccx - 12 - tw / 2, ccy - 6}, {ccx - 7 - tw / 2, ccy + 1}, {ccx + 12 - tw / 2, ccy - 6},
+                             {X0 + 2, Y0 + 1}, {X0 + CW - 2 - tw, Y0 + 1}};
+    for (auto& s : spots) {
+      IRect r{s[0], s[1], tw, th};
+      if (!canPut(r, Building::House)) continue;
+      const int bi = put(Building::House, r, Role::Villager, (uint8_t)bld::Form::Tent, 0, 0);
+      const Bldg& tb = G.M.bldgs[(size_t)bi];
+      for (int y = tb.r.y + tb.r.h; y <= tb.r.y + tb.r.h + 1; y++) if (G.get(tb.doorX(), y) == K_COMPOUND) G.M.setG(tb.doorX(), y, Ground::Dirt);
+      // a tent's household: a barrel or a crate by it, a cooking fire's woodpile
+      propAt(tb.r.x - 1, tb.r.y + tb.r.h - 1, (G.hashAt(tb.r.x, tb.r.y, 3u) & 1) ? Prop::Barrel : Prop::Crate);
+      propAt(tb.r.x + tb.r.w, tb.r.y + tb.r.h - 1, (G.hashAt(tb.r.x, tb.r.y, 5u) % 3u) ? Prop::Woodpile : Prop::Haystack);
+    }
+    // (the khan's riders keep their tents and horse lines at the edge of the town: societyServices)
+    // the horse lines: a rope corral in the south-east corner, beasts, a trough and hay
+    {
+      const int cw = 7, chh = 5, cxx = X0 + CW - 2 - cw, cyy = gy - 1 - chh;
+      bool free = cyy > terrace + 2;
+      for (int y = cyy - 1; y <= cyy + chh && free; y++) for (int x = cxx - 1; x <= cxx + cw && free; x++) if (!lawnFree(x, y) || G.cover[G.I(x, y)]) free = false;
+      if (free) {
+        fenceRing(cxx, cyy, cw, chh, cxx + cw / 2, 1);
+        propAt(cxx + 1, cyy + 1, Prop::Trough);
+        propAt(cxx + cw - 2, cyy + 1, Prop::Haystack);
+        propAt(cxx + 2, cyy + 3, Prop::Cow);
+        propAt(cxx + 4, cyy + 2, Prop::Cow);
+        if (!G.M.prop[G.I(cxx + cw / 2, cyy + chh - 1)]) G.set(cxx + cw / 2, cyy + chh - 1, K_YARD);
+      }
+    }
+    // the banner ring: tall standards round the court (how many, and where the ring starts, the khan's own)
+    {
+      const int nb = 8 + cr.irange(6);
+      const float a0 = cr.f() * D_TAU, rr = 8.0f + cr.f() * 1.5f;
+      for (int k = 0; k < nb; k++) {
+        const float a = a0 + D_TAU * k / (float)nb;
+        banner(ccx + (int)std::floor(dcos(a) * rr + 0.5f), ccy + (int)std::floor(dsin(a) * rr * 0.65f + 0.5f));
+      }
+    }
+    // the ovoo: the cairn of stones where the court makes its offerings, at the court's edge
+    for (int t = 0; t < 8; t++) {
+      const float a = cr.f() * D_TAU;
+      if (propAt(ccx + (int)std::floor(dcos(a) * 10.0f + 0.5f), ccy + (int)std::floor(dsin(a) * 6.0f + 0.5f), Prop::GraveCairn)) break;
+    }
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    // the court round the fire: logs and benches to sit on at the khan's own places round it, the servants' small
+    // tents and the court's stores at its edge
+    {
+      static const int ring[8][2] = {{-2, 0}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}, {2, 0}, {2, 1}, {-2, 1}};
+      const int k0 = cr.irange(8), n = 3 + cr.irange(3);
+      for (int k = 0; k < n; k++) {
+        const int lx = ccx + ring[(k0 + k * 3) % 8][0], ly = ccy + ring[(k0 + k * 3) % 8][1];
+        if (std::abs(lx - doorX) <= 0 && ly < ccy) continue;   // (round 3: the way from the fire to the khan's gate stays open)
+        if (G.get(lx, ly) == K_COMPOUND || G.get(lx, ly) == K_SQUARE) { if (!G.M.prop[G.I(lx, ly)] && !G.cover[G.I(lx, ly)]) G.M.setProp(lx, ly, (k + k0) % 3 == 0 ? Prop::Bench : Prop::Log); }
+      }
+    }
+    for (int k = 0; k < 6; k++) {
+      const int tx = X0 + 3 + (int)(G.hashAt(X0, Y0, 0x7E57u + (uint32_t)k) % (uint32_t)(CW - 6)), ty = terrace + 2 + (int)(G.hashAt(X0, Y0, 0x7E58u + (uint32_t)k) % (uint32_t)std::max(1, gy - terrace - 4));
+      const int dx = tx - ccx, dy = (ty - ccy) * 3 / 2;
+      if (dx * dx + dy * dy < 11 * 11 || std::abs(tx - (gx + 1)) <= 2) continue;
+      propAt(tx, ty, k < 3 ? Prop::Tent : (k == 3 ? Prop::Haystack : (k == 4 ? Prop::Sacks : Prop::Barrel)));
+    }
+    propAt(X0 + 2, Y0 + 2, Prop::Haystack);
+    propAt(X0 + CW - 3, Y0 + 2, Prop::Crate);
+  }
+  // ---------------------------------------------------------------- the temple precinct
+  void templeComplex() {
+    // the temple court: the precinct paved from wall to wall before the temple; the priests' houses along the sides,
+    // braziers flanking the processional way, statues of the god at the gate, a fountain of holy water
+    for (int y = terrace; y < gy; y++)
+      for (int x = X0 + 1; x < X0 + CW - 1; x++) if (G.get(x, y) == K_COMPOUND) { G.M.setG(x, y, Ground::Plaza); }
+    const int hh = 3;
+    for (int side = 0; side < 2; side++)
+      for (int k = 0; k < 2; k++) {
+        // (the high priest's house and the lesser ones: each its own size and kind, never a mirrored pair)
+        const int hw = 4 + (int)((side + k) & 1);
+        const int hx = side == 0 ? X0 + 2 : X0 + CW - 2 - hw, hy = terrace + 4 + k * (hh + 3) + side;
+        if (!canPut(IRect{hx, hy, hw, hh}, Building::House)) continue;
+        const int bi = put(((side + k) & 1) ? Building::StoneHouse : Building::House, IRect{hx, hy, hw, hh}, Role::Priest, 0, 0, 0);
+        doorPath(bi, Ground::Plaza);
+      }
+    const int bstep = 3 + cr.irange(2);
+    for (int y = terrace + 3 + cr.irange(2); y < gy - 1; y += bstep)
+      for (int s : {-1, 3}) propAt(gx + s, y, Prop::Brazier);
+    // (M3b fixer) no tiered fountain: the sacred well's pool sunk in the paving to one side of the way, an altar of
+    // offerings on the way before the steps
+    {
+      const int side = cr.irange(2) ? -1 : 1;
+      const int pcx = side < 0 ? gx - 4 - cr.irange(2) : gx + 6 + cr.irange(2), pcy = gy - 5 - cr.irange(3);
+      for (int y = pcy - 1; y <= pcy + 1; y++)
+        for (int x = pcx - 1; x <= pcx + 1; x++) pond(x, y);
+      const int ay = terrace + 3;
+      if (G.get(gx + 1, ay) == K_SQUARE && !G.M.prop[G.I(gx + 1, ay)]) G.M.setProp(gx + 1, ay, Prop::Altar);
+    }
+    for (int s : {-3, 5}) propAt(gx + s, gy - 2, Prop::Statue);
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    // palms (or the land's trees) in the corners of the court
+    for (int c = 0; c < 4; c++) {
+      const int x = c & 1 ? X0 + CW - 3 : X0 + 2, y = c & 2 ? gy - 2 : Y0 + 2;
+      if (lawnFree(x, y) && lawnFree(x, y - 1) && !G.cover[G.I(x, y)]) { G.M.setG(x, y, G.base == Ground::Grass ? Ground::Grass : G.base); G.M.setProp(x, y, tree); }
+    }
+  }
+  // ---------------------------------------------------------------- the council spire in its gardens
+  void councilSpire() {
+    fenceRing(X0, Y0, CW, CH, gx, 3);
+    // white walks crossing the gardens: the axis and a cross walk with a fountain where they meet
+    const int my = (terrace + gy) / 2;
+    for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, my, Ground::Plaza);
+    for (int y = my - 1; y <= my + 1; y++) for (int x = gx - 1; x <= gx + 3; x++) walk(x, y, Ground::Plaza);
+    G.M.setProp(gx + 1, my, Prop::Fountain);
+    for (int s : {-6, 8}) if (G.get(gx + s, my) == K_SQUARE) G.M.setProp(gx + s, my, Prop::Statue);
+    // (M3b fixer) the white gardens: a long moon pool on one side of the cross walk, birch groves (where the seed puts
+    // them) on the lawns, a single bed of white flowers; never the two mirrored parterres of every palace
+    {
+      const int ps = cr.irange(2);
+      const int x0 = ps == 0 ? X0 + 4 : gx + 6, x1 = ps == 0 ? gx - 4 : X0 + CW - 5;
+      const int y0 = cr.irange(2) ? terrace + 4 : my + 3, y1 = y0 + 1 + cr.irange(2);
+      for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) pond(x, y);
+      const int groves = 2 + cr.irange(3);
+      for (int k = 0, tries = 0; k < groves && tries < 30; tries++) {
+        const int x = X0 + 3 + cr.irange(std::max(1, CW - 6)), y = terrace + 3 + cr.irange(std::max(1, gy - terrace - 5));
+        if (std::abs(x - (gx + 1)) <= 3 || std::abs(y - my) <= 1 || !lawnFree(x, y) || !lawnFree(x, y - 1) || G.cover[G.I(x, y)]) continue;
+        G.M.setProp(x, y, cold ? Prop::PineTree : Prop::BirchTree);
+        if (lawnFree(x + 2, y + 1) && lawnFree(x + 2, y) && !G.cover[G.I(x + 2, y + 1)]) G.M.setProp(x + 2, y + 1, Prop::BirchTree);
+        k++;
+      }
+      const int fs = 1 - ps;
+      const int fx0 = fs == 0 ? X0 + 4 : gx + 6, fx1 = fs == 0 ? gx - 4 : X0 + CW - 5;
+      parterre(fx0, my + 2, fx1, std::min(gy - 3, my + 5), 0x5B2Eu + (uint32_t)fs);
+    }
+    for (int c = 0; c < 4; c++) {
+      const int x = c & 1 ? X0 + CW - 3 : X0 + 2, y = c & 2 ? gy - 2 : terrace + 2;
+      if (lawnFree(x, y) && lawnFree(x, y - 1) && !G.cover[G.I(x, y)]) G.M.setProp(x, y, cold ? Prop::PineTree : Prop::BirchTree);
+    }
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+  }
+  // ---------------------------------------------------------------- the tree palace and its grove
+  void treePalace() {
+    // the elder tree in the court before the palace (its roots spread over five tiles), (fix) beside the processional
+    // walk and never on it: on the axis its trunk and roots stood on the paving and its crown hid the approach; it
+    // stands to one side on the court's lawn, a ring of paving round its roots joined to the walk
+    const int ey = terrace + 9;
+    int ex = -1;
+    const int pref = (G.hashAt(gx, terrace, 0x6A0Fu) & 1u) ? 1 : -1;
+    for (int sd : {pref, -pref}) {
+      const int cx0 = gx + 1 + sd * 7;
+      bool ok = cx0 - 5 >= X0 + 1 && cx0 + 5 <= X0 + CW - 2;
+      for (int y = ey - 4; y <= ey + 2 && ok; y++)
+        for (int x = cx0 - 5; x <= cx0 + 5; x++) if (!G.in(x, y) || G.M.bldgAt[G.I(x, y)] >= 0 || G.front[G.I(x, y)] || G.M.wall[G.I(x, y)]) { ok = false; break; }
+      if (ok) { ex = cx0; break; }
+    }
+    if (ex >= 0) {
+      for (int y = ey - 4; y <= ey + 2; y++)
+        for (int x = ex - 5; x <= ex + 5; x++) {
+          const float dx = (x - ex) / 4.2f, dy = (y - (ey - 1)) / 2.7f, d = dx * dx + dy * dy;
+          if (d >= 0.78f && d <= 1.45f) walk(x, y, Ground::Plaza);
+        }
+      // the ring joined to the walk by a short path from its near side
+      const int dir = ex > gx + 1 ? -1 : 1;
+      for (int x = ex + dir * 4; x != (dir < 0 ? gx + 2 : gx); x += dir) walk(x, ey - 1, Ground::Plaza);
+      for (int y = ey - 2; y <= ey; y++)
+        for (int x = ex - 2; x <= ex + 2; x++) { G.set(x, y, K_COMPOUND); G.M.setG(x, y, Ground::Meadow); G.M.setP(x, y, (x == ex && y == ey) ? (int)Prop::ElderTree + 1 : (int)Prop::Filler + 1); }
+    }
+    // the ring of old trees: a wild grove's edge, not an avenue (spacing, depth and kind vary tree by tree; a gap
+    // here and there, a second tree stepped in behind)
+    {
+      static const Prop kinds[5] = {Prop::OakTree, Prop::OakTree2, Prop::BirchTree, Prop::OakTree, Prop::WillowTree};
+      auto grove = [&](int x, int y, uint32_t k) {
+        const uint32_t h = G.hashAt(x, y, 0x6A0Eu + k);
+        if (h % 7u == 0) return;   // a gap
+        propAt(x, y, cold ? ((h >> 4) & 1 ? Prop::PineTree : Prop::PineTree2) : kinds[(h >> 4) % 5u]);
+      };
+      for (int x = X0 + 1; x < X0 + CW - 1;) {
+        const uint32_t h = G.hashAt(x, Y0, 0x6A11u);
+        grove(x, Y0 + 1 + (int)(h & 1u), 1);
+        if (std::abs(x - (gx + 1)) > 3) grove(x, gy - 1 - (int)((h >> 1) & 1u), 2);
+        x += 2 + (int)((h >> 2) % 2u);
+      }
+      for (int y = Y0 + 3; y < gy - 1;) {
+        const uint32_t h = G.hashAt(X0, y, 0x6A12u);
+        grove(X0 + 1 + (int)(h & 1u), y, 3);
+        grove(X0 + CW - 2 - (int)((h >> 1) & 1u), y, 4);
+        y += 2 + (int)((h >> 2) % 2u);
+      }
+    }
+    for (int y = terrace + 2; y < gy - 1; y++)
+      for (int x = X0 + 3; x < X0 + CW - 3; x++) {
+        if (!lawnFree(x, y) || G.cover[G.I(x, y)] || G.get(x - 1, y) == K_SQUARE || G.get(x + 1, y) == K_SQUARE) continue;
+        const uint32_t h = G.hashAt(x, y, 0x6E0Fu);
+        if (h % 9u == 0) G.M.setProp(x, y, Prop::Fern);
+        else if (h % 9u == 1) G.M.setProp(x, y, (h >> 8) & 1 ? Prop::Flowers2 : Prop::Flowers3);
+        else if (h % 23u == 2) G.M.setProp(x, y, Prop::Mushrooms);
+      }
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    guardSpots[2][0] = ex - 4; guardSpots[2][1] = ey + 1;
+    guardSpots[3][0] = ex + 4; guardSpots[3][1] = ey + 1;
+  }
+  // ---------------------------------------------------------------- the stilt hall over its pools
+  void stiltHall() {
+    // the pools: open water under and round the hall, reed beds at their edges; plank walks (the culture's decking)
+    // from the entrance to the hall and round its front
+    // (a wobbly oval of open water fading through a reed fringe into the marsh grass: no square tank)
+    {
+      const float pcx = X0 + CW * 0.5f, pcy = Y0 + CH * 0.42f, prx = CW * 0.58f, pry = CH * 0.56f;
+      for (int y = Y0 + 1; y < gy; y++)
+        for (int x = X0 + 1; x < X0 + CW - 1; x++) {
+          if (G.get(x, y) != K_COMPOUND) continue;
+          const float d = G.blob(x, y, (int)pcx, (int)pcy, prx, pry, G.P.seed ^ 0x5717F00Du);
+          if (d < 0.86f) G.M.setG(x, y, Ground::Water);
+          else if (d < 1.0f) G.M.setG(x, y, Ground::Swamp);
+          else G.M.setG(x, y, G.base == Ground::Grass ? Ground::Grass : G.base);
+        }
+    }
+    for (int y = py; y < py + PH; y++) for (int x = px; x < px + PW; x++) G.M.setG(x, y, Ground::Water);
+    // (M3b round 3) the hall's door and its landing stay planked: the pools run under the hall, never through its
+    // doorway (water there left every marsh ruler's hall unenterable on foot)
+    G.M.setG(doorX, py + PH - 1, Ground::Bridge);
+    for (int x = doorX - 1; x <= doorX + 1; x++) walk(x, terrace, Ground::Plaza);
+    for (int y = Y0 + 1; y < gy; y++)
+      for (int x = X0 + 1; x < X0 + CW - 1; x++) {
+        if (G.get(x, y) != K_COMPOUND || G.M.bldgAt[G.I(x, y)] >= 0) continue;
+        const uint32_t h = G.hashAt(x, y, 0x5717u);
+        if (G.M.at(x, y) == Ground::Swamp && h % 3u == 0) G.M.setProp(x, y, Prop::Reeds);
+        else if (G.M.at(x, y) == Ground::Water && h % 11u == 0 && !G.cover[G.I(x, y)]) G.M.setProp(x, y, Prop::LilyPad);
+      }
+    // a side walk to two elders' houses on the pools
+    const int sy = terrace + 8;
+    for (int x = X0 + 2; x < X0 + CW - 2; x++) walk(x, sy, Ground::Plaza);
+    for (int side = 0; side < 2; side++) {
+      const int hx = side == 0 ? X0 + 3 : X0 + CW - 3 - 5, hy = sy - 3;
+      // (its doorstep is the side walk itself)
+      bool free = hy > terrace + 1 && hx + 5 < gx - 1 + (side ? 100 : 0) && (side == 0 || hx > gx + 3);
+      for (int y = hy - 3; y < hy + 3 && free; y++) for (int x = hx - 1; x <= hx + 5; x++) if (!G.in(x, y) || G.M.bldgAt[G.I(x, y)] >= 0 || G.front[G.I(x, y)]) { free = false; break; }
+      for (int y = hy - 1; y < hy + 3 && free; y++) for (int x = hx - 1; x <= hx + 5; x++) if (G.get(x, y) == K_SQUARE) { free = false; break; }
+      if (!free) continue;
+      const int bi = put(Building::House, IRect{hx, hy, 5, 3}, Role::Villager, (uint8_t)bld::Form::Long, 0, 0);
+      Bldg& hb = G.M.bldgs[(size_t)bi];
+      if (hb.styled) { hb.arch.foundation = art::Foundation::Stilts; hb.arch.stilts = true; }
+    }
+    for (int x = X0 + 3; x < X0 + CW - 3; x += 4) if (G.get(x, sy) == K_SQUARE && std::abs(x - (gx + 1)) > 1 && !G.front[G.I(x, sy)]) G.M.setProp(x, sy, Prop::Torch);
+    for (int s : {-3, 3}) { int x = doorX + s; if (G.get(x, terrace) == K_SQUARE && !G.M.prop[G.I(x, terrace)]) G.M.setProp(x, terrace, Prop::Banner); }
+    guardSpots[2][0] = gx - 1; guardSpots[2][1] = sy;
+    guardSpots[3][0] = gx + 3; guardSpots[3][1] = sy;
+  }
+ public:
+  void build() {
+    lay();
+    switch (seat) {
+      default:
+      case cult::Seat::Castle:
+      case cult::Seat::CourtPalace: castle(); break;
+      case cult::Seat::GreatHall: greatHall(); break;
+      case cult::Seat::TentCourt: tentCourt(); break;
+      case cult::Seat::TempleComplex: templeComplex(); break;
+      case cult::Seat::CouncilSpire: councilSpire(); break;
+      case cult::Seat::TreePalace: treePalace(); break;
+      case cult::Seat::StiltHall: stiltHall(); break;
+    }
+    // the royal guard: two before the entrance, two in the court, two at the seat's door
+    for (auto& g : guardSpots) G.addSpawn(Role::Guard, g[0], g[1]);
+  }
+};
+}  // namespace
+
+void Gen::buildCompound() {
+  if (compound.w == 0) return;
+  CompoundPlanner(*this).build();
 }
+
 
 
 // the way out of the palace compound: a paved approach from its gate to the nearest street of the town's network.
