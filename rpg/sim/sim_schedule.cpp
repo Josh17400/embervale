@@ -27,7 +27,6 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/stream.h"
 #include "rpg/sim/war.h"
-#include "rpg/story/story_internal.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
 
