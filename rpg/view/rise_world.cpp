@@ -443,11 +443,11 @@ void View::drawRiseSorted(Game& g, int idx, Vec2 cam) {
     }
     case P_PROP: {
       const art::Prop pr = (art::Prop)p.var;
-      if ((size_t)pr >= props_.size()) break;
-      const Tex& t = props_[(size_t)pr];
+      if ((size_t)pr >= sprites_.props_.size()) break;
+      const Tex& t = sprites_.props_[(size_t)pr];
       const int fw = art::propW(pr);
       if (propShadow(pr) >= 2 && pr != art::Prop::Watchtower)
-        P.blitEx(shadowBig_, 0, 0, 40, 12, p.x - 11 - cam.x, p.y - 4 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
+        P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, p.x - 11 - cam.x, p.y - 4 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
       blitFrame(t, fw, 0);
       break;
     }

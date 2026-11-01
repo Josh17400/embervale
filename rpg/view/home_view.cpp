@@ -74,15 +74,15 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
   // yet waits a frame or two, the ghost and the building site never wait)
   double bakeMs = 0;
   auto tex = [&](uint64_t key, auto&& paint) -> const Tex& {
-    auto it = homeTex_.find(key);
-    if (it != homeTex_.end()) return it->second;
+    auto it = sprites_.homeTex_.find(key);
+    if (it != sprites_.homeTex_.end()) return it->second;
     const auto t0 = std::chrono::steady_clock::now();
-    const Tex& t = homeTex_[key] = P.bake(paint());
+    const Tex& t = sprites_.homeTex_[key] = P.bake(paint());
     bakeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return t;
   };
   // ((Witness) every piece now: no picture may depend on CPU speed)
-  auto can = [&](uint64_t key) { return witness || bakeMs < 3.0 || homeTex_.count(key) != 0; };
+  auto can = [&](uint64_t key) { return witness || bakeMs < 3.0 || sprites_.homeTex_.count(key) != 0; };
   const World& W = g.world;
   const home::Ui& U = g.home.ui;
   const bool building = g.mode == Mode::Build;
@@ -117,9 +117,9 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
       d.tex = &t; d.sw = t.w; d.sh = t.h;
     } else {
       const art::Prop pr = oi.prop;
-      if ((int)pr >= (int)props_.size()) return;
-      d.tex = &props_[(size_t)pr];
-      d.sw = art::propW(pr); d.sh = props_[(size_t)pr].h;
+      if ((int)pr >= (int)sprites_.props_.size()) return;
+      d.tex = &sprites_.props_[(size_t)pr];
+      d.sw = art::propW(pr); d.sh = sprites_.props_[(size_t)pr].h;
     }
     d.x = U.gx * 16.0f + w * 8.0f - d.sw / 2.0f;
     d.y = (U.gy + h) * 16.0f - d.sh;
@@ -388,7 +388,7 @@ void View::drawHomeShadow(const HomeDraw& d, Vec2 cam) {
   if (!d.shadow) return;
   Pix& P = *pix_;
   if (d.shadow == 3) {
-    P.blitEx(shadowBig_, 0, 0, 40, 12, std::floor(d.shx - cam.x + 0.5f), std::floor(d.shy - cam.y + 0.5f), d.shw, d.shh, false, Color(1, 1, 1, d.shA));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(d.shx - cam.x + 0.5f), std::floor(d.shy - cam.y + 0.5f), d.shw, d.shh, false, Color(1, 1, 1, d.shA));
     return;
   }
 }
@@ -422,8 +422,8 @@ void View::drawHomeDraw(const HomeDraw& d, Vec2 cam) {
   }
   if (!d.tex) return;
   // (phase A's shadow kinds 1 and 2 go down with the sprite; the VIEW lane's kind 3 went down in the shadow pass)
-  if (d.shadow == 2) P.blitEx(shadowBig_, 0, 0, 40, 12, x + 2, y + d.sh - 7, (float)d.sw - 2, 8, false, Color(1, 1, 1, 0.55f));
-  else if (d.shadow == 1) P.blitEx(shadow_, 0, 0, shadow_.w, shadow_.h, x + d.sw / 2.0f - 6, y + d.sh - 4, 12, 5, false, Color(1, 1, 1, 0.6f));
+  if (d.shadow == 2) P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, x + 2, y + d.sh - 7, (float)d.sw - 2, 8, false, Color(1, 1, 1, 0.55f));
+  else if (d.shadow == 1) P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, x + d.sw / 2.0f - 6, y + d.sh - 4, 12, 5, false, Color(1, 1, 1, 0.6f));
   if (d.sway > 0) {
     // the top of the plant leans with the wind: a slow wave that runs across the field (phase from the tile's x)
     const float ph = (d.x + d.y * 0.37f) * 0.11f;
@@ -458,7 +458,7 @@ void View::drawMountShadow(Game& g, const Actor& a, Vec2 cam) {
   const bool side = a.face >= 2;
   const float hk = art::horseScale();   // (P2a) as long as the rig's horse
   const float w = std::round((side ? 32.0f : 18.0f) * hk), h = std::round((side ? 8.0f : 10.0f) * hk);
-  P.blitEx(shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false,
+  P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false,
            Color(1, 1, 1, 0.85f));
 }
 
@@ -472,8 +472,8 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   const bool rig2 = art::rigVersion() >= 2;
   const int HW = art::horseCellW(), HH = art::horseCellH();
   const uint64_t key = hkey(6, bi.coat & 0xFFFFFFu, seedv & 0xFFFFu, rig2 ? 2 : 1);
-  auto it = homeTex_.find(key);
-  if (it == homeTex_.end()) it = homeTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
+  auto it = sprites_.homeTex_.find(key);
+  if (it == sprites_.homeTex_.end()) it = sprites_.homeTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
   const Tex& ht = it->second;
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
@@ -506,8 +506,8 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   auto body = [&](Color c, int blend) {
     if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2, fr, a.id)) { v2 = true; return; }
     // (P2c SWITCH) the v1 rider only when the doll did not draw it (no v1 sheet baked behind a rig-2 rider)
-    const Tex* rt = poseTex(a.look, art::Posture::Ride);
-    const Tex& rider = rt ? *rt : humanTex(a.look);
+    const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride);
+    const Tex& rider = rt ? *rt : sprites_.humanTex(*this, a.look);
     if (blend == 0) v1Draws++;
     if (blend == 0) P.recordBlits(&liftRecs_);
     P.blitEx(rider, rfr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
@@ -542,7 +542,7 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
     parts_.push_back(q);
   }
   if (v2) rideGhost_ = g2;
-  else { const Tex* rt = poseTex(a.look, art::Posture::Ride); rideGhost_.t = rt ? rt : &humanTex(a.look); rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
+  else { const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride); rideGhost_.t = rt ? rt : &sprites_.humanTex(*this, a.look); rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
   if (a.player) {   // (P2b integration) the hero as drawn, for Witness (state.player.sprite): the rider's frame, not stale
     HeroSprite& hs = heroSprite;   // (drawHumanBody, which fills it on foot, is not called for the rider)
     hs = HeroSprite();

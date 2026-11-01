@@ -39,19 +39,19 @@ struct View::LootPainter {
   void frame(float x, float y, float w, float h, Color c) { P.frame(x, y, w, h, c); }
   void text(float x, float y, const std::string& s, Color c, int align) { P.text(x, y, s, 1, c, align); }
   int textW(const std::string& s) const { return P.textW(s, 1); }
-  void beam(float x, float y, float w, float h, Color c, int sy, int sh, bool add) { P.blitEx(v.beamTex(), 0, sy, 16, sh, x, y, w, h, false, c, add ? 1 : 0); }
-  void pool(float x, float y, float w, float h, Color c) { P.blitEx(v.light_, 0, 0, 64, 64, x, y, w, h, false, c, 1); }
-  void shadow(float x, float y, float w, float h, float a) { P.blitEx(v.shadow_, 0, 0, 14, 6, x, y, w, h, false, Color(1, 1, 1, a)); }
+  void beam(float x, float y, float w, float h, Color c, int sy, int sh, bool add) { P.blitEx(v.sprites_.beamTex(v), 0, sy, 16, sh, x, y, w, h, false, c, add ? 1 : 0); }
+  void pool(float x, float y, float w, float h, Color c) { P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, y, w, h, false, c, 1); }
+  void shadow(float x, float y, float w, float h, float a) { P.blitEx(v.sprites_.shadow_, 0, 0, 14, 6, x, y, w, h, false, Color(1, 1, 1, a)); }
   void noted(Rarity) { v.lootCount_.frames++; }
-  void icon(const Item& it, float x, float y, float size) { if (g) P.blitEx(v.itemTex(*g, it), 0, 0, 16, 16, x, y, size, size); }
+  void icon(const Item& it, float x, float y, float size) { if (g) P.blitEx(v.sprites_.itemTex(v, *g, it), 0, 0, 16, 16, x, y, size, size); }
 };
 
-const Tex& View::beamTex() {
+const Tex& SpriteCache::beamTex(View& v) {
   if (!beamTex_.t) {   // the beam column (loot_paint.h beamProfile), white: tinted additively per rarity
     Canvas c(16, 64);
     for (int y = 0; y < 64; y++)
       for (int x = 0; x < 16; x++) c.set(x, y, rgba(255, 255, 255, (int)std::lround(255 * lootp::beamProfile((float)x, (float)y))));
-    beamTex_ = pix_->bake(c);
+    beamTex_ = v.pix_->bake(c);
   }
   return beamTex_;
 }
@@ -62,13 +62,13 @@ const Tex& View::beamTex() {
 // shoulders; AURA_V flicker variants per cell. Drawn behind the body in the world pass (normal blend: it reads on a sunlit
 // field) and again additively after the lighting, so it burns at night. Cells are AURA_CW x AURA_CH (the 16 x 24 cell
 // with AURA_PAD round it), laid in one row: ((row * HUMAN_FRAMES + frame) * AURA_V + variant).
-const Tex* View::mythicAuraTex(const art::HumanLook& L) {
+const Tex* SpriteCache::mythicAuraTex(View& v, const art::HumanLook& L) {
   const uint64_t k = L.key() ^ 0xA0A5F1A3E5ull;
   auto it = mythicAura_.find(k);
   if (it != mythicAura_.end()) return &it->second;
   const Canvas S = art::humanSheet(L);
-  constexpr int W = art::HUMAN_W, H = art::HUMAN_H, PD = AURA_PAD, CW = AURA_CW, CH = AURA_CH;
-  Canvas out(CW * art::HUMAN_FRAMES * 3 * AURA_V, CH);
+  constexpr int W = art::HUMAN_W, H = art::HUMAN_H, PD = View::AURA_PAD, CW = View::AURA_CW, CH = View::AURA_CH;
+  Canvas out(CW * art::HUMAN_FRAMES * 3 * View::AURA_V, CH);
   std::vector<uint8_t> ring((size_t)CW * CH);
   for (int row = 0; row < 3; row++)
     for (int f = 0; f < art::HUMAN_FRAMES; f++) {
@@ -97,8 +97,8 @@ const Tex* View::mythicAuraTex(const art::HumanLook& L) {
           }
         for (uint8_t& v : ring) if (v > 10) v = (uint8_t)(v - 10);
       }
-      for (int v = 0; v < AURA_V; v++) {
-        const int ox = ((row * art::HUMAN_FRAMES + f) * AURA_V + v) * CW;
+      for (int v = 0; v < View::AURA_V; v++) {
+        const int ox = ((row * art::HUMAN_FRAMES + f) * View::AURA_V + v) * CW;
         auto noise = [&](int x, int y, uint32_t salt) { return hash32((uint32_t)(x * 73856093) ^ (uint32_t)(y * 19349663) ^ (uint32_t)(v * 83492791) ^ (uint32_t)(f * 2654435761u) ^ salt) % 100u; };
         for (int y = 0; y < CH; y++)
           for (int x = 0; x < CW; x++) {
@@ -125,12 +125,12 @@ const Tex* View::mythicAuraTex(const art::HumanLook& L) {
         }
       }
     }
-  return &(mythicAura_[k] = pix_->bake(out));
+  return &(mythicAura_[k] = v.pix_->bake(out));
 }
 
 void View::mythicAuraAt(const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc) {
   if (!L.glow || L.glowColor != kMythicGlow) return;
-  const Tex* au = mythicAuraTex(L);
+  const Tex* au = sprites_.mythicAuraTex(*this, L);
   if (!au) return;
   const int v = (int)(t_ * 9.0f) % AURA_V;
   const int sx = ((row * art::HUMAN_FRAMES + frame) * AURA_V + v) * AURA_CW;
@@ -225,7 +225,7 @@ void View::drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob
   const float near = clampf((d - 12.0f) / 36.0f, 0.35f, 1.0f);   // the beam fades as the hero walks right up to it
   if (k.gold > 0) {
     lp.shadow(std::floor(k.p.x - cam.x) - 5, std::floor(k.p.y - cam.y) - 2, 10, 4, 0.8f);
-    pix_->blit(iconTex(art::Icon::Gold, 0), std::floor(k.p.x - cam.x) - 8, std::floor(k.p.y - cam.y) - 16 + bob);
+    pix_->blit(sprites_.iconTex(*this, art::Icon::Gold, 0), std::floor(k.p.x - cam.x) - 8, std::floor(k.p.y - cam.y) - 16 + bob);
     return;
   }
   lootp::lootGround(lp, t_, &k.item, r, k.p.x - cam.x, k.p.y - cam.y, bob, near, idx);
@@ -241,7 +241,7 @@ void View::drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob
       if (dy <= 0 || dy > reach + 16 || std::fabs(o.p.x - k.p.x) > 20) continue;
       const float ob = std::sin(t_ * 4 + (float)j) * 1.5f;   // its bob (render.cpp's sorted pass)
       const float ox = std::floor(o.p.x - cam.x), oy = std::floor(o.p.y - cam.y);
-      if (o.gold > 0) pix_->blit(iconTex(art::Icon::Gold, 0), ox - 8, oy - 16 + ob);
+      if (o.gold > 0) pix_->blit(sprites_.iconTex(*this, art::Icon::Gold, 0), ox - 8, oy - 16 + ob);
       else lp.icon(o.item, ox - 8, oy - 16 + ob, 16);
     }
   }
@@ -303,9 +303,9 @@ void View::lootUpdate(Game& g, float dt) {
   }
   // (M8b fixer r3) the Mythic aura sheets: a handful of looks at most (the hero, companions); past that start again,
   // here between frames (the draw's glow list holds pointers into the cache until the frame is presented)
-  if (mythicAura_.size() > 16) {
-    for (auto& kv : mythicAura_) pix_->destroy(kv.second);
-    mythicAura_.clear();
+  if (sprites_.mythicAura_.size() > 16) {
+    for (auto& kv : sprites_.mythicAura_) pix_->destroy(kv.second);
+    sprites_.mythicAura_.clear();
   }
   // embers rising off a Mythic wearer (the hero, a companion: gear_look's flame glow on their sheet)
   emberT_ += dt;

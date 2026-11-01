@@ -36,8 +36,8 @@ ew::Gid campOwner(Game& g, art::Prop p, int tx, int ty) {
 }
 }  // namespace
 
-const Tex* View::warPropTex(Game& g, art::Prop p, int tx, int ty) {
-  m4Count_.warProps++;
+const Tex* SpriteCache::warPropTex(View& v, Game& g, art::Prop p, int tx, int ty) {
+  v.m4Count_.warProps++;
   const ew::Gid k = campOwner(g, p, tx, ty);
   uint32_t field = 0, trim = 0;
   if (k) {
@@ -47,14 +47,14 @@ const Tex* View::warPropTex(Game& g, art::Prop p, int tx, int ty) {
       rui::arms(L, h);
       field = h.field;
       trim = h.charge ? h.charge : L.color2;
-      m4Count_.warPropsOwned++;
+      v.m4Count_.warPropsOwned++;
     }
   }
   if (!field && p != art::Prop::Rubble && p != art::Prop::Ash && p != art::Prop::Scaffold) return nullptr;
   const uint64_t key = ew::mix64(((uint64_t)field << 32 | trim) ^ ((uint64_t)p << 20) ^ 0x3A9Full);
   auto it = warPropTex_.find(key);
   if (it != warPropTex_.end()) return &it->second;
-  return &(warPropTex_[key] = pix_->bake(art::warPropSprite(p, field, trim)));
+  return &(warPropTex_[key] = v.pix_->bake(art::warPropSprite(p, field, trim)));
 }
 
 void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
@@ -142,7 +142,7 @@ void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
   Pix& P = *pix_;
   const float k = std::min(1.0f, (dark - 0.15f) * 2.4f);
   auto blob = [&](float x, float y, float rw, float rh, Color c) {
-    P.blitEx(light_, 0, 0, 64, 64, x - rw - cam.x, y - rh - cam.y, rw * 2, rh * 2, false, c, 1);
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, x - rw - cam.x, y - rh - cam.y, rw * 2, rh * 2, false, c, 1);
   };
   for (size_t i = 0; i < m.bldgs.size(); i++) {
     const Bldg& b = m.bldgs[i];
@@ -150,8 +150,8 @@ void View::m4Emissive(Game& g, const Map& m, Vec2 cam, float dark) {
     const float x0 = b.r.x * 16.0f, w = b.r.w * 16.0f, bottom = (b.r.y + b.r.h) * 16.0f;
     if (x0 + w < cam.x - 60 || x0 > cam.x + Pix::W + 60 || bottom < cam.y - 40 || bottom - 140 > cam.y + Pix::H) continue;
     float top = bottom - b.r.h * 16.0f - 24.0f;
-    auto t = bldgTex_.find(bldgKey(m, b, (int)i));
-    if (t != bldgTex_.end()) top = bottom + art::BLDG_PAD_B - t->second.h;
+    auto t = sprites_.bldgTex_.find(sprites_.bldgKey(m, b, (int)i));
+    if (t != sprites_.bldgTex_.end()) top = bottom + art::BLDG_PAD_B - t->second.h;
     const float cx = x0 + w * 0.5f, cy = top + (bottom - top) * 0.46f;   // the gutted roof's cavity
     const uint32_t hb = hash32((uint32_t)(b.r.x * 73856093) ^ (uint32_t)(b.r.y * 19349663));
     const float f = 0.78f + 0.22f * std::sin(t_ * 3.1f + b.r.x) * std::sin(t_ * 4.7f + b.r.y);

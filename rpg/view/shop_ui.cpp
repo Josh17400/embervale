@@ -36,7 +36,7 @@ void View::drawShop(Game& g) {
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   P.text(18, 14, fitText(g.shop.title, L.xX - 120), 1, kGold);
   const std::string gs = std::to_string(g.gold);
-  P.blit(iconTex(art::Icon::Gold, 0), L.xX - 14 - P.textW(gs, 1) - 18, L.xY + L.xH / 2 - 8);
+  P.blit(sprites_.iconTex(*this, art::Icon::Gold, 0), L.xX - 14 - P.textW(gs, 1) - 18, L.xY + L.xH / 2 - 8);
   P.text(L.xX - 14, L.xY + std::floor((L.xH - 7) / 2), gs, 1, kGold, 2);
   // (M6, 7.5 rule 8) the merchant's purse: what they can still pay for what you sell this restock
   {

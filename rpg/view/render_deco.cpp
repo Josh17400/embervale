@@ -34,7 +34,7 @@ void View::drawDeco(const Map& m, Vec2 cam, int tx0, int ty0, int tx1, int ty1) 
     for (size_t i = 0; i < layers.size(); i++) {
       const DecoLayer& L = layers[i];
       if (L.pass != pass) continue;
-      const Tex& t = cachedTex(0x01ull << 56 | L.key, paintPiece);
+      const Tex& t = sprites_.cachedTex(*this, 0x01ull << 56 | L.key, paintPiece);
       int tx = tileOf[i] % m.w, ty = tileOf[i] / m.w;
       P.blit(t, tx * 16.0f + L.dx - cam.x, ty * 16.0f + L.dy - cam.y);
     }
@@ -87,15 +87,15 @@ void View::prepareInterior(Game& g) {
     bake_.prepCursor_++;
     layers.clear();
     decoLayers(m, tx, ty, layers);
-    for (const DecoLayer& L : layers) cachedTex(0x01ull << 56 | L.key, paintPiece);
+    for (const DecoLayer& L : layers) sprites_.cachedTex(*this, 0x01ull << 56 | L.key, paintPiece);
     const int pr = m.prop.empty() ? 0 : m.prop[(size_t)ty * m.w + tx];
     if (pr) {
       const art::Prop p = (art::Prop)(pr - 1);
       if (const uint32_t key = interiorPropKey(m, tx, ty, p)) {
-        cachedTex(0x01ull << 56 | key, paintPiece);
-        if (p == art::Prop::DoorH || p == art::Prop::DoorV) cachedTex(0x01ull << 56 | (key | (2u << 24)), paintPiece);   // shut
+        sprites_.cachedTex(*this, 0x01ull << 56 | key, paintPiece);
+        if (p == art::Prop::DoorH || p == art::Prop::DoorV) sprites_.cachedTex(*this, 0x01ull << 56 | (key | (2u << 24)), paintPiece);   // shut
         if ((key & 255u) == (uint32_t)art::Piece::Culture && p == art::Prop::Hearth)
-          for (uint32_t f = 1; f < 4; f++) cachedTex(0x01ull << 56 | (key | (f << 24)), paintPiece);   // its flicker frames
+          for (uint32_t f = 1; f < 4; f++) sprites_.cachedTex(*this, 0x01ull << 56 | (key | (f << 24)), paintPiece);   // its flicker frames
       }
     }
     if (std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > 1.5) break;

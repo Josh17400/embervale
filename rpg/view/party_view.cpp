@@ -96,7 +96,7 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
   const party::Member& m = g.party.members[(size_t)mi];
   if (!a.human) {
     // ---- the hound
-    const Tex& t = houndTex(m, g);
+    const Tex& t = sprites_.houndTex(*this, m, g);
     Vec2 dirv = len2(a.vel) > 4.0f ? a.vel : a.aim;
     int row = 0;
     bool flip = false;
@@ -127,8 +127,8 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
   const bool rig2 = art::rigVersion() >= 2;
   const int HW = art::horseCellW(), HH = art::horseCellH();
   const uint64_t key = vtag(rig2 ? 0x52 : 0x51, (uint64_t)(bi.coat & 0xFFFFFFu) << 16 ^ (seedv & 0xFFFFu));
-  auto it = partyTex_.find(key);
-  if (it == partyTex_.end()) it = partyTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
+  auto it = sprites_.partyTex_.find(key);
+  if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
   const Tex& ht = it->second;
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
@@ -160,8 +160,8 @@ bool View::drawCompanionBody(Game& g, const Actor& a, Vec2 cam, float alpha, flo
       headY = g2.y;
     } else {
       // (P2c SWITCH) the v1 rider only when the doll did not draw it
-      const Tex* rt = poseTex(a.look, art::Posture::Ride);
-      const Tex& rider = rt ? *rt : humanTex(a.look);
+      const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride);
+      const Tex& rider = rt ? *rt : sprites_.humanTex(*this, a.look);
       if (blend == 0) v1Draws++;
       if (blend == 0) P.recordBlits(&liftRecs_);
       P.blitEx(rider, 0, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
@@ -209,7 +209,7 @@ void View::drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done) {
     // (fixer M8 r1, review: "no visible blood") wider than the lying body from the first second, so it shows round it
     const float w = 20.0f + 10.0f * k, h = std::max(6.0f, w * 0.38f);
     const float x = std::floor(a.p.x - w / 2 + 2 - cam.x), y = std::floor(a.p.y - h / 2 - 1 - cam.y);
-    P.blitEx(shadowBig_, 0, 0, 40, 12, x - 2, y - 1, w + 4, h + 2, false, Color(1, 1, 1, 0.6f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, x - 2, y - 1, w + 4, h + 2, false, Color(1, 1, 1, 0.6f));
     for (int j = 0; j < (int)h; j++) {
       const float t = (j + 0.5f) / h * 2 - 1;
       const float hw = std::floor(w / 2 * std::sqrt(std::max(0.0f, 1 - t * t)));
@@ -223,14 +223,14 @@ void View::drawCompanionShadow(Game& g, const Actor& a, Vec2 cam, bool& done) {
   if (!a.human) {   // the hound: a shadow as long as its body (longer side-on)
     const bool side = std::fabs((len2(a.vel) > 4.0f ? a.vel : a.aim).x) >= 0.6f;
     const float w = side ? 20.0f : 13.0f, h = side ? 6.0f : 7.0f;
-    P.blitEx(shadow_, 0, 0, shadow_.w, shadow_.h, std::floor(a.p.x - w / 2 + 1 - cam.x), std::floor(a.p.y - h / 2 - cam.y), w, h, false, Color(1, 1, 1, 0.85f));
+    P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, std::floor(a.p.x - w / 2 + 1 - cam.x), std::floor(a.p.y - h / 2 - cam.y), w, h, false, Color(1, 1, 1, 0.85f));
     done = true;
     return;
   }
   if (riding(g, m)) {
     const bool side = a.face >= 2;
     const float w = side ? 32.0f : 18.0f, h = side ? 8.0f : 10.0f;
-    P.blitEx(shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false, Color(1, 1, 1, 0.85f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false, Color(1, 1, 1, 0.85f));
     done = true;
   }
 }
@@ -309,7 +309,7 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
     // field stones and the marker are all the sprite (art::graveSprite); here only the soft shadow it throws on the
     // ground, down-right of the mound (the light is top-left)
     const float ox = std::floor(at.x - cam.x), oy = std::floor(at.y - cam.y - 9);
-    P.blitEx(shadowBig_, 0, 0, 40, 12, ox - 8 + 2, oy - 6 + 3, 19, 14, false, Color(1, 1, 1, 0.5f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, ox - 8 + 2, oy - 6 + 3, 19, 14, false, Color(1, 1, 1, 0.5f));
     return;
   }
   const cult::Culture* C = f.culture && g.world.src ? &g.world.src->culture(f.culture) : nullptr;
@@ -322,8 +322,8 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
   L.flowers = false;   // (the bundle below, drawn bigger than the sprite's own sprig)
   L.seed = S.seed;
   const uint64_t key = vtag(0x61, L.key());
-  auto it = partyTex_.find(key);
-  if (it == partyTex_.end()) it = partyTex_.emplace(key, P.bake(art::graveSprite(L))).first;
+  auto it = sprites_.partyTex_.find(key);
+  if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, P.bake(art::graveSprite(L))).first;
   const Tex& t = it->second;
   P.blit(t, std::floor(at.x - t.w / 2.0f - cam.x), std::floor(at.y - t.h - cam.y + 1));
   if (f.graveFlags & party::GF_FLOWERS) {

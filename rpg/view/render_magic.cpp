@@ -1323,7 +1323,7 @@ void View::drawMagicGround(Game& g, Vec2 cam) {
   }
   S.cur = MagicFxStats();
   const auto t0 = Clock::now();
-  GamePt P{*pix_, monsters_};
+  GamePt P{*pix_, sprites_.monsters_};
   mfx::Ctx C;
   C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
   nightOf(g, C.dark, C.lightK);
@@ -1342,7 +1342,7 @@ void View::drawSpellProj(Game& g, const Projectile& pr, int idx, Vec2 cam) {
   (void)g; (void)idx;
   View::MagicFxState& S = MagicFxOps::st(*this);
   const auto t0 = Clock::now();
-  GamePt P{*pix_, monsters_};
+  GamePt P{*pix_, sprites_.monsters_};
   mfx::Ctx C;
   C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
   mfx::drawMissileShadow(P, S.w, C, lookFor(pr.spell), pr.p, pr.mag);
@@ -1383,7 +1383,7 @@ void View::magicLights(Game& g, const std::function<void(Vec2, float, Color, flo
 void View::drawMagicFx(Game& g, Vec2 cam) {
   View::MagicFxState& S = MagicFxOps::st(*this);
   const auto t0 = Clock::now();
-  GamePt P{*pix_, monsters_};
+  GamePt P{*pix_, sprites_.monsters_};
   mfx::Ctx C;
   C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
   nightOf(g, C.dark, C.lightK);

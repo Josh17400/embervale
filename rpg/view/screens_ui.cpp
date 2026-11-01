@@ -33,7 +33,7 @@ void View::drawTitle(Game& g, bool hasSave) {
   band((float)box.h - 11, 26, 0.6f);
   P.pushBox(box.x, box.y, box.w, box.h);
   // ember glow behind the logo
-  P.blitEx(light_, 0, 0, 64, 64, Pix::W / 2 - 160, y - 50, 320, 120, false, Color(1, 0.45f, 0.15f, 0.35f + 0.1f * std::sin(t_ * 2)), 1);
+  P.blitEx(sprites_.light_, 0, 0, 64, 64, Pix::W / 2 - 160, y - 50, 320, 120, false, Color(1, 0.45f, 0.15f, 0.35f + 0.1f * std::sin(t_ * 2)), 1);
   const std::string title = "EMBERVALE";
   for (int k = 3; k >= 1; k--) P.text(Pix::W / 2 + k, y + k, title, 5, Color(0.12f, 0.04f, 0.02f, 0.5f), 1);
   P.text(Pix::W / 2, y, title, 5, Color(1, 0.86f, 0.55f), 1);

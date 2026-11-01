@@ -1209,7 +1209,7 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
              Color(1.0f - 0.3f * turn, 1.0f - 0.25f * turn, 1.0f - 0.1f * turn, std::min(1.0f, m * (0.75f + 0.25f * part))));
     // turning back: the dark closes in at the edges, and the shapes of drowned ships slide past in the fog
     if (turn > 0.02f) {
-      P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, W, H, false, Color(0.4f, 0.45f, 0.6f, turn * 0.9f));
+      P.blitEx(sprites_.vignette_, 0, 0, sprites_.vignette_.w, sprites_.vignette_.h, 0, 0, W, H, false, Color(0.4f, 0.45f, 0.6f, turn * 0.9f));
       for (int k = 0; k < 2; k++) {
         // (fixer M10 r1) quartering headings (SE, NE), drifting the way their bows point: the deck and the hull's
         // side both show, in the same 3/4 view as the hero's boat (a beam-on hull read as a flat side elevation)
@@ -1239,7 +1239,7 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
           P.rectAdd(x0 - w * 0.4f, std::floor(y), w * 1.8f, 2, Color(0.30f, 0.26f, 0.14f, a * 0.18f));
         }
       }
-      P.blitEx(light_, 0, 0, 64, 64, W * 0.15f, -H * 0.2f, W * 0.7f, H * 0.9f, false, Color(1.0f, 0.92f, 0.70f, k * 0.5f), 1);
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, W * 0.15f, -H * 0.2f, W * 0.7f, H * 0.9f, false, Color(1.0f, 0.92f, 0.70f, k * 0.5f), 1);
     }
   }
 }

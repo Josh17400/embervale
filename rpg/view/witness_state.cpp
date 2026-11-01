@@ -511,8 +511,8 @@ bool View::witnessHides(const Game& g, const Actor& a) const {
 
 void View::witnessRelease() {
   shutdown();            // the bakers joined (a rebuilt View starts its own on its first prefetch)
-  bldgAsync_.clear();    // (std::async futures: waits for a paint still running)
-  bldgAsyncKeys_.clear();
+  sprites_.bldgAsync_.clear();    // (std::async futures: waits for a paint still running)
+  sprites_.bldgAsyncKeys_.clear();
   if (pix_) pix_->destroyUnmarked();
   witnessResetBeasts();
   witnessResetWorldMap();

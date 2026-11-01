@@ -102,7 +102,7 @@ const Tex& RiseViewOps::badgeTex(View& v, int rank, uint32_t field, uint32_t tri
   return S.badges[key] = v.pix_->bake(art::rankBadge(rank, field, trim, size));
 }
 
-const Tex& RiseViewOps::armsTex(View& v, const cult::Heraldry& h, int size) { return v.armsTex(h, size); }
+const Tex& RiseViewOps::armsTex(View& v, const cult::Heraldry& h, int size) { return v.sprites_.armsTex(v, h, size); }
 
 void RiseViewOps::dressHero(const Game& g, art::HumanLook& L) {
   L.armsOrnament = (uint16_t)(L.armsOrnament & ~art::RISE_MASK);
@@ -307,7 +307,7 @@ void View::drawRiseHud(Game& g) {
   }
   // the shields: the realm's arms on the left, the rank's badge (or the arms again) on the right
   const Color tint(1, 1, 1, a);
-  const Tex& arms = armsTex(hr, 20);
+  const Tex& arms = sprites_.armsTex(*this, hr, 20);
   P.blit(arms, x + 6, y + std::floor((h - arms.h) / 2) + 2, false, tint);
   if (B.rank > 0) {
     const Tex& bd = RiseViewOps::badgeTex(*this, B.rank, hr.field, hr.charge, 16);

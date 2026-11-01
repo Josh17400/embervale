@@ -145,7 +145,7 @@ void View::drawSpellsPage(Game& g) {
       P.rect(x + 1, y + 1, 26, L.qh - 2, Color(c.r, c.g, c.b, 0.10f));
     }
     P.frame(x, y, L.qw, L.qh, on ? kGoldB : Color(0.40f, 0.33f, 0.22f));
-    if (flash > 0) P.blitEx(light_, 0, 0, 64, 64, x - 8, y - 8, L.qw + 16, L.qh + 16, false, Color(1.0f, 0.8f, 0.4f, 0.5f * flash), 1);
+    if (flash > 0) P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 8, y - 8, L.qw + 16, L.qh + 16, false, Color(1.0f, 0.8f, 0.4f, 0.5f * flash), 1);
     // the slot's number in a small plate on the top-left corner
     P.rect(x + 2, y + 2, 9, 9, Color(0.03f, 0.02f, 0.04f, 0.9f));
     P.text(x + 4, y + 3, std::to_string(i + 1), 1, on ? kGoldB : kDimB);
@@ -224,7 +224,7 @@ void View::drawSpellsPage(Game& g) {
   P.frame(L.dx - 4, L.dy - 2, L.dw + 6, L.dh + 2, Color(0.36f, 0.30f, 0.20f));
   float y = L.dy + 2;
   const float x = L.dx + 2, w = L.dw - 4;
-  P.blitEx(light_, 0, 0, 64, 64, x - 10, y - 10, 52, 52, false, Color(c.r, c.g, c.b, 0.22f + 0.06f * std::sin(t_ * 2.0f)), 1);
+  P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 10, y - 10, 52, 52, false, Color(c.r, c.g, c.b, 0.22f + 0.06f * std::sin(t_ * 2.0f)), 1);
   P.blitEx(SkillsUiOps::spellIcon(*this, d->id), 0, 0, 16, 16, x, y, 32, 32);
   const float tx = x + 38, tw = w - 38;
   const int nsc = P.textW(d->name, 2) <= tw ? 2 : 1;

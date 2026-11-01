@@ -620,16 +620,16 @@ float View::hudVitals(Game& g, const HudFrame& H) {
   // gold, arrows, spell
   int arrows = 0;
   for (auto& it : g.inv) if (it.kind == ItemKind::Arrows) arrows += it.count;
-  P.blit(iconTex(art::Icon::Gold, 0), L + 4, T + 28);
+  P.blit(sprites_.iconTex(*this, art::Icon::Gold, 0), L + 4, T + 28);
   P.textS(L + 20, T + 33, std::to_string(g.gold), 1, kGold);
-  P.blit(iconTex(art::Icon::Arrows, 0), L + 56, T + 28);
+  P.blit(sprites_.iconTex(*this, art::Icon::Arrows, 0), L + 56, T + 28);
   P.textS(L + 72, T + 33, std::to_string(arrows), 1, kText);
   float spellX = L + 100;
   if (!touchUI) {   // (M6) the potion belt and its cooldown (touch: on the potion button)
     int pots = 0;
     for (const Item& it : g.inv) if (it.kind == ItemKind::Potion && it.sub == (uint8_t)PotionType::Health) pots += it.count;
     if (pots > 0 || g.craft.live.potionCd > 0) {
-      P.blit(iconTex(art::Icon::PotionRed, 0), L + 88, T + 28);
+      P.blit(sprites_.iconTex(*this, art::Icon::PotionRed, 0), L + 88, T + 28);
       const float cd = g.craft.live.potionCd, k = cd > 0 ? clampf(cd / std::max(0.1f, g.craft.live.potionCdMax), 0, 1) : 0.0f;
       if (k > 0) P.rect(L + 90, T + 30 + 12 * (1 - k), 12, 12 * k, Color(0.02f, 0.02f, 0.05f, 0.7f));
       P.textS(L + 104, T + 33, cd > 0 ? std::to_string((int)std::ceil(cd)) + "S" : std::to_string(pots), 1, cd > 0 ? kDim : kText);
@@ -1114,10 +1114,10 @@ void View::hudQuest(Game& g, HudFrame& H) {
           for (int bi = 0; bi < (int)om.bldgs.size(); bi++) {
             const Bldg& b = om.bldgs[bi];
             if (b.doorX() != tx || b.doorY() != ty) continue;
-            const uint64_t k = bldgKey(om, b, bi);
-            auto bt = bldgTex_.find(k);
-            auto tr = bldgTopRow_.find(k);
-            if (bt != bldgTex_.end() && tr != bldgTopRow_.end()) {
+            const uint64_t k = sprites_.bldgKey(om, b, bi);
+            auto bt = sprites_.bldgTex_.find(k);
+            auto tr = sprites_.bldgTopRow_.find(k);
+            if (bt != sprites_.bldgTex_.end() && tr != sprites_.bldgTopRow_.end()) {
               const float top = (b.r.y + b.r.h) * 16.0f + art::BLDG_PAD_B - bt->second.h + tr->second;
               pinY = std::min(pinY, toUi(Vec2(0, top)).y - 3);
             }
@@ -1446,8 +1446,8 @@ void View::drawTouch(Game& g) {
     float l = len(d);
     if (l > 26) d = d * (26 / l);
     for (int r = 26; r > 0; r -= 2) P.rect(stick_.start.x - r, stick_.start.y - 1, r * 2, 2, Color(1, 1, 1, 0.0f));
-    P.blitEx(light_, 0, 0, 64, 64, stick_.start.x - 30, stick_.start.y - 30, 60, 60, false, Color(0.9f, 0.9f, 1, 0.25f));
-    P.blitEx(light_, 0, 0, 64, 64, stick_.start.x + d.x - 14, stick_.start.y + d.y - 14, 28, 28, false, Color(1, 1, 1, 0.6f));
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, stick_.start.x - 30, stick_.start.y - 30, 60, 60, false, Color(0.9f, 0.9f, 1, 0.25f));
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, stick_.start.x + d.x - 14, stick_.start.y + d.y - 14, 28, 28, false, Color(1, 1, 1, 0.6f));
   } else {
     // (M1 round 3) the stick at rest is drawn like the buttons (a dark disc in a ring, with its thumb and four
     // direction ticks), so a new phone player sees where to drag: the old faint glow vanished on grass and cobbles
@@ -1484,7 +1484,7 @@ void View::drawTouch(Game& g) {
     bool held = false;
     for (auto& f : fingers_) if (f.on && f.button == b) held = true;
     Color ring = held ? Color(1, 0.9f, 0.6f, 0.9f) : Color(0.9f, 0.85f, 0.75f, 0.45f);
-    P.blitEx(light_, 0, 0, 64, 64, d.x - d.r * 1.3f, d.y - d.r * 1.3f, d.r * 2.6f, d.r * 2.6f, false, Color(0.05f, 0.04f, 0.06f, 0.0f));
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, d.x - d.r * 1.3f, d.y - d.r * 1.3f, d.r * 2.6f, d.r * 2.6f, false, Color(0.05f, 0.04f, 0.06f, 0.0f));
     // disc
     for (int yy = (int)-d.r; yy <= (int)d.r; yy++) {
       float hw = std::sqrt(std::max(0.0f, d.r * d.r - yy * yy));
@@ -1517,7 +1517,7 @@ void View::drawTouch(Game& g) {
           }
         }
         else if (usePr) P.text(d.x, d.y - 3, useVerbAt(g, usePr, utx, uty), 1, kGold, 1);
-        else if (g.eqWeapon >= 0) P.blitEx(itemTex(g, g.inv[g.eqWeapon]), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
+        else if (g.eqWeapon >= 0) P.blitEx(sprites_.itemTex(*this, g, g.inv[g.eqWeapon]), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
         else {
           // unarmed (the shirt-only start): a clenched fist, knuckles up, lit from the top-left
           static const char* kFist[] = {
@@ -1544,10 +1544,10 @@ void View::drawTouch(Game& g) {
             }
         }
         break;
-      case B_BOW: P.blit(iconTex(art::Icon::Bow, 0), d.x - 8, d.y - 8); break;
+      case B_BOW: P.blit(sprites_.iconTex(*this, art::Icon::Bow, 0), d.x - 8, d.y - 8); break;
       case B_ROLL: P.text(d.x, d.y - 3, "ROLL", 1, kText, 1); break;
       case B_POTION: {
-        P.blit(iconTex(art::Icon::PotionRed, 0), d.x - 8, d.y - 8);
+        P.blit(sprites_.iconTex(*this, art::Icon::PotionRed, 0), d.x - 8, d.y - 8);
         // (M6, 7.5 rule 7) the shared cooldown as a clockwise sweep from the top, the seconds left over it
         const float cd = g.craft.live.potionCd;
         if (cd > 0) {
@@ -2023,13 +2023,13 @@ void View::drawMenu(Game& g) {
       // the stage
       P.rect(H.sx, H.sy, H.sw, H.sh, Color(0.03f, 0.025f, 0.04f, 0.55f));
       P.frame(H.sx, H.sy, H.sw, H.sh, Color(0.3f, 0.24f, 0.15f));
-      heroStage(P, light_, H.pcx, H.footY, H.scale / 5.0f);
+      heroStage(P, sprites_.light_, H.pcx, H.footY, H.scale / 5.0f);
       // (P2c SWITCH) rig 2: the hero on the doll at the largest whole multiple the stage holds (the T6 envelope's room),
       // walking on the spot facing down as the v1 sheet did, with the living finish
       const MenuStage hst{H.sx + 1, H.sy + 14, H.sw - 2, H.footY + 4 - (H.sy + 14)};   // under the LEVEL UP line, over the buttons
       const int hsc = menuDollScale(p.look, hst, H.pcx, H.footY, std::max(1, (int)H.scale));
       if (!(hsc > 0 && drawMenuDoll(p.look, kMenuHero, 0, MenuGait::Walk, H.pcx, H.footY, hsc, hst))) {
-      const Tex& t = humanTex(p.look);
+      const Tex& t = sprites_.humanTex(*this, p.look);
       const int frame = 1 + ((int)(t_ * 5.0f) & 3);
       P.blitEx(t, frame * art::HUMAN_W, 0, art::HUMAN_W, art::HUMAN_H, H.pcx - art::HUMAN_W * H.scale / 2, H.footY - (art::HUMAN_H - 1) * H.scale,
                art::HUMAN_W * H.scale, art::HUMAN_H * H.scale);
@@ -2153,7 +2153,7 @@ void View::drawBuffs(Game& g, float x, float y) {
     if (!(bf & bit)) continue;
     const float left = bit == life::BUFF_WELLFED ? pn.fedH : bit == life::BUFF_RESTED ? pn.restedH : 99.0f;
     const bool blink = left < 1.0f && ((int)(t_ * 3) & 1);
-    const Tex& t = cachedTex(0x4Eull << 56 | bit, paintBuffIcon);
+    const Tex& t = sprites_.cachedTex(*this, 0x4Eull << 56 | bit, paintBuffIcon);
     P.blitEx(t, 0, 0, t.w, t.h, std::floor(cx), std::floor(y), (float)t.w, (float)t.h, false, Color(1, 1, 1, blink ? 0.45f : 1.0f));
     if (bit == life::BUFF_WELLFED && pn.mealQuality > 0) {   // (M7, 15.2) the meal's quality: gold pips under the loaf
       for (int q = 0; q < std::min(3, (int)pn.mealQuality); q++) {

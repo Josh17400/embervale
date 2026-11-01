@@ -469,7 +469,7 @@ void View::drawBuild(Game& g) {
     const std::string s = std::to_string(g.gold);
     const float w = (float)P.textW(s, 1);
     P.textS(rx - w, y, s, 1, kGoldC);
-    P.blit(iconTex(art::Icon::Gold, 0), rx - w - 17, y - 5);
+    P.blit(sprites_.iconTex(*this, art::Icon::Gold, 0), rx - w - 17, y - 5);
   };
   auto btn = [&](const Rect& r, const std::string& label, bool hot, bool enabled = true) {
     if (!enabled) {
@@ -535,35 +535,35 @@ void View::drawBuild(Game& g) {
       const art::FarmObj fa = home::farmObjArt(o);
       if (fa != art::FarmObj::COUNT) {
         const uint64_t key = (0xB1ull << 56) | (uint64_t)fa << 40 | (C ? (C->id & 0xFFFFFFFFull) : 0);
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           art::FarmObjLook lk;
           lk.kind = fa;
           lk.style = C ? &C->arch : nullptr;
           if (fa == art::FarmObj::Fence || fa == art::FarmObj::Gate) lk.joins = 2 | 8;
           if (oi.flags & home::OBJ_ANIMALS) lk.stage = 2;
-          it = homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Path || o == Obj::Farmland) {
         const uint64_t key = (0xB2ull << 56) | (uint64_t)o;
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           Canvas c(32, 16);
           const Canvas a = o == Obj::Path ? art::pathTile(2, 0, 1) : art::farmlandTile(2, false, 1);
           const Canvas b = o == Obj::Path ? art::pathTile(8, 0, 2) : art::farmlandTile(8, false, 2);
           for (int y = 0; y < 16; y++)
             for (int x = 0; x < 16; x++) { c.set(x, y, a.px[(size_t)y * a.w + x]); c.set(16 + x, y, b.px[(size_t)y * b.w + x]); }
-          it = homeTex_.emplace(key, P.bake(c)).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(c)).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Trophy) {
         const uint64_t key = (0xB3ull << 56) | 1;
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) it = homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) it = sprites_.homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
         t = &it->second; sw = t->w; sh = t->h;
-      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < props_.size()) {
-        t = &props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
+      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < sprites_.props_.size()) {
+        t = &sprites_.props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
       }
       if (t) {
         const float fitW = r.w - 4, fitH = r.h - 22;
@@ -683,10 +683,10 @@ void View::drawBuild(Game& g) {
       q.state = home::PlotState::Built;
       if (!q.houseSeed) q.houseSeed = (uint32_t)ew::mix64(p.id ^ 0x5348454C4Cull);
       const uint64_t key = (0xB4ull << 56) ^ ((uint64_t)U.sel << 48) ^ (style & 0xFFFFFFFFFFFull) ^ ((uint64_t)q.houseSeed << 20);
-      auto it = homeTex_.find(key);
-      if (it == homeTex_.end()) {
+      auto it = sprites_.homeTex_.find(key);
+      if (it == sprites_.homeTex_.end()) {
         const Bldg b = home::houseBldg(q, g);
-        it = homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
+        it = sprites_.homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
       }
       const Tex& t = it->second;
       float sc = 1.0f;
@@ -696,7 +696,7 @@ void View::drawBuild(Game& g) {
       const float dx = std::floor(pv.x + (pv.w - dw) / 2), dy = std::floor(pv.y + pv.h - 10 - dh);
       // its ground shadow, thrown down-right
       const float sw = dw * 0.9f, shh = std::max(6.0f, dh * 0.12f);
-      P.blitEx(shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
+      P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
       P.blitEx(t, 0, 0, t.w, t.h, dx, dy, dw, dh, false, Color(1, 1, 1, 1));
     }
     // the style picker
@@ -764,7 +764,7 @@ void View::drawBuild(Game& g) {
         const bool sel = c == storeSide_ && i == storeSel_;
         if (sel) { P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(0.32f, 0.24f, 0.13f, 0.95f)); P.frame(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, kGoldC); }
         else if (k & 1) P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(1, 1, 1, 0.03f));
-        P.blit(itemTex(g, it), r.x + 3, ry + (S.rowH - 16) / 2);
+        P.blit(sprites_.itemTex(*this, g, it), r.x + 3, ry + (S.rowH - 16) / 2);
         bool worn = false;
         if (c == 0) for (int w : g.worn()) if (w == i) worn = true;
         const std::string cnt = it.stackable() && it.count > 1 ? " X" + std::to_string(it.count) : "";
@@ -825,7 +825,7 @@ void View::drawBuild(Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon(in, tint);
         const bool have = heldOf(g, in) > 0;
-        P.blitEx(iconTex(ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
+        P.blitEx(sprites_.iconTex(*this, ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
         if (!have) P.rect(ix + 3, ry + S.rowH / 2, 10, 1, kBadC);
         ix += 17;
       }
@@ -841,7 +841,7 @@ void View::drawBuild(Game& g) {
       float fed = 0;
       uint8_t q = 0;
       home::mealBuff(out, fed, q);
-      P.blitEx(itemTex(g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
+      P.blitEx(sprites_.itemTex(*this, g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
       P.textS(d.x + 48, d.y + 9, fitText(m.name, d.w - 54), 1, kGoldC);
       for (int s = 0; s < 3; s++) {   // the quality as three pips
         const float sx = d.x + 48 + s * 9, sy = d.y + 21;
@@ -861,7 +861,7 @@ void View::drawBuild(Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon((home::Ingr)k, tint);
         const int have = heldOf(g, (home::Ingr)k);
-        P.blit(iconTex(ic, tint), d.x + 8, y - 4);
+        P.blit(sprites_.iconTex(*this, ic, tint), d.x + 8, y - 4);
         P.text(d.x + 28, y, ingrName((home::Ingr)k), 1, kTextC);
         // (M7 fixer r2, review: "'FLOUR 3/1' reads backwards") what it takes, then what the pack holds
         P.text(d.x + d.w - 8, y, "NEED " + std::to_string(need[k]) + "  HAVE " + std::to_string(std::min(have, 99)), 1, have >= need[k] ? kGoodC : kBadC, 2);

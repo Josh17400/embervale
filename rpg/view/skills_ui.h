@@ -70,10 +70,10 @@ struct SkillsUiOps {
   static float now(const View& v) { return v.t_; }
   static bool touch(const View& v) { return v.touchUI; }
   static Audio& audio(View& v) { return *v.audio_; }
-  static const Tex& light(View& v) { return v.light_; }
+  static const Tex& light(View& v) { return v.sprites_.light_; }
   static void button(View& v, float x, float y, float w, float h, const std::string& label, bool hot) { v.button(x, y, w, h, label, hot); }
   static void arrow(View& v, float x, float y, int dir) { v.cmpArrow(x, y, dir); }
-  static const Tex& itemTex(View& v, const Game& g, const Item& it) { return v.itemTex(g, it); }
+  static const Tex& itemTex(View& v, const Game& g, const Item& it) { return v.sprites_.itemTex(v, g, it); }
   static int& menuTab(View& v) { return v.menuTab_; }
   static std::vector<View::Finger>& fingers(View& v) { return v.fingers_; }
   // a baked texture of the lane's cache (paint once per key)

@@ -251,27 +251,27 @@ int View::companionIndex(const Game& g, const Actor& a) const {
 art::HoundLook View::houndLookOf(const party::Member& m, const Game& g) const {
   return g.partyHoundLook(memberOf(g, m.id));
 }
-const Tex& View::houndTex(const party::Member& m, const Game& g) {
-  const art::HoundLook L = houndLookOf(m, g);
+const Tex& SpriteCache::houndTex(View& v, const party::Member& m, const Game& g) {
+  const art::HoundLook L = v.houndLookOf(m, g);
   const uint64_t k = ptag(0x21, L.key());
   auto it = partyTex_.find(k);
-  if (it == partyTex_.end()) it = partyTex_.emplace(k, pix_->bake(art::houndSheet(L))).first;
+  if (it == partyTex_.end()) it = partyTex_.emplace(k, v.pix_->bake(art::houndSheet(L))).first;
   return it->second;
 }
 namespace art { Canvas portraitDoll(const HumanLook& look, int mood, std::vector<finish::GlowPx>* glow); }   // art_party_portrait.cpp (P2c SWITCH)
-const Tex& View::portraitTex(const Game& g, const party::Member& m, int mood) {
-  const int mi = memberOf(g, m.id);
+const Tex& SpriteCache::portraitTex(View& v, const Game& g, const party::Member& m, int mood) {
+  const int mi = v.memberOf(g, m.id);
   const bool hound = m.voc == party::Vocation::Hound;
   uint64_t lk = 0;
   art::HumanLook look;
-  if (hound) lk = houndLookOf(m, g).key();
+  if (hound) lk = v.houndLookOf(m, g).key();
   else {
-    const int ai = mi >= 0 && mi < (int)partyActor_.size() ? partyActor_[(size_t)mi] : -1;
+    const int ai = mi >= 0 && mi < (int)v.partyActor_.size() ? v.partyActor_[(size_t)mi] : -1;
     if (ai > 0) look = g.actors[(size_t)ai].look;
     else {   // not in play (waiting, at home): their look is dressed afresh now and then, not every frame
       if (g_lookMemo.size() > 32) g_lookMemo.clear();
       LookMemo& lm = g_lookMemo[m.id];
-      if (lm.t < 0 || t_ - lm.t > 1.5f || lm.t > t_) { lm.look = g.partyLook(m); lm.t = t_; }
+      if (lm.t < 0 || v.t_ - lm.t > 1.5f || lm.t > v.t_) { lm.look = g.partyLook(m); lm.t = v.t_; }
       look = lm.look;
     }
     lk = look.key();
@@ -288,12 +288,12 @@ const Tex& View::portraitTex(const Game& g, const party::Member& m, int mood) {
     if (d.w > 0) {
       if (portraitGlow_.size() > 64) portraitGlow_.clear();
       portraitGlow_[lk ^ (uint64_t)mood * 0x9E3779B97F4A7C15ull] = std::move(gp);
-      return partyTex_.emplace(k, pix_->bake(d)).first->second;
+      return partyTex_.emplace(k, v.pix_->bake(d)).first->second;
     }
-    v1Draws++;   // a painted bust at rig 2 (Witness: v1Draws 0 at rig 2)
+    v.v1Draws++;   // a painted bust at rig 2 (Witness: v1Draws 0 at rig 2)
   }
-  const Canvas c = hound ? art::houndPortrait(houndLookOf(m, g), mood) : art::portraitSprite(look, mood);
-  return partyTex_.emplace(k, pix_->bake(c)).first->second;
+  const Canvas c = hound ? art::houndPortrait(v.houndLookOf(m, g), mood) : art::portraitSprite(look, mood);
+  return partyTex_.emplace(k, v.pix_->bake(c)).first->second;
 }
 
 int View::bestSkill(const Game& g, int mi, float& cd, bool& locked) const {
@@ -478,7 +478,7 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
   const bool downed = m.state == party::State::Downed;
   const bool low = !downed && m.state == party::State::With && hp * 100 < party::LOW_HP_PCT;
   const int mood = downed ? 2 : low ? 1 : 0;
-  const Tex& pt = portraitTex(g, m, mood);
+  const Tex& pt = sprites_.portraitTex(*this, g, m, mood);
   const bool sel = mi == partySel_;
   const uint32_t vc = vocColour(m.voc);
   if (small) {
@@ -494,8 +494,8 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     const char* const* bg = home ? kBadgeHome : kBadgeWait;
     const GlyphPal pal = home ? kIconPal[6] : kIconPal[1];
     const uint64_t bk = ptag(0x31, home ? 6 : 1);
-    auto it = partyTex_.find(bk);
-    if (it == partyTex_.end()) it = partyTex_.emplace(bk, pix_->bake(paintGlyph(bg, 7, pal))).first;
+    auto it = sprites_.partyTex_.find(bk);
+    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(bk, pix_->bake(paintGlyph(bg, 7, pal))).first;
     P.blit(it->second, x + s - 6, y + s - 6);
     return;
   }
@@ -579,8 +579,8 @@ void View::drawPortraitCard(Game& g, int mi, float x, float y, bool small) {
     static const char* const* const kBadges[4] = {kBadgeFollow, kBadgeAttack, kBadgeDefend, kBadgePassive};
     static const int kBadgePal[4] = {0, 2, 3, 5};
     const uint64_t bk = ptag(0x31, 10 + bi);
-    auto it = partyTex_.find(bk);
-    if (it == partyTex_.end()) it = partyTex_.emplace(bk, pix_->bake(paintGlyph(kBadges[bi], 7, kIconPal[kBadgePal[bi]]))).first;
+    auto it = sprites_.partyTex_.find(bk);
+    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(bk, pix_->bake(paintGlyph(kBadges[bi], 7, kIconPal[kBadgePal[bi]]))).first;
     P.rect(x + w - 11, y + w - 11, 11, 11, Color(0.05f, 0.04f, 0.06f, 0.92f));
     P.frame(x + w - 11, y + w - 11, 11, 11, Color(0.62f, 0.50f, 0.30f));
     P.blit(it->second, x + w - 9, y + w - 9);
@@ -679,7 +679,7 @@ void View::drawPartyHud(Game& g) {
     float tx = ax + 7;
     if (mi >= 0) {
       const party::Member& m = g.party.members[(size_t)mi];
-      const Tex& pt = portraitTex(g, m, n.kind == 2 || n.kind == 4 ? 2 : n.kind == 1 ? 1 : n.kind == 3 || n.kind == 5 || n.kind == 8 ? 3 : 0);
+      const Tex& pt = sprites_.portraitTex(*this, g, m, n.kind == 2 || n.kind == 4 ? 2 : n.kind == 1 ? 1 : n.kind == 3 || n.kind == 5 || n.kind == 8 ? 3 : 0);
       P.rect(ax + 3, ay + 2, 16, 16, Color(0.02f, 0.02f, 0.03f, a));
       P.rect(ax + 4, ay + 3, 14, 14, colU(mulc(vocColour(m.voc), 0.5f), a));
       P.blitEx(pt, kFaceX, kFaceY, kFace, kFace, ax + 4, ay + 3, (float)kFace, (float)kFace, false, Color(1, 1, 1, a));
@@ -878,8 +878,8 @@ void View::drawPartyRadial(Game& g) {
     const bool dis = !radialWhy(g, radial_.member, w).empty();
     const int st = w == radial_.hot ? 1 : dis ? 2 : 0;
     const uint64_t key = ptag(0x41, (uint64_t)(w * 4 + st));
-    auto it = partyTex_.find(key);
-    if (it == partyTex_.end()) it = partyTex_.emplace(key, pix_->bake(paintWedge(w, st))).first;
+    auto it = sprites_.partyTex_.find(key);
+    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(key, pix_->bake(paintWedge(w, st))).first;
     const float a = -1.5707963f + w * step;
     const Vec2 dir(std::cos(a), std::sin(a));
     const float slide = (1 - ease) * -10.0f;   // the wedges slide out from the hub as it opens
@@ -889,8 +889,8 @@ void View::drawPartyRadial(Game& g) {
       P.blitEx(it->second, 0, 0, kRN, kRN, wx, wy, (float)kRN, (float)kRN, false, Color(1.0f, 0.2f, 0.15f, 0.55f), 1);
     // the icon at the wedge's middle (whole pixels), dimmed when the order cannot be given
     const uint64_t ik = ptag(0x42, (uint64_t)w);
-    auto ii = partyTex_.find(ik);
-    if (ii == partyTex_.end()) ii = partyTex_.emplace(ik, pix_->bake(paintGlyph(kIcons[w], 11, kIconPal[w]))).first;
+    auto ii = sprites_.partyTex_.find(ik);
+    if (ii == sprites_.partyTex_.end()) ii = sprites_.partyTex_.emplace(ik, pix_->bake(paintGlyph(kIcons[w], 11, kIconPal[w]))).first;
     const float mr = (kRO + kRI) / 2 + 1;
     const float ix = std::floor(c.x + dir.x * (mr + slide) - 5.5f + 0.5f), iy = std::floor(c.y + dir.y * (mr + slide) - 5.5f + 0.5f);
     P.blitEx(ii->second, 0, 0, 11, 11, ix + 1, iy + 1, 11, 11, false, Color(0, 0, 0, 0.45f * ease));
@@ -923,11 +923,11 @@ void View::drawPartyRadial(Game& g) {
   {
     const uint32_t vc = vocColour(m.voc);
     const uint64_t hk = ptag(0x43, vc);
-    auto it = partyTex_.find(hk);
-    if (it == partyTex_.end()) it = partyTex_.emplace(hk, pix_->bake(paintHub(vc))).first;
+    auto it = sprites_.partyTex_.find(hk);
+    if (it == sprites_.partyTex_.end()) it = sprites_.partyTex_.emplace(hk, pix_->bake(paintHub(vc))).first;
     const Tex& ht = it->second;
     P.blitEx(ht, 0, 0, ht.w, ht.h, std::floor(c.x - ht.w / 2.0f), std::floor(c.y - ht.h / 2.0f), (float)ht.w, (float)ht.h, false, Color(1, 1, 1, ease));
-    const Tex& pt = portraitTex(g, m, m.state == party::State::Downed ? 2 : 0);
+    const Tex& pt = sprites_.portraitTex(*this, g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 3, 1, 18, 18, std::floor(c.x - 9), std::floor(c.y - 10), 18, 18, false, Color(1, 1, 1, ease));
     portraitFinish(m.id, std::floor(c.x - 9), std::floor(c.y - 10), 1, ease, 3, 1, 18, 18);
   }

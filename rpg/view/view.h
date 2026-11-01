@@ -21,6 +21,7 @@
 #include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/loot_paint.h"
+#include "rpg/view/sprite_cache.h"
 #include "rpg/view/terrain_bake.h"
 
 union SDL_Event;
@@ -115,16 +116,7 @@ class View {
   Vec2 toWorld(Vec2 ui) const;
   float uiPerWorld() const;
   Vec2 worldCam() const;   // the world layer's camera this frame: floor(camera + shake), what every world draw subtracts
-  // (item 4) a look's v2 atlas for a part, baked and cached (LENS owns the caches, their MB caps and the bake queue;
-  // render_anim.cpp draws from it). Not ready (tex null) until the painters cover the look: callers draw v1 meanwhile.
-  struct RigTex {
-    const Tex* tex = nullptr;
-    const art::RigSheet* sheet = nullptr;   // the atlas's frames (the canvas itself is dropped once baked)
-    const Tex* glowTex = nullptr;           // (P2c ladder) the glow plane's texture (null: the look has none)
-    const std::vector<art::finish::Mask>* masks = nullptr;   // (polish i1) T6: each frame's silhouette (the aura, the sweep)
-    bool ready() const { return tex && tex->t && sheet && !sheet->empty(); }
-  };
-  RigTex rigTex(const art::HumanLook& L, art::RigPart part, bool child = false);
+  using RigTex = SpriteCache::RigTex;   // (sprite_cache.h) a look's v2 atlas for a part (rigTex)
   // after art::setRigVersion: every cache whose pixels depend on the rig (people, poses, sleepers, monsters, buildings,
   // props, the v2 atlases) is dropped and baked again on demand
   void rigChanged();
@@ -149,8 +141,6 @@ class View {
     std::string dollKey = "rest";
   };
   P2bHooks p2b;
-  // (script_p2b.cpp) the `dollpart` frame for a look: baked and cached with the v2 atlases (not ready: drawn as usual)
-  RigTex dollPartTex(const art::HumanLook& L);
   // the hero as drawn last frame (world-layer px, relative to the world view's top-left): the cell's top-left, size and
   // frame, the opaque box inside the cell (v1: from the baked sheet), the pivot (the feet point) and the rig it came from
   struct HeroSprite {
@@ -204,7 +194,7 @@ class View {
   // (P2c SWITCH) a party portrait's living finish (its glow pixels pulsed, rig 2, T5-T6): after each blit of portraitTex
   // (the bust's source rect sx, sy, sw, sh as blitted: a face crop draws the glow inside it only)
   void portraitFinish(uint32_t memberId, float x, float y, float scale, float alpha = 1.0f, int sx = 0, int sy = 0, int sw = 24, int sh = 24);
-  double peopleMB() const;            // the people textures alive (standing sheets, poses, sleepers, v2 atlases), MB
+  double peopleMB() const { return sprites_.peopleMB(); }   // the people textures alive (SpriteCache::peopleMB), MB
   // (Witness state.screen) the layers and the window as presented
   const Pix::Layer& worldLayerForTests() const { return pix_->worldLayer(); }
   const Pix::Layer& uiLayerForTests() const { return pix_->uiLayer(); }
@@ -240,27 +230,10 @@ class View {
   float shake_ = 0, titleT_ = 0;
   Vec2 shakeOff_;
 
-  // ---- sprites
-  std::unordered_map<uint64_t, Tex> humans_;
-  std::vector<Tex> monsters_;
-  std::vector<Tex> props_;
-  std::unordered_map<uint64_t, Tex> bldgTex_;
-  std::vector<Tex> walls_;
-  Tex gate_;
-  std::unordered_map<uint64_t, Tex> icons_;
-  std::vector<Tex> fx_;
-  Tex shadow_, shadowBig_, light_, white_, water_, vignette_;
-  const Tex& humanTex(const art::HumanLook& L, bool child = false);   // (M5) child: the body shortened (childBody)
-  const Tex& iconTex(art::Icon i, uint32_t tint);
-  // M6 Steel: an item's icon in its maker culture's style and metal (rpg/sim/gear_look.h gearIcon -> art::itemIconLook);
-  // use it for every Item drawn (the pack, the shop, the paper doll, pickups). iconTex stays for fixed UI icons.
-  std::unordered_map<uint64_t, Tex> itemIcons_;
-  const Tex& itemTex(const Game& g, const Item& it);
-  // M6 Steel: a monster's sheet in its variant look (Actor::overlays / bodyTint: art::monsterSheetLook); the classic
-  // sheet (monsters_) when it has none
-  std::unordered_map<uint64_t, Tex> monsterLooks_;
-  const Tex& monsterTex(const Actor& a);
-  const Tex& bldgTex(const Bldg& b, int index);
+  // ---- sprites: every texture cache (people, poses, v2 atlases, buildings, walls, forts, heraldry, props, icons,
+  //      the lanes' sprites), its LRU trims and bake budgets live in the SpriteCache part (sprite_cache.h)
+  friend struct SpriteCache;
+  SpriteCache sprites_;
 
   // ---- terrain (terrain.cpp): the chunk cache and its bakers live in the TerrainBaker part (terrain_bake.h)
   friend struct TerrainBaker;
@@ -274,12 +247,6 @@ class View {
   struct Perf { double bakeMs = 0, worstBakeMs = 0, worstFrameMs = 0, frameMs = 0; int bakes = 0, inlineBakes = 0, frames = 0; float t = 0; };
   Perf perf_;
   void perfTick(float dt);
-  // M1 caches for huge cities: building sprites and character sheets are dropped least-recently-used once their
-  // count passes a cap (a 220-building city, then the next one); buildings are found through a per-32-tile-cell
-  // index of the current map (records are append-only for the session, so never every building per frame)
-  std::unordered_map<uint64_t, float> bldgUsed_, humanUsed_;
-  float lruT_ = 0;
-  void trimCaches();
   std::vector<std::vector<int>> bgrid_;
   int bgridW_ = 0, bgridH_ = 0, bgridKey_ = -999, bgridOX_ = 0, bgridOY_ = 0;
   size_t bgridN_ = 0;
@@ -365,79 +332,18 @@ class View {
   void drawDeco(const Map& m, Vec2 cam, int tx0, int ty0, int tx1, int ty1);
   // render_markers.cpp (town-defence lane): world-space markers over actors ("!" reward waiting, alarm...)
   void drawMarkers(Game& g, Vec2 cam);
-  // a texture cache for lane-painted sprites: key spaces are tagged by the top byte (0x01 deco, 0x02 markers,
-  // 0x03 creator/paperdoll, 0x04 architecture); paint(key) is called once per key
-  const Tex& cachedTex(uint64_t key, Canvas (*paint)(uint64_t key));
-  // M1 kingdom identity: banners (kind 0) and gatehouses (kind 1) in a kingdom's colours, cached per look
-  const Tex& kingdomTex(int kind, const Kingdom& k, uint32_t seed);
-  std::unordered_map<uint64_t, Tex> kingdomTex_;
   int arriveSite_ = -2;                      // the settlement the arrival banner last announced
-  std::unordered_map<uint64_t, Tex> laneTex_;
 
   // ---- architecture (render.cpp, M0 architecture lane): wall-tile keys for the current map (art::wallKeys), the
   //      wall-tile / gatehouse sprites, and the chimney mouths of each building sprite (for smoke)
   std::vector<uint32_t> wallKeys_;
   uint64_t wallKeysId_ = 0;
-  std::unordered_map<uint64_t, Tex> wallTiles_;   // (M3b: keyed by wallTexKey: the key and its fort look)
-  Tex gateTex_;
-  std::unordered_map<uint64_t, std::vector<Vec2>> bldgSmoke_;
-  std::unordered_map<uint64_t, int> bldgTopRow_;   // first opaque row of each building sprite (fade test)
-  std::unordered_map<uint64_t, Tex> bldgNight_;    // the same sprite with its windows lit (night, people awake)
-  // (fixer M5 r3) the panes as a half-size white mask, added into the light map at night: the glass alone is lit (a
-  // round pool per window lit the roofs in front of an upper facade, a palace portico at daylight brightness)
-  std::unordered_map<uint64_t, Tex> bldgGlow_;
-  std::unordered_map<uint64_t, std::vector<Vec2>> bldgWin_;   // window centres in sprite pixels (night light pools)
   bool windowsLit(const Game& g, const Bldg& b) const;       // night, and this household is awake
   float smokeT_ = 0;
   const Map* bldgMap_ = nullptr;   // the map whose buildings drawWorld is drawing (bldgTex reads its biome)
   double fadePaintMs_ = 0;         // (M1 round 3) building paint time spent this frame behind a fade (drawWorld)
   int bldgPrefetch_ = 0;           // round-robin cursor: buildings near the player are painted ahead, one per frame
   std::vector<uint32_t> wallTodo_; // wall-tile keys of the current map not painted yet (painted ahead, one per frame)
-  std::unordered_map<uint64_t, std::vector<uint32_t>> wallKeyCache_;   // per map id, so leaving a house is free
-  const Tex& wallTileTex(uint32_t key);
-  // ---- M3b forts (render.cpp, FORTIFICATIONS lane): each settlement's walls, towers and gate in its culture's parts
-  //      (bld::fortParts). A wall key carries a look slot (art::WALL_LOOK_*) into fortLooks_ (slot 0: the style's
-  //      defaults), rebuilt with the wall keys per window and cached with them.
-  std::vector<bld::FortParts> fortLooks_;
-  std::unordered_map<uint64_t, std::vector<bld::FortParts>> fortLookCache_;
-  uint64_t wallTexKey(uint32_t key) const;
-  // the parts of a settlement's fortifications (false: no culture known, the M3 look)
-  bool fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const;
-  const Tex& fortGateTex(const cult::Heraldry& arms, const bld::FortParts& f);
-  // the culture of the land at a tile (its settlement's, else its region's: World::cultureAtTile), for the wayside's
-  // built props (signposts, toll posts, graves, standing stones), cached per 8 x 8-tile block
-  const art::PropStyle* landStyleAt(const Game& g, int tx, int ty);
-  std::unordered_map<uint64_t, art::PropStyle> landStyle_;
-  uint64_t landStyleWorld_ = 0;
-  uint64_t bldgKey(const Map& m, const Bldg& b, int index) const;
-  // M2: a building sprite painted off the main thread (an arrival's buildings, desktop), then stored as textures
-  struct BldgPaint { uint64_t key = 0; Canvas c, night, glow; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };
-  static BldgPaint paintBldg(const Bldg& b, uint64_t key);
-  // the facts the view reads off a painted sprite (smoke, top row, the lit-window variant and its window centres)
-  static BldgPaint paintBldgPost(Canvas c, art::BuildingInfo& info, uint64_t key, uint32_t seed);
-  const Tex& storeBldg(BldgPaint& p);
-  std::vector<std::future<BldgPaint>> bldgAsync_;
-  std::vector<uint64_t> bldgAsyncKeys_;
-  // M3 (owner carry-over 1: the unsplittable ~41 ms palace paint): building sprites painted on the main thread go
-  // through art::BuildingJob in steps within a budget (the walk-in prefetch, paints behind a fade, the web's arrival),
-  // so a palace is spread over frames. bldgPaintStep: true once the sprite is stored.
-  struct BldgJob { uint64_t key = 0; std::shared_ptr<art::BuildingJob> job; uint32_t seed = 0; float used = 0; };
-  std::vector<BldgJob> bldgJobs_;
-  bool bldgPaintStep(const Bldg& b, int index, double budgetMs);
-  Tex blankTex_;                   // drawn for a building still being painted behind the web arrival's fade
-  double worstPaintStepMs_ = 0;    // EMB_TIMING: the longest single paint step on the main thread
-  // M3 culture-styled props: the PropStyle of the settlement a tile lies in (cached per site), and the styled
-  // textures keyed on (prop, style key, variant)
-  const art::PropStyle* propStyleAt(const Game& g, int tx, int ty);
-  // (M3 fixer) keyed by the settlement's stable id (Site::id), not its index: loading a save in the same session
-  // rebuilds World::sites in another order, and an index-keyed cache drew one town's props in another's style
-  std::unordered_map<uint64_t, art::PropStyle> siteProps_;   // Site::id -> its culture's props (classic: culture 0)
-  std::unordered_map<uint64_t, uint64_t> propSiteBlock_;     // 8 x 8-tile block (global) -> Site::id there (0: none)
-  uint64_t sitePropsWorld_ = 0;
-  std::unordered_map<uint64_t, Tex> styledProps_;
-  const Tex& styledPropTex(art::Prop p, const art::PropStyle& st);
-  // M3 heraldry: banners and gatehouses in a kingdom's arms (cult::Heraldry), cached per arms
-  const Tex& heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle);
 
   void drawWorld(Game& g);
   void layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOver);   // (SOLID 3.4a) once per map
@@ -538,7 +444,6 @@ class View {
     uint8_t ui = 0;
   };
   std::vector<HomeDraw> homeDraws_;
-  std::unordered_map<uint64_t, Tex> homeTex_;   // the lane's sprite cache (crops, objects, horses...), keyed as it likes
   void homeCollect(Game& g, const Map& m, Vec2 cam);
   void drawHomeDraw(const HomeDraw& d, Vec2 cam);
   bool drawMounted(Game& g, const Actor& a, Vec2 cam);
@@ -546,10 +451,6 @@ class View {
   void drawBuild(Game& g);
   void buildKey(Game& g, int key);
   void buildTap(Game& g, Vec2 p);
-  // ---- M6 Steel: ranked foes in the world (render.cpp, BEASTS lane): the aura sprite cache (art::auraSprite by colour
-  //      and width) and the name plates / boss bars it draws
-  std::unordered_map<uint64_t, Tex> auraTex_;
-  const Tex& auraTex(uint32_t color, int w);
   void shopDeal(Game& g);   // buy or sell the selected row (a worn item asks twice)
   void drawLevelUp(Game& g);
   void drawTitle(Game& g, bool hasSave);
@@ -647,8 +548,6 @@ class View {
   uint16_t arriveFlags_ = 0;
   std::string bannerState_;                   // a third line under the arrival banner ("OCCUPIED BY QIBA")
   uint32_t bannerStateCol_ = 0;
-  std::unordered_map<uint64_t, Tex> armsTex_;
-  const Tex& armsTex(const cult::Heraldry& h, int size);
   void heraldEvent(Game& g, const Event& e);
   void newsEvent(Game& g, const Event& e);
   void drawHerald(Game& g);
@@ -661,10 +560,6 @@ class View {
   bool journalStripTap(Vec2 p, float lx, float lw, float top);
   void drawJournalSection(Game& g, float top);
   bool journalSectionTap(Game& g, Vec2 p, float top);
-  // the realm in the world (realm_render.cpp): a war prop's sprite in its camp's colours (nullptr: the plain one), the
-  // fire and smoke over burned buildings, the camp fires' light pools at night
-  const Tex* warPropTex(Game& g, art::Prop p, int tx, int ty);
-  std::unordered_map<uint64_t, Tex> warPropTex_;
   void burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt);
   float burnT_ = 0;
   struct LightPool { Vec2 p; float r; Color c; float k; };
@@ -693,18 +588,6 @@ class View {
  private:
   M5Stats m5Stats_, m5Count_;
   int forceFest_ = -1, forceShut_ = -1;
-  // pose sheets (art::humanPostureSheet) by (look key x posture), baked on demand within a per-frame budget (a pose not
-  // baked yet is drawn from the standing sheet meanwhile); least-recently-used trimming with the character sheets
-  std::unordered_map<uint64_t, Tex> poseTex_;
-  std::unordered_map<uint64_t, float> poseUsed_;
-  float poseFrameT_ = -1;
-  double poseFrameMs_ = 0;
-  // variant: the bard's instrument in his people's style (art::humanPostureSheet(look, p, variant); 0 the default)
-  const Tex* poseTex(const art::HumanLook& L, art::Posture p, uint8_t variant = 0, bool child = false);   // nullptr: not baked yet
-  // a sleeper fitted to a berth (art::sleeperSprite), cached with the pose sheets and baked within the same budget
-  const Tex* sleeperTex(const art::HumanLook& L, art::Berth b, int kit, int frame);
-  bool poseBudget();         // true: another pose may be baked this frame (and starts its timing)
-  void poseSpent(std::chrono::steady_clock::time_point t0);
   // ---- P2a (rpg/view/render_anim.cpp: the human frame pick, body draw, swing effect and the dead's offset, moved out of
   //      render.cpp pixel-identical at rig 1; the ANIM lane owns render_anim.cpp)
   // a human's body this frame (the standing sheet, a posture, a sleeper in its berth, a bather; the Mythic aura, the hit
@@ -719,30 +602,15 @@ class View {
                          float x2, float y2, float pivX, float pivY, float alpha, bool strike = false);
   void queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                            float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu);
-  bool rigBakeNow_ = false;
   size_t finishAuraEnd_ = 0;   // (P2c SWITCH) where the last queued figure's aura lights end in the finish queue
   float nudgeT_ = -1, nudgeLen_ = 0.18f;   // (P2c SWITCH) the camera nudge on a heavy finisher's impact: its clock (-1 off)
   Vec2 nudgeDir_;
   bool nudgeWas_ = false;
-  std::unordered_set<uint64_t> rigEvicted_;   // (P2c SWITCH) atlases the cap evicted (a later bake of one counts as a rebake)   // (P2c SWITCH) a menu figure's atlas bakes in the frame it is asked for (no v1 frame first)
-  // (P2c SWITCH) the box of a look's menu clips round the pivot (px: left, up, right, down), by look key x gait set
-  struct MenuBox { int l = 0, u = 0, r = 0, d = 0; };
-  std::unordered_map<uint64_t, MenuBox> menuBoxes_;
   float menuSwingT0_ = -1;    // the creator preview's swing: when the current blow began
-  // (P2c SWITCH) a doll portrait's glow pixels (bust px) by look key, for portraitFinish
-  std::unordered_map<uint64_t, std::vector<art::finish::GlowPx>> portraitGlow_;
-  std::unordered_map<uint32_t, std::pair<uint64_t, int>> portraitLook_;   // member id -> (bust key, the look's top tier)
   // (polish i1) the living finish's world-space motes / embers, one set per actor id (dropped 2 s after its last draw)
   std::unordered_map<int, art::finish::Particles> finishParts_;
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
   friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
-  // v2 atlases by (look key x part x child): the canvas is baked and dropped, its frames kept (LENS: MB caps, bake queue)
-  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; Tex glowTex; std::vector<art::finish::Mask> masks; };   // (ladder) glowTex: the glow plane
-  std::unordered_map<uint64_t, RigEntry> rigTex_;
-  // (Witness) each v1 standing sheet's opaque box per cell (state.player.sprite.box), by humans_ key; filled only for a
-  // harness run
-  struct CellBox { int8_t x0 = 0, y0 = 0, x1 = -1, y1 = -1; };
-  std::unordered_map<uint64_t, std::vector<CellBox>> humanBoxes_;
   // ---- (P2a LENS, added; render.cpp / hud.cpp) the ring's flare (s left) and what triggers it; the people drawn in the
   // sorted pass this frame (the night lift re-adds them after the light map); the camera's zoom hand-over (the last
   // world view and scale, so a zoom change keeps the hero where they stand); the pinch; the v2 bake queue (looks of folk
@@ -753,27 +621,11 @@ class View {
   float ringX_ = 0, ringY_ = 0, ringA_ = 0;
   const Tex* ringTex_ = nullptr;
   std::vector<Pix::BlitRec> liftRecs_;
-  // the night lift's interior masks: per people texture (by its SDL texture), white where the figure is opaque inside its
-  // ink outline (the outline stays dark: the edge contrast holds while the body's median rises)
-  // (kept as bytes when the sheet is painted; baked into a texture the first night it is needed)
-  struct LiftMask { int w = 0, h = 0; std::vector<uint8_t> m; Tex tex; };
-  std::unordered_map<SDL_Texture*, LiftMask> liftMask_;
-  void liftMaskFor(const Canvas& sheet, const Tex& t);
-  void dropLiftMask(const Tex& t);
   int lensViewW_ = 0, lensViewH_ = 0, lensD_ = 0;
   struct Pinch { bool on = false; uint64_t a = 0, b = 0; Vec2 pa, pb; float d0 = 0; int done = 0; } pinch_;
   float wheelAcc_ = 0, wheelT_ = -1;
-  struct RigJob { art::HumanLook look; art::RigPart part = art::RigPart::Loco; bool child = false; float d2 = 0; };
-  std::vector<RigJob> rigQueue_;
-  float rigQueueT_ = 0;   // when rigBakeQueue last rebuilt the queue (a member: a Witness reset's new View starts it over)
-  float rigBakeFrameT_ = -1;
-  double rigBakeFrameMs_ = 0;
-  bool rigBakeBudget();
-  RigTex rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant);
   struct RideGhost;
   bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost, int horseFrame = 0, int riderId = -1);
-  void rigBakeQueue(const Game& g);
-  void trimRigCaches();
   void drawRing(const Game& g, const Actor& a, Vec2 cam);
   void drawNightLift(const Game& g, float dark);
   void drawPips(const Game& g);
@@ -786,11 +638,6 @@ class View {
   // UI-layer insets (left, top, right, bottom in UI px from the UI canvas's edges: the HUD's bands) as world-layer insets
   // (world px from the world view's edges)
   void uiInsetsToWorld(float l, float t, float r, float b, float out[4]) const;
-  std::unordered_map<uint64_t, Tex> critterTex_;
-  const Tex& critterTex(int kind, uint32_t variant);
-  std::unordered_map<uint64_t, Tex> lampDark_;   // a lamppost by day / before the lamplighter comes (its glass dark)
-  const Tex& lampDarkTex(const art::PropStyle* ps);
-  std::unordered_map<uint64_t, Tex> festTex_;    // bunting by (width, colours), lanterns by colour
   ew::Gid siteIdAt(const Game& g, int tx, int ty);   // the settlement a tile lies in (cached per 8 x 8-tile block; 0 none)
   uint16_t lifeFlagsAt(const Game& g, int tx, int ty);   // its mood flags (life::MF_*; forced by scriptLifeLook)
   bool festivalHere(const Game& g, ew::Gid site);
@@ -912,7 +759,6 @@ class View {
   std::string partyDeny_;                      // the last refused order's reason by its card (scripts read it)
   float partyDenyT_ = 0;
   uint32_t partyDenyId_ = 0;
-  std::unordered_map<uint64_t, Tex> partyTex_; // portraits, the hound's sheets, graves, the radial's wedges and icons
   float howlT_ = 30;
   int partyPage_ = 0, partySlot_ = 0, partyPack_ = 0, partyScroll_ = 0, partyFocus_ = 0;   // the PARTY page's state
   int partyDollTurn_ = 0;                      // (fixer M8 r2) the companion doll's facing: 0 front, 1 right, 2 back, 3 left (< TURN >)
@@ -930,8 +776,6 @@ class View {
   void radialChoose(Game& g, int cmd);
   std::string radialWhy(const Game& g, int member, int cmd) const;   // why an order cannot be given now ("" it can)
   int bestSkill(const Game& g, int member, float& cd, bool& locked) const;   // the Skill wedge's skill (index 0..2, -1 none)
-  const Tex& portraitTex(const Game& g, const party::Member& m, int mood);
-  const Tex& houndTex(const party::Member& m, const Game& g);
   art::HoundLook houndLookOf(const party::Member& m, const Game& g) const;
   void drawPortraitCard(Game& g, int mi, float x, float y, bool small);
   // the world (party_view.cpp)
@@ -976,17 +820,13 @@ class View {
   CardInfo lastCard_;
   float lootChimeT_ = -100;                        // t_ of the last chime (a pickup right after its sighting stays quiet)
   float emberT_ = 0;
-  Tex beamTex_;                                    // a soft vertical gradient (white; tinted additively per rarity)
-  const Tex& beamTex();                            // (baked on first use: loot_paint.h beamProfile)
   // (M8b fixer r3) a Mythic wearer's flame aura sheet (loot_ui.cpp mythicAuraTex), by look; render.cpp draws a cell of it
   // behind the standing body and again additively after the lighting
  public:
   static constexpr int AURA_PAD = 4, AURA_CW = art::HUMAN_W + 2 * AURA_PAD, AURA_CH = art::HUMAN_H + 2 * AURA_PAD, AURA_V = 4;
-  const Tex* mythicAuraTex(const art::HumanLook& L);
   // the aura cell for a Mythic look (nothing for any other) at the figure's top-left (x, y), sc screen px per sprite px
   void mythicAuraAt(const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc);
  private:
-  std::unordered_map<uint64_t, Tex> mythicAura_;
   struct LootPainter;                              // the Pix painter loot_paint.h's templates draw with (loot_ui.cpp)
   void rarityText(float x, float y, const std::string& s, Rarity r, float alpha = 1, int align = 0, bool shadow = false);
   void rarityFrame(float x, float y, float w, float h, Rarity r, bool hot = false, bool small = false);

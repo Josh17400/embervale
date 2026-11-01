@@ -33,25 +33,25 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
 
 struct P2bScriptOps {
   static Pix* pix(View& v) { return v.pix_; }
-  static std::unordered_map<uint64_t, View::RigEntry>& cache(View& v) { return v.rigTex_; }
+  static std::unordered_map<uint64_t, SpriteCache::RigEntry>& cache(View& v) { return v.sprites_.rigTex_; }
   static float now(const View& v) { return v.t_; }
 };
 
 // the `dollpart` frame: composed by the doll for the hero's recipe, baked once per (look, part, view, key, pool)
-View::RigTex View::dollPartTex(const art::HumanLook& L) {
+View::RigTex SpriteCache::dollPartTex(View& v, const art::HumanLook& L) {
   RigTex r;
-  if (p2b.dollPart.empty() || !pix_) return r;
-  uint64_t k = 0xD0119A47ull ^ L.key() * 0x9E3779B97F4A7C15ull ^ (uint64_t)p2b.dollFacing << 3 ^ (uint64_t)art::doll::poolGeneration() << 40;
-  for (char ch : p2b.dollPart + "|" + p2b.dollKey) k = (k ^ (uint8_t)ch) * 1099511628211ull;
+  if (v.p2b.dollPart.empty() || !v.pix_) return r;
+  uint64_t k = 0xD0119A47ull ^ L.key() * 0x9E3779B97F4A7C15ull ^ (uint64_t)v.p2b.dollFacing << 3 ^ (uint64_t)art::doll::poolGeneration() << 40;
+  for (char ch : v.p2b.dollPart + "|" + v.p2b.dollKey) k = (k ^ (uint8_t)ch) * 1099511628211ull;
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
-    RigEntry e;
-    e.sheet = art::doll::composePart(art::doll::resolve(L), p2b.dollPart, p2b.dollFacing, p2b.dollKey);
-    if (!e.sheet.empty() && e.sheet.atlas.w > 0) e.tex = pix_->bake(e.sheet.atlas);
+    SpriteCache::RigEntry e;
+    e.sheet = art::doll::composePart(art::doll::resolve(L), v.p2b.dollPart, v.p2b.dollFacing, v.p2b.dollKey);
+    if (!e.sheet.empty() && e.sheet.atlas.w > 0) e.tex = v.pix_->bake(e.sheet.atlas);
     e.sheet.atlas = Canvas();
     it = rigTex_.emplace(k, std::move(e)).first;
   }
-  it->second.used = t_;
+  it->second.used = v.t_;
   r.tex = &it->second.tex;
   r.sheet = &it->second.sheet;
   return r;

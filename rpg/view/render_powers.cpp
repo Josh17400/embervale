@@ -162,7 +162,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
       art::MonsterLook L;
       L.base = a.mon; L.overlays = a.overlays; L.tint = a.bodyTint; L.scale = a.scalePct;
       const int cw = art::lookCellW(L), chh = art::lookCellH(L);
-      const Tex& t = monsterTex(a);
+      const Tex& t = sprites_.monsterTex(*this, a);
       const int fr = monsterFrame(a);
       const bool flip = a.aim.x < 0;
       const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);
@@ -342,7 +342,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     const int cw = art::lookCellW(L), chh = art::lookCellH(L);
     const Vec2 s = S(a.p);
     if (!onScreen(s, 40)) continue;
-    const Tex& t = monsterTex(a);
+    const Tex& t = sprites_.monsterTex(*this, a);
     const int fr = monsterFrame(a);
     const bool flip = a.aim.x < 0;
     const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);

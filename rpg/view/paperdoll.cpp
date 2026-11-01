@@ -277,7 +277,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   // ---- the doll: a lit stage, the hero at 4x turning slowly, his numbers below
   P.rect(kDollCX - 56, kTopY, 112, kStageH, Color(0.03f, 0.025f, 0.04f, 0.55f));
   P.frame(kDollCX - 56, kTopY, 112, kStageH, Color(0.3f, 0.24f, 0.15f));
-  heroStage(P, light_, kDollCX, kDollFootY, 0.8f);
+  heroStage(P, sprites_.light_, kDollCX, kDollFootY, 0.8f);
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.hold > 0 ? S.face : order[(int)(t_ / 1.8f) & 3];
   int frame = 1 + ((int)(t_ * 5.0f) & 3);
@@ -318,7 +318,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   P.text(kDollCX, kDollFootY + 53, "DAMAGE " + std::to_string((int)g.weaponDamage()), 1, kTextC, 1);
   P.text(kDollCX, kDollFootY + 64, g.app.name, 1, kGoldC, 1);
   if (!g.app.heraldry.empty()) {   // M3: the hero's arms beside the name, and the people they are
-    const Tex& arms = cachedTex(creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
+    const Tex& arms = sprites_.cachedTex(*this, creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
     P.blitEx(arms, 0, 0, arms.w, arms.h, kDollCX + 34, kDollFootY + 36, 16, 16 * (float)arms.h / std::max(1, arms.w));
   }
   if (g.app.people) P.text(kDollCX, kDollFootY + 75, g.app.people == 2 ? "ELF" : "HALF-BREED", 1, kDimC, 1);
@@ -340,13 +340,13 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
     if (sel) selCursor(P, t_, sx, sy, kBox, kBox);
     if (eq >= 0) {
       const Item& it = g.inv[eq];
-      P.blitEx(itemTex(g, it), 0, 0, 16, 16, sx + 2, sy + 2, 24, 24);
+      P.blitEx(sprites_.itemTex(*this, g, it), 0, 0, 16, 16, sx + 2, sy + 2, 24, 24);
       if (kSlots[i].kind == ItemKind::Shield && !g.app.heraldry.empty()) {   // M3: the shield bears the hero's arms
-        const Tex& arms = cachedTex(creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
+        const Tex& arms = sprites_.cachedTex(*this, creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
         P.blitEx(arms, 0, 0, arms.w, arms.h, sx + kBox - 13, sy + kBox - 15, 11, 11 * (float)arms.h / std::max(1, arms.w));
       }
     } else {
-      P.blitEx(iconTex(kSlots[i].ghost, 0), 0, 0, 16, 16, sx + 6, sy + 6, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
+      P.blitEx(sprites_.iconTex(*this, kSlots[i].ghost, 0), 0, 0, 16, 16, sx + 6, sy + 6, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }
   }
 
@@ -358,7 +358,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
     const Item& it = g.inv[eq];
     P.rect(kDX - 1, kTopY + 13, 34, 34, Color(0.04f, 0.03f, 0.05f, 0.6f));
     rarityFrame(kDX - 1, kTopY + 13, 34, 34, it.rarity);
-    P.blitEx(itemTex(g, it), 0, 0, 16, 16, kDX, kTopY + 14, 32, 32);
+    P.blitEx(sprites_.itemTex(*this, g, it), 0, 0, 16, 16, kDX, kTopY + 14, 32, 32);
     {   // (M8b) the name in its ladder colour (a Mythic's in the flame), wrapped to two lines, the rarity after it
       const auto nl = wrapD(it.name, std::max(8, (int)((kDW - 40) / 6)));
       for (size_t q = 0; q < nl.size() && q < 2; q++) rarityText(kDX + 38, kTopY + 15 + (float)q * 9, nl[q], it.rarity);
@@ -691,7 +691,7 @@ void View::drawPartyPage(Game& g) {
     const bool sel = partyPage_ == 0 && i == partySel_;
     P.rect(x, y, L.chipS, L.chipS, sel ? Color(0.30f, 0.22f, 0.12f, 0.95f) : Color(0.10f, 0.085f, 0.08f, 0.95f));
     const bool dim = m.state == party::State::Waiting || m.state == party::State::Home || m.state == party::State::Left;
-    const Tex& pt = portraitTex(g, m, m.state == party::State::Downed ? 2 : 0);
+    const Tex& pt = sprites_.portraitTex(*this, g, m, m.state == party::State::Downed ? 2 : 0);
     P.blitEx(pt, 0, 0, art::PORTRAIT_W, art::PORTRAIT_H, x + 1, y + 1, (float)art::PORTRAIT_W, (float)art::PORTRAIT_H, false,
              dim ? Color(0.6f, 0.6f, 0.66f, 0.85f) : Color(1, 1, 1, 1));
     portraitFinish(m.id, x + 1, y + 1, 1, dim ? 0.5f : 1.0f);
@@ -792,12 +792,12 @@ void View::drawPartyPage(Game& g) {
   const bool hound = m.voc == party::Vocation::Hound;
   P.rect(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.03f, 0.025f, 0.04f, 0.55f));
   P.frame(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.3f, 0.24f, 0.15f));
-  heroStage(P, light_, L.figCX, L.figFootY, 0.62f);
+  heroStage(P, sprites_.light_, L.figCX, L.figFootY, 0.62f);
   // (fixer M8 r2, review: "a crude upscaled walk frame, side-on mid-stride, changing between the tabs") the doll stands
   // still, facing the player, in the idle pose (every layer of their gear readable), and turns only on < TURN >
   const int turn = partyDollTurn_ & 3;
   if (hound) {
-    const Tex& ht = houndTex(m, g);
+    const Tex& ht = sprites_.houndTex(*this, m, g);
     static const int rowOf[4] = {2, 0, 2, 1};   // (r3) in profile first: an animal reads as itself side-on, then front, other side, back
     const int fr = art::HF_IDLE + ((int)(t_ * 2) & 1);
     // (fixer M8 r3, review: "a tiny sprite low in an empty panel, under a glow not centred on it") the animal scaled
@@ -873,12 +873,12 @@ void View::drawPartyPage(Game& g) {
     if (sel) selCursor(P, t_, sx, sy, L.box, L.box);
     if (kPSlots[i].slot == kSupplies) {
       const int sup = suppliesOf(m);
-      P.blitEx(iconTex(art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
+      P.blitEx(sprites_.iconTex(*this, art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
       if (sup) P.textS(sx + L.box - 2, sy + L.box - 9, std::to_string(sup), 1, kTextC, 2);
     } else if (it) {
-      P.blitEx(itemTex(g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
+      P.blitEx(sprites_.itemTex(*this, g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
     } else {
-      P.blitEx(iconTex(kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
+      P.blitEx(sprites_.iconTex(*this, kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }
   }
   // ---- the detail column: STORY or GEAR

@@ -195,7 +195,7 @@ void View::drawForge(Game& g) {
   // (M8b) the result in its rarity cell (a forge piece starts Common: the quiet frame), compared with what that slot wears
   P.rect(L.dx - 1, L.listY - 1, 34, 34, Color(0.04f, 0.03f, 0.05f, 0.6f));
   if (itemEquippable(pv.kind)) rarityFrame(L.dx - 1, L.listY - 1, 34, 34, pv.rarity);
-  P.blitEx(itemTex(g, pv), 0, 0, 16, 16, L.dx, L.listY, 32, 32);
+  P.blitEx(sprites_.itemTex(*this, g, pv), 0, 0, 16, 16, L.dx, L.listY, 32, 32);
   float y = L.listY + 2;
   const std::string title = craft::recipeName(R, rc);
   rarityText(L.dx + 38, y, fit(title, L.dw - 40), pv.rarity);
@@ -230,7 +230,7 @@ void View::drawForge(Game& g) {
     const int have = heldOf(g, nd);
     const bool enough = have >= nd.count;
     const Item ic = craft::makeStuff(nd.stuff, 1);
-    P.blitEx(itemTex(g, ic), 0, 0, 16, 16, L.dx, y - 2, 12, 12);
+    P.blitEx(sprites_.itemTex(*this, g, ic), 0, 0, 16, 16, L.dx, y - 2, 12, 12);
     const std::string cnt = std::to_string(have) + "/" + std::to_string((int)nd.count);
     P.text(L.dx + 15, y, fit(needName(g, nd), L.dw - 20 - P.textW(cnt, 1) - 6), 1, kText);
     P.text(L.dx + L.dw - 2, y, cnt, 1, enough ? kOk : kBad, 2);

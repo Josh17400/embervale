@@ -139,7 +139,7 @@ void SkillsUiOps::drawBadge(View& v, float x, float y, int n) {
   const std::string s = n > 9 ? "9" : std::to_string(n);
   x = std::floor(x); y = std::floor(y);
   const float pulse = 0.5f + 0.5f * std::sin(v.t_ * 4.0f);
-  P.blitEx(v.light_, 0, 0, 64, 64, x - 8, y - 8, 20, 20, false, Color(1.0f, 0.75f, 0.3f, 0.35f + 0.25f * pulse), 1);
+  P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 8, y - 8, 20, 20, false, Color(1.0f, 0.75f, 0.3f, 0.35f + 0.25f * pulse), 1);
   P.rect(x - 1, y, 9, 7, Color(0.10f, 0.06f, 0.02f));   // a round-cornered gold disc 9 x 9 with the count
   P.rect(x, y - 1, 7, 9, Color(0.10f, 0.06f, 0.02f));
   P.rect(x, y, 7, 7, Color(0.95f, 0.72f, 0.28f));
@@ -154,11 +154,11 @@ void SkillsUiOps::toastDecor(View& v, const Toast& t, float x, float y, float w,
   gem(P, x - 8, y + 1, Color(t.c.r, t.c.g, t.c.b, a));
   if (bright && t.t < 1.1f) {   // the level / mastery glow: a soft bloom behind the star and a light sweeping the plate
     const float u = t.t / 1.1f, k = (1 - u) * a;
-    P.blitEx(v.light_, 0, 0, 64, 64, x - 18, y - 8, 22, 22, false, Color(t.c.r, t.c.g, t.c.b, 0.8f * k), 1);
+    P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 18, y - 8, 22, 22, false, Color(t.c.r, t.c.g, t.c.b, 0.8f * k), 1);
     const float sx = std::floor(x - 6 + (w + 16) * u);
     P.rectAdd(sx, y - 2, 3, 10, Color(t.c.r * 0.5f * k, t.c.g * 0.5f * k, t.c.b * 0.5f * k, 1));
     P.rectAdd(sx - 3, y - 2, 3, 10, Color(t.c.r * 0.22f * k, t.c.g * 0.22f * k, t.c.b * 0.22f * k, 1));
-    if (kind == 6) P.blitEx(v.light_, 0, 0, 64, 64, x - 30, y - 16, w + 50, 38, false, Color(1.0f, 0.8f, 0.4f, 0.35f * k), 1);
+    if (kind == 6) P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 30, y - 16, w + 50, 38, false, Color(1.0f, 0.8f, 0.4f, 0.35f * k), 1);
   }
 }
 
@@ -293,7 +293,7 @@ void View::drawSkillsPage(Game& g) {
       S.starsReady++;
       const float k = 0.5f + 0.5f * std::sin(t_ * 4.0f + i);
       const float r = 9 + 4 * k;
-      P.blitEx(light_, 0, 0, 64, 64, x + 0.5f - r, y + 0.5f - r, r * 2, r * 2, false, Color(sc.r, sc.g, sc.b, 0.30f + 0.35f * k), 1);
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, x + 0.5f - r, y + 0.5f - r, r * 2, r * 2, false, Color(sc.r, sc.g, sc.b, 0.30f + 0.35f * k), 1);
     }
     if (state[(size_t)i] == skp::PS_LOCKED && g.skills.level(sk) < PD[i].need) {
       // the level it needs under it, when nothing else stands there
@@ -311,7 +311,7 @@ void View::drawSkillsPage(Game& g) {
       const float a = 2 * skp::kPi * k / 48;
       P.rect(std::floor(x + std::cos(a) * r), std::floor(y + std::sin(a) * r), 1, 1, Color(lift(sc, 0.5f).r, lift(sc, 0.5f).g, lift(sc, 0.5f).b, 1 - u));
     }
-    P.blitEx(light_, 0, 0, 64, 64, x - 24, y - 24, 48, 48, false, Color(sc.r, sc.g, sc.b, 0.9f * (1 - u)), 1);
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 24, y - 24, 48, 48, false, Color(sc.r, sc.g, sc.b, 0.9f * (1 - u)), 1);
   }
   if (S.perkSel >= 0 && S.perkSel < n) {
     const float x = std::floor(L.sx + pv[(size_t)S.perkSel].x), y = std::floor(L.sy + pv[(size_t)S.perkSel].y);
@@ -454,7 +454,7 @@ void View::drawSkillsPage(Game& g) {
       const bool ready = ps == skp::PS_READY;
       if (ready) {
         const float k = 0.5f + 0.5f * std::sin(t_ * 4.0f);
-        P.blitEx(light_, 0, 0, 64, 64, L.tbx - 10, L.tby - 10, L.tbw + 20, L.tbh + 20, false, Color(1.0f, 0.75f, 0.3f, 0.10f + 0.12f * k), 1);
+        P.blitEx(sprites_.light_, 0, 0, 64, 64, L.tbx - 10, L.tby - 10, L.tbw + 20, L.tbh + 20, false, Color(1.0f, 0.75f, 0.3f, 0.10f + 0.12f * k), 1);
         button(L.tbx, L.tby, L.tbw, L.tbh, "TAKE", true);
       } else {
         P.rect(L.tbx, L.tby, L.tbw, L.tbh, Color(0.12f, 0.10f, 0.09f, 0.9f));

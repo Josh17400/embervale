@@ -312,11 +312,11 @@ void rvPushGlow(const Tex* t, int sx, int sw, int sh, float x, float y, bool fli
 bool View::init(Pix& pix, Audio& audio) {
   pix_ = &pix;
   audio_ = &audio;
-  for (int i = 0; i < (int)Prop::COUNT; i++) props_.push_back(pix.bake(art::propSprite((Prop)i)));
-  for (int i = 0; i < (int)Monster::COUNT; i++) monsters_.push_back(pix.bake(art::monsterSheet((Monster)i)));
-  for (int i = 0; i < (int)art::Fx::COUNT; i++) fx_.push_back(pix.bake(art::fxSprite((art::Fx)i)));
-  gateTex_ = pix.bake(art::gateHouse(7));
-  gate_ = gateTex_;
+  for (int i = 0; i < (int)Prop::COUNT; i++) sprites_.props_.push_back(pix.bake(art::propSprite((Prop)i)));
+  for (int i = 0; i < (int)Monster::COUNT; i++) sprites_.monsters_.push_back(pix.bake(art::monsterSheet((Monster)i)));
+  for (int i = 0; i < (int)art::Fx::COUNT; i++) sprites_.fx_.push_back(pix.bake(art::fxSprite((art::Fx)i)));
+  sprites_.gateTex_ = pix.bake(art::gateHouse(7));
+  sprites_.gate_ = sprites_.gateTex_;
   {
     Canvas c(14, 6);
     for (int y = 0; y < 6; y++)
@@ -325,7 +325,7 @@ bool View::init(Pix& pix, Audio& audio) {
         float d = dx * dx + dy * dy;
         if (d < 1) c.set(x, y, rgba(20, 16, 30, (int)(110 * (1 - d * 0.5f))));
       }
-    shadow_ = pix.bake(c);
+    sprites_.shadow_ = pix.bake(c);
     Canvas b(40, 12);
     for (int y = 0; y < 12; y++)
       for (int x = 0; x < 40; x++) {
@@ -333,7 +333,7 @@ bool View::init(Pix& pix, Audio& audio) {
         float d = dx * dx + dy * dy;
         if (d < 1) b.set(x, y, rgba(20, 16, 30, (int)(100 * (1 - d * 0.6f))));
       }
-    shadowBig_ = pix.bake(b);
+    sprites_.shadowBig_ = pix.bake(b);
   }
   {
     Canvas l(64, 64);
@@ -343,7 +343,7 @@ bool View::init(Pix& pix, Audio& audio) {
         float a = d < 1 ? (1 - d) * (1 - d) : 0;
         l.set(x, y, rgba(255, 255, 255, (int)(255 * a)));
       }
-    light_ = pix.bake(l);
+    sprites_.light_ = pix.bake(l);
     Canvas w(64, 64);
     for (int y = 0; y < 64; y++)
       for (int x = 0; x < 64; x++) {
@@ -351,7 +351,7 @@ bool View::init(Pix& pix, Audio& audio) {
         // tileable-ish: fade at edges handled by the scroll; sparse highlight streaks
         if (n > 0.70f && (y % 3) == 0) w.set(x, y, rgba(170, 215, 245, (int)((n - 0.7f) * 600)));
       }
-    water_ = pix.bake(w);
+    sprites_.water_ = pix.bake(w);
     Canvas v(120, 68);
     for (int y = 0; y < 68; y++)
       for (int x = 0; x < 120; x++) {
@@ -360,9 +360,9 @@ bool View::init(Pix& pix, Audio& audio) {
         float a = smooth01(clampf((d - 0.65f) / 0.5f, 0, 1));
         v.set(x, y, rgba(8, 6, 16, (int)(150 * a)));
       }
-    vignette_ = pix.bake(v);
+    sprites_.vignette_ = pix.bake(v);
     Canvas wt(1, 1); wt.set(0, 0, rgba(255, 255, 255));
-    white_ = pix.bake(wt);
+    sprites_.white_ = pix.bake(wt);
   }
   lightMap_ = pix.makeTarget((Pix::W + 1) / 2, (Pix::H + 1) / 2);
   miniPx_.assign(64 * 64, 0);
@@ -392,16 +392,16 @@ static void childBody(Canvas& c, bool legs) {
     }
 }
 
-const Tex& View::humanTex(const art::HumanLook& L, bool child) {
+const Tex& SpriteCache::humanTex(View& v, const art::HumanLook& L, bool child) {
   uint64_t k = L.key() ^ (child ? 0xC41D0000C41Dull : 0);
-  humanUsed_[k] = t_;
+  humanUsed_[k] = v.t_;
   auto it = humans_.find(k);
   if (it != humans_.end()) return it->second;
   const auto t0 = std::chrono::steady_clock::now();
   Canvas sheet = art::humanSheet(L);
   if (child) childBody(sheet, true);
-  const Tex& t = humans_[k] = pix_->bake(sheet);
-  liftMaskFor(sheet, t);   // (P2a LENS) the night lift's interior mask
+  const Tex& t = humans_[k] = v.pix_->bake(sheet);
+  liftMaskFor(v, sheet, t);   // (P2a LENS) the night lift's interior mask
   if (std::getenv("EMB_TIMING")) {
     static double total = 0;
     static int n = 0;
@@ -409,12 +409,12 @@ const Tex& View::humanTex(const art::HumanLook& L, bool child) {
     total += one;
     std::printf("character sheet painted: %d so far, %.1f ms total, %.3f ms this one\n", ++n, total, one);   // (P2a: per sheet, the p50 / p95 baseline)
   }
-  if (witness && !child) {   // (P2a, Witness state.player.sprite.box) each cell's opaque box
-    std::vector<CellBox>& bx = humanBoxes_[L.key()];
-    bx.assign((size_t)art::HUMAN_FRAMES * 3, CellBox());
+  if (v.witness && !child) {   // (P2a, Witness state.player.sprite.box) each cell's opaque box
+    std::vector<SpriteCache::CellBox>& bx = humanBoxes_[L.key()];
+    bx.assign((size_t)art::HUMAN_FRAMES * 3, SpriteCache::CellBox());
     for (int row = 0; row < 3; row++)
       for (int f = 0; f < art::HUMAN_FRAMES; f++) {
-        CellBox& b = bx[(size_t)(row * art::HUMAN_FRAMES + f)];
+        SpriteCache::CellBox& b = bx[(size_t)(row * art::HUMAN_FRAMES + f)];
         int x0 = 99, y0 = 99, x1 = -1, y1 = -1;
         for (int y = 0; y < art::HUMAN_H; y++)
           for (int x = 0; x < art::HUMAN_W; x++)
@@ -549,7 +549,7 @@ void View::lensUpdate(Game& g, float dt) {
     if (crowd && !ringCrowdWas_) ringFlare_ = 1.0f;
     ringCrowdWas_ = crowd;
   } else ringHpWas_ = -1;
-  rigBakeQueue(g);
+  sprites_.rigBakeQueue(*this, g);
 }
 
 namespace {
@@ -600,7 +600,7 @@ void View::drawRing(const Game& g, const Actor& a, Vec2 cam) {
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
   const int gtx = (int)std::floor(a.p.x / 16), gty = (int)std::floor(a.p.y / 16);
   const bool pale = m.in(gtx, gty) && paleGround(m.at(gtx, gty));
-  const Tex& t = cachedTex((uint64_t)M.ringW | (uint64_t)M.ringH << 8 | (uint64_t)(pale ? 1 : 0) << 16 | 0x61ull << 56, paintRing);
+  const Tex& t = sprites_.cachedTex(*this, (uint64_t)M.ringW | (uint64_t)M.ringH << 8 | (uint64_t)(pale ? 1 : 0) << 16 | 0x61ull << 56, paintRing);
   const float k = clampf(ringFlare_, 0, 1);
   const float alpha = 0.80f + 0.15f * k;
   // centred on the feet (the canvas has a px of margin all round)
@@ -709,9 +709,9 @@ void View::drawNightLift(const Game& g, float dark) {
     const float nearK = 1.0f - (1.0f - kLiftFar) * clampf((std::sqrt(fx * fx + fy * fy) - 24.0f) / 72.0f, 0, 1);
     lensStats.liftFigs++;
     if (k > 0) pix_->blitRec(r, Color(mw.r * k * nearK, mw.g * k * nearK, mw.b * k * nearK, r.a), 1);
-    auto mi = liftMask_.find(r.t);
-    if (kf > 0 && mi != liftMask_.end()) {
-      LiftMask& lm = mi->second;
+    auto mi = sprites_.liftMask_.find(r.t);
+    if (kf > 0 && mi != sprites_.liftMask_.end()) {
+      SpriteCache::LiftMask& lm = mi->second;
       if (!lm.tex.t && !lm.m.empty() && (witness || maskBakes++ < 8)) {   // its first night: the mask's texture (8 a frame)
         Canvas c(lm.w, lm.h);
         for (size_t i = 0; i < lm.m.size(); i++) if (lm.m[i]) c.px[i] = rgba(255, 255, 255);
@@ -836,7 +836,7 @@ constexpr float kStreamR = 34.0f * 16.0f;   // the stream radius (px): folk insi
 
 // a v2 atlas: from the cache, baked now within this frame's budget (a person on screen needs it), or queued (drawn v1
 // until the queue reaches it). A Witness run bakes inline: no picture depends on CPU speed.
-View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child) {
+View::RigTex SpriteCache::rigTex(View& v, const art::HumanLook& L, art::RigPart part, bool child) {
   RigTex r;
   if (art::rigVersion() < 2 || !art::rig2Covers(L)) return r;   // v1 is drawn: nothing to bake
   // (P2b VIEW-B) per-part coverage: rig2Covers holds LOCO and DEATH (and ACTION for the armed); the RUN and an unarmed
@@ -846,18 +846,18 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
   const uint64_t k = rigKey(L, part, child);
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
-    if (!witness && !rigBakeNow_ && !rigBakeBudget()) {   // over this frame's budget: queued, nearest first next frame (a menu figure bakes now)
+    if (!v.witness && !rigBakeNow_ && !rigBakeBudget(v)) {   // over this frame's budget: queued, nearest first next frame (a menu figure bakes now)
       bool queued = false;
-      for (const RigJob& j : rigQueue_) if (j.part == part && j.child == child && j.look.key() == L.key()) queued = true;
-      if (!queued) { RigJob j; j.look = L; j.part = part; j.child = child; j.d2 = 0; rigQueue_.insert(rigQueue_.begin(), j); }
+      for (const SpriteCache::RigJob& j : rigQueue_) if (j.part == part && j.child == child && j.look.key() == L.key()) queued = true;
+      if (!queued) { SpriteCache::RigJob j; j.look = L; j.part = part; j.child = child; j.d2 = 0; rigQueue_.insert(rigQueue_.begin(), j); }
       return r;
     }
     const auto t0 = std::chrono::steady_clock::now();
-    RigEntry e;
+    SpriteCache::RigEntry e;
     e.sheet = art::humanRig(L, part);
     if (!e.sheet.empty() && e.sheet.atlas.w > 0) {
-      e.tex = pix_->bake(e.sheet.atlas);
-      liftMaskFor(e.sheet.atlas, e.tex);   // (P2a slice) the night lift's interior mask: v2 people rise inside their ink
+      e.tex = v.pix_->bake(e.sheet.atlas);
+      liftMaskFor(v, e.sheet.atlas, e.tex);   // (P2a slice) the night lift's interior mask: v2 people rise inside their ink
       // (P2c ladder) the glow plane beside it (its small canvas kept: the motes are born on its pixels)
       // the light it adds is the glow's colour half-way to white: a saturated rest colour added to itself only clips its
       // full channels (the first in-game breath measured +14/255), its pale light whitens the gem and runes as they breathe
@@ -868,7 +868,7 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
             auto up = [](uint32_t v) { return (uint32_t)(v + (255u - v) * 55u / 100u); };
             c = 0xFF000000u | up(c >> 16 & 255u) << 16 | up(c >> 8 & 255u) << 8 | up(c & 255u);
           }
-        e.glowTex = pix_->bake(lightKey);
+        e.glowTex = v.pix_->bake(lightKey);
       }
     }
     // (polish i1) a T6 look keeps each frame's silhouette: the aura breathes round it, the edge sweep stays on the piece
@@ -881,13 +881,13 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
     it = rigTex_.emplace(k, std::move(e)).first;
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     rigBakeFrameMs_ += ms;
-    lensStats.rigBaked++;
+    v.lensStats.rigBaked++;
     // (P2c SWITCH, C8) an atlas baked again after the cap evicted it: the cache was too small for what is on screen
-    if (rigEvicted_.erase(k)) lensStats.rigRebakes++;
-    if (part == art::RigPart::Action) lensStats.actionMsMax = std::max(lensStats.actionMsMax, ms);
+    if (rigEvicted_.erase(k)) v.lensStats.rigRebakes++;
+    if (part == art::RigPart::Action) v.lensStats.actionMsMax = std::max(v.lensStats.actionMsMax, ms);
     if (std::getenv("EMB_TIMING")) std::printf("rig atlas baked: part %d %.3f ms\n", (int)part, ms);
   }
-  it->second.used = t_;
+  it->second.used = v.t_;
   r.tex = &it->second.tex;
   r.sheet = &it->second.sheet;
   if (it->second.glowTex.t) r.glowTex = &it->second.glowTex;
@@ -996,16 +996,16 @@ int menuFigId(int where, int id) { return -(100000 + where * 64 + (id & 63)); }
 int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int want, bool swing) {
   if (art::rigVersion() < 2 || !art::rig2Covers(L)) return 0;
   const uint64_t k = L.key() ^ (swing ? 0x5A1C6E0011ull : 0x3E7B0022ull);
-  auto it = menuBoxes_.find(k);
-  if (it == menuBoxes_.end()) {
-    if (menuBoxes_.size() > 64) menuBoxes_.clear();
-    MenuBox b;
+  auto it = sprites_.menuBoxes_.find(k);
+  if (it == sprites_.menuBoxes_.end()) {
+    if (sprites_.menuBoxes_.size() > 64) sprites_.menuBoxes_.clear();
+    SpriteCache::MenuBox b;
     b.u = kEnvUp; b.d = kEnvDown; b.l = b.r = envSide();
     auto take = [&](art::RigPart part) {
       if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(L, part)) return;
-      rigBakeNow_ = true;
-      const RigTex rt = rigTex(L, part);
-      rigBakeNow_ = false;
+      sprites_.rigBakeNow_ = true;
+      const RigTex rt = sprites_.rigTex(*this, L, part);
+      sprites_.rigBakeNow_ = false;
       if (!rt.ready()) return;
       for (const art::FrameRect& f : rt.sheet->frames) {
         b.l = std::max<int>(b.l, f.px); b.r = std::max<int>(b.r, f.w - f.px);
@@ -1014,9 +1014,9 @@ int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feet
     };
     take(art::RigPart::Loco);
     if (swing) { take(art::RigPart::Run); take(art::RigPart::Action); }
-    it = menuBoxes_.emplace(k, b).first;
+    it = sprites_.menuBoxes_.emplace(k, b).first;
   }
-  const MenuBox& b = it->second;
+  const SpriteCache::MenuBox& b = it->second;
   const float fx = std::floor(feetX), fy = std::floor(feetY);
   int s = std::max(1, want);
   for (; s > 1; s--)
@@ -1027,9 +1027,9 @@ int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feet
 // the blows facing `facing` (windup, strike, follow; the combo's three variants) stand inside the stage at this multiple
 bool View::menuSwingFits(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int scale, int facing) {
   if (art::rigVersion() < 2 || !art::rig2Covers(L) || !art::doll::dollCovers(L, art::RigPart::Action)) return false;
-  rigBakeNow_ = true;
-  const RigTex rt = rigTex(L, art::RigPart::Action);
-  rigBakeNow_ = false;
+  sprites_.rigBakeNow_ = true;
+  const RigTex rt = sprites_.rigTex(*this, L, art::RigPart::Action);
+  sprites_.rigBakeNow_ = false;
   if (!rt.ready()) return false;
   const float fx = std::floor(feetX), fy = std::floor(feetY);
   for (art::Clip c : {art::Clip::Windup, art::Clip::Strike, art::Clip::Follow})
@@ -1051,9 +1051,9 @@ bool View::drawMenuDoll(const art::HumanLook& L, int where, int facing, MenuGait
   const int fid = menuFigId(where, id);
   const float own = art::finish::actorPhase((uint32_t)fid);   // a figure's own breath, out of step with the next
   auto get = [&](art::RigPart part) {
-    rigBakeNow_ = true;
-    const RigTex r = rigTex(L, part);
-    rigBakeNow_ = false;
+    sprites_.rigBakeNow_ = true;
+    const RigTex r = sprites_.rigTex(*this, L, part);
+    sprites_.rigBakeNow_ = false;
     return r;
   };
   RigTex rt;
@@ -1165,10 +1165,10 @@ void View::noteMenuV1(int where, float x, float y, int w, int h, const MenuStage
 // breathing with the wearer's phase, each with its 4-neighbour halo
 void View::portraitFinish(uint32_t memberId, float x, float y, float scale, float alpha, int sx, int sy, int sw, int sh) {
   if (art::rigVersion() < 2 || !art::finish::enabled() || !pix_) return;
-  auto lk = portraitLook_.find(memberId);
-  if (lk == portraitLook_.end() || lk->second.second < 5) return;
-  auto it = portraitGlow_.find(lk->second.first);
-  if (it == portraitGlow_.end() || it->second.empty()) return;
+  auto lk = sprites_.portraitLook_.find(memberId);
+  if (lk == sprites_.portraitLook_.end() || lk->second.second < 5) return;
+  auto it = sprites_.portraitGlow_.find(lk->second.first);
+  if (it == sprites_.portraitGlow_.end() || it->second.empty()) return;
   const art::finish::Pulse pu = art::finish::pulseOf(lk->second.second);
   const float ph = art::finish::actorPhase((uint32_t)memberId);
   auto up = [](uint32_t v) { return (float)(v + (255u - v) * 55u / 100u) / 255.0f; };
@@ -1195,24 +1195,24 @@ void View::portraitFinish(uint32_t memberId, float x, float y, float scale, floa
 
 // a v2 posture atlas (art::humanPosture2: the posture's frames as clip Idle, variant 0, in four facings), cached with the
 // v2 atlases and baked within the same budget; not ready while the painters do not cover the look
-View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant) {
+View::RigTex SpriteCache::rigPoseTex(View& v, const art::HumanLook& L, art::Posture p, uint8_t variant) {
   RigTex r;
   if (art::rigVersion() < 2 || !art::rig2Covers(L)) return r;
   const uint64_t k = ew::mix64(L.key() ^ 0x9051E2ull ^ ((uint64_t)p + 1) << 40 ^ (uint64_t)variant << 52);
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
-    if (!witness && !rigBakeNow_ && !rigBakeBudget()) return r;   // next frame (drawn v1 meanwhile; a body on screen bakes now)
+    if (!v.witness && !rigBakeNow_ && !rigBakeBudget(v)) return r;   // next frame (drawn v1 meanwhile; a body on screen bakes now)
     const auto t0 = std::chrono::steady_clock::now();
-    RigEntry e;
+    SpriteCache::RigEntry e;
     // (P2b VIEW-B) per-part coverage: a posture the doll does not cover for this look (a map missing in its legs, arms,
     // hang or prop keys) stays an empty entry: v1's posture sheet draws the whole figure, never a doll with a hole
     if (art::doll::dollCoversPosture(L, p, variant)) e.sheet = art::humanPosture2(L, p, variant);
-    if (!e.sheet.empty() && e.sheet.atlas.w > 0) { e.tex = pix_->bake(e.sheet.atlas); liftMaskFor(e.sheet.atlas, e.tex); }
+    if (!e.sheet.empty() && e.sheet.atlas.w > 0) { e.tex = v.pix_->bake(e.sheet.atlas); liftMaskFor(v, e.sheet.atlas, e.tex); }
     e.sheet.atlas = Canvas();
     it = rigTex_.emplace(k, std::move(e)).first;
     rigBakeFrameMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
   }
-  it->second.used = t_;
+  it->second.used = v.t_;
   r.tex = &it->second.tex;
   r.sheet = &it->second.sheet;
   return r;
@@ -1222,9 +1222,9 @@ View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t v
 // never flipped. False (draw v1) until the painters cover the look. The blit is recorded for the night lift.
 bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost,
                        int horseFrame, int riderId) {
-  rigBakeNow_ = true;   // (P2c flip, D103) a rider on screen bakes now: never a v1 rider while the atlas waits
-  const RigTex rt = rigPoseTex(L, art::Posture::Ride, 0);
-  rigBakeNow_ = false;
+  sprites_.rigBakeNow_ = true;   // (P2c flip, D103) a rider on screen bakes now: never a v1 rider while the atlas waits
+  const RigTex rt = sprites_.rigPoseTex(*this, L, art::Posture::Ride, 0);
+  sprites_.rigBakeNow_ = false;
   if (!rt.ready()) return false;
   // (P2c SWITCH) the Ride frame per horse frame: the posture's frames step with the horse's cell (its gait's own beat),
   // the hip anchor of that frame on the saddle's seat point of that cell
@@ -1256,19 +1256,19 @@ float View::topLift(const Actor& a) const {
   const float above = std::floor(a.p.y + 0.5f) - std::floor(it->second.y + 0.5f);
   return above - (float)(art::rig(2).markerY - 4);
 }
-bool View::rigBakeBudget() {
-  if (rigBakeFrameT_ != t_) { rigBakeFrameT_ = t_; rigBakeFrameMs_ = 0; lensStats.rigBaked = 0; }
+bool SpriteCache::rigBakeBudget(View& v) {
+  if (rigBakeFrameT_ != v.t_) { rigBakeFrameT_ = v.t_; rigBakeFrameMs_ = 0; v.lensStats.rigBaked = 0; }
   return rigBakeFrameMs_ < kRigBakeMs;
 }
 // The bake queue (rig 2): the looks of the folk inside the stream radius whose LOCO atlas is not baked (a fighter's
 // ACTION too once it hunts the hero), nearest first, rebuilt four times a second; each frame bakes from its head within
 // the budget, so folk are baked before they walk into view.
-void View::rigBakeQueue(const Game& g) {
-  lensStats.rigQueued = (int)rigQueue_.size();
+void SpriteCache::rigBakeQueue(View& v, const Game& g) {
+  v.lensStats.rigQueued = (int)rigQueue_.size();
   if (art::rigVersion() < 2 || g.mode == Mode::Title || g.mode == Mode::Creator) { rigQueue_.clear(); return; }
-  if (t_ - rigQueueT_ > 0.25f || t_ < rigQueueT_) {
-    rigQueueT_ = t_;
-    std::vector<RigJob> q;
+  if (v.t_ - rigQueueT_ > 0.25f || v.t_ < rigQueueT_) {
+    rigQueueT_ = v.t_;
+    std::vector<SpriteCache::RigJob> q;
     const Vec2 pp = g.pl().p;
     for (const Actor& a : g.actors) {
       if (!a.human || a.st == AState::Dead) continue;
@@ -1279,7 +1279,7 @@ void View::rigBakeQueue(const Game& g) {
       auto want = [&](art::RigPart part, float bias = 0) {
         if (rigTex_.count(rigKey(a.look, part, child))) return;
         if ((part == art::RigPart::Run || part == art::RigPart::Action || part == art::RigPart::Drawn) && !art::doll::dollCovers(a.look, part)) return;
-        RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2 + bias;
+        SpriteCache::RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2 + bias;
         q.push_back(j);
       };
       want(art::RigPart::Loco);
@@ -1295,153 +1295,82 @@ void View::rigBakeQueue(const Game& g) {
       // nearer LOCO and ACTION atlases)
       if (a.player || (fighting && a.aggro)) want(art::RigPart::Death, 96.0f * 96.0f);
     }
-    std::sort(q.begin(), q.end(), [](const RigJob& x, const RigJob& y) { return x.d2 < y.d2; });
+    std::sort(q.begin(), q.end(), [](const SpriteCache::RigJob& x, const SpriteCache::RigJob& y) { return x.d2 < y.d2; });
     rigQueue_.swap(q);
   }
   // (Witness) a fixed count instead of the millisecond budget: how many atlases a step baked must not depend on CPU
   // speed or machine load (it showed as state.screen.peopleMB differing between `witness test --repeat 2` passes)
   int witnessBakes = 1;
-  while (!rigQueue_.empty() && (witness ? witnessBakes-- > 0 : rigBakeBudget())) {
-    const RigJob j = rigQueue_.front();
+  while (!rigQueue_.empty() && (v.witness ? witnessBakes-- > 0 : rigBakeBudget(v))) {
+    const SpriteCache::RigJob j = rigQueue_.front();
     rigQueue_.erase(rigQueue_.begin());
     if (rigTex_.count(rigKey(j.look, j.part, j.child))) continue;
-    (void)rigTex(j.look, j.part, j.child);
+    (void)rigTex(v, j.look, j.part, j.child);
   }
-  lensStats.rigBakeMs = rigBakeFrameMs_;
-}
-// the v2 atlases past their byte cap: the least recently used (unused for 4 s or more) go, to three quarters of the cap
-void View::trimRigCaches() {
-  double b = 0;
-  for (const auto& kv : rigTex_) b += (double)kv.second.tex.w * kv.second.tex.h * 4;
-  lensStats.rigMB = b / (1024.0 * 1024.0);
-  if (lensStats.rigMB <= rigCapMB()) return;
-  std::vector<std::pair<float, uint64_t>> age;
-  for (const auto& kv : rigTex_) age.push_back({kv.second.used, kv.first});
-  std::sort(age.begin(), age.end());
-  for (const auto& a : age) {
-    if (b <= rigCapMB() * 0.75 * 1024.0 * 1024.0 || t_ - a.first < 4.0f) break;
-    auto it = rigTex_.find(a.second);
-    if (it == rigTex_.end()) continue;
-    b -= (double)it->second.tex.w * it->second.tex.h * 4;
-    lensStats.rigEvictions++;
-    if (rigEvicted_.size() > 4096) rigEvicted_.clear();
-    rigEvicted_.insert(a.second);
-    dropLiftMask(it->second.tex);   // (a later texture may reuse the pointer)
-    pix_->destroy(it->second.tex);
-    if (it->second.glowTex.t) pix_->destroy(it->second.glowTex);
-    rigTex_.erase(it);
-  }
-  lensStats.rigMB = b / (1024.0 * 1024.0);
+  v.lensStats.rigBakeMs = rigBakeFrameMs_;
 }
 
 void View::rigChanged() {
   if (!pix_) return;
   auto drop = [&](std::unordered_map<uint64_t, Tex>& m) { for (auto& kv : m) pix_->destroy(kv.second); m.clear(); };
-  for (auto& kv : liftMask_) if (kv.second.tex.t) pix_->destroy(kv.second.tex);
-  liftMask_.clear();
-  drop(humans_); humanUsed_.clear(); humanBoxes_.clear();
-  drop(poseTex_); poseUsed_.clear();
-  drop(monsterLooks_);
-  drop(bldgTex_); bldgUsed_.clear(); drop(bldgNight_); drop(bldgGlow_); bldgTopRow_.clear(); g_bldgColTop.clear(); bldgSmoke_.clear();
-  drop(styledProps_); drop(homeTex_); drop(laneTex_); drop(critterTex_); drop(partyTex_); drop(mythicAura_);
-  drop(lampDark_); drop(warPropTex_); drop(armsTex_);
-  for (auto& kv : rigTex_) { pix_->destroy(kv.second.tex); if (kv.second.glowTex.t) pix_->destroy(kv.second.glowTex); }
-  rigTex_.clear();
-  rigQueue_.clear();
-  for (Tex& t : monsters_) pix_->destroy(t);
-  monsters_.clear();
-  for (int i = 0; i < (int)Monster::COUNT; i++) monsters_.push_back(pix_->bake(art::monsterSheet((Monster)i)));
-  for (Tex& t : props_) pix_->destroy(t);
-  props_.clear();
-  for (int i = 0; i < (int)Prop::COUNT; i++) props_.push_back(pix_->bake(art::propSprite((Prop)i)));
+  for (auto& kv : sprites_.liftMask_) if (kv.second.tex.t) pix_->destroy(kv.second.tex);
+  sprites_.liftMask_.clear();
+  drop(sprites_.humans_); sprites_.humanUsed_.clear(); sprites_.humanBoxes_.clear();
+  drop(sprites_.poseTex_); sprites_.poseUsed_.clear();
+  drop(sprites_.monsterLooks_);
+  drop(sprites_.bldgTex_); sprites_.bldgUsed_.clear(); drop(sprites_.bldgNight_); drop(sprites_.bldgGlow_); sprites_.bldgTopRow_.clear(); g_bldgColTop.clear(); sprites_.bldgSmoke_.clear();
+  drop(sprites_.styledProps_); drop(sprites_.homeTex_); drop(sprites_.laneTex_); drop(sprites_.critterTex_); drop(sprites_.partyTex_); drop(sprites_.mythicAura_);
+  drop(sprites_.lampDark_); drop(sprites_.warPropTex_); drop(sprites_.armsTex_);
+  for (auto& kv : sprites_.rigTex_) { pix_->destroy(kv.second.tex); if (kv.second.glowTex.t) pix_->destroy(kv.second.glowTex); }
+  sprites_.rigTex_.clear();
+  sprites_.rigQueue_.clear();
+  for (Tex& t : sprites_.monsters_) pix_->destroy(t);
+  sprites_.monsters_.clear();
+  for (int i = 0; i < (int)Monster::COUNT; i++) sprites_.monsters_.push_back(pix_->bake(art::monsterSheet((Monster)i)));
+  for (Tex& t : sprites_.props_) pix_->destroy(t);
+  sprites_.props_.clear();
+  for (int i = 0; i < (int)Prop::COUNT; i++) sprites_.props_.push_back(pix_->bake(art::propSprite((Prop)i)));
 }
 
-double View::peopleMB() const {
-  double b = 0;
-  for (const auto& kv : humans_) b += (double)kv.second.w * kv.second.h * 4;
-  for (const auto& kv : poseTex_) b += (double)kv.second.w * kv.second.h * 4;
-  for (const auto& kv : rigTex_) b += (double)kv.second.tex.w * kv.second.tex.h * 4;
-  for (const auto& kv : liftMask_) if (kv.second.tex.t) b += (double)kv.second.tex.w * kv.second.tex.h * 4;   // (P2a LENS) the night lift's masks
-  return b / (1024.0 * 1024.0);
-}
 
-// (P2a LENS) the night lift's interior mask of a people sheet: set where the sheet is opaque and all four neighbours are
-// too (inside the outer ink outline). Kept as bytes; drawNightLift bakes it the first night it is drawn.
-void View::liftMaskFor(const Canvas& sheet, const Tex& t) {
-  if (!t.t || sheet.w <= 0) return;
-  dropLiftMask(t);
-  LiftMask& lm = liftMask_[t.t];
-  lm.w = sheet.w; lm.h = sheet.h;
-  lm.m.assign((size_t)sheet.w * sheet.h, 0);
-  const uint32_t* p = sheet.px.data();
-  const int w = sheet.w, h = sheet.h;
-  auto op = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && (p[(size_t)y * w + x] >> 24) >= 128; };
-  for (int y = 0; y < h; y++)
-    for (int x = 0; x < w; x++)
-      if ((p[(size_t)y * w + x] >> 24) >= 128 && op(x - 1, y) && op(x + 1, y) && op(x, y - 1) && op(x, y + 1)) lm.m[(size_t)y * w + x] = 1;
-}
-void View::dropLiftMask(const Tex& t) {
-  auto it = liftMask_.find(t.t);
-  if (it == liftMask_.end()) return;
-  if (it->second.tex.t) pix_->destroy(it->second.tex);
-  liftMask_.erase(it);
-}
-
-// (M5) a pose sheet (art::humanPostureSheet: POSTURE_FRAMES x 3 facings) by look and posture. A painted pose costs about
-// a character sheet; a tavern filling up asks for a dozen at once, so a frame bakes poses only within ~2.5 ms (the web:
-// 1.5 ms; at least one per frame) and returns nullptr for the rest, which stand on their standing sheet a frame or two.
-bool View::poseBudget() {
-  if (witness) return true;   // (Witness) every pose a shot shows is baked inline: no picture depends on CPU speed
-  if (poseFrameT_ != t_) { poseFrameT_ = t_; poseFrameMs_ = 0; }
-#ifdef __EMSCRIPTEN__
-  const double budget = 1.5;
-#else
-  static const double budget = std::getenv("EMB_WEBSIM") ? 1.5 : 2.5;
-#endif
-  return poseFrameMs_ < budget;
-}
-void View::poseSpent(std::chrono::steady_clock::time_point t0) {
-  poseFrameMs_ += std::max(0.05, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
-  m5Count_.poseBakes++;
-}
-const Tex* View::poseTex(const art::HumanLook& L, art::Posture p, uint8_t variant, bool child) {
+const Tex* SpriteCache::poseTex(View& v, const art::HumanLook& L, art::Posture p, uint8_t variant, bool child) {
   const uint64_t k = ew::mix64(L.key() ^ ((uint64_t)p + 1) * 0xC2B2AE3D27D4EB4Full ^ (uint64_t)variant << 56 ^ (child ? 0x5EEDC41Dull : 0));
-  poseUsed_[k] = t_;
+  poseUsed_[k] = v.t_;
   auto it = poseTex_.find(k);
   if (it != poseTex_.end()) return &it->second;
-  if (!poseBudget()) return nullptr;
+  if (!poseBudget(v)) return nullptr;
   const auto t0 = std::chrono::steady_clock::now();
   Canvas sheet = art::humanPostureSheet(L, p, variant);
   if (child) childBody(sheet, !art::postureInfo(p).seated);
-  const Tex& t = poseTex_[k] = pix_->bake(sheet);
-  liftMaskFor(sheet, t);
-  poseSpent(t0);
+  const Tex& t = poseTex_[k] = v.pix_->bake(sheet);
+  liftMaskFor(v, sheet, t);
+  poseSpent(v, t0);
   return &t;
 }
-const Tex* View::sleeperTex(const art::HumanLook& L, art::Berth b, int kit, int frame) {
+const Tex* SpriteCache::sleeperTex(View& v, const art::HumanLook& L, art::Berth b, int kit, int frame) {
   const uint64_t k = ew::mix64(L.key() ^ 0x51EE9E5ull ^ ((uint64_t)b << 40) ^ ((uint64_t)(kit + 1) << 48) ^ ((uint64_t)(frame & 1) << 60));
-  poseUsed_[k] = t_;
+  poseUsed_[k] = v.t_;
   auto it = poseTex_.find(k);
   if (it != poseTex_.end()) return &it->second;
-  if (!poseBudget()) return nullptr;
+  if (!poseBudget(v)) return nullptr;
   const auto t0 = std::chrono::steady_clock::now();
   const Canvas sc = art::sleeperSprite(L, b, kit, frame & 1);
-  const Tex& t = poseTex_[k] = pix_->bake(sc);
-  liftMaskFor(sc, t);
-  poseSpent(t0);
+  const Tex& t = poseTex_[k] = v.pix_->bake(sc);
+  liftMaskFor(v, sc, t);
+  poseSpent(v, t0);
   return &t;
 }
 // (M5) a village animal's sheet by kind and coat (variant: 16 coats at most per kind)
-const Tex& View::critterTex(int kind, uint32_t variant) {
+const Tex& SpriteCache::critterTex(View& v, int kind, uint32_t variant) {
   const uint64_t k = (uint64_t)kind << 8 | (variant & 15u);
   auto it = critterTex_.find(k);
   if (it != critterTex_.end()) return it->second;
-  return critterTex_[k] = pix_->bake(art::critterSheet((art::Critter)kind, variant & 15u));
+  return critterTex_[k] = v.pix_->bake(art::critterSheet((art::Critter)kind, variant & 15u));
 }
 // (M5) a lamppost whose lamp is out (by day, or before the lamplighter's round reaches it): its sprite with every
 // lit pixel (the glass, the flame, the glowing paper or orb: warm or pale and bright) turned to dark, cold glass with a
 // faint top-left glint, so the same lamp reads unlit in the same light
-const Tex& View::lampDarkTex(const art::PropStyle* ps) {
+const Tex& SpriteCache::lampDarkTex(View& v, const art::PropStyle* ps) {
   const uint64_t k = ps && !ps->classic() ? ew::mix64(ps->key() ^ 0x1A3D0FFull) : 0;
   auto it = lampDark_.find(k);
   if (it != lampDark_.end()) return it->second;
@@ -1480,15 +1409,15 @@ const Tex& View::lampDarkTex(const art::PropStyle* ps) {
       else if ((left && top2) || (top && x >= 1 && mask[(size_t)y * c.w + x - 1] && (x < 2 || !mask[(size_t)y * c.w + x - 2]))) { nr += 34; ng += 38; nb += 44; }
       c.set(x, y, rgba(std::min(255, nr), std::min(255, ng), std::min(255, nb), (int)(v >> 24)));
     }
-  return lampDark_[k] = pix_->bake(c);
+  return lampDark_[k] = v.pix_->bake(c);
 }
 
 // Least-recently-used trimming of the sprite caches (called once per frame before anything is drawn, so no reference
 // handed out earlier in the frame is invalidated): building sprites past 192 (with their night variant, smoke, window
 // and fade facts), character sheets past 320. Only entries unused for a few seconds go.
-void View::trimCaches() {
-  if (t_ - lruT_ < 1.0f) return;
-  lruT_ = t_;
+void SpriteCache::trimCaches(View& v) {
+  if (v.t_ - lruT_ < 1.0f) return;
+  lruT_ = v.t_;
   auto trim = [&](std::unordered_map<uint64_t, Tex>& tex, std::unordered_map<uint64_t, float>& used, size_t cap, auto&& extra) {
     if (tex.size() <= cap) return;
     std::vector<std::pair<float, uint64_t>> age;
@@ -1500,33 +1429,33 @@ void View::trimCaches() {
     std::sort(age.begin(), age.end());
     size_t drop = tex.size() - cap * 3 / 4;   // trim to three quarters, so this does not run every second
     for (size_t i = 0; i < drop && i < age.size(); i++) {
-      if (t_ - age[i].first < 4.0f) break;   // still in use
+      if (v.t_ - age[i].first < 4.0f) break;   // still in use
       const uint64_t k = age[i].second;
       auto it = tex.find(k);
-      if (it != tex.end()) { dropLiftMask(it->second); pix_->destroy(it->second); tex.erase(it); }
+      if (it != tex.end()) { dropLiftMask(v, it->second); v.pix_->destroy(it->second); tex.erase(it); }
       used.erase(k);
       extra(k);
     }
   };
   trim(bldgTex_, bldgUsed_, 192, [&](uint64_t k) {
     auto n = bldgNight_.find(k);
-    if (n != bldgNight_.end()) { pix_->destroy(n->second); bldgNight_.erase(n); }
+    if (n != bldgNight_.end()) { v.pix_->destroy(n->second); bldgNight_.erase(n); }
     auto gl = bldgGlow_.find(k);
-    if (gl != bldgGlow_.end()) { pix_->destroy(gl->second); bldgGlow_.erase(gl); }
+    if (gl != bldgGlow_.end()) { v.pix_->destroy(gl->second); bldgGlow_.erase(gl); }
     bldgSmoke_.erase(k); bldgTopRow_.erase(k); g_bldgColTop.erase(k); bldgWin_.erase(k);
   });
   trim(humans_, humanUsed_, 320, [](uint64_t) {});
   trim(poseTex_, poseUsed_, 160, [](uint64_t) {});   // (M5) pose sheets: a busy tavern holds a few dozen
-  trimRigCaches();   // (P2a LENS) the v2 atlases: capped in MB
-  if (lampDark_.size() > 64) { for (auto& kv : lampDark_) pix_->destroy(kv.second); lampDark_.clear(); }
+  trimRigCaches(v);   // (P2a LENS) the v2 atlases: capped in MB
+  if (lampDark_.size() > 64) { for (auto& kv : lampDark_) v.pix_->destroy(kv.second); lampDark_.clear(); }
   // (M6 BEASTS) variant monster sheets (and their glow and 2x bakes) and the auras: a few dozen at most in one place;
   // a long journey through many lands drops them all and re-bakes what is still on screen
-  if (monsterLooks_.size() > 96) { for (auto& kv : monsterLooks_) pix_->destroy(kv.second); monsterLooks_.clear(); }
-  if (auraTex_.size() > 48) { for (auto& kv : auraTex_) pix_->destroy(kv.second); auraTex_.clear(); }
+  if (monsterLooks_.size() > 96) { for (auto& kv : monsterLooks_) v.pix_->destroy(kv.second); monsterLooks_.clear(); }
+  if (auraTex_.size() > 48) { for (auto& kv : auraTex_) v.pix_->destroy(kv.second); auraTex_.clear(); }
   for (auto it = beasts::memo.begin(); it != beasts::memo.end();) {
     if (beasts::now - it->second.lastT > 20.0f) it = beasts::memo.erase(it); else ++it;
   }
-  if (festTex_.size() > 96) { for (auto& kv : festTex_) pix_->destroy(kv.second); festTex_.clear(); }
+  if (festTex_.size() > 96) { for (auto& kv : festTex_) v.pix_->destroy(kv.second); festTex_.clear(); }
 }
 
 // Buildings whose sprite may show in a rectangle of map pixels. Large maps (an endless window collects every
@@ -1582,37 +1511,37 @@ void View::perfTick(float dt) {
   if (perf_.t < 1.0f) return;
   std::printf("perf: frame avg %.1f ms worst %.1f ms | bakes %d (+%d inline) %.1f ms, worst %.1f ms | chunks %zu, bldg tex %zu, humans %zu, wall tiles %zu, styled props %zu, gates+banners %zu\n",
               perf_.frameMs / std::max(1, perf_.frames), perf_.worstFrameMs, perf_.bakes, perf_.inlineBakes, perf_.bakeMs, perf_.worstBakeMs,
-              bake_.chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size(), styledProps_.size(), kingdomTex_.size());
+              bake_.chunks_.size(), sprites_.bldgTex_.size(), sprites_.humans_.size(), sprites_.wallTiles_.size(), sprites_.styledProps_.size(), sprites_.kingdomTex_.size());
   std::fflush(stdout);
   perf_ = Perf();
 }
-const Tex& View::itemTex(const Game& g, const Item& item) {
+const Tex& SpriteCache::itemTex(View& v, const Game& g, const Item& item) {
   const cult::Culture* maker = item.culture && g.world.src ? &g.world.src->culture(item.culture) : nullptr;
   const art::IconLook L = gearIcon(item, maker);
   const uint64_t k = L.key();
   auto it = itemIcons_.find(k);
   if (it != itemIcons_.end()) return it->second;
-  return itemIcons_[k] = pix_->bake(art::itemIconLook(L));
+  return itemIcons_[k] = v.pix_->bake(art::itemIconLook(L));
 }
-const Tex& View::monsterTex(const Actor& a) {
+const Tex& SpriteCache::monsterTex(View& v, const Actor& a) {
   if (!a.overlays && !a.bodyTint) return monsters_[(int)a.mon];
   const art::MonsterLook L = beasts::lookOf(a);
   const uint64_t k = L.key();   // (M6 BEASTS) bit 63: the glow sheet
   auto it = monsterLooks_.find(k);
   if (it != monsterLooks_.end()) return it->second;
-  return monsterLooks_[k] = pix_->bake(art::monsterSheetLook(L));
+  return monsterLooks_[k] = v.pix_->bake(art::monsterSheetLook(L));
 }
-const Tex& View::auraTex(uint32_t color, int w) {
+const Tex& SpriteCache::auraTex(View& v, uint32_t color, int w) {
   const uint64_t k = (uint64_t)color << 16 | (uint64_t)(uint16_t)w;
   auto it = auraTex_.find(k);
   if (it != auraTex_.end()) return it->second;
-  return auraTex_[k] = pix_->bake(art::auraSprite(color, w));
+  return auraTex_[k] = v.pix_->bake(art::auraSprite(color, w));
 }
-const Tex& View::iconTex(art::Icon i, uint32_t tint) {
+const Tex& SpriteCache::iconTex(View& v, art::Icon i, uint32_t tint) {
   uint64_t k = (uint64_t)i << 32 | tint;
   auto it = icons_.find(k);
   if (it != icons_.end()) return it->second;
-  return icons_[k] = pix_->bake(art::itemIcon(i, tint));
+  return icons_[k] = v.pix_->bake(art::itemIcon(i, tint));
 }
 // a building's look: the style of the biome it stands in (the M0 stand-in for its culture), tinted by Bldg::roof.
 // Test hook: EMB_ARCH_BIOME=<Biome index> paints every building in that biome's style (screenshots of snow, desert
@@ -1636,7 +1565,7 @@ static bld::Request bldgViewRequest(const Map& m, const Bldg& b) {
   r.style = bldgStyle(m, b);
   return r;
 }
-uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
+uint64_t SpriteCache::bldgKey(const Map& m, const Bldg& b, int index) const {
   uint64_t k = bldgViewRequest(m, b).key();
   k ^= (uint64_t)index * 0x9E3779B97F4A7C15ull;
   return k;
@@ -1644,14 +1573,14 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
 // A building sprite and what the renderer reads off it (chimney mouths, the first opaque row, the lit-window night
 // variant and its window centres). A pure function of the building (M2: an arrival paints them on worker threads,
 // paintBldg; storeBldg turns them into textures on the main thread).
-View::BldgPaint View::paintBldg(const Bldg& b, uint64_t key) {
+SpriteCache::BldgPaint SpriteCache::paintBldg(const Bldg& b, uint64_t key) {
   static const Map empty;
   art::BuildingInfo info;
   Canvas c = art::buildingSprite(bld::design(bldgViewRequest(empty, b)), &info);
   return paintBldgPost(std::move(c), info, key, b.seed);
 }
-View::BldgPaint View::paintBldgPost(Canvas canvas, art::BuildingInfo& info, uint64_t key, uint32_t seed) {
-  BldgPaint p;
+SpriteCache::BldgPaint SpriteCache::paintBldgPost(Canvas canvas, art::BuildingInfo& info, uint64_t key, uint32_t seed) {
+  SpriteCache::BldgPaint p;
   p.key = key;
   p.c = std::move(canvas);
   const Canvas& c = p.c;
@@ -1712,7 +1641,7 @@ View::BldgPaint View::paintBldgPost(Canvas canvas, art::BuildingInfo& info, uint
   return p;
 }
 
-const Tex& View::storeBldg(BldgPaint& p) {
+const Tex& SpriteCache::storeBldg(View& v, SpriteCache::BldgPaint& p) {
   const uint64_t k = p.key;
   bldgSmoke_[k] = std::move(p.smoke);
   bldgTopRow_[k] = p.topRow;
@@ -1732,26 +1661,26 @@ const Tex& View::storeBldg(BldgPaint& p) {
   bldgWin_[k] = std::move(p.wins);
   {
     auto gl = bldgGlow_.find(k);
-    if (gl != bldgGlow_.end()) { pix_->destroy(gl->second); bldgGlow_.erase(gl); }
+    if (gl != bldgGlow_.end()) { v.pix_->destroy(gl->second); bldgGlow_.erase(gl); }
     auto n = bldgNight_.find(k);
-    if (n != bldgNight_.end()) { pix_->destroy(n->second); bldgNight_.erase(n); }
+    if (n != bldgNight_.end()) { v.pix_->destroy(n->second); bldgNight_.erase(n); }
   }
-  if (p.anyGlass) { bldgNight_[k] = pix_->bake(p.night); bldgGlow_[k] = pix_->bake(p.glow); }
-  return bldgTex_[k] = pix_->bake(p.c);
+  if (p.anyGlass) { bldgNight_[k] = v.pix_->bake(p.night); bldgGlow_[k] = v.pix_->bake(p.glow); }
+  return bldgTex_[k] = v.pix_->bake(p.c);
 }
 
 // A building sprite, painted now if it is not ready (a job already under way is finished). Behind the web arrival's
 // fade (no threads) a building is never painted in one go: it advances by a step within the budget and, while it is
 // unfinished, a blank texture stands in and the arrival is held a frame longer (travelArrive lifts the fade only after
 // two frames with nothing left to paint: arrival_.frames is wound back), so a palace is spread over frames.
-const Tex& View::bldgTex(const Bldg& b, int index) {
+const Tex& SpriteCache::bldgTex(View& v, const Bldg& b, int index) {
   static const Map empty;
-  const Map& m = bldgMap_ ? *bldgMap_ : empty;
+  const Map& m = v.bldgMap_ ? *v.bldgMap_ : empty;
   uint64_t k = bldgKey(m, b, index);
-  bldgUsed_[k] = t_;
+  bldgUsed_[k] = v.t_;
   auto it = bldgTex_.find(k);
   if (it != bldgTex_.end()) return it->second;
-  if (bake_.arriving_ && pix_) {
+  if (v.bake_.arriving_ && v.pix_) {
 #ifdef __EMSCRIPTEN__
     const bool st = true;
 #else
@@ -1760,51 +1689,51 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
     if (!st) {
       // desktop: behind the arrival's black the worker threads paint the buildings (travelArrive stores them as they
       // finish, and holds the fade until every one in view is there); drawing must never paint one in the meantime
-      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = pix_->bake(c); }
+      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = v.pix_->bake(c); }
       return blankTex_;
     }
     if (st) {
       // one budget per frame for every stepped paint (travelArrive and drawWorld both ask)
       static float frameT = -1;
       static double frameMs = 0;
-      if (frameT != t_) { frameT = t_; frameMs = 0; }
+      if (frameT != v.t_) { frameT = v.t_; frameMs = 0; }
       if (frameMs < 6.0) {
         const auto t0 = std::chrono::steady_clock::now();
-        const bool done = bldgPaintStep(b, index, std::min(4.0, 6.0 - frameMs));
+        const bool done = bldgPaintStep(v, b, index, std::min(4.0, 6.0 - frameMs));
         frameMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (done) return bldgTex_[k];
       }
-      bake_.arrival_.frames = 0;
-      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = pix_->bake(c); }
+      v.bake_.arrival_.frames = 0;
+      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = v.pix_->bake(c); }
       return blankTex_;
     }
   }
-  bldgPaintStep(b, index, 1e9);
+  bldgPaintStep(v, b, index, 1e9);
   return bldgTex_[k];
 }
 
 // Advance (or start) the paint of b's sprite by about budgetMs; true once it is stored. Several jobs may be under way
 // (one per building); a job not touched for a few seconds is dropped by the next call.
-bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
+bool SpriteCache::bldgPaintStep(View& v, const Bldg& b, int index, double budgetMs) {
   static const Map empty;
-  const Map& m = bldgMap_ ? *bldgMap_ : empty;
+  const Map& m = v.bldgMap_ ? *v.bldgMap_ : empty;
   const uint64_t k = bldgKey(m, b, index);
   if (bldgTex_.count(k)) return true;
   using Clock = std::chrono::steady_clock;
   const auto t0 = Clock::now();
-  BldgJob* J = nullptr;
-  for (BldgJob& j : bldgJobs_) if (j.key == k) { J = &j; break; }
+  SpriteCache::BldgJob* J = nullptr;
+  for (SpriteCache::BldgJob& j : bldgJobs_) if (j.key == k) { J = &j; break; }
   if (!J) {
     for (size_t i = 0; i < bldgJobs_.size();)
-      if (t_ - bldgJobs_[i].used > 5.0f) bldgJobs_.erase(bldgJobs_.begin() + (std::ptrdiff_t)i); else i++;
-    BldgJob nj;
+      if (v.t_ - bldgJobs_[i].used > 5.0f) bldgJobs_.erase(bldgJobs_.begin() + (std::ptrdiff_t)i); else i++;
+    SpriteCache::BldgJob nj;
     nj.key = k;
     nj.seed = b.seed;
     nj.job = art::beginBuilding(bld::design(bldgViewRequest(empty, b)));
     bldgJobs_.push_back(std::move(nj));
     J = &bldgJobs_.back();
   }
-  J->used = t_;
+  J->used = v.t_;
   const bool done = art::stepBuilding(*J->job, budgetMs);
   const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
   static const bool timing = std::getenv("EMB_TIMING") != nullptr;
@@ -1818,9 +1747,9 @@ bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
   const uint32_t seed = J->seed;
   for (size_t i = 0; i < bldgJobs_.size(); i++)
     if (bldgJobs_[i].key == k) { bldgJobs_.erase(bldgJobs_.begin() + (std::ptrdiff_t)i); break; }
-  BldgPaint p = paintBldgPost(std::move(c), info, k, seed);
-  storeBldg(p);
-  bldgUsed_[k] = t_;
+  SpriteCache::BldgPaint p = paintBldgPost(std::move(c), info, k, seed);
+  storeBldg(v, p);
+  bldgUsed_[k] = v.t_;
   if (timing) {
     static double total = 0;
     static int n = 0;
@@ -1874,23 +1803,16 @@ bool View::windowsLit(const Game& g, const Bldg& b) const {
   if (hr > bed && hr < 29.5f) return false;
   return h % 4 != 0;
 }
-// (M3b) a wall tile's texture key: the key itself (M3 look), or the key without its look slot mixed with the look's
-// parts (the slot's meaning changes from window to window; the parts do not)
-uint64_t View::wallTexKey(uint32_t key) const {
-  const uint32_t slot = (key & art::WALL_LOOK_MASK) >> art::WALL_LOOK_SHIFT;
-  if (!slot || slot >= fortLooks_.size()) return key & ~art::WALL_LOOK_MASK;
-  return (ew::mix64(((uint64_t)(key & ~art::WALL_LOOK_MASK) << 20) ^ bld::fortKey(fortLooks_[slot])) | (1ull << 63));
-}
-const Tex& View::wallTileTex(uint32_t key) {
+const Tex& SpriteCache::wallTileTex(View& v, uint32_t key) {
   const uint64_t ck = wallTexKey(key);
   auto it = wallTiles_.find(ck);
   if (it != wallTiles_.end()) return it->second;
   const uint32_t slot = (key & art::WALL_LOOK_MASK) >> art::WALL_LOOK_SHIFT;
   const Canvas c = slot && slot < fortLooks_.size() ? art::wallTile(key, fortLooks_[slot]) : art::wallTile(key & ~art::WALL_LOOK_MASK);
-  return wallTiles_[ck] = pix_->bake(c);
+  return wallTiles_[ck] = v.pix_->bake(c);
 }
 // (M3b) a settlement's fortifications from its culture (urban: village 0, town 1, city 2, capital 3)
-bool View::fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const {
+bool SpriteCache::fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const {
   if (site < 0 || site >= (int)g.world.sites.size()) return false;
   const Site& s = g.world.sites[(size_t)site];
   if (!s.settlement()) return false;
@@ -1900,17 +1822,17 @@ bool View::fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const {
   out = bld::fortParts(*c, urban, s.seed);
   return true;
 }
-const Tex& View::fortGateTex(const cult::Heraldry& arms, const bld::FortParts& f) {
+const Tex& SpriteCache::fortGateTex(View& v, const cult::Heraldry& arms, const bld::FortParts& f) {
   const uint64_t key = ew::mix64(arms.key() ^ (bld::fortKey(f) * 0x9E3779B97F4A7C15ull) ^ 0x6A7E5ull);
   auto it = kingdomTex_.find(key);
   if (it != kingdomTex_.end()) return it->second;
-  return kingdomTex_[key] = pix_->bake(art::gateHouse(7, arms, f));
+  return kingdomTex_[key] = v.pix_->bake(art::gateHouse(7, arms, f));
 }
 // (M3b) the culture of the land at a tile for the wayside's built props: its settlement's, else its region's
-const art::PropStyle* View::landStyleAt(const Game& g, int tx, int ty) {
+const art::PropStyle* SpriteCache::landStyleAt(View& v, const Game& g, int tx, int ty) {
   static const art::PropStyle classic;
   if (!g.world.endless) return &classic;
-  const art::PropStyle* ps = propStyleAt(g, tx, ty);
+  const art::PropStyle* ps = propStyleAt(v, g, tx, ty);
   if (!ps->classic()) return ps;
   const uint64_t wid = (uint64_t)g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uintptr_t)&g.world;
   if (wid != landStyleWorld_ || landStyle_.size() > 4096) { landStyleWorld_ = wid; landStyle_.clear(); }
@@ -1923,18 +1845,12 @@ const art::PropStyle* View::landStyleAt(const Game& g, int tx, int ty) {
 }
 
 // kingdom-coloured sprites, cached per kingdom look: kind 0 the standing banner, 1 the gatehouse (with its seed)
-const Tex& View::kingdomTex(int kind, const Kingdom& k, uint32_t seed) {
+const Tex& SpriteCache::kingdomTex(View& v, int kind, const Kingdom& k, uint32_t seed) {
   const uint64_t key = ew::mix64(((uint64_t)k.color << 32 | k.color2) ^ ((uint64_t)k.emblem << 8 | (uint64_t)kind) ^ ((uint64_t)seed << 40));
   auto it = kingdomTex_.find(key);
   if (it != kingdomTex_.end()) return it->second;
   Canvas c = kind == 0 ? art::kingdomBanner(k.color, k.color2, k.emblem) : art::gateHouse(seed, k.color, k.color2, k.emblem);
-  return kingdomTex_[key] = pix_->bake(c);
-}
-
-const Tex& View::cachedTex(uint64_t key, Canvas (*paint)(uint64_t key)) {
-  auto it = laneTex_.find(key);
-  if (it != laneTex_.end()) return it->second;
-  return laneTex_[key] = pix_->bake(paint(key));
+  return kingdomTex_[key] = v.pix_->bake(c);
 }
 
 // M3: the culture of the settlement a prop tile lies in decides its style (fences, wells, lamps, statues, stalls...).
@@ -1944,15 +1860,15 @@ const Tex& View::cachedTex(uint64_t key, Canvas (*paint)(uint64_t key)) {
 ew::Gid View::siteIdAt(const Game& g, int tx, int ty) {
   if (!g.world.endless) return 0;
   const uint64_t wid = (uint64_t)g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uintptr_t)&g.world;
-  if (wid != sitePropsWorld_ || propSiteBlock_.size() > 8192) { sitePropsWorld_ = wid; siteProps_.clear(); propSiteBlock_.clear(); }
+  if (wid != sprites_.sitePropsWorld_ || sprites_.propSiteBlock_.size() > 8192) { sprites_.sitePropsWorld_ = wid; sprites_.siteProps_.clear(); sprites_.propSiteBlock_.clear(); }
   const int32_t gx = tx + g.world.ox, gy = ty + g.world.oy;
   const uint64_t bk = ((uint64_t)(uint32_t)(gx >> 3) << 32) | (uint32_t)(gy >> 3);
-  auto bi = propSiteBlock_.find(bk);
-  if (bi != propSiteBlock_.end()) return (ew::Gid)bi->second;
+  auto bi = sprites_.propSiteBlock_.find(bk);
+  if (bi != sprites_.propSiteBlock_.end()) return (ew::Gid)bi->second;
   int si = g.world.siteAt(tx, ty, 2);
   if (si >= 0 && !g.world.sites[(size_t)si].settlement()) si = -1;
   const uint64_t sid = si >= 0 ? (uint64_t)g.world.sites[(size_t)si].id : 0;
-  propSiteBlock_[bk] = sid;
+  sprites_.propSiteBlock_[bk] = sid;
   return (ew::Gid)sid;
 }
 // (M5) a settlement's mood flags where a tile lies (life::MF_*; 0 outside settlements), and the scripts' forcing
@@ -1970,11 +1886,11 @@ bool View::festivalHere(const Game& g, ew::Gid site) {
   if (forceFest_ >= 0) return forceFest_ != 0;
   return site && g.life.find(site) && (g.life.festival(site, g.day) || (g.life.moodFlags(site) & life::MF_FESTIVAL));
 }
-const art::PropStyle* View::propStyleAt(const Game& g, int tx, int ty) {
+const art::PropStyle* SpriteCache::propStyleAt(View& v, const Game& g, int tx, int ty) {
   static const art::PropStyle classic;
   if (!g.world.endless) return &classic;
   int si = -1;
-  const uint64_t sid = (uint64_t)siteIdAt(g, tx, ty);
+  const uint64_t sid = (uint64_t)v.siteIdAt(g, tx, ty);
   if (!sid) return &classic;
   auto it = siteProps_.find(sid);
   if (it != siteProps_.end()) return &it->second;
@@ -1984,20 +1900,20 @@ const art::PropStyle* View::propStyleAt(const Game& g, int tx, int ty) {
   const cult::Culture* C = g.world.cultureOf(si);
   return &(siteProps_[sid] = C ? C->props : classic);
 }
-const Tex& View::styledPropTex(art::Prop p, const art::PropStyle& st) {
+const Tex& SpriteCache::styledPropTex(View& v, art::Prop p, const art::PropStyle& st) {
   const uint64_t k = ew::mix64(st.key() ^ ((uint64_t)p << 48) ^ 0x5717ull);
   auto it = styledProps_.find(k);
   if (it != styledProps_.end()) return it->second;
-  return styledProps_[k] = pix_->bake(art::propSprite(p, st));
+  return styledProps_[k] = v.pix_->bake(art::propSprite(p, st));
 }
 // a kingdom's arms (cult::Heraldry) on a standing banner (kind 0) or a gatehouse in a wall style (kind 1)
-const Tex& View::heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle) {
+const Tex& SpriteCache::heraldryTex(View& v, int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle) {
   const uint64_t key = ew::mix64(h.key() ^ ((uint64_t)kind << 60) ^ ((uint64_t)seed << 32) ^ ((uint64_t)wallStyle << 40) ^ 0x4E5Aull);
   auto it = kingdomTex_.find(key);
   if (it != kingdomTex_.end()) return it->second;
   Canvas c = kind == 0 ? art::bannerSprite(h)
                        : art::gateHouse(seed, h.field, h.charge, h.emblem, (art::CityWall)std::clamp(wallStyle, 0, (int)art::CityWall::COUNT - 1));
-  return kingdomTex_[key] = pix_->bake(c);
+  return kingdomTex_[key] = v.pix_->bake(c);
 }
 
 void View::snap(Game& g) {
@@ -2720,13 +2636,13 @@ void View::layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOve
     for (uint8_t v : m.wall) if (v) { any = true; break; }
     wallKeys_.clear();
     if (any) {
-      auto it = wallKeyCache_.find(wallId);
-      if (it != wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) {
+      auto it = sprites_.wallKeyCache_.find(wallId);
+      if (it != sprites_.wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) {
         wallKeys_ = it->second;
-        auto fl = fortLookCache_.find(wallId);
-        fortLooks_ = fl != fortLookCache_.end() ? fl->second : std::vector<bld::FortParts>(1);
+        auto fl = sprites_.fortLookCache_.find(wallId);
+        sprites_.fortLooks_ = fl != sprites_.fortLookCache_.end() ? fl->second : std::vector<bld::FortParts>(1);
       } else {
-        fortLooks_.assign(1, bld::FortParts{});
+        sprites_.fortLooks_.assign(1, bld::FortParts{});
         if (m.kind == MapKind::Overworld) {
           art::wallKeys(m.wall.data(), m.w, m.h, g.world.gates.data(), (int)g.world.gates.size(), wallKeys_);
           // a river under the wall (WORLDGEN_V5 keeps its water there): no tower standing in it, and a water gate in
@@ -2778,7 +2694,7 @@ void View::layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOve
                     if (si != siteSlot.end()) slot = si->second;
                     else {
                       bld::FortParts fp;
-                      if (fortLooks_.size() < 8 && fortPartsOfSite(g, site, fp)) { slot = (int)fortLooks_.size(); fortLooks_.push_back(fp); }
+                      if (sprites_.fortLooks_.size() < 8 && sprites_.fortPartsOfSite(g, site, fp)) { slot = (int)sprites_.fortLooks_.size(); sprites_.fortLooks_.push_back(fp); }
                       siteSlot[site] = slot;
                     }
                   }
@@ -2788,24 +2704,24 @@ void View::layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOve
               }
           }
         } else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
-        if (wallKeyCache_.size() > 4) { wallKeyCache_.clear(); fortLookCache_.clear(); }
-        wallKeyCache_[wallId] = wallKeys_;
-        fortLookCache_[wallId] = fortLooks_;
+        if (sprites_.wallKeyCache_.size() > 4) { sprites_.wallKeyCache_.clear(); sprites_.fortLookCache_.clear(); }
+        sprites_.wallKeyCache_[wallId] = wallKeys_;
+        sprites_.fortLookCache_[wallId] = sprites_.fortLooks_;
       }
     }
     wallTodo_.clear();
     // (M3b) the texture caches stay bounded: a long journey through many cultures repaints rather than hoards
-    if (wallTiles_.size() > 1500) wallTiles_.clear();
-    if (styledProps_.size() > 900) styledProps_.clear();
+    if (sprites_.wallTiles_.size() > 1500) sprites_.wallTiles_.clear();
+    if (sprites_.styledProps_.size() > 900) sprites_.styledProps_.clear();
     std::unordered_map<uint32_t, bool> queued;
     for (uint32_t k : wallKeys_)
-      if (k && !wallTiles_.count(wallTexKey(k)) && !queued.count(k)) { queued[k] = true; wallTodo_.push_back(k); }
+      if (k && !sprites_.wallTiles_.count(sprites_.wallTexKey(k)) && !queued.count(k)) { queued[k] = true; wallTodo_.push_back(k); }
   }
   // wall tiles not seen yet are painted ahead, one per frame (the ones on screen are painted on first use anyway)
   while (!wallTodo_.empty()) {
     uint32_t k = wallTodo_.back();
     wallTodo_.pop_back();
-    if (!wallTiles_.count(wallTexKey(k))) { wallTileTex(k); break; }
+    if (!sprites_.wallTiles_.count(sprites_.wallTexKey(k))) { sprites_.wallTileTex(*this, k); break; }
   }
 }
 
@@ -2900,7 +2816,7 @@ void View::drawWorld(Game& g) {
   const bool endlessOver = bake_.chunkEndless_;
   if (g.mode != Mode::Title) bake_.rebakeHomeHouses(*this, g, m, mapId);   // (M7) the ground under the player's houses: their shadows
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
-  trimCaches();
+  sprites_.trimCaches(*this);
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
   beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
   for (auto it = finishParts_.begin(); it != finishParts_.end();)   // (polish i1) motes / embers of actors gone 2 s
@@ -2953,7 +2869,7 @@ void View::drawWorld(Game& g) {
     float a = clampf(q.life / q.max, 0, 1);
     if (q.kind == 1) {
       art::Fx f = (art::Fx)q.fx;
-      const Tex& t = fx_[q.fx];
+      const Tex& t = sprites_.fx_[q.fx];
       int fw = art::fxW(f), fh = art::fxH(f), frames = std::max(1, art::fxFrames(f));
       int fr = std::min(frames - 1, (int)((1 - a) * frames));
       P.blitRegion(t, fr * fw, 0, fw, fh, q.p.x - fw / 2.0f - cam.x, q.p.y - fh / 2.0f - cam.y);
@@ -3030,7 +2946,7 @@ void View::drawLighting(Game& g) {
   auto light = [&](Vec2 wp, float r, Color c, float k) {
     float x = (wp.x - cam.x) * 0.5f, y = (wp.y - cam.y) * 0.5f, rr = r * 0.5f;
     if (x < -rr || y < -rr || x > lightMap_.w + rr || y > lightMap_.h + rr) return;
-    P.blitEx(light_, 0, 0, 64, 64, x - rr, y - rr, rr * 2, rr * 2, false, Color(c.r, c.g, c.b, k), 1);
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, x - rr, y - rr, rr * 2, rr * 2, false, Color(c.r, c.g, c.b, k), 1);
   };
   float flick = 0.9f + 0.1f * std::sin(t_ * 13) * std::sin(t_ * 7.3f);
   // the player carries a torch at night / underground
@@ -3091,16 +3007,16 @@ void View::drawLighting(Game& g) {
       if (!windowsLit(g, b)) continue;
       // (fixer M5 r3) the door's pool lies on the street in front (it reached up over porch and portico roofs)
       light(c + Vec2(0, 14), 14 + b.r.w * 3.0f, Color(1, 0.7f, 0.35f), 0.40f * dark);
-      const uint64_t bk = bldgKey(m, b, (int)bi);
-      auto w = bldgWin_.find(bk);
-      auto t = bldgTex_.find(bk);
-      if (w == bldgWin_.end() || t == bldgTex_.end()) continue;
+      const uint64_t bk = sprites_.bldgKey(m, b, (int)bi);
+      auto w = sprites_.bldgWin_.find(bk);
+      auto t = sprites_.bldgTex_.find(bk);
+      if (w == sprites_.bldgWin_.end() || t == sprites_.bldgTex_.end()) continue;
       const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t->second.h;
       float f = 0.94f + 0.06f * std::sin(t_ * 5 + bi);
       // (fixer M5 r3) the panes themselves through their mask: only the glass is lit (a round pool per window lit
       // the roofs in front of an upper facade at near daylight brightness)
-      auto gm = bldgGlow_.find(bk);
-      if (gm != bldgGlow_.end())
+      auto gm = sprites_.bldgGlow_.find(bk);
+      if (gm != sprites_.bldgGlow_.end())
         P.blitEx(gm->second, 0, 0, gm->second.w, gm->second.h, (b.r.x * 16.0f - art::BLDG_PAD_X - cam.x) * 0.5f, (top - cam.y) * 0.5f,
                  (float)gm->second.w, (float)gm->second.h, false, Color(1, 0.86f, 0.6f, 0.95f * dark * f), 1);
       const float groundRow = (float)t->second.h - art::BLDG_PAD_B - 30.0f;   // the ground floor's windows (sprite px)
@@ -3415,7 +3331,7 @@ void View::drawBeastPlates(Game& g) {
 void View::drawWeatherSky(Game& g) {
   Pix& P = *pix_;
   if (g.inside || g.mode == Mode::Title) {
-    P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
+    P.blitEx(sprites_.vignette_, 0, 0, sprites_.vignette_.w, sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
     return;
   }
   const Wx& W = wx_;
@@ -3444,7 +3360,7 @@ void View::drawWeatherSky(Game& g) {
     const int n = (int)(6 * (Pix::W + 220) / 700.0f) + 2;
     for (int i = 0; i < n; i++) {
       float x = std::fmod(i * 140 + t_ * 8 - cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
-      P.blitEx(light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(t_ * 0.3f + i) * 10, 260, 90, false,
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(t_ * 0.3f + i) * 10, 260, 90, false,
                Color(0.82f, 0.86f, 0.84f, 0.26f * W.fog));
     }
   }
@@ -3476,7 +3392,7 @@ void View::drawWeatherSky(Game& g) {
       const float life = std::fmod(t_ * 0.12f + i * 0.2f, 1.0f);
       const float x = wrap(hashf(i, 9, 3) * 900 - cam_.x * 0.8f, Pix::W + 120.0f) - 60;
       const float y = Pix::H * 0.95f - life * Pix::H * 0.6f;
-      P.blitEx(light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
     }
   }
   // snow, and the blizzard's driving snow and white-out
@@ -3495,7 +3411,7 @@ void View::drawWeatherSky(Game& g) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.92f, 0.95f, 1.0f, 0.38f * W.blizz));
     for (int i = 0; i < 4; i++) {   // gusts: brighter sheets of snow sweeping past
       const float x = wrap(t_ * 220 + i * 260 - cam_.x, Pix::W + 300.0f) - 200;
-      P.blitEx(light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
     }
   }
   // the sandstorm: streaks of blown sand racing past, and grit
@@ -3510,7 +3426,7 @@ void View::drawWeatherSky(Game& g) {
     }
     for (int i = 0; i < 3; i++) {   // the dust's billows
       const float x = wrap(t_ * 140 + i * 300 - cam_.x * 0.6f, Pix::W + 300.0f) - 200;
-      P.blitEx(light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
+      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
     }
   }
   // ashfall: grey flakes drifting down, embers glowing on the way up
@@ -3543,7 +3459,7 @@ void View::drawWeatherSky(Game& g) {
   }
   // falling leaves / fireflies / petals / embers are world particles drawn earlier; light vignette always (heavier in
   // a storm)
-  P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false,
+  P.blitEx(sprites_.vignette_, 0, 0, sprites_.vignette_.w, sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false,
            Color(1, 1, 1, std::min(1.0f, 0.45f + 0.3f * (W.blizz + W.sand + W.pour))));
 }
 
@@ -3793,7 +3709,7 @@ void View::drawFestPole(const FestSpan& s, bool right, Vec2 cam) {
   const int tx = right ? s.x1 : s.x0;
   const float bx = std::floor(tx * 16.0f + 8.0f - cam.x), by = std::floor(s.y * 16.0f + 13.0f - cam.y);
   const Color hi(0.72f, 0.54f, 0.34f), mid(0.52f, 0.36f, 0.22f), lo(0.33f, 0.22f, 0.14f), ink(0.16f, 0.10f, 0.08f);
-  P.blitEx(shadow_, 0, 0, shadow_.w, shadow_.h, bx - 5, by - 2, 10, 4, false, Color(1, 1, 1, 0.8f));
+  P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, bx - 5, by - 2, 10, 4, false, Color(1, 1, 1, 0.8f));
   P.rect(bx - 2, by - 33, 4, 34, ink);                 // the outline
   P.rect(bx - 1, by - 32, 1, 32, hi);                   // the lit side
   P.rect(bx, by - 32, 1, 32, lo);                       // the shaded side
@@ -3823,13 +3739,13 @@ void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
   const float dark = clampf((0.62f - g.daylight()) / 0.45f, 0, 1);
   auto buntingTex = [&](int w, uint32_t ca, uint32_t cb, uint32_t seed) -> const Tex& {
     const uint64_t key = (uint64_t)w << 40 ^ (uint64_t)(ca & 0xFFFFFF) << 16 ^ (uint64_t)(cb & 0xFFFFFF) ^ (uint64_t)(seed & 1u) << 62;
-    auto it = festTex_.find(key);
-    return it != festTex_.end() ? it->second : (festTex_[key] = pix_->bake(art::festivalBunting(w, ca, cb, seed)));
+    auto it = sprites_.festTex_.find(key);
+    return it != sprites_.festTex_.end() ? it->second : (sprites_.festTex_[key] = pix_->bake(art::festivalBunting(w, ca, cb, seed)));
   };
   auto lanternTex = [&](uint32_t lc, uint32_t seed) -> const Tex& {
     const uint64_t key = (uint64_t)0x1A ^ ((uint64_t)(lc & 0xFFFFFF) << 8) ^ (1ull << 61) ^ ((uint64_t)(seed & 3u) << 4);
-    auto it = festTex_.find(key);
-    return it != festTex_.end() ? it->second : (festTex_[key] = pix_->bake(art::festivalLantern(lc, seed & 3u)));
+    auto it = sprites_.festTex_.find(key);
+    return it != sprites_.festTex_.end() ? it->second : (sprites_.festTex_[key] = pix_->bake(art::festivalLantern(lc, seed & 3u)));
   };
   static const uint32_t warm[3] = {0xFF3040D6u, 0xFF3C96ECu, 0xFF5AC8F0u};   // red, orange and gold paper
   // a string from (ax, ay) to (bx, by) (map pixels): the bunting stepped down the slope in 2 px strips, and at night a
@@ -3910,13 +3826,13 @@ void View::drawFestival(Game& g, const Map& m, Vec2 cam) {
     // the door's lantern, on the side of the door its windows leave free
     if (dark > 0.05f && !a.open.open) {
       const float doorCx = a.doorX() * 16.0f + 8.0f, hy = (a.r.y + a.r.h) * 16.0f - 27.0f;
-      auto tex = bldgTex_.find(bldgKey(m, a, bi));
-      auto win = bldgWin_.find(bldgKey(m, a, bi));
+      auto tex = sprites_.bldgTex_.find(sprites_.bldgKey(m, a, bi));
+      auto win = sprites_.bldgWin_.find(sprites_.bldgKey(m, a, bi));
       float side = 0;
       for (int sd : {1, -1}) {
         const float lx = doorCx + sd * 11.0f;
         bool clear = lx > a.r.x * 16.0f + 3 && lx < (a.r.x + a.r.w) * 16.0f - 3;
-        if (clear && tex != bldgTex_.end() && win != bldgWin_.end()) {
+        if (clear && tex != sprites_.bldgTex_.end() && win != sprites_.bldgWin_.end()) {
           const float top = (a.r.y + a.r.h) * 16.0f + art::BLDG_PAD_B - tex->second.h;
           for (const Vec2& wc : win->second) {
             const Vec2 wp(a.r.x * 16.0f - art::BLDG_PAD_X + wc.x, top + wc.y);

@@ -5820,32 +5820,32 @@ void View::travelArrive(Game& g) {
     if (!st) {
       painted = true;
       // desktop: the sprites are painted on worker threads (a palace takes 25 ms) and stored here as they finish
-      for (size_t i = 0; i < bldgAsync_.size();) {
-        if (bldgAsync_[i].wait_for(std::chrono::seconds(0)) != std::future_status::ready) { i++; continue; }
+      for (size_t i = 0; i < sprites_.bldgAsync_.size();) {
+        if (sprites_.bldgAsync_[i].wait_for(std::chrono::seconds(0)) != std::future_status::ready) { i++; continue; }
         if (paintOver()) { ready = false; break; }
-        BldgPaint p = bldgAsync_[i].get();
-        if (!bldgTex_.count(p.key)) { storeBldg(p); bldgUsed_[p.key] = t_; }
-        bldgAsync_.erase(bldgAsync_.begin() + (std::ptrdiff_t)i);
-        bldgAsyncKeys_.erase(bldgAsyncKeys_.begin() + (std::ptrdiff_t)i);
+        SpriteCache::BldgPaint p = sprites_.bldgAsync_[i].get();
+        if (!sprites_.bldgTex_.count(p.key)) { sprites_.storeBldg(*this, p); sprites_.bldgUsed_[p.key] = t_; }
+        sprites_.bldgAsync_.erase(sprites_.bldgAsync_.begin() + (std::ptrdiff_t)i);
+        sprites_.bldgAsyncKeys_.erase(sprites_.bldgAsyncKeys_.begin() + (std::ptrdiff_t)i);
       }
       for (int bi : vis) {
         const Bldg& b = m.bldgs[(size_t)bi];
-        const uint64_t k = bldgKey(m, b, bi);
-        if (bldgTex_.count(k)) continue;
+        const uint64_t k = sprites_.bldgKey(m, b, bi);
+        if (sprites_.bldgTex_.count(k)) continue;
         ready = false;
-        if (std::find(bldgAsyncKeys_.begin(), bldgAsyncKeys_.end(), k) != bldgAsyncKeys_.end()) continue;
-        if (bldgAsync_.size() >= 6) continue;   // a few at a time
-        bldgAsync_.push_back(std::async(std::launch::async, [b, k] { return paintBldg(b, k); }));
-        bldgAsyncKeys_.push_back(k);
+        if (std::find(sprites_.bldgAsyncKeys_.begin(), sprites_.bldgAsyncKeys_.end(), k) != sprites_.bldgAsyncKeys_.end()) continue;
+        if (sprites_.bldgAsync_.size() >= 6) continue;   // a few at a time
+        sprites_.bldgAsync_.push_back(std::async(std::launch::async, [b, k] { return SpriteCache::paintBldg(b, k); }));
+        sprites_.bldgAsyncKeys_.push_back(k);
       }
     }
 #endif
     if (!painted)
       for (int bi : vis) {
         const Bldg& b = m.bldgs[(size_t)bi];
-        if (bldgTex_.count(bldgKey(m, b, bi))) continue;
+        if (sprites_.bldgTex_.count(sprites_.bldgKey(m, b, bi))) continue;
         if (paintOver()) { ready = false; break; }
-        bldgTex(b, bi);
+        sprites_.bldgTex(*this, b, bi);
       }
     if (!wallKeys_.empty() && wallKeys_.size() == (size_t)m.w * m.h) {
       const int tx0 = std::max(0, (int)std::floor(cam.x / 16) - 3), ty0 = std::max(0, (int)std::floor(cam.y / 16) - 2);
@@ -5854,9 +5854,9 @@ void View::travelArrive(Game& g) {
       for (int ty = ty0; ty < ty1 && !over; ty++)
         for (int tx = tx0; tx < tx1; tx++) {
           const uint32_t wk = wallKeys_[(size_t)ty * m.w + tx];
-          if (!wk || wallTiles_.count(wallTexKey(wk))) continue;
+          if (!wk || sprites_.wallTiles_.count(sprites_.wallTexKey(wk))) continue;
           if (paintOver()) { ready = false; over = true; break; }
-          wallTileTex(wk);
+          sprites_.wallTileTex(*this, wk);
         }
     } else if (!m.wall.empty() && bake_.arrival_.frames < 2) ready = false;   // drawWorld lays the wall keys out this frame
   }
@@ -5868,11 +5868,11 @@ void View::travelArrive(Game& g) {
     // (P2c SWITCH) rig 2: a look the doll covers is drawn from its LOCO atlas, never the v1 sheet: that is what the
     // arrival paints ahead (a v1 sheet baked here would only sit in the people budget unused)
     const bool v2 = art::rigVersion() >= 2 && art::rig2Covers(a.look);
-    if (v2 ? rigTex_.count(ew::mix64(a.look.key() ^ ((uint64_t)art::RigPart::Loco + 1) * 0x9E3779B97F4A7C15ull ^ (child ? 0x2C41D2ull : 0))) != 0
-           : humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0)) != 0) continue;
+    if (v2 ? sprites_.rigTex_.count(ew::mix64(a.look.key() ^ ((uint64_t)art::RigPart::Loco + 1) * 0x9E3779B97F4A7C15ull ^ (child ? 0x2C41D2ull : 0))) != 0
+           : sprites_.humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0)) != 0) continue;
     if (st ? spent() > kArriveBudget * 0.75 : spent() > 8.0) { ready = false; break; }
-    if (v2) { rigBakeNow_ = true; (void)rigTex(a.look, art::RigPart::Loco, child); rigBakeNow_ = false; }
-    else humanTex(a.look, child);
+    if (v2) { sprites_.rigBakeNow_ = true; (void)sprites_.rigTex(*this, a.look, art::RigPart::Loco, child); sprites_.rigBakeNow_ = false; }
+    else sprites_.humanTex(*this, a.look, child);
   }
   // without threads: the incremental bake pump, last, with what is left of about 16 ms (at least 6)
   if (st) bake_.pumpBake(*this, std::max(2.0, kArriveBudget - spent()));

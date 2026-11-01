@@ -177,7 +177,7 @@ void View::drawBubbles(Game& g, Vec2 cam) {
     bs.seen = t_;
     const float age = t_ - bs.t0;
     const uint64_t key = 0x4Dull << 56 | (uint64_t)a.bubble;
-    const Tex& t = cachedTex(key, [](uint64_t k) { return art::bubbleSprite((art::Bubble)(k & 255)); });
+    const Tex& t = sprites_.cachedTex(*this, key, [](uint64_t k) { return art::bubbleSprite((art::Bubble)(k & 255)); });
     // the head: the standing figure's top (a seated or sleeping body sits lower: its pose's dy)
     float dy = 0;
     if (a.human && a.posture != art::Posture::None) dy = (float)art::postureInfo(a.posture).dy;
@@ -296,9 +296,9 @@ void View::drawMarkers(Game& g, Vec2 cam) {
   // (P2a LENS) the marks, baked once (paintMark)
   auto markTex = [&](int kind) {
     MarkTex m;
-    m.pat = &cachedTex(markKey(kind, 0), paintMark);
-    m.shadow = &cachedTex(markKey(kind, 1), paintMark);
-    if (kind == MK_ASK) m.halo = &cachedTex(markKey(kind, 2), paintMark);
+    m.pat = &sprites_.cachedTex(*this, markKey(kind, 0), paintMark);
+    m.shadow = &sprites_.cachedTex(*this, markKey(kind, 1), paintMark);
+    if (kind == MK_ASK) m.halo = &sprites_.cachedTex(*this, markKey(kind, 2), paintMark);
     return m;
   };
   // the escorts: the subjects of the active Missing quests

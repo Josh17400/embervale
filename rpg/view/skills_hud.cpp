@@ -173,7 +173,7 @@ void SkillsUiOps::drawQuickButtons(View& v, Game& g) {
     const bool shortMp = g.mp < d->cost;
     const float cd = g.arcana.live.cd[i];
     // the orb, its school's glow behind it (dim while it cannot be cast)
-    if (!shortMp && cd <= 0) P.blitEx(v.light_, 0, 0, 64, 64, b.x - 15, b.y - 15, 30, 30, false, Color(sc.r, sc.g, sc.b, held ? 0.55f : 0.22f), 1);
+    if (!shortMp && cd <= 0) P.blitEx(v.sprites_.light_, 0, 0, 64, 64, b.x - 15, b.y - 15, 30, 30, false, Color(sc.r, sc.g, sc.b, held ? 0.55f : 0.22f), 1);
     const Tex& ic = spellIcon(v, d->id);
     P.blitEx(ic, 0, 0, 16, 16, b.x - 8, b.y - 8, 16, 16, false, shortMp ? Color(0.45f, 0.45f, 0.5f, 0.9f) : Color(1, 1, 1, 1));
     if (shortMp) disc(P, b.x, b.y, b.r - 1, Color(0.05f, 0.05f, 0.12f, 0.45f));
@@ -202,7 +202,7 @@ void SkillsUiOps::drawQuickButtons(View& v, Game& g) {
           const float a = -skp::kPi / 2 + 2 * skp::kPi * (s / 3.0f) - 0.001f;
           P.rect(std::floor(b.x + std::cos(a) * (b.r + 3.5f)) - 1, std::floor(b.y + std::sin(a) * (b.r + 3.5f)) - 1, 3, 3, Color(1, 1, 1, 0.95f));
         }
-      P.blitEx(v.light_, 0, 0, 64, 64, b.x - 20 - 6 * u, b.y - 20 - 6 * u, 40 + 12 * u, 40 + 12 * u, false, Color(hot.r, hot.g, hot.b, 0.18f + 0.3f * u), 1);
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, b.x - 20 - 6 * u, b.y - 20 - 6 * u, 40 + 12 * u, 40 + 12 * u, false, Color(hot.r, hot.g, hot.b, 0.18f + 0.3f * u), 1);
       // the level reached and the dual-cast, as badges up and to the left: clear of the thumb, which covers the button
       // and the screen below and right of it
       const int lvl = std::min(3, (int)std::floor(u * 3.0f + 0.001f));
@@ -232,7 +232,7 @@ void SkillsUiOps::drawQuickButtons(View& v, Game& g) {
     const bool on = g.skills.live.sneaking;
     const Color vc = qCol(skills::skillInfo(skills::Skill::Stealth).color);
     disc(P, b.x, b.y, b.r, Color(0.08f, 0.07f, 0.10f, on ? 0.7f : 0.42f));
-    if (on) P.blitEx(v.light_, 0, 0, 64, 64, b.x - 14, b.y - 14, 28, 28, false, Color(vc.r, vc.g, vc.b, 0.35f), 1);
+    if (on) P.blitEx(v.sprites_.light_, 0, 0, 64, 64, b.x - 14, b.y - 14, 28, 28, false, Color(vc.r, vc.g, vc.b, 0.35f), 1);
     ring(P, b.x, b.y, b.r, on ? Color(vc.r * 0.5f + 0.5f, vc.g * 0.5f + 0.5f, vc.b * 0.5f + 0.5f, 0.95f) : Color(0.9f, 0.85f, 0.75f, 0.45f), 40);
     const Tex& eye = tex(v, (0xA4ull << 56) | 1, [&]() { return skp::paintEye(true, skills::skillInfo(skills::Skill::Stealth).color); });
     P.blitEx(eye, 0, 0, 11, 7, b.x - 5, b.y - 3, 11, 7, false, on ? Color(1, 1, 1, 1) : Color(0.95f, 0.95f, 1.0f, 0.95f));
@@ -272,7 +272,7 @@ void SkillsUiOps::drawSneakEye(View& v, Game& g, float x, float y) {
   Pix& P = *v.pix_;
   const Color vc = qCol(skills::skillInfo(skills::Skill::Stealth).color);
   const float k = 0.5f + 0.5f * std::sin(v.t_ * 2.5f);
-  P.blitEx(v.light_, 0, 0, 64, 64, x - 6, y - 8, 23, 23, false, Color(vc.r, vc.g, vc.b, 0.18f + 0.14f * k), 1);
+  P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 6, y - 8, 23, 23, false, Color(vc.r, vc.g, vc.b, 0.18f + 0.14f * k), 1);
   const Tex& eye = tex(v, (0xA4ull << 56) | 1, [&]() { return skp::paintEye(true, skills::skillInfo(skills::Skill::Stealth).color); });
   P.blit(eye, std::floor(x), std::floor(y));
 }

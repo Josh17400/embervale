@@ -82,11 +82,11 @@ Color evColour(realm::EvType t) {
 }
 }  // namespace
 
-const Tex& View::armsTex(const cult::Heraldry& h, int size) {
+const Tex& SpriteCache::armsTex(View& v, const cult::Heraldry& h, int size) {
   const uint64_t k = ew::mix64(h.key() ^ ((uint64_t)size << 56) ^ 0xA2A5ull);
   auto it = armsTex_.find(k);
   if (it != armsTex_.end()) return it->second;
-  return armsTex_[k] = pix_->bake(art::shieldArms(h, size));
+  return armsTex_[k] = v.pix_->bake(art::shieldArms(h, size));
 }
 
 // ---------------------------------------------------------------- events
@@ -188,7 +188,7 @@ void View::drawHerald(Game& g) {
     const rui::Look k = rui::look(g, herald_.kingdom);
     cult::Heraldry hr;
     rui::arms(k, hr);
-    const Tex& sh = armsTex(hr, 16);
+    const Tex& sh = sprites_.armsTex(*this, hr, 16);
     const Color tint(1, 1, 1, a);
     P.blit(sh, x + 6, y + std::floor((h - sh.h) / 2), false, tint);
     P.blit(sh, x + w - 6 - sh.w, y + std::floor((h - sh.h) / 2), false, tint);
@@ -305,7 +305,7 @@ void View::drawJournalSection(Game& g, float top) {
       if (!k.ok) continue;
       cult::Heraldry hr;
       rui::arms(k, hr);
-      const Tex& sh = armsTex(hr, 12);
+      const Tex& sh = sprites_.armsTex(*this, hr, 12);
       P.blit(sh, dx, y - 2);
       P.text(dx + 16, y + 1, cut(rui::realmTitle(k, false), (int)((dw - 18) / 6)), 1, lift(col(k.color ? k.color : rgba(200, 180, 140))));
       y += 15;
