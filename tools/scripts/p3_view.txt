@@ -9,7 +9,8 @@ seed 7
 +0.1 zoom close
 +0.3 expect zoomscale 6
 +0.0 expect screen levels 3,4,6
-# ---- the Witness window (960 x 540): D0 2, NORMAL 2, NEAR 3, CLOSE 4 (135 world rows)
+# ---- the Witness window (960 x 540): D0 2, NORMAL 2, NEAR 3, CLOSE 4 (135 world rows; before P3 CLOSE fell back to
+# NEAR here: p3_view_near_540.png is what CLOSE showed)
 +0.1 firstlaunch desktop 960x540
 +0.1 zoom normal
 +0.3 expect zoomscale 2
@@ -20,6 +21,7 @@ seed 7
 +0.0 shot p3_view_close_540.png
 +0.1 zoom near
 +0.3 expect zoomscale 3
++0.0 shot p3_view_near_540.png
 +0.1 zoom normal
 # ---- B11: a piece on the ground, the hero steps onto it: "+ <NAME>" (Common: its white; Rare: its blue)
 +0.1 lootdrop armor rarity common ilvl 2
