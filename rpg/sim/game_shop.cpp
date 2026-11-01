@@ -2,6 +2,7 @@
 // Public: Game::priceFactor, Game::shopStock, Game::openShop, Game::buy, Game::sell
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/loot_ops.h"
 
 float Game::priceFactor(Role seller) const {
   if (background == Background::Blacksmith && seller == Role::Smith) return 0.8f * SkillOps::buyMul(*this, seller);   // a smith's child pays a fair price
@@ -29,17 +30,17 @@ int urbanOf(const World& w, int si) {
 }
 }  // namespace
 
-std::vector<Item> Game::shopStock(const Actor& a) {
-  Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day / 2) ^ (uint32_t)seed);
+std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
+  Rng r(hash32((uint32_t)g.npcKey(a)) ^ (uint32_t)(g.day / 2) ^ (uint32_t)g.seed);
   std::vector<Item> s;
-  const int si = siteOfActor(world, a);
-  const int D = std::clamp(si >= 0 ? world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
-  const cult::Culture* cc = si >= 0 ? world.cultureOf(si) : nullptr;
-  if (cc && world.src) cc = &world.src->culture(cc->id);
+  const int si = siteOfActor(g.world, a);
+  const int D = std::clamp(si >= 0 ? g.world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
+  const cult::Culture* cc = si >= 0 ? g.world.cultureOf(si) : nullptr;
+  if (cc && g.world.src) cc = &g.world.src->culture(cc->id);
   bool epicOk = false;
-  if (si >= 0 && world.sites[(size_t)si].capital) {
-    const Kingdom* K = world.kingdomOf(si);
-    epicOk = K && realm.rep(K->id) >= gear::REP_HONOURED;
+  if (si >= 0 && g.world.sites[(size_t)si].capital) {
+    const Kingdom* K = g.world.kingdomOf(si);
+    epicOk = K && g.realm.rep(K->id) >= gear::REP_HONOURED;
   }
   auto gearOf = [&](ItemKind k, int sub) {
     const int il = std::clamp(D - gear::SHOP_BAND_SPREAD + r.irange(2 * gear::SHOP_BAND_SPREAD + 1), 1, gear::MAX_D);
@@ -57,11 +58,11 @@ std::vector<Item> Game::shopStock(const Actor& a) {
     s.push_back(it);
   };
   auto stuff = [&](craft::Stuff st, int n) { s.push_back(craft::makeStuff(st, n)); };
-  const art::Building where = a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].type : art::Building::House;
-  const bool mining = si >= 0 && (world.sites[(size_t)si].special == (uint8_t)ew::Specialty::Mining || world.sites[(size_t)si].archetype == (uint8_t)ew::Archetype::Mining);
+  const art::Building where = a.bldg >= 0 && a.bldg < (int)g.world.over.bldgs.size() ? g.world.over.bldgs[(size_t)a.bldg].type : art::Building::House;
+  const bool mining = si >= 0 && (g.world.sites[(size_t)si].special == (uint8_t)ew::Specialty::Mining || g.world.sites[(size_t)si].archetype == (uint8_t)ew::Archetype::Mining);
   // the land's ores (richest first) where the settlement stands
   std::vector<craft::OreSource> ores;
-  if (world.src && si >= 0) ores = craft::oresAt(*world.src, world.ox + world.sites[(size_t)si].ex, world.oy + world.sites[(size_t)si].ey);
+  if (g.world.src && si >= 0) ores = craft::oresAt(*g.world.src, g.world.ox + g.world.sites[(size_t)si].ex, g.world.oy + g.world.sites[(size_t)si].ey);
   auto localOres = [&](int kinds, int lo, int hi) {
     int n = 0;
     for (const craft::OreSource& o : ores) {
@@ -108,7 +109,7 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       // a culture alloy the player has learned: the smith sells a few ingots and its reagent
       if (cc && cc->id)
         for (size_t k = 0; k < cc->arms.alloys.size(); k++)
-          if (craft.knows(cc->id, (uint8_t)(k + 1), craft::SecretKind::AlloyRecipe)) {
+          if (g.craft.knows(cc->id, (uint8_t)(k + 1), craft::SecretKind::AlloyRecipe)) {
             s.push_back(craft::makeStuff(craft::Stuff::AlloyIngot, 1 + r.irange(2), cc->id, (uint8_t)(k + 1), cc));
             s.push_back(craft::makeStuff(craft::Stuff::Reagent, 2, cc->id, (uint8_t)(k + 1), cc));
           }
@@ -173,13 +174,13 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       if (mining) { localOres(2, 5, 10); localIngots(2); }
       break;
   }
-  HomeOps::shopStock(*this, a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
-  MagicOps::shopStock(*this, a, s);   // M9: tomes on a mage's or a scholar's shelf (magic_game.cpp)
-  SkillOps::shopStock(*this, a, s);   // M9: skill books on a scholar's or a trainer's shelf (skills_game.cpp)
-  SeaOps::shopStock(*this, a, s);     // M10: a fishmonger's catch, a chandler's bait and charts (sea_game.cpp)
+  HomeOps::shopStock(g, a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
+  MagicOps::shopStock(g, a, s);   // M9: tomes on a mage's or a scholar's shelf (magic_game.cpp)
+  SkillOps::shopStock(g, a, s);   // M9: skill books on a scholar's or a trainer's shelf (skills_game.cpp)
+  SeaOps::shopStock(g, a, s);     // M10: a fishmonger's catch, a chandler's bait and charts (sea_game.cpp)
   // (M5 census) material prices follow the settlement's stock of the good (price % of list: shortages raise it)
   if (si >= 0) {
-    if (const life::Census* cs = life.census(world, si))
+    if (const life::Census* cs = g.life.census(g.world, si))
       for (Item& it : s)
         if (it.kind == ItemKind::Material) {
           const int pct = cs->price[(size_t)craft::stuffInfo((craft::Stuff)it.sub).good];
@@ -187,7 +188,7 @@ std::vector<Item> Game::shopStock(const Actor& a) {
         }
   }
   // background prices (blacksmith's child at smiths, urchin at merchants): the shelf shows what you pay
-  float pf = priceFactor(a.role);
+  float pf = g.priceFactor(a.role);
   if (pf != 1.0f)
     for (Item& it : s) if (it.kind != ItemKind::Arrows) it.value = std::max(1, (int)std::lround(it.value * pf));
   return s;
@@ -204,7 +205,7 @@ void Game::openShop(Actor& a) {
   }
   auto it = shopCache_.find(shop.key);
   if (it != shopCache_.end() && it->second.first == day / 2) shop.stock = it->second.second;
-  else { shop.stock = shopStock(a); shopCache_[shop.key] = {day / 2, shop.stock}; }
+  else { shop.stock = LootOps::shopStock(*this, a); shopCache_[shop.key] = {day / 2, shop.stock}; }
   mode = Mode::Shop;
 }
 

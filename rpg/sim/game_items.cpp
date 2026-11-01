@@ -4,6 +4,7 @@
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/loot_ops.h"
 
 // ------------------------------------------------------------------ inventory
 void Game::giveGold(int g) {
@@ -163,21 +164,21 @@ Item wildGood(int base, const char* name, art::Icon icon, int value, uint32_t ti
 }
 }  // namespace
 
-void Game::dropLoot(const Actor& a) {
+void LootOps::dropLoot(Game& gm, const Actor& a) {
   if (a.npc) return;
-  Rng r(hash32((uint32_t)a.id * 7919u) ^ (uint32_t)seed ^ (uint32_t)(time * 10));
+  Rng r(hash32((uint32_t)a.id * 7919u) ^ (uint32_t)gm.seed ^ (uint32_t)(gm.time * 10));
   // (M6, 7.2 / 7.6) what a body drops is rolled by gear::rollDrop at the danger it fell at, its rank and its maker culture:
   // a soldier's or a bandit's own (Actor::culture, the FOES lane), else the land's
   gear::DropSource ds;
   ds.D = std::clamp(a.dropD ? a.dropD : a.level, 1, gear::MAX_D);
   ds.rank = a.rank;
-  ds.playerLevel = plLevel;
+  ds.playerLevel = gm.plLevel;
   ds.culture = a.culture;
   if (!ds.culture) {
-    if (inside && subSite >= 0) { if (const cult::Culture* c = world.cultureOf(subSite)) ds.culture = c->id; }
-    else if (const cult::Culture* c = world.cultureAtTile((int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE))) ds.culture = c->id;
+    if (gm.inside && gm.subSite >= 0) { if (const cult::Culture* c = gm.world.cultureOf(gm.subSite)) ds.culture = c->id; }
+    else if (const cult::Culture* c = gm.world.cultureAtTile((int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE))) ds.culture = c->id;
   }
-  const cult::Culture* maker = ds.culture && world.src ? &world.src->culture(ds.culture) : nullptr;
+  const cult::Culture* maker = ds.culture && gm.world.src ? &gm.world.src->culture(ds.culture) : nullptr;
   // (M8b, 15.27.4) the source by how hard the foe was: a world boss's hoard is Epic or better, a dungeon boss's drop is
   // boosted a step, a named unique's is Rare or better (7.6), every other body an ordinary roll (an elite's +1 roll is
   // rollDrop's own)
@@ -194,9 +195,9 @@ void Game::dropLoot(const Actor& a) {
   auto drop = [&](const Item& it) {
     // (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left; clang goes left to right)
     const float jy = r.range(-6, 6), jx = r.range(-8, 8);
-    Pickup k; k.p = a.p + Vec2(jx, jy); k.item = it; pickups.push_back(k);
+    Pickup k; k.p = a.p + Vec2(jx, jy); k.item = it; gm.pickups.push_back(k);
   };
-  auto dropGold = [&](int g) { const float jy = r.range(-4, 4), jx = r.range(-6, 6); Pickup k; k.p = a.p + Vec2(jx, jy); k.gold = g; pickups.push_back(k); };
+  auto dropGold = [&](int g) { const float jy = r.range(-4, 4), jx = r.range(-6, 6); Pickup k; k.p = a.p + Vec2(jx, jy); k.gold = g; gm.pickups.push_back(k); };
   if (a.human) {
     dropGold(5 + r.irange(10 + a.level * 3) + (a.boss ? 60 + a.level * 10 : 0));
     if (r.f() < 0.35f || a.boss || a.rank >= 1) drop(loot(a.boss));
@@ -204,9 +205,9 @@ void Game::dropLoot(const Actor& a) {
     return;
   }
   switch (a.mon) {
-    case Monster::Wolf: case Monster::IceWolf: if (r.f() < (background == Background::Hunter ? 1.0f : 0.6f)) drop(makeMisc(0)); break;
+    case Monster::Wolf: case Monster::IceWolf: if (r.f() < (gm.background == Background::Hunter ? 1.0f : 0.6f)) drop(makeMisc(0)); break;
     case Monster::Boar: if (r.f() < 0.6f) drop(makeFood(1)); break;
-    case Monster::Bear: drop(makeMisc(0)); if (background == Background::Hunter) drop(makeMisc(0)); if (r.f() < 0.5f) drop(makeFood(1)); break;
+    case Monster::Bear: drop(makeMisc(0)); if (gm.background == Background::Hunter) drop(makeMisc(0)); if (r.f() < 0.5f) drop(makeFood(1)); break;
     case Monster::Spider: case Monster::FrostSpider: if (r.f() < 0.5f) drop(makeMisc(5)); break;
     case Monster::Skeleton: case Monster::Draugr: if (r.f() < 0.5f) drop(makeMisc(1)); if (r.f() < 0.3f) dropGold(3 + r.irange(12)); if (r.f() < 0.15f) drop(loot(false)); break;
     case Monster::Troll: drop(makeMisc(4)); break;
@@ -216,25 +217,25 @@ void Game::dropLoot(const Actor& a) {
     // (M3c LIFE) the Wildlands wildlife: hides and parts for M6 crafting (biomes.h HD_CHITIN, HD_SPOTTED, HD_SCALE, HD_FUR;
     // the wisp's, the hound's and the blight's goods are the magic lands' reagents). Misc goods stack by name.
     case Monster::Scorpion:
-      if (r.f() < (background == Background::Hunter ? 0.9f : 0.6f)) drop(wildGood(8, "SCORPION CHITIN", art::Icon::Pelt, 16, rgba(196, 140, 72)));
+      if (r.f() < (gm.background == Background::Hunter ? 0.9f : 0.6f)) drop(wildGood(8, "SCORPION CHITIN", art::Icon::Pelt, 16, rgba(196, 140, 72)));
       if (r.f() < 0.25f) drop(wildGood(1, "SCORPION STINGER", art::Icon::Bone, 24, rgba(120, 60, 50)));
       break;
     case Monster::Hyena:
-      if (r.f() < (background == Background::Hunter ? 1.0f : 0.55f)) drop(wildGood(8, "SPOTTED HIDE", art::Icon::Pelt, 12, rgba(196, 168, 110)));
+      if (r.f() < (gm.background == Background::Hunter ? 1.0f : 0.55f)) drop(wildGood(8, "SPOTTED HIDE", art::Icon::Pelt, 12, rgba(196, 168, 110)));
       if (r.f() < 0.2f) drop(makeFood(1));
       break;
     case Monster::Lurker:
-      if (r.f() < (background == Background::Hunter ? 1.0f : 0.7f)) drop(wildGood(8, "LURKER SCALES", art::Icon::Pelt, 28, rgba(84, 116, 66)));
+      if (r.f() < (gm.background == Background::Hunter ? 1.0f : 0.7f)) drop(wildGood(8, "LURKER SCALES", art::Icon::Pelt, 28, rgba(84, 116, 66)));
       if (r.f() < 0.35f) drop(makeFood(1));
       break;
     case Monster::Yeti:
       drop(wildGood(9, "YETI FUR", art::Icon::Pelt, 48, rgba(226, 234, 246)));
-      if (background == Background::Hunter) drop(wildGood(9, "YETI FUR", art::Icon::Pelt, 48, rgba(226, 234, 246)));
+      if (gm.background == Background::Hunter) drop(wildGood(9, "YETI FUR", art::Icon::Pelt, 48, rgba(226, 234, 246)));
       if (r.f() < 0.3f) drop(makeFood(1));
       break;
     case Monster::Wisp: if (r.f() < 0.45f) drop(wildGood(6, "WISP ESSENCE", art::Icon::Gem, 60, rgba(120, 230, 230))); break;
     case Monster::EmberHound:
-      if (r.f() < (background == Background::Hunter ? 0.9f : 0.5f)) drop(wildGood(9, "EMBER HIDE", art::Icon::Pelt, 36, rgba(90, 40, 34)));
+      if (r.f() < (gm.background == Background::Hunter ? 0.9f : 0.5f)) drop(wildGood(9, "EMBER HIDE", art::Icon::Pelt, 36, rgba(90, 40, 34)));
       if (r.f() < 0.2f) drop(wildGood(6, "CINDER HEART", art::Icon::Gem, 72, rgba(255, 140, 50)));
       break;
     case Monster::Blightspawn:
@@ -255,7 +256,7 @@ void Game::dropLoot(const Actor& a) {
     // (M6, 15.11) hunting gives raw hides for the tanner (the hide -> leather chain)
     const bool hideBeast = a.mon == Monster::Wolf || a.mon == Monster::IceWolf || a.mon == Monster::Bear || a.mon == Monster::Boar ||
                            a.mon == Monster::Hyena || a.mon == Monster::Yeti || a.mon == Monster::Lurker || a.mon == Monster::EmberHound;
-    if (hideBeast && r.f() < (background == Background::Hunter ? 0.8f : 0.5f)) drop(craft::makeStuff(craft::Stuff::Hide, a.mon == Monster::Bear || a.mon == Monster::Yeti ? 2 : 1));
+    if (hideBeast && r.f() < (gm.background == Background::Hunter ? 0.8f : 0.5f)) drop(craft::makeStuff(craft::Stuff::Hide, a.mon == Monster::Bear || a.mon == Monster::Yeti ? 2 : 1));
   }
   // (M6 integration) a dragon world boss (foes::Rank::WorldBoss = 5) is not Ashfang: a world boss's hoard, not the
   // main quest's crown and greatsword
@@ -272,22 +273,22 @@ void Game::dropLoot(const Actor& a) {
     drop(w);
   }
   // (M9) a skill book or a rare tome may lie among the loot (SKILLS / MAGIC lanes)
-  SkillOps::loot(*this, a.p, ds.D, gear::LootSrc::Body);
-  MagicOps::loot(*this, a.p, ds.D, gear::LootSrc::Body);
+  SkillOps::loot(gm, a.p, ds.D, gear::LootSrc::Body);
+  MagicOps::loot(gm, a.p, ds.D, gear::LootSrc::Body);
 }
 
-void Game::openChest(int tx, int ty) {
-  if (questChest(tx, ty)) return;   // M2: an Heirloom's chest holds the keepsake (quests.cpp)
-  Map& m = map();
+void LootOps::openChest(Game& gm, int tx, int ty) {
+  if (gm.questChest(tx, ty)) return;   // M2: an Heirloom's chest holds the keepsake (quests.cpp)
+  Map& m = gm.map();
   size_t i = (size_t)ty * m.w + tx;
   m.prop[i] = (uint8_t)((int)Prop::ChestOpen + 1);
-  const uint64_t lk = lootKey(tx, ty);
-  looted.insert(lk);
+  const uint64_t lk = gm.lootKey(tx, ty);
+  gm.looted.insert(lk);
   m.rebuildSolid();
-  sfx((int)Sfx::Chest, pl().p);
-  int lvl = inside && subSite >= 0 ? world.sites[subSite].level : world.zoneLevel(tx, ty);
-  Rng r(world.endless ? (uint32_t)ew::mix64(lk ^ seed) : hash2(tx, ty, (uint32_t)seed + mapKey()));
-  bool rich = inside && subSite >= 0;
+  gm.sfx((int)Sfx::Chest, gm.pl().p);
+  int lvl = gm.inside && gm.subSite >= 0 ? gm.world.sites[gm.subSite].level : gm.world.zoneLevel(tx, ty);
+  Rng r(gm.world.endless ? (uint32_t)ew::mix64(lk ^ gm.seed) : hash2(tx, ty, (uint32_t)gm.seed + gm.mapKey()));
+  bool rich = gm.inside && gm.subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
   // (M8b) the find is laid out in a small fan on the open floor before the chest (its front, else a free side), each
   // piece in its own place, never piled on the lid or on the wall behind
@@ -323,10 +324,10 @@ void Game::openChest(int tx, int ty) {
     return place(jx, jy);
   };
   // (M6) the chest's loot by the place's danger (gear::rollDrop) in the make of the land's (or the dungeon's) culture
-  const cult::Culture* cc = inside && subSite >= 0 ? world.cultureOf(subSite) : (inside ? nullptr : world.cultureAtTile(tx, ty));
-  if (cc && world.src) cc = &world.src->culture(cc->id);
+  const cult::Culture* cc = gm.inside && gm.subSite >= 0 ? gm.world.cultureOf(gm.subSite) : (gm.inside ? nullptr : gm.world.cultureAtTile(tx, ty));
+  if (cc && gm.world.src) cc = &gm.world.src->culture(cc->id);
   // (M8b, 15.27.4) what kind of find it is (a dungeon's hoard, an exploration cache, a plain chest): LootOps::chestSource
-  gear::DropSource ds = LootOps::chestSource(*this, tx, ty);
+  gear::DropSource ds = LootOps::chestSource(gm, tx, ty);
   ds.culture = cc ? cc->id : 0;
   const bool hoard = ds.src == gear::LootSrc::Hoard;
   for (int k = 0; k < n; k++) {
@@ -336,23 +337,23 @@ void Game::openChest(int tx, int ty) {
     const bool bossRoll = rich && k == 0 && r.f() < 0.35f;
     if (bossRoll || (hoard && k == 0)) s2.rank = 4;
     p.item = gear::rollDropC(r, s2, cc);
-    pickups.push_back(p);
+    gm.pickups.push_back(p);
   }
-  Pickup g; g.p = place(0, 0); g.gold = 8 + r.irange(15 + lvl * 4) + (rich ? 20 : 0); pickups.push_back(g);
+  Pickup g; g.p = place(0, 0); g.gold = 8 + r.irange(15 + lvl * 4) + (rich ? 20 : 0); gm.pickups.push_back(g);
   // (M6, 15.11) mining country's chests hold ore (the land's richest), a ruin's may hold an alloy's notes or a mould
-  if (world.src) {
+  if (gm.world.src) {
     int ptx = tx, pty = ty;
-    if (inside) overworldTile(*this, ptx, pty);
-    const int32_t gx = world.ox + ptx, gy = world.oy + pty;
-    if (!(inside && subBldg >= 0) && r.f() < 0.4f) {
-      const std::vector<craft::OreSource> ores = craft::oresAt(*world.src, gx, gy);
+    if (gm.inside) overworldTile(gm, ptx, pty);
+    const int32_t gx = gm.world.ox + ptx, gy = gm.world.oy + pty;
+    if (!(gm.inside && gm.subBldg >= 0) && r.f() < 0.4f) {
+      const std::vector<craft::OreSource> ores = craft::oresAt(*gm.world.src, gx, gy);
       if (!ores.empty() && ores[0].richness >= 140) {
         Pickup o; o.p = spot();
         o.item = craft::makeStuff(craft::oreStuff(ores[0].ore), 2 + r.irange(3));
-        pickups.push_back(o);
+        gm.pickups.push_back(o);
       }
     }
-    if (inside && subSite >= 0 && world.sites[(size_t)subSite].type == SiteType::Ruin && cc && cc->id && r.f() < 0.3f) {
+    if (gm.inside && gm.subSite >= 0 && gm.world.sites[(size_t)gm.subSite].type == SiteType::Ruin && cc && cc->id && r.f() < 0.3f) {
       // (M6 fixer r3) only alloys whose secret a ruin can teach (craft::howAllowed HOW_RUINS); otherwise a pattern mould
       std::vector<uint8_t> readable;
       for (size_t ai = 0; ai < cc->arms.alloys.size(); ai++)
@@ -361,12 +362,12 @@ void Game::openChest(int tx, int ty) {
       const craft::SecretKind sk = al ? craft::SecretKind::AlloyRecipe : (r.f() < 0.5f ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern);
       Pickup o; o.p = spot();
       o.item = craft::makeLore(*cc, al, sk, r.next());
-      pickups.push_back(o);
+      gm.pickups.push_back(o);
     }
   }
   // (M9) a skill book or a rare tome may lie in the chest (SKILLS / MAGIC lanes)
-  SkillOps::loot(*this, spot(), ds.D, ds.src);
-  MagicOps::loot(*this, spot(), ds.D, ds.src);
+  SkillOps::loot(gm, spot(), ds.D, ds.src);
+  MagicOps::loot(gm, spot(), ds.D, ds.src);
 }
 
 gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {

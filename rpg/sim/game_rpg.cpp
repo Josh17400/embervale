@@ -5,6 +5,7 @@
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/loot_ops.h"
 
 // ------------------------------------------------------------------ interaction
 // (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
@@ -120,7 +121,7 @@ void Game::interact() {
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
   if (HomeOps::useProp(*this, prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
-  if (prop == Prop::Chest) { openChest(tx, ty); return; }
+  if (prop == Prop::Chest) { LootOps::openChest(*this, tx, ty); return; }
   if (LifeHooks::useProp(*this, prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);

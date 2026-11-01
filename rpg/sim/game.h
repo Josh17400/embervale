@@ -843,8 +843,6 @@ class Game {
   void gainXp(int xp);
   void addItem(const Item& it, bool announce = true);
   void giveGold(int g);
-  void dropLoot(const Actor& a);
-  void openChest(int tx, int ty);
   void interact();
   void talkTo(Actor& a);               // (M7b) talkToInner, then the talk memory and the recorder
   void talkToInner(Actor& a);          // the conversation's opening (greeting, the hooks, the options)
@@ -872,7 +870,6 @@ class Game {
   std::string greeting(const Actor& a, int salt = 0);   // (M7b salt: another pick when the first was said lately)
   std::string questReminder(const Quest& q) const;              // (M7b) the giver's own words while the job is under way
   std::string acceptLine(const Quest& q) const;                 // (M7b) the giver's words when the job is taken
-  std::vector<Item> shopStock(const Actor& a);
   // ---- M2 SIM lane
   // travel behind the fade (travel.cpp)
   int frameWorkCalls_ = 0;             // frameWork ran this session (else update pumps a thread-less streamer itself)
@@ -932,13 +929,7 @@ class Game {
   void storyKill(const Actor& victim, bool byPlayer);
   void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
   bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
-  // ---- M6 Steel hooks (VISION_PLAN 7, 15.11): FoeHooks (foe_hooks.h), CraftHooks (craft_hooks.h)
   bool foeWarmedTick_ = false;   // (M6 fixer r3) foeStep generated a cold region or kingdom cell this tick (one per tick)
-  //   NUMBERS / FORGE (rpg/sim/craft_game.cpp): the smith's, smelter's and tanner's work and lessons as dialogue options
-  //   in [DLG_CRAFT, DLG_M6_END) (smelt, forge, tan, apprentice, study a foreign piece, steal patterns), and the forge
-  //   screen they may open
-  void craftTalk(Actor& a);
-  bool craftChoose(const DlgOpt& o);
   // ---- M7 Home hooks (VISION_PLAN 8, 15.2, 15.22). Called from the core loop (game.cpp / game_rpg.cpp) and DEFINED in
   //      rpg/sim/home_game.cpp (HOMESTEAD lane). Keep the calls where phase A put them.
  public:
@@ -1032,6 +1023,7 @@ class Game {
   friend struct FoeOps;                // M6 FOES: the foes' internals (foes_game.cpp)
   friend struct FoeHooks;              // M6 FOES: the hooks into the core loop (rpg/sim/foe_hooks.h)
   friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
+  friend struct CraftHooks;            // M6 NUMBERS / FORGE: the hooks into the core loop (rpg/sim/craft_hooks.h)
   friend struct LootOps;               // M8b SOURCES: the loot internals for the tests (rpg/sim/loot_ops.h)
   friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)

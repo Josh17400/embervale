@@ -29,6 +29,7 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/loot_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -437,7 +438,7 @@ void Game::kill(Actor& a, int killer) {
   }
   PartyOps::killed(*this, a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
   FoeHooks::killed(*this, a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
-  dropLoot(a);
+  LootOps::dropLoot(*this, a);
   // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow
   // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own
   // (fixer M8 r1) a companion's kill is the party's: it counts toward hunt quests and saga Kill goals like the player's

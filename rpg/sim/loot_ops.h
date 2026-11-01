@@ -6,11 +6,11 @@
 #include "rpg/sim/gear.h"
 
 struct LootOps {
-  static void dropLoot(Game& g, const Actor& a) { g.dropLoot(a); }
-  static void openChest(Game& g, int tx, int ty) { g.openChest(tx, ty); }
+  static void dropLoot(Game& g, const Actor& a);   // kill(): the loot a fallen actor drops (game_items.cpp)
+  static void openChest(Game& g, int tx, int ty);   // interact(): a chest of the current map opened (game_items.cpp)
   static void completeQuest(Game& g, Quest& q) { g.completeQuest(q); }
   static void giveFirstWeapon(Game& g, Quest& q) { g.giveFirstWeapon(q); }
-  static std::vector<Item> shopStock(Game& g, const Actor& a) { return g.shopStock(a); }
+  static std::vector<Item> shopStock(Game& g, const Actor& a);   // openShop: what a merchant has this restock period (game_shop.cpp)
   // (M8b, 15.27.4) what a chest at (tx, ty) of the current map is as a loot source: a dungeon's hoard (the chest by its
   // boss: LootSrc::Hoard, boost 1), a ruin's cache or a chest at a wayside place / wonder / shrine off the road
   // (LootSrc::Explore, boost 1), else a plain Chest; a dungeon of D >= the player's level + 3 boosts one more. D, the

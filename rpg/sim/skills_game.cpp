@@ -23,6 +23,7 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/skills.h"
 #include "rpg/sim/talk.h"
+#include "rpg/sim/loot_ops.h"
 
 using skills::Skill;
 using skills::Weight;
@@ -911,7 +912,7 @@ bool SkillOps::choose(Game& g, const DlgOpt& o) {
     }
     // the shelf of this restock, lowered (the shop opens on the cached shelf)
     auto it = g.shopCache_.find(key);
-    if (it == g.shopCache_.end() || it->second.first != g.day / 2) { g.shopCache_[key] = {g.day / 2, g.shopStock(*a)}; it = g.shopCache_.find(key); }
+    if (it == g.shopCache_.end() || it->second.first != g.day / 2) { g.shopCache_[key] = {g.day / 2, LootOps::shopStock(g, *a)}; it = g.shopCache_.find(key); }
     const float cut = threat ? 0.8f : 0.85f;
     // (M9 fixer) a shelf is cut once per restock: a second haggle on the next day of the same restock never stacks
     int& low = L.lowered[key];

@@ -10,6 +10,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/skills.h"
+#include "rpg/sim/loot_ops.h"
 
 struct SkillOps {
   // ---- the one doorway for gains (Game::skillUse calls it): `base` use points of an act of skill s (1 = one ordinary
@@ -140,7 +141,7 @@ struct SkillOps {
   static int spawnMonster(Game& g, art::Monster m, Vec2 at, int level) { return g.spawnMonster(m, at, level, false); }
   static void damage(Game& g, Actor& v, float dmg, Vec2 from, int attacker) { g.damage(v, dmg, from, attacker); }
   static void update(Game& g, Actor& a, float dt) { g.updateActor(a, dt); }
-  static std::vector<Item> shopStockOf(Game& g, const Actor& a) { return g.shopStock(a); }
+  static std::vector<Item> shopStockOf(Game& g, const Actor& a) { return LootOps::shopStock(g, a); }
   static void shootArrow(Game& g) { g.shootArrow(); }
   static void projectiles(Game& g, float dt) { g.updateProjectiles(dt); }
   static float weaponDamage(const Game& g) { return g.weaponDamage(); }
