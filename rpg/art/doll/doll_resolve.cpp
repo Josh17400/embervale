@@ -874,6 +874,9 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
   if (L.pauldron >= 2 && L.pauldron <= 4) flagS("pauldron" + std::to_string(L.pauldron));
   if (shieldOf(L)) flag("shield");
+  // (P3 ART, B10) the brigandine as a coat of plates: its base views' `when brig-plates replace` re-cuts (tools/doll/p3_brig.py;
+  // the T5 / T6 / Mythic views come first in the file and still win)
+  if (const char* a = armourOf(L)) if (std::string(a) == "brigandine") flag("brig-plates");
   const Family fam = familyOf(L);
   if (!L.civil && L.weapon >= 1 && L.weapon <= 9) {
     if (fam == Family::Greatsword || fam == Family::Spear || fam == Family::Staff) flag("twohand");

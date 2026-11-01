@@ -8,176 +8,176 @@ body man
 clip windup R family mace variant 0
 f armL=- armR=mc_1w weapon=112,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88
 clip strike R family mace variant 0
-f armL=- armR=mc_1s weapon=292,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=1,0 ms=138
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=1,0 ms=138
 clip follow R family mace variant 0
 f armL=- armR=mc_1f weapon=315,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=1,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 0
 f armL=idle armR=mc_1w weapon=67,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 0
-f armL=idle armR=mc_1s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 ms=138
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138
 clip follow D family mace variant 0
 f armL=idle armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=2 lean=0 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 0
 f armL=lie armR=mc_1w weapon=68,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88
 clip strike L family mace variant 0
-f armL=lie armR=mc_1s weapon=248,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-1,0 ms=138
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-1,0 ms=138
 clip follow L family mace variant 0
 f armL=lie armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=-1,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 0
 f armL=idle armR=mc_1w weapon=112,front legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 0
-f armL=idle armR=mc_1s weapon=292,back fx=a1 legs=drawn sheath=- bob=2 lean=0 ms=138
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138
 clip follow U family mace variant 0
 f armL=idle armR=mc_1f weapon=315,back fx=a2 legs=drawn sheath=- bob=2 lean=0 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 1
 f armL=- armR=mc_2w weapon=202,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88
 clip strike R family mace variant 1
-f armL=- armR=mc_2s weapon=45,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138
 clip follow R family mace variant 1
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 1
 f armL=idle armR=mc_2w weapon=202,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 1
-f armL=idle armR=mc_2s weapon=67,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=138
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 at=-1,0 ms=138
 clip follow D family mace variant 1
 f armL=idle armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 1
 f armL=lie armR=mc_2w weapon=338,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88
 clip strike L family mace variant 1
-f armL=lie armR=mc_2s weapon=135,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138
 clip follow L family mace variant 1
 f armL=lie armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 1
 f armL=idle armR=mc_2w weapon=337,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 1
-f armL=idle armR=mc_2s weapon=112,front fx=a1 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=138
+f armL=idle armR=mc_2s weapon=315,front fx=a1 legs=drawn sheath=- bob=1 lean=2 at=1,0 ms=138
 clip follow U family mace variant 1
 f armL=idle armR=mc_2f weapon=90,front fx=a2 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 2
 f armL=- armR=mc_3w weapon=135,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=88
 clip strike R family mace variant 2
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=75
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=62
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=75
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=62
 clip follow R family mace variant 2
 f armL=- armR=mc_3f weapon=292,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 2
 f armL=idle armR=mc_3w weapon=112,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 2
-f armL=idle armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=75
-f armL=idle armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=62
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62
 clip follow D family mace variant 2
 f armL=idle armR=mc_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 2
 f armL=lie armR=mc_3w weapon=45,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=88
 clip strike L family mace variant 2
-f armL=lie armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=75
-f armL=lie armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=62
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=75
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=62
 clip follow L family mace variant 2
 f armL=lie armR=mc_3f weapon=248,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 2
 f armL=idle armR=mc_3w weapon=67,front legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 2
-f armL=idle armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=75
-f armL=idle armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=62
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62
 clip follow U family mace variant 2
 f armL=idle armR=mc_3f weapon=292,back fx=a2 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=112,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=292,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=1,0 ms=138 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=1,0 ms=138 sharm=shtuck shield=guard
 clip follow R family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=315,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=67,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138 sharm=guard shield=guard
 clip follow D family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=68,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=248,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
 clip follow L family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=-1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=112,front legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=292,back fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138 sharm=guard shield=guard
 clip follow U family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=315,back fx=a2 legs=drawn sheath=- bob=1 lean=0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup R family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=202,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=45,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138 sharm=shtuck shield=guard
 clip follow R family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=202,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=67,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
 clip follow D family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=338,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=135,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138 sharm=guard shield=guard
 clip follow L family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=337,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=112,front fx=a1 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=315,front fx=a1 legs=drawn sheath=- bob=1 lean=2 at=1,0 ms=138 sharm=guard shield=guard
 clip follow U family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front fx=a2 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup R family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=135,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=75 sharm=shtuck shield=guard
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=62 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=75 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=62 sharm=shtuck shield=guard
 clip follow R family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=292,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=112,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62 sharm=guard shield=guard
 clip follow D family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=45,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=62 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=75 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=62 sharm=guard shield=guard
 clip follow L family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=248,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=67,front legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62 sharm=guard shield=guard
 clip follow U family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=292,back fx=a2 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
@@ -202,176 +202,176 @@ body woman
 clip windup R family mace variant 0
 f armL=- armR=mc_1w weapon=112,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88
 clip strike R family mace variant 0
-f armL=- armR=mc_1s weapon=292,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=1,0 ms=138
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=1,0 ms=138
 clip follow R family mace variant 0
 f armL=- armR=mc_1f weapon=315,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=1,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 0
 f armL=idle armR=mc_1w weapon=67,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 0
-f armL=idle armR=mc_1s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 ms=138
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138
 clip follow D family mace variant 0
 f armL=idle armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=2 lean=0 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 0
 f armL=lie armR=mc_1w weapon=68,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88
 clip strike L family mace variant 0
-f armL=lie armR=mc_1s weapon=248,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-1,0 ms=138
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-1,0 ms=138
 clip follow L family mace variant 0
 f armL=lie armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=-1,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 0
 f armL=idle armR=mc_1w weapon=112,front legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 0
-f armL=idle armR=mc_1s weapon=292,back fx=a1 legs=drawn sheath=- bob=2 lean=0 ms=138
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138
 clip follow U family mace variant 0
 f armL=idle armR=mc_1f weapon=315,back fx=a2 legs=drawn sheath=- bob=2 lean=0 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 1
 f armL=- armR=mc_2w weapon=202,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88
 clip strike R family mace variant 1
-f armL=- armR=mc_2s weapon=45,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138
 clip follow R family mace variant 1
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 1
 f armL=idle armR=mc_2w weapon=202,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 1
-f armL=idle armR=mc_2s weapon=67,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=138
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 at=-1,0 ms=138
 clip follow D family mace variant 1
 f armL=idle armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 1
 f armL=lie armR=mc_2w weapon=338,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88
 clip strike L family mace variant 1
-f armL=lie armR=mc_2s weapon=135,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138
 clip follow L family mace variant 1
 f armL=lie armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 1
 f armL=idle armR=mc_2w weapon=337,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 1
-f armL=idle armR=mc_2s weapon=112,front fx=a1 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=138
+f armL=idle armR=mc_2s weapon=315,front fx=a1 legs=drawn sheath=- bob=1 lean=2 at=1,0 ms=138
 clip follow U family mace variant 1
 f armL=idle armR=mc_2f weapon=90,front fx=a2 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 2
 f armL=- armR=mc_3w weapon=135,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=88
 clip strike R family mace variant 2
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=75
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=62
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=75
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=62
 clip follow R family mace variant 2
 f armL=- armR=mc_3f weapon=292,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=3,0 ms=88
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75
 clip windup D family mace variant 2
 f armL=idle armR=mc_3w weapon=112,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88
 clip strike D family mace variant 2
-f armL=idle armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=75
-f armL=idle armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=62
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75
+f armL=idle armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62
 clip follow D family mace variant 2
 f armL=idle armR=mc_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=2 lean=0 at=0,2 ms=88
 f armL=idle armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75
 clip windup L family mace variant 2
 f armL=lie armR=mc_3w weapon=45,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=88
 clip strike L family mace variant 2
-f armL=lie armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=75
-f armL=lie armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=62
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=75
+f armL=lie armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=62
 clip follow L family mace variant 2
 f armL=lie armR=mc_3f weapon=248,front expr=fierce fx=a2 legs=lunge sheath=- bob=2 lean=0 at=-3,0 ms=88
 f armL=lie armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75
 clip windup U family mace variant 2
 f armL=idle armR=mc_3w weapon=67,front legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=1,0 ms=88
 clip strike U family mace variant 2
-f armL=idle armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=75
-f armL=idle armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=62
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75
+f armL=idle armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62
 clip follow U family mace variant 2
 f armL=idle armR=mc_3f weapon=292,back fx=a2 legs=drawn sheath=- bob=2 lean=0 at=0,-2 ms=88
 f armL=idle armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75
 clip windup R family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=112,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=292,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=1,0 ms=138 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=1,0 ms=138 sharm=shtuck shield=guard
 clip follow R family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=315,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=67,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=138 sharm=guard shield=guard
 clip follow D family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=68,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=248,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
 clip follow L family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=225,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=-1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 0 when shield
 f armL=- armR=mc_1w weapon=112,front legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 0 when shield
-f armL=- armR=mc_1s weapon=292,back fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 ms=138 sharm=guard shield=guard
 clip follow U family mace variant 0 when shield
 f armL=- armR=mc_1f weapon=315,back fx=a2 legs=drawn sheath=- bob=1 lean=0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup R family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=202,back legs=stance sheath=- tuft=- bob=1 lean=-1 at=-1,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=45,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=138 sharm=shtuck shield=guard
 clip follow R family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=2 at=2,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=202,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=67,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=-2 at=-1,0 ms=138 sharm=guard shield=guard
 clip follow D family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=0 lean=-2 at=-1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=338,back legs=stance sheath=- tuft=- bob=1 lean=1 at=1,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=135,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=138 sharm=guard shield=guard
 clip follow L family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=-2 at=-2,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 1 when shield
 f armL=- armR=mc_2w weapon=337,back legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 1 when shield
-f armL=- armR=mc_2s weapon=112,front fx=a1 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=138 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=315,front fx=a1 legs=drawn sheath=- bob=1 lean=2 at=1,0 ms=138 sharm=guard shield=guard
 clip follow U family mace variant 1 when shield
 f armL=- armR=mc_2f weapon=90,front fx=a2 legs=drawn sheath=- bob=0 lean=2 at=1,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup R family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=135,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=-1 at=-2,0 ms=88 sharm=shtuck shield=guard
 clip strike R family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=75 sharm=shtuck shield=guard
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=62 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=75 sharm=shtuck shield=guard
+f armL=- armR=sw_2s weapon=315,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=2 at=3,0 ms=62 sharm=shtuck shield=guard
 clip follow R family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=292,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=3,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=45,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup D family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=112,back legs=drawn sheath=- pauld=up tuft=- bob=1 lean=-1 hip=-1,0 ms=88 sharm=guard shield=guard
 clip strike D family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=315,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=75 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=247,front expr=fierce fx=a1 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=62 sharm=guard shield=guard
 clip follow D family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=247,front expr=fierce fx=a2 legs=drawn sheath=- tuft=fierce bob=1 lean=0 at=0,2 ms=88 sharm=shtuck shield=guard
 f armL=- armR=guard weapon=135,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup L family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=45,back legs=stance sheath=- pauld=up tuft=- bob=1 lean=1 at=2,0 ms=88 sharm=guard shield=guard
 clip strike L family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=270,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=62 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=75 sharm=guard shield=guard
+f armL=- armR=sw_2s weapon=225,front expr=fierce fx=a1 legs=lunge sheath=- bob=1 lean=-2 at=-3,0 ms=62 sharm=guard shield=guard
 clip follow L family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=248,front expr=fierce fx=a2 legs=lunge sheath=- bob=1 lean=0 at=-3,0 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=135,front legs=stance sheath=- tuft=- ms=75 sharm=shtuck shield=guard
 clip windup U family mace variant 2 when shield
 f armL=- armR=mc_3w weapon=67,front legs=drawn sheath=- tuft=- bob=1 lean=-1 hip=1,0 ms=88 sharm=guard shield=guard
 clip strike U family mace variant 2 when shield
-f armL=- armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75 sharm=guard shield=guard
-f armL=- armR=mc_3s weapon=270,back fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=75 sharm=guard shield=guard
+f armL=- armR=mc_2s weapon=292,front fx=a1 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=62 sharm=guard shield=guard
 clip follow U family mace variant 2 when shield
 f armL=- armR=mc_3f weapon=292,back fx=a2 legs=drawn sheath=- bob=1 lean=0 at=0,-2 ms=88 sharm=shtuck shield=guard
 f armL=- armR=oh_g weapon=45,front legs=drawn sheath=- tuft=- ms=75 sharm=shtuck shield=guard
