@@ -55,6 +55,29 @@ bool fxTurns(art::Fx f) {
 }
 // (an effect's frames turned a quarter: rvSizedFx below, an exact pixel transpose, never a resampled rotation)
 
+// (P2a style slice) the Steel Arc's frames for a v2 draw. key: fx id << 8 | rot (0 as painted, facing right; 1 turned
+// clockwise = facing down; 3 counter-clockwise = facing up) | back << 2 (the source mirrored top to bottom first: the
+// backhand's crescent sweeps the other way) | cell << 16 (painted natively in cells of that size: art::fxSpriteSized, so
+// the finisher's 1.2x keeps one pixel size). Exact pixel transposes and mirrors, never a resampled rotation.
+Canvas rvArcCells(uint64_t key) {
+  const art::Fx f = (art::Fx)((key >> 8) & 0xFF);
+  const int rot = (int)(key & 3), sz = (int)((key >> 16) & 0xFF);
+  const bool back = ((key >> 2) & 1) != 0;
+  Canvas s = art::fxSpriteSized(f, sz, sz);
+  if (s.w <= 0) return Canvas(1, 1);
+  const int n = std::max(1, art::fxFrames(f));
+  Canvas o(n * sz, sz);
+  for (int k = 0; k < n; k++)
+    for (int y = 0; y < sz; y++)
+      for (int x = 0; x < sz; x++) {
+        const uint32_t c = s.get(k * sz + x, back ? sz - 1 - y : y);
+        if (!c) continue;
+        const int nx = rot == 1 ? sz - 1 - y : rot == 3 ? y : x, ny = rot == 1 ? x : rot == 3 ? sz - 1 - x : y;
+        o.set(k * sz + nx, ny, c);
+      }
+  return o;
+}
+
 // (P3 ART, B1) the sword's live trail cells (art::steelSmear). key: 0x7E << 56 | radius << 32 | head angle (0-359) << 20 |
 // clockwise << 16 | finisher << 12 | frame (0-3)
 Canvas rvSmearCells(uint64_t key) {
@@ -74,6 +97,9 @@ std::unordered_map<int, RvSwingTip>& rvSwingTips() {
 // the way each sword blow's tip runs (screen: +1 clockwise, y down), by facing (D U R L) and hit (sword.clip's strike
 // frames: hits 1 and 3 cut down, hit 2 rises; facing down every blow sweeps counter-clockwise, facing up hit 2 does)
 constexpr int8_t kSmearSweep[4][3] = {{-1, -1, -1}, {1, -1, 1}, {1, -1, 1}, {-1, 1, -1}};
+// the tip from the fist (px) where the strike frame's blade is a drawn key with no tip mark: A3's hit-1 blade facing down
+// (held=a3d1, kept for the A3 parity; tools/doll/p3_smears.py's table measures the same); {0, 0}: none
+constexpr int8_t kSmearReach[4][3][2] = {{{9, 7}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}};
 
 // (P3 ART, B4) the hero's shot with a melee weapon (or a staff) in hand: a bow worn, an arrow just loosed (Cast with no
 // spell held: Game::shootArrow; the loosed arrow still in flight, else no spell's shared cooldown running) and the bow not
@@ -336,9 +362,14 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
-      if (k.clip == art::Clip::Strike && an && an->gripX != art::kNoAnchor && an->tipX != art::kNoAnchor) {   // (P3 ART, B1)
-        const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
-        rvSwingTips()[a.id] = RvSwingTip{an->gripX, an->gripY, an->tipX, an->tipY, std::floor(at.x - cam.x + 0.5f), std::floor(at.y + bob2 - cam.y + 0.5f), t_};
+      if (k.clip == art::Clip::Strike && an && an->gripX != art::kNoAnchor) {   // (P3 ART, B1) the live trail's fist and tip
+        const int8_t* reach = kSmearReach[std::clamp(facing, 0, 3)][std::clamp((int)k.variant, 0, 2)];
+        const bool tip = an->tipX != art::kNoAnchor;
+        if (tip || reach[0] || reach[1]) {
+          const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
+          rvSwingTips()[a.id] = RvSwingTip{an->gripX, an->gripY, tip ? an->tipX : an->gripX + reach[0], tip ? an->tipY : an->gripY + reach[1],
+                                           std::floor(at.x - cam.x + 0.5f), std::floor(at.y + bob2 - cam.y + 0.5f), t_};
+        }
       }
       // (P2c ladder) the living finish over it (T5-T6; the dead lie dark)
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
@@ -644,7 +675,7 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
   // drawn with, its radius the blade's reach, its head at the tip and its tail back the way the blade came (kSmearSweep),
   // over the strike in 4 frames; the hero's finisher a pixel wider in the Finisher tint #FFE6A0. No frame record (a body
   // not drawn this frame): no trail (the strike frame's own baked trail, fx/arc t1-t3, still shows).
-  if (v2 && f == art::Fx::SwingArc) {
+  if (v2 && f == art::Fx::SwingArc && fam == art::Family::Sword) {
     const auto it = rvSwingTips().find(a.id);
     if (it == rvSwingTips().end() || std::fabs(it->second.t - t_) > 0.1f) return;
     const RvSwingTip& st = it->second;
@@ -661,7 +692,45 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
     const Tex& ft = sprites_.cachedTex(*this, key, rvSmearCells);
     const int n = 2 * radius + 5;
     const Color tint = fin ? Color(1, 0xE6 / 255.0f, 0xA0 / 255.0f, 1) : Color(1, 1, 1, 1);
-    P.blitEx(ft, 0, 0, n, n, st.pivX + (float)st.gx - (float)(n / 2), st.pivY + (float)st.gy - (float)(n / 2), (float)n, (float)n, false, tint);
+    // never below the soles: the trail's lowest row a pixel above them (the owner, 2026-10-23: the D crescent dropped under the feet)
+    const float x0 = st.pivX + (float)st.gx - (float)(n / 2), y0 = st.pivY + (float)st.gy - (float)(n / 2);
+    const int rows = std::clamp((int)(st.pivY - 1.0f - y0), 0, n);
+    if (rows > 0) P.blitEx(ft, 0, 0, n, rows, x0, y0, (float)n, (float)rows, false, tint);
+    return;
+  }
+  // (P2a style slice) the Steel Arc on a v2 body (STYLE_P2 12): a 32 x 32 crescent (the finisher painted natively at 38 x
+  // 38 in the Finisher tint #FFE6A0), drawn opaque so its core #F4F1E6 and edge #B8C4D8 land exactly. Its circle's centre
+  // (1/32 of the cell beyond the cell's body side) sits on the body: facing down at the crown, so the crescent crosses
+  // the front of the body at the chest and belly; facing up low on the back, so it arches over the head and shoulders;
+  // side-on at the shoulder line, so it sweeps in front of the face. The crescent follows the blade: as painted it sweeps
+  // clockwise (side-on top to bottom, facing down screen right to left, facing up left to right), which is hits 2 and 3
+  // in sliceSwordAction's keys; hit 1 (and, facing left, whose keys swap hits 1 and 2, hit 2) runs the other way. Hit 3
+  // facing down or up is the overhead cut seen end-on: its tip runs straight up or down the screen beside the weapon arm,
+  // so its crescent stands upright there (facing down a "(" down the hero's right side, from over the head to the shins;
+  // facing up a ")" up the right side from the back to over the head) instead of lying across the body.
+  if (v2 && f == art::Fx::SwingArc) {   // (P3 ART) the dagger's (the sword's trail is the smear above)
+    const int face = std::clamp(a.face, 0, 3);
+    const bool fin = a.player && a.combo == 2;   // the hero's third hit (as the v1 finisher)
+    const int base = art::fxH(f), sz = fin ? (int)std::lround(base * 1.2f) : base;
+    const int frames = std::max(1, art::fxFrames(f));
+    const int fr = std::clamp((int)(prog * frames), 0, frames - 1);
+    const int variant = animPick(g, a, 2).variant;
+    const bool upright = variant == 2 && face <= 1;
+    const bool back = upright ? face == 1 : variant == (face == 3 ? 1 : 0);
+    const bool flip = upright ? face == 0 : face == 3;
+    const int rot = upright ? 0 : face == 0 ? 1 : face == 1 ? 3 : 0;
+    const Tex& ft = sprites_.cachedTex(*this, 0x7Cull << 56 | (uint64_t)sz << 16 | (uint64_t)f << 8 | (back ? 4ull : 0ull) | (uint64_t)rot, rvArcCells);
+    // the circle's centre on the body (pivot-relative) and the way the cell lies from it (facing up the arch tops out 3 px
+    // over the crown and is drawn behind the body, rvSwingFxBehind: the head and shoulders hide its middle)
+    static const int kArcX[4] = {0, 0, -1, 1}, kArcY[4] = {-32, -16, -17, -17};
+    static const int kDirX[4] = {0, 0, 1, -1}, kDirY[4] = {1, -1, 0, 0};
+    const int ax = upright ? (face == 0 ? 6 : -11) : kArcX[face], ay = upright ? (face == 0 ? -18 : -26) : kArcY[face];
+    const int dx = upright ? (face == 0 ? -1 : 1) : kDirX[face], dy = upright ? 0 : kDirY[face];
+    const float off = sz * 0.5f + sz / 32.0f;
+    const Vec2 c = a.p + Vec2(ax + dx * off, ay + dy * off);
+    const Color tint = fin ? Color(1, 0xE6 / 255.0f, 0xA0 / 255.0f, 1) : Color(1, 1, 1, 1);
+    P.blitEx(ft, fr * sz, 0, sz, sz, std::floor(c.x - sz * 0.5f - cam.x + 0.5f), std::floor(c.y - sz * 0.5f - cam.y + 0.5f), (float)sz, (float)sz,
+             flip, tint);
     return;
   }
   // (P2a fix FX-RIG1-HEAVY-ARC) every other family, and the v1 body's sword (the legacy Slash), drawn 1:1 from a sprite
