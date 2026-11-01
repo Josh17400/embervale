@@ -10,6 +10,7 @@
 
 std::string g_savePath;
 int g_savesWritten = 0;
+static bool webSavesOff();
 
 std::string userFilePath(const char* file) {
 #ifdef __EMSCRIPTEN__
@@ -51,8 +52,25 @@ void writeSave(const Game& g) {
     g_savesWritten++;
   }
 #ifdef __EMSCRIPTEN__
-  // persist the in-memory file system to IndexedDB (mounted at /save by the web shell)
-  EM_ASM(FS.syncfs(false, function(err) { if (err) console.log('save sync failed', err); }););
+  // persist the in-memory file system to IndexedDB (mounted at /save by the web shell). (P3 B3) A failed sync marks the
+  // page's Module.embSaves 'failed'; the next save says so once (the sync answers later than this call). With saves off
+  // the title already said so, and nothing is synced
+  if (webSavesOff()) return;
+  EM_ASM(FS.syncfs(false, function(err) { if (err) { Module.embSaves = 'failed'; console.log('save sync failed', err); } }););
+  if (EM_ASM_INT({ if (Module.embSaves !== 'failed' || Module.embSaveFailSaid) return 0; Module.embSaveFailSaid = 1; return 1; })) {
+    Game& said = const_cast<Game&>(g);   // (always the frame loop's game, never a const object) the notice line, as Game::say
+    said.notice = "THE GAME COULD NOT BE SAVED";
+    said.noticeT = 3.5f;
+  }
+#endif
+}
+
+// (P3 B3) the web shell's save store is off this visit (Module.embSaves, web/index.html); desktop builds: never
+static bool webSavesOff() {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({ return Module.embSaves === 'off' ? 1 : 0; }) != 0;
+#else
+  return false;
 #endif
 }
 
@@ -72,4 +90,6 @@ void App::probeSave() {
     }
   }
   if (noSave) hasSave = false;   // (the override above only shows the title's notice; a test run never continues it)
+  // (P3 B3) a browser with no save store (private window, IndexedDB blocked): say so on the title, before anyone plays
+  if (!noSave && webSavesOff()) view.titleNote = "SAVES ARE OFF IN THIS BROWSER - PROGRESS WILL NOT BE KEPT";
 }

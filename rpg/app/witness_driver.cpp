@@ -126,6 +126,18 @@ void App::wReset(long long s, const char* scene, witness::Value params) {
   sp.ids = (int)params["ids"].integer(0);   // a recording's id counter at its start (absent: a fresh Game's)
   applyStart(startSeed, sp);
   if (params["female"].boolean()) { game.app.female = true; AnimOps::refreshHero(game); }   // (P2a) the woman's body base
+  // (P3 D) "creatorUi": true: this run opens the character creator as New Game does in the windowed game (the reset
+  // lands in it, and a later NEW ADVENTURE from the title opens it again); BEGIN hands over to play. Without it (and
+  // without --witness-creator) New Game under the harness starts play at once, as before
+  wCreator = wCreatorLaunch || params["creatorUi"].boolean();
+  if (params["creatorUi"].boolean()) openCreator();
+  wPrevMode = game.mode;
+}
+
+// (P3 D) what frameRequests does on NEW ADVENTURE, without the loading card's two frames (the harness waits anyway)
+void App::openCreator() {
+  game.beginCreator();         // the character creator; play starts when it hands over (BEGIN)
+  view.creatorPrepare(game);   // its homeland choices read the cultures round the start
 }
 
 void App::wInput(const witness_event& e) {
@@ -181,7 +193,15 @@ void App::wStep(double dt) {
   screen::frame(pix);   // (P2a) a ZOOM step re-presents the layers now: the camera and the NPC LOD frame the world view in use
   view.wantSave = false;
   if (view.wantsQuit) { view.wantsQuit = false; game.mode = Mode::Title; }
-  if (view.wantNewGame || view.wantContinue) { view.wantNewGame = view.wantContinue = false; startNew(startSeed); }
+  if (view.wantNewGame || view.wantContinue) {
+    const bool creator = wCreator && view.wantNewGame;   // (P3 D) NEW ADVENTURE opens the creator; CONTINUE never does
+    view.wantNewGame = view.wantContinue = false;
+    startNew(startSeed);
+    if (creator) openCreator();
+  }
+  // (P3 D) the creator's hand-over (BEGIN): the camera snaps to the new hero, as frameRequests does in the windowed game
+  if (wCreator && wPrevMode == Mode::Creator && game.mode == Mode::Play) view.snap(game);
+  wPrevMode = game.mode;
   game.sleepHalfW = std::max(22.0f, view.viewW() * 0.5f / TILE + 4.0f);   // as frame(): the NPC LOD follows the world view
   game.sleepHalfH = std::max(13.0f, view.viewH() * 0.5f / TILE + 4.0f);
   simStep(fdt);
@@ -216,10 +236,11 @@ bool App::wScreenshot(witness_image& img) {
   // (P2b fix round 1, test only) EMB_WPLAY_SHOT "world:K": a playtester's shot is the world layer at world px (one
   // pixel per art px, the UI left out), each pixel repeated K x K (1-4), so people read at 32 x K px instead of the
   // UI canvas's ~20 px (the phone window's UI scale samples the world below its own resolution)
-  // (fix, T4 playtest: "I could not tell the swings apart") "world:fit": the largest K (1-4) whose shot stays within
-  // what the tester's eyes take unscaled (1568 px wide, 1.15 MP), so a closer ZOOM (a smaller world layer) gives a
-  // bigger K: NORMAL on the phone window (512 x 236) 3, CLOSE (366 x 169) 4. A larger shot is scaled down before
-  // the model sees it, which undoes the extra K
+  // (fix, T4 playtest: "I could not tell the swings apart") "world:fit": the largest K (1-8; P3 B8: was 1-4) whose shot
+  // stays within what the tester's eyes take unscaled (1568 px wide, 1.15 MP), so a closer ZOOM (a smaller world layer)
+  // gives a bigger K: NORMAL on the phone window (512 x 236) 3, CLOSE at twice NORMAL (256 x 118) 6. A larger shot is
+  // scaled down before the model sees it, which undoes the extra K
+  constexpr int kFitMaxK = 8;
   int worldK = 0;
   bool worldFit = false;
   if (const char* e = std::getenv("EMB_WPLAY_SHOT"); e && std::strncmp(e, "world", 5) == 0) {
@@ -231,7 +252,7 @@ bool App::wScreenshot(witness_image& img) {
     std::vector<uint8_t> src;
     ok = pix.readWorld(src, w, hh);
     if (ok && worldFit)
-      while (worldK < 4 && w * (worldK + 1) <= 1568 && (double)w * hh * (worldK + 1) * (worldK + 1) <= 1.15e6) worldK++;
+      while (worldK < kFitMaxK && w * (worldK + 1) <= 1568 && (double)w * hh * (worldK + 1) * (worldK + 1) <= 1.15e6) worldK++;
     if (ok && worldK > 1) {
       const int W = w * worldK, H = hh * worldK;
       wShot.assign((size_t)W * H * 4, 0);
@@ -344,6 +365,17 @@ void App::runWitness() {
   // is hidden). `call` runs any script command, built in (runCmd) or registered (rpg/view/script_api.h); one that takes
   // time (walkto, talkto, a registered command that waits) carries on over the next steps (state.script.busy) and a
   // later failure is logged as an error (it fails the test).
+  // (P3 D) a --witness-creator script run starts on the title world (no reset), so it takes here the screen a pool reset
+  // gives a script (witness_pack.mjs): the script's window (1440 x 810, a `phone` header's 2556 x 1179), its screen
+  // mode and safe insets (EMB_SCREEN, EMB_SAFE in device px: the phone header's 177,0,177,63), zoom NORMAL
+  if (wCreatorLaunch && scripted) {
+    int safe[4] = {0, 0, 0, 0};
+    const char* es = std::getenv("EMB_SAFE");
+    const bool hasSafe = es && std::sscanf(es, "%d,%d,%d,%d", &safe[0], &safe[1], &safe[2], &safe[3]) == 4;
+    const char* em = std::getenv("EMB_SCREEN");
+    const int mode = !em ? -1 : (em[0] == 'p' || em[0] == 'P') ? (int)screen::PixelPerfect : (int)screen::Fill;
+    screen::witnessScreen(pix, winW, winH, hasSafe ? safe : nullptr, mode, 0, false);
+  }
   h.reset = [&](long long s, const char* scene, witness::Value params) { wReset(s, scene, params); };
   h.input = [&](const witness_event& e) { wInput(e); };
   h.step = [&](double dt) { wStep(dt); };
