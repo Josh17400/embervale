@@ -1,0 +1,23 @@
+# VIEW's expected baseline moves (docs/FIX_BATCH_P3.md 10): <gate> <item or glob> <id> <reason>
+# Measured against tools/gates/baseline/119de74 with build-solid at fix-p3-VIEW (S10.view: 20 of 425 PNGs differ).
+# ---- S10.view (the quick pack)
+S10.view bounty/bounty_4h_wrong.png B11 an item pickup toast reads "+ <NAME>"
+S10.view bounty/bounty_4j_wrong.png B11 an item pickup toast reads "+ <NAME>"
+S10.view bounty/bounty_6i_ready.png B11 an item pickup toast reads "+ <NAME>"
+S10.view bounty/bounty_6l_ready.png B11 an item pickup toast reads "+ <NAME>"
+S10.view fight/fight_2_spell.png B11 an item pickup toast reads "+ <NAME>"
+S10.view fight/fight_3_later.png B11 an item pickup toast reads "+ <NAME>"
+S10.view opening/opening_5_armed.png B11 an item pickup toast reads "+ <NAME>"
+S10.view opening/opening_9_fight.png B11 an item pickup toast reads "+ <NAME>"
+S10.view opening/opening_10_fight.png B11 an item pickup toast reads "+ <NAME>"
+S10.view opening/opening_11_fight.png B11 an item pickup toast reads "+ <NAME>"
+S10.view m8_view_party/m8v_desk_05_doll.png A-UI the party page marks a lent piece (gold slot tab)
+S10.view m8_view_party/m8v_desk_06_doll_gear.png A-UI the party page's GEAR says YOU LENT THIS; worn line names its own metal
+S10.view p2c_menus/p2c_menus_party.png A-UI the party page marks a lent piece (gold slot tab)
+S10.view p2c_menus_phone/p2c_menus_phone_party.png A-UI the party page marks a lent piece (gold slot tab)
+S10.view p2c_menus/p2c_menus_loot_body.png A-UI the worn piece's line names its own metal (gear::metalWord)
+S10.view p2c_menus/p2c_menus_loot_helm.png A-UI the worn piece's line names its own metal (gear::metalWord)
+S10.view p2c_menus_phone/p2c_menus_phone_loot_body.png A-UI the worn piece's line names its own metal (gear::metalWord)
+S10.view p2c_menus_phone/p2c_menus_phone_loot_helm.png A-UI the worn piece's line names its own metal (gear::metalWord)
+S10.view paperdoll/paperdoll_1_jade.png A-UI the worn piece's line names its own metal (gear::metalWord)
+S10.view paperdoll/paperdoll_2_pick_jade.png A-UI the worn piece's line names its own metal (gear::metalWord)
