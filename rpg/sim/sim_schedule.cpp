@@ -152,7 +152,7 @@ void Game::update(float dt, const Input& in) {
   timed(PC::S_RAID, [&] { LifeHooks::raidStep(*this, dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
   timed(PC::S_FOE, [&] { foeStep(dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
   timed(PC::S_HOME, [&] { homeStep(dt); });     // M7: the player's plots, crops, animals, building, riding (home_game.cpp)
-  timed(PC::S_PARTY, [&] { partyStep(dt); });   // M8: companions, deeds, the downed, graves, banter (party_game.cpp)
+  timed(PC::S_PARTY, [&] { PartyOps::step(*this, dt); });   // M8: companions, deeds, the downed, graves, banter (party_game.cpp)
   timed(PC::S_LIFETICK, [&] { life.tick(*this, dt); });   // M5: needs, plans, stock and moods in aggregate (life.cpp)
   // 7. missiles, pickups, roaming spawns, the location label
   updateProjectiles(dt);

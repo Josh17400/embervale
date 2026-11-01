@@ -225,7 +225,9 @@ struct PartyOps {
   static void daily(Game& g);
   static void downedStep(Game& g, float dt);           // bleeding out, the binding, the player's kneel
   static void revive(Game& g, int mi, Actor& a, bool fromAfar);
-  static bool actorStep(Game& g, Actor& a, float dt);  // Game::partyActor
+  //   a companion actor's whole behaviour this step (updateActor, after knock-back, before the skeleton's Down rule):
+  //   true = handled. Following, fighting by vocation and stance, skills, downed, mounted
+  static bool actorStep(Game& g, Actor& a, float dt);
   static void leave(Game& g, int mi, bool angry);      // Left (angry) or dismissed: the body walks home out of sight
   // ---- fighting (party_ai.cpp)
   static int pickFoe(Game& g, const Actor& a, const party::Member& m);
@@ -254,12 +256,44 @@ struct PartyOps {
   static int mercsAt(const Game& g, int bldg);         // sellswords an inn keeps (0..MERC_MAX)
   static int mercWage(const Game& g, int site);        // gold a day by the place's danger
   static party::Vocation mercVoc(uint32_t seed);
-  static bool folk(Game& g, Actor& a, float dt);       // Game::partyFolk
+  //   (ai.cpp updateFolk) an actor the FELLOWS lane put in the world that is not a companion (a sellsword at an inn:
+  //   Actor::partyTag): true = handled
+  static bool folk(Game& g, Actor& a, float dt);
   static bool denInteract(Game& g);                    // a cleared wolf den's pup (interact)
   // ---- graves (party_graves.cpp)
   static void siteGrave(Game& g, party::Fallen& f);   // into their home's temple yard / graveyard, or where they fell
   static void gravesStep(Game& g);                     // unsited graves sited when their home loads; stamping
   static int graveNear(const Game& g, Vec2 p, float r);   // a sited grave within r px of p (Party::fallen index, -1)
+  // ---- the lane's hooks into the core loop (were Game::party*, SOLID 4.1)
+  //   the fallen companion whose grave stands on this LOCAL overworld tile (-1 none; only GF_SITED graves)
+  static int graveAt(const Game& g, int tx, int ty);
+  //   Called from the core loop (game.cpp, game_rpg.cpp, ai.cpp, quests.cpp) and DEFINED in rpg/sim/party_game.cpp
+  //   unless named otherwise. Keep the calls where phase A put them. Each must cost next to nothing while Game::party
+  //   is empty.
+  //   once per update step (after homeStep, timed as PerfCounters::S_PARTY): the pending deeds, members brought into
+  //   play beside the player after any map change (a door, stairs, a journey, a load, a respawn), the catch-up rule,
+  //   bleeding out, bond by the day, wages, the waiting and the at-home, graves stamped into the window, banter
+  //   (party::banterStep, VOICE) last
+  static void step(Game& g, float dt);
+  //   kill() of a companion actor, first thing: true = handled (downed instead of dead); false lets the death happen
+  //   (the lane then makes it permanent: the grave, the grief)
+  static bool fell(Game& g, Actor& a, int killer);
+  //   damage(), after foeHit: the blow about to land on anyone: the damage to apply (shield wall, defend) and the
+  //   share statistics (Party::stats)
+  static float hit(Game& g, Actor& victim, float dmg, int attacker);
+  //   kill(), after foeKilled: deeds from what died (an innocent, a guard, bandits, a named beast) by the player's or
+  //   a companion's hand; a companion's kill count
+  static void killed(Game& g, const Actor& victim, int killer);
+  //   pickTarget: how much closer a hostile counts a companion (1 = as is; taunting < 1; downed or passive > 1;
+  //   0 = never: not a target at all)
+  static float aggro(const Game& g, const Actor& hostile, const Actor& member);
+  //   completeQuest / questFail: the deeds of a quest's end
+  static void quest(Game& g, const Quest& q, bool success);
+  //   rest(): the members with the player rest too (health, the wounded healed)
+  static void rested(Game& g, int hours);
+  //   interact(), before homeInteract: a downed companion in reach (bind their wounds), a grave of the fallen (read
+  //   it, lay flowers, take a keepsake): true = handled
+  static bool interact(Game& g);
 };
 // (M8 FELLOWS, life_game.cpp) a companion's body laid in the bed at interior tile (x, y) / sat on the seat there (the
 // TOWNSFOLK rules' fit: the head on the pillow, the seat line on the seat), or false when that prop is no bed / seat

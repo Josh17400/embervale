@@ -3,6 +3,7 @@
 //   Game::dialogueChoose, Game::dialogueChooseInner
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/party_voice.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -383,7 +384,7 @@ void Game::talkToInner(Actor& a) {
   dlg.actor = a.id;
   dlg.speaker = a.name;
   dlg.role = a.role;
-  if (a.comp && partyTalk(a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
+  if (a.comp && PartyTalkOps::talk(*this, a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
   // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
   if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
   using speech::Topic;
@@ -515,7 +516,7 @@ void Game::talkToInner(Actor& a) {
   hook(speech::P_NEWS, Topic::Foe, [&] { foeTalk(a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
   hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
   hook(speech::P_SERVICE, Topic::Home, [&] { homeTalk(a); });    // M7: deeds, builders, horses, recipes and cooking
-  hook(speech::P_SERVICE, Topic::Companion, [&] { partyFolkTalk(a); });   // M8: offers to join, kin of companions and the fallen
+  hook(speech::P_SERVICE, Topic::Companion, [&] { PartyTalkOps::folkTalk(*this, a); });   // M8: offers to join, kin of companions and the fallen
   hook(speech::P_SERVICE, Topic::Service, [&] { SkillOps::talk(*this, a); });   // M9: trainers, teaching, persuade / intimidate
   hook(speech::P_SERVICE, Topic::Service, [&] { MagicOps::talk(*this, a); });   // M9: mage teachers, tomes, traditions
   hook(speech::P_SERVICE, Topic::Service, [&] { SeaOps::talk(*this, a); });     // M10: harbourmasters, shipwrights, sailors
@@ -925,7 +926,7 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
       if (o.action >= DLG_HOME && o.action < DLG_HOME_END && homeChoose(o)) return;  // M7
-      if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && partyChoose(o)) return;  // M8 (party_talk.cpp)
+      if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && PartyTalkOps::choose(*this, o)) return;  // M8 (party_talk.cpp)
       if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
       if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
       if (o.action >= DLG_SEA && o.action < DLG_SEA_END && SeaOps::choose(*this, o)) return;          // M10 (sea_game.cpp)

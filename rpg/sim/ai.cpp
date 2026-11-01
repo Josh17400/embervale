@@ -94,7 +94,7 @@ int Game::pickTarget(const Actor& a) const {
     if (d > reach) continue;
     float sc = d * (a.target == e.id ? 0.8f : 1.0f);
     if (e.comp) {   // M8: a taunt pulls, a downed or passive companion is let be (party_game.cpp partyAggro)
-      const float m = partyAggro(a, e);
+      const float m = PartyOps::aggro(*this, a, e);
       if (m <= 0) continue;
       sc *= m;
       if (spread) sc += crowd(e);
@@ -395,7 +395,7 @@ void Game::updateFolk(Actor& a, float dt) {
   // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
   if (!a.human && a.critter && LifeHooks::folk(*this, a, dt)) return;
   // M8: a sellsword for hire at an inn, a body walking home out of sight (party_recruit.cpp)
-  if (a.partyTag && partyFolk(a, dt)) return;
+  if (a.partyTag && PartyOps::folk(*this, a, dt)) return;
   // M2: a beast that keeps a wayside place (the toll bridge's troll) holds its ground until it is crossed
   if (!a.human) {
     a.st = AState::Idle;

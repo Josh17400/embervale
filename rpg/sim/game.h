@@ -1021,8 +1021,6 @@ class Game {
   //   the bonded animal's look (Party::members index of a Vocation::Hound member): species, age (pup / half grown /
   //   grown by the days since it was taken in), coat from its seed, the player's collar
   art::HoundLook partyHoundLook(int member) const;
-  //   the fallen companion whose grave stands on this LOCAL overworld tile (-1 none; only GF_SITED graves)
-  int partyGraveAt(int tx, int ty) const;
   //   the tavern regulars of a settlement (census indices; VISION_PLAN 9: one in 40 % of towns, two in a city, none in a
   //   village): adults, no key people, whose evening plan is Act::Tavern at the inn. Deterministic; cached per session
   std::vector<int> partyRegulars(int site);
@@ -1032,9 +1030,6 @@ class Game {
   //   cleared wolf den), standing at `at` (map pixels). Returns the members index, -1 with why ("ANIMAL", "FULL")
   int partyAdoptAnimal(uint8_t species, uint32_t seed, Vec2 at, std::string& why);
  private:
-  //   (ai.cpp updateFolk) an actor the FELLOWS lane put in the world that is not a companion (a sellsword at an inn:
-  //   Actor::partyTag): true = handled
-  bool partyFolk(Actor& a, float dt);
   //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
   //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
   //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
@@ -1072,46 +1067,6 @@ class Game {
   //   the player's own stores and furniture): true makes it usable (homeUseProp then handles it)
   bool homePropUsable(art::Prop p, int tx, int ty) const;
   friend struct HomeOps;               // M7 HOMESTEAD: the home's internals (home_game.cpp)
-  // ---- M8 Fellowship hooks (VISION_PLAN 9, 15.6.2, 15.26). Called from the core loop (game.cpp, game_rpg.cpp, ai.cpp,
-  //      quests.cpp) and DEFINED in rpg/sim/party_game.cpp (FELLOWS lane) unless named otherwise. Keep the calls where
-  //      phase A put them. Each must cost next to nothing while Game::party is empty.
-  //   once per update step (after homeStep, timed as PerfCounters::S_PARTY): the pending deeds, members brought into
-  //   play beside the player after any map change (a door, stairs, a journey, a load, a respawn), the catch-up rule,
-  //   bleeding out, bond by the day, wages, the waiting and the at-home, graves stamped into the window, banter
-  //   (party::banterStep, VOICE) last
-  void partyStep(float dt);
-  //   a companion actor's whole behaviour this step (updateActor, after knock-back, before the skeleton's Down rule):
-  //   true = handled. Following, fighting by vocation and stance, skills, downed, mounted
-  bool partyActor(Actor& a, float dt);
-  //   kill() of a companion actor, first thing: true = handled (downed instead of dead); false lets the death happen
-  //   (the lane then makes it permanent: the grave, the grief)
-  bool partyFell(Actor& a, int killer);
-  //   damage(), after foeHit: the blow about to land on anyone: the damage to apply (shield wall, defend) and the
-  //   share statistics (Party::stats)
-  float partyHit(Actor& victim, float dmg, int attacker);
-  //   kill(), after foeKilled: deeds from what died (an innocent, a guard, bandits, a named beast) by the player's or
-  //   a companion's hand; a companion's kill count
-  void partyKilled(const Actor& victim, int killer);
-  //   pickTarget: how much closer a hostile counts a companion (1 = as is; taunting < 1; downed or passive > 1;
-  //   0 = never: not a target at all)
-  float partyAggro(const Actor& hostile, const Actor& member) const;
-  //   completeQuest / questFail: the deeds of a quest's end
-  void partyQuest(const Quest& q, bool success);
-  //   rest(): the members with the player rest too (health, the wounded healed)
-  void partyRested(int hours);
-  //   interact(), before homeInteract: a downed companion in reach (bind their wounds), a grave of the fallen (read
-  //   it, lay flowers, take a keepsake): true = handled
-  bool partyInteract();
-  //   the companions' talk (rpg/sim/party_talk.cpp, VOICE lane). partyTalk: talkToInner, right after the dialogue is
-  //   reset: a companion's own conversation (true = handled: it set dlg and mode). partyFolkTalk: a talkToInner
-  //   section-7 hook: what anyone else says of the party (a tavern regular's or a mercenary's offer to join, the kin
-  //   and friends of a companion or of the fallen); options in [DLG_PARTY, DLG_PARTY_END). partyChoose: those options.
-  bool partyTalk(Actor& a);
-  void partyFolkTalk(Actor& a);
-  bool partyChoose(const DlgOpt& o);
-  //   (VOICE, party_talk.cpp) the player stands at a fallen companion's grave (partyInteract found it): the epitaph and
-  //   what can be done there as a dialogue (its options call partyGraveAct)
-  void partyGraveTalk(int fallen);
   friend struct PartyOps;              // M8 FELLOWS: the companions' internals (party_game.cpp)
   friend struct PartyTalkOps;          // M8 VOICE: the companions' talk (party_talk.cpp, banter.cpp)
   // the TOWNSFOLK lane's own runtime state (route caches, seat reservations, chat pairs...): defined in life_game.cpp

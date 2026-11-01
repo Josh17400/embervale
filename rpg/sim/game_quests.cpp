@@ -4,6 +4,7 @@
 //   Game::openingQuest, Game::questStatus, Game::giveFirstWeapon
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/game_internal.h"
 
 const Quest* Game::questById(int id) const {
   for (auto& q : quests) if (q.id == id) return &q;
@@ -95,7 +96,7 @@ void Game::completeQuest(Quest& q) {
   giveGold(q.gold);
   gainXp(q.xp);
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
-  partyQuest(q, true);   // M8: the companions' view of the job done (party_game.cpp)
+  PartyOps::quest(*this, q, true);   // M8: the companions' view of the job done (party_game.cpp)
   SeaOps::questDone(*this, q);   // M10: a hidden land's people warm to the hero; a fishmonger takes the fish (sea_chain.cpp)
   ServiceOps::questDone(*this, q);   // M12: a campaign order or a diplomacy mission done (service_game.cpp)
   LordOps::questDone(*this, q);      // M12: a fief's task done (lord_game.cpp)

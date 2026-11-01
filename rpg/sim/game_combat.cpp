@@ -232,7 +232,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   }
   // ---- 8. the lanes' multipliers: foes (M6), the party (M8), the armour skills (M9), magic's statuses (M9)
   dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
-  dmg = partyHit(v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
+  dmg = PartyOps::hit(*this, v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
   if (v.player) dmg = SkillOps::takenMul(*this, attacker, dmg);   // M9: the worn armour class, perks (skills_game.cpp)
   dmg = MagicOps::hurtMul(*this, v, dmg, attacker, ench);         // M9: statuses and wards (magic_game.cpp)
   // ---- 9. the elemental affixes and riders: burn, frost, Ember, Rime, Burn DPS, the weapon's enchantment
@@ -382,7 +382,7 @@ void Game::kill(Actor& a, int killer) {
     const int ki = findActor(killer);
     if (ki >= 0 && actors[(size_t)ki].powTag == powers::PT_WOLF && actors[(size_t)ki].powBy) killer = (int)actors[(size_t)ki].powBy;
   }
-  if (a.comp && partyFell(a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
+  if (a.comp && PartyOps::fell(*this, a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
   if (a.mon == Monster::Skeleton && !a.human && !a.boss && !a.reassembled && a.st != AState::Down && rng_.f() < 0.4f) {
     // the bones collapse... and may stand back up (see updateActor). Another blow while it is down finishes it.
     a.reassembled = true;
@@ -434,7 +434,7 @@ void Game::kill(Actor& a, int killer) {
       }
     }
   }
-  partyKilled(a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
+  PartyOps::killed(*this, a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
   foeKilled(a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
   dropLoot(a);
   // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow

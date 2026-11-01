@@ -944,7 +944,7 @@ void Game::updateActor(Actor& a, float dt) {
   if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
   if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
   if (a.powTag == powers::PT_WOLF && PowerOps::wolfStep(*this, a, dt)) return;   // (M8b) a spectral wolf (powers.cpp)
-  if (a.comp && partyActor(a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
+  if (a.comp && PartyOps::actorStep(*this, a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
   if (a.st == AState::Down) {
     // a collapsed skeleton rattles back together unless it is struck again
     if (a.stT > 2.8f) {

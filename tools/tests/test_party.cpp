@@ -343,7 +343,7 @@ void play(uint64_t seed) {
     if (!(f.graveFlags & party::GF_SITED) || !(f.graveFlags & party::GF_HOME)) fail(sd(seed) + "the grave was not laid in the home village");
     steps(g, 20);
     const int lx = f.gx - g.world.ox, ly = f.gy - g.world.oy;
-    if (g.partyGraveAt(lx, ly) != 0) fail(sd(seed) + "partyGraveAt does not find the grave");
+    if (PartyOps::graveAt(g, lx, ly) != 0) fail(sd(seed) + "partyGraveAt does not find the grave");
     if (!g.world.over.blocked(lx, ly)) fail(sd(seed) + "the grave's tile is not solid");
     const art::GraveLook gl = g.partyGraveLook(0);
     if (!gl.fresh) fail(sd(seed) + "a new grave is not fresh earth");
@@ -370,7 +370,7 @@ void play(uint64_t seed) {
     else {
       h.mode = Mode::Play;
       steps(h, 20);
-      if (!h.world.over.blocked(f.gx - h.world.ox, f.gy - h.world.oy) || h.partyGraveAt(f.gx - h.world.ox, f.gy - h.world.oy) != 0)
+      if (!h.world.over.blocked(f.gx - h.world.ox, f.gy - h.world.oy) || PartyOps::graveAt(h, f.gx - h.world.ox, f.gy - h.world.oy) != 0)
         fail(sd(seed) + "the grave is not in the loaded world");
     }
   }

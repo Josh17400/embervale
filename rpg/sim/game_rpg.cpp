@@ -4,6 +4,7 @@
 //   Game::interact, Game::npcKeyOf, Game::npcKey, Game::blessingSecs, Game::rest
 #include "rpg/sim/game_rpg_detail.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/game_internal.h"
 
 // ------------------------------------------------------------------ interaction
 // (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
@@ -107,7 +108,7 @@ int Game::interactProp(int& otx, int& oty) const {
 }
 
 void Game::interact() {
-  if (partyInteract()) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
+  if (PartyOps::interact(*this)) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
   if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
@@ -219,7 +220,7 @@ void Game::rest(int hours) {
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
   sleepFade = 1.5f;
   LifeHooks::slept(*this, hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
-  partyRested(hours);       // M8: the companions rest too (party_game.cpp)
+  PartyOps::rested(*this, hours);       // M8: the companions rest too (party_game.cpp)
   sfx((int)Sfx::Heal, p.p, 0.7f);
 }
 
