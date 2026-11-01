@@ -14,6 +14,9 @@
 #include "rpg/world/ids.h"
 #include "rpg/world/wildlife.h"
 
+// the hero's footstep sound, s of walking (Game::update at rig 2, sim_schedule.cpp; updatePlayer at rig 1, game.cpp)
+constexpr float kHeroStepPeriod = 0.29f;
+
 namespace gsim {
 using art::Monster;
 
