@@ -50,9 +50,10 @@ class View {
   // (M7b CITYART, tests) the kerbs within r tiles of the hero: every walk with a carriageway south of it shows a face
   // (its rows below the lit arris darker than the walk's top); returns the walks without one, faces = the walks checked
   int urbKerbCheck(const Game& g, int r, int& faces);
-  Vec2 camera() const { return camera_.cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
+  friend struct ViewProbe;
+  // (view_probe.h) the hooks only the script commands and the Witness state use (camera, menu page, forced weather and
+  // town look, the presented layers, herald and journal, the M4 / M5 / loot counters, partyview): ViewProbe's statics
   void openMenu(Game& g, int tab) { g.mode = Mode::Menu; menuTab_ = tab; menuSel_ = 0; }
-  int menuTab() const { return menuTab_; }   // the open menu's page (Mode::Menu; the Witness harness reports it)
   // (Witness) wait (up to 5 s) until the terrain bakers are idle, so the next draw shows every chunk asked for: a
   // harness screenshot never depends on how fast the worker threads were
   void settleBakes() { bake_.settleBakes(); }
@@ -89,9 +90,6 @@ class View {
   void creatorPrepare(Game& g);          // (M3 fixer round 2) the creator's homeland choices, made behind the card
   // test scripts (--script): hold a key as if it were physically down; one-shot presses go through event()
   void scriptHold(int scancode, bool down) { if (scancode >= 0 && scancode < 512) scriptKeys_[scancode] = down; }
-  // (M3c) test scripts: force a weather kind (rpg/world/biomes.h Sky value, at full strength; -1 back to the land's own)
-  void scriptSky(int sky) { skyOverride_ = sky; wxInit_ = false; wxSampleT_ = 0; }
-  int scriptSkyNow() const { return skyOverride_; }
 
   // ---- P2a Clear Sight (VISION_PLAN 15.36 phase A; FROZEN: lanes ADD, never rename or change meaning) -----------------
   // (P2a item 3, FROZEN) the projection between the world layer and the UI layer: a world point in map px to UI logical
@@ -179,10 +177,6 @@ class View {
   // (the bust's source rect sx, sy, sw, sh as blitted: a face crop draws the glow inside it only)
   void portraitFinish(uint32_t memberId, float x, float y, float scale, float alpha = 1.0f, int sx = 0, int sy = 0, int sw = 24, int sh = 24);
   double peopleMB() const { return sprites_.peopleMB(); }   // the people textures alive (SpriteCache::peopleMB), MB
-  // (Witness state.screen) the layers and the window as presented
-  const Pix::Layer& worldLayerForTests() const { return pix_->worldLayer(); }
-  const Pix::Layer& uiLayerForTests() const { return pix_->uiLayer(); }
-  void outputSizeForTests(int& w, int& h) const { w = h = 0; if (pix_) pix_->outputSize(w, h); }
   // ---- (P2a LENS, added) the world view: its size in world px (the world layer's w x h: what the camera frames, what the
   // world draws read as Pix::W x Pix::H inside beginWorld / endWorld); ZOOM one level in (+1) or out (-1) through the
   // levels this screen allows (the - / = keys, the wheel, a pinch; saved to the settings file); the lens's counters for
@@ -507,15 +501,11 @@ class View {
   //      owner and state, the journal's NEWS and LOST HISTORY sections, war props in their owner's colours, the fires
   //      of burned places and the siege camps' light
  public:
-  int journalSection() const { return journalSec_; }
   // (M12) 3: STANDING (the army, the holdings, the player's realm, the world's history: realm_hud.cpp)
   void setJournalSection(int s) { journalSec_ = s < 0 ? 0 : s > 3 ? 3 : s; menuSel_ = 0; menuScroll_ = 0; }
-  bool heraldShowing() const { return herald_.t > 0; }
-  const std::string& heraldTitle() const { return herald_.title; }
   // (scripts) the last frame's counts of drawn M4 overlays: war props in an owner's colours, burned buildings smoking,
   // siege-camp fires lit
   struct M4Stats { int warProps = 0, warPropsOwned = 0, burned = 0, campFires = 0, mapMarkers = 0, borderPx = 0; };
-  M4Stats m4Stats() const { return m4Stats_; }
  private:
   struct Herald { float t = 0; std::string top, title; uint32_t color = 0; ew::Gid kingdom = 0; bool wild = false; };
   Herald herald_;
@@ -556,9 +546,6 @@ class View {
     int music = 0;            // the Music playing (its enum value)
     float tavernLevel = 0, crowd = 0;
   };
-  M5Stats m5Stats() const { return m5Stats_; }
-  // (scripts) force a settlement's festival dressing / shutters on or off whatever its census says (-1: its own)
-  void scriptLifeLook(int festival, int shuttered) { forceFest_ = festival; forceShut_ = shuttered; }
   // the word and colour of a settlement's mood (life::Life::moodFlags / mood): "CONTENT", "FESTIVAL", "HUNGRY",
   // "FAMINE", "WAR-TORN", "MOURNING"...; empty when its census is not known
   static std::string moodWord(const Game& g, ew::Gid site, uint32_t* color);
@@ -686,9 +673,6 @@ class View {
   //      fallen, the hound's night howl): rpg/view/party_view.cpp. The menu's PARTY page (the companion's paper doll and
   //      the REMEMBERED page): rpg/view/paperdoll.cpp. Script commands: rpg/view/script_partyview.cpp.
  public:
-  // (scripts) `partyview <words...>` / `expect partyview <words...>` (script_partyview.cpp); false with err when refused
-  bool partyViewCommand(Game& g, const std::vector<std::string>& a, std::string& err);
-  bool partyViewExpect(Game& g, const std::vector<std::string>& a, std::string& err);
   static constexpr int kPartyTab = 6;          // the menu's PARTY page (menuTab_ id; shown while there is a party or a grave)
  private:
   struct PartyCard { int member = -1; float x = 0, y = 0, w = 0, h = 0; bool small = false; };
@@ -774,14 +758,12 @@ class View {
     int chimes = 0;           // LootChime plays so far
     int embers = 0;           // Mythic wearers drawn with their flame (embers spawned so far)
   };
-  LootStats lootStats() const { return lootShown_; }
   // (scripts, script_loot.cpp) `lootsel menu <i|last>`, `lootsel shop <buy|sell> <i|last>`, `lootsel doll <slot> <cand>`:
   // put the cursor on a row the way the keys do (the doll's pick opens its compare card); false with err when refused
   bool lootSelect(Game& g, const std::vector<std::string>& a, std::string& err);
   void paperdollPeek(Game& g, int slot, int cand);   // paperdoll.cpp: the slot, the pack row, and the compare card shown
   // (scripts) what the last item card drew (`expect lootcard ...`, script_loot.cpp)
   using CardInfo = lootp::CardInfo;
-  CardInfo lastCard() const { return lastCard_; }
  private:
   LootStats lootShown_, lootCount_;
   CardInfo lastCard_;

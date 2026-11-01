@@ -35,6 +35,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 
 namespace {
 
@@ -287,7 +288,7 @@ bool cmdMoodFlags(ScriptCtx& c) {
   cs->moodFlags = f;
   if (f & life::MF_FESTIVAL) cs->festivalDay = g.day;
   else if (cs->festivalDay == g.day) cs->festivalDay = -1;
-  c.view.scriptLifeLook((f & life::MF_FESTIVAL) ? 1 : 0, (f & (life::MF_SHUTTERED | life::MF_FAMINE)) ? 1 : 0);
+  ViewProbe::scriptLifeLook(c.view, (f & life::MF_FESTIVAL) ? 1 : 0, (f & (life::MF_SHUTTERED | life::MF_FAMINE)) ? 1 : 0);
   std::printf("script: %s mood flags 0x%x\n", g.world.sites[(size_t)si].name.c_str(), f);
   return true;
 }
@@ -298,13 +299,13 @@ bool cmdFestival(ScriptCtx& c) {
   const std::string w = lower(c.arg(1));
   const int si = nearestSettlement(g);
   life::Census* cs = si >= 0 ? g.life.census(g.world, si) : nullptr;
-  if (w == "auto") { c.view.scriptLifeLook(-1, -1); return true; }
+  if (w == "auto") { ViewProbe::scriptLifeLook(c.view, -1, -1); return true; }
   const bool on = w != "off";
   if (cs) {
     cs->festivalDay = on ? g.day : -1;
     cs->moodFlags = (uint16_t)(on ? (cs->moodFlags | life::MF_FESTIVAL) : (cs->moodFlags & ~life::MF_FESTIVAL));
   }
-  c.view.scriptLifeLook(on ? 1 : 0, -1);
+  ViewProbe::scriptLifeLook(c.view, on ? 1 : 0, -1);
   return true;
 }
 EMB_SCRIPT_CMD("festival", "festival [on|off|auto]: today is (not) the nearest settlement's festival (M5 VIEW)", cmdFestival);
@@ -337,11 +338,11 @@ void printStats(const View::M5Stats& s) {
               s.posed, s.poseFallback, s.poseBakes, s.critters, s.bubbles, s.lampsLit, s.lampsDark, s.stallsShut, s.bunting, s.festLanterns,
               s.winLit, s.winDark, s.speech, s.music, s.tavernLevel, s.crowd);
 }
-bool cmdM5Stats(ScriptCtx& c) { printStats(c.view.m5Stats()); return true; }
+bool cmdM5Stats(ScriptCtx& c) { printStats(ViewProbe::m5Stats(c.view)); return true; }
 EMB_SCRIPT_CMD("m5stats", "m5stats: print the view's last-frame M5 counts (M5 VIEW)", cmdM5Stats);
 
 bool expM5(ScriptCtx& c) {
-  const View::M5Stats s = c.view.m5Stats();
+  const View::M5Stats s = ViewProbe::m5Stats(c.view);
   const std::string what = lower(c.arg(2));
   if (what == "music") {
     static const char* mn[(int)Music::COUNT] = {"silence", "title", "wild", "night", "town", "cave", "combat", "boss", "tavern"};

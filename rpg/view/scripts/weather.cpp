@@ -4,6 +4,7 @@
 #include <string>
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 
 // (M11 TERRAIN) View::scriptSky's value for "weather clear": no rain, snow, fog or sand at all (review shots)
 constexpr int kSkyClear = 99;
@@ -14,10 +15,10 @@ bool cmdWeather(ScriptCtx& c) {
   static const char* names[] = {"temperate", "showery", "misty", "dry", "arid", "snowy", "blizzard", "monsoon", "ashfall", "eerie"};
   static_assert(sizeof(names) / sizeof(names[0]) == (size_t)Sky::COUNT, "a name for every Sky");
   const std::string w = c.arg(1);
-  if (w == "auto" || w.empty()) { c.view.scriptSky(-1); return true; }
-  if (w == "clear") { c.view.scriptSky(kSkyClear); std::printf("weather: clear\n"); return true; }   // (M11 TERRAIN) no weather at all: review shots
+  if (w == "auto" || w.empty()) { ViewProbe::scriptSky(c.view, -1); return true; }
+  if (w == "clear") { ViewProbe::scriptSky(c.view, kSkyClear); std::printf("weather: clear\n"); return true; }   // (M11 TERRAIN) no weather at all: review shots
   for (int i = 0; i < (int)Sky::COUNT; i++)
-    if (w == names[i]) { c.view.scriptSky(i); std::printf("weather: %s\n", names[i]); return true; }
+    if (w == names[i]) { ViewProbe::scriptSky(c.view, i); std::printf("weather: %s\n", names[i]); return true; }
   c.fail("weather: unknown kind " + w);
   return true;
 }
