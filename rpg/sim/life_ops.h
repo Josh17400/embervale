@@ -19,6 +19,7 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life_hooks.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/economy.h"
 #include "rpg/art/art_rig.h"   // (P2b fix) art::rigVersion

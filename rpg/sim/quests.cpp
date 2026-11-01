@@ -23,6 +23,7 @@
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
+#include "rpg/sim/life_hooks.h"
 
 using art::Monster;
 using art::Prop;
@@ -195,7 +196,7 @@ bool Game::hasOffer(const Actor& a) const {
   if (!a.human || a.quest > 0 || a.role == Role::Traveller) return false;   // M2: a troll, a missing person, a traveller
   if (a.site >= (int)world.sites.size()) return false;
   for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && isGiver(q, a)) return false;
-  { Quest lq; if (lifeOffer(a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
+  { Quest lq; if (LifeHooks::offer(*this, a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
   const Site& S = world.sites[(size_t)a.site];
   if (S.settlement() && world.endless) {
     if (!life.find(S.id)) return false;   // (its census is a moment away: the pool is worked out from it)
@@ -214,7 +215,7 @@ bool Game::hasOffer(const Actor& a) const {
 
 Quest Game::makeOffer(const Actor& npc, bool* okOut) {
   if (okOut) *okOut = true;
-  { Quest lq; if (lifeOffer(npc, lq)) { pendingPitch_ = lifePitch(*this, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
+  { Quest lq; if (LifeHooks::offer(*this, npc, lq)) { pendingPitch_ = lifePitch(*this, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
   bool ok = false;
   // (P1) the person's job this week: its kind and its need (offerFor reads jobBook.offerNeed while it builds)
   if (const jobs::PoolJob* j = JobOps::openJob(*this, npc)) {

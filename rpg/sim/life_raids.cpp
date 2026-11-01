@@ -12,6 +12,7 @@
 #include <cmath>
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life_hooks.h"
 
 namespace {
 
@@ -32,7 +33,7 @@ std::string raidOutcome(Game& g, int si, life::Census& c, bool failed, int night
     life::Resident& r = c.res[(size_t)((start + k) % n)];
     if (r.flags & (life::RF_DEAD | life::RF_AWAY | life::RF_KEY)) continue;
     if (r.job == life::Job::Child || r.job == life::Job::Guard || r.job == life::Job::Noble || r.actor >= 0) continue;
-    if (g.lifeGiverOpen(si, (int)r.idx)) continue;   // (M5) the giver of an open quest stays (its job can be handed in)
+    if (LifeHooks::giverOpen(g, si, (int)r.idx)) continue;   // (M5) the giver of an open quest stays (its job can be handed in)
     r.flags |= life::RF_AWAY;
     c.takenIdx = (int16_t)r.idx;
     c.takenQuest = 0;
@@ -85,20 +86,20 @@ float militaryOf(const Game& g, const Site& s) {
 
 }  // namespace
 
-void Game::raidStep(float dt) {
-  life::Life::RaidLive& R = life.raid;
+void LifeHooks::raidStep(Game& g, float dt) {
+  life::Life::RaidLive& R = g.life.raid;
   // ---- a raid going on in front of the player
   if (R.site) {
     R.t += dt;
     const int si = R.si;
-    life::Census* c = si >= 0 && si < (int)world.sites.size() && world.sites[(size_t)si].id == R.site ? life.findMut(R.site) : nullptr;
+    life::Census* c = si >= 0 && si < (int)g.world.sites.size() && g.world.sites[(size_t)si].id == R.site ? g.life.findMut(R.site) : nullptr;
     if (!c) { R = life::Life::RaidLive(); return; }
-    const Site& s = world.sites[(size_t)si];
+    const Site& s = g.world.sites[(size_t)si];
     int alive = 0, in = 0;
     for (int id : R.ids) {
-      const int k = findActor(id);
+      const int k = g.findActor(id);
       if (k < 0) continue;
-      const Actor& a = actors[(size_t)k];
+      const Actor& a = g.actors[(size_t)k];
       if (a.st == AState::Dead || !a.hostile) continue;
       alive++;
       const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor(a.p.y / TILE);
@@ -106,8 +107,8 @@ void Game::raidStep(float dt) {
     }
     if (in >= 3) R.insideT += dt;
     int defenders = 0;
-    for (size_t k = 0; k < actors.size(); k++) {
-      const Actor& a = actors[k];
+    for (size_t k = 0; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
       if (a.st == AState::Dead) continue;
       const bool guard = a.npc && (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Captain || a.militia);
       if (!guard && !(a.player && a.hp > 0)) continue;
@@ -115,54 +116,54 @@ void Game::raidStep(float dt) {
       const int m = a.player ? 12 : 8;
       if (tx >= s.r.x - m && ty >= s.r.y - m && tx < s.r.x + s.r.w + m && ty < s.r.y + s.r.h + m) defenders++;
     }
-    const bool night = hour >= 21.0f || hour < 5.0f;
+    const bool night = g.hour >= 21.0f || g.hour < 5.0f;
     int outcome = 0;
-    if (inside || travelling()) outcome = R.insideT >= 10.0f ? 2 : 1;   // out of sight: decided as it stood
+    if (g.inside || g.travelling()) outcome = R.insideT >= 10.0f ? 2 : 1;   // out of sight: decided as it stood
     else if (alive == 0 && R.t > 1.0f) outcome = 1;
     else if (R.insideT >= 30.0f || (defenders == 0 && in > 0 && R.t > 8.0f)) outcome = 2;
     else if ((!night && R.t > 60.0f) || R.t > 140.0f) outcome = 1;   // dawn, or they never got in: back to the woods
     if (!outcome) return;
     R.outcome = outcome;
-    life.lastRaidOutcome = outcome;
+    g.life.lastRaidOutcome = outcome;
     // (M8 FELLOWS) a night defence won with the player in the fight: the companions saw the town held
-    if (outcome == 1 && !inside && !travelling() && !party.empty() &&
-        len(pl().p - Vec2(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f)) < (float)(std::max(s.r.w, s.r.h) / 2 + 12) * TILE)
-      deed(party::Deed::DefendedTown, s.id);
-    const std::string taken = raidOutcome(*this, si, *c, outcome == 2, R.night);
-    if (outcome == 2) life.stats.raidsFailed++;
+    if (outcome == 1 && !g.inside && !g.travelling() && !g.party.empty() &&
+        len(g.pl().p - Vec2(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f)) < (float)(std::max(s.r.w, s.r.h) / 2 + 12) * TILE)
+      g.deed(party::Deed::DefendedTown, s.id);
+    const std::string taken = raidOutcome(g, si, *c, outcome == 2, R.night);
+    if (outcome == 2) g.life.stats.raidsFailed++;
     // whoever is left of the party leaves
     for (int id : R.ids) {
-      const int k = findActor(id);
+      const int k = g.findActor(id);
       if (k < 0) continue;
-      Actor& a = actors[(size_t)k];
+      Actor& a = g.actors[(size_t)k];
       if (a.st == AState::Dead) continue;
       const Vec2 away = a.p + (a.p - Vec2(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f)) * 3.0f;
       a.aggro = false; a.wild = true; a.home = away; a.goal = away; a.target = -1;
     }
-    if (!inside) {
-      if (outcome == 1) say("THE RAIDERS ARE DRIVEN OFF. " + s.name + " HOLDS.");
+    if (!g.inside) {
+      if (outcome == 1) g.say("THE RAIDERS ARE DRIVEN OFF. " + s.name + " HOLDS.");
       else {
         std::string m = s.name + " WAS OVERRUN IN THE NIGHT.";
         if (!taken.empty()) m += " " + taken + " WAS CARRIED OFF!";
-        say(m);
-        emit(Ev::Notice, pl().p, (int)rgba(255, 110, 80), 0, m);
+        g.say(m);
+        g.emit(Ev::Notice, g.pl().p, (int)rgba(255, 110, 80), 0, m);
       }
     }
     R = life::Life::RaidLive();
     return;
   }
-  if (!world.endless || travelling()) return;
-  const bool night = hour >= 22.0f || hour < 3.0f;
-  if (!night && !life.forceRaidSite) return;
-  const int nightIx = hour >= 12.0f ? day : day - 1;
-  const float cur = hour >= 12.0f ? hour : hour + 24.0f;
-  for (int si : world.nearSites) {
-    if (si < 0 || si >= (int)world.sites.size()) continue;
-    const Site& s = world.sites[(size_t)si];
+  if (!g.world.endless || g.travelling()) return;
+  const bool night = g.hour >= 22.0f || g.hour < 3.0f;
+  if (!night && !g.life.forceRaidSite) return;
+  const int nightIx = g.hour >= 12.0f ? g.day : g.day - 1;
+  const float cur = g.hour >= 12.0f ? g.hour : g.hour + 24.0f;
+  for (int si : g.world.nearSites) {
+    if (si < 0 || si >= (int)g.world.sites.size()) continue;
+    const Site& s = g.world.sites[(size_t)si];
     if (!s.settlement()) continue;
-    life::Census* c = life.findMut(s.id);
+    life::Census* c = g.life.findMut(s.id);
     if (!c) continue;
-    const bool forced = life.forceRaidSite == s.id;
+    const bool forced = g.life.forceRaidSite == s.id;
     if (!forced) {
       if (c->raidNight == nightIx) continue;
       const float when = 22.0f + (float)(rh(s.id, (uint64_t)(uint32_t)nightIx) % 5u);   // 22:00 .. 02:59
@@ -171,20 +172,20 @@ void Game::raidStep(float dt) {
     c->raidNight = nightIx;
     art::Monster mon;
     int pack = 3, denIx = -1;
-    const int pressure = pressureAt(*this, s, mon, pack, denIx, &Game::denClearedDay);
-    const float mil = militaryOf(*this, s);
-    const int pct = life::Life::raidChancePct(pressure, mil, ((day % realm::Realm::YEAR) + realm::Realm::YEAR) % realm::Realm::YEAR);
-    if (pct > 0) life.stats.raidRolls++;
-    if (forced) life.forceRaidSite = 0;
+    const int pressure = pressureAt(g, s, mon, pack, denIx, &Game::denClearedDay);
+    const float mil = militaryOf(g, s);
+    const int pct = life::Life::raidChancePct(pressure, mil, ((g.day % realm::Realm::YEAR) + realm::Realm::YEAR) % realm::Realm::YEAR);
+    if (pct > 0) g.life.stats.raidRolls++;
+    if (forced) g.life.forceRaidSite = 0;
     if (!forced && !life::Life::raidRoll(s.id, nightIx, pct)) continue;
     // ---- a raid tonight
     const Vec2 heart(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f);
-    const float pd = len(pl().p - heart) / TILE;
-    if (!inside && pd <= 120.0f && !R.site) {
+    const float pd = len(g.pl().p - heart) / TILE;
+    if (!g.inside && pd <= 120.0f && !R.site) {
       // live: along a road from the dens' side
       Vec2 dir(0, 1);
       if (denIx >= 0) {
-        const Den& d = world.dens[(size_t)denIx];
+        const Den& d = g.world.dens[(size_t)denIx];
         const Vec2 dd((float)(d.x - s.ex), (float)(d.y - s.ey));
         if (len2(dd) > 1.0f) dir = norm(dd);
       } else {
@@ -204,7 +205,7 @@ void Game::raidStep(float dt) {
         const int cx = s.ex + (int)std::lround(dir.x * (float)dist), cy = s.ey + (int)std::lround(dir.y * (float)dist);
         for (int oy = -4; oy <= 4 && !road; oy++)
           for (int ox = -4; ox <= 4 && !road; ox++)
-            if (world.over.in(cx + ox, cy + oy) && world.over.at(cx + ox, cy + oy) == Ground::Road) { bx = cx + ox; by = cy + oy; road = true; }
+            if (g.world.over.in(cx + ox, cy + oy) && g.world.over.at(cx + ox, cy + oy) == Ground::Road) { bx = cx + ox; by = cy + oy; road = true; }
       }
       const int lvl = std::max(1, s.level);   // the place's own danger (the beasts that live round it)
       const int n = std::clamp((int)pack, 2, 4);
@@ -212,29 +213,29 @@ void Game::raidStep(float dt) {
       R.site = s.id; R.si = si; R.night = nightIx;
       for (int k = 0; k <= n; k++) {
         const bool elite = k == n;
-        const Vec2 at = freeSpot(bx + (k % 3) - 1, by + (k / 3) - 1);
-        const int id = spawnMonster(mon, at, lvl + (elite ? 3 : 0), false);
-        const int ai = findActor(id);
+        const Vec2 at = g.freeSpot(bx + (k % 3) - 1, by + (k / 3) - 1);
+        const int id = g.spawnMonster(mon, at, lvl + (elite ? 3 : 0), false);
+        const int ai = g.findActor(id);
         if (ai < 0) continue;
-        Actor& a = actors[(size_t)ai];
+        Actor& a = g.actors[(size_t)ai];
         a.aggro = true; a.home = heart; a.goal = heart; a.fromMap = false; a.site = -1; a.den = -1; a.wild = false;
         if (elite) { a.maxHp *= 1.6f; a.hp = a.maxHp; a.dmg *= 1.25f; a.xp *= 2; a.name = std::string(monsterName(mon)) + " PACK LEADER"; }
         R.ids.push_back(id);
       }
-      life.stats.raidsLive++;
-      if (pd < 60.0f) emit(Ev::Notice, pl().p, (int)rgba(255, 150, 90), 0, "HOWLS ON THE ROAD TO " + s.name + "...");
+      g.life.stats.raidsLive++;
+      if (pd < 60.0f) g.emit(Ev::Notice, g.pl().p, (int)rgba(255, 150, 90), 0, "HOWLS ON THE ROAD TO " + s.name + "...");
     } else {
       // abstract: the beasts against the garrison and the militia
-      life.stats.raidsAbstract++;
-      const realm::SettlementState* st = realm.settlement(s.id);
+      g.life.stats.raidsAbstract++;
+      const realm::SettlementState* st = g.realm.settlement(s.id);
       const int garrison = st ? (int)st->garrison : 1 + 3 * c->tier;
       int brave = 0;
       for (const life::Resident& r : c->res) if ((r.traits & life::TR_BRAVE) && !(r.flags & (life::RF_DEAD | life::RF_AWAY))) brave++;
       const int defence = garrison * 2 + brave / 3 + (int)std::lround(mil * 6.0f);
       const int attack = pressure * 3 + (int)(rh(s.id ^ 0xA77Aull, (uint64_t)nightIx) % 7u);
       const bool failed = attack > defence;
-      if (failed) life.stats.raidsFailed++;
-      raidOutcome(*this, si, *c, failed, nightIx);
+      if (failed) g.life.stats.raidsFailed++;
+      raidOutcome(g, si, *c, failed, nightIx);
     }
   }
 }

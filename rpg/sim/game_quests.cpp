@@ -3,6 +3,7 @@
 //   Game::questKill, Game::checkDungeonCleared, Game::advanceMain, Game::questTarget, Game::rewardWaiting,
 //   Game::openingQuest, Game::questStatus, Game::giveFirstWeapon
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/life_hooks.h"
 
 const Quest* Game::questById(int id) const {
   for (auto& q : quests) if (q.id == id) return &q;
@@ -343,7 +344,7 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
         tx = (int)std::floor(actors[i].p.x / TILE); ty = (int)std::floor(actors[i].p.y / TILE);
         return true;
       }
-  if (toGiver && !inside && lifeGiverSpot(*q, tx, ty)) return true;
+  if (toGiver && !inside && LifeHooks::giverSpot(*this, *q, tx, ty)) return true;
   if (toGiver && q->giverBldg >= 0 && q->giverBldg < (int)world.over.bldgs.size()) {
     tx = world.over.bldgs[q->giverBldg].doorX(); ty = world.over.bldgs[q->giverBldg].doorY();
     return true;

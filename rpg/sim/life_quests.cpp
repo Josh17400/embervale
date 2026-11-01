@@ -14,6 +14,7 @@
 #include <cmath>
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life_hooks.h"
 
 namespace {
 
@@ -79,46 +80,46 @@ std::string lifePitch(const Game& g, const Quest& q) {
 
 bool jobsSupplyQuest(const Game& g, const Actor& npc, ew::Good good, life::Job job, Quest& q);
 
-bool Game::lifeOffer(const Actor& npc, Quest& q) const {
-  if (!npc.npc || !npc.human || npc.quest > 0 || npc.site < 0 || npc.site >= (int)world.sites.size()) return false;
+bool LifeHooks::offer(const Game& gm, const Actor& npc, Quest& q) {
+  if (!npc.npc || !npc.human || npc.quest > 0 || npc.site < 0 || npc.site >= (int)gm.world.sites.size()) return false;
   switch (npc.role) {
     case Role::Guard: case Role::Child: case Role::King: case Role::Soldier: case Role::Captain: case Role::Herald: case Role::Traveller:
     case Role::Bandit: case Role::Refugee: return false;
     default: break;
   }
-  const Site& S = world.sites[(size_t)npc.site];
+  const Site& S = gm.world.sites[(size_t)npc.site];
   if (!S.settlement()) return false;
-  const life::Census* c = life.find(S.id);
+  const life::Census* c = gm.life.find(S.id);
   if (!c || c->res.empty()) return false;
-  const int32_t hx = world.ox + S.ex, hy = world.oy + S.ey;
+  const int32_t hx = gm.world.ox + S.ex, hy = gm.world.oy + S.ey;
   // ---- 1. a villager carried off in a raid: bring them home
   if (c->takenIdx >= 0 && c->takenIdx < (int)c->res.size() && c->takenQuest == 0 && npc.role != Role::Jarl) {
     const life::Resident& t = c->res[(size_t)c->takenIdx];
     bool open = false;
-    for (const Quest& o : quests) if (o.type == QType::Missing && o.state != QState::Done && o.giverId == S.id && o.subject == t.name) open = true;
+    for (const Quest& o : gm.quests) if (o.type == QType::Missing && o.state != QState::Done && o.giverId == S.id && o.subject == t.name) open = true;
     int best = -1;
     float bd = 400.0f * 400.0f;
-    for (int oi : world.nearSites) {
-      if (oi < 0 || oi >= (int)world.sites.size()) continue;
-      const Site& o = world.sites[(size_t)oi];
+    for (int oi : gm.world.nearSites) {
+      if (oi < 0 || oi >= (int)gm.world.sites.size()) continue;
+      const Site& o = gm.world.sites[(size_t)oi];
       // only a place the player can walk into: the Missing flow places the person inside the site (questMapLoaded)
       if ((o.type != SiteType::Cave && o.type != SiteType::Ruin) || o.cleared || o.mainQuest) continue;
       bool taken = false;
-      for (const Quest& x : quests) if (x.state != QState::Done && x.type != QType::Main && (x.targetId == o.id || x.target == oi)) taken = true;
+      for (const Quest& x : gm.quests) if (x.state != QState::Done && x.type != QType::Main && (x.targetId == o.id || x.target == oi)) taken = true;
       if (taken) continue;
       const float dx = (float)(o.ex - S.ex), dy = (float)(o.ey - S.ey), d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = oi; }
     }
     if (!open && best >= 0) {
-      const Site& T = world.sites[(size_t)best];
+      const Site& T = gm.world.sites[(size_t)best];
       q = Quest();
       q.type = QType::Missing;
       q.giverSite = npc.site; q.giverBldg = npc.bldg; q.giverSlot = npc.slot; q.giverName = npc.name; q.giverId = S.id;
-      q.target = best; q.targetId = T.id; q.hasPos = true; q.tgx = world.ox + T.ex; q.tgy = world.oy + T.ey;
+      q.target = best; q.targetId = T.id; q.hasPos = true; q.tgx = gm.world.ox + T.ex; q.tgy = gm.world.oy + T.ey;
       q.subject = t.name;
       for (uint32_t k = 0; k < 64; k++) {   // a person seed whose look is of their sex
         const uint32_t f = (hash32((uint32_t)S.id ^ (uint32_t)c->takenIdx * 2654435761u ^ k) & 0xFFFFu) << 16;
-        if (personFemaleOf(f, QType::Missing, seed) == t.female) { q.flags = f; break; }
+        if (personFemaleOf(f, QType::Missing, gm.seed) == t.female) { q.flags = f; break; }
       }
       const int lvl = std::max(S.level, T.level);
       q.gold = 60 + lvl * 22 + 100; q.xp = 40 + lvl * 14 + 70;
@@ -138,11 +139,11 @@ bool Game::lifeOffer(const Actor& npc, Quest& q) const {
   }
   if (ri < 0 || ri >= (int)c->res.size()) return false;
   const life::Resident& r = c->res[(size_t)ri];
-  if (r.work < 0 || r.keySlot != 0 || r.work != r.keyBldg || S.bldgFirst + r.work >= (int)world.over.bldgs.size()) return false;
+  if (r.work < 0 || r.keySlot != 0 || r.work != r.keyBldg || S.bldgFirst + r.work >= (int)gm.world.over.bldgs.size()) return false;
   ew::Good g;
-  if (!starvedGood(world.over.bldgs[(size_t)(S.bldgFirst + r.work)], *c, g)) return false;
-  for (const Quest& o : quests) if (o.type == QType::Supply && o.state != QState::Done && o.giverId == S.id && o.stage == (int)g) return false;
-  return jobsSupplyQuest(*this, npc, g, r.job, q);
+  if (!starvedGood(gm.world.over.bldgs[(size_t)(S.bldgFirst + r.work)], *c, g)) return false;
+  for (const Quest& o : gm.quests) if (o.type == QType::Supply && o.state != QState::Done && o.giverId == S.id && o.stage == (int)g) return false;
+  return jobsSupplyQuest(gm, npc, g, r.job, q);
 }
 
 // (P1 Fresh Roads, JOBS lane) the nearest loaded settlement that makes `good` (or keeps plenty) for site `si`, within

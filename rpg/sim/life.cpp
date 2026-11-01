@@ -21,6 +21,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/life_hooks.h"
 
 namespace life {
 
@@ -940,7 +941,7 @@ void Life::dayTick(Game& g, Census& c, int day) {
     if (r.flags & (RF_DEAD | RF_AWAY)) continue;
     r.misery = r.mood < 25 ? (uint8_t)std::min(30, r.misery + 1) : 0;
     if (r.misery < 3 || (r.flags & RF_KEY) || r.job == Job::Child || r.job == Job::Guard || r.job == Job::Noble || left >= maxLeave) continue;
-    if (g.lifeGiverOpen(c.handle, (int)r.idx)) continue;   // a quest giver waits for the player (its job is open)
+    if (LifeHooks::giverOpen(g, c.handle, (int)r.idx)) continue;   // a quest giver waits for the player (its job is open)
     if (h32(c.seed ^ r.idx, (uint64_t)day + 0xE1Aull) % 3u != 0) continue;
     r.flags |= RF_AWAY;
     left++;

@@ -27,6 +27,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/story/story.h"
 #include "rpg/culture/society.h"
+#include "rpg/sim/life_hooks.h"
 
 using art::Monster;
 using art::Prop;
@@ -444,7 +445,7 @@ void Game::kill(Actor& a, int killer) {
   warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
   storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
-  lifeKill(a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
+  LifeHooks::kill(*this, a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
     // does (a camp whose chief is already gone). Either way the player hears about it at once: CLEARED and BOUNTY
@@ -466,7 +467,7 @@ void Game::kill(Actor& a, int killer) {
 }
 
 void Game::gainXp(int xp) {
-  if (xp > 0) xp = std::max(1, (int)std::lround(xp * lifeXpMul()));   // M5 (15.2): Rested
+  if (xp > 0) xp = std::max(1, (int)std::lround(xp * LifeHooks::xpMul(*this)));   // M5 (15.2): Rested
   plXp += xp;
   while (plXp >= gear::xpForNext(plLevel)) {   // (M6: the tuned curve, rpg/sim/gear.cpp)
     plXp -= gear::xpForNext(plLevel);

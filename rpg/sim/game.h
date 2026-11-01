@@ -553,10 +553,6 @@ class Game {
   //      counted), failure marks it Done with QF_FAILED. game_rpg.cpp.
   int openErrand(const Quest& q);
   void finishErrand(int qid, bool success);
-  //      where a quest giver is now when the map has no actor for them (LIFE lane, life_game.cpp: the resident's
-  //      current spot from the census: a street, a stall, a friend's house; false: unknown). The tracked quest's pin
-  //      asks it before falling back to the giver's door (questTarget).
-  bool lifeGiverSpot(const Quest& q, int& tx, int& ty) const;
   std::string questStatus(const Quest& q) const;   // one journal line: what to do next ("" = nothing extra)
   void dialogueChoose(int optIndex);
   void closeDialogue();
@@ -685,9 +681,6 @@ class Game {
   // M1 stable keys: an overworld chest (endless worlds key it by global tile, so it stays looted wherever the window is)
   uint64_t lootKey(int tx, int ty) const;   // (endless: by global tile)
   uint64_t npcKeyOf(int site, int bldg, int slot) const;   // npcKey's formula from handles (quest givers)
-  // (M5) resident `idx` of site `si` gave the player an open quest: it never emigrates or is carried off (life.cpp,
-  // life_raids.cpp), so the quest can always be handed in
-  bool lifeGiverOpen(int si, int idx) const;
 
   // M1 endless streaming and NPC level of detail (SIM lane)
   void frameWork(double budgetMs);     // once per rendered frame: the streamer's work (web: generation within the budget)
@@ -939,40 +932,6 @@ class Game {
   void storyKill(const Actor& victim, bool byPlayer);
   void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
   bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
-  // ---- M5 hooks (VISION_PLAN 10, 15.2, 15.12). Called from the core loop (game.cpp / game_rpg.cpp / ai.cpp) and
-  //      DEFINED in the lane's own file. TOWNSFOLK (rpg/sim/life_game.cpp): the actors.
-  //   once per update step (after storyStep): residents near the player streamed in / put away by their plan, routes,
-  //   furniture, chat pairs, barks, the lamplighter, the animals
-  void lifeStep(float dt);
-  //   a friendly townsperson's behaviour this step (updateFolk, after the flight from danger and before the stroll):
-  //   true = handled (its plan drove it)
-  bool lifeFolk(Actor& a, float dt);
-  //   streamSitePeople: may this site's generator spawn come out now (false: its resident is indoors / away this hour)
-  bool lifeSpawnAllowed(int site, const Spawn& sp);
-  //   a person just came into play from a generator spawn (streamSitePeople, loadMapActors): bind it to its resident
-  //   (Actor::resident, name, look), place it where its plan has it
-  void lifeSpawned(Actor& a, const Spawn& sp);
-  //   loadMapActors finished a building interior: populate it by schedule (who is home, at the tables, asleep upstairs)
-  void lifeInterior();
-  //   talkTo: greetings by name, barks of need ("HAVEN'T EATEN SINCE YESTERDAY"), the player's hooks (feed, employ,
-  //   supply, befriend) as options in [DLG_LIFE, DLG_LIFE_END); called before warTalk / storyTalk
-  void lifeTalk(Actor& a);
-  bool lifeChoose(const DlgOpt& o);    // an option in [DLG_LIFE, DLG_LIFE_END): true handled
-  void lifeKill(const Actor& victim, int killer);   // a resident fell: grief, the census (Life::residentDied)
-  //   the player used a prop (a bed or bedroll: sleep, Rested, skip the night; a table with food...): true handled.
-  //   Called before the built-in prop handling.
-  bool lifeUseProp(art::Prop p, int tx, int ty);
-  void lifeAte(const Item& food);      // the player ate something (useItem): Well Fed (15.2)
-  void lifeSlept(int hours, bool bed); // the player slept / rested (rest()): Rested when in a bed or bedroll (15.2)
-  //   the player's buff multipliers (15.2), applied in updatePlayer / gainXp (1 = no effect)
-  float lifeStaminaRegenMul() const;
-  float lifeHealthRegenMul() const;
-  float lifeXpMul() const;
-  //   CITIZENS (rpg/sim/life_raids.cpp): night raids by monster pressure (VISION_PLAN 10.4 M5): once per update step
-  void raidStep(float dt);
-  //   CITIZENS (rpg/sim/life_quests.cpp): radiant quests from unmet needs ("THE BAKER HAS NO FLOUR"). hasOffer /
-  //   makeOffer ask it first: true = this NPC offers `q` (filled in)
-  bool lifeOffer(const Actor& npc, Quest& q) const;
   // ---- M6 Steel hooks (VISION_PLAN 7, 15.11). Called from the core loop and DEFINED in the lane's own file.
   //   FOES (rpg/sim/foes_game.cpp): elites, champion packs, named uniques, boss phases, world bosses, soldiers' and
   //   bandits' culture arms.
@@ -1160,6 +1119,7 @@ class Game {
   struct LifeRuntime;
   std::shared_ptr<LifeRuntime> lifeRt_;
   friend struct LifeOps;               // M5 TOWNSFOLK: the actors' internals (life_game.cpp)
+  friend struct LifeHooks;             // M5 TOWNSFOLK / CITIZENS: the hooks into the core loop (rpg/sim/life_hooks.h)
   friend struct FoeOps;                // M6 FOES: the foes' internals (foes_game.cpp)
   friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
   friend struct LootOps;               // M8b SOURCES: the loot internals for the tests (rpg/sim/loot_ops.h)

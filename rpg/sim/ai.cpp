@@ -19,6 +19,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/economy.h"
+#include "rpg/sim/life_hooks.h"
 
 using art::Monster;
 using art::Prop;
@@ -392,7 +393,7 @@ void Game::updateFolk(Actor& a, float dt) {
   // (P1b) a story's walker, a bout's moment, a person waiting inside a site, a drove's beast (rpg/story/story_game.cpp)
   if ((story::isStoryPerson(a) || story::isDroveBeast(a)) && story::folkStep(*this, a, dt)) return;
   // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
-  if (!a.human && a.critter && lifeFolk(a, dt)) return;
+  if (!a.human && a.critter && LifeHooks::folk(*this, a, dt)) return;
   // M8: a sellsword for hire at an inn, a body walking home out of sight (party_recruit.cpp)
   if (a.partyTag && partyFolk(a, dt)) return;
   // M2: a beast that keeps a wayside place (the toll bridge's troll) holds its ground until it is crossed
@@ -429,7 +430,7 @@ void Game::updateFolk(Actor& a, float dt) {
   // townsfolk run home and hide from monsters on the loose (and from the bell); they come back out when it's over
   if (town && !guard && folkShelter(a, dt, ringing)) return;
   // M5: a resident with a plan lives it (work, meals, the tavern, sleep; life_game.cpp, TOWNSFOLK lane)
-  if (!guard && lifeFolk(a, dt)) return;
+  if (!guard && LifeHooks::folk(*this, a, dt)) return;
   // M2 capital square life (owner note 6): the people whose place is out on a city's square linger near it by day and
   // go home at night (indoors until morning: updateTownDefence lets them out at dawn)
   const bool squareGoer = town && !guard && !a.stallKeeper && (a.role == Role::Villager || a.role == Role::Child) &&

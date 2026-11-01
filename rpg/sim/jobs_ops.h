@@ -11,6 +11,7 @@
 #pragma once
 #include "rpg/sim/game.h"
 #include "rpg/sim/jobs.h"
+#include "rpg/sim/life_hooks.h"
 
 struct JobOps {
   static void step(Game& g, float dt);
@@ -24,7 +25,7 @@ struct JobOps {
   static bool hasOffer(const Game& g, const Actor& a) { return g.hasOffer(a); }
   static Quest makeOffer(Game& g, const Actor& a) { return g.makeOffer(a); }   // (tests: rpg_test --jobs)
   // (P1b) an unmet need asks first (life_quests.cpp): a radiant job waits behind it, as makeOffer's jobs do
-  static bool lifeOffer(const Game& g, const Actor& a) { Quest q; return g.lifeOffer(a, q); }
+  static bool lifeOffer(const Game& g, const Actor& a) { Quest q; return LifeHooks::offer(g, a, q); }
   // (P1b) the radiant jobs' pool bookkeeping (jobs.cpp): a running job given out, an ended one done
   static void radiantStep(Game& g);
 

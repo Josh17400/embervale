@@ -3,6 +3,7 @@
 // Public: Game::foeInReach, Game::interactTarget, Game::nearDoorOrExit, Game::bedIsYours, Game::interactProp,
 //   Game::interact, Game::npcKeyOf, Game::npcKey, Game::blessingSecs, Game::rest
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/life_hooks.h"
 
 // ------------------------------------------------------------------ interaction
 // (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
@@ -119,7 +120,7 @@ void Game::interact() {
   Prop prop = (Prop)(pr - 1);
   if (homeUseProp(prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
-  if (lifeUseProp(prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
+  if (LifeHooks::useProp(*this, prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
   if (useWaysideProp(prop, tx, ty)) return;
@@ -217,7 +218,7 @@ void Game::rest(int hours) {
   Actor& p = pl();
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
   sleepFade = 1.5f;
-  lifeSlept(hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
+  LifeHooks::slept(*this, hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
   partyRested(hours);       // M8: the companions rest too (party_game.cpp)
   sfx((int)Sfx::Heal, p.p, 0.7f);
 }

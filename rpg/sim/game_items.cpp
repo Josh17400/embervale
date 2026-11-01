@@ -2,6 +2,7 @@
 // Public: Game::giveGold, Game::addItem, Game::equipSlot, Game::useItem, Game::dropItem, Game::dropLoot,
 //   Game::openChest, LootOps::chestSource
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/life_hooks.h"
 
 // ------------------------------------------------------------------ inventory
 void Game::giveGold(int g) {
@@ -105,7 +106,7 @@ void Game::useItem(int i) {
     case ItemKind::Food: {
       // M5 (15.2): a snack's Well Fed; (M7) a cooked meal's is its own, set by where it was cooked (home_game.cpp), never
       // the snack rule's (it gave a campfire stew the hearth's hours and pips)
-      if (it.sub >= home::FOOD_MEAL) homeAte(it); else lifeAte(it);
+      if (it.sub >= home::FOOD_MEAL) homeAte(it); else LifeHooks::ate(*this, it);
       float k = background == Background::Farmhand ? 1.5f : 1.0f;   // farmhand: plain food goes further
       pl().hp = std::min(pl().maxHp, pl().hp + it.power * k);
       stamina += it.power * k;
