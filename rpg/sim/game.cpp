@@ -33,6 +33,7 @@
 #include "rpg/sim/quest_ops.h"
 #include "rpg/sim/ai_ops.h"
 #include "rpg/sim/stream_ops.h"
+#include "rpg/sim/story_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -820,7 +821,7 @@ void Game::updatePlayer(float dt, const Input& in) {
     // person stands there to be talked to
     int stx = 0, sty = 0;
     const int sp = interactTarget() < 0 ? story::wantedProp(*this, stx, sty) : 0;
-    if (!(sp && storyUseProp((Prop)(sp - 1), stx, sty))) interact();
+    if (!(sp && StoryOps::useProp(*this, (Prop)(sp - 1), stx, sty))) interact();
   }
 
   // doors, cave mouths and exits
@@ -1615,7 +1616,7 @@ void Game::enterSite(int si) {
   loadMapActors();
   QuestOps::questMapLoaded(*this);   // M2: an heirloom's chest, a missing person (quests.cpp)
   HomeOps::mapLoaded(*this);    // M7 (home_game.cpp)
-  storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
+  StoryOps::entered(*this, si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
   say(st.name);
@@ -1663,7 +1664,7 @@ void Game::enterBuilding(int bi, int col) {
   loadMapActors();
   QuestOps::questMapLoaded(*this);   // M2: a parcel's recipient (quests.cpp)
   HomeOps::mapLoaded(*this);    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
-  storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
+  StoryOps::entered(*this, -1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
 }

@@ -7,6 +7,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/loot_ops.h"
 #include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/story_ops.h"
 
 // ------------------------------------------------------------------ interaction
 // (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
@@ -127,7 +128,7 @@ void Game::interact() {
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
   if (WaysideOps::useProp(*this, prop, tx, ty)) return;
-  if (storyUseProp(prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
+  if (StoryOps::useProp(*this, prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
   if (prop == Prop::SummitShrine) {
     // M11: the summit shrine pays the climb back: its god's blessing for twice as long, full health and a
     // "summit" word so the player knows this one is stronger than a wayside shrine's

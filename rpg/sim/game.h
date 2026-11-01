@@ -853,17 +853,6 @@ class Game {
   int realmDay_ = -1;                  // the day the realm last advanced to
   ew::Gid realmLand_ = 0;              // whose land the player stood on (Ev::Border when it changes)
   bool realmLandKnown_ = false;
-  //   STORY (rpg/story/story_game.cpp): story quests and campaigns, rumours and news, lore in ruins, notice boards,
-  //   heralds
-  void storyStep(float dt);
-  void storyTalk(Actor& a);            // may add options (DLG_STORY..) and set dlg.text; called by talkTo before FAREWELL
-  // (P1b, lead) "ANY WORK GOING?" with a radiant job (story::radiant::offerFor): start its composed script on giver `a`
-  // and show its opening talk (the pitch, ACCEPT / DECLINE) in the open dialogue; false: it could not be cast
-  bool storyBeginJob(Actor& a, const std::string& specId);
-  bool storyChoose(const DlgOpt& o);   // an option in [DLG_STORY, DLG_WAR): true handled
-  void storyKill(const Actor& victim, bool byPlayer);
-  void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
-  bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
   bool foeWarmedTick_ = false;   // (M6 fixer r3) foeStep generated a cold region or kingdom cell this tick (one per tick)
   // ---- M7 Home hooks (VISION_PLAN 8, 15.2, 15.22). Called from the core loop (game.cpp / game_rpg.cpp) and DEFINED in
   //      rpg/sim/home_game.cpp (HOMESTEAD lane). Keep the calls where phase A put them.
@@ -976,6 +965,7 @@ class Game {
   friend struct QuestOps;              // M2 SIM: the quests' machinery (rpg/sim/quest_ops.h, quests.cpp, quest_offers.cpp)
   friend struct AiOps;                 // the actors' behaviour: beasts, folk, town defence (rpg/sim/ai_ops.h, ai.cpp)
   friend struct StreamOps;             // M1 SIM: the endless window's upkeep, NPC level of detail (rpg/sim/stream_ops.h)
+  friend struct StoryOps;              // M4 STORY: the story engine's hooks (rpg/sim/story_ops.h, story_game.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,

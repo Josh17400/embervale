@@ -10,6 +10,7 @@
 #include "rpg/sim/war_ops.h"
 #include "rpg/sim/wayside_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/story_ops.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -507,7 +508,7 @@ void Game::talkToInner(Actor& a) {
     const std::string before = dlg.text;
     const int bp = dlg.pri;
     const uint8_t bt = dlg.topic;
-    storyTalk(a);
+    StoryOps::talk(*this, a);
     if (dlg.text != before && dlg.pri == bp && dlg.topic == bt) {
       bool scene = false, pitch = false;   // a running story's own scene (its choices), or a story offered (its pitch)
       for (const DlgOpt& o : dlg.opts) {
@@ -805,7 +806,7 @@ void Game::dialogueChooseInner(int oi) {
         // Not in the first two days (P1b integrator): the opening's first job stays the plain hunt it teaches with (a
         // smuggler's run is a poor first errand), as requests are not raised on days 1-2 either
         const std::string rj = day <= 2 ? std::string() : story::radiant::offerFor(*this, actors[(size_t)ai]);
-        if (!rj.empty() && storyBeginJob(actors[(size_t)ai], rj)) return;
+        if (!rj.empty() && StoryOps::beginJob(*this, actors[(size_t)ai], rj)) return;
       }
       pendingOffer_ = QuestOps::makeOffer(*this, actors[ai]);
       dlg.text = pendingPitch_.empty() ? "THERE IS SOMETHING. " + pendingOffer_.desc + " I'LL PAY " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
@@ -926,7 +927,7 @@ void Game::dialogueChooseInner(int oi) {
     }
     default:
       // M4: the lanes' own option ranges (game.h DLG_*)
-      if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
+      if (o.action >= DLG_STORY && o.action < DLG_WAR && StoryOps::choose(*this, o)) return;
       if (o.action >= DLG_WAR && o.action < DLG_END && WarOps::choose(*this, o)) return;
       if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && LifeHooks::choose(*this, o)) return;
       if (o.action >= DLG_FOES && o.action < DLG_CRAFT && FoeHooks::choose(*this, o)) return;      // M6

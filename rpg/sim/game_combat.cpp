@@ -32,6 +32,7 @@
 #include "rpg/sim/loot_ops.h"
 #include "rpg/sim/war_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/story_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -448,7 +449,7 @@ void Game::kill(Actor& a, int killer) {
   if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) QuestOps::questKill(*this, a);
   WarOps::kill(*this, a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
-  storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
+  StoryOps::kill(*this, a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
   LifeHooks::kill(*this, a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
