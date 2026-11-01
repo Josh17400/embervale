@@ -13,6 +13,7 @@
 //   - under the sky the selected perk: its name, what it needs, its plain-word line and TAKE (SkillOps::takePerk; a
 //     blocked perk says why: skills::perkBlocked).
 // Keys: W / S (up / down) the skill, A / D (left / right) the perk, Enter / Space take it; Q / E change tabs.
+#include "rpg/view/loot_paint.h"   // lootp::wrap / fit (the card's text fitting)
 #include "rpg/view/skills_ui.h"
 #include <SDL3/SDL.h>
 #include <algorithm>

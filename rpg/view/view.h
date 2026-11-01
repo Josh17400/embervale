@@ -20,7 +20,7 @@
 #include "rpg/art.h"
 #include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
-#include "rpg/view/loot_paint.h"
+#include "rpg/view/loot_card.h"
 #include "rpg/view/camera.h"
 #include "rpg/view/fx_state.h"
 #include "rpg/view/sprite_cache.h"
@@ -28,12 +28,14 @@
 
 union SDL_Event;
 
-// (Witness, View::witnessRelease) each file's presentation state kept outside View, back to its start
-void witnessResetBeasts();      // render.cpp: the ranked foes' memo (roars, phases)
-void witnessResetWorldMap();    // worldmap.cpp: the MAP tab's centre, zoom and painted tiles
-void witnessResetPaperdoll();   // paperdoll.cpp: the PARTY page's last word
-void witnessResetPartyHud();    // party_hud.cpp: the members' remembered looks
-void witnessResetHud();         // hud.cpp: the menu strip's PARTY flag, the quick bar's extent
+// (Witness, View::witnessRelease) presentation state a file keeps outside View (its function statics, a memo by actor
+// id) registers its reset next to that state with EMB_VIEW_RESET(fn); witnessRelease runs every registered reset (in
+// no set order: each touches only its own file's state), so none can be forgotten. witness_state.cpp keeps the list.
+struct ViewReset {
+  explicit ViewReset(void (*fn)());
+  static void runAll();
+};
+#define EMB_VIEW_RESET(fn) static const ViewReset embViewReset_##fn(fn)
 
 namespace wmap { struct MapFrame; }   // (SOLID 3.4d) worldmap_internal.h
 

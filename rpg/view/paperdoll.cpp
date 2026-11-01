@@ -1103,4 +1103,5 @@ void View::partyPageTap(Game& g, Vec2 p) {
 }
 
 // (Witness, View::witnessRelease) the PARTY page's last word back to none (its time is t_, which starts again at 0)
-void witnessResetPaperdoll() { partyNote.clear(); partyNoteC = Color(); partyNoteT = -100; }
+static void witnessResetPaperdoll() { partyNote.clear(); partyNoteC = Color(); partyNoteT = -100; }
+EMB_VIEW_RESET(witnessResetPaperdoll);

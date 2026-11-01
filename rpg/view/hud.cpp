@@ -2208,4 +2208,5 @@ std::string View::moodWord(const Game& g, ew::Gid site, uint32_t* color) {
 }
 
 // (Witness, View::witnessRelease) the menu strip's PARTY flag and the quick bar's last extent back to their start
-void witnessResetHud() { g_partyTab = false; g_quickBarR = 0; }
+static void witnessResetHud() { g_partyTab = false; g_quickBarR = 0; }
+EMB_VIEW_RESET(witnessResetHud);

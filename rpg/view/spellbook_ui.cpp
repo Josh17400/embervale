@@ -19,6 +19,7 @@
 #include "rpg/sim/magic.h"
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/skills.h"
+#include "rpg/view/loot_paint.h"   // lootp::fit (the card's text fitting)
 #include "rpg/view/skills_paint.h"
 #include "rpg/view/skills_ui.h"
 

@@ -97,11 +97,12 @@ double msSince(Clock::time_point t0) { return std::chrono::duration<double, std:
 
 // (Witness, View::witnessRelease) the foes' view memo back to its start: actor ids repeat from run to run, so a foe of the
 // last run that had roared would silence this run's
-void witnessResetBeasts() {
+static void witnessResetBeasts() {
   beasts::glows.clear(); beasts::xray.clear(); beasts::plates.clear(); beasts::memo.clear();
   beasts::now = 0; beasts::stingT = -10;
   beasts::cur = beasts::Stats(); beasts::last = beasts::Stats();
 }
+EMB_VIEW_RESET(witnessResetBeasts);
 
 // (M6 BEASTS) the last frame's ranked-foe overlays (rpg/view/script_beasts.cpp reads them)
 void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& ms) {

@@ -1188,4 +1188,5 @@ void View::drawBanter(Game& g, Vec2 cam) {
 }
 
 // (Witness, View::witnessRelease) the members' remembered looks back to none (member ids repeat from run to run)
-void witnessResetPartyHud() { g_lookMemo.clear(); }
+static void witnessResetPartyHud() { g_lookMemo.clear(); }
+EMB_VIEW_RESET(witnessResetPartyHud);

@@ -515,10 +515,19 @@ void View::witnessRelease() {
   sprites_.bldgAsync_.clear();    // (std::async futures: waits for a paint still running)
   sprites_.bldgAsyncKeys_.clear();
   if (pix_) pix_->destroyUnmarked();
-  witnessResetBeasts();
-  witnessResetWorldMap();
-  witnessResetPaperdoll();
-  witnessResetPartyHud();
-  witnessResetHud();
+  ViewReset::runAll();   // every file's presentation state kept outside View (EMB_VIEW_RESET)
 }
 #endif
+
+// The EMB_VIEW_RESET registry (view.h): outside the EMB_WITNESS guard, so a build without the harness still links the
+// registrations; the list is a function static, so a registration never runs before it exists.
+#include <vector>
+#include "rpg/view/view.h"
+static std::vector<void (*)()>& viewResets() {
+  static std::vector<void (*)()> list;
+  return list;
+}
+ViewReset::ViewReset(void (*fn)()) { viewResets().push_back(fn); }
+void ViewReset::runAll() {
+  for (void (*fn)() : viewResets()) fn();
+}
