@@ -3,6 +3,11 @@
 // Public: Game::foeInReach, Game::interactTarget, Game::nearDoorOrExit, Game::bedIsYours, Game::interactProp,
 //   Game::interact, Game::npcKeyOf, Game::npcKey, Game::blessingSecs, Game::rest
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/life_hooks.h"
+#include "rpg/sim/game_internal.h"
+#include "rpg/sim/loot_ops.h"
+#include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/story_ops.h"
 
 // ------------------------------------------------------------------ interaction
 // (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
@@ -70,7 +75,7 @@ int Game::interactTarget() const {
 bool Game::nearDoorOrExit() const { return false; }
 
 bool Game::bedIsYours(int tx, int ty) const {
-  if (homeBed(tx, ty)) return true;   // M7: a bed in the player's own house
+  if (HomeOps::bed(*this, tx, ty)) return true;   // M7: a bed in the player's own house
   if (!inside || subBldg < 0) return true;
   const Bldg& B = world.over.bldgs[subBldg];
   if (B.type != art::Building::Inn || B.genVer < WORLDGEN_V7) return true;
@@ -95,7 +100,7 @@ int Game::interactProp(int& otx, int& oty) const {
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
                       (prop == Prop::Bedroll && !inside) ||   // M5: a wayfarer's bedroll (Life: rested, the night passes)
                       (art::isLoreProp(prop) && (inside ? subSite >= 0 : (prop == Prop::NoticeBoard || prop == Prop::ToppledStatue))) ||   // M4 (story_game.cpp)
-                      homePropUsable(prop, tx, ty) ||   // M7: cooking places, the player's own furniture (home_game.cpp)
+                      HomeOps::propUsable(*this, prop, tx, ty) ||   // M7: cooking places, the player's own furniture (home_game.cpp)
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
@@ -106,10 +111,10 @@ int Game::interactProp(int& otx, int& oty) const {
 }
 
 void Game::interact() {
-  if (partyInteract()) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
+  if (PartyOps::interact(*this)) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
-  if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
+  if (HomeOps::plotInteract(*this)) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
   if (SeaOps::interact(*this)) return;   // M10: board / disembark, cast a line, a pier's use (sea_game.cpp)
   // chest / shrine / bed / bush in front of the player
   const Actor& p = pl();
@@ -117,13 +122,13 @@ void Game::interact() {
   int pr = interactProp(tx, ty);
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
-  if (homeUseProp(prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
-  if (prop == Prop::Chest) { openChest(tx, ty); return; }
-  if (lifeUseProp(prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
+  if (HomeOps::useProp(*this, prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
+  if (prop == Prop::Chest) { LootOps::openChest(*this, tx, ty); return; }
+  if (LifeHooks::useProp(*this, prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
-  if (useWaysideProp(prop, tx, ty)) return;
-  if (storyUseProp(prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
+  if (WaysideOps::useProp(*this, prop, tx, ty)) return;
+  if (StoryOps::useProp(*this, prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
   if (prop == Prop::SummitShrine) {
     // M11: the summit shrine pays the climb back: its god's blessing for twice as long, full health and a
     // "summit" word so the player knows this one is stronger than a wayside shrine's
@@ -217,8 +222,8 @@ void Game::rest(int hours) {
   Actor& p = pl();
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
   sleepFade = 1.5f;
-  lifeSlept(hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
-  partyRested(hours);       // M8: the companions rest too (party_game.cpp)
+  LifeHooks::slept(*this, hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
+  PartyOps::rested(*this, hours);       // M8: the companions rest too (party_game.cpp)
   sfx((int)Sfx::Heal, p.p, 0.7f);
 }
 

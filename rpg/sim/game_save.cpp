@@ -3,6 +3,7 @@
 // Public: Game::currentSaveVersion, Game::saveVersion, Game::saveFromOlderGenerator, Game::serialize,
 //   Game::deserialize
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/stream_ops.h"
 
 // ------------------------------------------------------------------ save / load
 // SAVE_VER 12 (M6: items gain item level, material, alloy, maker culture, form, seed, affixes, unique power and flags
@@ -512,7 +513,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   }
   // re-apply looted overworld chests (by global tile)
   world.over.rebuildSolid();
-  reapplyLooted();
+  StreamOps::reapplyLooted(*this);
   recalcPlayer();
   // (fixer M4 r1) the realm's owners on the loaded settlements before anyone is spawned: a save made inside a conquered
   // town's building (its palace) loads with the conqueror's guards and ruler, not the generator's (realmStep waits

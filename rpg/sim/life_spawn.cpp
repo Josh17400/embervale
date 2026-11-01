@@ -2,6 +2,7 @@
 // Dress, spawn and remove actors, reconcile a street with the census, staged moods, settling an outdoor walker.
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/game.h"
 
 // ---------------------------------------------------------------- spawning residents on the street
 void LifeOps::dressResident(Game& g, Actor& a, const life::Resident& r) {
@@ -497,8 +498,8 @@ void LifeOps::stageMood(Game& g, int si, life::Census& c, RT::SiteRt& S) {
       const Vec2 mid = (a.p + o.p) * 0.5f;
       const Vec2 dir = len2(o.p - a.p) > 1.0f ? norm(o.p - a.p) : Vec2(1, 0);
       const Vec2 pa = mid - dir * 8.0f, pb = mid + dir * 8.0f;
-      if (g.bodyFree(pa, a.radius, false)) a.p = pa;
-      if (g.bodyFree(pb, o.radius, false)) o.p = pb;
+      if (ClimbOps::bodyFree(g, pa, a.radius, false)) a.p = pa;
+      if (ClimbOps::bodyFree(g, pb, o.radius, false)) o.p = pb;
       a.face = faceOf(o.p - a.p); o.face = faceOf(a.p - o.p);
       bubble(a, Bubble::Anger, 1.5f);
       if (onScreen(g, a.p)) say(g, a, "THAT WAS MY BREAD, YOU THIEF!", rgba(240, 150, 120));

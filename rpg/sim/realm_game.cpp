@@ -8,6 +8,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/realm_ops.h"
 
 void Game::realmSync() {
   if (!world.endless || !world.src) return;
@@ -51,31 +52,31 @@ bool Game::realmNoteSites() {
   return fresh;
 }
 
-void Game::realmStep(float dt) {
+void RealmOps::step(Game& g, float dt) {
   (void)dt;
-  if (!world.endless || !world.src || inside) return;
-  ew::EndlessSource& src = *world.src;
-  const int32_t gx = world.ox + (int32_t)std::floor(pl().p.x / TILE), gy = world.oy + (int32_t)std::floor(pl().p.y / TILE);
-  realm.focus(src, gx, gy, day);
+  if (!g.world.endless || !g.world.src || g.inside) return;
+  ew::EndlessSource& src = *g.world.src;
+  const int32_t gx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
+  g.realm.focus(src, gx, gy, g.day);
   // every settlement the window loaded is known to the realm (its genesis owner, type and heart)
-  const bool fresh = realmNoteSites();
-  if (realmDay_ != day) {
-    realm.advanceTo(src, day);
-    realmDay_ = day;
+  const bool fresh = g.realmNoteSites();
+  if (g.realmDay_ != g.day) {
+    g.realm.advanceTo(src, g.day);
+    g.realmDay_ = g.day;
   }
-  if (fresh || realm.eventSerial() != realmSeen_) realmSync();
+  if (fresh || g.realm.eventSerial() != g.realmSeen_) g.realmSync();
   // (M12) the world's rise and fall near the player: a warlord rising, a warband or a world boss raiding (a herald's
   // banner; Event::id = the low bits of the realm it concerns). Only news the player could hear: within 160 tiles
   // (a hidden land is far across the sea), and only events made since the last look (never the history on a load).
-  if (riseSeen_ == 0 || riseSeen_ > realm.eventSerial()) riseSeen_ = realm.eventSerial();
-  else if (riseSeen_ != realm.eventSerial()) {
-    for (const realm::WorldEvent& e : realm.events()) {
-      if (e.id < riseSeen_) continue;
+  if (g.riseSeen_ == 0 || g.riseSeen_ > g.realm.eventSerial()) g.riseSeen_ = g.realm.eventSerial();
+  else if (g.riseSeen_ != g.realm.eventSerial()) {
+    for (const realm::WorldEvent& e : g.realm.events()) {
+      if (e.id < g.riseSeen_) continue;
       RiseEv k = RiseEv::None;
       float f = 1;
       ew::Gid who = e.a;
       std::string line;
-      const realm::KingdomState* A = e.a ? realm.kingdom(e.a) : nullptr;
+      const realm::KingdomState* A = e.a ? g.realm.kingdom(e.a) : nullptr;
       if (e.type == realm::EvType::WarlordRose) { k = RiseEv::WarlordNear; f = 1; line = A ? A->name : "A WARLORD"; }
       else if (e.type == realm::EvType::WarbandRaid) { k = RiseEv::WarlordNear; f = 2; who = e.b; line = "SMOKE ON THE HORIZON"; }
       else if (e.type == realm::EvType::BeastRaid) { k = RiseEv::BossRaid; line = "A TOWN NEARBY BURNS"; }
@@ -83,29 +84,29 @@ void Game::realmStep(float dt) {
       const int64_t dx = (int64_t)e.gx - gx, dy = (int64_t)e.gy - gy;
       if (dx * dx + dy * dy > 160ll * 160ll) continue;
       if (e.site) {   // the place by name when the window holds it (the banner's top line already names the deed)
-        const int h = world.siteHandle(e.site);
+        const int h = g.world.siteHandle(e.site);
         if (h >= 0) {
-          const std::string& nm = world.sites[(size_t)h].name;
+          const std::string& nm = g.world.sites[(size_t)h].name;
           line = k == RiseEv::WarlordNear && f == 1 ? line + " TAKES " + nm : k == RiseEv::WarlordNear ? "SMOKE OVER " + nm : nm + " BURNS";
         }
       }
-      Event ev{Ev::Rise, pl().p, (int)k, f, line};
+      Event ev{Ev::Rise, g.pl().p, (int)k, f, line};
       ev.id = (uint32_t)who;
-      events.push_back(ev);
+      g.events.push_back(ev);
     }
-    riseSeen_ = realm.eventSerial();
+    g.riseSeen_ = g.realm.eventSerial();
   }
   // crossing into another kingdom's land (VISION_PLAN M4: "a herald's banner at every border")
-  const ew::Gid land = realm.landOwner(src.kingdomAt(gx, gy), gx, gy);
-  if (!realmLandKnown_) { realmLand_ = land; realmLandKnown_ = true; return; }
-  if (land != realmLand_) {
-    realmLand_ = land;
+  const ew::Gid land = g.realm.landOwner(src.kingdomAt(gx, gy), gx, gy);
+  if (!g.realmLandKnown_) { g.realmLand_ = land; g.realmLandKnown_ = true; return; }
+  if (land != g.realmLand_) {
+    g.realmLand_ = land;
     std::string name = "THE WILDLANDS";
     uint32_t col = rgba(200, 180, 140);
     if (land) {
-      if (const realm::KingdomState* K = realm.kingdom(land)) { name = K->name; col = K->color; }
+      if (const realm::KingdomState* K = g.realm.kingdom(land)) { name = K->name; col = K->color; }
       else if (const ew::KingdomPlan* kp = src.kingdom(land)) { name = kp->name; col = kp->color; }
     }
-    emit(Ev::Border, pl().p, (int)col, land ? 1.0f : 0.0f, name);
+    g.emit(Ev::Border, g.pl().p, (int)col, land ? 1.0f : 0.0f, name);
   }
 }

@@ -151,10 +151,10 @@ int PartyOps::graveNear(const Game& g, Vec2 p, float r) {
   return best;
 }
 
-int Game::partyGraveAt(int tx, int ty) const {
-  for (size_t i = 0; i < party.fallen.size(); i++) {
-    const Fallen& f = party.fallen[i];
-    if ((f.graveFlags & party::GF_SITED) && f.gx - world.ox == tx && f.gy - world.oy == ty) return (int)i;
+int PartyOps::graveAt(const Game& g, int tx, int ty) {
+  for (size_t i = 0; i < g.party.fallen.size(); i++) {
+    const Fallen& f = g.party.fallen[i];
+    if ((f.graveFlags & party::GF_SITED) && f.gx - g.world.ox == tx && f.gy - g.world.oy == ty) return (int)i;
   }
   return -1;
 }

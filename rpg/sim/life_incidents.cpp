@@ -3,6 +3,8 @@
 // (overheardP1b, the P1b items' gossip, is defined in life_game.cpp: it reads rpg/story/story_internal.h.)
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 Actor* LifeOps::actorById(Game& g, int id) {
   const int k = id >= 0 ? g.findActor(id) : -1;
@@ -88,7 +90,7 @@ uint32_t LifeOps::overheard(Game& g, const Actor& speaker, int partnerId, bool f
   // (P1 fixer) the job named is the one this person offers when asked (makeOffer: their pool job this week), so the
   // lead's words, its qtype and the lead closing on taking the job all agree
   bool ok = false;
-  const Quest q = g.makeOffer(giver, &ok);
+  const Quest q = QuestOps::makeOffer(g, giver, &ok);
   if (!ok) return 0;
   const life::Resident* gr = residentOf(g, giver);
   const uint32_t h = mixu(g.npcKey(giver), (uint64_t)g.day);
@@ -332,7 +334,7 @@ bool LifeOps::startIncident(Game& g, int si, int kind) {
         static const float sh[5] = {0.0f, 6.0f, -6.0f, 12.0f, -12.0f};
         for (float sx : sh) {
           const Vec2 m2 = mid + Vec2(sx, 0);
-          if (g.bodyFree(m2 - dir * 11.0f, a->radius, false) && g.bodyFree(m2 + dir * 11.0f, b->radius, false)) { mid = m2; break; }
+          if (ClimbOps::bodyFree(g, m2 - dir * 11.0f, a->radius, false) && ClimbOps::bodyFree(g, m2 + dir * 11.0f, b->radius, false)) { mid = m2; break; }
         }
       }
       A.dest = mid - dir * 11.0f; B.dest = mid + dir * 11.0f;
@@ -401,7 +403,7 @@ bool LifeOps::incidentHeld(Game& g, Actor& a, RT::ARt& A, float dt) {
     }
     case life::INC_BRAWL: {
       if (!A.arrived) {   // square up (a step, never a jump)
-        if (len2(A.dest - a.p) > 4.0f && g.bodyFree(A.dest, a.radius, false)) { stepToward(g, a, A.dest, a.speed * 0.9f, dt); A.t += dt; if (A.t < 4.0f) return true; }
+        if (len2(A.dest - a.p) > 4.0f && ClimbOps::bodyFree(g, A.dest, a.radius, false)) { stepToward(g, a, A.dest, a.speed * 0.9f, dt); A.t += dt; if (A.t < 4.0f) return true; }
         A.arrived = true; A.t = 0;
       }
       if (c) brawl(g, a, A, *c, dt);
@@ -429,7 +431,7 @@ void LifeOps::partFrom(Game& g, Actor& a, Vec2 from, float side, float vy) {
     for (float d : {28.0f, 22.0f, 17.0f}) {
       const Vec2 c = from + dv * d;
       if (len2(c - from) <= len2(a.p - from) + 4.0f) continue;   // (never closer than they already are)
-      if (g.bodyFree(c, a.radius, false)) { A.dest = c; found = true; break; }
+      if (ClimbOps::bodyFree(g, c, a.radius, false)) { A.dest = c; found = true; break; }
     }
     if (found) break;
   }
@@ -624,7 +626,7 @@ void LifeOps::incidentLead(Game& g, Actor* victim) {
     fn = firstName(victim->name);
     if (g.offersWork(*victim)) {
       bool ok = false;
-      const Quest q = g.makeOffer(*victim, &ok);   // (P1 fixer: the job they really offer when asked)
+      const Quest q = QuestOps::makeOffer(g, *victim, &ok);   // (P1 fixer: the job they really offer when asked)
       if (ok) L.qtype = (uint8_t)q.type;
     }
   }
@@ -773,7 +775,7 @@ void LifeOps::incidentTick(Game& g, float dt) {
         bool got = false;
         for (int pass = 0; pass < 2 && !got; pass++)   // (out in the open first: never under a stall's awning)
           for (const Vec2& c : cands)
-            if ((pass || openTile(g.world.over, tileX(c), tileY(c))) && g.bodyFree(c, t->radius, false) && clearLine(g, t->p, c, t->radius)) { T.dest = c; got = true; break; }
+            if ((pass || openTile(g.world.over, tileX(c), tileY(c))) && ClimbOps::bodyFree(g, c, t->radius, false) && clearLine(g, t->p, c, t->radius)) { T.dest = c; got = true; break; }
       }
       endIncident(g);
       return;

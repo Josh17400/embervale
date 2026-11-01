@@ -27,6 +27,10 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
+#include "rpg/sim/stream_ops.h"
 
 namespace {
 double nowMs() {
@@ -56,28 +60,28 @@ std::string hoursWords(float h) {
 }
 }  // namespace
 
-int32_t Game::landAt(int32_t gx, int32_t gy) const {
-  if (!world.src) return 1;
+int32_t TravelOps::landAt(const Game& g, int32_t gx, int32_t gy) {
+  if (!g.world.src) return 1;
   // a bridge, a ford or a quay may stand on water: the nearest land around it decides
   static const int off[][2] = {{0, 0}, {8, 0}, {-8, 0}, {0, 8}, {0, -8}, {16, 16}, {-16, 16}, {16, -16}, {-16, -16}, {32, 0}, {-32, 0}, {0, 32}, {0, -32}};
   for (auto& o : off)
-    if (uint32_t m = world.src->landmass(gx + o[0], gy + o[1])) return (int32_t)m;
+    if (uint32_t m = g.world.src->landmass(gx + o[0], gy + o[1])) return (int32_t)m;
   return 0;
 }
 
-bool Game::carriageHere() const {
+bool TravelOps::carriageHere(const Game& g) {
   int si = -1;
-  if (inside) si = subBldg >= 0 ? world.over.bldgs[(size_t)subBldg].site : -1;
-  else si = settlementAt(pl().p);
-  if (si < 0 || si >= (int)world.sites.size()) return false;
-  const SiteType t = world.sites[(size_t)si].type;
+  if (g.inside) si = g.subBldg >= 0 ? g.world.over.bldgs[(size_t)g.subBldg].site : -1;
+  else si = g.settlementAt(g.pl().p);
+  if (si < 0 || si >= (int)g.world.sites.size()) return false;
+  const SiteType t = g.world.sites[(size_t)si].type;
   return t == SiteType::Town || t == SiteType::City;
 }
 
 // the arrival tile of a journey to s (fast travel's rules), as a GLOBAL tile
-void Game::travelDest(const Site& s, int kind, int32_t& gx, int32_t& gy) const {
+void TravelOps::dest(const Game& g, const Site& s, int kind, int32_t& gx, int32_t& gy) {
   // waking after a death: a settlement's square (as fast travel; arriveInOpen then finds open ground), else the middle
-  if (kind == 2 && !s.settlement()) { gx = world.ox + s.r.cx(); gy = world.oy + s.r.cy() + 1; return; }
+  if (kind == 2 && !s.settlement()) { gx = g.world.ox + s.r.cx(); gy = g.world.oy + s.r.cy() + 1; return; }
   // (settlements: a few tiles south of the square's centrepiece, whose fountain blocks the tiles beside and above it,
   //  so the first step after arriving is onto open paving)
   int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : s.settlement() ? 3 : 1));
@@ -85,16 +89,16 @@ void Game::travelDest(const Site& s, int kind, int32_t& gx, int32_t& gy) const {
   if (s.type == SiteType::BanditCamp) ty = s.r.y + s.r.h + 4;
   if (s.type == SiteType::DragonLair) ty = s.ey + 5;
   if (s.type == SiteType::Vignette || s.type == SiteType::Wonder) ty = s.r.y + s.r.h + 1;   // beside the place, not on it
-  gx = world.ox + s.ex; gy = world.oy + ty;
+  gx = g.world.ox + s.ex; gy = g.world.oy + ty;
 }
 
 // (M1 round 3) arrive in the open: a settlement's square is full of stalls, crates and wells, and landing on the tile
 // just north of one hid the hero under its awning with the way south blocked. Take the nearest tile with open ground
 // around it and two clear tiles south of it (nothing standing in front of the hero, a free first step).
-void Game::arriveInOpen(const Site& s) {
+void TravelOps::arriveInOpen(Game& g, const Site& s) {
   if (!s.settlement()) return;
-  const Map& m = map();
-  const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
+  const Map& m = g.map();
+  const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
   auto open = [&](int x, int y) {
     for (int dy = -1; dy <= 2; dy++)
       for (int dx = -1; dx <= 1; dx++) {
@@ -110,7 +114,7 @@ void Game::arriveInOpen(const Site& s) {
     for (int oy = -r; oy <= r; oy++)
       for (int ox = -r; ox <= r; ox++) {
         if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
-        if (open(px + ox, py + oy)) { pl().p = Vec2((px + ox) * TILE + 8.0f, (py + oy) * TILE + 10.0f); return; }
+        if (open(px + ox, py + oy)) { g.pl().p = Vec2((px + ox) * TILE + 8.0f, (py + oy) * TILE + 10.0f); return; }
       }
 }
 
@@ -140,10 +144,10 @@ TravelQuote Game::travelQuote(int si, bool carriage) const {
   for (const Actor& a : actors)
     if (a.hostile && a.aggro && a.st != AState::Dead && len2(a.p - pl().p) < 120 * 120) { q.why = "YOU CANNOT TRAVEL WITH ENEMIES NEARBY"; return q; }
   // the landmass rule: over the sea it is ships (M10), not a walk
-  const int32_t lp = landAt(px, py), ld = landAt(dx, dy);
+  const int32_t lp = TravelOps::landAt(*this, px, py), ld = TravelOps::landAt(*this, dx, dy);
   if (lp && ld && lp != ld) { q.why = "ACROSS THE SEA - YOU NEED A SHIP"; return q; }
   if (carriage) {
-    if (!carriageHere()) { q.why = "CARRIAGES LEAVE ONLY FROM TOWNS AND CITIES"; return q; }
+    if (!TravelOps::carriageHere(*this)) { q.why = "CARRIAGES LEAVE ONLY FROM TOWNS AND CITIES"; return q; }
     if (!s.settlement()) { q.why = "THE CARRIAGE ONLY GOES TO TOWNS AND VILLAGES"; return q; }
     if (gold < q.gold) { q.why = "THE FARE IS " + std::to_string(q.gold) + " GOLD"; return q; }
   }
@@ -157,27 +161,27 @@ bool Game::beginTravel(int si, bool carriage) {
     say(q.why);
     return false;
   }
-  return startJourney(si, carriage ? 1 : 0, q.hours, q.gold);
+  return TravelOps::startJourney(*this, si, carriage ? 1 : 0, q.hours, q.gold);
 }
 
-bool Game::startJourney(int si, int kind, float hours, int fare) {
-  if (si < 0 || si >= (int)world.sites.size()) return false;
-  const Site s = world.sites[(size_t)si];
+bool TravelOps::startJourney(Game& g, int si, int kind, float hours, int fare) {
+  if (si < 0 || si >= (int)g.world.sites.size()) return false;
+  const Site s = g.world.sites[(size_t)si];
   // M7: a rider keeps the saddle on the road; the carriage leaves the horse, and a horse left waiting walks home
-  if (kind == 1 && homeRiding()) homeDismount(home::Dismount::Travel);
-  if (home.riding < 0 && !home.horseInn) home.horse = -1;
-  travel = Travel();
-  travel.phase = TravelPhase::Gather;
-  travel.site = si;
-  travel.kind = (uint8_t)kind;
-  travel.hours = hours;
-  travel.gold = fare;
-  travelDest(s, kind, travel.gx, travel.gy);
+  if (kind == 1 && g.homeRiding()) g.homeDismount(home::Dismount::Travel);
+  if (g.home.riding < 0 && !g.home.horseInn) g.home.horse = -1;
+  g.travel = Travel();
+  g.travel.phase = TravelPhase::Gather;
+  g.travel.site = si;
+  g.travel.kind = (uint8_t)kind;
+  g.travel.hours = hours;
+  g.travel.gold = fare;
+  TravelOps::dest(g, s, kind, g.travel.gx, g.travel.gy);
   if (fare > 0) {
-    gold -= fare;
-    sfx((int)Sfx::Coin, pl().p);
+    g.gold -= fare;
+    g.sfx((int)Sfx::Coin, g.pl().p);
   }
-  journeyWindow();
+  TravelOps::journeyWindow(g);
   return true;
 }
 
@@ -188,41 +192,41 @@ bool Game::beginTravelTo(int32_t gx, int32_t gy) {
   travel.phase = TravelPhase::Gather;
   travel.site = -1;
   travel.gx = gx; travel.gy = gy;
-  journeyWindow();
+  TravelOps::journeyWindow(*this);
   return true;
 }
 
 // the destination window of the journey set up in `travel`, and the wish list that gathers it
-void Game::journeyWindow() {
+void TravelOps::journeyWindow(Game& g) {
   // the destination window: as placePlayerAt would recentre (a tile off the current window's middle moves it)
-  const int lx = travel.gx - world.ox, ly = travel.gy - world.oy;
+  const int lx = g.travel.gx - g.world.ox, ly = g.travel.gy - g.world.oy;
   const int lo = World::WIN_SHIFT, hi = World::WIN - World::WIN_SHIFT;
-  travel.move = world.endless && (lx < lo || ly < lo || lx >= hi || ly >= hi);
-  travel.nox = travel.move ? floorTo(travel.gx - World::WIN / 2, ew::CHUNK) : world.ox;
-  travel.noy = travel.move ? floorTo(travel.gy - World::WIN / 2, ew::CHUNK) : world.oy;
-  travel.wall0 = nowMs();
-  travel.lastStepMs = travel.wall0;
-  travel.gatherReal = 0;
-  mode = Mode::Play;
-  if (travel.move && !world.streamer) {
+  g.travel.move = g.world.endless && (lx < lo || ly < lo || lx >= hi || ly >= hi);
+  g.travel.nox = g.travel.move ? floorTo(g.travel.gx - World::WIN / 2, ew::CHUNK) : g.world.ox;
+  g.travel.noy = g.travel.move ? floorTo(g.travel.gy - World::WIN / 2, ew::CHUNK) : g.world.oy;
+  g.travel.wall0 = nowMs();
+  g.travel.lastStepMs = g.travel.wall0;
+  g.travel.gatherReal = 0;
+  g.mode = Mode::Play;
+  if (g.travel.move && !g.world.streamer) {
 #ifdef __EMSCRIPTEN__
-    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, false);
+    g.world.streamer = std::make_shared<ChunkStreamer>(g.world.seed, g.world.src, false);
 #else
-    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, streamThreads);
+    g.world.streamer = std::make_shared<ChunkStreamer>(g.world.seed, g.world.src, g.streamThreads);
 #endif
   }
-  travelWant();
+  TravelOps::want(g);
 }
 
 // the destination window's needs, most urgent first: the region plans placeWindow reads (loadRegionsAround), the 8 x 8
 // chunks of the window nearest the arrival first, then the ring the first walking shifts will copy
-void Game::travelWant() {
-  if (!travel.move || !world.streamer) return;
+void TravelOps::want(Game& g) {
+  if (!g.travel.move || !g.world.streamer) return;
   std::vector<ChunkStreamer::Key> keys;
-  const int32_t nox = travel.nox, noy = travel.noy;
+  const int32_t nox = g.travel.nox, noy = g.travel.noy;
   const int32_t r0x = ew::regionOf(nox - ew::REGION), r1x = ew::regionOf(nox + World::WIN + ew::REGION - 1);
   const int32_t r0y = ew::regionOf(noy - ew::REGION), r1y = ew::regionOf(noy + World::WIN + ew::REGION - 1);
-  const int32_t drx = ew::regionOf(travel.gx), dry = ew::regionOf(travel.gy);
+  const int32_t drx = ew::regionOf(g.travel.gx), dry = ew::regionOf(g.travel.gy);
   std::vector<std::pair<int, ChunkStreamer::Key>> rk;
   for (int32_t ry = r0y; ry <= r1y; ry++)
     for (int32_t rx = r0x; rx <= r1x; rx++) {
@@ -236,14 +240,14 @@ void Game::travelWant() {
   for (int cy = -1; cy <= nc; cy++)
     for (int cx = -1; cx <= nc; cx++) {
       const int32_t gcx = (nox >> ew::CHUNK_SHIFT) + cx, gcy = (noy >> ew::CHUNK_SHIFT) + cy;
-      const int64_t ddx = (int64_t)gcx * ew::CHUNK + ew::CHUNK / 2 - travel.gx, ddy = (int64_t)gcy * ew::CHUNK + ew::CHUNK / 2 - travel.gy;
+      const int64_t ddx = (int64_t)gcx * ew::CHUNK + ew::CHUNK / 2 - g.travel.gx, ddy = (int64_t)gcy * ew::CHUNK + ew::CHUNK / 2 - g.travel.gy;
       ChunkStreamer::Key k; k.x = gcx; k.y = gcy;
       const bool inWin = cx >= 0 && cy >= 0 && cx < nc && cy < nc;
       if (inWin) {
         // a chunk the current window already holds is kept by placeWindow (not wanted)
         const int32_t gx = gcx * ew::CHUNK, gy = gcy * ew::CHUNK;
-        const bool keep = std::abs(nox - world.ox) < World::WIN && std::abs(noy - world.oy) < World::WIN;
-        if (keep && gx >= world.ox && gy >= world.oy && gx < world.ox + World::WIN && gy < world.oy + World::WIN) continue;
+        const bool keep = std::abs(nox - g.world.ox) < World::WIN && std::abs(noy - g.world.oy) < World::WIN;
+        if (keep && gx >= g.world.ox && gy >= g.world.oy && gx < g.world.ox + World::WIN && gy < g.world.oy + World::WIN) continue;
         ck.push_back({ddx * ddx + ddy * ddy, k});
       } else ring.push_back({ddx * ddx + ddy * ddy, k});
     }
@@ -251,113 +255,113 @@ void Game::travelWant() {
   std::stable_sort(ring.begin(), ring.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
   for (auto& k : ck) keys.push_back(k.second);
   for (auto& k : ring) keys.push_back(k.second);
-  world.streamer->want(keys);
+  g.world.streamer->want(keys);
 }
 
-bool Game::travelReady() {
-  if (!travel.move) return true;
-  if (!world.streamer) return false;
-  const int32_t nox = travel.nox, noy = travel.noy;
+bool TravelOps::ready(Game& g) {
+  if (!g.travel.move) return true;
+  if (!g.world.streamer) return false;
+  const int32_t nox = g.travel.nox, noy = g.travel.noy;
   const int32_t r0x = ew::regionOf(nox - ew::REGION), r1x = ew::regionOf(nox + World::WIN + ew::REGION - 1);
   const int32_t r0y = ew::regionOf(noy - ew::REGION), r1y = ew::regionOf(noy + World::WIN + ew::REGION - 1);
   for (int32_t ry = r0y; ry <= r1y; ry++)
     for (int32_t rx = r0x; rx <= r1x; rx++)
-      if (!world.streamer->hasRegion(rx, ry)) return false;
+      if (!g.world.streamer->hasRegion(rx, ry)) return false;
   const int nc = World::WIN / ew::CHUNK;
-  const bool keep = std::abs(nox - world.ox) < World::WIN && std::abs(noy - world.oy) < World::WIN;
+  const bool keep = std::abs(nox - g.world.ox) < World::WIN && std::abs(noy - g.world.oy) < World::WIN;
   for (int cy = 0; cy < nc; cy++)
     for (int cx = 0; cx < nc; cx++) {
       const int32_t gcx = (nox >> ew::CHUNK_SHIFT) + cx, gcy = (noy >> ew::CHUNK_SHIFT) + cy;
       const int32_t gx = gcx * ew::CHUNK, gy = gcy * ew::CHUNK;
-      if (keep && gx >= world.ox && gy >= world.oy && gx < world.ox + World::WIN && gy < world.oy + World::WIN) continue;
-      if (!world.streamer->hasChunk(gcx, gcy)) return false;
+      if (keep && gx >= g.world.ox && gy >= g.world.oy && gx < g.world.ox + World::WIN && gy < g.world.oy + World::WIN) continue;
+      if (!g.world.streamer->hasChunk(gcx, gcy)) return false;
     }
   return true;
 }
 
-void Game::travelStep(float dt) {
+void TravelOps::step(Game& g, float dt) {
   const double t0 = nowMs();
-  travel.steps++;
-  travel.t += dt;
-  travel.gatherReal += std::clamp(t0 - travel.lastStepMs, 0.0, 250.0);
-  travel.lastStepMs = t0;
-  if (travel.phase == TravelPhase::Gather) {
+  g.travel.steps++;
+  g.travel.t += dt;
+  g.travel.gatherReal += std::clamp(t0 - g.travel.lastStepMs, 0.0, 250.0);
+  g.travel.lastStepMs = t0;
+  if (g.travel.phase == TravelPhase::Gather) {
     // fade to black, then keep it black
-    sleepFade = std::max(sleepFade, std::min(1.0f, travel.t / kTravelFadeOut));
-    const bool black = travel.t >= kTravelFadeOut;
-    if (syncStreams) {
+    g.sleepFade = std::max(g.sleepFade, std::min(1.0f, g.travel.t / kTravelFadeOut));
+    const bool black = g.travel.t >= kTravelFadeOut;
+    if (g.syncStreams) {
       // (Witness) a harness compares runs: no budget and no real-time cap. On the first black step the whole wish list
       // is made at once, in order, and the arrival follows in the same step (placeWindow makes anything still missing),
       // so the gather always takes the same number of steps
       if (black) {
-        if (world.streamer && !world.streamer->threaded()) world.streamer->pump(1e12);
-        travelArriveNow();
+        if (g.world.streamer && !g.world.streamer->threaded()) g.world.streamer->pump(1e12);
+        TravelOps::arriveNow(g);
       }
     } else {
       // no frame loop pumping a thread-less streamer (a headless run with streamThreads off): pump it here
-      if (world.streamer && !world.streamer->threaded() && frameWorkCalls_ == 0) world.streamer->pump(black ? kTravelBlackBudgetMs : 3.0);
-      if (black && (travelReady() || travel.gatherReal > kGatherCapMs)) travelArriveNow();
+      if (g.world.streamer && !g.world.streamer->threaded() && g.frameWorkCalls_ == 0) g.world.streamer->pump(black ? kTravelBlackBudgetMs : 3.0);
+      if (black && (TravelOps::ready(g) || g.travel.gatherReal > kGatherCapMs)) TravelOps::arriveNow(g);
     }
-  } else if (travel.phase == TravelPhase::Arrive) {
-    sleepFade = std::max(sleepFade, 1.0f);
+  } else if (g.travel.phase == TravelPhase::Arrive) {
+    g.sleepFade = std::max(g.sleepFade, 1.0f);
     // behind the black: the place's people stream in, the next ring starts streaming
-    updateSpawning(dt);
-    prefetchTick(dt);
+    StreamOps::updateSpawning(g, dt);
+    StreamOps::prefetchTick(g, dt);
     // headless runs end the arrival by themselves; with a view it is the view's call (its own 6 s safety net), and
     // this is only a backstop for a view that stopped drawing the arrival (a slow phone took longer than 0.5 s).
     // (Witness) syncStreams: always kTravelArriveHold of steps (the view paints inline and never ends it), so every
     // arrival runs updateSpawning / prefetchTick the same number of times
-    if (travel.t >= (travel.viewed && !syncStreams ? 10.0f : kTravelArriveHold)) finishTravel();
+    if (g.travel.t >= (g.travel.viewed && !g.syncStreams ? 10.0f : kTravelArriveHold)) g.finishTravel();
   }
-  travel.worstStepMs = std::max(travel.worstStepMs, nowMs() - t0);
+  g.travel.worstStepMs = std::max(g.travel.worstStepMs, nowMs() - t0);
 }
 
-void Game::travelArriveNow() {
+void TravelOps::arriveNow(Game& g) {
   const double t0 = nowMs();
-  const bool toSite = travel.site >= 0 && travel.site < (int)world.sites.size();
-  const Site s = toSite ? world.sites[(size_t)travel.site] : Site();   // a copy: moving the window loads more sites
+  const bool toSite = g.travel.site >= 0 && g.travel.site < (int)g.world.sites.size();
+  const Site s = toSite ? g.world.sites[(size_t)g.travel.site] : Site();   // a copy: moving the window loads more sites
   int leftSite = -1;
-  if (inside) {
+  if (g.inside) {
     // out of the building or dungeon without stepping onto its doorstep first (the screen is black)
-    leftSite = subSite;
-    inside = false; subBldg = -1; subSite = -1; subFloor = 0;
-    sub = Map();
+    leftSite = g.subSite;
+    g.inside = false; g.subBldg = -1; g.subSite = -1; g.subFloor = 0;
+    g.sub = Map();
   }
-  clearNonPlayer();
-  const int sync0 = world.sstats.syncChunks;
-  if (travel.move) {
-    const int32_t ox0 = world.ox, oy0 = world.oy;
-    world.placeWindow(travel.nox, travel.noy);
-    windowMoved(world.ox - ox0, world.oy - oy0);
-    prefetchT_ = 0;
-    prefetchFrom_ = Vec2();
+  g.clearNonPlayer();
+  const int sync0 = g.world.sstats.syncChunks;
+  if (g.travel.move) {
+    const int32_t ox0 = g.world.ox, oy0 = g.world.oy;
+    g.world.placeWindow(g.travel.nox, g.travel.noy);
+    StreamOps::windowMoved(g, g.world.ox - ox0, g.world.oy - oy0);
+    g.prefetchT_ = 0;
+    g.prefetchFrom_ = Vec2();
   }
-  travel.syncChunks = world.sstats.syncChunks - sync0;
-  pl().p = freeSpot(travel.gx - world.ox, travel.gy - world.oy);
-  pl().vel = Vec2(); pl().knock = Vec2();
-  pl().face = 0; pl().aim = Vec2(0, 1);
-  pl().st = AState::Idle; pl().stT = 0;
-  if (toSite) arriveInOpen(s);   // (respawns too: waking north of a house hid the hero under its roof)
+  g.travel.syncChunks = g.world.sstats.syncChunks - sync0;
+  g.pl().p = ClimbOps::freeSpot(g, g.travel.gx - g.world.ox, g.travel.gy - g.world.oy);
+  g.pl().vel = Vec2(); g.pl().knock = Vec2();
+  g.pl().face = 0; g.pl().aim = Vec2(0, 1);
+  g.pl().st = AState::Idle; g.pl().stT = 0;
+  if (toSite) TravelOps::arriveInOpen(g, s);   // (respawns too: waking north of a house hid the hero under its roof)
   // a missing person found in the cave left with the player: led out, they are safe (as leaveSub does). Sites are
   // never removed, but a window move re-indexes nothing, so the index still names the cave.
-  if (leftSite >= 0 && leftSite < (int)world.sites.size() && travel.kind != 2) questLeftSite(leftSite);
+  if (leftSite >= 0 && leftSite < (int)g.world.sites.size() && g.travel.kind != 2) QuestOps::questLeftSite(g, leftSite);
   // the journey's hours: the day rolls over, shops restock (every 2 days), a rented room runs out
-  if (travel.hours > 0) {
-    hour += travel.hours;
-    while (hour >= 24) { hour -= 24; day++; }
-    if (blessT > 0) {   // a blessing wears off on the road (a game hour is 1800/24 = 75 s on average)
-      blessT = std::max(0.0f, blessT - travel.hours * 75.0f);
-      if (blessT <= 0) recalcPlayer();
+  if (g.travel.hours > 0) {
+    g.hour += g.travel.hours;
+    while (g.hour >= 24) { g.hour -= 24; g.day++; }
+    if (g.blessT > 0) {   // a blessing wears off on the road (a game hour is 1800/24 = 75 s on average)
+      g.blessT = std::max(0.0f, g.blessT - g.travel.hours * 75.0f);
+      if (g.blessT <= 0) g.recalcPlayer();
     }
   }
-  exitArmed_ = false;
-  updateLocation();
-  emit(Ev::MapChange, pl().p);
-  travel.phase = TravelPhase::Arrive;
-  travel.t = 0;
+  g.exitArmed_ = false;
+  g.updateLocation();
+  g.emit(Ev::MapChange, g.pl().p);
+  g.travel.phase = TravelPhase::Arrive;
+  g.travel.t = 0;
   const double now = nowMs();
-  travel.arriveMs = now - t0;
-  travel.gatherMs = now - travel.wall0;
+  g.travel.arriveMs = now - t0;
+  g.travel.gatherMs = now - g.travel.wall0;
 }
 
 void Game::finishTravel() {
@@ -384,9 +388,9 @@ bool Game::fastTravel(int si) {
   while (hour >= 24) { hour -= 24; day++; }
   clearNonPlayer();
   int32_t gx, gy;
-  travelDest(s, 0, gx, gy);
+  TravelOps::dest(*this, s, 0, gx, gy);
   placePlayerAt(gx - world.ox, gy - world.oy);
-  arriveInOpen(s);
+  TravelOps::arriveInOpen(*this, s);
   sleepFade = 1.2f;
   mode = Mode::Play;
   updateLocation();
@@ -418,7 +422,7 @@ void Game::respawn() {
   // (M7 fixer r2) every death ends the ride (a kill by fire or a script's die never went through damage()): the
   // horse stays where the rider fell and, not stabled at an inn, walks home (startJourney)
   if (home.riding >= 0) homeDismount(home::Dismount::Hurt);
-  startJourney(si, 2, 0.0f, 0);
+  TravelOps::startJourney(*this, si, 2, 0.0f, 0);
   travel.t = kTravelFadeOut;   // the death screen is already dark: no fade out
   sleepFade = 1.0f;
   say(lost > 0 ? "YOU WAKE IN " + name + ". LOST " + std::to_string(lost) + " GOLD." : "YOU WAKE IN " + name + ".");

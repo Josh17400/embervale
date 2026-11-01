@@ -30,6 +30,7 @@
 #include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
+#include "rpg/sim/life_hooks.h"
 
 namespace {
 
@@ -372,7 +373,7 @@ int hooks(uint64_t seed, bool report) {
       g.debugAccept(q);
       const Quest& acc = g.quests.back();
       int tx = 0, ty = 0;
-      if (!g.lifeGiverSpot(acc, tx, ty)) C.fail("lifeGiverSpot does not know where a census giver is");
+      if (!LifeHooks::giverSpot(g, acc, tx, ty)) C.fail("lifeGiverSpot does not know where a census giver is");
       // night: their plan indoors, they are not out in the street (no plaza pin)
       const int ri = acc.giverSlot - 3000;
       g.hour = 23.5f;
@@ -385,7 +386,7 @@ int hooks(uint64_t seed, bool report) {
         bool out = false;
         for (size_t k = 1; k < g.actors.size(); k++) if (isGiver(acc, g.actors[k]) && g.actors[k].st != AState::Dead) out = true;
         if (p.bldg >= 0 && out && !g.inside) C.fail("an open quest's giver whose plan is indoors is still kept out in the street at 23:30");
-        if (!g.lifeGiverSpot(acc, tx, ty)) C.fail("lifeGiverSpot does not know where the giver is at night");
+        if (!LifeHooks::giverSpot(g, acc, tx, ty)) C.fail("lifeGiverSpot does not know where the giver is at night");
         else if (p.bldg >= 0) {
           const int b = c->bldgHandle(g.world.sites[(size_t)si], p.bldg);
           if (b >= 0 && (tx != g.world.over.bldgs[(size_t)b].doorX() || ty != g.world.over.bldgs[(size_t)b].doorY())) C.fail("lifeGiverSpot at night is not the door of the building their plan has them in");

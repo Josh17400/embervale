@@ -19,6 +19,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/lordship.h"
 #include "rpg/sim/rise.h"
+#include "rpg/sim/quest_ops.h"
 
 struct LordOps {
   // ---- the hooks
@@ -94,7 +95,7 @@ struct LordOps {
   static void talkTo(Game& g, Actor& a) { g.talkTo(a); }   // (tests, scripts) open a conversation
   static int nextId(Game& g) { return g.nextId_++; }
   static void makeLook(Game& g, Actor& a, Role r, Rng& rr) { g.makeLook(a, r, rr); }
-  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static Vec2 freeSpot(const Game& g, int tx, int ty) { return ClimbOps::freeSpot(g, tx, ty); }
   static void acceptQuest(Game& g, const Quest& q) { g.acceptQuest(q); }
-  static void completeQuest(Game& g, Quest& q) { g.completeQuest(q); }
+  static void completeQuest(Game& g, Quest& q) { QuestOps::completeQuest(g, q); }
 };

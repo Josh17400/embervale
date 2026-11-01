@@ -10,6 +10,7 @@
 #include <vector>
 #include "rpg/sim/game_internal.h"
 #include "tools/tests/tests.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 // the nearest site of a type to the start village (exclude: skip this one)
@@ -292,7 +293,7 @@ int bountyChecks(const Game& base) {
   // the opening: the innkeeper has the "!" and hands over the old blade on the first talk
   if (!g.rewardWaiting(g.actors[k])) { out("FAIL: opening: no '!' over the start innkeeper\n"); bad++; }
   if (!talk(g, k)) { out("FAIL: opening: could not talk to the innkeeper\n"); return bad + 1; }
-  if (g.eqWeapon < 0 || !g.hasFlag(SF_FIRST_WEAPON) || g.openingQuest() >= 0) { out("FAIL: opening: the innkeeper did not hand over a weapon\n"); bad++; }
+  if (g.eqWeapon < 0 || !g.hasFlag(SF_FIRST_WEAPON) || QuestOps::openingQuest(g) >= 0) { out("FAIL: opening: the innkeeper did not hand over a weapon\n"); bad++; }
   const Quest* mq = g.questById(g.trackedQuest);
   if (!mq || mq->type != QType::Main) { out("FAIL: opening: the main quest is not tracked after the old blade\n"); bad++; }
   g.mode = Mode::Play;

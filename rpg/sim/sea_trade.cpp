@@ -19,6 +19,8 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/talk.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 using namespace sea;
 
@@ -170,7 +172,7 @@ void SeaOps::tradeStep(Game& g, float dt) {
     Vec2 at;
     const int tx = px + dx, ty = py + dy;
     if (!g.world.over.in(tx, ty)) continue;
-    Vec2 spot = g.freeSpot(tx, ty);
+    Vec2 spot = ClimbOps::freeSpot(g, tx, ty);
     if (!coastNear(g, spot, 6, at)) at = spot;
     if (groundWater(g.world.over.at((int)std::floor(at.x / TILE), (int)std::floor(at.y / TILE)))) continue;
     Actor a;
@@ -528,7 +530,7 @@ bool SeaOps::choose(Game& g, const DlgOpt& o) {
         if (si >= 0) if (const Kingdom* K = g.world.kingdomOf(si)) mainK = K->id;
         g.realm.openContact((uint32_t)q.giverId, mainK, g.day);
         q.state = QState::Complete;
-        g.completeQuest(q);
+        QuestOps::completeQuest(g, q);
         d.text = "A KINGDOM NOBODY KNEW? ... THEN WE SHALL SEND ENVOYS. YOU HAVE DONE THIS REALM A GREAT SERVICE.";
         g.realm.renown().fame += 30;
         if (mainK) g.realm.addRep(mainK, 10);

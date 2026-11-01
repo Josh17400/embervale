@@ -27,6 +27,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
+#include "rpg/sim/war_ops.h"
 
 namespace {
 
@@ -415,8 +416,8 @@ int wardsSeed(uint64_t seed) {
           A.realm = att; A.npc = true; A.faction = Faction::Army;
           D.realm = def; D.npc = true; D.faction = Faction::Town; D.role = Role::Guard;
           D2.realm = att; D2.npc = true; D2.faction = Faction::Town; D2.role = Role::Guard;
-          if (!g.warHostile(A, D)) fail("warHostile: an attacker soldier and a defender guard are not enemies");
-          if (g.warHostile(A, D2)) fail("warHostile: a soldier and a guard of the same kingdom are enemies");
+          if (!WarOps::hostile(g, A, D)) fail("warHostile: an attacker soldier and a defender guard are not enemies");
+          if (WarOps::hostile(g, A, D2)) fail("warHostile: a soldier and a guard of the same kingdom are enemies");
           if (warFoes(g, A, D2)) fail("warFoes: allies fight");
           (void)guardId;
           // the player's kills on BREAK THE SIEGE raise def (0.5 each)

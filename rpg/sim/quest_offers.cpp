@@ -16,6 +16,8 @@
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -301,38 +303,38 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
   OfferKind made = K_HUNT;
   for (OfferKind k : menu) {
     const Quest keep = q;
-    if (offerBuild(oc, k)) { ok = true; made = k; break; }
+    if (QuestOps::offerBuild(*this, oc, k)) { ok = true; made = k; break; }
     q = keep;
     oc.danger = false;
   }
   if (!ok) {
     if (want != QType::COUNT) return q;
-    ok = offerBuild(oc, K_HUNT);   // a hunt always fits: the beasts around home
+    ok = QuestOps::offerBuild(*this, oc, K_HUNT);   // a hunt always fits: the beasts around home
     made = K_HUNT;
   }
-  offerPitch(oc, made);
+  QuestOps::offerPitch(*this, oc, made);
   return q;
 }
 
 // the switch: one builder per kind of offer (false: it does not fit this giver now)
-bool Game::offerBuild(OfferCtx& oc, int kind) {
+bool QuestOps::offerBuild(Game& g, Game::OfferCtx& oc, int kind) {
   switch ((OfferKind)kind) {
-    case K_CAVE: case K_RUIN: return offerClear(oc, kind);
-    case K_BOUNTY: case K_NAMED: return offerBounty(oc, kind);
-    case K_HUNT: return offerHunt(oc);
-    case K_DELIVER: return offerDeliver(oc);
-    case K_HEIR: return offerHeirloom(oc);
-    case K_STOLEN: return offerStolen(oc);
-    case K_SUPPLY: return offerSupply(oc);
-    case K_MISSING: return offerMissing(oc);
-    case K_PROTECT: return offerProtect(oc);
+    case K_CAVE: case K_RUIN: return QuestOps::offerClear(g, oc, kind);
+    case K_BOUNTY: case K_NAMED: return QuestOps::offerBounty(g, oc, kind);
+    case K_HUNT: return QuestOps::offerHunt(g, oc);
+    case K_DELIVER: return QuestOps::offerDeliver(g, oc);
+    case K_HEIR: return QuestOps::offerHeirloom(g, oc);
+    case K_STOLEN: return QuestOps::offerStolen(g, oc);
+    case K_SUPPLY: return QuestOps::offerSupply(g, oc);
+    case K_MISSING: return QuestOps::offerMissing(g, oc);
+    case K_PROTECT: return QuestOps::offerProtect(g, oc);
     case K_COUNT: break;
   }
   return false;
 }
 
 // Clear: the thing in a cave, or the restless dead (or a defiled shrine) in a ruin
-bool Game::offerClear(OfferCtx& oc, int kind) {
+bool QuestOps::offerClear(Game& g, Game::OfferCtx& oc, int kind) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const int32_t hx = oc.hx;
@@ -344,7 +346,7 @@ bool Game::offerClear(OfferCtx& oc, int kind) {
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
   const OfferKind k = (OfferKind)kind;
-  const int t = pickRadiant(k == K_CAVE ? SiteType::Cave : SiteType::Ruin, hx, hy, r, danger);
+  const int t = QuestOps::pickRadiant(g, k == K_CAVE ? SiteType::Cave : SiteType::Ruin, hx, hy, r, danger);
   if (t < 0) return false;
   q.type = QType::Clear;
   oc.atSite(t);
@@ -382,7 +384,7 @@ bool Game::offerClear(OfferCtx& oc, int kind) {
 }
 
 // Bounty (raiders, deserters, outlaws) or NamedBandit (a chief with a name and a title) at a bandit camp
-bool Game::offerBounty(OfferCtx& oc, int kind) {
+bool QuestOps::offerBounty(Game& g, Game::OfferCtx& oc, int kind) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const int32_t hx = oc.hx;
@@ -395,7 +397,7 @@ bool Game::offerBounty(OfferCtx& oc, int kind) {
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
   const OfferKind k = (OfferKind)kind;
-  const int t = pickRadiant(SiteType::BanditCamp, hx, hy, r, danger);
+  const int t = QuestOps::pickRadiant(g, SiteType::BanditCamp, hx, hy, r, danger);
   if (t < 0) return false;
   oc.atSite(t);
   if (k == K_BOUNTY && need == jobs::JN_RAIDERS) {   // (P1) a merchant's: the caravan robbers
@@ -429,10 +431,10 @@ bool Game::offerBounty(OfferCtx& oc, int kind) {
     q.type = QType::NamedBandit;
     Actor d;
     d.site = t;
-    Rng pr = personRng(q, seed);
-    makeLook(d, Role::Bandit, pr);
+    Rng pr = personRng(q, g.seed);
+    g.makeLook(d, Role::Bandit, pr);
     q.subject = d.name + " " + pick(r, kEpithet);
-    oc.pron(personFemale(q, seed));
+    oc.pron(personFemale(q, g.seed));
     V.set("S", q.subject);
     static const char* const ti[] = {"{S}", "THE END OF {S}", "A PRICE ON {S}"};
     static const char* const re[] = {"{S} RULES {T} NOW. {P_SUBJ} BURNED OUR MILL LAST SPRING.",
@@ -446,7 +448,7 @@ bool Game::offerBounty(OfferCtx& oc, int kind) {
 }
 
 // Hunt: thin the beasts round a den near home (or hides for the trade)
-bool Game::offerHunt(OfferCtx& oc) {
+bool QuestOps::offerHunt(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const Site& home = oc.home;
@@ -467,20 +469,20 @@ bool Game::offerHunt(OfferCtx& oc) {
   int32_t ax = hx, ay = hy;
   std::string area;   // a landmark near it ("THE GREY TEETH"), else ""
   bool den = false;
-  if (world.endless && world.src) {
+  if (g.world.endless && g.world.src) {
     struct DenC { int64_t d2; ew::Gid id; int32_t x, y; Monster mon; };
     std::vector<DenC> dc;
     const int32_t rx0 = ew::regionOf(hx), ry0 = ew::regionOf(hy);
     for (int32_t ry = ry0 - 1; ry <= ry0 + 1; ry++)
       for (int32_t rx = rx0 - 1; rx <= rx0 + 1; rx++) {
-        const ew::RegionPlan R = world.regionPlan(rx, ry);
+        const ew::RegionPlan R = g.world.regionPlan(rx, ry);
         for (const ew::DenPlan& d : R.dens) {
           const int64_t dx = d.x - hx, dy = d.y - hy, d2 = dx * dx + dy * dy;
           if (d2 > 260 * 260 || d2 < 12 * 12) continue;
           bool taken = false;
-          for (const Quest& o : quests) if (o.type == QType::Hunt && o.state != QState::Done && o.targetId == d.id) taken = true;
-          for (int di = 0; di < (int)world.dens.size() && !taken; di++)
-            if (world.dens[(size_t)di].id == d.id && denClearedDay(di) >= 0) taken = true;
+          for (const Quest& o : g.quests) if (o.type == QType::Hunt && o.state != QState::Done && o.targetId == d.id) taken = true;
+          for (int di = 0; di < (int)g.world.dens.size() && !taken; di++)
+            if (g.world.dens[(size_t)di].id == d.id && g.denClearedDay(di) >= 0) taken = true;
           if (!taken) dc.push_back({d2, d.id, d.x, d.y, d.mon});
         }
       }
@@ -488,8 +490,8 @@ bool Game::offerHunt(OfferCtx& oc) {
     // (Witness playtests, 2026-10) a den that suits the hero first: at most two levels past them (the dice over
     // the nearer three sent a level-1 newcomer to a level-4 pack of four, 20 a bite). The nearer few of those, else (none within
     // the walk) the nearer few of all, as before; one draw either way
-    const int fitD = plLevel + 2;
-    const auto fitEnd = std::stable_partition(dc.begin(), dc.end(), [&](const DenC& c) { return world.src->danger(c.x, c.y) <= fitD; });
+    const int fitD = g.plLevel + 2;
+    const auto fitEnd = std::stable_partition(dc.begin(), dc.end(), [&](const DenC& c) { return g.world.src->danger(c.x, c.y) <= fitD; });
     const int fit = (int)(fitEnd - dc.begin());
     if (!dc.empty() && need != jobs::JN_GROUND) {
       const DenC& d = dc[(size_t)r.irange(std::min<int>(3, fit > 0 ? fit : (int)dc.size()))];
@@ -498,24 +500,24 @@ bool Game::offerHunt(OfferCtx& oc) {
   }
   if (!den) {
     Monster opts[3];
-    ew::huntTargets(world.over.ecoAt(home.ex, home.ey), opts);
+    ew::huntTargets(g.world.over.ecoAt(home.ex, home.ey), opts);
     q.mon = opts[r.irange(3)];
     // the ground: 40-60 tiles out, the first of eight ways (from the dice) on the home's own land
     static const int dx8[8] = {1, 1, 0, -1, -1, -1, 0, 1}, dy8[8] = {0, 1, 1, 1, 0, -1, -1, -1};
     const int d0 = r.irange(8), far = 40 + r.irange(21);
-    const int32_t land = landAt(hx, hy);
+    const int32_t land = TravelOps::landAt(g, hx, hy);
     ax = hx + dx8[d0] * far; ay = hy + dy8[d0] * far;
     for (int k = 0; k < 8; k++) {
       const int d = (d0 + k) % 8, m = (dx8[d] && dy8[d]) ? far * 7 / 10 : far;
       const int32_t tx = hx + dx8[d] * m, ty = hy + dy8[d] * m;
-      if (!land || landAt(tx, ty) == land) { ax = tx; ay = ty; break; }
+      if (!land || TravelOps::landAt(g, tx, ty) == land) { ax = tx; ay = ty; break; }
     }
   }
-  if (world.endless && world.src) {
+  if (g.world.endless && g.world.src) {
     float bd = 140.0f;
     for (int32_t ry = ew::regionOf(ay) - 1; ry <= ew::regionOf(ay) + 1; ry++)
       for (int32_t rx = ew::regionOf(ax) - 1; rx <= ew::regionOf(ax) + 1; rx++) {
-        const ew::RegionPlan R = world.regionPlan(rx, ry);
+        const ew::RegionPlan R = g.world.regionPlan(rx, ry);
         for (const ew::LandmarkPlan& L : R.landmarks) {
           const float d = std::hypot((float)(L.x - ax), (float)(L.y - ay));
           if (d < bd) { bd = d; area = L.name; }
@@ -568,7 +570,7 @@ bool Game::offerHunt(OfferCtx& oc) {
   }
   // (M3c LIFE) the land speaks in the giver's words: a reason and a title of its biome (the person's key chooses)
   if (need != jobs::JN_HIDES) {
-    const Eco he = world.over.ecoAt(home.ex, home.ey);
+    const Eco he = g.world.over.ecoAt(home.ex, home.ey);
     const char* fl = huntFlavour(he, (key >> 21) + (uint64_t)done + (uint64_t)week);
     if (fl && ((key >> 17) & 3) == 1) {
       std::string en = ecoName(he);
@@ -581,7 +583,7 @@ bool Game::offerHunt(OfferCtx& oc) {
 }
 
 // Deliver: a parcel for a named innkeeper, smith or merchant in another settlement
-bool Game::offerDeliver(OfferCtx& oc) {
+bool QuestOps::offerDeliver(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const Actor& a = oc.a;
@@ -593,10 +595,10 @@ bool Game::offerDeliver(OfferCtx& oc) {
   std::string& reason = oc.reason;
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
-  const int t = pickDestination(hx, hy, r);
+  const int t = QuestOps::pickDestination(g, hx, hy, r);
   if (t < 0) return false;
   oc.atSite(t);
-  const Site T = world.sites[(size_t)t];
+  const Site T = g.world.sites[(size_t)t];
   q.type = QType::Deliver;
   const float rr = r.f();
   Role role = rr < 0.5f ? Role::Innkeeper : (rr < 0.8f || T.type == SiteType::Village ? Role::Smith : Role::Merchant);
@@ -605,24 +607,24 @@ bool Game::offerDeliver(OfferCtx& oc) {
   q.flags |= (uint32_t)role << 8;
   Actor d;
   d.site = t;
-  Rng pr = personRng(q, seed);
-  makeLook(d, role, pr);
+  Rng pr = personRng(q, g.seed);
+  g.makeLook(d, role, pr);
   // (fixer M7b r2, review: "the recipient has the same name as the giver: it reads as the speaker naming
   // herself") another person seed until the recipient's name is not the giver's (personRng keys on it everywhere)
   for (int k = 0; k < 4 && d.name == a.name; k++) {
     q.flags = (q.flags & 0xFFFFu) | ((((q.flags >> 16) + 1u) & 0xFFFFu) << 16);
     d = Actor();
     d.site = t;
-    Rng pr2 = personRng(q, seed);
-    makeLook(d, role, pr2);
+    Rng pr2 = personRng(q, g.seed);
+    g.makeLook(d, role, pr2);
   }
   q.subject = d.name;
-  oc.pron(personFemale(q, seed));
+  oc.pron(personFemale(q, g.seed));
   V.set("S", q.subject);
   V.set("R", roleWord(role));
   // the recipient's door when the place's records are in (else it is found on arrival: questTick)
-  for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)world.over.bldgs.size(); b++)
-    if (world.over.bldgs[(size_t)b].type == roleBuilding(role)) { q.destBldg = b; break; }
+  for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)g.world.over.bldgs.size(); b++)
+    if (g.world.over.bldgs[(size_t)b].type == roleBuilding(role)) { q.destBldg = b; break; }
   if (need == jobs::JN_TOOLS) {
     static const char* const ti[] = {"TOOLS FOR {T}", "A CRATE FOR {S}", "THE SMITH'S ORDER", "IRON FOR {T}"};
     static const char* const re[] = {"{S}, THE {R} OF {T}, ORDERED A CRATE OF MY TOOLS. THE ROAD RUNS {D}, {W}.",
@@ -653,7 +655,7 @@ bool Game::offerDeliver(OfferCtx& oc) {
 }
 
 // Heirloom: a keepsake (or a temple relic) in an old chest in a cave or ruin
-bool Game::offerHeirloom(OfferCtx& oc) {
+bool QuestOps::offerHeirloom(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const int32_t hx = oc.hx;
@@ -665,7 +667,7 @@ bool Game::offerHeirloom(OfferCtx& oc) {
   std::string& reason = oc.reason;
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
-  const int t = pickRadiant(r.f() < 0.5f ? SiteType::Ruin : SiteType::Cave, hx, hy, r, danger);
+  const int t = QuestOps::pickRadiant(g, r.f() < 0.5f ? SiteType::Ruin : SiteType::Cave, hx, hy, r, danger);
   if (t < 0) return false;
   q.type = QType::Heirloom;
   oc.atSite(t);
@@ -701,7 +703,7 @@ bool Game::offerHeirloom(OfferCtx& oc) {
 }
 
 // Stolen (an Heirloom, P1): a merchant's strongbox: the robbers hid it in a cave
-bool Game::offerStolen(OfferCtx& oc) {
+bool QuestOps::offerStolen(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const int32_t hx = oc.hx;
@@ -712,7 +714,7 @@ bool Game::offerStolen(OfferCtx& oc) {
   std::string& reason = oc.reason;
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
-  const int t = pickRadiant(SiteType::Cave, hx, hy, r, danger);
+  const int t = QuestOps::pickRadiant(g, SiteType::Cave, hx, hy, r, danger);
   if (t < 0) return false;
   q.type = QType::Heirloom;
   oc.atSite(t);
@@ -732,7 +734,7 @@ bool Game::offerStolen(OfferCtx& oc) {
 }
 
 // Supply (P1): the goods the giver's trade works, from a neighbour that sells them (life_quests.cpp)
-bool Game::offerSupply(OfferCtx& oc) {
+bool QuestOps::offerSupply(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const Actor& a = oc.a;
@@ -743,11 +745,11 @@ bool Game::offerSupply(OfferCtx& oc) {
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
   q.flags = 0;   // (no person seed: bits 20-21 are the supply run's own flags)
-  const life::Job job = JobOps::censusJob(*this, a);
+  const life::Job job = JobOps::censusJob(g, a);
   const ew::Good gd = JobOps::tradeGood(a.role, job, need);
   if (gd == ew::Good::COUNT) return false;
   Quest sq;
-  if (!jobsSupplyQuest(*this, a, gd, job, sq)) return false;
+  if (!jobsSupplyQuest(g, a, gd, job, sq)) return false;
   q.type = QType::Supply;
   q.stage = sq.stage; q.need = sq.need; q.have = 0; q.gold = sq.gold; q.xp = sq.xp; q.subject = sq.subject;
   oc.atSite(sq.target);
@@ -773,7 +775,7 @@ bool Game::offerSupply(OfferCtx& oc) {
 }
 
 // Missing: a named person (or a stray herder) alive in a cave
-bool Game::offerMissing(OfferCtx& oc) {
+bool QuestOps::offerMissing(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const int32_t hx = oc.hx;
@@ -785,16 +787,16 @@ bool Game::offerMissing(OfferCtx& oc) {
   std::string& reason = oc.reason;
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
-  const int t = pickRadiant(SiteType::Cave, hx, hy, r, danger);
+  const int t = QuestOps::pickRadiant(g, SiteType::Cave, hx, hy, r, danger);
   if (t < 0) return false;
   q.type = QType::Missing;
   oc.atSite(t);
   Actor d;
   d.site = q.giverSite;   // M3: the missing relative shares the giver's culture (name, dress); spawnEscort matches
-  Rng pr = personRng(q, seed);
-  makeLook(d, Role::Villager, pr);
+  Rng pr = personRng(q, g.seed);
+  g.makeLook(d, Role::Villager, pr);
   q.subject = d.name;
-  const bool fem = personFemale(q, seed);
+  const bool fem = personFemale(q, g.seed);
   oc.pron(fem);
   static const char* const relF[] = {"DAUGHTER", "SISTER", "WIFE", "NIECE"};
   static const char* const relM[] = {"SON", "BROTHER", "HUSBAND", "NEPHEW"};
@@ -824,7 +826,7 @@ bool Game::offerMissing(OfferCtx& oc) {
 }
 
 // Protect: hold the fields tonight
-bool Game::offerProtect(OfferCtx& oc) {
+bool QuestOps::offerProtect(Game& g, Game::OfferCtx& oc) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const Actor& a = oc.a;
@@ -835,23 +837,23 @@ bool Game::offerProtect(OfferCtx& oc) {
   std::string& ask = oc.ask;
   std::string& desc = oc.desc;
   if (!(a.role == Role::Farmer || a.role == Role::Villager) || !(home.type == SiteType::Village || home.type == SiteType::Town)) return false;
-  if (hour < 6.0f || hour >= 17.0f) return false;   // asked by day, for tonight
-  if (inside) return false;
+  if (g.hour < 6.0f || g.hour >= 17.0f) return false;   // asked by day, for tonight
+  if (g.inside) return false;
   // the fields: the farmland nearest the giver
   const int ax = (int)std::floor(a.home.x / TILE), ay = (int)std::floor(a.home.y / TILE);
   int best = -1, bd = 1 << 30;
   for (int y = ay - 40; y <= ay + 40; y++)
     for (int x = ax - 40; x <= ax + 40; x++) {
-      if (world.over.at(x, y) != Ground::Farmland) continue;
+      if (g.world.over.at(x, y) != Ground::Farmland) continue;
       const int d = (x - ax) * (x - ax) + (y - ay) * (y - ay);
       if (d < bd) { bd = d; best = y * World::WIN + x; }
     }
   if (best < 0) return false;
   q.type = QType::Protect;
   q.target = a.site; q.targetId = home.id;
-  q.hasPos = true; q.tgx = world.ox + best % World::WIN; q.tgy = world.oy + best / World::WIN;
-  q.deadlineDay = day;
-  const Biome b = world.over.biomeAt(best % World::WIN, best / World::WIN);
+  q.hasPos = true; q.tgx = g.world.ox + best % World::WIN; q.tgy = g.world.oy + best / World::WIN;
+  q.deadlineDay = g.day;
+  const Biome b = g.world.over.biomeAt(best % World::WIN, best / World::WIN);
   V.set("M", zonePlural(protectZone(q, b), b));
   static const char* const ti[] = {"HOLD THE FIELDS", "A LONG NIGHT IN {H}", "THE {M} AT HARVEST"};
   static const char* const re[] = {"{M} HAVE BEEN AT OUR FIELDS EVERY NIGHT THIS WEEK, AND TONIGHT THEY WILL COME IN FORCE.",
@@ -867,7 +869,7 @@ bool Game::offerProtect(OfferCtx& oc) {
 }
 
 // the reward and the spoken pitch of the offer that was made
-void Game::offerPitch(OfferCtx& oc, int madeKind) {
+void QuestOps::offerPitch(Game& gm, Game::OfferCtx& oc, int madeKind) {
   Quest& q = oc.q;
   Rng& r = oc.r;
   const Actor& a = oc.a;
@@ -938,9 +940,9 @@ void Game::offerPitch(OfferCtx& oc, int madeKind) {
     add(reward);
     return V.fill(t);
   };
-  pendingPitch_ = compose(true, true);
-  if (!speech::fitsPanel(pendingPitch_)) pendingPitch_ = compose(false, true);
-  if (!speech::fitsPanel(pendingPitch_)) pendingPitch_ = compose(false, false);
+  gm.pendingPitch_ = compose(true, true);
+  if (!speech::fitsPanel(gm.pendingPitch_)) gm.pendingPitch_ = compose(false, true);
+  if (!speech::fitsPanel(gm.pendingPitch_)) gm.pendingPitch_ = compose(false, false);
   q.title = V.fill(title);
   q.desc = V.fill(desc) + (danger ? " IT IS DANGEROUS COUNTRY." : "");
 }

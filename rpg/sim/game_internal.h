@@ -14,6 +14,9 @@
 #include "rpg/world/ids.h"
 #include "rpg/world/wildlife.h"
 
+// the hero's footstep sound, s of walking (Game::update at rig 2, sim_schedule.cpp; updatePlayer at rig 1, game.cpp)
+constexpr float kHeroStepPeriod = 0.29f;
+
 namespace gsim {
 using art::Monster;
 
@@ -38,6 +41,10 @@ inline Faction monsterFaction(Monster m) {
     default: return Faction::Monster;
   }
 }
+
+// (SOLID 4.1) an option in one of the lanes' ranges (game_types.h DLG_*) handed to its lane's choose
+// (dlg_routes.cpp: one row per range, in the order dialogueChoose always asked them). true: handled
+bool dlgRoute(Game& g, const DlgOpt& o);
 
 // dialogue option actions (DlgOpt::action). M2 appends the wayside and quest ones.
 enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK, A_BED,
@@ -151,8 +158,8 @@ struct HomeOps {
   static int findActor(const Game& g, int id) { return g.findActor(id); }
   static void makeLook(Game& g, Actor& a, Role r, Rng& rr) { g.makeLook(a, r, rr); }
   static int spawnMonster(Game& g, art::Monster m, Vec2 p, int level) { return g.spawnMonster(m, p, level, false); }
-  static void moveActor(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
-  static bool bodyFree(const Game& g, Vec2 p, float r) { return g.bodyFree(p, r, false); }
+  static void moveActor(Game& g, Actor& a, Vec2 d) { ClimbOps::moveActor(g, a, d); }
+  static bool bodyFree(const Game& g, Vec2 p, float r) { return ClimbOps::bodyFree(g, p, r, false); }
   static const std::vector<int>& hostiles(const Game& g) { return g.hostiles_; }
   static void travelHomeOnRespawn(Game& g, int32_t gx, int32_t gy);
   // the census and resident an actor embodies (false: not a resident)
@@ -160,6 +167,8 @@ struct HomeOps {
   // the settlement an actor belongs to (its site, or its building's site; -1 none)
   static int siteOfActor(const Game& g, const Actor& a);
   // ---- home_talk.cpp
+  //   talkTo: reeves, stewards, innkeepers (deeds, recipes, cooking), builders, stablemasters, seed sellers, farmhands:
+  //   options in [DLG_HOME, DLG_HOME_END); called after LifeHooks::talk
   static void talk(Game& g, Actor& a);
   static bool choose(Game& g, const DlgOpt& o);
   // ---- home_actors.cpp
@@ -172,16 +181,35 @@ struct HomeOps {
   static void clearHomeActors(Game& g);
   static int raidStart(Game& g, int plot);             // home::forceRaid
   static void wakeActors(Game& g) { g.homeActT_ = 0; } // the home actors are reconciled on the next step
-  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static Vec2 freeSpot(const Game& g, int tx, int ty) { return ClimbOps::freeSpot(g, tx, ty); }
   static void talkTo(Game& g, Actor& a) { g.talkTo(a); }   // (tests, scripts) open a conversation
   static void interact(Game& g) { g.interact(); }           // (tests, scripts) the use button
   // ---- home_interior.cpp
+  //   a building interior or a site map was just made (enterBuilding / enterSite, after questMapLoaded): the player's
+  //   own house gets its furniture, stores and wall decor stamped
   static void mapLoaded(Game& g);
+  //   the player used a prop (a cooking hearth / pot / campfire: cook; a bed of their own: sleep): true = handled.
+  //   Called first among the prop handlers (before LifeHooks::useProp).
   static bool useProp(Game& g, art::Prop p, int tx, int ty);
+  //   interactProp: a prop the player may use for the home's sake (a hearth, a cooking pot, a campfire to cook at;
+  //   the player's own stores and furniture): true makes it usable (useProp then handles it)
   static bool propUsable(const Game& g, art::Prop p, int tx, int ty);
+  //   bedIsYours: a bed in the player's own house (true: sleep, respawn here)
   static bool bed(const Game& g, int tx, int ty);
   static void stampObj(Map& m, const home::PlacedObj& o, bool clear);   // one piece of furniture into / out of a map
   static int insideObjAt(const Game& g, int plot, int tx, int ty);     // Plot::inside index at a tile of this floor
+  // ---- the lane's hooks into the core loop (were Game::home*, SOLID 4.1)
+  //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
+  //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
+  //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
+  static void step(Game& g, float dt);
+  //   interact(): a tile of an owned plot in front of the player (till, plant, water, harvest with the tool in hand;
+  //   collect from a coop; open a store; mount a horse; the FOR SALE sign): true = handled. Called before the props.
+  static bool plotInteract(Game& g);
+  //   useItem: food eaten (a cooked meal's Well Fed, after lifeAte)
+  static void ate(Game& g, const Item& food);
+  //   shopStock: seeds (by the merchant culture's staples), tools, hay, saddles... appended to a merchant's stock
+  static void shopStock(Game& g, const Actor& merchant, std::vector<Item>& stock);
 };
 // Actor::lifeBits bit of the actors the HOMESTEAD lane spawns (farm animals, the waiting horse, builders, the
 // farmhand): lifeFolk hands them to HomeOps::folk. Actor::slot tells which (HOME_SLOT_*).
@@ -222,7 +250,9 @@ struct PartyOps {
   static void daily(Game& g);
   static void downedStep(Game& g, float dt);           // bleeding out, the binding, the player's kneel
   static void revive(Game& g, int mi, Actor& a, bool fromAfar);
-  static bool actorStep(Game& g, Actor& a, float dt);  // Game::partyActor
+  //   a companion actor's whole behaviour this step (updateActor, after knock-back, before the skeleton's Down rule):
+  //   true = handled. Following, fighting by vocation and stance, skills, downed, mounted
+  static bool actorStep(Game& g, Actor& a, float dt);
   static void leave(Game& g, int mi, bool angry);      // Left (angry) or dismissed: the body walks home out of sight
   // ---- fighting (party_ai.cpp)
   static int pickFoe(Game& g, const Actor& a, const party::Member& m);
@@ -251,12 +281,44 @@ struct PartyOps {
   static int mercsAt(const Game& g, int bldg);         // sellswords an inn keeps (0..MERC_MAX)
   static int mercWage(const Game& g, int site);        // gold a day by the place's danger
   static party::Vocation mercVoc(uint32_t seed);
-  static bool folk(Game& g, Actor& a, float dt);       // Game::partyFolk
+  //   (ai.cpp updateFolk) an actor the FELLOWS lane put in the world that is not a companion (a sellsword at an inn:
+  //   Actor::partyTag): true = handled
+  static bool folk(Game& g, Actor& a, float dt);
   static bool denInteract(Game& g);                    // a cleared wolf den's pup (interact)
   // ---- graves (party_graves.cpp)
   static void siteGrave(Game& g, party::Fallen& f);   // into their home's temple yard / graveyard, or where they fell
   static void gravesStep(Game& g);                     // unsited graves sited when their home loads; stamping
   static int graveNear(const Game& g, Vec2 p, float r);   // a sited grave within r px of p (Party::fallen index, -1)
+  // ---- the lane's hooks into the core loop (were Game::party*, SOLID 4.1)
+  //   the fallen companion whose grave stands on this LOCAL overworld tile (-1 none; only GF_SITED graves)
+  static int graveAt(const Game& g, int tx, int ty);
+  //   Called from the core loop (game.cpp, game_rpg.cpp, ai.cpp, quests.cpp) and DEFINED in rpg/sim/party_game.cpp
+  //   unless named otherwise. Keep the calls where phase A put them. Each must cost next to nothing while Game::party
+  //   is empty.
+  //   once per update step (after homeStep, timed as PerfCounters::S_PARTY): the pending deeds, members brought into
+  //   play beside the player after any map change (a door, stairs, a journey, a load, a respawn), the catch-up rule,
+  //   bleeding out, bond by the day, wages, the waiting and the at-home, graves stamped into the window, banter
+  //   (party::banterStep, VOICE) last
+  static void step(Game& g, float dt);
+  //   kill() of a companion actor, first thing: true = handled (downed instead of dead); false lets the death happen
+  //   (the lane then makes it permanent: the grave, the grief)
+  static bool fell(Game& g, Actor& a, int killer);
+  //   damage(), after foeHit: the blow about to land on anyone: the damage to apply (shield wall, defend) and the
+  //   share statistics (Party::stats)
+  static float hit(Game& g, Actor& victim, float dmg, int attacker);
+  //   kill(), after foeKilled: deeds from what died (an innocent, a guard, bandits, a named beast) by the player's or
+  //   a companion's hand; a companion's kill count
+  static void killed(Game& g, const Actor& victim, int killer);
+  //   pickTarget: how much closer a hostile counts a companion (1 = as is; taunting < 1; downed or passive > 1;
+  //   0 = never: not a target at all)
+  static float aggro(const Game& g, const Actor& hostile, const Actor& member);
+  //   completeQuest / questFail: the deeds of a quest's end
+  static void quest(Game& g, const Quest& q, bool success);
+  //   rest(): the members with the player rest too (health, the wounded healed)
+  static void rested(Game& g, int hours);
+  //   interact(), before homeInteract: a downed companion in reach (bind their wounds), a grave of the fallen (read
+  //   it, lay flowers, take a keepsake): true = handled
+  static bool interact(Game& g);
 };
 // (M8 FELLOWS, life_game.cpp) a companion's body laid in the bed at interior tile (x, y) / sat on the seat there (the
 // TOWNSFOLK rules' fit: the head on the pillow, the seat line on the seat), or false when that prop is no bed / seat

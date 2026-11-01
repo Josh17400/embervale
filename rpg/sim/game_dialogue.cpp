@@ -2,6 +2,15 @@
 // Public: Game::greeting, Game::speakerTitle, Game::talkTo, Game::talkToInner, Game::closeDialogue,
 //   Game::dialogueChoose, Game::dialogueChooseInner
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/life_hooks.h"
+#include "rpg/sim/party_voice.h"
+#include "rpg/sim/game_internal.h"
+#include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/craft_hooks.h"
+#include "rpg/sim/war_ops.h"
+#include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/story_ops.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -382,9 +391,9 @@ void Game::talkToInner(Actor& a) {
   dlg.actor = a.id;
   dlg.speaker = a.name;
   dlg.role = a.role;
-  if (a.comp && partyTalk(a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
+  if (a.comp && PartyTalkOps::talk(*this, a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
   // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
-  if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
+  if (a.npc && !a.human && a.mon == Monster::Troll) { WaysideOps::tollTalk(*this, a); return; }
   using speech::Topic;
   if (a.quest > 0) {
     const Quest* q = questById(a.quest);
@@ -431,7 +440,7 @@ void Game::talkToInner(Actor& a) {
     if (q.state == QState::Complete && q.type != QType::Main && isGiver(q, a)) {
       bool bounty = q.type == QType::Bounty || q.type == QType::Hunt || q.type == QType::NamedBandit;
       dlg.opts.push_back({std::string(bounty ? "COLLECT BOUNTY (+" : "COLLECT REWARD (+") + std::to_string(q.gold) + " GOLD)", A_TURNIN, q.id});
-      speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, turnInLine(q));
+      speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, QuestOps::turnInLine(*this, q));
     }
   // ---- 3. the main quest's hooks (the lord of the capital)
   for (auto& q : quests) {
@@ -449,13 +458,13 @@ void Game::talkToInner(Actor& a) {
   // ---- 4. a job of theirs under way: what is still to do, in their own words (the journal keeps q.desc)
   for (auto& q : quests)
     if (q.state == QState::Active && q.type != QType::Main && q.type != QType::Retrieve && isGiver(q, a)) {
-      speech::propose(dlg, speech::P_QUEST, Topic::QuestActive, questReminder(q));
+      speech::propose(dlg, speech::P_QUEST, Topic::QuestActive, QuestOps::questReminder(*this, q));
       break;
     }
   // ---- 5. the opening: the start village innkeeper hands over the old blade (VISION_PLAN 15.1)
   for (auto& q : quests)
     if (q.type == QType::Retrieve && q.state == QState::Active && isGiver(q, a)) {
-      giveFirstWeapon(q);
+      QuestOps::giveFirstWeapon(*this, q);
       std::string t = "THE ROAD TOOK ALL BUT YOUR SHIRT, EH? HERE, TAKE MY FATHER'S OLD BLADE FROM OVER THE HEARTH, AND A DRAUGHT FOR THE ROAD.";
       // point at the job the journal now tracks, so the advice matches the quest (not a made-up favour)
       const Quest* nxt = nullptr;
@@ -465,7 +474,7 @@ void Game::talkToInner(Actor& a) {
       speech::propose(dlg, speech::P_URGENT, Topic::Reward, t);
       break;
     }
-  if (std::string t = questDialogue(a); !t.empty()) speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, t);   // M2: a parcel's recipient
+  if (std::string t = QuestOps::questDialogue(*this, a); !t.empty()) speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, t);   // M2: a parcel's recipient
   // ---- 6. the options of their trade
   if (hasOffer(a)) dlg.opts.push_back({a.role == Role::Innkeeper ? "ANY WORK GOING?" : "DO YOU NEED HELP?", A_ASK, 0});
   if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper ||
@@ -493,13 +502,13 @@ void Game::talkToInner(Actor& a) {
       else dlg.text = before;
     }
   };
-  hook(speech::P_BARK, Topic::Bark, [&] { lifeTalk(a); });   // M5: barks of need, feed / employ / supply / befriend (life_game.cpp)
-  hook(speech::P_NEWS, Topic::War, [&] { warTalk(a); });     // M4: the war's talk (siege commanders, guards' news of the front)
+  hook(speech::P_BARK, Topic::Bark, [&] { LifeHooks::talk(*this, a); });   // M5: barks of need, feed / employ / supply / befriend (life_game.cpp)
+  hook(speech::P_NEWS, Topic::War, [&] { WarOps::talk(*this, a); });     // M4: the war's talk (siege commanders, guards' news of the front)
   {   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp; the SAGA lane proposes at P_STORY / P_NEWS)
     const std::string before = dlg.text;
     const int bp = dlg.pri;
     const uint8_t bt = dlg.topic;
-    storyTalk(a);
+    StoryOps::talk(*this, a);
     if (dlg.text != before && dlg.pri == bp && dlg.topic == bt) {
       bool scene = false, pitch = false;   // a running story's own scene (its choices), or a story offered (its pitch)
       for (const DlgOpt& o : dlg.opts) {
@@ -511,10 +520,10 @@ void Game::talkToInner(Actor& a) {
       else dlg.text = before;
     }
   }
-  hook(speech::P_NEWS, Topic::Foe, [&] { foeTalk(a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
-  hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
-  hook(speech::P_SERVICE, Topic::Home, [&] { homeTalk(a); });    // M7: deeds, builders, horses, recipes and cooking
-  hook(speech::P_SERVICE, Topic::Companion, [&] { partyFolkTalk(a); });   // M8: offers to join, kin of companions and the fallen
+  hook(speech::P_NEWS, Topic::Foe, [&] { FoeHooks::talk(*this, a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
+  hook(speech::P_URGENT, Topic::Craft, [&] { CraftHooks::talk(*this, a); });   // M6: the forge's work and lessons (a thief barred: urgent)
+  hook(speech::P_SERVICE, Topic::Home, [&] { HomeOps::talk(*this, a); });    // M7: deeds, builders, horses, recipes and cooking
+  hook(speech::P_SERVICE, Topic::Companion, [&] { PartyTalkOps::folkTalk(*this, a); });   // M8: offers to join, kin of companions and the fallen
   hook(speech::P_SERVICE, Topic::Service, [&] { SkillOps::talk(*this, a); });   // M9: trainers, teaching, persuade / intimidate
   hook(speech::P_SERVICE, Topic::Service, [&] { MagicOps::talk(*this, a); });   // M9: mage teachers, tomes, traditions
   hook(speech::P_SERVICE, Topic::Service, [&] { SeaOps::talk(*this, a); });     // M10: harbourmasters, shipwrights, sailors
@@ -797,9 +806,9 @@ void Game::dialogueChooseInner(int oi) {
         // Not in the first two days (P1b integrator): the opening's first job stays the plain hunt it teaches with (a
         // smuggler's run is a poor first errand), as requests are not raised on days 1-2 either
         const std::string rj = day <= 2 ? std::string() : story::radiant::offerFor(*this, actors[(size_t)ai]);
-        if (!rj.empty() && storyBeginJob(actors[(size_t)ai], rj)) return;
+        if (!rj.empty() && StoryOps::beginJob(*this, actors[(size_t)ai], rj)) return;
       }
-      pendingOffer_ = makeOffer(actors[ai]);
+      pendingOffer_ = QuestOps::makeOffer(*this, actors[ai]);
       dlg.text = pendingPitch_.empty() ? "THERE IS SOMETHING. " + pendingOffer_.desc + " I'LL PAY " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
       // (fixer M7b r3) a giver who has not yet said who they are does so before the pitch (the title then names them)
       if (actors[(size_t)ai].npc && actors[(size_t)ai].human && talkNamed(actors[(size_t)ai]) && actors[(size_t)ai].role != Role::King &&
@@ -811,7 +820,7 @@ void Game::dialogueChooseInner(int oi) {
       return;
     case A_ACCEPT:
       acceptQuest(pendingOffer_);
-      dlg.text = acceptLine(pendingOffer_);
+      dlg.text = QuestOps::acceptLine(*this, pendingOffer_);
       if (ai >= 0 && actors[(size_t)ai].npc && actors[(size_t)ai].human) {
         const Actor& ga = actors[(size_t)ai];
         talkMem.flag(npcKey(ga), speech::TM_KNOWS_PLAYER, day);
@@ -830,7 +839,7 @@ void Game::dialogueChooseInner(int oi) {
     case A_DELIVER:
       for (auto& q : quests)
         if (q.id == o.arg && q.type == QType::Deliver && q.state == QState::Active) {
-          completeQuest(q);   // the recipient pays (the parcel leaves the pack)
+          QuestOps::completeQuest(*this, q);   // the recipient pays (the parcel leaves the pack)
           dlg.text = "AT LAST! YOU HAVE MY THANKS, AND " + std::to_string(q.gold) + " GOLD AS PROMISED. TELL " + q.giverName + " IT CAME SAFE.";
           break;
         }
@@ -847,7 +856,7 @@ void Game::dialogueChooseInner(int oi) {
       mode = Mode::Play;
       return;
     case A_TOLLPAY: {
-      const int si = o.arg, toll = tollOf(si);
+      const int si = o.arg, toll = WaysideOps::tollOf(*this, si);
       if (gold < toll) { dlg.text = "NO GOLD, NO CROSSING. COME BACK RICHER."; dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return; }
       gold -= toll;
       if (si >= 0 && si < (int)world.sites.size()) marks[markKey(world.sites[(size_t)si].id, Mk::Toll)] = day;
@@ -872,7 +881,7 @@ void Game::dialogueChooseInner(int oi) {
       int gold0 = 0;
       const size_t inv0 = inv.size();
       for (auto& q : quests)
-        if (q.id == o.arg && q.state == QState::Complete) { gold0 = q.gold; completeQuest(q); break; }
+        if (q.id == o.arg && q.state == QState::Complete) { gold0 = q.gold; QuestOps::completeQuest(*this, q); break; }
       std::string extra;
       for (size_t k = inv0; k < inv.size(); k++)
         if (inv[k].flags & IF_QUESTREWARD) {
@@ -890,7 +899,7 @@ void Game::dialogueChooseInner(int oi) {
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_MAIN:
-      advanceMain(o.arg);
+      QuestOps::advanceMain(*this, o.arg);
       if (o.arg == 1) dlg.text = "LEGEND SAYS THE EMBER CROWN CAN BIND A DRAGON'S SOUL. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN THE OLD RUINS. I HAVE MARKED THEM ON YOUR MAP. BRING THEM TO ME.";
       else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON " + lairName() + ". TAKE THIS GOLD FOR SUPPLIES.";
       if (o.arg == 3) giveGold(300);
@@ -917,19 +926,8 @@ void Game::dialogueChooseInner(int oi) {
       return;
     }
     default:
-      // M4: the lanes' own option ranges (game.h DLG_*)
-      if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
-      if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
-      if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && lifeChoose(o)) return;
-      if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
-      if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
-      if (o.action >= DLG_HOME && o.action < DLG_HOME_END && homeChoose(o)) return;  // M7
-      if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && partyChoose(o)) return;  // M8 (party_talk.cpp)
-      if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
-      if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
-      if (o.action >= DLG_SEA && o.action < DLG_SEA_END && SeaOps::choose(*this, o)) return;          // M10 (sea_game.cpp)
-      if (o.action >= DLG_SERVICE && o.action < DLG_SERVICE_END && ServiceOps::choose(*this, o)) return;  // M12 (service_game.cpp)
-      if (o.action >= DLG_LORD && o.action < DLG_LORD_END && LordOps::choose(*this, o)) return;          // M12 (lord_game.cpp)
+      // the lanes' own option ranges (game_types.h DLG_*), routed by the table in dlg_routes.cpp
+      if (dlgRoute(*this, o)) return;
       mode = Mode::Play;
       return;
   }

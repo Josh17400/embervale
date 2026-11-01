@@ -26,6 +26,14 @@
 #include "rpg/sim/war.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/culture/society.h"
+#include "rpg/sim/life_hooks.h"
+#include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/wayside_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/ai_ops.h"
+#include "rpg/sim/stream_ops.h"
+#include "rpg/sim/story_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -188,7 +196,7 @@ void Game::beginWorld() {
     }
   }
   updateLocation();
-  foeWarm();
+  FoeHooks::warm(*this);
 }
 
 void Game::resetPlayer() {
@@ -254,14 +262,14 @@ void Game::finishCreator() {
   recalcPlayer();
   pl().hp = pl().maxHp; mp = maxMp; stamina = maxSt;
   mode = Mode::Play;
-  if (int oq = openingQuest(); oq >= 0) {
+  if (int oq = QuestOps::openingQuest(*this); oq >= 0) {
     trackedQuest = oq;
     emit(Ev::QuestUpdate, pl().p, oq, 0, "QUEST STARTED: A BLADE OF YOUR OWN");
   }
 }
 
-Vec2 Game::freeSpot(int tx, int ty) const {
-  const Map& m = map();
+Vec2 ClimbOps::freeSpot(const Game& g, int tx, int ty) {
+  const Map& m = g.map();
   for (int r = 0; r < 12; r++)
     for (int oy = -r; oy <= r; oy++)
       for (int ox = -r; ox <= r; ox++) {
@@ -285,7 +293,7 @@ Vec2 Game::freeSpotClear(int tx, int ty, int rad) const {
         if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
         if (clear(tx + ox, ty + oy)) return Vec2((tx + ox) * TILE + 8.0f, (ty + oy) * TILE + 10.0f);
       }
-  return freeSpot(tx, ty);
+  return ClimbOps::freeSpot(*this, tx, ty);
 }
 void Game::placePlayerAt(int tx, int ty) {
   if (world.endless && !inside) {
@@ -295,75 +303,75 @@ void Game::placePlayerAt(int tx, int ty) {
       int32_t gx = world.ox + tx, gy = world.oy + ty;
       int32_t ox0 = world.ox, oy0 = world.oy;
       world.recentreOn(gx, gy);
-      windowMoved(world.ox - ox0, world.oy - oy0);
+      StreamOps::windowMoved(*this, world.ox - ox0, world.oy - oy0);
       tx = gx - world.ox; ty = gy - world.oy;
       prefetchT_ = 0;
       prefetchFrom_ = Vec2();
     }
   }
-  pl().p = freeSpot(tx, ty);
+  pl().p = ClimbOps::freeSpot(*this, tx, ty);
   pl().vel = Vec2();
   pl().knock = Vec2();
 }
 
 // ------------------------------------------------------------------ the endless window (M1, VISION_PLAN 2.9)
-void Game::maybeRecentre() {
-  const Actor& p = pl();
+void StreamOps::maybeRecentre(Game& g) {
+  const Actor& p = g.pl();
   int tx = (int)std::floor(p.p.x / TILE), ty = (int)std::floor(p.p.y / TILE);
   const int lo = World::WIN_SHIFT, hi = World::WIN - World::WIN_SHIFT;
   int sx = tx < lo ? -World::WIN_SHIFT : (tx >= hi ? World::WIN_SHIFT : 0);
   int sy = ty < lo ? -World::WIN_SHIFT : (ty >= hi ? World::WIN_SHIFT : 0);
   if (!sx && !sy) return;
-  world.shiftWindow(sx, sy);
-  windowMoved(sx, sy);
-  prefetchT_ = 0;   // the ring moved with the window: refresh the wish list this step
+  g.world.shiftWindow(sx, sy);
+  StreamOps::windowMoved(g, sx, sy);
+  g.prefetchT_ = 0;   // the ring moved with the window: refresh the wish list this step
 }
 
-void Game::windowMoved(int dx, int dy) {
+void StreamOps::windowMoved(Game& g, int dx, int dy) {
   if (!dx && !dy) return;
   const Vec2 d(-dx * (float)TILE, -dy * (float)TILE);
   auto move = [&](Actor& a) {
     a.p += d; a.home += d; a.goal += d;
     a.navGoal = -1; a.navNext = -1; a.navT = 0;
   };
-  for (Actor& a : actors) move(a);
-  for (Actor& a : sheltered_) move(a);
-  for (Projectile& pr : projs) {
+  for (Actor& a : g.actors) move(a);
+  for (Actor& a : g.sheltered_) move(a);
+  for (Projectile& pr : g.projs) {
     pr.p += d;
     if (len2(pr.from) > 0) pr.from += d;   // (M8b) SplitArrows measures from the loosing point (zero = not recorded)
   }
-  for (Pickup& pk : pickups) pk.p += d;
-  for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
-  for (story::Engine::Walker& w : story.walkers_) { w.cartX += d.x; w.cartY += d.y; }   // (P1b) a wagon's cart
-  for (story::Engine::Crumb& c : story.trail_) { c.x += d.x; c.y += d.y; }               // (P1b) the walkers' trail
-  PowerOps::shift(*this, d);            // (M8b) fire patches, falling stars, wolves to call
-  MagicOps::shift(*this, d);            // (M9) the spells' surfaces
-  SeaOps::shift(*this, d);              // (M10) storms, the fishing line's bob
+  for (Pickup& pk : g.pickups) pk.p += d;
+  for (Vec2& t : g.party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
+  for (story::Engine::Walker& w : g.story.walkers_) { w.cartX += d.x; w.cartY += d.y; }   // (P1b) a wagon's cart
+  for (story::Engine::Crumb& c : g.story.trail_) { c.x += d.x; c.y += d.y; }               // (P1b) the walkers' trail
+  PowerOps::shift(g, d);            // (M8b) fire patches, falling stars, wolves to call
+  MagicOps::shift(g, d);            // (M9) the spells' surfaces
+  SeaOps::shift(g, d);              // (M10) storms, the fishing line's bob
   // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
-  if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
-  reapplyLooted();
-  emit(Ev::WindowShift, d);
+  if (len2(g.prefetchFrom_) > 1e-6f) g.prefetchFrom_ += d;
+  StreamOps::reapplyLooted(g);
+  g.emit(Ev::WindowShift, d);
 }
 
 // M1 streaming (VISION_PLAN 2.8): keep the prefetcher's wish list current, a few times a second and right after a
 // window move. The streamer is made on first use: a worker thread natively, the per-frame pump on the web.
-void Game::prefetchTick(float dt) {
-  prefetchT_ -= dt;
-  if (prefetchT_ > 0) return;
-  prefetchT_ = 0.2f;
-  if (!world.streamer) {
+void StreamOps::prefetchTick(Game& g, float dt) {
+  g.prefetchT_ -= dt;
+  if (g.prefetchT_ > 0) return;
+  g.prefetchT_ = 0.2f;
+  if (!g.world.streamer) {
 #ifdef __EMSCRIPTEN__
-    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, false);
+    g.world.streamer = std::make_shared<ChunkStreamer>(g.world.seed, g.world.src, false);
 #else
-    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, streamThreads);
+    g.world.streamer = std::make_shared<ChunkStreamer>(g.world.seed, g.world.src, g.streamThreads);
 #endif
   }
-  const Actor& p = pl();
-  Vec2 d = p.p - prefetchFrom_;
-  if (len2(prefetchFrom_) < 1e-6f || len2(d) > (64.0f * TILE) * (64.0f * TILE)) d = Vec2();   // a teleport: no heading
-  prefetchFrom_ = p.p;
+  const Actor& p = g.pl();
+  Vec2 d = p.p - g.prefetchFrom_;
+  if (len2(g.prefetchFrom_) < 1e-6f || len2(d) > (64.0f * TILE) * (64.0f * TILE)) d = Vec2();   // a teleport: no heading
+  g.prefetchFrom_ = p.p;
   int dirx = d.x > 2.0f ? 1 : (d.x < -2.0f ? -1 : 0), diry = d.y > 2.0f ? 1 : (d.y < -2.0f ? -1 : 0);
-  world.prefetch((int)std::floor(p.p.x / TILE), (int)std::floor(p.p.y / TILE), dirx, diry);
+  g.world.prefetch((int)std::floor(p.p.x / TILE), (int)std::floor(p.p.y / TILE), dirx, diry);
 }
 
 void Game::frameWork(double budgetMs) {
@@ -384,43 +392,43 @@ void Game::frameWork(double budgetMs) {
 
 // NPC LOD: a townsperson well off screen (beyond sleepHalfW tiles across or sleepHalfH up and down: half the view plus
 // four tiles) with nothing to react to: no alarm at their town, not talking, not fighting or fleeing
-bool Game::sleepy(const Actor& a) const {
-  if (inside || !a.npc || a.hostile || a.comp || a.st == AState::Dead) return false;   // (M8: a companion never sleeps)
-  const Vec2 d = a.p - pl().p;
-  if (std::fabs(d.x) < sleepHalfW * TILE && std::fabs(d.y) < sleepHalfH * TILE) return false;   // on screen or nearly
+bool StreamOps::sleepy(const Game& g, const Actor& a) {
+  if (g.inside || !a.npc || a.hostile || a.comp || a.st == AState::Dead) return false;   // (M8: a companion never sleeps)
+  const Vec2 d = a.p - g.pl().p;
+  if (std::fabs(d.x) < g.sleepHalfW * TILE && std::fabs(d.y) < g.sleepHalfH * TILE) return false;   // on screen or nearly
   if (a.target >= 0 || a.aggro || a.fleeT > 0 || a.fleeing || a.indoors || len2(a.knock) > 1.0f) return false;
-  if (mode == Mode::Dialogue && dlg.actor == a.id) return false;
+  if (g.mode == Mode::Dialogue && g.dlg.actor == a.id) return false;
   if (a.site >= 0) {
-    auto it = alarms_.find(a.site);
-    if (it != alarms_.end() && (it->second.ringing || time - it->second.lastThreatT < 30.0f)) return false;
+    auto it = g.alarms_.find(a.site);
+    if (it != g.alarms_.end() && (it->second.ringing || g.time - it->second.lastThreatT < 30.0f)) return false;
   }
   return true;
 }
 
 // the actors that may threaten townsfolk this step (monsters, bandits, anything not a friendly NPC or the player):
 // town folk scan these for threats instead of every actor (a big city's crowd made that quadratic)
-void Game::collectHostiles() {
-  hostiles_.clear();
+void StreamOps::collectHostiles(Game& g) {
+  g.hostiles_.clear();
   int n = 0;
-  for (size_t i = 1; i < actors.size(); i++) {
-    const Actor& e = actors[i];
+  for (size_t i = 1; i < g.actors.size(); i++) {
+    const Actor& e = g.actors[i];
     // (M4) soldiers too: a guard or a soldier of a kingdom at war fights them (warFoes)
     if (e.npc && !e.hostile && e.faction != Faction::Army) continue;
-    if (e.hostile && !story::threatensTown(*this, e)) continue;   // (P1b) a bout is the player's fight alone
-    hostiles_.push_back((int)i);
+    if (e.hostile && !story::threatensTown(g, e)) continue;   // (P1b) a bout is the player's fight alone
+    g.hostiles_.push_back((int)i);
     if (e.hostile && e.st != AState::Dead) n++;
   }
-  perf.hostiles = n;
+  g.perf.hostiles = n;
 }
 
-void Game::reapplyLooted() {
-  if (!world.endless) return;
-  Map& m = world.over;
+void StreamOps::reapplyLooted(Game& g) {
+  if (!g.world.endless) return;
+  Map& m = g.world.over;
   bool any = false;
-  for (uint64_t k : looted) {
+  for (uint64_t k : g.looted) {
     if ((k >> 60) != 0xE) continue;
     int32_t gx = (int32_t)((int64_t)(k << 8) >> 36), gy = (int32_t)((int64_t)(k << 36) >> 36);   // 28-bit signed fields
-    int lx = gx - world.ox, ly = gy - world.oy;
+    int lx = gx - g.world.ox, ly = gy - g.world.oy;
     if (!m.in(lx, ly)) continue;
     uint8_t& pr = m.prop[(size_t)ly * m.w + lx];
     if (pr == (int)Prop::Chest + 1) { pr = (uint8_t)((int)Prop::ChestOpen + 1); any = true; }
@@ -439,8 +447,8 @@ uint64_t Game::lootKey(int tx, int ty) const {
 }
 
 // ------------------------------------------------------------------ collision
-bool Game::solidAt(float x, float y, bool flying) const {
-  const Map& m = map();
+bool ClimbOps::solidAt(const Game& gm, float x, float y, bool flying) {
+  const Map& m = gm.map();
   int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
   if (!m.in(tx, ty)) return true;
   if (flying) {
@@ -458,9 +466,9 @@ bool Game::solidAt(float x, float y, bool flying) const {
 
 // (owner 2026-10-06) an open front's pillars are thinner than a body, so the body's whole width is held against them
 // (its four corners alone would slip past a 3 px column)
-bool Game::pillarHit(float x, float y, float rx, float ry) const {
-  if (inside) return false;
-  const Map& m = world.over;
+bool ClimbOps::pillarHit(const Game& g, float x, float y, float rx, float ry) {
+  if (g.inside) return false;
+  const Map& m = g.world.over;
   const int ty0 = (int)std::floor((y - ry) / TILE), ty1 = (int)std::floor((y + ry) / TILE);
   const int tx0 = (int)std::floor((x - rx) / TILE), tx1 = (int)std::floor((x + rx) / TILE);
   for (int ty = ty0; ty <= ty1; ty++)
@@ -480,14 +488,14 @@ bool Game::pillarHit(float x, float y, float rx, float ry) const {
   return false;
 }
 
-bool Game::swimSolid(float x, float y, uint8_t swim) const {
-  const Map& m = map();
+bool ClimbOps::swimSolid(const Game& g, float x, float y, uint8_t swim) {
+  const Map& m = g.map();
   const int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
   if (!m.in(tx, ty)) return true;
   if (m.fallAt(tx, ty)) return true;                                            // (M11) a waterfall: a wall to swimmers and boats
   if (groundWater(m.at(tx, ty))) return m.solid[(size_t)ty * m.w + tx] != 0;   // a prop on the water: a post, a hull
   if (swim == 1) return true;                                                   // the sea's own: the land is a wall
-  return solidAt(x, y, false);                                                  // amphibious: the land's rules ashore
+  return ClimbOps::solidAt(g, x, y, false);                                                  // amphibious: the land's rules ashore
 }
 
 float ClimbOps::reliefTarget(const Game& g, const Actor& a) {
@@ -524,22 +532,22 @@ int ClimbOps::spawnGuard(Game& g, Vec2 at, bool hostile) {
   return id;
 }
 
-bool Game::bodyFree(Vec2 p, float r, bool flying, uint8_t swim) const {
+bool ClimbOps::bodyFree(const Game& g, Vec2 p, float r, bool flying, uint8_t swim) {
   float ry = r * 0.6f;
   if (swim)   // (M10) a swimmer: its four corners on its own ground
-    return !swimSolid(p.x - r, p.y - ry, swim) && !swimSolid(p.x + r, p.y - ry, swim) && !swimSolid(p.x - r, p.y + ry, swim) &&
-           !swimSolid(p.x + r, p.y + ry, swim);
-  return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying) &&
-         (flying || !pillarHit(p.x, p.y, r, ry));
+    return !ClimbOps::swimSolid(g, p.x - r, p.y - ry, swim) && !ClimbOps::swimSolid(g, p.x + r, p.y - ry, swim) && !ClimbOps::swimSolid(g, p.x - r, p.y + ry, swim) &&
+           !ClimbOps::swimSolid(g, p.x + r, p.y + ry, swim);
+  return !ClimbOps::solidAt(g, p.x - r, p.y - ry, flying) && !ClimbOps::solidAt(g, p.x + r, p.y - ry, flying) && !ClimbOps::solidAt(g, p.x - r, p.y + ry, flying) && !ClimbOps::solidAt(g, p.x + r, p.y + ry, flying) &&
+         (flying || !ClimbOps::pillarHit(g, p.x, p.y, r, ry));
 }
 
-void Game::moveActor(Actor& a, Vec2 d) {
+void ClimbOps::moveActor(Game& g, Actor& a, Vec2 d) {
   if (a.fly) { a.p += d; return; }
   // (M11 CLIMB) the relief's pace (Map::reliefSpeed: a hillside or an earth ramp 0.8, stone stairs 0.9): the factor the
   // ground under the feet asks for, eased in and out over about 0.15 s of walking (0.2 of pace per a.speed * 0.15 px
   // moved, at most 8 px) so a tile's edge never snaps it. Flying, swimming and boats keep 1 (ClimbOps::reliefTarget).
   {
-    const float tgt = ClimbOps::reliefTarget(*this, a);
+    const float tgt = ClimbOps::reliefTarget(g, a);
     const float span = std::clamp(a.speed * 0.15f, 3.0f, 8.0f);
     const float stepK = 0.2f * std::sqrt(d.x * d.x + d.y * d.y) / span;
     a.reliefK = tgt > a.reliefK ? std::min(tgt, a.reliefK + stepK) : std::max(tgt, a.reliefK - stepK);
@@ -551,21 +559,21 @@ void Game::moveActor(Actor& a, Vec2 d) {
   float rx = a.radius, ry = a.radius * 0.6f;
   bool fl = a.flying || a.fly;
   // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
-  const bool gatePass = a.player && !inside && !war.gateTiles.empty();
-  const bool yardCheck = !home.plots.empty() && a.npc && !inside;   // (M7) townsfolk keep out of the player's yards
+  const bool gatePass = a.player && !g.inside && !g.war.gateTiles.empty();
+  const bool yardCheck = !g.home.plots.empty() && a.npc && !g.inside;   // (M7) townsfolk keep out of the player's yards
   const uint8_t sw = a.swim;            // (M10) a swimmer's ground (a boat aboard, the sea's creatures)
   auto solidP = [&](float x, float y) {
-    if (yardCheck && yardBarred(a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
-    if (sw) return swimSolid(x, y, sw);
-    if (!solidAt(x, y, fl)) return false;
-    if (!fl && map().fallAt((int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;   // (M11) a waterfall: never waded
+    if (yardCheck && ClimbOps::yardBarred(g, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
+    if (sw) return ClimbOps::swimSolid(g, x, y, sw);
+    if (!ClimbOps::solidAt(g, x, y, fl)) return false;
+    if (!fl && g.map().fallAt((int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;   // (M11) a waterfall: never waded
     // (M10) the hero wading or swimming in the shallows (SeaOps::passable; the Sailor swims farther)
-    if (a.player && SeaOps::passable(*this, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
-    return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
+    if (a.player && SeaOps::passable(g, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
+    return !(gatePass && warGatePass(g, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
   };
   auto hit = [&](float x, float y) {
     return solidP(x - rx, y - ry) || solidP(x + rx, y - ry) || solidP(x - rx, y + ry) || solidP(x + rx, y + ry) ||
-           (!fl && pillarHit(x, y, rx, ry));
+           (!fl && ClimbOps::pillarHit(g, x, y, rx, ry));
   };
   // (M3c fixer round 2, review: "the hero stops dead on tree trunks when walking straight through dense woods") the
   // player's slide looks up to most of a tile (14 px) to either side of the blocked axis for the nearest opening (the side
@@ -581,11 +589,11 @@ void Game::moveActor(Actor& a, Vec2 d) {
       if (!hit(a.p.x - 2, a.p.y + st)) { a.p.x -= 0.6f; return; }
       if (!hit(a.p.x + 2, a.p.y + st)) { a.p.x += 0.6f; return; }
     }
-    if (!a.player || inside) return;
+    if (!a.player || g.inside) return;
     // (only out in the open, 3 tiles clear of buildings and walls: by a building the wide search could hop the hero into
     // the next bay of an open front or the next doorway, where walking straight is meant)
     {
-      const Map& om = world.over;
+      const Map& om = g.world.over;
       const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor(a.p.y / TILE);
       for (int oy = -3; oy <= 3; oy++)
         for (int ox = -3; ox <= 3; ox++)
@@ -608,205 +616,6 @@ void Game::moveActor(Actor& a, Vec2 d) {
     else if (s.y == 0 || (a.player && std::fabs(s.y) < std::fabs(s.x) * 0.5f)) slide(true, s.x);   // corner slide: steer round tile corners and trunks
     if (!hit(a.p.x, a.p.y + s.y)) a.p.y += s.y;
     else if (s.x == 0 || (a.player && std::fabs(s.x) < std::fabs(s.y) * 0.5f)) slide(false, s.y);   // (a joystick is never quite straight)
-  }
-}
-
-// ------------------------------------------------------------------ main update
-namespace {
-// (P2a ANIM) rig 2: where each body stood before the step, so a walker's animT runs by the distance it walked (STYLE_P2
-// 10: the walk by the whole px drawn, anim.cpp animWalkFrame). One Game steps at a time per thread.
-struct WalkMark { int id; Vec2 p; bool walking; };   // (SLICE-WALK-SLIDE) walking: the state before the step
-constexpr float kHeroStepPeriod = 0.29f;              // the hero's footstep sound, s of walking
-thread_local std::vector<WalkMark> tlWalk;
-}  // namespace
-
-void Game::update(float dt, const Input& in) {
-  // (P2a ANIM) the hero's fall plays under the death screen: the view runs it on its own clock (render_anim.cpp); a
-  // headless step (rpg_test --anim) advances the body's state time the same way
-  if (mode == Mode::Dead && art::rigVersion() >= 2 && pl().st == AState::Dead) pl().stT += dt;
-  if (mode != Mode::Play) return;
-  if (travel.phase != TravelPhase::None) { travelStep(dt); return; }   // M2: on the road behind the fade (travel.cpp)
-  if (stFlash > 0) stFlash -= dt;
-  if (hitStop > 0) { hitStop -= dt; return; }
-  if (slowMo > 0) { slowMo -= dt; dt *= 0.3f; }   // perfect roll / level-up: a brief slow-motion blip
-  time += dt;
-  float prevHour = hour;
-  // (owner) daytime lasts 20 real minutes and the night 10: the 14.5 day hours (5:30-20:00, isNight) run over 1200 s,
-  // the 9.5 night hours over 600 s
-  hour += dt * (isNight() ? 9.5f / 600.0f : 14.5f / 1200.0f);
-  if (hour >= 24) { hour -= 24; day++; }
-  (void)prevHour;
-  if (noticeT > 0) noticeT -= dt;
-  if (blessT > 0) { blessT -= dt; if (blessT <= 0) recalcPlayer(); }
-  if (sleepFade > 0) sleepFade = std::max(0.0f, sleepFade - dt);
-
-  if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
-  const bool rig2 = art::rigVersion() >= 2;
-  if (rig2) {
-    tlWalk.resize(actors.size());
-    for (size_t i = 0; i < actors.size(); i++) tlWalk[i] = WalkMark{actors[i].id, actors[i].p, actors[i].st == AState::Walk};
-  }
-  updatePlayer(dt, in);
-  PowerOps::step(*this, dt);   // M8b: the worn powers' clocks, fire patches, auras, stars, spectral wolves (powers.cpp)
-  SkillOps::step(*this, dt);   // M9: distances walked / ridden, sneaking, familiarity (skills_game.cpp, SKILLS lane)
-  MagicOps::step(*this, dt);   // M9: casts in progress, concentration, surfaces and their combos (magic_game.cpp, MAGIC lane)
-  SeaOps::step(*this, dt);     // M10: the wind, storms, the Mist, the boats, voyages, encounters (sea_game.cpp, SEA lane)
-  LordOps::step(*this, dt);    // M12: the fief's day: taxes, tribute, works (lord_game.cpp, LORD lane)
-  ServiceOps::step(*this, dt); // M12: the army's day: wages, orders, missions (service_game.cpp, SERVICE lane)
-  JobOps::step(*this, dt);     // P1: leads going stale, last week's job pools dropped (jobs.cpp, JOBS lane)
-  if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
-  if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
-    exploreT_ = 0.25f;
-    // (a box a little wider than the 4x phone view, about 40 x 24 tiles: what the player has seen is on the map)
-    explored.markAround(world.ox + (int)std::floor(pl().p.x / TILE), world.oy + (int)std::floor(pl().p.y / TILE), 24);
-  }
-  collectHostiles();
-  perf.npcAwake = perf.npcAsleep = 0;
-  const float foeK = PowerOps::foeScale(*this);   // (M8b) Chronos: the hero's foes move at a third of the pace
-  for (size_t i = 1; i < actors.size(); i++) {
-    Actor& a = actors[i];
-    // NPC level of detail (VISION_PLAN 4.4): townsfolk far off screen with nothing to react to think a few times a
-    // second with the gathered time; everything near, fighting or in a ringing town runs every step
-    if (a.npc && sleepy(a)) {
-      a.asleep = true;
-      perf.npcAsleep++;
-      a.lodAcc += dt;
-      if (a.lodAcc < 0.2f) continue;
-      float acc = std::min(a.lodAcc, 0.25f);
-      a.lodAcc = 0;
-      updateActor(a, acc);
-      continue;
-    }
-    if (a.npc) perf.npcAwake++;
-    if (a.asleep) { a.asleep = false; a.lodAcc = 0; }
-    updateActor(a, a.hostile ? dt * foeK : dt);
-  }
-  // separation between bodies
-  for (size_t i = 0; i < actors.size(); i++)
-    for (size_t j = i + 1; j < actors.size(); j++) {
-      Actor& a = actors[i]; Actor& b = actors[j];
-      if (a.st == AState::Dead || b.st == AState::Dead || a.fly || b.fly) continue;
-      if (a.asleep && b.asleep) continue;
-      Vec2 d = b.p - a.p;
-      float r = a.radius + b.radius;
-      float l2 = len2(d);
-      if (l2 >= r * r || l2 < 1e-4f) continue;
-      float l = std::sqrt(l2);
-      Vec2 push = d * ((r - l) / l * 0.5f);
-      // (M5) the watch running to a fight has the right of way through the townsfolk (and through the animals): the
-      // crowd steps aside, the guard is not shoved back
-      auto fighting = [](const Actor& x) { return x.npc && x.role == Role::Guard && x.target >= 0; };
-      auto yields = [](const Actor& x) { return x.npc && !x.hostile && x.role != Role::Guard; };
-      const bool aYields = (fighting(b) && yields(a)) || (a.critter && !b.critter);
-      const bool bYields = (fighting(a) && yields(b)) || (b.critter && !a.critter);
-      // (M5 fixer) a body on furniture (seated, abed, at the anvil: Actor::useX) is not shoved off it: the other steps
-      // aside (two of them leave each other be)
-      const bool aFixed = a.npc && a.useX >= 0, bFixed = b.npc && b.useX >= 0;
-      if (aFixed && bFixed) continue;
-      if (aFixed) { if (!b.player) moveActor(b, push * 2.0f); continue; }
-      if (bFixed) { if (!a.player) moveActor(a, push * -2.0f); continue; }
-      if (aYields && !bYields) { if (!a.player) moveActor(a, push * -2.0f); continue; }
-      if (bYields && !aYields) { if (!b.player) moveActor(b, push * 2.0f); continue; }
-      if (!a.player) moveActor(a, push * -1.0f);
-      if (!b.player) moveActor(b, push);
-      if (a.player && b.npc) moveActor(b, push);
-    }
-  updateTownDefence(dt);
-  // (M6 fixer) each subsystem's step timed for --perf (PerfCounters::sysWorstMs): the hitches' suspects
-  auto timed = [&](int sys, auto&& fn) {
-    const auto t0 = std::chrono::steady_clock::now();
-    fn();
-    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    if (ms > perf.sysWorstMs[sys]) perf.sysWorstMs[sys] = ms;
-  };
-  using PC = PerfCounters;
-  timed(PC::S_QUEST, [&] { questTick(dt); waysideTick(dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
-  timed(PC::S_REALM, [&] { realmStep(dt); });   // M4: the living world (realm_game.cpp, REALM lane)
-  timed(PC::S_WAR, [&] { warStep(dt); });       // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
-  timed(PC::S_STORY, [&] { storyStep(dt); });   // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)
-  timed(PC::S_LIFESTEP, [&] { lifeStep(dt); }); // M5: the townsfolk's actors by their plans (life_game.cpp, TOWNSFOLK lane)
-  timed(PC::S_RAID, [&] { raidStep(dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
-  timed(PC::S_FOE, [&] { foeStep(dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
-  timed(PC::S_HOME, [&] { homeStep(dt); });     // M7: the player's plots, crops, animals, building, riding (home_game.cpp)
-  timed(PC::S_PARTY, [&] { partyStep(dt); });   // M8: companions, deeds, the downed, graves, banter (party_game.cpp)
-  timed(PC::S_LIFETICK, [&] { life.tick(*this, dt); });   // M5: needs, plans, stock and moods in aggregate (life.cpp)
-  updateProjectiles(dt);
-  updatePickups(dt);
-  if (!inside) timed(PC::S_SPAWN, [&] { updateSpawning(dt); });
-  updateLocation();
-  // cleanup corpses. (P2a ANIM) at rig 2 the human dead lie animCorpseLife (60 s, fading over the last 5), at most
-  // animCorpseCap at once: past cap - 3 the oldest start their fade early, past the cap the oldest go at once; beasts
-  // and rig 1 keep today's 6 s
-  const int rv = art::rigVersion();
-  const float humanLife = animCorpseLife(rv);
-  if (const int cap = animCorpseCap(rv)) {
-    int lying = 0;   // corpses not yet fading: at most cap - 3 (the fading ones make up the rest, gone within 5 s)
-    for (size_t i = 1; i < actors.size(); i++) lying += actors[i].human && actors[i].st == AState::Dead && actors[i].stT < humanLife - kCorpseFade;
-    while (lying > cap - 3) {
-      Actor* oldest = nullptr;   // the oldest corpse not yet fading
-      for (size_t i = 1; i < actors.size(); i++) {
-        Actor& a = actors[i];
-        if (a.human && a.st == AState::Dead && a.stT < humanLife - kCorpseFade && (!oldest || a.stT > oldest->stT)) oldest = &a;
-      }
-      if (!oldest) break;
-      oldest->stT = humanLife - kCorpseFade;
-      lying--;
-    }
-    int over = -cap;
-    for (size_t i = 1; i < actors.size(); i++) over += actors[i].human && actors[i].st == AState::Dead;
-    for (; over > 0; over--) {
-      size_t at = 0;
-      for (size_t i = 1; i < actors.size(); i++)
-        if (actors[i].human && actors[i].st == AState::Dead && actors[i].stT <= humanLife && (!at || actors[i].stT > actors[at].stT)) at = i;
-      if (!at) break;
-      actors[at].stT = humanLife + 1.0f;   // gone in the pass below
-    }
-  }
-  for (size_t i = 1; i < actors.size();) {
-    Actor& a = actors[i];
-    bool far = a.wild && len2(a.p - pl().p) > (48.0f * TILE) * (48.0f * TILE);
-    if ((a.st == AState::Dead && a.stT > (a.human ? humanLife : 6.0f)) || far) {
-      if (a.id == dragonId_) dragonId_ = -1;
-      actors.erase(actors.begin() + i);
-    } else i++;
-  }
-  // (P2a ANIM) rig 2: a walking human's animT runs by the distance walked over its own speed (anim.cpp: the walk frame
-  // is animWalkFrame(animT x speed)); a body standing, fighting or carried across a window shift runs on time as before
-  if (rig2) {
-    for (size_t i = 0; i < actors.size(); i++) {
-      Actor& a = actors[i];
-      if (!(a.human || a.player)) continue;
-      const WalkMark* w = i < tlWalk.size() && tlWalk[i].id == a.id ? &tlWalk[i] : nullptr;
-      if (!w) for (const WalkMark& m : tlWalk) if (m.id == a.id) { w = &m; break; }
-      const float d = w ? len(a.p - w->p) : -1.0f;
-      if (a.st == AState::Walk && d >= 0 && d < 32.0f) {
-        // (P2a slice, SLICE-WALK-SLIDE) the DRAWN travel: the whole world px the feet moved on the screen along the step's
-        // main axis (render_anim.cpp puts the pivot at round(p) on the whole-pixel camera), so anim.cpp's frames change
-        // on the px where the art's planted sole has stepped and the foot lands back on its spot; a walk starts on the
-        // passing frame (animWalkBegin: its planted foot is the idle stance's back foot)
-        const float sp = std::max(1.0f, a.speed);
-        const Vec2 s = a.p - w->p;
-        const float drawn = std::fabs(s.x) >= std::fabs(s.y) ? std::fabs(std::floor(a.p.x + 0.5f) - std::floor(w->p.x + 0.5f))
-                                                              : std::fabs(std::floor(a.p.y + 0.5f) - std::floor(w->p.y + 0.5f));
-        int n = (int)std::floor(a.animT * sp + 0.5f);   // the whole px walked so far (animT keeps them over the speed)
-        if (!w->walking) {   // (P2b) setting off: the gait by the step's own speed, then the body's own walk / run table
-          if (dt > 0) animSetOff(a, d / dt);
-          n = animWalkBegin(a, n);
-        }
-        const float before = (float)n / sp;
-        a.animT = (float)(n + (int)drawn) / sp;
-        // the hero's footstep every 0.29 s of walk clock (updatePlayer's rule at rig 1), counted here where the clock
-        // moves: it now moves in whole px (1 or 2 a frame at 74 px/s), so updatePlayer's "animT - dt" window would skip
-        // or double a step
-        if (a.player && (int)(a.animT / kHeroStepPeriod) != (int)(before / kHeroStepPeriod)) {
-          const float pitch = 0.85f + rng_.f() * 0.3f;   // (drawn either way: the RNG stream does not depend on riding)
-          if (!homeRiding()) sfx((int)Sfx::Step, a.p, pitch, 0.5f);
-        }
-      } else a.animT += dt;
-      // (P2b FOLK-SIM) the gait (switch at 54 px/s, the drawn speed smoothed), the walk clock re-phased on a switch, and
-      // the sheathed / drawn clock (rpg/sim/anim.cpp animStep)
-      animStep(*this, a, d >= 0 && d < 32.0f ? d : -1.0f, dt);
-    }
   }
 }
 
@@ -841,7 +650,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   L6.stillT = len2(in.move) < 0.02f && (p.st == AState::Idle || p.st == AState::Walk) ? L6.stillT + dt : 0.0f;
   const float stRegen = (background == Background::Farmhand ? 1.3f : 1.0f)   // farmhand: a field worker's wind
                         * (1.0f + 0.01f * (float)S6.get(Affix::StaminaRegen)) * (S6.has(Unique::Wayfarer) ? 1.2f : 1.0f);
-  const float stLife = lifeStaminaRegenMul() * SkillOps::staminaRegenMul(*this);   // M5 (15.2): Well Fed / Hungry / Weary; (M9) the armour class, perks
+  const float stLife = LifeHooks::staminaRegenMul(*this) * SkillOps::staminaRegenMul(*this);   // M5 (15.2): Well Fed / Hungry / Weary; (M9) the armour class, perks
   if (!busy) stamina = stamina + dt * 22.0f * stRegen * stLife;
   float mpMax = maxMp + (float)S6.get(Affix::Magicka);
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
@@ -853,7 +662,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   mp = std::min(mpMax, mp + dt * 3.2f);
   // health comes back between fights, barely during one (the potion is the in-fight heal)
   bool calm = time - lastHurtT > 6.0f;
-  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : calm ? 1.1f : 0.12f) * lifeHealthRegenMul());
+  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : calm ? 1.1f : 0.12f) * LifeHooks::healthRegenMul(*this));
   if (p.burnT > 0) {
     p.burnT -= dt;
     if (!godMode) p.hp -= dt * 3;
@@ -910,12 +719,12 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (ml > 0.15f) p.aim = norm(mv);
 
   // knockback decays
-  if (len2(p.knock) > 0.01f) { moveActor(p, p.knock * dt); p.knock *= std::pow(0.001f, dt); }
+  if (len2(p.knock) > 0.01f) { ClimbOps::moveActor(*this, p, p.knock * dt); p.knock *= std::pow(0.001f, dt); }
 
   switch (p.st) {
     case AState::Roll: {
       float k = 1.0f - p.stT / 0.34f;
-      moveActor(p, p.vel * (dt * (0.45f + k)));
+      ClimbOps::moveActor(*this, p, p.vel * (dt * (0.45f + k)));
       if (p.stT >= 0.34f) { p.st = AState::Idle; p.stT = 0; }
       if (((int)(p.stT * 30)) % 3 == 0) emit(Ev::Dust, p.p);
       return;
@@ -928,7 +737,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       break;
     case AState::Strike:
       if (!p.hitDone) { meleeHit(p); p.hitDone = true; }
-      moveActor(p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
+      ClimbOps::moveActor(*this, p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
       if (p.stT >= 0.11f * AnimOps::heroPace(*this)) { p.st = AState::Recover; p.stT = 0; }   // (M9) a mace lands slow, a dagger quick
       break;
     case AState::Recover:
@@ -949,7 +758,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   slow *= story::burdenMul(*this);   // (P1b) a story's heavy load (a body carried home, a cask): x0.7
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
-      moveActor(p, mv * (p.speed * slow * dt));
+      ClimbOps::moveActor(*this, p, mv * (p.speed * slow * dt));
       p.face = faceOf(mv);
       if (p.st != AState::Walk) { p.st = AState::Walk; }
       const float stepPeriod = kHeroStepPeriod;
@@ -960,7 +769,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       }
     } else if (p.st == AState::Walk) p.st = AState::Idle;
   } else if (p.st == AState::Windup || p.st == AState::Cast) {
-    if (ml > 0.15f) moveActor(p, mv * (p.speed * 0.35f * dt));
+    if (ml > 0.15f) ClimbOps::moveActor(*this, p, mv * (p.speed * 0.35f * dt));
   }
 
   // (M9) sneaking on / off (Stealth: SkillOps)
@@ -1012,7 +821,7 @@ void Game::updatePlayer(float dt, const Input& in) {
     // person stands there to be talked to
     int stx = 0, sty = 0;
     const int sp = interactTarget() < 0 ? story::wantedProp(*this, stx, sty) : 0;
-    if (!(sp && storyUseProp((Prop)(sp - 1), stx, sty))) interact();
+    if (!(sp && StoryOps::useProp(*this, (Prop)(sp - 1), stx, sty))) interact();
   }
 
   // doors, cave mouths and exits
@@ -1140,9 +949,9 @@ void Game::updateActor(Actor& a, float dt) {
   }
   // troll regeneration pauses for a moment after every wound (and fire stops it, see damage())
   if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
-  if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
+  if (len2(a.knock) > 0.01f) { ClimbOps::moveActor(*this, a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
   if (a.powTag == powers::PT_WOLF && PowerOps::wolfStep(*this, a, dt)) return;   // (M8b) a spectral wolf (powers.cpp)
-  if (a.comp && partyActor(a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
+  if (a.comp && PartyOps::actorStep(*this, a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
   if (a.st == AState::Down) {
     // a collapsed skeleton rattles back together unless it is struck again
     if (a.stT > 2.8f) {
@@ -1155,7 +964,7 @@ void Game::updateActor(Actor& a, float dt) {
     }
     return;
   }
-  updateAI(a, dt);
+  AiOps::updateAI(*this, a, dt);
 }
 
 // ------------------------------------------------------------------ spawning
@@ -1192,7 +1001,7 @@ int Game::spawnMonster(Monster m, Vec2 p, int level, bool boss) {
     // generic level scaling would push Ashfang past 4000 HP: a slog, not a fight. Keep it a few minutes long.
     a.maxHp = 700.0f + a.level * 60.0f; a.hp = a.maxHp;
   }
-  foeSpawned(a, level);   // M6: rank, affixes, variant look (foes_game.cpp; never adds actors itself)
+  FoeHooks::spawned(*this, a, level);   // M6: rank, affixes, variant look (foes_game.cpp; never adds actors itself)
   actors.push_back(a);
   return a.id;
 }
@@ -1221,7 +1030,7 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
       // bandits: the place's danger band 4 or more); ladder fields only, rig 1 never reads them
       retierLook(a.look, gear::bandOf(st.level) >= 4 ? 3 : 2, nullptr);
     }
-    foeSpawned(a, st.level);   // M6: bandits in their land's poorer arms, elites (foes_game.cpp)
+    FoeHooks::spawned(*this, a, st.level);   // M6: bandits in their land's poorer arms, elites (foes_game.cpp)
   } else {
     a.npc = true; a.role = sp.role;
     // (M4) a guard serves the settlement's CURRENT owner (Site::kingdom; its colours come from makeLook), and the king on
@@ -1328,7 +1137,7 @@ void Game::loadMapActors() {
       if ((mageUp || mageDead) && subFloor == 0 && sp.slot == 0) continue;
       if (sp.npc && B && lodgingActive() && lodging.bldg == subBldg && lodging.floor == subFloor && sub.roomIndexAt(sp.x, sp.y) == lodging.room) continue;
       Vec2 p(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f);
-      if (sp.npc) { spawnHuman(sp, p); lifeSpawned(actors.back(), sp); continue; }
+      if (sp.npc) { spawnHuman(sp, p); LifeHooks::spawned(*this, actors.back(), sp); continue; }
       if (cleared && !sp.boss && hashf(sp.x, sp.y, (uint32_t)day) < 0.6f) continue;   // cleared dungeons are mostly empty
       if (cleared && sp.boss) continue;
       int id = spawnMonster(sp.mon, p, lvl + (sp.boss ? 2 : 0), sp.boss);
@@ -1383,21 +1192,21 @@ void Game::loadMapActors() {
         for (int k = 0; k < 5; k++)
           if (sub.in(bx + dx[k], by + dy[k]) && !sub.blocked(bx + dx[k], by + dy[k])) { px = bx + dx[k]; py = by + dy[k]; break; }
         spawnHuman(sp, Vec2(px * TILE + 8.0f, py * TILE + 10.0f));
-        lifeSpawned(actors.back(), sp);
+        LifeHooks::spawned(*this, actors.back(), sp);
       }
     }
-    if (B) lifeInterior();   // M5: the building's people by schedule (life_game.cpp)
+    if (B) LifeHooks::interior(*this);   // M5: the building's people by schedule (life_game.cpp)
   }
 }
 
 // M1 (SIM lane): a site's people stream in and out by distance from the player instead of all at once (a city of
 // 160-220 homes has hundreds of spawns): within FOLK_IN tiles they appear (nearest first, at most FOLK_CAP townsfolk
 // at a time), beyond FOLK_OUT the calm ones are put away. Hostile camps come whole (their fight is one encounter).
-void Game::streamSitePeople(int si) {
-  const Site& st = world.sites[(size_t)si];
-  auto it = world.siteSpawns.find(si);
-  if (it == world.siteSpawns.end()) return;
-  const Actor& p = pl();
+void StreamOps::streamSitePeople(Game& gm, int si) {
+  const Site& st = gm.world.sites[(size_t)si];
+  auto it = gm.world.siteSpawns.find(si);
+  if (it == gm.world.siteSpawns.end()) return;
+  const Actor& p = gm.pl();
   const float ptx = p.p.x / TILE, pty = p.p.y / TILE;
   // who of this site is out already (in play or sheltering indoors)
   std::vector<uint8_t> present;
@@ -1407,29 +1216,29 @@ void Game::streamSitePeople(int si) {
     if ((size_t)a.slot >= present.size()) present.resize((size_t)a.slot + 1, 0);
     present[(size_t)a.slot] = 1;
   };
-  for (size_t k = 1; k < actors.size(); k++) { mark(actors[k]); if (actors[k].npc && actors[k].fromMap && actors[k].role != Role::Guard) folk++; }
-  for (const Actor& a : sheltered_) { mark(a); if (a.role != Role::Guard) folk++; }
-  auto& killed = killedSlots[0];
-  const auto felledIt = felled_.find(si);
+  for (size_t k = 1; k < gm.actors.size(); k++) { mark(gm.actors[k]); if (gm.actors[k].npc && gm.actors[k].fromMap && gm.actors[k].role != Role::Guard) folk++; }
+  for (const Actor& a : gm.sheltered_) { mark(a); if (a.role != Role::Guard) folk++; }
+  auto& killed = gm.killedSlots[0];
+  const auto felledIt = gm.felled_.find(si);
   const bool camp = st.type == SiteType::BanditCamp;
   // a small place (a village, a town of the classic size, a camp) comes out whole while it is active; a big one
   // streams. The watch always turns out across a wider ring (they answer the bell from across town).
   const bool whole = camp || it->second.size() <= 48;
-  const int guardIn = 2 * FOLK_IN, guardOut = 2 * FOLK_OUT;
+  const int guardIn = 2 * Game::FOLK_IN, guardOut = 2 * Game::FOLK_OUT;
   // put the far calm ones away (never someone fighting, fleeing, talking or hostile and roused)
-  for (size_t k = 1; k < actors.size();) {
-    Actor& a = actors[k];
+  for (size_t k = 1; k < gm.actors.size();) {
+    Actor& a = gm.actors[k];
     bool mine = a.fromMap && !a.wild && a.site == si && a.st != AState::Dead;
     if (mine && !whole) {
       float dx = a.p.x / TILE - ptx, dy = a.p.y / TILE - pty;
-      const int out = a.role == Role::Guard ? guardOut : FOLK_OUT;
+      const int out = a.role == Role::Guard ? guardOut : Game::FOLK_OUT;
       bool far = dx * dx + dy * dy > (float)(out * out);
-      bool busy = a.aggro || a.target >= 0 || a.fleeT > 0 || a.fleeing || (mode == Mode::Dialogue && dlg.actor == a.id) ||
+      bool busy = a.aggro || a.target >= 0 || a.fleeT > 0 || a.fleeing || (gm.mode == Mode::Dialogue && gm.dlg.actor == a.id) ||
                   (a.hostile && a.aggro);
       if (far && !busy) {
         if (a.npc && a.role != Role::Guard) folk--;
-        perf.despawnedNpcs++;
-        actors.erase(actors.begin() + (std::ptrdiff_t)k);
+        gm.perf.despawnedNpcs++;
+        gm.actors.erase(gm.actors.begin() + (std::ptrdiff_t)k);
         continue;
       }
     }
@@ -1440,21 +1249,21 @@ void Game::streamSitePeople(int si) {
   // (militia only), an abandoned or ruined one nobody. The generator's guard spawns (lowest slots first) serve up to that
   // number; a member village (the generator posts no watch there) or a thin garrison gets the rest as runtime posts.
   const bool settle = st.settlement();
-  const bool emptyPlace = settle && warEmpty(*this, si);
-  const int guardWant = settle ? warGuardsWanted(*this, si) : -1;
+  const bool emptyPlace = settle && warEmpty(gm, si);
+  const int guardWant = settle ? warGuardsWanted(gm, si) : -1;
   std::vector<int> guardSlots;
   int genGuards = 0;
   if (settle) {
     for (int idx : it->second)
-      if (idx >= 0 && idx < (int)world.over.spawns.size() && world.over.spawns[(size_t)idx].site == si && world.over.spawns[(size_t)idx].role == Role::Guard &&
-          world.over.spawns[(size_t)idx].npc)
-        guardSlots.push_back(world.over.spawns[(size_t)idx].slot);
+      if (idx >= 0 && idx < (int)gm.world.over.spawns.size() && gm.world.over.spawns[(size_t)idx].site == si && gm.world.over.spawns[(size_t)idx].role == Role::Guard &&
+          gm.world.over.spawns[(size_t)idx].npc)
+        guardSlots.push_back(gm.world.over.spawns[(size_t)idx].slot);
     std::sort(guardSlots.begin(), guardSlots.end());
     // (fixer M4 r3) a guard who gave an open quest keeps his post when the watch shrinks (a siege lifted, a place gone
     // frontier): the bounty is handed in to him
     std::vector<int> keep;
     for (size_t k = (size_t)std::max(0, guardWant); k < guardSlots.size(); k++)
-      if (warKeyPerson(*this, si, guardSlots[k])) keep.push_back(guardSlots[k]);
+      if (warKeyPerson(gm, si, guardSlots[k])) keep.push_back(guardSlots[k]);
     if ((int)guardSlots.size() > guardWant) guardSlots.resize((size_t)std::max(0, guardWant));
     genGuards = (int)guardSlots.size();   // generator guards serving the watch (key persons kept beyond it do not count)
     guardSlots.insert(guardSlots.end(), keep.begin(), keep.end());
@@ -1463,41 +1272,41 @@ void Game::streamSitePeople(int si) {
   // bring in the near ones, nearest first
   std::vector<std::pair<float, int>> want;
   for (int idx : it->second) {
-    if (idx < 0 || idx >= (int)world.over.spawns.size()) continue;
-    const Spawn& sp = world.over.spawns[(size_t)idx];
+    if (idx < 0 || idx >= (int)gm.world.over.spawns.size()) continue;
+    const Spawn& sp = gm.world.over.spawns[(size_t)idx];
     if (sp.site != si) continue;
-    if (emptyPlace && !(sp.npc && warKeyPerson(*this, si, sp.slot))) continue;   // (fixer M4 r3) its quest givers stay
+    if (emptyPlace && !(sp.npc && warKeyPerson(gm, si, sp.slot))) continue;   // (fixer M4 r3) its quest givers stay
     if (settle && sp.npc && sp.role == Role::Guard && !std::binary_search(guardSlots.begin(), guardSlots.end(), sp.slot)) continue;
-    if (settle && sp.npc && sp.role != Role::Guard && !warSpawnAllowed(*this, si, sp.x, sp.y, sp.slot)) continue;
-    if (settle && sp.npc && !lifeSpawnAllowed(si, sp)) continue;   // M5: its resident is elsewhere this hour
+    if (settle && sp.npc && sp.role != Role::Guard && !warSpawnAllowed(gm, si, sp.x, sp.y, sp.slot)) continue;
+    if (settle && sp.npc && !LifeHooks::spawnAllowed(gm, si, sp)) continue;   // M5: its resident is elsewhere this hour
     if (sp.slot >= 0 && (size_t)sp.slot < present.size() && present[(size_t)sp.slot]) continue;
-    if (killed.count(owKillKey(si, sp.slot))) continue;
-    if (felledIt != felled_.end() && felledIt->second.count(sp.slot)) continue;   // felled this visit: stays down
+    if (killed.count(Game::owKillKey(si, sp.slot))) continue;
+    if (felledIt != gm.felled_.end() && felledIt->second.count(sp.slot)) continue;   // felled this visit: stays down
     if (camp && st.cleared) continue;
-    if (!world.over.in(sp.x, sp.y)) continue;   // endless: the far side of a big town lies outside the window
+    if (!gm.world.over.in(sp.x, sp.y)) continue;   // endless: the far side of a big town lies outside the window
     float dx = sp.x + 0.5f - ptx, dy = sp.y + 0.5f - pty;
     float d2 = dx * dx + dy * dy;
-    const int in = sp.role == Role::Guard ? guardIn : FOLK_IN;
+    const int in = sp.role == Role::Guard ? guardIn : Game::FOLK_IN;
     if (!whole && d2 > (float)(in * in)) continue;
     want.push_back({d2, idx});
   }
   std::sort(want.begin(), want.end());
   for (auto& w : want) {
-    const Spawn& sp = world.over.spawns[(size_t)w.second];
+    const Spawn& sp = gm.world.over.spawns[(size_t)w.second];
     const bool counts = sp.npc && sp.role != Role::Guard;
-    if (counts && !whole && folk >= FOLK_CAP) continue;
-    if (st.type == SiteType::Vignette && waysideSpawn(si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
-    spawnHuman(sp, Vec2(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f));
-    questSpawned(actors.back());   // M2: a named bandit chief (quests.cpp)
+    if (counts && !whole && folk >= Game::FOLK_CAP) continue;
+    if (st.type == SiteType::Vignette && WaysideOps::spawn(gm, si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
+    gm.spawnHuman(sp, Vec2(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f));
+    QuestOps::questSpawned(gm, gm.actors.back());   // M2: a named bandit chief (quests.cpp)
     // M2 town defence: a town's or city's watch keeps a post on the square (where the market and the crowd are), so a
     // big town's guards are on the spot when beasts get in, not a long run away at the walls
-    if (sp.npc) lifeSpawned(actors.back(), sp);   // M5: bound to its resident, placed by its plan (life_game.cpp)
-    if (sp.role == Role::Guard && (st.type == SiteType::Town || st.type == SiteType::City) && actors.back().name == "GUARD") {
+    if (sp.npc) LifeHooks::spawned(gm, gm.actors.back(), sp);   // M5: bound to its resident, placed by its plan (life_game.cpp)
+    if (sp.role == Role::Guard && (st.type == SiteType::Town || st.type == SiteType::City) && gm.actors.back().name == "GUARD") {
       const Vec2 heart(st.ex * TILE + 8.0f, st.ey * TILE + 10.0f);
       int posted = 0;
-      for (size_t k = 1; k + 1 < actors.size(); k++)
-        if (actors[k].site == si && actors[k].role == Role::Guard && len2(actors[k].home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
-      for (const Actor& o : sheltered_)
+      for (size_t k = 1; k + 1 < gm.actors.size(); k++)
+        if (gm.actors[k].site == si && gm.actors[k].role == Role::Guard && len2(gm.actors[k].home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
+      for (const Actor& o : gm.sheltered_)
         if (o.site == si && o.role == Role::Guard && len2(o.home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
       static const int post[][2] = {{-4, 3}, {4, 3}, {0, -4}, {-6, -1}, {6, -1}};
       // (fixer M7b r1) only while the square lies inside the watch's streaming ring: a guard posted beyond guardOut would
@@ -1505,12 +1314,12 @@ void Game::streamSitePeople(int si) {
       const float hdx = heart.x / TILE - ptx, hdy = heart.y / TILE - pty;
       const bool heartNear = whole || hdx * hdx + hdy * hdy <= (float)((guardOut - 4) * (guardOut - 4));
       if (heartNear && posted < (st.type == SiteType::City ? 4 : 2) && posted < 5) {
-        Actor& g = actors.back();
-        g.p = freeSpot(st.ex + post[posted][0], st.ey + post[posted][1]);
+        Actor& g = gm.actors.back();
+        g.p = ClimbOps::freeSpot(gm, st.ex + post[posted][0], st.ey + post[posted][1]);
         g.home = g.p; g.goal = g.p;
       }
     }
-    if (sp.npc) perf.spawnedNpcs++;
+    if (sp.npc) gm.perf.spawnedNpcs++;
     if (counts) folk++;
   }
   // (M4) the rest of the watch: runtime posts (slots 3900+) round the heart and on the ways in. A village's watch keeps
@@ -1523,133 +1332,133 @@ void Game::streamSitePeople(int si) {
       static const int post[12][2] = {{-3, 2}, {3, 2}, {0, -3}, {-6, 0}, {6, 0}, {0, 5}, {-4, -4}, {4, -4}, {-8, 3}, {8, 3}, {-2, 7}, {2, -7}};
       for (int k = 0; k < 12; k++) {
         const int slot = 3900 + k;
-        if (k >= extra && !warKeyPerson(*this, si, slot)) continue;
+        if (k >= extra && !warKeyPerson(gm, si, slot)) continue;
         if ((size_t)slot < present.size() && present[(size_t)slot]) continue;
-        if (felledIt != felled_.end() && felledIt->second.count(slot)) continue;
+        if (felledIt != gm.felled_.end() && felledIt->second.count(slot)) continue;
         const int tx = st.ex + post[k][0], ty = st.ey + post[k][1];
-        if (!world.over.in(tx, ty)) continue;
+        if (!gm.world.over.in(tx, ty)) continue;
         Spawn gs;
         gs.npc = true; gs.role = Role::Guard; gs.slot = slot; gs.site = si; gs.x = tx; gs.y = ty;
-        const Vec2 at = freeSpot(tx, ty);
-        spawnHuman(gs, at);
-        perf.spawnedNpcs++;
+        const Vec2 at = ClimbOps::freeSpot(gm, tx, ty);
+        gm.spawnHuman(gs, at);
+        gm.perf.spawnedNpcs++;
       }
     }
   }
 }
 
-void Game::updateSpawning(float dt) {
+void StreamOps::updateSpawning(Game& gm, float dt) {
   // a copy, not a reference: streaming people and spawning monsters push onto actors (reallocation)
-  struct { Vec2 p; } const p{pl().p};
+  struct { Vec2 p; } const p{gm.pl().p};
   int ptx = (int)std::floor(p.p.x / TILE), pty = (int)std::floor(p.p.y / TILE);
   // activate settlement and camp populations near the player (distance to the site's area); an active site streams
   // its people in and out around the player (streamSitePeople)
-  siteScanT_ -= dt;
-  const bool scan = siteScanT_ <= 0;
-  if (scan) siteScanT_ = 0.25f;
+  gm.siteScanT_ -= dt;
+  const bool scan = gm.siteScanT_ <= 0;
+  if (scan) gm.siteScanT_ = 0.25f;
   auto visit = [&](int si) {
-    const Site& st = world.sites[(size_t)si];
-    if (!st.settlement() && st.type != SiteType::BanditCamp && world.siteSpawns.find(si) == world.siteSpawns.end()) return;
+    const Site& st = gm.world.sites[(size_t)si];
+    if (!st.settlement() && st.type != SiteType::BanditCamp && gm.world.siteSpawns.find(si) == gm.world.siteSpawns.end()) return;
     int ddx = std::max({st.r.x - ptx, ptx - (st.r.x + st.r.w - 1), 0});
     int ddy = std::max({st.r.y - pty, pty - (st.r.y + st.r.h - 1), 0});
     int d2 = ddx * ddx + ddy * ddy;
-    bool active = activeSites_.count(si) > 0;
-    if (!active && d2 < SITE_IN * SITE_IN) {
-      activeSites_.insert(si);
-      streamSitePeople(si);
-    } else if (active && d2 > SITE_OUT * SITE_OUT) {
-      activeSites_.erase(si);
-      felled_.erase(si);
-      for (size_t i = 1; i < actors.size();)
-        if (actors[i].site == si && !actors[i].wild && actors[i].fromMap) actors.erase(actors.begin() + (std::ptrdiff_t)i); else i++;
-      for (size_t i = 0; i < sheltered_.size();)
-        if (sheltered_[i].site == si) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)i); else i++;
-      alarms_.erase(si);
-    } else if (active && scan) streamSitePeople(si);
-    else if (!active && d2 > SITE_OUT * SITE_OUT) felled_.erase(si);   // put away while the player was indoors
+    bool active = gm.activeSites_.count(si) > 0;
+    if (!active && d2 < Game::SITE_IN * Game::SITE_IN) {
+      gm.activeSites_.insert(si);
+      StreamOps::streamSitePeople(gm, si);
+    } else if (active && d2 > Game::SITE_OUT * Game::SITE_OUT) {
+      gm.activeSites_.erase(si);
+      gm.felled_.erase(si);
+      for (size_t i = 1; i < gm.actors.size();)
+        if (gm.actors[i].site == si && !gm.actors[i].wild && gm.actors[i].fromMap) gm.actors.erase(gm.actors.begin() + (std::ptrdiff_t)i); else i++;
+      for (size_t i = 0; i < gm.sheltered_.size();)
+        if (gm.sheltered_[i].site == si) gm.sheltered_.erase(gm.sheltered_.begin() + (std::ptrdiff_t)i); else i++;
+      gm.alarms_.erase(si);
+    } else if (active && scan) StreamOps::streamSitePeople(gm, si);
+    else if (!active && d2 > Game::SITE_OUT * Game::SITE_OUT) gm.felled_.erase(si);   // put away while the player was indoors
   };
-  if (world.endless) {
-    const std::vector<int> near = world.nearSites;   // a copy: streaming people never adds sites, but stay safe
+  if (gm.world.endless) {
+    const std::vector<int> near = gm.world.nearSites;   // a copy: streaming people never adds sites, but stay safe
     for (int si : near) visit(si);
     // an active site that left the near list (a teleport) is put away whole
-    for (auto itA = activeSites_.begin(); itA != activeSites_.end();) {
+    for (auto itA = gm.activeSites_.begin(); itA != gm.activeSites_.end();) {
       int si = *itA;
       if (std::find(near.begin(), near.end(), si) != near.end()) { ++itA; continue; }
-      itA = activeSites_.erase(itA);
-      felled_.erase(si);
-      for (size_t i = 1; i < actors.size();)
-        if (actors[i].site == si && !actors[i].wild && actors[i].fromMap) actors.erase(actors.begin() + (std::ptrdiff_t)i); else i++;
-      for (size_t i = 0; i < sheltered_.size();)
-        if (sheltered_[i].site == si) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)i); else i++;
-      alarms_.erase(si);
+      itA = gm.activeSites_.erase(itA);
+      gm.felled_.erase(si);
+      for (size_t i = 1; i < gm.actors.size();)
+        if (gm.actors[i].site == si && !gm.actors[i].wild && gm.actors[i].fromMap) gm.actors.erase(gm.actors.begin() + (std::ptrdiff_t)i); else i++;
+      for (size_t i = 0; i < gm.sheltered_.size();)
+        if (gm.sheltered_[i].site == si) gm.sheltered_.erase(gm.sheltered_.begin() + (std::ptrdiff_t)i); else i++;
+      gm.alarms_.erase(si);
     }
-    for (auto itF = felled_.begin(); itF != felled_.end();)
-      if (std::find(near.begin(), near.end(), itF->first) == near.end()) itF = felled_.erase(itF); else ++itF;
+    for (auto itF = gm.felled_.begin(); itF != gm.felled_.end();)
+      if (std::find(near.begin(), near.end(), itF->first) == near.end()) itF = gm.felled_.erase(itF); else ++itF;
   }
-  perf.activeSites = (int)activeSites_.size();
+  gm.perf.activeSites = (int)gm.activeSites_.size();
   // the dragon waits at its peak once the hunt is on
   const Quest* mq = nullptr;
-  for (auto& q : quests) if (q.type == QType::Main) mq = &q;
-  if (mq && mq->stage == 3 && dragonId_ < 0 && world.lair >= 0) {
-    const Site& L = world.sites[world.lair];
+  for (auto& q : gm.quests) if (q.type == QType::Main) mq = &q;
+  if (mq && mq->stage == 3 && gm.dragonId_ < 0 && gm.world.lair >= 0) {
+    const Site& L = gm.world.sites[gm.world.lair];
     int dx = L.ex - ptx, dy = L.ey - pty;
     if (dx * dx + dy * dy < 30 * 30) {
-      dragonId_ = spawnMonster(Monster::Dragon, Vec2(L.ex * TILE + 8.0f, (L.ey - 6) * TILE + 0.0f), std::max(plLevel + 2, 12), true);
+      gm.dragonId_ = gm.spawnMonster(Monster::Dragon, Vec2(L.ex * TILE + 8.0f, (L.ey - 6) * TILE + 0.0f), std::max(gm.plLevel + 2, 12), true);
       // the dragon belongs to its lair: killing it clears the lair, which ends the main quest
-      actors[findActor(dragonId_)].site = world.lair;
-      sfx((int)Sfx::Roar, pl().p);
-      emit(Ev::Shake, pl().p, 0, 6);
-      say("ASHFANG DESCENDS FROM THE PEAK!");
+      gm.actors[gm.findActor(gm.dragonId_)].site = gm.world.lair;
+      gm.sfx((int)Sfx::Roar, gm.pl().p);
+      gm.emit(Ev::Shake, gm.pl().p, 0, 6);
+      gm.say("ASHFANG DESCENDS FROM THE PEAK!");
     }
   }
-  if (noWildSpawns) return;
+  if (gm.noWildSpawns) return;
   // the opening (shirt only, VISION_PLAN 15.1): no roaming beasts around the start village until the first weapon
-  if (eqWeapon < 0 && !hasFlag(SF_FIRST_WEAPON) && openingQuest() >= 0) {
-    const Site& home = world.sites[world.startSite];
+  if (gm.eqWeapon < 0 && !gm.hasFlag(SF_FIRST_WEAPON) && QuestOps::openingQuest(gm) >= 0) {
+    const Site& home = gm.world.sites[gm.world.startSite];
     int dx = home.r.cx() - ptx, dy = home.r.cy() - pty;
     if (dx * dx + dy * dy < 40 * 40) return;
   }
   // packs live in dens (WORLDGEN_V2+): they appear at their den when you come near and go home when they lose you
-  bool haveDens = !world.dens.empty();
+  bool haveDens = !gm.world.dens.empty();
   if (haveDens) {
-    denT_ -= dt;
-    if (denT_ <= 0) { denT_ = 0.5f; updateDens(ptx, pty); }
+    gm.denT_ -= dt;
+    if (gm.denT_ <= 0) { gm.denT_ = 0.5f; StreamOps::updateDens(gm, ptx, pty); }
   }
   // wildlife and roaming monsters: with dens these are lone wanderers, fewer of them
-  spawnT_ -= dt;
-  if (spawnT_ > 0) return;
-  spawnT_ = haveDens ? 3.5f : 1.5f;
+  gm.spawnT_ -= dt;
+  if (gm.spawnT_ > 0) return;
+  gm.spawnT_ = haveDens ? 3.5f : 1.5f;
   int nearby = 0;
-  for (const Actor& a : actors) if (a.wild && a.st != AState::Dead) nearby++;
-  int cap = haveDens ? (isNight() ? 4 : 2) : (isNight() ? 9 : 6);
+  for (const Actor& a : gm.actors) if (a.wild && a.st != AState::Dead) nearby++;
+  int cap = haveDens ? (gm.isNight() ? 4 : 2) : (gm.isNight() ? 9 : 6);
   if (nearby >= cap) return;
   for (int tries = 0; tries < 12; tries++) {
-    float ang = rng_.f() * TAU;
-    float d = rng_.range(17.0f, 24.0f) * TILE;
+    float ang = gm.rng_.f() * TAU;
+    float d = gm.rng_.range(17.0f, 24.0f) * TILE;
     Vec2 sp = p.p + Vec2(std::cos(ang) * d, std::sin(ang) * d * 0.7f);
     int tx = (int)(sp.x / TILE), ty = (int)(sp.y / TILE);
-    if (world.over.blocked(tx, ty) || world.siteAt(tx, ty, 8) >= 0) continue;
-    Ground g = world.over.at(tx, ty);
+    if (gm.world.over.blocked(tx, ty) || gm.world.siteAt(tx, ty, 8) >= 0) continue;
+    Ground g = gm.world.over.at(tx, ty);
     if (g == Ground::Road || g == Ground::Bridge) continue;
-    bool night = isNight();
+    bool night = gm.isNight();
     Monster m;
-    float q = rng_.f();
+    float q = gm.rng_.f();
     // (M3c) the biome's own wildlife (rpg/world/wildlife.cpp, LIFE lane)
-    if (!ew::roamerOf(world.over.ecoAt(tx, ty), night, q, m)) continue;
-    int lvl = world.zoneLevel(tx, ty);
-    int pack = (m == Monster::Wolf || m == Monster::IceWolf || m == Monster::Goblin || m == Monster::Slime || m == Monster::Hyena) ? 1 + rng_.irange(3) : 1;
+    if (!ew::roamerOf(gm.world.over.ecoAt(tx, ty), night, q, m)) continue;
+    int lvl = gm.world.zoneLevel(tx, ty);
+    int pack = (m == Monster::Wolf || m == Monster::IceWolf || m == Monster::Goblin || m == Monster::Slime || m == Monster::Hyena) ? 1 + gm.rng_.irange(3) : 1;
     if (lvl <= 2 && pack > 2) pack = 2;
     if (haveDens) {
-      pack = m == Monster::Slime ? 1 + rng_.irange(2) : 1;
+      pack = m == Monster::Slime ? 1 + gm.rng_.irange(2) : 1;
       if ((m == Monster::Troll || m == Monster::Bear || m == Monster::Yeti || m == Monster::Lurker) && lvl <= 3) continue;   // big brutes live in dens near home
     }
     for (int k = 0; k < pack; k++) {
-      const float jy = rng_.range(-12, 12);   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
-      const float jx = rng_.range(-12, 12);
+      const float jy = gm.rng_.range(-12, 12);   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
+      const float jx = gm.rng_.range(-12, 12);
       Vec2 at = sp + Vec2(jx, jy);
-      if (solidAt(at.x, at.y, false)) at = sp;
-      int id = spawnMonster(m, at, lvl, false);
-      actors[findActor(id)].wild = true;
+      if (ClimbOps::solidAt(gm, at.x, at.y, false)) at = sp;
+      int id = gm.spawnMonster(m, at, lvl, false);
+      gm.actors[gm.findActor(id)].wild = true;
     }
     return;
   }
@@ -1662,50 +1471,50 @@ int Game::denClearedDay(int den) const {
   return -1;
 }
 
-void Game::updateDens(int ptx, int pty) {
+void StreamOps::updateDens(Game& g, int ptx, int pty) {
   // only the dens near the window (an active den that left it is put away below)
-  const std::vector<int>* list = &world.nearDens;
-  for (int i : std::vector<int>(activeDens_.begin(), activeDens_.end()))
-      if (std::find(world.nearDens.begin(), world.nearDens.end(), i) == world.nearDens.end()) {
-        activeDens_.erase(i);
-        for (size_t k = 1; k < actors.size();)
-          if (actors[k].den == i) actors.erase(actors.begin() + (std::ptrdiff_t)k); else k++;
+  const std::vector<int>* list = &g.world.nearDens;
+  for (int i : std::vector<int>(g.activeDens_.begin(), g.activeDens_.end()))
+      if (std::find(g.world.nearDens.begin(), g.world.nearDens.end(), i) == g.world.nearDens.end()) {
+        g.activeDens_.erase(i);
+        for (size_t k = 1; k < g.actors.size();)
+          if (g.actors[k].den == i) g.actors.erase(g.actors.begin() + (std::ptrdiff_t)k); else k++;
       }
   for (int i : *list) {
-    const Den& dn = world.dens[i];
+    const Den& dn = g.world.dens[i];
     int dx = dn.x - ptx, dy = dn.y - pty;
     int d2 = dx * dx + dy * dy;
-    bool active = activeDens_.count(i) > 0;
+    bool active = g.activeDens_.count(i) > 0;
     if (!active && d2 < 27 * 27) {
-      int cd = denClearedDay(i);
+      int cd = g.denClearedDay(i);
       if (cd >= 0) {
-        if (day - cd < 3) continue;   // cleared dens stay empty for three days, then something moves back in
-        for (int v : std::vector<int>(killedSlots[-1].begin(), killedSlots[-1].end())) if (v / 4096 == i) killedSlots[-1].erase(v);
+        if (g.day - cd < 3) continue;   // cleared dens stay empty for three days, then something moves back in
+        for (int v : std::vector<int>(g.killedSlots[-1].begin(), g.killedSlots[-1].end())) if (v / 4096 == i) g.killedSlots[-1].erase(v);
       }
-      activeDens_.insert(i);
-      int lvl = world.zoneLevel(dn.x, dn.y);
+      g.activeDens_.insert(i);
+      int lvl = g.world.zoneLevel(dn.x, dn.y);
       int n = dn.pack;
       bool packKind = dn.mon == Monster::Wolf || dn.mon == Monster::IceWolf || dn.mon == Monster::Goblin || dn.mon == Monster::Skeleton;
       if (packKind && lvl <= 3) n = std::min(n, lvl <= 1 ? 2 : 3);       // gentler packs close to home
-      if (packKind && lvl > 3 && isNight() && dn.mon != Monster::Goblin) n++;   // and bigger ones out in the dark
-      Rng r(hash2(dn.x, dn.y, (uint32_t)seed ^ (uint32_t)day));
+      if (packKind && lvl > 3 && g.isNight() && dn.mon != Monster::Goblin) n++;   // and bigger ones out in the dark
+      Rng r(hash2(dn.x, dn.y, (uint32_t)g.seed ^ (uint32_t)g.day));
       for (int k = 0; k < n; k++) {
         float a = k * TAU / n + r.f();
         int tx = dn.x + (int)std::lround(std::cos(a) * 1.5f), ty = dn.y + (int)std::lround(std::sin(a) * 1.2f);
         Vec2 at(tx * TILE + 8.0f, ty * TILE + 10.0f);
-        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
-        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = freeSpot(dn.x, dn.y);
-        int id = spawnMonster(dn.mon, at, lvl, false);
-        Actor& m = actors[findActor(id)];
+        if (!ClimbOps::bodyFree(g, at, mstat(dn.mon).radius, false)) at = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
+        if (!ClimbOps::bodyFree(g, at, mstat(dn.mon).radius, false)) at = ClimbOps::freeSpot(g, dn.x, dn.y);
+        int id = g.spawnMonster(dn.mon, at, lvl, false);
+        Actor& m = g.actors[g.findActor(id)];
         m.den = i;
         m.home = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
         m.goal = m.p;
       }
     } else if (active && d2 > 38 * 38) {
       // out of range: the den resets (a pack you only thinned is whole again next time)
-      activeDens_.erase(i);
-      for (size_t k = 1; k < actors.size();)
-        if (actors[k].den == i) actors.erase(actors.begin() + k); else k++;
+      g.activeDens_.erase(i);
+      for (size_t k = 1; k < g.actors.size();)
+        if (g.actors[k].den == i) g.actors.erase(g.actors.begin() + k); else k++;
     }
   }
 }
@@ -1805,9 +1614,9 @@ void Game::enterSite(int si) {
   pl().face = 1;
   exitArmed_ = false;
   loadMapActors();
-  questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
-  homeMapLoaded();    // M7 (home_game.cpp)
-  storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
+  QuestOps::questMapLoaded(*this);   // M2: an heirloom's chest, a missing person (quests.cpp)
+  HomeOps::mapLoaded(*this);    // M7 (home_game.cpp)
+  StoryOps::entered(*this, si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
   say(st.name);
@@ -1838,7 +1647,7 @@ void Game::enterBuilding(int bi, int col) {
   // (M7 fix) by this building's door (the rider may have been set down at the door from afar: a journey, a script)
   if (rode && home.horse >= 0 && !home.horseInn) { home.horseGx = world.ox + b.doorX(); home.horseGy = world.oy + b.doorY() + 1; }
   inside = true; subSite = -1; subBldg = bi; subFloor = 0;
-  if (takePreparedInterior(b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
+  if (TravelOps::takePrepared(*this, b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
   else { genInterior(sub, b, b.seed, 0); prepMisses++; }
   for (int i = 0; i < sub.w * sub.h; i++)
     if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;
@@ -1853,9 +1662,9 @@ void Game::enterBuilding(int bi, int col) {
   stairsNorth_ = false;
   stairsArrive_ = -1;
   loadMapActors();
-  questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
-  homeMapLoaded();    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
-  storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
+  QuestOps::questMapLoaded(*this);   // M2: a parcel's recipient (quests.cpp)
+  HomeOps::mapLoaded(*this);    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
+  StoryOps::entered(*this, -1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
 }
@@ -1889,7 +1698,7 @@ void Game::changeFloor(int f) {
   stairsNorth_ = false;
   stairsFrom_ = pl().p;
   loadMapActors();
-  homeMapLoaded();    // M7: the player's own house's upper floor (home_game.cpp)
+  HomeOps::mapLoaded(*this);    // M7: the player's own house's upper floor (home_game.cpp)
   updateLocation();
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, up ? 1.15f : 0.9f);
@@ -1947,7 +1756,7 @@ void Game::leaveSub() {
     if (tx < lo || ty < lo || tx >= hi || ty >= hi) placePlayerAt(tx, ty);   // (the door's tile: free, so exact)
   }
   pl().face = 0;
-  if (si >= 0) questLeftSite(si);   // M2: a missing person led out is safe (quests.cpp)
+  if (si >= 0) QuestOps::questLeftSite(*this, si);   // M2: a missing person led out is safe (quests.cpp)
   story::syncNow(*this);            // (P1b) a story's walker who waited at the door (or came out of the dark) is beside them
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.8f);
@@ -1969,9 +1778,9 @@ void Game::debugSpawn(Monster m, int n, float dist) {
     Vec2 at = pl().p + Vec2(std::cos(a) * dist, std::sin(a) * dist * 0.7f);
     // never inside rock or water (the whole body, or it can't move): walk the ring inward until it fits
     const MStat& ms = mstat(m);
-    for (float k = 1.0f; k > 0.15f && !bodyFree(at, ms.radius, ms.flying); k -= 0.1f)
+    for (float k = 1.0f; k > 0.15f && !ClimbOps::bodyFree(*this, at, ms.radius, ms.flying); k -= 0.1f)
       at = pl().p + Vec2(std::cos(a) * dist * k, std::sin(a) * dist * 0.7f * k);
-    if (!bodyFree(at, ms.radius, ms.flying)) { int tx = (int)(at.x / TILE), ty = (int)(at.y / TILE); at = freeSpot(tx, ty); }
+    if (!ClimbOps::bodyFree(*this, at, ms.radius, ms.flying)) { int tx = (int)(at.x / TILE), ty = (int)(at.y / TILE); at = ClimbOps::freeSpot(*this, tx, ty); }
     int id = spawnMonster(m, at, 1, false);
     actors[findActor(id)].aggro = true;
   }

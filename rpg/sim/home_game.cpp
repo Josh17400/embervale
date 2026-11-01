@@ -27,6 +27,8 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/home.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/game.h"
 
 // ---------------------------------------------------------------- HomeOps: shared helpers
 void HomeOps::dropAt(Game& g, int i) {
@@ -67,7 +69,7 @@ void HomeOps::travelHomeOnRespawn(Game& g, int32_t gx, int32_t gy) {
   g.travel.site = -1;
   g.travel.kind = 2;
   g.travel.gx = gx; g.travel.gy = gy;
-  g.journeyWindow();
+  TravelOps::journeyWindow(g);
   g.travel.t = kTravelFadeOut;
   g.sleepFade = 1.0f;
 }
@@ -156,78 +158,78 @@ void Game::homeDismount(home::Dismount why) {
   else if (why == home::Dismount::Water) say("THE HORSE WILL NOT WADE INTO THE WET: YOU DISMOUNT");
 }
 
-bool Game::yardBarred(const Actor& a, int tx, int ty) const {
-  if (home.plots.empty() || inside || a.player || !a.npc || a.hostile || (a.lifeBits & LB_HOMESTEAD)) return false;
-  const int pi = home.plotAt(world.ox + tx, world.oy + ty);
+bool ClimbOps::yardBarred(const Game& g, const Actor& a, int tx, int ty) {
+  if (g.home.plots.empty() || g.inside || a.player || !a.npc || a.hostile || (a.lifeBits & LB_HOMESTEAD)) return false;
+  const int pi = g.home.plotAt(g.world.ox + tx, g.world.oy + ty);
   if (pi < 0) return false;
   const int ax = (int)std::floor(a.p.x / TILE), ay = (int)std::floor((a.p.y - 2) / TILE);
-  return home.plotAt(world.ox + ax, world.oy + ay) != pi;
+  return g.home.plotAt(g.world.ox + ax, g.world.oy + ay) != pi;
 }
 
 // ---------------------------------------------------------------- the step
-void Game::homeStep(float dt) {
+void HomeOps::step(Game& g, float dt) {
   // discovered styles: the homeland's, then every settlement the player stands in
-  if (app.homeland && !home.knowsStyle(app.homeland)) home.styles.push_back(app.homeland);
-  if (curSite >= 0 && curSite < (int)world.sites.size()) {
-    const Site& s = world.sites[(size_t)curSite];
-    if (s.settlement() && s.culture && !home.knowsStyle(s.culture)) home.styles.push_back(s.culture);
+  if (g.app.homeland && !g.home.knowsStyle(g.app.homeland)) g.home.styles.push_back(g.app.homeland);
+  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size()) {
+    const Site& s = g.world.sites[(size_t)g.curSite];
+    if (s.settlement() && s.culture && !g.home.knowsStyle(s.culture)) g.home.styles.push_back(s.culture);
   }
   int32_t px, py;
   {
     int tx, ty;
-    overworldTile(*this, tx, ty);
-    px = world.ox + tx; py = world.oy + ty;
+    overworldTile(g, tx, ty);
+    px = g.world.ox + tx; py = g.world.oy + ty;
   }
   bool changed = false;
-  for (size_t pi = 0; pi < home.plots.size(); pi++) {
-    home::Plot& p = home.plots[pi];
-    const bool near = !inside && std::abs(p.gx + p.w / 2 - px) < 60 && std::abs(p.gy + p.h / 2 - py) < 60;
+  for (size_t pi = 0; pi < g.home.plots.size(); pi++) {
+    home::Plot& p = g.home.plots[pi];
+    const bool near = !g.inside && std::abs(p.gx + p.w / 2 - px) < 60 && std::abs(p.gy + p.h / 2 - py) < 60;
     // the day's catch-up: near the player, the night's raid is a live one (wolves at the pen) instead of the roll
-    while ((int)p.lastSeenDay < day) {
+    while ((int)p.lastSeenDay < g.day) {
       const int d = (int)p.lastSeenDay + 1;
-      if (near && day - (int)p.lastSeenDay <= 2) {
+      if (near && g.day - (int)p.lastSeenDay <= 2) {
         const uint8_t keep = p.flags;
         p.flags &= (uint8_t)~home::PF_EXPOSED;
-        home::catchUp(p, d - 1, d, seed);
+        home::catchUp(p, d - 1, d, g.seed);
         p.flags = (uint8_t)((p.flags & ~home::PF_EXPOSED) | (keep & home::PF_EXPOSED));
-        if (d == day && home::raidRoll(p, d, seed)) HomeOps::dayTurned(*this, (int)pi, d);
+        if (d == g.day && home::raidRoll(p, d, g.seed)) HomeOps::dayTurned(g, (int)pi, d);
       } else {
-        home::catchUp(p, p.lastSeenDay, day, seed);
+        home::catchUp(p, p.lastSeenDay, g.day, g.seed);
       }
     }
-    if (p.state == home::PlotState::Building && day >= (int)p.buildDoneDay) {
+    if (p.state == home::PlotState::Building && g.day >= (int)p.buildDoneDay) {
       p.state = home::PlotState::Built;
       changed = true;
-      emit(Ev::QuestUpdate, pl().p, 0, 1, "YOUR HOUSE IS FINISHED");
+      g.emit(Ev::QuestUpdate, g.pl().p, 0, 1, "YOUR HOUSE IS FINISHED");
     }
     // the plot's exposure (while its land is in the window: a fence ring closed, a den cleared)
     if (near) {
-      const bool ex = exposed(*this, p);
+      const bool ex = exposed(g, p);
       p.flags = (uint8_t)(ex ? (p.flags | home::PF_EXPOSED) : (p.flags & ~home::PF_EXPOSED));
     }
     // the deed when the settlement changed hands (8.1: honoured at reputation >= 0, else the 25 % re-registration)
-    const int si = world.siteHandle(p.site);
+    const int si = g.world.siteHandle(p.site);
     if (si >= 0) {
-      const ew::Gid k = holderOf(*this, si);
+      const ew::Gid k = holderOf(g, si);
       if (!p.realm) p.realm = k;
       else if (k && k != p.realm && !(p.flags & home::PF_REREG)) {
-        if (realm.rep(k) >= 0) {
+        if (g.realm.rep(k) >= 0) {
           p.realm = k;
-          HomeOps::news(*this, kingdomNameOf(*this, k) + " HONOUR YOUR DEED TO " + home::propertyName(*this, p));
+          HomeOps::news(g, kingdomNameOf(g, k) + " HONOUR YOUR DEED TO " + home::propertyName(g, p));
         } else {
           p.flags |= home::PF_REREG;
-          HomeOps::news(*this, kingdomNameOf(*this, k) + " DO NOT KNOW YOUR DEED TO " + home::propertyName(*this, p) + ": RE-REGISTER IT (" +
-                               std::to_string(home::reregFee(*this, p)) + " GOLD)");
+          HomeOps::news(g, kingdomNameOf(g, k) + " DO NOT KNOW YOUR DEED TO " + home::propertyName(g, p) + ": RE-REGISTER IT (" +
+                               std::to_string(home::reregFee(g, p)) + " GOLD)");
         }
       }
     }
     // taxes: a reminder every third day while they are owed
-    const int owed = home::taxOwed(p, day);
-    if (owed > 0 && day - (int)p.taxNoticeDay >= 3 && hour >= 8.0f) {
-      p.taxNoticeDay = (uint16_t)day;
-      const std::string town = si >= 0 ? world.sites[(size_t)si].name : std::string("THE TOWN");
+    const int owed = home::taxOwed(p, g.day);
+    if (owed > 0 && g.day - (int)p.taxNoticeDay >= 3 && g.hour >= 8.0f) {
+      p.taxNoticeDay = (uint16_t)g.day;
+      const std::string town = si >= 0 ? g.world.sites[(size_t)si].name : std::string("THE TOWN");
       const bool lien = owed >= home::LIEN_WEEKS * std::max(1, home::plotTaxWeek(p));
-      HomeOps::notice(*this, std::string(lien ? "LIEN FOR UNPAID TAX ON " : "TAX OWED ON ") + home::propertyName(*this, p) + ": " + std::to_string(owed) +
+      HomeOps::notice(g, std::string(lien ? "LIEN FOR UNPAID TAX ON " : "TAX OWED ON ") + home::propertyName(g, p) + ": " + std::to_string(owed) +
                                  " GOLD (PAY IN " + town + ")", lien ? rgba(240, 120, 100) : rgba(230, 190, 110));
     }
     // a lost animal: the news, then (a day later) it is gone from the record
@@ -236,60 +238,60 @@ void Game::homeStep(float dt) {
       if (!(p.flags & home::PF_RAIDED)) {
         p.flags |= home::PF_RAIDED;
         const home::AnimalRec& a = p.animals[k];
-        HomeOps::news(*this, "WOLVES TOOK " + home::animalName(a) + " THE " + home::animalInfo((home::Animal)a.kind).name + " FROM " + home::propertyName(*this, p));
+        HomeOps::news(g, "WOLVES TOOK " + home::animalName(a) + " THE " + home::animalInfo((home::Animal)a.kind).name + " FROM " + home::propertyName(g, p));
       }
     }
-    if (day > (int)p.raidDay + 1)
+    if (g.day > (int)p.raidDay + 1)
       for (size_t k = p.animals.size(); k-- > 0;)
         if (p.animals[k].flags & home::AF_LOST) {
           p.animals.erase(p.animals.begin() + (std::ptrdiff_t)k);
           const int id = (int)pi * 64 + (int)k;
           auto fix = [&](int& r) { if (r == id) r = -1; else if (r > id && r / 64 == (int)pi) r--; };
-          fix(home.riding);
-          fix(home.horse);
+          fix(g.home.riding);
+          fix(g.home.horse);
           home::updateDogFlag(p);
           changed = true;
         }
   }
-  if (changed) HomeOps::restamp(*this);
-  if (homeSerial_ != world.placeSerial) {
-    homeSerial_ = world.placeSerial;
-    home::stampWindow(*this);
+  if (changed) HomeOps::restamp(g);
+  if (g.homeSerial_ != g.world.placeSerial) {
+    g.homeSerial_ = g.world.placeSerial;
+    home::stampWindow(g);
     // (M7 fixer r2) a house, its building site or a solid yard object just stamped over someone (the player built
     // where they stood, a coop's ghost covered their tile, an animal or a villager stood there): step them out onto
     // the nearest free tile (in front of the door when they were on the house), never left trapped in it
-    if (!inside)
-      for (Actor& a : actors) {
-        if (a.hp <= 0 || a.flying || a.fly || bodyFree(a.p, a.radius, false)) continue;
+    if (!g.inside)
+      for (Actor& a : g.actors) {
+        if (a.hp <= 0 || a.flying || a.fly || ClimbOps::bodyFree(g, a.p, a.radius, false)) continue;
         const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor((a.p.y - 2) / TILE);
-        const int pi = home.plotAt(world.ox + tx, world.oy + ty);
+        const int pi = g.home.plotAt(g.world.ox + tx, g.world.oy + ty);
         if (pi < 0) continue;
-        const home::Plot& P = home.plots[(size_t)pi];
+        const home::Plot& P = g.home.plots[(size_t)pi];
         int sx = tx, sy = ty;
-        const int hx = P.gx + P.hx - world.ox, hy = P.gy + P.hy - world.oy;
+        const int hx = P.gx + P.hx - g.world.ox, hy = P.gy + P.hy - g.world.oy;
         if (P.hw && tx >= hx && tx < hx + P.hw && ty >= hy && ty < hy + P.hh) {
           int dx, dy;
           home::doorOf(P, dx, dy);
-          sx = P.gx + dx - world.ox; sy = P.gy + dy + 1 - world.oy;
+          sx = P.gx + dx - g.world.ox; sy = P.gy + dy + 1 - g.world.oy;
         }
-        a.p = freeSpot(sx, sy);
+        a.p = ClimbOps::freeSpot(g, sx, sy);
         a.vel = Vec2();
         a.knock = Vec2();
       }
   }
   // riding: off in water (the horse stays on the bank), off indoors (enterBuilding / enterSite already dismount)
-  if (home.riding >= 0) {
-    if (inside) homeDismount(home::Dismount::Enter);
+  if (g.home.riding >= 0) {
+    if (g.inside) g.homeDismount(home::Dismount::Enter);
     else {
-      const Actor& p = pl();
+      const Actor& p = g.pl();
       const int tx = (int)std::floor(p.p.x / TILE), ty = (int)std::floor((p.p.y - 2) / TILE);
-      const Ground gr = map().at(tx, ty);
+      const Ground gr = g.map().at(tx, ty);
       // water is never walked; the wet ground a horse will not wade is the bog (Ground::Swamp) and a ford's shallows
-      if (groundWater(gr) || gr == Ground::Swamp) homeDismount(home::Dismount::Water);
-      else { homeDryX_ = world.ox + tx; homeDryY_ = world.oy + ty; }
+      if (groundWater(gr) || gr == Ground::Swamp) g.homeDismount(home::Dismount::Water);
+      else { g.homeDryX_ = g.world.ox + tx; g.homeDryY_ = g.world.oy + ty; }
     }
   }
-  HomeOps::actorsStep(*this, dt);   // animals, the waiting horse, builders, the farmhand, wolves (home_actors.cpp)
+  HomeOps::actorsStep(g, dt);   // animals, the waiting horse, builders, the farmhand, wolves (home_actors.cpp)
 }
 
 // ---------------------------------------------------------------- the yard in front of the player
@@ -388,67 +390,67 @@ Use useAt(const Game& g) {
 }
 }  // namespace
 
-bool Game::homeInteract() {
-  const Use u = useAt(*this);
+bool HomeOps::plotInteract(Game& g) {
+  const Use u = useAt(g);
   if (u.kind == U_NONE) return false;
   std::string why;
-  home::Plot& P = home.plots[(size_t)u.plot];
+  home::Plot& P = g.home.plots[(size_t)u.plot];
   bool ok = true;
   switch (u.kind) {
-    case U_HARVEST: ok = home::harvest(*this, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(*this, 3); break;   // (M9) Farming
-    case U_WATER: ok = home::water(*this, u.plot, u.x, u.y, why); if (ok) { sfx((int)Sfx::Pickup, pl().p, 1.4f, 0.5f); SkillOps::farmed(*this, 2); } break;
+    case U_HARVEST: ok = home::harvest(g, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(g, 3); break;   // (M9) Farming
+    case U_WATER: ok = home::water(g, u.plot, u.x, u.y, why); if (ok) { g.sfx((int)Sfx::Pickup, g.pl().p, 1.4f, 0.5f); SkillOps::farmed(g, 2); } break;
     case U_CHECK:
       for (const home::CropRec& c : P.crops)
         if (c.x == u.x && c.y == u.y) {
           static const char* st[] = {"A SEEDLING", "GROWING", "RIPENING", "RIPE"};
-          say(std::string(home::cropInfo((home::Crop)c.kind).name) + ": " + (c.wilted(day) ? "WILTING, IT NEEDS WATER" : st[std::min<int>(c.stage, 3)]));
+          g.say(std::string(home::cropInfo((home::Crop)c.kind).name) + ": " + (c.wilted(g.day) ? "WILTING, IT NEEDS WATER" : st[std::min<int>(c.stage, 3)]));
         }
       return true;
-    case U_PLANT: ok = home::plant(*this, u.plot, u.x, u.y, (home::Crop)u.arg, why); if (ok) SkillOps::farmed(*this, 1); break;
-    case U_TILL: ok = home::till(*this, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(*this, 0); break;
+    case U_PLANT: ok = home::plant(g, u.plot, u.x, u.y, (home::Crop)u.arg, why); if (ok) SkillOps::farmed(g, 1); break;
+    case U_TILL: ok = home::till(g, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(g, 0); break;
     case U_COLLECT: {
       int got = 0;
       for (home::AnimalRec& a : P.animals) {
         const home::AnimalInfo& ai = home::animalInfo((home::Animal)a.kind);
         if ((int)ai.home != u.arg || !a.produce || (a.flags & home::AF_LOST)) continue;
-        Item it = home::makeProduct((home::Product)ai.product, a.produce * SkillOps::produceMul(*this));   // (M9) GOOD HUSBANDRY
+        Item it = home::makeProduct((home::Product)ai.product, a.produce * SkillOps::produceMul(g));   // (M9) GOOD HUSBANDRY
         if (a.happiness >= 80) { it.tier = 2; it.name = "FINE " + it.name; it.value += it.value / 2; }
         else if (a.happiness >= 50) it.tier = 1;
-        HomeOps::give(*this, it);
+        HomeOps::give(g, it);
         got += a.produce;
         a.produce = 0;
       }
       ok = got > 0;
       if (!ok) why = "NOTHING TO COLLECT YET";
-      else SkillOps::farmed(*this, 4);   // (M9) Farming: tending the animals
+      else SkillOps::farmed(g, 4);   // (M9) Farming: tending the animals
       break;
     }
     case U_HONEY: {
       home::PlacedObj& o = P.outside[(size_t)u.arg];
-      HomeOps::give(*this, home::makeProduct(home::Product::Honey, home::honeyOf(o)));
+      HomeOps::give(g, home::makeProduct(home::Product::Honey, home::honeyOf(o)));
       o.data &= ~0xFFu;
       break;
     }
-    case U_RIDE: ok = home::mount(*this, u.plot, u.arg, why); break;
+    case U_RIDE: ok = home::mount(g, u.plot, u.arg, why); break;
     case U_CRATE:
-      home.ui = home::Ui();
-      home.ui.mode = home::UiMode::Storage; home.ui.plot = u.plot; home.ui.store = u.arg;
-      mode = Mode::Build;
+      g.home.ui = home::Ui();
+      g.home.ui.mode = home::UiMode::Storage; g.home.ui.plot = u.plot; g.home.ui.store = u.arg;
+      g.mode = Mode::Build;
       return true;
     case U_COOK:
-      home.ui = home::Ui();
-      home.ui.mode = home::UiMode::Cook; home.ui.plot = u.plot; home.ui.station = home::Station::Campfire;
-      mode = Mode::Build;
+      g.home.ui = home::Ui();
+      g.home.ui.mode = home::UiMode::Cook; g.home.ui.plot = u.plot; g.home.ui.station = home::Station::Campfire;
+      g.mode = Mode::Build;
       return true;
     case U_TROUGH: {
-      const int hay = HomeOps::count(*this, [](const Item& it) { return it.kind == ItemKind::Misc && it.sub == home::MISC_PRODUCT + (int)home::Product::Hay; });
-      ok = home::feedHay(*this, u.plot, hay, why);
-      if (ok) say("THE TROUGHS ARE FILLED");
+      const int hay = HomeOps::count(g, [](const Item& it) { return it.kind == ItemKind::Misc && it.sub == home::MISC_PRODUCT + (int)home::Product::Hay; });
+      ok = home::feedHay(g, u.plot, hay, why);
+      if (ok) g.say("THE TROUGHS ARE FILLED");
       break;
     }
     default: return false;
   }
-  if (!ok) say(why);
+  if (!ok) g.say(why);
   return true;
 }
 
@@ -465,23 +467,17 @@ std::string home::interactLabel(const Game& g) {
   return useAt(g).label;
 }
 
-bool Game::homeUseProp(art::Prop p, int tx, int ty) { return HomeOps::useProp(*this, p, tx, ty); }
-bool Game::homePropUsable(art::Prop p, int tx, int ty) const { return HomeOps::propUsable(*this, p, tx, ty); }
-void Game::homeMapLoaded() { HomeOps::mapLoaded(*this); }
-void Game::homeTalk(Actor& a) { HomeOps::talk(*this, a); }
-bool Game::homeChoose(const DlgOpt& o) { return HomeOps::choose(*this, o); }
-bool Game::homeBed(int tx, int ty) const { return HomeOps::bed(*this, tx, ty); }
-void Game::homeAte(const Item& food) {
+void HomeOps::ate(Game& g, const Item& food) {
   float h = 0;
   uint8_t q = 0;
   home::mealBuff(food, h, q);
   if (h <= 0) return;
-  h *= SkillOps::fedMul(*this, food);   // (M9) Cooking HEARTY: a meal the hero cooked fills twice as long
-  if (const float heal = SkillOps::mealHeal(*this, food); heal > 0) pl().hp = std::min(pl().maxHp, pl().hp + heal);   // FIELD COOK
+  h *= SkillOps::fedMul(g, food);   // (M9) Cooking HEARTY: a meal the hero cooked fills twice as long
+  if (const float heal = SkillOps::mealHeal(g, food); heal > 0) g.pl().hp = std::min(g.pl().maxHp, g.pl().hp + heal);   // FIELD COOK
   // a cooked meal's Well Fed replaces a lesser one (never adds up; potions are separate: their cooldown, no buff); a
   // lesser meal over a better one still being digested leaves it be. (M7 fix r3) the station's quality and hours are
   // the meal's own: a campfire stew is a campfire stew, a hearth's better, an inn's best
-  life::PlayerNeeds& n = life.player;
+  life::PlayerNeeds& n = g.life.player;
   q = std::max<uint8_t>(q, 1);   // (any cooked meal is at least a snack's worth)
   const uint8_t q0 = n.fedH > 0 ? n.mealQuality : 0;
   if (q >= q0) {
@@ -491,17 +487,17 @@ void Game::homeAte(const Item& food) {
   n.sinceMealH = 0;
 }
 
-void Game::homeShopStock(const Actor& merchant, std::vector<Item>& stock) {
-  const int si = HomeOps::siteOfActor(*this, merchant);
-  if (si < 0 || !world.sites[(size_t)si].settlement()) return;
-  const Site& s = world.sites[(size_t)si];
-  const art::Building where = merchant.bldg >= 0 && merchant.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)merchant.bldg].type : art::Building::House;
+void HomeOps::shopStock(Game& g, const Actor& merchant, std::vector<Item>& stock) {
+  const int si = HomeOps::siteOfActor(g, merchant);
+  if (si < 0 || !g.world.sites[(size_t)si].settlement()) return;
+  const Site& s = g.world.sites[(size_t)si];
+  const art::Building where = merchant.bldg >= 0 && merchant.bldg < (int)g.world.over.bldgs.size() ? g.world.over.bldgs[(size_t)merchant.bldg].type : art::Building::House;
   const bool general = merchant.role == Role::Merchant && (where == art::Building::Shop || where == art::Building::Exchange || merchant.stallKeeper || merchant.bldg < 0);
   const bool farmer = merchant.role == Role::Farmer;
-  Rng r(hash32((uint32_t)npcKey(merchant) ^ 0x5EED5u ^ (uint32_t)(day / 2)));
+  Rng r(hash32((uint32_t)g.npcKey(merchant) ^ 0x5EED5u ^ (uint32_t)(g.day / 2)));
   if (general || farmer) {
     // seeds of the culture's staples (warm crops only where the land is warm: the staple table says which)
-    const std::vector<home::Crop> own = home::seedCrops(s.culture, *this);
+    const std::vector<home::Crop> own = home::seedCrops(s.culture, g);
     const int kinds = std::min((int)own.size(), farmer ? 3 : 4);
     const int first = own.empty() ? 0 : r.irange((int)own.size());
     for (int k = 0; k < kinds; k++) {

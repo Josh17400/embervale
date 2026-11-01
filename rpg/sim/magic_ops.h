@@ -14,6 +14,7 @@
 #include <string>
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic.h"
+#include "rpg/sim/ai_ops.h"
 
 struct MagicOps {
   // ---- the player's casting (updatePlayer): the quick slots (Input::castSlot / castHold / castDual), the classic SPELL
@@ -108,8 +109,8 @@ struct MagicOps {
   static void tell(Game& g, const std::string& s) { g.say(s); }
   static void snd(Game& g, int s, Vec2 p, float pitch = 1, float vol = 1) { g.sfx(s, p, pitch, vol); }
   static void hit(Game& g, Actor& v, float dmg, Vec2 from, int attacker, Ench e = Ench::None, float ep = 0) { g.damage(v, dmg, from, attacker, e, ep, false); }
-  static void move(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
-  static bool fits(const Game& g, Vec2 p, float r) { return g.bodyFree(p, r, false); }
+  static void move(Game& g, Actor& a, Vec2 d) { ClimbOps::moveActor(g, a, d); }
+  static bool fits(const Game& g, Vec2 p, float r) { return ClimbOps::bodyFree(g, p, r, false); }
   static int newId(Game& g) { return g.nextId_++; }
   static void giveXp(Game& g, int xp) { g.gainXp(xp); }
   // ---- tests and scripts: a teacher beside the hero (its actor id), a talk opened with them, a land forced (the
@@ -146,7 +147,7 @@ struct MagicOps {
   // Dreamweft: a decoy of the hero at p (its actor id)
   static int spawnDecoy(Game& g, const magic::SpellDef& d, Vec2 p, float mag, float secs);
   static bool inBubble(const Game& g, Vec2 p);
-  static void updateAIScaled(Game& g, Actor& a, float dt) { g.updateAI(a, dt); }
+  static void updateAIScaled(Game& g, Actor& a, float dt) { AiOps::updateAI(g, a, dt); }
   static void enterSiteRaw(Game& g, int site) { g.enterSite(site); }   // tests / scripts: walk into a trial
-  static void moveRaw(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
+  static void moveRaw(Game& g, Actor& a, Vec2 d) { ClimbOps::moveActor(g, a, d); }
 };

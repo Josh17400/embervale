@@ -23,6 +23,10 @@
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
+#include "rpg/sim/life_hooks.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/game.h"
 
 using art::Monster;
 using art::Prop;
@@ -88,32 +92,32 @@ art::Icon keepsakeIcon(const std::string& s) {
 
 // the nearest-ish unfinished place of a type within kRadiantRange tiles of a global tile, from the region plans (no
 // tiles are generated); places beyond the player (danger > level + 3) only when nothing else fits (danger = true)
-int Game::pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude) {
+int QuestOps::pickRadiant(Game& g, SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude) {
   danger = false;
-  if (!world.endless || !world.src) return -1;
-  const ew::Gid exId = exclude >= 0 && exclude < (int)world.sites.size() ? world.sites[(size_t)exclude].id : 0;
+  if (!g.world.endless || !g.world.src) return -1;
+  const ew::Gid exId = exclude >= 0 && exclude < (int)g.world.sites.size() ? g.world.sites[(size_t)exclude].id : 0;
   const int rings = (kRadiantRange + ew::REGION - 1) / ew::REGION;
   const int32_t rx0 = ew::regionOf(gx), ry0 = ew::regionOf(gy);
   struct Cand { ew::Gid id; float score; bool fit; };
   std::vector<Cand> c;
   for (int32_t ry = ry0 - rings; ry <= ry0 + rings; ry++)
     for (int32_t rx = rx0 - rings; rx <= rx0 + rings; rx++) {
-      const ew::RegionPlan R = world.regionPlan(rx, ry);
+      const ew::RegionPlan R = g.world.regionPlan(rx, ry);
       for (const ew::SitePlan& p : R.sites) {
         if (p.type != t || (p.flags & ew::SPF_MAINQUEST) || p.id == exId) continue;
         const float d = std::hypot((float)(p.ex - gx), (float)(p.ey - gy));
         if (d > (float)kRadiantRange) continue;
-        const int h = world.siteHandle(p.id);
-        if (h >= 0 && world.sites[(size_t)h].cleared) continue;
+        const int h = g.world.siteHandle(p.id);
+        if (h >= 0 && g.world.sites[(size_t)h].cleared) continue;
         // not a place another open job points at, nor one a finished job already sent the player to
         bool taken = false;
-        for (const Quest& o : quests) {
+        for (const Quest& o : g.quests) {
           if (o.type == QType::Main) continue;
-          const ew::Gid oid = o.targetId ? o.targetId : (o.target >= 0 && o.target < (int)world.sites.size() ? world.sites[(size_t)o.target].id : 0);
+          const ew::Gid oid = o.targetId ? o.targetId : (o.target >= 0 && o.target < (int)g.world.sites.size() ? g.world.sites[(size_t)o.target].id : 0);
           if (oid == p.id) taken = true;
         }
         if (taken) continue;
-        c.push_back({p.id, d * (0.8f + r.f() * 0.5f), p.level <= plLevel + 3});
+        c.push_back({p.id, d * (0.8f + r.f() * 0.5f), p.level <= g.plLevel + 3});
       }
     }
   const Cand* best = nullptr;
@@ -122,34 +126,34 @@ int Game::pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, 
     for (const Cand& k : c) if (!best || k.score < best->score) best = &k;
     danger = best != nullptr;
   }
-  return best ? world.ensureSite(best->id) : -1;
+  return best ? g.world.ensureSite(best->id) : -1;
 }
 
 // Deliver: a settlement 150-700 tiles away on the same landmass (one of the nearer few, by the offer's dice)
-int Game::pickDestination(int32_t gx, int32_t gy, Rng& r) {
-  if (!world.endless || !world.src) return -1;
+int QuestOps::pickDestination(Game& g, int32_t gx, int32_t gy, Rng& r) {
+  if (!g.world.endless || !g.world.src) return -1;
   const int rings = 3;
   const int32_t rx0 = ew::regionOf(gx), ry0 = ew::regionOf(gy);
-  const int32_t land = landAt(gx, gy);
+  const int32_t land = TravelOps::landAt(g, gx, gy);
   std::vector<std::pair<float, ew::Gid>> c;
   for (int32_t ry = ry0 - rings; ry <= ry0 + rings; ry++)
     for (int32_t rx = rx0 - rings; rx <= rx0 + rings; rx++) {
-      const ew::RegionPlan R = world.regionPlan(rx, ry);
+      const ew::RegionPlan R = g.world.regionPlan(rx, ry);
       for (const ew::SitePlan& p : R.sites) {
         if (p.type != SiteType::Village && p.type != SiteType::Town && p.type != SiteType::City) continue;
         const float d = std::hypot((float)(p.ex - gx), (float)(p.ey - gy));
         if (d < 150.0f || d > 700.0f) continue;
         bool taken = false;
-        for (const Quest& o : quests) if (o.type == QType::Deliver && o.state != QState::Done && o.targetId == p.id) taken = true;
+        for (const Quest& o : g.quests) if (o.type == QType::Deliver && o.state != QState::Done && o.targetId == p.id) taken = true;
         if (taken) continue;
-        if (land && landAt(p.ex, p.ey) != land) continue;
+        if (land && TravelOps::landAt(g, p.ex, p.ey) != land) continue;
         c.push_back({d, p.id});
       }
     }
   if (c.empty()) return -1;
   std::sort(c.begin(), c.end());
   const int n = std::min<int>(5, (int)c.size());
-  return world.ensureSite(c[(size_t)r.irange(n)].second);
+  return g.world.ensureSite(c[(size_t)r.irange(n)].second);
 }
 
 
@@ -195,7 +199,7 @@ bool Game::hasOffer(const Actor& a) const {
   if (!a.human || a.quest > 0 || a.role == Role::Traveller) return false;   // M2: a troll, a missing person, a traveller
   if (a.site >= (int)world.sites.size()) return false;
   for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && isGiver(q, a)) return false;
-  { Quest lq; if (lifeOffer(a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
+  { Quest lq; if (LifeHooks::offer(*this, a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
   const Site& S = world.sites[(size_t)a.site];
   if (S.settlement() && world.endless) {
     if (!life.find(S.id)) return false;   // (its census is a moment away: the pool is worked out from it)
@@ -212,41 +216,41 @@ bool Game::hasOffer(const Actor& a) const {
   return hash32((uint32_t)key ^ (uint32_t)seed ^ (uint32_t)(day / 7) * 2654435761u) % 2 == 0;
 }
 
-Quest Game::makeOffer(const Actor& npc, bool* okOut) {
+Quest QuestOps::makeOffer(Game& g, const Actor& npc, bool* okOut) {
   if (okOut) *okOut = true;
-  { Quest lq; if (lifeOffer(npc, lq)) { pendingPitch_ = lifePitch(*this, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
+  { Quest lq; if (LifeHooks::offer(g, npc, lq)) { g.pendingPitch_ = lifePitch(g, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
   bool ok = false;
   // (P1) the person's job this week: its kind and its need (offerFor reads jobBook.offerNeed while it builds)
-  if (const jobs::PoolJob* j = JobOps::openJob(*this, npc)) {
-    jobBook.offerNeed = j->need;
+  if (const jobs::PoolJob* j = JobOps::openJob(g, npc)) {
+    g.jobBook.offerNeed = j->need;
     const QType want = (QType)j->qtype;
     // (P1b) a radiant job (QType::Story) is begun by "ANY WORK GOING?" itself (radiant::offerFor); here only when it
     // could not be composed or cast in this world: the fallback hunt below
-    Quest q = want == QType::Story ? Quest() : offerFor(npc, want, ok);
-    if (!ok && JobOps::censusJob(*this, npc) != life::Job::Scholar) {   // the place it named is gone (cleared since Monday, taken by another job): a hunt at a den always fits (not a scholar's)
-      jobBook.offerNeed = jobs::JN_DEN;
-      q = offerFor(npc, QType::Hunt, ok);
+    Quest q = want == QType::Story ? Quest() : g.offerFor(npc, want, ok);
+    if (!ok && JobOps::censusJob(g, npc) != life::Job::Scholar) {   // the place it named is gone (cleared since Monday, taken by another job): a hunt at a den always fits (not a scholar's)
+      g.jobBook.offerNeed = jobs::JN_DEN;
+      q = g.offerFor(npc, QType::Hunt, ok);
     }
-    jobBook.offerNeed = jobs::JN_NONE;
+    g.jobBook.offerNeed = jobs::JN_NONE;
     if (ok) return q;
   }
-  Quest q = offerFor(npc, QType::COUNT, ok);
+  Quest q = g.offerFor(npc, QType::COUNT, ok);
   if (okOut) *okOut = ok;
   return q;
 }
 
 // ---------------------------------------------------------------- markers and journal lines
-bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
+bool QuestOps::questTargetM2(const Game& g, const Quest& q, int& tx, int& ty) {
   if (q.state != QState::Active) return false;
-  auto global = [&](int32_t gx, int32_t gy) { tx = gx - world.ox; ty = gy - world.oy; return true; };
+  auto global = [&](int32_t gx, int32_t gy) { tx = gx - g.world.ox; ty = gy - g.world.oy; return true; };
   auto atSite = [&]() {
-    if (q.target >= 0 && q.target < (int)world.sites.size()) { tx = world.sites[(size_t)q.target].ex; ty = world.sites[(size_t)q.target].ey; return true; }
+    if (q.target >= 0 && q.target < (int)g.world.sites.size()) { tx = g.world.sites[(size_t)q.target].ex; ty = g.world.sites[(size_t)q.target].ey; return true; }
     return q.hasPos ? global(q.tgx, q.tgy) : false;
   };
   switch (q.type) {
     case QType::Deliver:
-      if (q.destBldg >= 0 && q.destBldg < (int)world.over.bldgs.size()) {
-        tx = world.over.bldgs[(size_t)q.destBldg].doorX(); ty = world.over.bldgs[(size_t)q.destBldg].doorY();
+      if (q.destBldg >= 0 && q.destBldg < (int)g.world.over.bldgs.size()) {
+        tx = g.world.over.bldgs[(size_t)q.destBldg].doorX(); ty = g.world.over.bldgs[(size_t)q.destBldg].doorY();
         return true;
       }
       return atSite();
@@ -262,15 +266,15 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::Errand: return q.hasPos ? global(q.tgx, q.tgy) : false;   // P1: the street incident's place (LIFE lane)
     case QType::Hunt: {   // P1: the den or the hunting ground; a quarry in sight first (out of doors, within 20 tiles)
       if (!q.hasPos) return false;   // (a hunt from before P1: questTarget looks for the quarry and the dens itself)
-      if (!inside) {
+      if (!g.inside) {
         float bd = (20.0f * TILE) * (20.0f * TILE);
         bool seen = false;
-        for (size_t i = 1; i < actors.size(); i++) {
-          const Actor& m = actors[i];
+        for (size_t i = 1; i < g.actors.size(); i++) {
+          const Actor& m = g.actors[i];
           if (m.st == AState::Dead || m.human || m.npc || m.mon != q.mon) continue;
           // (P1 fixer) never the hero's own summon, a charmed or raised beast (a calmed or held wild one is still quarry)
           if (m.faction == Faction::Player || m.magicTag == magic::MT_SUMMON || m.magicTag == magic::MT_CHARM || m.magicTag == magic::MT_RAISE || m.magicTag == magic::MT_BOUND) continue;
-          const float d = len2(m.p - pl().p);
+          const float d = len2(m.p - g.pl().p);
           if (d < bd) { bd = d; tx = (int)std::floor(m.p.x / TILE); ty = (int)std::floor(m.p.y / TILE); seen = true; }
         }
         if (seen) return true;
@@ -281,18 +285,18 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
   }
 }
 
-std::string Game::questStatusM2(const Quest& q) const {
+std::string QuestOps::questStatusM2(const Game& g, const Quest& q) {
   if (q.state == QState::Done) return "";
   int px, py;
-  overworldTile(*this, px, py);
+  overworldTile(g, px, py);
   int tx = 0, ty = 0;
   // (fixer M6b r3) a story's step names the direction of the live person it waits on (Game::questTarget)
-  const bool has = q.type == QType::Story ? questTarget(q.id, tx, ty) : questTargetM2(q, tx, ty);
+  const bool has = q.type == QType::Story ? g.questTarget(q.id, tx, ty) : QuestOps::questTargetM2(g, q, tx, ty);
   const std::string dl = has ? " (" + dirWord(tx - px, ty - py, false) + ")" : std::string(), ds = has ? " (" + dirWord(tx - px, ty - py, true) + ")" : std::string();
-  const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string();
+  const std::string tname = q.target >= 0 && q.target < (int)g.world.sites.size() ? g.world.sites[(size_t)q.target].name : std::string();
   if (q.state == QState::Complete && (q.flags & QF_GRAVE)) {
     int gx = 0, gy = 0;
-    if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) { gx = world.sites[(size_t)q.giverSite].ex; gy = world.sites[(size_t)q.giverSite].ey; }
+    if (q.giverSite >= 0 && q.giverSite < (int)g.world.sites.size()) { gx = g.world.sites[(size_t)q.giverSite].ex; gy = g.world.sites[(size_t)q.giverSite].ey; }
     return fitLine({"LAY IT ON THE LONE GRAVE (" + dirWord(gx - px, gy - py, false) + ")", "LAY IT ON THE GRAVE (" + dirWord(gx - px, gy - py, true) + ")"});
   }
   if (q.state != QState::Active) return "";
@@ -333,8 +337,8 @@ std::string Game::questStatusM2(const Quest& q) const {
                       m + " " + prog});
     }
     case QType::Protect: {
-      const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
-      const std::string home = giverTown(world, q);
+      const bool night = (g.day == q.deadlineDay && g.hour >= 20.5f) || (g.day == q.deadlineDay + 1 && g.hour < 5.5f);
+      const std::string home = giverTown(g.world, q);
       if (night) return fitLine({"HOLD THE FIELDS UNTIL DAWN" + ds, "HOLD THE FIELDS UNTIL DAWN"});
       return fitLine({"AT NIGHTFALL: THE FIELDS OF " + home + ds, "AT NIGHTFALL: THE FIELDS" + ds, "GUARD THE FIELDS AT NIGHT"});
     }
@@ -358,10 +362,10 @@ std::string keepsakeOf(const std::string& subject) {
 }
 }  // namespace
 
-std::string Game::turnInLine(const Quest& q) const {
+std::string QuestOps::turnInLine(const Game& gm, const Quest& q) {
   const std::string g = std::to_string(q.gold);
-  const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? spokenPlace(world.sites[(size_t)q.target].name) : std::string();
-  const bool fem = personFemale(q, seed);
+  const std::string tname = q.target >= 0 && q.target < (int)gm.world.sites.size() ? spokenPlace(gm.world.sites[(size_t)q.target].name) : std::string();
+  const bool fem = personFemale(q, gm.seed);
   switch (q.type) {
     case QType::Heirloom:
       if (q.subject.rfind("THE TEMPLE'S ", 0) == 0)   // (P1) a temple's relic
@@ -384,7 +388,7 @@ std::string Game::turnInLine(const Quest& q) const {
     case QType::Sea: return q.stage == 3 ? "FINE FISH, AND FRESH! " + g + " GOLD, AS AGREED." : "YOU'VE DONE A GREAT THING. " + g + " GOLD, AND MY THANKS.";
     case QType::Campaign: {   // M12 (SERVICE lane): the army's thanks for the order's kind
       const service::Order* o = nullptr;
-      for (const service::Order& x : service.orders) if ((int)x.id == q.stage) o = &x;
+      for (const service::Order& x : gm.service.orders) if ((int)x.id == q.stage) o = &x;
       static const char* by[] = {"ORDERS CARRIED OUT. THE CAPTAINS WILL HEAR OF IT.", "THE SIEGE IS BROKEN AND OUR PEOPLE EAT AGAIN.",
                                  "THE GATE FELL BECAUSE YOU WENT IN FIRST.", "THE CARTS GOT THROUGH. THE GARRISON WILL HOLD.",
                                  "A GOOD REPORT, AND YOU CAME BACK ALIVE TO GIVE IT.", "THEIR CAPTAIN IS DEAD, AND HIS MEN ALREADY WAVER.",
@@ -393,7 +397,7 @@ std::string Game::turnInLine(const Quest& q) const {
     }
     case QType::Envoy: {   // M12 (SERVICE lane): the court's thanks, by what its word won
       const service::Mission* m = nullptr;
-      for (const service::Mission& x : service.missions) if ((int)x.id == q.stage) m = &x;
+      for (const service::Mission& x : gm.service.missions) if ((int)x.id == q.stage) m = &x;
       static const char* by[] = {"THEY REFUSED, BUT YOU CARRIED OUR WORD WITH HONOUR.", "PEACE. YOU CARRIED IT, AND IT HELD.",
                                  "AN ALLIANCE! WE WILL NOT STAND ALONE NOW.", "THEY WILL PAY. YOU SPOKE FOR US WELL."};
       if (m && m->kind == service::MissionKind::FirstEnvoy) return "THE COURT BEYOND THE MIST HAS OUR GREETING. A NEW WORLD OPENS. " + g + " GOLD, AND OUR THANKS.";
@@ -414,12 +418,12 @@ std::string Game::turnInLine(const Quest& q) const {
 
 // M7b: what a giver says while their job is under way: what is still to do and where, in the first person (never the
 // journal's q.desc read aloud, which names the giver in the third person)
-std::string Game::questReminder(const Quest& q) const {
-  const std::string place = placeFromGiver(*this, q);
-  const std::string home = giverTown(world, q);
-  const bool fem = personFemale(q, seed);
+std::string QuestOps::questReminder(const Game& g, const Quest& q) {
+  const std::string place = placeFromGiver(g, q);
+  const std::string home = giverTown(g.world, q);
+  const bool fem = personFemale(q, g.seed);
   const std::string obj = fem ? "HER" : "HIM", subj = fem ? "SHE" : "HE";
-  const uint32_t h = hash32((uint32_t)q.id * 2654435761u ^ (uint32_t)day);
+  const uint32_t h = hash32((uint32_t)q.id * 2654435761u ^ (uint32_t)g.day);
   switch (q.type) {
     case QType::Hunt: {
       const int left = std::max(0, q.need - q.have);
@@ -471,9 +475,9 @@ std::string Game::questReminder(const Quest& q) const {
 }
 
 // M7b: what a giver says as the job is taken (where to go, who pays, when to come back)
-std::string Game::acceptLine(const Quest& q) const {
+std::string QuestOps::acceptLine(const Game& g, const Quest& q) {
   // (the pitch said the way there: the place by its name now)
-  const std::string place = q.target >= 0 && q.target < (int)world.sites.size() && q.target != q.giverSite ? spokenPlace(world.sites[(size_t)q.target].name) : std::string();
+  const std::string place = q.target >= 0 && q.target < (int)g.world.sites.size() && q.target != q.giverSite ? spokenPlace(g.world.sites[(size_t)q.target].name) : std::string();
   // (a place spoken with its article was named in the pitch already: "THE TOMB OF SHENSHA" once is enough)
   const std::string marked = place.empty() || place.rfind("THE ", 0) == 0 ? std::string("THE PLACE") : place;
   switch (q.type) {
@@ -495,24 +499,24 @@ std::string Game::acceptLine(const Quest& q) const {
 }
 
 // ---------------------------------------------------------------- the people of quests
-bool Game::isRecipient(const Quest& q, const Actor& a) const {
-  return q.type == QType::Deliver && q.state == QState::Active && inside && subBldg >= 0 && subBldg == q.destBldg && a.npc &&
+bool QuestOps::isRecipient(const Game& g, const Quest& q, const Actor& a) {
+  return q.type == QType::Deliver && q.state == QState::Active && g.inside && g.subBldg >= 0 && g.subBldg == q.destBldg && a.npc &&
          a.st != AState::Dead && a.role == questRecipientRole(q);
 }
 
-int Game::escortFor(const Quest& q) const {
-  for (size_t k = 1; k < actors.size(); k++) if (actors[k].quest == q.id && actors[k].npc && actors[k].st != AState::Dead) return (int)k;
+int QuestOps::escortFor(const Game& g, const Quest& q) {
+  for (size_t k = 1; k < g.actors.size(); k++) if (g.actors[k].quest == q.id && g.actors[k].npc && g.actors[k].st != AState::Dead) return (int)k;
   return -1;
 }
 
-void Game::spawnEscort(Quest& q, Vec2 at) {
+void QuestOps::spawnEscort(Game& g, Quest& q, Vec2 at) {
   Spawn sp;
   sp.npc = true; sp.role = Role::Villager; sp.site = -1; sp.slot = -1;
-  spawnHuman(sp, at);
-  Actor& a = actors.back();
-  Rng pr = personRng(q, seed);
+  g.spawnHuman(sp, at);
+  Actor& a = g.actors.back();
+  Rng pr = personRng(q, g.seed);
   a.site = q.giverSite;   // dressed as the giver's people (the same look the quest named them with), then homeless again
-  makeLook(a, Role::Villager, pr);
+  g.makeLook(a, Role::Villager, pr);
   a.site = -1;
   a.name = q.subject;
   a.quest = q.id;
@@ -520,18 +524,18 @@ void Game::spawnEscort(Quest& q, Vec2 at) {
   a.speed = 60;
 }
 
-void Game::questFail(Quest& q, const std::string& why) {
+void QuestOps::questFail(Game& g, Quest& q, const std::string& why) {
   q.state = QState::Done;
   q.flags |= QF_FAILED;
-  partyQuest(q, false);   // M8: the companions saw it fail (party_game.cpp)
-  for (int i = (int)inv.size() - 1; i >= 0; i--) if (inv[(size_t)i].kind == ItemKind::Quest && inv[(size_t)i].questId == q.id) dropItem(i);
-  emit(Ev::QuestUpdate, pl().p, q.id, 3, "QUEST FAILED: " + q.title);
-  say(why);
-  sfx((int)Sfx::MenuBack, pl().p, 0.7f);
-  if (trackedQuest == q.id) {
-    trackedQuest = -1;
-    for (auto& o : quests) if (o.state != QState::Done && o.type != QType::Main) { trackedQuest = o.id; break; }
-    if (trackedQuest < 0) for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; break; }
+  PartyOps::quest(g, q, false);   // M8: the companions saw it fail (party_game.cpp)
+  for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].kind == ItemKind::Quest && g.inv[(size_t)i].questId == q.id) g.dropItem(i);
+  g.emit(Ev::QuestUpdate, g.pl().p, q.id, 3, "QUEST FAILED: " + q.title);
+  g.say(why);
+  g.sfx((int)Sfx::MenuBack, g.pl().p, 0.7f);
+  if (g.trackedQuest == q.id) {
+    g.trackedQuest = -1;
+    for (auto& o : g.quests) if (o.state != QState::Done && o.type != QType::Main) { g.trackedQuest = o.id; break; }
+    if (g.trackedQuest < 0) for (auto& o : g.quests) if (o.state != QState::Done) { g.trackedQuest = o.id; break; }
   }
 }
 
@@ -581,114 +585,114 @@ bool Game::questChestAt(int qid, int& tx, int& ty) const {
   return true;
 }
 
-Vec2 Game::questChestTile(const Quest& q) const {
-  auto it = marks.find(markKey((uint64_t)q.id, Mk::HeirChest));
-  const int idx = it != marks.end() ? it->second : farTile(sub, -1);
+Vec2 QuestOps::questChestTile(const Game& g, const Quest& q) {
+  auto it = g.marks.find(markKey((uint64_t)q.id, Mk::HeirChest));
+  const int idx = it != g.marks.end() ? it->second : farTile(g.sub, -1);
   if (idx < 0) return Vec2(-1, -1);
-  return Vec2((float)(idx % sub.w), (float)(idx / sub.w));
+  return Vec2((float)(idx % g.sub.w), (float)(idx / g.sub.w));
 }
 
 // a cave, ruin or building map was just made: put the quests' chests and people in it
-void Game::questMapLoaded() {
-  if (!inside) return;
+void QuestOps::questMapLoaded(Game& g) {
+  if (!g.inside) return;
   bool solidDirty = false;
-  if (subSite >= 0) {
+  if (g.subSite >= 0) {
     int chestIdx = -1;
-    for (Quest& q : quests) {
-      if (q.state != QState::Active || q.target != subSite) continue;
+    for (Quest& q : g.quests) {
+      if (q.state != QState::Active || q.target != g.subSite) continue;
       if (q.type == QType::Heirloom && !(q.flags & QF_FOUND)) {
         const uint64_t mk = markKey((uint64_t)q.id, Mk::HeirChest);
-        auto it = marks.find(mk);
-        int idx = it != marks.end() ? it->second : farTile(sub, -1);
-        if (idx < 0 || idx >= sub.w * sub.h) continue;
-        marks[mk] = idx;
+        auto it = g.marks.find(mk);
+        int idx = it != g.marks.end() ? it->second : farTile(g.sub, -1);
+        if (idx < 0 || idx >= g.sub.w * g.sub.h) continue;
+        g.marks[mk] = idx;
         chestIdx = idx;
-        const bool opened = looted.count(((uint64_t)mapKey() << 32) | (uint32_t)idx) > 0;
-        sub.prop[(size_t)idx] = (uint8_t)((int)(opened ? Prop::ChestOpen : Prop::Chest) + 1);
+        const bool opened = g.looted.count(((uint64_t)g.mapKey() << 32) | (uint32_t)idx) > 0;
+        g.sub.prop[(size_t)idx] = (uint8_t)((int)(opened ? Prop::ChestOpen : Prop::Chest) + 1);
         solidDirty = true;
-        if (!opened) emit(Ev::Notice, pl().p, (int)rgba(255, 220, 140), 0, "SOMEWHERE IN HERE: " + q.subject);
+        if (!opened) g.emit(Ev::Notice, g.pl().p, (int)rgba(255, 220, 140), 0, "SOMEWHERE IN HERE: " + q.subject);
       }
     }
-    if (solidDirty) sub.rebuildSolid();
-    for (Quest& q : quests) {
-      if (q.state != QState::Active || q.target != subSite || q.type != QType::Missing || escortFor(q) >= 0) continue;
-      if (q.flags & QF_FOUND) spawnEscort(q, freeSpot((int)std::floor(pl().p.x / TILE), (int)std::floor(pl().p.y / TILE) + 1));
+    if (solidDirty) g.sub.rebuildSolid();
+    for (Quest& q : g.quests) {
+      if (q.state != QState::Active || q.target != g.subSite || q.type != QType::Missing || QuestOps::escortFor(g, q) >= 0) continue;
+      if (q.flags & QF_FOUND) QuestOps::spawnEscort(g, q, ClimbOps::freeSpot(g, (int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE) + 1));
       else {
-        const int idx = farTile(sub, chestIdx);
+        const int idx = farTile(g.sub, chestIdx);
         if (idx < 0) continue;
-        spawnEscort(q, Vec2((idx % sub.w) * TILE + 8.0f, (idx / sub.w) * TILE + 10.0f));
-        emit(Ev::Notice, pl().p, (int)rgba(255, 220, 140), 0, "SOMEWHERE IN HERE: " + q.subject);
+        QuestOps::spawnEscort(g, q, Vec2((idx % g.sub.w) * TILE + 8.0f, (idx / g.sub.w) * TILE + 10.0f));
+        g.emit(Ev::Notice, g.pl().p, (int)rgba(255, 220, 140), 0, "SOMEWHERE IN HERE: " + q.subject);
       }
     }
   }
-  if (subBldg >= 0) {
+  if (g.subBldg >= 0) {
     // a parcel's recipient: whoever keeps this place (the innkeeper, the smith, the merchant) wears the name the giver
     // gave; when nobody of that trade is here, the first person in the building is the one the parcel is for
-    for (Quest& q : quests) {
-      if (q.type != QType::Deliver || q.state != QState::Active || q.destBldg != subBldg) continue;
+    for (Quest& q : g.quests) {
+      if (q.type != QType::Deliver || q.state != QState::Active || q.destBldg != g.subBldg) continue;
       int k = -1;
-      for (size_t j = 1; j < actors.size(); j++) if (actors[j].npc && actors[j].role == questRecipientRole(q)) { k = (int)j; break; }
+      for (size_t j = 1; j < g.actors.size(); j++) if (g.actors[j].npc && g.actors[j].role == questRecipientRole(q)) { k = (int)j; break; }
       if (k < 0)
-        for (size_t j = 1; j < actors.size(); j++)
-          if (actors[j].npc && actors[j].human) { k = (int)j; q.flags = (q.flags & ~0xFF00u) | ((uint32_t)actors[j].role << 8); break; }
+        for (size_t j = 1; j < g.actors.size(); j++)
+          if (g.actors[j].npc && g.actors[j].human) { k = (int)j; q.flags = (q.flags & ~0xFF00u) | ((uint32_t)g.actors[j].role << 8); break; }
       if (k < 0) continue;
-      Actor& a = actors[(size_t)k];
-      Rng pr = personRng(q, seed);
-      makeLook(a, a.role, pr);
+      Actor& a = g.actors[(size_t)k];
+      Rng pr = personRng(q, g.seed);
+      g.makeLook(a, a.role, pr);
       a.name = q.subject;
     }
   }
 }
 
 // the player came out of a site: a missing person who followed them out is safe
-void Game::questLeftSite(int si) {
-  for (Quest& q : quests) {
+void QuestOps::questLeftSite(Game& g, int si) {
+  for (Quest& q : g.quests) {
     if (q.type != QType::Missing || q.state != QState::Active || q.target != si || !(q.flags & QF_FOUND)) continue;
     q.state = QState::Complete;
     q.flags |= QF_ESCORTED;
-    spawnEscort(q, freeSpot((int)std::floor(pl().p.x / TILE) + 1, (int)std::floor(pl().p.y / TILE) + 1));
-    emit(Ev::Text, actors.back().p + Vec2(0, -24), (int)rgba(255, 240, 200), 0, "DAYLIGHT! THANK YOU!");
-    const std::string m = q.subject + " IS SAFE. " + rewardReadyMsg(world, q);
-    emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
-    say(m);
-    sfx((int)Sfx::QuestStart, pl().p, 1.2f);
+    QuestOps::spawnEscort(g, q, ClimbOps::freeSpot(g, (int)std::floor(g.pl().p.x / TILE) + 1, (int)std::floor(g.pl().p.y / TILE) + 1));
+    g.emit(Ev::Text, g.actors.back().p + Vec2(0, -24), (int)rgba(255, 240, 200), 0, "DAYLIGHT! THANK YOU!");
+    const std::string m = q.subject + " IS SAFE. " + rewardReadyMsg(g.world, q);
+    g.emit(Ev::QuestUpdate, g.pl().p, q.id, 2, m);
+    g.say(m);
+    g.sfx((int)Sfx::QuestStart, g.pl().p, 1.2f);
   }
 }
 
-bool Game::questChest(int tx, int ty) {
-  if (!inside || subSite < 0) return false;
-  const int idx = ty * sub.w + tx;
-  for (Quest& q : quests) {
-    if (q.type != QType::Heirloom || q.state != QState::Active || q.target != subSite) continue;
-    auto it = marks.find(markKey((uint64_t)q.id, Mk::HeirChest));
-    if (it == marks.end() || it->second != idx) continue;
-    sub.prop[(size_t)idx] = (uint8_t)((int)Prop::ChestOpen + 1);
-    looted.insert(lootKey(tx, ty));
-    sub.rebuildSolid();
-    sfx((int)Sfx::Chest, pl().p);
+bool QuestOps::questChest(Game& gm, int tx, int ty) {
+  if (!gm.inside || gm.subSite < 0) return false;
+  const int idx = ty * gm.sub.w + tx;
+  for (Quest& q : gm.quests) {
+    if (q.type != QType::Heirloom || q.state != QState::Active || q.target != gm.subSite) continue;
+    auto it = gm.marks.find(markKey((uint64_t)q.id, Mk::HeirChest));
+    if (it == gm.marks.end() || it->second != idx) continue;
+    gm.sub.prop[(size_t)idx] = (uint8_t)((int)Prop::ChestOpen + 1);
+    gm.looted.insert(gm.lootKey(tx, ty));
+    gm.sub.rebuildSolid();
+    gm.sfx((int)Sfx::Chest, gm.pl().p);
     Item it2;
     it2.kind = ItemKind::Quest; it2.name = q.subject; it2.icon = keepsakeIcon(q.subject); it2.rarity = Rarity::Rare;
     it2.questId = q.id; it2.value = 0; it2.tint = rgba(236, 206, 120);
-    addItem(it2);
-    Pickup g; g.p = Vec2(tx * TILE + 8.0f, ty * TILE + 18.0f); g.gold = 10 + world.sites[(size_t)subSite].level * 3; pickups.push_back(g);
+    gm.addItem(it2);
+    Pickup g; g.p = Vec2(tx * TILE + 8.0f, ty * TILE + 18.0f); g.gold = 10 + gm.world.sites[(size_t)gm.subSite].level * 3; gm.pickups.push_back(g);
     q.flags |= QF_FOUND;
     q.state = QState::Complete;
-    const std::string m = (q.flags & QF_GRAVE) ? rewardReadyMsg(world, q) : "FOUND THE " + q.subject + ". " + rewardReadyMsg(world, q);
-    emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
-    say(m);
+    const std::string m = (q.flags & QF_GRAVE) ? rewardReadyMsg(gm.world, q) : "FOUND THE " + q.subject + ". " + rewardReadyMsg(gm.world, q);
+    gm.emit(Ev::QuestUpdate, gm.pl().p, q.id, 2, m);
+    gm.say(m);
     return true;
   }
   return false;
 }
 
 // someone just streamed in outdoors: a named bandit chief takes the name and the strength the bounty gave him
-void Game::questSpawned(Actor& a) {
-  if (inside || !a.boss || a.role != Role::Bandit || a.site < 0) return;
-  for (const Quest& q : quests) {
+void QuestOps::questSpawned(Game& g, Actor& a) {
+  if (g.inside || !a.boss || a.role != Role::Bandit || a.site < 0) return;
+  for (const Quest& q : g.quests) {
     if (q.type != QType::NamedBandit || q.state != QState::Active || q.target != a.site) continue;
-    Rng pr = personRng(q, seed);
+    Rng pr = personRng(q, g.seed);
     const art::HumanLook old = a.look;
-    makeLook(a, Role::Bandit, pr);
+    g.makeLook(a, Role::Bandit, pr);
     a.look.outfit = art::Outfit::Plate; a.look.helmet = old.helmet; a.look.weapon = old.weapon; a.look.cape = true;
     a.look.tabardColor = rgba(120, 28, 30);
     a.name = q.subject;
@@ -698,11 +702,11 @@ void Game::questSpawned(Actor& a) {
   }
 }
 
-void Game::questActorDown(const Actor& a) {
-  for (Quest& q : quests) {
+void QuestOps::questActorDown(Game& g, const Actor& a) {
+  for (Quest& q : g.quests) {
     if (q.state != QState::Active) continue;
-    if (q.type == QType::Protect && isGiver(q, a)) questFail(q, q.giverName + " IS DEAD. THE FIELDS OF " + giverTown(world, q) + " ARE LOST.");
-    else if (q.type == QType::Missing && a.quest == q.id && a.npc) questFail(q, q.subject + " DID NOT SURVIVE.");
+    if (q.type == QType::Protect && isGiver(q, a)) QuestOps::questFail(g, q, q.giverName + " IS DEAD. THE FIELDS OF " + giverTown(g.world, q) + " ARE LOST.");
+    else if (q.type == QType::Missing && a.quest == q.id && a.npc) QuestOps::questFail(g, q, q.subject + " DID NOT SURVIVE.");
     else if (q.type == QType::Protect && a.quest == q.id && a.hostile) q.have++;   // a raider of the current wave down
   }
 }
@@ -723,17 +727,17 @@ static art::Icon goodIcon(ew::Good g) {
   }
 }
 
-void Game::questTick(float dt) {
+void QuestOps::questTick(Game& gm, float dt) {
   (void)dt;
   {   // M5 (CITIZENS lane): supply runs and rescues
-  for (Quest& q : quests) {
+  for (Quest& q : gm.quests) {
     if (q.type == QType::Supply) {
-      if (q.state == QState::Active && !(q.flags & life::QF_SUP_GOODS) && q.target >= 0 && q.target < (int)world.sites.size()) {
-        const Site& T = world.sites[(size_t)q.target];
+      if (q.state == QState::Active && !(q.flags & life::QF_SUP_GOODS) && q.target >= 0 && q.target < (int)gm.world.sites.size()) {
+        const Site& T = gm.world.sites[(size_t)q.target];
         bool there = false;
-        if (inside) there = subSite == q.target || (subBldg >= 0 && subBldg < (int)world.over.bldgs.size() && world.over.bldgs[(size_t)subBldg].site == q.target);
+        if (gm.inside) there = gm.subSite == q.target || (gm.subBldg >= 0 && gm.subBldg < (int)gm.world.over.bldgs.size() && gm.world.over.bldgs[(size_t)gm.subBldg].site == q.target);
         else {
-          const int tx = (int)std::floor(pl().p.x / TILE), ty = (int)std::floor(pl().p.y / TILE);
+          const int tx = (int)std::floor(gm.pl().p.x / TILE), ty = (int)std::floor(gm.pl().p.y / TILE);
           there = tx >= T.r.x - 2 && ty >= T.r.y - 2 && tx < T.r.x + T.r.w + 2 && ty < T.r.y + T.r.h + 2;
         }
         if (there) {
@@ -741,25 +745,25 @@ void Game::questTick(float dt) {
           Item it;
           it.kind = ItemKind::Quest; it.name = std::to_string(q.need) + " " + q.subject; it.icon = goodIcon(g);
           it.questId = q.id; it.value = 0; it.tint = rgba(200, 170, 120);
-          addItem(it, false);
-          if (life::Census* tc = life.findMut(T.id)) tc->stock[(size_t)g] = (uint16_t)std::max(0, (int)tc->stock[(size_t)g] - q.need);
+          gm.addItem(it, false);
+          if (life::Census* tc = gm.life.findMut(T.id)) tc->stock[(size_t)g] = (uint16_t)std::max(0, (int)tc->stock[(size_t)g] - q.need);
           q.flags |= life::QF_SUP_GOODS;
           q.have = q.need;
           q.state = QState::Complete;
-          const std::string m = "LOADED " + std::to_string(q.need) + " " + q.subject + " IN " + T.name + ". " + rewardReadyMsg(world, q);
-          emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
-          say(m);
-          sfx((int)Sfx::QuestStart, pl().p, 1.1f);
+          const std::string m = "LOADED " + std::to_string(q.need) + " " + q.subject + " IN " + T.name + ". " + rewardReadyMsg(gm.world, q);
+          gm.emit(Ev::QuestUpdate, gm.pl().p, q.id, 2, m);
+          gm.say(m);
+          gm.sfx((int)Sfx::QuestStart, gm.pl().p, 1.1f);
         }
       }
       if (q.state == QState::Done && !(q.flags & QF_FAILED) && (q.flags & life::QF_SUP_GOODS) && !(q.flags & life::QF_SUP_DONE)) {
-        life.supply(q.giverId, (ew::Good)std::clamp(q.stage, 0, (int)ew::Good::COUNT - 1), q.need);
+        gm.life.supply(q.giverId, (ew::Good)std::clamp(q.stage, 0, (int)ew::Good::COUNT - 1), q.need);
         q.flags |= life::QF_SUP_DONE;
       }
       continue;
     }
     if (q.type != QType::Missing || !q.giverId) continue;
-    life::Census* c = life.findMut(q.giverId);
+    life::Census* c = gm.life.findMut(q.giverId);
     if (!c || c->takenIdx < 0 || c->takenIdx >= (int)c->res.size() || c->res[(size_t)c->takenIdx].name != q.subject) continue;
     if (c->takenQuest == 0 && q.state != QState::Done) c->takenQuest = q.id;
     if (c->takenQuest != q.id) continue;
@@ -769,74 +773,74 @@ void Game::questTick(float dt) {
       c->takenIdx = -1;
       c->takenQuest = 0;
     } else if (q.state == QState::Done) {
-      life.residentDied(q.giverId, r.idx, day);
+      gm.life.residentDied(q.giverId, r.idx, gm.day);
     }
   }
   }
-  for (Quest& q : quests) {
+  for (Quest& q : gm.quests) {
     if (q.state != QState::Active) continue;
-    if (q.type == QType::Deliver && q.destBldg < 0 && q.target >= 0 && q.target < (int)world.sites.size()) {
-      const Site& T = world.sites[(size_t)q.target];
+    if (q.type == QType::Deliver && q.destBldg < 0 && q.target >= 0 && q.target < (int)gm.world.sites.size()) {
+      const Site& T = gm.world.sites[(size_t)q.target];
       if (T.bldgCount <= 0) continue;
       int pickB = -1;
-      for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)world.over.bldgs.size(); b++)
-        if (world.over.bldgs[(size_t)b].type == roleBuilding(questRecipientRole(q))) { pickB = b; break; }
+      for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)gm.world.over.bldgs.size(); b++)
+        if (gm.world.over.bldgs[(size_t)b].type == roleBuilding(questRecipientRole(q))) { pickB = b; break; }
       if (pickB < 0)
-        for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)world.over.bldgs.size(); b++)
-          if (world.over.bldgs[(size_t)b].type == art::Building::Inn) { pickB = b; q.flags = (q.flags & ~0xFF00u) | ((uint32_t)Role::Innkeeper << 8); break; }
+        for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)gm.world.over.bldgs.size(); b++)
+          if (gm.world.over.bldgs[(size_t)b].type == art::Building::Inn) { pickB = b; q.flags = (q.flags & ~0xFF00u) | ((uint32_t)Role::Innkeeper << 8); break; }
       if (pickB >= 0) {
         q.destBldg = pickB;
         q.hasPos = true;
-        q.tgx = world.ox + world.over.bldgs[(size_t)pickB].doorX(); q.tgy = world.oy + world.over.bldgs[(size_t)pickB].doorY();
+        q.tgx = gm.world.ox + gm.world.over.bldgs[(size_t)pickB].doorX(); q.tgy = gm.world.oy + gm.world.over.bldgs[(size_t)pickB].doorY();
       }
     }
     if (q.type != QType::Protect) continue;
-    const bool after = day > q.deadlineDay + 1 || (day == q.deadlineDay + 1 && hour >= 5.5f);
-    const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
+    const bool after = gm.day > q.deadlineDay + 1 || (gm.day == q.deadlineDay + 1 && gm.hour >= 5.5f);
+    const bool night = (gm.day == q.deadlineDay && gm.hour >= 20.5f) || (gm.day == q.deadlineDay + 1 && gm.hour < 5.5f);
     if (after) {
       // held only when both waves came and the second was beaten, or the player still stood by the fields at dawn
       // with it (hiding indoors after the first wave, or walking off, does not count)
       bool held = false;
       if (q.flags & QF_WAVE2) {
-        const Vec2 fp((q.tgx - world.ox) * TILE + 8.0f, (q.tgy - world.oy) * TILE + 10.0f);
-        held = q.have >= q.need || (!inside && len2(pl().p - fp) <= (45.0f * TILE) * (45.0f * TILE));
+        const Vec2 fp((q.tgx - gm.world.ox) * TILE + 8.0f, (q.tgy - gm.world.oy) * TILE + 10.0f);
+        held = q.have >= q.need || (!gm.inside && len2(gm.pl().p - fp) <= (45.0f * TILE) * (45.0f * TILE));
       }
       if (held) {
         q.state = QState::Complete;
-        for (size_t k = 1; k < actors.size(); k++)
-          if (actors[k].quest == q.id && actors[k].hostile && actors[k].st != AState::Dead) { actors[k].aggro = false; actors[k].wild = true; actors[k].home = actors[k].p + (actors[k].p - pl().p) * 4.0f; }
-        const std::string m = "DAWN BREAKS OVER " + giverTown(world, q) + ". THE FIELDS ARE SAFE. " + rewardReadyMsg(world, q);
-        emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
-        say(m);
-        sfx((int)Sfx::QuestDone, pl().p, 1.1f);
+        for (size_t k = 1; k < gm.actors.size(); k++)
+          if (gm.actors[k].quest == q.id && gm.actors[k].hostile && gm.actors[k].st != AState::Dead) { gm.actors[k].aggro = false; gm.actors[k].wild = true; gm.actors[k].home = gm.actors[k].p + (gm.actors[k].p - gm.pl().p) * 4.0f; }
+        const std::string m = "DAWN BREAKS OVER " + giverTown(gm.world, q) + ". THE FIELDS ARE SAFE. " + rewardReadyMsg(gm.world, q);
+        gm.emit(Ev::QuestUpdate, gm.pl().p, q.id, 2, m);
+        gm.say(m);
+        gm.sfx((int)Sfx::QuestDone, gm.pl().p, 1.1f);
       } else {
-        const Biome b = world.over.biomeAt(q.tgx - world.ox, q.tgy - world.oy);
-        questFail(q, std::string("THE ") + zonePlural(protectZone(q, b), b) + " RAVAGED THE FIELDS OF " + giverTown(world, q) + " WHILE YOU WERE AWAY.");
+        const Biome b = gm.world.over.biomeAt(q.tgx - gm.world.ox, q.tgy - gm.world.oy);
+        QuestOps::questFail(gm, q, std::string("THE ") + zonePlural(protectZone(q, b), b) + " RAVAGED THE FIELDS OF " + giverTown(gm.world, q) + " WHILE YOU WERE AWAY.");
       }
       continue;
     }
-    if (!night || inside) continue;
-    const int fx = q.tgx - world.ox, fy = q.tgy - world.oy;
+    if (!night || gm.inside) continue;
+    const int fx = q.tgx - gm.world.ox, fy = q.tgy - gm.world.oy;
     const Vec2 fp(fx * TILE + 8.0f, fy * TILE + 10.0f);
-    if (len2(pl().p - fp) > (45.0f * TILE) * (45.0f * TILE)) continue;
+    if (len2(gm.pl().p - fp) > (45.0f * TILE) * (45.0f * TILE)) continue;
     // the waves: q.need raiders in the current wave, q.have of them felled. Raiders that vanished (the player went
     // indoors, a reload) are still out there: the missing ones come back; the next wave comes once this one is down.
     int alive = 0;
-    for (size_t k = 1; k < actors.size(); k++) if (actors[k].quest == q.id && actors[k].hostile && actors[k].st != AState::Dead) alive++;
+    for (size_t k = 1; k < gm.actors.size(); k++) if (gm.actors[k].quest == q.id && gm.actors[k].hostile && gm.actors[k].st != AState::Dead) alive++;
     const bool first = !(q.flags & QF_WAVE1);
     if (alive > 0) continue;
     const bool regroup = !first && q.have < q.need;
     if (!first && !regroup && (q.flags & QF_WAVE2)) continue;   // both waves are down: dawn will tell
     // a wave: from the wild side of the fields (away from the heart of the village), aimed at the fields
-    const Biome b = world.over.biomeAt(fx, fy);
+    const Biome b = gm.world.over.biomeAt(fx, fy);
     const int z = protectZone(q, b);
     Vec2 out(1, 0);
-    if (q.target >= 0 && q.target < (int)world.sites.size()) {
-      const Site& S = world.sites[(size_t)q.target];
+    if (q.target >= 0 && q.target < (int)gm.world.sites.size()) {
+      const Site& S = gm.world.sites[(size_t)q.target];
       const Vec2 d((float)(fx - S.ex), (float)(fy - S.ey));
       if (len2(d) > 0.5f) out = norm(d);
     }
-    const int lvl = std::max(1, world.zoneLevel(fx, fy));
+    const int lvl = std::max(1, gm.world.zoneLevel(fx, fy));
     const bool second = !first && !regroup;
     const int n = regroup ? q.need - q.have : std::min(7, (first ? 3 : 4) + lvl / 3);
     if (!regroup) { q.need = n; q.have = 0; }
@@ -844,46 +848,46 @@ void Game::questTick(float dt) {
       const float ang = (i - (n - 1) * 0.5f) * 0.28f;
       const Vec2 dir(out.x * std::cos(ang) - out.y * std::sin(ang), out.x * std::sin(ang) + out.y * std::cos(ang));
       const Vec2 at0 = fp + dir * (17.0f * TILE);
-      const Vec2 at = freeSpot((int)std::floor(at0.x / TILE), (int)std::floor(at0.y / TILE));
+      const Vec2 at = ClimbOps::freeSpot(gm, (int)std::floor(at0.x / TILE), (int)std::floor(at0.y / TILE));
       int id;
       if (z == 2) {
         Spawn sp;
         sp.bandit = true; sp.site = q.target; sp.slot = -1;
-        id = spawnHuman(sp, at);
-      } else id = spawnMonster(zoneMonster(z, b), at, lvl, false);
-      const int k = findActor(id);
+        id = gm.spawnHuman(sp, at);
+      } else id = gm.spawnMonster(zoneMonster(z, b), at, lvl, false);
+      const int k = gm.findActor(id);
       if (k < 0) continue;
-      Actor& m = actors[(size_t)k];
+      Actor& m = gm.actors[(size_t)k];
       m.quest = q.id; m.aggro = true; m.fromMap = false; m.site = -1; m.home = fp; m.goal = fp;
     }
     if (regroup) continue;
     (void)second;
     q.flags |= first ? QF_WAVE1 : QF_WAVE2;
     const std::string m = first ? std::string("THE ") + zonePlural(z, b) + " ARE COMING! HOLD THE FIELDS UNTIL DAWN!" : "MORE OF THEM! HOLD THE LINE!";
-    emit(Ev::Notice, pl().p, (int)rgba(255, 110, 80), 0, m);
-    say(m);
-    sfx((int)Sfx::Bell, pl().p, 1.0f, 0.8f);
+    gm.emit(Ev::Notice, gm.pl().p, (int)rgba(255, 110, 80), 0, m);
+    gm.say(m);
+    gm.sfx((int)Sfx::Bell, gm.pl().p, 1.0f, 0.8f);
   }
   // a missing person brought home walks off once out of sight
-  for (size_t k = 1; k < actors.size();) {
-    const Actor& a = actors[k];
+  for (size_t k = 1; k < gm.actors.size();) {
+    const Actor& a = gm.actors[k];
     if (a.quest > 0 && a.npc) {
-      const Quest* q = questById(a.quest);
+      const Quest* q = gm.questById(a.quest);
       const bool following = q && q->state == QState::Active;
-      if (!following && len2(a.p - pl().p) > (14.0f * TILE) * (14.0f * TILE)) { actors.erase(actors.begin() + (std::ptrdiff_t)k); continue; }
+      if (!following && len2(a.p - gm.pl().p) > (14.0f * TILE) * (14.0f * TILE)) { gm.actors.erase(gm.actors.begin() + (std::ptrdiff_t)k); continue; }
     }
     k++;
   }
 }
 
 // M2 quest talk: options for the people of the new quest types. Returns a line that replaces the greeting ("" none).
-std::string Game::questDialogue(Actor& a) {
+std::string QuestOps::questDialogue(Game& g, Actor& a) {
   std::string text;
-  for (Quest& q : quests) {
-    if (isRecipient(q, a)) {
-      const std::string from = q.giverName + (giverTown(world, q).empty() ? std::string() : " IN " + giverTown(world, q));
+  for (Quest& q : g.quests) {
+    if (QuestOps::isRecipient(g, q, a)) {
+      const std::string from = q.giverName + (giverTown(g.world, q).empty() ? std::string() : " IN " + giverTown(g.world, q));
       text = "A PARCEL? FROM " + from + "? I'VE BEEN WAITING ON THIS FOR WEEKS.";
-      dlg.opts.push_back({"HAND OVER THE PARCEL (+" + std::to_string(q.gold) + " GOLD)", A_DELIVER, q.id});
+      g.dlg.opts.push_back({"HAND OVER THE PARCEL (+" + std::to_string(q.gold) + " GOLD)", A_DELIVER, q.id});
     }
   }
   return text;

@@ -2,6 +2,7 @@
 // The street's day (TaskK: stalls, carry routes, sweeping, visits) and one resident actor's street life (streetFolk).
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/game.h"
 
 // a trade with no workplace at work in the street (WORK@STREET: merchants, tailors, scholars, stablehands, smiths and
 // bakers without a shop of their own, servants, priests without a temple)
@@ -411,7 +412,7 @@ bool LifeOps::slipOut(Game& g, const Actor& a, Vec2& out) {
         const int x = tx + ox, y = ty + oy;
         if (!m.in(x, y) || m.blocked(x, y) || m.bldgAt[(size_t)y * m.w + x] >= 0 || m.wall[(size_t)y * m.w + x]) continue;
         const Vec2 c = tileCentre(x, y);
-        if (!g.bodyFree(c, a.radius + 1.0f, false)) continue;
+        if (!ClimbOps::bodyFree(g, c, a.radius + 1.0f, false)) continue;
         out = c;
         return true;
       }
@@ -432,7 +433,7 @@ bool LifeOps::midRoute(Game& g, const Actor& a, Vec2 tgt, uint32_t h, Vec2& out)
     const int x = tx + dx, y = ty + dy;
     if (!m.in(x, y) || !town.contains(x, y) || m.blocked(x, y) || m.bldgAt[(size_t)y * m.w + x] >= 0 || m.wall[(size_t)y * m.w + x]) continue;
     const Vec2 c = tileCentre(x, y);
-    if (!g.bodyFree(c, a.radius, false) || !clearLine(g, c, tgt, a.radius)) continue;
+    if (!ClimbOps::bodyFree(g, c, a.radius, false) || !clearLine(g, c, tgt, a.radius)) continue;
     out = c;
     return true;
   }
@@ -825,7 +826,7 @@ void LifeOps::chatOrStroll(Game& g, Actor& a, RT::ARt& A, life::Census& c, const
     bool room = false;
     for (float sx : {0.0f, 6.0f, -6.0f, 12.0f, -12.0f}) {
       const Vec2 m2 = mid + Vec2(sx, 0);
-      if (g.bodyFree(m2 - dir * 9.0f, a.radius, false) && g.bodyFree(m2 + dir * 9.0f, o.radius, false)) { mid = m2; room = true; break; }
+      if (ClimbOps::bodyFree(g, m2 - dir * 9.0f, a.radius, false) && ClimbOps::bodyFree(g, m2 + dir * 9.0f, o.radius, false)) { mid = m2; room = true; break; }
     }
     if (!room) return;   // (no room for two here: no chat this time)
     A.partner = o.id; B.partner = a.id;

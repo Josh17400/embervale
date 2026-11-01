@@ -19,6 +19,8 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/gear.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/craft_hooks.h"
+#include "rpg/sim/loot_ops.h"
 
 namespace {
 // option actions (DLG_CRAFT + n)
@@ -88,7 +90,7 @@ struct CraftOps {
     g.sfx((int)Sfx::HitHeavy, g.pl().p, 1.6f, 0.8f);
     g.emit(Ev::Sparkle, g.pl().p + Vec2(0, -10));
   }
-  static std::vector<Item> stock(Game& g, const Actor& a) { return g.shopStock(a); }
+  static std::vector<Item> stock(Game& g, const Actor& a) { return LootOps::shopStock(g, a); }
   static bool shopOf(Game& g, int id) {
     const int k = g.findActor(id);
     if (k < 0) return false;
@@ -117,16 +119,16 @@ struct CraftOps {
 };
 
 // ---------------------------------------------------------------------------------------------- the dialogue
-void Game::craftTalk(Actor& a) {
+void CraftHooks::talk(Game& g, Actor& a) {
   art::Building at;
-  if (!CraftOps::stationOf(*this, a, at)) return;
+  if (!CraftOps::stationOf(g, a, at)) return;
   // (M6 fixer) a smith who caught the player at the pattern wall bars them for a week: no wares, no forge, no lessons
   if (a.role == Role::Smith) {
-    const auto mb = marks.find(markKey(npcKey(a), MK_BARRED));
-    if (mb != marks.end() && day <= mb->second) {
-      dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& o) { return o.action == A_TRADE; }), dlg.opts.end());
-      const int left = mb->second - day + 1;
-      speech::propose(dlg, speech::P_URGENT, speech::Topic::Craft,
+    const auto mb = g.marks.find(markKey(g.npcKey(a), MK_BARRED));
+    if (mb != g.marks.end() && g.day <= mb->second) {
+      g.dlg.opts.erase(std::remove_if(g.dlg.opts.begin(), g.dlg.opts.end(), [](const DlgOpt& o) { return o.action == A_TRADE; }), g.dlg.opts.end());
+      const int left = mb->second - g.day + 1;
+      speech::propose(g.dlg, speech::P_URGENT, speech::Topic::Craft,
                       "YOU. THIEF. GET OUT OF MY FORGE BEFORE I CALL THE WATCH AGAIN, AND DON'T SHOW YOUR FACE HERE FOR " +
                           (left == 1 ? std::string("A DAY.") : speech::countWord(left) + " DAYS."));
       return;
@@ -136,13 +138,13 @@ void Game::craftTalk(Actor& a) {
   // workshop worker sells its goods (the tanner's leather, the smelter's ingots...): its WARES come first, so the
   // station never is a conversation's first option (headless bots choose option 0; a smith already offers WARES)
   if (a.role != Role::Smith) {
-    dlg.opts.push_back({"LET ME SEE YOUR WARES.", A_TRADE, 0});
-    dlg.opts.push_back({craft::stationVerb(at), CR_WORK, (int)at});
+    g.dlg.opts.push_back({"LET ME SEE YOUR WARES.", A_TRADE, 0});
+    g.dlg.opts.push_back({craft::stationVerb(at), CR_WORK, (int)at});
     return;
   }
-  dlg.opts.push_back({craft::stationVerb(at), CR_WORK, (int)at});
-  const cult::Culture* c = CraftOps::cultureOf(*this, CraftOps::siteOf(*this, a));
-  if (c && c->id) dlg.opts.push_back({"ABOUT THE CRAFT...", CR_MENU, 0});
+  g.dlg.opts.push_back({craft::stationVerb(at), CR_WORK, (int)at});
+  const cult::Culture* c = CraftOps::cultureOf(g, CraftOps::siteOf(g, a));
+  if (c && c->id) g.dlg.opts.push_back({"ABOUT THE CRAFT...", CR_MENU, 0});
 }
 
 namespace {
@@ -157,32 +159,32 @@ void craftMenu(Game& g, bool study, bool canSteal, int price) {
 }
 }  // namespace
 
-bool Game::craftChoose(const DlgOpt& o) {
-  const int ai = findActor(dlg.actor);
-  if (ai < 0) { mode = Mode::Play; return true; }
-  Actor& a = actors[(size_t)ai];
-  const int si = CraftOps::siteOf(*this, a);
-  const cult::Culture* c = CraftOps::cultureOf(*this, si);
-  const uint64_t key = npcKey(a);
+bool CraftHooks::choose(Game& g, const DlgOpt& o) {
+  const int ai = g.findActor(g.dlg.actor);
+  if (ai < 0) { g.mode = Mode::Play; return true; }
+  Actor& a = g.actors[(size_t)ai];
+  const int si = CraftOps::siteOf(g, a);
+  const cult::Culture* c = CraftOps::cultureOf(g, si);
+  const uint64_t key = g.npcKey(a);
   switch (o.action) {
     case CR_MENU: {   // ABOUT THE CRAFT...
       bool study = false;
-      for (const Item& it : inv) study |= CraftOps::studyable(*this, it);
-      const auto mt = marks.find(markKey(key, MK_THEFT));
-      const int t = craft.trust.count(key) ? craft.trust[key] : 0;
-      dlg.text = speech::joinFit(CraftOps::trustLine(t), CraftOps::trustHint(t));
-      if (t < 30) dlg.text = "I DON'T TEACH STRANGERS. BUY FROM ME, COMMISSION A PIECE, AND IN TIME I'LL SHOW YOU MY PATTERNS.";
-      craftMenu(*this, study, mt == marks.end() || mt->second != day, CraftOps::commissionPrice(*this, si));
+      for (const Item& it : g.inv) study |= CraftOps::studyable(g, it);
+      const auto mt = g.marks.find(markKey(key, MK_THEFT));
+      const int t = g.craft.trust.count(key) ? g.craft.trust[key] : 0;
+      g.dlg.text = speech::joinFit(CraftOps::trustLine(t), CraftOps::trustHint(t));
+      if (t < 30) g.dlg.text = "I DON'T TEACH STRANGERS. BUY FROM ME, COMMISSION A PIECE, AND IN TIME I'LL SHOW YOU MY PATTERNS.";
+      craftMenu(g, study, mt == g.marks.end() || mt->second != g.day, CraftOps::commissionPrice(g, si));
       return true;
     }
     case CR_WORK: case CR_WORK2:
-      craft::openBench(*this, a.id, (art::Building)o.arg);
+      craft::openBench(g, a.id, (art::Building)o.arg);
       return true;
     case CR_COMMISSION: {
-      const int price = CraftOps::commissionPrice(*this, si);
-      if (gold < price) { dlg.text = "THAT'S NOT ENOUGH FOR A PIECE OF MY WORK."; return true; }
-      gold -= price;
-      Rng r(hash32((uint32_t)key ^ (uint32_t)(day * 131) ^ (uint32_t)gold));
+      const int price = CraftOps::commissionPrice(g, si);
+      if (g.gold < price) { g.dlg.text = "THAT'S NOT ENOUGH FOR A PIECE OF MY WORK."; return true; }
+      g.gold -= price;
+      Rng r(hash32((uint32_t)key ^ (uint32_t)(g.day * 131) ^ (uint32_t)g.gold));
       static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots};
       const ItemKind k = kinds[r.irange(6)];
       const bool spear = c && c->arms.polearm != cult::Polearm::None;
@@ -190,7 +192,7 @@ bool Game::craftChoose(const DlgOpt& o) {
       // (M8b) a commission is the smith's best work for the settlement's band: Uncommon or better, a shop's cap (Rare;
       // the gate by the settlement's band, never the player's level: 7.5 rule 4)
       gear::DropSource ds;
-      ds.D = std::clamp(si >= 0 ? world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
+      ds.D = std::clamp(si >= 0 ? g.world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
       ds.src = gear::LootSrc::Shop;
       ds.playerLevel = ds.D;
       ds.culture = c ? c->id : 0;
@@ -199,114 +201,114 @@ bool Game::craftChoose(const DlgOpt& o) {
       const Rarity rar = gear::rollRarity(r, ds);
       Item it = gear::makeGearC(r, k, sub, ds.D, rar, c);
       it.flags |= IF_CRAFTED;
-      addItem(it);
-      sfx((int)Sfx::Buy, pl().p);
+      g.addItem(it);
+      g.sfx((int)Sfx::Buy, g.pl().p);
       // (M6 fixer r4) only the first commission of a restock (every 2 days) builds trust, and less once the patterns
       // are taught: gold alone cannot buy the apprenticeship (15.11) in one visit
-      const int t0 = craft.trust.count(key) ? craft.trust[key] : 0;
-      int& last = craft.live.commissionAt[key];
-      const bool earns = last != day / 2 + 1;
+      const int t0 = g.craft.trust.count(key) ? g.craft.trust[key] : 0;
+      int& last = g.craft.live.commissionAt[key];
+      const bool earns = last != g.day / 2 + 1;
       const int nt = earns ? std::min(100, t0 + (t0 < craft::TRUST_PATTERN ? craft::TRUST_COMMISSION : craft::TRUST_COMMISSION_HIGH)) : t0;
-      if (earns) last = day / 2 + 1;
-      craft.trust[key] = (uint8_t)nt;
+      if (earns) last = g.day / 2 + 1;
+      g.craft.trust[key] = (uint8_t)nt;
       std::string said = "HERE: " + it.name + ". HONEST WORK. " +
                          (!earns ? std::string("TRUST IS EARNED OVER SEASONS, NOT BOUGHT IN AN AFTERNOON.")
                           : nt < 30 ? std::string("KEEP BUYING FROM ME AND WE'LL SEE ABOUT LESSONS.") : CraftOps::trustLine(nt));
-      if (c) CraftOps::teach(*this, *c, nt, said);
-      dlg.text = said;
+      if (c) CraftOps::teach(g, *c, nt, said);
+      g.dlg.text = said;
       return true;
     }
     case CR_TEACH: {
-      const int t = craft.trust.count(key) ? craft.trust[key] : 0;
+      const int t = g.craft.trust.count(key) ? g.craft.trust[key] : 0;
       std::string said = t < 30 ? std::string("NOT YET. I DON'T KNOW YOU WELL ENOUGH TO SHOW YOU MY WORK.") : speech::joinFit(CraftOps::trustLine(t), CraftOps::trustHint(t));
-      if (c) CraftOps::teach(*this, *c, t, said);
-      dlg.text = said;
+      if (c) CraftOps::teach(g, *c, t, said);
+      g.dlg.text = said;
       return true;
     }
     case CR_STUDY: {
-      dlg.text = "WHICH PIECE? BREAKING IT DOWN TEACHES YOU HOW ITS MAKERS WORK, BUT YOU WON'T GET IT BACK.";
-      dlg.opts.clear();
+      g.dlg.text = "WHICH PIECE? BREAKING IT DOWN TEACHES YOU HOW ITS MAKERS WORK, BUT YOU WON'T GET IT BACK.";
+      g.dlg.opts.clear();
       int n = 0;
-      for (int i = 0; i < (int)inv.size() && n < 4; i++) {
-        const Item& it = inv[(size_t)i];
-        if (!CraftOps::studyable(*this, it)) continue;
+      for (int i = 0; i < (int)g.inv.size() && n < 4; i++) {
+        const Item& it = g.inv[(size_t)i];
+        if (!CraftOps::studyable(g, it)) continue;
         bool worn = false;
-        for (int e : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak}) worn |= e == i;
+        for (int e : {g.eqWeapon, g.eqBow, g.eqStaff, g.eqArmor, g.eqHelmet, g.eqShield, g.eqRing, g.eqAmulet, g.eqGloves, g.eqBoots, g.eqCloak}) worn |= e == i;
         if (worn) continue;
-        dlg.opts.push_back({"BREAK DOWN " + it.name, CR_STUDYITEM, i});
+        g.dlg.opts.push_back({"BREAK DOWN " + it.name, CR_STUDYITEM, i});
         n++;
       }
-      if (!n) dlg.text = "TAKE IT OFF FIRST. I WON'T BREAK A PIECE YOU'RE WEARING.";
-      dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
+      if (!n) g.dlg.text = "TAKE IT OFF FIRST. I WON'T BREAK A PIECE YOU'RE WEARING.";
+      g.dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
       return true;
     }
     case CR_STUDYITEM: {
-      if (o.arg < 0 || o.arg >= (int)inv.size() || !inv[(size_t)o.arg].culture || !world.src) { mode = Mode::Play; return true; }
-      const Item it = inv[(size_t)o.arg];
-      const cult::Culture& M = world.src->culture(it.culture);
+      if (o.arg < 0 || o.arg >= (int)g.inv.size() || !g.inv[(size_t)o.arg].culture || !g.world.src) { g.mode = Mode::Play; return true; }
+      const Item it = g.inv[(size_t)o.arg];
+      const cult::Culture& M = g.world.src->culture(it.culture);
       craft::SecretKind sk = (it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow) ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern;
       uint8_t al = 0;
       if (it.mat == Mat::Alloy && it.alloy && craft::howAllowed(M, it.alloy, craft::SecretKind::AlloyRecipe, craft::HOW_BREAKDOWN) &&
-          craft.knows(M.id, 0, sk)) { sk = craft::SecretKind::AlloyRecipe; al = it.alloy; }
-      dropItem(o.arg);
+          g.craft.knows(M.id, 0, sk)) { sk = craft::SecretKind::AlloyRecipe; al = it.alloy; }
+      g.dropItem(o.arg);
       const std::string what = craft::secretName(M, al, sk);
-      const bool learned = craft::learnSecret(craft, M, al, sk, craft::STUDY_PROGRESS * SkillOps::studyMul(*this), craft::HOW_BREAKDOWN);   // (M9) QUICK STUDY
-      SkillOps::studied(*this);   // (M9) Smithing's act (the forge's number: craft.skill)
-      sfx((int)Sfx::HitHeavy, pl().p, 1.3f, 0.7f);
-      dlg.text = "YOU TAKE " + it.name + " APART, RIVET BY RIVET. " + what + ": " + std::to_string(craft.progress(M.id, al, sk)) + "%." +
+      const bool learned = craft::learnSecret(g.craft, M, al, sk, craft::STUDY_PROGRESS * SkillOps::studyMul(g), craft::HOW_BREAKDOWN);   // (M9) QUICK STUDY
+      SkillOps::studied(g);   // (M9) Smithing's act (the forge's number: craft.skill)
+      g.sfx((int)Sfx::HitHeavy, g.pl().p, 1.3f, 0.7f);
+      g.dlg.text = "YOU TAKE " + it.name + " APART, RIVET BY RIVET. " + what + ": " + std::to_string(g.craft.progress(M.id, al, sk)) + "%." +
                  (learned ? " NOW YOU UNDERSTAND IT." : "");
-      if (learned) emit(Ev::QuestUpdate, pl().p, 0, 1, "LEARNED " + what);
-      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      if (learned) g.emit(Ev::QuestUpdate, g.pl().p, 0, 1, "LEARNED " + what);
+      g.dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return true;
     }
     case CR_STEAL: {
-      marks[markKey(key, MK_THEFT)] = day;
-      deed(party::Deed::Stole, key);   // M8: the companions see the theft
-      if (!c || !c->id) { dlg.text = "THERE'S NOTHING HERE WORTH STEALING."; return true; }
+      g.marks[markKey(key, MK_THEFT)] = g.day;
+      g.deed(party::Deed::Stole, key);   // M8: the companions see the theft
+      if (!c || !c->id) { g.dlg.text = "THERE'S NOTHING HERE WORTH STEALING."; return true; }
       // the patterns first (whichever is less known), then an alloy that can be taken by theft
-      craft::SecretKind sk = craft.progress(c->id, 0, craft::SecretKind::WeaponPattern) <= craft.progress(c->id, 0, craft::SecretKind::ArmourPattern)
+      craft::SecretKind sk = g.craft.progress(c->id, 0, craft::SecretKind::WeaponPattern) <= g.craft.progress(c->id, 0, craft::SecretKind::ArmourPattern)
                                  ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern;
       uint8_t al = 0;
-      if (craft.knows(c->id, 0, craft::SecretKind::WeaponPattern) && craft.knows(c->id, 0, craft::SecretKind::ArmourPattern))
+      if (g.craft.knows(c->id, 0, craft::SecretKind::WeaponPattern) && g.craft.knows(c->id, 0, craft::SecretKind::ArmourPattern))
         for (size_t i = 0; i < c->arms.alloys.size(); i++)
-          if (!craft.knows(c->id, (uint8_t)(i + 1), craft::SecretKind::AlloyRecipe) && craft::howAllowed(*c, (uint8_t)(i + 1), craft::SecretKind::AlloyRecipe, craft::HOW_THEFT)) {
+          if (!g.craft.knows(c->id, (uint8_t)(i + 1), craft::SecretKind::AlloyRecipe) && craft::howAllowed(*c, (uint8_t)(i + 1), craft::SecretKind::AlloyRecipe, craft::HOW_THEFT)) {
             sk = craft::SecretKind::AlloyRecipe; al = (uint8_t)(i + 1); break;
           }
-      float chance = 0.30f + (float)craft.skillLevel() / 250.0f + (isNight() ? 0.15f : 0.0f) + (background == Background::Urchin ? 0.15f : 0.0f);
+      float chance = 0.30f + (float)g.craft.skillLevel() / 250.0f + (g.isNight() ? 0.15f : 0.0f) + (g.background == Background::Urchin ? 0.15f : 0.0f);
       if (al) chance -= (float)c->arms.alloys[(size_t)al - 1].secrecy / 1000.0f;
-      Rng r(hash32((uint32_t)key ^ (uint32_t)(day * 7919) ^ (uint32_t)seed));
+      Rng r(hash32((uint32_t)key ^ (uint32_t)(g.day * 7919) ^ (uint32_t)g.seed));
       if (r.f() < chance) {
         const std::string what = craft::secretName(*c, al, sk);
-        const bool learned = craft::learnSecret(craft, *c, al, sk, 50, craft::HOW_THEFT);
-        dlg.text = "WHILE " + a.name + " LOOKS AWAY YOU COPY THE PATTERNS FROM THE WALL. " + what + ": " + std::to_string(craft.progress(c->id, al, sk)) + "%." +
+        const bool learned = craft::learnSecret(g.craft, *c, al, sk, 50, craft::HOW_THEFT);
+        g.dlg.text = "WHILE " + a.name + " LOOKS AWAY YOU COPY THE PATTERNS FROM THE WALL. " + what + ": " + std::to_string(g.craft.progress(c->id, al, sk)) + "%." +
                    (learned ? " IT IS YOURS NOW." : "");
-        if (learned) emit(Ev::QuestUpdate, pl().p, 0, 1, "LEARNED " + what);
-        sfx((int)Sfx::Pickup, pl().p, 0.8f);
-        dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+        if (learned) g.emit(Ev::QuestUpdate, g.pl().p, 0, 1, "LEARNED " + what);
+        g.sfx((int)Sfx::Pickup, g.pl().p, 0.8f);
+        g.dlg.opts = {{"FAREWELL.", A_BYE, 0}};
         return true;
       }
       // caught: the smith shouts, the watch comes, the kingdom remembers
-      craft.trust[key] = 0;
-      if (a.npc && a.human) talkMem.flag(key, speech::TM_SLIGHTED, day);   // (M7b) the smith remembers
-      if (si >= 0) if (const Kingdom* K = world.kingdomOf(si)) realm.addRep(K->id, -20);
+      g.craft.trust[key] = 0;
+      if (a.npc && a.human) g.talkMem.flag(key, speech::TM_SLIGHTED, g.day);   // (M7b) the smith remembers
+      if (si >= 0) if (const Kingdom* K = g.world.kingdomOf(si)) g.realm.addRep(K->id, -20);
       int guards = 0;
-      for (size_t k = 1; k < actors.size(); k++) {
-        Actor& gd = actors[k];
-        if (!gd.npc || gd.role != Role::Guard || gd.st == AState::Dead || len2(gd.p - pl().p) > (30.0f * TILE) * (30.0f * TILE)) continue;
-        gd.hostile = true; gd.aggro = true; gd.target = pl().id;
-        emit(Ev::Text, gd.p + Vec2(0, -24), (int)rgba(255, 110, 90), 0, "THIEF!");
+      for (size_t k = 1; k < g.actors.size(); k++) {
+        Actor& gd = g.actors[k];
+        if (!gd.npc || gd.role != Role::Guard || gd.st == AState::Dead || len2(gd.p - g.pl().p) > (30.0f * TILE) * (30.0f * TILE)) continue;
+        gd.hostile = true; gd.aggro = true; gd.target = g.pl().id;
+        g.emit(Ev::Text, gd.p + Vec2(0, -24), (int)rgba(255, 110, 90), 0, "THIEF!");
         guards++;
       }
       // (M6 fixer) the smith bars the thief from the forge and the shop for a week, and the watch takes its fine (a
       // smith works indoors, where no guard stands, so the fine is what makes a caught theft cost something)
-      marks[markKey(key, MK_BARRED)] = day + BAR_DAYS - 1;
-      const int lvl = std::max(1, si >= 0 ? world.sites[(size_t)si].level : 1);
-      const int fine = std::min(gold, 60 + 20 * lvl);
-      gold -= fine;
-      sfx((int)Sfx::Bell, pl().p);
-      say(std::string(guards ? "THIEF! THE WATCH IS COMING FOR YOU" : "THIEF! THE WATCH FINES YOU") +
+      g.marks[markKey(key, MK_BARRED)] = g.day + BAR_DAYS - 1;
+      const int lvl = std::max(1, si >= 0 ? g.world.sites[(size_t)si].level : 1);
+      const int fine = std::min(g.gold, 60 + 20 * lvl);
+      g.gold -= fine;
+      g.sfx((int)Sfx::Bell, g.pl().p);
+      g.say(std::string(guards ? "THIEF! THE WATCH IS COMING FOR YOU" : "THIEF! THE WATCH FINES YOU") +
           (fine > 0 ? " (-" + std::to_string(fine) + " GOLD)" : "") + ". BARRED FROM THIS FORGE FOR " + std::to_string(BAR_DAYS) + " DAYS");
-      mode = Mode::Play;
+      g.mode = Mode::Play;
       return true;
     }
     default: break;

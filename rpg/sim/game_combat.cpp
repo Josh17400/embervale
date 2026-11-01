@@ -27,6 +27,12 @@
 #include "rpg/sim/war.h"
 #include "rpg/story/story.h"
 #include "rpg/culture/society.h"
+#include "rpg/sim/life_hooks.h"
+#include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/loot_ops.h"
+#include "rpg/sim/war_ops.h"
+#include "rpg/sim/quest_ops.h"
+#include "rpg/sim/story_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -230,8 +236,8 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     }
   }
   // ---- 8. the lanes' multipliers: foes (M6), the party (M8), the armour skills (M9), magic's statuses (M9)
-  dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
-  dmg = partyHit(v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
+  dmg = FoeHooks::hit(*this, v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
+  dmg = PartyOps::hit(*this, v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
   if (v.player) dmg = SkillOps::takenMul(*this, attacker, dmg);   // M9: the worn armour class, perks (skills_game.cpp)
   dmg = MagicOps::hurtMul(*this, v, dmg, attacker, ench);         // M9: statuses and wards (magic_game.cpp)
   // ---- 9. the elemental affixes and riders: burn, frost, Ember, Rime, Burn DPS, the weapon's enchantment
@@ -381,7 +387,7 @@ void Game::kill(Actor& a, int killer) {
     const int ki = findActor(killer);
     if (ki >= 0 && actors[(size_t)ki].powTag == powers::PT_WOLF && actors[(size_t)ki].powBy) killer = (int)actors[(size_t)ki].powBy;
   }
-  if (a.comp && partyFell(a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
+  if (a.comp && PartyOps::fell(*this, a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
   if (a.mon == Monster::Skeleton && !a.human && !a.boss && !a.reassembled && a.st != AState::Down && rng_.f() < 0.4f) {
     // the bones collapse... and may stand back up (see updateActor). Another blow while it is down finishes it.
     a.reassembled = true;
@@ -402,7 +408,7 @@ void Game::kill(Actor& a, int killer) {
     return;
   }
   sfx((int)Sfx::EnemyDie, a.p, a.boss ? 0.7f : 1.0f);
-  questActorDown(a);   // M2: a farmer who asked for help, a missing person (quests.cpp)
+  QuestOps::questActorDown(*this, a);   // M2: a farmer who asked for help, a missing person (quests.cpp)
   // only the player's own blows, arrows and fire earn XP, the kill count and hunt progress: a wolf the town guard
   // cuts down is not the player's kill
   const bool byPlayer = killer == pl().id;
@@ -433,18 +439,18 @@ void Game::kill(Actor& a, int killer) {
       }
     }
   }
-  partyKilled(a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
-  foeKilled(a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
-  dropLoot(a);
+  PartyOps::killed(*this, a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
+  FoeHooks::killed(*this, a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
+  LootOps::dropLoot(*this, a);
   // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow
   // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own
   // (fixer M8 r1) a companion's kill is the party's: it counts toward hunt quests and saga Kill goals like the player's
   const bool byParty = byPlayer || (killer >= 0 && party.indexOfActor(killer) >= 0);
-  if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
-  warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
+  if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) QuestOps::questKill(*this, a);
+  WarOps::kill(*this, a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
-  storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
-  lifeKill(a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
+  StoryOps::kill(*this, a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
+  LifeHooks::kill(*this, a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
     // does (a camp whose chief is already gone). Either way the player hears about it at once: CLEARED and BOUNTY
@@ -454,19 +460,19 @@ void Game::kill(Actor& a, int killer) {
       if (o.id != a.id && o.site == a.site && o.hostile && o.st != AState::Dead && !o.npc) left++;
     if (a.boss || left == 0) {
       const bool was = world.sites[a.site].cleared;
-      checkDungeonCleared(a.site);
+      QuestOps::checkDungeonCleared(*this, a.site);
       if (!was && a.boss && left > 0)
         emit(Ev::Text, a.p + Vec2(0, -34), (int)rgba(255, 200, 120), 0,
              "CHIEF SLAIN - " + std::to_string(left) + (left == 1 ? " BANDIT FIGHTS ON" : " BANDITS FIGHT ON"));
     }
   } else if (a.boss) {
-    if (inside && subSite >= 0) checkDungeonCleared(subSite);
-    else if (!inside && a.site >= 0) checkDungeonCleared(a.site);
+    if (inside && subSite >= 0) QuestOps::checkDungeonCleared(*this, subSite);
+    else if (!inside && a.site >= 0) QuestOps::checkDungeonCleared(*this, a.site);
   }
 }
 
 void Game::gainXp(int xp) {
-  if (xp > 0) xp = std::max(1, (int)std::lround(xp * lifeXpMul()));   // M5 (15.2): Rested
+  if (xp > 0) xp = std::max(1, (int)std::lround(xp * LifeHooks::xpMul(*this)));   // M5 (15.2): Rested
   plXp += xp;
   while (plXp >= gear::xpForNext(plLevel)) {   // (M6: the tuned curve, rpg/sim/gear.cpp)
     plXp -= gear::xpForNext(plLevel);

@@ -18,6 +18,7 @@ class Game;
 
 struct Actor;
 struct Dialogue;
+struct DlgOpt;
 
 // Game's friend for the companions' talk (game.h: friend struct PartyTalkOps). Defined in rpg/sim/party_talk.cpp.
 struct PartyTalkOps {
@@ -28,8 +29,17 @@ struct PartyTalkOps {
   static void orders(Game& g, int mi);
   // their personal quest ready to offer (spec: its saga id)
   static bool questReady(Game& g, int mi, std::string& spec);
-  // (tests, scripts) the grave of party.fallen[fi] spoken to, as partyInteract opens it at the stone
+  // the grave of party.fallen[fi] spoken to, as partyInteract opens it at the stone (tests and scripts call it too):
+  // the epitaph and what can be done there as a dialogue (its options call partyGraveAct)
   static void graveTalk(Game& g, int fi);
+  // ---- the companions' talk hooks (were Game::partyTalk ..., SOLID 4.1)
+  //   the companions' talk (rpg/sim/party_talk.cpp, VOICE lane). partyTalk: talkToInner, right after the dialogue is
+  //   reset: a companion's own conversation (true = handled: it set dlg and mode). partyFolkTalk: a talkToInner
+  //   section-7 hook: what anyone else says of the party (a tavern regular's or a mercenary's offer to join, the kin
+  //   and friends of a companion or of the fallen); options in [DLG_PARTY, DLG_PARTY_END). partyChoose: those options.
+  static bool talk(Game& g, Actor& a);
+  static void folkTalk(Game& g, Actor& a);
+  static bool choose(Game& g, const DlgOpt& o);
 };
 
 namespace party {

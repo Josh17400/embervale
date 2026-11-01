@@ -2,6 +2,7 @@
 // Furniture scan, seats, beds and stations, populate and placeIndoors by schedule, service, chat pairs, interiorFolk.
 // Moved verbatim from life_game.cpp (SOLID 1.2); the Game::life* hooks that call these stay in life_game.cpp.
 #include "rpg/sim/life_ops.h"
+#include "rpg/sim/game.h"
 
 // ---------------------------------------------------------------- interiors
 void LifeOps::scanInterior(Game& g) {
@@ -260,7 +261,7 @@ bool LifeOps::standFree(Game& g, Actor& a, std::initializer_list<RoomKind> kinds
     for (RoomKind k : kinds) if (roomKind(g.sub, ri) == k) ok = true;
     if (!ok || !tileFree(g, x, y) || isUsed(g, x, y) || bySitter(g, x, y) || nearPerformer(g, a, x, y)) continue;
     // a body clear of the walls and furniture beside it
-    if (!g.bodyFree(tileCentre(x, y), a.radius + 2.0f, false)) continue;
+    if (!ClimbOps::bodyFree(g, tileCentre(x, y), a.radius + 2.0f, false)) continue;
     if (nx >= 0 && std::abs(x - nx) + std::abs(y - ny) > maxD) continue;
     // near the anchor when there is one, else anywhere (by hash); never in a huddle (a body a step from another)
     int d = nx >= 0 ? (std::abs(x - nx) + std::abs(y - ny)) * 1000 + (int)(mixu((uint64_t)a.id, (uint64_t)t) % 1000u)
@@ -327,7 +328,7 @@ bool LifeOps::standBeside(Game& g, Actor& a) {
     for (int d = 0; d < 4; d++) {
       const int x = x0 + ox[d], y = y0 + oy[d];
       if (!tileFree(g, x, y) || g.sub.propAt(x, y) || isUsed(g, x, y) || bySitter(g, x, y) || nearPerformer(g, a, x, y) ||
-          !g.bodyFree(tileCentre(x, y), a.radius + 1.0f, false)) continue;
+          !ClimbOps::bodyFree(g, tileCentre(x, y), a.radius + 1.0f, false)) continue;
       placeAt(a, x, y, faceTo(x0 - x, y0 - y));
       return true;
     }
@@ -670,19 +671,19 @@ bool LifeOps::interiorFolk(Game& g, Actor& a, float dt) {
     a.posture = Posture::None;
     const Vec2 ex = tileCentre(g.sub.exitX, g.sub.exitY - 1);
     if (len2(ex - a.p) < 6.0f * 6.0f) { a.lifeBits |= LB_GONE; return true; }
-    if (!g.navStep(a, ex, a.speed * kWalk, dt)) a.lifeBits |= LB_GONE;
+    if (!ClimbOps::navStep(g, a, ex, a.speed * kWalk, dt)) a.lifeBits |= LB_GONE;
     a.st = AState::Walk;
     return true;
   }
   if (A.kind == T_SPOT && !A.arrived) {   // walking to the place decided for them (a seat, a station, the stairs)
     const Vec2 to = tileCentre(A.gx, A.gy);
     a.posture = Posture::None;
-    if (len2(to - a.p) < 3.0f * 3.0f || !g.navStep(a, to, a.speed * kWalk, dt)) {
+    if (len2(to - a.p) < 3.0f * 3.0f || !ClimbOps::navStep(g, a, to, a.speed * kWalk, dt)) {
       A.arrived = true;
       if (A.then == 1) { a.lifeBits |= LB_GONE; return true; }
       a.p = A.dest;
       // (M7) a spot taken since it was chosen (a notice board put up, a FOR SALE sign): stand on the nearest clear tile
-      if (!g.inside && A.post == Posture::None && !g.bodyFree(a.p, a.radius, false)) a.p = snapWalk(g, a.p);
+      if (!g.inside && A.post == Posture::None && !ClimbOps::bodyFree(g, a.p, a.radius, false)) a.p = snapWalk(g, a.p);
       a.home = a.p; a.goal = a.p;
       a.posture = A.post;
       a.face = A.destFace;
@@ -729,7 +730,7 @@ bool LifeOps::interiorFolk(Game& g, Actor& a, float dt) {
       Actor& o = g.actors[(size_t)k];
       release(g, a);
       a.posture = Posture::None;
-      if (len2(o.p - a.p) > 15.0f * 15.0f) { if (!g.navStep(a, o.p, a.speed * 0.8f, dt)) A.partner = -1; a.st = AState::Walk; return true; }
+      if (len2(o.p - a.p) > 15.0f * 15.0f) { if (!ClimbOps::navStep(g, a, o.p, a.speed * 0.8f, dt)) A.partner = -1; a.st = AState::Walk; return true; }
       a.face = faceOf(o.p - a.p);
       A.t2 += dt;
       if (a.st != AState::Windup && a.st != AState::Strike && fmodf(A.t2 + (float)(a.id % 7) * 0.2f, 1.5f) < dt) { a.st = AState::Windup; a.stT = 0; }
@@ -797,7 +798,7 @@ bool LifeOps::serve(Game& g, Actor& a, RT::ARt& A, float dt) {
       Actor& o = g.actors[(size_t)k];
       a.posture = Posture::Carry;
       if (len2(o.p - a.p) > 17.0f * 17.0f) {
-        if (!g.navStep(a, o.p, a.speed * 0.7f, dt)) { A.servePhase = 3; return true; }
+        if (!ClimbOps::navStep(g, a, o.p, a.speed * 0.7f, dt)) { A.servePhase = 3; return true; }
         a.st = AState::Walk;
         return true;
       }
@@ -821,7 +822,7 @@ bool LifeOps::serve(Game& g, Actor& a, RT::ARt& A, float dt) {
       if (A.barX < 0) { A.servePhase = 0; return false; }
       const Vec2 bar = tileCentre(A.barX, A.barY);
       if (len2(bar - a.p) > 3.0f * 3.0f) {
-        if (!g.navStep(a, bar, a.speed * 0.7f, dt)) a.p = bar;
+        if (!ClimbOps::navStep(g, a, bar, a.speed * 0.7f, dt)) a.p = bar;
         a.st = AState::Walk;
         a.posture = Posture::None;
         return true;
@@ -916,7 +917,7 @@ void LifeOps::interiorTick(Game& g, float dt) {
         if (g.subFloor != 0) { a.lifeBits |= LB_GONE; continue; }
         release(g, a);
         a.posture = Posture::None;
-        if (!g.bodyFree(a.p, a.radius, false)) { const Vec2 f = g.freeSpot(tileX(a.p), tileY(a.p) + 1); a.p = f; }
+        if (!ClimbOps::bodyFree(g, a.p, a.radius, false)) { const Vec2 f = ClimbOps::freeSpot(g, tileX(a.p), tileY(a.p) + 1); a.p = f; }
       }
       release(g, a);
       A.kind = T_EXIT;

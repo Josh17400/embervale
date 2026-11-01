@@ -23,6 +23,7 @@
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/realm.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/party_voice.h"
 
 using party::Member;
 using party::State;
@@ -443,7 +444,7 @@ bool PartyOps::actorStep(Game& g, Actor& a, float dt) {
   if (m.lastStandT > 0) {
     m.lastStandT -= dt;
     a.hp = std::max(a.hp, 1.0f);
-    if (m.lastStandT <= 0) { a.hp = 0; g.partyFell(a, -1); g.party.actorMs += msSince(t0); return true; }
+    if (m.lastStandT <= 0) { a.hp = 0; PartyOps::fell(g, a, -1); g.party.actorMs += msSince(t0); return true; }
   }
   // the low-health cry (danger feedback, 15.6.2)
   if (m.lowCryT > 0) m.lowCryT -= dt;
@@ -473,65 +474,63 @@ bool PartyOps::actorStep(Game& g, Actor& a, float dt) {
 }
 
 // ================================================================ the hooks
-void Game::partyStep(float dt) {
-  const int mk = mapKey();
-  if (mk != party.mapSeen) { party.mapSeen = mk; party.mapChanges++; PartyOps::mapChanged(*this); }
-  if (party.members.empty() && party.pending.empty() && party.fallen.empty() && party.walkOffs == 0) { party.actorMs = 0; return; }
+void PartyOps::step(Game& g, float dt) {
+  const int mk = g.mapKey();
+  if (mk != g.party.mapSeen) { g.party.mapSeen = mk; g.party.mapChanges++; PartyOps::mapChanged(g); }
+  if (g.party.members.empty() && g.party.pending.empty() && g.party.fallen.empty() && g.party.walkOffs == 0) { g.party.actorMs = 0; return; }
   const auto t0 = std::chrono::steady_clock::now();
-  party.banterT += dt;
-  if (party.shieldWallT > 0) party.shieldWallT -= dt;
-  if (party.smokeT > 0) party.smokeT -= dt;
-  { const float keep = std::max(0.0f, 1.0f - dt / 30.0f); party.recentPl *= keep; party.recentParty *= keep; }
-  if (!party.pending.empty()) {
-    const std::vector<party::Party::Pending> todo = party.pending;   // (applying may raise more: Abandoned)
-    party.pending.clear();
-    for (const party::Party::Pending& d : todo) PartyOps::applyDeed(*this, d);
+  g.party.banterT += dt;
+  if (g.party.shieldWallT > 0) g.party.shieldWallT -= dt;
+  if (g.party.smokeT > 0) g.party.smokeT -= dt;
+  { const float keep = std::max(0.0f, 1.0f - dt / 30.0f); g.party.recentPl *= keep; g.party.recentParty *= keep; }
+  if (!g.party.pending.empty()) {
+    const std::vector<party::Party::Pending> todo = g.party.pending;   // (applying may raise more: Abandoned)
+    g.party.pending.clear();
+    for (const party::Party::Pending& d : todo) PartyOps::applyDeed(g, d);
   }
-  PartyOps::daily(*this);
-  PartyOps::trailStep(*this);
-  PartyOps::keepUp(*this, dt);
-  PartyOps::downedStep(*this, dt);
-  party.slowT -= dt;
-  if (party.slowT <= 0) {
-    party.slowT = 0.25f;
-    PartyOps::censusDeaths(*this);
-    PartyOps::placesStep(*this);
-    PartyOps::gravesStep(*this);
+  PartyOps::daily(g);
+  PartyOps::trailStep(g);
+  PartyOps::keepUp(g, dt);
+  PartyOps::downedStep(g, dt);
+  g.party.slowT -= dt;
+  if (g.party.slowT <= 0) {
+    g.party.slowT = 0.25f;
+    PartyOps::censusDeaths(g);
+    PartyOps::placesStep(g);
+    PartyOps::gravesStep(g);
   }
   // bodies walking home out of sight (left, dismissed): gone once off the screen or out of the door
-  if (party.walkOffs > 0) {
+  if (g.party.walkOffs > 0) {
     int left = 0;
-    for (size_t i = 1; i < actors.size();) {
-      Actor& a = actors[i];
+    for (size_t i = 1; i < g.actors.size();) {
+      Actor& a = g.actors[i];
       if (a.partyTag != PartyOps::PT_WALKOFF) { i++; continue; }
-      const Vec2 d = a.p - pl().p;
-      const bool gone = std::fabs(d.x) > (sleepHalfW + 1.0f) * TILE || std::fabs(d.y) > (sleepHalfH + 1.0f) * TILE || (inside && a.lifeT > 3.0f) || a.lifeT > 40.0f;
-      if (gone) { actors.erase(actors.begin() + (std::ptrdiff_t)i); continue; }
+      const Vec2 d = a.p - g.pl().p;
+      const bool gone = std::fabs(d.x) > (g.sleepHalfW + 1.0f) * TILE || std::fabs(d.y) > (g.sleepHalfH + 1.0f) * TILE || (g.inside && a.lifeT > 3.0f) || a.lifeT > 40.0f;
+      if (gone) { g.actors.erase(g.actors.begin() + (std::ptrdiff_t)i); continue; }
       left++;
       i++;
     }
-    party.walkOffs = left;
+    g.party.walkOffs = left;
   }
   const double mine = msSince(t0);
   const auto tb = std::chrono::steady_clock::now();
-  party::banterStep(*this, dt);   // VOICE (rpg/sim/banter.cpp)
-  party.stats.banterMsWorst = std::max(party.stats.banterMsWorst, msSince(tb));
-  const double ms = mine + party.actorMs;   // (the FELLOWS lane's own cost: banter is timed apart)
-  party.actorMs = 0;
-  if (!party.members.empty()) {
-    party.stats.stepMsSum += ms;
-    party.stats.stepMsWorst = std::max(party.stats.stepMsWorst, ms);
-    party.stats.stepN++;
+  party::banterStep(g, dt);   // VOICE (rpg/sim/banter.cpp)
+  g.party.stats.banterMsWorst = std::max(g.party.stats.banterMsWorst, msSince(tb));
+  const double ms = mine + g.party.actorMs;   // (the FELLOWS lane's own cost: banter is timed apart)
+  g.party.actorMs = 0;
+  if (!g.party.members.empty()) {
+    g.party.stats.stepMsSum += ms;
+    g.party.stats.stepMsWorst = std::max(g.party.stats.stepMsWorst, ms);
+    g.party.stats.stepN++;
   }
 }
 
-bool Game::partyActor(Actor& a, float dt) { return PartyOps::actorStep(*this, a, dt); }
-
-bool Game::partyFell(Actor& a, int killer) {
-  Member* m = PartyOps::of(*this, a);
+bool PartyOps::fell(Game& g, Actor& a, int killer) {
+  Member* m = PartyOps::of(g, a);
   if (!m) return false;
   (void)killer;
-  const int mi = PartyOps::indexOf(*this, *m);
+  const int mi = PartyOps::indexOf(g, *m);
   if (m->state == State::Downed) {   // struck while down: the bleeding quickens; a heavy blow ends it
     // (fixer M8 r2) only a fresh blow (partyHit sets lastBlow just before it lands) counts, once: a burn, a stale
     // heavy blow or any other non-blow kill() on the downed body no longer drains the window frame by frame
@@ -540,7 +539,7 @@ bool Game::partyFell(Actor& a, int killer) {
     const bool heavy = m->lastBlowHeavy || m->lastBlow >= party::HEAVY_BLOW_PCT * std::max(1.0f, a.maxHp);
     m->lastBlow = 0; m->lastBlowHeavy = false;
     if (heavy) {
-      PartyOps::dieForGood(*this, mi, "STRUCK DOWN WHERE THEY LAY");
+      PartyOps::dieForGood(g, mi, "STRUCK DOWN WHERE THEY LAY");
       return true;
     }
     m->downT -= 5.0f;
@@ -552,9 +551,9 @@ bool Game::partyFell(Actor& a, int killer) {
     m->skillCd[2] = party::skillInfo(party::Skill::LastStand).cooldown;
     m->lastStandT = 5.0f;
     a.hp = 1;
-    party.stats.lastStands++;
-    emit(Ev::Text, a.p + Vec2(0, -30), (int)rgba(255, 200, 120), 0, "LAST STAND");
-    sfx((int)Sfx::Roar, a.p, 1.4f, 0.6f);
+    g.party.stats.lastStands++;
+    g.emit(Ev::Text, a.p + Vec2(0, -30), (int)rgba(255, 200, 120), 0, "LAST STAND");
+    g.sfx((int)Sfx::Roar, a.p, 1.4f, 0.6f);
     return true;
   }
   // (fixer M8 r2) one told to wait, or living at home, is downed where they are and gets back up to that life (not
@@ -572,87 +571,87 @@ bool Game::partyFell(Actor& a, int killer) {
   m->flags = (uint16_t)((m->flags & ~(party::MF_CARRIED | party::MF_DOWN_WAIT | party::MF_DOWN_HOME)) | from);
   a.hp = 0; a.st = AState::Idle; a.stT = 0; a.posture = art::Posture::Downed; a.knock = Vec2();
   a.burnT = 0; a.slowT = 0;   // (fixer M8 r2) a burning companion stops burning when they fall (else they bled out in 0.15 s)
-  party.stats.downs++;
-  PartyOps::alert(*this, mi, 2, m->name + " IS DOWN! GET TO THEM!");
-  sfx((int)Sfx::Hurt, a.p, 0.8f);
+  g.party.stats.downs++;
+  PartyOps::alert(g, mi, 2, m->name + " IS DOWN! GET TO THEM!");
+  g.sfx((int)Sfx::Hurt, a.p, 0.8f);
   return true;
 }
 
-float Game::partyHit(Actor& victim, float dmg, int attacker) {
-  if (party.members.empty() || dmg <= 0) return dmg;
-  const int atkI = attacker >= 0 ? findActor(attacker) : -1;
-  if (attacker == pl().id && victim.hostile) { party.playerTarget = victim.id; party.playerTargetT = time; }
+float PartyOps::hit(Game& g, Actor& victim, float dmg, int attacker) {
+  if (g.party.members.empty() || dmg <= 0) return dmg;
+  const int atkI = attacker >= 0 ? g.findActor(attacker) : -1;
+  if (attacker == g.pl().id && victim.hostile) { g.party.playerTarget = victim.id; g.party.playerTargetT = g.time; }
   if (victim.player || victim.comp) {
-    if (party.shieldWallT > 0) dmg *= 0.5f;   // Shield Wall
-    if (victim.player && party.wardHp > 0) {   // the mage's Ward soaks first
-      const float soak = std::min(party.wardHp, dmg);
-      party.wardHp -= soak;
+    if (g.party.shieldWallT > 0) dmg *= 0.5f;   // Shield Wall
+    if (victim.player && g.party.wardHp > 0) {   // the mage's Ward soaks first
+      const float soak = std::min(g.party.wardHp, dmg);
+      g.party.wardHp -= soak;
       dmg -= soak;
-      if (soak > 0) emit(Ev::Sparkle, victim.p + Vec2(0, -8));
+      if (soak > 0) g.emit(Ev::Sparkle, victim.p + Vec2(0, -8));
     }
   }
   if (victim.comp) {
-    if (Member* m = PartyOps::of(*this, victim)) {
+    if (Member* m = PartyOps::of(g, victim)) {
       m->lastBlow = dmg;
-      m->lastBlowHeavy = atkI > 0 && actors[(size_t)atkI].heavy;
+      m->lastBlowHeavy = atkI > 0 && g.actors[(size_t)atkI].heavy;
       if (m->stance == party::Cmd::Defend && m->voc == party::Vocation::Warrior) dmg *= 0.85f;   // braced behind the shield
     }
   }
-  if (victim.player) { party.stats.dmgPlayer += dmg; party.recentPl += dmg; }
-  else if (victim.comp && victim.posture != art::Posture::Downed) { party.stats.dmgParty += dmg; party.recentParty += dmg; }   // (a blow on the downed costs time, not health)
+  if (victim.player) { g.party.stats.dmgPlayer += dmg; g.party.recentPl += dmg; }
+  else if (victim.comp && victim.posture != art::Posture::Downed) { g.party.stats.dmgParty += dmg; g.party.recentParty += dmg; }   // (a blow on the downed costs time, not health)
   if (attacker >= 0 && victim.hostile) {
-    if (attacker == pl().id) party.stats.dealtPlayer += dmg;
-    else if (party.indexOfActor(attacker) >= 0) party.stats.dealtParty += dmg;
+    if (attacker == g.pl().id) g.party.stats.dealtPlayer += dmg;
+    else if (g.party.indexOfActor(attacker) >= 0) g.party.stats.dealtParty += dmg;
   }
   return dmg;
 }
 
-void Game::partyKilled(const Actor& v, int killer) {
-  if (party.members.empty() || v.comp) return;
-  const int ci = party.indexOfActor(killer);
-  if (ci >= 0) party.members[(size_t)ci].kills++;
-  if (killer != pl().id && ci < 0) return;
+void PartyOps::killed(Game& g, const Actor& v, int killer) {
+  if (g.party.members.empty() || v.comp) return;
+  const int ci = g.party.indexOfActor(killer);
+  if (ci >= 0) g.party.members[(size_t)ci].kills++;
+  if (killer != g.pl().id && ci < 0) return;
   using party::Deed;
-  const ew::Gid siteId = v.site >= 0 && v.site < (int)world.sites.size() ? world.sites[(size_t)v.site].id : 0;
-  const bool byPlayer = killer == pl().id;
+  const ew::Gid siteId = v.site >= 0 && v.site < (int)g.world.sites.size() ? g.world.sites[(size_t)v.site].id : 0;
+  const bool byPlayer = killer == g.pl().id;
   // (fixer M8 r2) a man of a siege's armies, at that siege (its town or the camp 14-30 tiles out): a soldier there is
   // in battle, and so is the watch of a town the player besieges with the attackers. Killing them is the war the player
   // chose (Deed::JoinedWar weighed that once), not the crime of KILLED A GUARD over and over.
   auto inBattle = [&]() {
     if (!v.realm) return false;
-    for (const realm::Siege& s : realm.sieges()) {
+    for (const realm::Siege& s : g.realm.sieges()) {
       if (s.over || (s.attacker != v.realm && s.defender != v.realm)) continue;
       if (v.role == Role::Guard && !(s.playerSide == 1 && s.defender == v.realm)) continue;
-      const int si = world.siteHandle(s.site);
+      const int si = g.world.siteHandle(s.site);
       if (si < 0) continue;
-      const Site& S = world.sites[(size_t)si];
+      const Site& S = g.world.sites[(size_t)si];
       if (std::hypot(S.ex - v.p.x / TILE, S.ey - v.p.y / TILE) < std::max(S.r.w, S.r.h) * 0.5f + 46) return true;
     }
     return false;
   };
   if (v.npc && v.human && !v.hostile) {
     if (!byPlayer) return;   // (a companion never strikes townsfolk unless the war makes them foes)
-    if (v.role == Role::Guard || v.role == Role::Soldier || v.role == Role::Captain) { if (!inBattle()) deed(Deed::KilledGuard, v.realm); }
-    else deed(Deed::KilledInnocent, siteId, 2);
-  } else if (v.faction == Faction::Bandit) deed(Deed::ClearedBandits, siteId);
-  else if (v.unique || v.mon == art::Monster::Dragon) deed(Deed::SlewMonster, v.unique);
+    if (v.role == Role::Guard || v.role == Role::Soldier || v.role == Role::Captain) { if (!inBattle()) g.deed(Deed::KilledGuard, v.realm); }
+    else g.deed(Deed::KilledInnocent, siteId, 2);
+  } else if (v.faction == Faction::Bandit) g.deed(Deed::ClearedBandits, siteId);
+  else if (v.unique || v.mon == art::Monster::Dragon) g.deed(Deed::SlewMonster, v.unique);
   else if (v.hostile && v.human && v.realm && (v.role == Role::Soldier || v.role == Role::Captain || v.role == Role::Guard)) {
     // (fixer M8 r2) a kingdom's man-at-arms who came at the player: in a war (a besieger, the side the player fights)
     // that is battle, not a crime; the side taken already weighed once (Deed::JoinedWar, war_game.cpp). Only a watch
     // turned on the player with no war behind it (a caught thief's pursuers) is a guard killed.
     bool warring = false;
-    for (const realm::War& w : realm.wars()) if (!w.endDay && (w.attacker == v.realm || w.defender == v.realm)) warring = true;
-    if (!warring && v.role == Role::Guard && !inBattle()) deed(Deed::KilledGuard, v.realm);
-  } else if (v.hostile && (v.rank >= 2 || v.boss || settlementAt(v.p) >= 0)) deed(Deed::SlewBeast, siteId);
+    for (const realm::War& w : g.realm.wars()) if (!w.endDay && (w.attacker == v.realm || w.defender == v.realm)) warring = true;
+    if (!warring && v.role == Role::Guard && !inBattle()) g.deed(Deed::KilledGuard, v.realm);
+  } else if (v.hostile && (v.rank >= 2 || v.boss || g.settlementAt(v.p) >= 0)) g.deed(Deed::SlewBeast, siteId);
 }
 
-float Game::partyAggro(const Actor& hostile, const Actor& member) const {
+float PartyOps::aggro(const Game& g, const Actor& hostile, const Actor& member) {
   const int mi = (int)member.comp - 1;
-  if (mi < 0 || mi >= (int)party.members.size()) return 1.0f;
-  const Member& m = party.members[(size_t)mi];
+  if (mi < 0 || mi >= (int)g.party.members.size()) return 1.0f;
+  const Member& m = g.party.members[(size_t)mi];
   if (m.state == State::Downed) return 12.0f;   // the downed: finished off only when nothing else is near
   if (m.state != State::With) return 1.6f;
-  if (party.smokeT > 0) return 0.0f;
+  if (g.party.smokeT > 0) return 0.0f;
   if (m.tauntT > 0) return 0.22f;   // Taunt
   if (m.stance == party::Cmd::Passive) return 6.0f;   // holding back: only what has nothing else near
   // a hurt companion has fallen back behind the player (party_ai.cpp): the foes go for the one in front
@@ -662,9 +661,9 @@ float Game::partyAggro(const Actor& hostile, const Actor& member) const {
   // (M8b merge, --companion --seeds 1..20) a firmer lean (x14 in 0.4..2.0, was x8 in 0.5..1.8): the old one settled
   // ~2.5 points under the middle with a +-4 spread, so a kiting archer at D25 (seed 17: 24 %) fell out of the band
   // whenever the fights' lengths moved (the M8b damage numbers moved them; the mean over 60 runs did not move)
-  const float seen = party.recentPl + party.recentParty;
+  const float seen = g.party.recentPl + g.party.recentParty;
   if (seen > 1.0f) {
-    const float share = party.recentParty / seen, mid = (float)(party::SHARE_LO_PCT + party::SHARE_HI_PCT) * 0.005f;
+    const float share = g.party.recentParty / seen, mid = (float)(party::SHARE_LO_PCT + party::SHARE_HI_PCT) * 0.005f;
     hurt *= std::clamp(1.0f + (share - mid) * 14.0f, 0.4f, 2.0f);
   }
   switch (m.voc) {
@@ -677,51 +676,50 @@ float Game::partyAggro(const Actor& hostile, const Actor& member) const {
   }
 }
 
-void Game::partyQuest(const Quest& q, bool success) {
-  if (party.members.empty()) return;
+void PartyOps::quest(Game& g, const Quest& q, bool success) {
+  if (g.party.members.empty()) return;
   using party::Deed;
-  if (!success) { deed(Deed::QuestFailed, q.giverId); return; }
+  if (!success) { g.deed(Deed::QuestFailed, q.giverId); return; }
   switch (q.type) {
-    case QType::Missing: deed(Deed::Rescued, q.giverId); break;
-    case QType::Protect: case QType::War: deed(Deed::DefendedTown, q.giverId); break;
-    case QType::Bounty: case QType::NamedBandit: deed(Deed::ClearedBandits, q.giverId); break;
-    case QType::Supply: deed(Deed::Charity, q.giverId); break;
-    default: deed(Deed::QuestDone, q.giverId); break;
+    case QType::Missing: g.deed(Deed::Rescued, q.giverId); break;
+    case QType::Protect: case QType::War: g.deed(Deed::DefendedTown, q.giverId); break;
+    case QType::Bounty: case QType::NamedBandit: g.deed(Deed::ClearedBandits, q.giverId); break;
+    case QType::Supply: g.deed(Deed::Charity, q.giverId); break;
+    default: g.deed(Deed::QuestDone, q.giverId); break;
   }
 }
 
-void Game::partyRested(int hours) {
-  for (size_t mi = 0; mi < party.members.size(); mi++) {
-    Member& m = party.members[mi];
+void PartyOps::rested(Game& g, int hours) {
+  for (size_t mi = 0; mi < g.party.members.size(); mi++) {
+    Member& m = g.party.members[mi];
     if (m.state != State::With && m.state != State::Home && m.state != State::Waiting) continue;
     m.hp = -1;
     if (hours >= 6 && (m.flags & party::MF_WOUNDED)) m.flags = (uint16_t)(m.flags & ~party::MF_WOUNDED);
-    const int ai = PartyOps::actorOf(*this, (int)mi);
-    if (ai > 0) { PartyOps::body(*this, m, actors[(size_t)ai]); actors[(size_t)ai].hp = actors[(size_t)ai].maxHp; }
+    const int ai = PartyOps::actorOf(g, (int)mi);
+    if (ai > 0) { PartyOps::body(g, m, g.actors[(size_t)ai]); g.actors[(size_t)ai].hp = g.actors[(size_t)ai].maxHp; }
   }
 }
 
-bool Game::partyInteract() {
-  if (!inside && PartyOps::denInteract(*this)) return true;   // a cleared wolf den's pup
-  if (party.members.empty() && party.fallen.empty()) return false;
-  const Actor& p = pl();
+bool PartyOps::interact(Game& g) {
+  if (!g.inside && PartyOps::denInteract(g)) return true;   // a cleared wolf den's pup
+  if (g.party.members.empty() && g.party.fallen.empty()) return false;
+  const Actor& p = g.pl();
   // a downed companion first (the danger), then a grave
-  for (size_t mi = 0; mi < party.members.size(); mi++) {
-    Member& m = party.members[mi];
+  for (size_t mi = 0; mi < g.party.members.size(); mi++) {
+    Member& m = g.party.members[mi];
     if (m.state != State::Downed) continue;
-    const int ai = PartyOps::actorOf(*this, (int)mi);
-    if (ai <= 0 || len2(actors[(size_t)ai].p - p.p) > (1.8f * TILE) * (1.8f * TILE)) continue;
-    if (m.reviveT <= 0) { m.reviveT = 0.001f; say("YOU BIND " + m.name + "'S WOUNDS..."); }
+    const int ai = PartyOps::actorOf(g, (int)mi);
+    if (ai <= 0 || len2(g.actors[(size_t)ai].p - p.p) > (1.8f * TILE) * (1.8f * TILE)) continue;
+    if (m.reviveT <= 0) { m.reviveT = 0.001f; g.say("YOU BIND " + m.name + "'S WOUNDS..."); }
     return true;
   }
-  if (!inside) {
-    const int fi = PartyOps::graveNear(*this, p.p + faceVec(p.face) * 6.0f, 1.4f * TILE);
-    if (fi >= 0) { partyGraveTalk(fi); return true; }
+  if (!g.inside) {
+    const int fi = PartyOps::graveNear(g, p.p + faceVec(p.face) * 6.0f, 1.4f * TILE);
+    if (fi >= 0) { PartyTalkOps::graveTalk(g, fi); return true; }
   }
   return false;
 }
 
-bool Game::partyFolk(Actor& a, float dt) { return PartyOps::folk(*this, a, dt); }
 
 // ================================================================ the API
 void Game::deed(party::Deed d, ew::Gid about, int weight) {

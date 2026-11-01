@@ -46,15 +46,8 @@
 #include "rpg/story/story.h"
 #include "rpg/story/story_api.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/jobs_ops.h"
 #include "tools/tests/tests.h"
-
-// Game's friend (game.h): the private offer and travel doors this measurement needs
-struct QuestMixOps {
-  static bool hasOffer(const Game& g, const Actor& a) { return g.hasOffer(a); }
-  static Quest makeOffer(Game& g, const Actor& a) { return g.makeOffer(a); }
-  static void accept(Game& g, const Quest& q) { g.acceptQuest(q); }
-  static bool enter(Game& g, int b) { return g.debugEnterBuilding(b, 0); }
-};
 
 namespace {
 
@@ -171,7 +164,7 @@ void considerActor(Game& g, Actor& a, Visit& v, Mix& M, std::set<std::string>& s
     }
   }
   // work ("DO YOU NEED HELP?": hasOffer, then makeOffer)
-  if (QuestMixOps::hasOffer(g, a)) {
+  if (JobOps::hasOffer(g, a)) {
     M.withWork++;
     // (P1b) a radiant job (a composed story run by the story engine): counted as a job kind of its own
     const std::string rj = radiant::offerFor(g, a);
@@ -194,7 +187,7 @@ void considerActor(Game& g, Actor& a, Visit& v, Mix& M, std::set<std::string>& s
       }
       return;
     }
-    const Quest q = QuestMixOps::makeOffer(g, a);
+    const Quest q = JobOps::makeOffer(g, a);
     if (q.title.empty()) return;
     M.jobOffers++;
     M.jobs[qtName(q.type)]++;
@@ -206,7 +199,7 @@ void considerActor(Game& g, Actor& a, Visit& v, Mix& M, std::set<std::string>& s
       if (q.target < 0 && !q.hasPos) M.huntNoTarget++;
     }
     if (v.takes > 0) {
-      QuestMixOps::accept(g, q);
+      JobOps::accept(g, q);
       Quest& b = g.quests.back();
       b.state = QState::Done;
       g.npcQuestsDone[key]++;
@@ -368,7 +361,7 @@ int questMix(int argc, char** argv) {
         for (size_t k = 1; k < g.actors.size(); k++) considerActor(g, g.actors[k], v, M, seedCamps, seedStarted);
         const Site S = g.world.sites[(size_t)here];
         for (int b = S.bldgFirst; b < S.bldgFirst + S.bldgCount; b++) {
-          if (!QuestMixOps::enter(g, b)) continue;
+          if (!JobOps::enter(g, b)) continue;
           tick(2);
           for (size_t k = 1; k < g.actors.size(); k++) considerActor(g, g.actors[k], v, M, seedCamps, seedStarted);
           g.debugLeave();

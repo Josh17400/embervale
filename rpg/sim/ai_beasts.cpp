@@ -12,6 +12,8 @@
 #include "rpg/sim/anim.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/ai_ops.h"
+#include "rpg/sim/game.h"
 
 using art::Monster;
 
@@ -28,7 +30,7 @@ struct Game::BeastKind {
   float wu;   // the windup this blow takes
 };
 
-Game::BeastKind Game::beastKindOf(const Actor& a) {
+Game::BeastKind AiOps::beastKindOf(const Actor& a) {
   const bool harpy = a.mon == Monster::Harpy;
   const bool wolf = a.mon == Monster::Wolf || a.mon == Monster::IceWolf;
   const bool pack = wolf || a.mon == Monster::Hyena || a.mon == Monster::EmberHound || harpy;
@@ -40,11 +42,11 @@ Game::BeastKind Game::beastKindOf(const Actor& a) {
   const bool kite = archer || wisp;
   // (the harpy rises before the dive; (P2a ANIM) a man or woman winds up by what they hold: animEnemyWindup)
   const float wu = a.heavy ? heavyWindup(a.mon) : (harpy && a.lunge ? 0.5f : a.human ? animEnemyWindup(a) : a.windup);
-  return BeastKind{harpy, wolf, pack, goblin, golem, brute, archer, wisp, kite, wu};
+  return Game::BeastKind{harpy, wolf, pack, goblin, golem, brute, archer, wisp, kite, wu};
 }
 
 // dragon: its own dance (the fire-raining flight, then the ground fight with its breath cone)
-void Game::beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt) {
+void AiOps::beastDragon(Game& g, Actor& a, Actor& p, Vec2 toP, float dist, float dt) {
   a.special -= dt;
   // (M6 fixer) a world-boss dragon keeps to its territory: it gives up once the hero is well clear of its home
   // (or once it has been drawn too far out), wings back to its roost, and only wakes again for a hero inside it.
@@ -84,22 +86,22 @@ void Game::beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt) {
         Projectile pr;
         pr.kind = ProjKind::DragonFire; pr.fromPlayer = false; pr.owner = a.id; pr.fac = a.faction;
         Vec2 aim = norm(p.p + Vec2(k * 14.0f, 0) - (a.p + Vec2(0, -28)));
-        pr.p = a.p + Vec2(0, -28); pr.v = aim * 150; pr.dmg = a.dmg * 0.8f; pr.life = 0.7f + (rng_.f() * 0.3f); pr.radius = 6;
+        pr.p = a.p + Vec2(0, -28); pr.v = aim * 150; pr.dmg = a.dmg * 0.8f; pr.life = 0.7f + (g.rng_.f() * 0.3f); pr.radius = 6;
         // fire lands on the ground near the player: let it travel to the target point
         pr.life = std::min(1.4f, len(p.p - pr.p) / 150.0f);
-        projs.push_back(pr);
+        g.projs.push_back(pr);
       }
-      sfx((int)Sfx::Fireball, a.p, 0.6f);
+      g.sfx((int)Sfx::Fireball, a.p, 0.6f);
     }
-    if (a.special <= 0) { a.fly = false; a.special = 7.0f; sfx((int)Sfx::Roar, a.p); emit(Ev::Shake, a.p, 0, 5); a.st = AState::Idle; a.stT = 0; }
+    if (a.special <= 0) { a.fly = false; a.special = 7.0f; g.sfx((int)Sfx::Roar, a.p); g.emit(Ev::Shake, a.p, 0, 5); a.st = AState::Idle; a.stT = 0; }
   } else {
-    if (a.special <= 0) { a.fly = true; a.special = 9.0f; sfx((int)Sfx::Roar, a.p, 1.1f); return; }
+    if (a.special <= 0) { a.fly = true; a.special = 9.0f; g.sfx((int)Sfx::Roar, a.p, 1.1f); return; }
     if (a.st == AState::Windup) {
-      if (a.stT > a.windup) { a.st = AState::Strike; a.stT = 0; meleeHit(a); sfx((int)Sfx::HitHeavy, a.p, 0.6f); emit(Ev::Shake, a.p, 0, 4); }
+      if (a.stT > a.windup) { a.st = AState::Strike; a.stT = 0; g.meleeHit(a); g.sfx((int)Sfx::HitHeavy, a.p, 0.6f); g.emit(Ev::Shake, a.p, 0, 4); }
       return;
     }
     if (a.st == AState::Strike) { if (a.stT > 0.4f) { a.st = AState::Idle; a.stT = 0; a.atkCd = 1.2f; } return; }
-    if (dist > a.range + 4) { moveActor(a, a.aim * (a.speed * 0.6f * dt)); a.st = AState::Walk; }
+    if (dist > a.range + 4) { ClimbOps::moveActor(g, a, a.aim * (a.speed * 0.6f * dt)); a.st = AState::Walk; }
     else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
     // breath cone
     if (a.shootCd <= 0 && dist < 120) {
@@ -108,9 +110,9 @@ void Game::beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt) {
         Projectile pr; pr.kind = ProjKind::DragonFire; pr.owner = a.id; pr.radius = 5; pr.fac = a.faction;
         float ang = std::atan2(a.aim.y, a.aim.x) + (k - 2) * 0.18f;
         pr.p = a.p + Vec2(a.aim.x * 20, -14); pr.v = Vec2(std::cos(ang), std::sin(ang)) * 170; pr.dmg = a.dmg * 0.6f; pr.life = 0.6f;
-        projs.push_back(pr);
+        g.projs.push_back(pr);
       }
-      sfx((int)Sfx::Fireball, a.p, 0.5f);
+      g.sfx((int)Sfx::Fireball, a.p, 0.5f);
     }
   }
   return;
@@ -119,8 +121,8 @@ void Game::beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt) {
 // every hostile but the dragon: the committed attack first, then the chase or the walk home
 // (The windup and the strike stay in this one function on purpose: as functions of their own, MSVC's /fp:fast compiled
 // norm()'s x * (1 / l) as x / l in one place and not the other, and the sim digest changed: SOLID 3.5 step report.)
-void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow) {
-  const BeastKind k = beastKindOf(a);
+void AiOps::beastStep(Game& g, Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow) {
+  const Game::BeastKind k = AiOps::beastKindOf(a);
   switch (a.st) {
     case AState::Windup: {
       const bool harpy = k.harpy;
@@ -136,21 +138,21 @@ void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float s
         // (M3c fixer round 3, review: "a dodge roll does not stop the scorpion's sting venom") true only when the blow
         // LANDED: a roll's iframes, the grace after a hit or a block drop it inside damage(), and then no rider (venom, fire)
         const float hp0 = p.hp;
-        damage(p, a.dmg * mult * (0.9f + rng_.f() * 0.2f), a.p, a.id, e, ep);
+        g.damage(p, a.dmg * mult * (0.9f + g.rng_.f() * 0.2f), a.p, a.id, e, ep);
         return p.hp < hp0;
       };
       // the blightspawn's spore burst: a ring of short-lived spore clots flung out round it (they sting and slow)
       auto sporeBurst = [&]() {
         for (int k = 0; k < 10; k++) {
           Projectile pr;
-          const float an = k * (TAU / 10) + rng_.f() * 0.3f;
+          const float an = k * (TAU / 10) + g.rng_.f() * 0.3f;
           pr.kind = ProjKind::Spit; pr.fromPlayer = false; pr.owner = a.id; pr.fac = a.faction;
           pr.p = a.p + Vec2(0, -6); pr.v = Vec2(std::cos(an), std::sin(an) * 0.7f) * 105.0f;
           pr.dmg = a.dmg * 0.6f; pr.life = 0.42f; pr.radius = 4; pr.ench = Ench::Frost; pr.enchPow = 1;
-          projs.push_back(pr);
+          g.projs.push_back(pr);
         }
-        for (int k = 0; k < 6; k++) emit(Ev::Dust, a.p + Vec2(std::cos(k * 1.047f) * 14, std::sin(k * 1.047f) * 9));
-        sfx((int)Sfx::Splash, a.p, 0.7f, 0.9f);
+        for (int k = 0; k < 6; k++) g.emit(Ev::Dust, a.p + Vec2(std::cos(k * 1.047f) * 14, std::sin(k * 1.047f) * 9));
+        g.sfx((int)Sfx::Splash, a.p, 0.7f, 0.9f);
       };
       a.face = faceOf(toP);
       if (!a.lunge) a.aim = norm(toP);
@@ -162,29 +164,29 @@ void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float s
           pr.owner = a.id; pr.fromPlayer = false; pr.dmg = a.dmg; pr.fac = a.faction;
           Vec2 aim = norm(p.p + Vec2(0, -6) - (a.p + Vec2(0, -8)));
           pr.p = a.p + Vec2(0, -8) + aim * 5;
-          if (a.human) { pr.kind = ProjKind::Arrow; pr.v = aim * 210; pr.life = 1.0f; sfx((int)Sfx::Arrow, a.p, 0.9f); }
-          else if (a.mon == Monster::Wraith) { pr.kind = ProjKind::Magic; pr.v = aim * 130; pr.life = 1.6f; pr.ench = Ench::Frost; pr.enchPow = 4; sfx((int)Sfx::Frost, a.p, 0.8f); }
-          else if (wisp) { pr.kind = ProjKind::Magic; pr.v = aim * 120; pr.life = 1.8f; pr.radius = 3; sfx((int)Sfx::Frost, a.p, 1.7f, 0.6f); }   // (a bolt of light: no frost)
-          else { pr.kind = ProjKind::Spit; pr.v = aim * 150; pr.life = 1.0f; sfx((int)Sfx::Splash, a.p, 1.4f); }
-          projs.push_back(pr);
-          a.atkCd = 1.6f + rng_.f();
+          if (a.human) { pr.kind = ProjKind::Arrow; pr.v = aim * 210; pr.life = 1.0f; g.sfx((int)Sfx::Arrow, a.p, 0.9f); }
+          else if (a.mon == Monster::Wraith) { pr.kind = ProjKind::Magic; pr.v = aim * 130; pr.life = 1.6f; pr.ench = Ench::Frost; pr.enchPow = 4; g.sfx((int)Sfx::Frost, a.p, 0.8f); }
+          else if (wisp) { pr.kind = ProjKind::Magic; pr.v = aim * 120; pr.life = 1.8f; pr.radius = 3; g.sfx((int)Sfx::Frost, a.p, 1.7f, 0.6f); }   // (a bolt of light: no frost)
+          else { pr.kind = ProjKind::Spit; pr.v = aim * 150; pr.life = 1.0f; g.sfx((int)Sfx::Splash, a.p, 1.4f); }
+          g.projs.push_back(pr);
+          a.atkCd = 1.6f + g.rng_.f();
         } else if (a.heavy && a.mon == Monster::Scorpion) {
           // the sting: a long reach over the claws, hard, and its venom slows
           a.aim = norm(toP);
-          if (hitTarget(1.8f, 9.0f, Ench::None, 0) && p.player && !godMode) {
+          if (hitTarget(1.8f, 9.0f, Ench::None, 0) && p.player && !g.godMode) {
             p.slowT = std::max(p.slowT, 2.5f);
-            emit(Ev::Text, p.p + Vec2(0, -26), (int)rgba(196, 236, 96), 0, "VENOM");
+            g.emit(Ev::Text, p.p + Vec2(0, -26), (int)rgba(196, 236, 96), 0, "VENOM");
           }
-          sfx((int)Sfx::Hit, a.p, 0.6f);
+          g.sfx((int)Sfx::Hit, a.p, 0.6f);
           a.vel = a.aim * 50.0f;
-          a.atkCd = 1.3f + rng_.f() * 0.5f;
+          a.atkCd = 1.3f + g.rng_.f() * 0.5f;
         } else if (a.heavy && a.mon == Monster::Blightspawn) {
           sporeBurst();
-          a.atkCd = 1.2f + rng_.f() * 0.5f;
+          a.atkCd = 1.2f + g.rng_.f() * 0.5f;
         } else if (a.heavy) {
-          heavySlam(a);
+          AiOps::heavySlam(g, a);
           a.vel = a.aim * 30.0f;
-          a.atkCd = 1.5f + rng_.f() * 0.6f;
+          a.atkCd = 1.5f + g.rng_.f() * 0.6f;
         } else if (a.lunge) {
           a.aim = norm(toP);
           a.vel = a.aim * (a.mon == Monster::Lurker ? 260.0f : harpy ? 270.0f : 235.0f);
@@ -192,19 +194,19 @@ void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float s
           // (Witness playtests) a pack hunter falls back to the ring after its lunge and circles a while before the next
           // (1.5-2.3 s): the pack's pressure is a rhythm to read, not a bite a second (a level-1 hero who never rolled
           // lost to three same-level wolves in 8 s)
-          a.atkCd = (pack && !harpy ? 1.5f : 0.8f) + rng_.f() * (pack && !harpy ? 0.8f : 0.6f);
-          sfx((int)Sfx::Swing, a.p, 0.7f);
+          a.atkCd = (pack && !harpy ? 1.5f : 0.8f) + g.rng_.f() * (pack && !harpy ? 0.8f : 0.6f);
+          g.sfx((int)Sfx::Swing, a.p, 0.7f);
         } else if (a.mon == Monster::EmberHound) {
           hitTarget(1.0f, 2.0f, Ench::Fire, 4.0f);
-          a.atkCd = 1.0f + rng_.f() * 0.6f;
+          a.atkCd = 1.0f + g.rng_.f() * 0.6f;
           a.vel = a.aim * 120.0f;
-          sfx((int)Sfx::Fireball, a.p, 1.6f, 0.5f);
+          g.sfx((int)Sfx::Fireball, a.p, 1.6f, 0.5f);
         } else {
-          meleeHit(a);
-          a.atkCd = 1.0f + rng_.f() * 0.7f;
+          g.meleeHit(a);
+          a.atkCd = 1.0f + g.rng_.f() * 0.7f;
           if (pack || a.mon == Monster::Boar || goblin) a.vel = a.aim * 120.0f;
           else a.vel = a.aim * 40.0f;
-          sfx((int)Sfx::Swing, a.p, 0.8f);
+          g.sfx((int)Sfx::Swing, a.p, 0.8f);
         }
       }
       return;
@@ -216,12 +218,12 @@ void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float s
         float sp = len(a.vel);
         a.vel = norm(norm(a.vel) + norm(toP) * std::min(1.0f, dt * 4.0f)) * sp;
       }
-      moveActor(a, a.vel * dt);
+      ClimbOps::moveActor(g, a, a.vel * dt);
       a.vel *= std::pow(0.01f, dt);
       if (a.lunge && !a.hitDone && len(p.p - a.p) < a.range + p.radius + 2) {   // the bite lands on contact
         a.aim = norm(p.p - a.p);
         const bool ember = a.mon == Monster::EmberHound;
-        damage(p, a.dmg * (a.mon == Monster::Lurker ? 1.3f : 1.0f) * (0.9f + rng_.f() * 0.2f), a.p, a.id, ember ? Ench::Fire : Ench::None, ember ? 4.0f : 0.0f);
+        g.damage(p, a.dmg * (a.mon == Monster::Lurker ? 1.3f : 1.0f) * (0.9f + g.rng_.f() * 0.2f), a.p, a.id, ember ? Ench::Fire : Ench::None, ember ? 4.0f : 0.0f);
         a.hitDone = true;
         a.vel *= 0.25f;
       }
@@ -232,13 +234,13 @@ void Game::beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float s
       return;
     default: break;
   }
-  if (a.aggro && p.st != AState::Dead) beastPursue(a, p, toP, dist, dt, slow, k);
-  else beastWander(a, dt, slow);
+  if (a.aggro && p.st != AState::Dead) AiOps::beastPursue(g, a, p, toP, dist, dt, slow, k);
+  else AiOps::beastWander(g, a, dt, slow);
 }
 
 // in the fight: close in by kind (flee, circle, swarm, kite, plain), flicker, sidestep when stuck, shriek; then the
 // next blow
-void Game::beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow, const BeastKind& k) {
+void AiOps::beastPursue(Game& g, Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow, const Game::BeastKind& k) {
   const bool harpy = k.harpy;
   const bool pack = k.pack;
   const bool goblin = k.goblin;
@@ -263,7 +265,7 @@ void Game::beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float
     float radial = clampf((dist - orbitR) / 14.0f, -1.0f, 1.0f);
     mv = a.aim * radial + side * (0.95f * a.orbitDir);
     spd = 0.85f;
-    if (rng_.f() < dt * 0.35f) a.orbitDir = (int8_t)-a.orbitDir;
+    if (g.rng_.f() < dt * 0.35f) a.orbitDir = (int8_t)-a.orbitDir;
     a.special += dt;   // time spent circling
   } else if (goblin) {
     // swarm: each goblin closes in from its own side so the pack surrounds you
@@ -275,24 +277,24 @@ void Game::beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float
     if (dist < 62) mv = a.aim * -1.0f + side * (0.5f * a.orbitDir);
     else if (dist > 115) mv = a.aim;
     else mv = side * (0.6f * a.orbitDir);
-    if (rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
+    if (g.rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
   } else if (dist > want) mv = a.aim;
   if (a.mon == Monster::Bat || a.mon == Monster::Wraith || wisp || harpy) {   // erratic flight
     float w = std::sin(a.animT * 5 + a.id) * 0.8f;
     mv = mv + side * w;
   }
-  if (wisp && rng_.f() < dt * 0.3f) {   // the wisp flickers out and back a few strides aside
-    const Vec2 to = a.p + side * (rng_.f() < 0.5f ? 22.0f : -22.0f);
-    if (bodyFree(to, a.radius, true)) { emit(Ev::Sparkle, a.p + Vec2(0, -8)); a.p = to; emit(Ev::Sparkle, a.p + Vec2(0, -8)); }
+  if (wisp && g.rng_.f() < dt * 0.3f) {   // the wisp flickers out and back a few strides aside
+    const Vec2 to = a.p + side * (g.rng_.f() < 0.5f ? 22.0f : -22.0f);
+    if (ClimbOps::bodyFree(g, to, a.radius, true)) { g.emit(Ev::Sparkle, a.p + Vec2(0, -8)); a.p = to; g.emit(Ev::Sparkle, a.p + Vec2(0, -8)); }
   }
   // simple obstacle avoidance: if stuck, sidestep
   Vec2 before = a.p;
   if (len2(mv) > 0.01f) {
-    moveActor(a, norm(mv) * (a.speed * spd * slow * dt));
+    ClimbOps::moveActor(g, a, norm(mv) * (a.speed * spd * slow * dt));
     a.st = AState::Walk;
     if (len2(a.p - before) < 0.02f * a.speed * dt) {
       Vec2 sd = side * ((a.id & 1) ? 1.0f : -1.0f);
-      moveActor(a, sd * (a.speed * slow * dt));
+      ClimbOps::moveActor(g, a, sd * (a.speed * slow * dt));
       if (pack) a.orbitDir = (int8_t)-a.orbitDir;
       if (a.fleeing && dist < 34) a.fleeing = false;   // cornered: fight
     }
@@ -300,27 +302,27 @@ void Game::beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float
   if (a.fleeing) return;
   if (harpy && a.shootCd <= 0 && dist < 84.0f && a.st != AState::Windup) {
     // the shriek: a scream that rattles whoever is close (a short slow); the harpy hangs in the air a moment
-    a.shootCd = 7.0f + rng_.f() * 3.0f;
-    emit(Ev::Text, a.p + Vec2(0, -24), (int)rgba(236, 200, 255), 0, "SHRIEK");
-    emit(Ev::Shake, a.p, 0, 1.5f);
-    sfx((int)Sfx::Roar, a.p, 2.3f, 0.7f);
-    if (p.player && !godMode && p.iframes <= 0) p.slowT = std::max(p.slowT, 1.4f);
+    a.shootCd = 7.0f + g.rng_.f() * 3.0f;
+    g.emit(Ev::Text, a.p + Vec2(0, -24), (int)rgba(236, 200, 255), 0, "SHRIEK");
+    g.emit(Ev::Shake, a.p, 0, 1.5f);
+    g.sfx((int)Sfx::Roar, a.p, 2.3f, 0.7f);
+    if (p.player && !g.godMode && p.iframes <= 0) p.slowT = std::max(p.slowT, 1.4f);
     a.atkCd = std::max(a.atkCd, 0.6f);
   }
-  beastAttack(a, p, dist, dt, k);
+  AiOps::beastAttack(g, a, p, dist, dt, k);
 }
 
 // the next blow, by the same if-ladder: pack, brute, scorpion, lurker, blightspawn, then any other
-void Game::beastAttack(Actor& a, Actor& p, float dist, float dt, const BeastKind& k) {
+void AiOps::beastAttack(Game& g, Actor& a, Actor& p, float dist, float dt, const Game::BeastKind& k) {
   const bool pack = k.pack;
   const bool golem = k.golem;
   const bool brute = k.brute;
   bool inMelee = dist < a.range + p.radius + 2;
   bool inShot = a.ranged && dist < 150 && dist > 30;
   if (a.atkCd > 0) return;
-  if (pack) { beastPackAttack(a, p, dist, inMelee, k); return; }
+  if (pack) { AiOps::beastPackAttack(g, a, p, dist, inMelee, k); return; }
   if (brute) {
-    bool heavyNow = golem ? (a.atkN % 2 == 1) : ((a.atkN % 3 == 2) || rng_.f() < 0.15f);
+    bool heavyNow = golem ? (a.atkN % 2 == 1) : ((a.atkN % 3 == 2) || g.rng_.f() < 0.15f);
     if (inMelee || (heavyNow && dist < a.range + p.radius + 12)) { a.st = AState::Windup; a.stT = 0; a.heavy = heavyNow; }
     return;
   }
@@ -336,18 +338,18 @@ void Game::beastAttack(Actor& a, Actor& p, float dist, float dt, const BeastKind
   }
   if (a.mon == Monster::Blightspawn && a.shootCd <= 0 && dist < 44) {   // the spore burst (its ring shows the cloud)
     a.st = AState::Windup; a.stT = 0; a.heavy = true;
-    a.shootCd = 6.0f + rng_.f() * 2.0f;
+    a.shootCd = 6.0f + g.rng_.f() * 2.0f;
     return;
   }
-  if (inMelee || (inShot && rng_.f() < dt * 2.5f)) { a.st = AState::Windup; a.stT = 0; }
+  if (inMelee || (inShot && g.rng_.f() < dt * 2.5f)) { a.st = AState::Windup; a.stT = 0; }
 }
 
 // the pack's turn: a lunge from the flank or a snap up close
-void Game::beastPackAttack(Actor& a, Actor& p, float dist, bool inMelee, const BeastKind& k) {
+void AiOps::beastPackAttack(Game& g, Actor& a, Actor& p, float dist, bool inMelee, const Game::BeastKind& k) {
   const bool harpy = k.harpy;
   // the pack takes turns (two at once in a big pack); prefer the flank, but don't circle forever
   int busy = 0, mates = 0;
-  for (const Actor& o : actors) {
+  for (const Actor& o : g.actors) {
     if (o.id == a.id || o.st == AState::Dead || o.mon != a.mon || len2(o.p - p.p) > 140 * 140) continue;
     mates++;
     if (o.lunge && o.st == AState::Windup) busy++;
@@ -365,12 +367,12 @@ void Game::beastPackAttack(Actor& a, Actor& p, float dist, bool inMelee, const B
 }
 
 // out of the fight: wander near home; a pack that lost its prey trots back to the den
-void Game::beastWander(Actor& a, float dt, float slow) {
+void AiOps::beastWander(Game& g, Actor& a, float dt, float slow) {
   Vec2 d = a.goal - a.p;
   float l = len(d);
   // a pack that lost its prey trots back to the den
   float back = (a.den >= 0 && len2(a.p - a.home) > 5.0f * TILE * 5.0f * TILE) ? 0.7f : 0.35f;
   if (back > 0.5f) { d = a.home - a.p; l = len(d); }
-  if (l > 4) { moveActor(a, d * (1.0f / l) * (a.speed * back * slow * dt)); a.face = faceOf(d); a.st = AState::Walk; }
+  if (l > 4) { ClimbOps::moveActor(g, a, d * (1.0f / l) * (a.speed * back * slow * dt)); a.face = faceOf(d); a.st = AState::Walk; }
   else a.st = AState::Idle;
 }

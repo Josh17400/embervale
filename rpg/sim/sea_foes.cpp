@@ -20,6 +20,7 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/foe_hooks.h"
 
 using namespace sea;
 using gsim::faceOf;
@@ -174,7 +175,7 @@ void SeaOps::spawnPirates(Game& g, Vec2 near, int level) {
     a.name = k == 0 ? "PIRATE CAPTAIN" : "PIRATE";
     g.applyLevel(a, std::max(1, level));
     if (k == 0) { a.maxHp *= 2.2f; a.hp = a.maxHp; a.dmg *= 1.3f; a.xp *= 3; a.look.outfit = art::Outfit::Plate; a.look.helmet = false; }
-    g.foeSpawned(a, std::max(1, level));
+    FoeHooks::spawned(g, a, std::max(1, level));
     a.swim = 2;
     a.wild = true;
     a.aggro = true;

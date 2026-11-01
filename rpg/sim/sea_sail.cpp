@@ -15,6 +15,7 @@
 #include <cmath>
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/game.h"
 
 using namespace sea;
 using gsim::faceOf;
@@ -148,7 +149,7 @@ bool SeaOps::coastNear(const Game& g, Vec2 from, int radius, Vec2& out) {
         const Ground gr = m.at(tx, ty);
         if (groundWater(gr) || gr == Ground::Void || m.blocked(tx, ty)) continue;
         const Vec2 c((float)tx * TILE + 8.0f, (float)ty * TILE + 10.0f);
-        if (!g.bodyFree(c, 4.5f, false)) continue;
+        if (!ClimbOps::bodyFree(g, c, 4.5f, false)) continue;
         const float d = len2(c - from);
         if (d < best) { best = d; out = c; found = true; }
       }
@@ -242,7 +243,7 @@ bool SeaOps::swimInput(Game& g, const Input& in, float dt) {
   }
   L.swimVel += (want - L.swimVel) * std::min(1.0f, dt * 4.0f);   // eased strokes: no snap in or out of the way
   const Vec2 before = p.p;
-  g.moveActor(p, L.swimVel * dt);
+  ClimbOps::moveActor(g, p, L.swimVel * dt);
   if (L.pulled) {
     if (len2(p.p - before) < 0.01f) L.stuckT += dt; else L.stuckT = 0;
     if (L.stuckT > 2.5f) {   // (the way back is fouled: the nearest beach instead)

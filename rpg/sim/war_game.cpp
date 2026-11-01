@@ -24,6 +24,8 @@
 #include "rpg/sim/service_ops.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/war_ops.h"
+#include "rpg/sim/quest_ops.h"
 
 namespace {
 double nowMs() {
@@ -84,7 +86,7 @@ std::string soldierGreeting(const Game& g, const Actor& a) {
 // ---------------------------------------------------------------- shared helpers (war.h)
 bool warFoes(const Game& g, const Actor& a, const Actor& b) {
   if (factionsHostile(a.faction, b.faction)) return true;
-  if (g.warHostile(a, b)) return true;
+  if (WarOps::hostile(g, a, b)) return true;
   if (a.player) return b.hostile;
   if (b.player) return a.hostile;
   return false;
@@ -214,8 +216,8 @@ bool warKeyPerson(const Game& g, int si, int slot) {
 }
 
 // ---------------------------------------------------------------- Game hooks
-bool Game::warHostile(const Actor& a, const Actor& b) const {
-  return a.realm && b.realm && a.realm != b.realm && realm.atWar(a.realm, b.realm);
+bool WarOps::hostile(const Game& g, const Actor& a, const Actor& b) {
+  return a.realm && b.realm && a.realm != b.realm && g.realm.atWar(a.realm, b.realm);
 }
 
 ew::Gid Game::warPropKingdom(int tx, int ty) const {
@@ -223,68 +225,68 @@ ew::Gid Game::warPropKingdom(int tx, int ty) const {
   return it == war.propKingdom.end() ? 0 : it->second;
 }
 
-void Game::warStep(float dt) {
-  if (!world.endless || !world.src || world.over.ground.empty()) return;
+void WarOps::step(Game& gm, float dt) {
+  if (!gm.world.endless || !gm.world.src || gm.world.over.ground.empty()) return;
   const double t0 = nowMs();
-  if (war.barredSayT > 0) war.barredSayT -= dt;
+  if (gm.war.barredSayT > 0) gm.war.barredSayT -= dt;
   // ---- 1. the overlays follow the realm and the window
-  war.sigT -= dt;
-  if (war.sigT <= 0 || war.dirty || war.appliedShifts != world.windowShifts) {
-    war.sigT = 0.5f;
-    uint64_t sig = 0x9E37ull ^ (uint64_t)world.windowShifts * 0x100000001B3ull;
-    for (const realm::War& w : realm.wars()) if (!w.endDay) sig = ew::mix64(sig ^ ((uint64_t)w.id * 0xBF58476D1CE4E5B9ull));   // (checkpoints)
-    for (int si : world.nearSites) {
-      if (si < 0 || si >= (int)world.sites.size()) continue;
-      const Site& s = world.sites[(size_t)si];
+  gm.war.sigT -= dt;
+  if (gm.war.sigT <= 0 || gm.war.dirty || gm.war.appliedShifts != gm.world.windowShifts) {
+    gm.war.sigT = 0.5f;
+    uint64_t sig = 0x9E37ull ^ (uint64_t)gm.world.windowShifts * 0x100000001B3ull;
+    for (const realm::War& w : gm.realm.wars()) if (!w.endDay) sig = ew::mix64(sig ^ ((uint64_t)w.id * 0xBF58476D1CE4E5B9ull));   // (checkpoints)
+    for (int si : gm.world.nearSites) {
+      if (si < 0 || si >= (int)gm.world.sites.size()) continue;
+      const Site& s = gm.world.sites[(size_t)si];
       if (!s.settlement()) continue;
-      const realm::SettlementState* st = realm.settlement(s.id);
+      const realm::SettlementState* st = gm.realm.settlement(s.id);
       if (!st) continue;
       if (!st->damage && !(st->flags & (realm::SS_GARRISON | realm::SS_REFUGEES | realm::SS_ABANDONED | realm::SS_RUINED | realm::SS_BESIEGED))) continue;
-      const realm::Siege* sg = realm.siegeAt(s.id);
-      const bool open = warGatesOpen(*this, s.id);
+      const realm::Siege* sg = gm.realm.siegeAt(s.id);
+      const bool open = warGatesOpen(gm, s.id);
       sig = ew::mix64(sig ^ s.id ^ ((uint64_t)st->flags << 8) ^ ((uint64_t)st->damage << 24) ^ ((uint64_t)st->owner * 31) ^ ((uint64_t)st->garrisonOf * 7) ^
                       ((uint64_t)(sg ? sg->id : 0) << 40) ^ ((uint64_t)s.bldgCount << 50) ^ (open ? 0xABCDull : 0) ^ ((uint64_t)st->refugeesFrom * 3));
     }
-    if (sig != war.appliedSig || war.dirty || war.appliedShifts != world.windowShifts) {
-      warApplyOverlays(*this);
-      war.appliedSig = sig;
-      war.appliedShifts = world.windowShifts;
-      war.appliedSerial = realm.eventSerial();
-      war.dirty = false;
+    if (sig != gm.war.appliedSig || gm.war.dirty || gm.war.appliedShifts != gm.world.windowShifts) {
+      warApplyOverlays(gm);
+      gm.war.appliedSig = sig;
+      gm.war.appliedShifts = gm.world.windowShifts;
+      gm.war.appliedSerial = gm.realm.eventSerial();
+      gm.war.dirty = false;
     }
   }
-  if (inside) {   // the camps and patrols wait outside
+  if (gm.inside) {   // the camps and patrols wait outside
     const double ms = nowMs() - t0;
-    war.steps++; war.stepMs += ms; war.worstStepMs = std::max(war.worstStepMs, ms);
+    gm.war.steps++; gm.war.stepMs += ms; gm.war.worstStepMs = std::max(gm.war.worstStepMs, ms);
     return;
   }
   // a copy, not a reference: spawnMan pushes onto actors below and can reallocate it
-  struct { Vec2 p; } const P{pl().p};
+  struct { Vec2 p; } const P{gm.pl().p};
   const float ptx = P.p.x / TILE, pty = P.p.y / TILE;
-  auto findId = [&](int id) { return findActor(id); };
+  auto findId = [&](int id) { return gm.findActor(id); };
   // the player's side in the sieges (active War quests)
   struct Side { uint32_t siege; ew::Gid foe; bool assault; ew::Gid site; };
   std::vector<Side> sides;
-  for (const Quest& q : quests)
+  for (const Quest& q : gm.quests)
     if (q.type == QType::War && q.state == QState::Active)
-      if (const realm::Siege* sg = siegeById(*this, (uint32_t)q.stage))
+      if (const realm::Siege* sg = siegeById(gm, (uint32_t)q.stage))
         if (!sg->over) sides.push_back({sg->id, (q.flags & QF_WAR_ATTACK) ? sg->defender : sg->attacker, (q.flags & QF_WAR_ATTACK) != 0, sg->site});
   // (M12 SERVICE) an open campaign order at a siege puts the player on its side the same way
-  if (service.enlisted())
-    for (const service::Order& o : service.orders)
+  if (gm.service.enlisted())
+    for (const service::Order& o : gm.service.orders)
       if (o.state == service::OS_OPEN && o.siege && (o.kind == service::OrderKind::BreakSiege || o.kind == service::OrderKind::Assault))
-        if (const realm::Siege* sg = siegeById(*this, o.siege))
+        if (const realm::Siege* sg = siegeById(gm, o.siege))
           if (!sg->over) sides.push_back({sg->id, o.kind == service::OrderKind::Assault ? sg->defender : sg->attacker, o.kind == service::OrderKind::Assault, sg->site});
   auto spawnMan = [&](Role r, ew::Gid kingdom, Vec2 at, int slot, int level, int site) {
     Actor a;
-    a.id = nextId_++;
+    a.id = gm.nextId_++;
     a.human = true; a.npc = true; a.role = r;
     a.p = at; a.home = at; a.goal = at;
     a.faction = r == Role::Refugee ? Faction::Town : Faction::Army;
     a.realm = r == Role::Refugee ? 0 : kingdom;
     a.site = site; a.slot = slot; a.fromMap = false; a.bldg = -1;
-    Rng rr(hash32((uint32_t)slot * 2654435761u ^ (uint32_t)kingdom ^ (uint32_t)(kingdom >> 32)) ^ (uint32_t)seed);
-    makeLook(a, r, rr);
+    Rng rr(hash32((uint32_t)slot * 2654435761u ^ (uint32_t)kingdom ^ (uint32_t)(kingdom >> 32)) ^ (uint32_t)gm.seed);
+    gm.makeLook(a, r, rr);
     a.maxHp = 140; a.dmg = 13; a.speed = 50; a.range = 16; a.radius = 4.5f; a.aggroR = 120;
     if (r == Role::Captain) { a.maxHp = 320; a.dmg = 20; a.speed = 52; a.radius = 5.0f; }
     if (r == Role::Refugee) { a.maxHp = 50; a.dmg = 0; a.speed = 40; }
@@ -296,68 +298,68 @@ void Game::warStep(float dt) {
     a.level = 10;
     a.special = 0.5f;
     a.xp = r == Role::Captain ? 60 : (r == Role::Soldier ? 22 : 0);
-    actors.push_back(a);
+    gm.actors.push_back(a);
     return a.id;
   };
   // ---- 2. a conquered place: its old garrison stands down (the next watch streamed in wears the new owner's colours)
-  for (int si : activeSites_) {
-    if (si < 0 || si >= (int)world.sites.size() || !world.sites[(size_t)si].settlement()) continue;
-    const Site& s = world.sites[(size_t)si];
-    const ew::Gid owner = s.kingdom >= 0 ? world.kingdoms[(size_t)s.kingdom].id : 0;
-    auto it = war.guardOwner.find(si);
-    if (it != war.guardOwner.end() && it->second == owner) continue;
-    war.guardOwner[si] = owner;
-    for (size_t k = 1; k < actors.size();) {
-      const Actor& a = actors[k];
-      if (a.npc && a.fromMap && a.site == si && a.role == Role::Guard && a.realm != owner && !(mode == Mode::Dialogue && dlg.actor == a.id))
-        actors.erase(actors.begin() + (std::ptrdiff_t)k);
+  for (int si : gm.activeSites_) {
+    if (si < 0 || si >= (int)gm.world.sites.size() || !gm.world.sites[(size_t)si].settlement()) continue;
+    const Site& s = gm.world.sites[(size_t)si];
+    const ew::Gid owner = s.kingdom >= 0 ? gm.world.kingdoms[(size_t)s.kingdom].id : 0;
+    auto it = gm.war.guardOwner.find(si);
+    if (it != gm.war.guardOwner.end() && it->second == owner) continue;
+    gm.war.guardOwner[si] = owner;
+    for (size_t k = 1; k < gm.actors.size();) {
+      const Actor& a = gm.actors[k];
+      if (a.npc && a.fromMap && a.site == si && a.role == Role::Guard && a.realm != owner && !(gm.mode == Mode::Dialogue && gm.dlg.actor == a.id))
+        gm.actors.erase(gm.actors.begin() + (std::ptrdiff_t)k);
       else k++;
     }
-    for (size_t k = 0; k < sheltered_.size();)
-      if (sheltered_[k].site == si && sheltered_[k].role == Role::Guard && sheltered_[k].realm != owner) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)k);
+    for (size_t k = 0; k < gm.sheltered_.size();)
+      if (gm.sheltered_[k].site == si && gm.sheltered_[k].role == Role::Guard && gm.sheltered_[k].realm != owner) gm.sheltered_.erase(gm.sheltered_.begin() + (std::ptrdiff_t)k);
       else k++;
     // the townsfolk take up arms (or put them down) by the new state of things: a place left with no kingdom's watch
     // arms most of its people (the same rule as Game::spawnHuman's, keyed by the same identity)
     auto rearm = [&](Actor& a) {
       if (!a.npc || !a.fromMap || a.site != si || a.role == Role::Guard || !a.human) return;
       const uint64_t key = ((uint64_t)(a.site + 1) << 24) ^ ((uint64_t)(a.bldg + 1) << 12) ^ (uint64_t)a.slot;
-      warArmMilitia(*this, a, key);
+      warArmMilitia(gm, a, key);
     };
-    for (size_t k = 1; k < actors.size(); k++) rearm(actors[k]);
-    for (Actor& a : sheltered_) rearm(a);
+    for (size_t k = 1; k < gm.actors.size(); k++) rearm(gm.actors[k]);
+    for (Actor& a : gm.sheltered_) rearm(a);
   }
   // ---- 3. the camps' people (checked twice a second)
-  war.campT -= dt;
-  if (war.campT <= 0) {
-    war.campT = 0.5f;
-    for (WarCamp& c : war.camps) {
-      const int cx = c.gx - world.ox, cy = c.gy - world.oy;
+  gm.war.campT -= dt;
+  if (gm.war.campT <= 0) {
+    gm.war.campT = 0.5f;
+    for (WarCamp& c : gm.war.camps) {
+      const int cx = c.gx - gm.world.ox, cy = c.gy - gm.world.oy;
       const float d = std::hypot(cx + 0.5f - ptx, cy + 0.5f - pty);
       const uint64_t key = campKey(c);
-      std::vector<int>& ids = war.campPeople[key];
+      std::vector<int>& ids = gm.war.campPeople[key];
       // drop the dead and the gone
-      ids.erase(std::remove_if(ids.begin(), ids.end(), [&](int id) { int i = findId(id); return i < 0 || actors[(size_t)i].st == AState::Dead; }), ids.end());
+      ids.erase(std::remove_if(ids.begin(), ids.end(), [&](int id) { int i = findId(id); return i < 0 || gm.actors[(size_t)i].st == AState::Dead; }), ids.end());
       if (d > 70) {   // far: put them away (they come back when the player does)
-        for (int id : ids) { int i = findId(id); if (i > 0 && !(mode == Mode::Dialogue && dlg.actor == id)) actors.erase(actors.begin() + i); }
+        for (int id : ids) { int i = findId(id); if (i > 0 && !(gm.mode == Mode::Dialogue && gm.dlg.actor == id)) gm.actors.erase(gm.actors.begin() + i); }
         ids.clear();
         continue;
       }
       if (d > 52 && ids.empty()) continue;
-      const int si = world.siteHandle(c.site);
-      const int level = std::max(1, world.zoneLevel(cx, cy));
+      const int si = gm.world.siteHandle(c.site);
+      const int level = std::max(1, gm.world.zoneLevel(cx, cy));
       if (c.kind == CampKind::Siege) {
-        const realm::Siege* sg = siegeById(*this, c.siege);
+        const realm::Siege* sg = siegeById(gm, c.siege);
         if (!sg || sg->over) continue;
         // the captain at the command tent (one identity per siege: the quest's giver)
         const int capSlot = SLOT_CAPTAIN + (int)(c.siege & 1023) * 4 + 1;
         bool capHere = false;
-        for (int id : ids) { int i = findId(id); if (i > 0 && actors[(size_t)i].slot == capSlot) capHere = true; }
-        const bool capDead = warCaptainDead(*this, c.siege);
-        if (!capHere && !capDead) ids.push_back(spawnMan(Role::Captain, c.kingdom, tileC(c.cmdX - world.ox, c.cmdY - world.oy), capSlot, level + 1, si));
+        for (int id : ids) { int i = findId(id); if (i > 0 && gm.actors[(size_t)i].slot == capSlot) capHere = true; }
+        const bool capDead = warCaptainDead(gm, c.siege);
+        if (!capHere && !capDead) ids.push_back(spawnMan(Role::Captain, c.kingdom, tileC(c.cmdX - gm.world.ox, c.cmdY - gm.world.oy), capSlot, level + 1, si));
         // the soldiers: 8 in the field while the siege lasts; the fallen are replaced from the tents now and then
         int men = 0;
-        for (int id : ids) { int i = findId(id); if (i > 0 && actors[(size_t)i].role == Role::Soldier) men++; }
-        float& reinforce = war.reinforceT[key];
+        for (int id : ids) { int i = findId(id); if (i > 0 && gm.actors[(size_t)i].role == Role::Soldier) men++; }
+        float& reinforce = gm.war.reinforceT[key];
         if (reinforce > 0) reinforce -= 0.5f;
         const int want = std::clamp(3 + (int)std::lround(sg->atk), 6, 8);
         const bool first = men == 0 && ids.size() <= 1;
@@ -366,22 +368,22 @@ void Game::warStep(float dt) {
           // over the camp's posts from the back (the fire, the palisade's gaps, the catapult) with a step of jitter each,
           // not one per tent door
           const size_t np = c.posts.size();
-          const auto& pt = first ? c.posts[(np - 1 - ((size_t)men * 2) % np)] : (c.tents.empty() ? c.posts[0] : c.tents[(size_t)(war.nextSlot % (int)c.tents.size())]);
-          const int slot = SLOT_SOLDIER + (war.nextSlot++ % 4000);
+          const auto& pt = first ? c.posts[(np - 1 - ((size_t)men * 2) % np)] : (c.tents.empty() ? c.posts[0] : c.tents[(size_t)(gm.war.nextSlot % (int)c.tents.size())]);
+          const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
           const uint32_t jh = hash32((uint32_t)slot * 2246822519u ^ c.siege);
           const int jx = first ? (int)(jh % 3) - 1 : 0, jy = first ? (int)((jh >> 4) % 3) - 1 : 1;
-          ids.push_back(spawnMan(Role::Soldier, c.kingdom, freeSpot(pt.first - world.ox + jx, pt.second - world.oy + jy), slot, level, -1));
+          ids.push_back(spawnMan(Role::Soldier, c.kingdom, ClimbOps::freeSpot(gm, pt.first - gm.world.ox + jx, pt.second - gm.world.oy + jy), slot, level, -1));
           men++;
           if (!first) { reinforce = 7.0f; break; }
         }
         // their orders: hold the camp (a post now and then), or storm the gate beside a player who joined the assault
         bool storm = false;
         for (const Side& sd : sides) if (sd.siege == c.siege && sd.assault) storm = true;
-        const Site* S = si >= 0 ? &world.sites[(size_t)si] : nullptr;
+        const Site* S = si >= 0 ? &gm.world.sites[(size_t)si] : nullptr;
         int gateX = S ? S->ex : cx, gateY = S ? S->ey : cy;
         if (S) {   // the opening of the walls nearest the camp
           int bd = 1 << 30;
-          for (const IRect& r : world.wallGaps) {
+          for (const IRect& r : gm.world.wallGaps) {
             if (r.x + r.w < S->r.x - 2 || r.y + r.h < S->r.y - 2 || r.x > S->r.x + S->r.w + 2 || r.y > S->r.y + S->r.h + 2) continue;
             const int gx = r.x + r.w / 2, gy = r.y + r.h / 2, dd = std::abs(gx - cx) + std::abs(gy - cy);
             if (dd < bd) { bd = dd; gateX = gx; gateY = gy; }
@@ -391,39 +393,39 @@ void Game::warStep(float dt) {
         for (int id : ids) {
           const int i = findId(id);
           if (i <= 0) continue;
-          Actor& a = actors[(size_t)i];
+          Actor& a = gm.actors[(size_t)i];
           if (a.target >= 0) continue;
-          if (a.role == Role::Captain) { a.goal = tileC(c.cmdX - world.ox, c.cmdY - world.oy); a.special = 0.45f; continue; }
+          if (a.role == Role::Captain) { a.goal = tileC(c.cmdX - gm.world.ox, c.cmdY - gm.world.oy); a.special = 0.45f; continue; }
           if (storm && near) {
             a.goal = tileC(gateX + (int)(a.id % 3) - 1, gateY + ((gateY > cy) ? -1 : 1) * (1 + (int)(a.id % 2)));
             a.special = 0.85f;
-          } else if (len2(a.goal - a.p) < 8.0f * 8.0f && rng_.f() < 0.12f) {
-            const auto& pt = c.posts[(size_t)(rng_.next() % c.posts.size())];
-            a.goal = tileC(pt.first - world.ox, pt.second - world.oy);
+          } else if (len2(a.goal - a.p) < 8.0f * 8.0f && gm.rng_.f() < 0.12f) {
+            const auto& pt = c.posts[(size_t)(gm.rng_.next() % c.posts.size())];
+            a.goal = tileC(pt.first - gm.world.ox, pt.second - gm.world.oy);
             a.special = 0.42f;
           }
         }
         // the defenders' captain inside (BREAK THE SIEGE), by the gate or at the heart of a village
         if (S && sg->defender) {
           const uint64_t dkey = key ^ 0xDEF0000000000000ull;
-          std::vector<int>& dids = war.campPeople[dkey];
+          std::vector<int>& dids = gm.war.campPeople[dkey];
           const int dSlot = SLOT_CAPTAIN + (int)(c.siege & 1023) * 4 + 2;
           // (fixer M4 r2) a fallen defenders' captain is not back the next half second: a new one takes his place only
           // after a few minutes (the assault could otherwise farm him at the gate)
-          float& dWait = war.reinforceT[dkey];
+          float& dWait = gm.war.reinforceT[dkey];
           if (dWait > 0) dWait -= 0.5f;
           dids.erase(std::remove_if(dids.begin(), dids.end(), [&](int id) {
                        int i = findId(id);
-                       if (i >= 0 && actors[(size_t)i].st == AState::Dead) { dWait = 240.0f; return true; }
+                       if (i >= 0 && gm.actors[(size_t)i].st == AState::Dead) { dWait = 240.0f; return true; }
                        return i < 0;
                      }), dids.end());
           if (dids.empty() && dWait <= 0 && std::hypot(S->ex - ptx, S->ey - pty) < 46) {
             // inside the walls, two steps in from the gate nearest the camp (a village: by its heart)
             int dx = S->ex, dy = S->ey + 2;
             if (gateX != S->ex || gateY != S->ey) { dx = gateX; dy = gateY + (gateY > S->ey ? -3 : 3); }
-            dids.push_back(spawnMan(Role::Captain, sg->defender, freeSpot(dx, dy), dSlot, level + 1, si));
+            dids.push_back(spawnMan(Role::Captain, sg->defender, ClimbOps::freeSpot(gm, dx, dy), dSlot, level + 1, si));
             const int i = findId(dids.back());
-            if (i > 0) actors[(size_t)i].special = 0.4f;
+            if (i > 0) gm.actors[(size_t)i].special = 0.4f;
           }
         }
       } else if (c.kind == CampKind::Checkpoint) {
@@ -432,55 +434,55 @@ void Game::warStep(float dt) {
         for (int id : ids) if (findId(id) > 0) men++;
         for (int k = men; k < 2 && !c.posts.empty(); k++) {
           const auto& pt = c.posts[(size_t)k % c.posts.size()];
-          const int slot = SLOT_SOLDIER + (war.nextSlot++ % 4000);
-          ids.push_back(spawnMan(Role::Soldier, c.kingdom, freeSpot(pt.first - world.ox, pt.second - world.oy), slot, level, -1));
+          const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
+          ids.push_back(spawnMan(Role::Soldier, c.kingdom, ClimbOps::freeSpot(gm, pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
           const int i = findId(ids.back());
-          if (i > 0) actors[(size_t)i].special = 0.35f;
+          if (i > 0) gm.actors[(size_t)i].special = 0.35f;
         }
       } else if (c.kind == CampKind::Refugee) {
         // refugees round the fire, and two on the road between the camp and the burned place
         int sitting = 0, walking = 0;
-        for (int id : ids) { int i = findId(id); if (i > 0) (actors[(size_t)i].slot & 1 ? walking : sitting)++; }
+        for (int id : ids) { int i = findId(id); if (i > 0) (gm.actors[(size_t)i].slot & 1 ? walking : sitting)++; }
         const int wantSit = 4 + (int)(c.site % 3);
         for (int k = sitting; k < wantSit && !c.posts.empty(); k++) {
           const auto& pt = c.posts[(size_t)k % c.posts.size()];
-          const int slot = (SLOT_SOLDIER + (war.nextSlot++ % 4000)) & ~1;
-          ids.push_back(spawnMan(Role::Refugee, 0, freeSpot(pt.first - world.ox, pt.second - world.oy), slot, level, -1));
+          const int slot = (SLOT_SOLDIER + (gm.war.nextSlot++ % 4000)) & ~1;
+          ids.push_back(spawnMan(Role::Refugee, 0, ClimbOps::freeSpot(gm, pt.first - gm.world.ox, pt.second - gm.world.oy), slot, level, -1));
         }
         for (int k = walking; k < 2; k++) {
-          const int slot = (SLOT_SOLDIER + (war.nextSlot++ % 4000)) | 1;
+          const int slot = (SLOT_SOLDIER + (gm.war.nextSlot++ % 4000)) | 1;
           const float t = k == 0 ? 0.35f : 0.75f;
-          const int wx = (int)std::lround(cx + (c.walkX - world.ox - cx) * t), wy = (int)std::lround(cy + (c.walkY - world.oy - cy) * t);
-          ids.push_back(spawnMan(Role::Refugee, 0, freeSpot(wx, wy), slot, level, -1));
+          const int wx = (int)std::lround(cx + (c.walkX - gm.world.ox - cx) * t), wy = (int)std::lround(cy + (c.walkY - gm.world.oy - cy) * t);
+          ids.push_back(spawnMan(Role::Refugee, 0, ClimbOps::freeSpot(gm, wx, wy), slot, level, -1));
           const int i = findId(ids.back());
-          if (i > 0) actors[(size_t)i].goal = tileC(k == 0 ? c.walkX - world.ox : cx, k == 0 ? c.walkY - world.oy : cy);
+          if (i > 0) gm.actors[(size_t)i].goal = tileC(k == 0 ? c.walkX - gm.world.ox : cx, k == 0 ? c.walkY - gm.world.oy : cy);
         }
         for (int id : ids) {
           const int i = findId(id);
           if (i <= 0) continue;
-          Actor& a = actors[(size_t)i];
+          Actor& a = gm.actors[(size_t)i];
           if (a.slot & 1) {   // a walker: to the far end of the road and back to the fire
             a.special = 0.38f;
             if (len2(a.goal - a.p) < 10.0f * 10.0f) {
-              const Vec2 far = tileC(c.walkX - world.ox, c.walkY - world.oy), fire = tileC(cx, cy + 2);
+              const Vec2 far = tileC(c.walkX - gm.world.ox, c.walkY - gm.world.oy), fire = tileC(cx, cy + 2);
               a.goal = len2(far - a.p) < len2(fire - a.p) ? fire : far;
             }
-          } else if (len2(a.goal - a.p) < 6.0f * 6.0f && rng_.f() < 0.05f) {
-            const auto& pt = c.posts[(size_t)(rng_.next() % c.posts.size())];
-            a.goal = tileC(pt.first - world.ox, pt.second - world.oy);
+          } else if (len2(a.goal - a.p) < 6.0f * 6.0f && gm.rng_.f() < 0.05f) {
+            const auto& pt = c.posts[(size_t)(gm.rng_.next() % c.posts.size())];
+            a.goal = tileC(pt.first - gm.world.ox, pt.second - gm.world.oy);
             a.special = 0.3f;
           }
         }
       }
     }
     // the men on a besieged town's walls: its runtime watch posts stand inside the gates
-    for (int si : activeSites_) {
-      if (si < 0 || si >= (int)world.sites.size()) continue;
-      const Site& S = world.sites[(size_t)si];
-      const realm::SettlementState* st = realm.settlement(S.id);
+    for (int si : gm.activeSites_) {
+      if (si < 0 || si >= (int)gm.world.sites.size()) continue;
+      const Site& S = gm.world.sites[(size_t)si];
+      const realm::SettlementState* st = gm.realm.settlement(S.id);
       if (!st || !(st->flags & realm::SS_BESIEGED)) continue;
       std::vector<std::pair<int, int>> inner;
-      for (const IRect& r : world.wallGaps) {
+      for (const IRect& r : gm.world.wallGaps) {
         if (r.x + r.w < S.r.x - 2 || r.y + r.h < S.r.y - 2 || r.x > S.r.x + S.r.w + 2 || r.y > S.r.y + S.r.h + 2) continue;
         const int gx = r.x + r.w / 2, gy = r.y + r.h / 2;
         const int ix = gx + (r.w <= r.h ? (gx < S.ex ? 2 : -2) : 0), iy = gy + (r.w > r.h ? (gy < S.ey ? 2 : -2) : 0);
@@ -488,7 +490,7 @@ void Game::warStep(float dt) {
       }
       if (inner.empty()) continue;
       int k = 0;
-      for (Actor& a : actors) {
+      for (Actor& a : gm.actors) {
         if (!a.npc || a.site != si || a.role != Role::Guard || a.slot < 3900 || a.target >= 0) continue;
         const auto& g = inner[(size_t)(k++) % inner.size()];
         const Vec2 post = tileC(g.first + (k % 2), g.second);
@@ -497,28 +499,28 @@ void Game::warStep(float dt) {
     }
     // the player's side: the men of the kingdom they fight are hostile to them; so is a warring realm's patrol when the
     // player's name is mud there (reputation <= -25: VISION_PLAN 4.5)
-    for (size_t k = 1; k < actors.size(); k++) {
-      Actor& a = actors[k];
+    for (size_t k = 1; k < gm.actors.size(); k++) {
+      Actor& a = gm.actors[k];
       if (!a.npc || !a.human || !a.realm || (a.role != Role::Soldier && a.role != Role::Captain && a.role != Role::Guard)) continue;
       bool h = false;
       for (const Side& sd : sides) {
         if (a.realm != sd.foe) continue;
-        if (a.role == Role::Guard) { if (sd.assault && world.sites.size() > (size_t)std::max(0, a.site) && a.site >= 0 && world.sites[(size_t)a.site].id == sd.site) h = true; }
+        if (a.role == Role::Guard) { if (sd.assault && gm.world.sites.size() > (size_t)std::max(0, a.site) && a.site >= 0 && gm.world.sites[(size_t)a.site].id == sd.site) h = true; }
         else h = true;
       }
       // (M12 SERVICE) a sworn soldier is an enemy combatant to the men of every realm at war with his banner, and a
       // deserter is hunted by his old comrades for a while
-      if (!h && a.role != Role::Guard && service.enlisted() && a.realm != service.sworn && realm.atWar(a.realm, service.sworn)) h = true;
-      if (!h && a.role != Role::Guard && service.huntedBy && a.realm == service.huntedBy && day < (int)service.huntedUntil) h = true;
-      if (!h && a.role != Role::Guard && realm.rep(a.realm) <= -25) {
+      if (!h && a.role != Role::Guard && gm.service.enlisted() && a.realm != gm.service.sworn && gm.realm.atWar(a.realm, gm.service.sworn)) h = true;
+      if (!h && a.role != Role::Guard && gm.service.huntedBy && a.realm == gm.service.huntedBy && gm.day < (int)gm.service.huntedUntil) h = true;
+      if (!h && a.role != Role::Guard && gm.realm.rep(a.realm) <= -25) {
         bool warring = false;
-        for (const realm::War& w : realm.wars()) if (!w.endDay && (w.attacker == a.realm || w.defender == a.realm)) warring = true;
+        for (const realm::War& w : gm.realm.wars()) if (!w.endDay && (w.attacker == a.realm || w.defender == a.realm)) warring = true;
         h = warring;
       }
       if (h != a.hostile) {
         a.hostile = h;
         a.target = -1; a.thinkT = 0;
-        if (h) emit(Ev::Text, a.p + Vec2(0, -24), (int)rgba(255, 110, 90), 0, "!");
+        if (h) gm.emit(Ev::Text, a.p + Vec2(0, -24), (int)rgba(255, 110, 90), 0, "!");
       }
     }
   }
@@ -526,8 +528,8 @@ void Game::warStep(float dt) {
   // distance from each other and from the hero: they ring him at arm's length instead of standing on the same tiles
   {
     std::vector<size_t> men;
-    for (size_t k = 1; k < actors.size(); k++) {
-      const Actor& a = actors[k];
+    for (size_t k = 1; k < gm.actors.size(); k++) {
+      const Actor& a = gm.actors[k];
       if (a.npc && a.human && a.st != AState::Dead && (a.role == Role::Soldier || a.role == Role::Captain) && len2(a.p - P.p) < (14.0f * TILE) * (14.0f * TILE))
         men.push_back(k);
     }
@@ -535,9 +537,9 @@ void Game::warStep(float dt) {
       const float keep = 19.0f, keepP = 18.0f;   // (melee reaches 16 + the body + 2: a ring at 18 still strikes)
       std::vector<Vec2> push(men.size(), Vec2(0, 0));
       for (size_t i = 0; i < men.size(); i++) {
-        const Actor& a = actors[men[i]];
+        const Actor& a = gm.actors[men[i]];
         for (size_t j = i + 1; j < men.size(); j++) {
-          const Actor& b = actors[men[j]];
+          const Actor& b = gm.actors[men[j]];
           Vec2 d = a.p - b.p;
           float l = len(d);
           if (l >= keep) continue;
@@ -559,24 +561,24 @@ void Game::warStep(float dt) {
         if (l < 0.05f) continue;
         const float mx = 60.0f * dt;   // a shuffle, never a jump
         if (l > mx) v = v * (mx / l);
-        moveActor(actors[men[i]], v);
+        ClimbOps::moveActor(gm, gm.actors[men[i]], v);
       }
     }
   }
   // ---- 4. road patrols (VISION_PLAN 4.5)
-  war.patrolT -= dt;
-  for (size_t pi = 0; pi < war.patrols.size();) {
-    WarPatrol& pt = war.patrols[pi];
+  gm.war.patrolT -= dt;
+  for (size_t pi = 0; pi < gm.war.patrols.size();) {
+    WarPatrol& pt = gm.war.patrols[pi];
     pt.age += dt;
-    pt.ids.erase(std::remove_if(pt.ids.begin(), pt.ids.end(), [&](int id) { int i = findId(id); return i < 0 || actors[(size_t)i].st == AState::Dead; }), pt.ids.end());
+    pt.ids.erase(std::remove_if(pt.ids.begin(), pt.ids.end(), [&](int id) { int i = findId(id); return i < 0 || gm.actors[(size_t)i].st == AState::Dead; }), pt.ids.end());
     bool far = true;
-    for (int id : pt.ids) { const int i = findId(id); if (i > 0 && len2(actors[(size_t)i].p - P.p) < (56.0f * TILE) * (56.0f * TILE)) far = false; }
+    for (int id : pt.ids) { const int i = findId(id); if (i > 0 && len2(gm.actors[(size_t)i].p - P.p) < (56.0f * TILE) * (56.0f * TILE)) far = false; }
     const bool done = pt.at >= (int)pt.path.size();
     bool offscreen = true;
-    for (int id : pt.ids) { const int i = findId(id); if (i > 0 && len2(actors[(size_t)i].p - P.p) < (30.0f * TILE) * (30.0f * TILE)) offscreen = false; }
+    for (int id : pt.ids) { const int i = findId(id); if (i > 0 && len2(gm.actors[(size_t)i].p - P.p) < (30.0f * TILE) * (30.0f * TILE)) offscreen = false; }
     if (pt.ids.empty() || far || (done && offscreen) || (pt.age > 400 && offscreen)) {
-      for (int id : pt.ids) { const int i = findId(id); if (i > 0 && !(mode == Mode::Dialogue && dlg.actor == id)) actors.erase(actors.begin() + i); }
-      war.patrols.erase(war.patrols.begin() + (std::ptrdiff_t)pi);
+      for (int id : pt.ids) { const int i = findId(id); if (i > 0 && !(gm.mode == Mode::Dialogue && gm.dlg.actor == id)) gm.actors.erase(gm.actors.begin() + i); }
+      gm.war.patrols.erase(gm.war.patrols.begin() + (std::ptrdiff_t)pi);
       continue;
     }
     static const bool dbgP = std::getenv("EMB_WAR_DEBUG") != nullptr;
@@ -584,25 +586,25 @@ void Game::warStep(float dt) {
       const int li0 = findId(pt.ids[0]);
       if (li0 > 0)
         std::printf("war: patrol of %zu: leader %.0f,%.0f (player %.0f,%.0f), road %d/%zu, target %d, state %d\n", pt.ids.size(),
-                    actors[(size_t)li0].p.x / TILE, actors[(size_t)li0].p.y / TILE, P.p.x / TILE, P.p.y / TILE, pt.at, pt.path.size(),
-                    actors[(size_t)li0].target, (int)actors[(size_t)li0].st);
+                    gm.actors[(size_t)li0].p.x / TILE, gm.actors[(size_t)li0].p.y / TILE, P.p.x / TILE, P.p.y / TILE, pt.at, pt.path.size(),
+                    gm.actors[(size_t)li0].target, (int)gm.actors[(size_t)li0].st);
     }
     // the leader walks the road; the others keep a stride or two behind him, side by side
     const int li = findId(pt.ids[0]);
     if (li > 0) {
-      Actor& L = actors[(size_t)li];
+      Actor& L = gm.actors[(size_t)li];
       if (L.target < 0 && !done) {
         // how far along the road he is: the nearest of the next few road tiles (he cuts the corners)
         int best = pt.at;
         float bd = 1e30f;
         for (int k = pt.at; k < std::min((int)pt.path.size(), pt.at + 8); k++) {
-          const float d = len2(tileC(pt.path[(size_t)k].first - world.ox, pt.path[(size_t)k].second - world.oy) - L.p);
+          const float d = len2(tileC(pt.path[(size_t)k].first - gm.world.ox, pt.path[(size_t)k].second - gm.world.oy) - L.p);
           if (d < bd) { bd = d; best = k; }
         }
         if (bd < 12.0f * 12.0f) pt.at = std::min((int)pt.path.size(), best + 1);
         // aim a few tiles ahead along the road (smooth corners, fewer path plans)
         const int ahead = std::min((int)pt.path.size() - 1, pt.at + 2);
-        L.goal = tileC(pt.path[(size_t)ahead].first - world.ox, pt.path[(size_t)ahead].second - world.oy);
+        L.goal = tileC(pt.path[(size_t)ahead].first - gm.world.ox, pt.path[(size_t)ahead].second - gm.world.oy);
         L.special = 0.5f;
       }
       const Vec2 dir = norm(L.goal - L.p + Vec2(0.001f, 0.0f));
@@ -610,7 +612,7 @@ void Game::warStep(float dt) {
       for (size_t k = 1; k < pt.ids.size(); k++) {
         const int i = findId(pt.ids[k]);
         if (i <= 0) continue;
-        Actor& a = actors[(size_t)i];
+        Actor& a = gm.actors[(size_t)i];
         if (a.target >= 0) continue;
         const float back = 14.0f * (float)((k + 1) / 2), lat = (k % 2 ? 7.0f : -7.0f);
         a.goal = L.p - dir * back + side * lat;
@@ -619,12 +621,12 @@ void Game::warStep(float dt) {
     }
     pi++;
   }
-  if (war.patrolT <= 0) {
-    war.patrolT = 10.0f;
+  if (gm.war.patrolT <= 0) {
+    gm.war.patrolT = 10.0f;
     const int ptxI = (int)std::floor(ptx), ptyI = (int)std::floor(pty);
-    const bool inTown = settlementAt(P.p) >= 0;
-    if (war.patrols.size() < 2 && !inTown && (rng_.f() < 0.6f || war.patrolsSpawned == 0)) {
-      Map& M = world.over;
+    const bool inTown = gm.settlementAt(P.p) >= 0;
+    if (gm.war.patrols.size() < 2 && !inTown && (gm.rng_.f() < 0.6f || gm.war.patrolsSpawned == 0)) {
+      Map& M = gm.world.over;
       // a road tile in the ring 24-36 tiles out (off screen), out of town: every one round the ring, then one by chance
       int sx = -1, sy = -1;
       {
@@ -635,16 +637,16 @@ void Game::warStep(float dt) {
             const int x = ptxI + (int)std::lround(std::cos(an) * r), y = ptyI + (int)std::lround(std::sin(an) * r);
             if (x < 6 || y < 6 || x >= World::WIN - 6 || y >= World::WIN - 6) continue;
             const Ground gr = M.at(x, y);
-            if ((gr != Ground::Road && gr != Ground::Bridge) || M.blocked(x, y) || world.siteAt(x, y, 2) >= 0) continue;
+            if ((gr != Ground::Road && gr != Ground::Bridge) || M.blocked(x, y) || gm.world.siteAt(x, y, 2) >= 0) continue;
             ring.push_back(y * World::WIN + x);
           }
-        if (!ring.empty()) { const int pick = ring[(size_t)(rng_.next() % ring.size())]; sx = pick % World::WIN; sy = pick / World::WIN; }
+        if (!ring.empty()) { const int pick = ring[(size_t)(gm.rng_.next() % ring.size())]; sx = pick % World::WIN; sy = pick / World::WIN; }
       }
       ew::Gid K = 0;
       if (sx >= 0) {
-        const int32_t gx = world.ox + sx, gy = world.oy + sy;
-        K = realm.landOwner(world.src->kingdomAt(gx, gy), gx, gy);
-        if (K && !world.kingdomById.count(K)) K = 0;
+        const int32_t gx = gm.world.ox + sx, gy = gm.world.oy + sy;
+        K = gm.realm.landOwner(gm.world.src->kingdomAt(gx, gy), gx, gy);
+        if (K && !gm.world.kingdomById.count(K)) K = 0;
       }
       static const bool dbg = std::getenv("EMB_WAR_DEBUG") != nullptr;
       if (dbg) std::printf("war: patrol check: road %d,%d (player %d,%d), land %llu\n", sx, sy, ptxI, ptyI, (unsigned long long)K);
@@ -686,97 +688,97 @@ void Game::warStep(float dt) {
         if (farPass >= 0 && farPassD >= 20) { far = farPass; farD = farPassD; }
         if (farD >= 20) {
           std::vector<std::pair<int32_t, int32_t>> path;
-          for (int c2 = far; c2 >= 0; c2 = prev[(size_t)c2]) path.push_back({world.ox + c2 % W, world.oy + c2 / W});
+          for (int c2 = far; c2 >= 0; c2 = prev[(size_t)c2]) path.push_back({gm.world.ox + c2 % W, gm.world.oy + c2 / W});
           std::reverse(path.begin(), path.end());
           WarPatrol pt;
           pt.kingdom = K;
           pt.path = std::move(path);
-          const int n = 2 + (int)(rng_.next() % 3);
-          const int level = std::max(1, world.zoneLevel(sx, sy));
+          const int n = 2 + (int)(gm.rng_.next() % 3);
+          const int level = std::max(1, gm.world.zoneLevel(sx, sy));
           for (int k = 0; k < n; k++) {
             const auto& t = pt.path[(size_t)std::min((int)pt.path.size() - 1, k)];
-            const int slot = SLOT_SOLDIER + (war.nextSlot++ % 4000);
-            pt.ids.push_back(spawnMan(Role::Soldier, K, freeSpot(t.first - world.ox, t.second - world.oy), slot, level, -1));
+            const int slot = SLOT_SOLDIER + (gm.war.nextSlot++ % 4000);
+            pt.ids.push_back(spawnMan(Role::Soldier, K, ClimbOps::freeSpot(gm, t.first - gm.world.ox, t.second - gm.world.oy), slot, level, -1));
           }
           std::reverse(pt.ids.begin(), pt.ids.end());   // the one spawned furthest along the road leads
           pt.at = std::min((int)pt.path.size() - 1, n);
-          war.patrols.push_back(std::move(pt));
-          war.patrolsSpawned++;
+          gm.war.patrols.push_back(std::move(pt));
+          gm.war.patrolsSpawned++;
         }
       }
     }
   }
   // ---- 5. the siege quests: progress is counted in warKill; here the realm's verdict (the siege's resolve day)
-  for (Quest& q : quests) {
+  for (Quest& q : gm.quests) {
     if (q.type != QType::War || q.state == QState::Done) continue;
-    const realm::Siege* sg = siegeById(*this, (uint32_t)q.stage);
+    const realm::Siege* sg = siegeById(gm, (uint32_t)q.stage);
     if (sg && !sg->over) continue;
     const bool assault = (q.flags & QF_WAR_ATTACK) != 0;
     if (!sg && q.state == QState::Active) {
       // (fixer M4 r2) the siege ended and was put away while the player was not about (a long absence: the realm caught
       // up months in one step): the quest ends with it, neither won nor paid, never left open forever
-      if (realm.kingdoms().empty()) continue;   // (the realm not built yet)
-      const std::string site = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string("THE TOWN");
+      if (gm.realm.kingdoms().empty()) continue;   // (the realm not built yet)
+      const std::string site = q.target >= 0 && q.target < (int)gm.world.sites.size() ? gm.world.sites[(size_t)q.target].name : std::string("THE TOWN");
       q.state = QState::Done;
       q.flags |= QF_FAILED;
       q.desc = "THE SIEGE OF " + site + " ENDED WHILE YOU WERE AWAY.";
-      emit(Ev::QuestUpdate, P.p, q.id, 1, "QUEST ENDED: " + q.title);
-      say("THE SIEGE OF " + site + " ENDED WHILE YOU WERE AWAY.");
+      gm.emit(Ev::QuestUpdate, P.p, q.id, 1, "QUEST ENDED: " + q.title);
+      gm.say("THE SIEGE OF " + site + " ENDED WHILE YOU WERE AWAY.");
       continue;
     }
     const bool won = sg && assault == sg->attackerWon;
     if (sg && q.state == QState::Active) {
-      const std::string site = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string("THE TOWN");
+      const std::string site = q.target >= 0 && q.target < (int)gm.world.sites.size() ? gm.world.sites[(size_t)q.target].name : std::string("THE TOWN");
       char buf[200];
       std::snprintf(buf, sizeof buf, "%s %.1f AGAINST %.1f", won ? (assault ? "IT FELL:" : "IT HELD:") : "LOST:", assault ? sg->atk : sg->def, assault ? sg->def : sg->atk);
       if (won) {
         q.state = QState::Complete;
         q.desc = std::string(assault ? "THE ASSAULT TOOK " : "THE SIEGE OF ") + site + (assault ? "." : " IS BROKEN.") + " YOUR STEEL COUNTED: " + buf;
-        emit(Ev::QuestUpdate, P.p, q.id, 2, std::string(assault ? site + " HAS FALLEN" : "THE SIEGE OF " + site + " IS BROKEN") + ": RETURN TO " + q.giverName);
-        say(assault ? site + " HAS FALLEN!" : "THE SIEGE OF " + site + " IS BROKEN!");
+        gm.emit(Ev::QuestUpdate, P.p, q.id, 2, std::string(assault ? site + " HAS FALLEN" : "THE SIEGE OF " + site + " IS BROKEN") + ": RETURN TO " + q.giverName);
+        gm.say(assault ? site + " HAS FALLEN!" : "THE SIEGE OF " + site + " IS BROKEN!");
       } else {
         q.state = QState::Done;
         q.flags |= QF_FAILED;
         q.desc = std::string("THE SIEGE ENDED AGAINST YOUR SIDE. ") + buf;
-        emit(Ev::QuestUpdate, P.p, q.id, 1, "QUEST FAILED: " + q.title);
-        say(assault ? site + " HELD AGAINST THE ASSAULT." : site + " HAS FALLEN TO THE BESIEGERS.");
+        gm.emit(Ev::QuestUpdate, P.p, q.id, 1, "QUEST FAILED: " + q.title);
+        gm.say(assault ? site + " HELD AGAINST THE ASSAULT." : site + " HAS FALLEN TO THE BESIEGERS.");
       }
     }
     // (fixer M4 r1) a won siege quest whose giver is not here to pay: the camp breaks up when the siege ends and its
     // captain is never seen again, so his rider brings the reward (the captain still standing near pays in person)
     if (q.state == QState::Complete) {
       bool giverNear = false;
-      for (size_t k = 1; k < actors.size(); k++) {
-        const Actor& a = actors[k];
+      for (size_t k = 1; k < gm.actors.size(); k++) {
+        const Actor& a = gm.actors[k];
         if (a.npc && a.slot == q.giverSlot && a.role == Role::Captain && a.st != AState::Dead && len2(a.p - P.p) < (40.0f * TILE) * (40.0f * TILE)) giverNear = true;
       }
       if (!giverNear) {
-        say("A RIDER FROM " + q.giverName + " FINDS YOU WITH YOUR PAY: " + std::to_string(q.gold) + " GOLD.");
-        completeQuest(q);
+        gm.say("A RIDER FROM " + q.giverName + " FINDS YOU WITH YOUR PAY: " + std::to_string(q.gold) + " GOLD.");
+        QuestOps::completeQuest(gm, q);
       }
     }
   }
   const double ms = nowMs() - t0;
-  war.steps++;
-  war.stepMs += ms;
-  war.worstStepMs = std::max(war.worstStepMs, ms);
+  gm.war.steps++;
+  gm.war.stepMs += ms;
+  gm.war.worstStepMs = std::max(gm.war.worstStepMs, ms);
 }
 
-void Game::warTalk(Actor& a) {
+void WarOps::talk(Game& g, Actor& a) {
   if (!a.npc || !a.human) return;
   auto findSiege = [&](ew::Gid k, bool attacker) -> const realm::Siege* {
-    for (const realm::Siege& s : realm.sieges())
+    for (const realm::Siege& s : g.realm.sieges())
       if (!s.over && (attacker ? s.attacker == k : s.defender == k)) {
         // the siege this man belongs to: the one whose site he stands by (a camp 14-30 tiles out counts)
-        const int si = world.siteHandle(s.site);
+        const int si = g.world.siteHandle(s.site);
         if (si < 0) continue;
-        const Site& S = world.sites[(size_t)si];
+        const Site& S = g.world.sites[(size_t)si];
         if (std::hypot(S.ex - a.p.x / TILE, S.ey - a.p.y / TILE) < std::max(S.r.w, S.r.h) * 0.5f + 46) return &s;
       }
     return nullptr;
   };
   auto activeOn = [&](uint32_t siege) -> Quest* {
-    for (Quest& q : quests) if (q.type == QType::War && q.stage == (int)siege && q.state != QState::Done) return &q;
+    for (Quest& q : g.quests) if (q.type == QType::War && q.stage == (int)siege && q.state != QState::Done) return &q;
     return nullptr;
   };
   if (a.role == Role::Captain && a.realm) {
@@ -786,131 +788,131 @@ void Game::warTalk(Actor& a) {
     const bool att = !watch && a.slot >= SLOT_CAPTAIN && a.slot < SLOT_SOLDIER && (a.slot - SLOT_CAPTAIN) % 4 == 1;
     const realm::Siege* sg = findSiege(a.realm, att);
     if (!sg && watch) return;
-    if (!sg) { speech::propose(dlg, speech::P_NEWS, speech::Topic::War, "THE WAR IS A SLOW BUSINESS, FRIEND. WE WAIT FOR ORDERS."); return; }
-    const int si = world.siteHandle(sg->site);
-    const std::string site = si >= 0 ? world.sites[(size_t)si].name : std::string("THE TOWN");
-    const std::string foe = kname(*this, att ? sg->defender : sg->attacker);
+    if (!sg) { speech::propose(g.dlg, speech::P_NEWS, speech::Topic::War, "THE WAR IS A SLOW BUSINESS, FRIEND. WE WAIT FOR ORDERS."); return; }
+    const int si = g.world.siteHandle(sg->site);
+    const std::string site = si >= 0 ? g.world.sites[(size_t)si].name : std::string("THE TOWN");
+    const std::string foe = kname(g, att ? sg->defender : sg->attacker);
     Quest* q = activeOn(sg->id);
     if (q && q->state == QState::Active) {
       // (M7b) what is still to do, in the captain's words (q.desc stays the journal's)
       if (((q->flags & QF_WAR_ATTACK) != 0) == att)
-        speech::propose(dlg, speech::P_QUEST, speech::Topic::QuestActive,
+        speech::propose(g.dlg, speech::P_QUEST, speech::Topic::QuestActive,
                         att ? "YOU'RE WITH US, THEN. MAKE FOR THE GATE OF " + site + " WHEN YOU'RE READY. MY MEN WILL FOLLOW YOU IN."
                             : "YOU'RE WITH US, THEN. THEIR CAMP LIES OUTSIDE THE WALLS. KILL THEIR CAPTAIN AND THE SIEGE BREAKS.");
-      else speech::propose(dlg, speech::P_URGENT, speech::Topic::War, "YOU STAND WITH " + foe + "? THEN WE HAVE NOTHING TO SAY.");
+      else speech::propose(g.dlg, speech::P_URGENT, speech::Topic::War, "YOU STAND WITH " + foe + "? THEN WE HAVE NOTHING TO SAY.");
       return;
     }
     if (q) return;   // a reward waits (the built-in COLLECT option is already there)
     char odds[64];
     std::snprintf(odds, sizeof odds, "%.0f MEN AGAINST %.0f", (att ? sg->atk : sg->def) * 25, (att ? sg->def : sg->atk) * 25);
     if (att) {
-      speech::propose(dlg, speech::P_URGENT, speech::Topic::War,
+      speech::propose(g.dlg, speech::P_URGENT, speech::Topic::War,
                       "WE HAVE " + site + " IN A RING OF STEEL, " + std::string(odds) + ". " + foe + " WILL OPEN ITS GATES OR WATCH THEM BURN. A SWORD LIKE YOURS WOULD BE PAID WELL.");
-      dlg.opts.push_back({"JOIN THE ASSAULT", DLG_ASSAULT, (int)sg->id});
+      g.dlg.opts.push_back({"JOIN THE ASSAULT", DLG_ASSAULT, (int)sg->id});
     } else {
-      const bool walled = si >= 0 && world.sites[(size_t)si].type != SiteType::Village;
-      speech::propose(dlg, speech::P_URGENT, speech::Topic::War,
+      const bool walled = si >= 0 && g.world.sites[(size_t)si].type != SiteType::Village;
+      speech::propose(g.dlg, speech::P_URGENT, speech::Topic::War,
                       foe + (walled ? " HAS CAMPED AT OUR WALLS, " : " HAS CAMPED OUTSIDE OUR VILLAGE, ") + std::string(odds) + ". BREAK THEIR CAMP, KILL THEIR CAPTAIN, AND " +
                           site + " WILL NOT FORGET YOU.");
-      dlg.opts.push_back({"BREAK THE SIEGE", DLG_BREAK, (int)sg->id});
+      g.dlg.opts.push_back({"BREAK THE SIEGE", DLG_BREAK, (int)sg->id});
     }
     return;
   }
-  if (a.role == Role::Soldier) { speech::propose(dlg, speech::P_SMALLTALK, speech::Topic::War, soldierGreeting(*this, a)); return; }
+  if (a.role == Role::Soldier) { speech::propose(g.dlg, speech::P_SMALLTALK, speech::Topic::War, soldierGreeting(g, a)); return; }
   if (a.role == Role::Refugee) {
     const char* lines[3] = {"WE LOST EVERYTHING. THE ROOF CAME DOWN BEFORE WE COULD SAVE THE GRAIN.",
                             "THEY CAME AT NIGHT WITH TORCHES. WE RAN WITH WHAT WE COULD CARRY.",
                             "THE PEOPLE HERE ARE KIND, BUT THERE ISN'T BREAD ENOUGH FOR ALL OF US."};
     std::string from;
-    for (const WarCamp& c : war.camps)
-      if (c.kind == CampKind::Refugee && std::hypot(c.gx - world.ox - a.p.x / TILE, c.gy - world.oy - a.p.y / TILE) < 40) {
-        const int fh = world.siteHandle(c.other);
-        if (fh >= 0) from = world.sites[(size_t)fh].name;
+    for (const WarCamp& c : g.war.camps)
+      if (c.kind == CampKind::Refugee && std::hypot(c.gx - g.world.ox - a.p.x / TILE, c.gy - g.world.oy - a.p.y / TILE) < 40) {
+        const int fh = g.world.siteHandle(c.other);
+        if (fh >= 0) from = g.world.sites[(size_t)fh].name;
       }
-    speech::propose(dlg, speech::P_NEED, speech::Topic::Need, (from.empty() ? std::string() : "WE COME FROM " + from + ". ") + lines[hash32((uint32_t)a.id) % 3]);
+    speech::propose(g.dlg, speech::P_NEED, speech::Topic::Need, (from.empty() ? std::string() : "WE COME FROM " + from + ". ") + lines[hash32((uint32_t)a.id) % 3]);
     return;
   }
   // a guard of a realm at war has news of the front (VISION_PLAN 4.6: guards talk war news)
   if (a.role == Role::Guard && a.realm) {
-    for (const realm::War& w : realm.wars()) {
+    for (const realm::War& w : g.realm.wars()) {
       if (w.endDay || (w.attacker != a.realm && w.defender != a.realm)) continue;
       const ew::Gid foe = w.attacker == a.realm ? w.defender : w.attacker;
-      if (hash32((uint32_t)a.id ^ (uint32_t)day * 977u) % 10 < 6)
-        speech::propose(dlg, speech::P_NEWS, speech::Topic::War,
-                        "WE'RE AT WAR WITH " + kname(*this, foe) + (w.name.empty() ? std::string(". ") : ". THEY'RE CALLING IT " + w.name + ". ") +
+      if (hash32((uint32_t)a.id ^ (uint32_t)g.day * 977u) % 10 < 6)
+        speech::propose(g.dlg, speech::P_NEWS, speech::Topic::War,
+                        "WE'RE AT WAR WITH " + kname(g, foe) + (w.name.empty() ? std::string(". ") : ". THEY'RE CALLING IT " + w.name + ". ") +
                             "KEEP YOUR EYES OPEN ON THE ROADS, AND YOUR BLADE CLOSE.");
       break;
     }
   }
 }
 
-bool Game::warChoose(const DlgOpt& o) {
+bool WarOps::choose(Game& g, const DlgOpt& o) {
   if (o.action != DLG_ASSAULT && o.action != DLG_BREAK && o.action != DLG_WARNEWS) return false;
-  if (o.action == DLG_WARNEWS) { mode = Mode::Play; return true; }
-  const realm::Siege* sg = siegeById(*this, (uint32_t)o.arg);
-  const int ai = findActor(dlg.actor);
-  if (!sg || sg->over || ai < 0) { dlg.text = "IT'S OVER. TOO LATE FOR THAT NOW."; dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return true; }
-  const Actor& cap = actors[(size_t)ai];
+  if (o.action == DLG_WARNEWS) { g.mode = Mode::Play; return true; }
+  const realm::Siege* sg = siegeById(g, (uint32_t)o.arg);
+  const int ai = g.findActor(g.dlg.actor);
+  if (!sg || sg->over || ai < 0) { g.dlg.text = "IT'S OVER. TOO LATE FOR THAT NOW."; g.dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return true; }
+  const Actor& cap = g.actors[(size_t)ai];
   const bool assault = o.action == DLG_ASSAULT;
-  const int si = world.siteHandle(sg->site);
-  const std::string site = si >= 0 ? world.sites[(size_t)si].name : std::string("THE TOWN");
-  const int level = si >= 0 ? std::max(1, world.sites[(size_t)si].level) : plLevel;
+  const int si = g.world.siteHandle(sg->site);
+  const std::string site = si >= 0 ? g.world.sites[(size_t)si].name : std::string("THE TOWN");
+  const int level = si >= 0 ? std::max(1, g.world.sites[(size_t)si].level) : g.plLevel;
   Quest q;
   q.type = QType::War;
   q.title = assault ? "THE ASSAULT ON " + site : "BREAK THE SIEGE OF " + site;
-  q.need = assault ? (si >= 0 && world.sites[(size_t)si].type == SiteType::Village ? 6 : 8) : BREAK_NEED;
+  q.need = assault ? (si >= 0 && g.world.sites[(size_t)si].type == SiteType::Village ? 6 : 8) : BREAK_NEED;
   q.have = 0;
-  q.desc = assault ? "SLAY " + std::to_string(q.need) + " OF " + kname(*this, sg->defender) + "'S DEFENDERS AT THE WALLS AND THE GATE WILL FALL."
-                   : "SLAY " + std::to_string(q.need) + " OF " + kname(*this, sg->attacker) + "'S BESIEGERS AND THEIR CAPTAIN.";
+  q.desc = assault ? "SLAY " + std::to_string(q.need) + " OF " + kname(g, sg->defender) + "'S DEFENDERS AT THE WALLS AND THE GATE WILL FALL."
+                   : "SLAY " + std::to_string(q.need) + " OF " + kname(g, sg->attacker) + "'S BESIEGERS AND THEIR CAPTAIN.";
   q.giverName = cap.name;
   q.giverSite = cap.site; q.giverBldg = -1; q.giverSlot = cap.slot;
-  q.giverId = si >= 0 ? world.sites[(size_t)si].id : 0;
+  q.giverId = si >= 0 ? g.world.sites[(size_t)si].id : 0;
   q.target = si;
   q.targetId = sg->site;
   q.stage = (int)sg->id;
   // rewards scale with the danger: the place's level against the player's (VISION_PLAN 4.7)
-  const bool danger = level > plLevel + 2;
+  const bool danger = level > g.plLevel + 2;
   q.gold = (int)((80 + level * 14) * (danger ? 1.5f : 1.0f));
   q.xp = 90 + level * 18;
   if (danger) q.flags |= QF_DANGER;
   if (assault) q.flags |= QF_WAR_ATTACK;
-  if (const WarCamp* c = warCampOf(*this, sg->id)) { q.hasPos = true; q.tgx = assault ? world.ox + (si >= 0 ? world.sites[(size_t)si].ex : 0) : c->gx; q.tgy = assault ? world.oy + (si >= 0 ? world.sites[(size_t)si].ey : 0) : c->gy; }
-  acceptQuest(q);
-  trackedQuest = quests.back().id;   // (fixer M4 r1) the war the player just joined leads the HUD and the compass
-  deed(party::Deed::JoinedWar, assault ? sg->defender : sg->attacker);   // M8: the side fought against
-  war.runs.push_back(WarQuestRun{quests.back().id, false, sg->id});
+  if (const WarCamp* c = warCampOf(g, sg->id)) { q.hasPos = true; q.tgx = assault ? g.world.ox + (si >= 0 ? g.world.sites[(size_t)si].ex : 0) : c->gx; q.tgy = assault ? g.world.oy + (si >= 0 ? g.world.sites[(size_t)si].ey : 0) : c->gy; }
+  g.acceptQuest(q);
+  g.trackedQuest = g.quests.back().id;   // (fixer M4 r1) the war the player just joined leads the HUD and the compass
+  g.deed(party::Deed::JoinedWar, assault ? sg->defender : sg->attacker);   // M8: the side fought against
+  g.war.runs.push_back(WarQuestRun{g.quests.back().id, false, sg->id});
   // the defenders let their champion in by the nearest gate; the besiegers storm with the player (warStep)
-  if (!assault && si >= 0 && std::find(war.gatesOpen.begin(), war.gatesOpen.end(), sg->site) == war.gatesOpen.end()) {
-    war.gatesOpen.push_back(sg->site);
-    war.dirty = true;
+  if (!assault && si >= 0 && std::find(g.war.gatesOpen.begin(), g.war.gatesOpen.end(), sg->site) == g.war.gatesOpen.end()) {
+    g.war.gatesOpen.push_back(sg->site);
+    g.war.dirty = true;
   }
-  dlg.text = assault ? "GOOD. WHEN YOU'RE READY, MAKE FOR THE GATE. MY MEN WILL FOLLOW YOU IN." : "THE GODS SENT YOU. THEIR CAMP LIES OUTSIDE THE WALLS. THE GATE IS OPEN FOR YOU.";
-  dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+  g.dlg.text = assault ? "GOOD. WHEN YOU'RE READY, MAKE FOR THE GATE. MY MEN WILL FOLLOW YOU IN." : "THE GODS SENT YOU. THEIR CAMP LIES OUTSIDE THE WALLS. THE GATE IS OPEN FOR YOU.";
+  g.dlg.opts = {{"FAREWELL.", A_BYE, 0}};
   return true;
 }
 
-void Game::warKill(const Actor& victim, int killer) {
+void WarOps::kill(Game& g, const Actor& victim, int killer) {
   if (!victim.npc || !victim.human) return;
-  const bool byPlayer = killer == pl().id;
+  const bool byPlayer = killer == g.pl().id;
   if (!byPlayer || !victim.realm) return;
-  for (Quest& q : quests) {
+  for (Quest& q : g.quests) {
     if (q.type != QType::War || q.state != QState::Active) continue;
-    const realm::Siege* sg = siegeById(*this, (uint32_t)q.stage);
+    const realm::Siege* sg = siegeById(g, (uint32_t)q.stage);
     if (!sg || sg->over) continue;
     const bool assault = (q.flags & QF_WAR_ATTACK) != 0;
     const ew::Gid foe = assault ? sg->defender : sg->attacker, friendK = assault ? sg->attacker : sg->defender;
     if (victim.realm != foe) continue;
     if (assault && victim.role != Role::Guard && victim.role != Role::Captain && victim.role != Role::Soldier) continue;
     WarQuestRun* run0 = nullptr;
-    for (WarQuestRun& r : war.runs) if (r.quest == q.id) run0 = &r;
+    for (WarQuestRun& r : g.war.runs) if (r.quest == q.id) run0 = &r;
     if (assault && victim.role == Role::Captain && run0 && run0->defCaptainCounted) continue;   // (fixer M4 r2) once per assault
     // each enemy of the siege slain: 0.5 strength to the player's side, reputation with both (VISION_PLAN 4.7)
-    realm.contribute(sg->id, assault ? 1 : 2, 0.5f);
-    realm.addRep(friendK, 1);
-    realm.addRep(foe, -2);
+    g.realm.contribute(sg->id, assault ? 1 : 2, 0.5f);
+    g.realm.addRep(friendK, 1);
+    g.realm.addRep(foe, -2);
     WarQuestRun* run = nullptr;
-    for (WarQuestRun& r : war.runs) if (r.quest == q.id) run = &r;
-    if (!run) { war.runs.push_back(WarQuestRun{q.id, false, sg->id}); run = &war.runs.back(); }
+    for (WarQuestRun& r : g.war.runs) if (r.quest == q.id) run = &r;
+    if (!run) { g.war.runs.push_back(WarQuestRun{q.id, false, sg->id}); run = &g.war.runs.back(); }
     if (victim.role == Role::Captain && !assault) { run->captainDead = true; q.flags |= QF_WAR_CAPDEAD; }
     if (victim.role == Role::Captain && assault) run->defCaptainCounted = true;
     if (q.flags & QF_WAR_CAPDEAD) run->captainDead = true;
@@ -919,22 +921,22 @@ void Game::warKill(const Actor& victim, int killer) {
     const bool done = q.have >= q.need && (assault || run->captainDead);
     char line[80];
     std::snprintf(line, sizeof line, "%d/%d%s", q.have, q.need, (!assault && run->captainDead) ? " + CAPTAIN" : "");
-    emit(Ev::Text, victim.p + Vec2(0, -26), (int)rgba(255, 220, 120), 0, line);
-    const std::string site = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string("THE TOWN");
+    g.emit(Ev::Text, victim.p + Vec2(0, -26), (int)rgba(255, 220, 120), 0, line);
+    const std::string site = q.target >= 0 && q.target < (int)g.world.sites.size() ? g.world.sites[(size_t)q.target].name : std::string("THE TOWN");
     q.desc = std::string(assault ? "DEFENDERS SLAIN " : "BESIEGERS SLAIN ") + std::to_string(q.have) + "/" + std::to_string(q.need) +
              (assault ? "" : (run->captainDead ? ", THEIR CAPTAIN DEAD" : ", THEIR CAPTAIN STILL STANDS")) + ".";
     if (done) {
       q.state = QState::Complete;
-      realm.addRep(friendK, 8);
-      realm.addRep(foe, -8);
+      g.realm.addRep(friendK, 8);
+      g.realm.addRep(foe, -8);
       if (assault) {   // the gate falls: the barricades come down
-        if (std::find(war.gatesOpen.begin(), war.gatesOpen.end(), sg->site) == war.gatesOpen.end()) war.gatesOpen.push_back(sg->site);
-        war.dirty = true;
+        if (std::find(g.war.gatesOpen.begin(), g.war.gatesOpen.end(), sg->site) == g.war.gatesOpen.end()) g.war.gatesOpen.push_back(sg->site);
+        g.war.dirty = true;
       }
       const std::string m = assault ? "THE GATE OF " + site + " IS OPEN! RETURN TO " + q.giverName : "THE CAMP IS BROKEN! RETURN TO " + q.giverName;
-      emit(Ev::QuestUpdate, victim.p, q.id, 2, m);
-      say(m);
-      sfx((int)Sfx::QuestStart, victim.p, 1.2f);
+      g.emit(Ev::QuestUpdate, victim.p, q.id, 2, m);
+      g.say(m);
+      g.sfx((int)Sfx::QuestStart, victim.p, 1.2f);
     }
   }
 }

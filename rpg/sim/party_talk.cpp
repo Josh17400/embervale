@@ -182,7 +182,6 @@ int PartyTalkOps::memberOfResident(const Game& g, const Actor& a) {
   for (size_t i = 0; i < g.party.members.size(); i++) if (g.party.members[i].npc == id) return (int)i;
   return -1;
 }
-void PartyTalkOps::graveTalk(Game& g, int fi) { g.partyGraveTalk(fi); }
 
 // the first page of a companion's own conversation
 void PartyTalkOps::front(Game& g, int mi, bool opening) {
@@ -269,77 +268,77 @@ bool PartyTalkOps::questReady(Game& g, int mi, std::string& spec) {
   return true;
 }
 
-bool Game::partyTalk(Actor& a) {
+bool PartyTalkOps::talk(Game& g, Actor& a) {
   const int mi = (int)a.comp - 1;
-  if (mi < 0 || mi >= (int)party.members.size()) return false;
-  Member& m = party.members[(size_t)mi];
+  if (mi < 0 || mi >= (int)g.party.members.size()) return false;
+  Member& m = g.party.members[(size_t)mi];
   if (m.voc == party::Vocation::Hound) {   // (the animal: a scratch behind the ears, and the orders)
-    dlg.speaker = m.name;
-    a.face = faceOf(pl().p - a.p);
+    g.dlg.speaker = m.name;
+    a.face = faceOf(g.pl().p - a.p);
     static const char* const k[] = {"THE HOUND LEANS ITS WHOLE WEIGHT AGAINST YOUR LEGS AND THUMPS ITS TAIL.",
                                     "IT LOOKS UP AT YOU, EARS PRICKED, WAITING TO SEE WHERE YOU GO NEXT."};
-    dlg.text = k[mixh(m.id, (uint32_t)day) % 2];
-    PartyTalkOps::orders(*this, mi);
-    dlg.opts.back() = {"GOOD DOG. COME ON.", A_BYE, 0};
-    dlg.front = dlg.text;
-    mode = Mode::Dialogue;
-    sfx((int)Sfx::Bark, a.p, 1.1f, 0.6f);
+    g.dlg.text = k[mixh(m.id, (uint32_t)g.day) % 2];
+    PartyTalkOps::orders(g, mi);
+    g.dlg.opts.back() = {"GOOD DOG. COME ON.", A_BYE, 0};
+    g.dlg.front = g.dlg.text;
+    g.mode = Mode::Dialogue;
+    g.sfx((int)Sfx::Bark, a.p, 1.1f, 0.6f);
     return true;
   }
-  dlg.speaker = m.name;
-  a.face = faceOf(pl().p - a.p);
+  g.dlg.speaker = m.name;
+  a.face = faceOf(g.pl().p - a.p);
   // their own story waits on a talk with them: it speaks first (the story's choices, then a way to give orders)
   if (m.questInst) {
-    story::Instance* in = story.find(m.questInst);
-    if (in && !in->done && story.talksTo(*this, *in, a)) {
-      story.sagaOffers_.clear();
-      story.said_.clear();
-      dlg.opts = {{"NOT NOW. I HAVE ORDERS FOR YOU.", P_ORDERS, mi}};
-      story.showDialogue(*this, *in);
-      dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
-      dlg.front = dlg.text;
-      mode = Mode::Dialogue;
-      sfx((int)Sfx::Talk, a.p);
+    story::Instance* in = g.story.find(m.questInst);
+    if (in && !in->done && g.story.talksTo(g, *in, a)) {
+      g.story.sagaOffers_.clear();
+      g.story.said_.clear();
+      g.dlg.opts = {{"NOT NOW. I HAVE ORDERS FOR YOU.", P_ORDERS, mi}};
+      g.story.showDialogue(g, *in);
+      g.dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
+      g.dlg.front = g.dlg.text;
+      g.mode = Mode::Dialogue;
+      g.sfx((int)Sfx::Talk, a.p);
       return true;
     }
   }
-  PartyTalkOps::front(*this, mi, true);
-  dlg.front = dlg.text;
-  mode = Mode::Dialogue;
-  sfx((int)Sfx::Talk, a.p);
+  PartyTalkOps::front(g, mi, true);
+  g.dlg.front = g.dlg.text;
+  g.mode = Mode::Dialogue;
+  g.sfx((int)Sfx::Talk, a.p);
   return true;
 }
 
 // ================================================================ everyone else
-void Game::partyFolkTalk(Actor& a) {
+void PartyTalkOps::folkTalk(Game& g, Actor& a) {
   if (!a.npc || !a.human || a.comp) return;
   using speech::Topic;
-  const uint64_t key = npcKey(a);
+  const uint64_t key = g.npcKey(a);
   // ---- a member's own street body (at home, waiting there, or left over the player's deeds)
-  const int mi = PartyTalkOps::memberOfResident(*this, a);
+  const int mi = PartyTalkOps::memberOfResident(g, a);
   if (mi >= 0) {
-    Member& m = party.members[(size_t)mi];
-    const uint32_t h = mixh(m.id, (uint32_t)day);
+    Member& m = g.party.members[(size_t)mi];
+    const uint32_t h = mixh(m.id, (uint32_t)g.day);
     if (m.state == State::Home) {
-      speech::propose(dlg, speech::P_STORY, Topic::Companion,
+      speech::propose(g.dlg, speech::P_STORY, Topic::Companion,
                       h % 2 ? "YOU'RE BACK. ARE WE TAKING THE ROAD AGAIN, OR IS THIS A VISIT?" : "THERE YOU ARE. I'VE BEEN RESTLESS SINCE YOU LEFT ME HERE.");
-      dlg.opts.push_back({"COME WITH ME AGAIN.", P_REJOIN, mi});
+      g.dlg.opts.push_back({"COME WITH ME AGAIN.", P_REJOIN, mi});
     } else if (m.state == State::Left) {
-      const bool rebuffed = (m.talkBits & party::voice::TB_REBUFF) && m.lastTalkDay >= 0 && m.lastTalkDay < day && m.leftDay < day;
-      speech::propose(dlg, speech::P_STORY, Topic::Companion,
+      const bool rebuffed = (m.talkBits & party::voice::TB_REBUFF) && m.lastTalkDay >= 0 && m.lastTalkDay < g.day && m.leftDay < g.day;
+      speech::propose(g.dlg, speech::P_STORY, Topic::Companion,
                       rebuffed ? "YOU CAME BACK. I DIDN'T THINK YOU WOULD." : "YOU'VE GOT A NERVE, COMING HERE AFTER WHAT YOU DID.");
-      dlg.opts.push_back({"I WAS WRONG. I'M SORRY.", P_AMENDS, mi});
+      g.dlg.opts.push_back({"I WAS WRONG. I'M SORRY.", P_AMENDS, mi});
     }
     return;
   }
-  const life::Resident* r = residentOf(*this, a);
-  const ew::Gid siteId = a.site >= 0 && a.site < (int)world.sites.size() ? world.sites[(size_t)a.site].id : 0;
+  const life::Resident* r = residentOf(g, a);
+  const ew::Gid siteId = a.site >= 0 && a.site < (int)g.world.sites.size() ? g.world.sites[(size_t)a.site].id : 0;
   // ---- the kin of a companion on the road: look after them (not every day)
   if (r && siteId)
-    for (size_t k = 0; k < party.members.size(); k++) {
-      const Member& m = party.members[k];
+    for (size_t k = 0; k < g.party.members.size(); k++) {
+      const Member& m = g.party.members[k];
       if (m.site != siteId || (m.state != State::With && m.state != State::Downed)) continue;
-      const std::string w = kinWordFor(*this, m, r->idx);
+      const std::string w = kinWordFor(g, m, r->idx);
       if (w.empty() || w == "KIN") continue;
       const std::string nm = party::voice::given(m.name);
       std::string line;
@@ -352,31 +351,31 @@ void Game::partyFolkTalk(Actor& a) {
         line = "MY " + w + " " + nm + " WENT OFF WITH YOU. TELL " + himHer(m.female) + " WE'RE ALL RIGHT, AND THAT WE MISS " + himHer(m.female) + ".";
       else
         line = "MY " + w + " " + nm + " IS OUT THERE WITH YOU, ISN'T " + heShe(m.female) + "? KEEP " + himHer(m.female) + " SAFE FOR ME.";
-      if (talkMem.saidRecently(speech::lineHash(line), day, 2)) continue;
-      if (speech::propose(dlg, speech::P_NEED, Topic::Companion, line)) dlg.opts.push_back({"I'LL KEEP " + himHer(m.female) + " SAFE.", P_KIN_PROMISE, (int)k});
+      if (g.talkMem.saidRecently(speech::lineHash(line), g.day, 2)) continue;
+      if (speech::propose(g.dlg, speech::P_NEED, Topic::Companion, line)) g.dlg.opts.push_back({"I'LL KEEP " + himHer(m.female) + " SAFE.", P_KIN_PROMISE, (int)k});
       break;
     }
   // ---- the fallen remembered: their kin and friends, and the innkeeper of their home town (not every conversation)
   if (siteId)
-    for (size_t fi = 0; fi < party.fallen.size(); fi++) {
-      const party::Fallen& f = party.fallen[fi];
-      if (f.site != siteId || day - f.day > 400) continue;
+    for (size_t fi = 0; fi < g.party.fallen.size(); fi++) {
+      const party::Fallen& f = g.party.fallen[fi];
+      if (f.site != siteId || g.day - f.day > 400) continue;
       const std::string nm = party::voice::given(f.name);
       bool fem = f.female;
       int fidx = -1;
-      if (const life::Census* c = life.find(siteId))
+      if (const life::Census* c = g.life.find(siteId))
         for (const life::Resident& o : c->res) if (life::npcId(siteId, o.idx) == f.npc) { fidx = o.idx; fem = o.female; }
       std::string line;
       int answer = -1;
       if (r && fidx >= 0) {
-        const life::Census* c = life.find(siteId);
+        const life::Census* c = g.life.find(siteId);
         const life::Resident& fr = c->res[(size_t)fidx];
         std::string w;
         if (fr.spouse == (int)r->idx || r->spouse == fidx) w = fem ? "WIFE" : "HUSBAND";
         else if (fr.parent == (int)r->idx) w = fem ? "DAUGHTER" : "SON";
         else if (r->parent == fidx) w = fem ? "MOTHER" : "FATHER";
         else if (fr.parent >= 0 && fr.parent == r->parent && (int)r->idx != fidx) w = fem ? "SISTER" : "BROTHER";
-        else for (int fr2 : life.friendsOf(*c, r->idx)) if (fr2 == fidx) w = "FRIEND";
+        else for (int fr2 : g.life.friendsOf(*c, r->idx)) if (fr2 == fidx) w = "FRIEND";
         if (w == "FRIEND") {
           line = "MY FRIEND " + nm + " WALKED OUT WITH YOU AND NEVER CAME BACK. I STILL KEEP " + hisHer(fem) + " SEAT BY THE FIRE.";
           answer = 2;
@@ -390,253 +389,253 @@ void Game::partyFolkTalk(Actor& a) {
         answer = 2;
       }
       // (the first days after the death it is all they speak of; later now and then, never the same line within days)
-      const bool fresh = day - f.day <= 3;
-      if (line.empty() || talkMem.saidRecently(speech::lineHash(line), day, fresh ? 1 : 4) || (!fresh && (mixh((uint32_t)key, (uint32_t)day) % 3) == 1)) continue;
-      if (speech::propose(dlg, speech::P_STORY + 5, Topic::Companion, line)) {
+      const bool fresh = g.day - f.day <= 3;
+      if (line.empty() || g.talkMem.saidRecently(speech::lineHash(line), g.day, fresh ? 1 : 4) || (!fresh && (mixh((uint32_t)key, (uint32_t)g.day) % 3) == 1)) continue;
+      if (speech::propose(g.dlg, speech::P_STORY + 5, Topic::Companion, line)) {
         if (answer == 0) {
-          dlg.opts.push_back({heShe(fem) + " DIED BRAVELY, FOR ALL OF US.", P_FALLEN_KIN, (int)fi * 4 + 0});
-          dlg.opts.push_back({"I'M SORRY. I COULDN'T SAVE " + himHer(fem) + ".", P_FALLEN_KIN, (int)fi * 4 + 1});
+          g.dlg.opts.push_back({heShe(fem) + " DIED BRAVELY, FOR ALL OF US.", P_FALLEN_KIN, (int)fi * 4 + 0});
+          g.dlg.opts.push_back({"I'M SORRY. I COULDN'T SAVE " + himHer(fem) + ".", P_FALLEN_KIN, (int)fi * 4 + 1});
         } else {
-          dlg.opts.push_back({"I MISS " + himHer(fem) + " TOO.", P_FALLEN_KIN, (int)fi * 4 + 2});
+          g.dlg.opts.push_back({"I MISS " + himHer(fem) + " TOO.", P_FALLEN_KIN, (int)fi * 4 + 2});
         }
       }
       break;
     }
   // ---- would they come along?
-  const PartyOffer o = partyOffer(a);
+  const Game::PartyOffer o = g.partyOffer(a);
   if (o.origin == party::Origin::Mercenary && (o.ok || o.why == "BROKE" || o.why == "FULL" || o.why == "RECORDS")) {
     // a hireling says what they are before anyone asks (their own trade's line, over a greeting)
     static const char* const k[] = {"YOU LOOK LIKE YOU COULD USE ANOTHER SWORD. MINE IS FOR HIRE, IF THE PRICE IS RIGHT.",
                                     "LOOKING FOR A BLADE TO WALK BESIDE YOU? I'M CHEAPER THAN A FUNERAL.",
                                     "I'VE FOUGHT FOR WORSE PEOPLE THAN YOU, I'D WAGER. IF YOU NEED A HAND ON THE ROAD, I'M FOR HIRE."};
-    speech::propose(dlg, speech::P_BARK, Topic::Companion, k[mixh((uint32_t)key, (uint32_t)(day / 2)) % 3]);
-    dlg.opts.push_back({"ARE YOU FOR HIRE?", P_HIRE, o.wage});
+    speech::propose(g.dlg, speech::P_BARK, Topic::Companion, k[mixh((uint32_t)key, (uint32_t)(g.day / 2)) % 3]);
+    g.dlg.opts.push_back({"ARE YOU FOR HIRE?", P_HIRE, o.wage});
     return;
   }
   if (o.ok) {
-    dlg.opts.push_back({"WOULD YOU TRAVEL WITH ME?", P_JOIN, 0});
+    g.dlg.opts.push_back({"WOULD YOU TRAVEL WITH ME?", P_JOIN, 0});
     // a regular at the inn after dark says what keeps them there (their own words, before anyone asks)
-    if (o.origin == party::Origin::Tavern && isNight() && (mixh((uint32_t)key, (uint32_t)(day / 3)) % 2) == 0) {
+    if (o.origin == party::Origin::Tavern && g.isNight() && (mixh((uint32_t)key, (uint32_t)(g.day / 3)) % 2) == 0) {
       static const char* const k[] = {"ANOTHER NIGHT IN THIS INN. SOMETIMES I THINK I SHOULD JUST WALK OUT THAT DOOR AND KEEP GOING.",
                                       "SAME BENCH, SAME ALE, SAME FACES. I'M SICK OF ALL OF IT, IF I'M HONEST.",
                                       "YOU'VE GOT THE ROAD ON YOUR BOOTS. I ENVY YOU THAT, YOU KNOW."};
-      speech::propose(dlg, speech::P_BARK, Topic::Companion, k[mixh((uint32_t)key, 0x1Bu) % 3]);
+      speech::propose(g.dlg, speech::P_BARK, Topic::Companion, k[mixh((uint32_t)key, 0x1Bu) % 3]);
     }
     return;
   }
   // a friend who cannot come now says why, when asked (a friend would come, but the company is full)
-  if ((r && (r->flags & life::RF_BEFRIENDED) && o.why == "FULL") || o.why == "RECORDS") dlg.opts.push_back({"WOULD YOU TRAVEL WITH ME?", P_JOIN, 0});
+  if ((r && (r->flags & life::RF_BEFRIENDED) && o.why == "FULL") || o.why == "RECORDS") g.dlg.opts.push_back({"WOULD YOU TRAVEL WITH ME?", P_JOIN, 0});
 }
 
 // ================================================================ the grave
-void Game::partyGraveTalk(int fi) {
-  if (fi < 0 || fi >= (int)party.fallen.size()) return;
-  const party::Fallen& f = party.fallen[(size_t)fi];
-  dlg = Dialogue();
-  dlg.actor = -1;
-  dlg.speaker = "THE GRAVE OF " + f.name;
-  std::string t = party::epitaph(*this, f);
+void PartyTalkOps::graveTalk(Game& g, int fi) {
+  if (fi < 0 || fi >= (int)g.party.fallen.size()) return;
+  const party::Fallen& f = g.party.fallen[(size_t)fi];
+  g.dlg = Dialogue();
+  g.dlg.actor = -1;
+  g.dlg.speaker = "THE GRAVE OF " + f.name;
+  std::string t = party::epitaph(g, f);
   for (size_t k = t.find(" / "); k != std::string::npos; k = t.find(" / ")) t.replace(k, 3, "\n");
-  dlg.text = t;
-  if (!(f.graveFlags & party::GF_FLOWERS)) dlg.opts.push_back({"LAY FLOWERS ON THE GRAVE.", P_GRAVE_FLOWERS, fi});
-  dlg.opts.push_back({"SAY A FEW WORDS.", P_GRAVE_WORDS, fi});
-  if (!(f.graveFlags & party::GF_KEEPSAKE) && !f.belongings.empty()) dlg.opts.push_back({"TAKE SOMETHING TO REMEMBER THEM BY.", P_GRAVE_KEEP, fi});
-  dlg.opts.push_back({"LEAVE THEM IN PEACE.", A_BYE, 0});
-  dlg.front = dlg.text;
-  partyGraveAct(fi, 3);
-  mode = Mode::Dialogue;
+  g.dlg.text = t;
+  if (!(f.graveFlags & party::GF_FLOWERS)) g.dlg.opts.push_back({"LAY FLOWERS ON THE GRAVE.", P_GRAVE_FLOWERS, fi});
+  g.dlg.opts.push_back({"SAY A FEW WORDS.", P_GRAVE_WORDS, fi});
+  if (!(f.graveFlags & party::GF_KEEPSAKE) && !f.belongings.empty()) g.dlg.opts.push_back({"TAKE SOMETHING TO REMEMBER THEM BY.", P_GRAVE_KEEP, fi});
+  g.dlg.opts.push_back({"LEAVE THEM IN PEACE.", A_BYE, 0});
+  g.dlg.front = g.dlg.text;
+  g.partyGraveAct(fi, 3);
+  g.mode = Mode::Dialogue;
 }
 
 // ================================================================ the choices
-bool Game::partyChoose(const DlgOpt& o) {
-  const int ai = findActor(dlg.actor);
-  auto member = [&](int mi) -> Member* { return mi >= 0 && mi < (int)party.members.size() ? &party.members[(size_t)mi] : nullptr; };
-  auto backTo = [&](int mi) { dlg.opts.push_back({"SOMETHING ELSE.", P_BACK, mi}); };
+bool PartyTalkOps::choose(Game& g, const DlgOpt& o) {
+  const int ai = g.findActor(g.dlg.actor);
+  auto member = [&](int mi) -> Member* { return mi >= 0 && mi < (int)g.party.members.size() ? &g.party.members[(size_t)mi] : nullptr; };
+  auto backTo = [&](int mi) { g.dlg.opts.push_back({"SOMETHING ELSE.", P_BACK, mi}); };
   if (o.action >= P_CMD && o.action < P_CMD + (int)party::Cmd::COUNT) {
     const party::Cmd c = (party::Cmd)(o.action - P_CMD);
     Member* m = member(o.arg);
     if (!m) return false;
-    if (!partyCommand(o.arg, c)) {
-      dlg.text = c == party::Cmd::Follow && party.people() >= party::capacity(plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. I'D ONLY BE IN THE WAY."
+    if (!g.partyCommand(o.arg, c)) {
+      g.dlg.text = c == party::Cmd::Follow && g.party.people() >= party::capacity(g.plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. I'D ONLY BE IN THE WAY."
                                                                                        : "NOT NOW. LOOK AROUND YOU.";
-      dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
+      g.dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
       return true;
     }
-    const uint32_t h = mixh(m->id, (uint32_t)day + (uint32_t)c);
+    const uint32_t h = mixh(m->id, (uint32_t)g.day + (uint32_t)c);
     switch (c) {
-      case party::Cmd::Follow: dlg.text = h % 2 ? "RIGHT BEHIND YOU. I'LL FOLLOW WHEREVER YOU GO." : "I'LL FOLLOW. LEAD ON, AND I'LL KEEP UP."; break;
-      case party::Cmd::Wait: dlg.text = h % 2 ? "I'LL WAIT HERE. DON'T BE LONG." : "I'LL BE HERE WHEN YOU COME BACK. COME BACK."; break;
-      case party::Cmd::Attack: dlg.text = "THEN I'LL GO WHERE YOU POINT."; break;
-      case party::Cmd::Defend: dlg.text = h % 2 ? "I WON'T LEAVE YOUR SIDE." : "ANYTHING THAT WANTS YOU GOES THROUGH ME FIRST."; break;
-      case party::Cmd::Passive: dlg.text = h % 2 ? "I'LL HOLD BACK AND KEEP OUT OF THE FIGHTING UNLESS YOU NEED ME." : "I'LL HOLD BACK. SHOUT IF THE FIGHT GOES BADLY."; break;
+      case party::Cmd::Follow: g.dlg.text = h % 2 ? "RIGHT BEHIND YOU. I'LL FOLLOW WHEREVER YOU GO." : "I'LL FOLLOW. LEAD ON, AND I'LL KEEP UP."; break;
+      case party::Cmd::Wait: g.dlg.text = h % 2 ? "I'LL WAIT HERE. DON'T BE LONG." : "I'LL BE HERE WHEN YOU COME BACK. COME BACK."; break;
+      case party::Cmd::Attack: g.dlg.text = "THEN I'LL GO WHERE YOU POINT."; break;
+      case party::Cmd::Defend: g.dlg.text = h % 2 ? "I WON'T LEAVE YOUR SIDE." : "ANYTHING THAT WANTS YOU GOES THROUGH ME FIRST."; break;
+      case party::Cmd::Passive: g.dlg.text = h % 2 ? "I'LL HOLD BACK AND KEEP OUT OF THE FIGHTING UNLESS YOU NEED ME." : "I'LL HOLD BACK. SHOUT IF THE FIGHT GOES BADLY."; break;
       case party::Cmd::Home:
-        dlg.text = home.plots.empty() ? "HOME, THEN. COME AND FIND ME WHEN THE ROAD CALLS." : "YOUR HOUSE, THEN. I'LL KEEP THE FIRE IN UNTIL YOU'RE BACK.";
+        g.dlg.text = g.home.plots.empty() ? "HOME, THEN. COME AND FIND ME WHEN THE ROAD CALLS." : "YOUR HOUSE, THEN. I'LL KEEP THE FIRE IN UNTIL YOU'RE BACK.";
         break;
-      default: dlg.text = "AS YOU SAY."; break;
+      default: g.dlg.text = "AS YOU SAY."; break;
     }
-    dlg.opts = {{"GOOD.", A_BYE, 0}};
+    g.dlg.opts = {{"GOOD.", A_BYE, 0}};
     return true;
   }
   switch (o.action) {
     // ---- recruiting
     case P_JOIN: {
       if (ai < 0) return false;
-      Actor& who = actors[(size_t)ai];
-      const PartyOffer off = partyOffer(who);
-      const life::Resident* r = residentOf(*this, who);
+      Actor& who = g.actors[(size_t)ai];
+      const Game::PartyOffer off = g.partyOffer(who);
+      const life::Resident* r = residentOf(g, who);
       if (!off.ok) {
         const std::string& w = off.why;
-        if (w == "FULL") dlg.text = "I'D COME, BUT YOU'VE COMPANY ENOUGH ALREADY. ASK ME AGAIN WHEN THERE'S ROOM FOR ONE MORE.";
-        else if (w == "RECORDS") dlg.text = "I'D COME, BUT TOO MANY FRIENDS ARE WAITING ON YOU ALREADY. PART WAYS WITH ONE OF THEM, THEN ASK ME AGAIN.";
-        else if (w == "OLD") dlg.text = "ME? ON THE ROAD? MY KNEES WOULD GIVE OUT BEFORE THE FIRST HILL. THANK YOU FOR ASKING, THOUGH.";
-        else if (w == "CHILD") dlg.text = "MY MOTHER WOULD SKIN ME. ASK ME AGAIN WHEN I'M GROWN.";
-        else if (w == "DUTY") dlg.text = "I CAN'T. THIS PLACE NEEDS ME, AND I GAVE MY WORD TO STAY.";
-        else if (w == "BROKE" || w == "GOLD" || w == "WAGE") dlg.text = "NOT FOR NOTHING, I WON'T. " + std::to_string(off.wage) + " GOLD UP FRONT, OR FIND YOURSELF ANOTHER SWORD.";
-        else if (w == "KEY") dlg.text = "I CAN'T. TOO MANY PEOPLE HERE DEPEND ON ME, AND I'D NEVER FORGIVE MYSELF.";
-        else if (w == "MEMBER") dlg.text = "WITH YOU AGAIN? YOU ONLY HAVE TO ASK ME TO COME ALONG.";
-        else if (w == "ANGRY") dlg.text = "WITH YOU? AFTER WHAT YOU DID? YOU OWE ME AN APOLOGY FIRST.";
-        else if (w == "HIRED") dlg.text = "YOU'VE ALREADY GOT MY BLADE, FRIEND. ONE OF ME IS ALL YOU'RE PAYING FOR.";
-        else if (w == "DEAD") dlg.text = "NO. I CAN'T, NOT ANY MORE.";
-        else if (w == "SLIGHTED" || w == "HATE" || w == "CRIME") dlg.text = "WITH YOU? AFTER WHAT YOU DID HERE? NO.";
-        else dlg.text = "TRAVEL? NO. I'VE A LIFE HERE, SMALL AS IT IS, AND I MEAN TO KEEP IT.";
-        dlg.opts = {{"I UNDERSTAND.", A_BYE, 0}};
+        if (w == "FULL") g.dlg.text = "I'D COME, BUT YOU'VE COMPANY ENOUGH ALREADY. ASK ME AGAIN WHEN THERE'S ROOM FOR ONE MORE.";
+        else if (w == "RECORDS") g.dlg.text = "I'D COME, BUT TOO MANY FRIENDS ARE WAITING ON YOU ALREADY. PART WAYS WITH ONE OF THEM, THEN ASK ME AGAIN.";
+        else if (w == "OLD") g.dlg.text = "ME? ON THE ROAD? MY KNEES WOULD GIVE OUT BEFORE THE FIRST HILL. THANK YOU FOR ASKING, THOUGH.";
+        else if (w == "CHILD") g.dlg.text = "MY MOTHER WOULD SKIN ME. ASK ME AGAIN WHEN I'M GROWN.";
+        else if (w == "DUTY") g.dlg.text = "I CAN'T. THIS PLACE NEEDS ME, AND I GAVE MY WORD TO STAY.";
+        else if (w == "BROKE" || w == "GOLD" || w == "WAGE") g.dlg.text = "NOT FOR NOTHING, I WON'T. " + std::to_string(off.wage) + " GOLD UP FRONT, OR FIND YOURSELF ANOTHER SWORD.";
+        else if (w == "KEY") g.dlg.text = "I CAN'T. TOO MANY PEOPLE HERE DEPEND ON ME, AND I'D NEVER FORGIVE MYSELF.";
+        else if (w == "MEMBER") g.dlg.text = "WITH YOU AGAIN? YOU ONLY HAVE TO ASK ME TO COME ALONG.";
+        else if (w == "ANGRY") g.dlg.text = "WITH YOU? AFTER WHAT YOU DID? YOU OWE ME AN APOLOGY FIRST.";
+        else if (w == "HIRED") g.dlg.text = "YOU'VE ALREADY GOT MY BLADE, FRIEND. ONE OF ME IS ALL YOU'RE PAYING FOR.";
+        else if (w == "DEAD") g.dlg.text = "NO. I CAN'T, NOT ANY MORE.";
+        else if (w == "SLIGHTED" || w == "HATE" || w == "CRIME") g.dlg.text = "WITH YOU? AFTER WHAT YOU DID HERE? NO.";
+        else g.dlg.text = "TRAVEL? NO. I'VE A LIFE HERE, SMALL AS IT IS, AND I MEAN TO KEEP IT.";
+        g.dlg.opts = {{"I UNDERSTAND.", A_BYE, 0}};
         return true;
       }
       // their pitch in their own words: the life they would leave, and why the road calls
       Member tmp;
       tmp.name = who.name;
-      tmp.npc = r && who.site >= 0 ? life::npcId(world.sites[(size_t)who.site].id, r->idx) : 0;
-      tmp.site = who.site >= 0 ? world.sites[(size_t)who.site].id : 0;
+      tmp.npc = r && who.site >= 0 ? life::npcId(g.world.sites[(size_t)who.site].id, r->idx) : 0;
+      tmp.site = who.site >= 0 ? g.world.sites[(size_t)who.site].id : 0;
       tmp.res = r ? (int16_t)r->idx : (int16_t)-1;
       tmp.job = r ? (uint8_t)r->job : 0;
       tmp.female = r ? r->female : false;
-      tmp.culture = who.site >= 0 ? world.sites[(size_t)who.site].culture : 0;
-      if (r && who.site >= 0) tmp.stake = party::stakeFor(*this, who.site, r->idx);   // (FELLOWS: their real stake)
-      const Bio b = party::voice::bio(*this, tmp);
+      tmp.culture = who.site >= 0 ? g.world.sites[(size_t)who.site].culture : 0;
+      if (r && who.site >= 0) tmp.stake = party::stakeFor(g, who.site, r->idx);   // (FELLOWS: their real stake)
+      const Bio b = party::voice::bio(g, tmp);
       std::string pitch = off.origin == party::Origin::Resident ? "TRAVEL WITH YOU? YOU'VE BEEN A GOOD FRIEND TO ME. YES, I'LL COME, IF YOU'LL HAVE ME."
                           : off.origin == party::Origin::Rescued ? "TRAVEL WITH YOU? YOU CAME INTO THE DARK FOR ME WHEN NOBODY ELSE WOULD. THE LEAST I CAN DO IS WALK BESIDE YOU."
                                                                  : "TRAVEL WITH YOU? I'VE BEEN SITTING IN THIS INN NIGHT AFTER NIGHT WAITING FOR SOMEONE TO ASK ME THAT.";
-      if (!talkMem.introduced(npcKey(who))) {
+      if (!g.talkMem.introduced(g.npcKey(who))) {
         pitch = "I'M " + party::voice::given(who.name) + ". " + pitch;
-        talkMem.flag(npcKey(who), speech::TM_INTRODUCED, day);
+        g.talkMem.flag(g.npcKey(who), speech::TM_INTRODUCED, g.day);
       }
       // why the road calls: their stake, as they would say it (the census's own facts behind it)
-      std::string why = tmp.stake.hook != party::Hook::None ? party::voice::stakeLine(*this, tmp, b) : std::string();
+      std::string why = tmp.stake.hook != party::Hook::None ? party::voice::stakeLine(g, tmp, b) : std::string();
       if (why.empty()) why = party::voice::tradeLine(b);
       if (why.empty()) why = "THERE'S NOTHING HERE FOR ME BUT THE SAME FOUR WALLS.";
-      dlg.text = also(pitch, why);
-      dlg.opts = {{"THEN COME WITH ME.", P_JOIN_YES, (int)off.origin}, {"TELL ME MORE ABOUT YOURSELF FIRST.", P_JOIN_ABOUT, (int)off.origin},
+      g.dlg.text = also(pitch, why);
+      g.dlg.opts = {{"THEN COME WITH ME.", P_JOIN_YES, (int)off.origin}, {"TELL ME MORE ABOUT YOURSELF FIRST.", P_JOIN_ABOUT, (int)off.origin},
                   {"ANOTHER TIME, PERHAPS.", A_BYE, 0}};
       return true;
     }
     case P_JOIN_ABOUT: {
       if (ai < 0) return false;
-      const Actor& who = actors[(size_t)ai];
-      const life::Resident* r = residentOf(*this, who);
+      const Actor& who = g.actors[(size_t)ai];
+      const life::Resident* r = residentOf(g, who);
       Member tmp;
       tmp.npc = 1;
-      tmp.site = who.site >= 0 ? world.sites[(size_t)who.site].id : 0;
+      tmp.site = who.site >= 0 ? g.world.sites[(size_t)who.site].id : 0;
       tmp.res = r ? (int16_t)r->idx : (int16_t)-1;
       tmp.job = r ? (uint8_t)r->job : 0;
       tmp.female = r ? r->female : false;
-      tmp.culture = who.site >= 0 ? world.sites[(size_t)who.site].culture : 0;
-      const Bio b = party::voice::bio(*this, tmp);
+      tmp.culture = who.site >= 0 ? g.world.sites[(size_t)who.site].culture : 0;
+      const Bio b = party::voice::bio(g, tmp);
       std::string t = party::voice::tradeLine(b);
       t = also(t.empty() ? std::string("THERE'S NOT MUCH TO TELL. I'VE LIVED HERE ALL MY LIFE.") : t, party::voice::kinLine(b));
       const party::Vocation v = party::vocationFor(tmp.job, r ? r->traits : 0, r ? r->lookSeed : 0);
       static const char* const can[] = {"I CAN SWING A SWORD AND HOLD A SHIELD.", "I'M HANDY WITH A BOW.", "I KNOW A LITTLE OF THE OLD ARTS.",
                                         "I CAN BIND A WOUND AND SET A BONE.", "I'M QUICK, AND QUIET WHEN I NEED TO BE.", ""};
       t = also(t, can[std::min((int)v, 5)]);
-      dlg.text = t;
-      dlg.opts = {{"THEN COME WITH ME.", P_JOIN_YES, o.arg}, {"ANOTHER TIME, PERHAPS.", A_BYE, 0}};
+      g.dlg.text = t;
+      g.dlg.opts = {{"THEN COME WITH ME.", P_JOIN_YES, o.arg}, {"ANOTHER TIME, PERHAPS.", A_BYE, 0}};
       return true;
     }
     case P_JOIN_YES: {
       if (ai < 0) return false;
-      const int mi = partyRecruit(actors[(size_t)ai], (party::Origin)o.arg);
-      if (mi < 0) { dlg.text = "ON SECOND THOUGHT, I CAN'T LEAVE. FORGIVE ME."; dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return true; }
-      Member& m = party.members[(size_t)mi];
-      dlg.speaker = m.name;
+      const int mi = g.partyRecruit(g.actors[(size_t)ai], (party::Origin)o.arg);
+      if (mi < 0) { g.dlg.text = "ON SECOND THOUGHT, I CAN'T LEAVE. FORGIVE ME."; g.dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return true; }
+      Member& m = g.party.members[(size_t)mi];
+      g.dlg.speaker = m.name;
       m.talkBits |= party::voice::TB_INTRO;
-      const Bio b = party::voice::bio(*this, m);
+      const Bio b = party::voice::bio(g, m);
       const Kin* k = nullptr;
       for (const Kin& x : b.household) if (!x.dead && !x.away) { k = &x; break; }
-      dlg.text = k ? "THEN I'LL COME. LET ME TELL MY " + k->word + " " + k->name + ", AND FETCH MY PACK. YOU LEAD THE WAY, AND I'LL KEEP UP."
+      g.dlg.text = k ? "THEN I'LL COME. LET ME TELL MY " + k->word + " " + k->name + ", AND FETCH MY PACK. YOU LEAD THE WAY, AND I'LL KEEP UP."
                    : std::string("THEN I'LL COME. LET ME FETCH MY PACK. LEAD THE WAY, AND I'LL KEEP UP.");
-      dlg.opts = {{"LET'S GO.", A_BYE, 0}};
+      g.dlg.opts = {{"LET'S GO.", A_BYE, 0}};
       return true;
     }
     case P_HIRE: {
       if (ai < 0) return false;
-      dlg.text = party::voice::mercTerms(*this, actors[(size_t)ai].name, o.arg);
+      g.dlg.text = party::voice::mercTerms(g, g.actors[(size_t)ai].name, o.arg);
       const int ask = std::max(party::WAGE_MIN, o.arg * 4 / 5);
-      dlg.opts = {{"AGREED. YOU'RE HIRED.", P_HIRE_YES, o.arg}, {std::to_string(ask) + " GOLD A DAY, AND NOT A COIN MORE.", P_HAGGLE, ask},
+      g.dlg.opts = {{"AGREED. YOU'RE HIRED.", P_HIRE_YES, o.arg}, {std::to_string(ask) + " GOLD A DAY, AND NOT A COIN MORE.", P_HAGGLE, ask},
                   {"TOO RICH FOR ME.", A_BYE, 0}};
       return true;
     }
     case P_HAGGLE: {
       if (ai < 0) return false;
-      const bool yes = mixh((uint32_t)npcKey(actors[(size_t)ai]), (uint32_t)day) % 2 == 0;
+      const bool yes = mixh((uint32_t)g.npcKey(g.actors[(size_t)ai]), (uint32_t)g.day) % 2 == 0;
       if (yes) {
-        dlg.text = "HA. YOU DRIVE A HARD BARGAIN. " + std::to_string(o.arg) + " A DAY, THEN, BUT I EAT FIRST AT EVERY FIRE.";
-        dlg.opts = {{"DEAL.", P_HIRE_YES, o.arg}, {"ON SECOND THOUGHT, NO.", A_BYE, 0}};
+        g.dlg.text = "HA. YOU DRIVE A HARD BARGAIN. " + std::to_string(o.arg) + " A DAY, THEN, BUT I EAT FIRST AT EVERY FIRE.";
+        g.dlg.opts = {{"DEAL.", P_HIRE_YES, o.arg}, {"ON SECOND THOUGHT, NO.", A_BYE, 0}};
       } else {
-        dlg.text = "THE PRICE IS THE PRICE, NOT A COIN LESS A DAY. YOU WANT CHEAP STEEL, GO AND HIRE A FARMER.";
-        dlg.opts = {{"FINE. THE FULL WAGE.", P_HIRE_YES, 0}, {"THEN NO.", A_BYE, 0}};
+        g.dlg.text = "THE PRICE IS THE PRICE, NOT A COIN LESS A DAY. YOU WANT CHEAP STEEL, GO AND HIRE A FARMER.";
+        g.dlg.opts = {{"FINE. THE FULL WAGE.", P_HIRE_YES, 0}, {"THEN NO.", A_BYE, 0}};
       }
       return true;
     }
     case P_HIRE_YES: {
       if (ai < 0) return false;
-      const PartyOffer off = partyOffer(actors[(size_t)ai]);
-      const int mi = partyRecruit(actors[(size_t)ai], party::Origin::Mercenary);
+      const Game::PartyOffer off = g.partyOffer(g.actors[(size_t)ai]);
+      const int mi = g.partyRecruit(g.actors[(size_t)ai], party::Origin::Mercenary);
       if (mi < 0) {
-        dlg.text = off.why == "BROKE" ? "YOUR PURSE IS LIGHTER THAN YOUR WORD. COME BACK WHEN YOU CAN PAY THE FIRST DAY."
+        g.dlg.text = off.why == "BROKE" ? "YOUR PURSE IS LIGHTER THAN YOUR WORD. COME BACK WHEN YOU CAN PAY THE FIRST DAY."
                    : off.why == "RECORDS" ? "YOU'VE MORE PEOPLE WAITING ON YOU THAN YOU CAN FEED. LET ONE OF THEM GO, THEN COME BACK TO ME."
                                           : "YOUR COMPANY'S FULL. I DON'T FIGHT SHOULDER TO SHOULDER IN A CROWD.";
-        dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
+        g.dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
         return true;
       }
-      Member& m = party.members[(size_t)mi];
-      if (o.arg > 0 && m.wage > o.arg) { gold += m.wage - o.arg; m.wage = o.arg; }   // (the haggled wage, from the first day)
-      dlg.speaker = m.name;
-      dlg.text = "DONE. PAY ME EACH MORNING AND POINT ME AT WHATEVER NEEDS KILLING.";
-      dlg.opts = {{"LET'S GO.", A_BYE, 0}};
+      Member& m = g.party.members[(size_t)mi];
+      if (o.arg > 0 && m.wage > o.arg) { g.gold += m.wage - o.arg; m.wage = o.arg; }   // (the haggled wage, from the first day)
+      g.dlg.speaker = m.name;
+      g.dlg.text = "DONE. PAY ME EACH MORNING AND POINT ME AT WHATEVER NEEDS KILLING.";
+      g.dlg.opts = {{"LET'S GO.", A_BYE, 0}};
       return true;
     }
     // ---- members at home, and the ones who left
     case P_REJOIN: {
       Member* m = member(o.arg);
       if (!m) return false;
-      if (!partyCommand(o.arg, party::Cmd::Follow)) {
-        dlg.text = party.people() >= party::capacity(plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. COME BACK FOR ME WHEN THERE'S ROOM."
+      if (!g.partyCommand(o.arg, party::Cmd::Follow)) {
+        g.dlg.text = g.party.people() >= party::capacity(g.plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. COME BACK FOR ME WHEN THERE'S ROOM."
                                                              : "NOT YET. I'M NEEDED HERE A WHILE LONGER.";
-        dlg.opts = {{"I UNDERSTAND.", A_BYE, 0}};
+        g.dlg.opts = {{"I UNDERSTAND.", A_BYE, 0}};
         return true;
       }
-      dlg.text = m->approval >= party::APPROVAL_QUEST ? "I WAS HOPING YOU'D COME FOR ME. MY PACK HAS BEEN READY FOR DAYS."
+      g.dlg.text = m->approval >= party::APPROVAL_QUEST ? "I WAS HOPING YOU'D COME FOR ME. MY PACK HAS BEEN READY FOR DAYS."
                                                      : "I WONDERED WHEN YOU'D COME BACK FOR ME. I'M READY.";
-      dlg.opts = {{"LET'S GO.", A_BYE, 0}};
+      g.dlg.opts = {{"LET'S GO.", A_BYE, 0}};
       return true;
     }
     case P_AMENDS: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const bool another = (m->talkBits & party::voice::TB_REBUFF) && m->lastTalkDay >= 0 && m->lastTalkDay < day && m->leftDay < day;
+      const bool another = (m->talkBits & party::voice::TB_REBUFF) && m->lastTalkDay >= 0 && m->lastTalkDay < g.day && m->leftDay < g.day;
       if (!another) {
         // the deed that drove them away (their worst memory)
         const party::Memory* worst = nullptr;
         for (const party::Memory& x : m->mem) if (!worst || x.delta < worst->delta) worst = &x;
-        std::string what = worst ? deedPhrase(worst->deed, siteNameOf(*this, worst->about)) : std::string("EVERYTHING YOU DID");
+        std::string what = worst ? deedPhrase(worst->deed, siteNameOf(g, worst->about)) : std::string("EVERYTHING YOU DID");
         if (what.size() > 40) what = deedPhrase(worst->deed, "");
-        dlg.text = "SORRY? I KEEP SEEING " + what + ". ONE WORD DOESN'T MEND THAT. COME BACK ANOTHER DAY, WHEN I'VE HAD TIME TO THINK.";
+        g.dlg.text = "SORRY? I KEEP SEEING " + what + ". ONE WORD DOESN'T MEND THAT. COME BACK ANOTHER DAY, WHEN I'VE HAD TIME TO THINK.";
         m->talkBits |= party::voice::TB_REBUFF;
-        m->lastTalkDay = day;
-        dlg.opts = {{"I'LL COME BACK.", A_BYE, 0}};
+        m->lastTalkDay = g.day;
+        g.dlg.opts = {{"I'LL COME BACK.", A_BYE, 0}};
         return true;
       }
-      dlg.text = "YOU CAME BACK, AS YOU SAID YOU WOULD. ALL RIGHT. SAY IT, THEN, AND SAY IT PROPERLY THIS TIME.";
-      dlg.opts = {{"I WAS WRONG, AND I'LL DO BETTER.", P_AMENDS_YES, o.arg}, {"I NEED YOU AT MY SIDE. I MEAN IT.", P_AMENDS_YES, o.arg},
+      g.dlg.text = "YOU CAME BACK, AS YOU SAID YOU WOULD. ALL RIGHT. SAY IT, THEN, AND SAY IT PROPERLY THIS TIME.";
+      g.dlg.opts = {{"I WAS WRONG, AND I'LL DO BETTER.", P_AMENDS_YES, o.arg}, {"I NEED YOU AT MY SIDE. I MEAN IT.", P_AMENDS_YES, o.arg},
                   {"FORGET IT.", A_BYE, 0}};
       return true;
     }
@@ -647,85 +646,85 @@ bool Game::partyChoose(const DlgOpt& o) {
       m->approval = (int8_t)std::max<int>(m->approval, party::APPROVAL_COMPLAIN + 10);
       m->talkBits = (m->talkBits & ~party::voice::TB_REBUFF) | party::voice::TB_AMENDS;
       m->flags = (uint16_t)(m->flags & ~party::MF_COMPLAINED);
-      if (!partyCommand(o.arg, party::Cmd::Follow)) {
-        dlg.text = "ALL RIGHT. I FORGIVE YOU. BUT YOU'VE COMPANY ENOUGH FOR NOW. COME BACK FOR ME WHEN THERE'S ROOM.";
-        dlg.opts = {{"I WILL.", A_BYE, 0}};
+      if (!g.partyCommand(o.arg, party::Cmd::Follow)) {
+        g.dlg.text = "ALL RIGHT. I FORGIVE YOU. BUT YOU'VE COMPANY ENOUGH FOR NOW. COME BACK FOR ME WHEN THERE'S ROOM.";
+        g.dlg.opts = {{"I WILL.", A_BYE, 0}};
         return true;
       }
-      dlg.text = "ALL RIGHT. ONE MORE CHANCE. I'LL GET MY THINGS. DON'T MAKE ME REGRET IT.";
-      dlg.opts = {{"YOU WON'T.", A_BYE, 0}};
+      g.dlg.text = "ALL RIGHT. ONE MORE CHANCE. I'LL GET MY THINGS. DON'T MAKE ME REGRET IT.";
+      g.dlg.opts = {{"YOU WON'T.", A_BYE, 0}};
       return true;
     }
     // ---- the kin of companions, and of the fallen
     case P_KIN_PROMISE: {
       const Member* m = member(o.arg);
       const bool f = m && m->female;
-      dlg.text = "SEE THAT YOU DO. AND TELL " + himHer(f) + " TO SEND WORD NOW AND THEN. A LETTER WOULDN'T KILL " + himHer(f) + ".";
-      dlg.opts = {{"I'LL TELL " + himHer(f) + ".", A_BYE, 0}};
+      g.dlg.text = "SEE THAT YOU DO. AND TELL " + himHer(f) + " TO SEND WORD NOW AND THEN. A LETTER WOULDN'T KILL " + himHer(f) + ".";
+      g.dlg.opts = {{"I'LL TELL " + himHer(f) + ".", A_BYE, 0}};
       return true;
     }
     case P_FALLEN_KIN: {
       const int fi = o.arg / 4, ans = o.arg % 4;
-      if (fi < 0 || fi >= (int)party.fallen.size()) return false;
-      const party::Fallen& f = party.fallen[(size_t)fi];
+      if (fi < 0 || fi >= (int)g.party.fallen.size()) return false;
+      const party::Fallen& f = g.party.fallen[(size_t)fi];
       const bool fem = f.female;   // (fixer M8 r3) saved with the grave: right for the rescued, the hired and the hound too
-      if (ans == 0) dlg.text = "BRAVELY. FOR ALL OF YOU. ...THANK YOU. THAT'S WHAT I'LL TELL THE OTHERS. THAT'S WHAT I'LL TELL MYSELF.";
-      else if (ans == 1) dlg.text = "NO. NOBODY COULD HAVE. I KNOW THAT. I KNEW IT THE DAY " + heShe(fem) + " LEFT. BUT THANK YOU FOR SAYING IT.";
-      else dlg.text = "THEN DRINK TO " + himHer(fem) + " WITH ME SOMETIME. I MISS " + himHer(fem) + " TOO, EVERY DAY.";
-      dlg.opts = {{"I WILL.", A_BYE, 0}};
+      if (ans == 0) g.dlg.text = "BRAVELY. FOR ALL OF YOU. ...THANK YOU. THAT'S WHAT I'LL TELL THE OTHERS. THAT'S WHAT I'LL TELL MYSELF.";
+      else if (ans == 1) g.dlg.text = "NO. NOBODY COULD HAVE. I KNOW THAT. I KNEW IT THE DAY " + heShe(fem) + " LEFT. BUT THANK YOU FOR SAYING IT.";
+      else g.dlg.text = "THEN DRINK TO " + himHer(fem) + " WITH ME SOMETIME. I MISS " + himHer(fem) + " TOO, EVERY DAY.";
+      g.dlg.opts = {{"I WILL.", A_BYE, 0}};
       return true;
     }
     // ---- a companion's pages
     case P_BACK: {
       if (!member(o.arg)) return false;
-      PartyTalkOps::front(*this, o.arg, false);
+      PartyTalkOps::front(g, o.arg, false);
       return true;
     }
     case P_ORDERS: {
       if (!member(o.arg)) return false;
-      dlg.text = "WHAT DO YOU WANT ME TO DO?";
-      PartyTalkOps::orders(*this, o.arg);
+      g.dlg.text = "WHAT DO YOU WANT ME TO DO?";
+      PartyTalkOps::orders(g, o.arg);
       return true;
     }
     case P_ABOUT: {
       Member* m = member(o.arg);
       if (!m) return false;
       // (their trade and the ones they left; what drives them waits for the question that asks it)
-      const Bio b0 = party::voice::bio(*this, *m);
-      std::string t = m->npc && m->res >= 0 ? also(party::voice::tradeLine(b0), party::voice::kinLine(b0)) : party::aboutLine(*this, *m);
+      const Bio b0 = party::voice::bio(g, *m);
+      std::string t = m->npc && m->res >= 0 ? also(party::voice::tradeLine(b0), party::voice::kinLine(b0)) : party::aboutLine(g, *m);
       if (m->npc && m->res >= 0 && m->stake.hook != party::Hook::None) t = also(t, "BUT THAT'S NOT WHY I'M ON THE ROAD.");
       if (t.empty()) t = "THERE'S NOT MUCH TO TELL. I'VE WALKED A LOT OF ROADS, AND THIS ONE IS AS GOOD AS ANY.";
       if (m->talkBits & party::voice::TB_ABOUT) t = also("YOU'VE HEARD SOME OF IT.", t);
       m->talkBits |= party::voice::TB_ABOUT;
-      dlg.text = t;
-      dlg.opts.clear();
-      const Bio b = party::voice::bio(*this, *m);
-      if (!b.home.empty()) dlg.opts.push_back({"TELL ME ABOUT " + b.home + ".", P_ABOUT_HOME, o.arg});
-      if (!b.household.empty() || !b.friendOf.name.empty()) dlg.opts.push_back({"WHO DID YOU LEAVE BEHIND?", P_ABOUT_KIN, o.arg});
-      if (m->stake.hook != party::Hook::None) dlg.opts.push_back({"WHAT REALLY DRIVES YOU?", P_ABOUT_STAKE, o.arg});
-      dlg.opts.push_back({"WHERE DID YOU LEARN TO FIGHT?", P_ABOUT_FIGHT, o.arg});
+      g.dlg.text = t;
+      g.dlg.opts.clear();
+      const Bio b = party::voice::bio(g, *m);
+      if (!b.home.empty()) g.dlg.opts.push_back({"TELL ME ABOUT " + b.home + ".", P_ABOUT_HOME, o.arg});
+      if (!b.household.empty() || !b.friendOf.name.empty()) g.dlg.opts.push_back({"WHO DID YOU LEAVE BEHIND?", P_ABOUT_KIN, o.arg});
+      if (m->stake.hook != party::Hook::None) g.dlg.opts.push_back({"WHAT REALLY DRIVES YOU?", P_ABOUT_STAKE, o.arg});
+      g.dlg.opts.push_back({"WHERE DID YOU LEARN TO FIGHT?", P_ABOUT_FIGHT, o.arg});
       backTo(o.arg);
       return true;
     }
     case P_ABOUT_HOME: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const Bio b = party::voice::bio(*this, *m);
+      const Bio b = party::voice::bio(g, *m);
       m->talkBits |= party::voice::TB_HOME;
       const char* kind = b.homeType == (int)SiteType::City ? "A CITY" : b.homeType == (int)SiteType::Town ? "A MARKET TOWN" : "A VILLAGE";
       std::string t = b.home + " IS " + kind + (b.people.empty() ? std::string() : " OF THE " + b.people) + ". WE BUILD " +
                       party::voice::houseWords(b.arch) + ", WE DRINK " + party::voice::drinkWord(b.drink) + ", AND EVERYONE KNOWS EVERYONE ELSE'S BUSINESS.";
       if (!speech::fitsPanel(t)) t = b.home + " IS " + kind + ". EVERYONE THERE KNOWS EVERYONE ELSE'S BUSINESS.";
       if (!b.god.empty()) t = also(t, "THE SHRINE IS TO " + b.god + ", AND MY MOTHER NEVER MISSED A FEAST DAY.");
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
     case P_ABOUT_KIN: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const Bio b = party::voice::bio(*this, *m);
+      const Bio b = party::voice::bio(g, *m);
       m->talkBits |= party::voice::TB_KIN;
       std::string t;
       int said = 0;
@@ -745,43 +744,43 @@ bool Game::partyChoose(const DlgOpt& o) {
         t = t.empty() ? "MY FRIEND " + b.friendOf.name + ", MOSTLY. WE GREW UP TOGETHER, AND " + heShe(b.friendOf.female) + " STILL OWES ME A DRINK."
                       : also(t, "AND MY FRIEND " + b.friendOf.name + ", WHO OWES ME A DRINK.");
       if (t.empty()) t = "NOBODY, REALLY. THAT'S PART OF WHY IT WAS EASY TO GO.";
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
     case P_ABOUT_STAKE: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const Bio b = party::voice::bio(*this, *m);
+      const Bio b = party::voice::bio(g, *m);
       m->talkBits |= party::voice::TB_STAKE;
-      std::string t = party::voice::stakeLine(*this, *m, b);
-      const int qs = party::voice::questStatus(*this, *m);
+      std::string t = party::voice::stakeLine(g, *m, b);
+      const int qs = party::voice::questStatus(g, *m);
       if (qs == 3) t = also(t, "BUT YOU HELPED ME PUT THAT TO REST. I DON'T THINK ABOUT IT THE WAY I USED TO.");
       else if (qs == 2) t = also(t, "AND NOW WE'RE FINALLY DOING SOMETHING ABOUT IT.");
       else t = also(t, "I MAY ASK FOR YOUR HELP WITH THAT, WHEN THE TIME COMES. NOT YET.");
       if (t.empty()) t = "WHAT DRIVES ME? THE ROAD ITSELF, I THINK. I NEVER COULD SIT STILL.";
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
     case P_ABOUT_FIGHT: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const Bio b = party::voice::bio(*this, *m);
+      const Bio b = party::voice::bio(g, *m);
       switch (m->voc) {
-        case party::Vocation::Warrior: dlg.text = "FROM MY FATHER, WITH A STICK, IN THE YARD BEHIND THE HOUSE. LATER WITH STEEL. HE NEVER ONCE LET ME WIN."; break;
-        case party::Vocation::Archer: dlg.text = "HUNTING, MOSTLY. YOU LEARN TO BE PATIENT WHEN SUPPER DEPENDS ON ONE ARROW."; break;
+        case party::Vocation::Warrior: g.dlg.text = "FROM MY FATHER, WITH A STICK, IN THE YARD BEHIND THE HOUSE. LATER WITH STEEL. HE NEVER ONCE LET ME WIN."; break;
+        case party::Vocation::Archer: g.dlg.text = "HUNTING, MOSTLY. YOU LEARN TO BE PATIENT WHEN SUPPER DEPENDS ON ONE ARROW."; break;
         case party::Vocation::Mage:
-          dlg.text = b.people.empty() ? std::string("FROM AN OLD WOMAN WHO LIVED ALONE. SHE TAUGHT ME THE FIRE, AND MADE ME PROMISE TO RESPECT IT.")
+          g.dlg.text = b.people.empty() ? std::string("FROM AN OLD WOMAN WHO LIVED ALONE. SHE TAUGHT ME THE FIRE, AND MADE ME PROMISE TO RESPECT IT.")
                                       : "FROM AN OLD " + b.people + " WOMAN WHO LIVED ALONE. SHE TAUGHT ME THE FIRE, AND MADE ME PROMISE TO RESPECT IT.";
           break;
-        case party::Vocation::Healer: dlg.text = "I DIDN'T. I LEARNED TO PUT PEOPLE BACK TOGETHER. THE FIGHTING CAME LATER, BECAUSE SOMEONE HAD TO GUARD THE HEALER."; break;
-        case party::Vocation::Rogue: dlg.text = "ON THE STREETS. WHERE I GREW UP YOU LEARNED TO BE QUICK OR YOU LEARNED TO BE HUNGRY."; break;
-        default: dlg.text = "THE SAME WAY EVERYONE DOES. BADLY AT FIRST."; break;
+        case party::Vocation::Healer: g.dlg.text = "I DIDN'T. I LEARNED TO PUT PEOPLE BACK TOGETHER. THE FIGHTING CAME LATER, BECAUSE SOMEONE HAD TO GUARD THE HEALER."; break;
+        case party::Vocation::Rogue: g.dlg.text = "ON THE STREETS. WHERE I GREW UP YOU LEARNED TO BE QUICK OR YOU LEARNED TO BE HUNGRY."; break;
+        default: g.dlg.text = "THE SAME WAY EVERYONE DOES. BADLY AT FIRST."; break;
       }
-      dlg.opts.clear();
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
@@ -791,16 +790,16 @@ bool Game::partyChoose(const DlgOpt& o) {
       const int mi = again ? o.arg - 1000 : o.arg;
       Member* m = member(mi);
       if (!m) return false;
-      dlg.text = again ? std::string("WHAT ELSE? LET ME THINK.") : std::string("WHICH PART? WE'VE DONE A GOOD DEAL TOGETHER, YOU AND I.");
-      dlg.opts.clear();
+      g.dlg.text = again ? std::string("WHAT ELSE? LET ME THINK.") : std::string("WHICH PART? WE'VE DONE A GOOD DEAL TOGETHER, YOU AND I.");
+      g.dlg.opts.clear();
       std::vector<int> seen;
-      for (int i = (int)m->mem.size() - 1; i >= 0 && dlg.opts.size() < 4; i--) {
+      for (int i = (int)m->mem.size() - 1; i >= 0 && g.dlg.opts.size() < 4; i--) {
         const party::Memory& x = m->mem[(size_t)i];
         if (x.delta == 0 || std::find(seen.begin(), seen.end(), (int)x.deed) != seen.end()) continue;
         seen.push_back((int)x.deed);
-        std::string lab = "WHAT ABOUT " + deedPhrase(x.deed, siteNameOf(*this, x.about)) + "?";
+        std::string lab = "WHAT ABOUT " + deedPhrase(x.deed, siteNameOf(g, x.about)) + "?";
         if (!speech::fitsOption(lab) || lab.size() > 52) lab = "WHAT ABOUT " + deedPhrase(x.deed, "") + "?";
-        dlg.opts.push_back({lab, P_DEED, mi * 64 + i});
+        g.dlg.opts.push_back({lab, P_DEED, mi * 64 + i});
       }
       backTo(mi);
       return true;
@@ -810,38 +809,38 @@ bool Game::partyChoose(const DlgOpt& o) {
       const int k = o.arg % 64;
       if (!m || k < 0 || k >= (int)m->mem.size()) return false;
       const party::Memory& x = m->mem[(size_t)k];
-      const std::string when = party::voice::ago(day - x.day);
+      const std::string when = party::voice::ago(g.day - x.day);
       // what it was, then what they made of it: the deed's own words when it moved them, else their nature's
-      std::string t = opinion(*m, x, godOf(*this, m->culture));
+      std::string t = opinion(*m, x, godOf(g, m->culture));
       if (x.delta != 0) {
-        const std::string own = party::deedLine(*this, *m, x.deed, x.delta > 0 ? std::max(4, (int)x.delta) : std::min(-4, (int)x.delta));
+        const std::string own = party::deedLine(g, *m, x.deed, x.delta > 0 ? std::max(4, (int)x.delta) : std::min(-4, (int)x.delta));
         if (!own.empty() && std::abs(x.delta) >= 4) t = also(own, std::abs(x.delta) >= 6 ? "I STILL THINK ABOUT IT." : "");
       }
-      std::string lead = deedPhrase(x.deed, siteNameOf(*this, x.about));
+      std::string lead = deedPhrase(x.deed, siteNameOf(g, x.about));
       if (lead.size() > 40) lead = deedPhrase(x.deed, "");
       t = also(lead + "? " + t, "");
-      if (!speech::fitsPanel(t)) t = opinion(*m, x, godOf(*this, m->culture));
+      if (!speech::fitsPanel(t)) t = opinion(*m, x, godOf(g, m->culture));
       if (x.deed == party::Deed::Abandoned) t = "YOU LEFT ME BLEEDING ON THE GROUND, " + when + ". I'M STILL HERE. I HAVEN'T FORGOTTEN.";
-      dlg.text = t;
-      dlg.opts.clear();
-      dlg.opts.push_back({"WHAT ELSE STAYED WITH YOU?", P_DEEDS, o.arg / 64 + 1000});
+      g.dlg.text = t;
+      g.dlg.opts.clear();
+      g.dlg.opts.push_back({"WHAT ELSE STAYED WITH YOU?", P_DEEDS, o.arg / 64 + 1000});
       backTo(o.arg / 64);
       return true;
     }
     case P_STATUS: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const int i = findActor(m->actor);
-      const bool hurt = i > 0 && actors[(size_t)i].hp < actors[(size_t)i].maxHp * 0.5f;
-      if (hurt) dlg.text = "I'VE BEEN BETTER. A LITTLE REST AND A POTION WOULDN'T GO AMISS, IF YOU'VE ONE TO SPARE.";
-      else if (m->flags & party::MF_WOUNDED) dlg.text = "STILL STIFF FROM WHEN I WENT DOWN. A PROPER NIGHT'S SLEEP WILL SORT IT OUT.";
-      else if (m->approval < party::APPROVAL_COMPLAIN) dlg.text = "HONESTLY? I DON'T LIKE THE WAY YOU DO THINGS. I'M STILL HERE, FOR NOW.";
-      else if (m->bond >= 50) dlg.text = "WELL. BETTER THAN WELL. I'D FOLLOW YOU INTO ANY DARK THERE IS.";
-      else if (m->days < 3) dlg.text = "STILL GETTING USED TO THE ROAD. MY FEET HAVE A LOT TO SAY ABOUT IT.";
-      else dlg.text = "WELL ENOUGH. THE ROAD SUITS ME MORE THAN I THOUGHT IT WOULD.";
-      dlg.opts.clear();
-      dlg.opts.push_back({"WHAT DO YOU MAKE OF ME, HONESTLY?", P_FEEL, o.arg});
-      if (m->voc != party::Vocation::Hound) dlg.opts.push_back({"HOW DOES YOUR GEAR SIT ON YOU?", P_GEAR, o.arg});
+      const int i = g.findActor(m->actor);
+      const bool hurt = i > 0 && g.actors[(size_t)i].hp < g.actors[(size_t)i].maxHp * 0.5f;
+      if (hurt) g.dlg.text = "I'VE BEEN BETTER. A LITTLE REST AND A POTION WOULDN'T GO AMISS, IF YOU'VE ONE TO SPARE.";
+      else if (m->flags & party::MF_WOUNDED) g.dlg.text = "STILL STIFF FROM WHEN I WENT DOWN. A PROPER NIGHT'S SLEEP WILL SORT IT OUT.";
+      else if (m->approval < party::APPROVAL_COMPLAIN) g.dlg.text = "HONESTLY? I DON'T LIKE THE WAY YOU DO THINGS. I'M STILL HERE, FOR NOW.";
+      else if (m->bond >= 50) g.dlg.text = "WELL. BETTER THAN WELL. I'D FOLLOW YOU INTO ANY DARK THERE IS.";
+      else if (m->days < 3) g.dlg.text = "STILL GETTING USED TO THE ROAD. MY FEET HAVE A LOT TO SAY ABOUT IT.";
+      else g.dlg.text = "WELL ENOUGH. THE ROAD SUITS ME MORE THAN I THOUGHT IT WOULD.";
+      g.dlg.opts.clear();
+      g.dlg.opts.push_back({"WHAT DO YOU MAKE OF ME, HONESTLY?", P_FEEL, o.arg});
+      if (m->voc != party::Vocation::Hound) g.dlg.opts.push_back({"HOW DOES YOUR GEAR SIT ON YOU?", P_GEAR, o.arg});
       backTo(o.arg);
       return true;
     }
@@ -858,15 +857,15 @@ bool Game::partyChoose(const DlgOpt& o) {
       if (b >= 80) t = also(t, "AND WHATEVER HAPPENS, I'D DIE FOR YOU. I THINK YOU KNOW THAT.");
       else if (b >= 50) t = also(t, "I TRUST YOU WITH MY LIFE. THAT'S NOT NOTHING.");
       else if (b >= 20) t = also(t, "WE'RE GETTING THE MEASURE OF EACH OTHER, YOU AND I.");
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
     case P_GEAR: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const Bio b = party::voice::bio(*this, *m);
+      const Bio b = party::voice::bio(g, *m);
       auto worn = [&](int s) -> const Item* { const int e = m->eq[(size_t)s]; return e >= 0 && e < (int)m->inv.size() ? &m->inv[(size_t)e] : nullptr; };
       const Item* arm = worn(party::S_ARMOR);
       const Item* wpn = worn(m->voc == party::Vocation::Archer ? party::S_BOW : m->voc == party::Vocation::Mage ? party::S_STAFF : party::S_WEAPON);
@@ -879,13 +878,13 @@ bool Game::partyChoose(const DlgOpt& o) {
         t = std::string(what) + (b.people.empty() ? " IS MADE THE WAY WE MAKE THEM AT HOME." : " IS " + b.people + " WORK, THE WAY WE MAKE THEM AT HOME.") +
             " IT FITS MY HAND LIKE AN OLD FRIEND.";
       else {
-        const std::string maker = world.src ? world.src->culture(it->culture).adjective : std::string();
+        const std::string maker = g.world.src ? g.world.src->culture(it->culture).adjective : std::string();
         t = std::string(what) + (maker.empty() ? " IS FOREIGN WORK." : " IS " + maker + " WORK.") +
             " IT HANGS STRANGELY ON ME, BUT IT'S GOOD STEEL, AND I'M LEARNING ITS WAYS.";
       }
       if (!speech::fitsPanel(t)) t = std::string(what) + " WILL DO. I'D NOT SAY NO TO SOMETHING BETTER, MIND.";
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
@@ -896,109 +895,109 @@ bool Game::partyChoose(const DlgOpt& o) {
       for (const party::Memory& x : m->mem) if (x.delta < 0 && (!worst || x.delta < worst->delta)) worst = &x;
       std::string t;
       if (worst) {
-        std::string what = deedPhrase(worst->deed, siteNameOf(*this, worst->about));
-        t = "WHAT'S WRONG? I'LL TELL YOU WHAT'S WRONG. " + what + ". " + party::voice::ago(day - worst->day) + ", AND I STILL CAN'T STOP THINKING ABOUT IT.";
+        std::string what = deedPhrase(worst->deed, siteNameOf(g, worst->about));
+        t = "WHAT'S WRONG? I'LL TELL YOU WHAT'S WRONG. " + what + ". " + party::voice::ago(g.day - worst->day) + ", AND I STILL CAN'T STOP THINKING ABOUT IT.";
         if (!speech::fitsPanel(t)) t = "WHAT'S WRONG? " + deedPhrase(worst->deed, "") + ". I STILL CAN'T STOP THINKING ABOUT IT.";
       } else {
         t = "WHAT'S WRONG IS THE WAY YOU DO THINGS. ALL OF IT. I DIDN'T COME ON THIS ROAD TO BE ASHAMED.";
       }
-      dlg.text = t;
-      dlg.opts = {{"I'LL DO BETTER. I PROMISE.", P_GRIEVE_SORRY, o.arg}, {"GO, THEN, IF YOU DON'T LIKE IT.", P_PART, o.arg}, {"SOMETHING ELSE.", P_BACK, o.arg}};
+      g.dlg.text = t;
+      g.dlg.opts = {{"I'LL DO BETTER. I PROMISE.", P_GRIEVE_SORRY, o.arg}, {"GO, THEN, IF YOU DON'T LIKE IT.", P_PART, o.arg}, {"SOMETHING ELSE.", P_BACK, o.arg}};
       return true;
     }
     case P_GRIEVE_SORRY: {
       Member* m = member(o.arg);
       if (!m) return false;
-      if (m->lastTalkDay != day) {   // (one promise a day counts for a little)
-        m->lastTalkDay = day;
+      if (m->lastTalkDay != g.day) {   // (one promise a day counts for a little)
+        m->lastTalkDay = g.day;
         m->approval = (int8_t)std::min(100, m->approval + 4);
-        dlg.text = "WORDS ARE CHEAP. BUT ALL RIGHT. I'LL WATCH WHAT YOU DO, NOT WHAT YOU SAY.";
+        g.dlg.text = "WORDS ARE CHEAP. BUT ALL RIGHT. I'LL WATCH WHAT YOU DO, NOT WHAT YOU SAY.";
       } else {
-        dlg.text = "YOU SAID THAT ALREADY TODAY. SHOW ME INSTEAD.";
+        g.dlg.text = "YOU SAID THAT ALREADY TODAY. SHOW ME INSTEAD.";
       }
-      dlg.opts = {{"I WILL.", A_BYE, 0}};
+      g.dlg.opts = {{"I WILL.", A_BYE, 0}};
       return true;
     }
     case P_QUEST: {
       Member* m = member(o.arg);
       if (!m) return false;
-      const uint32_t inst = party::voice::questBegin(*this, o.arg);
-      story::Instance* in = inst ? story.find(inst) : nullptr;
+      const uint32_t inst = party::voice::questBegin(g, o.arg);
+      story::Instance* in = inst ? g.story.find(inst) : nullptr;
       if (!in) {
-        dlg.text = "NO. IT'S NOTHING. FORGET I SAID ANYTHING.";
-        dlg.opts = {{"ALL RIGHT.", A_BYE, 0}};
+        g.dlg.text = "NO. IT'S NOTHING. FORGET I SAID ANYTHING.";
+        g.dlg.opts = {{"ALL RIGHT.", A_BYE, 0}};
         return true;
       }
-      story.sagaOffers_.clear();
-      story.said_ = dlg.text + " ";
-      dlg.opts = {{"NOT NOW. I HAVE ORDERS FOR YOU.", P_ORDERS, o.arg}};
-      if (!story.showDialogue(*this, *in)) { dlg.text = "THEN LET'S BE ABOUT IT."; dlg.opts.clear(); }
-      dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
+      g.story.sagaOffers_.clear();
+      g.story.said_ = g.dlg.text + " ";
+      g.dlg.opts = {{"NOT NOW. I HAVE ORDERS FOR YOU.", P_ORDERS, o.arg}};
+      if (!g.story.showDialogue(g, *in)) { g.dlg.text = "THEN LET'S BE ABOUT IT."; g.dlg.opts.clear(); }
+      g.dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
       return true;
     }
     case P_QUEST_NEWS: {
       Member* m = member(o.arg);
       if (!m) return false;
-      story::Instance* in = m->questInst ? story.find(m->questInst) : nullptr;
+      story::Instance* in = m->questInst ? g.story.find(m->questInst) : nullptr;
       std::string t;
       if (in && !in->done) {
-        const std::string step = story.nextStepLine(*this, *in, dlg.text, true);
-        const std::string j = story.journalText(*this, *in);
+        const std::string step = g.story.nextStepLine(g, *in, g.dlg.text, true);
+        const std::string j = g.story.journalText(g, *in);
         t = !step.empty() ? also("I THINK ABOUT IT ALL THE TIME.", step) : "WE'RE NOT DONE YET. IT'S ALL IN YOUR JOURNAL, AND IT'S ALL IN MY HEAD.";
         (void)j;
       } else {
         t = "IT'S OVER, ONE WAY OR ANOTHER. THANK YOU FOR WALKING IT WITH ME.";
       }
-      dlg.text = t;
-      dlg.opts.clear();
+      g.dlg.text = t;
+      g.dlg.opts.clear();
       backTo(o.arg);
       return true;
     }
     case P_PART: {
       Member* m = member(o.arg);
       if (!m) return false;
-      if (m->origin == party::Origin::Mercenary) dlg.text = "PAID UP TO TODAY? THEN WE'RE SQUARE. NO HARD FEELINGS.";
-      else if (m->bond >= 50) dlg.text = "YOU MEAN IT? AFTER EVERYTHING? ...THEN I'LL GO HOME. YOU KNOW WHERE TO FIND ME, IF YOU EVER CHANGE YOUR MIND.";
-      else dlg.text = "YOU MEAN IT? THEN I'LL GO HOME. YOU KNOW WHERE TO FIND ME.";
-      dlg.opts = {{"YES. GO HOME, AND GO WELL.", P_PART_YES, o.arg}, {"NO. STAY WITH ME.", P_BACK, o.arg}};
+      if (m->origin == party::Origin::Mercenary) g.dlg.text = "PAID UP TO TODAY? THEN WE'RE SQUARE. NO HARD FEELINGS.";
+      else if (m->bond >= 50) g.dlg.text = "YOU MEAN IT? AFTER EVERYTHING? ...THEN I'LL GO HOME. YOU KNOW WHERE TO FIND ME, IF YOU EVER CHANGE YOUR MIND.";
+      else g.dlg.text = "YOU MEAN IT? THEN I'LL GO HOME. YOU KNOW WHERE TO FIND ME.";
+      g.dlg.opts = {{"YES. GO HOME, AND GO WELL.", P_PART_YES, o.arg}, {"NO. STAY WITH ME.", P_BACK, o.arg}};
       return true;
     }
     case P_PART_YES: {
       Member* m = member(o.arg);
       if (!m) return false;
       const bool close = m->bond >= 50;
-      partyDismiss(o.arg);
-      dlg.text = close ? "THEN THIS IS GOODBYE. I'LL NEVER FORGET THE ROAD WE WALKED. LOOK AFTER YOURSELF." : "GOODBYE, THEN. TAKE CARE OF YOURSELF.";
-      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      g.partyDismiss(o.arg);
+      g.dlg.text = close ? "THEN THIS IS GOODBYE. I'LL NEVER FORGET THE ROAD WE WALKED. LOOK AFTER YOURSELF." : "GOODBYE, THEN. TAKE CARE OF YOURSELF.";
+      g.dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return true;
     }
     // ---- the grave
     case P_GRAVE_FLOWERS:
-      partyGraveAct(o.arg, 1);
-      dlg.text = "YOU LAY THE FLOWERS DOWN AND STAND A WHILE IN SILENCE.";
-      dlg.opts = {{"SAY A FEW WORDS.", P_GRAVE_WORDS, o.arg}, {"LEAVE THEM IN PEACE.", A_BYE, 0}};
+      g.partyGraveAct(o.arg, 1);
+      g.dlg.text = "YOU LAY THE FLOWERS DOWN AND STAND A WHILE IN SILENCE.";
+      g.dlg.opts = {{"SAY A FEW WORDS.", P_GRAVE_WORDS, o.arg}, {"LEAVE THEM IN PEACE.", A_BYE, 0}};
       return true;
     case P_GRAVE_WORDS: {
-      if (o.arg < 0 || o.arg >= (int)party.fallen.size()) return false;
-      const party::Fallen& f = party.fallen[(size_t)o.arg];
+      if (o.arg < 0 || o.arg >= (int)g.party.fallen.size()) return false;
+      const party::Fallen& f = g.party.fallen[(size_t)o.arg];
       const std::string nm = party::voice::given(f.name);
       const std::string span = f.days < 7 ? "ONLY A FEW DAYS" : f.days < 30 ? "MANY DAYS" : f.days < 90 ? "A WHOLE SEASON" : "MORE THAN A YEAR";
       std::string t = "YOU SAY A FEW WORDS FOR " + nm + ": " + span + " ON THE ROAD TOGETHER";
       t += f.kills >= 10 ? ", A STEADY BLADE IN EVERY FIGHT" : ", A FRIEND AT EVERY FIRE";
       t += f.bond >= 50 ? ", AND A BOND THAT DID NOT BREAK." : ".";
       if (!f.cause.empty()) t = also(t, "IN THE END " + fellClause(f.cause, f.female) + ".");
-      dlg.text = t;
-      dlg.opts.clear();
-      if (!(f.graveFlags & party::GF_FLOWERS)) dlg.opts.push_back({"LAY FLOWERS ON THE GRAVE.", P_GRAVE_FLOWERS, o.arg});
-      dlg.opts.push_back({"LEAVE THEM IN PEACE.", A_BYE, 0});
+      g.dlg.text = t;
+      g.dlg.opts.clear();
+      if (!(f.graveFlags & party::GF_FLOWERS)) g.dlg.opts.push_back({"LAY FLOWERS ON THE GRAVE.", P_GRAVE_FLOWERS, o.arg});
+      g.dlg.opts.push_back({"LEAVE THEM IN PEACE.", A_BYE, 0});
       return true;
     }
     case P_GRAVE_KEEP: {
-      const std::string what = o.arg >= 0 && o.arg < (int)party.fallen.size() && !party.fallen[(size_t)o.arg].belongings.empty()
-                                   ? party.fallen[(size_t)o.arg].belongings.front().name : std::string("IT");
-      if (!partyGraveAct(o.arg, 2)) { dlg.text = "THERE IS NOTHING MORE TO TAKE."; dlg.opts = {{"LEAVE THEM IN PEACE.", A_BYE, 0}}; return true; }
-      dlg.text = "YOU TAKE THE " + what + " AND PROMISE TO CARRY IT WELL.";
-      dlg.opts = {{"LEAVE THEM IN PEACE.", A_BYE, 0}};
+      const std::string what = o.arg >= 0 && o.arg < (int)g.party.fallen.size() && !g.party.fallen[(size_t)o.arg].belongings.empty()
+                                   ? g.party.fallen[(size_t)o.arg].belongings.front().name : std::string("IT");
+      if (!g.partyGraveAct(o.arg, 2)) { g.dlg.text = "THERE IS NOTHING MORE TO TAKE."; g.dlg.opts = {{"LEAVE THEM IN PEACE.", A_BYE, 0}}; return true; }
+      g.dlg.text = "YOU TAKE THE " + what + " AND PROMISE TO CARRY IT WELL.";
+      g.dlg.opts = {{"LEAVE THEM IN PEACE.", A_BYE, 0}};
       return true;
     }
     default: return false;

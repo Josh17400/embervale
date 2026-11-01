@@ -22,6 +22,7 @@
 #include "rpg/sim/service_ops.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/game.h"
 
 namespace {
 using service::OrderKind;
@@ -421,7 +422,7 @@ void ServiceOps::ordersStep(Game& g, float dt) {
   const int level = std::max(1, g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)));
   auto nextSlot = [&]() { return SLOT_SQUAD0 + (S.rt.nextSlot++ % SLOT_SQUADN); };
   auto freeNear = [&](Vec2 c, float rTiles, float ang) {
-    return g.freeSpot((int)std::floor((c.x + std::cos(ang) * rTiles * TILE) / TILE), (int)std::floor((c.y + std::sin(ang) * rTiles * TILE) / TILE));
+    return ClimbOps::freeSpot(g, (int)std::floor((c.x + std::cos(ang) * rTiles * TILE) / TILE), (int)std::floor((c.y + std::sin(ang) * rTiles * TILE) / TILE));
   };
   // the order's enemy: the foe realm's soldiers, or (no realm to name: a scripted order in peace) bandits
   auto spawnFoe = [&](Role r, Vec2 at, int lv) {
@@ -461,7 +462,7 @@ void ServiceOps::ordersStep(Game& g, float dt) {
     int n = 0;
     while ((int)S.rt.squad.size() < (int)o->squad && n++ < 8) {
       const int k = (int)S.rt.squad.size();
-      const Vec2 at = g.freeSpot((int)std::floor((P.p.x + back.x * 40 + side.x * (k - 1) * 16) / TILE), (int)std::floor((P.p.y + back.y * 40 + side.y * (k - 1) * 16) / TILE));
+      const Vec2 at = ClimbOps::freeSpot(g, (int)std::floor((P.p.x + back.x * 40 + side.x * (k - 1) * 16) / TILE), (int)std::floor((P.p.y + back.y * 40 + side.y * (k - 1) * 16) / TILE));
       const int aid = spawnMan(g, Role::Soldier, S.sworn, at, nextSlot(), level);
       S.rt.squad.push_back(aid);
     }
@@ -491,7 +492,7 @@ void ServiceOps::ordersStep(Game& g, float dt) {
       const bool unseen = std::fabs(rel.x) > 22.0f || std::fabs(rel.y) > 14.0f;
       if (d > 22.0f * TILE && unseen) {
         const float t = std::min(std::fabs(back.x) > 0.01f ? 22.0f / std::fabs(back.x) : 1e9f, std::fabs(back.y) > 0.01f ? 14.0f / std::fabs(back.y) : 1e9f) + 1.5f;
-        const Vec2 at = g.freeSpot((int)std::floor((PP.p.x + back.x * t * TILE + side.x * off * 20) / TILE), (int)std::floor((PP.p.y + back.y * t * TILE + side.y * off * 20) / TILE));
+        const Vec2 at = ClimbOps::freeSpot(g, (int)std::floor((PP.p.x + back.x * t * TILE + side.x * off * 20) / TILE), (int)std::floor((PP.p.y + back.y * t * TILE + side.y * off * 20) / TILE));
         a.p = at; a.navNext = -1; a.vel = Vec2(0, 0);
       }
     }
@@ -609,7 +610,7 @@ void ServiceOps::ordersStep(Game& g, float dt) {
       // no siege camp of theirs: a field camp on their side of the front, its captain and his guard
       if (!o->siege && S.rt.foes.empty() && dT < 45.0f) {
         const Vec2 c = localPx(g, o->gx, o->gy);
-        S.rt.foes.push_back(spawnFoe(Role::Captain, g.freeSpot(o->gx - g.world.ox, o->gy - g.world.oy), level + 1));
+        S.rt.foes.push_back(spawnFoe(Role::Captain, ClimbOps::freeSpot(g, o->gx - g.world.ox, o->gy - g.world.oy), level + 1));
         for (int k = 0; k < 3; k++) S.rt.foes.push_back(spawnFoe(Role::Soldier, freeNear(c, 3.0f, 0.7f + k * 2.1f), level));
         for (int fid : S.rt.foes) {
           const int ai = g.findActor(fid);
@@ -659,7 +660,7 @@ void ServiceOps::ordersStep(Game& g, float dt) {
         const Vec2 slot = P.p + Vec2(std::cos(2.4f + 1.1f * (float)k) * 26.0f, std::sin(2.4f + 1.1f * (float)k) * 20.0f + 14.0f);
         a.goal = slot;
         a.special = std::clamp(len(slot - a.p) / 50.0f, 0.4f, 1.5f);
-        if (len(a.p - P.p) > 26.0f * TILE) { a.p = g.freeSpot((int)std::floor(P.p.x / TILE) + (int)k - 1, (int)std::floor(P.p.y / TILE) + 9); a.navNext = -1; }
+        if (len(a.p - P.p) > 26.0f * TILE) { a.p = ClimbOps::freeSpot(g, (int)std::floor(P.p.x / TILE) + (int)k - 1, (int)std::floor(P.p.y / TILE) + 9); a.navNext = -1; }
       }
       // the road's ambush, about halfway
       if (!(o->flags & service::OF_AMBUSH) && dest) {
@@ -789,7 +790,7 @@ void ServiceOps::captainsStep(Game& g, float dt) {
       if (p > pri) { pri = p; px = B.doorX() + 1; py = B.doorY() + 2; }
     }
     const int slot = SLOT_CAPTAIN0 + (int)(hash32((uint32_t)s.id ^ (uint32_t)(s.id >> 32)) % (uint32_t)SLOT_CAPTAINN);
-    const int aid = spawnMan(g, Role::Captain, owner, g.freeSpot(px, py), slot, std::max(1, s.level) + 1);
+    const int aid = spawnMan(g, Role::Captain, owner, ClimbOps::freeSpot(g, px, py), slot, std::max(1, s.level) + 1);
     const int ai = g.findActor(aid);
     if (ai > 0) { g.actors[(size_t)ai].site = si; g.actors[(size_t)ai].special = 0.32f; }
     S.rt.captains.push_back({s.id, aid});

@@ -17,6 +17,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/power_ops.h"
+#include "rpg/sim/game.h"
 
 namespace powers {
 
@@ -286,7 +287,7 @@ bool PowerOps::wolfStep(Game& g, Actor& a, float dt) {
     a.aim = norm(d + Vec2(0.001f, 0));
     a.face = faceOf(a.aim);
     if (l > a.range + t.radius - 3.0f) {
-      g.moveActor(a, a.aim * (a.speed * slow * dt));
+      ClimbOps::moveActor(g, a, a.aim * (a.speed * slow * dt));
       if (a.st != AState::Walk) { a.st = AState::Walk; a.stT = 0; }
     } else if (a.atkCd <= 0) {
       a.st = AState::Windup; a.stT = 0;
@@ -301,7 +302,7 @@ bool PowerOps::wolfStep(Game& g, Actor& a, float dt) {
   if (l > 10.0f) {
     a.aim = norm(d);
     a.face = faceOf(a.aim);
-    g.moveActor(a, a.aim * (a.speed * (l > 70.0f ? 1.4f : 1.0f) * slow * dt));
+    ClimbOps::moveActor(g, a, a.aim * (a.speed * (l > 70.0f ? 1.4f : 1.0f) * slow * dt));
     if (a.st != AState::Walk) { a.st = AState::Walk; a.stT = 0; }
   } else if (a.st != AState::Idle) { a.st = AState::Idle; a.stT = 0; a.face = master.face; }
   return true;
@@ -337,7 +338,7 @@ void PowerOps::callWolf(Game& g, const powers::State::Call& c) {
   w.armor = master.player ? g.armorRating() : master.armor;
   w.speed = 96.0f; w.radius = 4.0f; w.range = 15.0f; w.windup = 0.16f; w.aggroR = 150.0f;
   Vec2 at = c.at;
-  if (!g.bodyFree(at, w.radius, false)) at = master.p;
+  if (!ClimbOps::bodyFree(g, at, w.radius, false)) at = master.p;
   w.p = at; w.home = at; w.goal = at;
   w.face = master.face;
   w.bodyTint = rgba(118, 196, 255);   // the spectral blue (the view adds the glow and the translucent shimmer)
