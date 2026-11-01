@@ -31,9 +31,8 @@
 #include <system_error>
 #include <thread>
 #include <tuple>
-#include "rpg/sim/foe_hooks.h"
-#include "rpg/sim/game.h"
 #endif
+#include "rpg/sim/foe_hooks.h"
 
 using FAffix = foes::Affix;
 using foes::Rank;
