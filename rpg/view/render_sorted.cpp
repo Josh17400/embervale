@@ -623,9 +623,10 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
       auto it = sprites_.styledProps_.find(k2);
       if (it != sprites_.styledProps_.end()) tp = &it->second;
       else {
-        if (snowy) art::setMarketSnow(13.0f, (uint32_t)k2);
+        art::MarketSnow snow;   // (P3) scoped: the snow is put back to none when the bake ends
+        if (snowy) { snow.z = 13.0f; snow.seed = (uint32_t)k2; }
+        const art::MarketSnowScope snowScope(snow);
         tp = &(sprites_.styledProps_[k2] = pix_->bake(art::marketStallStyled(art::stallTrade(p), (int)aw, (int)form, !vendorOpen, stallFacing, *ps)));
-        art::setMarketSnow(1e9f);
       }
     } else
       tp = &sprites_.cachedTex(*this, sk, paintTradeStall);

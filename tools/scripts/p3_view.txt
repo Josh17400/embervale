@@ -1,0 +1,38 @@
+# P3 VIEW (docs/FIX_BATCH_P3.md 3 B8 B11 B12, 8.3): zoom CLOSE is twice NORMAL (min(2 x D0, floor(h / 100)), above NEAR),
+# a find's toast reads "+ <NAME>" in its rarity colour, and the loot card / party page lines.
+#   node tools/gates/witness_pack.mjs --bdir build-solid --out <dir> --keep tools/scripts/p3_view.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
+# ---- B8: the script's own window (1440 x 810): D0 3, NORMAL 3, NEAR 4, CLOSE 6 (135 world rows)
++0.1 zoom close
++0.3 expect zoomscale 6
++0.0 expect screen levels 3,4,6
+# ---- the Witness window (960 x 540): D0 2, NORMAL 2, NEAR 3, CLOSE 4 (135 world rows)
++0.1 firstlaunch desktop 960x540
++0.1 zoom normal
++0.3 expect zoomscale 2
++0.0 expect screen levels 2,3,4
++0.1 zoom close
++0.3 expect zoom close
++0.0 expect zoomscale 4
++0.0 shot p3_view_close_540.png
++0.1 zoom near
++0.3 expect zoomscale 3
++0.1 zoom normal
+# ---- B11: a piece on the ground, the hero steps onto it: "+ <NAME>" (Common: its white; Rare: its blue)
++0.1 lootdrop armor rarity common ilvl 2
++0.1 p3grab
++0.4 expect toast + *
++0.0 shot p3_view_pickup_common.png
++0.1 lootdrop helmet rarity rare ilvl 6
++0.1 p3grab
++0.4 expect toast + *
++0.0 shot p3_view_pickup_rare.png
+# ---- the phone window (iPhone 15 Pro, 2556 x 1179): D0 5, NEAR 6, CLOSE 10 (117 world rows)
++0.5 firstlaunch phone 2556x1179
++0.3 zoom close
++0.3 expect zoomscale 10
++0.0 shot p3_view_close_phone.png
++0.3 quit

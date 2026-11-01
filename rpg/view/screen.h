@@ -19,7 +19,8 @@
 //
 // P2a Clear Sight (VISION_PLAN 15.36 item 2, STYLE_P2 1): the WORLD is drawn at a whole number D of device px per world
 // px on every screen; the UI keeps the fit above. D0 = round(device px height / 240), ties up; ZOOM steps D by -1..+2
-// from D0 (FAR, NORMAL, NEAR, CLOSE), each level only where the world view keeps V = h / D within [150, 300] rows. The
+// from D0 (FAR, NORMAL, NEAR, CLOSE), each level only where the world view keeps V = h / D within [150, 300] rows (P3 B8:
+// CLOSE is min(2 x D0, floor(h / 100)), always above NEAR, at least 100 rows: 2x NORMAL at 540-1440 px). The
 // zoom and the PLAYER RING live in the settings file (EMBS version 2; a version-1 file loads its fields and the new
 // ones' defaults). Test hooks: EMB_ZOOM=<D> (an absolute world scale), EMB_RIG=1|2 (the human rig, art::setRigVersion;
 // read by rpg/main.cpp before the first sheet is baked).
@@ -48,7 +49,8 @@ enum Mode : int { Fill = 0, PixelPerfect = 1 };
 constexpr int kBorderMax = 12;   // BORDER steps of 4 points
 constexpr int kHudMax = 12;      // HUD MARGIN steps of 4 logical px (-1 = AUTO)
 constexpr int kZoomMin = -1, kZoomMax = 2;   // ZOOM: FAR (D0 - 1), NORMAL (D0), NEAR (D0 + 1), CLOSE (D0 + 2)
-constexpr int kZoomRowsMin = 150, kZoomRowsMax = 300;   // the world view's height in world px at any allowed D
+constexpr int kZoomRowsMin = 150, kZoomRowsMax = 300;   // the world view's height in world px at FAR / NORMAL / NEAR
+constexpr int kCloseRowsMin = 100;   // (P3 B8) CLOSE = min(2 x D0, floor(h / 100)), above NEAR, at least 100 rows
 struct Settings {
   int mode = Fill;
   int border = 0;   // 0..kBorderMax
@@ -82,5 +84,6 @@ void launchAs(Pix& pix, int device, int w, int h, bool fresh);
 // (tests) the D0 / zoom-level rule for a device height (no window): what defaultWorldScale / zoomLevels give there
 int d0ForHeight(int h);
 std::vector<int> levelsForHeight(int h);
+int closeForHeight(int h);   // (P3 B8) the CLOSE D for a device height (0: none)
 
 }  // namespace screen

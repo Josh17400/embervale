@@ -56,6 +56,7 @@ constexpr int kMaxFillH = 312;                  // FILL takes an integer scale w
 // (P2a) the world scale: what the last fit computed for this screen
 int g_d0 = 1;                 // D0
 std::vector<int> g_levels;    // the allowed D, FAR first
+int g_close = 0;              // (P3 B8) the CLOSE D (0: the screen has none)
 int g_envZoom = 0;            // EMB_ZOOM: an absolute D (0: none)
 bool g_witnessFree = false;   // (Witness) a reset asked for a window / safe area / mode: the fit runs unpinned
 bool g_fakeSafeDev = false;   // (Witness) g_fakeIns are device px (EMB_SAFE gives points)
@@ -162,6 +163,7 @@ void resizeWindow(Pix& pix, int w, int h) {
 void worldFit(int hDevice) {
   g_d0 = d0ForHeight(hDevice);
   g_levels = levelsForHeight(hDevice);
+  g_close = closeForHeight(hDevice);
 }
 // (P2a) " WORLD 512 X 236 AT 5X" when the world layer is not the UI's fit (phase A: never, so the UI text is unchanged)
 void describeWorld(Pix& pix) {
@@ -373,23 +375,32 @@ int d0ForHeight(int h) {
   while (d > 1 && h < d * kZoomRowsMin) d--;
   return d;
 }
+// (P3 B8) CLOSE is its own rule: min(2 x D0, floor(h / 100)), at least 100 world rows, and always above NEAR (D0 + 1);
+// 0 when the screen has no room for it. FAR, NORMAL and NEAR keep the [150, 300] row bounds.
+int closeForHeight(int h) {
+  h = std::max(1, h);
+  const int d0 = d0ForHeight(h);
+  const int d = std::max(d0 + 2, std::min(2 * d0, h / kCloseRowsMin));
+  return d * kCloseRowsMin <= h ? d : 0;
+}
 std::vector<int> levelsForHeight(int h) {
   std::vector<int> v;
   const int d0 = d0ForHeight(h);
-  for (int z = kZoomMin; z <= kZoomMax; z++) {
+  for (int z = kZoomMin; z < kZoomMax; z++) {
     const int d = d0 + z;
     if (d >= 1 && d * kZoomRowsMin <= h && h <= d * kZoomRowsMax) v.push_back(d);
   }
+  if (const int c = closeForHeight(h)) v.push_back(c);
   if (v.empty()) v.push_back(d0);   // a tiny window: the one scale it has
   return v;
 }
 int defaultWorldScale() { return g_d0; }
 std::vector<int> zoomLevels() { return g_levels.empty() ? std::vector<int>{g_d0} : g_levels; }
-int zoomLevelOf(int d) { return d - g_d0; }
+int zoomLevelOf(int d) { return (g_close > 0 && d == g_close) ? kZoomMax : d - g_d0; }
 int worldScale() {
   if (g_envZoom > 0) return g_envZoom;
   const std::vector<int> lv = zoomLevels();
-  const int want = g_d0 + g_set.zoom;
+  const int want = (g_set.zoom >= kZoomMax && g_close > 0) ? g_close : g_d0 + g_set.zoom;
   int best = lv.front();
   for (int d : lv) if (std::abs(d - want) < std::abs(best - want)) best = d;
   return best;

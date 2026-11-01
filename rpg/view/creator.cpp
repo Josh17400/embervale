@@ -399,8 +399,8 @@ void View::drawCreator(Game& g) {
   int face = S.face >= 0 && S.faceHold > 0 ? S.face : order[(int)(t_ / 2.2f) & 3];
   int row = face == 3 ? 2 : face;
   int frame = 1 + ((int)(t_ * 7.0f) & 3);
-  // (P2c SWITCH, depth) rig 2: the doll's own frames at the largest whole multiple the stage holds (the T6 envelope's
-  // room kept), showing what the body does: it breathes, walks, runs and swings (a sword in hand for the blow), in turn
+  // (P2c SWITCH, depth) rig 2: the doll's own frames at the largest whole multiple the stage holds (P3 B7: sized by the
+  // shirt look's own idle, walk and run frames, no T6 reserve: 4x on the 142 x 144 stage), showing what the body does: it breathes, walks, runs and swings (a sword in hand for the blow), in turn
   const MenuStage stage{kLX + 2, kTabY + 28, kLW - 4, footY + 4 - (kTabY + 28)};
   // one multiple for every gait (the figure never changes size): the body's own (idle, walk, run); the swing (a sword in
   // hand, facing down toward the viewer, where the blows are narrowest) is shown only when its frames fit at it
