@@ -134,13 +134,13 @@ bool worldFree(const Game& g, const home::Plot& p, int x, int y, std::string& wh
 }  // namespace
 
 // ---------------------------------------------------------------- riding
-float HomeOps::speedMul(const Game& g) {
-  if (g.home.riding < 0) return 1.0f;
-  const home::BreedInfo& b = home::breedInfo((home::Breed)g.home.ridingBreed);
-  float mul = b.speed * TILE / home::WALK_SPEED_PX * SkillOps::horseMul(g);   // (M9) HORSEMAN
-  const Actor& p = g.pl();
+float Game::homeSpeedMul() const {
+  if (home.riding < 0) return 1.0f;
+  const home::BreedInfo& b = home::breedInfo((home::Breed)home.ridingBreed);
+  float mul = b.speed * TILE / home::WALK_SPEED_PX * SkillOps::horseMul(*this);   // (M9) HORSEMAN
+  const Actor& p = pl();
   const int tx = (int)std::floor(p.p.x / TILE), ty = (int)std::floor((p.p.y - 2) / TILE);
-  const Ground gr = g.map().at(tx, ty);
+  const Ground gr = map().at(tx, ty);
   if (gr == Ground::Road || gr == Ground::Plaza || gr == Ground::Bridge) mul *= 1.0f + home::RIDE_ROAD_BONUS;
   // (M11 CLIMB) ramps, stairs and hillsides: Map::reliefSpeed, applied in moveActor like everyone's (a sure-footed breed
   // is exempt there: ClimbOps::reliefTarget); the phase-B 0.6 on ramps is gone

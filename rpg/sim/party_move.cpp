@@ -91,7 +91,7 @@ static Vec2 arriveSpot(Game& g, int mi) {
   return HomeOps::freeSpot(g, tileOf(p.p.x), tileOf(p.p.y - 2) + 1);
 }
 
-float PartyOps::riderSpeed(const Game& g) { return g.pl().speed * HomeOps::speedMul(g); }
+float PartyOps::riderSpeed(const Game& g) { return g.pl().speed * g.homeSpeedMul(); }
 
 // ---------------------------------------------------------------- the player's footsteps
 void PartyOps::trailStep(Game& g) {

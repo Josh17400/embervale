@@ -195,7 +195,6 @@ struct HomeOps {
   static void stampObj(Map& m, const home::PlacedObj& o, bool clear);   // one piece of furniture into / out of a map
   static int insideObjAt(const Game& g, int plot, int tx, int ty);     // Plot::inside index at a tile of this floor
   // ---- the lane's hooks into the core loop (were Game::home*, SOLID 4.1)
-  static float speedMul(const Game& g);
   //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
   //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
   //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)

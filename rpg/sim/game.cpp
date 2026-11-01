@@ -747,7 +747,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f * AnimOps::heroPace(*this));   // ((M9) the family's pace)
   // M7: on horseback any fighting move (a swing, a shot, a spell or a quick-cast slot, a roll) gets the rider off first
   if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.castSlot >= 0 || in.roll)) homeDismount(home::Dismount::Attack);
-  float slow = (p.slowT > 0 ? 0.6f : 1.0f) * HomeOps::speedMul(*this);   // M7: the horse's pace (1 on foot)
+  float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
   slow *= story::burdenMul(*this);   // (P1b) a story's heavy load (a body carried home, a cask): x0.7
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {

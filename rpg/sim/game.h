@@ -968,6 +968,7 @@ class Game {
   //   player is hit, enterBuilding / enterSite, water under the hooves, sleep and travel). Public: the view and scripts
   //   ask homeRiding(); the UI's DISMOUNT button calls homeDismount(Player).
   bool homeRiding() const { return home.riding >= 0; }
+  float homeSpeedMul() const;
   void homeDismount(home::Dismount why);
   // ---- M8 Fellowship (rpg/sim/party.h). Public: the UI (the radial, the paper doll, the portraits), the companions'
   //      talk (VOICE, party_talk.cpp), scripts and tests. DEFINED in rpg/sim/party_game.cpp (FELLOWS lane) unless named.
