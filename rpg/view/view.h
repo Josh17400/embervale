@@ -21,6 +21,7 @@
 #include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/loot_paint.h"
+#include "rpg/view/camera.h"
 #include "rpg/view/sprite_cache.h"
 #include "rpg/view/terrain_bake.h"
 
@@ -62,7 +63,7 @@ class View {
   // (M7b CITYART, tests) the kerbs within r tiles of the hero: every walk with a carriageway south of it shows a face
   // (its rows below the lit arris darker than the walk's top); returns the walks without one, faces = the walks checked
   int urbKerbCheck(const Game& g, int r, int& faces);
-  Vec2 camera() const { return cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
+  Vec2 camera() const { return camera_.cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
   void openMenu(Game& g, int tab) { g.mode = Mode::Menu; menuTab_ = tab; menuSel_ = 0; }
   int menuTab() const { return menuTab_; }   // the open menu's page (Mode::Menu; the Witness harness reports it)
   // (Witness) wait (up to 5 s) until the terrain bakers are idle, so the next draw shows every chunk asked for: a
@@ -106,16 +107,12 @@ class View {
   int scriptSkyNow() const { return skyOverride_; }
 
   // ---- P2a Clear Sight (VISION_PLAN 15.36 phase A; FROZEN: lanes ADD, never rename or change meaning) -----------------
-  // (item 3) the projection between the world layer and the UI layer (engine/pix.h layers): a world point in map px (as
-  // Actor::p) to UI logical px (what Pix::text and taps use) and back; how many UI px one world px spans. Every text drawn
-  // over the world goes through toUi (STYLE_P2 18: text never lives in the world layer), every tap on the world through
-  // toWorld. World-anchored UI call sites LENS moves onto them: hud.cpp View::draw (speech plates, combat numbers),
-  // drawHud (the name tag and E: TALK, door and quest labels); party_hud.cpp drawBanter; the elite name plates' text
-  // (render.cpp, the beasts::plates pass after the lighting); buildmode.cpp taps; script_test.cpp label taps.
-  Vec2 toUi(Vec2 world) const;
-  Vec2 toWorld(Vec2 ui) const;
-  float uiPerWorld() const;
-  Vec2 worldCam() const;   // the world layer's camera this frame: floor(camera + shake), what every world draw subtracts
+  // (P2a item 3, FROZEN) the projection between the world layer and the UI layer: a world point in map px to UI logical
+  // px and back, UI px per world px, the world layer's camera this frame (Camera, camera.h, says how)
+  Vec2 toUi(Vec2 world) const { return camera_.toUi(*this, world); }
+  Vec2 toWorld(Vec2 ui) const { return camera_.toWorld(*this, ui); }
+  float uiPerWorld() const { return camera_.uiPerWorld(*this); }
+  Vec2 worldCam() const { return camera_.worldCam(*this); }
   using RigTex = SpriteCache::RigTex;   // (sprite_cache.h) a look's v2 atlas for a part (rigTex)
   // after art::setRigVersion: every cache whose pixels depend on the rig (people, poses, sleepers, monsters, buildings,
   // props, the v2 atlases) is dropped and baked again on demand
@@ -205,7 +202,6 @@ class View {
   // the tests (the pips drawn last frame, the ring's flare, the v2 bake queue)
   int viewW() const;
   int viewH() const;
-  void zoomStep(int dir);
   // the metrics of the rig a person is DRAWN with (rig 2 only where art::rig2Covers(look): a v1 figure keeps v1's
   // marker, bubble, plate and bar heights while the preview is partial)
   static const art::RigMetrics& rigFor(const art::HumanLook& L) {
@@ -226,7 +222,9 @@ class View {
   // eased presentation state that used to be function statics (one View, so the same; members so a Witness reset renews
   // them): the snow's cold dusk light (drawLighting), the ridden horse's stride (update), the map tab's last draw
   float coldK_ = -1, strideT_ = 0, mapLastDraw_ = -10;
-  Vec2 cam_;                 // top-left of the view in world pixels
+  // the camera: where the view stands, its zoom and the zoom's hand-over, the pinch, the wheel, the finisher's nudge
+  friend struct Camera;
+  Camera camera_;   // (camera.h)
   float shake_ = 0, titleT_ = 0;
   Vec2 shakeOff_;
 
@@ -350,7 +348,6 @@ class View {
   void spanWallGaps(Game& g, const Map& m);
   // ---- (SOLID 3.4b) update's pieces, called in this order (render.cpp)
   void updateBanners(Game& g);
-  bool updateCamera(Game& g, float dt, float& VW, float& VH);   // true: the camera is held (p2b.camHold)
   void updateBeastCues(Game& g, float dt);
   void updateShake(Game& g, float dt, bool camHeld);
   void updateEffects(Game& g, float dt);
@@ -603,9 +600,6 @@ class View {
   void queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                            float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu);
   size_t finishAuraEnd_ = 0;   // (P2c SWITCH) where the last queued figure's aura lights end in the finish queue
-  float nudgeT_ = -1, nudgeLen_ = 0.18f;   // (P2c SWITCH) the camera nudge on a heavy finisher's impact: its clock (-1 off)
-  Vec2 nudgeDir_;
-  bool nudgeWas_ = false;
   float menuSwingT0_ = -1;    // the creator preview's swing: when the current blow began
   // (polish i1) the living finish's world-space motes / embers, one set per actor id (dropped 2 s after its last draw)
   std::unordered_map<int, art::finish::Particles> finishParts_;
@@ -621,9 +615,6 @@ class View {
   float ringX_ = 0, ringY_ = 0, ringA_ = 0;
   const Tex* ringTex_ = nullptr;
   std::vector<Pix::BlitRec> liftRecs_;
-  int lensViewW_ = 0, lensViewH_ = 0, lensD_ = 0;
-  struct Pinch { bool on = false; uint64_t a = 0, b = 0; Vec2 pa, pb; float d0 = 0; int done = 0; } pinch_;
-  float wheelAcc_ = 0, wheelT_ = -1;
   struct RideGhost;
   bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost, int horseFrame = 0, int riderId = -1);
   void drawRing(const Game& g, const Actor& a, Vec2 cam);
@@ -635,9 +626,6 @@ class View {
   struct GraveTop { int fi = -1; float x = 0, feet = 0, top = 0; };   // a grave drawn this frame (map px)
   std::vector<GraveTop> graveTops_;
   void lensUpdate(Game& g, float dt);
-  // UI-layer insets (left, top, right, bottom in UI px from the UI canvas's edges: the HUD's bands) as world-layer insets
-  // (world px from the world view's edges)
-  void uiInsetsToWorld(float l, float t, float r, float b, float out[4]) const;
   ew::Gid siteIdAt(const Game& g, int tx, int ty);   // the settlement a tile lies in (cached per 8 x 8-tile block; 0 none)
   uint16_t lifeFlagsAt(const Game& g, int tx, int ty);   // its mood flags (life::MF_*; forced by scriptLifeLook)
   bool festivalHere(const Game& g, ew::Gid site);

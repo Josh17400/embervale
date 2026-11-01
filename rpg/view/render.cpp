@@ -427,26 +427,26 @@ const Tex& SpriteCache::humanTex(View& v, const art::HumanLook& L, bool child) {
 
 // ---- P2a phase A (VISION_PLAN 15.36 items 3 and 4): the projection and the v2 atlases. LENS owns these from here (the
 //      world layer, the MB caps on the people caches, the bake queue for folk entering the stream radius).
-Vec2 View::worldCam() const { return Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)); }
-Vec2 View::toUi(Vec2 w) const {
-  if (!pix_) return w;
-  const Pix::Layer& wl = pix_->worldLayer();
-  const Pix::Layer& ul = pix_->uiLayer();
-  const Vec2 c = worldCam();
+Vec2 Camera::worldCam(const View& v) const { return Vec2(std::floor(cam_.x + v.shakeOff_.x), std::floor(cam_.y + v.shakeOff_.y)); }
+Vec2 Camera::toUi(const View& v, Vec2 w) const {
+  if (!v.pix_) return w;
+  const Pix::Layer& wl = v.pix_->worldLayer();
+  const Pix::Layer& ul = v.pix_->uiLayer();
+  const Vec2 c = worldCam(v);
   const float dx = wl.offX + (w.x - c.x) * wl.scale, dy = wl.offY + (w.y - c.y) * wl.scale;   // device px
   return Vec2((dx - ul.offX) / ul.scale, (dy - ul.offY) / ul.scale);
 }
-Vec2 View::toWorld(Vec2 u) const {
-  if (!pix_) return u;
-  const Pix::Layer& wl = pix_->worldLayer();
-  const Pix::Layer& ul = pix_->uiLayer();
-  const Vec2 c = worldCam();
+Vec2 Camera::toWorld(const View& v, Vec2 u) const {
+  if (!v.pix_) return u;
+  const Pix::Layer& wl = v.pix_->worldLayer();
+  const Pix::Layer& ul = v.pix_->uiLayer();
+  const Vec2 c = worldCam(v);
   const float dx = ul.offX + u.x * ul.scale, dy = ul.offY + u.y * ul.scale;
   return Vec2(c.x + (dx - wl.offX) / wl.scale, c.y + (dy - wl.offY) / wl.scale);
 }
-float View::uiPerWorld() const {
-  if (!pix_) return 1;
-  return pix_->worldLayer().scale / std::max(1e-3f, pix_->uiLayer().scale);
+float Camera::uiPerWorld(const View& v) const {
+  if (!v.pix_) return 1;
+  return v.pix_->worldLayer().scale / std::max(1e-3f, v.pix_->uiLayer().scale);
 }
 
 // ---- P2a LENS: the world view, ZOOM, the HUD's bands seen from the world, the ring, the night lift, the pips
@@ -496,25 +496,11 @@ int View::viewH() const {
   const Pix::Layer& wl = pix_->worldLayer();
   return wl.h > 0 ? wl.h : Pix::H;
 }
-void View::zoomStep(int dir) {
-  const std::vector<int> lv = screen::zoomLevels();
-  if (lv.empty() || dir == 0) return;
-  const int cur = screen::worldScale();
-  int i = 0;
-  for (int k = 0; k < (int)lv.size(); k++) if (std::abs(lv[(size_t)k] - cur) < std::abs(lv[(size_t)i] - cur)) i = k;
-  const int ni = std::clamp(i + (dir > 0 ? 1 : -1), 0, (int)lv.size() - 1);
-  screen::Settings s = screen::get();
-  const int z = std::clamp(screen::zoomLevelOf(lv[(size_t)ni]), screen::kZoomMin, screen::kZoomMax);
-  if (ni == i && z == s.zoom) return;   // already at the end of the screen's levels
-  s.zoom = z;
-  screen::set(s);
-  if (audio_) audio_->play(Sfx::MenuMove, dir > 0 ? 1.12f : 0.9f, 0.45f);
-}
-void View::uiInsetsToWorld(float l, float t, float r, float b, float out[4]) const {
+void Camera::uiInsetsToWorld(const View& v, float l, float t, float r, float b, float out[4]) const {
   out[0] = l; out[1] = t; out[2] = r; out[3] = b;
-  if (!pix_) return;
-  const Pix::Layer& wl = pix_->worldLayer();
-  const Pix::Layer& ul = pix_->uiLayer();
+  if (!v.pix_) return;
+  const Pix::Layer& wl = v.pix_->worldLayer();
+  const Pix::Layer& ul = v.pix_->uiLayer();
   if (wl.w <= 0 || ul.w <= 0) return;
   const float U = ul.scale, D = wl.scale;
   out[0] = (ul.offX + l * U - wl.offX) / D;
@@ -529,13 +515,13 @@ void View::uiInsetsToWorld(float l, float t, float r, float b, float out[4]) con
 void View::lensUpdate(Game& g, float dt) {
   const int vw = viewW(), vh = viewH();
   const int d = pix_ ? std::max(1, (int)std::lround(pix_->worldLayer().scale)) : 1;
-  if (lensD_ > 0 && (d != lensD_ || vw != lensViewW_ || vh != lensViewH_) && g.mode != Mode::Title) {
+  if (camera_.lensD_ > 0 && (d != camera_.lensD_ || vw != camera_.lensViewW_ || vh != camera_.lensViewH_) && g.mode != Mode::Title) {
     const Vec2 hero = g.pl().p;
-    const Vec2 oc = cam_ + Vec2(lensViewW_ * 0.5f, lensViewH_ * 0.5f);
-    const Vec2 nc = hero - (hero - oc) * ((float)lensD_ / (float)d);
-    cam_ = nc - Vec2(vw * 0.5f, vh * 0.5f);
+    const Vec2 oc = camera_.cam_ + Vec2(camera_.lensViewW_ * 0.5f, camera_.lensViewH_ * 0.5f);
+    const Vec2 nc = hero - (hero - oc) * ((float)camera_.lensD_ / (float)d);
+    camera_.cam_ = nc - Vec2(vw * 0.5f, vh * 0.5f);
   }
-  lensD_ = d; lensViewW_ = vw; lensViewH_ = vh;
+  camera_.lensD_ = d; camera_.lensViewW_ = vw; camera_.lensViewH_ = vh;
   // the ring flares for a second when the hero is hit or walks into a crowd (4 or more people within 3 tiles)
   if (ringFlare_ > 0) ringFlare_ = std::max(0.0f, ringFlare_ - dt);
   if (g.mode == Mode::Play) {
@@ -689,7 +675,7 @@ void View::drawNightLift(const Game& g, float dark) {
   // mask: the ink outline is left out, so the edge stays dark while the body's darker half rises with the rest)
   const float k = kLiftK * dark, kf = kLiftFlat * dark;
   const Color mw(0x8F / 255.0f, 0xA6 / 255.0f, 0xD8 / 255.0f, 1);
-  const Vec2 hc = g.pl().p - worldCam();   // the hero's feet in the world view (their torch's middle)
+  const Vec2 hc = g.pl().p - camera_.worldCam(*this);   // the hero's feet in the world view (their torch's middle)
   const float hx = hc.x, hy = hc.y;
   int maskBakes = 0;
   for (size_t ri = 0; ri < liftRecs_.size(); ri++) {
@@ -770,8 +756,8 @@ void View::drawPips(const Game& g) {
     if (d > std::max(a.aggroR, 60.0f)) continue;
     // in view: any part of the body inside the safe area (a figure's middle, a few px of margin)
     const float bodyH = a.human ? (float)rigFor(a.look).figH(a.look) :(float)art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a);
-    const Vec2 mid = toUi(a.p - Vec2(0, bodyH * 0.5f));
-    const float k = uiPerWorld();
+    const Vec2 mid = camera_.toUi(*this, a.p - Vec2(0, bodyH * 0.5f));
+    const float k = camera_.uiPerWorld(*this);
     if (mid.x > L - 4 * k && mid.x < R + 4 * k && mid.y > T - bodyH * 0.5f * k && mid.y < B + bodyH * 0.5f * k) continue;
     // where the ray from the safe area's centre to the foe meets the edge (8 px in)
     const Vec2 c((L + R) * 0.5f, (T + B) * 0.5f);
@@ -960,7 +946,7 @@ void View::queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt
   // the motes / embers: world space (view px + the camera), so the camera's motion never drags them along
   {
     art::finish::Particles& ps = finishParts_[id];
-    const float cx = menu ? 0.0f : std::floor(cam_.x + 0.5f), cy = menu ? 0.0f : std::floor(cam_.y + 0.5f);
+    const float cx = menu ? 0.0f : std::floor(camera_.cam_.x + 0.5f), cy = menu ? 0.0f : std::floor(camera_.cam_.y + 0.5f);
     const float wx = x2 + cx, wy = y2 + cy;
     art::finish::particlesStep(ps, (uint32_t)id * 2654435761u + 0x5EEDu, t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
     std::vector<art::finish::Light> lights;
@@ -1919,12 +1905,12 @@ const Tex& SpriteCache::heraldryTex(View& v, int kind, const cult::Heraldry& h, 
 void View::snap(Game& g) {
   const Actor& p = g.pl();
   const float VW = (float)viewW(), VH = (float)viewH();   // (P2a) the world view, in world px
-  cam_ = Vec2(p.p.x - VW / 2.0f, p.p.y - 10 - VH / 2.0f);
+  camera_.cam_ = Vec2(p.p.x - VW / 2.0f, p.p.y - 10 - VH / 2.0f);
   const Map& m = g.map();
   float mw = m.w * 16.0f, mh = m.h * 16.0f;
-  if (mw > VW) cam_.x = clampf(cam_.x, 0, mw - VW); else cam_.x = (mw - VW) / 2;
-  if (mh > VH) cam_.y = clampf(cam_.y, 0, mh - VH); else cam_.y = (mh - VH) / 2;
-  lensD_ = 0;   // (a snap is not a zoom: nothing to hand over)
+  if (mw > VW) camera_.cam_.x = clampf(camera_.cam_.x, 0, mw - VW); else camera_.cam_.x = (mw - VW) / 2;
+  if (mh > VH) camera_.cam_.y = clampf(camera_.cam_.y, 0, mh - VH); else camera_.cam_.y = (mh - VH) / 2;
+  camera_.lensD_ = 0;   // (a snap is not a zoom: nothing to hand over)
   s_camRes = Vec2(); s_camPrevOk = false;   // (P2a slice) a cut: no eased fraction or camera speed carried over
 }
 
@@ -2050,7 +2036,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::Rise: riseEvent(g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
-      cam_ += e.p;
+      camera_.cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
       for (FloatText& ft : texts_) ft.p += e.p;
       for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
@@ -2089,7 +2075,7 @@ void View::update(Game& g, float dt) {
   if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
   if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
   float VW = 0, VH = 0;   // the world view (VW x VH world px), as lensUpdate left it
-  const bool camHeld = updateCamera(g, dt, VW, VH);
+  const bool camHeld = camera_.updateCamera(*this, g, dt, VW, VH);
   updateBeastCues(g, dt);   // (M6 BEASTS)
   updateShake(g, dt, camHeld);
   updateEffects(g, dt);   // particles, floating texts, toasts, banners, the dialogue's typing
@@ -2151,23 +2137,23 @@ void View::updateBanners(Game& g) {
 }
 
 // the camera: the follow, the room framing, the title drift, the pixel rounding and the hold, as one unit (update)
-bool View::updateCamera(Game& g, float dt, float& VW, float& VH) {
+bool Camera::updateCamera(View& v, Game& g, float dt, float& VW, float& VH) {
   // camera follows with a little lead in the aim direction (P2a: framing the world view, VW x VH world px)
   // (P2b `camhold`, Witness reset param camera:"hold": the same flag) the camera stays where it was drawn: no follow, no
   // zoom recentring, no shake (a window shift still carries it with the world, a snap or a map change still cuts)
-  const bool camHeld = p2b.camHold && g.mode != Mode::Title;
+  const bool camHeld = v.p2b.camHold && g.mode != Mode::Title;
   const Vec2 heldCam = cam_;
   cam_ += s_camRes;   // (P2a slice) the eased camera again: the draw read it rounded (rvSnapCamera, below)
   s_camRes = Vec2();
-  lensUpdate(g, dt);
-  VW = (float)viewW(); VH = (float)viewH();
+  v.lensUpdate(g, dt);
+  VW = (float)v.viewW(); VH = (float)v.viewH();
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
     Vec2 want(p.p.x - VW / 2.0f + p.aim.x * 10, p.p.y - 10 - VH / 2.0f + p.aim.y * 6);
-    if (g.mode == Mode::Build) buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
+    if (g.mode == Mode::Build) v.buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
     // (M7) the ridden horse's hooves: the walk's even four-beat, the gallop's three quick beats and a pause
     {
-      float& strideT = strideT_;
+      float& strideT = v.strideT_;
       const float sp = len(p.vel);
       if (g.mode == Mode::Play && g.homeRiding() && !g.inside && p.st == AState::Walk && sp > 6.0f) {
         const bool gal = sp > home::WALK_SPEED_PX * 1.3f;
@@ -2180,7 +2166,7 @@ bool View::updateCamera(Game& g, float dt, float& VW, float& VH) {
         for (int b = 0; b < nb; b++) {
           const float at = beats[b];
           const bool crossed = before <= strideT ? (at > before && at <= strideT) : (at > before || at <= strideT);
-          if (crossed) audio_->play(Sfx::Hoof, 0.92f + 0.04f * (float)b + (gal ? 0.06f : 0.0f), gal ? 0.55f : 0.42f);
+          if (crossed) v.audio_->play(Sfx::Hoof, 0.92f + 0.04f * (float)b + (gal ? 0.06f : 0.0f), gal ? 0.55f : 0.42f);
         }
       } else strideT = 0;
     }
@@ -2192,14 +2178,14 @@ bool View::updateCamera(Game& g, float dt, float& VW, float& VH) {
       // buttons bottom-right) must never hide part of a room for good. A room that fits clear of the HUD stays put
       // (centred, or centred in the free area); one that doesn't pans with the player far enough that every corner
       // can be brought out from under the HUD.
-      float padT = 46.0f + Pix::ST, padR = 134.0f + Pix::SR, padB = (touchUI ? 48.0f : 0.0f) + Pix::SB, padL = (float)Pix::SL;
+      float padT = 46.0f + Pix::ST, padR = 134.0f + Pix::SR, padB = (v.touchUI ? 48.0f : 0.0f) + Pix::SB, padL = (float)Pix::SL;
       // (M7) decorating: the HUD is away and the catalogue panel covers the right side (buildmode.cpp sideLay)
       if (g.mode == Mode::Build && g.home.ui.mode == home::UiMode::Decorate) {
-        padT = 18.0f + Pix::ST; padB = 4.0f + Pix::SB; padR = (touchUI ? 190.0f : 176.0f) + 10.0f + Pix::SR;
+        padT = 18.0f + Pix::ST; padB = 4.0f + Pix::SB; padR = (v.touchUI ? 190.0f : 176.0f) + 10.0f + Pix::SR;
       }
       {   // (P2a) the HUD's bands are UI px from the UI canvas's edges: as world px from the world view's edges
         float wp[4];
-        uiInsetsToWorld(padL, padT, padR, padB, wp);
+        uiInsetsToWorld(v, padL, padT, padR, padB, wp);
         padL = std::max(0.0f, wp[0]); padT = std::max(0.0f, wp[1]); padR = std::max(0.0f, wp[2]); padB = std::max(0.0f, wp[3]);
       }
       auto axis = [](float& c, float want, float lo, float hi, float scr, float pa, float pb) {
@@ -2219,9 +2205,9 @@ bool View::updateCamera(Game& g, float dt, float& VW, float& VH) {
     // title: slow drift across the start region
     const Site& home = g.world.sites[g.world.startSite];
     Vec2 c0(home.r.cx() * 16.0f - VW / 2.0f - 300, home.r.cy() * 16.0f - VH / 2.0f - 120);
-    if (titleT_ == 0 || titleT_ > 90) { cam_ = c0; titleT_ = 0.001f; }
-    titleT_ += dt;
-    cam_ = c0 + Vec2(titleT_ * 8.0f, titleT_ * 2.5f);
+    if (v.titleT_ == 0 || v.titleT_ > 90) { cam_ = c0; v.titleT_ = 0.001f; }
+    v.titleT_ += dt;
+    cam_ = c0 + Vec2(v.titleT_ * 8.0f, v.titleT_ * 2.5f);
   }
   if (kCamSnap) {   // (P2a slice) the camera rounded once a frame, with the hero's phase on an axis that follows him
     const Vec2 eased = cam_;
@@ -2312,12 +2298,12 @@ void View::updateShake(Game& g, float dt, bool camHeld) {
       if (!a.player && len2(a.p - pl.p) > 64.0f * 64.0f) continue;
       if (animPick(g, a, 2).impact) { hit = true; dir = faceDir(a.face); if (a.player) break; }
     }
-    if (hit && !nudgeWas_) { nudgeT_ = 0; nudgeDir_ = dir; nudgeLen_ = 0.16f + 0.04f * (float)((hash32((uint32_t)(t_ * 1000.0f)) % 100u) / 100.0f); }
-    nudgeWas_ = hit;
-    if (nudgeT_ >= 0) {
-      nudgeT_ += dt;
-      if (nudgeT_ >= nudgeLen_) nudgeT_ = -1;
-      else shakeOff_ += nudgeDir_ * (2.0f * std::sin(3.14159265f * nudgeT_ / nudgeLen_));
+    if (hit && !camera_.nudgeWas_) { camera_.nudgeT_ = 0; camera_.nudgeDir_ = dir; camera_.nudgeLen_ = 0.16f + 0.04f * (float)((hash32((uint32_t)(t_ * 1000.0f)) % 100u) / 100.0f); }
+    camera_.nudgeWas_ = hit;
+    if (camera_.nudgeT_ >= 0) {
+      camera_.nudgeT_ += dt;
+      if (camera_.nudgeT_ >= camera_.nudgeLen_) camera_.nudgeT_ = -1;
+      else shakeOff_ += camera_.nudgeDir_ * (2.0f * std::sin(3.14159265f * camera_.nudgeT_ / camera_.nudgeLen_));
     }
   }
 }
@@ -2546,8 +2532,8 @@ void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
     auto spawn = [&](Vec2 p, Vec2 v, float life, Color c, float size, int layer) {
       Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.layer = layer; parts_.push_back(q);
     };
-    auto anywhere = [&]() { return cam_ + Vec2(r.range(0, VW), r.range(0, VH)); };
-    auto fromTop = [&]() { return cam_ + Vec2(r.range(-40, VW), -4); };
+    auto anywhere = [&]() { return camera_.cam_ + Vec2(r.range(0, VW), r.range(0, VH)); };
+    auto fromTop = [&]() { return camera_.cam_ + Vec2(r.range(-40, VW), -4); };
     // fireflies over the meadows, the reeds and the woods on a warm night
     const bool flies = (b == Biome::Plains && !ecoHas(e, EF_COLD) && e != Eco::Blight) || b == Biome::Forest || b == Biome::Autumn ||
                        (b == Biome::Swamp && e != Eco::PeatBog);
@@ -2563,7 +2549,7 @@ void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
       spawn(fromTop(), Vec2(r.range(10, 26), r.range(10, 18)), 12, r.f() < 0.6f ? Color(1.0f, 0.78f, 0.86f) : Color(0.98f, 0.92f, 0.95f), r.f() < 0.3f ? 2.f : 1.f, 2);
     // embers rising off the ash fields
     if (e == Eco::AshFields && r.f() < dt * 9)
-      spawn(cam_ + Vec2(r.range(0, VW), r.range(VH * 0.3f, VH + 10)), Vec2(r.range(-8, 8), r.range(-26, -12)), r.range(1.5f, 3.0f),
+      spawn(camera_.cam_ + Vec2(r.range(0, VW), r.range(VH * 0.3f, VH + 10)), Vec2(r.range(-8, 8), r.range(-26, -12)), r.range(1.5f, 3.0f),
             r.f() < 0.5f ? Color(1.0f, 0.55f, 0.15f) : Color(1.0f, 0.82f, 0.35f), 1, 1);
     // spores in the mushroom wood, glints on the crystal barrens, silver motes in the silverwood, flies over the blight
     if (e == Eco::MushroomForest && r.f() < dt * 6)
@@ -2580,7 +2566,7 @@ void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
   }
   if (g.inside && g.subSite >= 0 && hashf((int)(t_ * 10), 0, 9) < dt * 4) {
     Rng r((uint32_t)(t_ * 331));
-    Particle q; q.p = cam_ + Vec2(r.range(0, VW), r.range(0, VH)); q.v = Vec2(r.range(-3, 3), r.range(-5, -1));
+    Particle q; q.p = camera_.cam_ + Vec2(r.range(0, VW), r.range(0, VH)); q.v = Vec2(r.range(-3, 3), r.range(-5, -1));
     q.life = q.max = 3; q.c = Color(0.7f, 0.65f, 0.6f); q.size = 1; q.layer = 1; parts_.push_back(q);
   }
   if (parts_.size() > 600) parts_.erase(parts_.begin(), parts_.begin() + (parts_.size() - 600));
@@ -2815,7 +2801,7 @@ void View::drawWorld(Game& g) {
   const Map& m = *mp;
   const bool endlessOver = bake_.chunkEndless_;
   if (g.mode != Mode::Title) bake_.rebakeHomeHouses(*this, g, m, mapId);   // (M7) the ground under the player's houses: their shadows
-  Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+  Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
   sprites_.trimCaches(*this);
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
   beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
@@ -2932,7 +2918,7 @@ void View::drawLighting(Game& g) {
     }
   }
   if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) { liftRecs_.clear(); g_occRecs.clear(); lensStats.liftFigs = 0; return; }
-  Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+  Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
   // (M1) the light map is half the canvas: re-made when the screen fit changes the canvas size
   if (lightMap_.w != (Pix::W + 1) / 2 || lightMap_.h != (Pix::H + 1) / 2) {
     P.destroy(lightMap_);
@@ -3105,7 +3091,7 @@ void View::drawWeather(Game& g, float dt) {
     const auto t0 = beasts::Clock::now();
     struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
     beasts::cur.glows += (int)beasts::glows.size();
-    const Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+    const Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
     // the glow stands out as much as the night is dark (a little by day: embers and runes still smoulder)
     const bool dungeon = g.inside && g.subSite >= 0;
     const float dk = dungeon ? 0.7f : g.inside ? clampf(1.0f - g.daylight(), 0, 1) * 0.6f : clampf(1.0f - g.daylight() * 1.4f, 0, 1);
@@ -3142,8 +3128,8 @@ void View::drawBeastPlates(Game& g) {
   const auto t0 = beasts::Clock::now();
   struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
   // map px to UI px (affine): x -> ox + x * k
-  const Vec2 uo = toUi(Vec2(0, 0));
-  const float uk = uiPerWorld();
+  const Vec2 uo = camera_.toUi(*this, Vec2(0, 0));
+  const float uk = camera_.uiPerWorld(*this);
   auto ux = [&](float x) { return uo.x + x * uk; };
   auto uy = [&](float y) { return uo.y + y * uk; };
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
@@ -3170,7 +3156,7 @@ void View::drawBeastPlates(Game& g) {
     struct Rect4 { float x0, y0, x1, y1; };
     std::vector<Rect4> placed;
     {   // the hero's body: plates slide off it
-      const Vec2 hp = toUi(g.pl().p);
+      const Vec2 hp = camera_.toUi(*this, g.pl().p);
       const float fh = (float)rigFor(g.pl().look).figH(g.pl().look) + 4.0f;
       placed.push_back({hp.x - 8 * uk, hp.y - fh * uk, hp.x + 8 * uk, hp.y + 2 * uk});
     }
@@ -3359,7 +3345,7 @@ void View::drawWeatherSky(Game& g) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.84f, 0.88f, 0.88f, 0.10f * W.fog));   // the mist's pale veil
     const int n = (int)(6 * (Pix::W + 220) / 700.0f) + 2;
     for (int i = 0; i < n; i++) {
-      float x = std::fmod(i * 140 + t_ * 8 - cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
+      float x = std::fmod(i * 140 + t_ * 8 - camera_.cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
       P.blitEx(sprites_.light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(t_ * 0.3f + i) * 10, 260, 90, false,
                Color(0.82f, 0.86f, 0.84f, 0.26f * W.fog));
     }
@@ -3370,8 +3356,8 @@ void View::drawWeatherSky(Game& g) {
     const bool heavy = i < 220 * W.pour * sw, fine = !heavy && i >= (140 * W.rain + 220 * W.pour) * sw;
     const float ww = Pix::W + 40.0f, wh = Pix::H + 30.0f;
     const float vy = heavy ? 420 : fine ? 170 : 330, vx = heavy ? 150 : fine ? 40 : 120;
-    float sx = wrap(hashf(i, 0, 5) * 600 + t_ * vx - cam_.x, ww) - 20;
-    float sy = wrap(hashf(i, 1, 5) * 400 + t_ * vy - cam_.y, wh) - 15;
+    float sx = wrap(hashf(i, 0, 5) * 600 + t_ * vx - camera_.cam_.x, ww) - 20;
+    float sy = wrap(hashf(i, 1, 5) * 400 + t_ * vy - camera_.cam_.y, wh) - 15;
     const int len = heavy ? 9 : fine ? 3 : 7;
     for (int k = 0; k < len; k++) P.rect(sx - k * (vx / vy), sy - k * 1.0f, 1, 1, Color(0.78f, 0.86f, 1.0f, (fine ? 0.35f : 0.6f) * (1.0f - k / (float)(len + 1))));
     // a splash where a heavy drop lands
@@ -3382,7 +3368,7 @@ void View::drawWeatherSky(Game& g) {
   for (int i = 0; i < (int)ringsN; i++) {
     const float ph = std::fmod(t_ * 2.2f + hashf(i, 4, 5), 1.0f);
     const int cyc = (int)(t_ * 2.2f + hashf(i, 4, 5));
-    const float rx = wrap(hashf(i + cyc * 131, 5, 5) * 900 - cam_.x, (float)Pix::W), ry = wrap(hashf(i + cyc * 131, 6, 5) * 600 - cam_.y, (float)Pix::H);
+    const float rx = wrap(hashf(i + cyc * 131, 5, 5) * 900 - camera_.cam_.x, (float)Pix::W), ry = wrap(hashf(i + cyc * 131, 6, 5) * 600 - camera_.cam_.y, (float)Pix::H);
     const float r = 1 + ph * 3;
     P.rect(rx - r, ry, r * 2, 1, Color(0.80f, 0.88f, 1.0f, 0.35f * (1 - ph)));
   }
@@ -3390,7 +3376,7 @@ void View::drawWeatherSky(Game& g) {
   if (W.pour > 0.05f || (W.fog > 0.3f && W.rain + W.pour > 0.05f)) {
     for (int i = 0; i < 5; i++) {
       const float life = std::fmod(t_ * 0.12f + i * 0.2f, 1.0f);
-      const float x = wrap(hashf(i, 9, 3) * 900 - cam_.x * 0.8f, Pix::W + 120.0f) - 60;
+      const float x = wrap(hashf(i, 9, 3) * 900 - camera_.cam_.x * 0.8f, Pix::W + 120.0f) - 60;
       const float y = Pix::H * 0.95f - life * Pix::H * 0.6f;
       P.blitEx(sprites_.light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
     }
@@ -3401,8 +3387,8 @@ void View::drawWeatherSky(Game& g) {
     const bool drive = i < 230 * W.blizz * sw;
     const float sp = (drive ? 60 : 14) + hashf(i, 3, 7) * (drive ? 50 : 18);
     const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
-    float sx = wrap(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * (drive ? 4 : 10) - cam_.x + t_ * (drive ? 160 : 6), ww) - 10;
-    float sy = wrap(hashf(i, 1, 7) * 400 + t_ * sp - cam_.y, wh) - 10;
+    float sx = wrap(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * (drive ? 4 : 10) - camera_.cam_.x + t_ * (drive ? 160 : 6), ww) - 10;
+    float sy = wrap(hashf(i, 1, 7) * 400 + t_ * sp - camera_.cam_.y, wh) - 10;
     const float s = hashf(i, 2, 7) < 0.3f ? 2.f : 1.f;
     P.rect(sx + 1, sy + 1, drive ? s + 1 : s, s, Color(0.42f, 0.50f, 0.68f, 0.35f));   // a soft shadow: flakes read over snow too
     P.rect(sx, sy, drive ? s + 1 : s, s, Color(1, 1, 1, drive ? 0.75f : 0.9f));
@@ -3410,7 +3396,7 @@ void View::drawWeatherSky(Game& g) {
   if (W.blizz > 0.02f) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.92f, 0.95f, 1.0f, 0.38f * W.blizz));
     for (int i = 0; i < 4; i++) {   // gusts: brighter sheets of snow sweeping past
-      const float x = wrap(t_ * 220 + i * 260 - cam_.x, Pix::W + 300.0f) - 200;
+      const float x = wrap(t_ * 220 + i * 260 - camera_.cam_.x, Pix::W + 300.0f) - 200;
       P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
     }
   }
@@ -3419,13 +3405,13 @@ void View::drawWeatherSky(Game& g) {
     const int n = (int)(80 * W.sand * sw);
     for (int i = 0; i < n; i++) {
       const float ww = Pix::W + 60.0f;
-      const float sx = wrap(hashf(i, 0, 11) * 900 + t_ * (240 + hashf(i, 2, 11) * 160) - cam_.x, ww) - 30;
-      const float sy = wrap(hashf(i, 1, 11) * 500 + std::sin(t_ * 2 + i) * 4 - cam_.y * 0.5f, (float)Pix::H);
+      const float sx = wrap(hashf(i, 0, 11) * 900 + t_ * (240 + hashf(i, 2, 11) * 160) - camera_.cam_.x, ww) - 30;
+      const float sy = wrap(hashf(i, 1, 11) * 500 + std::sin(t_ * 2 + i) * 4 - camera_.cam_.y * 0.5f, (float)Pix::H);
       const float len = 4 + hashf(i, 3, 11) * 12;
       P.rect(sx, sy, len, 1, Color(0.95f, 0.82f, 0.58f, 0.35f * W.sand));
     }
     for (int i = 0; i < 3; i++) {   // the dust's billows
-      const float x = wrap(t_ * 140 + i * 300 - cam_.x * 0.6f, Pix::W + 300.0f) - 200;
+      const float x = wrap(t_ * 140 + i * 300 - camera_.cam_.x * 0.6f, Pix::W + 300.0f) - 200;
       P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
     }
   }
@@ -3434,14 +3420,14 @@ void View::drawWeatherSky(Game& g) {
     const int n = (int)(90 * W.ash * sw);
     for (int i = 0; i < n; i++) {
       const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
-      const float sx = wrap(hashf(i, 0, 13) * 600 + std::sin(t_ * 0.6f + i) * 12 - cam_.x + t_ * 10, ww) - 10;
-      const float sy = wrap(hashf(i, 1, 13) * 400 + t_ * (10 + hashf(i, 2, 13) * 10) - cam_.y, wh) - 10;
+      const float sx = wrap(hashf(i, 0, 13) * 600 + std::sin(t_ * 0.6f + i) * 12 - camera_.cam_.x + t_ * 10, ww) - 10;
+      const float sy = wrap(hashf(i, 1, 13) * 400 + t_ * (10 + hashf(i, 2, 13) * 10) - camera_.cam_.y, wh) - 10;
       const float g0 = 0.45f + hashf(i, 4, 13) * 0.3f;
       P.rect(sx, sy, hashf(i, 5, 13) < 0.25f ? 2.f : 1.f, 1, Color(g0, g0 * 0.95f, g0 * 0.95f, 0.75f));
     }
     for (int i = 0; i < (int)(26 * W.ash * sw); i++) {
-      const float sx = wrap(hashf(i, 6, 13) * 700 + std::sin(t_ * 1.3f + i) * 8 - cam_.x, Pix::W + 20.0f) - 10;
-      const float sy = wrap(hashf(i, 7, 13) * 400 - t_ * (18 + hashf(i, 8, 13) * 14) - cam_.y, Pix::H + 20.0f) - 10;
+      const float sx = wrap(hashf(i, 6, 13) * 700 + std::sin(t_ * 1.3f + i) * 8 - camera_.cam_.x, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 7, 13) * 400 - t_ * (18 + hashf(i, 8, 13) * 14) - camera_.cam_.y, Pix::H + 20.0f) - 10;
       const float fl = 0.5f + 0.5f * std::sin(t_ * 9 + i * 2.3f);
       P.rectAdd(sx, sy, 1, 1, Color(1.0f, 0.55f + 0.3f * fl, 0.2f, 0.5f + 0.5f * fl));
     }
@@ -3450,8 +3436,8 @@ void View::drawWeatherSky(Game& g) {
   if (W.eerie > 0.02f) {
     const int n = (int)(40 * W.eerie * sw);
     for (int i = 0; i < n; i++) {
-      const float sx = wrap(hashf(i, 0, 17) * 700 + std::sin(t_ * 0.5f + i) * 14 - cam_.x * 0.9f, Pix::W + 20.0f) - 10;
-      const float sy = wrap(hashf(i, 1, 17) * 400 - t_ * (4 + hashf(i, 2, 17) * 6) - cam_.y * 0.9f, Pix::H + 20.0f) - 10;
+      const float sx = wrap(hashf(i, 0, 17) * 700 + std::sin(t_ * 0.5f + i) * 14 - camera_.cam_.x * 0.9f, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 1, 17) * 400 - t_ * (4 + hashf(i, 2, 17) * 6) - camera_.cam_.y * 0.9f, Pix::H + 20.0f) - 10;
       const float pulse = 0.5f + 0.5f * std::sin(t_ * (1.5f + hashf(i, 3, 17) * 2) + i);
       P.rectAdd(sx, sy, 1, 1, Color(W.er, W.eg, W.eb, 0.25f + 0.55f * pulse));
       if (pulse > 0.93f) { P.rectAdd(sx - 1, sy, 3, 1, Color(W.er, W.eg, W.eb, 0.3f)); P.rectAdd(sx, sy - 1, 1, 3, Color(W.er, W.eg, W.eb, 0.3f)); }

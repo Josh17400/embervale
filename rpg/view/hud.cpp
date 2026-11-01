@@ -330,12 +330,12 @@ void View::draw(Game& g, bool hasSave) {
   drawWeather(g, 0);
   // quest-giver markers after the night/weather pass so the "!" stays readable in the dark
   if (g.mode != Mode::Title && g.mode != Mode::Creator) {
-    drawMarkers(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));
-    companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
-    drawPowerFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
-    drawMagicFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
-    drawReliefOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
-    drawSeaOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
+    drawMarkers(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));
+    companionOverlays(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
+    drawPowerFx(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
+    drawMagicFx(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
+    drawReliefOver(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
+    drawSeaOver(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
   P.endWorld();
   // (P2a `ui 0`) the world alone: the device shots p2_measure.mjs checks for whole D x D blocks
@@ -356,7 +356,7 @@ void View::draw(Game& g, bool hasSave) {
       int w = 0;
       for (const std::string& l : ls) w = std::max(w, P.textW(l, 1));
       const float lh = 9.0f, h = ls.size() * lh + 3.0f;
-      const Vec2 fu = toUi(f.p);   // (P2a) the speaker's anchor, projected from the world layer
+      const Vec2 fu = camera_.toUi(*this, f.p);   // (P2a) the speaker's anchor, projected from the world layer
       float cx = std::floor(fu.x), y0 = std::floor(fu.y - h);
       cx = clampf(cx, (float)Pix::SL + w / 2.0f + 4, (float)(Pix::W - Pix::SR) - w / 2.0f - 4);
       // (M5 fixer) never under the location / quest column: slide left of it (or below it when that is nearer)
@@ -390,11 +390,11 @@ void View::draw(Game& g, bool hasSave) {
       continue;
     }
     float a = clampf(1.2f - f.t, 0, 1);
-    const Vec2 fu = toUi(f.p);   // (P2a) a combat number: anchored on the world, its glyphs the UI's size
+    const Vec2 fu = camera_.toUi(*this, f.p);   // (P2a) a combat number: anchored on the world, its glyphs the UI's size
     P.text(fu.x + 1, fu.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
     P.text(fu.x, fu.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
   }
-  if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) party_hud.cpp
+  if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8) party_hud.cpp
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
   else if (g.mode == Mode::Creator) { drawCreator(g); }
   else {
@@ -565,7 +565,7 @@ void View::drawHud(Game& g) {
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   // (P2a) what the HUD places over the world is projected through toUi; a world size is kw UI px per world px and the
   // heights over a body come from the rig's metrics
-  const float kw = uiPerWorld();
+  const float kw = camera_.uiPerWorld(*this);
   const art::RigMetrics& RM = rigFor(g.pl().look);   // the hero's (as drawn)
   HudFrame H{P, p, L, T, R, B, kw, RM};
   const float spellX = hudVitals(g, H);
@@ -700,9 +700,9 @@ bool View::hudColumnFade(Game& g, HudFrame& H) {
     // shelves and beds with a firmer backing, and step aside only while the hero is right under them
     const Map& m = g.map();
     // (P2a) the room's right and top edges and the hero, projected from the world layer into the HUD's UI px
-    const Vec2 mc = toUi(Vec2(m.w * 16.0f, -16.0f));
+    const Vec2 mc = camera_.toUi(*this, Vec2(m.w * 16.0f, -16.0f));
     float mx1 = mc.x, my0 = mc.y;
-    const Vec2 ps = toUi(g.pl().p);
+    const Vec2 ps = camera_.toUi(*this, g.pl().p);
     if (mx1 > R - 74 && my0 < T + 90 && ps.x > R - 84 && ps.y < T + 100) showMini = false;
     if (mx1 > R - 160 && my0 < T + 130) {   // the rooms run on under the location / quest column
       backA = 0.74f;
@@ -714,7 +714,7 @@ bool View::hudColumnFade(Game& g, HudFrame& H) {
   if (!g.inside && g.mode == Mode::Play) {
     for (const Actor& a : g.actors) {
       if (!a.hostile || a.st == AState::Dead || !(a.boss || a.rank >= 4)) continue;
-      const Vec2 s = toUi(a.p);
+      const Vec2 s = camera_.toUi(*this, a.p);
       const float half = (a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 14.0f) * kw;
       if (s.x + half > R - 180 && s.x - half < R && s.y - 3.0f * half < T + 165 && s.y > T + 60) { hudA = 0.3f; backA = 0.22f; break; }
     }
@@ -730,7 +730,7 @@ bool View::hudColumnFade(Game& g, HudFrame& H) {
       for (const Actor& a : g.actors) {
         if (!a.hostile || a.st == AState::Dead || a.id == g.pl().id) continue;
         if (len2(a.p - g.pl().p) > (10.0f * TILE) * (10.0f * TILE)) continue;
-        const Vec2 s = toUi(a.p);
+        const Vec2 s = camera_.toUi(*this, a.p);
         const float half = (a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 8.0f) * kw;
         if (s.x + half > cl && s.x - half < R && s.y - 3.0f * half < cb && s.y > T + 60) { want = 1.0f; break; }
       }
@@ -914,7 +914,7 @@ void View::hudRaidPointer(Game& g, const HudFrame& H) {
     for (const Actor& ra : g.actors) {
       if (std::find(g.life.raid.ids.begin(), g.life.raid.ids.end(), ra.id) == g.life.raid.ids.end()) continue;
       if (ra.st == AState::Dead || !ra.hostile) continue;
-      const Vec2 sc = toUi(ra.p);   // (P2a) projected from the world layer
+      const Vec2 sc = camera_.toUi(*this, ra.p);   // (P2a) projected from the world layer
       if (sc.x > L && sc.y > T && sc.x < R && sc.y < B) { seen = true; break; }
       const float d2 = len2(ra.p - g.pl().p);
       if (d2 < bd) { bd = d2; best = sc; any = true; }
@@ -991,7 +991,7 @@ void View::hudQuest(Game& g, HudFrame& H) {
       int tx, ty;
       if (!g.inside && questTile(g, *q, tx, ty)) {
         Vec2 tgt(tx * 16 + 8.0f, ty * 16 + 8.0f);
-        Vec2 sc = toUi(tgt);   // (P2a) projected from the world layer
+        Vec2 sc = camera_.toUi(*this, tgt);   // (P2a) projected from the world layer
         bool on = sc.x > L + 10 && sc.y > T + 10 && sc.x < R - 10 && sc.y < B - 10;
         float dist = len(tgt - p.p) / 16;
         // (fixer M4 r1, review: "the compass chevron draws over the dialogue panel's border") no compass while a
@@ -1119,7 +1119,7 @@ void View::hudQuest(Game& g, HudFrame& H) {
             auto tr = sprites_.bldgTopRow_.find(k);
             if (bt != sprites_.bldgTex_.end() && tr != sprites_.bldgTopRow_.end()) {
               const float top = (b.r.y + b.r.h) * 16.0f + art::BLDG_PAD_B - bt->second.h + tr->second;
-              pinY = std::min(pinY, toUi(Vec2(0, top)).y - 3);
+              pinY = std::min(pinY, camera_.toUi(*this, Vec2(0, top)).y - 3);
             }
             break;
           }
@@ -1195,7 +1195,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
   if (partyUse == 1 && partyIdx >= 0 && partyIdx < (int)g.party.fallen.size()) {
     // the grave: "E: VISIT" over the stone (its name shows by the stone itself, party_view.cpp)
     const party::Fallen& f = g.party.fallen[(size_t)partyIdx];
-    Vec2 s = toUi(Vec2((f.gx - g.world.ox) * 16.0f + 8.0f, (f.gy - g.world.oy) * 16.0f - 24.0f));
+    Vec2 s = camera_.toUi(*this, Vec2((f.gx - g.world.ox) * 16.0f + 8.0f, (f.gy - g.world.oy) * 16.0f - 24.0f));
     std::string lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT " + f.name + "'S GRAVE";
     if (lab.size() > 30) lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT THE GRAVE";
     const float w = (float)P.textW(lab, 1) + 8;
@@ -1215,7 +1215,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
           break;
         // (fixer M8 r2) while the wounds are being bound the ring over them says it all: no name or verb over it
         if (partyUse == 2 && partyIdx >= 0 && partyIdx < (int)g.party.members.size() && g.party.members[(size_t)partyIdx].reviveT > 0) break;
-        Vec2 s = toUi(a.p);   // (P2a) the feet, projected; heights over them are the rig's, kw UI px per world px
+        Vec2 s = camera_.toUi(*this, a.p);   // (P2a) the feet, projected; heights over them are the rig's, kw UI px per world px
         // a giver with a reward waiting wears the "!" bubble (drawMarkers) just above the head: the label goes over it
         // (fixer M6b r3) so do the "has a tale" scroll and the wayside "!" (drawMarkers): the label covered the scroll
         // of the very person the player had walked up to
@@ -1227,7 +1227,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
         float ly = marked ? s.y - (AM.markerY + 18) * kw : s.y - AM.bubbleY * kw;
         if (partyUse == 2) ly -= 16.0f * kw;   // (M8) over the wound mark and the binding ring (fixer M8 r2: clear of it)
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
-        const Vec2 hs = toUi(g.pl().p);
+        const Vec2 hs = camera_.toUi(*this, g.pl().p);
         // (M5) village animals are petted, not talked to; (M7) the player's own animals say what the button does
         // (RIDE <NAME> for the waiting horse, GROOM with a brush): home::interactLabel shares homeInteract's decision
         std::string critterUse = a.critter ? useVerbHere(g) : std::string();
@@ -1276,8 +1276,8 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
     const Actor& hp = g.pl();
     const Vec2 probe = hp.p + hp.aim * 12.0f + Vec2(0, -4);
     const float px = std::floor(probe.x / TILE) * TILE + 8.0f, py = std::floor(probe.y / TILE) * TILE;
-    Vec2 s = toUi(Vec2(px, py - 4.0f));
-    const Vec2 hs = toUi(hp.p);
+    Vec2 s = camera_.toUi(*this, Vec2(px, py - 4.0f));
+    const Vec2 hs = camera_.toUi(*this, hp.p);
     if (std::fabs(hs.x - s.x) < 30 * kw && s.y - 10 > hs.y - (RM.markerY + 10) * kw && s.y - 10 < hs.y + 4 * kw) s.y = hs.y - RM.markerY * kw;   // off the hero's head
     // (fixer M10 r1) a held verb ("HOLD: REEL") says HOLD, not TAP
     const bool held = homeVerb.rfind("HOLD: ", 0) == 0;
@@ -1290,7 +1290,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
     P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
     P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
     if (!touchUI && !home::interactLabel(g).empty()) {   // the tile it acts on: four corner ticks (the yard's; the sea's verbs act on the boat)
-      const Vec2 tl = toUi(Vec2(px - 8, py));   // (P2a) the tile's corners, projected: the ticks frame it at any zoom
+      const Vec2 tl = camera_.toUi(*this, Vec2(px - 8, py));   // (P2a) the tile's corners, projected: the ticks frame it at any zoom
       const float tx = std::floor(tl.x), ty = std::floor(tl.y);
       const Color tc(kGold.r, kGold.g, kGold.b, 0.75f);
       for (int k = 0; k < 4; k++) {
@@ -1302,7 +1302,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
   } else if (g.mode == Mode::Play) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
     if (pr) {
-      Vec2 s = toUi(Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f));
+      Vec2 s = camera_.toUi(*this, Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f));
       const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty);
       const float w = (float)P.textW(lab, 1);
       if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 11 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;   // (M7 fix)

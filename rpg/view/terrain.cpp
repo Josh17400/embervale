@@ -5719,7 +5719,7 @@ void View::travelArrive(Game& g) {
   const Map* mp = nullptr;
   const uint64_t mapId = terrainFrame(g, mp);
   const Map& m = *mp;
-  const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  const Vec2 cam(std::floor(camera_.cam_.x), std::floor(camera_.cam_.y));
   const int v0x = (int)std::floor(cam.x / 512), v0y = (int)std::floor(cam.y / 512);
   const int VW = viewW(), VH = viewH();   // (P2a) the world view (this runs in update, outside the world layer)
   const int v1x = (int)std::floor((cam.x + VW) / 512), v1y = (int)std::floor((cam.y + VH) / 512);

@@ -353,13 +353,13 @@ void View::event(const SDL_Event& e, Game& g) {
       else if (g.mode == Mode::Play && !settingsOpen_ && e.wheel.y != 0) {
         // (P2a) ZOOM in play: a notch steps one level (a trackpad's small deltas add up to one; a fling steps once per
         // 0.15 s, so it never races through the levels)
-        wheelAcc_ += e.wheel.y;
-        if (std::fabs(wheelAcc_) >= 1.0f && (t_ - wheelT_ >= 0.15f || t_ < wheelT_)) {   // (view time: a harness's steps too)
-          zoomStep(wheelAcc_ > 0 ? 1 : -1);
-          wheelT_ = t_;
-          wheelAcc_ = 0;
+        camera_.wheelAcc_ += e.wheel.y;
+        if (std::fabs(camera_.wheelAcc_) >= 1.0f && (t_ - camera_.wheelT_ >= 0.15f || t_ < camera_.wheelT_)) {   // (view time: a harness's steps too)
+          camera_.zoomStep(*this, camera_.wheelAcc_ > 0 ? 1 : -1);
+          camera_.wheelT_ = t_;
+          camera_.wheelAcc_ = 0;
         }
-        wheelAcc_ = std::clamp(wheelAcc_, -1.5f, 1.5f);
+        camera_.wheelAcc_ = std::clamp(camera_.wheelAcc_, -1.5f, 1.5f);
       }
       break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -414,8 +414,8 @@ void View::event(const SDL_Event& e, Game& g) {
         }
         case SDLK_LCTRL: case SDLK_RCTRL: case SDLK_V: SkillsUiOps::sneakKey(*this, g); break;
         // (P2a) ZOOM: - out, = (or +) in, and the keypad's
-        case SDLK_MINUS: case SDLK_KP_MINUS: zoomStep(-1); break;
-        case SDLK_EQUALS: case SDLK_PLUS: case SDLK_KP_PLUS: zoomStep(1); break;
+        case SDLK_MINUS: case SDLK_KP_MINUS: camera_.zoomStep(*this, -1); break;
+        case SDLK_EQUALS: case SDLK_PLUS: case SDLK_KP_PLUS: camera_.zoomStep(*this, 1); break;
         default: break;
       }
       break;
@@ -480,8 +480,8 @@ void View::event(const SDL_Event& e, Game& g) {
         for (const Finger& f : fingers_) if (f.on) { others++; first = &f; }
         if (others == 1 && first && first->button == -1 && now - first->t0 < 300 && len2(first->cur - first->start) < 10.0f * 10.0f &&
             buttonAt(p) < 0 && SkillsUiOps::quickAt(*this, g, p) < 0) {
-          pinch_.on = true; pinch_.a = first->id; pinch_.b = (uint64_t)e.tfinger.fingerID;
-          pinch_.pa = first->cur; pinch_.pb = p; pinch_.d0 = std::max(8.0f, len(p - first->cur)); pinch_.done = 0;
+          camera_.pinch_.on = true; camera_.pinch_.a = first->id; camera_.pinch_.b = (uint64_t)e.tfinger.fingerID;
+          camera_.pinch_.pa = first->cur; camera_.pinch_.pb = p; camera_.pinch_.d0 = std::max(8.0f, len(p - first->cur)); camera_.pinch_.done = 0;
           if (stick_.on && stick_.id == first->id) stick_.on = false;
           Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = -3; f.t0 = now;   // -3: a pinch finger
           fingers_.push_back(f);
@@ -522,7 +522,7 @@ void View::event(const SDL_Event& e, Game& g) {
         if (int it = g.interactTarget(); it >= 0) {
           // (P2a) the bodies projected from the world layer; the finger's reach stays in UI px
           for (const Actor& a : g.actors)
-            if (a.id == it && (len2(p - toUi(a.p - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - toUi(g.pl().p - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
+            if (a.id == it && (len2(p - camera_.toUi(*this, a.p - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - camera_.toUi(*this, g.pl().p - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
         }
         if (talk || usablePropAt(g, utx, uty) || !useVerbHere(g).empty()) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
       }
@@ -533,11 +533,11 @@ void View::event(const SDL_Event& e, Game& g) {
       int ww, wh;
       SDL_GetWindowSize(pix_->window(), &ww, &wh);
       Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
-      if (pinch_.on && ((uint64_t)e.tfinger.fingerID == pinch_.a || (uint64_t)e.tfinger.fingerID == pinch_.b)) {
+      if (camera_.pinch_.on && ((uint64_t)e.tfinger.fingerID == camera_.pinch_.a || (uint64_t)e.tfinger.fingerID == camera_.pinch_.b)) {
         // (P2a) the pinch: spread a third wider for a level in, close a quarter for a level out (rebased each step)
-        if ((uint64_t)e.tfinger.fingerID == pinch_.a) pinch_.pa = p; else pinch_.pb = p;
-        const float d = len(pinch_.pb - pinch_.pa), r = d / std::max(1.0f, pinch_.d0);
-        if (g.mode == Mode::Play && (r > 1.35f || r < 0.74f)) { zoomStep(r > 1 ? 1 : -1); pinch_.d0 = std::max(8.0f, d); pinch_.done++; }
+        if ((uint64_t)e.tfinger.fingerID == camera_.pinch_.a) camera_.pinch_.pa = p; else camera_.pinch_.pb = p;
+        const float d = len(camera_.pinch_.pb - camera_.pinch_.pa), r = d / std::max(1.0f, camera_.pinch_.d0);
+        if (g.mode == Mode::Play && (r > 1.35f || r < 0.74f)) { camera_.zoomStep(*this, r > 1 ? 1 : -1); camera_.pinch_.d0 = std::max(8.0f, d); camera_.pinch_.done++; }
       }
       if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
       if (g.mode == Mode::Build) buildPointer(g, 1, p);   // (M7) the ghost or a list dragged
@@ -548,7 +548,7 @@ void View::event(const SDL_Event& e, Game& g) {
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
-      if (pinch_.on && ((uint64_t)e.tfinger.fingerID == pinch_.a || (uint64_t)e.tfinger.fingerID == pinch_.b)) pinch_.on = false;   // (P2a)
+      if (camera_.pinch_.on && ((uint64_t)e.tfinger.fingerID == camera_.pinch_.a || (uint64_t)e.tfinger.fingerID == camera_.pinch_.b)) camera_.pinch_.on = false;   // (P2a)
       if (g.mode == Mode::Play) {   // (M8) a card let go of: a tap selects; the held radial gives the order under the finger
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);
@@ -576,12 +576,12 @@ void View::event(const SDL_Event& e, Game& g) {
           bool use = false;
           int utx = 0, uty = 0;
           if (usablePropAt(g, utx, uty)) {
-            Vec2 s = toUi(Vec2(utx * 16 + 8.0f, uty * 16 - 4.0f));   // the prop's label sits at s.y - 10 (UI px)
+            Vec2 s = camera_.toUi(*this, Vec2(utx * 16 + 8.0f, uty * 16 - 4.0f));   // the prop's label sits at s.y - 10 (UI px)
             if (std::fabs(q.x - s.x) < 32 && q.y > s.y - 22 && q.y < s.y + 24) use = true;
           }
           if (int it = g.interactTarget(); it >= 0)
             for (const Actor& a : g.actors)
-              if (a.id == it && len2(q - toUi(a.p - Vec2(0, 10))) < 24.0f * 24.0f) use = true;
+              if (a.id == it && len2(q - camera_.toUi(*this, a.p - Vec2(0, 10))) < 24.0f * 24.0f) use = true;
           if (use) kUse_ = true;
         }
       }

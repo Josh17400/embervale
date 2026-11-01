@@ -350,7 +350,7 @@ void View::drawGrave(Game& g, int fi, Vec2 cam, bool shadow) {
 // its companion, a fallen companion's name over their grave when the player stands near
 void View::partyWorldText(Game& g) {
   Pix& P = *pix_;
-  const float k = uiPerWorld();
+  const float k = camera_.uiPerWorld(*this);
   if (g.mode == Mode::Play && !g.party.members.empty() && partyTagT_ > 0 && !radial_.open)
     for (size_t i = 1; i < g.actors.size(); i++) {
       const Actor& a = g.actors[i];
@@ -358,7 +358,7 @@ void View::partyWorldText(Game& g) {
       if (mi < 0 || mi != partySel_ || a.st == AState::Dead) continue;
       const party::Member& m = g.party.members[(size_t)mi];
       if (m.state != party::State::With) continue;
-      const Vec2 s = toUi(a.p);
+      const Vec2 s = camera_.toUi(*this, a.p);
       const float lift = riding(g, m) ? (float)rigFor(a.look).markerY + 14.0f : a.human ? (float)rigFor(a.look).markerY + 6.0f : 24.0f;   // (v1: 44 / 36 / 24)
       float ty = std::floor(s.y - lift * k);
       const float half = (float)P.textW(m.name, 1) / 2.0f;
@@ -375,7 +375,7 @@ void View::partyWorldText(Game& g) {
       const bool prompt = partyUseHere(g, useIdx) == 1 && useIdx == gt.fi;   // (the VISIT prompt names them instead)
       if (d2 >= 56.0f * 56.0f || prompt) continue;
       const float a = clampf((56.0f - std::sqrt(d2)) / 20.0f, 0, 1);
-      const Vec2 s = toUi(Vec2(gt.x, gt.top));
+      const Vec2 s = camera_.toUi(*this, Vec2(gt.x, gt.top));
       P.textS(std::floor(s.x), std::floor(s.y - 9), f.name, 1, Color(0.92f, 0.88f, 0.78f, 0.9f * a), 1);
     }
   graveTops_.clear();

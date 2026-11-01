@@ -1055,11 +1055,11 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
   if (tagOn_) add(tagX0_ - 2, tagY0_ - 2, tagX1_ + 2, tagY1_ + 2);   // the faced person's name and E: TALK
   if (g.mode == Mode::Play) {
     // (P2a) world sizes in UI px: k UI px per world px; heights from the rig's metrics
-    const float k = uiPerWorld();
+    const float k = camera_.uiPerWorld(*this);
     const art::RigMetrics& RM = rigFor(g.pl().look);
     // (fixer M8 r2, review: "plates cover the mounted hero's head and the companion's horse") the hero, on foot or
     // in the saddle: no spoken line is laid over them
-    const Vec2 hs = toUi(g.pl().p);
+    const Vec2 hs = camera_.toUi(*this, g.pl().p);
     if (g.homeRiding()) add(hs.x - 15 * k, hs.y - (RM.markerY + 10) * k, hs.x + 15 * k, hs.y + 3 * k);
     else add(hs.x - 8 * k, hs.y - RM.markerY * k, hs.x + 8 * k, hs.y + 2 * k);
     // (fixer M8 r2, review: "the binding ring is hidden under the name label and the I'M DOWN plate") the wound mark
@@ -1068,7 +1068,7 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
       const Actor& a = g.actors[i];
       const int mi = companionIndex(g, a);
       if (mi < 0 || a.st == AState::Dead || g.party.members[(size_t)mi].state != party::State::Downed) continue;
-      const Vec2 s = toUi(a.p);
+      const Vec2 s = camera_.toUi(*this, a.p);
       const float cx = std::floor(s.x), cy = std::floor(s.y - (a.human ? (float)rigFor(a.look).plateY : 22.0f) * k);
       add(cx - 11 * k, cy - 11 * k, cx + 11 * k, cy + 11 * k);
     }
@@ -1113,8 +1113,8 @@ void View::drawBanter(Game& g, Vec2 cam) {
     Vec2 head;
     if (ai > 0) {
       const Actor& sp = g.actors[(size_t)ai];
-      head = toUi(sp.p);
-      const float top = (sp.human ? (float)rigFor(sp.look).markerY : 20.0f) * uiPerWorld();
+      head = camera_.toUi(*this, sp.p);
+      const float top = (sp.human ? (float)rigFor(sp.look).markerY : 20.0f) * camera_.uiPerWorld(*this);
       if (head.x > L + 4 && head.x < R - 4 && head.y - top > T + 4 && head.y < B - 4) {
         overHead = true;
         cx = std::floor(head.x);

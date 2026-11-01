@@ -521,7 +521,7 @@ void View::riseLights(Game& g, const std::function<void(Vec2, float, Color, floa
   if (dark < 0.12f) return;
   // the watchtowers' lanterns in their lookouts (the props and the works the view draws) and the pool they cast
   const Map& m = g.world.over;
-  const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  const Vec2 cam(std::floor(camera_.cam_.x), std::floor(camera_.cam_.y));
   auto lantern = [&](float bx, float by, float k) {   // bx, by: the tower's base (bottom centre of its tile)
     const float f = 0.88f + 0.12f * std::sin(t_ * 7.1f + bx * 0.3f);
     const float lx = bx + 3, ly = by - art::risePropH(art::Prop::Watchtower) + 27;

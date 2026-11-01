@@ -250,7 +250,7 @@ void View::drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob
 // the lights loot carries into the dark (drawLighting): the pool at the foot and the column above it
 void View::lootLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
   // (M8b fix) only what can light the view: the biggest blob reaches 58 px, the column 40 px above the foot
-  const float vx0 = cam_.x - 64, vy0 = cam_.y - 64, vx1 = cam_.x + (float)Pix::W + 64, vy1 = cam_.y + (float)Pix::H + 104;
+  const float vx0 = camera_.cam_.x - 64, vy0 = camera_.cam_.y - 64, vx1 = camera_.cam_.x + (float)Pix::W + 64, vy1 = camera_.cam_.y + (float)Pix::H + 104;
   for (size_t i = 0; i < g.pickups.size(); i++) {
     const Pickup& k = g.pickups[i];
     if (k.gold || !itemEquippable(k.item.kind) || k.item.rarity == Rarity::Common) continue;
@@ -285,7 +285,7 @@ void View::lootLights(Game& g, const std::function<void(Vec2, float, Color, floa
 void View::lootUpdate(Game& g, float dt) {
   lootBlockFlash_ = std::max(0.0f, lootBlockFlash_ - dt);
   if (g.mode == Mode::Play) {
-    const float vx0 = cam_.x - 8, vy0 = cam_.y - 8, vx1 = cam_.x + (float)Pix::W + 8, vy1 = cam_.y + (float)Pix::H + 8;
+    const float vx0 = camera_.cam_.x - 8, vy0 = camera_.cam_.y - 8, vx1 = camera_.cam_.x + (float)Pix::W + 8, vy1 = camera_.cam_.y + (float)Pix::H + 8;
     int best = -1;
     // (M8b fixer r3) a piece chimes once: the flag rides on the pickup itself, so the pull toward the hero and an endless
     // window shift (both move k.p) no longer make it a 'new' find
@@ -315,7 +315,7 @@ void View::lootUpdate(Game& g, float dt) {
     emberT_ = 0;
     for (const Actor& a : g.actors) {
       if (!mythicWearer(a) || a.st == AState::Dead) continue;
-      if (a.p.x < cam_.x - 24 || a.p.y < cam_.y - 24 || a.p.x > cam_.x + (float)Pix::W + 24 || a.p.y > cam_.y + (float)Pix::H + 24) continue;
+      if (a.p.x < camera_.cam_.x - 24 || a.p.y < camera_.cam_.y - 24 || a.p.x > camera_.cam_.x + (float)Pix::W + 24 || a.p.y > camera_.cam_.y + (float)Pix::H + 24) continue;
       const uint32_t h = hash32((uint32_t)a.id * 2654435761u ^ (uint32_t)(t_ * 197.0f));
       Particle q;
       const int side = (h & 1u) ? 1 : -1;

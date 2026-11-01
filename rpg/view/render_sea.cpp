@@ -1103,7 +1103,7 @@ void View::seaLights(Game& g, const std::function<void(Vec2, float, Color, float
   for (const sea::Sea::Ship& sh : g.sea.live.ships) light(sh.p + Vec2(0, -14), 50.0f, Color(1.0f, 0.55f, 0.35f), k * 0.6f * flick);
   // the lighthouses' lamps (the prop's lantern room, high over its foot)
   const Map& m = g.world.over;
-  const int tx0 = (int)std::floor(cam_.x / 16) - 4, ty0 = (int)std::floor(cam_.y / 16) - 2;
+  const int tx0 = (int)std::floor(camera_.cam_.x / 16) - 4, ty0 = (int)std::floor(camera_.cam_.y / 16) - 2;
   for (int ty = std::max(0, ty0); ty < std::min(m.h, ty0 + Pix::H / 16 + 10); ty++)
     for (int tx = std::max(0, tx0); tx < std::min(m.w, tx0 + Pix::W / 16 + 8); tx++)
       if (m.propAt(tx, ty) == (int)art::Prop::Lighthouse + 1) {
@@ -1354,11 +1354,11 @@ void View::drawSeaHud(Game& g) {
   const sea::Sea::Line& ln = Lv.line;
   if (ln.phase != sea::Sea::Cast::None && g.mode == Mode::Play) {
     // (P2a integration) this panel is in the UI layer: the hero and the float go through toUi, world offsets through u
-    const float u = uiPerWorld();
-    const Vec2 hero = toUi(Vec2(g.pl().p.x, g.pl().p.y - seaHeroLift(*this, g)));
+    const float u = camera_.uiPerWorld(*this);
+    const Vec2 hero = camera_.toUi(*this, Vec2(g.pl().p.x, g.pl().p.y - seaHeroLift(*this, g)));
     const bool fight = ln.phase == sea::Sea::Cast::Reeling;
     if (ln.phase == sea::Sea::Cast::Bite || S.biteT > 0) {   // the bite: a bright "!" over the float, the button cue
-      const Vec2 bob = toUi(Vec2(ln.bob.x, ln.bob.y));
+      const Vec2 bob = camera_.toUi(*this, Vec2(ln.bob.x, ln.bob.y));
       const float jump = std::fabs(std::sin(t_ * 14.0f)) * 3.0f;
       P.textS(std::floor(bob.x) - 2, std::floor(bob.y - 18 * u - jump), "!", 2, Color(1.0f, 0.86f, 0.30f));
 

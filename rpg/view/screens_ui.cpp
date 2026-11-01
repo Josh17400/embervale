@@ -63,8 +63,8 @@ void View::drawDead(Game& g) {
   const float tintA = ease(t / 0.8f), bandA = ease((t - 0.15f) / 0.40f), wordA = ease((t - 0.25f) / 0.30f);
   P.rect(0, 0, Pix::W, Pix::H, Color(0.15f, 0, 0, 0.5f * tintA));
   // the hero on the UI layer: his feet (the pivot) and the top of a standing figure (rig 2 stands about 40 world px)
-  const float upw = uiPerWorld();
-  const Vec2 hp = toUi(g.pl().p);
+  const float upw = camera_.uiPerWorld(*this);
+  const Vec2 hp = camera_.toUi(*this, g.pl().p);
   const float headY = hp.y - 42.0f * upw, feetY = hp.y + 8.0f * upw;
   const float top = (float)Pix::ST, bot = (float)(Pix::H - Pix::SB);
   // the words' centre line: above the head with the band's soft lower edge just clearing it; on a screen too short for

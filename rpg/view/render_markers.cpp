@@ -408,7 +408,7 @@ void View::drawMarkers(Game& g, Vec2 cam) {
         int sl = 0, stt = 0, sr = 0, sb = 0;
         P.uiInsets(sl, stt, sr, sb);
         float wi[4];
-        uiInsetsToWorld(10.0f + sl, 54.0f + stt, 142.0f + sr, (touchUI ? 56.0f : 12.0f) + sb, wi);
+        camera_.uiInsetsToWorld(*this, 10.0f + sl, 54.0f + stt, 142.0f + sr, (touchUI ? 56.0f : 12.0f) + sb, wi);
         const float L = wi[0], T = wi[1], R = Pix::W - wi[2], B = Pix::H - wi[3];
         float cx = clampf(tx, L, R), cy = clampf(ty, T, B);
         bool off = std::fabs(cx - tx) > 0.5f || std::fabs(cy - ty) > 0.5f;
