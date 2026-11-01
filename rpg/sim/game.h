@@ -771,15 +771,11 @@ class Game {
   std::map<uint64_t, std::pair<int, std::vector<Item>>> shopCache_;
   int findActor(int id) const;
   void placePlayerAt(int tx, int ty);   // endless: recentres the window first when the tile is off its middle
-  void maybeRecentre();                 // M1: keep the player in the window's middle (VISION_PLAN 2.9)
-  void windowMoved(int dx, int dy);     // M1: the window moved by (dx, dy) tiles: translate everything overworld
-  void reapplyLooted();                 // M1: open the looted overworld chests the window shows
   std::set<int> activeSites_;
   std::map<int, std::set<int>> felled_;   // site -> townsfolk slots felled while it is active (no respawn until it reloads)
   std::set<int> activeDens_;
   float denT_ = 0;
   bool perfectRoll_ = false;   // this roll already earned its slow-mo blip
-  void updateDens(int ptx, int pty);
   int denClearedDay(int den) const;    // -1 = not cleared
   // town defence (M0, ai.cpp)
   struct SiteAlarm { float lastThreatT = -99, bellT = 0, quietT = 0; bool ringing = false; int hostiles = 0; };
@@ -799,16 +795,11 @@ class Game {
   void updateActor(Actor& a, float dt);
   void updateProjectiles(float dt);
   void updatePickups(float dt);
-  void updateSpawning(float dt);
   // M1 (SIM lane): streaming and LOD
   float prefetchT_ = 0;
   Vec2 prefetchFrom_;                  // the player's position at the last wish-list update (heading)
-  void prefetchTick(float dt);         // keep the streamer's wish list current (creates the streamer on first use)
   float siteScanT_ = 0;
-  void streamSitePeople(int si);       // spawn the site's people near the player, put the far calm ones away
   std::vector<int> hostiles_;          // actors indices that may threaten townsfolk (rebuilt each step)
-  void collectHostiles();
-  bool sleepy(const Actor& a) const;   // NPC LOD: far off screen with nothing to react to
   void updateLocation();
   void meleeHit(Actor& a);
   void damage(Actor& victim, float dmg, Vec2 from, int attacker, Ench ench = Ench::None, float enchPow = 0, bool crit = false);
@@ -984,6 +975,7 @@ class Game {
   friend struct WaysideOps;            // M2 SIM: wayside life, tolls, rumours (rpg/sim/wayside_ops.h, wayside.cpp)
   friend struct QuestOps;              // M2 SIM: the quests' machinery (rpg/sim/quest_ops.h, quests.cpp, quest_offers.cpp)
   friend struct AiOps;                 // the actors' behaviour: beasts, folk, town defence (rpg/sim/ai_ops.h, ai.cpp)
+  friend struct StreamOps;             // M1 SIM: the endless window's upkeep, NPC level of detail (rpg/sim/stream_ops.h)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,

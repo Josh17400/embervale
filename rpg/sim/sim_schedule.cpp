@@ -36,6 +36,7 @@
 #include "rpg/sim/wayside_ops.h"
 #include "rpg/sim/quest_ops.h"
 #include "rpg/sim/ai_ops.h"
+#include "rpg/sim/stream_ops.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -83,21 +84,21 @@ void Game::update(float dt, const Input& in) {
   ServiceOps::step(*this, dt); // M12: the army's day: wages, orders, missions (service_game.cpp, SERVICE lane)
   JobOps::step(*this, dt);     // P1: leads going stale, last week's job pools dropped (jobs.cpp, JOBS lane)
   // 4. the endless window: recentre on the player, keep the streamer's wish list current; then the fog of war
-  if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
+  if (world.endless && !inside) { StreamOps::maybeRecentre(*this); StreamOps::prefetchTick(*this, dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
     // (a box a little wider than the 4x phone view, about 40 x 24 tiles: what the player has seen is on the map)
     explored.markAround(world.ox + (int)std::floor(pl().p.x / TILE), world.oy + (int)std::floor(pl().p.y / TILE), 24);
   }
   // 5. the threats round the townsfolk, then every actor's step (NPC level of detail first)
-  collectHostiles();
+  StreamOps::collectHostiles(*this);
   perf.npcAwake = perf.npcAsleep = 0;
   const float foeK = PowerOps::foeScale(*this);   // (M8b) Chronos: the hero's foes move at a third of the pace
   for (size_t i = 1; i < actors.size(); i++) {
     Actor& a = actors[i];
     // NPC level of detail (VISION_PLAN 4.4): townsfolk far off screen with nothing to react to think a few times a
     // second with the gathered time; everything near, fighting or in a ringing town runs every step
-    if (a.npc && sleepy(a)) {
+    if (a.npc && StreamOps::sleepy(*this, a)) {
       a.asleep = true;
       perf.npcAsleep++;
       a.lodAcc += dt;
@@ -164,7 +165,7 @@ void Game::update(float dt, const Input& in) {
   // 7. missiles, pickups, roaming spawns, the location label
   updateProjectiles(dt);
   updatePickups(dt);
-  if (!inside) timed(PC::S_SPAWN, [&] { updateSpawning(dt); });
+  if (!inside) timed(PC::S_SPAWN, [&] { StreamOps::updateSpawning(*this, dt); });
   updateLocation();
   // cleanup corpses. (P2a ANIM) at rig 2 the human dead lie animCorpseLife (60 s, fading over the last 5), at most
   // animCorpseCap at once: past cap - 3 the oldest start their fade early, past the cap the oldest go at once; beasts

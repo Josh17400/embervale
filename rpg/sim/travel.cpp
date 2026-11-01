@@ -30,6 +30,7 @@
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/quest_ops.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/stream_ops.h"
 
 namespace {
 double nowMs() {
@@ -304,8 +305,8 @@ void TravelOps::step(Game& g, float dt) {
   } else if (g.travel.phase == TravelPhase::Arrive) {
     g.sleepFade = std::max(g.sleepFade, 1.0f);
     // behind the black: the place's people stream in, the next ring starts streaming
-    g.updateSpawning(dt);
-    g.prefetchTick(dt);
+    StreamOps::updateSpawning(g, dt);
+    StreamOps::prefetchTick(g, dt);
     // headless runs end the arrival by themselves; with a view it is the view's call (its own 6 s safety net), and
     // this is only a backstop for a view that stopped drawing the arrival (a slow phone took longer than 0.5 s).
     // (Witness) syncStreams: always kTravelArriveHold of steps (the view paints inline and never ends it), so every
@@ -331,7 +332,7 @@ void TravelOps::arriveNow(Game& g) {
   if (g.travel.move) {
     const int32_t ox0 = g.world.ox, oy0 = g.world.oy;
     g.world.placeWindow(g.travel.nox, g.travel.noy);
-    g.windowMoved(g.world.ox - ox0, g.world.oy - oy0);
+    StreamOps::windowMoved(g, g.world.ox - ox0, g.world.oy - oy0);
     g.prefetchT_ = 0;
     g.prefetchFrom_ = Vec2();
   }

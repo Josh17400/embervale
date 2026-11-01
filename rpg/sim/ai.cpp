@@ -22,6 +22,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/ai_ops.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/stream_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -836,7 +837,7 @@ void AiOps::updateTownDefence(Game& g, float dt) {
     g.sheltered_.push_back(s);
     g.actors.erase(g.actors.begin() + i);
   }
-  g.collectHostiles();   // (indices moved: people went indoors)
+  StreamOps::collectHostiles(g);   // (indices moved: people went indoors)
   const Actor& p = g.pl();
   for (int si : g.activeSites_) {
     const Site& st = g.world.sites[si];
