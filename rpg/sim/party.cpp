@@ -2,9 +2,11 @@
 // personality, the fighting numbers, and the party block. FELLOWS lane (phase A: lead, first cut).
 #include "rpg/sim/party.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <initializer_list>
 #include "rpg/core/common.h"
+#include "rpg/sim/gear.h"
 #include "rpg/sim/life.h"
 
 namespace census {   // (P2b FOLK-SIM, rpg/sim/looks.cpp) the doll's look fields and the census age on a look
@@ -405,7 +407,55 @@ bool readFallen(BinR& r, Fallen& f) {
   if (f.rite >= 5 || (f.species != 0xFF && f.species > 1)) return false;
   return !r.bad;
 }
+// (P3 PARTY, v5) a parted record: the member in its own length-prefixed block (its doll fields stay last in it), then
+// the day they parted and whether in anger
+void writeParted(BinW& w, const Parted& p) {
+  std::vector<uint8_t> mb;
+  BinW mw(mb);
+  writeMember(mw, p.m);
+  w.u32((uint32_t)mb.size());
+  for (uint8_t c : mb) w.u8(c);
+  w.i32(p.day); w.u8(p.angry ? 1 : 0);
+}
+bool readParted(BinR& r, Parted& p) {
+  p = Parted();
+  const uint32_t n = r.u32();
+  if (r.bad || n > r.b.size() - std::min(r.b.size(), r.p)) return false;
+  std::vector<uint8_t> mb(r.b.begin() + (std::ptrdiff_t)r.p, r.b.begin() + (std::ptrdiff_t)(r.p + n));
+  r.p += n;
+  BinR mr(mb);
+  if (!readMember(mr, p.m) || mr.p != mb.size()) return false;
+  p.day = r.i32();
+  const uint8_t a = r.u8();
+  if (a > 1 || p.m.state == State::Dead) return false;
+  p.angry = a != 0;
+  Party::syncParted(p);
+  return !r.bad;
+}
 }  // namespace
+
+Member savedForm(const Member& m) {
+  std::vector<uint8_t> b;
+  BinW w(b);
+  writeMember(w, m);
+  BinR r(b);
+  Member out;
+  if (!readMember(r, out)) return m;   // (never: a record always reads back what it wrote)
+  return out;
+}
+
+void Party::syncParted(Parted& p) {
+  p.name = p.m.name; p.origin = p.m.origin; p.home = p.m.site; p.inn = p.m.hiredAt; p.slot = p.m.mercSlot;
+}
+
+int Party::partedOf(ew::Gid npc, ew::Gid inn, int slot) const {
+  for (int i = (int)parted.size() - 1; i >= 0; i--) {
+    const Member& m = parted[(size_t)i].m;
+    if (npc && m.npc == npc) return i;
+    if (!npc && inn && m.origin == Origin::Mercenary && m.hiredAt == inn && m.mercSlot == slot) return i;
+  }
+  return -1;
+}
 
 void Party::serialize(std::vector<uint8_t>& out) const {
   out.clear();
@@ -424,11 +474,16 @@ void Party::serialize(std::vector<uint8_t>& out) const {
   for (size_t i = 0; i < members.size() && i < (size_t)MAX_RECORDS; i++) rec([&](BinW& bw) { writeMember(bw, members[i]); });
   w.u16((uint16_t)std::min<size_t>(fallen.size(), MAX_FALLEN));
   for (size_t i = 0; i < fallen.size() && i < (size_t)MAX_FALLEN; i++) rec([&](BinW& bw) { writeFallen(bw, fallen[i]); });
+  // (v5) the parted roll, the newest MAX_PARTED
+  const size_t np = std::min<size_t>(parted.size(), MAX_PARTED);
+  w.u8((uint8_t)np);
+  for (size_t i = parted.size() - np; i < parted.size(); i++) rec([&](BinW& bw) { writeParted(bw, parted[i]); });
 }
 
 bool Party::deserialize(const std::vector<uint8_t>& in) {
   BinR r(in);
-  if (r.u8() != VERSION || r.bad) return false;
+  const uint8_t ver = r.u8();
+  if ((ver != VERSION && ver != 4) || r.bad) return false;   // (P3) a version-4 block: the same, with no parted roll
   Party P;
   P.nextId = r.u32(); P.animalDay = r.i32();
   auto rec = [&](auto&& fn) {
@@ -455,6 +510,16 @@ bool Party::deserialize(const std::vector<uint8_t>& in) {
     if (!rec([&](BinR& br) { return readFallen(br, f); })) return false;
     P.fallen.push_back(std::move(f));
   }
+  if (ver >= 5) {
+    const int np = r.u8();
+    if (r.bad || np > MAX_PARTED) return false;
+    for (int i = 0; i < np; i++) {
+      Parted p;
+      if (!rec([&](BinR& br) { return readParted(br, p); })) return false;
+      if (p.m.id == 0 || p.m.id >= P.nextId) return false;
+      P.parted.push_back(std::move(p));
+    }
+  }
   if (r.bad || r.p != in.size()) return false;
   *this = std::move(P);
   return true;
@@ -465,6 +530,37 @@ bool Party::operator==(const Party& o) const {
   serialize(a);
   o.serialize(b);
   return a == b;
+}
+
+// ================================================================ P3 PARTY: the gift rule, the vocations' slots, the kit
+int giftVerdict(const Item& gift, const Item* worn, int level, int* pct) {
+  // the compare arrow's rule (lootp::verdict; gear::verdictAt in LOOT's contract), numbers identical
+  if (pct) *pct = 0;
+  if (!worn) return 1;
+  const float a = gear::powerScore(gift, level), b = gear::powerScore(*worn, level);
+  const float d = (a - b) / std::max(1.0f, b);
+  if (pct) *pct = (int)std::lround(d * 100.0f);
+  const float edge = (float)GIFT_BETTER_PCT / 100.0f;
+  return d > edge ? 1 : d < -edge ? -1 : 0;
+}
+
+bool vocationSkips(Vocation v, int slot) {
+  // the slots a vocation never uses (its blows read the weapon, the bow or the staff: PartyOps::body), as bits
+  static constexpr uint16_t kSkip[(int)Vocation::COUNT] = {
+      (1u << S_BOW) | (1u << S_STAFF),                      // Warrior: sword and shield
+      (1u << S_STAFF) | (1u << S_SHIELD),                   // Archer: the bow, a knife for close in
+      (1u << S_BOW) | (1u << S_SHIELD),                     // Mage: the staff
+      (1u << S_BOW) | (1u << S_STAFF),                      // Healer: the mace
+      (1u << S_BOW) | (1u << S_STAFF) | (1u << S_SHIELD),   // Rogue: the knife
+      0xFFFFu,                                              // Hound: wears nothing
+  };
+  if (slot < 0 || slot >= SLOTS || (int)v >= (int)Vocation::COUNT) return true;
+  return (kSkip[(int)v] >> slot) & 1u;
+}
+
+bool holdsKit(const Member& m) {
+  for (const Item& it : m.inv) if (isKit(it)) return true;
+  return false;
 }
 
 }  // namespace party
