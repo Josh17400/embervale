@@ -1,7 +1,7 @@
 # Embervale architecture
 
 How the code is layered, the patterns it repeats, the rules for new code, and a cookbook for the common additions.
-Written for the tree after wave 2 of `docs/SOLID_PLAN.md`; each later wave's docs step updates it. The folder-by-folder
+Written for the tree after wave 3 of `docs/SOLID_PLAN.md`; each later wave's docs step updates it. The folder-by-folder
 map is `README.md`.
 
 ## 1. Layers
@@ -9,7 +9,7 @@ map is `README.md`.
 An arrow means "may include". Nothing includes upward.
 
 ```
-app (rpg/main.cpp)
+app (rpg/main.cpp, rpg/app)
   -> view (rpg/view, rpg/view/scripts)
        -> art painters (rpg/art), engine/pix, engine/audio
        -> sim + story (rpg/sim, rpg/story)
@@ -39,7 +39,7 @@ it; include the seam, not the wide header beside it.
 
 | Header | Holds | Who may include it |
 |---|---|---|
-| `engine/sound_ids.h` | `Sfx`, `Music`, `Sting` (append only: saved and named by tools) | anyone that names a sound; only code that plays sounds needs `engine/audio.h` |
+| `engine/sound_ids.h` | `SFX_LIST` (the one list of sound effects, which generates `Sfx`), `Music`, `Sting` (append only: saved and named by tools) | anyone that names a sound; only code that plays sounds needs `engine/audio.h` |
 | `engine/canvas.h` | `rgba()`, `Canvas` | painters, culture/build, core, tools; code that bakes or blits textures needs `engine/pix.h` |
 | `rpg/core/common.h` | TILE, SIM_DT, hashes, value noise, IRect, BinW/BinR (`rpg/sim/common.h` forwards here) | anyone |
 | `rpg/core/art_ids.h` | the art vocabulary: `Prop` with its predicates, footprints and stall geometry; `Monster`, `Species`, `Building` + `BuildingFacts`, `Posture`, the Fx ids, `HumanLook`, `MonsterLook` | anyone |
@@ -106,6 +106,27 @@ Game calls a lane from a few fixed places:
 On the view side a lane gets its own files (`rpg/view/<lane>_ui.cpp`, `render_<lane>.cpp`) and, for tests, its own
 `rpg/view/scripts/<subject>.cpp`.
 
+### 2.1 Staged functions (wave 3)
+
+Wave 3 broke every function of several hundred lines into named pieces called in the old order, with the shared locals
+moved into one context object. The same shapes repeat; a new stage is a new piece in the list, not a new block in a
+long function.
+
+| Where | The function | Its pieces |
+|---|---|---|
+| `rpg/main.cpp`, `rpg/app/` | `main()` | `AppSetup::parse`, then `App` (`app.h`): the frame loop in `main.cpp`; the save store, input injection, script runner (`App::runCmd` hands off to `App::runStateCmd`), WITNESS_RECORD recorder, Witness handlers and perf lines each in their own `rpg/app` file. `main.cpp` reaches `dlgReach`/`faceVec` (in `game_internal.h`) for the script runner through two forwarders declared in `script_runner.h` |
+| `rpg/world/chunkgen.cpp` | `gen::chunk()` | one `Impl` method per stage over `gen::ChunkCtx` (`gen.h`), in this order: Base, Towns, Harbours, Stamps, Roads, Levels, RiverBeds, Flats, ReliefBits, Ecotones, Boardwalks, Massifs, Peaks, Cairns, Flora (`chunk_roads.cpp`, `chunk_relief.cpp`, `chunk_flora.cpp`) |
+| `rpg/world/town_*.cpp` | `Gen::markets`, `tradeYards`, `buildCompound`, `cityDress` | file-local planner classes holding `Gen& G`: `MarketPlanner`, `CompoundPlanner`, `CityDresser`; one method per stage (the old lambdas are methods) |
+| `rpg/view/render.cpp`, `render_sorted.cpp` | `View::drawWorld`, `View::update` | named passes over `FrameCtx`; the drawable push, the one `std::sort` and the sorted draw by `DrawKind` (values 0..13) in `render_sorted.cpp`; `updateCamera` keeps the camera snap and hold together |
+| `rpg/view/hud.cpp` | `drawHud` | pieces over `View::HudFrame` (`hudClock`, `hudQuest`, `hudNotices` ...) |
+| `rpg/view/worldmap*.cpp` | `drawWorldMap`, `paintMapTile` | pieces over `wmap::MapFrame` and a tile context; the markers in `worldmap_markers.cpp` |
+| `rpg/sim/game_combat.cpp`, `ai_beasts.cpp`, `quest_offers.cpp`, `magic_launch.cpp` | `damage`, `updateAI`, `updateFolk`, `offerFor`, `MagicOps::launch` | `damage`'s chain stays one function with its stages numbered; `updateAI` per species (`beastStep`); `updateFolk` as `folkMissing`/`folkGuard`/`folkShelter`/`folkStall`; one offer builder per kind; one launch per form group |
+| `rpg/art/doll/doll_compose.cpp`, `doll_paint.cpp`, `doll_passes.cpp` | `composeFrame` | `FramePaint` (`anchors`, `gatherItems`, `sortItems`, `placeAnchors`, `paintBackToFront`), then the post passes in the one list `kPostPasses` |
+| `engine/audio.cpp`, `engine/audio/` | `Audio::trigger` | a static member-pointer table built from `SFX_LIST`: one `Audio::fx<Name>` per sound effect (`sfx.cpp`) |
+
+Private headers made for these splits are included only by their own files: `render_internal.h`,
+`worldmap_internal.h` (`rpg/view`), `doll_compose_internal.h` (`rpg/art/doll`), `engine/audio/audio_internal.h`.
+
 ## 3. Registries
 
 These tables register themselves, so adding a row needs no edit in a central file.
@@ -119,7 +140,8 @@ These tables register themselves, so adding a row needs no edit in a central fil
 | story archetypes | `rpg/story/arch/index.cpp` | append in library order (the order is an id: never reorder) |
 
 Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
-- sounds: the `Sfx` enum (`engine/sound_ids.h`), its name in `Audio::sfxName` and its recipe (`case Sfx::...`) in `engine/audio.cpp`;
+- sounds: one `X(Name, trim)` row in `SFX_LIST` (`engine/sound_ids.h`) generates the `Sfx` id, its name in `Audio::sfxName`,
+  its trim and its slot in the voice table; the voice itself is `Audio::fx<Name>` in `engine/audio/sfx.cpp`;
 - props: the `Prop` enum (`rpg/core/art_ids.h`, with its predicates and footprints), the size (`propW`/`propH`/`propFrames` in `rpg/art/art_props.cpp`,
   through `kPropInfo` or the family's own `*PropW`), the sprite (`propSprite`) and how the renderer treats it
   (`rpg/view/prop_traits.cpp`);
@@ -142,6 +164,13 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 - **Saves.** `SAVE_VER` is 23 and lives only in `rpg/sim/game_save.cpp`, whose header lists every block in write order.
   Enum values (Prop, Monster, Sfx, QType, Building, Mk ...) are append only.
 - The GCC `no-unswitch-loops` guard in `rpg/sim/life.cpp` stays.
+- **/fp:fast and function boundaries.** The game outside the FP groups builds with `/fp:fast` (MSVC), so moving float
+  code into a new function can change its rounding even when the source is unchanged. Wave 3 kept bits identical by
+  keeping `beastStep`'s windup and strike inline (`rpg/sim/ai_beasts.cpp`), keeping `Audio::add`/`rnd` `inline` in
+  `engine/audio/audio_internal.h`, and building the sound voices with `#pragma inline_depth(0)` (`fxLevelUp` with
+  `float_control(precise)`, `fxCheer`'s first draw through `Audio::rndCall`), all MSVC-only. After any edit to such
+  code, rerun its identity gate (the sim digest; for audio `tools/gates/audio_pack.sh`, which plays effects only at
+  pitch 1).
 
 ## 5. Rules for new code
 
@@ -180,8 +209,9 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 ## 6. How do I add X
 
 **A sound.**
-1. Append an id to `enum class Sfx` in `engine/sound_ids.h` (before `COUNT`; never in the middle).
-2. Give it a name in `Audio::sfxName` and a recipe (`case Sfx::<Name>:`) in `engine/audio.cpp`.
+1. Append one `X(<Name>, trim)` row at the end of `SFX_LIST` in `engine/sound_ids.h` (never in the middle). It makes the
+   `Sfx` id, its name (`<Name>` in snake case) and its trim, and declares `Audio::fx<Name>`.
+2. Write its voice `void Audio::fx<Name>(float k, float V, uint32_t arg)` in `engine/audio/sfx.cpp`.
 3. Play it from the sim with an event or from the view with `Audio::play(Sfx::<Name>)` on the View's `Audio`.
 4. Check: `audio_preview` renders it; `tools/gates/audio_pack.sh` shows only the new WAV as new.
 
