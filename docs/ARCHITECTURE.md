@@ -209,12 +209,16 @@ Tables that are hand-kept lists (one row per kind, but no self-registering macro
 - sounds: one `X(Name, trim)` row in `SFX_LIST` (`engine/sound_ids.h`) generates the `Sfx` id, its name in `Audio::sfxName`,
   its trim and its slot in the voice table; the voice itself is `Audio::fx<Name>` in `engine/audio/sfx.cpp`;
 - props: the `Prop` enum (`rpg/core/art_ids.h`, with its predicates and footprints), the size (`propW`/`propH`/`propFrames` in `rpg/art/art_props.cpp`,
-  through `kPropInfo` or the family's own `*PropW`), the sprite (`propSprite`) and how the renderer treats it
+  through the family's `PropFamily` row in `kPropFamilies`, `rpg/art/art_prop_family.h`, or else `kPropInfo`), the sprite (`propSprite`) and how the renderer treats it
   (`rpg/view/prop_traits.cpp`);
 - saved mark tags: the register `kMarkTags` in `rpg/sim/mark_tags.h` (every lane's tags by name, owner and value;
   the lanes keep their named constants in their own files, and `enum class Mk` holds the SIM lane's);
-- quest types: `enum class QType` in `rpg/sim/game_types.h`;
-- wayside places: `rpg/world/vignettes.cpp`.
+- monsters: `kMonsterInfo` in `rpg/art/art_monsters.cpp` (cell size and painter, one row per `Monster`, static_assert);
+- quest types: `enum class QType` in `rpg/sim/game_types.h`, with one `kQuestTraits` row each in `rpg/sim/quest_traits.h`
+  and one `kQuestLines` row each in `rpg/sim/quests.cpp` (both static_assert their row count);
+- wayside places: one `VignetteDef` row per `VignetteKind` (`kVignettes`) and one `WonderDef` row per `WonderKind`
+  (`kWonders`) in `rpg/world/vignettes.cpp`;
+- the CI list: `kCiList` in `tools/tests/main.cpp` (`rpg_test --list-ci`; every line must be a registered gate).
 
 ## 4. Determinism and floating point
 
@@ -286,8 +290,8 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 
 **A prop family.**
 1. Append the `Prop` ids in `rpg/core/art_ids.h` (append only), with an `is<Family>Prop` range test there.
-2. Give the family its size and frames (`<family>PropW/H/Frames`) and its painter, and route them in `propW`, `propH`,
-   `propFrames` and `propSprite` in `rpg/art/art_props.cpp` (or the family's own `art_<family>.cpp`).
+2. Give the family its size and frames (`<family>PropW/H/Frames`) and its painter, and add one `PropFamily` row to
+   `kPropFamilies` in `rpg/art/art_prop_family.h`; `propW`, `propH`, `propFrames`, `paintProp` and `propSprite` read it.
 3. Tell the renderer how to treat it in `rpg/view/prop_traits.cpp` (flat, nature, tree, shadow, light).
 4. Check: its gallery in `tools/preview/`; `art_hash` changes only in the new family's line.
 
