@@ -17,18 +17,7 @@
 #include "rpg/world/urban.h"
 
 namespace {
-constexpr int CH = 32;   // tiles per chunk side
-
-// No bake threads: the web build, or a desktop run with EMB_WEBSIM=1 (the web's bake and arrival path measured on
-// desktop: the incremental pump on the main thread, building sprites painted inline)
-bool singleThread() {
-#ifdef __EMSCRIPTEN__
-  return true;
-#else
-  static const bool on = std::getenv("EMB_WEBSIM") != nullptr;
-  return on;
-#endif
-}
+constexpr int CH = TerrainBaker::kChunkTiles;   // tiles per chunk side
 
 inline uint32_t C(int r, int g, int b, int a = 255) { return rgba(std::clamp(r, 0, 255), std::clamp(g, 0, 255), std::clamp(b, 0, 255), a); }
 inline uint32_t lerpc(uint32_t a, uint32_t b, float t) {
@@ -5517,7 +5506,7 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g, 
 // A chunk is painted from its BakeJob: the snapshot (the chunk and kBakeMargin tiles around it) seen through its
 // global origin, in global pixels. Everything a pixel looks at (organic borders, shores, bridges, rock terraces, wall
 // and building shadows) lies within the margin, so a chunk comes out the same whichever window it was baked in.
-void View::bakeChunk(const BakeJob& j, Canvas& c) {
+void TerrainBaker::bakeChunk(View& v, const BakeJob& j, Canvas& c) {
   // (M3c LAND) EMB_BAKEBENCH=1: every bake runs alone (one at a time, so the bakers never share the CPU) and prints its
   // time with the chunk's commonest biome ("bakebench: <eco key> <ms>"); the phone budget check (tools/scripts/m3c_land_perf.txt)
   static const bool bench = std::getenv("EMB_BAKEBENCH") != nullptr;
@@ -5526,7 +5515,7 @@ void View::bakeChunk(const BakeJob& j, Canvas& c) {
     std::lock_guard<std::mutex> lk(benchMu);
     const auto t0 = std::chrono::steady_clock::now();
     c = Canvas(CH * 16, CH * 16);
-    bakeRows(j, c, 0, c.h);
+    bakeRows(v, j, c, 0, c.h);
     bakeFinish(j, c);
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     int cnt[(int)Eco::COUNT] = {};
@@ -5538,16 +5527,16 @@ void View::bakeChunk(const BakeJob& j, Canvas& c) {
     return;
   }
   c = Canvas(CH * 16, CH * 16);
-  bakeRows(j, c, 0, c.h);
+  bakeRows(v, j, c, 0, c.h);
   bakeFinish(j, c);
 }
 
-void View::bakeRows(const BakeJob& j, Canvas& c, int r0, int r1) {
+void TerrainBaker::bakeRows(View& v, const BakeJob& j, Canvas& c, int r0, int r1) {
   TMap tm;
   tm.m = j.map.get(); tm.ox = j.ox; tm.oy = j.oy; tm.kind = j.map->kind; tm.ecoDerive = j.ecoDerive;
   const int x0 = j.gcx * CH * 16, y0 = j.gcy * CH * 16;
   for (int y = r0; y < r1; y++)
-    for (int x = 0; x < c.w; x++) c.px[(size_t)y * c.w + x] = groundPixel(tm, x0 + x, y0 + y);
+    for (int x = 0; x < c.w; x++) c.px[(size_t)y * c.w + x] = v.groundPixel(tm, x0 + x, y0 + y);
 }
 
 namespace {
@@ -5664,7 +5653,7 @@ static void bakeArchShadows(const Map& m, int tx0, int ty0, Canvas& c) {
   }
 }
 
-void View::bakeFinish(const BakeJob& j, Canvas& c) {
+void TerrainBaker::bakeFinish(const BakeJob& j, Canvas& c) {
   const Map& m = *j.map;
   const int tx0 = j.gcx * CH - j.ox, ty0 = j.gcy * CH - j.oy;   // the chunk's top-left tile in the snapshot
   bakeArchShadows(m, tx0, ty0, c);
@@ -5685,391 +5674,15 @@ void View::bakeFinish(const BakeJob& j, Canvas& c) {
     }
 }
 
-// the cache key of local chunk (cx, cy) of map m: the map id, the GLOBAL chunk and whether the chunk is partial (an
-// endless window's outer ring: its margin runs past the window, so it is baked again once the window moves on)
-// Global chunk coordinates wrap every 2048 chunks (65536 tiles): pixel coordinates stay positive and small enough for
-// the float noise to keep its fine detail however far the player walks (one seam line per 65536 tiles).
-static int wrapChunk(int c) { return c & 2047; }
-
-uint64_t View::chunkKeyFor(const Map& m, uint64_t mapId, int cx, int cy) const {
-  const int gcx = wrapChunk(cx + chunkOX_), gcy = wrapChunk(cy + chunkOY_);
-  bool partial = false;
-  if (chunkEndless_)
-    partial = cx * CH - kBakeMargin < 0 || cy * CH - kBakeMargin < 0 || (cx + 1) * CH + kBakeMargin > m.w || (cy + 1) * CH + kBakeMargin > m.h;
-  uint64_t k = mapId * 0x9E3779B97F4A7C15ull;
-  k ^= ((uint64_t)(uint32_t)gcx * 0xC2B2AE3D27D4EB4Full) ^ ((uint64_t)(uint32_t)gcy * 0x165667B19E3779F9ull);
-  k ^= k >> 29;
-  return (k << 1) | (partial ? 1u : 0u);
-}
-
-void View::rebakeHomeHouses(const Game& g, const Map& m, uint64_t mapId) {
-  if (m.kind != MapKind::Overworld) return;
-  std::vector<HomeHouse> now;
-  for (const Bldg& b : m.bldgs) {
-    if (b.home != 1 && b.home != 3) continue;
-    HomeHouse h;
-    h.id = b.id; h.home = b.home; h.seed = b.seed;
-    h.gx = b.r.x + (chunkEndless_ ? g.world.ox : 0); h.gy = b.r.y + (chunkEndless_ ? g.world.oy : 0);
-    h.w = b.r.w; h.h = b.r.h;
-    now.push_back(h);
-  }
-  auto same = [](const HomeHouse& a, const HomeHouse& b) {
-    return a.id == b.id && a.home == b.home && a.seed == b.seed && a.gx == b.gx && a.gy == b.gy && a.w == b.w && a.h == b.h;
-  };
-  if (mapId != homeHousesMap_) {   // another map (or the first frame): its chunks are baked from what it holds now,
-    homeHousesMap_ = mapId;        // except those baked before a house was stamped: rebake under every house once
-    homeHouses_.clear();
-  }
-  std::vector<HomeHouse> changed;
-  for (const HomeHouse& h : now) {
-    bool seen = false;
-    for (const HomeHouse& o : homeHouses_) seen = seen || same(h, o);
-    if (!seen) changed.push_back(h);
-  }
-  for (const HomeHouse& o : homeHouses_) {
-    bool still = false;
-    for (const HomeHouse& h : now) still = still || same(h, o);
-    if (!still) changed.push_back(o);
-  }
-  homeHouses_ = std::move(now);
-  if (changed.empty()) return;
-  // every chunk the house's footprint or its shadow (two tiles down-right, the sprite's pad) reaches, both its whole
-  // and its partial (window-edge) key
-  std::vector<uint64_t> keys;
-  for (const HomeHouse& h : changed) {
-    const int32_t ox = chunkEndless_ ? chunkOX_ * CH : 0, oy = chunkEndless_ ? chunkOY_ * CH : 0;
-    const int cx0 = (int)std::floor((h.gx - 2 - ox) / (double)CH), cy0 = (int)std::floor((h.gy - 2 - oy) / (double)CH);
-    const int cx1 = (int)std::floor((h.gx + h.w + 3 - ox) / (double)CH), cy1 = (int)std::floor((h.gy + h.h + 3 - oy) / (double)CH);
-    for (int cy = cy0; cy <= cy1; cy++)
-      for (int cx = cx0; cx <= cx1; cx++) {
-        if (cx < 0 || cy < 0 || cx * CH >= m.w || cy * CH >= m.h) continue;
-        const uint64_t k = chunkKeyFor(m, mapId, cx, cy) & ~1ull;
-        keys.push_back(k);
-        keys.push_back(k | 1ull);
-      }
-  }
-  auto hit = [&](uint64_t k) { return std::find(keys.begin(), keys.end(), k) != keys.end(); };
-  // a baked chunk stays on screen until its new bake is ready (chunkTex swaps it in: no frame waits on it); bakes
-  // queued or finished from the old snapshot are dropped (prefetch / chunkTex queue them again)
-  for (Chunk& ch : chunks_) if (hit(ch.key)) ch.stale = true;
-  std::lock_guard<std::mutex> lk(mu_);
-  for (size_t i = 0; i < jobs_.size();) if (hit(jobs_[i].key)) jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i); else i++;
-  for (size_t i = 0; i < done_.size();) if (hit(done_[i].key)) done_.erase(done_.begin() + (std::ptrdiff_t)i); else i++;
-  pending_.erase(std::remove_if(pending_.begin(), pending_.end(), hit), pending_.end());
-  if (incrOn_ && hit(incrJob_.key)) { incrOn_ = false; incrJob_.map.reset(); }
-}
-
-// a snapshot of local chunk (cx, cy) and its margin
-View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const {
-  BakeJob j;
-  j.mapId = mapId;
-  j.key = chunkKeyFor(m, mapId, cx, cy);
-  j.gcx = wrapChunk(cx + chunkOX_); j.gcy = wrapChunk(cy + chunkOY_);
-  const int S = CH + 2 * kBakeMargin;
-  const int lx0 = cx * CH - kBakeMargin, ly0 = cy * CH - kBakeMargin;   // the snapshot's origin in m
-  j.ox = j.gcx * CH - kBakeMargin; j.oy = j.gcy * CH - kBakeMargin;
-  auto sub = std::make_shared<Map>();
-  sub->kind = m.kind;
-  sub->seed = m.seed;
-  sub->w = S; sub->h = S;
-  const size_t n = (size_t)S * S;
-  sub->ground.assign(n, (uint8_t)Ground::Void);
-  if (!m.wall.empty()) sub->wall.assign(n, 0);
-  if (!m.biome.empty()) sub->biome.assign(n, 0);
-  if (!m.height.empty()) sub->height.assign(n, 0);
-  if (!m.blend.empty()) sub->blend.assign(n, 0);
-  if (!m.eco.empty()) sub->eco.assign(n, 0);       // (M3c) the biome proper and the eco it blends toward
-  if (!m.ecoNb.empty()) sub->ecoNb.assign(n, 0);
-  if (!m.urb.empty()) sub->urb.assign(n, 0);       // (M7b) the urban fabric (kerbs, sidewalks, squares, parks)
-  // M2 ecotones: a map whose generator writes no blend bytes gets them derived from its biomes (decided per map, so
-  // every chunk of it agrees)
-  j.ecoDerive = m.kind == MapKind::Overworld && !m.biome.empty() && std::none_of(m.blend.begin(), m.blend.end(), [](uint8_t v) { return v != 0; });
-  for (int y = 0; y < S; y++) {
-    const int sy = ly0 + y;
-    if (sy < 0 || sy >= m.h) continue;
-    const int xa = std::max(0, -lx0), xb = std::min(S, m.w - lx0);
-    if (xa >= xb) continue;
-    const size_t si = (size_t)sy * m.w + (size_t)(lx0 + xa), di = (size_t)y * S + (size_t)xa;
-    const size_t len = (size_t)(xb - xa);
-    std::copy_n(m.ground.begin() + si, len, sub->ground.begin() + di);
-    if (!m.wall.empty()) std::copy_n(m.wall.begin() + si, len, sub->wall.begin() + di);
-    if (!m.biome.empty()) std::copy_n(m.biome.begin() + si, len, sub->biome.begin() + di);
-    if (!m.height.empty()) std::copy_n(m.height.begin() + si, len, sub->height.begin() + di);
-    if (!m.blend.empty()) std::copy_n(m.blend.begin() + si, len, sub->blend.begin() + di);
-    if (!m.eco.empty()) std::copy_n(m.eco.begin() + si, len, sub->eco.begin() + di);
-    if (!m.ecoNb.empty()) std::copy_n(m.ecoNb.begin() + si, len, sub->ecoNb.begin() + di);
-    if (!m.urb.empty()) std::copy_n(m.urb.begin() + si, len, sub->urb.begin() + di);
-  }
-  // the buildings whose footprint (or shadow, up to a tile and a half down-right) reaches the snapshot
-  for (const Bldg& b : m.bldgs) {
-    if (b.r.x + b.r.w + 2 < lx0 || b.r.y + b.r.h + 2 < ly0 || b.r.x > lx0 + S || b.r.y > ly0 + S) continue;
-    Bldg c = b;
-    c.r.x -= lx0; c.r.y -= ly0;
-    sub->bldgs.push_back(c);
-  }
-  j.map = std::move(sub);
-  return j;
-}
-
-void View::workerLoop() {
-  for (;;) {
-    BakeJob job;
-    {
-      std::unique_lock<std::mutex> lk(mu_);
-      cv_.wait(lk, [&] { return quit_ || !jobs_.empty(); });
-      if (quit_) return;
-      job = jobs_.front();
-      jobs_.pop_front();
-    }
-    BakeDone d;
-    d.key = job.key; d.mapId = job.mapId;
-    auto t0 = std::chrono::steady_clock::now();
-    bakeChunk(job, d.c);
-    d.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    std::lock_guard<std::mutex> lk(mu_);
-    done_.push_back(std::move(d));
-  }
-}
-
-void View::settleBakes() {
-  if (singleThread()) return;
-  for (int i = 0; i < 5000; i++) {
-    {
-      std::lock_guard<std::mutex> lk(mu_);
-      bool busy = false;
-      for (uint64_t k : pending_) {   // queued, or being painted (pending, not finished)
-        bool finished = false;
-        for (const BakeDone& d : done_) if (d.key == k) { finished = true; break; }
-        if (!finished) { busy = true; break; }
-      }
-      if (!busy) return;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-}
-
-void View::clearChunks() {
-  for (auto& ch : chunks_) pix_->destroy(ch.tex);
-  chunks_.clear();
-  std::lock_guard<std::mutex> lk(mu_);
-  jobs_.clear();
-  pending_.clear();
-}
-
-void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
-#ifndef __EMSCRIPTEN__
-  if (!worker_.joinable() && !singleThread()) {
-    worker_ = std::thread([this] { workerLoop(); });
-    const unsigned hw = std::thread::hardware_concurrency();
-    for (unsigned i = 1; i < std::min(3u, hw > 2 ? hw - 2 : 1u); i++) workers_.emplace_back([this] { workerLoop(); });
-  }
-#endif
-  int c0x = (int)std::floor((cam.x - 256) / 512), c0y = (int)std::floor((cam.y - 256) / 512);
-  int c1x = (int)std::floor((cam.x + viewW() + 256) / 512), c1y = (int)std::floor((cam.y + viewH() + 256) / 512);   // (P2a: the world view)
-  std::lock_guard<std::mutex> lk(mu_);
-  // keep only jobs for the current map (the global chunk key survives window shifts, so those jobs stay)
-  for (size_t i = 0; i < jobs_.size();) {
-    if (jobs_[i].mapId == mapId || (prepMapId_ && jobs_[i].mapId == prepMapId_)) { i++; continue; }   // (M3c: the door ahead's interior too)
-    // forget it was pending too, or coming back to that map would wait forever and bake inline (a hitch)
-    uint64_t k = jobs_[i].key;
-    pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
-    jobs_.erase(jobs_.begin() + i);
-  }
-  // finished bakes nobody will collect (another map, or a chunk already baked inline) are ~1 MB each: drop them
-  for (size_t i = 0; i < done_.size();) {
-    bool stale = done_[i].mapId != mapId && !(prepMapId_ && done_[i].mapId == prepMapId_);
-    for (auto& ch : chunks_) if (ch.key == done_[i].key && !ch.stale) stale = true;   // (a stale chunk awaits it)
-    if (stale) {
-      uint64_t k = done_[i].key;
-      pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
-      done_.erase(done_.begin() + i);
-    } else i++;
-  }
-  for (int cy = c0y; cy <= c1y; cy++)
-    for (int cx = c0x; cx <= c1x; cx++) {
-      if (cx < 0 || cy < 0 || cx * 32 >= m.w || cy * 32 >= m.h) continue;
-      const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
-      bool have = false;
-      for (auto& ch : chunks_) if (ch.key == k) { have = true; break; }
-      if (have) continue;
-      if (std::find(pending_.begin(), pending_.end(), k) != pending_.end()) continue;
-      pending_.push_back(k);
-      jobs_.push_back(makeJob(m, mapId, cx, cy));
-    }
-  cv_.notify_all();
-}
-
-void View::bakeVisibleNow(const Map& m, uint64_t mapId, int c0x, int c0y, int c1x, int c1y) {
-#ifdef __EMSCRIPTEN__
-  (void)m; (void)mapId; (void)c0x; (void)c0y; (void)c1x; (void)c1y;   // no threads: chunkTex bakes them one by one
-#else
-  if (singleThread()) return;
-  std::vector<BakeJob> need;
-  {
-    std::lock_guard<std::mutex> lk(mu_);
-    for (int cy = c0y; cy <= c1y; cy++)
-      for (int cx = c0x; cx <= c1x; cx++) {
-        if (cx < 0 || cy < 0 || cx * 32 >= m.w || cy * 32 >= m.h) continue;
-        const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
-        bool have = false;
-        for (auto& ch : chunks_) if (ch.key == k) { have = true; break; }
-        for (auto& d : done_) if (d.key == k) { have = true; break; }
-        // a job the worker already started is still pending without a queue entry: let chunkTex wait it out inline
-        if (!have) need.push_back(makeJob(m, mapId, cx, cy));
-      }
-  }
-  if (need.size() < 2) return;
-  std::vector<BakeDone> out(need.size());
-  std::vector<std::thread> th;
-  auto t0 = std::chrono::steady_clock::now();
-  for (size_t i = 0; i < need.size(); i++)
-    th.emplace_back([this, &need, &out, i] { out[i].key = need[i].key; out[i].mapId = need[i].mapId; bakeChunk(need[i], out[i].c); });
-  for (auto& t : th) t.join();
-  const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-  perf_.inlineBakes += (int)need.size();
-  perf_.bakeMs += ms;
-  perf_.worstBakeMs = std::max(perf_.worstBakeMs, ms);
-  if (getenv("EMB_TIMING")) printf("%zu chunks baked in parallel in %.1f ms\n", need.size(), ms);
-  std::lock_guard<std::mutex> lk(mu_);
-  for (auto& d : out) {
-    for (size_t i = 0; i < jobs_.size();) if (jobs_[i].key == d.key) jobs_.erase(jobs_.begin() + i); else i++;
-    pending_.push_back(d.key);   // chunkTex takes it from done_ and clears this
-    d.ms = 0;
-    done_.push_back(std::move(d));
-  }
-#endif
-}
-
-Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
-  const uint64_t key = chunkKeyFor(m, mapId, cx, cy);
-  for (auto& ch : chunks_)
-    if (ch.key == key) {
-      ch.used = t_;
-      if (ch.stale && witness) {   // (Witness) the new bake now, not whenever a baker gets to it
-        {
-          std::lock_guard<std::mutex> lk(mu_);
-          for (size_t i = 0; i < jobs_.size();) if (jobs_[i].key == key) jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i); else i++;
-          for (size_t i = 0; i < done_.size();) if (done_[i].key == key) done_.erase(done_.begin() + (std::ptrdiff_t)i); else i++;
-          pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
-        }
-        Canvas c;
-        bakeChunk(makeJob(m, mapId, cx, cy), c);
-        pix_->destroy(ch.tex);
-        ch.tex = pix_->bake(c);
-        ch.stale = false;
-        return ch.tex;
-      }
-      if (ch.stale) {   // (M7) to be baked again (a player's house came or changed): swap the new bake in when ready
-        std::unique_lock<std::mutex> lk(mu_);
-        for (size_t i = 0; i < done_.size(); i++)
-          if (done_[i].key == key) {
-            BakeDone d = std::move(done_[i]);
-            done_.erase(done_.begin() + (std::ptrdiff_t)i);
-            pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
-            lk.unlock();
-            pix_->destroy(ch.tex);
-            ch.tex = pix_->bake(d.c);
-            ch.stale = false;
-            return ch.tex;
-          }
-        if (std::find(pending_.begin(), pending_.end(), key) == pending_.end()) {
-          pending_.push_back(key);
-          jobs_.push_back(makeJob(m, mapId, cx, cy));
-          lk.unlock();
-          cv_.notify_all();
-        }
-      }
-      return ch.tex;
-    }
-  auto store = [&](Canvas& c) -> Tex {
-    Chunk* slot = nullptr;
-    // enough for the visible chunks of a wide phone screen and the ring prefetched around them
-    const size_t cap = (size_t)std::max(24, 2 * (viewW() / 512 + 3) * (viewH() / 512 + 3));
-    if (chunks_.size() < cap) { chunks_.push_back(Chunk()); slot = &chunks_.back(); }
-    else {
-      slot = &chunks_[0];
-      for (auto& ch : chunks_) if (ch.used < slot->used) slot = &ch;
-      pix_->destroy(slot->tex);
-    }
-    slot->tex = pix_->bake(c);
-    slot->key = key; slot->used = t_; slot->stale = false;
-    return slot->tex;
-  };
-  // finished in the background?
-  {
-    std::unique_lock<std::mutex> lk(mu_);
-    for (size_t i = 0; i < done_.size(); i++)
-      if (done_[i].key == key) {
-        BakeDone d = std::move(done_[i]);
-        done_.erase(done_.begin() + i);
-        pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
-        lk.unlock();
-        if (d.ms > 0) perf_.bakes++;   // (0: one of bakeVisibleNow's, counted there)
-        perf_.bakeMs += d.ms;
-        perf_.worstBakeMs = std::max(perf_.worstBakeMs, d.ms);
-        return store(d.c);
-      }
-  }
-  // needed right now (teleport / first frame): bake synchronously. (M2) Not while an arrival bakes behind the fade:
-  // travelArrive waits for the bakers instead, so no frame stalls
-  if (arriving_) return Tex{};
-  Canvas c;
-  auto t0 = std::chrono::steady_clock::now();
-  bakeChunk(makeJob(m, mapId, cx, cy), c);
-  const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-  perf_.inlineBakes++;
-  perf_.bakeMs += ms;
-  perf_.worstBakeMs = std::max(perf_.worstBakeMs, ms);
-  if (getenv("EMB_TIMING")) printf("chunk %d,%d baked inline in %.1f ms\n", cx + chunkOX_, cy + chunkOY_, ms);
-  {
-    std::lock_guard<std::mutex> lk(mu_);
-    for (size_t i = 0; i < jobs_.size();) if (jobs_[i].key == key) jobs_.erase(jobs_.begin() + i); else i++;
-    pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
-  }
-  return store(c);
-}
-
 void View::shutdown() {
   {
-    std::lock_guard<std::mutex> lk(mu_);
-    quit_ = true;
+    std::lock_guard<std::mutex> lk(bake_.mu_);
+    bake_.quit_ = true;
   }
-  cv_.notify_all();
-  if (worker_.joinable()) worker_.join();
-  for (auto& w : workers_) if (w.joinable()) w.join();
-  workers_.clear();
-}
-
-// Without threads (the web build) the prefetch queue is baked a few rows at a time on the main thread,
-// within a per-frame time budget, so walking into new terrain never stalls a frame.
-void View::pumpBake(double budgetMs) {
-  if (!singleThread()) return;
-  auto t0 = std::chrono::steady_clock::now();
-  for (;;) {
-    if (!incrOn_) {
-      std::lock_guard<std::mutex> lk(mu_);
-      if (jobs_.empty()) return;
-      incrJob_ = jobs_.front();
-      jobs_.pop_front();
-      incrCanvas_ = Canvas(CH * 16, CH * 16);
-      incrRow_ = 0;
-      incrOn_ = true;
-    }
-    // (M2 fixer round 3) four rows a step: a step of 16 rows of a rocky or built chunk ran 3-6 ms past the budget
-    int r1 = std::min(incrCanvas_.h, incrRow_ + 4);
-    bakeRows(incrJob_, incrCanvas_, incrRow_, r1);
-    incrRow_ = r1;
-    if (incrRow_ >= incrCanvas_.h) {
-      bakeFinish(incrJob_, incrCanvas_);
-      BakeDone d;
-      d.key = incrJob_.key; d.mapId = incrJob_.mapId; d.c = std::move(incrCanvas_);
-      std::lock_guard<std::mutex> lk(mu_);
-      done_.push_back(std::move(d));
-      incrOn_ = false;
-      incrJob_.map.reset();
-    }
-    if (std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > budgetMs) return;
-  }
+  bake_.cv_.notify_all();
+  if (bake_.worker_.joinable()) bake_.worker_.join();
+  for (auto& w : bake_.workers_) if (w.joinable()) w.join();
+  bake_.workers_.clear();
 }
 
 // M2 travel behind the fade (view.h, owner carry-over: the ~180 ms fast-travel hitch). The SIM lane moves the window
@@ -6086,20 +5699,20 @@ void View::travelArrive(Game& g) {
     // (Witness) nothing waits on a baker, a paint thread or a budget: the camera sits on the arrival, the draw bakes and
     // paints whatever it shows inline (arriving_ stays off), and the sim ends the arrival after a fixed number of steps
     // (Game::syncStreams), never this view (so travel.viewed is left alone)
-    arriving_ = false;
-    arrival_ = Arrival();
+    bake_.arriving_ = false;
+    bake_.arrival_ = TerrainBaker::Arrival();
     snap(g);
     return;
   }
-  if (!arrival_.on) {
-    arrival_ = Arrival();
-    arrival_.on = true;
-    arrival_.wall0 = wallMs();
+  if (!bake_.arrival_.on) {
+    bake_.arrival_ = TerrainBaker::Arrival();
+    bake_.arrival_.on = true;
+    bake_.arrival_.wall0 = wallMs();
   }
-  arriving_ = true;
-  arrival_.frames++;
+  bake_.arriving_ = true;
+  bake_.arrival_.frames++;
   g.travel.viewed = true;
-  const bool st = singleThread();
+  const bool st = TerrainBaker::singleThread();
   const auto t0 = SClock::now();
   auto spent = [&] { return msSince(t0); };
   snap(g);
@@ -6116,53 +5729,53 @@ void View::travelArrive(Game& g) {
   const int n0x = st ? (int)std::floor((cam.x - 64) / 512) : v0x - 1, n0y = st ? (int)std::floor((cam.y - 64) / 512) : v0y - 1;
   const int n1x = st ? (int)std::floor((cam.x + VW + 64) / 512) : v1x + 1, n1y = st ? (int)std::floor((cam.y + VH + 64) / 512) : v1y + 1;
   auto inMap = [&](int cx, int cy) { return cx >= 0 && cy >= 0 && cx * CH < m.w && cy * CH < m.h; };
-  if (st && arrival_.frames == 1) {
+  if (st && bake_.arrival_.frames == 1) {
     // without threads, bakes still queued for where the player was are dropped, or the pump works through them first
-    std::lock_guard<std::mutex> lk(mu_);
-    auto far = [&](const BakeJob& j) {
-      const int cx = j.gcx - chunkOX_, cy = j.gcy - chunkOY_;
+    std::lock_guard<std::mutex> lk(bake_.mu_);
+    auto far = [&](const TerrainBaker::BakeJob& j) {
+      const int cx = j.gcx - bake_.chunkOX_, cy = j.gcy - bake_.chunkOY_;
       return j.mapId != mapId || cx < v0x - 1 || cy < v0y - 1 || cx > v1x + 1 || cy > v1y + 1;
     };
-    for (size_t i = 0; i < jobs_.size();) {
-      if (!far(jobs_[i])) { i++; continue; }
-      const uint64_t k = jobs_[i].key;
-      pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
-      jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i);
+    for (size_t i = 0; i < bake_.jobs_.size();) {
+      if (!far(bake_.jobs_[i])) { i++; continue; }
+      const uint64_t k = bake_.jobs_[i].key;
+      bake_.pending_.erase(std::remove(bake_.pending_.begin(), bake_.pending_.end(), k), bake_.pending_.end());
+      bake_.jobs_.erase(bake_.jobs_.begin() + (std::ptrdiff_t)i);
     }
-    if (incrOn_ && far(incrJob_)) {
-      pending_.erase(std::remove(pending_.begin(), pending_.end(), incrJob_.key), pending_.end());
-      incrOn_ = false;
-      incrJob_.map.reset();
+    if (bake_.incrOn_ && far(bake_.incrJob_)) {
+      bake_.pending_.erase(std::remove(bake_.pending_.begin(), bake_.pending_.end(), bake_.incrJob_.key), bake_.pending_.end());
+      bake_.incrOn_ = false;
+      bake_.incrJob_.map.reset();
     }
   }
-  prefetch(m, mapId, cam);   // (starts the bakers; queues the half-chunk margin drawWorld keeps)
+  bake_.prefetch(*this, m, mapId, cam);   // (starts the bakers; queues the half-chunk margin drawWorld keeps)
   {
-    std::lock_guard<std::mutex> lk(mu_);
+    std::lock_guard<std::mutex> lk(bake_.mu_);
     for (int cy = v0y - 1; cy <= v1y + 1; cy++)
       for (int cx = v0x - 1; cx <= v1x + 1; cx++) {
         if (!inMap(cx, cy)) continue;
-        const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
+        const uint64_t k = bake_.chunkKeyFor(*this, m, mapId, cx, cy);
         bool have = false;
-        for (auto& ch : chunks_) if (ch.key == k) { have = true; break; }
+        for (auto& ch : bake_.chunks_) if (ch.key == k) { have = true; break; }
         if (have) continue;
         // the visible ones first (one already queued moves to the front)
         const bool vis = cx >= v0x && cx <= v1x && cy >= v0y && cy <= v1y;
-        if (std::find(pending_.begin(), pending_.end(), k) != pending_.end()) {
+        if (std::find(bake_.pending_.begin(), bake_.pending_.end(), k) != bake_.pending_.end()) {
           if (!vis) continue;
-          for (size_t i = 1; i < jobs_.size(); i++)
-            if (jobs_[i].key == k) {
-              BakeJob j = jobs_[i];
-              jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i);
-              jobs_.push_front(std::move(j));
+          for (size_t i = 1; i < bake_.jobs_.size(); i++)
+            if (bake_.jobs_[i].key == k) {
+              TerrainBaker::BakeJob j = bake_.jobs_[i];
+              bake_.jobs_.erase(bake_.jobs_.begin() + (std::ptrdiff_t)i);
+              bake_.jobs_.push_front(std::move(j));
               break;
             }
           continue;
         }
-        pending_.push_back(k);
-        if (vis) jobs_.push_front(makeJob(m, mapId, cx, cy)); else jobs_.push_back(makeJob(m, mapId, cx, cy));
+        bake_.pending_.push_back(k);
+        if (vis) bake_.jobs_.push_front(bake_.makeJob(*this, m, mapId, cx, cy)); else bake_.jobs_.push_back(bake_.makeJob(*this, m, mapId, cx, cy));
       }
   }
-  cv_.notify_all();
+  bake_.cv_.notify_all();
   // upload finished chunks (a texture each), a few per frame, visible ones first. (M2 fixer round 2) Without threads
   // every stage draws on one shared budget of about 12 ms a frame (the stages' own 6 + 6 + 4 + 6 ms added up past a
   // frame, and on a phone's wasm each frame ran 2-3x that): uploads, then sprite paints (one only starts while half the
@@ -6178,16 +5791,16 @@ void View::travelArrive(Game& g) {
         const bool vis = cx >= v0x && cx <= v1x && cy >= v0y && cy <= v1y;
         if (vis != (pass == 0)) continue;
         const bool need = cx >= n0x && cx <= n1x && cy >= n0y && cy <= n1y;
-        const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
+        const uint64_t k = bake_.chunkKeyFor(*this, m, mapId, cx, cy);
         bool have = false;
-        for (auto& ch : chunks_) if (ch.key == k) { have = true; ch.used = t_; break; }
+        for (auto& ch : bake_.chunks_) if (ch.key == k) { have = true; ch.used = t_; break; }
         if (have) continue;
         bool done = false;
         {
-          std::lock_guard<std::mutex> lk(mu_);
-          for (auto& dd : done_) if (dd.key == k) { done = true; break; }
+          std::lock_guard<std::mutex> lk(bake_.mu_);
+          for (auto& dd : bake_.done_) if (dd.key == k) { done = true; break; }
         }
-        if (done && uploads < 3 && (st ? spent() < kArriveBudget * 0.5 : msSince(tu) < 6.0)) { chunkTex(m, mapId, cx, cy); uploads++; continue; }
+        if (done && uploads < 3 && (st ? spent() < kArriveBudget * 0.5 : msSince(tu) < 6.0)) { bake_.chunkTex(*this, m, mapId, cx, cy); uploads++; continue; }
         if (need) ready = false;
       }
   // the building and wall sprites the arrival shows, painted ahead within their own budget
@@ -6245,7 +5858,7 @@ void View::travelArrive(Game& g) {
           if (paintOver()) { ready = false; over = true; break; }
           wallTileTex(wk);
         }
-    } else if (!m.wall.empty() && arrival_.frames < 2) ready = false;   // drawWorld lays the wall keys out this frame
+    } else if (!m.wall.empty() && bake_.arrival_.frames < 2) ready = false;   // drawWorld lays the wall keys out this frame
   }
   // the people the arrival shows: their character sheets painted ahead (a city square wakes thirty at once)
   const auto th = SClock::now();
@@ -6262,19 +5875,19 @@ void View::travelArrive(Game& g) {
     else humanTex(a.look, child);
   }
   // without threads: the incremental bake pump, last, with what is left of about 16 ms (at least 6)
-  if (st) pumpBake(std::max(2.0, kArriveBudget - spent()));
+  if (st) bake_.pumpBake(*this, std::max(2.0, kArriveBudget - spent()));
   (void)th;
-  arrival_.ms += spent();
-  if (getenv("EMB_TIMING")) printf("arrival frame %d: %.2f ms\n", arrival_.frames, spent());
-  arrival_.t += 1.0f / 60.0f;
+  bake_.arrival_.ms += spent();
+  if (getenv("EMB_TIMING")) printf("arrival frame %d: %.2f ms\n", bake_.arrival_.frames, spent());
+  bake_.arrival_.t += 1.0f / 60.0f;
   // a safety net, by the clock (a slow phone takes more frames, not more seconds): never hold the black for more
   // than 6 s (a chunk stuck in a queue bakes inline then)
-  const double held = wallMs() - arrival_.wall0;
-  if ((ready && arrival_.frames >= 2) || held > 6000.0) {
+  const double held = wallMs() - bake_.arrival_.wall0;
+  if ((ready && bake_.arrival_.frames >= 2) || held > 6000.0) {
     if (getenv("EMB_TIMING") || getenv("EMB_PERF"))
-      printf("arrival: %d frames, %.0f ms held, %.1f ms of view work%s\n", arrival_.frames, held, arrival_.ms, ready ? "" : " (timed out)");
-    arriving_ = false;
-    arrival_ = Arrival();
+      printf("arrival: %d frames, %.0f ms held, %.1f ms of view work%s\n", bake_.arrival_.frames, held, bake_.arrival_.ms, ready ? "" : " (timed out)");
+    bake_.arriving_ = false;
+    bake_.arrival_ = TerrainBaker::Arrival();
     g.finishTravel();
   }
 }

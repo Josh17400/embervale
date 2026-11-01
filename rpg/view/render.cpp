@@ -1582,7 +1582,7 @@ void View::perfTick(float dt) {
   if (perf_.t < 1.0f) return;
   std::printf("perf: frame avg %.1f ms worst %.1f ms | bakes %d (+%d inline) %.1f ms, worst %.1f ms | chunks %zu, bldg tex %zu, humans %zu, wall tiles %zu, styled props %zu, gates+banners %zu\n",
               perf_.frameMs / std::max(1, perf_.frames), perf_.worstFrameMs, perf_.bakes, perf_.inlineBakes, perf_.bakeMs, perf_.worstBakeMs,
-              chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size(), styledProps_.size(), kingdomTex_.size());
+              bake_.chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size(), styledProps_.size(), kingdomTex_.size());
   std::fflush(stdout);
   perf_ = Perf();
 }
@@ -1751,7 +1751,7 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
   bldgUsed_[k] = t_;
   auto it = bldgTex_.find(k);
   if (it != bldgTex_.end()) return it->second;
-  if (arriving_ && pix_) {
+  if (bake_.arriving_ && pix_) {
 #ifdef __EMSCRIPTEN__
     const bool st = true;
 #else
@@ -1774,7 +1774,7 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
         frameMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (done) return bldgTex_[k];
       }
-      arrival_.frames = 0;
+      bake_.arrival_.frames = 0;
       if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = pix_->bake(c); }
       return blankTex_;
     }
@@ -2150,7 +2150,7 @@ void View::update(Game& g, float dt) {
   // M2: the arrival's terrain, behind the fade (M2 fixer round 2: not while paused: finishing the journey then set the
   // fade to black with no game update to lift it)
   if (g.travel.phase == TravelPhase::Arrive) { if (g.mode == Mode::Play) travelArrive(g); }
-  else if (arriving_) { arriving_ = false; arrival_ = Arrival(); }   // (the journey ended without us: headless, a death)
+  else if (bake_.arriving_) { bake_.arriving_ = false; bake_.arrival_ = TerrainBaker::Arrival(); }   // (the journey ended without us: headless, a death)
   t_ += dt;
   perfTick(dt);
   modeT_ += dt;
@@ -2682,14 +2682,14 @@ uint64_t View::terrainFrame(Game& g, const Map*& mp) {
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
   mp = &m;
   int key = g.mode == Mode::Title ? 0 : g.mapKey();
-  if (key != lastMapKey_) { lastMapKey_ = key; }
+  if (key != bake_.lastMapKey_) { bake_.lastMapKey_ = key; }
   const uint64_t mapId = mapIdFor(g, key);
   // M1: an endless overworld's terrain chunks are keyed by GLOBAL chunk (the window origin in chunks plus the local
   // chunk), so a window shift keeps every chunk already baked (terrain.cpp)
   const bool endlessOver = key == 0 && g.world.endless && m.kind == MapKind::Overworld;
-  chunkEndless_ = endlessOver;
-  chunkOX_ = endlessOver ? (int)std::floor(g.world.ox / 32.0) : 0;
-  chunkOY_ = endlessOver ? (int)std::floor(g.world.oy / 32.0) : 0;
+  bake_.chunkEndless_ = endlessOver;
+  bake_.chunkOX_ = endlessOver ? (int)std::floor(g.world.ox / 32.0) : 0;
+  bake_.chunkOY_ = endlessOver ? (int)std::floor(g.world.oy / 32.0) : 0;
   return mapId;
 }
 
@@ -2893,12 +2893,12 @@ void View::drawWorld(Game& g) {
     m5Stats_.music = mu; m5Stats_.tavernLevel = tl; m5Stats_.crowd = cr;
     m5Count_ = M5Stats();
   }
-  fadePaintMs_ = arriving_ || g.travelling() ? 10.0 : 0.0;   // (M2: an arrival paints its buildings in travelArrive, within its budget)
+  fadePaintMs_ = bake_.arriving_ || g.travelling() ? 10.0 : 0.0;   // (M2: an arrival paints its buildings in travelArrive, within its budget)
   const Map* mp = nullptr;
   const uint64_t mapId = terrainFrame(g, mp);
   const Map& m = *mp;
-  const bool endlessOver = chunkEndless_;
-  if (g.mode != Mode::Title) rebakeHomeHouses(g, m, mapId);   // (M7) the ground under the player's houses: their shadows
+  const bool endlessOver = bake_.chunkEndless_;
+  if (g.mode != Mode::Title) bake_.rebakeHomeHouses(*this, g, m, mapId);   // (M7) the ground under the player's houses: their shadows
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   trimCaches();
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
@@ -2921,18 +2921,18 @@ void View::drawWorld(Game& g) {
   // terrain chunks
   int c0x = (int)std::floor(cam.x / 512), c0y = (int)std::floor(cam.y / 512);
   int c1x = (int)std::floor((cam.x + Pix::W) / 512), c1y = (int)std::floor((cam.y + Pix::H) / 512);
-  if (!arriving_) bakeVisibleNow(m, mapId, c0x, c0y, c1x, c1y);
+  if (!bake_.arriving_) bake_.bakeVisibleNow(*this, m, mapId, c0x, c0y, c1x, c1y);
   for (int cy = c0y; cy <= c1y; cy++)
     for (int cx = c0x; cx <= c1x; cx++) {
       if (cx < 0 || cy < 0 || cx * 32 >= m.w || cy * 32 >= m.h) continue;
-      Tex t = chunkTex(m, mapId, cx, cy);
+      Tex t = bake_.chunkTex(*this, m, mapId, cx, cy);
       P.blit(t, cx * 512 - cam.x, cy * 512 - cam.y);
     }
-  prefetch(m, mapId, cam);
-  if (!arriving_ && !g.inside && m.kind == MapKind::Overworld) prepareInterior(g);   // (M3c) the door ahead's interior
+  bake_.prefetch(*this, m, mapId, cam);
+  if (!bake_.arriving_ && !g.inside && m.kind == MapKind::Overworld) prepareInterior(g);   // (M3c) the door ahead's interior
   // (an arrival pumps its own budget: travelArrive; M2 fixer round 3: under an open menu, whose map paints its own
   // tiles on the same frames, the world's bake waits its turn with a small share)
-  if (!arriving_) pumpBake(g.mode == Mode::Menu ? 1.5 : 5.0);
+  if (!bake_.arriving_) bake_.pumpBake(*this, g.mode == Mode::Menu ? 1.5 : 5.0);
   layoutWallKeys(g, m, mapId, endlessOver);
   if (g.mode != Mode::Title) drawReliefWater(g, cam);   // (M11) waterfalls over the faces (render_relief.cpp)
   if (g.mode != Mode::Title) drawSeaWater(g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)

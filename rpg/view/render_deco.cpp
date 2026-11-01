@@ -48,43 +48,43 @@ void View::drawDeco(const Map& m, Vec2 cam, int tx0, int ty0, int tx1, int ty1) 
 void View::prepareInterior(Game& g) {
   int bi = -1;
   const Map* pm = g.preparedInterior(bi);
-  if (!pm || bi < 0 || pm->w <= 0 || pm->h <= 0 || pm->kind != MapKind::Interior) { prepMapId_ = 0; prepMap_ = nullptr; return; }
+  if (!pm || bi < 0 || pm->w <= 0 || pm->h <= 0 || pm->kind != MapKind::Interior) { bake_.prepMapId_ = 0; bake_.prepMap_ = nullptr; return; }
   const Map& m = *pm;
   const uint64_t id = mapIdFor(g, 100000 + bi);   // Game::mapKey once inside, on the ground floor
-  if (id != prepMapId_ || prepMap_ != pm) {
-    prepMapId_ = id;
-    prepMap_ = pm;
-    prepCursor_ = 0;
+  if (id != bake_.prepMapId_ || bake_.prepMap_ != pm) {
+    bake_.prepMapId_ = id;
+    bake_.prepMap_ = pm;
+    bake_.prepCursor_ = 0;
     // its terrain chunks, keyed as chunkTex will key them inside (an interior's chunk frame: local, not endless)
-    const int sOX = chunkOX_, sOY = chunkOY_;
-    const bool sEnd = chunkEndless_;
-    chunkOX_ = chunkOY_ = 0;
-    chunkEndless_ = false;
+    const int sOX = bake_.chunkOX_, sOY = bake_.chunkOY_;
+    const bool sEnd = bake_.chunkEndless_;
+    bake_.chunkOX_ = bake_.chunkOY_ = 0;
+    bake_.chunkEndless_ = false;
     {
-      std::lock_guard<std::mutex> lk(mu_);
+      std::lock_guard<std::mutex> lk(bake_.mu_);
       for (int cy = 0; cy * kChunkTiles < m.h; cy++)
         for (int cx = 0; cx * kChunkTiles < m.w; cx++) {
-          const uint64_t k = chunkKeyFor(m, id, cx, cy);
-          bool have = std::find(pending_.begin(), pending_.end(), k) != pending_.end();
-          for (auto& ch : chunks_) if (ch.key == k) have = true;
-          for (auto& d : done_) if (d.key == k) have = true;
+          const uint64_t k = bake_.chunkKeyFor(*this, m, id, cx, cy);
+          bool have = std::find(bake_.pending_.begin(), bake_.pending_.end(), k) != bake_.pending_.end();
+          for (auto& ch : bake_.chunks_) if (ch.key == k) have = true;
+          for (auto& d : bake_.done_) if (d.key == k) have = true;
           if (have) continue;
-          pending_.push_back(k);
-          jobs_.push_back(makeJob(m, id, cx, cy));
+          bake_.pending_.push_back(k);
+          bake_.jobs_.push_back(bake_.makeJob(*this, m, id, cx, cy));
         }
     }
-    chunkOX_ = sOX; chunkOY_ = sOY;
-    chunkEndless_ = sEnd;
-    cv_.notify_all();
+    bake_.chunkOX_ = sOX; bake_.chunkOY_ = sOY;
+    bake_.chunkEndless_ = sEnd;
+    bake_.cv_.notify_all();
   }
   // its pieces, a few tiles a frame within the budget
   const size_t n = (size_t)m.w * m.h;
-  if (prepCursor_ >= n) return;
+  if (bake_.prepCursor_ >= n) return;
   const auto t0 = std::chrono::steady_clock::now();
   static std::vector<DecoLayer> layers;
-  while (prepCursor_ < n) {
-    const int tx = (int)(prepCursor_ % (size_t)m.w), ty = (int)(prepCursor_ / (size_t)m.w);
-    prepCursor_++;
+  while (bake_.prepCursor_ < n) {
+    const int tx = (int)(bake_.prepCursor_ % (size_t)m.w), ty = (int)(bake_.prepCursor_ / (size_t)m.w);
+    bake_.prepCursor_++;
     layers.clear();
     decoLayers(m, tx, ty, layers);
     for (const DecoLayer& L : layers) cachedTex(0x01ull << 56 | L.key, paintPiece);

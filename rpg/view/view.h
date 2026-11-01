@@ -21,6 +21,7 @@
 #include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/loot_paint.h"
+#include "rpg/view/terrain_bake.h"
 
 union SDL_Event;
 
@@ -65,7 +66,7 @@ class View {
   int menuTab() const { return menuTab_; }   // the open menu's page (Mode::Menu; the Witness harness reports it)
   // (Witness) wait (up to 5 s) until the terrain bakers are idle, so the next draw shows every chunk asked for: a
   // harness screenshot never depends on how fast the worker threads were
-  void settleBakes();
+  void settleBakes() { bake_.settleBakes(); }
   // (Witness) a harness drives this view (rpg/main.cpp --witness, or a WITNESS_RECORD session): nothing on screen
   // waits on a frame budget or a worker (chunks, buildings and pose sheets are made inline when drawn), and a journey's
   // arrival is the sim's to end (Game::syncStreams: a fixed number of steps), so a run never depends on thread timing
@@ -261,79 +262,10 @@ class View {
   const Tex& monsterTex(const Actor& a);
   const Tex& bldgTex(const Bldg& b, int index);
 
-  // ---- terrain (terrain.cpp)
-  // M1: terrain chunks (32 x 32 tiles, 512 px) are keyed by GLOBAL chunk coordinates (an endless window's origin
-  // ox >> 5 plus the local chunk), so a window shift keeps every baked chunk. Each bake reads a snapshot of its chunk
-  // plus a margin (kBakeMargin tiles) instead of a copy of the whole map, and paints with GLOBAL pixel coordinates, so
-  // the noise is the same whichever window a chunk was baked in (no seams between old and new chunks).
-  // TMap: a map seen through an origin, looked up in global tiles (classic islands and interiors: origin 0).
-  struct TMap {
-    const Map* m = nullptr;
-    int ox = 0, oy = 0;   // the global tile of m's (0, 0)
-    MapKind kind = MapKind::Overworld;
-    Ground at(int x, int y) const { return m->at(x - ox, y - oy); }
-    Biome biomeAt(int x, int y) const { return m->biomeAt(x - ox, y - oy); }
-    uint8_t heightBits(int x, int y) const { return m->heightBits(x - ox, y - oy); }
-    int heightAt(int x, int y) const { return m->heightAt(x - ox, y - oy); }
-    bool relief() const { return !m->height.empty(); }
-    uint8_t blendAt(int x, int y) const { return m->blendAt(x - ox, y - oy); }   // M2 ecotones (Map::blend)
-    uint8_t urbAt(int x, int y) const { return m->urbAt(x - ox, y - oy); }       // M7b the urban fabric (rpg/world/urban.h)
-    bool ecoDerive = false;   // M2: the map carries no blend bytes: the view derives ecotones from the biomes
-    bool wallAt(int x, int y) const {   // a city wall piece stands on the tile
-      const int lx = x - ox, ly = y - oy;
-      return !m->wall.empty() && lx >= 0 && ly >= 0 && lx < m->w && ly < m->h && m->wall[(size_t)ly * m->w + lx] != 0;
-    }
-  };
-  static constexpr int kBakeMargin = 8;
-  struct Chunk { Tex tex; uint64_t key = 0; float used = 0; bool stale = false; };   // stale: (M7) to be baked again
-  std::vector<Chunk> chunks_;
-  int lastMapKey_ = -999;
-  // background baking: the worker paints chunk Canvases from per-chunk snapshots
-  struct BakeJob {
-    std::shared_ptr<const Map> map;   // the chunk and its margin
-    int ox = 0, oy = 0;               // the snapshot's origin in global tiles
-    int gcx = 0, gcy = 0;             // the chunk in global chunk coordinates
-    uint64_t key = 0, mapId = 0;
-    bool ecoDerive = false;           // M2: no blend bytes in this map (TMap::ecoDerive)
-  };
-  struct BakeDone { uint64_t key = 0, mapId = 0; Canvas c; double ms = 0; };
-  std::thread worker_;
-  std::mutex mu_;
-  std::condition_variable cv_;
-  std::deque<BakeJob> jobs_;
-  std::vector<BakeDone> done_;
-  std::vector<uint64_t> pending_;
-  bool quit_ = false;
-  // the chunk frame drawWorld set for this map: global chunk = local chunk + (chunkOX_, chunkOY_); partial chunks
-  // (an endless window's outer ring, whose margin runs off the window) get their own key and are baked again once
-  // the window has moved over them
-  int chunkOX_ = 0, chunkOY_ = 0;
-  bool chunkEndless_ = false;
-  void workerLoop();
-  void clearChunks();
-  uint64_t chunkKeyFor(const Map& m, uint64_t mapId, int cx, int cy) const;
-  // (M7 fixer r2) the player's houses appear in World::over.bldgs at runtime (home::stampWindow), after the ground
-  // around them may already be baked: the chunks under a house that appeared, changed or went are baked again, so it
-  // throws the same cast shadow as every generated building (homeHouses_: id, home, seed, global rect last seen)
-  struct HomeHouse { uint64_t id = 0; uint8_t home = 0; uint32_t seed = 0; int32_t gx = 0, gy = 0; int w = 0, h = 0; };
-  std::vector<HomeHouse> homeHouses_;
-  uint64_t homeHousesMap_ = 0;
-  void rebakeHomeHouses(const Game& g, const Map& m, uint64_t mapId);
-  BakeJob makeJob(const Map& m, uint64_t mapId, int cx, int cy) const;
-  void prefetch(const Map& m, uint64_t mapId, Vec2 cam);
-  Tex chunkTex(const Map& m, uint64_t mapId, int cx, int cy);
-  // the visible chunks not baked yet (a teleport, a new game): painted in parallel right now (desktop), so a jump
-  // costs one chunk's bake time instead of one per chunk; chunkTex then finds them ready
-  void bakeVisibleNow(const Map& m, uint64_t mapId, int c0x, int c0y, int c1x, int c1y);
-  std::vector<std::thread> workers_;   // more background bakers (desktop): worker_ plus these
-  void bakeChunk(const BakeJob& j, Canvas& c);
-  void bakeRows(const BakeJob& j, Canvas& c, int r0, int r1);
-  void bakeFinish(const BakeJob& j, Canvas& c);
-  void pumpBake(double budgetMs);
-  BakeJob incrJob_{};
-  Canvas incrCanvas_;
-  int incrRow_ = 0;
-  bool incrOn_ = false;
+  // ---- terrain (terrain.cpp): the chunk cache and its bakers live in the TerrainBaker part (terrain_bake.h)
+  friend struct TerrainBaker;
+  TerrainBaker bake_;
+  using TMap = TerrainBaker::TMap;
   uint32_t groundPixel(const TMap& m, int px, int py);   // px, py: global pixels
   int rockLevel(const TMap& m, int tx, int ty);
   uint32_t reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g, bool flat = false);   // cliff faces, lips, ramps, grade (flat: the grade alone, smoothed: a city's paving over a walkable step)
@@ -665,12 +597,6 @@ class View {
   // keeps those jobs) and its deco pieces and interior prop pieces are painted into cachedTex a little each frame
   // (render_deco.cpp), so the entry frame finds them ready.
   void prepareInterior(Game& g);
-  uint64_t prepMapId_ = 0;   // the interior map id being prepared (0: none)
-  const Map* prepMap_ = nullptr;
-  size_t prepCursor_ = 0;    // the next tile whose pieces are painted
-  bool arriving_ = false;
-  struct Arrival { bool on = false; float t = 0; int frames = 0; double ms = 0, wall0 = 0; };
-  Arrival arrival_;
   void panel(float x, float y, float w, float h, float alpha = 0.92f);
   void button(float x, float y, float w, float h, const std::string& label, bool hot);
   void wrapText(float x, float y, float w, const std::string& s, Color c, int maxChars = -1, int lineH = 9);

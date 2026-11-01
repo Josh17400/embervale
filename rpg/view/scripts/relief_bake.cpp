@@ -32,9 +32,9 @@
 
 struct TerrainScriptOps {
   static void rebake(View& v) {
-    v.clearChunks();
-    std::lock_guard<std::mutex> lk(v.mu_);
-    v.done_.clear();
+    v.bake_.clearChunks(v);
+    std::lock_guard<std::mutex> lk(v.bake_.mu_);
+    v.bake_.done_.clear();
   }
 };
 
