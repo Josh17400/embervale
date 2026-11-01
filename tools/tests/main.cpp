@@ -5,6 +5,8 @@
 //   rpg_test --metrics [--seeds 1..5] [--metric-secs 2400]   game-feel and balance metrics (PLAN.md targets table)
 //   rpg_test --pack-probe [--seeds 1..5]   three wolves vs a bot that never rolls / rolls after watching 0.25 s / 0.35 s
 //   rpg_test --golden [--write]                               rpg/world noise + dmath golden values (M1 prep)
+//   rpg_test --list-ci                                        the CI list (SOLID 5.4; equals tools/gates/ci_cmds.sh)
+//   rpg_test --help                                           every registered command with its kind (gate, report, tool)
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -39,6 +41,122 @@ std::vector<SeedCheck>& seedChecks() {
   static std::vector<SeedCheck> v;
   return v;
 }
+// ---- (SOLID 5.4) the test registry's tables
+namespace {
+// the commands that are not gates (TestKind in tests.h); every other registered command is a Gate
+struct KindRow { const char* flag; TestKind kind; };
+constexpr KindRow kKinds[] = {
+    // reports: numbers for a reader, never gated
+    {"--chunkbench", TestKind::Report}, {"--cityperf", TestKind::Report}, {"--wayside-census", TestKind::Report},
+    {"--tale-reach", TestKind::Report}, {"--ladder-pace", TestKind::Report}, {"--forge-picks", TestKind::Report},
+    {"--plan", TestKind::Report}, {"--envelope", TestKind::Report}, {"--saga-read", TestKind::Report},
+    {"--doll-recipe", TestKind::Report}, {"--forge-ramps", TestKind::Report},
+    // tools: debugging dumps, places for screenshot scripts, file writers
+    {"--city-png", TestKind::Tool}, {"--ground-at", TestKind::Tool}, {"--sites-at", TestKind::Tool},
+    {"--startvillage", TestKind::Tool}, {"--world-places", TestKind::Tool}, {"--home-places", TestKind::Tool},
+    {"--expand-looks", TestKind::Tool}, {"--forge-solve", TestKind::Tool}, {"--forge-frozen", TestKind::Tool},
+};
+// The CI list: every test command .github/workflows/web.yml's test job runs, in its order, as tools/gates/ci_cmds.sh
+// extracts it ("./build-native/" dropped; the `for s in 7 99 12345` loop left out). `rpg_test --list-ci` prints it and
+// CI diffs it against ci_cmds.sh, so a line added to one and not the other fails the build.
+constexpr const char* kCiList[] = {
+    "rpg_test --seeds 1..20",
+    "save_test",
+    "rpg_test --endless --seeds 1..10 --no-budget",
+    "rpg_test --window --seeds 1..5",
+    "rpg_test --towns --seeds 1..10",
+    "rpg_test --realm --seeds 1..10",
+    "rpg_test --history 2000 --seeds 1..20",
+    "rpg_test --wards --seeds 1..10",
+    "rpg_test --story --seeds 1..5",
+    "rpg_test --sagalib",
+    "rpg_test --sagas 2000 --seeds 1..5",
+    "rpg_test --campaigns --seeds 1..5",
+    "rpg_test --voice",
+    "rpg_test --voice --lane",
+    "rpg_test --life --seeds 1..5",
+    "rpg_test --folk --seeds 1..5",
+    "rpg_test --gear --seeds 1..3",
+    "rpg_test --power-curve",
+    "rpg_test --loot-audit",
+    "rpg_test --foes --seeds 1..3",
+    "rpg_test --arms --seeds 1..3",
+    "rpg_test --arms --seeds 1..3 --rig=1",
+    "rpg_test --loot",
+    "rpg_test --loot-sources --seeds 1..3",
+    "rpg_test --powers",
+    "rpg_test --skills",
+    "rpg_test --spells",
+    "rpg_test --sea --seeds 1..3",
+    "rpg_test --sail --seeds 1..3",
+    "rpg_test --relief --seeds 1..3 --no-budget",
+    "rpg_test --climb --seeds 1..3",
+    "rpg_test --rise --seeds 1..3",
+    "rpg_test --save-soak 100",
+    "rpg_test --service --seeds 1..3",
+    "rpg_test --lord --seeds 1..3",
+    "rpg_test --quest-mix --seeds 1..20 --gates --p1b --gates-p1b --ports",
+    "rpg_test --town-motion --seeds 1..8 --city --gates",
+    "rpg_test --jobs --seeds 1..3",
+    "rpg_test --life-p1 --seeds 1..3 --hooks",
+    "rpg_test --story-p1 --seeds 1..3",
+    "rpg_test --story-events --seeds 1..3",
+    "rpg_test --content-p1b --seeds 1..3 --gates",
+    "rpg_test --radiant --seeds 1..3",
+    "rpg_test --p1b-engine --seeds 1..5",
+    "rpg_test --rig",
+    "rpg_test --anim --gates",
+    "rpg_test --doll --gates",
+    "rpg_test --doll-coverage --scope all --seeds 1..20 --gates",
+    "rpg_test --doll-variety --seeds 1..3 --gates",
+    "rpg_test --doll-ladder --selftest",
+    "rpg_test --home --seeds 1..3",
+    "rpg_test --companion --seeds 1..3",
+    "rpg_test --banter --seeds 1..3",
+    "rpg_test --quests",
+    "rpg_test --mainquest",
+    "rpg_test --towns --golden",
+    "rpg_test --villages --strict",
+    "rpg_test --structure --strict",
+    "rpg_test --city-unique --strict",
+    "rpg_test --plan-controls",
+    "rpg_test --dialogue --seeds 1..3",
+    "rpg_test --cultures 400 --seeds 1..5",
+    "rpg_test --builder --seeds 1..12 --strict --society-strict",
+    "rpg_test --biomes --seeds 1..5 --strict",
+    "rpg_test --forest --seeds 1..20",
+    "rpg_test --specialties --seeds 1..20",
+    "rpg_test --golden",
+    "rpg_test --endless --golden",
+};
+// main()'s own modes (not registered commands): gates too
+constexpr const char* kBuiltinGates[] = {"--seeds", "--golden"};
+
+// `rpg_test --list-ci`: the CI list, one command per line; exit 1 (and FAIL on stderr) when a line's rpg_test command is
+// not a registered Gate or one of main()'s gate modes
+int listCi() {
+  int bad = 0;
+  for (const char* line : kCiList) {
+    printf("%s\n", line);
+    if (strncmp(line, "rpg_test ", 9) != 0) continue;
+    const char* a = line + 9;
+    const std::string flag(a, strcspn(a, " "));
+    bool ok = false;
+    for (const char* b : kBuiltinGates) ok |= flag == b;
+    for (const TestCmd& c : testCmds()) ok |= flag == c.flag && c.kind == TestKind::Gate;
+    if (!ok) { fprintf(stderr, "FAIL: --list-ci: '%s' is not a registered gate\n", line); bad++; }
+  }
+  return bad ? 1 : 0;
+}
+}  // namespace
+
+TestKind testKindOf(const char* flag) {
+  for (const KindRow& r : kKinds)
+    if (!strcmp(r.flag, flag)) return r.kind;
+  return TestKind::Gate;
+}
+const char* testKindName(TestKind k) { return k == TestKind::Report ? "report" : k == TestKind::Tool ? "tool" : "gate"; }
+
 bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b);
 
 namespace {
@@ -90,9 +208,11 @@ int main(int argc, char** argv) {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--help")) {
       printf("rpg_test [seed] [--map out.png] [--secs N] [--mortal] [--noaudit] | --seeds A..B | --metrics | --golden [--write]\n");
-      for (const TestCmd& c : testCmds()) printf("  %-14s %s\n", c.flag, c.help);
+      for (const TestCmd& c : testCmds()) printf("  %-14s %-6s %s\n", c.flag, testKindName(c.kind), c.help);
+      printf("  %-14s %-6s %s\n", "--list-ci", "tool", "the CI list (web.yml's test commands, one per line; nonzero when a line is not a registered gate)");
       return 0;
     }
+    if (!strcmp(argv[i], "--list-ci")) return listCi();
     for (const TestCmd& c : testCmds())
       if (!strcmp(argv[i], c.flag)) return c.run(argc, argv);
   }

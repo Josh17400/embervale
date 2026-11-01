@@ -1,0 +1,11 @@
+{
+  "name": "witness_web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright for the Witness web variant and the first-launch probe (tools/witness_web/README.md); a test tool, never deployed.",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}

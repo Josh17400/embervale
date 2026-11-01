@@ -1,10 +1,13 @@
-# Builds the web version (Emscripten -> WebAssembly) and publishes it on GitHub Pages,
-# the same way The Fort is served: open the Pages URL in Safari, Share > Add to Home Screen.
+# Tests every branch push and pull request on clang (the test job); on main only, builds the web version
+# (Emscripten -> WebAssembly) and publishes it on GitHub Pages (the web and deploy jobs, after the tests pass), the same
+# way The Fort is served: open the Pages URL in Safari, Share > Add to Home Screen.
+# (SOLID 5.4, owner D4) the split: the test job's steps are the old build job's test steps unchanged, plus the registry,
+# layer and art identity lines at its end; the web and deploy jobs keep the old web and deploy steps verbatim.
 name: Web build
 
 on:
   push:
-    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -12,15 +15,22 @@ permissions:
   pages: write
   id-token: write
 
+# one run per branch (or pull request) at a time, the newer push cancelling the older; main's runs, the only ones that
+# deploy, share their own group as before
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+      # the full history: check_layers maps files renamed since 119de74 through git (the allowlist may only shrink)
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Headless game tests
         run: |
@@ -271,6 +281,46 @@ jobs:
       - name: Endless generator golden test
         run: ./build-native/rpg_test --endless --golden
 
+      # (SOLID 5.4) the test registry: `rpg_test --list-ci` (tools/tests/main.cpp's kCiList, every line a registered gate)
+      # equals this workflow's test list as tools/gates/ci_cmds.sh extracts it. A test line added here and not there (or
+      # the other way) fails. Blocking.
+      - name: Test registry equals the CI list
+        run: |
+          B=build-native
+          "$B"/rpg_test --list-ci > ci_registry.txt
+          bash tools/gates/ci_cmds.sh > ci_workflow.txt
+          diff ci_registry.txt ci_workflow.txt
+          echo "CI list: $(wc -l < ci_workflow.txt) commands, registry equal"
+
+      # (SOLID 5.4) the one-way layer check (SOLID_PLAN 0.3): no new forbidden include, the allowlist only shrinks. Blocking.
+      - name: Layer check
+        run: |
+          command -v gawk >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q gawk; }
+          bash tools/gates/check_layers.sh --quiet
+
+      # (SOLID 5.4) art identity on clang, reported: art_hash at rig 2 and rig 1 against the MSVC records (the step gates'
+      # S5 baselines). Not blocking until clang parity is proven: then drop continue-on-error.
+      - name: Art identity report (clang, not blocking)
+        continue-on-error: true
+        run: |
+          B=build-native
+          cmake --build "$B" --target art_hash -j4
+          rc=0
+          for r in 2 1; do
+            "$B"/art_hash --rig=$r > art_rig$r.txt || rc=1
+            echo "rig $r: $(grep -m1 '^TOTAL' art_rig$r.txt) (MSVC: $(tr -d '\r' < tools/gates/baseline/119de74/gates/S5.rig$r.txt | grep -m1 '^TOTAL'))"
+            tr -d '\r' < tools/gates/baseline/119de74/gates/S5.rig$r.txt | diff - art_rig$r.txt > art_rig$r.diff || { rc=1; head -20 art_rig$r.diff; }
+          done
+          echo "art_hash parity with MSVC: $([ $rc = 0 ] && echo equal || echo DIFFERS)"
+          exit $rc
+
+  web:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       # Pinned, not 'latest': Emscripten 6.0.13 silently dead-code eliminated the IDBFS the page mounts (the live site
       # hung on its loading screen with "IDBFS is not defined"). Move the pin on purpose and run the page check below.
       - uses: mymindstorm/setup-emsdk@v14
@@ -304,7 +354,8 @@ jobs:
           path: site
 
   deploy:
-    needs: build
+    needs: web
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
