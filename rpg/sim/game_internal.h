@@ -163,6 +163,8 @@ struct HomeOps {
   // the settlement an actor belongs to (its site, or its building's site; -1 none)
   static int siteOfActor(const Game& g, const Actor& a);
   // ---- home_talk.cpp
+  //   talkTo: reeves, stewards, innkeepers (deeds, recipes, cooking), builders, stablemasters, seed sellers, farmhands:
+  //   options in [DLG_HOME, DLG_HOME_END); called after LifeHooks::talk
   static void talk(Game& g, Actor& a);
   static bool choose(Game& g, const DlgOpt& o);
   // ---- home_actors.cpp
@@ -179,12 +181,32 @@ struct HomeOps {
   static void talkTo(Game& g, Actor& a) { g.talkTo(a); }   // (tests, scripts) open a conversation
   static void interact(Game& g) { g.interact(); }           // (tests, scripts) the use button
   // ---- home_interior.cpp
+  //   a building interior or a site map was just made (enterBuilding / enterSite, after questMapLoaded): the player's
+  //   own house gets its furniture, stores and wall decor stamped
   static void mapLoaded(Game& g);
+  //   the player used a prop (a cooking hearth / pot / campfire: cook; a bed of their own: sleep): true = handled.
+  //   Called first among the prop handlers (before LifeHooks::useProp).
   static bool useProp(Game& g, art::Prop p, int tx, int ty);
+  //   interactProp: a prop the player may use for the home's sake (a hearth, a cooking pot, a campfire to cook at;
+  //   the player's own stores and furniture): true makes it usable (useProp then handles it)
   static bool propUsable(const Game& g, art::Prop p, int tx, int ty);
+  //   bedIsYours: a bed in the player's own house (true: sleep, respawn here)
   static bool bed(const Game& g, int tx, int ty);
   static void stampObj(Map& m, const home::PlacedObj& o, bool clear);   // one piece of furniture into / out of a map
   static int insideObjAt(const Game& g, int plot, int tx, int ty);     // Plot::inside index at a tile of this floor
+  // ---- the lane's hooks into the core loop (were Game::home*, SOLID 4.1)
+  static float speedMul(const Game& g);
+  //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
+  //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
+  //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
+  static void step(Game& g, float dt);
+  //   interact(): a tile of an owned plot in front of the player (till, plant, water, harvest with the tool in hand;
+  //   collect from a coop; open a store; mount a horse; the FOR SALE sign): true = handled. Called before the props.
+  static bool plotInteract(Game& g);
+  //   useItem: food eaten (a cooked meal's Well Fed, after lifeAte)
+  static void ate(Game& g, const Item& food);
+  //   shopStock: seeds (by the merchant culture's staples), tools, hay, saddles... appended to a merchant's stock
+  static void shopStock(Game& g, const Actor& merchant, std::vector<Item>& stock);
 };
 // Actor::lifeBits bit of the actors the HOMESTEAD lane spawns (farm animals, the waiting horse, builders, the
 // farmhand): lifeFolk hands them to HomeOps::folk. Actor::slot tells which (HOME_SLOT_*).

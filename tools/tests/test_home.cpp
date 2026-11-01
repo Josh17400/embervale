@@ -308,7 +308,7 @@ void play(uint64_t seed) {
   auto ride = [&] { std::string w; if (!home::mount(g, pi, hi, w)) fail("mount: " + w); };
   ride();
   if (!g.homeRiding()) { fail("not riding after mount"); return; }
-  if (g.homeSpeedMul() < 1.6f) fail("the horse is not faster than walking by 60 %");
+  if (HomeOps::speedMul(g) < 1.6f) fail("the horse is not faster than walking by 60 %");
   // an attack gets the rider off
   Input atk;
   atk.attack = true;
@@ -767,7 +767,7 @@ void playB(uint64_t seed) {
     settle(g, 3);
     if (home::horseActor(g) <= 0) fail("the bought horse does not wait beside the player");
     if (!home::mountWaiting(g, why)) fail("mount the waiting horse: " + why);
-    if (!g.homeRiding() || g.homeSpeedMul() < 1.6f) fail("riding the bought horse is not 1.6x walking");
+    if (!g.homeRiding() || HomeOps::speedMul(g) < 1.6f) fail("riding the bought horse is not 1.6x walking");
     // every dismount: the player, an attack, a bow, a spell, a roll, a blow, entering, water
     const int32_t sx = g.world.ox + (int32_t)(g.pl().p.x / TILE), sy = g.world.oy + (int32_t)(g.pl().p.y / TILE);
     g.homeDismount(home::Dismount::Player);

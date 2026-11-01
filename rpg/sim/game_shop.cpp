@@ -1,6 +1,7 @@
 // EMBERVALE RPG: shops: what a seller stocks, opening a shop, buying, selling, prices (SOLID 1.1).
 // Public: Game::priceFactor, Game::shopStock, Game::openShop, Game::buy, Game::sell
 #include "rpg/sim/game_rpg_detail.h"
+#include "rpg/sim/game_internal.h"
 
 float Game::priceFactor(Role seller) const {
   if (background == Background::Blacksmith && seller == Role::Smith) return 0.8f * SkillOps::buyMul(*this, seller);   // a smith's child pays a fair price
@@ -172,7 +173,7 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       if (mining) { localOres(2, 5, 10); localIngots(2); }
       break;
   }
-  homeShopStock(a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
+  HomeOps::shopStock(*this, a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
   MagicOps::shopStock(*this, a, s);   // M9: tomes on a mage's or a scholar's shelf (magic_game.cpp)
   SkillOps::shopStock(*this, a, s);   // M9: skill books on a scholar's or a trainer's shelf (skills_game.cpp)
   SeaOps::shopStock(*this, a, s);     // M10: a fishmonger's catch, a chandler's bait and charts (sea_game.cpp)

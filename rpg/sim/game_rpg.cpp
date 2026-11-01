@@ -72,7 +72,7 @@ int Game::interactTarget() const {
 bool Game::nearDoorOrExit() const { return false; }
 
 bool Game::bedIsYours(int tx, int ty) const {
-  if (homeBed(tx, ty)) return true;   // M7: a bed in the player's own house
+  if (HomeOps::bed(*this, tx, ty)) return true;   // M7: a bed in the player's own house
   if (!inside || subBldg < 0) return true;
   const Bldg& B = world.over.bldgs[subBldg];
   if (B.type != art::Building::Inn || B.genVer < WORLDGEN_V7) return true;
@@ -97,7 +97,7 @@ int Game::interactProp(int& otx, int& oty) const {
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
                       (prop == Prop::Bedroll && !inside) ||   // M5: a wayfarer's bedroll (Life: rested, the night passes)
                       (art::isLoreProp(prop) && (inside ? subSite >= 0 : (prop == Prop::NoticeBoard || prop == Prop::ToppledStatue))) ||   // M4 (story_game.cpp)
-                      homePropUsable(prop, tx, ty) ||   // M7: cooking places, the player's own furniture (home_game.cpp)
+                      HomeOps::propUsable(*this, prop, tx, ty) ||   // M7: cooking places, the player's own furniture (home_game.cpp)
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
@@ -111,7 +111,7 @@ void Game::interact() {
   if (PartyOps::interact(*this)) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
-  if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
+  if (HomeOps::plotInteract(*this)) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
   if (SeaOps::interact(*this)) return;   // M10: board / disembark, cast a line, a pier's use (sea_game.cpp)
   // chest / shrine / bed / bush in front of the player
   const Actor& p = pl();
@@ -119,7 +119,7 @@ void Game::interact() {
   int pr = interactProp(tx, ty);
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
-  if (homeUseProp(prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
+  if (HomeOps::useProp(*this, prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
   if (LifeHooks::useProp(*this, prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs

@@ -747,7 +747,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f * AnimOps::heroPace(*this));   // ((M9) the family's pace)
   // M7: on horseback any fighting move (a swing, a shot, a spell or a quick-cast slot, a roll) gets the rider off first
   if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.castSlot >= 0 || in.roll)) homeDismount(home::Dismount::Attack);
-  float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
+  float slow = (p.slowT > 0 ? 0.6f : 1.0f) * HomeOps::speedMul(*this);   // M7: the horse's pace (1 on foot)
   slow *= story::burdenMul(*this);   // (P1b) a story's heavy load (a body carried home, a cask): x0.7
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
@@ -1608,7 +1608,7 @@ void Game::enterSite(int si) {
   exitArmed_ = false;
   loadMapActors();
   questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
-  homeMapLoaded();    // M7 (home_game.cpp)
+  HomeOps::mapLoaded(*this);    // M7 (home_game.cpp)
   storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
@@ -1656,7 +1656,7 @@ void Game::enterBuilding(int bi, int col) {
   stairsArrive_ = -1;
   loadMapActors();
   questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
-  homeMapLoaded();    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
+  HomeOps::mapLoaded(*this);    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
   storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
@@ -1691,7 +1691,7 @@ void Game::changeFloor(int f) {
   stairsNorth_ = false;
   stairsFrom_ = pl().p;
   loadMapActors();
-  homeMapLoaded();    // M7: the player's own house's upper floor (home_game.cpp)
+  HomeOps::mapLoaded(*this);    // M7: the player's own house's upper floor (home_game.cpp)
   updateLocation();
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, up ? 1.15f : 0.9f);

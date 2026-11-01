@@ -968,7 +968,6 @@ class Game {
   //   player is hit, enterBuilding / enterSite, water under the hooves, sleep and travel). Public: the view and scripts
   //   ask homeRiding(); the UI's DISMOUNT button calls homeDismount(Player).
   bool homeRiding() const { return home.riding >= 0; }
-  float homeSpeedMul() const;
   void homeDismount(home::Dismount why);
   // ---- M8 Fellowship (rpg/sim/party.h). Public: the UI (the radial, the paper doll, the portraits), the companions'
   //      talk (VOICE, party_talk.cpp), scripts and tests. DEFINED in rpg/sim/party_game.cpp (FELLOWS lane) unless named.
@@ -1030,10 +1029,6 @@ class Game {
   //   cleared wolf den), standing at `at` (map pixels). Returns the members index, -1 with why ("ANIMAL", "FULL")
   int partyAdoptAnimal(uint8_t species, uint32_t seed, Vec2 at, std::string& why);
  private:
-  //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
-  //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
-  //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
-  void homeStep(float dt);
   uint32_t homeSerial_ = 0;            // the World::placeSerial last stamped (home_game.cpp)
   int32_t homeDryX_ = 0, homeDryY_ = 0; // (M7 phase B) the rider's last dry tile (global): a horse balking at water waits there
   // (M7 phase B, never saved) the home actors' clock and the night raid going on at a plot near the player (wolves
@@ -1044,28 +1039,6 @@ class Game {
  public:
   const HomeRaid& homeRaid() const { return homeRaid_; }   // (tests, scripts) the live raid: outcome 1 driven off, 2 an animal taken
  private:
-  //   interact(): a tile of an owned plot in front of the player (till, plant, water, harvest with the tool in hand;
-  //   collect from a coop; open a store; mount a horse; the FOR SALE sign): true = handled. Called before the props.
-  bool homeInteract();
-  //   the player used a prop (a cooking hearth / pot / campfire: cook; a bed of their own: sleep): true = handled.
-  //   Called first among the prop handlers (before lifeUseProp).
-  bool homeUseProp(art::Prop p, int tx, int ty);
-  //   a building interior or a site map was just made (enterBuilding / enterSite, after questMapLoaded): the player's
-  //   own house gets its furniture, stores and wall decor stamped
-  void homeMapLoaded();
-  //   talkTo: reeves, stewards, innkeepers (deeds, recipes, cooking), builders, stablemasters, seed sellers, farmhands:
-  //   options in [DLG_HOME, DLG_HOME_END); called after lifeTalk
-  void homeTalk(Actor& a);
-  bool homeChoose(const DlgOpt& o);
-  //   useItem: food eaten (a cooked meal's Well Fed, after lifeAte)
-  void homeAte(const Item& food);
-  //   shopStock: seeds (by the merchant culture's staples), tools, hay, saddles... appended to a merchant's stock
-  void homeShopStock(const Actor& merchant, std::vector<Item>& stock);
-  //   bedIsYours: a bed in the player's own house (true: sleep, respawn here)
-  bool homeBed(int tx, int ty) const;
-  //   interactProp: a prop the player may use for the home's sake (a hearth, a cooking pot, a campfire to cook at;
-  //   the player's own stores and furniture): true makes it usable (homeUseProp then handles it)
-  bool homePropUsable(art::Prop p, int tx, int ty) const;
   friend struct HomeOps;               // M7 HOMESTEAD: the home's internals (home_game.cpp)
   friend struct PartyOps;              // M8 FELLOWS: the companions' internals (party_game.cpp)
   friend struct PartyTalkOps;          // M8 VOICE: the companions' talk (party_talk.cpp, banter.cpp)

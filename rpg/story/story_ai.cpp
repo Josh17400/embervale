@@ -17,6 +17,7 @@
 #include "rpg/world/coords.h"
 #include "rpg/world/source.h"
 #include "rpg/sim/stream.h"
+#include "rpg/sim/game_internal.h"
 
 namespace {
 
@@ -67,7 +68,7 @@ void followStep(Game& g, Actor& a, story::Engine::Walker& w, float dt) {
   const Vec2 goal = trailGoal(g, a, back, w.laneOff);
   const float gd = len(goal - a.p);
   const bool plMoving = p.st == AState::Walk || p.st == AState::Roll;
-  const float ps = std::max(40.0f, p.speed * (g.homeRiding() ? g.homeSpeedMul() : 1.0f));
+  const float ps = std::max(40.0f, p.speed * (g.homeRiding() ? HomeOps::speedMul(g) : 1.0f));
   float want = 0;
   // walking with the player: a touch under their pace at the place behind them, a touch over it when it falls back (so
   // the gap settles about a third of a tile behind the place: 2-3 tiles in all)
