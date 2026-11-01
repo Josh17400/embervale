@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 #include "rpg/core/common.h"
+#include "rpg/sim/magic_status.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/skills.h"
 
@@ -47,11 +48,7 @@ enum class Resource : uint8_t { Magicka, Health, Heat, Charge, Notes, Starlight,
 enum class Signature : uint8_t { Common, Blood, Rune, Song, Star, Tide, Ancestor, Ember, Beast, Mask, Verdant, Dream, COUNT };
 const char* signatureName(Signature s);           // "COMMON ARCANA", "BLOOD RITES", "STARCALLING" ...
 
-// ---- statuses (15.5: burning, chilled, frozen, wet, shocked, frightened, charmed, poisoned, blinded). On Actor::status
-//      (bits) and Actor::statusT (seconds left each); never saved.
-enum class Status : uint8_t { Burning, Chilled, Frozen, Wet, Shocked, Frightened, Charmed, Poisoned, Blinded, COUNT };
-constexpr int STATUSES = (int)Status::COUNT;
-constexpr uint16_t statusBit(Status s) { return (uint16_t)(1u << (unsigned)s); }
+// ---- statuses: Status, STATUSES, statusBit are in rpg/sim/magic_status.h (game_types.h's Actor needs them)
 const char* statusName(Status s);                 // "BURNING" ... (the plate over a foe, the HUD)
 uint32_t statusColor(Status s);                   // rgba: its tint (the plate, the view's overlay)
 
