@@ -45,6 +45,8 @@ void witnessResetPaperdoll();   // paperdoll.cpp: the PARTY page's last word
 void witnessResetPartyHud();    // party_hud.cpp: the members' remembered looks
 void witnessResetHud();         // hud.cpp: the menu strip's PARTY flag, the quick bar's extent
 
+namespace wmap { struct MapFrame; }   // (SOLID 3.4d) worldmap_internal.h
+
 class View {
  public:
   bool init(Pix& pix, Audio& audio);
@@ -506,9 +508,68 @@ class View {
   const Tex& heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle);
 
   void drawWorld(Game& g);
+  void layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOver);   // (SOLID 3.4a) once per map
+  void spanWallGaps(Game& g, const Map& m);
+  // ---- (SOLID 3.4b) update's pieces, called in this order (render.cpp)
+  void updateBanners(Game& g);
+  bool updateCamera(Game& g, float dt, float& VW, float& VH);   // true: the camera is held (p2b.camHold)
+  void updateBeastCues(Game& g, float dt);
+  void updateShake(Game& g, float dt, bool camHeld);
+  void updateEffects(Game& g, float dt);
+  void updateMusic(Game& g, float dt);
+  void updateBiomeBanner(Game& g, float dt, bool outdoors);
+  void updateWeather(Game& g, float dt, bool outdoors);
+  void updateAmbience(Game& g, bool outdoors);
+  void updateDrift(Game& g, float dt, bool outdoors, float VW, float VH);
+  // ---- (SOLID 3.4a) drawWorld's sorted pass (rpg/view/render_sorted.cpp): what stands is collected as a Drawable,
+  //      sorted by its foot line, its ground shadow drawn, then its body, one member per kind (FrameCtx: the frame's
+  //      camera, the roofs in view, the hidden hero)
+  struct Drawable;
+  struct FrameCtx;
+  void drawSortedPass(Game& g, const Map& m, Vec2 cam);
+  void collectTiles(Game& g, FrameCtx& F, std::vector<Drawable>& list);
+  void collectBuildings(Game& g, FrameCtx& F, std::vector<Drawable>& list);
+  void collectActors(Game& g, FrameCtx& F, std::vector<Drawable>& list);
+  void collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list);
+  void drawShadowSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawActorShadow(Game& g, FrameCtx& F, const Drawable& d);
+  void drawPropShadow(Game& g, FrameCtx& F, const Drawable& d);
+  void drawGateShadow(Game& g, FrameCtx& F, const Drawable& d);
+  void drawPropSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void propMarketTex(Game& g, FrameCtx& F, const Drawable& d, art::Prop p, bool vendorOpen, const Tex*& tp);
+  bool propCultureStyled(Game& g, FrameCtx& F, const Drawable& d, art::Prop p, const Tex*& tp);
+  bool drawCityPropSorted(Game& g, FrameCtx& F, const Drawable& d, art::Prop p, const Tex*& tp);
+  void propVariantTex(Game& g, FrameCtx& F, const Drawable& d, art::Prop p, const Tex*& tp, bool& flipVar);
+  void drawVendorSorted(Game& g, FrameCtx& F, const Drawable& d, art::Prop p, const Tex* tp, int stallFacing, bool vendorOpen);
+  void drawPalisadePiece(Game& g, FrameCtx& F, const Drawable& d);
+  void drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawWallSorted(FrameCtx& F, const Drawable& d);
+  void drawGateSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawActorSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawHumanSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, float flash);
+  void drawCritterSorted(FrameCtx& F, const Actor& a, float alpha, float flash);
+  bool drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, float flash);
+  void drawTelegraph(FrameCtx& F, const Actor& a);
+  void drawProjSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawHandcartSorted(Game& g, FrameCtx& F, const Drawable& d);
+  void drawHiddenHero(Game& g, FrameCtx& F);
   void drawLighting(Game& g);
   void drawWeather(Game& g, float dt);
   void drawHud(Game& g);
+  // ---- (SOLID 3.4c) drawHud's pieces, in this order (hud.cpp); HudFrame: the frame's shared values
+  struct HudFrame;
+  float hudVitals(Game& g, const HudFrame& H);   // returns the quick bar's left edge
+  void hudQuickSlots(Game& g, const HudFrame& H, float spellX);
+  void hudBurden(Game& g, const HudFrame& H);
+  void hudLocationColumn(Game& g, HudFrame& H);
+  bool hudColumnFade(Game& g, HudFrame& H);      // true: the minimap shows
+  void hudKingLines(Game& g, const std::string& loc, std::string& kingLine, Color& kingCol, std::string& stateLine, Color& stateCol);
+  void hudRaidPointer(Game& g, const HudFrame& H);
+  void hudMenuBadge(Game& g, const HudFrame& H);
+  void hudQuest(Game& g, HudFrame& H);
+  void hudBossBar(Game& g, const HudFrame& H);
+  void hudPrompt(Game& g, const HudFrame& H);
+  bool hudNotices(Game& g, const HudFrame& H);   // true: the companions' order ring is open
   float biomeBannerY(float half) const;   // (M9 fixer) the region banner's text line: below a boss bar, clear of the quick bar
   void drawTouch(Game& g);
   void drawToasts();
@@ -564,6 +625,22 @@ class View {
   void drawMinimap(Game& g, float x, float y, int size);
   // worldmap.cpp (M1): the pannable, zoomable world map of the MAP tab
   void drawWorldMap(Game& g, float x, float y, float w, float h);
+  // ---- (SOLID 3.4d) drawWorldMap's pieces, in this order (worldmap.cpp; the markers in worldmap_markers.cpp);
+  //      wmap::MapFrame (worldmap_internal.h): the frame's rectangle, zoom, labels, boxes and pins
+  void mapTiles(Game& g, wmap::MapFrame& M);
+  void mapPlans(Game& g, wmap::MapFrame& M);
+  void mapBiomeCensus(Game& g, wmap::MapFrame& M);
+  void mapRealmLabels(Game& g, wmap::MapFrame& M);
+  void mapMarkersPlaces(Game& g, wmap::MapFrame& M);
+  void mapMarkersWar(Game& g, wmap::MapFrame& M);
+  void mapQuestPins(Game& g, wmap::MapFrame& M);
+  void mapMarkersHome(Game& g, wmap::MapFrame& M);
+  void mapMarkersParty(Game& g, wmap::MapFrame& M);
+  void placeLabels(Game& g, wmap::MapFrame& M);
+  void mapQuestMarks(Game& g, wmap::MapFrame& M);
+  void mapMarkersSea(Game& g, wmap::MapFrame& M);
+  void mapHero(Game& g, wmap::MapFrame& M);
+  void mapGeologyAndScale(Game& g, wmap::MapFrame& M);
   void worldMapZoom(int dz, Vec2 at);          // dz < 0 closer; `at` keeps that box point still (-1: the centre)
   void worldMapCentre(Game& g, int site);      // on a place (-1: the hero)
   bool worldMapKey(Game& g, int key);          // Q E - + zoom, arrows pan, C centre; false: not a map key

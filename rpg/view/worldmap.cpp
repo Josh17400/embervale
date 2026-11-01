@@ -47,6 +47,7 @@
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
+#include "rpg/view/worldmap_internal.h"   // wmap:: (shared with worldmap_markers.cpp)
 #include "rpg/world/biomes.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/settlement.h"
@@ -54,36 +55,11 @@
 #include "rpg/world/town_plan.h"
 #include "rpg/world/urban.h"
 
-namespace {
-constexpr int TS = 64;   // map pixels per cached tile side
-constexpr int MG = 8;    // sample margin round a tile (coast rings, glyphs that cross a tile edge)
-const float kZoom[] = {0.25f, 0.5f, 1, 2, 4, 8, 16, 32};
-constexpr int NZOOM = (int)(sizeof kZoom / sizeof kZoom[0]);
-const Color kGold(0.98f, 0.82f, 0.42f), kText(0.93f, 0.9f, 0.82f), kDim(0.62f, 0.58f, 0.52f), kInk(0.18f, 0.12f, 0.08f);
+namespace wmap {   // (SOLID 3.4d: was anonymous; worldmap_internal.h holds the types and constants worldmap_markers.cpp shares)
 
-inline uint32_t C(int r, int g, int b, int a = 255) { return rgba(std::clamp(r, 0, 255), std::clamp(g, 0, 255), std::clamp(b, 0, 255), a); }
-inline uint32_t mixc(uint32_t a, uint32_t b, float t) {
-  auto ch = [&](int s) { return (int)(((a >> s) & 255) + ((int)((b >> s) & 255) - (int)((a >> s) & 255)) * t); };
-  return C(ch(0), ch(8), ch(16));
-}
-inline uint32_t shadec(uint32_t a, float k) { return C((int)((a & 255) * k), (int)(((a >> 8) & 255) * k), (int)(((a >> 16) & 255) * k)); }
-Color colOf(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
+Color colOf(uint32_t c, float a) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
 
-// ---- the parchment palette
-const uint32_t kParch = C(218, 198, 156), kParchDark = C(190, 166, 124), kInkC = C(66, 48, 38), kInkSoft = C(112, 86, 64);
-const uint32_t kSea = C(150, 178, 186), kSeaDeep = C(120, 152, 170), kRiver = C(70, 112, 156), kRipple = C(196, 210, 204);
 
-enum Icon {
-  IC_CITY, IC_TOWN, IC_VILLAGE, IC_CAVE, IC_RUIN, IC_SHARD, IC_CAMP, IC_SHRINE, IC_LAIR,
-  IC_V0,                                  // + VignetteKind (9)
-  IC_W0 = IC_V0 + (int)ew::VignetteKind::COUNT,   // + WonderKind (4)
-  IC_CAPITAL = IC_W0 + (int)ew::WonderKind::COUNT,
-  IC_SUMMIT,                              // (M11 CLIMB) a summit shrine (SPF_SUMMIT): a snowy peak crowned by its shrine
-  IC_COUNT
-};
-// Pixel icons: '.' clear, k ink, w light, s stone, d dark, r red, R roof, g gold, G green, L leaf light, b brown,
-// B blue, c cyan, p purple, o orange, y yellow, W white
-struct IconArt { const char* name; std::vector<const char*> rows; };
 const IconArt kIcons[IC_COUNT] = {
     {"CITY", {"k.k...k.k", "kwk.k.kwk", "kwkkwkkwk", "kwwwwwwwk", "kwwkkkwwk", "kwwkdkwwk", "kkkkkkkkk"}},
     {"TOWN", {"...k.....", "..kRk.k..", ".kRRRkRk.", "kRRRRkRRk", "kwkwkwwwk", "kwkwkwkwk", "kkkkkkkkk"}},
@@ -174,10 +150,6 @@ int siteIcon(const Site& s) {
   }
 }
 
-// (M4) the war and news markers on the map (VISION_PLAN 2.11, 4.5): crossed swords at a siege, flames at a burned
-// place, a tent at a refugee camp, a bowl at a hungry town, a scroll at a heard event; an occupied town flies a little
-// banner in its new owner's colours (drawn live, beside these)
-enum WarIcon { WI_SIEGE, WI_BURNED, WI_REFUGEES, WI_NEWS, WI_HUNGRY, WI_COUNT };
 const IconArt kWarIcons[WI_COUNT] = {
     {"SIEGE", {"kk.....kk", "kWk...kWk", ".kWk.kWk.", "..kWkWk..", "...kWk...", "..kWkWk..", ".kbkkkbk.", "kbbk.kbbk", "kkk...kkk"}},
     {"BURNED", {"...k....", "..kyk...", "..koyk..", ".kroyok.", ".koyWyk.", "kroyWyok", "kroyyork", ".krrrrk.", "..kkkk.."}},
@@ -204,9 +176,6 @@ Canvas warIconCanvas(int wi) {
   return c;
 }
 
-// ---- (M12) the rise's markers: drawn live (a few rects each), about 9 x 9 at (x, y)
-enum RiseMark { RM_WARBAND, RM_WARLORD, RM_LAIR, RM_REBUILT, RM_HOLDING, RM_SEAT, RM_COUNT };
-const char* const kRiseMarkName[RM_COUNT] = {"WARBAND CAMP", "WARLORD'S CAMP", "BEAST'S LAIR", "RESETTLED", "YOUR HOLDING", "YOUR SEAT"};
 void riseMapGlyph(Pix& P, int kind, float x, float y, uint32_t c1, uint32_t c2) {
   const Color ink(0.18f, 0.12f, 0.08f), halo(0.95f, 0.90f, 0.78f, 0.8f), bone(0.92f, 0.88f, 0.76f);
   const Color f1 = colOf(c1), f2 = colOf(c2);
@@ -325,123 +294,18 @@ uint64_t exploredSig(const Game& g) {
   return h;
 }
 
-// one map tile being painted: its samples are taken a few rows per frame (a tile can take 10 - 20 ms), then finished
-struct MapSmp {
-  uint32_t c = 0;
-  float e = 0;                 // elevation (macro, 0..1)
-  uint8_t h = 0;               // relief level
-  bool water = false, deep = false, known = false, bldg = false, wall = false, tree = false, edgeB = false, road = false;
-  uint64_t kingdom = 0;
-  Biome bio = Biome::Plains;
-  uint32_t prov = 0;
-  uint8_t wd = 255;            // distance (samples) to the nearest land, over water (coast ripples)
-  uint32_t roofC = 0;          // (street zoom) the building's roof colour
-  uint8_t eco = 0;             // (M4) the biome proper (flower meadows are speckled with blooms)
-  uint8_t mist = 0;            // (M10) in a hidden land's Mist: 1 uncharted (thick fog), 2 charted (a thin ring)
-  uint8_t mistD = 0;           // (M10) ... its density there (0 at the ring's edges .. 255 in its thick)
-  // (M11 CLIMB) the window's real relief (street and town zooms): the step bits of the sample's tiles (a sample over
-  // several tiles ORs them, so a face one tile thick never breaks into dashes), the side its higher ground lies on (1
-  // north, 2 east, 3 west, 4 south; 0 none) and whether a face there climbs two levels or more (a stacked face)
-  uint8_t rb = 0, up = 0;
-  bool stack = false;
-  // (M7c SURVEY) a settlement's plan: the building's identity (row houses read as separate roofs), its height (the
-  // length of its shade), a wall tower, a hedge or garden wall, and that the sample comes from a plan (the region
-  // plans' road and river lines and the wood glyphs keep off it)
-  int32_t bi = -1;
-  uint8_t tall = 1;
-  bool tower = false, hedge = false, plan = false;
-  uint8_t hedgeKind = 0;       // (hedgeProp: 1 hedge, 2 fence, 3 garden wall)
-};
-struct MapGRect { int32_t x0, y0, x1, y1; };
-
-// ---- (M7c SURVEY) a settlement's real plan, compact (about 6 bytes a tile: a capital's ~300 x 300 buffer is ~0.5 MB)
-enum : uint8_t { PF_WALL = 1, PF_TOWER = 2, PF_GATE = 4, PF_TREE = 8, PF_HEDGE = 16, PF_USED = 32, PF_FENCE = 64, PF_STONE = 128 };
-struct PlanRaster {
-  ew::Gid id = 0;
-  int32_t gx = 0, gy = 0;          // the global tile of (0, 0)
-  int w = 0, h = 0;
-  std::vector<uint8_t> g, u, f, r; // per tile: Ground, urb class, PF_* flags, Rank | BlockRole << 3
-  std::vector<int16_t> b;          // per tile: the building (index into roof / tall) or -1
-  std::vector<uint32_t> roof;      // per building: its roof colour
-  std::vector<uint8_t> tall;       // per building: its storeys
-  float used = 0;                  // (LRU)
-  bool in(int32_t x, int32_t y) const { return x >= gx && y >= gy && x < gx + w && y < gy + h; }
-  size_t I(int32_t x, int32_t y) const { return (size_t)(y - gy) * (size_t)w + (size_t)(x - gx); }
-};
-
-struct TileJob {
-  bool on = false;
-  int zi = 0, ix = 0, iy = 0;
-  bool geo = false;
-  std::vector<MapSmp> grid;
-  std::vector<MapGRect> towns, cores;
-  std::vector<std::shared_ptr<const PlanRaster>> plans;   // (M7c) the settlement plans ready over this tile
-  std::vector<uint8_t> corePlanned;                        // ... per core: its plan is ready (no stand-in lattice)
-  int row = 0;
-  std::unordered_set<uint64_t> moved;      // (M4) genesis kingdoms some of whose settlements another realm holds now
-  std::unordered_map<uint64_t, uint32_t> kcol;   // (M4) owner -> its border colour
-  // (M12) owner -> how its border is drawn: 1 a warlord's (rough), 2 a vassal's (its liege's colour hatched inside),
-  // 3 the player's own (a gilded double line), 0 plain; ksub: the liege's colour for a vassal
-  std::unordered_map<uint64_t, uint8_t> kstyle;
-  std::unordered_map<uint64_t, uint32_t> ksub;
-  // (M10) the lands round this tile (hidden ones' Mist rings) and which land a coarse cell lies on
-  std::vector<ew::LandPlan> lands;
-  bool landsDone = false;
-  std::unordered_map<uint64_t, uint32_t> landCell;
-};
-
-struct MapState {
-  bool init = false;
-  uint64_t world = 0;            // the world the view belongs to (a new game re-centres and drops the tiles)
-  double cx = 0, cy = 0;         // the centre in global tiles
-  int zi = 4;
-  uint64_t sig = 0;              // the explored mask's signature the tiles were painted with
-  bool geo = false;              // the geology debug view
-  struct T { Tex tex; float used = 0, born = -10; bool stale = false; };   // stale: shown until its repaint is done
-  Tex blank;                     // (M2 fixer) a tile of bare parchment (grain and hatching) under tiles still painting
-  bool blankOn = false;
-  std::unordered_map<uint64_t, T> tiles;
-  std::vector<Tex> icons;        // kIcons, baked once
-  Tex arrow[8];                  // the hero's arrow in 8 directions
-  // landmarks of the explored regions (copied from the region plans, fetched a few per frame)
-  std::unordered_map<uint64_t, std::vector<ew::LandmarkPlan>> lms;
-  // pointers: one finger / the mouse drags, two fingers pinch
-  struct Ptr { uint64_t id; Vec2 p, start; };
-  std::vector<Ptr> ptrs;
-  float pinchD = 0;
-  int pinchZ = 4;
-  bool moved = false;
-  float rx = 0, ry = 0, rw = 1, rh = 1;   // the map rectangle drawn last (box coordinates)
-  std::vector<int> legend;                 // icons on screen this frame
-  std::vector<int> ecoLeg;                 // (M3c) the biomes of the known land in view, most widespread first
-  double ecoCx = 1e30, ecoCy = 1e30;       // ... counted for this centre and zoom
-  int ecoZi = -1;
-  uint64_t ecoSig = 0;
-  int reqSel = -2;                         // a selection asked for by a script (mapselect)
-  double lastPaintMs = 0, worstPaintMs = 0;
-  int tilesPainted = 0;
-  TileJob job;                             // the tile being painted (resumed next frame)
-  long borderPx = 0;                       // (M4) border pixels painted so far (scripts: expect m4 border)
-  int markers = 0;                         // (M4) war and news markers drawn last frame
-  std::vector<Tex> warIcons;               // (M4) the war markers (kWarIcon order)
-  // (fixer M4 r2) the news scrolls drawn last frame (event ids, screen centres) and the one tapped (0 none): a tap on a
-  // scroll shows its news in the side column
-  std::vector<std::pair<uint32_t, Vec2>> news;
-  uint32_t newsSel = 0;
-  // (M7c SURVEY) the settlement plans (LRU), the places that have none, and what making them cost
-  std::unordered_map<ew::Gid, std::shared_ptr<PlanRaster>> plans;
-  std::unordered_set<ew::Gid> noPlan;
-  ew::Gid planBusy = 0;                    // the place being prepared (its build spans frames)
-  double planWorstMs = 0, planLastMs = 0;  // the worst frame's plan work, the last one's
-  int plansMade = 0;
-  bool forcePlan = false;                  // (scripts: mapplan 1) the plan even inside the Active Window
-  // (M7c) the region plans the tiles have asked for (a hint: the source caches them), the frame counter, and the frame
-  // the last one was made in (one a frame)
-  std::unordered_set<uint64_t> regSeen;
-  uint64_t frame = 0, regFrame = ~0ull;
-  double regWorstMs = 0, finishWorstMs = 0;   // the worst region plan a tile asked for, the worst tile's last pass
-};
 MapState S;
+
+// the hero's place in global tiles (indoors: the door he went in by) (drawWorldMap)
+void mapPlayerG(Game& g, double& gx, double& gy) {
+  Vec2 pp = g.pl().p;
+  if (g.inside) {
+    if (g.subSite >= 0) pp = Vec2(g.world.sites[g.subSite].ex * 16.0f, g.world.sites[g.subSite].ey * 16.0f);
+    else if (g.subBldg >= 0) pp = Vec2(g.world.over.bldgs[g.subBldg].doorX() * 16.0f, g.world.over.bldgs[g.subBldg].doorY() * 16.0f);
+  }
+  gx = pp.x / 16.0 + g.world.ox; gy = pp.y / 16.0 + g.world.oy;
+}
+
 
 // a tiny polygon fill for the arrow (the view has no art helpers)
 void fillTri(Canvas& c, float ax, float ay, float bx, float by, float cx, float cy, uint32_t col) {
@@ -768,7 +632,8 @@ bool planSample(const PlanRaster& P, int slot, int32_t x0, int32_t y0, int n, in
   else s.c = land;
   return true;
 }
-}  // namespace
+}  // namespace wmap
+using namespace wmap;
 
 // (M11 CLIMB) a sample's relief from the window's real tiles (VISION_PLAN 11.5: the map's contours from the final
 // relief): the step bits of the tiles it covers (z tiles a side from z = 1 on), the side the higher ground lies on, a
@@ -799,60 +664,163 @@ static void reliefSample(const Map& m, int lx, int ly, float z, MapSmp& s) {
 // ---- one cached tile -------------------------------------------------------------------------------------------
 // The tile's samples cover it plus a margin of MG map pixels (coasts and glyphs are decided the same way on both sides
 // of a tile edge, so tiles meet seamlessly).
-static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_clock::time_point deadline) {
+// one map tile being painted (paintMapTile's locals for its phases)
+struct TileCtx {
+  Game& g;
+  TileJob& J;
+  int zi, ix, iy;
+  bool geo;
+  float z;
+  int N;                              // samples per side (the tile and its margin)
+  std::vector<MapSmp>& grid;
+  bool endless;
+  const Map& m;
+  std::vector<MapGRect>& towns;       // discovered settlements: with a margin (shown whole)
+  std::vector<MapGRect>& cores;       // ... and their built area
+  int32_t tx0, ty0, tx1, ty1;         // the global tiles the tile's samples reach
+  MapSmp& at(int i, int j) const { return grid[(size_t)std::clamp(j, 0, N - 1) * N + std::clamp(i, 0, N - 1)]; }
+};
+
+// (SOLID 3.4d) Z0 / Z1 inside the window: a sample from the real tiles (paintMapTile)
+static void sampleWindowTile(TileCtx& T, MapSmp& s, int lx, int ly, int32_t gx, int32_t gy, int mpx, int mpy) {
+  TileJob& J = T.J;
+  const float z = T.z;
+  const Map& m = T.m;
+  // the real tiles of the window
+  const Ground gr = m.at(lx, ly);
+  s.c = groundInk(gr);
+  // natural ground takes its biome's ink (tile by tile the ecotone grounds made a checkerboard at the street zoom)
+  // (M3c fixer) the sand, marsh and snow grounds too: the badlands, salt flats, crystal barrens and ash fields lie on
+  // Sand, and drew as anonymous sand matching no legend entry
+  if (!m.biome.empty() && (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra ||
+                           gr == Ground::Sand || gr == Ground::Swamp || gr == Ground::Snow))
+    s.c = mixc(ecoInk(m.ecoAt(lx, ly)), groundInk(gr), z >= 1 ? 0.12f : 0.25f);
+  s.water = groundWater(gr);
+  s.deep = gr == Ground::DeepWater;
+  s.road = gr == Ground::Road || gr == Ground::Bridge || gr == Ground::Plaza;
+  {   // (M7c) the plan's palette on the live tiles too: streets by class and rank, greens, gardens, fields, towers
+    const size_t wi = (size_t)ly * m.w + lx;
+    const ew::Urb u = m.urb.size() == m.ground.size() ? ew::urbClass(m.urb[wi]) : ew::Urb::None;
+    ew::Rank rk = ew::Rank::None;
+    ew::BlockRole role = ew::BlockRole::None;
+    for (const auto& P : J.plans)
+      if (P->in(gx, gy)) {
+        const size_t pi = P->I(gx, gy);
+        rk = (ew::Rank)(P->r[pi] & 7);
+        role = (ew::BlockRole)(P->r[pi] >> 3);
+        s.tower = (P->f[pi] & PF_TOWER) != 0 && !m.wall.empty() && m.wall[wi];
+        break;
+      }
+    uint32_t col;
+    bool road = false;
+    if (!groundWater(gr) && planGroundInk(gr, u, rk, role, gx, gy, z, col, road)) { s.c = col; s.road = s.road || road; }
+    s.hedgeKind = (uint8_t)hedgeProp(m.prop[wi]);
+    s.hedge = s.hedgeKind != 0;
+  }
+  s.h = (uint8_t)m.heightAt(lx, ly);
+  reliefSample(m, lx, ly, z, s);
+  s.wall = !m.wall.empty() && m.wall[(size_t)ly * m.w + lx] != 0;
+  s.tree = isTreeProp(m.prop[(size_t)ly * m.w + lx]);
+  // (M2 fixer round 3, review: "the town zoom is muddy, blurry green noise") a sample spanning two tiles takes
+  // the trees and buildings anywhere in its 2 x 2 tiles, so woods read as canopy and houses as roofs, not as a
+  // speckle of single tiles
+  // At the town zooms a lone tree is left out (its single dark pixel was the noise); woods (four or more trees
+  // in the 4 x 4 tiles round the sample) show as one canopy
+  int bAt = m.bldgAt[(size_t)ly * m.w + lx];
+  if (z >= 1) {
+    const int fp = z >= 2 ? 1 : 0;
+    bool any = false;
+    for (int oy = -fp; oy <= 0; oy++)
+      for (int ox = -fp; ox <= 0; ox++) {
+        const int qx = lx + ox, qy = ly + oy;
+        if (!m.in(qx, qy)) continue;
+        if (isTreeProp(m.prop[(size_t)qy * m.w + qx])) any = true;
+        if (bAt < 0 && m.bldgAt[(size_t)qy * m.w + qx] >= 0) bAt = m.bldgAt[(size_t)qy * m.w + qx];
+      }
+    int near = 0;
+    (void)any;
+    for (int oy = -2; oy <= 1; oy++)
+        for (int ox = -2; ox <= 1; ox++)
+          if (m.in(lx + ox, ly + oy) && isTreeProp(m.prop[(size_t)(ly + oy) * m.w + lx + ox])) near++;
+    s.tree = near >= 4;   // (spread over the clump, so a wood is one canopy, not a scatter of dark pixels)
+  }
+  s.bldg = bAt >= 0;
+  if (z < 1 && !s.tree) {
+    // (M2 fixer) a tree's crown spreads over about a tile and a half: round blobs, not single squares
+    const float fx = (mpx + 0.5f) * z, fy = (mpy + 0.5f) * z;
+    for (int oy = -1; oy <= 1 && !s.tree; oy++)
+      for (int ox = -1; ox <= 1; ox++) {
+        const int qx = lx + ox, qy = ly + oy;
+        if (!m.in(qx, qy) || !isTreeProp(m.prop[(size_t)qy * m.w + qx])) continue;
+        const float dx = fx - (gx + ox + 0.5f), dy = fy - (gy + oy + 0.15f);
+        if (dx * dx + dy * dy < 0.62f) { s.tree = true; break; }
+      }
+  }
+  if (s.bldg) {
+    const Bldg& bd = m.bldgs[(size_t)bAt];
+    s.roofC = roofOf(bd);
+    s.bi = bAt;
+    s.tall = bd.storeys;
+  }
+  if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
+  if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
+}
+
+// (M10) outside what the hero knows: the far lands (unheard of, rumoured, charted, landed) and the Mist (paintMapTile)
+static void sampleFarLands(TileCtx& T, MapSmp& s, const ew::MacroSample& ms, int32_t gx, int32_t gy) {
+  Game& g = T.g;
+  TileJob& J = T.J;
+  const int32_t tx0 = T.tx0;
+  const int32_t ty0 = T.ty0;
+  const int32_t tx1 = T.tx1;
+  const int32_t ty1 = T.ty1;
+  if (!J.landsDone) { J.lands = g.world.src->landsIn(tx0, ty0, tx1, ty1); J.landsDone = true; }
+  if (!J.lands.empty()) {
+    if (!ms.water) {
+      const uint64_t ck = (uint64_t)(uint32_t)(gx >> 5) << 32 | (uint32_t)(gy >> 5);
+      auto it = J.landCell.find(ck);
+      const uint32_t L = it != J.landCell.end() ? it->second : (J.landCell[ck] = g.world.src->landAt(gx, gy));
+      const ew::LandPlan* lp = nullptr;
+      for (const ew::LandPlan& q : J.lands) if (q.id == L) lp = &q;
+      if (lp && !lp->origin) {
+        const sea::LandRecord* rec = g.sea.land(L);
+        const uint8_t fl = rec ? rec->flags : 0;
+        if (!(fl & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
+        else if (fl & (sea::LF_MAPPED | sea::LF_LANDED)) s.known = true;
+      }
+    }
+    for (const ew::LandPlan& q : J.lands) {
+      if (!q.hidden) continue;
+      const double d = std::hypot((double)gx - q.cx, (double)gy - q.cy);
+      if (d >= q.mistIn && d <= q.mistOut && (s.water || ms.water)) {
+        s.mist = g.sea.hasChart(q.id) ? 2 : 1;
+        // the fog's density across the ring (thickening over its outer 60 tiles, thinning over its inner 60)
+        const double t = std::min(d - q.mistIn, q.mistOut - d);
+        s.mistD = (uint8_t)std::min(255.0, t * 255.0 / 60.0);
+      } else if (d < q.mistIn && !s.known) {   // everything inside an unheard-of hidden land's Mist: open sea
+        const sea::LandRecord* rec = g.sea.land(q.id);
+        if (!(rec && (rec->flags & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED)))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
+      }
+    }
+  }
+}
+
+// the tile's samples, a row at a time until the deadline (false: resumed next frame at J.row) (paintMapTile)
+static bool tileSampleRows(TileCtx& T, std::chrono::steady_clock::time_point deadline) {
   using Smp = MapSmp;
   using GRect = MapGRect;
-  const int zi = J.zi, ix = J.ix, iy = J.iy;
-  const bool geo = J.geo;
-  const float z = kZoom[zi];
-  const int N = TS + 2 * MG;
-  std::vector<Smp>& grid = J.grid;
-  const bool endless = g.world.endless && g.world.src != nullptr;
-  const Map& m = g.world.over;
-  std::vector<GRect>& towns = J.towns;   // discovered settlements: with a margin (shown whole)
-  std::vector<GRect>& cores = J.cores;   // ... and their built area
-  const int32_t tx0 = (int32_t)std::floor((ix * TS - MG) * z) - 8, ty0 = (int32_t)std::floor((iy * TS - MG) * z) - 8;
-  const int32_t tx1 = (int32_t)std::floor(((ix + 1) * TS + MG) * z) + 8, ty1 = (int32_t)std::floor(((iy + 1) * TS + MG) * z) + 8;
-  // (M7c SURVEY, the web's frame budget) the explored region plans this tile's road and river lines read are made at
-  // most one a frame before it starts (a region plan is a few ms of unsplittable work: two or three of them inside one
-  // tile were the map's worst frames when panning)
-  if (endless && !geo && J.row == 0 && grid.empty() && z >= 1 && z <= 8) {
-    for (int32_t ry = ew::regionOf(ty0); ry <= ew::regionOf(ty1); ry++)
-      for (int32_t rx = ew::regionOf(tx0); rx <= ew::regionOf(tx1); rx++) {
-        const uint64_t key = ExploredMask::key(rx, ry);
-        if (!g.explored.regions.count(key) || S.regSeen.count(key)) continue;
-        if (S.regFrame == S.frame) return false;   // (one this frame already: the next frame goes on)
-        S.regFrame = S.frame;
-        const auto r0 = std::chrono::steady_clock::now();
-        g.world.src->region(rx, ry);
-        S.regWorstMs = std::max(S.regWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - r0).count());
-        S.regSeen.insert(key);
-      }
-  }
-  if (J.row == 0 && grid.empty()) {
-    grid.assign((size_t)N * N, Smp());
-    // (M4) the realms whose land moved, and every owner's border colour
-    for (const realm::KingdomState& k : g.realm.kingdoms())
-      for (ew::Gid sid : k.settlements)
-        if (const realm::SettlementState* st = g.realm.settlement(sid))
-          if (st->home && st->home != k.id) J.moved.insert(st->home);
-    if (endless)
-      for (const Site& st : g.world.sites) {
-        if (!st.discovered || !st.settlement()) continue;
-        GRect r{g.world.ox + st.r.x - 6, g.world.oy + st.r.y - 6, g.world.ox + st.r.x + st.r.w + 6, g.world.oy + st.r.y + st.r.h + 6};
-        if (r.x1 < tx0 || r.y1 < ty0 || r.x0 > tx1 || r.y0 > ty1) continue;
-        towns.push_back(r);
-        cores.push_back(GRect{r.x0 + 6, r.y0 + 6, r.x1 - 6, r.y1 - 6});
-        J.corePlanned.push_back(S.plans.count(st.id) ? 1 : 0);
-      }
-    // (M7c) the settlement plans ready over this tile (they hold their own boxes: the footprint and its margin)
-    if (endless)
-      for (auto& kv : S.plans) {
-        const PlanRaster& P = *kv.second;
-        if (P.gx + P.w < tx0 || P.gy + P.h < ty0 || P.gx > tx1 || P.gy > ty1) continue;
-        J.plans.push_back(kv.second);
-      }
-  }
+  Game& g = T.g;
+  TileJob& J = T.J;
+  const int ix = T.ix;
+  const int iy = T.iy;
+  const bool geo = T.geo;
+  const float z = T.z;
+  const int N = T.N;
+  std::vector<Smp>& grid = T.grid;
+  const bool endless = T.endless;
+  const Map& m = T.m;
+  std::vector<GRect>& towns = T.towns;
+  std::vector<GRect>& cores = T.cores;
   for (int j = J.row; j < N; j++) {
     if (j > J.row && std::chrono::steady_clock::now() > deadline) { J.row = j; return false; }
     for (int i = 0; i < N; i++) {
@@ -903,35 +871,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       // coasts sketched like the rest of the unknown, one mapped (a cartographer's chart) or landed on shows whole;
       // a hidden land's Mist lies round it as a ring of fog (thin once its chart is held)
       if (!s.known && endless) {
-        if (!J.landsDone) { J.lands = g.world.src->landsIn(tx0, ty0, tx1, ty1); J.landsDone = true; }
-        if (!J.lands.empty()) {
-          if (!ms.water) {
-            const uint64_t ck = (uint64_t)(uint32_t)(gx >> 5) << 32 | (uint32_t)(gy >> 5);
-            auto it = J.landCell.find(ck);
-            const uint32_t L = it != J.landCell.end() ? it->second : (J.landCell[ck] = g.world.src->landAt(gx, gy));
-            const ew::LandPlan* lp = nullptr;
-            for (const ew::LandPlan& q : J.lands) if (q.id == L) lp = &q;
-            if (lp && !lp->origin) {
-              const sea::LandRecord* rec = g.sea.land(L);
-              const uint8_t fl = rec ? rec->flags : 0;
-              if (!(fl & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
-              else if (fl & (sea::LF_MAPPED | sea::LF_LANDED)) s.known = true;
-            }
-          }
-          for (const ew::LandPlan& q : J.lands) {
-            if (!q.hidden) continue;
-            const double d = std::hypot((double)gx - q.cx, (double)gy - q.cy);
-            if (d >= q.mistIn && d <= q.mistOut && (s.water || ms.water)) {
-              s.mist = g.sea.hasChart(q.id) ? 2 : 1;
-              // the fog's density across the ring (thickening over its outer 60 tiles, thinning over its inner 60)
-              const double t = std::min(d - q.mistIn, q.mistOut - d);
-              s.mistD = (uint8_t)std::min(255.0, t * 255.0 / 60.0);
-            } else if (d < q.mistIn && !s.known) {   // everything inside an unheard-of hidden land's Mist: open sea
-              const sea::LandRecord* rec = g.sea.land(q.id);
-              if (!(rec && (rec->flags & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED)))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
-            }
-          }
-        }
+        sampleFarLands(T, s, ms, gx, gy);
       }
       if (!s.known) { grid[(size_t)j * N + i] = s; continue; }
       // (M7c) a settlement's real plan where it is ready: at the town zoom and further out everywhere (one plan reads
@@ -956,84 +896,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           reliefSample(m, lx, ly, z, s);
         }
       } else if (z <= 2 && m.in(lx, ly)) {
-        // the real tiles of the window
-        const Ground gr = m.at(lx, ly);
-        s.c = groundInk(gr);
-        // natural ground takes its biome's ink (tile by tile the ecotone grounds made a checkerboard at the street zoom)
-        // (M3c fixer) the sand, marsh and snow grounds too: the badlands, salt flats, crystal barrens and ash fields lie on
-        // Sand, and drew as anonymous sand matching no legend entry
-        if (!m.biome.empty() && (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra ||
-                                 gr == Ground::Sand || gr == Ground::Swamp || gr == Ground::Snow))
-          s.c = mixc(ecoInk(m.ecoAt(lx, ly)), groundInk(gr), z >= 1 ? 0.12f : 0.25f);
-        s.water = groundWater(gr);
-        s.deep = gr == Ground::DeepWater;
-        s.road = gr == Ground::Road || gr == Ground::Bridge || gr == Ground::Plaza;
-        {   // (M7c) the plan's palette on the live tiles too: streets by class and rank, greens, gardens, fields, towers
-          const size_t wi = (size_t)ly * m.w + lx;
-          const ew::Urb u = m.urb.size() == m.ground.size() ? ew::urbClass(m.urb[wi]) : ew::Urb::None;
-          ew::Rank rk = ew::Rank::None;
-          ew::BlockRole role = ew::BlockRole::None;
-          for (const auto& P : J.plans)
-            if (P->in(gx, gy)) {
-              const size_t pi = P->I(gx, gy);
-              rk = (ew::Rank)(P->r[pi] & 7);
-              role = (ew::BlockRole)(P->r[pi] >> 3);
-              s.tower = (P->f[pi] & PF_TOWER) != 0 && !m.wall.empty() && m.wall[wi];
-              break;
-            }
-          uint32_t col;
-          bool road = false;
-          if (!groundWater(gr) && planGroundInk(gr, u, rk, role, gx, gy, z, col, road)) { s.c = col; s.road = s.road || road; }
-          s.hedgeKind = (uint8_t)hedgeProp(m.prop[wi]);
-          s.hedge = s.hedgeKind != 0;
-        }
-        s.h = (uint8_t)m.heightAt(lx, ly);
-        reliefSample(m, lx, ly, z, s);
-        s.wall = !m.wall.empty() && m.wall[(size_t)ly * m.w + lx] != 0;
-        s.tree = isTreeProp(m.prop[(size_t)ly * m.w + lx]);
-        // (M2 fixer round 3, review: "the town zoom is muddy, blurry green noise") a sample spanning two tiles takes
-        // the trees and buildings anywhere in its 2 x 2 tiles, so woods read as canopy and houses as roofs, not as a
-        // speckle of single tiles
-        // At the town zooms a lone tree is left out (its single dark pixel was the noise); woods (four or more trees
-        // in the 4 x 4 tiles round the sample) show as one canopy
-        int bAt = m.bldgAt[(size_t)ly * m.w + lx];
-        if (z >= 1) {
-          const int fp = z >= 2 ? 1 : 0;
-          bool any = false;
-          for (int oy = -fp; oy <= 0; oy++)
-            for (int ox = -fp; ox <= 0; ox++) {
-              const int qx = lx + ox, qy = ly + oy;
-              if (!m.in(qx, qy)) continue;
-              if (isTreeProp(m.prop[(size_t)qy * m.w + qx])) any = true;
-              if (bAt < 0 && m.bldgAt[(size_t)qy * m.w + qx] >= 0) bAt = m.bldgAt[(size_t)qy * m.w + qx];
-            }
-          int near = 0;
-          (void)any;
-          for (int oy = -2; oy <= 1; oy++)
-              for (int ox = -2; ox <= 1; ox++)
-                if (m.in(lx + ox, ly + oy) && isTreeProp(m.prop[(size_t)(ly + oy) * m.w + lx + ox])) near++;
-          s.tree = near >= 4;   // (spread over the clump, so a wood is one canopy, not a scatter of dark pixels)
-        }
-        s.bldg = bAt >= 0;
-        if (z < 1 && !s.tree) {
-          // (M2 fixer) a tree's crown spreads over about a tile and a half: round blobs, not single squares
-          const float fx = (mpx + 0.5f) * z, fy = (mpy + 0.5f) * z;
-          for (int oy = -1; oy <= 1 && !s.tree; oy++)
-            for (int ox = -1; ox <= 1; ox++) {
-              const int qx = lx + ox, qy = ly + oy;
-              if (!m.in(qx, qy) || !isTreeProp(m.prop[(size_t)qy * m.w + qx])) continue;
-              const float dx = fx - (gx + ox + 0.5f), dy = fy - (gy + oy + 0.15f);
-              if (dx * dx + dy * dy < 0.62f) { s.tree = true; break; }
-            }
-        }
-        if (s.bldg) {
-          const Bldg& bd = m.bldgs[(size_t)bAt];
-          s.roofC = roofOf(bd);
-          s.bi = bAt;
-          s.tall = bd.storeys;
-        }
-        if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
-        if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
+        sampleWindowTile(T, s, lx, ly, gx, gy, mpx, mpy);
       } else {
         s.c = ms.water ? (s.deep ? kSeaDeep : kSea) : ecoInk(ms.eco);
         if (!ms.water)
@@ -1058,60 +921,71 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       grid[(size_t)j * N + i] = s;
     }
   }
-  J.row = N;
-  const auto fin0 = std::chrono::steady_clock::now();
-  struct FinTime {   // (the tile's last pass, timed for mapstats)
-    std::chrono::steady_clock::time_point t;
-    ~FinTime() { S.finishWorstMs = std::max(S.finishWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count()); }
-  } finTime{fin0};
-  auto at = [&](int i, int j) -> Smp& { return grid[(size_t)std::clamp(j, 0, N - 1) * N + std::clamp(i, 0, N - 1)]; };
+  return true;
+}
+
+// water distance to the land: the ripple lines offshore (paintMapTile)
+static void tileRipples(TileCtx& T) {
+  using Smp = MapSmp;
+  const int N = T.N;
   // water distance to the land (4-neighbour, a few steps): the ripple lines that follow a coast offshore
   {
     std::vector<int> q;
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-        Smp& s = at(i, j);
+        Smp& s = T.at(i, j);
         if (!s.water) continue;
         bool coast = false;
         for (int k = 0; k < 4 && !coast; k++) {
           static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
           const int ni = i + dx[k], nj = j + dy[k];
-          if (ni >= 0 && nj >= 0 && ni < N && nj < N && !at(ni, nj).water) coast = true;
+          if (ni >= 0 && nj >= 0 && ni < N && nj < N && !T.at(ni, nj).water) coast = true;
         }
         if (coast) { s.wd = 1; q.push_back(j * N + i); }
       }
     for (size_t h = 0; h < q.size(); h++) {
       const int i = q[h] % N, j = q[h] / N;
-      const uint8_t d = at(i, j).wd;
+      const uint8_t d = T.at(i, j).wd;
       if (d >= 9) continue;
       static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
       for (int k = 0; k < 4; k++) {
         const int ni = i + dx[k], nj = j + dy[k];
         if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
-        Smp& n = at(ni, nj);
+        Smp& n = T.at(ni, nj);
         if (!n.water || n.wd <= d + 1) continue;
         n.wd = (uint8_t)(d + 1);
         q.push_back(nj * N + ni);
       }
     }
   }
+}
+
+// the tile's pixels: parchment, land and hillshade, water, borders, the paper showing through (paintMapTile)
+static void tileInk(TileCtx& T, Canvas& c, std::vector<std::pair<int, int>>& fallMarks) {
+  using Smp = MapSmp;
+  Game& g = T.g;
+  TileJob& J = T.J;
+  const int ix = T.ix;
+  const int iy = T.iy;
+  const bool geo = T.geo;
+  const float z = T.z;
+  const bool endless = T.endless;
+  const Map& m = T.m;
   // the hillshade's strength: the same mountains read at every zoom (a sample spans z tiles)
   const float hsA = 17.0f * std::pow(4.0f / z, 0.8f);
-  Canvas c(TS, TS);
-  std::vector<std::pair<int, int>> fallMarks;   // (M11 CLIMB) waterfall glyphs: the window's falls, the rivers' drops
   for (int y = 0; y < TS; y++)
     for (int x = 0; x < TS; x++) {
       const int i = x + MG, j = y + MG;
-      const Smp& s = at(i, j);
-      const Smp& n = at(i, j - 1);
-      const Smp& w = at(i - 1, j);
+      const Smp& s = T.at(i, j);
+      const Smp& n = T.at(i, j - 1);
+      const Smp& w = T.at(i - 1, j);
       const int px = ix * TS + x, py = iy * TS + y;
       const float grain = hashf(px, py, 77);
       uint32_t k;
       if (geo) {
         k = s.c;
         if (!s.water) {
-          const float hs = std::clamp(0.5f + (at(i - 1, j - 1).e - at(i + 1, j + 1).e) * hsA, 0.15f, 0.85f);
+          const float hs = std::clamp(0.5f + (T.at(i - 1, j - 1).e - T.at(i + 1, j + 1).e) * hsA, 0.15f, 0.85f);
           k = shadec(k, 0.80f + hs * 0.4f);
           if (n.prov != s.prov || w.prov != s.prov) k = kInkC;   // province borders
         } else if (s.wd <= 1) k = kInkC;
@@ -1125,7 +999,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           if (s.water) k = mixc(k, C(150, 174, 182), ((px * 3 + py * 5) & 7) == 0 ? 0.38f : 0.22f);
           if ((!n.known && s.water != n.water) || (!w.known && s.water != w.water)) k = mixc(k, kInkC, 0.42f);
         }
-        if (n.known || w.known || at(i - 1, j - 1).known) k = shadec(k, 0.9f);
+        if (n.known || w.known || T.at(i - 1, j - 1).known) k = shadec(k, 0.9f);
         if (s.mist) {   // (M10) the Mist: a pale bank of fog hatched over the sea (only a faint ring once charted)
           const float fog = ::vnoise(px / 11.0f, py / 7.0f, 4471) * 0.55f + ::vnoise(px / 4.0f, py / 3.0f, 4473) * 0.30f + ::vnoise(px / 1.7f, py / 1.5f, 4477) * 0.15f;
           const float dens = std::min(1.0f, s.mistD / 255.0f);
@@ -1144,7 +1018,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         // town zoom's strength (sample to sample the per-tile elevation steps were amplified into a plaid), and a level
         // step is one thin shaded line on its low side instead of a shaded band
         const int ko = z < 1 ? (int)std::lround(1.0f / z) : 1;
-        float slope = at(i - ko, j - ko).e - at(i + ko, j + ko).e;
+        float slope = T.at(i - ko, j - ko).e - T.at(i + ko, j + ko).e;
         if (z < 1) {
           // (M11 fixer r2) at the street zoom the slope is blended between the tile centres (bilinear), so the hillshade
           // runs smoothly across the land instead of a 12-px block per tile
@@ -1152,15 +1026,15 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           const int ci = i + (int)std::lround((0.5f - tfx) / z), cj = j + (int)std::lround((0.5f - tfy) / z);
           const int i0 = tfx < 0.5f ? ci - ko : ci, j0 = tfy < 0.5f ? cj - ko : cj;
           const float ax = tfx < 0.5f ? tfx + 0.5f : tfx - 0.5f, ay = tfy < 0.5f ? tfy + 0.5f : tfy - 0.5f;
-          auto sl = [&](int a, int b) { return at(a - ko, b - ko).e - at(a + ko, b + ko).e; };
+          auto sl = [&](int a, int b) { return T.at(a - ko, b - ko).e - T.at(a + ko, b + ko).e; };
           slope = (sl(i0, j0) * (1 - ax) + sl(i0 + ko, j0) * ax) * (1 - ay) + (sl(i0, j0 + ko) * (1 - ax) + sl(i0 + ko, j0 + ko) * ax) * ay;
         }
         float hs = std::clamp(0.5f + slope * (z < 1 ? 17.0f * std::pow(4.0f, 0.8f) : hsA), 0.0f, 1.0f);
         if (z < 1) {
           if ((int)n.h > (int)s.h) hs = std::max(0.0f, hs - 0.30f);
           else if ((int)w.h > (int)s.h) hs = std::max(0.0f, hs - 0.16f);
-          else if ((int)at(i, j + 1).h < (int)s.h || (int)at(i + 1, j).h < (int)s.h) hs = std::min(1.0f, hs + 0.12f);
-        } else if (z <= 2) hs = std::clamp(hs + ((int)at(i - 1, j - 1).h - (int)s.h) * 0.16f - ((int)at(i + 1, j + 1).h - (int)s.h) * 0.10f, 0.0f, 1.0f);
+          else if ((int)T.at(i, j + 1).h < (int)s.h || (int)T.at(i + 1, j).h < (int)s.h) hs = std::min(1.0f, hs + 0.12f);
+        } else if (z <= 2) hs = std::clamp(hs + ((int)T.at(i - 1, j - 1).h - (int)s.h) * 0.16f - ((int)T.at(i + 1, j + 1).h - (int)s.h) * 0.10f, 0.0f, 1.0f);
         // (M7c SURVEY) a plan's paving, roofs and walls take the relief gently (the macro slope's full strength mottled
         // the streets into blotches at the street zoom: paving is laid level)
         k = s.plan && (s.road || s.bldg || s.wall) ? shadec(k, 0.93f + hs * 0.14f) : shadec(k, 0.74f + hs * 0.52f);
@@ -1232,9 +1106,9 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           const float v = vnoise(px / 2.6f, py / 2.6f, 741) + (hashf(px, py, 743) - 0.5f) * 0.25f;
           k = v > 0.62f ? C(92, 136, 70) : v > 0.36f ? C(62, 104, 58) : C(44, 80, 50);
           if (!n.tree || !w.tree) k = C(104, 148, 78);
-          else if (!at(i + 1, j + 1).tree) k = C(34, 62, 44);
+          else if (!T.at(i + 1, j + 1).tree) k = C(34, 62, 44);
           // (M7c) a tree standing alone in a plan (an orchard's row, a square's plane tree): one crown, not a lit speck
-          if (s.plan && !n.tree && !w.tree && !at(i + 1, j).tree && !at(i, j + 1).tree) k = C(80, 124, 62);
+          if (s.plan && !n.tree && !w.tree && !T.at(i + 1, j).tree && !T.at(i, j + 1).tree) k = C(80, 124, 62);
         } else if (s.hedge && !s.bldg && !s.wall && z <= 1) {
           // (M7c) a hedge dark green, a fence a thin line of weathered wood over the ground, a garden wall pale stone
           k = s.hedgeKind == 2 ? mixc(k, C(120, 92, 64), 0.55f) : s.hedgeKind == 3 ? C(176, 166, 146) : C(76, 110, 60);
@@ -1244,7 +1118,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         if (s.bldg) {
           // a roof seen from above: its south edge (the wall) darker, the north slope lit, the west edge lit, an
           // ink line round it; the house throws a short shade on the ground to its south-east
-          const bool southEdge = !same(at(i, j + 1)), northEdge = !same(n), westEdge = !same(w), eastEdge = !same(at(i + 1, j));
+          const bool southEdge = !same(T.at(i, j + 1)), northEdge = !same(n), westEdge = !same(w), eastEdge = !same(T.at(i + 1, j));
           uint32_t rc = s.roofC ? s.roofC : C(166, 90, 66);
           // (M7c SURVEY) a pale roof (lime-washed flat roofs, snow) kept a step below the pale paving round it, so the
           // house reads as a house and not as an empty yard
@@ -1255,8 +1129,8 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
             // either side of a ridge line, the wall a dark band along the south edge, an ink outline
             // (M7c) the town zoom too (a house four or five pixels deep): lit slope, ridge, shaded slope, wall
             int up = 0, down = 0;
-            for (int q = 1; q < 16 && same(at(i, j - q)); q++) up = q;
-            for (int q = 1; q < 16 && same(at(i, j + q)); q++) down = q;
+            for (int q = 1; q < 16 && same(T.at(i, j - q)); q++) up = q;
+            for (int q = 1; q < 16 && same(T.at(i, j + q)); q++) down = q;
             const int tot = up + down + 1, wallR = std::max(1, tot / 4), roofR = tot - wallR;
             if (down < wallR) k = southEdge ? shadec(rc, 0.40f) : shadec(rc, 0.55f);   // the wall under the eaves
             else if (up == roofR / 2) k = shadec(rc, 1.28f);                            // the ridge
@@ -1274,20 +1148,20 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         } else if (!s.wall && z <= 2) {
           // the shade a building or the wall throws on the ground to the south-east (longer from a tall building at
           // the street zoom)
-          const Smp& nw = at(i - 1, j - 1);
+          const Smp& nw = T.at(i - 1, j - 1);
           if (nw.bldg || (s.plan && nw.wall)) k = shadec(k, s.plan && nw.wall && !nw.bldg ? 0.82f : 0.78f);
-          else if (z < 1 && at(i - 2, j - 2).bldg && at(i - 2, j - 2).tall >= 3) k = shadec(k, 0.84f);
-          else if (s.plan && z <= 1 && !s.tree && at(i - 1, j - 1).tree) k = shadec(k, 0.86f);
+          else if (z < 1 && T.at(i - 2, j - 2).bldg && T.at(i - 2, j - 2).tall >= 3) k = shadec(k, 0.84f);
+          else if (s.plan && z <= 1 && !s.tree && T.at(i - 1, j - 1).tree) k = shadec(k, 0.86f);
         }
         if (s.wall) {
           if (s.tower) {
             // (M7c) a wall tower: a square of dressed stone, its top lit on the north-west, its faces in shade
-            const bool tn = n.wall && n.tower, tw = w.wall && w.tower, ts = at(i, j + 1).wall && at(i, j + 1).tower, te = at(i + 1, j).wall && at(i + 1, j).tower;
+            const bool tn = n.wall && n.tower, tw = w.wall && w.tower, ts = T.at(i, j + 1).wall && T.at(i, j + 1).tower, te = T.at(i + 1, j).wall && T.at(i + 1, j).tower;
             k = !ts ? C(88, 80, 74) : !te ? C(112, 104, 96) : (!tn || !tw) ? C(184, 176, 158) : C(148, 140, 126);
           } else if (s.plan) {
             // (M7c) the curtain wall: its walk lit, its outer face in shade
             // (a tile a pixel or less: one even line of dark stone, the ring the same on every side)
-            k = z >= 1 ? C(108, 100, 92) : !at(i, j + 1).wall ? C(92, 84, 78) : (!n.wall || !w.wall) ? C(168, 160, 144) : C(126, 118, 108);
+            k = z >= 1 ? C(108, 100, 92) : !T.at(i, j + 1).wall ? C(92, 84, 78) : (!n.wall || !w.wall) ? C(168, 160, 144) : C(126, 118, 108);
           } else k = (!n.wall || !w.wall) ? C(176, 168, 152) : C(126, 118, 108);
         }
       } else {
@@ -1321,7 +1195,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           for (int oy = -r; oy <= r && bd == 9; oy++)
             for (int ox = -r; ox <= r; ox++) {
               if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
-              const Smp& o = at(i + ox, j + oy);
+              const Smp& o = T.at(i + ox, j + oy);
               if (o.water || o.kingdom == s.kingdom) continue;
               bd = r; wildSide = o.kingdom == 0;
               break;
@@ -1376,15 +1250,28 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       // the paper shows through the paint, and the known land fades into the parchment at its edge (dithered)
       float fade = 0.14f + grain * 0.06f;
       if (z >= 8) {}
-      else if (!n.known || !w.known || !at(i - 1, j - 1).known) fade = 0.55f;
-      else if (!at(i + 1, j).known || !at(i, j + 1).known) fade = 0.4f;
+      else if (!n.known || !w.known || !T.at(i - 1, j - 1).known) fade = 0.55f;
+      else if (!T.at(i + 1, j).known || !T.at(i, j + 1).known) fade = 0.4f;
       if (fade > 0.3f && grain < 0.35f) k = mixc(k, kParch, 0.85f);
       k = mixc(k, kParch, fade);
       c.set(x, y, k);
     }
-  if (geo || !endless) { out = std::move(c); return true; }
+}
+
+// Z1 outside the window, Z2: the rivers and roads from the explored regions' plans, the waterfall marks (paintMapTile)
+static void tileLines(TileCtx& T, Canvas& c, std::vector<std::pair<int, int>>& fallMarks) {
+  using Smp = MapSmp;
+  Game& g = T.g;
+  const int ix = T.ix;
+  const int iy = T.iy;
+  const float z = T.z;
+  const Map& m = T.m;
+  const int32_t tx0 = T.tx0;
+  const int32_t ty0 = T.ty0;
+  const int32_t tx1 = T.tx1;
+  const int32_t ty1 = T.ty1;
   // ---- cartographic lines: rivers and roads from the explored regions' plans (Z1 outside the window, Z2)
-  auto knownAt = [&](int x, int y) { return x >= -MG && y >= -MG && x < TS + MG && y < TS + MG && at(x + MG, y + MG).known; };
+  auto knownAt = [&](int x, int y) { return x >= -MG && y >= -MG && x < TS + MG && y < TS + MG && T.at(x + MG, y + MG).known; };
   // (M11 CLIMB) where a river's line drops a level on the high ground (level 3 and up, where a step is a face rather
   // than a hillside) a waterfall is marked on it (inside the window the real fall tiles draw themselves)
   auto plotLine = [&](float x0, float y0, float x1, float y1, uint32_t col, int dash, bool skipWindow) {
@@ -1396,7 +1283,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       const float fx = x0 + (x1 - x0) * t, fy = y0 + (y1 - y0) * t;
       const int x = (int)std::floor(fx), y = (int)std::floor(fy);
       if (col == kRiver && x >= -MG && y >= -MG && x < TS + MG && y < TS + MG) {
-        const Smp& q = at(x + MG, y + MG);
+        const Smp& q = T.at(x + MG, y + MG);
         if (!q.water && q.known) {
           if (prevH >= 0 && (int)q.h != prevH && std::max((int)q.h, prevH) >= 3 && x >= 0 && y >= 0 && x < TS && y < TS) {
             bool near = false;
@@ -1413,8 +1300,8 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const int lx = (int)std::floor((ix * TS + x + 0.5f) * z) - g.world.ox, ly = (int)std::floor((iy * TS + y + 0.5f) * z) - g.world.oy;
         if (m.in(lx, ly)) continue;
       }
-      if (at(x + MG, y + MG).plan) continue;   // (M7c: a settlement's plan draws its own streets and water)
-      if (at(x + MG, y + MG).water && col != kRiver) { c.set(x, y, mixc(c.get(x, y), col, 0.5f)); continue; }
+      if (T.at(x + MG, y + MG).plan) continue;   // (M7c: a settlement's plan draws its own streets and water)
+      if (T.at(x + MG, y + MG).water && col != kRiver) { c.set(x, y, mixc(c.get(x, y), col, 0.5f)); continue; }
       c.set(x, y, mixc(col, kParch, 0.12f));
     }
   };
@@ -1450,11 +1337,21 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
     put(x - 1, y + 1, mixc(C(196, 224, 240), kRiver, 0.5f));
     put(x + 1, y + 1, mixc(C(196, 224, 240), kRiver, 0.5f));
   }
+}
+
+// Z1 - Z3: tree marks in the woods and snow-tipped peaks on the ridge crests (paintMapTile)
+static void tileGlyphs(TileCtx& T, Canvas& c) {
+  using Smp = MapSmp;
+  Game& g = T.g;
+  const int ix = T.ix;
+  const int iy = T.iy;
+  const float z = T.z;
+  const Map& m = T.m;
   // ---- glyphs: tree marks in the woods (Z1 outside the window, Z2) and snow-tipped peaks on the ridge crests (Z2, Z3).
   //      A jittered global lattice of candidates; each tile draws every glyph that reaches it (sorted north to south).
   struct Gl { int x, y, kind, size; bool snow; int lean = 0; };
   std::vector<Gl> gls;
-  auto knownLand = [&](int x, int y) { if (x < -MG || y < -MG || x >= TS + MG || y >= TS + MG) return false; const Smp& s = at(x + MG, y + MG); return s.known && !s.water && !s.bldg && !s.road && !s.plan; };
+  auto knownLand = [&](int x, int y) { if (x < -MG || y < -MG || x >= TS + MG || y >= TS + MG) return false; const Smp& s = T.at(x + MG, y + MG); return s.known && !s.water && !s.bldg && !s.road && !s.plan; };
   if (z >= 4) {
     // (M3c fixer, review: "a heap of identical white triangles") a sparser lattice at the land zooms, a quarter of
     // the lower crests left out, and every peak its own shape (it leans one way or the other, some broader, some taller)
@@ -1467,12 +1364,12 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const uint32_t h = hash2(cx, cy, 977);
         const int gx = cx * G + 1 + (int)(h % (uint32_t)(G - 2)) - ix * TS, gy = cy * G + 1 + (int)((h >> 8) % (uint32_t)(G - 2)) - iy * TS;
         if (!knownLand(gx, gy)) continue;
-        const Smp& s = at(gx + MG, gy + MG);
+        const Smp& s = T.at(gx + MG, gy + MG);
         if (s.h < 5 && s.bio != Biome::Mountain) continue;
         // a crest: as high as the land a few pixels either way along one axis at least
         const float e = s.e;
-        const bool crestX = e >= at(gx + MG - 3, gy + MG).e && e >= at(gx + MG + 3, gy + MG).e;
-        const bool crestY = e >= at(gx + MG, gy + MG - 3).e && e >= at(gx + MG, gy + MG + 3).e;
+        const bool crestX = e >= T.at(gx + MG - 3, gy + MG).e && e >= T.at(gx + MG + 3, gy + MG).e;
+        const bool crestY = e >= T.at(gx + MG, gy + MG - 3).e && e >= T.at(gx + MG, gy + MG + 3).e;
         if (!crestX && !crestY && s.h < 6) continue;
         if ((int)((h >> 16) & 3) <= (s.h < 6 ? 1 : 0)) continue;
         const bool snow = s.h >= 6 || s.bio == Biome::Snow || s.bio == Biome::Taiga;
@@ -1491,7 +1388,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         if ((h & 7) < 3 || vnoise((cx * G) / 14.0f, (cy * G) / 14.0f, 985) < 0.42f) continue;
         const int gx = cx * G + (int)(h % (uint32_t)G) - ix * TS, gy = cy * G + (int)((h >> 8) % (uint32_t)G) - iy * TS;
         if (!knownLand(gx, gy) || !knownLand(gx, gy - 3)) continue;
-        const Smp& s = at(gx + MG, gy + MG);
+        const Smp& s = T.at(gx + MG, gy + MG);
         if (s.h >= 5) continue;
         if (z <= 2 && m.in((int)std::floor((ix * TS + gx + 0.5f) * z) - g.world.ox, (int)std::floor((iy * TS + gy + 0.5f) * z) - g.world.oy)) continue;
         int kind = 0;
@@ -1536,6 +1433,77 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       }
     }
   }
+}
+
+static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_clock::time_point deadline) {
+  using Smp = MapSmp;
+  using GRect = MapGRect;
+  const int zi = J.zi, ix = J.ix, iy = J.iy;
+  const bool geo = J.geo;
+  const float z = kZoom[zi];
+  const int N = TS + 2 * MG;
+  std::vector<Smp>& grid = J.grid;
+  const bool endless = g.world.endless && g.world.src != nullptr;
+  const Map& m = g.world.over;
+  std::vector<GRect>& towns = J.towns;   // discovered settlements: with a margin (shown whole)
+  std::vector<GRect>& cores = J.cores;   // ... and their built area
+  const int32_t tx0 = (int32_t)std::floor((ix * TS - MG) * z) - 8, ty0 = (int32_t)std::floor((iy * TS - MG) * z) - 8;
+  const int32_t tx1 = (int32_t)std::floor(((ix + 1) * TS + MG) * z) + 8, ty1 = (int32_t)std::floor(((iy + 1) * TS + MG) * z) + 8;
+  // (M7c SURVEY, the web's frame budget) the explored region plans this tile's road and river lines read are made at
+  // most one a frame before it starts (a region plan is a few ms of unsplittable work: two or three of them inside one
+  // tile were the map's worst frames when panning)
+  if (endless && !geo && J.row == 0 && grid.empty() && z >= 1 && z <= 8) {
+    for (int32_t ry = ew::regionOf(ty0); ry <= ew::regionOf(ty1); ry++)
+      for (int32_t rx = ew::regionOf(tx0); rx <= ew::regionOf(tx1); rx++) {
+        const uint64_t key = ExploredMask::key(rx, ry);
+        if (!g.explored.regions.count(key) || S.regSeen.count(key)) continue;
+        if (S.regFrame == S.frame) return false;   // (one this frame already: the next frame goes on)
+        S.regFrame = S.frame;
+        const auto r0 = std::chrono::steady_clock::now();
+        g.world.src->region(rx, ry);
+        S.regWorstMs = std::max(S.regWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - r0).count());
+        S.regSeen.insert(key);
+      }
+  }
+  if (J.row == 0 && grid.empty()) {
+    grid.assign((size_t)N * N, Smp());
+    // (M4) the realms whose land moved, and every owner's border colour
+    for (const realm::KingdomState& k : g.realm.kingdoms())
+      for (ew::Gid sid : k.settlements)
+        if (const realm::SettlementState* st = g.realm.settlement(sid))
+          if (st->home && st->home != k.id) J.moved.insert(st->home);
+    if (endless)
+      for (const Site& st : g.world.sites) {
+        if (!st.discovered || !st.settlement()) continue;
+        GRect r{g.world.ox + st.r.x - 6, g.world.oy + st.r.y - 6, g.world.ox + st.r.x + st.r.w + 6, g.world.oy + st.r.y + st.r.h + 6};
+        if (r.x1 < tx0 || r.y1 < ty0 || r.x0 > tx1 || r.y0 > ty1) continue;
+        towns.push_back(r);
+        cores.push_back(GRect{r.x0 + 6, r.y0 + 6, r.x1 - 6, r.y1 - 6});
+        J.corePlanned.push_back(S.plans.count(st.id) ? 1 : 0);
+      }
+    // (M7c) the settlement plans ready over this tile (they hold their own boxes: the footprint and its margin)
+    if (endless)
+      for (auto& kv : S.plans) {
+        const PlanRaster& P = *kv.second;
+        if (P.gx + P.w < tx0 || P.gy + P.h < ty0 || P.gx > tx1 || P.gy > ty1) continue;
+        J.plans.push_back(kv.second);
+      }
+  }
+  TileCtx T{g, J, zi, ix, iy, geo, z, N, grid, endless, m, towns, cores, tx0, ty0, tx1, ty1};
+  if (!tileSampleRows(T, deadline)) return false;
+  J.row = N;
+  const auto fin0 = std::chrono::steady_clock::now();
+  struct FinTime {   // (the tile's last pass, timed for mapstats)
+    std::chrono::steady_clock::time_point t;
+    ~FinTime() { S.finishWorstMs = std::max(S.finishWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count()); }
+  } finTime{fin0};
+  tileRipples(T);
+  Canvas c(TS, TS);
+  std::vector<std::pair<int, int>> fallMarks;   // (M11 CLIMB) waterfall glyphs: the window's falls, the rivers' drops
+  tileInk(T, c, fallMarks);
+  if (geo || !endless) { out = std::move(c); return true; }
+  tileLines(T, c, fallMarks);
+  tileGlyphs(T, c);
   out = std::move(c);
   return true;
 }
@@ -1566,14 +1534,6 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   Pix& P = *pix_;
   const auto t0 = std::chrono::steady_clock::now();
   const uint64_t wid = g.world.seed ^ ((uint64_t)g.world.genVersion << 56) ^ (g.world.endless ? 1ull << 55 : 0);
-  auto playerG = [&](double& gx, double& gy) {
-    Vec2 pp = g.pl().p;
-    if (g.inside) {
-      if (g.subSite >= 0) pp = Vec2(g.world.sites[g.subSite].ex * 16.0f, g.world.sites[g.subSite].ey * 16.0f);
-      else if (g.subBldg >= 0) pp = Vec2(g.world.over.bldgs[g.subBldg].doorX() * 16.0f, g.world.over.bldgs[g.subBldg].doorY() * 16.0f);
-    }
-    gx = pp.x / 16.0 + g.world.ox; gy = pp.y / 16.0 + g.world.oy;
-  };
   if (!S.init || S.world != wid) {
     for (auto& kv : S.tiles) pix_->destroy(kv.second.tex);
     S.tiles.clear();
@@ -1581,7 +1541,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     S.job = TileJob();
     S.plans.clear(); S.noPlan.clear(); S.planBusy = 0; S.regSeen.clear();
     S.init = true; S.world = wid;
-    playerG(S.cx, S.cy);
+    mapPlayerG(g, S.cx, S.cy);
     S.zi = g.world.endless ? 3 : 2;   // (M2 fixer: the town zoom first, where the known country round home fills the map)
   }
   if (S.icons.empty()) {
@@ -1590,7 +1550,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   }
   if (S.warIcons.empty()) for (int i = 0; i < WI_COUNT; i++) S.warIcons.push_back(pix_->bake(warIconCanvas(i)));
   float& lastDraw = mapLastDraw_;
-  if (t_ - lastDraw > 0.5f && mapSel_ < 0 && S.reqSel == -2) playerG(S.cx, S.cy);   // the map was closed: open it on the hero
+  if (t_ - lastDraw > 0.5f && mapSel_ < 0 && S.reqSel == -2) mapPlayerG(g, S.cx, S.cy);   // the map was closed: open it on the hero
   lastDraw = t_;
   // (M4) a conquest moves the borders: the realm's owners are part of what the tiles were painted with
   uint64_t seaSig = 0;   // (M10) a land rumoured, charted, mapped or landed on changes what the map shows
@@ -1609,6 +1569,52 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   P.rect(x, y, w, h, colOf(kParch));
   // the tiles in view, painted within a per-frame budget (nearest the centre first)
   const double left = S.cx / z - w / 2, top = S.cy / z - h / 2;   // map pixel at the rectangle's top-left
+  MapFrame M{P, x, y, w, h, t0, sig, z, left, top};
+  mapTiles(g, M);
+  mapPlans(g, M);
+  S.legend.clear();
+  mapBiomeCensus(g, M);
+  // ---- labels are placed after the markers, most important first; one that would overlap a placed label (or a
+  //      marker) tries its other position and is otherwise left out
+  // the hero
+  double pgx0, pgy0;
+  mapPlayerG(g, pgx0, pgy0);
+  const Vec2 hp = M.toScr(pgx0, pgy0);
+  M.hp = hp;
+  M.taken.push_back({hp.x - 9, hp.y - 10, hp.x + 9, hp.y + 8});   // (M3c fixer round 3: the hero's whole marker)
+  M.taken.push_back({0, h - 14, 110, h});            // the scale bar
+  M.taken.push_back({w - 26, 0, w, 30});             // the compass rose
+  if (g.world.endless && !S.geo) mapRealmLabels(g, M);
+  mapMarkersPlaces(g, M);
+  mapMarkersWar(g, M);
+  // (the war's markers and the border lead the legend: the places' icons follow and are cut first)
+  std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -30; });   // (M12: and the rise's)
+  m4Stats_.mapMarkers = S.markers;
+  m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
+  mapQuestPins(g, M);
+  mapMarkersHome(g, M);
+  mapMarkersParty(g, M);
+  placeLabels(g, M);
+  mapQuestMarks(g, M);
+  mapMarkersSea(g, M);
+  mapHero(g, M);
+  mapGeologyAndScale(g, M);
+  P.popBox();
+  if (std::getenv("EMB_TIMING")) {
+    const double all = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    if (all > 8.0) std::printf("world map frame: %.1f ms (tiles %.1f ms)\n", all, S.lastPaintMs);
+  }
+  // an inked double frame
+  P.frame(x - 1, y - 1, w + 2, h + 2, Color(0.30f, 0.21f, 0.14f));
+  P.frame(x - 3, y - 3, w + 6, h + 6, Color(0.52f, 0.40f, 0.26f));
+}
+
+// (SOLID 3.4d) the tiles in view, painted within the frame's budget, nearest the centre first (drawWorldMap)
+void View::mapTiles(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  const float x = M.x, y = M.y, w = M.w, h = M.h;
+  const auto t0 = M.t0;
+  const double left = M.left, top = M.top;
   const int ix0 = (int)std::floor(left / TS), iy0 = (int)std::floor(top / TS);
   const int ix1 = (int)std::floor((left + w) / TS), iy1 = (int)std::floor((top + h) / TS);
   std::vector<std::pair<int, int>> todo;
@@ -1682,6 +1688,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       auto f = S.tiles.find(tileKey(S.zi, q.first, q.second) ^ geoBit);
       if (f != S.tiles.end() && !f->second.stale) P.blit(f->second.tex, (float)std::floor(q.first * TS - left), (float)std::floor(q.second * TS - top));
     }
+}
+
+// (M7c) the real plans of the discovered settlements near the view; the tile cache's bound (drawWorldMap)
+void View::mapPlans(Game& g, MapFrame& M) {
+  const float w = M.w, h = M.h;
+  const auto t0 = M.t0;
+  const float z = M.z;
+  const double left = M.left, top = M.top;
   // (M7c) the real plans of the discovered settlements in and near the view: one place at a time, built through the
   // source's prepare path (a generator phase at a time) within what is left of the frame's few milliseconds
   if (g.world.endless && g.world.src && !S.geo) {
@@ -1744,9 +1758,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     std::sort(age.begin(), age.end());
     for (size_t i = 0; i + 128 < age.size(); i++) { pix_->destroy(S.tiles[age[i].second].tex); S.tiles.erase(age[i].second); }
   }
-  auto toScr = [&](double gx, double gy) { return Vec2((float)(gx / z - left), (float)(gy / z - top)); };
-  S.legend.clear();
-  auto legendAdd = [&](int ic) { if (std::find(S.legend.begin(), S.legend.end(), ic) == S.legend.end()) S.legend.push_back(ic); };
+}
+
+// (M3c LIFE) the biomes in view, for the legend (drawWorldMap)
+void View::mapBiomeCensus(Game& g, MapFrame& M) {
+  const float x = M.x, w = M.w, h = M.h;
+  const uint64_t sig = M.sig;
+  const float z = M.z;
+  const double left = M.left, top = M.top;
   // (M3c LIFE) the biomes in view: a coarse census of the known land (12 x 8 far samples, re-counted when the view
   // moves by a tenth of its width or the zoom or the explored land changes)
   if (g.world.endless && g.world.src && !S.geo &&
@@ -1776,129 +1795,135 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       S.ecoLeg.resize(keep);
     }
   }
-  // ---- labels are placed after the markers, most important first; one that would overlap a placed label (or a
-  //      marker) tries its other position and is otherwise left out
-  struct Lab { int prio; float x, y, alt; std::string s; Color ink, halo; bool spaced; std::string sub = std::string(); Color subInk = Color(); bool realm = false; };   // (M12) sub: a second, smaller line under it
-  std::vector<Lab> labs;
-  struct Box { float x0, y0, x1, y1; };
-  std::vector<Box> taken;
-  // the hero
-  double pgx0, pgy0;
-  playerG(pgx0, pgy0);
-  const Vec2 hp = toScr(pgx0, pgy0);
-  taken.push_back({hp.x - 9, hp.y - 10, hp.x + 9, hp.y + 8});   // (M3c fixer round 3: the hero's whole marker)
-  taken.push_back({0, h - 14, 110, h});            // the scale bar
-  taken.push_back({w - 26, 0, w, 30});             // the compass rose
-  if (g.world.endless && !S.geo) {
-    // kingdom names (M4: in the society's word, where the realm holds its land now: the middle of its settlements; a
-    // fallen realm has none)
-    // (M12) at every zoom (close in, under the towns' names), with a second line for the realms of the rise: a
-    // warlord's, a successor's heirs, a vassal's liege, the player's own
-    {
-      for (const Kingdom& k : g.world.kingdoms) {
-        double kx = k.gx + 0.5, ky = k.gy + 0.5;
-        if (const realm::KingdomState* K = g.realm.kingdom(k.id)) {
-          if (K->fallen) continue;
-          double sx = 0, sy = 0;
-          int n = 0;
-          for (ew::Gid sid : K->settlements)
-            if (const realm::SettlementState* st = g.realm.settlement(sid)) { sx += st->gx; sy += st->gy; n++; }
-          // (its seat when it still holds it, else the middle of what it holds)
-          bool seat = false;
-          for (ew::Gid sid : K->settlements) if (sid == k.capitalId) seat = true;
-          if (n > 0 && !seat) { kx = sx / n + 0.5; ky = sy / n + 0.5; }
-        }
-        if (!g.explored.seen((int32_t)kx, (int32_t)ky)) continue;
-        Vec2 s = toScr(kx, ky);
-        if (s.x < -80 || s.y < -20 || s.x > w + 80 || s.y > h + 20) continue;
-        const rui::Look L = rui::look(g, k.id);
-        const uint32_t kcol = L.color ? L.color : k.color;
-        int kprio = z >= 4 ? 3 : 6;
-        // (M12 fixer) the player's own realm always has its name on the map (forced: beside its seat, over the icons
-        // round it if it must; it was dropped when the seat's marks crowded every clear spot)
-        if (const realm::KingdomState* PK = g.realm.kingdom(k.id)) if (PK->player) kprio = 0;
-        std::string sub;
-        if (const realm::KingdomState* RK = g.realm.kingdom(k.id)) {
-          if (RK->player) sub = "YOUR REALM";
-          else if (RK->origin == realm::KO_WARLORD) sub = "A WARLORD'S REALM";
-          else if (RK->origin == realm::KO_SUCCESSOR && RK->claim) { const rui::Look CL = rui::look(g, RK->claim); sub = CL.ok ? "HEIRS OF " + CL.name : "A SUCCESSOR REALM"; }
-          else if (RK->overlord) { const rui::Look OL = rui::look(g, RK->overlord); sub = OL.ok ? "VASSAL OF " + OL.name : "A VASSAL"; }
-        }
-        Lab kl{kprio, s.x, s.y - 16, s.y + 8, rui::realmTitle(L, false), colOf(kcol ? mixc(kcol, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16};
-        kl.sub = sub;
-        kl.realm = true;
-        if (kprio == 0) kl.y -= 10;   // (a two-line forced label: above its middle stands whole)
-        kl.subInk = sub == "YOUR REALM" ? Color(0.55f, 0.36f, 0.06f) : Color(0.36f, 0.24f, 0.16f);
-        labs.push_back(kl);
+}
+
+// the realms' names and the explored regions' landmarks, queued as labels (drawWorldMap)
+void View::mapRealmLabels(Game& g, MapFrame& M) {
+  const float w = M.w, h = M.h;
+  const auto t0 = M.t0;
+  const float z = M.z;
+  const double left = M.left, top = M.top;
+  auto& labs = M.labs;
+  auto& marks = M.marks;
+  // kingdom names (M4: in the society's word, where the realm holds its land now: the middle of its settlements; a
+  // fallen realm has none)
+  // (M12) at every zoom (close in, under the towns' names), with a second line for the realms of the rise: a
+  // warlord's, a successor's heirs, a vassal's liege, the player's own
+  {
+    for (const Kingdom& k : g.world.kingdoms) {
+      double kx = k.gx + 0.5, ky = k.gy + 0.5;
+      if (const realm::KingdomState* K = g.realm.kingdom(k.id)) {
+        if (K->fallen) continue;
+        double sx = 0, sy = 0;
+        int n = 0;
+        for (ew::Gid sid : K->settlements)
+          if (const realm::SettlementState* st = g.realm.settlement(sid)) { sx += st->gx; sy += st->gy; n++; }
+        // (its seat when it still holds it, else the middle of what it holds)
+        bool seat = false;
+        for (ew::Gid sid : K->settlements) if (sid == k.capitalId) seat = true;
+        if (n > 0 && !seat) { kx = sx / n + 0.5; ky = sy / n + 0.5; }
       }
+      if (!g.explored.seen((int32_t)kx, (int32_t)ky)) continue;
+      Vec2 s = M.toScr(kx, ky);
+      if (s.x < -80 || s.y < -20 || s.x > w + 80 || s.y > h + 20) continue;
+      const rui::Look L = rui::look(g, k.id);
+      const uint32_t kcol = L.color ? L.color : k.color;
+      int kprio = z >= 4 ? 3 : 6;
+      // (M12 fixer) the player's own realm always has its name on the map (forced: beside its seat, over the icons
+      // round it if it must; it was dropped when the seat's marks crowded every clear spot)
+      if (const realm::KingdomState* PK = g.realm.kingdom(k.id)) if (PK->player) kprio = 0;
+      std::string sub;
+      if (const realm::KingdomState* RK = g.realm.kingdom(k.id)) {
+        if (RK->player) sub = "YOUR REALM";
+        else if (RK->origin == realm::KO_WARLORD) sub = "A WARLORD'S REALM";
+        else if (RK->origin == realm::KO_SUCCESSOR && RK->claim) { const rui::Look CL = rui::look(g, RK->claim); sub = CL.ok ? "HEIRS OF " + CL.name : "A SUCCESSOR REALM"; }
+        else if (RK->overlord) { const rui::Look OL = rui::look(g, RK->overlord); sub = OL.ok ? "VASSAL OF " + OL.name : "A VASSAL"; }
+      }
+      Lab kl{kprio, s.x, s.y - 16, s.y + 8, rui::realmTitle(L, false), colOf(kcol ? mixc(kcol, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16};
+      kl.sub = sub;
+      kl.realm = true;
+      if (kprio == 0) kl.y -= 10;   // (a two-line forced label: above its middle stands whole)
+      kl.subInk = sub == "YOUR REALM" ? Color(0.55f, 0.36f, 0.06f) : Color(0.36f, 0.24f, 0.16f);
+      labs.push_back(kl);
     }
-    // landmarks of the explored regions near the view (the region plans are fetched a few per frame)
-    {
-      const int32_t gx0 = (int32_t)std::floor(left * z) - 512, gy0 = (int32_t)std::floor(top * z) - 512;
-      const int32_t gx1 = (int32_t)std::floor((left + w) * z) + 512, gy1 = (int32_t)std::floor((top + h) * z) + 512;
-      int fetched = 0;
-      for (auto& kv : g.explored.regions) {
-        const int32_t rx = ExploredMask::keyRx(kv.first), ry = ExploredMask::keyRy(kv.first);
-        if ((rx + 1) * ew::REGION < gx0 || rx * ew::REGION > gx1 || (ry + 1) * ew::REGION < gy0 || ry * ew::REGION > gy1) continue;
-        auto it = S.lms.find(kv.first);
-        if (it == S.lms.end()) {
-          // (M2 fixer round 3) one region plan a frame, and none once the frame's map work passed 6 ms: on the web a
-          // plan is made on the main thread, and opening the map stacked two of them on the tile painting
-          // ((Witness) a count, never the clock: no picture may depend on CPU speed)
-          if (fetched >= 1 || (!witness && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > 6.0)) continue;
-          fetched++;
-          it = S.lms.emplace(kv.first, g.world.src->region(rx, ry).landmarks).first;
+  }
+  // landmarks of the explored regions near the view (the region plans are fetched a few per frame)
+  {
+    const int32_t gx0 = (int32_t)std::floor(left * z) - 512, gy0 = (int32_t)std::floor(top * z) - 512;
+    const int32_t gx1 = (int32_t)std::floor((left + w) * z) + 512, gy1 = (int32_t)std::floor((top + h) * z) + 512;
+    int fetched = 0;
+    for (auto& kv : g.explored.regions) {
+      const int32_t rx = ExploredMask::keyRx(kv.first), ry = ExploredMask::keyRy(kv.first);
+      if ((rx + 1) * ew::REGION < gx0 || rx * ew::REGION > gx1 || (ry + 1) * ew::REGION < gy0 || ry * ew::REGION > gy1) continue;
+      auto it = S.lms.find(kv.first);
+      if (it == S.lms.end()) {
+        // (M2 fixer round 3) one region plan a frame, and none once the frame's map work passed 6 ms: on the web a
+        // plan is made on the main thread, and opening the map stacked two of them on the tile painting
+        // ((Witness) a count, never the clock: no picture may depend on CPU speed)
+        if (fetched >= 1 || (!witness && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > 6.0)) continue;
+        fetched++;
+        it = S.lms.emplace(kv.first, g.world.src->region(rx, ry).landmarks).first;
+      }
+      for (const ew::LandmarkPlan& lm : it->second) {
+        // big enough at this zoom (a feature of `size` tiles spans size / z map pixels), not absurdly large
+        const float spanPx = lm.size / z;
+        if (spanPx < 14.0f || spanPx > 2400.0f) continue;
+        bool seenNear = g.explored.seen(lm.x, lm.y);
+        const int32_t r = std::min<int32_t>(lm.size / 2, 96);
+        for (int k = 0; k < 8 && !seenNear; k++) {
+          const float a = k * 0.785398f;
+          seenNear = g.explored.seen(lm.x + (int32_t)(std::cos(a) * r), lm.y + (int32_t)(std::sin(a) * r));
         }
-        for (const ew::LandmarkPlan& lm : it->second) {
-          // big enough at this zoom (a feature of `size` tiles spans size / z map pixels), not absurdly large
-          const float spanPx = lm.size / z;
-          if (spanPx < 14.0f || spanPx > 2400.0f) continue;
-          bool seenNear = g.explored.seen(lm.x, lm.y);
-          const int32_t r = std::min<int32_t>(lm.size / 2, 96);
-          for (int k = 0; k < 8 && !seenNear; k++) {
-            const float a = k * 0.785398f;
-            seenNear = g.explored.seen(lm.x + (int32_t)(std::cos(a) * r), lm.y + (int32_t)(std::sin(a) * r));
+        if (!seenNear) continue;
+        const Vec2 s = M.toScr(lm.x + 0.5, lm.y + 0.5);
+        if (s.x < -100 || s.y < -20 || s.x > w + 100 || s.y > h + 20) continue;
+        // ((M7c fixer, review: "BLACKHORN, drawn on the city's east wall, reads as the city's name") at the zooms that
+        // draw a settlement's plan, a landmark's name never sits on a discovered town or city: the plan is the place)
+        if (z <= 4.0f) {
+          bool onTown = false;
+          for (const Site& st : g.world.sites) {
+            if (!st.discovered || (st.type != SiteType::City && st.type != SiteType::Town)) continue;
+            const int32_t hw = st.type == SiteType::City ? 104 : 50, hh = st.type == SiteType::City ? 84 : 40;
+            if (std::abs(lm.x - (st.ex + g.world.ox)) <= hw && std::abs(lm.y - (st.ey + g.world.oy)) <= hh) { onTown = true; break; }
           }
-          if (!seenNear) continue;
-          const Vec2 s = toScr(lm.x + 0.5, lm.y + 0.5);
-          if (s.x < -100 || s.y < -20 || s.x > w + 100 || s.y > h + 20) continue;
-          // ((M7c fixer, review: "BLACKHORN, drawn on the city's east wall, reads as the city's name") at the zooms that
-          // draw a settlement's plan, a landmark's name never sits on a discovered town or city: the plan is the place)
-          if (z <= 4.0f) {
-            bool onTown = false;
-            for (const Site& st : g.world.sites) {
-              if (!st.discovered || (st.type != SiteType::City && st.type != SiteType::Town)) continue;
-              const int32_t hw = st.type == SiteType::City ? 104 : 50, hh = st.type == SiteType::City ? 84 : 40;
-              if (std::abs(lm.x - (st.ex + g.world.ox)) <= hw && std::abs(lm.y - (st.ey + g.world.oy)) <= hh) { onTown = true; break; }
-            }
-            if (onTown) continue;
-          }
-          Color ink(0.36f, 0.24f, 0.14f);
-          switch (lm.kind) {
-            case ew::LandmarkKind::Lake: case ew::LandmarkKind::River: case ew::LandmarkKind::Sea: ink = Color(0.16f, 0.30f, 0.52f); break;
-            case ew::LandmarkKind::Forest: ink = Color(0.14f, 0.34f, 0.16f); break;
-            case ew::LandmarkKind::Marsh: ink = Color(0.30f, 0.34f, 0.18f); break;
-            case ew::LandmarkKind::Desert: ink = Color(0.52f, 0.34f, 0.12f); break;
-            case ew::LandmarkKind::Pass: ink = Color(0.50f, 0.16f, 0.12f); break;
-            default: break;
-          }
-          const int prio = lm.kind == ew::LandmarkKind::Range || lm.kind == ew::LandmarkKind::Sea ? 6 : 7;
-          const bool spaced = (lm.kind == ew::LandmarkKind::Range || lm.kind == ew::LandmarkKind::Sea || lm.kind == ew::LandmarkKind::Desert) && spanPx > 60;
-          labs.push_back({prio, s.x, s.y - 4, s.y + 6, lm.name, ink, Color(0.96f, 0.92f, 0.82f, 0.65f), spaced});
+          if (onTown) continue;
         }
+        Color ink(0.36f, 0.24f, 0.14f);
+        switch (lm.kind) {
+          case ew::LandmarkKind::Lake: case ew::LandmarkKind::River: case ew::LandmarkKind::Sea: ink = Color(0.16f, 0.30f, 0.52f); break;
+          case ew::LandmarkKind::Forest: ink = Color(0.14f, 0.34f, 0.16f); break;
+          case ew::LandmarkKind::Marsh: ink = Color(0.30f, 0.34f, 0.18f); break;
+          case ew::LandmarkKind::Desert: ink = Color(0.52f, 0.34f, 0.12f); break;
+          case ew::LandmarkKind::Pass: ink = Color(0.50f, 0.16f, 0.12f); break;
+          default: break;
+        }
+        const int prio = lm.kind == ew::LandmarkKind::Range || lm.kind == ew::LandmarkKind::Sea ? 6 : 7;
+        const bool spaced = (lm.kind == ew::LandmarkKind::Range || lm.kind == ew::LandmarkKind::Sea || lm.kind == ew::LandmarkKind::Desert) && spanPx > 60;
+        labs.push_back({prio, s.x, s.y - 4, s.y + 6, lm.name, ink, Color(0.96f, 0.92f, 0.82f, 0.65f), spaced});
       }
     }
   }
+}
+
+// the places: rumoured "?" circles and the discovered places' icons, decluttered, south last (drawWorldMap)
+void View::mapMarkersPlaces(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  const float w = M.w, h = M.h;
+  const float z = M.z;
+  const double left = M.left;
+  const Vec2 hp = M.hp;
+  auto& labs = M.labs;
+  auto& taken = M.taken;
+  auto& marks = M.marks;
   // ---- markers: rumoured places, discovered places (icons), the tracked quest, the hero
-  struct Mk { float x, y; int ic; int site; };
-  std::vector<Mk> marks, heroTown;
+  std::vector<Mk> heroTown;
   for (int i = 0; i < (int)g.world.sites.size() && !S.geo; i++) {
     const Site& st = g.world.sites[(size_t)i];
     if (st.rumoured && !st.discovered) {
       // near, not on: the "?" sits a stable distance off where the place lies (directions, not a pin)
       const uint64_t hsh = ew::mix64(st.id ^ 0x52554D4F5552ull);
       const float ang = (float)(hsh & 0xFFFF) / 65536.0f * 6.2831853f, dist = 8.0f + (float)((hsh >> 16) % 17);
-      const Vec2 s = toScr(st.ex + g.world.ox + 0.5 + std::cos(ang) * dist, st.ey + g.world.oy + 0.5 + std::sin(ang) * dist);
+      const Vec2 s = M.toScr(st.ex + g.world.ox + 0.5 + std::cos(ang) * dist, st.ey + g.world.oy + 0.5 + std::sin(ang) * dist);
       if (s.x < -12 || s.y < -12 || s.x > w + 12 || s.y > h + 12) continue;
       const float R = 7.5f + (st.type == SiteType::Wonder ? 2.0f : 0.0f);
       for (int k = 0; k < 24; k++) {
@@ -1910,11 +1935,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       P.text(s.x, s.y - 3, "?", 1, st.type == SiteType::Wonder ? Color(0.62f, 0.40f, 0.10f) : kInk, 1);
       taken.push_back({s.x - R, s.y - R, s.x + R, s.y + R});
       if (i == mapSel_) P.frame(s.x - R - 2, s.y - R - 2, R * 2 + 4, R * 2 + 4, Color(1, 1, 1));
-      legendAdd(-1);
+      M.legendAdd(-1);
       continue;
     }
     if (!st.discovered) continue;
-    const Vec2 s = toScr(st.ex + g.world.ox + 0.5, st.ey + g.world.oy + 0.5);
+    const Vec2 s = M.toScr(st.ex + g.world.ox + 0.5, st.ey + g.world.oy + 0.5);
     if (s.x < -10 || s.y < -10 || s.x > w + 10 || s.y > h + 10) continue;
     // far out only the places that matter are drawn (settlements, wonders, the shard ruins, the lair)
     const bool minor = !st.settlement() && st.type != SiteType::Wonder && !st.mainQuest && st.type != SiteType::DragonLair;
@@ -1994,7 +2019,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       P.frame(ix - pr, iy - pr, t.w + pr * 2, t.h + pr * 2, Color(1, 1, 1));
     }
     taken.push_back({ix, iy, ix + t.w, iy + t.h});
-    legendAdd(mk.ic);
+    M.legendAdd(mk.ic);
     // labels: every settlement at the land zoom and closer, towns and cities further out, wonders always
     const float z2 = z;
     const bool label = st.type == SiteType::City || st.type == SiteType::Wonder || (st.type == SiteType::Town && z2 <= 16) || (st.settlement() && z2 <= 8) ||
@@ -2016,209 +2041,28 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const Tex& t = S.icons[(size_t)mk.ic];
     labs.push_back({1, mk.x, std::floor(mk.y + t.h / 2.0f) + 11, std::floor(mk.y - t.h / 2.0f) - 12, st.name, kInk, Color(0.96f, 0.92f, 0.82f, 0.7f), false});
   }
-  // (M4) the war on the map: a marker at each troubled settlement the hero has seen or heard of (beside its icon, up and
-  // right), a scroll at every other heard event; the side column names the state of the selected place
-  S.markers = 0;
-  std::vector<Box> warBoxes;   // (fixer M4 r3) the war's markers and the news scrolls: labels keep off them
-  if (g.world.endless && !S.geo) {
-    std::unordered_set<ew::Gid> marked;
-    auto inView = [&](const Vec2& q) { return q.x >= -12 && q.y >= -12 && q.x <= w + 12 && q.y <= h + 12; };
-    std::unordered_set<ew::Gid> heardAt;
-    for (const realm::WorldEvent& e : g.realm.events()) if (e.heard && e.site) heardAt.insert(e.site);
-    for (const realm::SettlementState* st : rui::knownStates(g)) {
-      const uint16_t f = st->flags;
-      int wi = -1;
-      bool occupied = false;
-      if (f & realm::SS_BESIEGED) wi = WI_SIEGE;
-      else if (f & (realm::SS_BURNED | realm::SS_RUINED)) wi = WI_BURNED;
-      else if (f & realm::SS_OCCUPIED) occupied = true;
-      else if (f & realm::SS_REFUGEES) wi = WI_REFUGEES;
-      else if (f & realm::SS_FAMINE) wi = WI_HUNGRY;
-      if (wi < 0 && !occupied) continue;
-      if (!g.explored.seen(st->gx, st->gy) && !heardAt.count(st->site)) continue;
-      const Vec2 q = toScr(st->gx + 0.5, st->gy + 0.5);
-      if (!inView(q)) continue;
-      // beside the settlement's icon (up and to the right) so both read
-      const float mx = std::floor(q.x + 6), my = std::floor(q.y - 9);
-      if (occupied) {
-        // a little banner on a pole in the occupier's colours
-        const rui::Look L = rui::look(g, st->owner);
-        const Color fc = colOf(L.color ? L.color : C(160, 40, 44)), tc = colOf(L.color2 ? L.color2 : C(236, 210, 120));
-        P.rect(mx - 1, my - 1, 9, 11, Color(0.94f, 0.88f, 0.74f, 0.8f));
-        P.rect(mx, my, 1, 10, kInk);
-        P.rect(mx + 1, my, 6, 6, kInk);
-        P.rect(mx + 1, my + 1, 5, 4, fc);
-        P.rect(mx + 3, my + 2, 1, 2, tc);
-        P.rect(mx + 1, my + 5, 2, 1, fc);
-        P.rect(mx + 4, my + 5, 2, 1, fc);
-        legendAdd(-5);
-      } else {
-        const Tex& t = S.warIcons[(size_t)wi];
-        P.blit(t, mx, my);
-        if (wi == WI_SIEGE) {   // a slow pulse round a siege still being fought
-          const float pr = 7 + 1.5f * (0.5f + 0.5f * std::sin(t_ * 3));
-          for (int k = 0; k < 18; k++) {
-            const float a = k / 18.0f * 6.2831853f;
-            P.rect(std::floor(mx + t.w / 2.0f + std::cos(a) * pr), std::floor(my + t.h / 2.0f + std::sin(a) * pr), 1, 1, Color(0.75f, 0.12f, 0.1f, 0.7f));
-          }
-        }
-        legendAdd(wi == WI_SIEGE ? -3 : wi == WI_BURNED ? -4 : wi == WI_REFUGEES ? -6 : -9);
-      }
-      taken.push_back({mx - 1, my - 1, mx + 11, my + 11});
-      warBoxes.push_back({mx - 1, my - 1, mx + 11, my + 11});
-      marked.insert(st->site);
-      S.markers++;
-    }
-    // (M5, 15.12) the settlements whose people the hero has seen (a census is known): a hungry one shows the bowl, a
-    // festival a little string of pennants, beside its icon like the realm's markers
-    for (int si = 0; si < (int)g.world.sites.size(); si++) {
-      const Site& s = g.world.sites[(size_t)si];
-      if (!s.settlement() || !s.discovered || marked.count(s.id) || !g.life.find(s.id)) continue;
-      const uint16_t f = g.life.moodFlags(s.id);
-      const bool fest = g.life.festival(s.id, g.day) || (f & life::MF_FESTIVAL);
-      const bool hungry = (f & (life::MF_HUNGRY | life::MF_FAMINE)) != 0;
-      if (!fest && !hungry) continue;
-      const Vec2 q = toScr(s.ex + g.world.ox + 0.5, s.ey + g.world.oy + 0.5);
-      if (!inView(q)) continue;
-      const float mx = std::floor(q.x + 6), my = std::floor(q.y - 9);
-      if (hungry) {
-        P.blit(S.warIcons[WI_HUNGRY], mx, my);
-        legendAdd(-9);
-      } else {   // the pennants: a sagging cord with three flags in red and gold
-        P.rect(mx - 1, my + 1, 11, 7, Color(0.94f, 0.88f, 0.74f, 0.8f));
-        const int sag[9] = {0, 1, 1, 2, 2, 2, 1, 1, 0};
-        for (int k = 0; k < 9; k++) P.rect(mx + k, my + 2 + sag[k], 1, 1, kInk);
-        for (int k = 0; k < 3; k++) {
-          const Color fc = (k & 1) ? Color(0.95f, 0.78f, 0.25f) : Color(0.80f, 0.20f, 0.17f);
-          const float fx = mx + 1 + k * 3, fy = my + 3 + sag[1 + k * 3];
-          P.rect(fx, fy, 2, 2, fc);
-          P.rect(fx, fy + 2, 1, 1, fc);
-        }
-      }
-      taken.push_back({mx - 1, my - 1, mx + 11, my + 11});
-      marked.insert(s.id);
-      S.markers++;
-    }
-    // the other heard events (a war declared, a famine, prices rising...): a scroll where it happened
-    // (M4 integration) newest first, only the last 90 days' news, at most 12 scrolls and never on top of another
-    // marker: after a long game the whole continent used to be papered with scrolls (unreadable on a phone)
-    {
-      const auto& evs = g.realm.events();
-      int scrolls = 0;
-      S.news.clear();
-      std::vector<Box> drawn;   // the scrolls keep off the markers and each other; labels still win over them
-      for (size_t ei = evs.size(); ei-- > 0 && scrolls < 12;) {
-        const realm::WorldEvent& e = evs[ei];
-        if (!e.heard || (e.site && marked.count(e.site))) continue;
-        if (!e.gx && !e.gy) continue;
-        if ((uint16_t)((uint16_t)g.day - e.day) > 90) continue;
-        // (fixer M4 r2) only where the map knows the land: a scroll on blank fogged parchment said nothing
-        if (!g.explored.seen(e.gx, e.gy)) continue;
-        const Vec2 q = toScr(e.gx + 0.5, e.gy + 0.5);
-        if (!inView(q)) continue;
-        const Tex& t = S.warIcons[WI_NEWS];
-        const float mx = std::floor(q.x - t.w / 2.0f), my = std::floor(q.y - t.h / 2.0f);
-        bool clash = false;
-        for (const std::vector<Box>* L : {&taken, &drawn})
-          for (const Box& b : *L)
-            if (mx < b.x1 && mx + t.w > b.x0 && my < b.y1 && my + t.h > b.y0) { clash = true; break; }
-        if (clash) continue;
-        P.blit(t, mx, my);
-        if (e.id == S.newsSel) P.frame(mx - 2, my - 2, t.w + 4, t.h + 4, Color(1, 1, 1));
-        S.news.push_back({e.id, Vec2(q.x + x, q.y + y)});
-        drawn.push_back({mx - 1, my - 1, mx + t.w + 1, my + t.h + 1});
-        warBoxes.push_back({mx - 1, my - 1, mx + t.w + 1, my + t.h + 1});
-        legendAdd(-7);
-        S.markers++;
-        scrolls++;
-        if (e.site) marked.insert(e.site);
-      }
-    }
-    // (M12) the rise on the map: warbands' and warlords' camps, beasts' lairs that raid, resettled places, the player's
-    // holdings and the crown at the player's seat
-    {
-      RiseViewState& RS = RiseViewOps::st(*this);
-      RS.stats.mapMarks = 0;
-      auto mark = [&](int kind, double gx, double gy, uint32_t c1, uint32_t c2) {
-        const Vec2 q = toScr(gx + 0.5, gy + 0.5);
-        if (!inView(q)) return;
-        float mx = std::floor(q.x - 4), my = std::floor(q.y - (kind == RM_SEAT || kind == RM_HOLDING ? 16 : 4));
-        // (M12 fixer r2) the glyph's whole box (the seat's and a holding's pennant stand 14 px tall, from my - 2)
-        const float gT = kind == RM_SEAT || kind == RM_HOLDING ? 3.0f : 1.0f, gB = kind == RM_SEAT || kind == RM_HOLDING ? 13.0f : 11.0f;
-        // (M12 fixer) marks that fall on one another (the seat, a lair, a camp and the hero at a far zoom) step aside
-        // to the first clear place round their spot, a thin leader line back to it
-        {
-          auto hit = [&](float x0, float y0) {
-            const Box b{x0 - 1, y0 - gT, x0 + 10, y0 + gB};
-            if (b.x0 < hp.x + 9 && b.x1 > hp.x - 9 && b.y0 < hp.y + 8 && b.y1 > hp.y - 10) return true;
-            for (const Box& o : warBoxes) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return true;
-            return false;
-          };
-          if (hit(mx, my)) {
-            static const float off[12][2] = {{12, 0}, {-12, 0}, {0, -12}, {0, 12}, {12, -12}, {-12, -12}, {12, 12}, {-12, 12},
-                                             {24, 0}, {-24, 0}, {0, -24}, {0, 24}};
-            for (const auto& o : off)
-              if (!hit(mx + o[0], my + o[1])) {
-                const float nx = mx + o[0], ny = my + o[1];
-                const float ax = q.x, ay = q.y, bx = nx + 4.5f, by = ny + 4.5f;
-                const int steps = (int)std::max(std::fabs(bx - ax), std::fabs(by - ay));
-                for (int i = 2; i < steps - 3; i++) {
-                  const float t = (float)i / (float)std::max(1, steps);
-                  P.rect(std::floor(ax + (bx - ax) * t), std::floor(ay + (by - ay) * t), 1, 1, Color(0.30f, 0.20f, 0.12f, 0.75f));
-                }
-                mx = nx; my = ny;
-                break;
-              }
-          }
-        }
-        riseMapGlyph(P, kind, mx, my, c1, c2);
-        taken.push_back({mx - 1, my - gT, mx + 10, my + gB});
-        warBoxes.push_back({mx - 1, my - gT, mx + 10, my + gB});
-        legendAdd(-10 - kind);
-        RS.stats.mapMarks++;
-      };
-      for (const realm::Camp& cp : g.realm.camps()) {
-        if ((cp.flags & realm::CF_CLEARED) || !(cp.flags & (realm::CF_WARBAND | realm::CF_WARLORD))) continue;
-        if (!g.explored.seen(cp.gx, cp.gy) && !heardAt.count(cp.site)) continue;
-        const bool lord = (cp.flags & realm::CF_WARLORD) && cp.realm;
-        const rui::Look CL = lord ? rui::look(g, cp.realm) : rui::Look();
-        mark(lord ? RM_WARLORD : RM_WARBAND, cp.gx, cp.gy, CL.color ? CL.color : C(120, 30, 34), CL.color2 ? CL.color2 : C(30, 26, 30));
-      }
-      for (const realm::Lair& lr : g.realm.lairs())
-        if (!lr.slain && (lr.raids > 0 || lr.wokeDay > 0) && (g.explored.seen(lr.gx, lr.gy) || lr.raids > 0)) mark(RM_LAIR, lr.gx, lr.gy, C(150, 40, 30), 0);
-      for (const realm::SettlementState* st : rui::knownStates(g))
-        if ((st->flags & realm::SS_REBUILDING) && !marked.count(st->site) && (g.explored.seen(st->gx, st->gy) || heardAt.count(st->site)))
-          mark(RM_REBUILT, st->gx + 1.5, st->gy - 0.5, C(176, 132, 70), 0);
-      const ew::Gid mine = g.realm.playerRealm();
-      cult::Heraldry mh;
-      if (mine) rui::arms(rui::look(g, mine), mh);
-      for (size_t hi = 0; hi < g.lordship.holdings.size(); hi++) {
-        const realm::SettlementState* st = g.realm.settlement(g.lordship.holdings[hi].site);
-        if (!st) continue;
-        const bool seat = mine && hi == 0;
-        const uint32_t fc = mine ? mh.field : C(200, 170, 90), tc = mine ? (mh.charge ? mh.charge : C(236, 200, 90)) : C(120, 80, 30);
-        mark(seat ? RM_SEAT : RM_HOLDING, st->gx, st->gy, fc, tc);
-      }
-    }
-    // a border is on screen: say what the dashed lines are
-    legendAdd(-8);
-  }
-  // (the war's markers and the border lead the legend: the places' icons follow and are cut first)
-  std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -30; });   // (M12: and the rise's)
-  m4Stats_.mapMarkers = S.markers;
-  m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
+}
+
+// the tracked quest's pin and the other open quests' diamonds: their places, labels and boxes (drawWorldMap)
+void View::mapQuestPins(Game& g, MapFrame& M) {
+  const float w = M.w, h = M.h;
+  const Vec2 hp = M.hp;
+  auto& labs = M.labs;
+  auto& taken = M.taken;
+  auto& hasQ = M.hasQ;
+  auto& qgx = M.qgx;
+  auto& qgy = M.qgy;
+  auto& qs = M.qs;
+  auto& otherQ = M.otherQ;
   // the tracked quest's destination: the objective's global tile (Quest::tgx/tgy), else the classic rule
-  bool hasQ = false;
-  double qgx = 0, qgy = 0;
   if (g.trackedQuest >= 0 && !S.geo) {
     for (const Quest& q : g.quests)
       if (q.id == g.trackedQuest && q.hasPos && q.state != QState::Done) { hasQ = true; qgx = q.tgx + 0.5; qgy = q.tgy + 0.5; }
     int qtx = 0, qty = 0;
     if (!hasQ && g.questTarget(g.trackedQuest, qtx, qty)) { hasQ = true; qgx = qtx + g.world.ox + 0.5; qgy = qty + g.world.oy + 0.5; }
   }
-  Vec2 qs;
   if (hasQ) {
-    qs = toScr(qgx, qgy);
+    qs = M.toScr(qgx, qgy);
     const bool onMap = qs.x >= 0 && qs.y >= 0 && qs.x < w && qs.y < h;
     qs.x = std::clamp(qs.x, 6.0f, w - 7); qs.y = std::clamp(qs.y, 12.0f, h - 6);
     std::string nm;
@@ -2234,17 +2078,16 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const bool atHero = onMap && len2(qs - hp) < 14.0f * 14.0f;
     if (!atHero) labs.push_back({0, qs.x, qs.y + 7, qs.y - 18, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
     taken.push_back({qs.x - 6, qs.y - 6, qs.x + 6, qs.y + 6});
-    legendAdd(-2);
+    M.legendAdd(-2);
   }
   // (Witness playtests, 2026-10) the other open quests with a place (a hunt's den, a missing person, an heirloom...): a
   // new job no longer takes the pin from the quest being followed (Game::acceptQuest), but its giver still says "I'VE
   // MARKED THEIR DEN ON YOUR MAP", so each keeps a smaller, quiet diamond (no ring, no pulse, no edge arrow) labelled
   // with its title; the tracked quest stays the one gold, pulsing marker. A few at most (the journal holds the rest)
-  std::vector<Vec2> otherQ;
   if (!S.geo)
     for (const Quest& q : g.quests) {
       if (q.id == g.trackedQuest || !q.hasPos || q.state == QState::Done || otherQ.size() >= 6) continue;
-      const Vec2 s = toScr(q.tgx + 0.5, q.tgy + 0.5);
+      const Vec2 s = M.toScr(q.tgx + 0.5, q.tgy + 0.5);
       if (s.x < 5 || s.y < 5 || s.x > w - 6 || s.y > h - 6) continue;
       if (hasQ && len2(s - qs) < 6.0f * 6.0f) continue;   // (under the tracked one's diamond)
       otherQ.push_back(Vec2(std::floor(s.x), std::floor(s.y)));
@@ -2252,40 +2095,19 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       std::string nm = q.title;
       if (nm.size() > 22) { const size_t sp = nm.rfind(' ', 22); nm = nm.substr(0, sp != std::string::npos && sp > 8 ? sp : 22); }
       if (len2(s - hp) >= 14.0f * 14.0f) labs.push_back({3, s.x, s.y + 6, s.y - 16, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.7f), false});
-      legendAdd(-40);
+      M.legendAdd(-40);
     }
-  // (M7) the player's property: a little house in the HUD's gold over each plot (its ground outlined when zoomed in
-  // close enough to see it), labelled with its name
-  if (!S.geo)
-    for (const home::Plot& hp : g.home.plots) {
-      const Vec2 s = toScr(hp.gx + hp.w * 0.5, hp.gy + hp.h * 0.5);
-      if (s.x < -10 || s.y < -10 || s.x > w + 10 || s.y > h + 10) continue;
-      const float pw = (float)(hp.w / z), ph = (float)(hp.h / z);
-      if (pw >= 10) {
-        const Vec2 o = toScr(hp.gx, hp.gy);
-        P.frame(std::floor(o.x), std::floor(o.y), std::floor(pw), std::floor(ph), Color(0.55f, 0.32f, 0.08f, 0.9f));
-      }
-      const float cx = std::floor(s.x), cy = std::floor(s.y);
-      // dark outline, then a gold roof, a cream wall and a door
-      P.rect(cx - 6, cy - 6, 13, 3, kInk);
-      P.rect(cx - 4, cy - 8, 9, 2, kInk);
-      P.rect(cx - 5, cy - 3, 11, 9, kInk);
-      P.rect(cx - 2, cy - 7, 5, 1, Color(0.98f, 0.82f, 0.42f));
-      P.rect(cx - 4, cy - 6, 9, 1, Color(0.98f, 0.82f, 0.42f));
-      P.rect(cx - 5, cy - 5, 11, 1, Color(0.80f, 0.58f, 0.22f));
-      P.rect(cx - 4, cy - 2, 9, 7, Color(0.96f, 0.91f, 0.78f));
-      P.rect(cx + 2, cy - 2, 2, 7, Color(0.80f, 0.74f, 0.62f));   // the shaded east wall (light from the top-left)
-      P.rect(cx - 1, cy + 1, 3, 4, Color(0.45f, 0.27f, 0.14f));
-      taken.push_back({cx - 7, cy - 9, cx + 8, cy + 7});
-      std::string nm = hp.name;
-      if (nm.empty()) nm = "HOME";
-      labs.push_back({1, s.x, s.y + 9, s.y - 20, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
-    }
-  // (M8) the party: companions waiting out in the land, the graves of the fallen (party_view.cpp)
-  if (!S.geo && (!g.party.members.empty() || !g.party.fallen.empty())) {
-    auto scr = [](void* c, double x, double y) { return (*static_cast<decltype(toScr)*>(c))(x, y); };
-    drawPartyWorldMap(g, scr, &toScr, w, h);
-  }
+}
+
+// the labels, most important first, each where it overlaps nothing placed (drawWorldMap)
+void View::placeLabels(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  const float x = M.x, y = M.y, w = M.w, h = M.h;
+  const double left = M.left;
+  auto& labs = M.labs;
+  auto& taken = M.taken;
+  auto& warBoxes = M.warBoxes;
+  auto& marks = M.marks;
   {
     std::stable_sort(labs.begin(), labs.end(), [](const Lab& a, const Lab& b) { return a.prio < b.prio; });
     const size_t labelBase = taken.size();   // the boxes from here on are labels (before: markers, the hero, the furniture)
@@ -2403,6 +2225,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       }
     }
   }
+}
+
+// the quests' diamonds (drawWorldMap)
+void View::mapQuestMarks(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  auto& hasQ = M.hasQ;
+  auto& qs = M.qs;
+  auto& otherQ = M.otherQ;
   if (hasQ) {
     // a gold diamond in a dark outline with a pulsing ring round it
     const float pr = 7 + 2.5f * (0.5f + 0.5f * std::sin(t_ * 5));
@@ -2428,59 +2258,12 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         P.rect(s.x - hw, s.y + yy, (float)(hw * 2 + 1), 1, pass == 0 ? Color(0.18f, 0.1f, 0.04f) : Color(0.93f, 0.80f, 0.55f));
       }
     }
-  // (M10) the sea on the map: the ports the hero knows (an anchor by the town's icon), the ferry routes between them
-  // (dashed over the water), the boats we own where they lie (a little sail), and under the hero's arrow his boat
-  if (!S.geo && g.world.endless) {
-    auto boatGlyph = [&](Vec2 s, bool ours) {
-      const float x = std::floor(s.x), y = std::floor(s.y);
-      P.rect(x - 4, y + 1, 9, 2, Color(0.30f, 0.18f, 0.10f));            // the hull
-      P.rect(x - 3, y + 3, 7, 1, Color(0.30f, 0.18f, 0.10f));
-      P.rect(x - 3, y + 1, 7, 1, Color(0.62f, 0.40f, 0.22f));
-      P.rect(x, y - 5, 1, 6, Color(0.26f, 0.16f, 0.10f));                  // the mast
-      P.rect(x + 1, y - 4, 3, 4, ours ? Color(0.96f, 0.92f, 0.80f) : Color(0.78f, 0.74f, 0.66f));   // the sail
-      P.rect(x + 1, y - 4, 1, 4, Color(0.80f, 0.74f, 0.60f));
-    };
-    std::vector<Vec2> ports;
-    for (int i = 0; i < (int)g.world.sites.size(); i++) {
-      const Site& st = g.world.sites[(size_t)i];
-      if (!st.discovered || !g.sea.knowsPort(st.id)) continue;
-      const Vec2 s = toScr(st.ex + g.world.ox + 0.5, st.ey + g.world.oy + 0.5);
-      ports.push_back(s);
-    }
-    for (size_t a = 0; a < ports.size(); a++) {   // each port to its nearest known neighbour: a dashed passage
-      int best = -1;
-      float bd = 1e9f;
-      for (size_t b = 0; b < ports.size(); b++)
-        if (b != a) { const float d = len2(ports[b] - ports[a]); if (d < bd) { bd = d; best = (int)b; } }
-      if (best < 0 || best < (int)a) continue;
-      const Vec2 p0 = ports[a], d = ports[(size_t)best] - p0;
-      const int n = (int)std::max(std::fabs(d.x), std::fabs(d.y));
-      for (int k = 0; k < n; k++) {
-        if ((k / 3) % 2) continue;
-        const Vec2 q = p0 + d * ((float)k / std::max(1, n));
-        if (q.x < 0 || q.y < 0 || q.x >= w || q.y >= h) continue;
-        P.rect(std::floor(q.x), std::floor(q.y), 1, 1, Color(0.22f, 0.36f, 0.56f, 0.85f));
-      }
-    }
-    for (const Vec2& s : ports) {   // the anchor beside the port's icon
-      if (s.x < -8 || s.y < -8 || s.x > w + 8 || s.y > h + 8) continue;
-      const float x = std::floor(s.x + 6), y = std::floor(s.y - 9);
-      P.rect(x - 2, y - 1, 7, 9, Color(0.93f, 0.88f, 0.76f, 0.8f));
-      P.rect(x + 1, y, 1, 6, Color(0.18f, 0.24f, 0.36f));
-      P.rect(x, y + 1, 3, 1, Color(0.18f, 0.24f, 0.36f));
-      P.rect(x - 1, y + 5, 5, 1, Color(0.18f, 0.24f, 0.36f));
-      P.rect(x - 1, y + 4, 1, 1, Color(0.18f, 0.24f, 0.36f));
-      P.rect(x + 3, y + 4, 1, 1, Color(0.18f, 0.24f, 0.36f));
-    }
-    for (int i = 0; i < (int)g.sea.boats.size(); i++) {
-      const sea::Boat& b = g.sea.boats[(size_t)i];
-      if (b.sunk || i == g.sea.aboard) continue;
-      const Vec2 s = toScr(b.gx + 0.5, b.gy + 0.5);
-      if (s.x < -8 || s.y < -8 || s.x > w + 8 || s.y > h + 8) continue;
-      boatGlyph(s, true);
-    }
-    if (g.sea.atSea()) boatGlyph(hp + Vec2(0, 7), true);
-  }
+}
+
+// the hero's arrow (drawWorldMap)
+void View::mapHero(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  const Vec2 hp = M.hp;
   // the hero: an arrow the way he faces (a soft pulse round it)
   {
     const Vec2 aim = g.pl().aim;
@@ -2494,6 +2277,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const Tex& ar = S.arrow[dir];
     P.blit(ar, std::floor(hp.x - ar.w / 2.0f), std::floor(hp.y - ar.h / 2.0f));
   }
+}
+
+// the geology view's ore initials, the scale bar and the compass rose (drawWorldMap)
+void View::mapGeologyAndScale(Game& g, MapFrame& M) {
+  Pix& P = M.P;
+  const float w = M.w, h = M.h;
+  const float z = M.z;
+  const double left = M.left, top = M.top;
   // the geology view: one ore initial per province on screen, at the middle of what shows of it
   if (S.geo && g.world.src) {
     struct Pv { double sx = 0, sy = 0; int n = 0; ew::Ore ore = ew::Ore::Copper; };
@@ -2529,14 +2320,6 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     for (int k = 1; k <= 5; k++) P.rect(cx - (5 - k) / 2.0f, cy - 6 - k + 5, (float)(5 - k), 1, Color(0.62f, 0.16f, 0.12f));
     P.text(cx, cy - 15, "N", 1, kInk, 1);
   }
-  P.popBox();
-  if (std::getenv("EMB_TIMING")) {
-    const double all = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    if (all > 8.0) std::printf("world map frame: %.1f ms (tiles %.1f ms)\n", all, S.lastPaintMs);
-  }
-  // an inked double frame
-  P.frame(x - 1, y - 1, w + 2, h + 2, Color(0.30f, 0.21f, 0.14f));
-  P.frame(x - 3, y - 3, w + 6, h + 6, Color(0.52f, 0.40f, 0.26f));
 }
 
 // ---- input (box coordinates)
