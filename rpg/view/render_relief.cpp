@@ -352,8 +352,8 @@ void runOf(const Map& m, int gox, int goy, int tx, int ty, int dir, uint64_t& ke
 }
 }  // namespace
 
-void View::reliefUpdate(Game& g, float dt) {
-  ReliefViewState& S = ReliefViewOps::st(*this);
+void ReliefLane::reliefUpdate(View& v, Game& g, float dt) {
+  ReliefViewState& S = ReliefViewOps::st(v);
   S.last = S.cur;
   S.cur = ReliefViewStats();
   ReliefTimer tm(S.cur.ms);
@@ -432,21 +432,21 @@ void View::reliefUpdate(Game& g, float dt) {
   S.size += (tsize - S.size) * (1.0f - std::exp(-dt / 1.2f));
   if (S.roar < 0.002f && target == 0) S.roar = 0;
   S.cur.roar = S.roar;
-  if (audio_) audio_->setFalls(S.roar, S.pan, S.size);
+  if (v.audio_) v.audio_->setFalls(S.roar, S.pan, S.size);
 }
 
-void View::reliefShift(Vec2 d) {
-  if (!reliefView_) return;
-  ReliefViewState& S = *reliefView_;
+void ReliefLane::reliefShift(View& v, Vec2 d) {
+  if (!v.reliefView_) return;
+  ReliefViewState& S = *v.reliefView_;
   for (ReliefViewState::Puff& p : S.puffs) if (p.on) { p.x += d.x; p.y += d.y; }
   for (int r = 0; r < S.nRuns; r++) { S.runs[r].x0 += d.x; S.runs[r].x1 += d.x; S.runs[r].y0 += d.y; S.runs[r].y1 += d.y; }
 }
 
-void View::drawReliefWater(Game& g, Vec2 cam) {
-  ReliefViewState& S = ReliefViewOps::st(*this);
+void ReliefLane::drawReliefWater(View& v, Game& g, Vec2 cam) {
+  ReliefViewState& S = ReliefViewOps::st(v);
   if (g.inside) { S.nRuns = 0; return; }
   ReliefTimer tm(S.cur.ms);
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const Map& m = g.world.over;
   if (!!m.height.empty()) { S.nRuns = 0; return; }
   if (S.map != &m || S.seed != g.seed) {   // a new overworld map (or a new world in it): forget the old tiles
@@ -461,7 +461,7 @@ void View::drawReliefWater(Game& g, Vec2 cam) {
   const float night = std::clamp(1.0f - g.daylight() * 1.6f, 0.0f, 1.0f);
   // by night the white water is toned down to cool moonlit highlights (the lighting pass darkens it further)
   const Color tint(1.0f - 0.30f * night, 1.0f - 0.24f * night, 1.0f - 0.08f * night, 1.0f);
-  const int frameNow = (int)std::floor(t_ * FPS);
+  const int frameNow = (int)std::floor(v.t_ * FPS);
   int bakes = 0;
   S.nRuns = 0;
   for (int ty = ty0; ty <= ty1; ty++)
@@ -479,7 +479,7 @@ void View::drawReliefWater(Game& g, Vec2 cam) {
         it = S.tiles.emplace(key, F).first;
       }
       ReliefViewState::FallTile& F = it->second;
-      F.used = t_;
+      F.used = v.t_;
       if (!F.any || !F.baked) continue;
       const float sx = (float)(tx * 16 + F.ox) - cam.x, sy = (float)(ty * 16 + F.oy) - cam.y;
       const int fr = F.frames > 1 ? pmod(frameNow + (int)(hash32((uint32_t)F.run ^ (uint32_t)(F.run >> 32)) % NF), NF) : 0;
@@ -504,25 +504,25 @@ void View::drawReliefWater(Game& g, Vec2 cam) {
   // forget tiles long out of sight
   if (S.tiles.size() > 160) {
     for (auto it = S.tiles.begin(); it != S.tiles.end();) {
-      if (t_ - it->second.used > 8.0f) { if (it->second.baked) P.destroy(it->second.tex); it = S.tiles.erase(it); }
+      if (v.t_ - it->second.used > 8.0f) { if (it->second.baked) P.destroy(it->second.tex); it = S.tiles.erase(it); }
       else ++it;
     }
   }
 }
 
-void View::reliefSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
+void ReliefLane::reliefSorted(View& v, Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
   (void)cam;
-  if (g.inside || !reliefView_) return;
-  ReliefViewState& S = *reliefView_;
+  if (g.inside || !v.reliefView_) return;
+  ReliefViewState& S = *v.reliefView_;
   for (int r = 0; r < S.nRuns; r++) if (!S.runs[r].frozen) push(S.runs[r].y1 + 2.0f, r);
 }
 
-void View::drawReliefSorted(Game& g, int idx, Vec2 cam) {
-  if (!reliefView_) return;
-  ReliefViewState& S = *reliefView_;
+void ReliefLane::drawReliefSorted(View& v, Game& g, int idx, Vec2 cam) {
+  if (!v.reliefView_) return;
+  ReliefViewState& S = *v.reliefView_;
   if (idx < 0 || idx >= S.nRuns) return;
   ReliefTimer tm(S.cur.ms);
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   bakeReliefTex(S, P);
   const ReliefViewState::Run& R = S.runs[idx];
   const float day = std::clamp(g.daylight() * 1.6f, 0.0f, 1.0f);
@@ -550,22 +550,22 @@ void View::drawReliefSorted(Game& g, int idx, Vec2 cam) {
   const float morning = std::clamp((h - 6.5f) / 1.0f, 0.0f, 1.0f) * std::clamp((10.5f - h) / 1.5f, 0.0f, 1.0f);
   if (morning > 0.01f && R.dir == 0 && (R.n >= 2 || R.drop >= 2)) {
     const float cx = (R.x0 + R.x1) * 0.5f, w = (float)S.rainbow.w;
-    const float a = morning * 0.55f * (0.75f + 0.25f * std::sin(t_ * 0.7f + (float)(R.key & 255)));
+    const float a = morning * 0.55f * (0.75f + 0.25f * std::sin(v.t_ * 0.7f + (float)(R.key & 255)));
     P.blitEx(S.rainbow, 0, 0, S.rainbow.w, S.rainbow.h, std::floor(cx - cam.x - w * 0.5f), std::floor(R.y0 - cam.y - S.rainbow.h + 3), w, (float)S.rainbow.h,
              false, Color(1, 1, 1, a), 1);
   }
 }
 
-void View::drawReliefOver(Game& g, Vec2 cam) {
+void ReliefLane::drawReliefOver(View& v, Game& g, Vec2 cam) {
   if (g.inside) return;
-  bakeReliefTex(ReliefViewOps::st(*this), *pix_);
-  ReliefViewState& S = *reliefView_;
+  bakeReliefTex(ReliefViewOps::st(v), *v.pix_);
+  ReliefViewState& S = *v.reliefView_;
   if (g.mode == Mode::Title || g.mode == Mode::Creator) return;
   const Map& m = g.world.over;
   if (!!m.height.empty()) return;
   ReliefTimer tm(S.cur.ms);
   const float day = std::clamp((g.daylight() - 0.35f) / 0.4f, 0.0f, 1.0f);
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   // ---- (M11 fixer r1) by night white water still catches the moonlight: a pale cool sheen over each fall's sheet
   // and its foam pool, drawn after the lighting pass (the falls vanished into the dark at 21:00), breathing slowly
   {
@@ -575,7 +575,7 @@ void View::drawReliefOver(Game& g, Vec2 cam) {
         const ReliefViewState::Run& R = S.runs[r];
         if (R.frozen) continue;
         const float cx = (R.x0 + R.x1) * 0.5f, w = std::max(8.0f, R.x1 - R.x0);
-        const float br = 0.85f + 0.15f * std::sin(t_ * 2.3f + (float)(R.key & 255));
+        const float br = 0.85f + 0.15f * std::sin(v.t_ * 2.3f + (float)(R.key & 255));
         const int ps = std::min(2, R.drop >= 2 || R.n >= 3 ? 2 : 1);
         const Tex& t = S.puff[ps];
         const float sc = std::max(1.0f, (w + 14.0f) / (float)t.w);
@@ -590,7 +590,7 @@ void View::drawReliefOver(Game& g, Vec2 cam) {
   if (day <= 0.01f) return;
   // ---- cloud shadows: a sparse lattice of soft shadows in global px, drifting with the wind (slowly)
   const sea::Sea::Wind& wd = g.sea.live.wind;
-  const double drift = (double)t_ * (4.0 + 6.0 * wd.speed);
+  const double drift = (double)v.t_ * (4.0 + 6.0 * wd.speed);
   const double gcx = (double)g.world.ox * 16.0 + cam.x - std::cos(wd.dir) * drift, gcy = (double)g.world.oy * 16.0 + cam.y - std::sin(wd.dir) * drift;
   constexpr int CW = 320, CH = 200;
   const int cx0 = (int)std::floor(gcx / CW) - 1, cy0 = (int)std::floor(gcy / CH) - 1;
@@ -614,7 +614,7 @@ void View::drawReliefOver(Game& g, Vec2 cam) {
       const int lv = m.heightAt(tx, ty);
       if (lv < 6) continue;
       const uint32_t h = hh(tx + gox, ty + goy, 4223);
-      const float wob = std::sin(t_ * 0.15f + (float)(h & 1023) * 0.01f);
+      const float wob = std::sin(v.t_ * 0.15f + (float)(h & 1023) * 0.01f);
       const float sx = tx * 16.0f + (float)(h % 16) - 22.0f + wob * 6.0f - cam.x, sy = ty * 16.0f + (float)((h >> 4) % 16) - 22.0f - cam.y;
       const float a = 0.03f * (float)(lv - 5) * day;
       P.blitEx(S.haze, 0, 0, S.haze.w, S.haze.h, std::floor(sx), std::floor(sy), (float)S.haze.w, (float)S.haze.h, false, Color(0.86f, 0.9f, 0.98f, a));

@@ -415,7 +415,7 @@ void View::drawCreator(Game& g) {
     if (dsc > 0 && menuSwingFits(armed, stage, cx, footY, dsc, 0)) { prev = armed; dface = 0; }
     else gait = MenuGait::Idle;
   }
-  if (gait != MenuGait::Swing) menuSwingT0_ = -1;
+  if (gait != MenuGait::Swing) lens_.menuSwingT0_ = -1;
   if (dsc > 0 && drawMenuDoll(prev, kMenuCreator, dface, gait, cx, footY, dsc, stage)) {
   } else {
   const Tex& tex = sprites_.humanTex(*this, lookOf(g));

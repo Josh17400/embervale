@@ -163,7 +163,7 @@ bool PartyUi::drawCompanionBody(View& v, Game& g, const Actor& a, Vec2 cam, floa
       const Tex* rt = v.sprites_.poseTex(v, a.look, art::Posture::Ride);
       const Tex& rider = rt ? *rt : v.sprites_.humanTex(v, a.look);
       if (blend == 0) v.v1Draws++;
-      if (blend == 0) P.recordBlits(&v.liftRecs_);
+      if (blend == 0) P.recordBlits(&v.lens_.liftRecs_);
       P.blitEx(rider, 0, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
       P.recordBlits(nullptr);
     }
@@ -362,7 +362,7 @@ void PartyUi::partyWorldText(View& v, Game& g) {
       const float lift = riding(g, m) ? (float)v.rigFor(a.look).markerY + 14.0f : a.human ? (float)v.rigFor(a.look).markerY + 6.0f : 24.0f;   // (v1: 44 / 36 / 24)
       float ty = std::floor(s.y - lift * k);
       const float half = (float)P.textW(m.name, 1) / 2.0f;
-      if (v.tagOn_ && s.x + half + 3 > v.tagX0_ && s.x - half - 3 < v.tagX1_ && ty + 9 > v.tagY0_ && ty - 1 < v.tagY1_) ty = std::floor(v.tagY0_ - 12);   // over the faced one's tag
+      if (v.hudx_.tagOn_ && s.x + half + 3 > v.hudx_.tagX0_ && s.x - half - 3 < v.hudx_.tagX1_ && ty + 9 > v.hudx_.tagY0_ && ty - 1 < v.hudx_.tagY1_) ty = std::floor(v.hudx_.tagY0_ - 12);   // over the faced one's tag
       P.rect(std::floor(s.x - half - 3), ty - 1, std::floor(half * 2 + 6), 10, Color(0.04f, 0.03f, 0.05f, 0.7f));
       P.textS(std::floor(s.x), ty, m.name, 1, Color(1.0f, 0.86f, 0.46f), 1);
     }

@@ -509,7 +509,7 @@ bool HomeView::drawMounted(View& v, Game& g, const Actor& a, Vec2 cam) {
     const Tex* rt = v.sprites_.poseTex(v, a.look, art::Posture::Ride);
     const Tex& rider = rt ? *rt : v.sprites_.humanTex(v, a.look);
     if (blend == 0) v.v1Draws++;
-    if (blend == 0) P.recordBlits(&v.liftRecs_);
+    if (blend == 0) P.recordBlits(&v.lens_.liftRecs_);
     P.blitEx(rider, rfr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
     P.recordBlits(nullptr);
   };

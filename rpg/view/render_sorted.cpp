@@ -358,14 +358,14 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
     list.push_back({s.y * 16.0f + 13.0f, DrawKind::FestPole, i, 1, 0});
   }
   // (M10) the sea's standing things: the boats (render_sea.cpp; Drawable kind 10)
-  if (g.mode != Mode::Title) seaSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Sea, i, 0, 0}); });
+  if (g.mode != Mode::Title) SeaLane::seaSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Sea, i, 0, 0}); });
   // (M11) the relief's standing things: a fall's spray column (render_relief.cpp; Drawable kind 11)
-  if (g.mode != Mode::Title) reliefSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Relief, i, 0, 0}); });
+  if (g.mode != Mode::Title) ReliefLane::reliefSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Relief, i, 0, 0}); });
   // (M12) the rise's standing pieces: the holdings' works, warlords' standards and stockades, resettlers' stores
   //       (render_rise.cpp's rise_world.cpp; Drawable kind 12), and its flat ones (a beast's claw scars) under them
   if (g.mode != Mode::Title) {
-    riseSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Rise, i, 0, 0}); });
-    drawRiseGround(g, cam);
+    RiseLane::riseSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Rise, i, 0, 0}); });
+    RiseLane::drawRiseGround(*this, g, cam);
   }
   // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
   // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
@@ -493,7 +493,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
   const bool airborne = !a.human && a.flying && a.mon == Monster::Harpy;
   if (airborne) sc *= 0.8f;
   P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : airborne ? 0.75f : 1));
-  if (a.player) drawRing(g, a, cam);   // (P2a) the hero's ring: after the contact shadow, before the body
+  if (a.player) lens_.drawRing(*this, g, a, cam);   // (P2a) the hero's ring: after the contact shadow, before the body
 }
 
 void View::drawPropShadow(Game& g, FrameCtx& F, const Drawable& d) {
@@ -654,7 +654,7 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
     if (const Tex* wt = sprites_.warPropTex(*this, g, p, d.tx, d.ty)) { tp = wt; warSwap = true; }
   // (M12) the lord's standard in its owner's arms (rise_world.cpp; the same frames as the plain prop)
   if (p == Prop::LordBanner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
-    if (const Tex* bt = riseBannerTex(g, d.tx, d.ty)) tp = bt;
+    if (const Tex* bt = RiseLane::riseBannerTex(*this, g, d.tx, d.ty)) tp = bt;
   // (M5, VISION_PLAN 10.3) a street lamp burns only from the lamplighter's visit at dusk (19:00..20:30 along his
   // round) until it is put out at dawn; by day and before he comes its glass is dark
   bool lampFlameOn = false;
@@ -1319,16 +1319,16 @@ void View::drawHumanSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, fl
   auto& ghostRec = F.ghostRec;
   // (P2a) the human frame pick and body draw: rpg/view/render_anim.cpp
   HumanGhost hg;
-  const size_t rec0 = liftRecs_.size();
-  if (g.mode != Mode::Title) P.recordBlits(&liftRecs_);
+  const size_t rec0 = lens_.liftRecs_.size();
+  if (g.mode != Mode::Title) P.recordBlits(&lens_.liftRecs_);
   drawHumanBody(g, m, a, cam, alpha, flash, hg);
   P.recordBlits(nullptr);
   if (a.player && hg.t) { ghostTex = hg.t; ghostFr = hg.fr; ghostRow = hg.row; ghostFlip = hg.flip; ghostX = hg.x; ghostY = hg.y; }
   if (a.player && !hg.t && heroSprite.on && heroSprite.rig >= 2) {
     // rig 2 leaves HumanGhost empty (render_anim.cpp): take the body's own blit (the one at the frame's rect)
     const HeroSprite& hs = heroSprite;
-    for (size_t i = rec0; i < liftRecs_.size(); i++) {
-      const Pix::BlitRec& r = liftRecs_[i];
+    for (size_t i = rec0; i < lens_.liftRecs_.size(); i++) {
+      const Pix::BlitRec& r = lens_.liftRecs_[i];
       // (P2b VIEW-B) the frame's rows may be cut (a rower at the thwart's line): its width and top-left decide
       if (r.sw == hs.w && r.sh <= hs.h && r.sh > 0 && std::fabs(r.dx - hs.x) < 0.5f && std::fabs(r.dy - hs.y) < 0.5f) {
         ghostRec = r; ghostTex = nullptr; break;
@@ -1544,7 +1544,7 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       for (int i = 0; i < 8; i++) P.rect(x - dir.x * i, y - dir.y * i, 1, 1, i < 2 ? Color(0.85f, 0.85f, 0.9f) : (i > 5 ? Color(0.95f, 0.95f, 0.95f) : Color(0.55f, 0.38f, 0.2f)));
       break;
     case ProjKind::Fireball: case ProjKind::DragonFire: {
-      if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FIREBOLT: the magic draws it (render_magic.cpp)
+      if (pr.spell) { MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break; }   // (M9) a classic FIREBOLT: the magic draws it (render_magic.cpp)
       const Tex& t = sprites_.fx_[(int)art::Fx::Fireball];
       int fw = art::fxW(art::Fx::Fireball), fh = art::fxH(art::Fx::Fireball), frames = std::max(1, art::fxFrames(art::Fx::Fireball));
       int fr = (int)(t_ * 14 + d.idx) % frames;
@@ -1555,7 +1555,7 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       break;
     }
     case ProjKind::IceSpike: {
-      if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FROST LANCE: the magic draws it
+      if (pr.spell) { MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break; }   // (M9) a classic FROST LANCE: the magic draws it
       const Tex& t = sprites_.fx_[(int)art::Fx::Frost];
       int fw = art::fxW(art::Fx::Frost), fh = art::fxH(art::Fx::Frost);
       P.blitEx(t, 0, 0, fw, fh, x - fw / 2.0f, y - fh / 2.0f, (float)fw, (float)fh, dir.x < 0);
@@ -1572,7 +1572,7 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       P.rect(x - 2, y - 2, 4, 4, Color(0.55f, 0.85f, 0.3f));
       P.rect(x - 1, y - 1, 2, 2, Color(0.8f, 1, 0.6f));
       break;
-    case ProjKind::Spell: drawSpellProj(g, pr, d.idx, cam); break;   // (M9) render_magic.cpp
+    case ProjKind::Spell: MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break;   // (M9) render_magic.cpp
     case ProjKind::Magic:
       if (pr.ench == Ench::None && !pr.fromPlayer) {   // (M3c) a wisp's bolt of light: cyan, with a short trail
         for (int i = 1; i <= 3; i++) P.rectAdd(x - dir.x * i * 2 - 1, y - dir.y * i * 2 - 1, 2, 2, Color(0.4f, 0.9f, 0.9f, 0.5f - i * 0.12f));
@@ -1700,14 +1700,14 @@ void View::drawSortedPass(Game& g, const Map& m, Vec2 cam) {
         party_.drawGrave(*this, g, d.idx, cam, false);
         break;
       case DrawKind::Sea:  // (M10) a boat (render_sea.cpp)
-        drawSeaSorted(g, d.idx, cam);
+        SeaLane::drawSeaSorted(*this, g, d.idx, cam);
         if (seaHeroUnderRig(*this)) F.ghost = true;   // the sail stands before the hero: his silhouette shows through it
         break;
       case DrawKind::Rise:  // (M12) the rise's (rise_world.cpp)
-        drawRiseSorted(g, d.idx, cam);
+        RiseLane::drawRiseSorted(*this, g, d.idx, cam);
         break;
       case DrawKind::Relief:  // (M11) the relief's (render_relief.cpp)
-        drawReliefSorted(g, d.idx, cam);
+        ReliefLane::drawReliefSorted(*this, g, d.idx, cam);
         break;
       case DrawKind::Handcart: drawHandcartSorted(g, F, d); break;
       default: break;

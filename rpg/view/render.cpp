@@ -513,16 +513,16 @@ void Camera::uiInsetsToWorld(const View& v, float l, float t, float r, float b, 
 // Once a frame before the camera moves: a zoom (or a window resize) keeps the hero where they stand on the screen (the
 // camera's centre moves so the hero's device position holds; the follow then eases the lead back in its ~0.15 s), the
 // ring's flare (hit, or walked into a crowd), the v2 bake queue.
-void View::lensUpdate(Game& g, float dt) {
-  const int vw = viewW(), vh = viewH();
-  const int d = pix_ ? std::max(1, (int)std::lround(pix_->worldLayer().scale)) : 1;
-  if (camera_.lensD_ > 0 && (d != camera_.lensD_ || vw != camera_.lensViewW_ || vh != camera_.lensViewH_) && g.mode != Mode::Title) {
+void LensState::lensUpdate(View& v, Game& g, float dt) {
+  const int vw = v.viewW(), vh = v.viewH();
+  const int d = v.pix_ ? std::max(1, (int)std::lround(v.pix_->worldLayer().scale)) : 1;
+  if (v.camera_.lensD_ > 0 && (d != v.camera_.lensD_ || vw != v.camera_.lensViewW_ || vh != v.camera_.lensViewH_) && g.mode != Mode::Title) {
     const Vec2 hero = g.pl().p;
-    const Vec2 oc = camera_.cam_ + Vec2(camera_.lensViewW_ * 0.5f, camera_.lensViewH_ * 0.5f);
-    const Vec2 nc = hero - (hero - oc) * ((float)camera_.lensD_ / (float)d);
-    camera_.cam_ = nc - Vec2(vw * 0.5f, vh * 0.5f);
+    const Vec2 oc = v.camera_.cam_ + Vec2(v.camera_.lensViewW_ * 0.5f, v.camera_.lensViewH_ * 0.5f);
+    const Vec2 nc = hero - (hero - oc) * ((float)v.camera_.lensD_ / (float)d);
+    v.camera_.cam_ = nc - Vec2(vw * 0.5f, vh * 0.5f);
   }
-  camera_.lensD_ = d; camera_.lensViewW_ = vw; camera_.lensViewH_ = vh;
+  v.camera_.lensD_ = d; v.camera_.lensViewW_ = vw; v.camera_.lensViewH_ = vh;
   // the ring flares for a second when the hero is hit or walks into a crowd (4 or more people within 3 tiles)
   if (ringFlare_ > 0) ringFlare_ = std::max(0.0f, ringFlare_ - dt);
   if (g.mode == Mode::Play) {
@@ -536,7 +536,7 @@ void View::lensUpdate(Game& g, float dt) {
     if (crowd && !ringCrowdWas_) ringFlare_ = 1.0f;
     ringCrowdWas_ = crowd;
   } else ringHpWas_ = -1;
-  sprites_.rigBakeQueue(*this, g);
+  v.sprites_.rigBakeQueue(v, g);
 }
 
 namespace {
@@ -581,20 +581,20 @@ Canvas paintRing(uint64_t key) {
 bool paleGround(Ground gr) { return gr == Ground::Sand || gr == Ground::Snow || gr == Ground::Ice; }
 }  // namespace
 
-void View::drawRing(const Game& g, const Actor& a, Vec2 cam) {
+void LensState::drawRing(View& v, const Game& g, const Actor& a, Vec2 cam) {
   if (!a.player || !screen::get().ring || g.mode == Mode::Title || g.mode == Mode::Creator || a.st == AState::Dead) return;
-  const art::RigMetrics& M = rigFor(a.look);
+  const art::RigMetrics& M = v.rigFor(a.look);
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
   const int gtx = (int)std::floor(a.p.x / 16), gty = (int)std::floor(a.p.y / 16);
   const bool pale = m.in(gtx, gty) && paleGround(m.at(gtx, gty));
-  const Tex& t = sprites_.cachedTex(*this, (uint64_t)M.ringW | (uint64_t)M.ringH << 8 | (uint64_t)(pale ? 1 : 0) << 16 | 0x61ull << 56, paintRing);
+  const Tex& t = v.sprites_.cachedTex(v, (uint64_t)M.ringW | (uint64_t)M.ringH << 8 | (uint64_t)(pale ? 1 : 0) << 16 | 0x61ull << 56, paintRing);
   const float k = clampf(ringFlare_, 0, 1);
   const float alpha = 0.80f + 0.15f * k;
   // centred on the feet (the canvas has a px of margin all round)
   const float x = std::floor(a.p.x - M.ringW * 0.5f - 1 - cam.x + 0.5f), y = std::floor(a.p.y - M.ringH * 0.5f - 1 - cam.y + 0.5f);
   ringOn_ = true; ringX_ = x; ringY_ = y; ringA_ = alpha; ringTex_ = &t;
-  pix_->blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
-  lensStats.ringA = alpha;
+  v.pix_->blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
+  v.lensStats.ringA = alpha;
 }
 
 // The night lift (STYLE_P2 8): after the light map, each human figure drawn in the sorted pass is added again in
@@ -638,25 +638,25 @@ void liftErase(SDL_Renderer* ren, const Pix::BlitRec& r) {
 }
 }  // namespace rview
 
-void View::drawNightLift(const Game& g, float dark) {
-  lensStats.liftFigs = 0;
+void LensState::drawNightLift(View& v, const Game& g, float dark) {
+  v.lensStats.liftFigs = 0;
   struct Clear { std::vector<Pix::BlitRec>& l; ~Clear() { l.clear(); g_occRecs.clear(); } } clearAll{liftRecs_};
   if (g.mode == Mode::Title || g.mode == Mode::Creator || g.inside || dark < 0.05f || liftRecs_.empty()) return;
   // the lift's own target (the world view's size, one texel per world px), cleared to nothing
   static const bool noMask = std::getenv("EMB_LIFT_NOMASK") != nullptr;   // (test hook) the unmasked lift, for an A/B
-  SDL_Renderer* ren = pix_->renderer();
+  SDL_Renderer* ren = v.pix_->renderer();
   bool masked = !noMask && ren != nullptr;
   if (masked) {
     if (g_liftEpoch != Pix::texEpoch) { g_liftEpoch = Pix::texEpoch; g_liftT = Tex(); }
     if (g_liftT.w != Pix::W || g_liftT.h != Pix::H || !g_liftT.t) {
-      pix_->destroy(g_liftT);
-      g_liftT = pix_->makeTarget(Pix::W, Pix::H);
+      v.pix_->destroy(g_liftT);
+      g_liftT = v.pix_->makeTarget(Pix::W, Pix::H);
       if (g_liftT.t) SDL_SetTextureScaleMode(g_liftT.t, SDL_SCALEMODE_NEAREST);
     }
     masked = g_liftT.t != nullptr && liftEraseOk(g_liftT.t);
   }
   if (masked) {
-    pix_->setTarget(&g_liftT);
+    v.pix_->setTarget(&g_liftT);
     SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
     SDL_RenderClear(ren);
   }
@@ -676,7 +676,7 @@ void View::drawNightLift(const Game& g, float dark) {
   // mask: the ink outline is left out, so the edge stays dark while the body's darker half rises with the rest)
   const float k = kLiftK * dark, kf = kLiftFlat * dark;
   const Color mw(0x8F / 255.0f, 0xA6 / 255.0f, 0xD8 / 255.0f, 1);
-  const Vec2 hc = g.pl().p - camera_.worldCam(*this);   // the hero's feet in the world view (their torch's middle)
+  const Vec2 hc = g.pl().p - v.camera_.worldCam(v);   // the hero's feet in the world view (their torch's middle)
   const float hx = hc.x, hy = hc.y;
   int maskBakes = 0;
   for (size_t ri = 0; ri < liftRecs_.size(); ri++) {
@@ -694,26 +694,26 @@ void View::drawNightLift(const Game& g, float dark) {
     constexpr float kLiftFar = 0.6f;
     const float fx = r.dx + r.dw * 0.5f - hx, fy = r.dy + r.dh - hy;
     const float nearK = 1.0f - (1.0f - kLiftFar) * clampf((std::sqrt(fx * fx + fy * fy) - 24.0f) / 72.0f, 0, 1);
-    lensStats.liftFigs++;
-    if (k > 0) pix_->blitRec(r, Color(mw.r * k * nearK, mw.g * k * nearK, mw.b * k * nearK, r.a), 1);
-    auto mi = sprites_.liftMask_.find(r.t);
-    if (kf > 0 && mi != sprites_.liftMask_.end()) {
+    v.lensStats.liftFigs++;
+    if (k > 0) v.pix_->blitRec(r, Color(mw.r * k * nearK, mw.g * k * nearK, mw.b * k * nearK, r.a), 1);
+    auto mi = v.sprites_.liftMask_.find(r.t);
+    if (kf > 0 && mi != v.sprites_.liftMask_.end()) {
       SpriteCache::LiftMask& lm = mi->second;
-      if (!lm.tex.t && !lm.m.empty() && (witness || maskBakes++ < 8)) {   // its first night: the mask's texture (8 a frame)
+      if (!lm.tex.t && !lm.m.empty() && (v.witness || maskBakes++ < 8)) {   // its first night: the mask's texture (8 a frame)
         Canvas c(lm.w, lm.h);
         for (size_t i = 0; i < lm.m.size(); i++) if (lm.m[i]) c.px[i] = rgba(255, 255, 255);
-        lm.tex = pix_->bake(c);
+        lm.tex = v.pix_->bake(c);
       }
       if (!lm.tex.t) continue;
       Pix::BlitRec q = r;
       q.t = lm.tex.t;
-      pix_->blitRec(q, Color(mw.r, mw.g, mw.b, r.a * kf * nearK), 1);
+      v.pix_->blitRec(q, Color(mw.r, mw.g, mw.b, r.a * kf * nearK), 1);
     }
   }
   if (masked) {
     eraseTo(g_occRecs.size());
     // back to the world: the summed lift (its alpha 0) added over the lit world as it stands
-    pix_->setTarget(nullptr);
+    v.pix_->setTarget(nullptr);
     SDL_SetTextureBlendMode(g_liftT.t, SDL_BLENDMODE_ADD_PREMULTIPLIED);
     SDL_SetTextureColorModFloat(g_liftT.t, 1, 1, 1);
     SDL_SetTextureAlphaModFloat(g_liftT.t, 1);
@@ -727,12 +727,12 @@ void View::drawNightLift(const Game& g, float dark) {
     const Tex& t = *ringTex_;
     const Color c(1, 1, 1, ringA_ * dark * kRingNightK);
     const int sy = t.h / 2 + 1, sh = t.h - sy;
-    if (sh > 0) pix_->blitEx(t, 0, sy, t.w, sh, ringX_, ringY_ + sy, (float)t.w, (float)sh, false, c, 1);
+    if (sh > 0) v.pix_->blitEx(t, 0, sy, t.w, sh, ringX_, ringY_ + sy, (float)t.w, (float)sh, false, c, 1);
     const int cx = t.w / 2, legs = t.w >= 24 ? 6 : 5;   // the legs' half-width round the feet (v1 / v2)
     const int lw = cx - legs, rx0 = cx + legs;
     if (lw > 0) {
-      pix_->blitEx(t, 0, 0, lw, sy, ringX_, ringY_, (float)lw, (float)sy, false, c, 1);
-      pix_->blitEx(t, rx0, 0, t.w - rx0, sy, ringX_ + rx0, ringY_, (float)(t.w - rx0), (float)sy, false, c, 1);
+      v.pix_->blitEx(t, 0, 0, lw, sy, ringX_, ringY_, (float)lw, (float)sy, false, c, 1);
+      v.pix_->blitEx(t, rx0, 0, t.w - rx0, sy, ringX_ + rx0, ringY_, (float)(t.w - rx0), (float)sy, false, c, 1);
     }
   }
 }
@@ -740,11 +740,11 @@ void View::drawNightLift(const Game& g, float dark) {
 // Off-screen pips (STYLE_P2 18; the UI layer): a 7 x 5 Warning Ember chevron with an Ink edge at the safe area's edge,
 // pointing at each aggro'd hostile outside the view within its aggro radius (bandits notice the hero from beyond half the
 // view); it pulses slowly, faster as the foe closes. Out of the HUD's corners like the quest arrow.
-void View::drawPips(const Game& g) {
-  lensStats.pips = 0;
+void LensState::drawPips(View& v, const Game& g) {
+  v.lensStats.pips = 0;
   if (g.mode != Mode::Play && g.mode != Mode::Dialogue) return;
   if (g.mode == Mode::Dialogue) return;   // the talk panel is modal
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   const Actor& hp = g.pl();
   static const char* kUp[5] = {"...#...", "..###..", ".#####.", "###.###", "##...##"};
@@ -756,9 +756,9 @@ void View::drawPips(const Game& g) {
     const float d = len(a.p - hp.p);
     if (d > std::max(a.aggroR, 60.0f)) continue;
     // in view: any part of the body inside the safe area (a figure's middle, a few px of margin)
-    const float bodyH = a.human ? (float)rigFor(a.look).figH(a.look) :(float)art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a);
-    const Vec2 mid = camera_.toUi(*this, a.p - Vec2(0, bodyH * 0.5f));
-    const float k = camera_.uiPerWorld(*this);
+    const float bodyH = a.human ? (float)v.rigFor(a.look).figH(a.look) :(float)art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a);
+    const Vec2 mid = v.camera_.toUi(v, a.p - Vec2(0, bodyH * 0.5f));
+    const float k = v.camera_.uiPerWorld(v);
     if (mid.x > L - 4 * k && mid.x < R + 4 * k && mid.y > T - bodyH * 0.5f * k && mid.y < B + bodyH * 0.5f * k) continue;
     // where the ray from the safe area's centre to the foe meets the edge (8 px in)
     const Vec2 c((L + R) * 0.5f, (T + B) * 0.5f);
@@ -767,8 +767,8 @@ void View::drawPips(const Game& g) {
     Vec2 at = c + dir * kk;
     // out of the HUD's corners: the vitals block top-left, the minimap and quest column top-right
     if (at.x < L + 150 && at.y < T + 60) { if (std::fabs(dir.x) > std::fabs(dir.y)) at.y = T + 64; else at.x = L + 154; }
-    if (hudColLeft_ < 1e8f && at.x > hudColLeft_ - 4 && at.y < hudColBottom_ + 4) {
-      if (std::fabs(dir.x) > std::fabs(dir.y)) at.y = hudColBottom_ + 8; else at.x = hudColLeft_ - 8;
+    if (v.hudx_.hudColLeft_ < 1e8f && at.x > v.hudx_.hudColLeft_ - 4 && at.y < v.hudx_.hudColBottom_ + 4) {
+      if (std::fabs(dir.x) > std::fabs(dir.y)) at.y = v.hudx_.hudColBottom_ + 8; else at.x = v.hudx_.hudColLeft_ - 8;
     }
     // one pip per spot: a pack behind one edge shows as a short row, not a blot
     for (int guard = 0; guard < 6; guard++) {
@@ -782,7 +782,7 @@ void View::drawPips(const Game& g) {
     const int face = std::fabs(dir.x) * (B - T) > std::fabs(dir.y) * (R - L) ? (dir.x > 0 ? 3 : 2) : (dir.y > 0 ? 1 : 0);
     const float close = clampf(1.0f - d / std::max(60.0f, a.aggroR), 0, 1);
     const float rate = 3.0f + 7.0f * close;   // faster as the foe closes
-    const float pulse = 0.72f + 0.28f * std::sin(t_ * rate + (float)a.id);
+    const float pulse = 0.72f + 0.28f * std::sin(v.t_ * rate + (float)a.id);
     auto fill = [&](int x, int y) {   // the pattern in the pip's facing (7 x 5 up; turned for the others)
       int u = x, v = y;
       if (face == 1) v = 4 - y;
@@ -801,7 +801,7 @@ void View::drawPips(const Game& g) {
     for (int y = 0; y < ph; y++)
       for (int x = 0; x < pw; x++)
         if (fill(x, y)) P.rect(x0 + x, y0 + y, 1, 1, Color(std::min(1.0f, ember.r * (0.9f + 0.2f * close)), ember.g, ember.b, pulse));
-    lensStats.pips++;
+    v.lensStats.pips++;
   }
 }
 
@@ -887,12 +887,12 @@ View::RigTex SpriteCache::rigTex(View& v, const art::HumanLook& L, art::RigPart 
 // slanted band), and the world-space motes / embers (born on this frame's glow pixels, rising where they were born: a
 // walker trails them; a striking Mythic sheds them off the blade's tip). Queued here (the sorted pass), drawn additively
 // after the lighting (drawWeather's tail). Rig 2 only.
-void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+void LensState::queueLivingFinish(View& v, const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                              float x2, float y2, float pivX, float pivY, float alpha, bool strike) {
-  queueLivingFinishId(a.id, L, rt, f, an, x2, y2, pivX, pivY, alpha, strike, false);
+  queueLivingFinishId(v, a.id, L, rt, f, an, x2, y2, pivX, pivY, alpha, strike, false);
 }
 // (P2c SWITCH) the same by the figure's id; `menu`: a menu figure (its motes in the figure's own frame, no world camera)
-void View::queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+void LensState::queueLivingFinishId(View& v, int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
                                float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu) {
   if (!art::finish::enabled() || !rt.ready() || alpha <= 0.02f) return;
   const int top = L.topTier();
@@ -914,7 +914,7 @@ void View::queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt
                               Color((q.c & 255) / 255.0f, (q.c >> 8 & 255) / 255.0f, (q.c >> 16 & 255) / 255.0f, q.a * alpha)});
   };
   art::finish::Figure F;
-  F.topTier = top; F.mythic = L.mythic != 0; F.t = t_; F.phase = phase; F.glow = &gpx; F.strike = strike; F.steady = steady;
+  F.topTier = top; F.mythic = L.mythic != 0; F.t = v.t_; F.phase = phase; F.glow = &gpx; F.strike = strike; F.steady = steady;
   F.mask = rt.masks && fi < rt.masks->size() ? &(*rt.masks)[fi] : nullptr;
   F.bladeT6 = L.tier[art::HumanLook::TIER_WEAPON] >= 6;
   // the line in frame px (the grip: its mark, else the weapon hand's fist)
@@ -947,16 +947,16 @@ void View::queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt
   // the motes / embers: world space (view px + the camera), so the camera's motion never drags them along
   {
     art::finish::Particles& ps = finishParts_[id];
-    const float cx = menu ? 0.0f : std::floor(camera_.cam_.x + 0.5f), cy = menu ? 0.0f : std::floor(camera_.cam_.y + 0.5f);
+    const float cx = menu ? 0.0f : std::floor(v.camera_.cam_.x + 0.5f), cy = menu ? 0.0f : std::floor(v.camera_.cam_.y + 0.5f);
     const float wx = x2 + cx, wy = y2 + cy;
-    art::finish::particlesStep(ps, (uint32_t)id * 2654435761u + 0x5EEDu, t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
+    art::finish::particlesStep(ps, (uint32_t)id * 2654435761u + 0x5EEDu, v.t_, F.mythic, wx, wy, gpx, F.line && strike, wx + F.tx, wy + F.ty);
     std::vector<art::finish::Light> lights;
-    art::finish::particleLights(ps, t_, hot, lights);
+    art::finish::particleLights(ps, v.t_, hot, lights);
     for (const art::finish::Light& q : lights) push(q, -cx, -cy);
   }
   // (ladder i3) the gleam: the figure's own pixels added back through a slanted band sweeping across it
   {
-    const float u = art::finish::gleamAt(t_, phase);
+    const float u = art::finish::gleamAt(v.t_, phase);
     if (u >= 0) {
       const Color gc = L.mythic ? Color(1.0f, 0.62f, 0.3f, art::finish::kGleamA * alpha) : Color(1, 1, 1, art::finish::kGleamA * alpha);
       for (int y = 0; y < f.h; y += 2) {
@@ -1070,9 +1070,9 @@ bool View::drawMenuDoll(const art::HumanLook& L, int where, int facing, MenuGait
     case MenuGait::Swing: {   // a blow every 1.6 s (windup 2 x 0.12 s, strike 2 x 0.07, follow 2 x 0.10), the combo's
                               // three variants in turn, the idle between
       if (!art::doll::dollCovers(L, art::RigPart::Action)) { idle(); break; }
-      if (menuSwingT0_ < 0 || menuSwingT0_ > t_) menuSwingT0_ = t_;
-      const float u = std::fmod(t_ - menuSwingT0_, 1.6f);
-      const int v = (int)((t_ - menuSwingT0_) / 1.6f) % 3;
+      if (lens_.menuSwingT0_ < 0 || lens_.menuSwingT0_ > t_) lens_.menuSwingT0_ = t_;
+      const float u = std::fmod(t_ - lens_.menuSwingT0_, 1.6f);
+      const int v = (int)((t_ - lens_.menuSwingT0_) / 1.6f) % 3;
       if (u >= 0.58f) { idle(); break; }
       variant = v;
       if (u < 0.24f) { clip = art::Clip::Windup; fi = (int)(u / 0.12f); }
@@ -1105,12 +1105,12 @@ bool View::drawMenuDoll(const art::HumanLook& L, int where, int facing, MenuGait
   // the living finish on the menu figure: the world's own lights (queued against the frame's top-left), drawn here at
   // the figure's multiple, additively (no night pass in a menu). The furthest lit pixel off the silhouette is recorded.
   const size_t n0 = beasts::finish.size();
-  queueLivingFinishId(fid, L, rt, *f, an, 0, 0, (float)f->px, (float)f->py, alpha, clip == art::Clip::Strike, true);
+  lens_.queueLivingFinishId(*this, fid, L, rt, *f, an, 0, 0, (float)f->px, (float)f->py, alpha, clip == art::Clip::Strike, true);
   if (beasts::finish.size() > n0) {
     const size_t fiAll = (size_t)(f - rt.sheet->frames.data());
     const art::finish::Mask* mk = rt.masks && fiAll < rt.masks->size() ? &(*rt.masks)[fiAll] : nullptr;
     int far = -1;
-    const size_t auraEnd = finishAuraEnd_;
+    const size_t auraEnd = lens_.finishAuraEnd_;
     for (size_t i = n0; i < beasts::finish.size(); i++) {
       const beasts::Finish& q = beasts::finish[i];
       if (q.y >= rows || q.y + q.h <= r0) continue;   // outside a dialogue's cut
@@ -1224,12 +1224,12 @@ bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hi
   if (an && an->hipX != art::kNoAnchor && an->hipY != art::kNoAnchor) { x = hipX - (f->px + an->hipX); y = hipY - (f->py + an->hipY); }
   else { x = pivX - f->px; y = pivY - f->py; }
   x = std::floor(x + 0.5f); y = std::floor(y + 0.5f);
-  if (blend == 0) pix_->recordBlits(&liftRecs_);
+  if (blend == 0) pix_->recordBlits(&lens_.liftRecs_);
   pix_->blitEx(*rt.tex, f->x, f->y, f->w, f->h, x, y, (float)f->w, (float)f->h, false, c, blend);
   pix_->recordBlits(nullptr);
   // (P2c SWITCH) a T5-T6 rider's living finish (the posture atlas keeps no glow plane: the aura, rim and sweep from the
   // frame's anchors; masks only where the LOCO atlas keeps them)
-  if (blend == 0 && riderId >= 0 && L.topTier() >= 5) queueLivingFinishId(riderId, L, rt, *f, an, x, y, x + f->px, y + f->py, c.a, false, false);
+  if (blend == 0 && riderId >= 0 && L.topTier() >= 5) lens_.queueLivingFinishId(*this, riderId, L, rt, *f, an, x, y, x + f->px, y + f->py, c.a, false, false);
   if (ghost) { ghost->t = rt.tex; ghost->sx = f->x; ghost->sy = f->y; ghost->w = f->w; ghost->h = f->h; ghost->flip = false; ghost->x = x; ghost->y = y; }
   return true;
 }
@@ -2030,20 +2030,20 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
     case Ev::Border: v.realm_.heraldEvent(v, g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
     case Ev::News: v.realm_.newsEvent(v, g, e); break;       // (M4) a world event heard of
     case Ev::Banter: case Ev::PartyAlert: v.party_.partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
-    case Ev::Power: v.powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
-    case Ev::Spell: v.magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
-    case Ev::Skill: v.skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
-    case Ev::Sea: v.seaEvent(g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
-    case Ev::Rise: v.riseEvent(g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
+    case Ev::Power: v.powers_.powerEvent(v, g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
+    case Ev::Spell: MagicLane::magicEvent(v, g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
+    case Ev::Skill: SkillsLane::skillEvent(v, g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
+    case Ev::Sea: SeaLane::seaEvent(v, g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
+    case Ev::Rise: RiseLane::riseEvent(v, g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
     case Ev::MapChange: v.fade_ = 1.0f; v.snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       v.camera_.cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
       for (FloatText& ft : texts_) ft.p += e.p;
-      for (View::PowerFx& f : v.powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
-      v.magicShift(e.p);                                           // (M9) spell effects and decals
-      v.seaShift(e.p);                                             // (M10) wakes and splashes
-      v.reliefShift(e.p);                                          // (M11) mist and spray
+      for (PowerView::PowerFx& f : v.powers_.powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
+      MagicLane::magicShift(v, e.p);                                           // (M9) spell effects and decals
+      SeaLane::seaShift(v, e.p);                                             // (M10) wakes and splashes
+      ReliefLane::reliefShift(v, e.p);                                          // (M11) mist and spray
       break;
     default: break;
   }
@@ -2066,11 +2066,11 @@ void View::update(Game& g, float dt) {
   for (const Event& e : g.events) fx_.spawnParticles(*this, e, g);
   g.events.clear();
   party_.partyUpdate(*this, g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
-  powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
-  magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
-  seaUpdate(g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
-  reliefUpdate(g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
-  riseUpdate(g, dt);    // (M12) the herald's banners of the player's rise (render_rise.cpp)
+  powers_.powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
+  MagicLane::magicUpdate(*this, g, dt);   // (M9) the spells' effects age (render_magic.cpp)
+  SeaLane::seaUpdate(*this, g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
+  ReliefLane::reliefUpdate(*this, g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
+  RiseLane::riseUpdate(*this, g, dt);    // (M12) the herald's banners of the player's rise (render_rise.cpp)
   loot_.lootUpdate(*this, g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   updateBanners(g);   // (M1, M4) the arrival banner
   if (realm_.herald_.t > 0 && g.mode == Mode::Play) realm_.herald_.t -= dt;
@@ -2084,9 +2084,9 @@ void View::update(Game& g, float dt) {
   updateMusic(g, dt);
 
   const bool outdoors = g.mode != Mode::Title && !g.inside;
-  updateBiomeBanner(g, dt, outdoors);   // (M3c LIFE)
-  updateWeather(g, dt, outdoors);
-  updateAmbience(g, outdoors);
+  weather_.updateBiomeBanner(*this, g, dt, outdoors);   // (M3c LIFE)
+  weather_.updateWeather(g, dt, outdoors);
+  weather_.updateAmbience(*this, g, outdoors);
   updateDrift(g, dt, outdoors, VW, VH);
 }
 
@@ -2146,7 +2146,7 @@ bool Camera::updateCamera(View& v, Game& g, float dt, float& VW, float& VH) {
   const Vec2 heldCam = cam_;
   cam_ += s_camRes;   // (P2a slice) the eased camera again: the draw read it rounded (rvSnapCamera, below)
   s_camRes = Vec2();
-  v.lensUpdate(g, dt);
+  v.lens_.lensUpdate(v, g, dt);
   VW = (float)v.viewW(); VH = (float)v.viewH();
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
@@ -2399,7 +2399,7 @@ void View::updateMusic(Game& g, float dt) {
 }
 
 // (M3c LIFE) the land under the player and its biome banner (update)
-void View::updateBiomeBanner(Game& g, float dt, bool outdoors) {
+void WeatherView::updateBiomeBanner(View& v, Game& g, float dt, bool outdoors) {
   // (M3c LIFE) the land under the player (its eco), looked up a few times a second
   ecoT_ -= dt;
   if (ecoT_ <= 0) {
@@ -2437,11 +2437,11 @@ void View::updateBiomeBanner(Game& g, float dt, bool outdoors) {
       if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
     }
   }
-  if (biomeBannerT_ > 0 && ((fx_.bannerT_ <= 0 && realm_.herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+  if (biomeBannerT_ > 0 && ((v.fx_.bannerT_ <= 0 && v.realm_.herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
 }
 
 // the weather (update)
-void View::updateWeather(Game& g, float dt, bool outdoors) {
+void WeatherView::updateWeather(Game& g, float dt, bool outdoors) {
   // the weather (drawWeather paints wx_): what each nearby tile's Sky makes of this day and hour, averaged over five
   // points round the player (so it fades in over a dozen tiles at a border) and eased over a few seconds
   if (outdoors && g.map().kind == MapKind::Overworld) {
@@ -2501,7 +2501,7 @@ void View::updateWeather(Game& g, float dt, bool outdoors) {
 }
 
 // the land's sound bed and mood (update)
-void View::updateAmbience(Game& g, bool outdoors) {
+void WeatherView::updateAmbience(View& v, Game& g, bool outdoors) {
   // the land's sound bed and the wilderness music's mood (engine/audio.cpp): silent indoors, in caves and the menus,
   // softer in towns and dialogue, under a fight
   {
@@ -2514,20 +2514,20 @@ void View::updateAmbience(Game& g, bool outdoors) {
       default: lvl = 0; break;
     }
     if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) lvl *= 0.4f;
-    if (combatT_ > 0) lvl *= 0.6f;
+    if (v.combatT_ > 0) lvl *= 0.6f;
     if (g.travel.phase != TravelPhase::None) lvl *= 0.5f;
     ambLevel_ = lvl;
-    audio_->setAmbient((uint8_t)ecoInfo(he).amb, lvl);
-    audio_->setMood(realm_.nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
-    audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
+    v.audio_->setAmbient((uint8_t)ecoInfo(he).amb, lvl);
+    v.audio_->setMood(v.realm_.nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
+    v.audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
   }
 }
 
 // the ambient particles: the land's own drift, the dust indoors (update)
 void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
   // ambient particles (world layer): the land's own drift
-  if (outdoors && hereEco_ >= 0) {
-    const Eco e = (Eco)hereEco_;
+  if (outdoors && weather_.hereEco_ >= 0) {
+    const Eco e = (Eco)weather_.hereEco_;
     const Biome b = ecoFamily(e);
     Rng r((uint32_t)(t_ * 997));
     auto spawn = [&](Vec2 p, Vec2 v, float life, Color c, float size, int layer) {
@@ -2780,7 +2780,7 @@ void View::drawWorld(Game& g) {
   // the list used to grow every frame until dusk (one huge lighting frame, unbounded memory)
   g_beaconFires.clear();
   beasts::plates.clear();   // (P2a LENS) the UI pass (drawBeastPlates) takes this frame's; a `ui 0` frame leaves them
-  liftRecs_.clear();
+  lens_.liftRecs_.clear();
   g_occRecs.clear();
   party_.graveTops_.clear();
   {   // (M4) last frame's overlay counts for the scripts (the map's are kept from its own draw)
@@ -2806,8 +2806,8 @@ void View::drawWorld(Game& g) {
   sprites_.trimCaches(*this);
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
   beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
-  for (auto it = finishParts_.begin(); it != finishParts_.end();)   // (polish i1) motes / embers of actors gone 2 s
-    it = (it->second.lastT < t_ - 2.0f || it->second.lastT > t_) ? finishParts_.erase(it) : std::next(it);
+  for (auto it = lens_.finishParts_.begin(); it != lens_.finishParts_.end();)   // (polish i1) motes / embers of actors gone 2 s
+    it = (it->second.lastT < t_ - 2.0f || it->second.lastT > t_) ? lens_.finishParts_.erase(it) : std::next(it);
   beasts::plates.clear();
   beasts::last = beasts::cur;
   beasts::cur = beasts::Stats();
@@ -2837,9 +2837,9 @@ void View::drawWorld(Game& g) {
   // tiles on the same frames, the world's bake waits its turn with a small share)
   if (!bake_.arriving_) bake_.pumpBake(*this, g.mode == Mode::Menu ? 1.5 : 5.0);
   layoutWallKeys(g, m, mapId, endlessOver);
-  if (g.mode != Mode::Title) drawReliefWater(g, cam);   // (M11) waterfalls over the faces (render_relief.cpp)
-  if (g.mode != Mode::Title) drawSeaWater(g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)
-  if (g.mode != Mode::Title) drawMagicGround(g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
+  if (g.mode != Mode::Title) ReliefLane::drawReliefWater(*this, g, cam);   // (M11) waterfalls over the faces (render_relief.cpp)
+  if (g.mode != Mode::Title) SeaLane::drawSeaWater(*this, g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)
+  if (g.mode != Mode::Title) MagicLane::drawMagicGround(*this, g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
   if (g.mode != Mode::Title && !g.inside) drawIncidentGround(g, cam);   // (P1 fixer) a broken cart's wheel in the road (render_markers.cpp)
   drawSortedPass(g, m, cam);   // (SOLID 3.4a) collect, sort, shadows, the sorted draws, the hidden hero: render_sorted.cpp
   const bool recOcc = g.mode != Mode::Title && !g.inside;   // (P2a LENS fix r3; as the sorted pass's)
@@ -2918,7 +2918,7 @@ void View::drawLighting(Game& g) {
       amb = Color(amb.r * lerpf(1, warm.r, w), amb.g * lerpf(1, warm.g, w), amb.b * lerpf(1, warm.b, w));
     }
   }
-  if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) { liftRecs_.clear(); g_occRecs.clear(); lensStats.liftFigs = 0; return; }
+  if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) { lens_.liftRecs_.clear(); g_occRecs.clear(); lensStats.liftFigs = 0; return; }
   Vec2 cam(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y));
   // (M1) the light map is half the canvas: re-made when the screen fit changes the canvas size
   if (lightMap_.w != (Pix::W + 1) / 2 || lightMap_.h != (Pix::H + 1) / 2) {
@@ -3055,10 +3055,10 @@ void View::drawLighting(Game& g) {
   }
   for (const Particle& q : fx_.parts_) if (q.kind == 1 && q.fx == (int)art::Fx::Explosion) light(q.p, 90, Color(1, 0.6f, 0.3f), q.life / q.max);
   // (M3c) the ash fields' red-brown glow under the haze, and the magic lands' faint night light
-  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && wx_.ash > 0.05f)
-    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(0.30f, 0.10f, 0.04f, wx_.ash * dark * 0.6f));
-  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && wx_.eerie > 0.05f)
-    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(wx_.er * 0.12f, wx_.eg * 0.12f, wx_.eb * 0.12f, wx_.eerie * dark));
+  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && weather_.wx_.ash > 0.05f)
+    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(0.30f, 0.10f, 0.04f, weather_.wx_.ash * dark * 0.6f));
+  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && weather_.wx_.eerie > 0.05f)
+    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(weather_.wx_.er * 0.12f, weather_.wx_.eg * 0.12f, weather_.wx_.eb * 0.12f, weather_.wx_.eerie * dark));
   for (const Actor& a : g.actors) {
     if (a.human || !a.hostile || a.st == AState::Dead) continue;
     if (a.mon == Monster::Wraith) light(a.p + Vec2(0, -10), 40, Color(0.5f, 0.5f, 1), 0.6f);
@@ -3070,20 +3070,20 @@ void View::drawLighting(Game& g) {
     if (const uint32_t ac = beasts::auraOf(a)) light(a.p + Vec2(0, -3), 40, col(ac), 0.5f * std::min(1.0f, dark * 1.5f));
   }
   loot_.lootLights(*this, g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
-  magicLights(g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
-  seaLights(g, light);    // (M10) boat lanterns, the lighthouse's lamp (render_sea.cpp)
-  riseLights(g, light);   // (M12) the watchtowers' lanterns (rise_world.cpp)
+  MagicLane::magicLights(*this, g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
+  SeaLane::seaLights(*this, g, light);    // (M10) boat lanterns, the lighthouse's lamp (render_sea.cpp)
+  RiseLane::riseLights(*this, g, light);   // (M12) the watchtowers' lanterns (rise_world.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
-  drawNightLift(g, dark);        // (P2a LENS) people a step brighter than the ground they stand on
+  lens_.drawNightLift(*this, g, dark);        // (P2a LENS) people a step brighter than the ground they stand on
   realm_.m4Emissive(*this, g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
 }
 
 // (M3c LIFE) the weather of the land: wx_ (eased in update from the eco's Sky) painted in screen space. Every layer is
 // a few dozen rects or soft blobs, sized to the canvas, so the phone's frame budget hardly notices.
-void View::drawWeather(Game& g, float dt) {
+void WeatherView::drawWeather(View& v, Game& g, float dt) {
   (void)dt;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   // (M6 BEASTS) after the weather (and after every early return below): the glowing parts of the variant looks, the
   // name plates of the elites, champions and named uniques, and a world boss's bar
   // (P2a LENS) the plates and the boss bar are the UI layer's now: drawBeastPlates, after the world (beasts::plates waits)
@@ -3092,7 +3092,7 @@ void View::drawWeather(Game& g, float dt) {
     const auto t0 = beasts::Clock::now();
     struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
     beasts::cur.glows += (int)beasts::glows.size();
-    const Vec2 cam(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y));
+    const Vec2 cam(std::floor(v.camera_.cam_.x + v.fx_.shakeOff_.x), std::floor(v.camera_.cam_.y + v.fx_.shakeOff_.y));
     // the glow stands out as much as the night is dark (a little by day: embers and runes still smoulder)
     const bool dungeon = g.inside && g.subSite >= 0;
     const float dk = dungeon ? 0.7f : g.inside ? clampf(1.0f - g.daylight(), 0, 1) * 0.6f : clampf(1.0f - g.daylight() * 1.4f, 0, 1);
@@ -3117,14 +3117,14 @@ void View::drawWeather(Game& g, float dt) {
     beasts::finish.clear();
   };
   beasts::OnExit<decltype(beastsOver)> beastsAfter{beastsOver};
-  drawWeatherSky(g);
+  drawWeatherSky(v, g);
 }
 
 // (M6 BEASTS; P2a LENS: the UI layer, anchored on the world through toUi) the name plates of the elites, champions and
 // named uniques, and a world boss's bar. The plates were collected by the sorted pass (beasts::plates, map px).
 void View::drawBeastPlates(Game& g) {
   Pix& P = *pix_;
-  bossBarBottom_ = 0;
+  hudx_.bossBarBottom_ = 0;
   if (g.mode != Mode::Play) { beasts::plates.clear(); return; }
   const auto t0 = beasts::Clock::now();
   struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
@@ -3143,7 +3143,7 @@ void View::drawBeastPlates(Game& g) {
       const float d2 = len2(a.p - g.pl().p);
       if ((a.aggro || d2 < 200.0f * 200.0f) && d2 < best) { best = d2; wb = &a; }
     }
-    bossBarBottom_ = 0;
+    hudx_.bossBarBottom_ = 0;
     // the name plates (M6 fixer, review: "plates stack on top of each other and cover the creatures"): one plate per
     // champion pack and per crowd of like elites (with its count), the base name only (the aura tells the affixes) and
     // the affix words in a small second line on a named unique and the nearest hunter alone; never over the hero, the
@@ -3161,11 +3161,11 @@ void View::drawBeastPlates(Game& g) {
       const float fh = (float)rigFor(g.pl().look).figH(g.pl().look) + 4.0f;
       placed.push_back({hp.x - 8 * uk, hp.y - fh * uk, hp.x + 8 * uk, hp.y + 2 * uk});
     }
-    if (hudColLeft_ < 1e8f && hudColBottom_ > 0)   // (M6 fixer r2) the location / quest column (last frame's): no plate under it
-      placed.push_back({hudColLeft_, T, R, hudColBottom_});
-    if (biomeBannerT_ > 0 && !biomeBanner_.empty() && !g.inside) {   // the first-visit biome banner (hud.cpp) at the top centre
-      const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
-      const float by = std::max(biomeBannerY(half), (wb ? T + 21.0f : 0.0f) + 10);   // (M9 fixer) under the quick bar too
+    if (hudx_.hudColLeft_ < 1e8f && hudx_.hudColBottom_ > 0)   // (M6 fixer r2) the location / quest column (last frame's): no plate under it
+      placed.push_back({hudx_.hudColLeft_, T, R, hudx_.hudColBottom_});
+    if (weather_.biomeBannerT_ > 0 && !weather_.biomeBanner_.empty() && !g.inside) {   // the first-visit biome banner (hud.cpp) at the top centre
+      const float half = std::min((float)P.textW(weather_.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+      const float by = std::max(weather_.biomeBannerY(*this, half), (wb ? T + 21.0f : 0.0f) + 10);   // (M9 fixer) under the quick bar too
       placed.push_back({Pix::W / 2.0f - half, by - 4, Pix::W / 2.0f + half, by + 11});
     }
     if (realm_.herald_.t > 0) {   // and the herald's ribbon
@@ -3231,8 +3231,8 @@ void View::drawBeastPlates(Game& g) {
       const float h = 9.0f + (line2.empty() ? 0.0f : 8.0f) + (hurt ? 3.0f : 0.0f);
       float cx = std::floor(ux(pl.x)), y0 = std::floor(uy(pl.y) - h);
       cx = clampf(cx, L + w / 2.0f + 4, R - w / 2.0f - 4);
-      if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {   // under the quest column: slide a little, or leave it out
-        const float nx = hudColLeft_ - w / 2.0f - 4;
+      if (y0 < hudx_.hudColBottom_ && cx + w / 2.0f + 3 > hudx_.hudColLeft_) {   // under the quest column: slide a little, or leave it out
+        const float nx = hudx_.hudColLeft_ - w / 2.0f - 4;
         if (cx - nx > 40.0f) y0 = std::floor(uy(pl.feet) + 4.0f * uk);   // far under it: the plate goes under the feet
         else cx = nx;
       }
@@ -3288,9 +3288,9 @@ void View::drawBeastPlates(Game& g) {
     // (top-right): its name, its health with notches at the phase marks, a pip per phase it has passed
     if (wb) {
       beasts::cur.bossBar = 1;
-      const float gx0 = L + 178.0f, gx1 = std::min(R - 168.0f, hudColLeft_ < 1e8f ? hudColLeft_ - 6.0f : R - 168.0f);
+      const float gx0 = L + 178.0f, gx1 = std::min(R - 168.0f, hudx_.hudColLeft_ < 1e8f ? hudx_.hudColLeft_ - 6.0f : R - 168.0f);
       float bw = std::min(200.0f, gx1 - gx0 - 8.0f), bx, ty;
-      if (bw >= 96.0f) { bx = std::floor((gx0 + gx1) * 0.5f - bw * 0.5f); ty = T + 3.0f; bossBarBottom_ = ty + 18.0f; bossBarX0_ = bx; bossBarX1_ = bx + bw; }
+      if (bw >= 96.0f) { bx = std::floor((gx0 + gx1) * 0.5f - bw * 0.5f); ty = T + 3.0f; hudx_.bossBarBottom_ = ty + 18.0f; hudx_.bossBarX0_ = bx; hudx_.bossBarX1_ = bx + bw; }
       else { bw = 150.0f; bx = L + 6.0f; ty = T + 58.0f; }   // a narrow screen: under the vitals
       const float hk = clampf(wb->hp / std::max(1.0f, wb->maxHp), 0, 1);
       auto mi = beasts::memo.find(wb->id);
@@ -3315,10 +3315,10 @@ void View::drawBeastPlates(Game& g) {
 }
 
 // the weather's sky in the world layer (drawWeather's body; the beasts' glows follow it)
-void View::drawWeatherSky(Game& g) {
-  Pix& P = *pix_;
+void WeatherView::drawWeatherSky(View& v, Game& g) {
+  Pix& P = *v.pix_;
   if (g.inside || g.mode == Mode::Title) {
-    P.blitEx(sprites_.vignette_, 0, 0, sprites_.vignette_.w, sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
+    P.blitEx(v.sprites_.vignette_, 0, 0, v.sprites_.vignette_.w, v.sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
     return;
   }
   const Wx& W = wx_;
@@ -3335,8 +3335,8 @@ void View::drawWeatherSky(Game& g) {
   if (W.shimmer > 0.02f) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(1.0f, 0.86f, 0.62f, 0.05f * W.shimmer));
     for (int i = 0; i < 7; i++) {
-      const float y = Pix::H * (0.38f + 0.09f * i) + std::sin(t_ * 1.7f + i * 1.9f) * 3.0f;
-      const float x0 = std::sin(t_ * 0.6f + i) * 40.0f - 40.0f;
+      const float y = Pix::H * (0.38f + 0.09f * i) + std::sin(v.t_ * 1.7f + i * 1.9f) * 3.0f;
+      const float x0 = std::sin(v.t_ * 0.6f + i) * 40.0f - 40.0f;
       P.rectAdd(x0, y, Pix::W + 80.0f, 1, Color(1.0f, 0.92f, 0.75f, 0.035f * W.shimmer));
       P.rectAdd(x0 + 30, y + 2, Pix::W * 0.6f, 1, Color(1.0f, 0.92f, 0.75f, 0.02f * W.shimmer));
     }
@@ -3346,8 +3346,8 @@ void View::drawWeatherSky(Game& g) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.84f, 0.88f, 0.88f, 0.10f * W.fog));   // the mist's pale veil
     const int n = (int)(6 * (Pix::W + 220) / 700.0f) + 2;
     for (int i = 0; i < n; i++) {
-      float x = std::fmod(i * 140 + t_ * 8 - camera_.cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
-      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(t_ * 0.3f + i) * 10, 260, 90, false,
+      float x = std::fmod(i * 140 + v.t_ * 8 - v.camera_.cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(v.t_ * 0.3f + i) * 10, 260, 90, false,
                Color(0.82f, 0.86f, 0.84f, 0.26f * W.fog));
     }
   }
@@ -3357,29 +3357,29 @@ void View::drawWeatherSky(Game& g) {
     const bool heavy = i < 220 * W.pour * sw, fine = !heavy && i >= (140 * W.rain + 220 * W.pour) * sw;
     const float ww = Pix::W + 40.0f, wh = Pix::H + 30.0f;
     const float vy = heavy ? 420 : fine ? 170 : 330, vx = heavy ? 150 : fine ? 40 : 120;
-    float sx = wrap(hashf(i, 0, 5) * 600 + t_ * vx - camera_.cam_.x, ww) - 20;
-    float sy = wrap(hashf(i, 1, 5) * 400 + t_ * vy - camera_.cam_.y, wh) - 15;
+    float sx = wrap(hashf(i, 0, 5) * 600 + v.t_ * vx - v.camera_.cam_.x, ww) - 20;
+    float sy = wrap(hashf(i, 1, 5) * 400 + v.t_ * vy - v.camera_.cam_.y, wh) - 15;
     const int len = heavy ? 9 : fine ? 3 : 7;
     for (int k = 0; k < len; k++) P.rect(sx - k * (vx / vy), sy - k * 1.0f, 1, 1, Color(0.78f, 0.86f, 1.0f, (fine ? 0.35f : 0.6f) * (1.0f - k / (float)(len + 1))));
     // a splash where a heavy drop lands
-    if (heavy && (i & 7) == 0 && std::fmod(t_ * 3 + hashf(i, 3, 5), 1.0f) < 0.15f) P.rect(sx - 1, sy + 2, 3, 1, Color(0.8f, 0.88f, 1.0f, 0.4f));
+    if (heavy && (i & 7) == 0 && std::fmod(v.t_ * 3 + hashf(i, 3, 5), 1.0f) < 0.15f) P.rect(sx - 1, sy + 2, 3, 1, Color(0.8f, 0.88f, 1.0f, 0.4f));
   }
   // rings where the rain strikes the ground (screen-fixed to the land: they ride with the camera)
   const float ringsN = (30 * W.rain + 50 * W.pour + 10 * W.drizzle) * sw;
   for (int i = 0; i < (int)ringsN; i++) {
-    const float ph = std::fmod(t_ * 2.2f + hashf(i, 4, 5), 1.0f);
-    const int cyc = (int)(t_ * 2.2f + hashf(i, 4, 5));
-    const float rx = wrap(hashf(i + cyc * 131, 5, 5) * 900 - camera_.cam_.x, (float)Pix::W), ry = wrap(hashf(i + cyc * 131, 6, 5) * 600 - camera_.cam_.y, (float)Pix::H);
+    const float ph = std::fmod(v.t_ * 2.2f + hashf(i, 4, 5), 1.0f);
+    const int cyc = (int)(v.t_ * 2.2f + hashf(i, 4, 5));
+    const float rx = wrap(hashf(i + cyc * 131, 5, 5) * 900 - v.camera_.cam_.x, (float)Pix::W), ry = wrap(hashf(i + cyc * 131, 6, 5) * 600 - v.camera_.cam_.y, (float)Pix::H);
     const float r = 1 + ph * 3;
     P.rect(rx - r, ry, r * 2, 1, Color(0.80f, 0.88f, 1.0f, 0.35f * (1 - ph)));
   }
   // steam rising off warm ground after a downpour (monsoon lands)
   if (W.pour > 0.05f || (W.fog > 0.3f && W.rain + W.pour > 0.05f)) {
     for (int i = 0; i < 5; i++) {
-      const float life = std::fmod(t_ * 0.12f + i * 0.2f, 1.0f);
-      const float x = wrap(hashf(i, 9, 3) * 900 - camera_.cam_.x * 0.8f, Pix::W + 120.0f) - 60;
+      const float life = std::fmod(v.t_ * 0.12f + i * 0.2f, 1.0f);
+      const float x = wrap(hashf(i, 9, 3) * 900 - v.camera_.cam_.x * 0.8f, Pix::W + 120.0f) - 60;
       const float y = Pix::H * 0.95f - life * Pix::H * 0.6f;
-      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
     }
   }
   // snow, and the blizzard's driving snow and white-out
@@ -3388,8 +3388,8 @@ void View::drawWeatherSky(Game& g) {
     const bool drive = i < 230 * W.blizz * sw;
     const float sp = (drive ? 60 : 14) + hashf(i, 3, 7) * (drive ? 50 : 18);
     const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
-    float sx = wrap(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * (drive ? 4 : 10) - camera_.cam_.x + t_ * (drive ? 160 : 6), ww) - 10;
-    float sy = wrap(hashf(i, 1, 7) * 400 + t_ * sp - camera_.cam_.y, wh) - 10;
+    float sx = wrap(hashf(i, 0, 7) * 600 + std::sin(v.t_ * 0.8f + i) * (drive ? 4 : 10) - v.camera_.cam_.x + v.t_ * (drive ? 160 : 6), ww) - 10;
+    float sy = wrap(hashf(i, 1, 7) * 400 + v.t_ * sp - v.camera_.cam_.y, wh) - 10;
     const float s = hashf(i, 2, 7) < 0.3f ? 2.f : 1.f;
     P.rect(sx + 1, sy + 1, drive ? s + 1 : s, s, Color(0.42f, 0.50f, 0.68f, 0.35f));   // a soft shadow: flakes read over snow too
     P.rect(sx, sy, drive ? s + 1 : s, s, Color(1, 1, 1, drive ? 0.75f : 0.9f));
@@ -3397,8 +3397,8 @@ void View::drawWeatherSky(Game& g) {
   if (W.blizz > 0.02f) {
     P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.92f, 0.95f, 1.0f, 0.38f * W.blizz));
     for (int i = 0; i < 4; i++) {   // gusts: brighter sheets of snow sweeping past
-      const float x = wrap(t_ * 220 + i * 260 - camera_.cam_.x, Pix::W + 300.0f) - 200;
-      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
+      const float x = wrap(v.t_ * 220 + i * 260 - v.camera_.cam_.x, Pix::W + 300.0f) - 200;
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
     }
   }
   // the sandstorm: streaks of blown sand racing past, and grit
@@ -3406,14 +3406,14 @@ void View::drawWeatherSky(Game& g) {
     const int n = (int)(80 * W.sand * sw);
     for (int i = 0; i < n; i++) {
       const float ww = Pix::W + 60.0f;
-      const float sx = wrap(hashf(i, 0, 11) * 900 + t_ * (240 + hashf(i, 2, 11) * 160) - camera_.cam_.x, ww) - 30;
-      const float sy = wrap(hashf(i, 1, 11) * 500 + std::sin(t_ * 2 + i) * 4 - camera_.cam_.y * 0.5f, (float)Pix::H);
+      const float sx = wrap(hashf(i, 0, 11) * 900 + v.t_ * (240 + hashf(i, 2, 11) * 160) - v.camera_.cam_.x, ww) - 30;
+      const float sy = wrap(hashf(i, 1, 11) * 500 + std::sin(v.t_ * 2 + i) * 4 - v.camera_.cam_.y * 0.5f, (float)Pix::H);
       const float len = 4 + hashf(i, 3, 11) * 12;
       P.rect(sx, sy, len, 1, Color(0.95f, 0.82f, 0.58f, 0.35f * W.sand));
     }
     for (int i = 0; i < 3; i++) {   // the dust's billows
-      const float x = wrap(t_ * 140 + i * 300 - camera_.cam_.x * 0.6f, Pix::W + 300.0f) - 200;
-      P.blitEx(sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
+      const float x = wrap(v.t_ * 140 + i * 300 - v.camera_.cam_.x * 0.6f, Pix::W + 300.0f) - 200;
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
     }
   }
   // ashfall: grey flakes drifting down, embers glowing on the way up
@@ -3421,15 +3421,15 @@ void View::drawWeatherSky(Game& g) {
     const int n = (int)(90 * W.ash * sw);
     for (int i = 0; i < n; i++) {
       const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
-      const float sx = wrap(hashf(i, 0, 13) * 600 + std::sin(t_ * 0.6f + i) * 12 - camera_.cam_.x + t_ * 10, ww) - 10;
-      const float sy = wrap(hashf(i, 1, 13) * 400 + t_ * (10 + hashf(i, 2, 13) * 10) - camera_.cam_.y, wh) - 10;
+      const float sx = wrap(hashf(i, 0, 13) * 600 + std::sin(v.t_ * 0.6f + i) * 12 - v.camera_.cam_.x + v.t_ * 10, ww) - 10;
+      const float sy = wrap(hashf(i, 1, 13) * 400 + v.t_ * (10 + hashf(i, 2, 13) * 10) - v.camera_.cam_.y, wh) - 10;
       const float g0 = 0.45f + hashf(i, 4, 13) * 0.3f;
       P.rect(sx, sy, hashf(i, 5, 13) < 0.25f ? 2.f : 1.f, 1, Color(g0, g0 * 0.95f, g0 * 0.95f, 0.75f));
     }
     for (int i = 0; i < (int)(26 * W.ash * sw); i++) {
-      const float sx = wrap(hashf(i, 6, 13) * 700 + std::sin(t_ * 1.3f + i) * 8 - camera_.cam_.x, Pix::W + 20.0f) - 10;
-      const float sy = wrap(hashf(i, 7, 13) * 400 - t_ * (18 + hashf(i, 8, 13) * 14) - camera_.cam_.y, Pix::H + 20.0f) - 10;
-      const float fl = 0.5f + 0.5f * std::sin(t_ * 9 + i * 2.3f);
+      const float sx = wrap(hashf(i, 6, 13) * 700 + std::sin(v.t_ * 1.3f + i) * 8 - v.camera_.cam_.x, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 7, 13) * 400 - v.t_ * (18 + hashf(i, 8, 13) * 14) - v.camera_.cam_.y, Pix::H + 20.0f) - 10;
+      const float fl = 0.5f + 0.5f * std::sin(v.t_ * 9 + i * 2.3f);
       P.rectAdd(sx, sy, 1, 1, Color(1.0f, 0.55f + 0.3f * fl, 0.2f, 0.5f + 0.5f * fl));
     }
   }
@@ -3437,16 +3437,16 @@ void View::drawWeatherSky(Game& g) {
   if (W.eerie > 0.02f) {
     const int n = (int)(40 * W.eerie * sw);
     for (int i = 0; i < n; i++) {
-      const float sx = wrap(hashf(i, 0, 17) * 700 + std::sin(t_ * 0.5f + i) * 14 - camera_.cam_.x * 0.9f, Pix::W + 20.0f) - 10;
-      const float sy = wrap(hashf(i, 1, 17) * 400 - t_ * (4 + hashf(i, 2, 17) * 6) - camera_.cam_.y * 0.9f, Pix::H + 20.0f) - 10;
-      const float pulse = 0.5f + 0.5f * std::sin(t_ * (1.5f + hashf(i, 3, 17) * 2) + i);
+      const float sx = wrap(hashf(i, 0, 17) * 700 + std::sin(v.t_ * 0.5f + i) * 14 - v.camera_.cam_.x * 0.9f, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 1, 17) * 400 - v.t_ * (4 + hashf(i, 2, 17) * 6) - v.camera_.cam_.y * 0.9f, Pix::H + 20.0f) - 10;
+      const float pulse = 0.5f + 0.5f * std::sin(v.t_ * (1.5f + hashf(i, 3, 17) * 2) + i);
       P.rectAdd(sx, sy, 1, 1, Color(W.er, W.eg, W.eb, 0.25f + 0.55f * pulse));
       if (pulse > 0.93f) { P.rectAdd(sx - 1, sy, 3, 1, Color(W.er, W.eg, W.eb, 0.3f)); P.rectAdd(sx, sy - 1, 1, 3, Color(W.er, W.eg, W.eb, 0.3f)); }
     }
   }
   // falling leaves / fireflies / petals / embers are world particles drawn earlier; light vignette always (heavier in
   // a storm)
-  P.blitEx(sprites_.vignette_, 0, 0, sprites_.vignette_.w, sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false,
+  P.blitEx(v.sprites_.vignette_, 0, 0, v.sprites_.vignette_.w, v.sprites_.vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false,
            Color(1, 1, 1, std::min(1.0f, 0.45f + 0.3f * (W.blizz + W.sand + W.pour))));
 }
 

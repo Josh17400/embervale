@@ -119,8 +119,8 @@ void RiseViewOps::dressHero(const Game& g, art::HumanLook& L) {
 View::RiseViewStats View::riseViewStats() const { return riseView_ ? riseView_->stats : RiseViewStats(); }
 
 // ---------------------------------------------------------------- events
-void View::riseEvent(Game& g, const Event& e) {
-  RiseViewState& S = RiseViewOps::st(*this);
+void RiseLane::riseEvent(View& v, Game& g, const Event& e) {
+  RiseViewState& S = RiseViewOps::st(v);
   const RiseEv k = (RiseEv)std::min<int>(std::max(0, e.a), (int)RiseEv::COUNT - 1);
   S.stats.last = k;
   const Kind K = kindOf(k, (int)std::lround(e.f));
@@ -134,7 +134,7 @@ void View::riseEvent(Game& g, const Event& e) {
     S.chips.push_back(c);
     if (S.chips.size() > 3) S.chips.erase(S.chips.begin());
     S.stats.toasts++;
-    audio_->play(Sfx::Coin, c.out ? 0.85f : 1.1f, 0.45f);
+    v.audio_->play(Sfx::Coin, c.out ? 0.85f : 1.1f, 0.45f);
     return;
   }
   RiseViewState::Banner b;
@@ -183,8 +183,8 @@ void View::riseEvent(Game& g, const Event& e) {
   S.stats.banners++;
 }
 
-void View::riseUpdate(Game& g, float dt) {
-  RiseViewState& S = RiseViewOps::st(*this);
+void RiseLane::riseUpdate(View& v, Game& g, float dt) {
+  RiseViewState& S = RiseViewOps::st(v);
   // banners age only while the world is on screen (the menu and the map stop the herald)
   const bool live = g.mode == Mode::Play || g.mode == Mode::Dialogue;
   for (size_t i = 0; i < S.chips.size();) {
@@ -199,7 +199,7 @@ void View::riseUpdate(Game& g, float dt) {
   if (!S.showing) {
     if (S.gap > 0) { S.gap -= dt; return; }
     // the herald's ribbon and the biome banner own the top centre while they show
-    if (S.queue.empty() || realm_.herald_.t > 0 || biomeBannerT_ > 0) return;
+    if (S.queue.empty() || v.realm_.herald_.t > 0 || v.weather_.biomeBannerT_ > 0) return;
     S.cur = S.queue.front();
     S.queue.pop_front();
     S.cur.t = 0;
@@ -207,35 +207,35 @@ void View::riseUpdate(Game& g, float dt) {
     S.stats.shown++;
     // the sting
     switch (S.cur.kind) {
-      case RiseEv::Enlisted: audio_->playSting(Audio::Sting::DrumRoll, 1.0f, 0.9f); break;
-      case RiseEv::Promoted: audio_->playSting(Audio::Sting::Fanfare, 1.0f, 0.9f); break;
-      case RiseEv::Discharged: audio_->playSting(Audio::Sting::Fanfare, 0.84f, 0.6f); break;
-      case RiseEv::FiefGranted: audio_->playSting(Audio::Sting::Fanfare, 0.94f, 0.85f); break;
-      case RiseEv::Independence: audio_->playSting(Audio::Sting::HornCall, 1.0f, 1.0f); break;
-      case RiseEv::Crowned: audio_->playSting(Audio::Sting::HornCall, 1.06f, 1.0f); audio_->playSting(Audio::Sting::Fanfare, 1.06f, 0.7f); break;
-      case RiseEv::WarlordNear: audio_->playSting(Audio::Sting::WarAlarm, 1.0f, 0.9f); break;
-      case RiseEv::BossRaid: audio_->playSting(Audio::Sting::WarAlarm, 0.82f, 0.95f); break;
-      case RiseEv::Mission: case RiseEv::Order: audio_->playSting(Audio::Sting::Seal, 1.0f, 0.75f); break;
-      case RiseEv::MissionDone: audio_->playSting(S.cur.bad ? Audio::Sting::Seal : Audio::Sting::Fanfare, S.cur.bad ? 0.8f : 1.12f, 0.6f); break;
-      case RiseEv::OrderDone: audio_->playSting(Audio::Sting::DrumRoll, 1.18f, 0.55f); break;
-      case RiseEv::OrderFailed: case RiseEv::Deserted: case RiseEv::TributeRefused: audio_->playSting(Audio::Sting::DrumRoll, 0.7f, 0.65f); break;
+      case RiseEv::Enlisted: v.audio_->playSting(Audio::Sting::DrumRoll, 1.0f, 0.9f); break;
+      case RiseEv::Promoted: v.audio_->playSting(Audio::Sting::Fanfare, 1.0f, 0.9f); break;
+      case RiseEv::Discharged: v.audio_->playSting(Audio::Sting::Fanfare, 0.84f, 0.6f); break;
+      case RiseEv::FiefGranted: v.audio_->playSting(Audio::Sting::Fanfare, 0.94f, 0.85f); break;
+      case RiseEv::Independence: v.audio_->playSting(Audio::Sting::HornCall, 1.0f, 1.0f); break;
+      case RiseEv::Crowned: v.audio_->playSting(Audio::Sting::HornCall, 1.06f, 1.0f); v.audio_->playSting(Audio::Sting::Fanfare, 1.06f, 0.7f); break;
+      case RiseEv::WarlordNear: v.audio_->playSting(Audio::Sting::WarAlarm, 1.0f, 0.9f); break;
+      case RiseEv::BossRaid: v.audio_->playSting(Audio::Sting::WarAlarm, 0.82f, 0.95f); break;
+      case RiseEv::Mission: case RiseEv::Order: v.audio_->playSting(Audio::Sting::Seal, 1.0f, 0.75f); break;
+      case RiseEv::MissionDone: v.audio_->playSting(S.cur.bad ? Audio::Sting::Seal : Audio::Sting::Fanfare, S.cur.bad ? 0.8f : 1.12f, 0.6f); break;
+      case RiseEv::OrderDone: v.audio_->playSting(Audio::Sting::DrumRoll, 1.18f, 0.55f); break;
+      case RiseEv::OrderFailed: case RiseEv::Deserted: case RiseEv::TributeRefused: v.audio_->playSting(Audio::Sting::DrumRoll, 0.7f, 0.65f); break;
       default: break;
     }
   }
 }
 
 // ---------------------------------------------------------------- the HUD
-void View::drawRiseHud(Game& g) {
-  RiseViewState& S = RiseViewOps::st(*this);
+void RiseLane::drawRiseHud(View& v, Game& g) {
+  RiseViewState& S = RiseViewOps::st(v);
   S.stats.insignia = false;
   if (g.mode != Mode::Play && g.mode != Mode::Dialogue) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
   // ---- the rank's badge under the level, beside the vitals (the sworn army's field and trim)
   if (g.service.enlisted()) {
     cult::Heraldry h;
     RiseViewOps::armsOf(g, g.service.sworn, h, nullptr);
-    const Tex& b = RiseViewOps::badgeTex(*this, (int)g.service.rank, h.field, h.charge, 11);
+    const Tex& b = RiseViewOps::badgeTex(v, (int)g.service.rank, h.field, h.charge, 11);
     P.blit(b, L + 10, T + 15);
     S.stats.insignia = true;
   }
@@ -250,7 +250,7 @@ void View::drawRiseHud(Game& g) {
     P.textS(x, y, s, 1, c.out ? Color(0.95f, 0.66f, 0.5f, a) : Color(kGoldC.r, kGoldC.g, kGoldC.b, a));
   }
   // ---- the herald's banner of the moment
-  riseBanBottom_ = 0;
+  v.hudx_.riseBanBottom_ = 0;
   if (!S.showing) return;
   const RiseViewState::Banner& B = S.cur;
   const float tIn = 0.38f, tOut = 0.32f;
@@ -273,9 +273,9 @@ void View::drawRiseHud(Game& g) {
   const float w = std::floor(std::min(avail, (float)tw + side * 2 + 14)), h = 22.0f + 10.0f * (float)lines.size();
   float x = std::floor(Pix::W / 2.0f - w / 2);
   if (maxX - w >= minX) x = std::clamp(x, minX, maxX - w);
-  const float y0 = std::max(T + 4, bossBarBottom_ + 3);
+  const float y0 = std::max(T + 4, v.hudx_.bossBarBottom_ + 3);
   const float y = std::floor(y0 - (1 - u) * (h + 8) - o * 10);
-  riseBanX0_ = x; riseBanX1_ = x + w; riseBanBottom_ = y + h + 5;
+  v.hudx_.riseBanX0_ = x; v.hudx_.riseBanX1_ = x + w; v.hudx_.riseBanBottom_ = y + h + 5;
   const Color field = colOf(kcol);
   const Color dark(field.r * 0.32f + 0.02f, field.g * 0.32f + 0.02f, field.b * 0.32f + 0.03f, 0.92f * a);
   const Color gold(kGoldC.r, kGoldC.g, kGoldC.b, a);
@@ -307,10 +307,10 @@ void View::drawRiseHud(Game& g) {
   }
   // the shields: the realm's arms on the left, the rank's badge (or the arms again) on the right
   const Color tint(1, 1, 1, a);
-  const Tex& arms = sprites_.armsTex(*this, hr, 20);
+  const Tex& arms = v.sprites_.armsTex(v, hr, 20);
   P.blit(arms, x + 6, y + std::floor((h - arms.h) / 2) + 2, false, tint);
   if (B.rank > 0) {
-    const Tex& bd = RiseViewOps::badgeTex(*this, B.rank, hr.field, hr.charge, 16);
+    const Tex& bd = RiseViewOps::badgeTex(v, B.rank, hr.field, hr.charge, 16);
     P.blit(bd, x + w - 6 - bd.w - 2, y + std::floor((h - bd.h) / 2) + 2, false, tint);
   } else P.blit(arms, x + w - 6 - arms.w, y + std::floor((h - arms.h) / 2) + 2, false, tint);
   // the words

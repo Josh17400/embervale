@@ -12,8 +12,8 @@ struct ViewProbe {
   static Vec2 camera(const View& v) { return v.camera_.cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
   static int menuTab(const View& v) { return v.menuTab_; }   // the open menu's page (Mode::Menu; the Witness harness reports it)
   // (M3c) test scripts: force a weather kind (rpg/world/biomes.h Sky value, at full strength; -1 back to the land's own)
-  static void scriptSky(View& v, int sky) { v.skyOverride_ = sky; v.wxInit_ = false; v.wxSampleT_ = 0; }
-  static int scriptSkyNow(const View& v) { return v.skyOverride_; }
+  static void scriptSky(View& v, int sky) { v.weather_.skyOverride_ = sky; v.weather_.wxInit_ = false; v.weather_.wxSampleT_ = 0; }
+  static int scriptSkyNow(const View& v) { return v.weather_.skyOverride_; }
   // (Witness state.screen) the layers and the window as presented
   static const Pix::Layer& worldLayerForTests(const View& v) { return v.pix_->worldLayer(); }
   static const Pix::Layer& uiLayerForTests(const View& v) { return v.pix_->uiLayer(); }

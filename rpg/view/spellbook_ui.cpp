@@ -120,16 +120,16 @@ bool spellsUiPrepare(View& v, Game& g, int slot, uint32_t id) {
   return true;
 }
 
-void View::drawSpellsPage(Game& g) {
-  Pix& P = *pix_;
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::drawSpellsPage(View& v, Game& g) {
+  Pix& P = *v.pix_;
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSpell(g, S);
-  const SpLay L = spLay(touchUI);
+  const SpLay L = spLay(v.touchUI);
   const magic::Book& B = g.arcana.book;
 
   // ---- the heading: what the slots are, how to cast them
   P.text(L.qx, L.hy, "PREPARED SPELLS", 1, kGoldB);
-  const std::string how = touchUI ? "TAP CAST  HOLD UPCAST  SWIPE OFF: DUAL" : "1-4 CAST  HOLD: UPCAST  ALT+KEY: DUAL";
+  const std::string how = v.touchUI ? "TAP CAST  HOLD UPCAST  SWIPE OFF: DUAL" : "1-4 CAST  HOLD: UPCAST  ALT+KEY: DUAL";
   P.text((float)Pix::W - 18, L.hy, how, 1, kDimB, 2);
 
   // ---- the quick slots
@@ -139,20 +139,20 @@ void View::drawSpellsPage(Game& g) {
     const bool on = i == S.slotSel;
     const uint32_t id = B.slot[i];
     const magic::SpellDef* d = id ? magic::spellById(id) : nullptr;
-    const float flash = S.preparedSlot == i ? clampf(1 - (t_ - S.preparedT) / 0.6f, 0, 1) : 0.0f;
+    const float flash = S.preparedSlot == i ? clampf(1 - (v.t_ - S.preparedT) / 0.6f, 0, 1) : 0.0f;
     P.rect(x, y, L.qw, L.qh, on ? Color(0.22f, 0.16f, 0.09f, 0.95f) : Color(0.08f, 0.07f, 0.08f, 0.95f));
     if (d) {   // a wash of the school's colour from the left
       const Color c = schoolCol((int)d->school);
       P.rect(x + 1, y + 1, 26, L.qh - 2, Color(c.r, c.g, c.b, 0.10f));
     }
     P.frame(x, y, L.qw, L.qh, on ? kGoldB : Color(0.40f, 0.33f, 0.22f));
-    if (flash > 0) P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 8, y - 8, L.qw + 16, L.qh + 16, false, Color(1.0f, 0.8f, 0.4f, 0.5f * flash), 1);
+    if (flash > 0) P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 8, y - 8, L.qw + 16, L.qh + 16, false, Color(1.0f, 0.8f, 0.4f, 0.5f * flash), 1);
     // the slot's number in a small plate on the top-left corner
     P.rect(x + 2, y + 2, 9, 9, Color(0.03f, 0.02f, 0.04f, 0.9f));
     P.text(x + 4, y + 3, std::to_string(i + 1), 1, on ? kGoldB : kDimB);
     const float iy = y + std::floor((L.qh - 16) / 2);
     if (d) {
-      const Tex& ic = SkillsUiOps::spellIcon(*this, id);
+      const Tex& ic = SkillsUiOps::spellIcon(v, id);
       P.blit(ic, x + 14, iy);
       const float cd = g.arcana.live.cd[i];
       if (cd > 0 && d->cooldown > 0) sweepRect(P, x + 14, iy, 16, 16, clampf(cd / d->cooldown, 0, 1));
@@ -201,7 +201,7 @@ void View::drawSpellsPage(Game& g) {
     const bool on = row.spell == S.spellSel;
     if (on) { P.rect(L.lx, y, L.lw, L.rowH - 1, Color(0.30f, 0.22f, 0.12f, 0.85f)); P.frame(L.lx, y, L.lw, L.rowH - 1, kGoldB); }
     const float iy = y + std::floor((L.rowH - 1 - 16) / 2);
-    P.blit(SkillsUiOps::spellIcon(*this, row.spell), L.lx + 3, iy);
+    P.blit(SkillsUiOps::spellIcon(v, row.spell), L.lx + 3, iy);
     const int inSlot = B.slotOf(row.spell);
     if (inSlot >= 0) {   // prepared: its slot's number on the orb's corner
       P.rect(L.lx + 13, iy + 9, 8, 9, Color(0.10f, 0.07f, 0.02f, 0.95f));
@@ -225,8 +225,8 @@ void View::drawSpellsPage(Game& g) {
   P.frame(L.dx - 4, L.dy - 2, L.dw + 6, L.dh + 2, Color(0.36f, 0.30f, 0.20f));
   float y = L.dy + 2;
   const float x = L.dx + 2, w = L.dw - 4;
-  P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 10, y - 10, 52, 52, false, Color(c.r, c.g, c.b, 0.22f + 0.06f * std::sin(t_ * 2.0f)), 1);
-  P.blitEx(SkillsUiOps::spellIcon(*this, d->id), 0, 0, 16, 16, x, y, 32, 32);
+  P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 10, y - 10, 52, 52, false, Color(c.r, c.g, c.b, 0.22f + 0.06f * std::sin(v.t_ * 2.0f)), 1);
+  P.blitEx(SkillsUiOps::spellIcon(v, d->id), 0, 0, 16, 16, x, y, 32, 32);
   const float tx = x + 38, tw = w - 38;
   const int nsc = P.textW(d->name, 2) <= tw ? 2 : 1;
   P.textS(tx, y + (nsc == 2 ? 1.0f : 4.0f), d->name, nsc, liftB(c, 0.45f));
@@ -263,8 +263,8 @@ void View::drawSpellsPage(Game& g) {
   for (int s = 0; s < magic::STATUSES; s++)
     if (d->statuses & magic::statusBit((magic::Status)s)) fl.push_back({std::string("INFLICTS ") + magic::statusName((magic::Status)s), bCol(magic::statusColor((magic::Status)s))});
   if (d->leaves != magic::Surface::None) fl.push_back({std::string("LEAVES ") + magic::surfaceName(d->leaves), kTextB});
-  if (d->upcast) fl.push_back({touchUI ? "UPCAST: HOLD ITS BUTTON" : "UPCAST: HOLD ITS KEY", kGoldB});
-  if (d->dual) fl.push_back({touchUI ? "DUAL-CAST: SWIPE OFF IT" : "DUAL-CAST: ALT + ITS KEY", kGoldB});
+  if (d->upcast) fl.push_back({v.touchUI ? "UPCAST: HOLD ITS BUTTON" : "UPCAST: HOLD ITS KEY", kGoldB});
+  if (d->dual) fl.push_back({v.touchUI ? "DUAL-CAST: SWIPE OFF IT" : "DUAL-CAST: ALT + ITS KEY", kGoldB});
   if (d->concentration) fl.push_back({"CONCENTRATION: BREAKS ON A HEAVY HIT", kWarnB});
   if (d->reaction) fl.push_back({"REACTION: ANSWERS A FOE'S CAST", kTextB});
   const float footY = L.by - 12;
@@ -276,54 +276,54 @@ void View::drawSpellsPage(Game& g) {
   }
   // the refusal, or what the buttons will do
   const int slot = S.slotSel;
-  const bool whyOn = S.whyPage == 2 && t_ - S.whyT < 2.6f;
+  const bool whyOn = S.whyPage == 2 && v.t_ - S.whyT < 2.6f;
   if (whyOn) {
-    const bool blink = t_ - S.whyT < 0.7f && std::fmod(t_ - S.whyT, 0.24f) < 0.12f;
+    const bool blink = v.t_ - S.whyT < 0.7f && std::fmod(v.t_ - S.whyT, 0.24f) < 0.12f;
     P.text(x, footY, lootp::fit(S.why, w), 1, blink ? kGoldB : kWarnB);
   } else if (B.slot[slot] == d->id) {
     P.text(x, footY, "PREPARED IN SLOT " + std::to_string(slot + 1), 1, kUpB);
   }
   const bool already = B.slot[slot] == d->id;
-  button(L.bx, L.by, L.bw, L.bh, already ? "PREPARED" : "PREPARE IN " + std::to_string(slot + 1), !already);
-  if (B.slot[slot]) button(L.bx + L.bw + L.bgap, L.by, L.bw, L.bh, "CLEAR SLOT " + std::to_string(slot + 1), false);
+  v.button(L.bx, L.by, L.bw, L.bh, already ? "PREPARED" : "PREPARE IN " + std::to_string(slot + 1), !already);
+  if (B.slot[slot]) v.button(L.bx + L.bw + L.bgap, L.by, L.bw, L.bh, "CLEAR SLOT " + std::to_string(slot + 1), false);
 }
 
-void View::spellsPageKey(Game& g, int key) {
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::spellsPageKey(View& v, Game& g, int key) {
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSpell(g, S);
   const std::vector<uint32_t> o = spellOrder(g);
   int at = 0;
   for (size_t i = 0; i < o.size(); i++) if (o[i] == S.spellSel) at = (int)i;
-  if (key >= SDLK_1 && key <= SDLK_4) { S.slotSel = key - SDLK_1; audio_->play(Sfx::MenuMove); return; }
-  if (key == SDLK_LEFT || key == SDLK_A) { S.slotSel = (S.slotSel + magic::QUICK_SLOTS - 1) % magic::QUICK_SLOTS; audio_->play(Sfx::MenuMove); return; }
-  if (key == SDLK_RIGHT || key == SDLK_D) { S.slotSel = (S.slotSel + 1) % magic::QUICK_SLOTS; audio_->play(Sfx::MenuMove); return; }
+  if (key >= SDLK_1 && key <= SDLK_4) { S.slotSel = key - SDLK_1; v.audio_->play(Sfx::MenuMove); return; }
+  if (key == SDLK_LEFT || key == SDLK_A) { S.slotSel = (S.slotSel + magic::QUICK_SLOTS - 1) % magic::QUICK_SLOTS; v.audio_->play(Sfx::MenuMove); return; }
+  if (key == SDLK_RIGHT || key == SDLK_D) { S.slotSel = (S.slotSel + 1) % magic::QUICK_SLOTS; v.audio_->play(Sfx::MenuMove); return; }
   if (o.empty()) return;
-  if (key == SDLK_UP || key == SDLK_W) { S.spellSel = o[(size_t)((at + (int)o.size() - 1) % (int)o.size())]; audio_->play(Sfx::MenuMove); return; }
-  if (key == SDLK_DOWN || key == SDLK_S) { S.spellSel = o[(size_t)((at + 1) % (int)o.size())]; audio_->play(Sfx::MenuMove); return; }
-  if (key == SDLK_RETURN || key == SDLK_SPACE) { if (S.spellSel) spellsUiPrepare(*this, g, S.slotSel, S.spellSel); return; }
-  if (key == SDLK_X || key == SDLK_BACKSPACE || key == SDLK_DELETE) { if (g.arcana.book.slot[S.slotSel]) spellsUiPrepare(*this, g, S.slotSel, 0); return; }
+  if (key == SDLK_UP || key == SDLK_W) { S.spellSel = o[(size_t)((at + (int)o.size() - 1) % (int)o.size())]; v.audio_->play(Sfx::MenuMove); return; }
+  if (key == SDLK_DOWN || key == SDLK_S) { S.spellSel = o[(size_t)((at + 1) % (int)o.size())]; v.audio_->play(Sfx::MenuMove); return; }
+  if (key == SDLK_RETURN || key == SDLK_SPACE) { if (S.spellSel) spellsUiPrepare(v, g, S.slotSel, S.spellSel); return; }
+  if (key == SDLK_X || key == SDLK_BACKSPACE || key == SDLK_DELETE) { if (g.arcana.book.slot[S.slotSel]) spellsUiPrepare(v, g, S.slotSel, 0); return; }
 }
 
-void View::spellsPageTap(Game& g, Vec2 p) {
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::spellsPageTap(View& v, Game& g, Vec2 p) {
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSpell(g, S);
-  const SpLay L = spLay(touchUI);
+  const SpLay L = spLay(v.touchUI);
   auto inR = [&](float x, float y, float w, float h) { return p.x >= x && p.y >= y && p.x < x + w && p.y < y + h; };
   for (int i = 0; i < magic::QUICK_SLOTS; i++)
-    if (inR(L.qx + i * L.qp - 3, L.qy - 3, L.qp, L.qh + 6)) { S.slotSel = i; audio_->play(Sfx::MenuMove); return; }
+    if (inR(L.qx + i * L.qp - 3, L.qy - 3, L.qp, L.qh + 6)) { S.slotSel = i; v.audio_->play(Sfx::MenuMove); return; }
   const std::vector<LRow> rows = listRows(g);
   for (int r = 0; r < L.rows && S.spellScroll + r < (int)rows.size(); r++) {
     const LRow& row = rows[(size_t)(S.spellScroll + r)];
     if (!row.spell) continue;
     if (inR(L.lx, L.ly + r * L.rowH, L.lw, L.rowH)) {
       // a second tap on the spell in focus prepares it in the slot in focus
-      if (S.spellSel == row.spell) spellsUiPrepare(*this, g, S.slotSel, row.spell);
-      else { S.spellSel = row.spell; audio_->play(Sfx::MenuMove); }
+      if (S.spellSel == row.spell) spellsUiPrepare(v, g, S.slotSel, row.spell);
+      else { S.spellSel = row.spell; v.audio_->play(Sfx::MenuMove); }
       return;
     }
   }
-  if (S.spellSel && inR(L.bx, L.by - 3, L.bw, L.bh + 6)) { spellsUiPrepare(*this, g, S.slotSel, S.spellSel); return; }
-  if (g.arcana.book.slot[S.slotSel] && inR(L.bx + L.bw + L.bgap, L.by - 3, L.bw, L.bh + 6)) { spellsUiPrepare(*this, g, S.slotSel, 0); return; }
+  if (S.spellSel && inR(L.bx, L.by - 3, L.bw, L.bh + 6)) { spellsUiPrepare(v, g, S.slotSel, S.spellSel); return; }
+  if (g.arcana.book.slot[S.slotSel] && inR(L.bx + L.bw + L.bgap, L.by - 3, L.bw, L.bh + 6)) { spellsUiPrepare(v, g, S.slotSel, 0); return; }
 }
 
 // ---- for the scripts: the centre of a slot card, a known spell's row, PREPARE and CLEAR (menu box coordinates)

@@ -1006,21 +1006,21 @@ bool PartyUi::partyRibbonBox(View& v, const Game& g, PlateBox& b, float& textW) 
   const float T = (float)Pix::ST;
   const PartyNote& n = alertShow_.front();
   const int mi = memberOf(g, n.id);
-  float ay = std::max(T + 30, v.bossBarBottom_ + 8);
-  if (v.realm_.herald_.t > 0 || (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty())) ay += 24;
-  if (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
-    ay = std::max(ay, v.biomeBannerY(std::min((float)P.textW(v.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
+  float ay = std::max(T + 30, v.hudx_.bossBarBottom_ + 8);
+  if (v.realm_.herald_.t > 0 || (v.weather_.biomeBannerT_ > 0 && !v.weather_.biomeBanner_.empty())) ay += 24;
+  if (v.weather_.biomeBannerT_ > 0 && !v.weather_.biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
+    ay = std::max(ay, v.weather_.biomeBannerY(v, std::min((float)P.textW(v.weather_.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
   if (v.fx_.bannerT_ > 0) ay = std::max(ay, T + (v.realm_.bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
   textW = (float)P.textW(n.s, 1);
   const float w = textW + (mi >= 0 ? 30.0f : 14.0f), h = 20;
   b.x0 = std::floor(Pix::W / 2.0f - w / 2); b.y0 = ay; b.x1 = b.x0 + w; b.y1 = ay + h;
   // (fixer M8 r3, review: "E: TALK is drawn over the half-faded JOINS YOU ribbon: ghost glyphs") never under the
   // faced person's name tag: the ribbon steps above it (else below)
-  if (v.tagOn_ && b.x0 < v.tagX1_ + 2 && b.x1 > v.tagX0_ - 2 && b.y0 < v.tagY1_ + 2 && b.y1 > v.tagY0_ - 2) {
-    const float up = v.tagY0_ - 3 - h;
+  if (v.hudx_.tagOn_ && b.x0 < v.hudx_.tagX1_ + 2 && b.x1 > v.hudx_.tagX0_ - 2 && b.y0 < v.hudx_.tagY1_ + 2 && b.y1 > v.hudx_.tagY0_ - 2) {
+    const float up = v.hudx_.tagY0_ - 3 - h;
     const float floorY = v.fx_.bannerT_ > 0 ? T + (v.realm_.bannerState_.empty() ? 88.0f : 99.0f) : T + 30;   // (never into the banner)
     if (up >= floorY) { b.y0 = up; b.y1 = up + h; }
-    else { b.y0 = v.tagY1_ + 3; b.y1 = b.y0 + h; }
+    else { b.y0 = v.hudx_.tagY1_ + 3; b.y1 = b.y0 + h; }
   }
   return true;
 }
@@ -1036,11 +1036,11 @@ void PartyUi::hudBands(View& v, const Game& g, std::vector<PlateBox>& out) {
     float x = std::floor(Pix::W / 2.0f - w / 2);
     const float minX = L + 136, maxX = R - 76 - w;
     if (maxX >= minX) x = std::clamp(x, minX, maxX);
-    const float y = std::max(T + 5, v.bossBarBottom_ + 3);
+    const float y = std::max(T + 5, v.hudx_.bossBarBottom_ + 3);
     add(x - 4, y, x + w + 4, y + 27);
   }
-  if (v.biomeBannerT_ > 0 && !v.biomeBanner_.empty() && v.fx_.bannerT_ <= 0 && v.realm_.herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
-    const float half = std::min((float)P.textW(v.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = v.biomeBannerY(half);
+  if (v.weather_.biomeBannerT_ > 0 && !v.weather_.biomeBanner_.empty() && v.fx_.bannerT_ <= 0 && v.realm_.herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+    const float half = std::min((float)P.textW(v.weather_.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = v.weather_.biomeBannerY(v, half);
     add(Pix::W / 2.0f - half, y - 4, Pix::W / 2.0f + half, y + 11);
   }
   PlateBox rb;
@@ -1052,7 +1052,7 @@ void PartyUi::hudBands(View& v, const Game& g, std::vector<PlateBox>& out) {
     add(c.x - kRO - lw, c.y - kRO - 12, c.x + kRO + lw, c.y + kRO + 12);
     add(c.x + kRO + lw + 4, c.y - 34, c.x + kRO + lw + 176, c.y + 34);
   }
-  if (v.tagOn_) add(v.tagX0_ - 2, v.tagY0_ - 2, v.tagX1_ + 2, v.tagY1_ + 2);   // the faced person's name and E: TALK
+  if (v.hudx_.tagOn_) add(v.hudx_.tagX0_ - 2, v.hudx_.tagY0_ - 2, v.hudx_.tagX1_ + 2, v.hudx_.tagY1_ + 2);   // the faced person's name and E: TALK
   if (g.mode == Mode::Play) {
     // (P2a) world sizes in UI px: k UI px per world px; heights from the rig's metrics
     const float k = v.camera_.uiPerWorld(v);
@@ -1133,12 +1133,12 @@ void PartyUi::drawBanter(View& v, Game& g, Vec2 cam) {
     if (y0 < T + 4) y0 = T + 4;
     // off the party column, the location / quest column, the name tag, the touch cluster
     if (partyColR_ > 0 && cx - w / 2.0f - 4 < partyColR_ && y0 < partyColB_) cx = partyColR_ + w / 2.0f + 6;
-    if (y0 < v.hudColBottom_ && cx + w / 2.0f + 3 > v.hudColLeft_) {
-      const float left = v.hudColLeft_ - w / 2.0f - 5;
+    if (y0 < v.hudx_.hudColBottom_ && cx + w / 2.0f + 3 > v.hudx_.hudColLeft_) {
+      const float left = v.hudx_.hudColLeft_ - w / 2.0f - 5;
       if (left >= L + w / 2.0f + 4) cx = left;
-      else y0 = v.hudColBottom_ + 2;
+      else y0 = v.hudx_.hudColBottom_ + 2;
     }
-    if (v.tagOn_ && cx + w / 2.0f + 3 > v.tagX0_ && cx - w / 2.0f - 3 < v.tagX1_ && y0 - 1 < v.tagY1_ && y0 + h + 1 > v.tagY0_) y0 = std::floor(v.tagY0_ - 3 - h);
+    if (v.hudx_.tagOn_ && cx + w / 2.0f + 3 > v.hudx_.tagX0_ && cx - w / 2.0f - 3 < v.hudx_.tagX1_ && y0 - 1 < v.hudx_.tagY1_ && y0 + h + 1 > v.hudx_.tagY0_) y0 = std::floor(v.hudx_.tagY0_ - 3 - h);
     if (v.touchUI) {   // the bottom-right buttons (the same berth the speech plates keep, hud.cpp clearOfTouch)
       const float bx0 = R - 128, by0 = B - 116;
       if (cx + w / 2.0f + 3 > bx0 && y0 + h > by0) { if (cx - bx0 < y0 + h - by0) cx = bx0 - w / 2.0f - 4; else y0 = by0 - h - 2; }

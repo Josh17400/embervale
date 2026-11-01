@@ -1191,9 +1191,9 @@ void mfxNoteSfx(View& v, int sfx) {
 View::MagicFxStats View::magicFxStats() const { return magicFx_ ? magicFx_->last : MagicFxStats(); }
 
 // ------------------------------------------------------------------ events
-void View::magicEvent(Game& g, const Event& e) {
-  if (hidEvent(*this, g, e)) return;   // (M10) the hidden signatures' own moments
-  View::MagicFxState& S = MagicFxOps::st(*this);
+void MagicLane::magicEvent(View& v, Game& g, const Event& e) {
+  if (hidEvent(v, g, e)) return;   // (M10) the hidden signatures' own moments
+  View::MagicFxState& S = MagicFxOps::st(v);
   const mfx::Look L = lookFor(e.spell);
   const magic::Phase ph = (magic::Phase)std::clamp(e.a, 0, (int)magic::Phase::COUNT - 1);
   const size_t before = S.w.fx.size();
@@ -1207,8 +1207,8 @@ void View::magicEvent(Game& g, const Event& e) {
     }
 }
 
-void View::magicUpdate(Game& g, float dt) {
-  View::MagicFxState& S = MagicFxOps::st(*this);
+void MagicLane::magicUpdate(View& v, Game& g, float dt) {
+  View::MagicFxState& S = MagicFxOps::st(v);
   mfx::World& W = S.w;
   const auto tu = Clock::now();
   S.clock += dt;
@@ -1218,7 +1218,7 @@ void View::magicUpdate(Game& g, float dt) {
     const View::MagicFxState::Staged st = S.staged[i];
     S.staged.erase(S.staged.begin() + (std::ptrdiff_t)i);
     if (st.missile) g.projs.push_back(st.pr);
-    else magicEvent(g, st.e);
+    else magicEvent(v, g, st.e);
   }
   // synthetic missiles: the sim has no def for them, so the view gives them their impact and aftermath when they end
   for (View::MagicFxState::Flying& f : S.flying) f.seen = false;
@@ -1267,7 +1267,7 @@ void View::magicUpdate(Game& g, float dt) {
     feet = feetOf(*a);
     return true;
   });
-  hidUpdate(*this, g, dt);   // (M10) the hidden signatures' bursts, notes due, leaves shed, wisps
+  hidUpdate(v, g, dt);   // (M10) the hidden signatures' bursts, notes due, leaves shed, wisps
   // the requests
   {
     const float hear = 1.0f;
@@ -1279,33 +1279,33 @@ void View::magicUpdate(Game& g, float dt) {
         continue;   // the classic spell already sounds there
       S.sfxT[si] = S.clock;
       if (r.motif) {
-        const MusicStyle ms = MusicStyle::unpack(MagicFxOps::musicStyle(*this));
+        const MusicStyle ms = MusicStyle::unpack(MagicFxOps::musicStyle(v));
         static const int roots[7] = {62, 74, 57, 76, 67, 69, 72};
-        audio_->playMotif(r.motifId, (uint8_t)ms.scale, r.timbre, roots[r.timbre % 7], r.vol * hear);
-      } else audio_->play(r.s, r.pitch, r.vol * hear);
+        v.audio_->playMotif(r.motifId, (uint8_t)ms.scale, r.timbre, roots[r.timbre % 7], r.vol * hear);
+      } else v.audio_->play(r.s, r.pitch, r.vol * hear);
     }
     W.sounds.clear();
     for (bool& b : S.classicSfx) b = false;
-    if (W.shake > 0) { fx_.shake_ = std::max(fx_.shake_, W.shake); W.shake = 0; }
+    if (W.shake > 0) { v.fx_.shake_ = std::max(v.fx_.shake_, W.shake); W.shake = 0; }
     if (W.flashA > S.flashA) { S.flashA = W.flashA; S.flashC = W.flashC; }
     if (W.lift > S.liftA) { S.liftA = W.lift; S.liftC = W.liftC; }
     W.flashA = 0; W.lift = 0;
   }
-  S.surf.sync(g.arcana.live.field, g.world.ox, g.world.oy, touchUI ? 16 : 32);
+  S.surf.sync(g.arcana.live.field, g.world.ox, g.world.oy, v.touchUI ? 16 : 32);
   S.updMs = msSince(tu);
   S.updWorst = std::max(S.updWorst, S.updMs);
 }
 
-void View::magicShift(Vec2 d) {
-  if (!magicFx_) return;
-  magicFx_->w.shift(d);
-  for (auto& s : magicFx_->staged) { s.e.p += d; s.e.q += d; s.pr.p += d; s.pr.from += d; }
-  for (auto& f : magicFx_->flying) f.p += d;
+void MagicLane::magicShift(View& v, Vec2 d) {
+  if (!v.magicFx_) return;
+  v.magicFx_->w.shift(d);
+  for (auto& s : v.magicFx_->staged) { s.e.p += d; s.e.q += d; s.pr.p += d; s.pr.from += d; }
+  for (auto& f : v.magicFx_->flying) f.p += d;
 }
 
 // ------------------------------------------------------------------ drawing
-void View::drawMagicGround(Game& g, Vec2 cam) {
-  View::MagicFxState& S = MagicFxOps::st(*this);
+void MagicLane::drawMagicGround(View& v, Game& g, Vec2 cam) {
+  View::MagicFxState& S = MagicFxOps::st(v);
   // a new frame's count begins (the ground pass is the frame's first magic draw)
   S.last = S.cur;
   S.peak.effects = std::max(S.peak.effects, S.cur.effects);
@@ -1323,9 +1323,9 @@ void View::drawMagicGround(Game& g, Vec2 cam) {
   }
   S.cur = MagicFxStats();
   const auto t0 = Clock::now();
-  GamePt P{*pix_, sprites_.monsters_};
+  GamePt P{*v.pix_, v.sprites_.monsters_};
   mfx::Ctx C;
-  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
+  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = v.t_;
   nightOf(g, C.dark, C.lightK);
   S.cur.surfaceTiles = S.surf.draw(P, C, g.arcana.live.field);
   {   // (M9 fixer) the flames behind a tree or a stall go down here, under the scene that hides them
@@ -1333,29 +1333,29 @@ void View::drawMagicGround(Game& g, Vec2 cam) {
     S.surf.drawOver(P, S.w, C, g.arcana.live.field, hide.data(), true);
   }
   mfx::drawGround(P, S.w, C);
-  hidGround(*this, g, P, C);   // (M10) runes, vines, thorns behind the hero, bubbles' floors, the trials' plates and gates
+  hidGround(v, g, P, C);   // (M10) runes, vines, thorns behind the hero, bubbles' floors, the trials' plates and gates
   S.cur.decals = (int)S.w.decals.size();
   S.cur.ms += msSince(t0);
 }
 
-void View::drawSpellProj(Game& g, const Projectile& pr, int idx, Vec2 cam) {
+void MagicLane::drawSpellProj(View& v, Game& g, const Projectile& pr, int idx, Vec2 cam) {
   (void)g; (void)idx;
-  View::MagicFxState& S = MagicFxOps::st(*this);
+  View::MagicFxState& S = MagicFxOps::st(v);
   const auto t0 = Clock::now();
-  GamePt P{*pix_, sprites_.monsters_};
+  GamePt P{*v.pix_, v.sprites_.monsters_};
   mfx::Ctx C;
-  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
+  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = v.t_;
   mfx::drawMissileShadow(P, S.w, C, lookFor(pr.spell), pr.p, pr.mag);
   S.cur.missiles++;
   S.cur.ms += msSince(t0);
 }
 
-void View::magicLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
-  View::MagicFxState& S = MagicFxOps::st(*this);
+void MagicLane::magicLights(View& v, Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
+  View::MagicFxState& S = MagicFxOps::st(v);
   const auto t0 = Clock::now();
   int n = 0;
   if (S.liftA > 0.01f) {   // lightning: the whole night lit for a frame
-    pix_->rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, S.liftC.withA(S.liftA));
+    v.pix_->rectAdd(0, 0, (float)v.lightMap_.w, (float)v.lightMap_.h, S.liftC.withA(S.liftA));
     S.liftA *= 0.35f;
     if (S.liftA < 0.05f) S.liftA = 0;
     n++;
@@ -1369,23 +1369,23 @@ void View::magicLights(Game& g, const std::function<void(Vec2, float, Color, flo
     n += 2;
   }
   n += mfx::lightsOf(S.w, [&](Vec2 p, float r, Color c, float k) { light(p, r, c, k); });
-  n += hidLights(*this, g, light);   // (M10)
-  n += S.surf.lights(g.arcana.live.field, t_, [&](Vec2 p, float r, Color c, float k) { light(p, r, c, k); });
+  n += hidLights(v, g, light);   // (M10)
+  n += S.surf.lights(g.arcana.live.field, v.t_, [&](Vec2 p, float r, Color c, float k) { light(p, r, c, k); });
   for (const Actor& a : g.actors) {
     if (!a.status || a.st == AState::Dead) continue;
     if (a.hasStatus(magic::Status::Burning)) { light(a.p + Vec2(0, -10), 44, Color(1.0f, 0.55f, 0.22f), 0.75f); n++; }
-    if (a.hasStatus(magic::Status::Shocked)) { light(a.p + Vec2(0, -10), 30, Color(0.55f, 0.6f, 1.0f), 0.4f + 0.3f * std::sin(t_ * 31 + (float)a.id)); n++; }
+    if (a.hasStatus(magic::Status::Shocked)) { light(a.p + Vec2(0, -10), 30, Color(0.55f, 0.6f, 1.0f), 0.4f + 0.3f * std::sin(v.t_ * 31 + (float)a.id)); n++; }
   }
   S.cur.lights += n;
   S.cur.ms += msSince(t0);
 }
 
-void View::drawMagicFx(Game& g, Vec2 cam) {
-  View::MagicFxState& S = MagicFxOps::st(*this);
+void MagicLane::drawMagicFx(View& v, Game& g, Vec2 cam) {
+  View::MagicFxState& S = MagicFxOps::st(v);
   const auto t0 = Clock::now();
-  GamePt P{*pix_, sprites_.monsters_};
+  GamePt P{*v.pix_, v.sprites_.monsters_};
   mfx::Ctx C;
-  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = t_;
+  C.cam = cam; C.W = (float)Pix::W; C.H = (float)Pix::H; C.t = v.t_;
   nightOf(g, C.dark, C.lightK);
   mfx::World& W = S.w;
   // the surfaces' flames, clouds, arcs and night glow
@@ -1397,7 +1397,7 @@ void View::drawMagicFx(Game& g, Vec2 cam) {
   // school's light, then fading into the real summon (or into motes, a phase-A summon with no actor)
   for (const mfx::Fx& f : W.fx)
     if (f.kind == (uint8_t)magic::Phase::Summon && f.delay <= 0)
-      mfx::drawSummonForm(P, W, C, f, (int)f.sub, art::monsterCellH((art::Monster)f.sub), (int)(t_ * 8) % 4);
+      mfx::drawSummonForm(P, W, C, f, (int)f.sub, art::monsterCellH((art::Monster)f.sub), (int)(v.t_ * 8) % 4);
   // the missiles' lit bodies (after the lighting: they burn through the night)
   for (const Projectile& pr : g.projs) {
     if (!isMagicMissile(pr)) continue;
@@ -1405,7 +1405,7 @@ void View::drawMagicFx(Game& g, Vec2 cam) {
   }
   for (const mfx::Fx& f : W.fx) if (f.delay <= 0) mfx::drawPhaseFx(P, W, C, f);
   mfx::drawParts(P, W, C);
-  hidFxDraw(*this, g, P, C, *pix_);   // (M10) thorns in front, roots, the mask, decoys, domes, bursts, the signature's pips
+  hidFxDraw(v, g, P, C, *v.pix_);   // (M10) thorns in front, roots, the mask, decoys, domes, bursts, the signature's pips
   // the status overlays on every body that carries one
   int overlays = 0;
   for (const Actor& a : g.actors) {

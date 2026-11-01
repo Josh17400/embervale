@@ -23,6 +23,10 @@
 #include "rpg/view/loot_card.h"
 #include "rpg/view/camera.h"
 #include "rpg/view/fx_state.h"
+#include "rpg/view/hud_extents.h"
+#include "rpg/view/lens_state.h"
+#include "rpg/view/power_view.h"
+#include "rpg/view/weather_view.h"
 #include "rpg/view/home_view.h"
 #include "rpg/view/life_view.h"
 #include "rpg/view/loot_view.h"
@@ -250,39 +254,16 @@ class View {
   std::vector<uint32_t> miniPx_;
   float miniT_ = 0;
 
-  // ---- effects
-  // (M5 fixer) the location / quest column's box as the HUD last drew it (screen): spoken lines keep out of it
-  float hudColLeft_ = 1e9f, hudColBottom_ = 0;
-  float colFoeFade_ = 0, colFoeT_ = -1;   // (C10 fix) the column's fade while the hero's foe stands under it, eased
-  float bossBarX0_ = 0, bossBarX1_ = 0;
-  float bossBarBottom_ = 0;   // (M6 fixer) the bottom of a world boss's top bar this frame (0: none): banners keep below it
-  float quickBarR_ = 0;       // (M9 fixer) the desktop quick-cast bar's right end this frame (0: none drawn)
-  // (M5) last frame's NPC name tag / interact prompt (drawHud): a spoken line's plate stacks above it, never over it
-  bool tagOn_ = false;
-  float tagX0_ = 0, tagY0_ = 0, tagX1_ = 0, tagY1_ = 0;
+  // ---- the HUD's last extents (HudExtents), the fade, the music and the weather (WeatherView)
+  friend struct HudExtents;
+  HudExtents hudx_;   // (hud_extents.h)
   float fade_ = 0;
   Music music_ = Music::Silence;
   uint64_t musicStyle_ = 0, musicStyleOn_ = 0;   // M3: the culture's MusicStyle (packed) where the player is / playing
   float musicStyleT_ = 0;
   float combatT_ = 0;
-  // (M3c LIFE) the weather of the land round the player (render.cpp drawWeather: what the eco's Sky makes of the day
-  // and hour, averaged over a few tiles round the player and eased, so it fades across a biome border), the land's
-  // ambient bed and music mood (update), and the first-visit biome banner (hud.cpp)
-  struct Wx {
-    float rain = 0, pour = 0, drizzle = 0, fog = 0, snow = 0, blizz = 0, sand = 0, shimmer = 0, ash = 0, eerie = 0;
-    float er = 0.7f, eg = 0.9f, eb = 1.0f;   // the eerie motes' and haze's colour
-  };
-  Wx wx_;
-  bool wxInit_ = false;
-  int skyOverride_ = -1;
-  float wxSampleT_ = 0;
-  Wx wxWant_;
-  float ambLevel_ = 0;
-  int hereEco_ = -1;            // the eco under the player (outdoors), -1 unknown
-  float ecoT_ = 0;
-  std::string biomeBanner_;     // "THE SAVANNA": shown once per biome per adventure (Game::marks, Mk::Biome)
-  float biomeBannerT_ = 0;
-  int biomeBannerEco_ = -1;     // (M3c fixer) the eco the banner names (-1: none)
+  friend struct WeatherView;
+  WeatherView weather_;   // (weather_view.h)
 
   // ---- input state
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
@@ -336,9 +317,6 @@ class View {
   void updateBanners(Game& g);
   void updateBeastCues(Game& g, float dt);
   void updateMusic(Game& g, float dt);
-  void updateBiomeBanner(Game& g, float dt, bool outdoors);
-  void updateWeather(Game& g, float dt, bool outdoors);
-  void updateAmbience(Game& g, bool outdoors);
   void updateDrift(Game& g, float dt, bool outdoors, float VW, float VH);
   // ---- (SOLID 3.4a) drawWorld's sorted pass (rpg/view/render_sorted.cpp): what stands is collected as a Drawable,
   //      sorted by its foot line, its ground shadow drawn, then its body, one member per kind (FrameCtx: the frame's
@@ -373,7 +351,6 @@ class View {
   void drawHandcartSorted(Game& g, FrameCtx& F, const Drawable& d);
   void drawHiddenHero(Game& g, FrameCtx& F);
   void drawLighting(Game& g);
-  void drawWeather(Game& g, float dt);
   void drawHud(Game& g);
   // ---- (SOLID 3.4c) drawHud's pieces, in this order (hud.cpp); HudFrame: the frame's shared values
   struct HudFrame;
@@ -389,7 +366,6 @@ class View {
   void hudBossBar(Game& g, const HudFrame& H);
   void hudPrompt(Game& g, const HudFrame& H);
   bool hudNotices(Game& g, const HudFrame& H);   // true: the companions' order ring is open
-  float biomeBannerY(float half) const;   // (M9 fixer) the region banner's text line: below a boss bar, clear of the quick bar
   void drawTouch(Game& g);
   float dlgRowH() const { return touchUI ? 25.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows, 25 px = 33 pt)
   void drawMenu(Game& g);
@@ -478,9 +454,7 @@ class View {
   void settingsTap(Vec2 p);                  // screen coordinates
   void drawSafeGuides();                     // corner marks at the HUD margin (shown while the settings are open)
 
-  // ---- M4 "Banners" (VIEW lane; realm_hud.cpp, realm_render.cpp): the border herald, the news, the arrival banner's
-  //      owner and state, the journal's NEWS and LOST HISTORY sections, war props in their owner's colours, the fires
-  //      of burned places and the siege camps' light
+  // ---- M4 "Banners": the herald, the news, the arrival banner, the journal's sections and the realm's fires (RealmHud)
  public:
   // (M12) 3: STANDING (the army, the holdings, the player's realm, the world's history: realm_hud.cpp)
   void setJournalSection(int s) { realm_.journalSec_ = s < 0 ? 0 : s > 3 ? 3 : s; menuSel_ = 0; menuScroll_ = 0; }
@@ -489,10 +463,7 @@ class View {
   // the QUESTS tab's section strip (QUESTS | NEWS | HISTORY) and the news / lore lists; journalTap: true when used
   float journalStripH() const { return touchUI ? 26.0f : 16.0f; }
 
-  // ---- M5 "Hearth and Hall" (VIEW / AMBIENCE lane: render.cpp, render_markers.cpp, hud.cpp, worldmap.cpp): the
-  //      townsfolk's postures, the village animals, speech bubbles, lamps by the lamplighter's round, shuttered stalls
-  //      and festival dressing by the settlement's mood, windows lit by occupancy, the mood on the HUD and the map, the
-  //      player's buffs, and the life of the place in sound (the bard's tavern piece, the crowd, animals, the bell)
+  // ---- M5 "Hearth and Hall": bubbles, festival, buffs and the life of the place in sound live in LifeView (life_view.h)
  public:
   using M5Stats = LifeView::M5Stats;   // (life_view.h)
   // the word and colour of a settlement's mood (life::Life::moodFlags / mood): "CONTENT", "FESTIVAL", "HUNGRY",
@@ -509,38 +480,16 @@ class View {
   struct HumanGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; };   // (as RideGhost)
   void drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float alpha, float flash, HumanGhost& ghost);
   void drawSwingFx(const Game& g, const Actor& a, Vec2 cam);   // a human's melee strike effect (after its body)
-  // (P2c ladder, contracts 6b) the living finish of a rig-2 frame just drawn (T5-T6): its glow plane pulsed with the
-  // actor's phase, the edge spark, the motes; queued and drawn additively after the lighting (render.cpp)
-  void queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
-                         float x2, float y2, float pivX, float pivY, float alpha, bool strike = false);
-  void queueLivingFinishId(int id, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
-                           float x2, float y2, float pivX, float pivY, float alpha, bool strike, bool menu);
-  size_t finishAuraEnd_ = 0;   // (P2c SWITCH) where the last queued figure's aura lights end in the finish queue
-  float menuSwingT0_ = -1;    // the creator preview's swing: when the current blow began
-  // (polish i1) the living finish's world-space motes / embers, one set per actor id (dropped 2 s after its last draw)
-  std::unordered_map<int, art::finish::Particles> finishParts_;
+  friend struct LensState;
+  LensState lens_;   // (lens_state.h)
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
   friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
-  // ---- (P2a LENS, added; render.cpp / hud.cpp) the ring's flare (s left) and what triggers it; the people drawn in the
-  // sorted pass this frame (the night lift re-adds them after the light map); the camera's zoom hand-over (the last
-  // world view and scale, so a zoom change keeps the hero where they stand); the pinch; the v2 bake queue (looks of folk
-  // entering the stream radius, nearest first, baked within a per-frame budget) and the v2 caches' byte cap
-  float ringFlare_ = 0, ringHpWas_ = -1;
-  bool ringCrowdWas_ = false;
-  bool ringOn_ = false;   // drawn this frame at (ringX_, ringY_) (world-view px) with ringA_: the night pass lifts it again
-  float ringX_ = 0, ringY_ = 0, ringA_ = 0;
-  const Tex* ringTex_ = nullptr;
-  std::vector<Pix::BlitRec> liftRecs_;
+  // ---- (P2a LENS) the rider on v2, the elites' plates (the ring, the night lift, the pips: LensState, lens_state.h)
   struct RideGhost;
   bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost, int horseFrame = 0, int riderId = -1);
-  void drawRing(const Game& g, const Actor& a, Vec2 cam);
-  void drawNightLift(const Game& g, float dark);
-  void drawPips(const Game& g);
   void drawBeastPlates(Game& g);   // the elites' name plates and a world boss's bar: the UI layer (STYLE_P2 18)
-  void drawWeatherSky(Game& g);    // drawWeather's sky (the world layer)
   friend struct PartyUi;
   PartyUi party_;   // (party_ui.h)
-  void lensUpdate(Game& g, float dt);
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
   // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
@@ -548,10 +497,7 @@ class View {
   struct DrawnHead { float x = 0, y = 0, t = -1; bool v2 = false; };
   std::unordered_map<int, DrawnHead> drawnHead_;
 
-  // ---- M7 Home, continued (VIEW lane: home_view.cpp, buildmode.cpp, render.cpp, hud.cpp). The yard's lights for
-  //      drawLighting (lanterns, campfires: collected with the home draws), the shadow and flat passes of the home draws
-  //      (drawWorld draws the flats before the shadows, so every shadow lies on the farmland and the paths), the rider's
-  //      silhouette for the hidden-hero ghost, the build screens' camera and pointer (drags), the HUD's home pills
+  // ---- M7 Home, continued: the build screens' script commands and the rider's silhouette (the rest: HomeView)
  public:
   // (scripts, script_buildmode.cpp) drive the build screens: `build <words...>` / `expect build <words...>`; false with
   // err set when refused
@@ -562,26 +508,14 @@ class View {
   struct RideGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; int sx = 0, sy = 0, w = 0, h = 0; };
   RideGhost rideGhost_;
 
-  // ---- M8 Fellowship (VIEW lane). The party column under the vitals (a framed portrait per companion travelling with
-  //      the player: health, the low-health pulse, the bleeding-out fuse and the binding, the stance; waiting / at home
-  //      ones small and dimmed), the command radial (hold a portrait on touch, C on the keyboard), the alert ribbons
-  //      (Ev::PartyAlert) and the banter plates (Ev::Banter): rpg/view/party_hud.cpp. The companions in the world (the
-  //      hound's sheet, the downed body and its wound, the binder kneeling, a mounted companion, the graves of the
-  //      fallen, the hound's night howl): rpg/view/party_view.cpp. The menu's PARTY page (the companion's paper doll and
-  //      the REMEMBERED page): rpg/view/paperdoll.cpp. Script commands: rpg/view/script_partyview.cpp.
+  // ---- M8 Fellowship: the party column, radial, banter, companions in the world and the PARTY page (PartyUi, party_ui.h)
  public:
   static constexpr int kPartyTab = 6;          // the menu's PARTY page (menuTab_ id; shown while there is a party or a grave)
  private:
   // the PARTY page (paperdoll.cpp)
   bool partyTabShown(const Game& g) const { return !g.party.members.empty() || !g.party.fallen.empty(); }
 
-  // ---- M8b Treasure (VIEW lane; rpg/view/loot_ui.cpp, VISION_PLAN 15.27): every rarity-coloured surface draws through
-  //      these. rarityText: a name in its ladder colour (Mythic: letter by letter in the animated flame, rarityColorAt);
-  //      rarityFrame: a slot / icon frame (Common a quiet frame, Uncommon..Legendary a lit bevel in the colour,
-  //      Legendary corner gems, Mythic a moving flame gradient with ember licks); itemCard: the tooltip (name, rarity and
-  //      item level, the base stat, every affix in plain words, the power, lore, value) with the compare against the
-  //      worn piece (green / red pixel arrows per line and an overall verdict from gear::powerScore); the loot on the
-  //      ground (beams by rarity, their lights, the chime) and the Mythic wearer's embers.
+  // ---- M8b Treasure: every rarity-coloured surface, the item card and the loot on the ground (LootView, loot_view.h)
  public:
   using LootStats = LootView::LootStats;   // (loot_view.h)
   // (scripts, script_loot.cpp) `lootsel menu <i|last>`, `lootsel shop <buy|sell> <i|last>`, `lootsel doll <slot> <cand>`:
@@ -593,30 +527,17 @@ class View {
  private:
   friend struct LootView;
   LootView loot_;   // (loot_view.h)
-  // (M8b fixer r3) a Mythic wearer's flame aura sheet (loot_ui.cpp mythicAuraTex), by look; render.cpp draws a cell of it
-  // behind the standing body and again additively after the lighting
+  // (M8b fixer r3) a Mythic wearer's flame aura sheet: its cell geometry (SpriteCache::mythicAuraTex bakes it)
  public:
   static constexpr int AURA_PAD = 4, AURA_CW = art::HUMAN_W + 2 * AURA_PAD, AURA_CH = art::HUMAN_H + 2 * AURA_PAD, AURA_V = 4;
  private:
-  struct LootPainter;                              // the Pix painter loot_paint.h's templates draw with (loot_ui.cpp)
+  struct LootPainter;                              // the Pix painter the rarity templates draw with (loot_ui.cpp)
 
-  // ---- M8b Treasure (POWERS lane; rpg/view/render_powers.cpp). The worn powers' effects in the world: a lightning arc,
-  //      a fire patch, a burn, the thorns aura, the time-slow tint, a lifesteal mote, the phoenix's rebirth, a falling
-  //      star, a spectral wolf's shimmer (Ev::Power: a = powers::Fx, p / q / f / id). The POWERS lane owns these members
-  //      (it may add more state inside PowerFx); every other M8b view change belongs to the VIEW lane.
-  struct PowerFx { int kind = 0; Vec2 p, q; float t = 0, life = 0.4f, mag = 1; uint32_t follow = 0; uint32_t seed = 0; };
-  std::vector<PowerFx> powerFx_;
-  void powerEvent(Game& g, const Event& e);    // Ev::Power (update's event pass)
-  void powerUpdate(Game& g, float dt);         // age the effects (update, after partyUpdate)
-  void drawPowerFx(Game& g, Vec2 cam);         // world space, after the lighting (draw, with companionOverlays)
+  // ---- M8b Treasure (POWERS lane): the worn powers' effects in the world (PowerView, power_view.h)
+  friend struct PowerView;
+  PowerView powers_;   // (power_view.h)
 
-  // ---- M9 Arcana & Mastery (VISION_PLAN 15.29, 15.30). Two blocks, each owned by one lane; view.h itself is frozen:
-  //      each lane keeps its state in its own opaque struct (defined in its .cpp) and reaches View's internals through
-  //      its friend Ops struct (static functions in its own files), so neither needs to edit this header.
-  // SPELLFX lane (rpg/view/render_magic.cpp + its own new files): every spell's life on screen (wind-up, launch,
-  //   travel, impact, aftermath: Ev::Spell phases from the sim; ProjKind::Spell missiles), the surfaces' animated pixel
-  //   art (magic::Field), the statuses' overlays, the spells' light (lit trails, impact flashes, lightning's frame
-  //   flash), decals, baked effect sheets and pooled particles inside the phone frame budget, the spell sounds.
+  // ---- M9 Arcana & Mastery: the SPELLFX lane (MagicLane) and the UI lane (SkillsLane); entry points in lane_entry.h
  public:
   struct MagicFxStats {      // last frame's counts (scripts `expect magicfx`, --perf, the gallery)
     int effects = 0, particles = 0, lights = 0, decals = 0, surfaceTiles = 0, missiles = 0, statusOverlays = 0;
@@ -627,18 +548,8 @@ class View {
  private:
   friend struct MagicFxOps;  // (render_magic.cpp and the SPELLFX lane's other files)
   std::shared_ptr<MagicFxState> magicFx_;
-  void magicEvent(Game& g, const Event& e);    // Ev::Spell (the update's event pass, spawnParticles)
-  void magicUpdate(Game& g, float dt);         // age the effects (update, after powerUpdate)
-  void magicShift(Vec2 d);                     // Ev::WindowShift: effects and decals move with the window
+  friend struct MagicLane;
   void drawIncidentGround(Game& g, Vec2 cam);  // (P1 fixer) a street incident's ground props: a broken cart's loose wheel (render_markers.cpp)
-  void drawMagicGround(Game& g, Vec2 cam);     // world space under the bodies: surfaces, decals, ground glyphs (drawWorld)
-  void drawSpellProj(Game& g, const Projectile& pr, int idx, Vec2 cam);   // a ProjKind::Spell missile in the sorted pass
-  void magicLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting
-  void drawMagicFx(Game& g, Vec2 cam);         // world space after the lighting: bursts, trails, flashes (View::draw)
-  // UI lane (rpg/view/skills_ui.cpp, rpg/view/spellbook_ui.cpp + hud.cpp, which it owns): the skills page (every skill's
-  //   level and progress; the perk trees as tappable constellations / culture glyph trees; the weapon families' vs-foe
-  //   lines; respec), the spellbook page (known spells, the 3-4 quick slots, tomes), the quick-cast buttons on the phone
-  //   (tap to cast, hold to upcast, swipe to dual-cast), skill-up and perk toasts (Ev::Skill), trainers' screen.
  public:
   static constexpr int kSkillsTab = 7;         // the menu's SKILLS page (menuTab_ id)
   static constexpr int kSpellsTab = 8;         // the menu's SPELLS page (menuTab_ id)
@@ -646,20 +557,9 @@ class View {
  private:
   friend struct SkillsUiOps; // (skills_ui.cpp, spellbook_ui.cpp and the UI lane's other files)
   std::shared_ptr<SkillsUiState> skillsUi_;
-  void skillEvent(Game& g, const Event& e);    // Ev::Skill (the update's event pass): toasts, the level-up glow
-  void drawSkillsPage(Game& g);                // menuTab_ == kSkillsTab (hud.cpp's drawMenu calls it)
-  void skillsPageKey(Game& g, int key);
-  void skillsPageTap(Game& g, Vec2 p);
-  void drawSpellsPage(Game& g);                // menuTab_ == kSpellsTab
-  void spellsPageKey(Game& g, int key);
-  void spellsPageTap(Game& g, Vec2 p);
+  friend struct SkillsLane;
 
-  // ---- M10 Beyond the Mist (VISION_PLAN 2.12, 15.4, 15.31). One block, the ART lane's (rpg/view/render_sea.cpp + its
-  //      own new files; view.h itself is frozen: the state lives in the opaque SeaViewState, View's internals are
-  //      reached through the friend SeaViewOps). The sea on screen and in the ear: waves, foam and the shore's surf on
-  //      the water, wakes, the boats (each culture's ships, the one aboard with the hero on deck, moored ones, ferries,
-  //      pirates), the Mist's fog, storms (rain, lightning, the darkened sky), the sea creatures' splashes, the
-  //      sail HUD (wind, heading, hull, speed) and the fishing panel (cast, bite, the reel's tension), the sea's sounds.
+  // ---- M10 Beyond the Mist: the ART lane's sea (SeaLane, lane_entry.h; state in the opaque SeaViewState)
  public:
   struct SeaViewStats {      // last frame's counts (scripts `expect seaview`, --perf, the sea gallery)
     int boats = 0, waveTiles = 0, foamTiles = 0, wakes = 0, mistPuffs = 0, rainDrops = 0;
@@ -670,26 +570,9 @@ class View {
  private:
   friend struct SeaViewOps;  // (render_sea.cpp and the ART lane's other sea files)
   std::shared_ptr<SeaViewState> seaView_;
-  void seaEvent(Game& g, const Event& e);      // Ev::Sea (the update's event pass, spawnParticles)
-  void seaUpdate(Game& g, float dt);           // age wakes, splashes, rain, lightning (update, after magicUpdate)
-  void seaShift(Vec2 d);                       // Ev::WindowShift: wakes and splashes move with the window
-  void drawSeaWater(Game& g, Vec2 cam);        // world space over the terrain, under the bodies: waves, foam, wakes
-  // the sorted pass: push(y, idx) entries for the boats (and anything else of the sea that stands up: a serpent's
-  // coils, a mast); drawSeaSorted draws entry idx when its turn comes (Drawable kind 10)
-  void seaSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
-  void drawSeaSorted(Game& g, int idx, Vec2 cam);
-  void seaLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting: lanterns, the lighthouse
-  void drawSeaOver(Game& g, Vec2 cam);         // world space after the lighting and weather: the Mist, storm rain, lightning
-  void drawSeaHud(Game& g);                    // screen space (drawHud, under the vitals pass): the sail and fishing panels
-  void seaFillInput(Game& g, Input& in);       // the HUD's input pass (after the quick-cast slots): Input::reel
+  friend struct SeaLane;
 
-  // ---- M11 High Ground (VISION_PLAN 11.3, 13 M11, 15.32). One block, the FALLS lane's (rpg/view/render_relief.cpp + its
-  //      own new files; view.h itself is frozen for that lane: the state lives in the opaque ReliefViewState, View's
-  //      internals are reached through the friend ReliefViewOps). What of the relief MOVES or stands up, drawn live
-  //      over the baked terrain: waterfalls (Map::HEIGHT_FALL tiles: the falling sheet over the face, 3+ frames, the
-  //      foam pool and spray at the foot, mist particles), plateau lakes' spills, the falls' roar (Audio::setFalls,
-  //      by the nearest fall and its side), drifting cloud shadows and high-ground haze. The baked look of the relief
-  //      (faces, slopes, stairs, grading, cast shadows) stays in terrain.cpp (the TERRAIN lane).
+  // ---- M11 High Ground: the FALLS lane's live relief (ReliefLane, lane_entry.h; state in the opaque ReliefViewState)
  public:
   struct ReliefViewStats {   // last frame's counts (scripts `expect reliefview`, --perf)
     int falls = 0;           // HEIGHT_FALL tiles drawn this frame
@@ -702,22 +585,9 @@ class View {
  private:
   friend struct ReliefViewOps;   // (render_relief.cpp and the FALLS lane's other relief files)
   std::shared_ptr<ReliefViewState> reliefView_;
-  void reliefUpdate(Game& g, float dt);        // update, after seaUpdate: mist, spray, the roar's level
-  void reliefShift(Vec2 d);                    // Ev::WindowShift: particles move with the window
-  void drawReliefWater(Game& g, Vec2 cam);     // world space over the terrain, before the sea's water: the falls
-  // the sorted pass: push(y, idx) for anything of the relief that stands up among the bodies (a fall's spray column,
-  // a lip of the face the hero walks behind); drawReliefSorted draws entry idx when its turn comes (Drawable kind 11)
-  void reliefSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
-  void drawReliefSorted(Game& g, int idx, Vec2 cam);
-  void drawReliefOver(Game& g, Vec2 cam);      // world space after the weather, before the sea's Mist: cloud shadows, haze
+  friend struct ReliefLane;
 
-  // ---- M12 Rise and Fall (VISION_PLAN 13 M12 "realms that rise and fall around him, and a place in that history",
-  //      15.33). The VIEW lane's block (rpg/view/render_rise.cpp + its own new files; the state lives in the opaque
-  //      RiseViewState, View's internals through the friend RiseViewOps). Ev::Rise moments (rpg/sim/rise.h: enlisted,
-  //      promoted, paid, orders, a lordship, tribute, independence, a warlord or a world boss near) shown as a herald's
-  //      banner with the realm's arms and a fanfare; the rank's insignia and the fief's state on the HUD. The journal's
-  //      fourth section, STANDING (journalSection 3; realm_hud.cpp draws it), shows the army served, the rank and merit,
-  //      orders and missions, the holdings, the coffers, tribute and the player's realm, and the world's history.
+  // ---- M12 Rise and Fall: the VIEW lane's rise (RiseLane, lane_entry.h; state in the opaque RiseViewState)
  public:
   struct RiseViewStats { int banners = 0; int toasts = 0; RiseEv last = RiseEv::None;     // scripts `expect riseview`
     // (phase B, VIEW lane) banners shown so far (queued ones wait their turn), the one showing's box (screen px), the
@@ -733,17 +603,7 @@ class View {
  private:
   friend struct RiseViewOps;     // (render_rise.cpp and the VIEW lane's other rise files)
   std::shared_ptr<RiseViewState> riseView_;
-  void riseEvent(Game& g, const Event& e);     // Ev::Rise (render.cpp's event pass)
-  void riseUpdate(Game& g, float dt);          // update, after reliefUpdate
-  void drawRiseHud(Game& g);                   // screen space (drawHud, after drawSeaHud): the herald's banner, insignia
-  // (phase B, VIEW lane: rise_world.cpp) the rise in the world: the lord's standard (Prop::LordBanner) in its owner's
-  // arms, the holdings' works, warlords' camps and seats, resettled places, boss-raided towns
-  const Tex* riseBannerTex(Game& g, int tx, int ty);    // a LordBanner's frame sheet in the tile's owner's arms (nullptr: plain)
-  void drawRiseGround(Game& g, Vec2 cam);      // world space, flat (after the home flats): a beast's claw scars
-  // the sorted pass: push(y, idx) for every standing rise piece in view; drawRiseSorted draws one (Drawable kind 12)
-  void riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
-  void drawRiseSorted(Game& g, int idx, Vec2 cam);
-  void riseLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting: tower lanterns
-  // (M12 integrator) the herald's banner's strip last drawn (riseBanBottom_ 0: none): the quest compass keeps out of it
-  float riseBanX0_ = 0, riseBanX1_ = 0, riseBanBottom_ = 0;
+  friend struct RiseLane;
 };
+
+#include "rpg/view/lane_entry.h"   // the opaque-state lanes' entry points (MagicLane, SkillsLane, SeaLane, ReliefLane, RiseLane)

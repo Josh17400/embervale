@@ -168,9 +168,9 @@ void SkillsUiOps::toastDecor(View& v, const Toast& t, float x, float y, float w,
 // 7 respec), Event::spell = the level or the perk, s = the line. A toast in the skill's colour, marked by
 // Toast::rarity = -(100 + kind * 32 + skill) (hud.cpp's drawToasts draws its star and glow: SkillsUiOps::toastDecor).
 // A run of rises of the same skill updates one toast instead of stacking a column of them.
-void View::skillEvent(Game& g, const Event& e) {
+void SkillsLane::skillEvent(View& v, Game& g, const Event& e) {
   if (e.s.empty()) return;
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   const int kind = std::clamp((int)std::lround(e.f), 0, 7);
   const int sk = e.a >= 0 && e.a < skills::SKILLS ? e.a : skills::SKILLS;
   Toast t;
@@ -180,26 +180,26 @@ void View::skillEvent(Game& g, const Event& e) {
   const Color base = sk < skills::SKILLS ? skCol(skills::skillInfo((Skill)sk).color) : kGoldS;
   t.c = kind == 6 ? kGoldS : kind == 2 ? kGoldS : lift(base, 0.25f);
   t.rarity = -(100 + kind * 32 + sk);
-  if (!fx_.toasts_.empty()) {
-    Toast& last = fx_.toasts_.back();
+  if (!v.fx_.toasts_.empty()) {
+    Toast& last = v.fx_.toasts_.back();
     if (last.rarity == t.rarity && last.t < 2.5f) { last.s = t.s; last.t = std::min(last.t, 0.25f); t.rarity = 0; }
   }
-  S.lastToast = t.rarity != 0 ? t.s : fx_.toasts_.back().s;
-  if (t.rarity != 0) fx_.toasts_.push_back(t);
+  S.lastToast = t.rarity != 0 ? t.s : v.fx_.toasts_.back().s;
+  if (t.rarity != 0) v.fx_.toasts_.push_back(t);
   S.toastsSkill++;
   if (kind == 1 || kind == 6) {
-    S.glowT = t_; S.glowSkill = sk; S.glowMaster = kind == 6;
-    audio_->play(kind == 6 ? Sfx::LevelUp : Sfx::Discover, kind == 6 ? 1.0f : 1.35f, kind == 6 ? 0.8f : 0.32f);
+    S.glowT = v.t_; S.glowSkill = sk; S.glowMaster = kind == 6;
+    v.audio_->play(kind == 6 ? Sfx::LevelUp : Sfx::Discover, kind == 6 ? 1.0f : 1.35f, kind == 6 ? 0.8f : 0.32f);
   }
-  if (kind == 2) audio_->play(Sfx::Discover, 0.9f, 0.45f);
+  if (kind == 2) v.audio_->play(Sfx::Discover, 0.9f, 0.45f);
 }
 
 // ------------------------------------------------------------------------------------------- the page
-void View::drawSkillsPage(Game& g) {
-  Pix& P = *pix_;
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::drawSkillsPage(View& v, Game& g) {
+  Pix& P = *v.pix_;
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSel(g, S);
-  const SkLay L = skLay(touchUI);
+  const SkLay L = skLay(v.touchUI);
   const Skill sk = (Skill)S.sel;
   const skills::SkillInfo& inf = skills::skillInfo(sk);
   const Color sc = skCol(inf.color);
@@ -215,7 +215,7 @@ void View::drawSkillsPage(Game& g) {
     P.rect(x + 2, L.gy + L.gh - 3, w - 4, 1, Color(gc.r, gc.g, gc.b, on ? 0.9f : 0.45f));
     P.text(x + w / 2, L.gy + std::floor((L.gh - 8) / 2), skills::groupName((skills::Group)gi), 1, on ? Color(1, 0.95f, 0.8f) : kTextS, 1);
     if (groupReady(g, gi)) {
-      const float k = 0.6f + 0.4f * std::sin(t_ * 5.0f);
+      const float k = 0.6f + 0.4f * std::sin(v.t_ * 5.0f);
       P.rect(x + w - 6, L.gy + 2, 3, 3, Color(1.0f, 0.82f, 0.36f, k));
     }
   }
@@ -235,24 +235,24 @@ void View::drawSkillsPage(Game& g) {
     } else if (r & 1) {
       P.rect(L.lx, y, L.lw, L.rowH - 2, Color(0.16f, 0.12f, 0.08f, 0.35f));
     }
-    const float ty = y + (touchUI ? 5.0f : 3.0f);
+    const float ty = y + (v.touchUI ? 5.0f : 3.0f);
     gem(P, L.lx + 4, ty + 1, c);
     P.text(L.lx + 13, ty, si.name, 1, on ? lift(c, 0.55f) : kTextS);
     P.text(L.lx + L.lw - 5, ty, std::to_string(lv), 1, lv >= skills::MAX_LEVEL ? kGoldS : lift(c, 0.35f), 2);
     if (anyReady(g, s)) {   // a perk can be taken now: a small gold diamond before the level
-      const float k = 0.55f + 0.45f * std::sin(t_ * 5.0f + (float)r);
+      const float k = 0.55f + 0.45f * std::sin(v.t_ * 5.0f + (float)r);
       const float px = std::floor(L.lx + L.lw - 5 - 17 - 7), py = std::floor(ty + 1);
       P.rect(px + 1, py, 1, 5, Color(1, 0.84f, 0.4f, k)); P.rect(px, py + 1, 3, 3, Color(1, 0.84f, 0.4f, k));
     }
     // the bar toward the next level
-    const float bx = L.lx + 13, bw = L.lw - 18, by = y + L.rowH - (touchUI ? 9.0f : 7.0f), bh = touchUI ? 3.0f : 2.0f;
+    const float bx = L.lx + 13, bw = L.lw - 18, by = y + L.rowH - (v.touchUI ? 9.0f : 7.0f), bh = v.touchUI ? 3.0f : 2.0f;
     const float k = lv >= skills::MAX_LEVEL ? 1.0f : clampf(g.skills[s].xp / std::max(0.01f, skills::xpToNext(lv)), 0, 1);
     P.rect(bx, by, bw, bh, Color(0.05f, 0.04f, 0.06f, 0.9f));
     const Color fc = lv >= skills::MAX_LEVEL ? kGoldS : Color(c.r * 0.85f, c.g * 0.85f, c.b * 0.85f);
     P.rect(bx, by, std::floor(bw * k), bh, fc);
     P.rect(bx, by, std::floor(bw * k), 1, lift(fc, 0.45f));
   }
-  if (!touchUI) P.text(L.lx, L.ly + rows.size() * L.rowH + 4, "W S SKILL  A D PERK", 1, Color(kDimS.r, kDimS.g, kDimS.b, 0.75f));
+  if (!v.touchUI) P.text(L.lx, L.ly + rows.size() * L.rowH + 4, "W S SKILL  A D PERK", 1, Color(kDimS.r, kDimS.g, kDimS.b, 0.75f));
 
   // ---- the sky
   int n = 0;
@@ -265,25 +265,25 @@ void View::drawSkillsPage(Game& g) {
   // keep the cache small: skies unseen for a while go once there are many
   if (S.tex.size() > 40) {
     for (auto it = S.skyUsed.begin(); it != S.skyUsed.end();) {
-      if (t_ - it->second > 4.0f && it->first != key) {
+      if (v.t_ - it->second > 4.0f && it->first != key) {
         auto tt = S.tex.find(it->first);
         if (tt != S.tex.end()) { P.destroy(tt->second); S.tex.erase(tt); }
         it = S.skyUsed.erase(it);
       } else ++it;
     }
   }
-  S.skyUsed[key] = t_;
-  const Tex& sky = SkillsUiOps::tex(*this, key, [&]() { return skp::paintSky(sw, sh, sk, PD, n, state.empty() ? nullptr : state.data()); });
+  S.skyUsed[key] = v.t_;
+  const Tex& sky = SkillsUiOps::tex(v, key, [&]() { return skp::paintSky(sw, sh, sk, PD, n, state.empty() ? nullptr : state.data()); });
   P.rect(L.sx - 2, L.sy - 2, L.sw + 4, L.sh + 4, Color(0.03f, 0.02f, 0.04f, 0.9f));
   P.blit(sky, L.sx, L.sy);
   P.frame(L.sx - 1, L.sy - 1, L.sw + 2, L.sh + 2, kFrameS);
   for (float cxx : {L.sx - 1, L.sx + L.sw - 1}) for (float cyy : {L.sy - 1, L.sy + L.sh - 1}) P.rect(cxx, cyy, 2, 2, Color(0.9f, 0.75f, 0.4f));
   // live: twinkles, the ready stars' pulse, the burst of a perk just taken, the reticle on the selected star
-  const Tex& spark = SkillsUiOps::tex(*this, 0xA3ull << 56, []() { return skp::paintSpark(); });
+  const Tex& spark = SkillsUiOps::tex(v, 0xA3ull << 56, []() { return skp::paintSpark(); });
   for (int k = 0; k < 6; k++) {
     const uint32_t h = skp::hsh(inf.glyphSeed, (uint32_t)k * 31u + 5u);
     const float x = L.sx + 6 + (float)(h % (uint32_t)std::max(1, sw - 12)), y = L.sy + 6 + (float)((h >> 11) % (uint32_t)std::max(1, sh - 12));
-    const float a = std::pow(std::max(0.0f, std::sin(t_ * (0.9f + 0.15f * k) + (float)(h & 63))), 6.0f);
+    const float a = std::pow(std::max(0.0f, std::sin(v.t_ * (0.9f + 0.15f * k) + (float)(h & 63))), 6.0f);
     if (a > 0.02f) P.blitEx(spark, 0, 0, 7, 7, std::floor(x - 3), std::floor(y - 3), 7, 7, false, Color(lift(sc, 0.6f).r, lift(sc, 0.6f).g, lift(sc, 0.6f).b, a * 0.9f), 1);
   }
   const std::vector<skp::PerkVis> pv = skp::perkLayout(PD, n, sw, sh);
@@ -292,9 +292,9 @@ void View::drawSkillsPage(Game& g) {
     const float x = L.sx + pv[(size_t)i].x, y = L.sy + pv[(size_t)i].y;
     if (state[(size_t)i] == skp::PS_READY) {
       S.starsReady++;
-      const float k = 0.5f + 0.5f * std::sin(t_ * 4.0f + i);
+      const float k = 0.5f + 0.5f * std::sin(v.t_ * 4.0f + i);
       const float r = 9 + 4 * k;
-      P.blitEx(sprites_.light_, 0, 0, 64, 64, x + 0.5f - r, y + 0.5f - r, r * 2, r * 2, false, Color(sc.r, sc.g, sc.b, 0.30f + 0.35f * k), 1);
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x + 0.5f - r, y + 0.5f - r, r * 2, r * 2, false, Color(sc.r, sc.g, sc.b, 0.30f + 0.35f * k), 1);
     }
     if (state[(size_t)i] == skp::PS_LOCKED && g.skills.level(sk) < PD[i].need) {
       // the level it needs under it, when nothing else stands there
@@ -304,19 +304,19 @@ void View::drawSkillsPage(Game& g) {
       if (clear && pv[(size_t)i].y + 16 < sh) P.text(x + 1, y + 8, std::to_string((int)PD[i].need), 1, Color(0.55f, 0.58f, 0.72f, 0.85f), 1);
     }
   }
-  if (S.takenSkill == S.sel && S.takenIdx >= 0 && S.takenIdx < n && t_ - S.takenT < 0.8f) {
-    const float u = (t_ - S.takenT) / 0.8f;
+  if (S.takenSkill == S.sel && S.takenIdx >= 0 && S.takenIdx < n && v.t_ - S.takenT < 0.8f) {
+    const float u = (v.t_ - S.takenT) / 0.8f;
     const float x = L.sx + pv[(size_t)S.takenIdx].x + 0.5f, y = L.sy + pv[(size_t)S.takenIdx].y + 0.5f;
     const float r = 4 + 26 * u;
     for (int k = 0; k < 48; k++) {
       const float a = 2 * skp::kPi * k / 48;
       P.rect(std::floor(x + std::cos(a) * r), std::floor(y + std::sin(a) * r), 1, 1, Color(lift(sc, 0.5f).r, lift(sc, 0.5f).g, lift(sc, 0.5f).b, 1 - u));
     }
-    P.blitEx(sprites_.light_, 0, 0, 64, 64, x - 24, y - 24, 48, 48, false, Color(sc.r, sc.g, sc.b, 0.9f * (1 - u)), 1);
+    P.blitEx(v.sprites_.light_, 0, 0, 64, 64, x - 24, y - 24, 48, 48, false, Color(sc.r, sc.g, sc.b, 0.9f * (1 - u)), 1);
   }
   if (S.perkSel >= 0 && S.perkSel < n) {
     const float x = std::floor(L.sx + pv[(size_t)S.perkSel].x), y = std::floor(L.sy + pv[(size_t)S.perkSel].y);
-    const float d = 7 + ((std::sin(t_ * 5.0f) > 0) ? 1.0f : 0.0f);
+    const float d = 7 + ((std::sin(v.t_ * 5.0f) > 0) ? 1.0f : 0.0f);
     for (int sx2 = -1; sx2 <= 1; sx2 += 2)
       for (int sy2 = -1; sy2 <= 1; sy2 += 2) {
         const float ex = x + sx2 * d, ey = y + sy2 * d;
@@ -395,7 +395,7 @@ void View::drawSkillsPage(Game& g) {
       const auto ls = linesOf(r);
       for (size_t k2 = 0; k2 < ls.size(); k2++) {
         if (y + 8 > foot) break;
-        if (k2 == 0 && r.gut && (r.tone == 1 || r.tone == -1)) SkillsUiOps::arrow(*this, x, y, r.tone);
+        if (k2 == 0 && r.gut && (r.tone == 1 || r.tone == -1)) SkillsUiOps::arrow(v, x, y, r.tone);
         P.text(x + (r.gut ? 10.0f : 0.0f), y, ls[k2], 1, c);
         y += 9;
       }
@@ -427,9 +427,9 @@ void View::drawSkillsPage(Game& g) {
     for (int pp : {(int)d.parent, (int)d.parent2})
       if (pp >= 0 && pp < n) after += (after.empty() ? "AFTER " : " + ") + std::string(PD[pp].name);
     float ny = L.cy + 17;
-    const bool whyOn = S.whyPage == 1 && t_ - S.whyT < 2.6f && S.whySkill == S.sel && S.whyPerk == S.perkSel;
+    const bool whyOn = S.whyPage == 1 && v.t_ - S.whyT < 2.6f && S.whySkill == S.sel && S.whyPerk == S.perkSel;
     if (whyOn) {
-      const bool blink = t_ - S.whyT < 0.7f && std::fmod(t_ - S.whyT, 0.24f) < 0.12f;
+      const bool blink = v.t_ - S.whyT < 0.7f && std::fmod(v.t_ - S.whyT, 0.24f) < 0.12f;
       P.text(x, ny, lootp::fit(S.why, tw), 1, blink ? kGoldS : kWarnS);
     } else {
       P.text(x, ny, need, 1, ps == skp::PS_TAKEN || lvOk ? kUpS : kDownS);
@@ -454,9 +454,9 @@ void View::drawSkillsPage(Game& g) {
     } else {
       const bool ready = ps == skp::PS_READY;
       if (ready) {
-        const float k = 0.5f + 0.5f * std::sin(t_ * 4.0f);
-        P.blitEx(sprites_.light_, 0, 0, 64, 64, L.tbx - 10, L.tby - 10, L.tbw + 20, L.tbh + 20, false, Color(1.0f, 0.75f, 0.3f, 0.10f + 0.12f * k), 1);
-        button(L.tbx, L.tby, L.tbw, L.tbh, "TAKE", true);
+        const float k = 0.5f + 0.5f * std::sin(v.t_ * 4.0f);
+        P.blitEx(v.sprites_.light_, 0, 0, 64, 64, L.tbx - 10, L.tby - 10, L.tbw + 20, L.tbh + 20, false, Color(1.0f, 0.75f, 0.3f, 0.10f + 0.12f * k), 1);
+        v.button(L.tbx, L.tby, L.tbw, L.tbh, "TAKE", true);
       } else {
         P.rect(L.tbx, L.tby, L.tbw, L.tbh, Color(0.12f, 0.10f, 0.09f, 0.9f));
         P.frame(L.tbx, L.tby, L.tbw, L.tbh, Color(0.32f, 0.27f, 0.2f));
@@ -484,51 +484,51 @@ void takeSelected(View& v, Game& g) {
 }
 }  // namespace
 
-void View::skillsPageKey(Game& g, int key) {
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::skillsPageKey(View& v, Game& g, int key) {
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSel(g, S);
   const std::vector<int> order = pageOrder();
   int at = 0;
   for (size_t i = 0; i < order.size(); i++) if (order[i] == S.sel) at = (int)i;
   int n = 0;
   skills::perkTable((Skill)S.sel, n);
-  if (key == SDLK_UP || key == SDLK_W) { S.sel = order[(size_t)((at + (int)order.size() - 1) % (int)order.size())]; audio_->play(Sfx::MenuMove); }
-  else if (key == SDLK_DOWN || key == SDLK_S) { S.sel = order[(size_t)((at + 1) % (int)order.size())]; audio_->play(Sfx::MenuMove); }
-  else if ((key == SDLK_LEFT || key == SDLK_A) && n > 0) { S.perkSel = (S.perkSel - 1 + n) % n; audio_->play(Sfx::MenuMove); }
-  else if ((key == SDLK_RIGHT || key == SDLK_D) && n > 0) { S.perkSel = (S.perkSel + 1) % n; audio_->play(Sfx::MenuMove); }
-  else if (key == SDLK_RETURN || key == SDLK_SPACE) takeSelected(*this, g);
+  if (key == SDLK_UP || key == SDLK_W) { S.sel = order[(size_t)((at + (int)order.size() - 1) % (int)order.size())]; v.audio_->play(Sfx::MenuMove); }
+  else if (key == SDLK_DOWN || key == SDLK_S) { S.sel = order[(size_t)((at + 1) % (int)order.size())]; v.audio_->play(Sfx::MenuMove); }
+  else if ((key == SDLK_LEFT || key == SDLK_A) && n > 0) { S.perkSel = (S.perkSel - 1 + n) % n; v.audio_->play(Sfx::MenuMove); }
+  else if ((key == SDLK_RIGHT || key == SDLK_D) && n > 0) { S.perkSel = (S.perkSel + 1) % n; v.audio_->play(Sfx::MenuMove); }
+  else if (key == SDLK_RETURN || key == SDLK_SPACE) takeSelected(v, g);
   fixSel(g, S);
 }
 
-void View::skillsPageTap(Game& g, Vec2 p) {
-  View::SkillsUiState& S = SkillsUiOps::st(*this);
+void SkillsLane::skillsPageTap(View& v, Game& g, Vec2 p) {
+  View::SkillsUiState& S = SkillsUiOps::st(v);
   fixSel(g, S);
-  const SkLay L = skLay(touchUI);
+  const SkLay L = skLay(v.touchUI);
   auto inR = [&](float x, float y, float w, float h) { return p.x >= x && p.y >= y && p.x < x + w && p.y < y + h; };
   for (int gi = 0; gi < (int)skills::Group::COUNT; gi++)
     if (inR(L.gx + gi * L.gp - 2, L.gy - 3, L.gp, L.gh + 5)) {
-      const std::vector<int> v = groupSkills(gi);
-      S.sel = S.groupSel[gi] >= 0 ? S.groupSel[gi] : v.front();
+      const std::vector<int> grp = groupSkills(gi);
+      S.sel = S.groupSel[gi] >= 0 ? S.groupSel[gi] : grp.front();
       fixSel(g, S);
-      audio_->play(Sfx::MenuMove);
+      v.audio_->play(Sfx::MenuMove);
       return;
     }
   const std::vector<int> rows = groupSkills(S.group);
   for (size_t r = 0; r < rows.size(); r++)
-    if (inR(L.lx, L.ly + r * L.rowH, L.lw, L.rowH)) { S.sel = rows[r]; fixSel(g, S); audio_->play(Sfx::MenuMove); return; }
+    if (inR(L.lx, L.ly + r * L.rowH, L.lw, L.rowH)) { S.sel = rows[r]; fixSel(g, S); v.audio_->play(Sfx::MenuMove); return; }
   int n = 0;
   const skills::PerkDef* PD = skills::perkTable((Skill)S.sel, n);
-  if (inR(L.tbx - 4, L.tby - 4, L.tbw + 8, L.tbh + 8) && S.perkSel >= 0) { takeSelected(*this, g); return; }
+  if (inR(L.tbx - 4, L.tby - 4, L.tbw + 8, L.tbh + 8) && S.perkSel >= 0) { takeSelected(v, g); return; }
   if (inR(L.sx, L.sy, L.sw, L.sh)) {
     const std::vector<skp::PerkVis> pv = skp::perkLayout(PD, n, (int)L.sw, (int)L.sh);
-    const float reach = touchUI ? 20.0f : 12.0f;
+    const float reach = v.touchUI ? 20.0f : 12.0f;
     int best = -1;
     float bd = reach * reach;
     for (int i = 0; i < n; i++) {
       const float dx = p.x - (L.sx + pv[(size_t)i].x), dy = p.y - (L.sy + pv[(size_t)i].y);
       if (dx * dx + dy * dy < bd) { bd = dx * dx + dy * dy; best = i; }
     }
-    if (best >= 0) { S.perkSel = best; S.perkFor = S.sel; audio_->play(Sfx::MenuMove); }
+    if (best >= 0) { S.perkSel = best; S.perkFor = S.sel; v.audio_->play(Sfx::MenuMove); }
     return;
   }
 }

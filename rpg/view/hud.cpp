@@ -323,19 +323,19 @@ void View::draw(Game& g, bool hasSave) {
   P.begin(Color(0, 0, 0));
   // (P2a) the WORLD layer (engine/pix.h): every world pixel a whole D x D block of device px; the world view is Pix::W x
   // Pix::H in here (View::viewW / viewH outside)
-  ringOn_ = false;
+  lens_.ringOn_ = false;
   P.beginWorld();
   drawWorld(g);
   drawLighting(g);
-  drawWeather(g, 0);
+  weather_.drawWeather(*this, g, 0);
   // quest-giver markers after the night/weather pass so the "!" stays readable in the dark
   if (g.mode != Mode::Title && g.mode != Mode::Creator) {
     drawMarkers(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));
     party_.companionOverlays(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8) the wound, the binding
-    drawPowerFx(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8b) the worn powers' effects
-    drawMagicFx(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
-    drawReliefOver(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
-    drawSeaOver(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
+    powers_.drawPowerFx(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8b) the worn powers' effects
+    MagicLane::drawMagicFx(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
+    ReliefLane::drawReliefOver(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
+    SeaLane::drawSeaOver(*this, g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
   P.endWorld();
   // (P2a `ui 0`) the world alone: the device shots p2_measure.mjs checks for whole D x D blocks
@@ -360,14 +360,14 @@ void View::draw(Game& g, bool hasSave) {
       float cx = std::floor(fu.x), y0 = std::floor(fu.y - h);
       cx = clampf(cx, (float)Pix::SL + w / 2.0f + 4, (float)(Pix::W - Pix::SR) - w / 2.0f - 4);
       // (M5 fixer) never under the location / quest column: slide left of it (or below it when that is nearer)
-      if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {
-        const float left = hudColLeft_ - w / 2.0f - 4;
-        if (left >= (float)Pix::SL + w / 2.0f + 4 && hudColLeft_ - (cx - w / 2.0f) < hudColBottom_ - y0 + 40) cx = left;
-        else y0 = hudColBottom_ + 2;
+      if (y0 < hudx_.hudColBottom_ && cx + w / 2.0f + 3 > hudx_.hudColLeft_) {
+        const float left = hudx_.hudColLeft_ - w / 2.0f - 4;
+        if (left >= (float)Pix::SL + w / 2.0f + 4 && hudx_.hudColLeft_ - (cx - w / 2.0f) < hudx_.hudColBottom_ - y0 + 40) cx = left;
+        else y0 = hudx_.hudColBottom_ + 2;
       }
       // (M5) and never over the name tag / E: TALK of the person the player faces (often the speaker): it stacks above
-      if (tagOn_ && cx + w / 2.0f + 3 > tagX0_ && cx - w / 2.0f - 3 < tagX1_ && y0 - 1 < tagY1_ && y0 + h + 1 > tagY0_)
-        y0 = std::floor(tagY0_ - 2 - h);
+      if (hudx_.tagOn_ && cx + w / 2.0f + 3 > hudx_.tagX0_ && cx - w / 2.0f - 3 < hudx_.tagX1_ && y0 - 1 < hudx_.tagY1_ && y0 + h + 1 > hudx_.tagY0_)
+        y0 = std::floor(hudx_.tagY0_ - 2 - h);
       if (touchUI && g.mode == Mode::Play) clearOfTouch(cx, y0, (float)w + 6, h + 2);
       // (M8) and never over the party's portraits at the left edge
       if (party_.partyColR_ > 0 && cx - w / 2.0f - 3 < party_.partyColR_ && y0 < party_.partyColB_) cx = std::floor(party_.partyColR_ + w / 2.0f + 5);
@@ -402,7 +402,7 @@ void View::draw(Game& g, bool hasSave) {
     // round the panel's edges on a wide phone)
     if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge && g.mode != Mode::Build) drawHud(g);
     party_.partyWorldText(*this, g);   // (P2a) the party's names over the world (party_view.cpp; after the HUD's name tag it keeps clear of)
-    drawPips(g);         // (P2a) the off-screen danger pips at the safe area's edge, over the HUD's banners (render.cpp)
+    lens_.drawPips(*this, g);         // (P2a) the off-screen danger pips at the safe area's edge, over the HUD's banners (render.cpp)
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Play) party_.drawPartyRadial(*this, g);   // (M8) the companions' orders, over the whole HUD (party_hud.cpp)
     if (g.mode == Mode::Dialogue) drawDialogue(g);
@@ -486,10 +486,10 @@ int View::titleItems() const { return hasSave_ ? 3 : 2; }
 
 // (M9 fixer, review: "the quick bar runs under the region banner") the first-visit region banner's text line: below a
 // world boss's bar, and dropped under the desktop quick-cast bar (T+26..T+44) when its plate would reach the bar
-float View::biomeBannerY(float half) const {
+float WeatherView::biomeBannerY(const View& v, float half) const {
   const float T = (float)Pix::ST;
-  float y = std::max(T + 30, bossBarBottom_ + 10);
-  if (quickBarR_ > 0 && quickBarR_ + 6 > Pix::W / 2.0f - half && y - 4 < T + 47) y = T + 51;
+  float y = std::max(T + 30, v.hudx_.bossBarBottom_ + 10);
+  if (v.hudx_.quickBarR_ > 0 && v.hudx_.quickBarR_ + 6 > Pix::W / 2.0f - half && y - 4 < T + 47) y = T + 51;
   return y;
 }
 
@@ -606,8 +606,8 @@ float View::hudVitals(Game& g, const HudFrame& H) {
     P.rect(x, y, w * k, 4, c);
     P.rect(x, y, w * k, 1, Color(std::min(1.0f, c.r + 0.3f), std::min(1.0f, c.g + 0.3f), std::min(1.0f, c.b + 0.3f)));
   };
-  drawSeaHud(g);   // (M10) the sail and fishing panels (render_sea.cpp)
-  drawRiseHud(g);  // (M12) the herald's banner of a rise, the rank's insignia (render_rise.cpp)
+  SeaLane::drawSeaHud(*this, g);   // (M10) the sail and fishing panels (render_sea.cpp)
+  RiseLane::drawRiseHud(*this, g);  // (M12) the herald's banner of a rise, the rank's insignia (render_rise.cpp)
   P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
   bar(L + 36, T + 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
   bar(L + 36, T + 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
@@ -646,11 +646,11 @@ void View::hudQuickSlots(Game& g, const HudFrame& H, float spellX) {
   // (M9) the prepared spells from the book: on the desktop a bar of the four quick slots (number, orb, cooldown; keys
   // 1-4); on touch the quick-cast buttons round the attack button show them (drawTouch)
   g_quickBarR = spellX;
-  quickBarR_ = 0;
+  hudx_.quickBarR_ = 0;
   if (!touchUI) {
     bool any = false;
     for (uint32_t id : g.arcana.book.slot) if (id) any = true;
-    if (any) quickBarR_ = g_quickBarR = SkillsUiOps::drawQuickBar(*this, g, spellX, T + 26);
+    if (any) hudx_.quickBarR_ = g_quickBarR = SkillsUiOps::drawQuickBar(*this, g, spellX, T + 26);
   }
   SkillsUiOps::drawSneakEye(*this, g, L + 130, T + 4);   // (M9) sneaking: a lidded eye beside the health bar
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
@@ -725,8 +725,8 @@ bool View::hudColumnFade(Game& g, HudFrame& H) {
   {
     float want = 0.0f;
     if (!g.inside && g.mode == Mode::Play) {
-      const float cl = hudColLeft_ < 1e8f ? std::min(hudColLeft_ - 4.0f, R - 60.0f) : R - 180.0f;
-      const float cb = hudColBottom_ > 0 ? hudColBottom_ + 4.0f : T + 165.0f;
+      const float cl = hudx_.hudColLeft_ < 1e8f ? std::min(hudx_.hudColLeft_ - 4.0f, R - 60.0f) : R - 180.0f;
+      const float cb = hudx_.hudColBottom_ > 0 ? hudx_.hudColBottom_ + 4.0f : T + 165.0f;
       for (const Actor& a : g.actors) {
         if (!a.hostile || a.st == AState::Dead || a.id == g.pl().id) continue;
         if (len2(a.p - g.pl().p) > (10.0f * TILE) * (10.0f * TILE)) continue;
@@ -735,10 +735,10 @@ bool View::hudColumnFade(Game& g, HudFrame& H) {
         if (s.x + half > cl && s.x - half < R && s.y - 3.0f * half < cb && s.y > T + 60) { want = 1.0f; break; }
       }
     }
-    const float dt = colFoeT_ < 0 ? 1.0f : std::clamp(t_ - colFoeT_, 0.0f, 0.1f);
-    colFoeT_ = t_;
-    colFoeFade_ += (want - colFoeFade_) * std::min(1.0f, dt * 9.0f);
-    const float e = colFoeFade_ * colFoeFade_ * (3.0f - 2.0f * colFoeFade_);
+    const float dt = hudx_.colFoeT_ < 0 ? 1.0f : std::clamp(t_ - hudx_.colFoeT_, 0.0f, 0.1f);
+    hudx_.colFoeT_ = t_;
+    hudx_.colFoeFade_ += (want - hudx_.colFoeFade_) * std::min(1.0f, dt * 9.0f);
+    const float e = hudx_.colFoeFade_ * hudx_.colFoeFade_ * (3.0f - 2.0f * hudx_.colFoeFade_);
     hudA = std::min(hudA, 1.0f - 0.7f * e);
     backA = std::min(backA, 0.58f - 0.36f * e);
   }
@@ -815,7 +815,7 @@ void View::hudLocationColumn(Game& g, HudFrame& H) {
     P.rect(R - wmax - 10, T + 88, (float)wmax + 8, std::max(0.0f, std::min(bh, clipY - (T + 88))), Color(0.03f, 0.02f, 0.05f, backA));
     colBottom = T + 88 + bh + 12;
     colLeft = std::min(colLeft, R - wmax - 16);
-    hudColLeft_ = R - wmax - 12; hudColBottom_ = T + 88 + bh + 2;
+    hudx_.hudColLeft_ = R - wmax - 12; hudx_.hudColBottom_ = T + 88 + bh + 2;
   }
   if (locSuffix.empty()) H.colText(T + 91, loc, H.fa(kText));
   else if (T + 99 <= clipY) {   // the name, then the mood in its colour (a dot between)
@@ -1015,29 +1015,29 @@ void View::hudQuest(Game& g, HudFrame& H) {
           // (M3c fixer, review: "the compass distance strikes through the biome banner") while the first-visit biome
           // banner shows at the top centre, the arrow and its distance keep out of its strip: along the top edge they
           // slide out past its ends, lower down they drop below it
-          if (bossBarBottom_ > 0) {   // (M6 fixer) and out of a world boss's top bar (its distance too)
+          if (hudx_.bossBarBottom_ > 0) {   // (M6 fixer) and out of a world boss's top bar (its distance too)
             // (M6 fixer r2, review: "the compass caret and its distance sit on the bar's right end" with the real
             // iPhone insets) it drops below the bar's strip instead of squeezing past its ends into the HUD labels
-            const float x0 = bossBarX0_ - 48, x1 = bossBarX1_ + 48;
-            if (a.y < bossBarBottom_ + 14 && a.x > x0 && a.x < x1) a.y = bossBarBottom_ + 14;
+            const float x0 = hudx_.bossBarX0_ - 48, x1 = hudx_.bossBarX1_ + 48;
+            if (a.y < hudx_.bossBarBottom_ + 14 && a.x > x0 && a.x < x1) a.y = hudx_.bossBarBottom_ + 14;
           }
           if (realm_.herald_.t > 0 && g.mode == Mode::Play) {   // (M4) and out of the herald's ribbon
-            const float half = (float)P.textW(realm_.herald_.title, 1) / 2 + 40, by1 = std::max(T + 40, bossBarBottom_ + 38), mx = Pix::W / 2.0f;
+            const float half = (float)P.textW(realm_.herald_.title, 1) / 2 + 40, by1 = std::max(T + 40, hudx_.bossBarBottom_ + 38), mx = Pix::W / 2.0f;
             if (a.y < by1 && std::fabs(a.x - mx) < half + 30) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 30 : mx + half + 30;
               else a.y = std::max(a.y, by1);
             }
           }
-          if (riseBanBottom_ > 0 && g.mode == Mode::Play) {   // (M12 integrator) and out of a rise's herald banner
-            const float x0 = riseBanX0_ - 40, x1 = riseBanX1_ + 40, mx = (riseBanX0_ + riseBanX1_) / 2;
-            if (a.y < riseBanBottom_ + 14 && a.x > x0 && a.x < x1) {
+          if (hudx_.riseBanBottom_ > 0 && g.mode == Mode::Play) {   // (M12 integrator) and out of a rise's herald banner
+            const float x0 = hudx_.riseBanX0_ - 40, x1 = hudx_.riseBanX1_ + 40, mx = (hudx_.riseBanX0_ + hudx_.riseBanX1_) / 2;
+            if (a.y < hudx_.riseBanBottom_ + 14 && a.x > x0 && a.x < x1) {
               if (a.y <= T + 20) a.x = a.x < mx ? x0 : x1;   // along the top edge: past the banner's ends
-              else a.y = riseBanBottom_ + 14;
+              else a.y = hudx_.riseBanBottom_ + 14;
             }
           }
-          if (biomeBannerT_ > 0 && !biomeBanner_.empty() && fx_.bannerT_ <= 0 && g.mode == Mode::Play) {
-            const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
-            const float by1 = biomeBannerY(half) + 11 + 14;
+          if (weather_.biomeBannerT_ > 0 && !weather_.biomeBanner_.empty() && fx_.bannerT_ <= 0 && g.mode == Mode::Play) {
+            const float half = std::min((float)P.textW(weather_.biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+            const float by1 = weather_.biomeBannerY(*this, half) + 11 + 14;
             const float mx = Pix::W / 2.0f;
             if (a.y < by1 && std::fabs(a.x - mx) < half + 40) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 40 : mx + half + 40;
@@ -1178,7 +1178,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
   const float kw = H.kw;
   const art::RigMetrics& RM = H.RM;
   // NPC name / interact prompt
-  tagOn_ = false;
+  hudx_.tagOn_ = false;
   int it = g.mode == Mode::Play ? g.interactTarget() : -1;
   // (M8) the party's use comes first, as Game::partyInteract takes it: a grave of the fallen in reach (VISIT), a downed
   // companion (BIND WOUNDS instead of TALK; also mid-fight, when no one else may be talked to)
@@ -1202,8 +1202,8 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
     if (touchUI) { float ty = s.y - 13; clearOfTouch(s.x, ty, w, 11); s.y = ty + 13; }
     P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
     P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
-    tagOn_ = true;
-    tagX0_ = s.x - w / 2; tagX1_ = s.x + w / 2; tagY0_ = s.y - 13; tagY1_ = s.y - 2;
+    hudx_.tagOn_ = true;
+    hudx_.tagX0_ = s.x - w / 2; hudx_.tagX1_ = s.x + w / 2; hudx_.tagY0_ = s.y - 13; hudx_.tagY1_ = s.y - 2;
   } else if (it >= 0) {
     for (const Actor& a : g.actors)
       if (a.id == it) {
@@ -1267,9 +1267,9 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
           P.textS(lx, ly, a.name, 1, kText, 1);
           if (!touchUI) P.textS(lx, ly - 9, verb, 1, kGold, 1);
         }
-        tagOn_ = true;
-        tagX0_ = lx - labelW; tagX1_ = lx + labelW;
-        tagY0_ = ly - (touchUI ? 2.0f : 11.0f); tagY1_ = ly + 9.0f;
+        hudx_.tagOn_ = true;
+        hudx_.tagX0_ = lx - labelW; hudx_.tagX1_ = lx + labelW;
+        hudx_.tagY0_ = ly - (touchUI ? 2.0f : 11.0f); hudx_.tagY1_ = ly + 9.0f;
       }
   } else if (g.mode == Mode::Play && !homeVerb.empty()) {
     // (M7) the player's own yard: exactly what the use button will do on the tile ahead ("E: PLANT BARLEY"), over it
@@ -1350,16 +1350,16 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
   // (fixer M8 r3, review: "radial labels run into the region banner: WAIT LLAGE") the title cards, the herald and the
   // toasts step away while the companions' order ring is open (their clocks run on; the ring is a moment's choice)
   const bool ringOpen = party_.radial_.open && g.mode == Mode::Play;
-  if (!ringOpen && biomeBannerT_ > 0 && !biomeBanner_.empty() && (fx_.bannerT_ <= 0 || g.mode == Mode::Dialogue) && realm_.herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
-    const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
-    const float tw = (float)P.textW(biomeBanner_, 1);
+  if (!ringOpen && weather_.biomeBannerT_ > 0 && !weather_.biomeBanner_.empty() && (fx_.bannerT_ <= 0 || g.mode == Mode::Dialogue) && realm_.herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+    const float a = clampf(std::min(weather_.biomeBannerT_, 4.0f - weather_.biomeBannerT_) * 1.6f, 0, 1);
+    const float tw = (float)P.textW(weather_.biomeBanner_, 1);
     const float half = std::min(tw / 2 + 26, Pix::W / 2.0f - 70);
-    const float y = biomeBannerY(half);   // (M6 fixer) clear of a world boss's bar; (M9 fixer) and of the quick bar
+    const float y = weather_.biomeBannerY(*this, half);   // (M6 fixer) clear of a world boss's bar; (M9 fixer) and of the quick bar
     P.rect(Pix::W / 2 - half, y - 4, half * 2, 15, Color(0.03f, 0.03f, 0.05f, 0.42f * a));
     P.rect(Pix::W / 2 - half + 6, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
     P.rect(Pix::W / 2 + half - 18, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
-    P.textS(Pix::W / 2 + 1, y + 1, biomeBanner_, 1, Color(0, 0, 0, a * 0.6f), 1);
-    P.textS(Pix::W / 2, y, biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
+    P.textS(Pix::W / 2 + 1, y + 1, weather_.biomeBanner_, 1, Color(0, 0, 0, a * 0.6f), 1);
+    P.textS(Pix::W / 2, y, weather_.biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
   }
   // banner (not on the death screen: its words own the centre, and an arrival card under them read "YOU HAVE FALLARS")
   if (fx_.bannerT_ > 0 && g.mode != Mode::Dialogue && g.mode != Mode::Dead && !ringOpen) {
@@ -2072,10 +2072,10 @@ void View::drawMenu(Game& g) {
       party_.drawPartyPage(*this, g);
       break;
     case kSkillsTab:  // (M9) the skills and their perk constellations (skills_ui.cpp)
-      drawSkillsPage(g);
+      SkillsLane::drawSkillsPage(*this, g);
       break;
     case kSpellsTab:  // (M9) the spellbook and the quick slots (spellbook_ui.cpp)
-      drawSpellsPage(g);
+      SkillsLane::drawSpellsPage(*this, g);
       break;
   }
 }

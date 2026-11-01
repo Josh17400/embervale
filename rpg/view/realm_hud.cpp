@@ -124,7 +124,7 @@ void RealmHud::heraldEvent(View& v, Game& g, const Event& e) {
   // a herald's two notes (quiet: it is a crossing, not a fanfare)
   v.audio_->play(Sfx::Discover, land ? 0.9f : 0.75f, 0.45f);
   // the first-visit biome banner waits behind the herald (it shares the top centre)
-  if (v.biomeBannerT_ > 0) v.biomeBannerT_ = std::min(v.biomeBannerT_ + 2.8f, 4.0f);
+  if (v.weather_.biomeBannerT_ > 0) v.weather_.biomeBannerT_ = std::min(v.weather_.biomeBannerT_ + 2.8f, 4.0f);
 }
 
 void RealmHud::newsEvent(View& v, Game& g, const Event& e) {
@@ -169,7 +169,7 @@ void RealmHud::drawHerald(View& v, Game& g) {
   const float minX = L + 136, maxX = R - 76 - w;
   if (maxX >= minX) x = std::clamp(x, minX, maxX);
   // (M6 fixer) under a world boss's top bar, never over it (the ribbon shows exactly when the hero walks into its land)
-  const float y = std::max(T + 5, v.bossBarBottom_ + 3) + slide;
+  const float y = std::max(T + 5, v.hudx_.bossBarBottom_ + 3) + slide;
   const Color ink(0.03f, 0.025f, 0.04f, 0.78f * a);
   const Color kc = col(herald_.color, a);
   // the ribbon: a dark band with swallow-tail ends in the realm's colour, gold rules top and bottom

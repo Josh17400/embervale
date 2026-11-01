@@ -113,7 +113,7 @@ const Actor* actorById(const Game& g, uint32_t id) {
 bool onScreen(Vec2 s, float m) { return s.x > -m && s.y > -m && s.x < (float)Pix::W + m && s.y < (float)Pix::H + m; }
 }  // namespace
 
-void View::powerEvent(Game& g, const Event& e) {
+void PowerView::powerEvent(View& v, Game& g, const Event& e) {
   (void)g;
   PowerFx f;
   f.kind = e.a;
@@ -132,18 +132,18 @@ void View::powerEvent(Game& g, const Event& e) {
     case Fx::Proc: f.life = 0.4f; break;
     default: f.life = 0.4f; break;
   }
-  f.seed = hash32((uint32_t)powerFx_.size() * 2654435761u ^ (uint32_t)(t_ * 1000.0f) ^ (uint32_t)(e.p.x * 31.0f) ^ (uint32_t)(e.q.y * 17.0f));
+  f.seed = hash32((uint32_t)powerFx_.size() * 2654435761u ^ (uint32_t)(v.t_ * 1000.0f) ^ (uint32_t)(e.p.x * 31.0f) ^ (uint32_t)(e.q.y * 17.0f));
   if (powerFx_.size() < 96) powerFx_.push_back(f);
 }
 
-void View::powerUpdate(Game& g, float dt) {
+void PowerView::powerUpdate(Game& g, float dt) {
   (void)g;
   for (PowerFx& f : powerFx_) f.t += dt;
   powerFx_.erase(std::remove_if(powerFx_.begin(), powerFx_.end(), [](const PowerFx& f) { return f.t >= f.life; }), powerFx_.end());
 }
 
-void View::drawPowerFx(Game& g, Vec2 cam) {
-  Pix& P = *pix_;
+void PowerView::drawPowerFx(View& v, Game& g, Vec2 cam) {
+  Pix& P = *v.pix_;
   const powers::State& F = g.craft.live.fx;
   auto S = [&](Vec2 w) { return Vec2(std::floor(w.x - cam.x), std::floor(w.y - cam.y)); };
 
@@ -162,7 +162,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
       art::MonsterLook L;
       L.base = a.mon; L.overlays = a.overlays; L.tint = a.bodyTint; L.scale = a.scalePct;
       const int cw = art::lookCellW(L), chh = art::lookCellH(L);
-      const Tex& t = sprites_.monsterTex(*this, a);
+      const Tex& t = v.sprites_.monsterTex(v, a);
       const int fr = monsterFrame(a);
       const bool flip = a.aim.x < 0;
       const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);
@@ -179,7 +179,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     }
     // the slow pulse: a ring keeps breathing out from the hero every 0.75 s, and clock ticks hang in the air
     const Vec2 c = S(g.pl().p);
-    const float ph = std::fmod(t_ * 1.33f, 1.0f);
+    const float ph = std::fmod(v.t_ * 1.33f, 1.0f);
     for (int ring = 0; ring < 2; ring++) {
       const float pr = std::fmod(ph + 0.5f * (float)ring, 1.0f);
       const float rx = 24.0f + pr * 170.0f;
@@ -193,8 +193,8 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     }
     for (int i = 0; i < 12; i++) {
       const uint32_t h = mix(0xC405u, (uint32_t)i);
-      const float ax = c.x - 90 + frac01(h) * 180, ay = c.y - 70 + frac01(h >> 8) * 110 + std::sin(t_ * 0.7f + (float)i) * 2.0f;
-      const float tw = 0.5f + 0.5f * std::sin(t_ * 3.0f + (float)i * 1.7f);
+      const float ax = c.x - 90 + frac01(h) * 180, ay = c.y - 70 + frac01(h >> 8) * 110 + std::sin(v.t_ * 0.7f + (float)i) * 2.0f;
+      const float tw = 0.5f + 0.5f * std::sin(v.t_ * 3.0f + (float)i * 1.7f);
       dot(P, ax, ay, Color(0.7f, 0.9f, 1.0f, 0.55f * k * tw), true);
       dot(P, ax + 1, ay, Color(0.4f, 0.6f, 1.0f, 0.25f * k * tw), true);
     }
@@ -218,9 +218,9 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
       const uint32_t h = mix(pa.seed, (uint32_t)f);
       const float ox = ((float)f - 1.0f) * 4.5f + (frac01(h) - 0.5f) * 2.0f;
       const float speed = 9.0f + frac01(h >> 4) * 5.0f;
-      const float fl = 0.75f + 0.25f * std::sin(t_ * speed + frac01(h >> 9) * 6.28f);
+      const float fl = 0.75f + 0.25f * std::sin(v.t_ * speed + frac01(h >> 9) * 6.28f);
       const float hgt = (f == 1 ? 10.0f : 7.0f) * fl * k + 1.0f;
-      const float sway = std::sin(t_ * 5.0f + (float)f * 2.1f) * 0.7f;
+      const float sway = std::sin(v.t_ * 5.0f + (float)f * 2.1f) * 0.7f;
       tongue(P, s.x + ox, s.y + (f == 1 ? 1.0f : 0.0f), hgt, f == 1 ? 5.0f : 4.0f, sway, 0.95f * std::max(0.25f, k));
     }
     glow(P, s.x, s.y - 4, 7.0f, Color(1.0f, 0.55f, 0.2f, 0.35f * k));
@@ -247,13 +247,13 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
       const uint32_t h = mix(sd, (uint32_t)f);
       const float ox = (frac01(h) - 0.5f) * (a.human ? 8.0f : 12.0f);
       const float oy = -2.0f - frac01(h >> 5) * body * 0.5f;
-      const float fl = 0.6f + 0.4f * std::sin(t_ * (11.0f + (float)f * 3.0f) + (float)a.id);
-      tongue(P, s.x + ox, s.y + oy, (strong ? 7.0f : 5.0f) * fl + 1, 3.0f, std::sin(t_ * 6 + (float)f) * 0.6f, 0.85f);
+      const float fl = 0.6f + 0.4f * std::sin(v.t_ * (11.0f + (float)f * 3.0f) + (float)a.id);
+      tongue(P, s.x + ox, s.y + oy, (strong ? 7.0f : 5.0f) * fl + 1, 3.0f, std::sin(v.t_ * 6 + (float)f) * 0.6f, 0.85f);
     }
     glow(P, s.x, s.y - body * 0.45f, strong ? 8.0f : 6.0f, Color(1.0f, 0.5f, 0.15f, 0.30f));
     for (int e = 0; e < 3; e++) {
       const uint32_t h = mix(sd ^ 0xB0Bu, (uint32_t)e);
-      const float ph = std::fmod(t_ * (1.3f + frac01(h)) + frac01(h >> 7), 1.0f);
+      const float ph = std::fmod(v.t_ * (1.3f + frac01(h)) + frac01(h >> 7), 1.0f);
       dot(P, s.x + (frac01(h >> 13) - 0.5f) * 10.0f, s.y - body * 0.6f - ph * 14.0f, fire(1.0f - ph, 1.0f - ph), true);
     }
   }
@@ -264,7 +264,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     if (!onScreen(c, 40)) return;
     const float rx = powers::BRAMBLE_REACH, ry = powers::BRAMBLE_REACH / 1.25f * 0.62f;   // (the 3/4 view: flattened)
     const int n = 104;
-    const float rot = t_ * 0.30f;
+    const float rot = v.t_ * 0.30f;
     groundGlow(P, c.x, c.y, rx + 3, Color(0.45f, 0.75f, 0.25f, 0.05f + 0.14f * pulse));
     // the bodies standing on the ring (the wearer, foes, friends): the vine behind their feet passes behind them
     struct Occ { float x0, x1, y0, y1; };
@@ -285,7 +285,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     for (int strand = 0; strand < 2; strand++)
       for (int i = 0; i < n; i++) {
         const float an = 6.2831853f * (float)i / (float)n + rot;
-        const float tw = std::sin(an * 9.0f + (float)strand * 3.14159f + t_ * 0.5f);   // the twist
+        const float tw = std::sin(an * 9.0f + (float)strand * 3.14159f + v.t_ * 0.5f);   // the twist
         const float rr = rx + tw * 1.4f, rv = ry + tw * 0.7f;
         const float x = std::floor(c.x + std::cos(an) * rr), y = std::floor(c.y + std::sin(an) * rv);
         if (hidden(x, y)) continue;   // (behind someone's body)
@@ -342,12 +342,12 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     const int cw = art::lookCellW(L), chh = art::lookCellH(L);
     const Vec2 s = S(a.p);
     if (!onScreen(s, 40)) continue;
-    const Tex& t = sprites_.monsterTex(*this, a);
+    const Tex& t = v.sprites_.monsterTex(v, a);
     const int fr = monsterFrame(a);
     const bool flip = a.aim.x < 0;
     const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);
     const float life = clamp01(a.powT / 1.0f);                              // it thins out in its last second
-    const float fl = 0.75f + 0.25f * std::sin(t_ * 17.0f + (float)a.id) * std::sin(t_ * 5.3f);
+    const float fl = 0.75f + 0.25f * std::sin(v.t_ * 17.0f + (float)a.id) * std::sin(v.t_ * 5.3f);
     groundGlow(P, s.x, s.y, 11.0f, Color(0.35f, 0.7f, 1.0f, 0.22f * life));
     // the ghost glow: its own sheet added back over it in the spectral cyan (it reads as light, not hide)
     P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.30f, 0.62f, 1.0f, 0.42f * fl * life), 1);
@@ -360,7 +360,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     // wisps rising off its back and its eyes' cold light
     for (int w = 0; w < 5; w++) {
       const uint32_t h = mix((uint32_t)a.id * 7u, (uint32_t)w);
-      const float ph = std::fmod(t_ * (0.9f + frac01(h) * 0.6f) + frac01(h >> 8), 1.0f);
+      const float ph = std::fmod(v.t_ * (0.9f + frac01(h) * 0.6f) + frac01(h >> 8), 1.0f);
       const float wx = s.x + (frac01(h >> 14) - 0.5f) * (float)cw * 0.7f + std::sin(ph * 7.0f + (float)w) * 1.5f;
       const float wy = s.y - (float)chh * 0.45f - ph * 14.0f;
       dot(P, wx, wy, Color(0.6f, 0.9f, 1.0f, 0.7f * (1.0f - ph) * life), true);
@@ -478,12 +478,12 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
         for (int i = 0; i < 48; i++) {
           const float an = 6.2831853f * (float)i / 48.0f;
           const float x = c.x + std::cos(an) * rr, y = c.y + std::sin(an) * rr * 0.45f;
-          tongue(P, x, y, (4.0f + 3.0f * std::sin(an * 3 + t_ * 9)) * k + 1, 2.0f, 0, 0.9f * k);
+          tongue(P, x, y, (4.0f + 3.0f * std::sin(an * 3 + v.t_ * 9)) * k + 1, 2.0f, 0, 0.9f * k);
         }
         const float ph = std::min(1.0f, f.t / 0.35f);
         for (int col = -2; col <= 2; col++) {
           const float hh = (26.0f - std::fabs((float)col) * 6.0f) * ph * (u < 0.6f ? 1.0f : k / 0.4f);
-          tongue(P, c.x + (float)col * 3.0f, c.y, hh, 4.0f, std::sin(t_ * 7 + (float)col) * 0.8f, 0.95f);
+          tongue(P, c.x + (float)col * 3.0f, c.y, hh, 4.0f, std::sin(v.t_ * 7 + (float)col) * 0.8f, 0.95f);
         }
         for (int side = -1; side <= 1; side += 2) {
           for (int fth = 0; fth < 10; fth++) {   // the wing: feathers of flame along a rising arc, the long ones outermost

@@ -48,7 +48,7 @@ Input View::input(Game& g) {
       const bool held[4] = {k(SDL_SCANCODE_1), k(SDL_SCANCODE_2), k(SDL_SCANCODE_3), k(SDL_SCANCODE_4)};
       const bool dualMod = k(SDL_SCANCODE_LALT) || k(SDL_SCANCODE_RALT) || k(SDL_SCANCODE_Z);
       SkillsUiOps::fillInput(*this, g, in, held, dualMod, 0);
-      seaFillInput(g, in);   // (M10) the fishing reel (render_sea.cpp)
+      SeaLane::seaFillInput(*this, g, in);   // (M10) the fishing reel (render_sea.cpp)
     } else {
       Q.pressSlot = -1; Q.holdSlot = -1; Q.holdDual = false; Q.sneakPress = false;
     }
@@ -75,8 +75,8 @@ void View::menuKey(Game& g, int key) {
     if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
     if (menuTab_ == kPartyTab && g.mode == Mode::Menu) { party_.partyPageKey(*this, g, key); return; }   // (M8) paperdoll.cpp
-    if (menuTab_ == kSkillsTab && g.mode == Mode::Menu) { skillsPageKey(g, key); return; }   // (M9) skills_ui.cpp
-    if (menuTab_ == kSpellsTab && g.mode == Mode::Menu) { spellsPageKey(g, key); return; }   // (M9) spellbook_ui.cpp
+    if (menuTab_ == kSkillsTab && g.mode == Mode::Menu) { SkillsLane::skillsPageKey(*this, g, key); return; }   // (M9) skills_ui.cpp
+    if (menuTab_ == kSpellsTab && g.mode == Mode::Menu) { SkillsLane::spellsPageKey(*this, g, key); return; }   // (M9) spellbook_ui.cpp
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
       if (key == SDLK_DOWN || key == SDLK_S) levelSel_ = (levelSel_ + 1) % 3;
@@ -307,10 +307,10 @@ void View::tap(Game& g, Vec2 p) {
         party_.partyPageTap(*this, g, p);
         break;
       case kSkillsTab:  // (M9) skills_ui.cpp
-        skillsPageTap(g, p);
+        SkillsLane::skillsPageTap(*this, g, p);
         break;
       case kSpellsTab:  // (M9) spellbook_ui.cpp
-        spellsPageTap(g, p);
+        SkillsLane::spellsPageTap(*this, g, p);
         break;
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;

@@ -310,7 +310,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
         const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
         const float pivX = std::floor(at.x - cam.x + 0.5f), pivY = std::floor(at.y + bob2 - cam.y + 0.5f);
-        queueLivingFinish(a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
+        lens_.queueLivingFinish(*this, a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
       }
       // (P2c) HeroSprite::part: 0 loco 1 action 2 death 3 run, 4 a posture atlas (home_view's too), 5 the DRAWN part
       if (a.player) heroSprite.part = partDrawn == (int)art::RigPart::Drawn ? 5 : partDrawn;
@@ -442,7 +442,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
           // (P2c SWITCH) the living finish on a T5-T6 body in a posture too (seated, kneeling, at work)
           if (look.topTier() >= 4 && a.st != AState::Dead) {
             const float px2 = std::floor(at2.x - cam.x + 0.5f), py2 = std::floor(at2.y - cam.y + 0.5f);
-            queueLivingFinish(a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
+            lens_.queueLivingFinish(*this, a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
           }
           if (a.player) heroSprite.part = 4;
           life_.m5Count_.posed++;
