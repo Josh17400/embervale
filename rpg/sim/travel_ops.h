@@ -4,6 +4,8 @@
 #pragma once
 #include "rpg/sim/game.h"
 
+// API (SOLID 5.6): no stable test/script API. Every member is internal to the lane: only rpg/sim and rpg/story
+// call it (tests and scripts go through Game's public members), and it may change with the lane.
 struct TravelOps {
   // the key of a building floor's interior made ahead (Game::PrepInterior::key; never 0)
   static uint64_t interiorKey(const Bldg& b, int floor) { return (b.id ? b.id : ((uint64_t)b.seed << 20 | 0x5EA7ull)) * 31ull + (uint64_t)floor + 1; }

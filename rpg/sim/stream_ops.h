@@ -5,6 +5,8 @@
 #pragma once
 #include "rpg/sim/game.h"
 
+// API (SOLID 5.6): no stable test/script API. Every member is internal to the lane: only rpg/sim and rpg/story
+// call it (tests and scripts go through Game's public members), and it may change with the lane.
 struct StreamOps {
   static void maybeRecentre(Game& g);   // M1: keep the player in the window's middle (VISION_PLAN 2.9)
   static void windowMoved(Game& g, int dx, int dy);   // M1: the window moved by (dx, dy) tiles: translate everything overworld

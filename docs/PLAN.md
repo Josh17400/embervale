@@ -287,6 +287,14 @@ same numbers as before, `art_hash` is identical, `save_test` prints ALL OK and b
   - Bell was added to audio_preview, and interiors.txt now starts itself.
 - **Freeze WORLDGEN_V3 now** (the arch wall pass and the homes genInterior both gate on it).
 
+### SOLID 5.6 docs (2026-11-01)
+- The code map is final for the SOLID refactor (`docs/SOLID_PLAN.md` waves 0-5): `README.md` opens with a "Where is ..."
+  table (the save format, the update order, sounds, prop sizes, town folk paths, the HUD vitals, input, script commands,
+  the Witness handlers, chunk relief ...), each answer a file and a symbol; every path it names exists.
+- Each `rpg/sim/*_ops.h` opens its struct with an `API (SOLID 5.6)` comment: the members that tests, scripts and the view
+  call by name (stable) and the rest (internal to the lane). `docs/ARCHITECTURE.md` section 2.3 and rule 13 explain it.
+  Comments and docs only: no code changed.
+
 ## M0b, "Rooms and Storeys" (owner notes 2026-10-04; binds VISION_PLAN 15.7)
 
 Goal: interiors that make logical sense and feel lived in. Multi-storey buildings (inns, keeps, towers, larger houses and

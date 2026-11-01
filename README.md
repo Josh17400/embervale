@@ -5,9 +5,30 @@ quests, stories, magic, fellows and the sea, and a paper-doll character renderer
 builds with clang on Linux and with emscripten for the web build. The simulation has no SDL in it, so it runs headless
 in the test runner.
 
-This file is the code map of the tree after wave 2 of the SOLID plan. The layers, the seam headers, the rules for new code and the "how do I add X" cookbook are in
-`docs/ARCHITECTURE.md`. The refactor that produced this layout is `docs/SOLID_PLAN.md`; the game's design is
-`docs/VISION_PLAN.md` and `docs/PLAN.md`.
+This file is the code map: the final layout of the SOLID refactor (waves 0-5, `docs/SOLID_PLAN.md`). A change that
+moves code updates this map in the same commit. The layers, the seam headers, the rules for new code and the "how do I
+add X" cookbook are in `docs/ARCHITECTURE.md`; the game's design is `docs/VISION_PLAN.md` and `docs/PLAN.md`.
+
+## Where is ...
+
+Each answer names the file and the symbol to open.
+
+| Question | Answer |
+|---|---|
+| the save format | `rpg/sim/game_save.cpp`: `SAVE_VER` and `Game::serialize`/`deserialize`, every save block listed in write order at the top of the file |
+| the update order | `rpg/sim/sim_schedule.cpp`: `Game::update`, one comment per step (the determinism contract: never reorder) |
+| where a sound is defined | `engine/sound_ids.h`: one `X(Name, trim)` row in `SFX_LIST`; its voice is `Audio::fx<Name>` in `engine/audio/sfx.cpp` |
+| where a prop family gets its size | `rpg/art/art_props.cpp`: `propW`, `propH`, `propFrames` (the `Prop` ids and family range tests are in `rpg/core/art_ids.h`) |
+| how town folk find paths | `rpg/sim/life_paths.cpp`: `LifeOps::findPath` (A\* over the window), `walkOut`, the stuck watchdog |
+| where the HUD vitals are drawn | `rpg/view/hud.cpp`: `View::hudVitals` (health, magicka and stamina bars), one piece of `drawHud` |
+| where input is handled | `rpg/view/input.cpp`: `View::input` (held keys), `View::menuKey`, `View::event` (the SDL event pump); injected test input is `rpg/app/input_inject.cpp` |
+| where a new test script command goes | `rpg/view/scripts/<subject>.cpp`, registered with `EMB_SCRIPT_CMD` (`rpg/view/script_api.h`); an rpg_test command goes in `tools/tests/test_<subject>.cpp` with `RPG_TEST_CMD` (`tools/tests/tests.h`) |
+| where the Witness handlers live | `rpg/app/witness_driver.cpp`: `App::wReset`, `wInput`, `wStep`, `wSnapshot`, `wScreenshot`, `wCall`, `runWitness`; the state snapshot's fields are `rpg/view/witness_state.cpp` |
+| where chunk relief is computed | `rpg/world/chunk_relief.cpp`: the relief stages of `gen::chunk()` (river beds, flats, relief bits, massifs, peaks, cairns); the coarse relief level is `rpg/world/macro.cpp`; the baked cliff faces are drawn by `rpg/view/terrain.cpp` |
+| the damage rules | `rpg/sim/game_combat.cpp`: `damage`, its modifier chain numbered in order |
+| the dialogue routing | `rpg/sim/dlg_routes.cpp`: `kDlgRoutes`, one row per `DLG_*` range (`rpg/sim/game_types.h`) |
+| a saved mark tag | `rpg/sim/mark_tags.h`: `kMarkTags`, `kMarkRanges`, `markKey` |
+| which lane hooks tests may call | the `API (SOLID 5.6)` block above the struct in each `rpg/sim/*_ops.h` |
 
 ## Build
 
@@ -95,6 +116,7 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 | `rpg/sim/interior_v4.cpp` | building interiors (its own FP group: stays in `rpg/sim`) |
 | `rpg/sim/magic*.cpp` (`magic_launch.cpp`: `MagicOps::launch`, one function per spell form group), `skills*`, `party*`, `home*`, `foes*`, `craft*`, `war*`, `sea*`, `lord*`, `service*`, `realm*`, `gear*` | the other lanes, each as `<lane>.h/.cpp` + `<lane>_game.cpp` + `<lane>_ops.h` (FOES and NUMBERS/FORGE keep their core hooks apart in `foe_hooks.h` / `craft_hooks.h`, like `life_hooks.h`) |
 | `rpg/sim/realm_ops.h`, `war_ops.h`, `story_ops.h`, `travel_ops.h`, `wayside_ops.h`, `stream_ops.h` | the hooks that were Game members, one Ops struct per lane: `RealmOps::step` (`realm_game.cpp`), `WarOps` (`war_game.cpp`), `StoryOps` (`rpg/story/story_game.cpp`), `TravelOps` (`travel.cpp`, `prep_interior.cpp`), `WaysideOps` (`wayside.cpp`), `StreamOps` (`game.cpp`) |
+| `rpg/sim/*_ops.h` | each Ops header starts its struct with an `API (SOLID 5.6)` comment: the members tests, scripts and the view call by name (stable: keep their names and meaning) and the rest (internal to the lane) |
 | `rpg/sim/gear.cpp`, `rpg/sim/items.cpp` | items and gear stats: the loot /fp:precise group (`RPG_LOOT_FP` in CMake) |
 
 ### `rpg/view/`: View
@@ -112,7 +134,7 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 | `rpg/view/render_sorted.cpp` | the drawable list: the push order, the one sort and the sorted draw (`drawPropSorted` ...; `DrawKind`), over a `FrameCtx`; `render_internal.h` is the private header of these two files |
 | `rpg/view/terrain.cpp` | ground tiles and their bake (`groundPixel`, relief levels and cliff faces), kerbs (`urbKerbCheck`) |
 | `rpg/view/render_relief.cpp` | the relief that moves or stands up (falls), drawn live over the baked terrain |
-| `rpg/view/hud.cpp` | `drawHud`, now a list of named pieces over `View::HudFrame`: **the HUD vitals** (the `// vitals` block: health and stamina bars), the clock, quests, notices, buffs, menus and pages |
+| `rpg/view/hud.cpp` | `drawHud`, a list of named pieces over `View::HudFrame`: **the HUD vitals** (`View::hudVitals`: health, magicka and stamina bars), the clock, quests, notices, buffs, menus and pages |
 | `rpg/view/input.cpp` | **all input**: held keys (`View::input`), menu keys, taps and the SDL event pump (`View::event`) |
 | `rpg/view/hud_layout.h` | the layout helpers shared by drawing and tapping, so every touch rect has one source |
 | `rpg/view/dialogue_ui.cpp`, `rpg/view/shop_ui.cpp`, `rpg/view/screens_ui.cpp` | the dialogue box; the shop; level-up, title and death screens |

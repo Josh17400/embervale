@@ -306,6 +306,11 @@ struct Game::LifeRuntime {
 };
 
 // ================================================================= the lane's internals (friend of Game)
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (tools/tests):
+//     markOf, mkLife.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct LifeOps {
   using RT = Game::LifeRuntime;
 

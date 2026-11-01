@@ -16,6 +16,16 @@
 #include "rpg/sim/magic.h"
 #include "rpg/sim/ai_ops.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/view/scripts, tools/save_test.cpp, tools/tests):
+//     actorStep, aiOverride, applyStatus, attune, attuned, begin, cast, choose, clearMap, costOf, cultureHere,
+//     damageRaw, enterSiteRaw, findActor, findSongLand, gainMastery, hiddenStep, killRaw, launch, laySurface, learn,
+//     live, loot, markTrial, mayLearn, nearWater, passRite, powerOf, prepare, readTome, releaseConc, rested,
+//     setLand, shopStock, signatureMul, spawnTeacher, step, syncLegacy, talkTo, touchSurface.
+//   the view (render_magic.cpp):
+//     bloodMul, ev.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct MagicOps {
   // ---- the player's casting (updatePlayer): the quick slots (Input::castSlot / castHold / castDual), the classic SPELL
   //      button (Input::spell: the selected slot) and SWAP (Input::swapSpell: the next prepared slot). true: the step is

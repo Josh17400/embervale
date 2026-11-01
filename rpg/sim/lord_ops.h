@@ -21,6 +21,12 @@
 #include "rpg/sim/rise.h"
 #include "rpg/sim/quest_ops.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/view/scripts, tools/tests):
+//     WorkTile, adopt, collect, daily, forceWrathSiege, freeSpot, grant, independence, march, nextId, payTribute,
+//     resettle, restamp, setTax, stamped, startWork, stewardActor, take, talkTo, withhold.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct LordOps {
   // ---- the hooks
   static void step(Game& g, float dt);

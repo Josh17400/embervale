@@ -1,8 +1,8 @@
 # Embervale architecture
 
 How the code is layered, the patterns it repeats, the rules for new code, and a cookbook for the common additions.
-Written for the tree after wave 3 of `docs/SOLID_PLAN.md`; each later wave's docs step updates it. The folder-by-folder
-map is `README.md`.
+Written for the final tree of `docs/SOLID_PLAN.md` (waves 0-5); a change that moves code or adds a pattern updates it
+in the same commit. The folder-by-folder map, with a "Where is ..." index, is `README.md`.
 
 ## 1. Layers
 
@@ -138,26 +138,6 @@ Game calls a lane from a few fixed places:
 On the view side a lane gets its own files (`rpg/view/<lane>_ui.cpp`, `render_<lane>.cpp`) and, for tests, its own
 `rpg/view/scripts/<subject>.cpp`.
 
-### 2.2 View parts (wave 4)
-
-`View` (`rpg/view/view.h`) is a facade over value members, one per part. It keeps its public API (`settleBakes`,
-`peopleMB` and the projection names forward to the parts). A part's method that needs the rest of the view takes
-`View& v`. Float bodies stay in the files they were compiled in (/fp:fast rounding), so a part's `.cpp` can be small.
-
-| Part | Member | Files | What it holds |
-|---|---|---|---|
-| `TerrainBaker` | `bake_` | `terrain_bake.h/.cpp` | the chunk cache, the job queue, the worker threads, prefetch, `pumpBake`, `settleBakes` (the bake itself stays in `terrain.cpp`) |
-| `SpriteCache` | `sprites_` | `sprite_cache.h/.cpp` | every texture cache: people, buildings, walls, forts, heraldry, kingdoms, styled props; `trimCaches`, `peopleMB` |
-| `Camera` | `camera_` | `camera.h/.cpp` | `cam_`, zoom, `toUi`/`toWorld`, `uiInsetsToWorld` (`camera.cpp` holds only the zoom step) |
-| `FxState` | `fx_` | `fx_state.h` | particles, floating lines, toasts, shake |
-| `ViewProbe` | (static hooks) | `view_probe.h` | the test and Witness hooks and counters; included only by `rpg/view/scripts/` and `witness_state.cpp` (`ViewProbe::m4Stats(c.view)`) |
-| lane parts | `party_`, `loot_`, `realm_`, `life_`, `home_`, `lens_`, `weather_`, `hudx_`, `powers_` | `party_ui.h`, `loot_view.h`, `realm_hud.h`, `life_view.h`, `home_view.h`, `lens_state.h`, `weather_view.h`, `hud_extents.h`, `power_view.h` | each lane's view state and its methods |
-| opaque lanes | `MagicFxState` ... | `lane_entry.h` | the entry points of the magic, skills, sea, relief and rise lanes, whose state is an opaque struct defined in their own `.cpp` |
-
-`view.h` includes `loot_card.h` (what an item card showed), not the rarity painter `loot_paint.h`. Four bodies over 300
-lines (`homeCollect`, `drawBuild`, `drawPartyPage`, `drawPowerFx`) stay View members, because the size gate tracks a
-function by its full name.
-
 ### 2.1 Staged functions (wave 3)
 
 Wave 3 broke every function of several hundred lines into named pieces called in the old order, with the shared locals
@@ -179,6 +159,38 @@ long function.
 Private headers made for these splits are included only by their own files: `render_internal.h`,
 `worldmap_internal.h` (`rpg/view`), `doll_compose_internal.h` (`rpg/art/doll`), `engine/audio/audio_internal.h`.
 
+### 2.2 View parts (wave 4)
+
+`View` (`rpg/view/view.h`) is a facade over value members, one per part. It keeps its public API (`settleBakes`,
+`peopleMB` and the projection names forward to the parts). A part's method that needs the rest of the view takes
+`View& v`. Float bodies stay in the files they were compiled in (/fp:fast rounding), so a part's `.cpp` can be small.
+
+| Part | Member | Files | What it holds |
+|---|---|---|---|
+| `TerrainBaker` | `bake_` | `terrain_bake.h/.cpp` | the chunk cache, the job queue, the worker threads, prefetch, `pumpBake`, `settleBakes` (the bake itself stays in `terrain.cpp`) |
+| `SpriteCache` | `sprites_` | `sprite_cache.h/.cpp` | every texture cache: people, buildings, walls, forts, heraldry, kingdoms, styled props; `trimCaches`, `peopleMB` |
+| `Camera` | `camera_` | `camera.h/.cpp` | `cam_`, zoom, `toUi`/`toWorld`, `uiInsetsToWorld` (`camera.cpp` holds only the zoom step) |
+| `FxState` | `fx_` | `fx_state.h` | particles, floating lines, toasts, shake |
+| `ViewProbe` | (static hooks) | `view_probe.h` | the test and Witness hooks and counters; included only by `rpg/view/scripts/` and `witness_state.cpp` (`ViewProbe::m4Stats(c.view)`) |
+| lane parts | `party_`, `loot_`, `realm_`, `life_`, `home_`, `lens_`, `weather_`, `hudx_`, `powers_` | `party_ui.h`, `loot_view.h`, `realm_hud.h`, `life_view.h`, `home_view.h`, `lens_state.h`, `weather_view.h`, `hud_extents.h`, `power_view.h` | each lane's view state and its methods |
+| opaque lanes | `MagicFxState` ... | `lane_entry.h` | the entry points of the magic, skills, sea, relief and rise lanes, whose state is an opaque struct defined in their own `.cpp` |
+
+`view.h` includes `loot_card.h` (what an item card showed), not the rarity painter `loot_paint.h`. Four bodies over 300
+lines (`homeCollect`, `drawBuild`, `drawPartyPage`, `drawPowerFx`) stay View members, because the size gate tracks a
+function by its full name.
+
+### 2.3 Stable and internal Ops members (wave 5)
+
+Each `rpg/sim/*_ops.h` opens its struct with an `API (SOLID 5.6)` comment that splits the members in two:
+- **stable test/script API**: the members called by name from outside `rpg/sim` and `rpg/story` (`tools/tests`,
+  `tools/save_test.cpp`, the gallery tools, `rpg/view/scripts`, `rpg/app`, and the view files it names). Keep their
+  names, signatures and meaning; a change breaks rpg_test lines, script commands or Witness runs;
+- **internal**: every other member. Only the lane and the core call it, and it may change with the lane.
+
+Ops headers whose block says "no stable test/script API" (`AiOps`, `RealmOps`, `StoryOps`, `StreamOps`, `TravelOps`,
+`WaysideOps`) are reached from outside the sim only through Game's public members. A member that a test, a script or
+the view starts to call joins its header's stable list in the same change.
+
 ## 3. Registries
 
 These tables register themselves, so adding a row needs no edit in a central file.
@@ -193,7 +205,7 @@ These tables register themselves, so adding a row needs no edit in a central fil
 | Witness view resets | `rpg/view/view.h` | file-scope presentation state (function statics, memos by actor id) registers its reset beside that state with `EMB_VIEW_RESET(fn);`; `View::witnessRelease` runs every registered reset (in no set order: each touches only its own file's state), so none can be forgotten |
 | dialogue routes | `rpg/sim/dlg_routes.cpp` | one `{lo, hi, choose}` row in `kDlgRoutes` for a new `DLG_*` range (the static_assert checks the order) |
 
-Tables that are still hand-kept lists (wave 5 turns some into one-row tables):
+Tables that are hand-kept lists (one row per kind, but no self-registering macro):
 - sounds: one `X(Name, trim)` row in `SFX_LIST` (`engine/sound_ids.h`) generates the `Sfx` id, its name in `Audio::sfxName`,
   its trim and its slot in the voice table; the voice itself is `Audio::fx<Name>` in `engine/audio/sfx.cpp`;
 - props: the `Prop` enum (`rpg/core/art_ids.h`, with its predicates and footprints), the size (`propW`/`propH`/`propFrames` in `rpg/art/art_props.cpp`,
@@ -260,6 +272,8 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 11. **Every new file starts with 2-4 lines** saying what lives in it and where its neighbours are.
 12. **A new subfolder needs its CMake glob** in the same change, and a new file in rpg_doll needs the `RPG_DOLL_DATA`
     list in `CMakeLists.txt`.
+13. **Tests and scripts use the stable API.** A test or script command calls Game's public members or the members an
+    Ops header lists as stable (section 2.3); calling an internal member makes it stable, so add it to that list.
 
 ## 6. How do I add X
 

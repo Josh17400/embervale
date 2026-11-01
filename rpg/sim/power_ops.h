@@ -1,12 +1,18 @@
 // M8b Treasure: the worn powers' internals (Game's combat is private; PowerOps is its friend, game.h). POWERS lane.
 // Defined in rpg/sim/powers.cpp. The combat code (game.cpp damage / meleeHit / kill / updatePlayer / update,
 // ai.cpp, the companions' party_*.cpp) calls the hooks; the tests (tools/tests/test_powers.cpp) and the scripts
-// (rpg/view/script_powers.cpp) use the rest.
+// (rpg/view/scripts/powers.cpp) use the rest.
 #pragma once
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/powers.h"
 
+// API (SOLID 5.6). Stable test/script API: the members named below are called from outside rpg/sim and
+// rpg/story, by name, so keep their names, signatures and meaning (a change breaks those callers):
+//   tests and scripts (rpg/view/scripts, tools/tests):
+//     cast, companionBody, companionSwing, findActor, hurt, hurtE, kill, proc, recalc, rng, shoot, spawnBandit,
+//     swing.
+// Every other member is internal to the lane: only rpg/sim and rpg/story call it, and it may change with the lane.
 struct PowerOps {
   // ---- whose gear: the player's (Live::stats) or a companion in play's (compStats_). nullptr: none (a foe, a wolf)
   static const gear::GearStats* statsOf(const Game& g, const Actor& a);
