@@ -830,6 +830,7 @@ int main(int argc, char** argv) {
   std::printf("%-11s %6s %7s %7s %8s %7s %7s %6s %5s %9s %9s\n", "SFX", "dur s", "raw", "peak", "peak dB", "rms dB", "cent Hz",
               " >4k%", "clip", "200ms dB", "phone dB");
   float sfxPeakMin = 1, sfxLoudMin = 1, sfxPhoneMin = 1;
+  int sfxPeakQ = 0, sfxLoudQ = 0, sfxPhoneQ = 0;   // (P3 E) the quietest sfx by each measure, named in the report
   for (int s = 0; s < (int)Sfx::COUNT; s++) {
     auto a = std::make_unique<Audio>();
     a->play((Sfx)s);
@@ -849,9 +850,9 @@ int main(int argc, char** argv) {
         (Sfx)s != Sfx::Hoof && (Sfx)s != Sfx::SpellHum && (Sfx)s != Sfx::SpellMotif) {
       // (M9) the wind-up hum and the motif are beds under a cast (its launch and impact carry it), soft by design
       // (M5) the animals and the crowd's cheer are the town's ambience, heard at a distance under the music by design
-      sfxPeakMin = std::fmin(sfxPeakMin, L.peak);
-      sfxLoudMin = std::fmin(sfxLoudMin, loud);
-      sfxPhoneMin = std::fmin(sfxPhoneMin, phone);
+      if (L.peak < sfxPeakMin) { sfxPeakMin = L.peak; sfxPeakQ = s; }
+      if (loud < sfxLoudMin) { sfxLoudMin = loud; sfxLoudQ = s; }
+      if (phone < sfxPhoneMin) { sfxPhoneMin = phone; sfxPhoneQ = s; }
     }
     writeWav(dir / (std::string("sfx_") + kSfxName[s] + ".wav"), x);
   }
@@ -889,9 +890,11 @@ int main(int argc, char** argv) {
   // Every gameplay sfx (UI blips, talk and footsteps excluded: soft by design) must stand >= 6 dB above the loudest
   // music bed, full-range and on a phone speaker, and peak above any music peak.
   std::printf("\nloudest music: peak %.3f, bed %.1f dB, loudest 200ms %.1f dB, phone bed %.1f dB\n"
-              "quietest gameplay sfx: peak %.3f, loudest 200ms %.1f dB, phone %.1f dB  ->  margin %.1f dB, phone margin %.1f dB\n",
-              musPeakMax, db(musBedMax), db(musLoudMax), db(musPhoneMax), sfxPeakMin, db(sfxLoudMin), db(sfxPhoneMin),
-              db(sfxLoudMin) - db(musBedMax), db(sfxPhoneMin) - db(musPhoneMax));
+              "quietest gameplay sfx: peak %.3f (%s), loudest 200ms %.1f dB (%s), phone %.1f dB (%s)  ->  margin %.1f dB, "
+              "phone margin %.1f dB\n",
+              musPeakMax, db(musBedMax), db(musLoudMax), db(musPhoneMax), sfxPeakMin, kSfxName[sfxPeakQ], db(sfxLoudMin),
+              kSfxName[sfxLoudQ], db(sfxPhoneMin), kSfxName[sfxPhoneQ], db(sfxLoudMin) - db(musBedMax),
+              db(sfxPhoneMin) - db(musPhoneMax));
   if (sfxPeakMin < musPeakMax || db(sfxLoudMin) - db(musBedMax) < 6 || db(sfxPhoneMin) - db(musPhoneMax) < 6) {
     std::printf("PROBLEM: an sfx does not stand clearly above the music\n");
     problems++;
@@ -950,6 +953,18 @@ int main(int argc, char** argv) {
     auto hit = renderFor(*a, 0.15f);
     Levels B = levels(bed, 3 * SR), H = levels(hit);
     std::printf("Hit over Combat: hit-window peak %.3f vs bed peak %.3f, rms %.1f dB vs %.1f dB\n", H.peak, B.peak, db(H.rms), db(B.rms));
+  }
+  {   // (P3 E) the reel's ratchet speeds up with the tension (k 0.9 slack .. 1.5 taut, as render_sea plays it, V 0.5)
+    float dur[2], pk[2];
+    const float ks[2] = {0.9f, 1.5f};
+    for (int i = 0; i < 2; i++) {
+      auto a = std::make_unique<Audio>();
+      a->play(Sfx::ReelClick, ks[i], 0.5f);
+      const Levels L = levels(renderSfx(*a));
+      dur[i] = L.activeDur; pk[i] = L.peak;
+    }
+    std::printf("ReelClick ratchet: slack k 0.9 %.3f s peak %.3f, taut k 1.5 %.3f s peak %.3f\n", dur[0], pk[0], dur[1], pk[1]);
+    if (dur[1] >= dur[0] || pk[1] > 0.8f) { std::printf("PROBLEM: the ratchet does not quicken with the tension\n"); problems++; }
   }
   problems += culturePieces(dir);
   problems += tavernPieces(dir);
