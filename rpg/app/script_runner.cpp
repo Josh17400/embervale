@@ -532,8 +532,12 @@ void App::runCmd(const ScriptCmd& c) {
   auto arg = [&](size_t i) { return i < c.a.size() ? c.a[i] : std::string(); };
   std::printf("script %.2f: %s\n", scriptT, c.text.c_str());
   if (op == "key") {
-    SDL_Scancode sc = keyFromName(arg(1));
-    if (sc == SDL_SCANCODE_UNKNOWN) { fail(c.line, "unknown key '" + arg(1) + "'"); return; }
+    // (P3 B5) a key name may hold spaces, as SDL's do ("key Left Shift"): every word after `key` is the name. Before, the
+    // first word alone was read, so fight.txt's "key Left Shift" pressed the left arrow and never rolled
+    std::string name = arg(1);
+    for (size_t k = 2; k < c.a.size(); k++) name += " " + c.a[k];
+    SDL_Scancode sc = keyFromName(name);
+    if (sc == SDL_SCANCODE_UNKNOWN) { fail(c.line, "unknown key '" + name + "'"); return; }
     pushKey(sc, true);
     // (P3 B5) in play a movement key is a real tap: held for exactly one sim step (View::input moves and turns from held
     // keys only), released at the next step's start (scriptStep: the release comes before that step's sim). The
