@@ -394,7 +394,7 @@ void View::drawCreator(Game& g) {
   P.textS(kLX + kLW / 2, kTabY + 8, nm, 1, kGoldC, 1);
   P.text(kLX + kLW / 2, kTabY + 19, backgroundInfo(g.background).name, 1, kDimC, 1);
   float cx = kLX + kLW / 2, footY = kBotY - 54;
-  heroStage(P, light_, cx, footY, 1.0f);
+  heroStage(P, sprites_.light_, cx, footY, 1.0f);
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.faceHold > 0 ? S.face : order[(int)(t_ / 2.2f) & 3];
   int row = face == 3 ? 2 : face;
@@ -415,10 +415,10 @@ void View::drawCreator(Game& g) {
     if (dsc > 0 && menuSwingFits(armed, stage, cx, footY, dsc, 0)) { prev = armed; dface = 0; }
     else gait = MenuGait::Idle;
   }
-  if (gait != MenuGait::Swing) menuSwingT0_ = -1;
+  if (gait != MenuGait::Swing) lens_.menuSwingT0_ = -1;
   if (dsc > 0 && drawMenuDoll(prev, kMenuCreator, dface, gait, cx, footY, dsc, stage)) {
   } else {
-  const Tex& tex = humanTex(lookOf(g));
+  const Tex& tex = sprites_.humanTex(*this, lookOf(g));
   const float sc = 5;
   P.blitEx(tex, frame * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, cx - art::HUMAN_W * sc / 2,
            footY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
@@ -542,7 +542,7 @@ void View::drawCreator(Game& g) {
     }
     // the arms on a shield, beside the arms rows
     const float shX = kRX + kRW - 52, shY = homeRowY(2) + 4;
-    const Tex& arms = cachedTex(creatorArmsKey(a.heraldry, 32), creatorPaintArms);
+    const Tex& arms = sprites_.cachedTex(*this, creatorArmsKey(a.heraldry, 32), creatorPaintArms);
     P.blitEx(arms, 0, 0, arms.w, arms.h, shX, shY, 44, 44 * (float)arms.h / std::max(1, arms.w));
     P.text(shX + 22, shY + 52, "ARMS", 1, kDimC, 1);
   }

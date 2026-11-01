@@ -113,7 +113,7 @@ const Actor* actorById(const Game& g, uint32_t id) {
 bool onScreen(Vec2 s, float m) { return s.x > -m && s.y > -m && s.x < (float)Pix::W + m && s.y < (float)Pix::H + m; }
 }  // namespace
 
-void View::powerEvent(Game& g, const Event& e) {
+void PowerView::powerEvent(View& v, Game& g, const Event& e) {
   (void)g;
   PowerFx f;
   f.kind = e.a;
@@ -132,11 +132,11 @@ void View::powerEvent(Game& g, const Event& e) {
     case Fx::Proc: f.life = 0.4f; break;
     default: f.life = 0.4f; break;
   }
-  f.seed = hash32((uint32_t)powerFx_.size() * 2654435761u ^ (uint32_t)(t_ * 1000.0f) ^ (uint32_t)(e.p.x * 31.0f) ^ (uint32_t)(e.q.y * 17.0f));
+  f.seed = hash32((uint32_t)powerFx_.size() * 2654435761u ^ (uint32_t)(v.t_ * 1000.0f) ^ (uint32_t)(e.p.x * 31.0f) ^ (uint32_t)(e.q.y * 17.0f));
   if (powerFx_.size() < 96) powerFx_.push_back(f);
 }
 
-void View::powerUpdate(Game& g, float dt) {
+void PowerView::powerUpdate(Game& g, float dt) {
   (void)g;
   for (PowerFx& f : powerFx_) f.t += dt;
   powerFx_.erase(std::remove_if(powerFx_.begin(), powerFx_.end(), [](const PowerFx& f) { return f.t >= f.life; }), powerFx_.end());
@@ -162,7 +162,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
       art::MonsterLook L;
       L.base = a.mon; L.overlays = a.overlays; L.tint = a.bodyTint; L.scale = a.scalePct;
       const int cw = art::lookCellW(L), chh = art::lookCellH(L);
-      const Tex& t = monsterTex(a);
+      const Tex& t = sprites_.monsterTex(*this, a);
       const int fr = monsterFrame(a);
       const bool flip = a.aim.x < 0;
       const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);
@@ -324,12 +324,12 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
   };
   {
     float pulseP = 0;
-    for (const PowerFx& f : powerFx_) if (f.kind == (int)Fx::Thorns && f.follow == (uint32_t)g.pl().id) pulseP = std::max(pulseP, (1.0f - f.t / f.life) * f.mag);
+    for (const PowerView::PowerFx& f : powers_.powerFx_) if (f.kind == (int)Fx::Thorns && f.follow == (uint32_t)g.pl().id) pulseP = std::max(pulseP, (1.0f - f.t / f.life) * f.mag);
     if (g.craft.live.stats.has(Unique::BrambleCrown) && g.pl().st != AState::Dead) bramble(g.pl(), pulseP);
     for (const Actor& a : g.actors) {
       if (!a.comp || a.st == AState::Dead) continue;
       float pulse = -1;
-      for (const PowerFx& f : powerFx_) if (f.kind == (int)Fx::Thorns && f.follow == (uint32_t)a.id) pulse = std::max(pulse, (1.0f - f.t / f.life) * f.mag);
+      for (const PowerView::PowerFx& f : powers_.powerFx_) if (f.kind == (int)Fx::Thorns && f.follow == (uint32_t)a.id) pulse = std::max(pulse, (1.0f - f.t / f.life) * f.mag);
       if (pulse >= 0) bramble(a, pulse);   // (a companion's ring shows while their aura stings)
     }
   }
@@ -342,7 +342,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
     const int cw = art::lookCellW(L), chh = art::lookCellH(L);
     const Vec2 s = S(a.p);
     if (!onScreen(s, 40)) continue;
-    const Tex& t = monsterTex(a);
+    const Tex& t = sprites_.monsterTex(*this, a);
     const int fr = monsterFrame(a);
     const bool flip = a.aim.x < 0;
     const float x = std::floor(a.p.x - (float)cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - (float)chh + 2 - cam.y + 0.5f);
@@ -370,7 +370,7 @@ void View::drawPowerFx(Game& g, Vec2 cam) {
   }
 
   // ================================================================ the events
-  for (const PowerFx& f : powerFx_) {
+  for (const PowerView::PowerFx& f : powers_.powerFx_) {
     const float u = f.t / std::max(0.01f, f.life);   // 0 .. 1 through its life
     const float k = 1.0f - u;
     switch ((Fx)f.kind) {

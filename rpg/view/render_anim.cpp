@@ -97,7 +97,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   art::HumanLook heroLook;
   if (a.player && g.service.enlisted()) { heroLook = a.look; RiseViewOps::dressHero(g, heroLook); }
   const art::HumanLook& look = a.player && g.service.enlisted() ? heroLook : a.look;
-  const Tex* tp = &humanTex(look, child);
+  const Tex* tp = &sprites_.humanTex(*this, look, child);
   int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   bool flip = a.face == 3;
   // the frame: rpg/sim/anim.cpp (at rig 1 the v1 column render.cpp picked before P2a); `pose` freezes the hero's
@@ -112,7 +112,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   bool drawn = false;
   bool floorSeat = false;   // (fixer M5 r3) sat on the bare floor: a cushion goes under them
   // (M8) a downed companion lies in Posture::Downed, the player binding them kneels (party_view.cpp partyPosture)
-  const art::Posture pzA = (a.comp || a.player) ? partyPosture(g, a) : a.posture;
+  const art::Posture pzA = (a.comp || a.player) ? party_.partyPosture(g, a) : a.posture;
   const bool posing = pzA != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk || ((a.st == AState::Down || a.st == AState::Dead) && pzA == art::Posture::Downed));
   // (P2b B11) the hero's fall under the death screen runs on the sim's clock (Game::update steps the body's state time
   // in Mode::Dead every step, drawn or not); the draw keeps no state of its own, so nothing leaks across resets
@@ -144,7 +144,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // (P2b VIEW-B) the look's rest frame (LOCO idle frame 0 of a facing): its top (hair, a hat, a crest) is where markers,
   // plates and bubbles float, steady through the walk's bob and a swing's raised blade; a posture moves it with the head
   auto restAnchors = [&](int facing) -> const art::RigAnchors* {
-    const RigTex lt = rigTex(look, art::RigPart::Loco, child);
+    const RigTex lt = sprites_.rigTex(*this, look, art::RigPart::Loco, child);
     return lt.ready() ? lt.sheet->anchorsOf(facing, art::Clip::Idle, 0, 0) : nullptr;
   };
   auto drawV2 = [&](const Tex& tx, const art::FrameRect& f2, const art::RigAnchors* an, Vec2 feet, float alpha2, bool stain, int frameNo, int facing,
@@ -211,7 +211,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   };
   // (P2b `dollpart`) the hero drawn as one doll part alone at its anchor, for an artist's review in the game
   if (a.player && !p2b.dollPart.empty() && art::rigVersion() >= 2) {
-    const RigTex dt2 = dollPartTex(look);
+    const RigTex dt2 = sprites_.dollPartTex(*this, look);
     if (dt2.ready()) {
       const art::FrameRect* f2 = dt2.sheet->frame(p2b.dollFacing, art::Clip::Idle, 0, 0);
       if (f2) { drawV2(*dt2.tex, *f2, dt2.sheet->anchorsOf(p2b.dollFacing, art::Clip::Idle, 0, 0), at, alpha, false, 0, p2b.dollFacing); return; }
@@ -224,9 +224,9 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // (seaOarPhase: the boat cell's own clock, so the hands reach as the blades swing forward and pull as they go aft);
   // the Sit posture until then
   if (rower) {
-    RigTex rt = rigPoseTex(look, art::Posture::Row, 0);
+    RigTex rt = sprites_.rigPoseTex(*this, look, art::Posture::Row, 0);
     const bool rowing = rt.ready() && rt.sheet->count(std::clamp(a.face, 0, 3), art::Clip::Idle, 0) > 0;
-    if (!rowing) rt = rigPoseTex(look, art::Posture::Sit, 0);
+    if (!rowing) rt = sprites_.rigPoseTex(*this, look, art::Posture::Sit, 0);
     if (rt.ready()) {
       const art::PostureInfo pi = art::postureInfo(rowing ? art::Posture::Row : art::Posture::Sit);
       const float clock = t_ + (float)(hash32((uint32_t)a.id * 2654435761u) % 997u) * 0.0131f;
@@ -245,7 +245,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         const Vec2 feet(std::floor(a.p.x - cam.x) + cam.x, std::floor(a.p.y - cam.y) + cam.y - rowerDy - (float)hipY);
         drawV2(*rt.tex, *f2, an, feet, alpha, false, fi, fc, true);
         if (a.player) heroSprite.part = 4;   // (a posture atlas)
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
         return;
       }
     }
@@ -255,7 +255,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // parts keep the queue and fall back to LOCO's frames meanwhile. (The arrival bakes a city's crowd ahead: terrain.cpp.)
   // (P2c flip, D103: C2 is 0 over a whole run) a crowd met at once (a new game, a load, the rig switched under a square)
   // bakes all its on-screen bodies in that one frame: a one-time hitch at a scene change, never a frame of v1 people
-  if (v2Look && !posing) { (void)rigBakeBudget(); rigBakeNow_ = true; (void)rigTex(look, art::RigPart::Loco, child); rigBakeNow_ = false; }
+  if (v2Look && !posing) { (void)sprites_.rigBakeBudget(*this); sprites_.rigBakeNow_ = true; (void)sprites_.rigTex(*this, look, art::RigPart::Loco, child); sprites_.rigBakeNow_ = false; }
   if (v2Look && !posing) {
     AnimPick k = animPick(g, a, 2);
     art::HumanLook lookP = look;
@@ -264,7 +264,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (p2a.poseFamily != art::familyOf(look)) lookP.weapon = weaponOfFamily(p2a.poseFamily);
       // (P2c flip, D103) a frozen pose (test only) bakes its atlases now: a pose of another family than the kit just put on
       // is a look nothing baked yet, never a v1 frame while it waits
-      rigBakeNow_ = true;
+      sprites_.rigBakeNow_ = true;
     }
     // (P2c SWITCH, FOLK-SIM-C's ask) the facing the pick draws (a drawn fighter at rest turns to its threat through the
     // side facing, never a flip); the hero and a frozen pose keep Actor::face
@@ -278,7 +278,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     int partDrawn = -1;
     auto tryPart = [&](art::RigPart part, art::Clip c, int variant, int frame) {
       if (fr2) return;
-      RigTex r = rigTex(lookP, part, child);
+      RigTex r = sprites_.rigTex(*this, lookP, part, child);
       if (!r.ready()) return;
       const art::FrameRect* f = r.sheet->frame(facing, c, variant, frame);
       int fc = facing;
@@ -302,7 +302,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         break;
       default: break;
     }
-    rigBakeNow_ = false;
+    sprites_.rigBakeNow_ = false;
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
@@ -310,7 +310,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
         const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
         const float pivX = std::floor(at.x - cam.x + 0.5f), pivY = std::floor(at.y + bob2 - cam.y + 0.5f);
-        queueLivingFinish(a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
+        lens_.queueLivingFinish(*this, a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
       }
       // (P2c) HeroSprite::part: 0 loco 1 action 2 death 3 run, 4 a posture atlas (home_view's too), 5 the DRAWN part
       if (a.player) heroSprite.part = partDrawn == (int)art::RigPart::Drawn ? 5 : partDrawn;
@@ -382,32 +382,32 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       // (P2a ANIM) rig 2: sleeper2 fitted by bedFit2, its texture cached with the v2 atlases (baked within their budget)
       if (v2Look) {
         const uint64_t sk = ew::mix64(look.key() ^ 0x51EE92ull ^ ((uint64_t)bk << 40) ^ ((uint64_t)(kit + 1) << 48) ^ ((uint64_t)(sf & 1) << 60));
-        auto it = rigTex_.find(sk);
-        if (it == rigTex_.end()) {   // (P2c SWITCH) on screen: baked now, never a v1 sleeper while it waits
+        auto it = sprites_.rigTex_.find(sk);
+        if (it == sprites_.rigTex_.end()) {   // (P2c SWITCH) on screen: baked now, never a v1 sleeper while it waits
           const auto t0 = std::chrono::steady_clock::now();
-          RigEntry e;
+          SpriteCache::RigEntry e;
           const Canvas sc = art::sleeper2(look, bk, kit, sf & 1);
-          if (sc.w > 0 && sc.h > 0) { e.tex = pix_->bake(sc); liftMaskFor(sc, e.tex); }
-          it = rigTex_.emplace(sk, std::move(e)).first;
-          rigBakeFrameMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+          if (sc.w > 0 && sc.h > 0) { e.tex = pix_->bake(sc); sprites_.liftMaskFor(*this, sc, e.tex); }
+          it = sprites_.rigTex_.emplace(sk, std::move(e)).first;
+          sprites_.rigBakeFrameMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         }
-        if (it != rigTex_.end() && it->second.tex.t) {
+        if (it != sprites_.rigTex_.end() && it->second.tex.t) {
           it->second.used = t_;
           const Tex& st = it->second.tex;
           const art::BedFit bf = art::bedFit2(bk, kit);
           const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
           P.blitEx(st, 0, 0, st.w, st.h, sx, sy, (float)st.w, (float)st.h, false, Color(1, 1, 1, alpha));
           drawn = true;
-          m5Count_.posed++;
+          life_.m5Count_.posed++;
         }
       }
       if (drawn) {
-      } else if (const Tex* st = sleeperTex(look, bk, kit, sf)) {
+      } else if (const Tex* st = sprites_.sleeperTex(*this, look, bk, kit, sf)) {
         const art::BedFit bf = art::bedFit(bk, kit);
         const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
         P.blitEx(*st, 0, 0, st->w, st->h, sx, sy, (float)st->w, (float)st->h, false, Color(1, 1, 1, alpha));
         drawn = true;
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
         v1Draws++;
       }
     }
@@ -422,10 +422,10 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     // (P2a ANIM) rig 2: the posture's v2 frame (humanPosture2: clip Idle variant 0, four native facings; the generic
     // sleeper one), its pivot on at2 (seatFit2's floor under the hips; standing postures the feet), never flipped
     if (!drawn && v2Look) {
-      (void)rigBakeBudget();
-      rigBakeNow_ = true;   // (P2c SWITCH; flip D103: no 8 ms cap) on screen: baked now, never a v1 posture while it waits
-      const RigTex rt = rigPoseTex(look, pz, variant);
-      rigBakeNow_ = false;
+      (void)sprites_.rigBakeBudget(*this);
+      sprites_.rigBakeNow_ = true;   // (P2c SWITCH; flip D103: no 8 ms cap) on screen: baked now, never a v1 posture while it waits
+      const RigTex rt = sprites_.rigPoseTex(*this, look, pz, variant);
+      sprites_.rigBakeNow_ = false;
       if (rt.ready()) {
         int fc = std::clamp(a.face, 0, 3);
         const art::FrameRect* f2 = rt.sheet->frame(fc, art::Clip::Idle, 0, pf);
@@ -433,7 +433,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         if (f2) {
           const int fi = ((pf % std::max(1, rt.sheet->count(fc, art::Clip::Idle, 0))) + 64) % std::max(1, rt.sheet->count(fc, art::Clip::Idle, 0));
           if (floorSeat) {   // (fixer M5 r3) a floor sitter's cushion, under the v2 hips
-            const Tex& ct = cachedTex(0x6Aull << 56 | (uint64_t)(hash32((uint32_t)(a.useX * 73856093) ^ (uint32_t)(a.useY * 19349663)) & 3u),
+            const Tex& ct = sprites_.cachedTex(*this, 0x6Aull << 56 | (uint64_t)(hash32((uint32_t)(a.useX * 73856093) ^ (uint32_t)(a.useY * 19349663)) & 3u),
                                       rvFloorCushion);
             P.blitEx(ct, 0, 0, ct.w, ct.h, std::floor(at2.x - 9.0f - cam.x + 0.5f), std::floor(at2.y - 5.0f - cam.y + 0.5f), (float)ct.w, (float)ct.h,
                      false, Color(1, 1, 1, alpha));
@@ -442,28 +442,28 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
           // (P2c SWITCH) the living finish on a T5-T6 body in a posture too (seated, kneeling, at work)
           if (look.topTier() >= 4 && a.st != AState::Dead) {
             const float px2 = std::floor(at2.x - cam.x + 0.5f), py2 = std::floor(at2.y - cam.y + 0.5f);
-            queueLivingFinish(a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
+            lens_.queueLivingFinish(*this, a, look, rt, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), px2 - f2->px, py2 - f2->py, px2, py2, alpha);
           }
           if (a.player) heroSprite.part = 4;
-          m5Count_.posed++;
+          life_.m5Count_.posed++;
           return;
         }
       }
     }
     if (!drawn) {
-      if (const Tex* pt = poseTex(look, pz, variant, child)) {
+      if (const Tex* pt = sprites_.poseTex(*this, look, pz, variant, child)) {
         tp = pt;
         fr = pf;
         if (pi.oneRow || pi.lying) { row = 0; flip = false; }
-        m5Count_.posed++;
+        life_.m5Count_.posed++;
       } else {
         fr = stride ? 1 + (int)(a.animT * 9) % 4 : 0;   // the stand-in this frame: its own standing sheet
-        m5Count_.poseFallback++;
+        life_.m5Count_.poseFallback++;
       }
       bob += (float)art::postureInfo(pz).dy;
     }
   }
-  const bool standSheet = !child && tp == &humanTex(look, child);   // (M8b fixer r3) the aura fits this sheet only
+  const bool standSheet = !child && tp == &sprites_.humanTex(*this, look, child);   // (M8b fixer r3) the aura fits this sheet only
   const Tex& t = *tp;
   float x = at.x - art::HUMAN_W / 2.0f - cam.x, y = at.y - art::HUMAN_H + 2 + bob - cam.y;
   if (a.st == AState::Dead) y += 3;   // the dead's offset (v1: the hurt frame, 3 px lower)
@@ -481,11 +481,11 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     P.rect(x + 1, wy + 1, 14, 1, Color(0.05f, 0.18f, 0.26f, 0.35f * alpha));
     P.rect(x + 4, wy - 1, 2, 1, Color(0.9f, 0.97f, 1.0f, 0.4f * alpha));
     drawn = true;
-    m5Count_.posed++;
+    life_.m5Count_.posed++;
     v1Draws++;
   }
   if (floorSeat && !drawn) {   // (fixer M5 r3) "seated patrons hover with no seat": a cushion under them
-    const Tex& ct = cachedTex(0x6Aull << 56 | (uint64_t)(hash32((uint32_t)(a.useX * 73856093) ^ (uint32_t)(a.useY * 19349663)) & 3u),
+    const Tex& ct = sprites_.cachedTex(*this, 0x6Aull << 56 | (uint64_t)(hash32((uint32_t)(a.useX * 73856093) ^ (uint32_t)(a.useY * 19349663)) & 3u),
                               rvFloorCushion);
     P.blitEx(ct, 0, 0, ct.w, ct.h, std::floor(at.x - 9.0f - cam.x + 0.5f), std::floor(at.y - 5.0f - cam.y + 0.5f), (float)ct.w, (float)ct.h,
              false, Color(1, 1, 1, alpha));
@@ -494,7 +494,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // flame that hugs the whole silhouette and licks upward (loot_ui.cpp mythicAuraTex): behind the body here, and
   // again additively after the lighting (beasts::glows), so it burns by night as well as reading by day
   if (!drawn && standSheet && a.look.glow && a.look.glowColor == kMythicGlow && a.st != AState::Dead) {
-    if (const Tex* au = mythicAuraTex(a.look)) {
+    if (const Tex* au = sprites_.mythicAuraTex(*this, a.look)) {
       const int v = (int)(t_ * 11.0f + (float)(a.id % 7) * 0.37f) % AURA_V;
       const int sx = ((row * art::HUMAN_FRAMES + fr) * AURA_V + v) * AURA_CW;
       const float ax = x - AURA_PAD, ay = y - AURA_PAD;
@@ -522,10 +522,10 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     hs.pivX = std::floor(at.x - cam.x + 0.5f); hs.pivY = std::floor(at.y + bob - cam.y + 0.5f);
     hs.bx0 = 0; hs.by0 = 0; hs.bx1 = -1; hs.by1 = -1;
     if (standSheet) {
-      auto bi = humanBoxes_.find(look.key());
+      auto bi = sprites_.humanBoxes_.find(look.key());
       const int cell = row * art::HUMAN_FRAMES + fr;
-      if (bi != humanBoxes_.end() && cell >= 0 && cell < (int)bi->second.size()) {
-        const CellBox& cb = bi->second[(size_t)cell];
+      if (bi != sprites_.humanBoxes_.end() && cell >= 0 && cell < (int)bi->second.size()) {
+        const SpriteCache::CellBox& cb = bi->second[(size_t)cell];
         if (cb.x1 >= cb.x0) {   // a flipped cell mirrors its box
           hs.bx0 = flip ? art::HUMAN_W - 1 - cb.x1 : cb.x0; hs.bx1 = flip ? art::HUMAN_W - 1 - cb.x0 : cb.x1;
           hs.by0 = cb.y0; hs.by1 = cb.y1;
@@ -626,7 +626,7 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
     const bool back = upright ? face == 1 : variant == (face == 3 ? 1 : 0);
     const bool flip = upright ? face == 0 : face == 3;
     const int rot = upright ? 0 : face == 0 ? 1 : face == 1 ? 3 : 0;
-    const Tex& ft = cachedTex(0x7Cull << 56 | (uint64_t)sz << 16 | (uint64_t)f << 8 | (back ? 4ull : 0ull) | (uint64_t)rot, rvArcCells);
+    const Tex& ft = sprites_.cachedTex(*this, 0x7Cull << 56 | (uint64_t)sz << 16 | (uint64_t)f << 8 | (back ? 4ull : 0ull) | (uint64_t)rot, rvArcCells);
     // the circle's centre on the body (pivot-relative) and the way the cell lies from it (facing up the arch tops out 3 px
     // over the crown and is drawn behind the body, rvSwingFxBehind: the head and shoulders hide its middle)
     static const int kArcX[4] = {0, 0, -1, 1}, kArcY[4] = {-32, -16, -17, -17};
@@ -660,8 +660,8 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
   const int rot = turns ? (a.face == 0 ? 1 : 3) : 0;
   const RvFxSize s1 = rvFxSize(src, v2, false), s = rvFxSize(src, v2, fin);
   const Tex& ft = !turns && s.w == art::fxW(src) && s.h == art::fxH(src)
-                      ? fx_[(int)src]
-                      : cachedTex(0x7Dull << 56 | (uint64_t)s.w << 40 | (uint64_t)s.h << 24 | (uint64_t)src << 8 | (uint64_t)rot, rvSizedFx);
+                      ? sprites_.fx_[(int)src]
+                      : sprites_.cachedTex(*this, 0x7Dull << 56 | (uint64_t)s.w << 40 | (uint64_t)s.h << 24 | (uint64_t)src << 8 | (uint64_t)rot, rvSizedFx);
   const int sw = turns ? s.h : s.w, sh = turns ? s.w : s.h;      // the drawn cell (turned a quarter: transposed)
   const int sw1 = turns ? s1.h : s1.w, sh1 = turns ? s1.w : s1.h;   // the hit 1 / 2 cell it grows from
   const art::RigMetrics& M2 = art::rig(2);

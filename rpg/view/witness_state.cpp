@@ -16,6 +16,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 
 namespace {
 const char* roleName(Role r) {
@@ -157,7 +158,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   const Actor& P = g.pl();
   j.begin_object();
   j.field("mode", modeName(g.mode)).field("day", g.day).field("hour", r2(g.hour)).field("time", r2(g.time));
-  if (g.mode == Mode::Menu) j.field("menu", v.menuTab());
+  if (g.mode == Mode::Menu) j.field("menu", ViewProbe::menuTab(v));
   if (g.mode == Mode::Dialogue) {
     j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 1200)).key("options").begin_array();
     // only the options on show (the page the player sees: the first page's headers, or the open group's options), in
@@ -192,7 +193,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px. It and
       // state.screen are what the window decides: witness.json's replay.ignore leaves both out of a replay's end check
     const View::HeroSprite& hs = v.heroSprite;
-    const Pix::Layer& wl = v.worldLayerForTests();
+    const Pix::Layer& wl = ViewProbe::worldLayerForTests(v);
     j.key("sprite").begin_object().field("rig", art::rigVersion()).field("figH", art::rig().figH(P.look)).field("drawn", hs.on);
     if (hs.on && hs.bx1 >= hs.bx0) {
       const double s = wl.scale;
@@ -246,10 +247,10 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
 
   // (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
   {
-    const Pix::Layer& ul = v.uiLayerForTests();
-    const Pix::Layer& wl = v.worldLayerForTests();
+    const Pix::Layer& ul = ViewProbe::uiLayerForTests(v);
+    const Pix::Layer& wl = ViewProbe::worldLayerForTests(v);
     int pw = 0, ph = 0;
-    v.outputSizeForTests(pw, ph);
+    ViewProbe::outputSizeForTests(v, pw, ph);
     const screen::Settings ss = screen::get();
     j.key("screen").begin_object();
     j.key("window").vec(pw, ph);
@@ -511,13 +512,22 @@ bool View::witnessHides(const Game& g, const Actor& a) const {
 
 void View::witnessRelease() {
   shutdown();            // the bakers joined (a rebuilt View starts its own on its first prefetch)
-  bldgAsync_.clear();    // (std::async futures: waits for a paint still running)
-  bldgAsyncKeys_.clear();
+  sprites_.bldgAsync_.clear();    // (std::async futures: waits for a paint still running)
+  sprites_.bldgAsyncKeys_.clear();
   if (pix_) pix_->destroyUnmarked();
-  witnessResetBeasts();
-  witnessResetWorldMap();
-  witnessResetPaperdoll();
-  witnessResetPartyHud();
-  witnessResetHud();
+  ViewReset::runAll();   // every file's presentation state kept outside View (EMB_VIEW_RESET)
 }
 #endif
+
+// The EMB_VIEW_RESET registry (view.h): outside the EMB_WITNESS guard, so a build without the harness still links the
+// registrations; the list is a function static, so a registration never runs before it exists.
+#include <vector>
+#include "rpg/view/view.h"
+static std::vector<void (*)()>& viewResets() {
+  static std::vector<void (*)()> list;
+  return list;
+}
+ViewReset::ViewReset(void (*fn)()) { viewResets().push_back(fn); }
+void ViewReset::runAll() {
+  for (void (*fn)() : viewResets()) fn();
+}

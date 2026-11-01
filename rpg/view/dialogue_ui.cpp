@@ -26,7 +26,7 @@ void View::drawDialogue(Game& g) {
     // the speaker on a small lit stage, framed like the inventory's icons
     const float px = x + 8, py = y + 8, pw = 48, ph = std::min(58.0f, L.optTop.empty() ? L.h - 16 : L.optsTop - py - 6);
     P.rect(px, py, pw, ph, Color(0.03f, 0.025f, 0.04f, 0.9f));
-    P.blitEx(light_, 0, 0, 64, 64, px - 8, py - 6, pw + 16, ph + 10, false, Color(1, 0.72f, 0.4f, 0.22f), 1);
+    P.blitEx(sprites_.light_, 0, 0, 64, 64, px - 8, py - 6, pw + 16, ph + 10, false, Color(1, 0.72f, 0.4f, 0.22f), 1);
     for (const Actor& a : g.actors)
       if (a.id == d.actor) {
         // (P2c SWITCH) rig 2: the speaker's doll frame (idle, facing down; the frame centred, a shield or a blade inside the stage) at 1x or 2x: the whole figure when the stage
@@ -34,9 +34,9 @@ void View::drawDialogue(Game& g) {
         const MenuStage dst{px + 1, py + 1, pw - 2, ph - 2};
         bool v2 = false;
         if (art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
-          rigBakeNow_ = true;
-          const RigTex lt = rigTex(a.look, art::RigPart::Loco);
-          rigBakeNow_ = false;
+          sprites_.rigBakeNow_ = true;
+          const RigTex lt = sprites_.rigTex(*this, a.look, art::RigPart::Loco);
+          sprites_.rigBakeNow_ = false;
           const art::FrameRect* f0 = lt.ready() ? lt.sheet->frame(0, art::Clip::Idle, 0, 0) : nullptr;
           if (f0) {
             const int dsc = f0->w * 2 <= (int)pw - 4 ? 2 : 1;
@@ -48,7 +48,7 @@ void View::drawDialogue(Game& g) {
           }
         }
         if (!v2) {
-        const Tex& t = humanTex(a.look);
+        const Tex& t = sprites_.humanTex(*this, a.look);
         const float sc = 2.0f, hw = art::HUMAN_W * sc;
         // (M5) a short stage (a long option list) shows the speaker from the head down, never past the frame
         const float srcH = std::min((float)art::HUMAN_H, std::floor((ph - 4) / sc)), hh = srcH * sc;

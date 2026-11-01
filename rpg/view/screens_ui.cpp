@@ -33,7 +33,7 @@ void View::drawTitle(Game& g, bool hasSave) {
   band((float)box.h - 11, 26, 0.6f);
   P.pushBox(box.x, box.y, box.w, box.h);
   // ember glow behind the logo
-  P.blitEx(light_, 0, 0, 64, 64, Pix::W / 2 - 160, y - 50, 320, 120, false, Color(1, 0.45f, 0.15f, 0.35f + 0.1f * std::sin(t_ * 2)), 1);
+  P.blitEx(sprites_.light_, 0, 0, 64, 64, Pix::W / 2 - 160, y - 50, 320, 120, false, Color(1, 0.45f, 0.15f, 0.35f + 0.1f * std::sin(t_ * 2)), 1);
   const std::string title = "EMBERVALE";
   for (int k = 3; k >= 1; k--) P.text(Pix::W / 2 + k, y + k, title, 5, Color(0.12f, 0.04f, 0.02f, 0.5f), 1);
   P.text(Pix::W / 2, y, title, 5, Color(1, 0.86f, 0.55f), 1);
@@ -63,8 +63,8 @@ void View::drawDead(Game& g) {
   const float tintA = ease(t / 0.8f), bandA = ease((t - 0.15f) / 0.40f), wordA = ease((t - 0.25f) / 0.30f);
   P.rect(0, 0, Pix::W, Pix::H, Color(0.15f, 0, 0, 0.5f * tintA));
   // the hero on the UI layer: his feet (the pivot) and the top of a standing figure (rig 2 stands about 40 world px)
-  const float upw = uiPerWorld();
-  const Vec2 hp = toUi(g.pl().p);
+  const float upw = camera_.uiPerWorld(*this);
+  const Vec2 hp = camera_.toUi(*this, g.pl().p);
   const float headY = hp.y - 42.0f * upw, feetY = hp.y + 8.0f * upw;
   const float top = (float)Pix::ST, bot = (float)(Pix::H - Pix::SB);
   // the words' centre line: above the head with the band's soft lower edge just clearing it; on a screen too short for

@@ -70,10 +70,10 @@ struct SkillsUiOps {
   static float now(const View& v) { return v.t_; }
   static bool touch(const View& v) { return v.touchUI; }
   static Audio& audio(View& v) { return *v.audio_; }
-  static const Tex& light(View& v) { return v.light_; }
+  static const Tex& light(View& v) { return v.sprites_.light_; }
   static void button(View& v, float x, float y, float w, float h, const std::string& label, bool hot) { v.button(x, y, w, h, label, hot); }
-  static void arrow(View& v, float x, float y, int dir) { v.cmpArrow(x, y, dir); }
-  static const Tex& itemTex(View& v, const Game& g, const Item& it) { return v.itemTex(g, it); }
+  static void arrow(View& v, float x, float y, int dir) { v.loot_.cmpArrow(v, x, y, dir); }
+  static const Tex& itemTex(View& v, const Game& g, const Item& it) { return v.sprites_.itemTex(v, g, it); }
   static int& menuTab(View& v) { return v.menuTab_; }
   static std::vector<View::Finger>& fingers(View& v) { return v.fingers_; }
   // a baked texture of the lane's cache (paint once per key)
@@ -105,5 +105,5 @@ struct SkillsUiOps {
   static bool isSkillToast(const Toast& t) { return t.rarity <= -100; }
   // scripts (script_skillsui.cpp): the menu box's origin on screen (the pages lay out inside it), the page keys / taps
   static void boxOf(View& v, const Game& g, int& x, int& y, int& w, int& h) { const View::UiBox b = v.modalBox(g); x = b.x; y = b.y; w = b.w; h = b.h; }
-  static void pageKey(View& v, Game& g, int key) { if (v.menuTab_ == View::kSkillsTab) v.skillsPageKey(g, key); else if (v.menuTab_ == View::kSpellsTab) v.spellsPageKey(g, key); }
+  static void pageKey(View& v, Game& g, int key) { if (v.menuTab_ == View::kSkillsTab) SkillsLane::skillsPageKey(v, g, key); else if (v.menuTab_ == View::kSpellsTab) SkillsLane::spellsPageKey(v, g, key); }
 };

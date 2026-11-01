@@ -102,8 +102,8 @@ bool inView(Vec2 cam, int tx, int ty, int padT = 6) {
 }  // namespace
 
 // ---------------------------------------------------------------- the lord's standard in its owner's arms
-const Tex* View::riseBannerTex(Game& g, int tx, int ty) {
-  RiseViewState& S = RiseViewOps::st(*this);
+const Tex* RiseLane::riseBannerTex(View& v, Game& g, int tx, int ty) {
+  RiseViewState& S = RiseViewOps::st(v);
   S.bannerCount++;
   ew::Gid k = 0;
   const int h = g.world.siteAt(tx, ty, 3);
@@ -119,19 +119,19 @@ const Tex* View::riseBannerTex(Game& g, int tx, int ty) {
   const uint64_t key = ew::mix64(hr.key() ^ 0x10ADBA77ull);
   auto it = S.worldTex.find(key);
   if (it != S.worldTex.end()) return &it->second;
-  return &(S.worldTex[key] = pix_->bake(art::lordBannerSprite(hr)));
+  return &(S.worldTex[key] = v.pix_->bake(art::lordBannerSprite(hr)));
 }
 
 // ---------------------------------------------------------------- collecting this frame's pieces
-void View::riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
-  RiseViewState& S = RiseViewOps::st(*this);
+void RiseLane::riseSorted(View& v, Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
+  RiseViewState& S = RiseViewOps::st(v);
   S.pieces.clear();
   S.flats.clear();
   S.stats.works = 0; S.stats.warlordPieces = 0; S.stats.rebuildPieces = 0; S.stats.raidScars = 0;
   S.stats.lordBanners = S.bannerCount;   // (last frame's: the banners are counted as they are drawn)
   S.bannerCount = 0;
-  const float dt = std::clamp(t_ - S.smokeT, 0.0f, 0.1f);
-  S.smokeT = t_;
+  const float dt = std::clamp(v.t_ - S.smokeT, 0.0f, 0.1f);
+  S.smokeT = v.t_;
   if (g.inside || !g.world.endless || g.mode == Mode::Title) return;
   const Map& m = g.world.over;
   if (m.kind != MapKind::Overworld || m.bldgAt.empty()) return;
@@ -379,7 +379,7 @@ void View::riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& 
           if (b.site != (int)h || n >= 4) continue;
           if (std::abs(b.r.x - s.ex) > 14 || std::abs(b.r.y - s.ey) > 12) continue;
           n++;
-          Rng r((uint32_t)(t_ * 1000.0f) * 131u + (uint32_t)b.r.x * 977u + (uint32_t)b.r.y);
+          Rng r((uint32_t)(v.t_ * 1000.0f) * 131u + (uint32_t)b.r.x * 977u + (uint32_t)b.r.y);
           // (M12 fixer) a thick column a roof at a time (a faint wisp did not read as a town that burned)
           if (r.f() > dt * 34.0f) continue;
           Particle q;
@@ -391,7 +391,7 @@ void View::riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& 
           q.size = r.range(4.5f, 7.5f);
           q.grav = -1.5f;
           q.kind = 2;
-          parts_.push_back(q);
+          v.fx_.parts_.push_back(q);
         }
       }
     }
@@ -407,10 +407,10 @@ const Tex& worldTex(View::RiseViewState& S, Pix& P, uint64_t key, const std::fun
 }
 }  // namespace
 
-void View::drawRiseGround(Game& g, Vec2 cam) {
+void RiseLane::drawRiseGround(View& v, Game& g, Vec2 cam) {
   (void)g;
-  RiseViewState& S = RiseViewOps::st(*this);
-  Pix& P = *pix_;
+  RiseViewState& S = RiseViewOps::st(v);
+  Pix& P = *v.pix_;
   for (const RiseViewState::Piece& p : S.flats) {
     if (p.kind == P_ASH) {   // (M12 fixer r2) the burned house's scorched floor (its frame: one tile above its back row)
       const Tex& t = worldTex(S, P, 0xA5B0A700ull | (uint64_t)(p.var & 3), [&] { return art::burntShell(0, p.var & 3); });
@@ -422,11 +422,11 @@ void View::drawRiseGround(Game& g, Vec2 cam) {
   }
 }
 
-void View::drawRiseSorted(Game& g, int idx, Vec2 cam) {
-  RiseViewState& S = RiseViewOps::st(*this);
+void RiseLane::drawRiseSorted(View& v, Game& g, int idx, Vec2 cam) {
+  RiseViewState& S = RiseViewOps::st(v);
   if (idx < 0 || idx >= (int)S.pieces.size()) return;
   const RiseViewState::Piece& p = S.pieces[(size_t)idx];
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   auto blitFrame = [&](const Tex& t, int fw, int fr) {
     P.blitEx(t, fr * fw, 0, fw, t.h, std::floor(p.x - fw / 2.0f - cam.x), std::floor(p.y - t.h - cam.y), (float)fw, (float)t.h);
   };
@@ -437,17 +437,17 @@ void View::drawRiseSorted(Game& g, int idx, Vec2 cam) {
       const uint64_t key = ew::mix64(hr.key() ^ 0x10ADBA77ull);
       const Tex& t = worldTex(S, P, key, [&] { return art::lordBannerSprite(hr); });
       const int fw = art::risePropW(art::Prop::LordBanner);
-      blitFrame(t, fw, (int)(t_ * 5 + p.x * 0.13f) % art::risePropFrames(art::Prop::LordBanner));
+      blitFrame(t, fw, (int)(v.t_ * 5 + p.x * 0.13f) % art::risePropFrames(art::Prop::LordBanner));
       S.bannerCount++;
       break;
     }
     case P_PROP: {
       const art::Prop pr = (art::Prop)p.var;
-      if ((size_t)pr >= props_.size()) break;
-      const Tex& t = props_[(size_t)pr];
+      if ((size_t)pr >= v.sprites_.props_.size()) break;
+      const Tex& t = v.sprites_.props_[(size_t)pr];
       const int fw = art::propW(pr);
       if (propShadow(pr) >= 2 && pr != art::Prop::Watchtower)
-        P.blitEx(shadowBig_, 0, 0, 40, 12, p.x - 11 - cam.x, p.y - 4 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
+        P.blitEx(v.sprites_.shadowBig_, 0, 0, 40, 12, p.x - 11 - cam.x, p.y - 4 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
       blitFrame(t, fw, 0);
       break;
     }
@@ -456,7 +456,7 @@ void View::drawRiseSorted(Game& g, int idx, Vec2 cam) {
       if (p.key) { cult::Heraldry hr; RiseViewOps::armsOf(g, p.key, hr, nullptr); field = hr.field; trim = hr.charge ? hr.charge : trim; }
       const uint64_t key = ew::mix64(((uint64_t)field << 32 | trim) ^ 0x3A4D57ull);
       const Tex& t = worldTex(S, P, key, [&] { return art::warlordStandard(field, trim); });
-      blitFrame(t, art::kWarlordStdW, (int)(t_ * 4.5f + p.x * 0.11f) % 4);
+      blitFrame(t, art::kWarlordStdW, (int)(v.t_ * 4.5f + p.x * 0.11f) % 4);
       break;
     }
     case P_TROPHY: {
@@ -514,16 +514,16 @@ void View::drawRiseSorted(Game& g, int idx, Vec2 cam) {
   }
 }
 
-void View::riseLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
+void RiseLane::riseLights(View& v, Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
   if (g.inside || g.mode == Mode::Title) return;
-  RiseViewState& S = RiseViewOps::st(*this);
+  RiseViewState& S = RiseViewOps::st(v);
   const float dark = std::clamp(1.0f - g.daylight() * 1.3f, 0.0f, 1.0f);
   if (dark < 0.12f) return;
   // the watchtowers' lanterns in their lookouts (the props and the works the view draws) and the pool they cast
   const Map& m = g.world.over;
-  const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  const Vec2 cam(std::floor(v.camera_.cam_.x), std::floor(v.camera_.cam_.y));
   auto lantern = [&](float bx, float by, float k) {   // bx, by: the tower's base (bottom centre of its tile)
-    const float f = 0.88f + 0.12f * std::sin(t_ * 7.1f + bx * 0.3f);
+    const float f = 0.88f + 0.12f * std::sin(v.t_ * 7.1f + bx * 0.3f);
     const float lx = bx + 3, ly = by - art::risePropH(art::Prop::Watchtower) + 27;
     light(Vec2(lx, ly), 22, Color(1.0f, 0.82f, 0.48f), 0.95f * k * f);
     light(Vec2(lx, ly + 10), 46, Color(1.0f, 0.62f, 0.32f), 0.45f * k * f);

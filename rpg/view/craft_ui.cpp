@@ -170,7 +170,7 @@ void View::drawForge(Game& g) {
     else if (touchUI) P.rect(L.lx - 2, y - 2, L.lw, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
     const float isz = touchUI ? 16.0f : 12.0f;
     const Item pv = previewOf(g, R);
-    rarityIcon(g, pv, L.lx, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);
+    loot_.rarityIcon(*this, g, pv, L.lx, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);
     const bool ok = craft::canMake(R, g.inv, g.craft, nullptr);
     const float ty = y + std::floor((L.pitch - 8) / 2) - 2;
     std::string nm = craft::recipeName(R, R.culture && g.world.src ? &g.world.src->culture(R.culture) : bc);
@@ -194,14 +194,14 @@ void View::drawForge(Game& g) {
   const Item pv = previewOf(g, R);
   // (M8b) the result in its rarity cell (a forge piece starts Common: the quiet frame), compared with what that slot wears
   P.rect(L.dx - 1, L.listY - 1, 34, 34, Color(0.04f, 0.03f, 0.05f, 0.6f));
-  if (itemEquippable(pv.kind)) rarityFrame(L.dx - 1, L.listY - 1, 34, 34, pv.rarity);
-  P.blitEx(itemTex(g, pv), 0, 0, 16, 16, L.dx, L.listY, 32, 32);
+  if (itemEquippable(pv.kind)) loot_.rarityFrame(*this, L.dx - 1, L.listY - 1, 34, 34, pv.rarity);
+  P.blitEx(sprites_.itemTex(*this, g, pv), 0, 0, 16, 16, L.dx, L.listY, 32, 32);
   float y = L.listY + 2;
   const std::string title = craft::recipeName(R, rc);
-  rarityText(L.dx + 38, y, fit(title, L.dw - 40), pv.rarity);
+  loot_.rarityText(*this, L.dx + 38, y, fit(title, L.dw - 40), pv.rarity);
   y += 10;
   bool isWorn = false;
-  const Item* vs = R.gear() ? wornFor(g, pv, -1, isWorn) : nullptr;
+  const Item* vs = R.gear() ? loot_.wornFor(g, pv, -1, isWorn) : nullptr;
   if (R.gear()) {
     const int pw = (int)std::lround(gear::usePower(pv, g.plLevel));
     const char* what = R.kind == ItemKind::Weapon ? "DAMAGE " : R.kind == ItemKind::Bow ? "ARROWS " : "ARMOR ";
@@ -211,7 +211,7 @@ void View::drawForge(Game& g) {
     if (vs && R.kind != ItemKind::Ring && R.kind != ItemKind::Amulet) {   // the base stat's change against the worn piece
       const int d = pw - (int)std::lround(gear::usePower(*vs, g.plLevel));
       const float ax = L.dx + 38 + (float)P.textW(ps, 1) + 6;
-      cmpArrow(ax, y, d > 0 ? 1 : d < 0 ? -1 : 0);
+      loot_.cmpArrow(*this, ax, y, d > 0 ? 1 : d < 0 ? -1 : 0);
       if (d) P.text(ax + 10, y, (d > 0 ? "+" : "") + std::to_string(d), 1, d > 0 ? kOk : kBad);
     }
     y += 10;
@@ -230,7 +230,7 @@ void View::drawForge(Game& g) {
     const int have = heldOf(g, nd);
     const bool enough = have >= nd.count;
     const Item ic = craft::makeStuff(nd.stuff, 1);
-    P.blitEx(itemTex(g, ic), 0, 0, 16, 16, L.dx, y - 2, 12, 12);
+    P.blitEx(sprites_.itemTex(*this, g, ic), 0, 0, 16, 16, L.dx, y - 2, 12, 12);
     const std::string cnt = std::to_string(have) + "/" + std::to_string((int)nd.count);
     P.text(L.dx + 15, y, fit(needName(g, nd), L.dw - 20 - P.textW(cnt, 1) - 6), 1, kText);
     P.text(L.dx + L.dw - 2, y, cnt, 1, enough ? kOk : kBad, 2);
@@ -249,8 +249,8 @@ void View::drawForge(Game& g) {
   }
   // (M8b) the compare: the result against what that slot wears (the overall verdict, gear::powerScore)
   if (R.gear() && y + 12 < L.btnY - 26) {
-    const int v = cmpVerdict(g, pv, vs);
-    cmpArrow(L.dx, y + 1, v);
+    const int v = loot_.cmpVerdict(g, pv, vs);
+    loot_.cmpArrow(*this, L.dx, y + 1, v);
     const std::string vw = std::string(v > 0 ? "UPGRADE" : v < 0 ? "DOWNGRADE" : "ABOUT EVEN") + (vs ? " VS WORN" : " - SLOT EMPTY");
     P.text(L.dx + 10, y + 1, fit(vw, L.dw - 11), 1, v > 0 ? kOk : v < 0 ? kBad : kDim);
     y += 12;
@@ -262,9 +262,9 @@ void View::drawForge(Game& g) {
     for (size_t i = g.inv.size(); i-- > 0;)
       if ((g.inv[i].flags & IF_CRAFTED) && itemEquippable(g.inv[i].kind) && status == "MADE " + g.inv[i].name) { made = &g.inv[i]; break; }
     if (made) {
-      rarityIcon(g, *made, L.dx + 1, L.btnY - 15, 12);
+      loot_.rarityIcon(*this, g, *made, L.dx + 1, L.btnY - 15, 12);
       P.text(L.dx + 17, L.btnY - 12, "MADE", 1, kOk);
-      rarityText(L.dx + 17 + 30, L.btnY - 12, fit(made->name, L.dw - 48), made->rarity);
+      loot_.rarityText(*this, L.dx + 17 + 30, L.btnY - 12, fit(made->name, L.dw - 48), made->rarity);
     } else {
       P.text(L.dx, L.btnY - 12, fit(status, L.dw), 1, kOk);
     }

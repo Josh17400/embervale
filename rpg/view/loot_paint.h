@@ -23,6 +23,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/magic.h"
+#include "rpg/view/loot_card.h"
 #include "rpg/sim/skills.h"
 #include "rpg/view/skills_paint.h"
 
@@ -298,12 +299,7 @@ template <class Pt> void arrow(Pt& P, float x, float y, int dir) {
 }
 
 // ---------------------------------------------------------------------------------------------------- the card
-// What the card shows, for the scripts' checks (`expect lootcard ...`)
-struct CardInfo {
-  int rarity = -1, ilvl = 0, affixLines = 0, lostLines = 0, verdict = -2;   // verdict: 1 / 0 / -1, -2 none (WORN or no compare)
-  bool power = false, compare = false, worn = false;
-  std::string name;
-};
+// CardInfo (what the card shows, for the scripts' checks): loot_card.h
 // the world the card reads: the player's level (level sync), the attunement count, the maker cultures
 struct CardCtx {
   int level = 1;

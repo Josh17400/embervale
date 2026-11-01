@@ -133,7 +133,7 @@ struct SeaViewOps {
   }
   static Pix& pix(View& v) { return *v.pix_; }
   static float now(const View& v) { return v.t_; }
-  static void event(View& v, Game& g, const Event& e) { v.seaEvent(g, e); }
+  static void event(View& v, Game& g, const Event& e) { SeaLane::seaEvent(v, g, e); }
   static bool touch(const View& v) { return v.touchUI; }
 
   // ---- ship cells
@@ -477,55 +477,55 @@ void seaDrawUnderlay(View& v, const Game& g, Vec2 cam) {
 }
 
 // ---------------------------------------------------------------- events and update
-void View::seaEvent(Game& g, const Event& e) {
-  SeaViewState& S = SeaViewOps::st(*this);
-  const uint32_t seed = hash32((uint32_t)(t_ * 1000.0f) ^ (uint32_t)e.a * 977u);
+void SeaLane::seaEvent(View& v, Game& g, const Event& e) {
+  SeaViewState& S = SeaViewOps::st(v);
+  const uint32_t seed = hash32((uint32_t)(v.t_ * 1000.0f) ^ (uint32_t)e.a * 977u);
   // the sea's moments in the ear (the sim plays its own splashes, roars and the cast: these sit with them)
-  if (audio_ && !g.inside) {
+  if (v.audio_ && !g.inside) {
     const float nearK = 1.0f / (1.0f + len(e.p - g.pl().p) / (10.0f * TILE));
     switch ((sea::SeaEv)e.a) {
-      case sea::SeaEv::Board: audio_->play(g.sea.atSea() && g.sea.boats[(size_t)g.sea.aboard].hull != sea::Hull::Rowboat ? Sfx::SailFlap : Sfx::OarStroke, 1.0f, 0.7f); break;
-      case sea::SeaEv::Moor: audio_->play(Sfx::ShipBell, 1.0f, 0.5f); break;
-      case sea::SeaEv::HullHit: audio_->play(Sfx::HullCrack, 1.0f, std::min(1.0f, 0.5f + e.f * 0.05f)); break;
-      case sea::SeaEv::Sink: audio_->play(Sfx::HullCrack, 0.8f, 1.0f); audio_->play(Sfx::WaveCrash, 0.7f, 1.0f); break;
+      case sea::SeaEv::Board: v.audio_->play(g.sea.atSea() && g.sea.boats[(size_t)g.sea.aboard].hull != sea::Hull::Rowboat ? Sfx::SailFlap : Sfx::OarStroke, 1.0f, 0.7f); break;
+      case sea::SeaEv::Moor: v.audio_->play(Sfx::ShipBell, 1.0f, 0.5f); break;
+      case sea::SeaEv::HullHit: v.audio_->play(Sfx::HullCrack, 1.0f, std::min(1.0f, 0.5f + e.f * 0.05f)); break;
+      case sea::SeaEv::Sink: v.audio_->play(Sfx::HullCrack, 0.8f, 1.0f); v.audio_->play(Sfx::WaveCrash, 0.7f, 1.0f); break;
       case sea::SeaEv::Telegraph: {   // a serpent rising: its roar (not every blow: once in a while)
         for (const Actor& a : g.actors)
-          if (a.id == (int)e.id && a.mon == art::Monster::SeaSerpent && S.roarCd <= 0) { audio_->play(Sfx::SerpentRoar, 1.0f, 0.4f + 0.6f * nearK); S.roarCd = 5.0f; }
+          if (a.id == (int)e.id && a.mon == art::Monster::SeaSerpent && S.roarCd <= 0) { v.audio_->play(Sfx::SerpentRoar, 1.0f, 0.4f + 0.6f * nearK); S.roarCd = 5.0f; }
         break;
       }
-      case sea::SeaEv::Tentacle: if (e.f > 0 && S.rumbleCd <= 0) { audio_->play(Sfx::KrakenRumble, 1.0f, 0.4f + 0.6f * nearK); S.rumbleCd = 2.5f; } break;
-      case sea::SeaEv::Lightning: if (S.thunderCd <= 0) { audio_->play(Sfx::Thunder, 0.9f + 0.2f * frand(seed), 0.6f + 0.3f * std::min(1.0f, e.f)); S.thunderCd = 1.5f; } break;
-      case sea::SeaEv::StormBegin: audio_->play(Sfx::Thunder, 0.75f, 0.35f); break;
-      case sea::SeaEv::Reel: audio_->play(Sfx::ReelClick, 0.9f + 0.6f * std::min(1.0f, e.f), 0.5f); break;
-      case sea::SeaEv::Bite: audio_->play(Sfx::FishPlop, 1.0f, 0.8f); break;
-      case sea::SeaEv::Lost: if (e.f > 0.5f) audio_->play(Sfx::LineSnap, 1.0f, 0.8f); break;
-      case sea::SeaEv::MistEnter: audio_->play(Sfx::MistWhisper, 1.0f, 0.6f); break;
-      case sea::SeaEv::MistTurn: audio_->play(Sfx::MistWhisper, 0.85f, 0.9f); break;
-      case sea::SeaEv::MistPart: case sea::SeaEv::FirstContact: audio_->play(Sfx::MistChime, 1.0f, 0.9f); break;
+      case sea::SeaEv::Tentacle: if (e.f > 0 && S.rumbleCd <= 0) { v.audio_->play(Sfx::KrakenRumble, 1.0f, 0.4f + 0.6f * nearK); S.rumbleCd = 2.5f; } break;
+      case sea::SeaEv::Lightning: if (S.thunderCd <= 0) { v.audio_->play(Sfx::Thunder, 0.9f + 0.2f * frand(seed), 0.6f + 0.3f * std::min(1.0f, e.f)); S.thunderCd = 1.5f; } break;
+      case sea::SeaEv::StormBegin: v.audio_->play(Sfx::Thunder, 0.75f, 0.35f); break;
+      case sea::SeaEv::Reel: v.audio_->play(Sfx::ReelClick, 0.9f + 0.6f * std::min(1.0f, e.f), 0.5f); break;
+      case sea::SeaEv::Bite: v.audio_->play(Sfx::FishPlop, 1.0f, 0.8f); break;
+      case sea::SeaEv::Lost: if (e.f > 0.5f) v.audio_->play(Sfx::LineSnap, 1.0f, 0.8f); break;
+      case sea::SeaEv::MistEnter: v.audio_->play(Sfx::MistWhisper, 1.0f, 0.6f); break;
+      case sea::SeaEv::MistTurn: v.audio_->play(Sfx::MistWhisper, 0.85f, 0.9f); break;
+      case sea::SeaEv::MistPart: case sea::SeaEv::FirstContact: v.audio_->play(Sfx::MistChime, 1.0f, 0.9f); break;
       default: break;
     }
   }
   switch ((sea::SeaEv)e.a) {
     case sea::SeaEv::Board: case sea::SeaEv::Disembark:
-      SeaViewOps::ring(*this, e.p, 6, 0.9f);
-      SeaViewOps::spray(*this, e.p, 6, 0.5f, rgba(230, 244, 250), seed);
+      SeaViewOps::ring(v, e.p, 6, 0.9f);
+      SeaViewOps::spray(v, e.p, 6, 0.5f, rgba(230, 244, 250), seed);
       S.wakeInit = false;
       break;
     case sea::SeaEv::HullHit:
-      SeaViewOps::spray(*this, e.p, 10, 0.8f, rgba(132, 92, 56), seed);
-      SeaViewOps::spray(*this, e.p, 8, 0.9f, rgba(230, 244, 250), seed + 5);
-      SeaViewOps::ring(*this, e.p, 8, 0.8f);
-      shake_ = std::max(shake_, 0.18f);
+      SeaViewOps::spray(v, e.p, 10, 0.8f, rgba(132, 92, 56), seed);
+      SeaViewOps::spray(v, e.p, 8, 0.9f, rgba(230, 244, 250), seed + 5);
+      SeaViewOps::ring(v, e.p, 8, 0.8f);
+      v.fx_.shake_ = std::max(v.fx_.shake_, 0.18f);
       break;
     case sea::SeaEv::Sink:
-      for (int k = 0; k < 4; k++) SeaViewOps::ring(*this, e.p, 10.0f + k * 6, 1.6f + k * 0.4f);
-      SeaViewOps::spray(*this, e.p, 24, 1.2f, rgba(230, 244, 250), seed);
-      SeaViewOps::spray(*this, e.p, 12, 0.9f, rgba(120, 84, 52), seed + 3);
+      for (int k = 0; k < 4; k++) SeaViewOps::ring(v, e.p, 10.0f + k * 6, 1.6f + k * 0.4f);
+      SeaViewOps::spray(v, e.p, 24, 1.2f, rgba(230, 244, 250), seed);
+      SeaViewOps::spray(v, e.p, 12, 0.9f, rgba(120, 84, 52), seed + 3);
       break;
     case sea::SeaEv::Splash: case sea::SeaEv::Tentacle: {
       const float f = e.type == Ev::Sea && (sea::SeaEv)e.a == sea::SeaEv::Tentacle ? (e.f > 0 ? 1.0f : 0.6f) : std::max(0.2f, e.f);
-      SeaViewOps::ring(*this, e.p, 4 + 10 * f, 0.7f + 0.6f * f);
-      SeaViewOps::spray(*this, e.p, (int)(4 + 18 * f), 0.4f + 0.8f * f, rgba(230, 244, 250), seed);
+      SeaViewOps::ring(v, e.p, 4 + 10 * f, 0.7f + 0.6f * f);
+      SeaViewOps::spray(v, e.p, (int)(4 + 18 * f), 0.4f + 0.8f * f, rgba(230, 244, 250), seed);
       break;
     }
     case sea::SeaEv::Telegraph: {
@@ -545,15 +545,15 @@ void View::seaEvent(Game& g, const Event& e) {
       S.partT = 0.001f;
       break;
     case sea::SeaEv::Cast:
-      SeaViewOps::ring(*this, e.p, 3, 0.6f);
+      SeaViewOps::ring(v, e.p, 3, 0.6f);
       break;
     case sea::SeaEv::Bite:
       S.biteT = 1.0f;
-      SeaViewOps::spray(*this, e.p, 5, 0.35f, rgba(230, 244, 250), seed);
-      SeaViewOps::ring(*this, e.p, 4, 0.5f);
+      SeaViewOps::spray(v, e.p, 5, 0.35f, rgba(230, 244, 250), seed);
+      SeaViewOps::ring(v, e.p, 4, 0.5f);
       break;
     case sea::SeaEv::Strike:
-      SeaViewOps::spray(*this, e.p, 8, 0.5f, rgba(230, 244, 250), seed);
+      SeaViewOps::spray(v, e.p, 8, 0.5f, rgba(230, 244, 250), seed);
       break;
     case sea::SeaEv::Landed:
       S.card.t = 4.0f;
@@ -561,7 +561,7 @@ void View::seaEvent(Game& g, const Event& e) {
       S.card.rarity = (int)e.f;
       S.card.line = e.s;
       S.card.cm = g.sea.live.line.cm;
-      SeaViewOps::spray(*this, e.p, 10, 0.6f, rgba(230, 244, 250), seed);
+      SeaViewOps::spray(v, e.p, 10, 0.6f, rgba(230, 244, 250), seed);
       break;
     case sea::SeaEv::Lost:
       S.lostT = 1.2f;
@@ -574,8 +574,8 @@ void View::seaEvent(Game& g, const Event& e) {
   }
 }
 
-void View::seaUpdate(Game& g, float dt) {
-  SeaViewState& S = SeaViewOps::st(*this);
+void SeaLane::seaUpdate(View& v, Game& g, float dt) {
+  SeaViewState& S = SeaViewOps::st(v);
   S.last = S.cur;
   S.cur = SeaViewStats();
   for (auto& q : S.puffs) { q.t += dt; q.p += q.v * dt; q.v = q.v * (1.0f - std::min(1.0f, dt * 0.8f)); }
@@ -593,7 +593,7 @@ void View::seaUpdate(Game& g, float dt) {
   // (fixer M10 r1) the title plays AT the landing, never queued behind LEVEL UP / NEW QUEST (it landed 10 s late, in a
   // town or an inn): while a big banner shows it eases down under it (contactHide: 0 its own place, 1 under the
   // banner); walked indoors it fades out early
-  S.contactHide += ((bannerT_ > 0 ? 1.0f : 0.0f) - S.contactHide) * std::min(1.0f, dt * 5.0f);
+  S.contactHide += ((v.fx_.bannerT_ > 0 ? 1.0f : 0.0f) - S.contactHide) * std::min(1.0f, dt * 5.0f);
   if (g.inside && S.firstContactT > 0.6f) S.firstContactT = 0.6f;
   S.firstContactT = std::max(0.0f, S.firstContactT - dt);
   if (S.puffs.size() > 900) S.puffs.erase(S.puffs.begin(), S.puffs.begin() + (S.puffs.size() - 900));
@@ -624,7 +624,7 @@ void View::seaUpdate(Game& g, float dt) {
     if (len(p - S.lastWake) > step) {
       const float sp = std::fabs(L.speed);
       S.lastWake = p;
-      const uint32_t sd = hash32((uint32_t)(t_ * 997.0f));
+      const uint32_t sd = hash32((uint32_t)(v.t_ * 997.0f));
       for (int side = -1; side <= 1; side += 2) {
         SeaViewState::Puff q;
         const float j = frand(sd + side * 7) - 0.5f;
@@ -648,13 +648,13 @@ void View::seaUpdate(Game& g, float dt) {
       S.oarT += dt * (1.05f + std::min(0.6f, std::fabs(L.speed) * 0.05f));
       if (S.oarT >= 1.0f) {
         S.oarT -= 1.0f;
-        for (int side = -1; side <= 1; side += 2) SeaViewOps::ring(*this, p + R * (side * 13.5f) - F * 3.0f, 2.5f, 0.8f, 3);
+        for (int side = -1; side <= 1; side += 2) SeaViewOps::ring(v, p + R * (side * 13.5f) - F * 3.0f, 2.5f, 0.8f, 3);
       }
     }
   } else S.wakeInit = false;
   // pirates' wakes
   for (const sea::Sea::Ship& sh : L.ships) {
-    if (sh.speed < 1.0f || frand(hash32((uint32_t)(t_ * 30)) ^ sh.id) > 0.45f) continue;
+    if (sh.speed < 1.0f || frand(hash32((uint32_t)(v.t_ * 30)) ^ sh.id) > 0.45f) continue;
     const Vec2 F(std::cos(sh.heading), std::sin(sh.heading)), R(-F.y, F.x);
     for (int side = -1; side <= 1; side += 2) {
       SeaViewState::Puff q;
@@ -669,7 +669,7 @@ void View::seaUpdate(Game& g, float dt) {
   // ---- the sea's bed: the swell under the hull, the shore's surf, gulls by a harbour, the wind in the sails, the
   //      ship's timbers, the oars, the storm, the Mist
   S.roarCd -= dt; S.rumbleCd -= dt; S.bellCd -= dt; S.thunderCd -= dt;
-  if (audio_) {
+  if (v.audio_) {
     Audio::SeaSound snd;
     if (!g.inside && g.mode != Mode::Title && g.mode != Mode::Dead) {
       const Map& m = g.world.over;
@@ -697,7 +697,7 @@ void View::seaUpdate(Game& g, float dt) {
         if (hull > 0) snd.wind = std::min(1.0f, 0.25f + 0.75f * std::fabs(L.speed) / top) * (0.4f + 0.6f * L.wind.speed);
         if (hull == 0 && std::fabs(L.speed) > 0.6f) snd.oars = 1.05f + std::min(0.6f, std::fabs(L.speed) * 0.05f);
         const int brace = L.helm > 0.3f ? 1 : L.helm < -0.3f ? -1 : 0;   // the yards swinging over: the canvas cracks
-        if (hull > 0 && brace != S.lastBrace) audio_->play(Sfx::SailFlap, 1.0f, 0.45f);
+        if (hull > 0 && brace != S.lastBrace) v.audio_->play(Sfx::SailFlap, 1.0f, 0.45f);
         S.lastBrace = brace;
       }
       snd.storm = S.darkShown;
@@ -705,24 +705,24 @@ void View::seaUpdate(Game& g, float dt) {
       snd.turn = S.turnShown;
       // merrow calling to each other round the boat
       if ((S.chatterT -= dt) <= 0) {
-        S.chatterT = 2.5f + 3.0f * frand(hash32((uint32_t)(t_ * 100)));
+        S.chatterT = 2.5f + 3.0f * frand(hash32((uint32_t)(v.t_ * 100)));
         for (const Actor& a : g.actors)
           if (a.mon == art::Monster::Merrow && a.st != AState::Dead && len2(a.p - g.pl().p) < (12.0f * TILE) * (12.0f * TILE)) {
-            audio_->play(Sfx::MerrowChatter, 0.9f + 0.25f * frand(a.id * 977u), 0.5f);
+            v.audio_->play(Sfx::MerrowChatter, 0.9f + 0.25f * frand(a.id * 977u), 0.5f);
             break;
           }
       }
       // a ship's bell now and then in a harbour
-      if (harbour && S.bellCd <= 0) { S.bellCd = 25.0f + 20.0f * frand(hash32((uint32_t)(t_ * 10))); audio_->play(Sfx::ShipBell, 0.95f + 0.1f * frand(hash32((uint32_t)t_)), 0.25f); }
+      if (harbour && S.bellCd <= 0) { S.bellCd = 25.0f + 20.0f * frand(hash32((uint32_t)(v.t_ * 10))); v.audio_->play(Sfx::ShipBell, 0.95f + 0.1f * frand(hash32((uint32_t)v.t_)), 0.25f); }
     }
-    audio_->setSea(snd);
+    v.audio_->setSea(snd);
   }
-  SeaViewOps::refreshMoored(*this, g);
+  SeaViewOps::refreshMoored(v, g);
 }
 
-void View::seaShift(Vec2 d) {
-  if (!seaView_) return;
-  SeaViewState& S = *seaView_;
+void SeaLane::seaShift(View& v, Vec2 d) {
+  if (!v.seaView_) return;
+  SeaViewState& S = *v.seaView_;
   for (auto& q : S.puffs) q.p += d;
   for (auto& q : S.drops) q.p += d;
   for (auto& t : S.teles) t.p += d;
@@ -731,11 +731,11 @@ void View::seaShift(Vec2 d) {
 }
 
 // ---------------------------------------------------------------- the water's life (over the terrain, under the bodies)
-void View::drawSeaWater(Game& g, Vec2 cam) {
+void SeaLane::drawSeaWater(View& v, Game& g, Vec2 cam) {
   if (g.inside) return;
-  SeaViewState& S = SeaViewOps::st(*this);
+  SeaViewState& S = SeaViewOps::st(v);
   SeaTimer tm(S.cur.ms);
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const Map& m = g.world.over;
   const sea::Sea::Live& L = g.sea.live;
   const float day = g.daylight();
@@ -765,7 +765,7 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
         for (int k = 0; k < 4 && open; k++) open = groundWater(m.at(tx + (k == 0) - (k == 1), ty + (k == 2) - (k == 3)));
         if (!open) continue;
         const float period = 3.2f - 1.2f * storm + frand(h ^ 0x77) * 1.6f;
-        const float ph = std::fmod(t_ / period + frand(h ^ 0x99), 1.0f);
+        const float ph = std::fmod(v.t_ / period + frand(h ^ 0x99), 1.0f);
         const bool deep = q == Ground::DeepWater;
         if (frand(h ^ 0x31) < (deep ? capP : capP * 0.4f) && ph < 0.42f) {
           // a crest curling over and breaking into foam, drifting with the wind
@@ -791,7 +791,7 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
             for (int i = 0; i < 6; i++) P.rect(std::floor(x + windX * (i * 2.0f + a * 6.0f)), std::floor(y + windY * (i * 1.3f) - 1), 1, 1, Color(0.9f, 0.96f, 1.0f, 0.4f * (1.0f - i / 6.0f) * fade));
           }
           S.cur.waveTiles++;
-        } else if (day > 0.35f && frand(h ^ 0x52) < 0.22f * (1.0f - storm) && std::fmod(t_ * 1.7f + frand(h ^ 0x13) * 9.0f, 2.3f) < 0.12f) {
+        } else if (day > 0.35f && frand(h ^ 0x52) < 0.22f * (1.0f - storm) && std::fmod(v.t_ * 1.7f + frand(h ^ 0x13) * 9.0f, 2.3f) < 0.12f) {
           // a glint of the sun
           const float k2 = (day - 0.35f) / 0.65f;
           P.rect(std::floor(px), std::floor(py), 1, 1, Color(1.0f, 0.98f, 0.86f, 0.9f * k2));
@@ -809,12 +809,12 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
     for (int ty = ty0; ty <= ty1 && budget > 0; ty++)
       for (int tx = tx0; tx <= tx1 && budget > 0; tx++) {
         if (!m.in(tx, ty)) continue;
-        const auto& pts = SeaViewOps::surfOf(*this, m, gox, goy, tx + gox, ty + goy);
+        const auto& pts = SeaViewOps::surfOf(v, m, gox, goy, tx + gox, ty + goy);
         for (const auto& s : pts) {
           const float nx = s.nx / 16.0f, ny = s.ny / 16.0f;
           const float gx = (float)((tx + gox) * 16 + s.x), gy = (float)((ty + goy) * 16 + s.y);
           // the phase runs along the coast (world-anchored) so the waves arrive in sets
-          const float ph = t_ * 0.55f - (gx * 0.021f + gy * 0.017f) + std::sin(gx * 0.05f) * 0.3f;
+          const float ph = v.t_ * 0.55f - (gx * 0.021f + gy * 0.017f) + std::sin(gx * 0.05f) * 0.3f;
           const float wv = 0.5f + 0.5f * std::sin(ph * kTau);
           const float x = (float)(tx * 16 + s.x), y = (float)(ty * 16 + s.y);
           // the wash: foam at the waterline, pushed a little up the beach at the crest
@@ -876,7 +876,7 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
       const float t = 0.55f + 0.45f * i / 13.0f;
       const float w = hb * std::sqrt(std::max(0.0f, 1.0f - t * t * t)) + 1.2f + (1.0f - t) * 2.0f * k;
       for (int side = -1; side <= 1; side += 2) {
-        if (frand(hh(i, side, (uint32_t)(t_ * 12))) < 0.25f) continue;
+        if (frand(hh(i, side, (uint32_t)(v.t_ * 12))) < 0.25f) continue;
         const Vec2 q = p + F * (t * hl + 1.5f) + R * (side * w);
         P.rect(std::floor(q.x - cam.x), std::floor(q.y - cam.y), 1, 1, Color(0.94f, 0.98f, 1.0f, 0.8f * k));
       }
@@ -890,7 +890,7 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
   for (const auto& t : S.teles) {
     const float k = std::min(1.0f, t.t / t.dur);
     const float r = 4.0f + 18.0f * (1.0f - k);
-    const float pulse = 0.55f + 0.45f * std::sin(t_ * 18.0f);
+    const float pulse = 0.55f + 0.45f * std::sin(v.t_ * 18.0f);
     const Vec2 c(t.p.x - cam.x, t.p.y - cam.y);
     SeaViewOps::ellipseRing(P, c, r, r * 0.55f, Color(1.0f, 0.42f, 0.30f, (0.45f + 0.4f * k) * pulse));
     SeaViewOps::ellipseRing(P, c, 4.0f + 4.0f * k, (4.0f + 4.0f * k) * 0.55f, Color(0.10f, 0.14f, 0.22f, 0.35f * k));   // the shadow rising from below
@@ -900,7 +900,7 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
   const sea::Sea::Line& ln = L.line;
   if (ln.phase != sea::Sea::Cast::None && ln.phase != sea::Sea::Cast::Landed) {
     const Actor& pl = g.pl();
-    const float lift = seaHeroLift(*this, g);
+    const float lift = seaHeroLift(v, g);
     const float side = pl.face == 3 ? -1.0f : pl.face == 2 ? 1.0f : (ln.bob.x < pl.p.x ? -1.0f : 1.0f);
     const Vec2 tip = pl.p + Vec2(side * 9.0f, -20.0f - lift);   // the rod's tip over the hero's hand
     const bool taut = ln.phase == sea::Sea::Cast::Reeling || ln.phase == sea::Sea::Cast::Bite;
@@ -928,17 +928,17 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
     // the float: bobbing, ripples round it; under on a bite; a running wake when a fish is on
     const float bx = std::floor(bob.x - cam.x), by = std::floor(bob.y - cam.y);
     if (ln.phase == sea::Sea::Cast::Waiting) {
-      const float b2 = std::sin(t_ * 3.0f) > 0.6f ? 1.0f : 0.0f;
-      if (std::fmod(t_, 1.6f) < 0.02f) SeaViewOps::ring(*this, ln.bob, 3.0f, 1.0f, 3);
+      const float b2 = std::sin(v.t_ * 3.0f) > 0.6f ? 1.0f : 0.0f;
+      if (std::fmod(v.t_, 1.6f) < 0.02f) SeaViewOps::ring(v, ln.bob, 3.0f, 1.0f, 3);
       P.rect(bx - 1, by - 3 + b2, 3, 2, Color(0.92f, 0.24f, 0.20f, 1));
       P.rect(bx - 1, by - 1 + b2, 3, 1, Color(0.96f, 0.94f, 0.88f, 1));
       P.rect(bx, by - 4 + b2, 1, 1, Color(0.2f, 0.16f, 0.14f, 1));
       P.rect(bx - 2, by + b2, 5, 1, Color(0.80f, 0.92f, 1.0f, 0.45f));
     } else if (ln.phase == sea::Sea::Cast::Bite || ln.phase == sea::Sea::Cast::Reeling) {
-      const float r = 2.0f + std::sin(t_ * 20.0f) * 0.8f;
+      const float r = 2.0f + std::sin(v.t_ * 20.0f) * 0.8f;
       P.rect(bx - r, by, r * 2 + 1, 1, Color(0.95f, 0.98f, 1.0f, 0.85f));
       P.rect(bx - 1, by - 1, 3, 1, Color(0.95f, 0.98f, 1.0f, 0.6f));
-      if (ln.phase == sea::Sea::Cast::Reeling && frand((uint32_t)(t_ * 20)) < 0.4f) SeaViewOps::spray(*this, ln.bob, 1, 0.3f, rgba(230, 244, 250), (uint32_t)(t_ * 977));
+      if (ln.phase == sea::Sea::Cast::Reeling && frand((uint32_t)(v.t_ * 20)) < 0.4f) SeaViewOps::spray(v, ln.bob, 1, 0.3f, rgba(230, 244, 250), (uint32_t)(v.t_ * 977));
     } else if (ln.phase == sea::Sea::Cast::Casting) {
       P.rect(bx - 1, by - 2, 3, 2, Color(0.92f, 0.24f, 0.20f, 1));
     }
@@ -953,8 +953,8 @@ void View::drawSeaWater(Game& g, Vec2 cam) {
 // ---------------------------------------------------------------- the sorted pass: the ships
 // idx: 0..999 a boat we own (aboard: its BACK layer), 1000 + i its FRONT layer, 2000 + j a harbour's moored ship,
 // 3000 + k a ship not ours (Sea::Live::ships)
-void View::seaSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
-  SeaViewState& S = SeaViewOps::st(*this);
+void SeaLane::seaSorted(View& v, Game& g, Vec2 cam, const std::function<void(float, int)>& push) {
+  SeaViewState& S = SeaViewOps::st(v);
   S.heroUnderRig = false;
   if (g.inside) return;
   auto onScreen = [&](Vec2 p, float pad) { return p.x > cam.x - pad && p.x < cam.x + Pix::W + pad && p.y > cam.y - pad && p.y < cam.y + Pix::H + pad + 60; };
@@ -980,9 +980,9 @@ void View::seaSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& p
   }
 }
 
-void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
-  SeaViewState& S = SeaViewOps::st(*this);
-  Pix& P = *pix_;
+void SeaLane::drawSeaSorted(View& v, Game& g, int idx, Vec2 cam) {
+  SeaViewState& S = SeaViewOps::st(v);
+  Pix& P = *v.pix_;
   if (idx >= 3000) {   // a pirate sloop (or another ship that is not ours)
     const int k = idx - 3000;
     if (k >= (int)g.sea.live.ships.size()) return;
@@ -993,8 +993,8 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
     st.fill = sh.fleeing || sh.speed > 20 ? 2 : 1;
     st.brace = (int8_t)((sh.id & 1) ? 1 : -1);
     const int hull = (int)sh.hull;
-    const Tex& t = SeaViewOps::cell(*this, hull, st, fineDirOf(sh.heading), SeaViewOps::bobFrame(*this, (int)sh.id, 3.0f), art::SHIP_LAYER_ALL);
-    SeaViewOps::drawCell(*this, t, hull, Vec2(sh.p.x - cam.x, sh.p.y - cam.y));
+    const Tex& t = SeaViewOps::cell(v, hull, st, fineDirOf(sh.heading), SeaViewOps::bobFrame(v, (int)sh.id, 3.0f), art::SHIP_LAYER_ALL);
+    SeaViewOps::drawCell(v, t, hull, Vec2(sh.p.x - cam.x, sh.p.y - cam.y));
     S.cur.boats++;
     return;
   }
@@ -1003,8 +1003,8 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
     if (j >= (int)S.moored.size()) return;
     const SeaViewState::Moored& M = S.moored[(size_t)j];
     const Vec2 p((float)(M.gx - g.world.ox) * TILE + 8.0f, (float)(M.gy - g.world.oy) * TILE + 8.0f);
-    const Tex& t = SeaViewOps::cell(*this, M.hull, M.st, M.dir, SeaViewOps::bobFrame(*this, j + 11, 0), art::SHIP_LAYER_ALL);
-    SeaViewOps::drawCell(*this, t, M.hull, Vec2(p.x - cam.x, p.y - cam.y));
+    const Tex& t = SeaViewOps::cell(v, M.hull, M.st, M.dir, SeaViewOps::bobFrame(v, j + 11, 0), art::SHIP_LAYER_ALL);
+    SeaViewOps::drawCell(v, t, M.hull, Vec2(p.x - cam.x, p.y - cam.y));
     S.cur.boats++;
     return;
   }
@@ -1018,15 +1018,15 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
   const bool aboard = i == g.sea.aboard;
   art::ShipStyle st = aboard ? SeaViewOps::aboardStyle(g, b) : SeaViewOps::mooredStyle(g, b);
   if (i == g.sea.live.sinkBoat && g.sea.live.sinkT > 0) { st.extras |= art::SX_WRECKED; st.furled = false; st.fill = 0; }
-  const int f = SeaViewOps::bobFrame(*this, i, aboard ? std::fabs(g.sea.live.speed) : 0.0f);
+  const int f = SeaViewOps::bobFrame(v, i, aboard ? std::fabs(g.sea.live.speed) : 0.0f);
   const int layer = !aboard ? art::SHIP_LAYER_ALL : front ? art::SHIP_LAYER_FRONT : art::SHIP_LAYER_BACK;
-  const Tex& t = SeaViewOps::cell(*this, hull, st, fineDirOf(h), f, layer);
+  const Tex& t = SeaViewOps::cell(v, hull, st, fineDirOf(h), f, layer);
   const Vec2 scr(p.x - cam.x, p.y - cam.y);
-  if (!front) { SeaViewOps::drawCell(*this, t, hull, scr); S.cur.boats++; return; }
+  if (!front) { SeaViewOps::drawCell(v, t, hull, scr); S.cur.boats++; return; }
   // the front layer: drawn after the hero. Where it stands over him (a sail before him on a southerly heading) the
   // render's ghost shows him through it; the cell goes down at full strength except a little thinner over his body
   const float x0 = std::floor(scr.x) - (float)art::shipAnchorX(hull), y0 = std::floor(scr.y) - (float)art::shipAnchorY(hull);
-  const float lift = seaHeroLift(*this, g);
+  const float lift = seaHeroLift(v, g);
   float hx0 = std::floor(scr.x) - 6, hx1 = std::floor(scr.x) + 6, hy0 = std::floor(scr.y) - lift - 21, hy1 = std::floor(scr.y) - lift;
   if (art::rigVersion() >= 2) {
     // (P2b HOLDERS-B) rig 2: the floor lies inside the hull (art_holders2.h kGunwale2 / kDeckRail2), so the near side
@@ -1069,13 +1069,13 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
 }
 
 // ---------------------------------------------------------------- lights: lanterns at night, the lighthouse lamp
-void View::seaLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
+void SeaLane::seaLights(View& v, Game& g, const std::function<void(Vec2, float, Color, float)>& light) {
   if (g.inside) return;
   const float night = std::max(0.0f, std::min(1.0f, 1.0f - g.daylight() * 1.6f));
-  const float storm = SeaViewOps::st(*this).darkShown;
+  const float storm = SeaViewOps::st(v).darkShown;
   const float k = std::max(night, storm * 0.8f);
   if (k < 0.02f) return;
-  const float flick = 0.88f + 0.12f * std::sin(t_ * 11.0f) * std::sin(t_ * 6.1f);
+  const float flick = 0.88f + 0.12f * std::sin(v.t_ * 11.0f) * std::sin(v.t_ * 6.1f);
   auto lantern = [&](Vec2 p, int hull, const art::ShipStyle& st, float heading, float power) {
     int lx, ly;
     art::shipLanternAt(hull, st, fineDirOf(heading), lx, ly);
@@ -1094,7 +1094,7 @@ void View::seaLights(Game& g, const std::function<void(Vec2, float, Color, float
       light(p + F * (hullHalfLen((int)b.hull) + 4.0f) + Vec2(0, -8), 120.0f, Color(1.0f, 0.86f, 0.6f), k * 0.7f * flick);
     }
   }
-  const SeaViewState& S = SeaViewOps::st(*this);
+  const SeaViewState& S = SeaViewOps::st(v);
   for (const auto& M : S.moored) {
     if (M.hull == 0) continue;   // (fixer M10 r1) every moored ship shows her stern lantern (half of them were dark)
     const Vec2 p((float)(M.gx - g.world.ox) * TILE + 8.0f, (float)(M.gy - g.world.oy) * TILE + 8.0f);
@@ -1103,7 +1103,7 @@ void View::seaLights(Game& g, const std::function<void(Vec2, float, Color, float
   for (const sea::Sea::Ship& sh : g.sea.live.ships) light(sh.p + Vec2(0, -14), 50.0f, Color(1.0f, 0.55f, 0.35f), k * 0.6f * flick);
   // the lighthouses' lamps (the prop's lantern room, high over its foot)
   const Map& m = g.world.over;
-  const int tx0 = (int)std::floor(cam_.x / 16) - 4, ty0 = (int)std::floor(cam_.y / 16) - 2;
+  const int tx0 = (int)std::floor(v.camera_.cam_.x / 16) - 4, ty0 = (int)std::floor(v.camera_.cam_.y / 16) - 2;
   for (int ty = std::max(0, ty0); ty < std::min(m.h, ty0 + Pix::H / 16 + 10); ty++)
     for (int tx = std::max(0, tx0); tx < std::min(m.w, tx0 + Pix::W / 16 + 8); tx++)
       if (m.propAt(tx, ty) == (int)art::Prop::Lighthouse + 1) {
@@ -1118,12 +1118,12 @@ void View::seaLights(Game& g, const std::function<void(Vec2, float, Color, float
 }
 
 // ---------------------------------------------------------------- the sky over the sea: the Mist, storms, lightning
-void View::drawSeaOver(Game& g, Vec2 cam) {
+void SeaLane::drawSeaOver(View& v, Game& g, Vec2 cam) {
   if (g.inside) return;
-  SeaViewState& S = SeaViewOps::st(*this);
+  SeaViewState& S = SeaViewOps::st(v);
   SeaTimer tm(S.cur.ms);
-  SeaViewOps::bake(*this);
-  Pix& P = *pix_;
+  SeaViewOps::bake(v);
+  Pix& P = *v.pix_;
   const float W = (float)Pix::W, H = (float)Pix::H;
   // ---- the lighthouse's beam sweeping the night sea
   {
@@ -1135,7 +1135,7 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
         for (int tx = std::max(0, tx0); tx < std::min(m.w, tx0 + Pix::W / 16 + 8); tx++)
           if (m.propAt(tx, ty) == (int)art::Prop::Lighthouse + 1) {
             const Vec2 lamp(tx * 16.0f + 8.0f - cam.x, ty * 16.0f + 16.0f - (float)art::seaPropH(art::Prop::Lighthouse) + 12.0f - cam.y);
-            const float a = t_ * 0.9f;
+            const float a = v.t_ * 0.9f;
             const Vec2 d(std::cos(a), std::sin(a) * 0.6f);
             for (int i = 2; i < 60; i++) {
               const float w = 1.0f + i * 0.35f;
@@ -1156,12 +1156,12 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
       const uint32_t h = hash32((uint32_t)i * 2654435761u);
       const float sp = 260.0f + 120.0f * frand(h);
       const float x0 = frand(h ^ 0x51) * (W + 80) - 40, y0 = frand(h ^ 0x93) * (H + 60);
-      float y = std::fmod(y0 + t_ * sp, H + 60) - 30;
-      float x = std::fmod(x0 + (wx >= 0 ? 1.0f : -1.0f) * slant * (y + t_ * sp * 0.2f) + W + 80, W + 80) - 40;
+      float y = std::fmod(y0 + v.t_ * sp, H + 60) - 30;
+      float x = std::fmod(x0 + (wx >= 0 ? 1.0f : -1.0f) * slant * (y + v.t_ * sp * 0.2f) + W + 80, W + 80) - 40;
       const float l = 4.0f + 4.0f * frand(h ^ 0x17);
       for (int s = 0; s < (int)l; s++)
         P.rect(std::floor(x + (wx >= 0 ? 1.0f : -1.0f) * slant * s), std::floor(y + s), 1, 1, Color(0.70f, 0.78f, 0.88f, 0.45f * dark));
-      if ((h & 7) == 0 && std::fmod(y0 + t_ * sp, H + 60) > H) P.rect(std::floor(x), std::floor(y0 * 0.7f), 2, 1, Color(0.85f, 0.92f, 1.0f, 0.4f * dark));   // a splash
+      if ((h & 7) == 0 && std::fmod(y0 + v.t_ * sp, H + 60) > H) P.rect(std::floor(x), std::floor(y0 * 0.7f), 2, 1, Color(0.85f, 0.92f, 1.0f, 0.4f * dark));   // a splash
     }
   }
   for (const auto& b : S.bolts) {
@@ -1198,7 +1198,7 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
       const float sc = layer == 0 ? 2.0f : 1.0f;
       const float size = 256.0f * sc;
       const float vx = (layer == 0 ? 6.0f : layer == 1 ? -9.0f : 14.0f) * (1.0f + turn * 2.0f), vy = layer == 1 ? 3.0f : -2.0f;
-      const float ox = std::fmod(-(cam.x * (0.6f + 0.2f * layer)) + t_ * vx, size), oy = std::fmod(-(cam.y * (0.6f + 0.2f * layer)) + t_ * vy, size);
+      const float ox = std::fmod(-(cam.x * (0.6f + 0.2f * layer)) + v.t_ * vx, size), oy = std::fmod(-(cam.y * (0.6f + 0.2f * layer)) + v.t_ * vy, size);
       const float a = std::min(1.0f, inner * (layer == 0 ? 0.95f : layer == 1 ? 0.75f : 0.6f));
       const Color tint = Color(1.0f - 0.25f * turn, 1.0f - 0.2f * turn, 1.0f - 0.08f * turn, a);
       for (float y = oy - size; y < H; y += size)
@@ -1209,17 +1209,17 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
              Color(1.0f - 0.3f * turn, 1.0f - 0.25f * turn, 1.0f - 0.1f * turn, std::min(1.0f, m * (0.75f + 0.25f * part))));
     // turning back: the dark closes in at the edges, and the shapes of drowned ships slide past in the fog
     if (turn > 0.02f) {
-      P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, W, H, false, Color(0.4f, 0.45f, 0.6f, turn * 0.9f));
+      P.blitEx(v.sprites_.vignette_, 0, 0, v.sprites_.vignette_.w, v.sprites_.vignette_.h, 0, 0, W, H, false, Color(0.4f, 0.45f, 0.6f, turn * 0.9f));
       for (int k = 0; k < 2; k++) {
         // (fixer M10 r1) quartering headings (SE, NE), drifting the way their bows point: the deck and the hull's
         // side both show, in the same 3/4 view as the hero's boat (a beam-on hull read as a flat side elevation)
-        const float x = std::fmod(t_ * (7.0f + 4.0f * k) + k * 260.0f, W + 200.0f) - 100.0f;
+        const float x = std::fmod(v.t_ * (7.0f + 4.0f * k) + k * 260.0f, W + 200.0f) - 100.0f;
         const float y = H * (0.30f + 0.36f * k) + (x - W * 0.5f) * (k ? -0.22f : 0.22f);
         art::ShipStyle ghost;
         ghost.extras = art::SX_WRECKED;
         ghost.sailCut = 0;
-        const Tex& t = SeaViewOps::cell(*this, 2 - k, ghost, k ? 28 : 4, 0, art::SHIP_LAYER_ALL);
-        SeaViewOps::drawCell(*this, t, 2 - k, Vec2(x, y), turn * 0.22f, Color(0.55f, 0.62f, 0.72f, 1));
+        const Tex& t = SeaViewOps::cell(v, 2 - k, ghost, k ? 28 : 4, 0, art::SHIP_LAYER_ALL);
+        SeaViewOps::drawCell(v, t, 2 - k, Vec2(x, y), turn * 0.22f, Color(0.55f, 0.62f, 0.72f, 1));
       }
     }
     // the parting: the light breaking through over the open water ahead
@@ -1227,8 +1227,8 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
       const float burst = S.partT > 0 ? std::sin(std::min(1.0f, S.partT / 8.0f) * 3.14159f) : 0.0f;
       const float k = std::max(part * 0.55f, burst) * std::max(m, 0.5f);
       for (int i = 0; i < 5; i++) {   // shafts of sun slanting from the top-left: soft-edged, each breathing on its own
-        const float x = W * (0.08f + 0.19f * i + 0.05f * std::sin(i * 2.3f)) + std::sin(t_ * 0.25f + i) * 8.0f;
-        const float breathe = 0.55f + 0.45f * std::sin(t_ * 0.6f + i * 1.9f);
+        const float x = W * (0.08f + 0.19f * i + 0.05f * std::sin(i * 2.3f)) + std::sin(v.t_ * 0.25f + i) * 8.0f;
+        const float breathe = 0.55f + 0.45f * std::sin(v.t_ * 0.6f + i * 1.9f);
         const float w = 10.0f + 8.0f * std::fabs(std::sin(i * 1.7f));
         for (float y = -10; y < H; y += 2) {
           const float fall = (1.0f - y / H) * (1.0f - y / H);
@@ -1239,7 +1239,7 @@ void View::drawSeaOver(Game& g, Vec2 cam) {
           P.rectAdd(x0 - w * 0.4f, std::floor(y), w * 1.8f, 2, Color(0.30f, 0.26f, 0.14f, a * 0.18f));
         }
       }
-      P.blitEx(light_, 0, 0, 64, 64, W * 0.15f, -H * 0.2f, W * 0.7f, H * 0.9f, false, Color(1.0f, 0.92f, 0.70f, k * 0.5f), 1);
+      P.blitEx(v.sprites_.light_, 0, 0, 64, 64, W * 0.15f, -H * 0.2f, W * 0.7f, H * 0.9f, false, Color(1.0f, 0.92f, 0.70f, k * 0.5f), 1);
     }
   }
 }
@@ -1260,10 +1260,10 @@ void segment(Pix& P, Vec2 a, Vec2 b, Color c) {
 }
 }  // namespace
 
-void View::drawSeaHud(Game& g) {
-  SeaViewState& S = SeaViewOps::st(*this);
+void SeaLane::drawSeaHud(View& v, Game& g) {
+  SeaViewState& S = SeaViewOps::st(v);
   S.hudX0 = S.hudX1 = S.hudY0 = S.hudY1 = 0;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   const sea::Sea::Live& Lv = g.sea.live;
   const sea::Boat* b = SeaOps::aboardBoat(g);
@@ -1271,9 +1271,9 @@ void View::drawSeaHud(Game& g) {
     // ---- the sail panel: a compass (the boat's heading, the wind, the sail's point), the speed, the hull
     const float pw = 124, ph = 40;
     float px = L + 4, py = B - ph - 4;
-    if (touchUI) {   // the phone: up the left edge, clear above the stick (and right of the party's portraits)
+    if (v.touchUI) {   // the phone: up the left edge, clear above the stick (and right of the party's portraits)
       py = B - 55.0f - 40.0f - ph;
-      if (partyColB_ > 0 && partyColB_ > py - 4) px = std::max(px, partyColR_ + 4.0f);
+      if (v.party_.partyColB_ > 0 && v.party_.partyColB_ > py - 4) px = std::max(px, v.party_.partyColR_ + 4.0f);
     }
     S.hudX0 = px; S.hudY0 = py; S.hudX1 = px + pw; S.hudY1 = py + ph;
     seaPanel(P, px, py, pw, ph);
@@ -1299,7 +1299,7 @@ void View::drawSeaHud(Game& g) {
       segment(P, head, head - d * 3.5f + n * 2.5f, Color(0.62f, 0.86f, 1.0f, 0.95f));
       segment(P, head, head - d * 3.5f - n * 2.5f, Color(0.62f, 0.86f, 1.0f, 0.95f));
       for (int k = -1; k <= 1; k += 2) {   // streaks drifting along it
-        const float ph = std::fmod(t_ * 0.8f + (k > 0 ? 0.5f : 0.0f), 1.0f);
+        const float ph = std::fmod(v.t_ * 0.8f + (k > 0 ? 0.5f : 0.0f), 1.0f);
         const Vec2 s = c + n * (k * 5.0f) - d * (r - 5) + d * (2 * (r - 5) * ph);
         segment(P, s, s + d * 3.0f, Color(0.62f, 0.86f, 1.0f, 0.5f * std::sin(ph * 3.14159f)));
       }
@@ -1348,18 +1348,18 @@ void View::drawSeaHud(Game& g) {
       }
       S.hudY0 = my;
     }
-    if (Lv.storm.on && Lv.stormDark > 0.2f && ((int)(t_ * 2) & 1)) P.textS(px + pw - 40, py - 10, "STORM", 1, Color(0.95f, 0.75f, 0.40f));
+    if (Lv.storm.on && Lv.stormDark > 0.2f && ((int)(v.t_ * 2) & 1)) P.textS(px + pw - 40, py - 10, "STORM", 1, Color(0.95f, 0.75f, 0.40f));
   }
   // ---- the fishing panel: the float's bite cue, the tension meter and the run, beside the hero
   const sea::Sea::Line& ln = Lv.line;
   if (ln.phase != sea::Sea::Cast::None && g.mode == Mode::Play) {
     // (P2a integration) this panel is in the UI layer: the hero and the float go through toUi, world offsets through u
-    const float u = uiPerWorld();
-    const Vec2 hero = toUi(Vec2(g.pl().p.x, g.pl().p.y - seaHeroLift(*this, g)));
+    const float u = v.camera_.uiPerWorld(v);
+    const Vec2 hero = v.camera_.toUi(v, Vec2(g.pl().p.x, g.pl().p.y - seaHeroLift(v, g)));
     const bool fight = ln.phase == sea::Sea::Cast::Reeling;
     if (ln.phase == sea::Sea::Cast::Bite || S.biteT > 0) {   // the bite: a bright "!" over the float, the button cue
-      const Vec2 bob = toUi(Vec2(ln.bob.x, ln.bob.y));
-      const float jump = std::fabs(std::sin(t_ * 14.0f)) * 3.0f;
+      const Vec2 bob = v.camera_.toUi(v, Vec2(ln.bob.x, ln.bob.y));
+      const float jump = std::fabs(std::sin(v.t_ * 14.0f)) * 3.0f;
       P.textS(std::floor(bob.x) - 2, std::floor(bob.y - 18 * u - jump), "!", 2, Color(1.0f, 0.86f, 0.30f));
 
     }
@@ -1379,7 +1379,7 @@ void View::drawSeaHud(Game& g) {
       const Color fc = tv > 0.82f ? Color(1.0f, 0.32f, 0.24f) : tv > 0.55f ? Color(1.0f, 0.82f, 0.32f) : Color(0.40f, 0.86f, 0.50f);
       P.rect(mx + 3, my + 3 + mh - fillH, 8, fillH, fc);
       P.rect(mx + 2, std::floor(my + 3 + mh - fillH), 10, 1, Color(1, 1, 1, 0.9f));
-      if (tv > 0.82f && ((int)(t_ * 10) & 1)) P.frame(mx, my, 14, mh + 6, Color(1.0f, 0.4f, 0.3f, 1));
+      if (tv > 0.82f && ((int)(v.t_ * 10) & 1)) P.frame(mx, my, 14, mh + 6, Color(1.0f, 0.4f, 0.3f, 1));
       // the run: how far the fish still is (a fish icon sliding home along a line under the hero)
       const float lw = 44, lx = std::floor(hero.x - lw / 2), ly = std::floor(hero.y + 8 * u);
       P.rect(lx, ly, lw, 1, Color(0.85f, 0.88f, 0.92f, 0.6f));
@@ -1394,7 +1394,7 @@ void View::drawSeaHud(Game& g) {
   if (S.card.t > 0 && S.card.species >= 0 && S.card.species < (int)sea::species().size()) {
     const sea::Species& sp = sea::species()[(size_t)S.card.species];
     auto it = S.fishTex.find(S.card.species);
-    if (it == S.fishTex.end()) it = S.fishTex.emplace(S.card.species, pix_->bake(art::fishSprite(sp.color, (uint32_t)S.card.species * 2654435761u, sp.rarity))).first;
+    if (it == S.fishTex.end()) it = S.fishTex.emplace(S.card.species, v.pix_->bake(art::fishSprite(sp.color, (uint32_t)S.card.species * 2654435761u, sp.rarity))).first;
     const float in = std::min(1.0f, (4.0f - S.card.t) * 4.0f), out = std::min(1.0f, S.card.t * 2.0f);
     const float a = std::min(in, out);
     const float cw = 150, ch = 62;
@@ -1434,14 +1434,14 @@ void View::drawSeaHud(Game& g) {
 }
 
 // the reel: held while the action button (a finger on it), E, J or Space is down during a line
-void View::seaFillInput(Game& g, Input& in) {
+void SeaLane::seaFillInput(View& v, Game& g, Input& in) {
   in.reel = false;
   const sea::Sea::Cast ph = g.sea.live.line.phase;
   if (ph == sea::Sea::Cast::None) return;
   const bool* ks = SDL_GetKeyboardState(nullptr);
-  bool held = ks[SDL_SCANCODE_J] || ks[SDL_SCANCODE_SPACE] || ks[SDL_SCANCODE_E] || scriptKeys_[SDL_SCANCODE_J] || scriptKeys_[SDL_SCANCODE_SPACE] ||
-              scriptKeys_[SDL_SCANCODE_E];   // (the use key too: the prompt says "E: REEL")
-  for (const auto& f : fingers_) if (f.on && f.button == 0) held = true;   // B_ATTACK (hud.cpp)
+  bool held = ks[SDL_SCANCODE_J] || ks[SDL_SCANCODE_SPACE] || ks[SDL_SCANCODE_E] || v.scriptKeys_[SDL_SCANCODE_J] || v.scriptKeys_[SDL_SCANCODE_SPACE] ||
+              v.scriptKeys_[SDL_SCANCODE_E];   // (the use key too: the prompt says "E: REEL")
+  for (const auto& f : v.fingers_) if (f.on && f.button == 0) held = true;   // B_ATTACK (hud.cpp)
   in.reel = held;
 }
 

@@ -23,6 +23,7 @@
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 #include "rpg/world/source.h"
 
 namespace {
@@ -216,16 +217,16 @@ bool cmdStepBorder(ScriptCtx& c) {
 EMB_SCRIPT_CMD("stepborder", "stepborder: walk across the border crossborder found (M4 VIEW)", cmdStepBorder);
 
 bool expHerald(ScriptCtx& c) {
-  if (!c.view.heraldShowing()) { c.fail("expect herald: no herald showing"); return true; }
+  if (!ViewProbe::heraldShowing(c.view)) { c.fail("expect herald: no herald showing"); return true; }
   const std::string w = c.rest(2);
-  if (!w.empty() && c.view.heraldTitle().find(w) == std::string::npos) c.fail("expect herald: '" + c.view.heraldTitle() + "' lacks '" + w + "'");
-  else std::printf("script: herald %s\n", c.view.heraldTitle().c_str());
+  if (!w.empty() && ViewProbe::heraldTitle(c.view).find(w) == std::string::npos) c.fail("expect herald: '" + ViewProbe::heraldTitle(c.view) + "' lacks '" + w + "'");
+  else std::printf("script: herald %s\n", ViewProbe::heraldTitle(c.view).c_str());
   return true;
 }
 EMB_SCRIPT_CMD("expect:herald", "expect herald [words]: the border herald shows (its title contains the words) (M4 VIEW)", expHerald);
 
 bool expM4(ScriptCtx& c) {
-  const View::M4Stats s = c.view.m4Stats();
+  const View::M4Stats s = ViewProbe::m4Stats(c.view);
   const std::string w = c.arg(2);
   const int n = c.arg(3).empty() ? 1 : std::atoi(c.arg(3).c_str());
   int v = -1;

@@ -27,6 +27,7 @@
 #include "rpg/view/script_api.h"
 #include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 
 namespace {
 
@@ -208,7 +209,7 @@ bool cmdLootSel(ScriptCtx& c) {
 EMB_SCRIPT_CMD("lootsel", "lootsel menu <i|last> | shop <buy|sell> <i|last> | doll <slot> <cand>: the cursor on a row (M8b)", cmdLootSel);
 
 bool expLootCard(ScriptCtx& c) {
-  const View::CardInfo ci = c.view.lastCard();
+  const View::CardInfo ci = ViewProbe::lastCard(c.view);
   if (ci.rarity < 0) { c.fail("lootcard: no item card drawn"); return true; }
   for (size_t i = 2; i < c.a.size(); i++) {
     const std::string w = low(c.a[i]);
@@ -239,27 +240,27 @@ EMB_SCRIPT_CMD("expect:lootcard", "expect lootcard [rarity N] [compare] [verdict
 
 bool expLootBeams(ScriptCtx& c) {
   const int r = rarityWord(low(c.arg(2))), want = std::max(1, std::atoi(c.arg(3).c_str()));
-  const int got = c.view.lootStats().beams[std::clamp(r, 0, 5)];
+  const int got = ViewProbe::lootStats(c.view).beams[std::clamp(r, 0, 5)];
   if (got < want) c.fail("lootbeams: " + std::to_string(got) + " " + rarityName((Rarity)r) + " drawn (" + std::to_string(want) + " wanted)");
   return true;
 }
 EMB_SCRIPT_CMD("expect:lootbeams", "expect lootbeams <rarity> <n>: pickups of that rarity drawn with their beam last frame (M8b)", expLootBeams);
 
 bool expLootChimes(ScriptCtx& c) {
-  const int want = std::atoi(c.arg(2).c_str()), got = c.view.lootStats().chimes;
+  const int want = std::atoi(c.arg(2).c_str()), got = ViewProbe::lootStats(c.view).chimes;
   if (got < want) c.fail("lootchimes: " + std::to_string(got) + " (" + std::to_string(want) + " wanted)");
   return true;
 }
 EMB_SCRIPT_CMD("expect:lootchimes", "expect lootchimes <n>: the LootChime played at least n times (M8b)", expLootChimes);
 
 bool expLootEmbers(ScriptCtx& c) {
-  if (c.view.lootStats().embers <= 0) c.fail("lootembers: no Mythic wearer's embers rose");
+  if (ViewProbe::lootStats(c.view).embers <= 0) c.fail("lootembers: no Mythic wearer's embers rose");
   return true;
 }
 EMB_SCRIPT_CMD("expect:lootembers", "expect lootembers: a Mythic wearer's embers rose (M8b)", expLootEmbers);
 
 bool expLootFrames(ScriptCtx& c) {
-  const int want = std::atoi(c.arg(2).c_str()), got = c.view.lootStats().frames;
+  const int want = std::atoi(c.arg(2).c_str()), got = ViewProbe::lootStats(c.view).frames;
   if (got < want) c.fail("lootframes: " + std::to_string(got) + " rarity frames last frame (" + std::to_string(want) + " wanted)");
   return true;
 }

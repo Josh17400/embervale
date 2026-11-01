@@ -144,10 +144,10 @@ void View::collectTiles(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
         Prop p = (Prop)(pr - 1);
         if (flatProp(p)) {
           if (uint32_t ik = interiorPropTexKey(g, m, tx, ty, p, (int)(t_ * 8 + tx * 3))) {
-            const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
+            const Tex& t = sprites_.cachedTex(*this, 0x01ull << 56 | ik, paintInteriorPiece);
             P.blit(t, tx * 16 + 8 - t.w / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
           } else {
-            const Tex* tp = &props_[(int)p];
+            const Tex* tp = &sprites_.props_[(int)p];
             int fw = art::propW(p);
             int frames = std::max(1, art::propFrames(p));
             int fr = frames > 1 ? (int)(t_ * 8 + tx * 3) % frames : 0;
@@ -161,7 +161,7 @@ void View::collectTiles(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
               jy = (float)((int)((h >> 8) % 9u) - 4);
               if (art::isWildlandsFlora(p)) {
                 const int nv = std::max(1, art::floraVariants(p));
-                tp = &cachedTex(0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(tx, ty) << 8 | (uint64_t)((h >> 16) % (uint32_t)nv), paintFlora);
+                tp = &sprites_.cachedTex(*this, 0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(tx, ty) << 8 | (uint64_t)((h >> 16) % (uint32_t)nv), paintFlora);
                 fw = tp->w / frames;
               }
             }
@@ -179,10 +179,10 @@ void View::collectTiles(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
           if (treeProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
             const ew::Urb u = ew::urbClass(m.urbAt(tx, ty));
             if (u == ew::Urb::Sidewalk || u == ew::Urb::Avenue || u == ew::Urb::Street || u == ew::Urb::Square || u == ew::Urb::Court) {
-              const art::PropStyle* ps = propStyleAt(g, tx, ty);
+              const art::PropStyle* ps = sprites_.propStyleAt(*this, g, tx, ty);
               const uint64_t k = ew::mix64(ps->key() ^ 0x7EE917ull);
-              auto it = styledProps_.find(k);
-              const Tex& gt = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::cityTreePit(*ps)));
+              auto it = sprites_.styledProps_.find(k);
+              const Tex& gt = it != sprites_.styledProps_.end() ? it->second : (sprites_.styledProps_[k] = pix_->bake(art::cityTreePit(*ps)));
               P.blit(gt, tx * 16.0f + 8.0f - gt.w / 2.0f - cam.x, ty * 16.0f + 16.0f - gt.h + 1.0f - cam.y);
             }
           }
@@ -211,11 +211,11 @@ void View::collectBuildings(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
         list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, DrawKind::Building, bi, 0, 0});
         if (rig2Roofs) {   // its sprite's place and column profile (painted now if not yet, as its draw below would)
           const Bldg& b = m.bldgs[(size_t)bi];
-          const uint64_t key = bldgKey(m, b, bi);
-          auto tt = bldgTex_.find(key);
-          if (tt == bldgTex_.end() && (witness || !(g.sleepFade > 0.5f || fade_ > 0.5f))) { bldgTex(b, bi); tt = bldgTex_.find(key); }
+          const uint64_t key = sprites_.bldgKey(m, b, bi);
+          auto tt = sprites_.bldgTex_.find(key);
+          if (tt == sprites_.bldgTex_.end() && (witness || !(g.sleepFade > 0.5f || fade_ > 0.5f))) { sprites_.bldgTex(*this, b, bi); tt = sprites_.bldgTex_.find(key); }
           auto ct = g_bldgColTop.find(key);
-          if (tt != bldgTex_.end() && tt->second.t && ct != g_bldgColTop.end()) {
+          if (tt != sprites_.bldgTex_.end() && tt->second.t && ct != g_bldgColTop.end()) {
             const float bottom = (b.r.y + b.r.h) * 16.0f;
             roofOcc.push_back({b.r.x * 16.0f - art::BLDG_PAD_X, bottom + art::BLDG_PAD_B - tt->second.h, bottom, &ct->second});
           }
@@ -235,11 +235,11 @@ void View::collectBuildings(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
   if (!m.bldgs.empty() && g.mode != Mode::Title && !g.travelling() && paintBudget >= 0.75) {   // (M2: a journey paints its arrival in travelArrive)
     bldgPrefetch_ %= (int)m.bldgs.size();
     const Bldg& cur = m.bldgs[(size_t)bldgPrefetch_];
-    const uint64_t ck = bldgKey(m, cur, bldgPrefetch_);
+    const uint64_t ck = sprites_.bldgKey(m, cur, bldgPrefetch_);
     bool busy = false;
-    if (!bldgTex_.count(ck))
-      for (const BldgJob& j : bldgJobs_) if (j.key == ck) { busy = true; break; }
-    if (busy) bldgPaintStep(cur, bldgPrefetch_, paintBudget);
+    if (!sprites_.bldgTex_.count(ck))
+      for (const SpriteCache::BldgJob& j : sprites_.bldgJobs_) if (j.key == ck) { busy = true; break; }
+    if (busy) sprites_.bldgPaintStep(*this, cur, bldgPrefetch_, paintBudget);
     else {
       // (M3 fixer round 2) the nearest unpainted building to where the hero is heading, not the next index round the
       // list: in a capital of 200+ buildings the round-robin looked at 12 a frame and the walk reached unpainted streets
@@ -252,10 +252,10 @@ void View::collectBuildings(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
         const float dx = b.r.cx() * 16.0f - ahead.x, dy = b.r.cy() * 16.0f - ahead.y;
         if (std::fabs(dx) > 720 || std::fabs(dy) > 520) continue;
         const float d = dx * dx + dy * dy * 1.6f;
-        if (d >= bestD || bldgTex_.count(bldgKey(m, b, i))) continue;
+        if (d >= bestD || sprites_.bldgTex_.count(sprites_.bldgKey(m, b, i))) continue;
         best = i; bestD = d;
       }
-      if (best >= 0) { bldgPrefetch_ = best; bldgPaintStep(m.bldgs[(size_t)best], best, paintBudget); }
+      if (best >= 0) { bldgPrefetch_ = best; sprites_.bldgPaintStep(*this, m.bldgs[(size_t)best], best, paintBudget); }
     }
   }
 }
@@ -271,8 +271,8 @@ void View::collectActors(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
     // frame while it topples), so tall grass and a loose horse standing in front of it draw over it and those behind under
     // it (v1's fixed 8 px lift was the v1 corpse cell's). From the cached DEATH atlas only: nothing is baked for a sort.
     if (a.human && a.st == AState::Dead && art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
-      auto dt = rigTex_.find(rigKey(a.look, art::RigPart::Death, a.role == Role::Child));
-      if (dt != rigTex_.end() && !dt->second.sheet.empty()) {
+      auto dt = sprites_.rigTex_.find(rigKey(a.look, art::RigPart::Death, a.role == Role::Child));
+      if (dt != sprites_.rigTex_.end() && !dt->second.sheet.empty()) {
         const AnimPick k = animPick(g, a, 2);
         const art::RigSheet& S = dt->second.sheet;
         const art::FrameRect* f = S.frame(std::clamp(a.face, 0, 3), k.clip, k.variant, k.frame);
@@ -325,7 +325,7 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
   // (M8) the graves of the fallen companions in view (kind 9: idx = Party::fallen index; party_view.cpp)
   {
     std::vector<int> graves;
-    graveDraws(g, m, cam, graves);
+    party_.graveDraws(g, m, cam, graves);
     for (int fi : graves)
       list.push_back({(float)(g.party.fallen[(size_t)fi].gy - g.world.oy) * 16.0f + 15.5f, DrawKind::Grave, fi, 0, 0});
   }
@@ -343,29 +343,29 @@ void View::collectOthers(Game& g, FrameCtx& F, std::vector<Drawable>& list) {
     }
   // (M7) the player's property: yard objects, crops, ground edits, the building site (kind 8: idx into homeDraws_;
   //      collected by the VIEW lane's homeCollect, rpg/view/home_view.cpp)
-  homeDraws_.clear();
+  home_.homeDraws_.clear();
   if (g.mode != Mode::Title) homeCollect(g, m, cam);
-  else homeLights_.clear();
-  drawHomeFlats(cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
-  for (int i = 0; i < (int)homeDraws_.size(); i++)
-    if (!homeDraws_[(size_t)i].flat) list.push_back({homeDraws_[(size_t)i].sortY, DrawKind::Home, i, 0, 0});
+  else home_.homeLights_.clear();
+  home_.drawHomeFlats(*this, cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
+  for (int i = 0; i < (int)home_.homeDraws_.size(); i++)
+    if (!home_.homeDraws_[(size_t)i].flat) list.push_back({home_.homeDraws_[(size_t)i].sortY, DrawKind::Home, i, 0, 0});
   // (M5) a festival's poles across the plaza (kind 7: idx = span, tx = 0 west / 1 east pole)
-  festivalPlan(g, m, cam);
-  for (int i = 0; i < (int)festSpans_.size(); i++) {
-    const FestSpan& s = festSpans_[(size_t)i];
+  life_.festivalPlan(g, m, cam);
+  for (int i = 0; i < (int)life_.festSpans_.size(); i++) {
+    const LifeView::FestSpan& s = life_.festSpans_[(size_t)i];
     if (s.y * 16 < cam.y - 40 || s.y * 16 > cam.y + Pix::H + 60 || s.x1 * 16 < cam.x - 40 || s.x0 * 16 > cam.x + Pix::W + 40) continue;
     list.push_back({s.y * 16.0f + 13.0f, DrawKind::FestPole, i, 0, 0});
     list.push_back({s.y * 16.0f + 13.0f, DrawKind::FestPole, i, 1, 0});
   }
   // (M10) the sea's standing things: the boats (render_sea.cpp; Drawable kind 10)
-  if (g.mode != Mode::Title) seaSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Sea, i, 0, 0}); });
+  if (g.mode != Mode::Title) SeaLane::seaSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Sea, i, 0, 0}); });
   // (M11) the relief's standing things: a fall's spray column (render_relief.cpp; Drawable kind 11)
-  if (g.mode != Mode::Title) reliefSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Relief, i, 0, 0}); });
+  if (g.mode != Mode::Title) ReliefLane::reliefSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Relief, i, 0, 0}); });
   // (M12) the rise's standing pieces: the holdings' works, warlords' standards and stockades, resettlers' stores
   //       (render_rise.cpp's rise_world.cpp; Drawable kind 12), and its flat ones (a beast's claw scars) under them
   if (g.mode != Mode::Title) {
-    riseSorted(g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Rise, i, 0, 0}); });
-    drawRiseGround(g, cam);
+    RiseLane::riseSorted(*this, g, cam, [&](float y, int i) { list.push_back({y, DrawKind::Rise, i, 0, 0}); });
+    RiseLane::drawRiseGround(*this, g, cam);
   }
   // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
   // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
@@ -390,15 +390,15 @@ void View::drawShadowSorted(Game& g, FrameCtx& F, const Drawable& d) {
   Pix& P = F.P;
   Vec2 cam = F.cam;
   if (d.kind == DrawKind::Home) {   // (M7) a yard object's or a crop's ground shadow
-    if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeShadow(homeDraws_[(size_t)d.idx], cam);
+    if (d.idx >= 0 && d.idx < (int)home_.homeDraws_.size()) home_.drawHomeShadow(*this, home_.homeDraws_[(size_t)d.idx], cam);
     return;
   }
-  if (d.kind == DrawKind::Grave) { drawGrave(g, d.idx, cam, true); return; }   // (M8) a grave's shadow
+  if (d.kind == DrawKind::Grave) { party_.drawGrave(*this, g, d.idx, cam, true); return; }   // (M8) a grave's shadow
   if (d.kind == DrawKind::Handcart) {   // (P1b) a story's hand cart: the shadow its own model casts, to the lower right
     if (d.idx >= 0 && d.idx < (int)g.story.walkers_.size()) {
       const story::Engine::Walker& w = g.story.walkers_[(size_t)d.idx];
       const int dir = handcartDir(w.cartAng);
-      const Tex& st = cachedTex(0x52ull << 56 | (uint64_t)dir | 1ull << 6, paintHandcart);
+      const Tex& st = sprites_.cachedTex(*this, 0x52ull << 56 | (uint64_t)dir | 1ull << 6, paintHandcart);
       P.blitEx(st, 0, 0, st.w, st.h, std::floor(w.cartX - HC_OX - cam.x + 0.5f), std::floor(w.cartY - HC_OY - cam.y + 0.5f), (float)st.w, (float)st.h, false,
                Color(1, 1, 1, 0.32f));
     }
@@ -421,7 +421,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
     // under it the body pass lays STYLE_P2 13's stain. v1's dead keep none (rig 1 unchanged).
     if (a.human && !a.comp && art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
       const AnimPick k = animPick(g, a, 2);
-      const RigTex rt = k.clip == art::Clip::Fall || k.clip == art::Clip::Lying ? rigTex(a.look, art::RigPart::Death, a.role == Role::Child) : RigTex();
+      const RigTex rt = k.clip == art::Clip::Fall || k.clip == art::Clip::Lying ? sprites_.rigTex(*this, a.look, art::RigPart::Death, a.role == Role::Child) : RigTex();
       if (rt.ready()) {
         int fc = std::clamp(a.face, 0, 3);
         const art::FrameRect* lie = rt.sheet->frame(fc, art::Clip::Lying, k.clip == art::Clip::Lying ? k.variant : 0, 0);
@@ -435,7 +435,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
           const float cx = a.p.x + (lcx - a.p.x) * u, cy = a.p.y + u;
           const float ca = animCorpseAlpha(a, 2);
           if (ca > 0.01f)
-            P.blitEx(shadowBig_, 0, 0, shadowBig_.w, shadowBig_.h, std::floor(cx - w * 0.5f - cam.x + 0.5f), std::floor(cy - h * 0.5f - cam.y + 0.5f), w, h,
+            P.blitEx(sprites_.shadowBig_, 0, 0, sprites_.shadowBig_.w, sprites_.shadowBig_.h, std::floor(cx - w * 0.5f - cam.x + 0.5f), std::floor(cy - h * 0.5f - cam.y + 0.5f), w, h,
                      false, Color(1, 1, 1, 0.9f * ca));
         }
       }
@@ -447,10 +447,10 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
   // the order of every other drawable, ties included, is the same as without the param: only its own pixels go
   if (!wHide.empty() && witnessHides(g, a)) return;
 #endif
-  if (a.player && g.homeRiding()) { drawMountShadow(g, a, cam); return; }   // (M7) the horse's shadow
+  if (a.player && g.homeRiding()) { home_.drawMountShadow(*this, g, a, cam); return; }   // (M7) the horse's shadow
   if (a.comp) {   // (M8) the hound's, a rider's horse's, the blood under the downed (party_view.cpp)
     bool done = false;
-    drawCompanionShadow(g, a, cam, done);
+    party_.drawCompanionShadow(*this, g, a, cam, done);
     if (done) return;
   }
   // (M6 BEASTS) an elite's, a champion's or a named unique's aura: its ground glow round the feet, added under the
@@ -460,7 +460,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
     const int sc = beasts::drawScale(a);
     const int aw = std::clamp((int)std::lround((a.human ? 18.0f : art::lookCellW(beasts::lookOf(a)) * 0.7f) * sc / 6.0f) * 6, 18, 72);
     const int ah = art::auraH(aw);
-    const Tex& at = auraTex(ac, aw);
+    const Tex& at = sprites_.auraTex(*this, ac, aw);
     const int fr = (int)(t_ * 7.0f + a.id * 0.37f) % art::AURA_FRAMES;
     const float ax = std::floor(a.p.x - aw * 0.5f - cam.x + 0.5f), ay = std::floor(a.p.y - (ah - aw * 0.25f - 1.0f) - cam.y + 0.5f);
     // a faint normal pass lays the affix's hue on the ground (an additive red on grass alone reads yellow), the
@@ -473,7 +473,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
   if (a.critter > 0) {   // (M5) a village animal: a shadow as long as its body (wider side-on)
     const int ck = a.critter - 1;
     const float w = art::critterCellW((art::Critter)ck) * (a.face >= 2 ? 0.8f : 0.55f), h = std::max(3.0f, w * 0.32f);
-    P.blitEx(shadow_, 0, 0, shadow_.w, shadow_.h, a.p.x - w / 2 - cam.x, a.p.y - h / 2 - cam.y, w, h, false, Color(1, 1, 1, 0.85f));
+    P.blitEx(sprites_.shadow_, 0, 0, sprites_.shadow_.w, sprites_.shadow_.h, a.p.x - w / 2 - cam.x, a.p.y - h / 2 - cam.y, w, h, false, Color(1, 1, 1, 0.85f));
     return;
   }
   if (bathing(g, m, a)) return;   // (M5 fixer r2) in the water: no shadow on the floor
@@ -482,7 +482,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
     if (pi.lying || (pi.seated && a.useY >= 0)) return;
   }
   bool big = a.radius > 7;
-  const Tex& s = big ? shadowBig_ : shadow_;
+  const Tex& s = big ? sprites_.shadowBig_ : sprites_.shadow_;
   float sc = big ? std::min(1.6f, a.radius / 10.0f) : 1.0f;
   if (a.mon == Monster::Dragon) sc = a.fly ? 1.8f : 2.0f;
   if (!a.human) {   // (M6 BEASTS) a world boss throws a heavy shadow; the golem's broad feet a wider one
@@ -493,7 +493,7 @@ void View::drawActorShadow(Game& g, FrameCtx& F, const Drawable& d) {
   const bool airborne = !a.human && a.flying && a.mon == Monster::Harpy;
   if (airborne) sc *= 0.8f;
   P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : airborne ? 0.75f : 1));
-  if (a.player) drawRing(g, a, cam);   // (P2a) the hero's ring: after the contact shadow, before the body
+  if (a.player) lens_.drawRing(*this, g, a, cam);   // (P2a) the hero's ring: after the contact shadow, before the body
 }
 
 void View::drawPropShadow(Game& g, FrameCtx& F, const Drawable& d) {
@@ -506,30 +506,30 @@ void View::drawPropShadow(Game& g, FrameCtx& F, const Drawable& d) {
     const Tex* st;
     if (art::isStall(p)) {
       const int fc = stallFacingOn(g, m, d.tx, d.ty);
-      st = &cachedTex(0x3Aull << 56 | (uint64_t)fc << 4 | (uint64_t)stallFormOn(g, d.tx, d.ty, fc), paintStallShadow);
+      st = &sprites_.cachedTex(*this, 0x3Aull << 56 | (uint64_t)fc << 4 | (uint64_t)stallFormOn(g, d.tx, d.ty, fc), paintStallShadow);
     } else if (p == Prop::MarketTable) {   // (stalls fixer round 1) a packed-up table's shade is furled: no shade's shadow
       const bool open = g.mode == Mode::Title || ew::stallOpen(d.tx + g.world.ox, d.ty + g.world.oy, g.hour);
-      st = &cachedTex(0x3Bull << 56 | (uint64_t)(open ? ew::tableShadeAt(d.tx + g.world.ox, d.ty + g.world.oy) : 0), paintTableShadow);
+      st = &sprites_.cachedTex(*this, 0x3Bull << 56 | (uint64_t)(open ? ew::tableShadeAt(d.tx + g.world.ox, d.ty + g.world.oy) : 0), paintTableShadow);
     }
-    else if (p == Prop::GroundCloth) st = &cachedTex(0x3Cull << 56, paintClothShadow);
-    else st = &cachedTex(0x3Eull << 56 | (uint64_t)cartLook(g, d.tx, d.ty), paintCartShadow);
+    else if (p == Prop::GroundCloth) st = &sprites_.cachedTex(*this, 0x3Cull << 56, paintClothShadow);
+    else st = &sprites_.cachedTex(*this, 0x3Eull << 56 | (uint64_t)cartLook(g, d.tx, d.ty), paintCartShadow);
     P.blit(*st, d.tx * 16 + art::kVendorShadowX - cam.x, d.ty * 16 + art::kVendorShadowY - cam.y);
     return;
   }
   int sh = propShadow(p);
-  if (sh == 1) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 12 - cam.x, d.ty * 16 + 11 - cam.y, 24, 8, false, Color(1, 1, 1, 0.8f));
-  else if (sh == 2) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 11 - cam.x, d.ty * 16 + 12 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
+  if (sh == 1) P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 12 - cam.x, d.ty * 16 + 11 - cam.y, 24, 8, false, Color(1, 1, 1, 0.8f));
+  else if (sh == 2) P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 11 - cam.x, d.ty * 16 + 12 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
   else if (sh == 3) {   // (M1 economy) the stall's awning shades the ground a little east of it (the sun is up-left)
-    P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 22 - cam.x, d.ty * 16 + 9 - cam.y, 50, 11, false, Color(1, 1, 1, 0.75f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 22 - cam.x, d.ty * 16 + 9 - cam.y, 50, 11, false, Color(1, 1, 1, 0.75f));
   } else if (sh == 4) {   // (M1 fixer round 2) a two-tile table or cloth: its shade under both its tiles
-    P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 1 - cam.x, d.ty * 16 + 10 - cam.y, 32, 8, false, Color(1, 1, 1, 0.6f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 1 - cam.x, d.ty * 16 + 10 - cam.y, 32, 8, false, Color(1, 1, 1, 0.6f));
   } else if (sh == 5) {   // a beast's own small shadow
-    P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 9 - cam.x, d.ty * 16 + 12 - cam.y, 18, 5, false, Color(1, 1, 1, 0.6f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 9 - cam.x, d.ty * 16 + 12 - cam.y, 18, 5, false, Color(1, 1, 1, 0.6f));
   } else if (sh >= 6) {   // (M2) a wild prop's ground shadow, as wide as its footprint, thrown a little down-right
     int fw = 1, fh = 1;
     art::wildFootprint(p, fw, fh);
     const float w = fw * 16.0f * (sh == 7 ? 1.05f : 0.82f) + 6, h = std::max(6.0f, w * 0.22f);
-    P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - w / 2 + 3 - cam.x, d.ty * 16 + 15 - h * 0.6f - cam.y, w, h, false, Color(1, 1, 1, 0.75f));
+    P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - w / 2 + 3 - cam.x, d.ty * 16 + 15 - h * 0.6f - cam.y, w, h, false, Color(1, 1, 1, 0.75f));
   }
 }
 
@@ -542,7 +542,7 @@ void View::drawGateShadow(Game& g, FrameCtx& F, const Drawable& d) {
     // by the form and feathered (no hard box): a vault's shade deep inside and thinning to the sunlit far mouth and
     // the jambs; a moon gate's thin wall a light one; the living arch's canopy dappled; the hedge gap's open sky none
     bld::FortParts fp;
-    const bld::GateForm gf = fortPartsOfSite(g, g.world.siteAt(d.tx + 1, d.ty, 3), fp) ? fp.gate : bld::GateForm::DrumTowers;
+    const bld::GateForm gf = sprites_.fortPartsOfSite(g, g.world.siteAt(d.tx + 1, d.ty, 3), fp) ? fp.gate : bld::GateForm::DrumTowers;
     const float k = gf == bld::GateForm::HedgeGap ? 0.0f : gf == bld::GateForm::MoonGate ? 0.45f : gf == bld::GateForm::LivingArch ? 0.6f : 1.0f;
     const float gx0 = d.tx * 16 + 3 - cam.x, gy0 = d.ty * 16 - cam.y;
     for (int r = -3; k > 0 && r < 16; r++) {
@@ -578,18 +578,18 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   Prop p = (Prop)d.idx;
   if (m.kind == MapKind::Interior)
     if (uint32_t ik = interiorPropTexKey(g, m, d.tx, d.ty, p, (int)(t_ * 8 + d.tx * 3))) {
-      const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
+      const Tex& t = sprites_.cachedTex(*this, 0x01ull << 56 | ik, paintInteriorPiece);
       P.blit(t, d.tx * 16 + 8 - t.w / 2 - cam.x, d.ty * 16 + 16 - t.h - cam.y);
       return;
     }
-  const Tex* tp = &props_[d.idx];
+  const Tex* tp = &sprites_.props_[d.idx];
   // (M1) every market stall on the overworld has its own awning and goods (by its tile: stable, never repeats
   // on one square)
   if (p == Prop::MarketStall && m.kind == MapKind::Overworld) {
     const int32_t gx = d.tx + (m.kind == MapKind::Overworld ? g.world.ox : 0), gy = d.ty + (m.kind == MapKind::Overworld ? g.world.oy : 0);
     const uint32_t h = hash2(gx, gy, 6151);
-    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
-    tp = ps && !ps->classic() ? &styledPropTex(p, *ps) : &cachedTex(0x02ull << 56 | (uint64_t)(h % 36), paintStall);   // (M3b) the culture's
+    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : sprites_.propStyleAt(*this, g, d.tx, d.ty);
+    tp = ps && !ps->classic() ? &sprites_.styledPropTex(*this, p, *ps) : &sprites_.cachedTex(*this, 0x02ull << 56 | (uint64_t)(h % 36), paintStall);   // (M3b) the culture's
   }
   // (M1 economy) a trade's stall: the awning cloth steps along a row (a stall three tiles on wears the next
   // cloth, so neighbours never match), and differs between rows and squares
@@ -599,9 +599,9 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   bool vendorOpen = g.mode == Mode::Title || m.kind != MapKind::Overworld || ew::stallOpen(d.tx + g.world.ox, d.ty + g.world.oy, g.hour);
   // (M5, 15.12) a hungry or famished town's stalls stay shuttered all day (nothing to sell): packed up like after hours
   if (vendorOpen && g.mode != Mode::Title && m.kind == MapKind::Overworld && (art::isVendorProp(p) || p == Prop::MarketStall) &&
-      (lifeFlagsAt(g, d.tx, d.ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
+      (life_.lifeFlagsAt(*this, g, d.tx, d.ty) & (life::MF_SHUTTERED | life::MF_FAMINE))) {
     vendorOpen = false;
-    m5Count_.stallsShut++;
+    life_.m5Count_.stallsShut++;
   }
   // (stall facings) a row running north-south (side profiles) steps its cloth along the column instead
   int stallFacing = art::StallS;
@@ -617,18 +617,18 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
     const bool snowy = g.mode != Mode::Title && snowyTile(m, d.tx, d.ty);
     const uint64_t sk = 0x04ull << 56 | (uint64_t)(snowy ? 1 : 0) << 16 | (uint64_t)stallFacing << 13 | (uint64_t)(vendorOpen ? 0 : 1) << 12 |
                         (uint64_t)form << 8 | (uint64_t)aw << 4 | (uint64_t)art::stallTrade(p);
-    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : sprites_.propStyleAt(*this, g, d.tx, d.ty);
     if (ps && !ps->classic() && (ps->awning || ps->awningA || ps->cloth)) {   // (M3) the culture's awnings, the layout untouched
       const uint64_t k2 = ew::mix64(sk ^ ps->key() ^ 0x57A11ull);
-      auto it = styledProps_.find(k2);
-      if (it != styledProps_.end()) tp = &it->second;
+      auto it = sprites_.styledProps_.find(k2);
+      if (it != sprites_.styledProps_.end()) tp = &it->second;
       else {
         if (snowy) art::setMarketSnow(13.0f, (uint32_t)k2);
-        tp = &(styledProps_[k2] = pix_->bake(art::marketStallStyled(art::stallTrade(p), (int)aw, (int)form, !vendorOpen, stallFacing, *ps)));
+        tp = &(sprites_.styledProps_[k2] = pix_->bake(art::marketStallStyled(art::stallTrade(p), (int)aw, (int)form, !vendorOpen, stallFacing, *ps)));
         art::setMarketSnow(1e9f);
       }
     } else
-      tp = &cachedTex(sk, paintTradeStall);
+      tp = &sprites_.cachedTex(*this, sk, paintTradeStall);
   }
   propMarketTex(g, F, d, p, vendorOpen, tp);
   if (propCultureStyled(g, F, d, p, tp)) return;
@@ -651,20 +651,20 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   // (M4) a war prop in the colours of the kingdom whose camp it belongs to (realm_render.cpp)
   bool warSwap = false;
   if (art::isWarProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title)
-    if (const Tex* wt = warPropTex(g, p, d.tx, d.ty)) { tp = wt; warSwap = true; }
+    if (const Tex* wt = sprites_.warPropTex(*this, g, p, d.tx, d.ty)) { tp = wt; warSwap = true; }
   // (M12) the lord's standard in its owner's arms (rise_world.cpp; the same frames as the plain prop)
   if (p == Prop::LordBanner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
-    if (const Tex* bt = riseBannerTex(g, d.tx, d.ty)) tp = bt;
+    if (const Tex* bt = RiseLane::riseBannerTex(*this, g, d.tx, d.ty)) tp = bt;
   // (M5, VISION_PLAN 10.3) a street lamp burns only from the lamplighter's visit at dusk (19:00..20:30 along his
   // round) until it is put out at dawn; by day and before he comes its glass is dark
   bool lampFlameOn = false;
   if (p == Prop::Lamppost && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
     if (life::lampLit(d.tx + g.world.ox, d.ty + g.world.oy, g.hour)) {
-      m5Count_.lampsLit++;
-      lampFlameOn = tp == &props_[(int)p];   // the classic lantern: its flame drawn live over the glass (ART lampHead)
+      life_.m5Count_.lampsLit++;
+      lampFlameOn = tp == &sprites_.props_[(int)p];   // the classic lantern: its flame drawn live over the glass (ART lampHead)
     } else {
-      tp = &lampDarkTex(propStyleAt(g, d.tx, d.ty));
-      m5Count_.lampsDark++;
+      tp = &sprites_.lampDarkTex(*this, sprites_.propStyleAt(*this, g, d.tx, d.ty));
+      life_.m5Count_.lampsDark++;
     }
   }
   const Tex& t = *tp;
@@ -705,7 +705,7 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
     }
   P.blitEx(t, fr * fw, 0, fw, fh, x, y, (float)fw, (float)fh, flipP, Color(1, 1, 1, alpha));
   if (lampFlameOn) {   // (M5) the lit lamp's flame, flickering on its own clock
-    const Tex& ft = cachedTex(0x4Full << 56, [](uint64_t) { return art::lampFlame(0); });
+    const Tex& ft = sprites_.cachedTex(*this, 0x4Full << 56, [](uint64_t) { return art::lampFlame(0); });
     int hx = 0, hy = 0;
     art::lampHead(hx, hy);
     const int ff = (int)(t_ * 7.0f + (float)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6301) % 97u) * 0.31f) % art::LAMP_FLAME_FRAMES;
@@ -714,7 +714,7 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
   if (p == Prop::WatchtowerRuin && m.kind == MapKind::Overworld && g.mode != Mode::Title && story::beaconLit(g, d.tx, d.ty)) {
     // (P1b) the beacon a story lit: the fire in the broken drum, its glow on the night, sparks going up
     const int ff = (int)(t_ * 9.0f + (float)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 911) % 13u)) % 4;
-    const Tex& ft = cachedTex(0x53ull << 56 | (uint64_t)ff, paintBeaconFlame);
+    const Tex& ft = sprites_.cachedTex(*this, 0x53ull << 56 | (uint64_t)ff, paintBeaconFlame);
     const float fx = std::floor(x + fw * 0.5f - BF_W * 0.5f - 1.0f), fy = std::floor(y + 22.0f - BF_H);
     const float nk = clampf(1.0f - g.daylight() * 1.4f, 0, 1);
     P.blit(ft, fx, fy);
@@ -729,12 +729,12 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
       q.life = q.max = 1.1f;
       q.c = Color(1, 0.62f, 0.22f);
       q.size = 1;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
   }
   if (p == Prop::Campfire || p == Prop::Brazier) {
     Rng r((uint32_t)(t_ * 30) + d.tx * 7);
-    if (r.f() < 0.3f) { Particle q; q.p = Vec2(d.tx * 16 + 8 + r.range(-3, 3), d.ty * 16 + 6.0f); q.v = Vec2(r.range(-5, 5), r.range(-30, -15)); q.life = q.max = 0.8f; q.c = Color(1, 0.6f, 0.2f); q.size = 1; parts_.push_back(q); }
+    if (r.f() < 0.3f) { Particle q; q.p = Vec2(d.tx * 16 + 8 + r.range(-3, 3), d.ty * 16 + 6.0f); q.v = Vec2(r.range(-5, 5), r.range(-30, -15)); q.life = q.max = 0.8f; q.c = Color(1, 0.6f, 0.2f); q.size = 1; fx_.parts_.push_back(q); }
   }
 }
 
@@ -743,28 +743,28 @@ void View::propMarketTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, bool v
   if ((p == Prop::MarketTable || p == Prop::GroundCloth) && m.kind == MapKind::Overworld) {
     const int32_t gx = d.tx + g.world.ox, gy = d.ty + g.world.oy;
     const uint64_t k = (uint64_t)(vendorOpen ? 0 : 1) << 8;
-    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : sprites_.propStyleAt(*this, g, d.tx, d.ty);
     if (ps && !ps->classic()) {   // (M3b) the culture's cloths and timber, the layout and goods untouched
       const bool table = p == Prop::MarketTable;
       const int a1 = table ? ew::tableGoodsAt(gx, gy) : ew::clothGoodsAt(gx, gy), a2 = table ? ew::tableShadeAt(gx, gy) : ew::clothColourAt(gx, gy);
       const uint64_t k2 = ew::mix64(ps->key() ^ ((uint64_t)(table ? 1 : 2) << 56) ^ k ^ ((uint64_t)a2 << 4) ^ (uint64_t)a1 ^ 0x7AB1Eull);
-      auto it = styledProps_.find(k2);
-      tp = it != styledProps_.end() ? &it->second
-                                    : &(styledProps_[k2] = pix_->bake(table ? art::marketTableStyled(a1, a2, !vendorOpen, *ps) : art::groundClothStyled(a1, a2, !vendorOpen, *ps)));
-    } else if (p == Prop::MarketTable) tp = &cachedTex(0x05ull << 56 | k | (uint64_t)ew::tableShadeAt(gx, gy) << 4 | (uint64_t)ew::tableGoodsAt(gx, gy), paintMarketTable);
-    else tp = &cachedTex(0x06ull << 56 | k | (uint64_t)ew::clothColourAt(gx, gy) << 4 | (uint64_t)ew::clothGoodsAt(gx, gy), paintGroundCloth);
+      auto it = sprites_.styledProps_.find(k2);
+      tp = it != sprites_.styledProps_.end() ? &it->second
+                                    : &(sprites_.styledProps_[k2] = pix_->bake(table ? art::marketTableStyled(a1, a2, !vendorOpen, *ps) : art::groundClothStyled(a1, a2, !vendorOpen, *ps)));
+    } else if (p == Prop::MarketTable) tp = &sprites_.cachedTex(*this, 0x05ull << 56 | k | (uint64_t)ew::tableShadeAt(gx, gy) << 4 | (uint64_t)ew::tableGoodsAt(gx, gy), paintMarketTable);
+    else tp = &sprites_.cachedTex(*this, 0x06ull << 56 | k | (uint64_t)ew::clothColourAt(gx, gy) << 4 | (uint64_t)ew::clothGoodsAt(gx, gy), paintGroundCloth);
   }
   // (M1 fixer round 2) the mine hill: its shape by its tile, its top by its land (snow, dry grass or green)
   if (p == Prop::MineHill && m.kind == MapKind::Overworld) {
     const Biome bb = m.biomeAt(d.tx, d.ty);
     const int land = bb == Biome::Snow || bb == Biome::Taiga || bb == Biome::Mountain ? 1 : (bb == Biome::Desert ? 2 : 0);
     const uint32_t mv = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6211) & 3u;
-    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : sprites_.propStyleAt(*this, g, d.tx, d.ty);
     if (ps && !ps->classic()) {   // (M3b) its adit timbered in the culture's wood
       const uint64_t k2 = ew::mix64(ps->key() ^ (0x08ull << 56) ^ ((uint64_t)land << 2) ^ mv ^ 0x3111ull);
-      auto it = styledProps_.find(k2);
-      tp = it != styledProps_.end() ? &it->second : &(styledProps_[k2] = pix_->bake(art::mineHillStyled((int)mv, land, *ps)));
-    } else tp = &cachedTex(0x08ull << 56 | (uint64_t)land << 2 | (uint64_t)mv, paintMineHill);
+      auto it = sprites_.styledProps_.find(k2);
+      tp = it != sprites_.styledProps_.end() ? &it->second : &(sprites_.styledProps_[k2] = pix_->bake(art::mineHillStyled((int)mv, land, *ps)));
+    } else tp = &sprites_.cachedTex(*this, 0x08ull << 56 | (uint64_t)land << 2 | (uint64_t)mv, paintMineHill);
   }
   // (M1 fixer round 2) the mine's track joins its neighbours (and runs in under the adit's frame)
   if (p == Prop::MineRail) {
@@ -777,7 +777,7 @@ void View::propMarketTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, bool v
     if (railAt(d.tx + 1, d.ty)) j |= 2;
     if (railAt(d.tx, d.ty + 1)) j |= 4;
     if (railAt(d.tx - 1, d.ty)) j |= 8;
-    tp = &cachedTex(0x07ull << 56 | (uint64_t)j, paintMineRail);
+    tp = &sprites_.cachedTex(*this, 0x07ull << 56 | (uint64_t)j, paintMineRail);
   }
   // (M1) every piece of a ruin's walls and columns has its own broken top (by its global tile)
   if ((p == Prop::RuinWall || p == Prop::RuinColumn) && m.kind == MapKind::Overworld) {
@@ -790,7 +790,7 @@ void View::propMarketTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, bool v
       if (m.propAt(d.tx, d.ty + 1) == rw) joins |= 4;
       if (m.propAt(d.tx - 1, d.ty) == rw) joins |= 8;
     }
-    tp = &cachedTex(0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (uint64_t)joins << 4, paintRuin);
+    tp = &sprites_.cachedTex(*this, 0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (uint64_t)joins << 4, paintRuin);
   }
   // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
   if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
@@ -798,13 +798,13 @@ void View::propMarketTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, bool v
     if (const Kingdom* k = g.world.kingdomOf(bs)) {
       // (M3) the kingdom's full arms where its culture gives them, else its two colours and emblem
       const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)bs].kingdom);
-      tp = (kc && !kc->heraldry.empty()) ? &heraldryTex(0, kc->heraldry, 0, 0) : &kingdomTex(0, *k, 0);
+      tp = (kc && !kc->heraldry.empty()) ? &sprites_.heraldryTex(*this, 0, kc->heraldry, 0, 0) : &sprites_.kingdomTex(*this, 0, *k, 0);
       // (M12) a realm the generator never planned (a warlord's, a successor's, the player's own) flies its own arms
       const rui::Look RL = rui::look(g, k->id);
-      if (RL.made || RL.own) { cult::Heraldry hr; rui::arms(RL, hr); tp = &heraldryTex(0, hr, 0, 0); }
+      if (RL.made || RL.own) { cult::Heraldry hr; rui::arms(RL, hr); tp = &sprites_.heraldryTex(*this, 0, hr, 0, 0); }
     } else {   // (M3b) no kingdom: the culture's own banner
-      const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
-      if (!ps->classic()) tp = &styledPropTex(p, *ps);
+      const art::PropStyle* ps = sprites_.propStyleAt(*this, g, d.tx, d.ty);
+      if (!ps->classic()) tp = &sprites_.styledPropTex(*this, p, *ps);
     }
   }
 }
@@ -818,8 +818,8 @@ bool View::propCultureStyled(Game& g, FrameCtx& F, const Drawable& d, Prop p, co
       p != Prop::MarketTable && p != Prop::GroundCloth && p != Prop::MineHill && p != Prop::StandingStone && art::propStyled(p)) {
     // (M3b) the wayside's built props (signposts, toll posts, graves) in the land's culture, the rest in their settlement's
     const bool wayside = p == Prop::Signpost || p == Prop::TollPost || p == Prop::GraveCairn || p == Prop::Gravestone || p == Prop::Shrine;
-    const art::PropStyle* ps = wayside ? landStyleAt(g, d.tx, d.ty) : propStyleAt(g, d.tx, d.ty);
-    if (!ps->classic()) tp = &styledPropTex(p, *ps);
+    const art::PropStyle* ps = wayside ? sprites_.landStyleAt(*this, g, d.tx, d.ty) : sprites_.propStyleAt(*this, g, d.tx, d.ty);
+    if (!ps->classic()) tp = &sprites_.styledPropTex(*this, p, *ps);
     // (M3 fixer round 2) a dry-stone dyke joins its neighbours: one wall of one height, closed L / T corners
     // (M3b round 3) and so does a clipped hedge (a broken corner and a flat summer-green strip before), snow on
     // its top in the cold where the trees carry snow
@@ -853,9 +853,9 @@ bool View::propCultureStyled(Game& g, FrameCtx& F, const Drawable& d, Prop p, co
         snow = hb == Biome::Snow || m.at(d.tx, d.ty) == Ground::Snow || (hb == Biome::Taiga && m.heightAt(d.tx, d.ty) >= 4);
       }
       const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)mask << 40) ^ ((uint64_t)(0x40 + (hedge ? 16 : 0) + (snow ? 32 : 0)) << 56) ^ 0xD7CF1ull);
-      auto it = styledProps_.find(k);
-      const Tex& dt = it != styledProps_.end() ? it->second
-                                               : (styledProps_[k] = pix_->bake(hedge ? art::hedgePiece(mask, *ps, snow)
+      auto it = sprites_.styledProps_.find(k);
+      const Tex& dt = it != sprites_.styledProps_.end() ? it->second
+                                               : (sprites_.styledProps_[k] = pix_->bake(hedge ? art::hedgePiece(mask, *ps, snow)
                                                                                      : ps->fence == art::Fence::StoneDyke ? art::dykePiece(mask, *ps)
                                                                                                                            : art::fenceJoinPiece(mask, *ps)));
       P.blit(dt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)dt.h - cam.y);
@@ -866,8 +866,8 @@ bool View::propCultureStyled(Game& g, FrameCtx& F, const Drawable& d, Prop p, co
       if ((gw & 6) && (hedge || ps->fence == art::Fence::StoneDyke || ps->fence == art::Fence::Wattle)) {
         const bool ns = (gw & 4) != 0;
         const uint64_t gk = ew::mix64(0x6A7E1EAFull ^ (ns ? 1ull : 2ull));
-        auto gi = styledProps_.find(gk);
-        const Tex& gt = gi != styledProps_.end() ? gi->second : (styledProps_[gk] = pix_->bake(art::fieldGatePiece(ns)));
+        auto gi = sprites_.styledProps_.find(gk);
+        const Tex& gt = gi != sprites_.styledProps_.end() ? gi->second : (sprites_.styledProps_[gk] = pix_->bake(art::fieldGatePiece(ns)));
         const int gx = d.tx + (ns ? 0 : 1), gy = d.ty + (ns ? 1 : 0);
         P.blit(gt, gx * 16.0f - cam.x, gy * 16.0f + 16.0f - (float)gt.h - cam.y);
       }
@@ -886,12 +886,12 @@ bool View::drawCityPropSorted(Game& g, FrameCtx& F, const Drawable& d, Prop p, c
   // climate); garden walls and hedges joined into runs (as the fences: straight, corner, T, the piers at a gateway
   // or a run's end), the souk's canopy joined over its street (a hem and poles where it stops)
   if (art::isCityProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
-    const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+    const art::PropStyle* ps = sprites_.propStyleAt(*this, g, d.tx, d.ty);
     // (M12 fixer) a wall ringing a village just outside its bounds (a lord's stone walls) is built in the village's
     // style all the way round, never half in the land's plain stone
     if (p == Prop::GardenWall && ps->classic() && g.world.endless) {
       const int ns = g.world.siteAt(d.tx, d.ty, 7);
-      if (ns >= 0 && g.world.sites[(size_t)ns].settlement()) ps = propStyleAt(g, g.world.sites[(size_t)ns].ex, g.world.sites[(size_t)ns].ey);
+      if (ns >= 0 && g.world.sites[(size_t)ns].settlement()) ps = sprites_.propStyleAt(*this, g, g.world.sites[(size_t)ns].ex, g.world.sites[(size_t)ns].ey);
     }
     const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6311);
     int variant = 0, joins = 0;
@@ -962,8 +962,8 @@ bool View::drawCityPropSorted(Game& g, FrameCtx& F, const Drawable& d, Prop p, c
     }
     const uint64_t sk = art::cityPropStyledByCulture(p) || p == Prop::Hedge ? ps->key() : 0;
     const uint64_t k = ew::mix64(sk ^ ((uint64_t)p << 48) ^ ((uint64_t)variant << 40) ^ ((uint64_t)joins << 20) ^ (snow ? 0x51u : 0u) ^ 0xC17Aull);
-    auto it = styledProps_.find(k);
-    const Tex& ct = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::cityPropStyled(p, *ps, variant, joins, snow)));
+    auto it = sprites_.styledProps_.find(k);
+    const Tex& ct = it != sprites_.styledProps_.end() ? it->second : (sprites_.styledProps_[k] = pix_->bake(art::cityPropStyled(p, *ps, variant, joins, snow)));
     if (p == Prop::GardenWall || p == Prop::Hedge) {   // (16 wide, its bottom on the tile's bottom edge, as the fences)
       P.blit(ct, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)ct.h - cam.y);
       // (M12 fixer r2) the gateway: a gate tower over each post, the arch (or the way) drawn by the west (north) post
@@ -971,8 +971,8 @@ bool View::drawCityPropSorted(Game& g, FrameCtx& F, const Drawable& d, Prop p, c
         const uint32_t gs = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6343);
         auto gateTex = [&](uint64_t tag, auto&& paint) -> const Tex& {
           const uint64_t gk = ew::mix64(sk ^ tag ^ (snow ? 0x51ull : 0ull) ^ 0x6A7E6A7Eull);
-          auto gi = styledProps_.find(gk);
-          return gi != styledProps_.end() ? gi->second : (styledProps_[gk] = pix_->bake(paint()));
+          auto gi = sprites_.styledProps_.find(gk);
+          return gi != sprites_.styledProps_.end() ? gi->second : (sprites_.styledProps_[gk] = pix_->bake(paint()));
         };
         const Tex& tt = gateTex(0x7011ull << 32 | (gs & 7), [&] { return art::stoneGateTower(ps->culture, ps->stone, snow, gs & 7); });
         P.blit(tt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)tt.h - cam.y);
@@ -1002,19 +1002,19 @@ void View::propVariantTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, const
   // (M2) every peak of a range is one of eight shapes in its land's rock (by its global tile: never one peak cloned)
   if ((p == Prop::Peak || p == Prop::GreatPeak) && m.kind == MapKind::Overworld) {
     const int land = peakLand(m, d.tx, d.ty);
-    tp = &cachedTex(0x09ull << 56 | (p == Prop::GreatPeak ? 128ull : 0ull) | (uint64_t)(land & 15) << 3 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6229) & 7u), paintPeak);
+    tp = &sprites_.cachedTex(*this, 0x09ull << 56 | (p == Prop::GreatPeak ? 128ull : 0ull) | (uint64_t)(land & 15) << 3 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6229) & 7u), paintPeak);
   }
   // (M2 fixer round 2) the wild's commonest props in variants by their global tile, some flipped
   // (M3b) every standing stone of a ring is its own stone (height, lean, top, lichen), in its land's culture
   if (p == Prop::StandingStone && m.kind == MapKind::Overworld) {
     const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6257);
-    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : landStyleAt(g, d.tx, d.ty);
+    const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : sprites_.landStyleAt(*this, g, d.tx, d.ty);
     const int cul = ps ? (int)ps->culture : 0;
-    tp = &cachedTex(0x0Cull << 56 | (uint64_t)cul << 8 | (uint64_t)(h & 15u), paintStandingStone);   // (never flipped: the light)
+    tp = &sprites_.cachedTex(*this, 0x0Cull << 56 | (uint64_t)cul << 8 | (uint64_t)(h & 15u), paintStandingStone);   // (never flipped: the light)
   }
   if ((p == Prop::TallGrass || p == Prop::Boulder) && m.kind == MapKind::Overworld) {
     const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6241);
-    tp = &cachedTex((p == Prop::TallGrass ? 0x0Aull : 0x0Bull) << 56 | (uint64_t)(h & 15u), p == Prop::TallGrass ? paintTallGrass : paintBoulder);
+    tp = &sprites_.cachedTex(*this, (p == Prop::TallGrass ? 0x0Aull : 0x0Bull) << 56 | (uint64_t)(h & 15u), p == Prop::TallGrass ? paintTallGrass : paintBoulder);
     flipVar = ((h >> 5) & 1) != 0;
   }
   // (M3c) the Wildlands flora: a variant by its global tile, as its biome grows it (art_flora.cpp floraVariant;
@@ -1022,7 +1022,7 @@ void View::propVariantTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, const
   if (art::isWildlandsFlora(p) && m.kind == MapKind::Overworld) {
     const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6271);
     const int nv = std::max(1, art::floraVariants(p));
-    tp = &cachedTex(0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(d.tx, d.ty) << 8 | (uint64_t)(h % (uint32_t)nv), paintFlora);
+    tp = &sprites_.cachedTex(*this, 0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(d.tx, d.ty) << 8 | (uint64_t)(h % (uint32_t)nv), paintFlora);
   }
   // (M3c fixer round 2) a leafy classic tree standing in the snow (a town's oaks and willows, an elven heart tree)
   // carries snow on its crown like the pines beside it
@@ -1031,7 +1031,7 @@ void View::propVariantTex(Game& g, FrameCtx& F, const Drawable& d, Prop p, const
     const Biome hb = m.biomeAt(d.tx, d.ty);
     const int lv = m.heightAt(d.tx, d.ty);
     if (m.at(d.tx, d.ty) == Ground::Snow || hb == Biome::Snow || (hb == Biome::Taiga && lv >= 4) || (hb == Biome::Mountain && lv >= 5))
-      tp = &cachedTex(0x5Full << 56 | (uint64_t)p, paintWinterTree);
+      tp = &sprites_.cachedTex(*this, 0x5Full << 56 | (uint64_t)p, paintWinterTree);
   }
 }
 
@@ -1050,7 +1050,7 @@ void View::drawVendorSorted(Game& g, FrameCtx& F, const Drawable& d, Prop p, con
     // (the wheel lies in the road meanwhile: drawIncidentGround, render_markers.cpp)
     const life::IncidentView iv = life::incidentNow(g);
     const bool brokenCart = iv.kind == life::INC_CART && iv.holdT < 3.0f && iv.gx - g.world.ox == d.tx && iv.gy - g.world.oy == d.ty;
-    tp = &cachedTex(0x3Dull << 56 | (uint64_t)(brokenCart ? 1 : 0) << 9 | (uint64_t)(g.mode != Mode::Title && snowyTile(m, d.tx, d.ty) ? 1 : 0) << 8 | (uint64_t)cartLook(g, d.tx, d.ty), paintCart);
+    tp = &sprites_.cachedTex(*this, 0x3Dull << 56 | (uint64_t)(brokenCart ? 1 : 0) << 9 | (uint64_t)(g.mode != Mode::Title && snowyTile(m, d.tx, d.ty) ? 1 : 0) << 8 | (uint64_t)cartLook(g, d.tx, d.ty), paintCart);
     art::marketCartOrigin(ox, oy);
   }
   const float x = d.tx * 16.0f + ox - cam.x, y = d.ty * 16.0f + oy - cam.y;
@@ -1087,7 +1087,7 @@ void View::drawPalisadePiece(Game& g, FrameCtx& F, const Drawable& d) {
   const Map& m = F.m;
   Vec2 cam = F.cam;
   const Prop p = Prop::Palisade;
-  (void)warPropTex(g, p, d.tx, d.ty);   // the war overlay's counts (the camp's owner) as before
+  (void)sprites_.warPropTex(*this, g, p, d.tx, d.ty);   // the war overlay's counts (the camp's owner) as before
   auto pz =[&](int x, int y) { return m.propAt(x, y) == (int)Prop::Palisade + 1; };
   int mask = (pz(d.tx, d.ty - 1) ? 1 : 0) | (pz(d.tx + 1, d.ty) ? 2 : 0) | (pz(d.tx, d.ty + 1) ? 4 : 0) | (pz(d.tx - 1, d.ty) ? 8 : 0);
   static const int DX[4] = {0, 1, 0, -1}, DY[4] = {-1, 0, 1, 0};
@@ -1107,8 +1107,8 @@ void View::drawPalisadePiece(Game& g, FrameCtx& F, const Drawable& d) {
   if (!mask) mask = (gates & 5) && !(gates & 10) ? 5 : 10;
   const uint32_t ph = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6337);
   const uint64_t pk = ew::mix64(0x9A115ADEull ^ ((uint64_t)mask << 8) ^ ((uint64_t)gates << 12) ^ ((uint64_t)(ph & 7) << 20));
-  auto pit = styledProps_.find(pk);
-  const Tex& pt = pit != styledProps_.end() ? pit->second : (styledProps_[pk] = pix_->bake(art::palisadePiece(mask, gates, ph & 7)));
+  auto pit = sprites_.styledProps_.find(pk);
+  const Tex& pt = pit != sprites_.styledProps_.end() ? pit->second : (sprites_.styledProps_[pk] = pix_->bake(art::palisadePiece(mask, gates, ph & 7)));
   P.blit(pt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)pt.h - cam.y);
   // the lintel over the gateway, drawn once by the west / north post (a beam lit on top, its shadow on the road)
   const Color b0(0.66f, 0.50f, 0.33f), b1(0.50f, 0.35f, 0.22f), b2(0.36f, 0.24f, 0.16f), b3(0.22f, 0.15f, 0.11f);
@@ -1148,32 +1148,32 @@ void View::drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d) {
   // a few per frame within a budget instead of all in the arrival frame (a capital's 70-90 sprites took ~150 ms
   // on the desktop, more on a phone's wasm); the fade hides the ones still waiting
   // ((Witness) never: a building in view is painted inline, so a shot through the fade never misses one)
-  if (!witness && (g.sleepFade > 0.5f || fade_ > 0.5f) && !bldgTex_.count(bldgKey(m, b, d.idx))) {
+  if (!witness && (g.sleepFade > 0.5f || fade_ > 0.5f) && !sprites_.bldgTex_.count(sprites_.bldgKey(m, b, d.idx))) {
     if (fadePaintMs_ >= 10.0) return;
     const auto t0 = std::chrono::steady_clock::now();
-    const bool done = bldgPaintStep(b, d.idx, std::max(0.5, std::min(4.0, 10.0 - fadePaintMs_)));   // (M3: in steps)
+    const bool done = sprites_.bldgPaintStep(*this, b, d.idx, std::max(0.5, std::min(4.0, 10.0 - fadePaintMs_)));   // (M3: in steps)
     fadePaintMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     if (!done) return;
   }
-  const Tex* tp = &bldgTex(b, d.idx);
+  const Tex* tp = &sprites_.bldgTex(*this, b, d.idx);
   if (m.kind == MapKind::Overworld && g.mode != Mode::Title && windowsLit(g, b)) {
-    auto nt = bldgNight_.find(bldgKey(m, b, d.idx));
-    if (nt != bldgNight_.end()) tp = &nt->second;
-    m5Count_.winLit++;
-  } else if (m.kind == MapKind::Overworld && g.mode != Mode::Title && !g.inside && g.daylight() <= 0.55f) m5Count_.winDark++;
+    auto nt = sprites_.bldgNight_.find(sprites_.bldgKey(m, b, d.idx));
+    if (nt != sprites_.bldgNight_.end()) tp = &nt->second;
+    life_.m5Count_.winLit++;
+  } else if (m.kind == MapKind::Overworld && g.mode != Mode::Title && !g.inside && g.daylight() <= 0.55f) life_.m5Count_.winDark++;
   const Tex& t = *tp;
   const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t.h;
   float x = b.r.x * 16.0f - art::BLDG_PAD_X - cam.x, y = top - cam.y;
   // the hero behind the building (feet hidden under its walls or roof): the building stays solid and the hero
   // shows through it as a silhouette (drawn after everything, below). Fading the whole house - door, windows and
   // all - turned buildings into ghosts whenever the hero passed behind a roof.
-  auto tr = bldgTopRow_.find(bldgKey(m, b, d.idx));
-  float vis = top + (tr != bldgTopRow_.end() ? (float)tr->second : 0.0f);
+  auto tr = sprites_.bldgTopRow_.find(sprites_.bldgKey(m, b, d.idx));
+  float vis = top + (tr != sprites_.bldgTopRow_.end() ? (float)tr->second : 0.0f);
   if (pl.p.y < bottom - 4 && pl.p.y > vis + 6 && pl.p.x > b.r.x * 16 - 2 && pl.p.x < (b.r.x + b.r.w) * 16 + 2) ghost = true;
   P.blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, 1));
   // chimney smoke: soft puffs that rise, drift east with the wind and spread
-  auto sm = bldgSmoke_.find(bldgKey(m, b, d.idx));
-  if (sm != bldgSmoke_.end() && g.mode != Mode::Title)
+  auto sm = sprites_.bldgSmoke_.find(sprites_.bldgKey(m, b, d.idx));
+  if (sm != sprites_.bldgSmoke_.end() && g.mode != Mode::Title)
     for (size_t si = 0; si < sm->second.size(); si++) {
       Rng r((uint32_t)(t_ * 40) * 31u + (uint32_t)d.idx * 977u + (uint32_t)si * 13u);
       if (r.f() > 0.10f) continue;
@@ -1186,15 +1186,15 @@ void View::drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d) {
       q.size = r.f() < 0.5f ? 2.0f : 1.0f;
       q.grav = -1.5f;
       q.kind = 2;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
-  if (b.charred && m.kind == MapKind::Overworld) burnedFx(g, m, b, d.idx, 0);   // (M4) a burned building smoulders
+  if (b.charred && m.kind == MapKind::Overworld) realm_.burnedFx(*this, g, m, b, d.idx, 0);   // (M4) a burned building smoulders
 }
 
 void View::drawWallSorted(FrameCtx& F, const Drawable& d) {
   Pix& P = F.P;
   Vec2 cam = F.cam;
-  const Tex& t = wallTileTex((uint32_t)d.idx);
+  const Tex& t = sprites_.wallTileTex(*this, (uint32_t)d.idx);
   P.blit(t, d.tx * 16.0f - art::WALL_OX - cam.x, d.ty * 16.0f - art::WALL_OY - cam.y);
 }
 
@@ -1205,29 +1205,29 @@ void View::drawGateSorted(Game& g, FrameCtx& F, const Drawable& d) {
   const Actor& pl = F.pl;
   bool& ghost = F.ghost;
   // (M1) the gatehouse flies the banner of the kingdom whose town it guards
-  const Tex* gt = &gateTex_;
+  const Tex* gt = &sprites_.gateTex_;
   // (M3) the gate in its wall's culture style (Map::wall on the flanking tile is 1 + CityWall) and the kingdom's arms
   int ws = 0;
   if (m.in(d.tx - 1, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx - 1] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx - 1] - 1;
   else if (m.in(d.tx + 3, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx + 3] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx + 3] - 1;
   const int gs = g.world.siteAt(d.tx + 1, d.ty, 3);
   bld::FortParts fp;
-  if (fortPartsOfSite(g, gs, fp)) {   // (M3b) the gate in its culture's form, flying its kingdom's arms
+  if (sprites_.fortPartsOfSite(g, gs, fp)) {   // (M3b) the gate in its culture's form, flying its kingdom's arms
     cult::Heraldry arms;
     if (const Kingdom* k = g.world.kingdomOf(gs)) {
       const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)gs].kingdom);
       if (kc && !kc->heraldry.empty()) arms = kc->heraldry;
       else { arms.field = k->color; arms.charge = k->color2; arms.emblem = k->emblem; }
     }
-    gt = &fortGateTex(arms, fp);
+    gt = &sprites_.fortGateTex(*this, arms, fp);
   } else if (const Kingdom* k = g.world.kingdomOf(gs)) {
     const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)gs].kingdom);
-    if (kc && !kc->heraldry.empty()) gt = &heraldryTex(1, kc->heraldry, 7, ws);
-    else if (ws) { cult::Heraldry h; h.field = k->color; h.charge = k->color2; h.emblem = k->emblem; gt = &heraldryTex(1, h, 7, ws); }
-    else gt = &kingdomTex(1, *k, 7);
+    if (kc && !kc->heraldry.empty()) gt = &sprites_.heraldryTex(*this, 1, kc->heraldry, 7, ws);
+    else if (ws) { cult::Heraldry h; h.field = k->color; h.charge = k->color2; h.emblem = k->emblem; gt = &sprites_.heraldryTex(*this, 1, h, 7, ws); }
+    else gt = &sprites_.kingdomTex(*this, 1, *k, 7);
   } else if (ws) {
     cult::Heraldry h;
-    gt = &heraldryTex(1, h, 7, ws);
+    gt = &sprites_.heraldryTex(*this, 1, h, 7, ws);
   }
   P.blit(*gt, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
   // (M7c fixer r3, review: "the hero almost disappears inside a gatehouse passage": every city entry on foot
@@ -1254,7 +1254,7 @@ void View::drawActorSorted(Game& g, FrameCtx& F, const Drawable& d) {
 #ifdef EMB_WITNESS
   if (!wHide.empty() && witnessHides(g, a)) return;   // (Witness reset param hide) no body, no silhouette through a roof
 #endif
-  if (a.player && g.homeRiding() && drawMounted(g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
+  if (a.player && g.homeRiding() && home_.drawMounted(*this, g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
     if (rideGhost_.t) {   // hidden behind a roof or a crown: the rider's silhouette shows through (as on foot)
       ghostTex = rideGhost_.t; ghostFr = rideGhost_.fr; ghostRow = rideGhost_.row; ghostFlip = rideGhost_.flip;
       ghostSx = rideGhost_.sx; ghostSy = rideGhost_.sy; ghostW = rideGhost_.w; ghostH = rideGhost_.h;
@@ -1274,7 +1274,7 @@ void View::drawActorSorted(Game& g, FrameCtx& F, const Drawable& d) {
   if (fxBehind) drawSwingFx(g, a, cam);
   // (P2a LENS) a human's body blits are recorded: the night lift adds them again after the light map (a mounted
   // companion's rider records itself, not the horse: party_view.cpp)
-  if (a.comp && drawCompanionBody(g, a, cam, alpha, flash)) {
+  if (a.comp && party_.drawCompanionBody(*this, g, a, cam, alpha, flash)) {
     // (M8) the bonded hound, a companion on their horse (party_view.cpp)
   } else if (a.human) {
     drawHumanSorted(g, F, a, alpha, flash);
@@ -1319,16 +1319,16 @@ void View::drawHumanSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, fl
   auto& ghostRec = F.ghostRec;
   // (P2a) the human frame pick and body draw: rpg/view/render_anim.cpp
   HumanGhost hg;
-  const size_t rec0 = liftRecs_.size();
-  if (g.mode != Mode::Title) P.recordBlits(&liftRecs_);
+  const size_t rec0 = lens_.liftRecs_.size();
+  if (g.mode != Mode::Title) P.recordBlits(&lens_.liftRecs_);
   drawHumanBody(g, m, a, cam, alpha, flash, hg);
   P.recordBlits(nullptr);
   if (a.player && hg.t) { ghostTex = hg.t; ghostFr = hg.fr; ghostRow = hg.row; ghostFlip = hg.flip; ghostX = hg.x; ghostY = hg.y; }
   if (a.player && !hg.t && heroSprite.on && heroSprite.rig >= 2) {
     // rig 2 leaves HumanGhost empty (render_anim.cpp): take the body's own blit (the one at the frame's rect)
     const HeroSprite& hs = heroSprite;
-    for (size_t i = rec0; i < liftRecs_.size(); i++) {
-      const Pix::BlitRec& r = liftRecs_[i];
+    for (size_t i = rec0; i < lens_.liftRecs_.size(); i++) {
+      const Pix::BlitRec& r = lens_.liftRecs_[i];
       // (P2b VIEW-B) the frame's rows may be cut (a rower at the thwart's line): its width and top-left decide
       if (r.sw == hs.w && r.sh <= hs.h && r.sh > 0 && std::fabs(r.dx - hs.x) < 0.5f && std::fabs(r.dy - hs.y) < 0.5f) {
         ghostRec = r; ghostTex = nullptr; break;
@@ -1344,7 +1344,7 @@ void View::drawCritterSorted(FrameCtx& F, const Actor& a, float alpha, float fla
   // down / up / right (left flipped). Standing about it now and then does its thing (pecks, grooms, wags), each
   // on its own clock; a posture from the sim (Sleep: lying down; any other: the action) wins.
   const int ck = a.critter - 1;
-  const Tex& t = critterTex(ck, a.critterVar);
+  const Tex& t = sprites_.critterTex(*this, ck, a.critterVar);
   const int cw = art::critterCellW((art::Critter)ck), chh = art::critterCellH((art::Critter)ck);
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
@@ -1360,7 +1360,7 @@ void View::drawCritterSorted(FrameCtx& F, const Actor& a, float alpha, float fla
   const float x = std::floor(a.p.x - cw / 2.0f - cam.x + 0.5f), y = std::floor(a.p.y - chh + 2 - cam.y + 0.5f);
   P.blitEx(t, fr * cw, row * chh, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, alpha));
   if (flash > 0) P.blitEx(t, fr * cw, row * chh, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
-  m5Count_.critters++;
+  life_.m5Count_.critters++;
 }
 
 bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, float flash) {
@@ -1368,7 +1368,7 @@ bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, 
   const Map& m = F.m;
   Vec2 cam = F.cam;
   bool& ghost = F.ghost;
-  const Tex& t = monsterTex(a);   // (M6: the variant look)
+  const Tex& t = sprites_.monsterTex(*this, a);   // (M6: the variant look)
   const int bsc = beasts::drawScale(a);   // (always 1: one pixel grid)
   int cw = art::lookCellW(beasts::lookOf(a)) * bsc, chh = art::lookCellH(beasts::lookOf(a)) * bsc;
   int fr = 0;
@@ -1415,12 +1415,12 @@ bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, 
   if (beasts::isRank(a, foes::Rank::Named) && a.st != AState::Dead) {
     const art::MonsterLook SL = beasts::lookOf(a);
     const uint64_t sk = (SL.key() ^ 0x5A11E77E5A11E77Eull) | (1ull << 61);
-    auto si = monsterLooks_.find(sk);
-    if (si == monsterLooks_.end()) {
+    auto si = sprites_.monsterLooks_.find(sk);
+    if (si == sprites_.monsterLooks_.end()) {
       Canvas sil = art::monsterSheetLook(SL);
       for (int yy = 0; yy < sil.h; yy++)
         for (int xx = 0; xx < sil.w; xx++) sil.set(xx, yy, (sil.get(xx, yy) >> 24) ? rgba(255, 255, 255) : 0u);
-      si = monsterLooks_.emplace(sk, pix_->bake(sil)).first;
+      si = sprites_.monsterLooks_.emplace(sk, pix_->bake(sil)).first;
     }
     const float pu = 0.75f + 0.25f * std::sin(t_ * 3.0f + (float)a.id);
     const Color rc(1.0f, 0.80f, 0.32f, alpha * pu);
@@ -1435,8 +1435,8 @@ bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, 
     if (nightK > 0.02f) {
       const art::MonsterLook SL = beasts::lookOf(a);
       const uint64_t sk = (SL.key() ^ 0x0B055B055B055B05ull) | (1ull << 60);
-      auto si = monsterLooks_.find(sk);
-      if (si == monsterLooks_.end()) {
+      auto si = sprites_.monsterLooks_.find(sk);
+      if (si == sprites_.monsterLooks_.end()) {
         Canvas sh = art::monsterSheetLook(SL);
         // the rim: the clear pixels touching the beast (never its own body), within its frame
         const int cwf = art::lookCellW(beasts::lookOf(a)) * bsc;
@@ -1449,7 +1449,7 @@ bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, 
             auto opf = [&](int qx, int qy) { return qx >= f0 && qx < f0 + cwf && op(qx, qy); };
             if (opf(xx - 1, yy) || opf(xx + 1, yy) || opf(xx, yy - 1) || opf(xx, yy + 1)) rim.set(xx, yy, rgba(255, 96, 52));
           }
-        si = monsterLooks_.emplace(sk, pix_->bake(rim)).first;
+        si = sprites_.monsterLooks_.emplace(sk, pix_->bake(rim)).first;
       }
       const float pu = 0.8f + 0.2f * std::sin(t_ * 2.2f + (float)a.id);
       beasts::glows.push_back({&si->second, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, alpha * nightK * pu * 0.9f});
@@ -1477,10 +1477,10 @@ bool View::drawMonsterSorted(Game& g, FrameCtx& F, const Actor& a, float alpha, 
     const art::MonsterLook L = beasts::lookOf(a);
     if (art::monsterLookGlows(L) && alpha > 0.05f) {
       const uint64_t gk = L.key() | (1ull << 63);
-      auto gi = monsterLooks_.find(gk);
-      if (gi == monsterLooks_.end()) {
+      auto gi = sprites_.monsterLooks_.find(gk);
+      if (gi == sprites_.monsterLooks_.end()) {
         Canvas gs = art::monsterGlowLook(L);
-        gi = monsterLooks_.emplace(gk, pix_->bake(gs)).first;
+        gi = sprites_.monsterLooks_.emplace(gk, pix_->bake(gs)).first;
       }
       beasts::glows.push_back({&gi->second, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, alpha});
     }
@@ -1544,19 +1544,19 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       for (int i = 0; i < 8; i++) P.rect(x - dir.x * i, y - dir.y * i, 1, 1, i < 2 ? Color(0.85f, 0.85f, 0.9f) : (i > 5 ? Color(0.95f, 0.95f, 0.95f) : Color(0.55f, 0.38f, 0.2f)));
       break;
     case ProjKind::Fireball: case ProjKind::DragonFire: {
-      if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FIREBOLT: the magic draws it (render_magic.cpp)
-      const Tex& t = fx_[(int)art::Fx::Fireball];
+      if (pr.spell) { MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break; }   // (M9) a classic FIREBOLT: the magic draws it (render_magic.cpp)
+      const Tex& t = sprites_.fx_[(int)art::Fx::Fireball];
       int fw = art::fxW(art::Fx::Fireball), fh = art::fxH(art::Fx::Fireball), frames = std::max(1, art::fxFrames(art::Fx::Fireball));
       int fr = (int)(t_ * 14 + d.idx) % frames;
       float sc = pr.kind == ProjKind::DragonFire ? 1.5f : 1.0f;
       P.blitEx(t, fr * fw, 0, fw, fh, x - fw * sc / 2, y - fh * sc / 2, fw * sc, fh * sc, dir.x < 0);
       Rng r((uint32_t)(t_ * 60) + d.idx);
-      Particle q; q.p = pr.p; q.v = Vec2(r.range(-10, 10), r.range(-10, 10)); q.life = q.max = 0.3f; q.c = Color(1, r.range(0.3f, 0.7f), 0.1f); q.size = 1; parts_.push_back(q);
+      Particle q; q.p = pr.p; q.v = Vec2(r.range(-10, 10), r.range(-10, 10)); q.life = q.max = 0.3f; q.c = Color(1, r.range(0.3f, 0.7f), 0.1f); q.size = 1; fx_.parts_.push_back(q);
       break;
     }
     case ProjKind::IceSpike: {
-      if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FROST LANCE: the magic draws it
-      const Tex& t = fx_[(int)art::Fx::Frost];
+      if (pr.spell) { MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break; }   // (M9) a classic FROST LANCE: the magic draws it
+      const Tex& t = sprites_.fx_[(int)art::Fx::Frost];
       int fw = art::fxW(art::Fx::Frost), fh = art::fxH(art::Fx::Frost);
       P.blitEx(t, 0, 0, fw, fh, x - fw / 2.0f, y - fh / 2.0f, (float)fw, (float)fh, dir.x < 0);
       break;
@@ -1572,7 +1572,7 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       P.rect(x - 2, y - 2, 4, 4, Color(0.55f, 0.85f, 0.3f));
       P.rect(x - 1, y - 1, 2, 2, Color(0.8f, 1, 0.6f));
       break;
-    case ProjKind::Spell: drawSpellProj(g, pr, d.idx, cam); break;   // (M9) render_magic.cpp
+    case ProjKind::Spell: MagicLane::drawSpellProj(*this, g, pr, d.idx, cam); break;   // (M9) render_magic.cpp
     case ProjKind::Magic:
       if (pr.ench == Ench::None && !pr.fromPlayer) {   // (M3c) a wisp's bolt of light: cyan, with a short trail
         for (int i = 1; i <= 3; i++) P.rectAdd(x - dir.x * i * 2 - 1, y - dir.y * i * 2 - 1, 2, 2, Color(0.4f, 0.9f, 0.9f, 0.5f - i * 0.12f));
@@ -1599,7 +1599,7 @@ void View::drawHandcartSorted(Game& g, FrameCtx& F, const Drawable& d) {
       if (lv != li->vars.end() && lv->second >= 1 && lv->second <= 4) load = lv->second - 1;
     }
     const int turn = ((int)std::floor(w.wheel * 4.0f / 0.7854f) % 4 + 4) % 4;
-    const Tex& t = cachedTex(0x52ull << 56 | (uint64_t)dir | (uint64_t)load << 2 | (uint64_t)turn << 4, paintHandcart);
+    const Tex& t = sprites_.cachedTex(*this, 0x52ull << 56 | (uint64_t)dir | (uint64_t)load << 2 | (uint64_t)turn << 4, paintHandcart);
     P.blit(t, std::floor(w.cartX - HC_OX - cam.x + 0.5f), std::floor(w.cartY - HC_OY - cam.y + 0.5f));
   }
 }
@@ -1686,28 +1686,28 @@ void View::drawSortedPass(Game& g, const Map& m, Vec2 cam) {
       case DrawKind::Pickup: {
         const Pickup& k = g.pickups[d.idx];
         float bob = std::sin(t_ * 4 + d.idx) * 1.5f;
-        drawLootGround(g, k, d.idx, cam, bob);   // (M8b) its rarity's glint, beam or pillar (loot_ui.cpp)
+        loot_.drawLootGround(*this, g, k, d.idx, cam, bob);   // (M8b) its rarity's glint, beam or pillar (loot_ui.cpp)
         break;
       }
       case DrawKind::Projectile: drawProjSorted(g, F, d); break;
       case DrawKind::FestPole:   // (M5) a festival pole
-        if (d.idx >= 0 && d.idx < (int)festSpans_.size()) drawFestPole(festSpans_[(size_t)d.idx], d.tx != 0, cam);
+        if (d.idx >= 0 && d.idx < (int)life_.festSpans_.size()) life_.drawFestPole(*this, life_.festSpans_[(size_t)d.idx], d.tx != 0, cam);
         break;
       case DrawKind::Home:   // (M7) a home draw (its ground shadow went down in the shadow pass)
-        if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeDraw(homeDraws_[(size_t)d.idx], cam);
+        if (d.idx >= 0 && d.idx < (int)home_.homeDraws_.size()) home_.drawHomeDraw(*this, home_.homeDraws_[(size_t)d.idx], cam);
         break;
       case DrawKind::Grave:   // (M8) a fallen companion's grave
-        drawGrave(g, d.idx, cam, false);
+        party_.drawGrave(*this, g, d.idx, cam, false);
         break;
       case DrawKind::Sea:  // (M10) a boat (render_sea.cpp)
-        drawSeaSorted(g, d.idx, cam);
+        SeaLane::drawSeaSorted(*this, g, d.idx, cam);
         if (seaHeroUnderRig(*this)) F.ghost = true;   // the sail stands before the hero: his silhouette shows through it
         break;
       case DrawKind::Rise:  // (M12) the rise's (rise_world.cpp)
-        drawRiseSorted(g, d.idx, cam);
+        RiseLane::drawRiseSorted(*this, g, d.idx, cam);
         break;
       case DrawKind::Relief:  // (M11) the relief's (render_relief.cpp)
-        drawReliefSorted(g, d.idx, cam);
+        ReliefLane::drawReliefSorted(*this, g, d.idx, cam);
         break;
       case DrawKind::Handcart: drawHandcartSorted(g, F, d); break;
       default: break;

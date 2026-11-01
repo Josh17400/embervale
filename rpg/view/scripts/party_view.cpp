@@ -31,6 +31,7 @@
 #include "rpg/sim/party.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"
 
 namespace {
 std::string lwr(std::string s) {
@@ -45,7 +46,7 @@ int orderWord(const std::string& w) {
 constexpr uint64_t kScriptFinger = 0x5C4197ull;
 }  // namespace
 
-bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::string& err) {
+bool ViewProbe::partyViewCommand(View& v, Game& g, const std::vector<std::string>& a, std::string& err) {
   auto arg = [&](size_t i) { return i < a.size() ? a[i] : std::string(); };
   const std::string what = lwr(arg(1));
   const int n = (int)g.party.members.size();
@@ -55,7 +56,7 @@ bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::str
     if (m < 0 || m >= n) { err = "partyview: no member " + std::to_string(m); return -1; }
     return m;
   };
-  partyUpdate(g, 0);   // the members' actors now
+  v.party_.partyUpdate(v, g, 0);   // the members' actors now
   if (what == "level") { g.plLevel = std::max(1, std::atoi(arg(2).c_str())); return true; }
   if (what == "hound" || what == "mercenary") {
     const bool wolf = lwr(arg(2)) == "wolf";
@@ -75,15 +76,15 @@ bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::str
     return true;
   }
   if (what == "grown") { const int m = member(2, n - 1); if (m < 0) return false; g.party.members[(size_t)m].flags &= (uint16_t)~party::MF_PUP; return true; }
-  if (what == "select") { const int m = member(2, 0); if (m < 0) return false; partySel_ = m; partyTagT_ = 4.0f; return true; }
+  if (what == "select") { const int m = member(2, 0); if (m < 0) return false; v.party_.partySel_ = m; v.party_.partyTagT_ = 4.0f; return true; }
   if (what == "hold") {
-    const int m = member(2, partySel_);
+    const int m = member(2, v.party_.partySel_);
     if (m < 0) return false;
-    for (const PartyCard& c : partyCards_)
+    for (const PartyUi::PartyCard& c : v.party_.partyCards_)
       if (c.member == m) {
         const Vec2 p(c.x + c.w / 2, c.y + c.h / 2);
-        if (!partyPointer(g, 0, kScriptFinger, p, false)) { err = "partyview hold: the card took no press"; return false; }
-        partyPress_.t = 1.0f;   // held long enough: the radial opens on the next update
+        if (!v.party_.partyPointer(v, g, 0, kScriptFinger, p, false)) { err = "partyview hold: the card took no press"; return false; }
+        v.party_.partyPress_.t = 1.0f;   // held long enough: the radial opens on the next update
         return true;
       }
     err = "partyview hold: no card for member " + std::to_string(m) + " (is the HUD drawn?)";
@@ -92,38 +93,38 @@ bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::str
   if (what == "slide") {
     const int k = orderWord(lwr(arg(2)));
     if (k < 0) { err = "partyview slide: unknown order " + arg(2); return false; }
-    if (!radial_.open) { err = "partyview slide: the radial is not open"; return false; }
+    if (!v.party_.radial_.open) { err = "partyview slide: the radial is not open"; return false; }
     const float an = -1.5707963f + k * 6.2831853f / (float)party::Cmd::COUNT;
     // (fixer M8 r2) a held radial picks by the way the finger slides from where it pressed
-    const Vec2 p = (radial_.drag ? radial_.from : radial_.c) + Vec2(std::cos(an), std::sin(an)) * 38.0f;
-    partyPointer(g, 1, kScriptFinger, p, false);
+    const Vec2 p = (v.party_.radial_.drag ? v.party_.radial_.from : v.party_.radial_.c) + Vec2(std::cos(an), std::sin(an)) * 38.0f;
+    v.party_.partyPointer(v, g, 1, kScriptFinger, p, false);
     return true;
   }
   if (what == "release") {
-    Vec2 p = radial_.c;
-    if (radial_.hot >= 0) {
-      const float an = -1.5707963f + radial_.hot * 6.2831853f / (float)party::Cmd::COUNT;
-      p = (radial_.drag ? radial_.from : radial_.c) + Vec2(std::cos(an), std::sin(an)) * 38.0f;
+    Vec2 p = v.party_.radial_.c;
+    if (v.party_.radial_.hot >= 0) {
+      const float an = -1.5707963f + v.party_.radial_.hot * 6.2831853f / (float)party::Cmd::COUNT;
+      p = (v.party_.radial_.drag ? v.party_.radial_.from : v.party_.radial_.c) + Vec2(std::cos(an), std::sin(an)) * 38.0f;
     }
-    partyPointer(g, 2, kScriptFinger, p, false);
+    v.party_.partyPointer(v, g, 2, kScriptFinger, p, false);
     return true;
   }
-  if (what == "radial") { const int m = member(2, partySel_); if (m < 0) return false; radialOpen(g, m, false, 0); return true; }
+  if (what == "radial") { const int m = member(2, v.party_.partySel_); if (m < 0) return false; v.party_.radialOpen(v, g, m, false, 0); return true; }
   if (what == "choose") {
     const int k = orderWord(lwr(arg(2)));
-    if (k < 0 || !radial_.open) { err = "partyview choose: no radial open or unknown order " + arg(2); return false; }
-    radial_.hot = k;
-    radialChoose(g, k);
+    if (k < 0 || !v.party_.radial_.open) { err = "partyview choose: no radial open or unknown order " + arg(2); return false; }
+    v.party_.radial_.hot = k;
+    v.party_.radialChoose(v, g, k);
     return true;
   }
-  if (what == "close") { radial_.open = false; return true; }
+  if (what == "close") { v.party_.radial_.open = false; return true; }
   if (what == "page") {
-    if (n > 0) { const int m = member(2, partySel_); if (m >= 0) partySel_ = m; }
-    openMenu(g, kPartyTab);
-    partyPage_ = 0; partyFocus_ = 0;
+    if (n > 0) { const int m = member(2, v.party_.partySel_); if (m >= 0) v.party_.partySel_ = m; }
+    v.openMenu(g, View::kPartyTab);
+    v.party_.partyPage_ = 0; v.party_.partyFocus_ = 0;
     const std::string sub = lwr(arg(3));
-    if (sub == "remembered") partyPage_ = 1;
-    else if (sub == "gear") { partyFocus_ = 1; partySlot_ = std::clamp(std::atoi(arg(4).c_str()), 0, 11); partyPack_ = 0; }
+    if (sub == "remembered") v.party_.partyPage_ = 1;
+    else if (sub == "gear") { v.party_.partyFocus_ = 1; v.party_.partySlot_ = std::clamp(std::atoi(arg(4).c_str()), 0, 11); v.party_.partyPack_ = 0; }
     return true;
   }
   if (what == "banter") {
@@ -138,18 +139,18 @@ bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::str
     Event e;
     e.type = Ev::PartyAlert; e.a = 0; e.f = (float)std::atoi(arg(2).c_str());
     for (size_t i = 3; i < a.size(); i++) { if (i > 3) e.s += ' '; e.s += a[i]; }
-    partyEvent(g, e);
+    v.party_.partyEvent(g, e);
     return true;
   }
   if (what == "hp" || what == "downt" || what == "bindt") {
-    const float v = (float)std::atof(arg(2).c_str());
+    const float val = (float)std::atof(arg(2).c_str());
     const int m = member(3, 0);
     if (m < 0) return false;
     party::Member& M = g.party.members[(size_t)m];
-    const int ai = partyActor_[(size_t)m];
-    if (what == "hp") { if (ai > 0) { Actor& x = g.actors[(size_t)ai]; x.hp = x.maxHp * clampf(v / 100.0f, 0.01f, 1.0f); M.hp = x.hp; } return true; }
+    const int ai = v.party_.partyActor_[(size_t)m];
+    if (what == "hp") { if (ai > 0) { Actor& x = g.actors[(size_t)ai]; x.hp = x.maxHp * clampf(val / 100.0f, 0.01f, 1.0f); M.hp = x.hp; } return true; }
     if (M.state != party::State::Downed) { err = "partyview " + what + ": not downed"; return false; }
-    if (what == "downt") M.downT = v; else M.reviveT = std::max(0.001f, v);
+    if (what == "downt") M.downT = val; else M.reviveT = std::max(0.001f, val);
     return true;
   }
   if (what == "mount") {
@@ -199,28 +200,28 @@ bool View::partyViewCommand(Game& g, const std::vector<std::string>& a, std::str
   return false;
 }
 
-bool View::partyViewExpect(Game& g, const std::vector<std::string>& a, std::string& err) {
+bool ViewProbe::partyViewExpect(View& v, Game& g, const std::vector<std::string>& a, std::string& err) {
   auto arg = [&](size_t i) { return i < a.size() ? a[i] : std::string(); };
   const std::string what = lwr(arg(2));
   if (what == "radial") {
     const bool want = lwr(arg(3)) != "closed";
-    if (radial_.open != want) err = std::string("expect partyview radial: ") + (radial_.open ? "open" : "closed");
+    if (v.party_.radial_.open != want) err = std::string("expect partyview radial: ") + (v.party_.radial_.open ? "open" : "closed");
     return err.empty();
   }
   if (what == "hot") {
     const int k = orderWord(lwr(arg(3)));
-    if (!radial_.open || radial_.hot != k) err = "expect partyview hot: " + std::to_string(radial_.hot);
+    if (!v.party_.radial_.open || v.party_.radial_.hot != k) err = "expect partyview hot: " + std::to_string(v.party_.radial_.hot);
     return err.empty();
   }
   if (what == "cards") {
     const int want = std::atoi(arg(3).c_str());
-    if ((int)partyCards_.size() != want) err = "expect partyview cards: " + std::to_string(partyCards_.size());
+    if ((int)v.party_.partyCards_.size() != want) err = "expect partyview cards: " + std::to_string(v.party_.partyCards_.size());
     return err.empty();
   }
-  if (what == "deny") { if (partyDenyT_ <= 0 && radial_.denyT <= 0) err = "expect partyview deny: no refusal shown"; return err.empty(); }
-  if (what == "banter") { if (banterShow_.empty()) err = "expect partyview banter: none on screen"; return err.empty(); }
-  if (what == "alert") { if (alertShow_.empty()) err = "expect partyview alert: none on screen"; return err.empty(); }
-  if (what == "tab") { if (g.mode != Mode::Menu || menuTab_ != kPartyTab) err = "expect partyview tab: not on the PARTY page"; return err.empty(); }
+  if (what == "deny") { if (v.party_.partyDenyT_ <= 0 && v.party_.radial_.denyT <= 0) err = "expect partyview deny: no refusal shown"; return err.empty(); }
+  if (what == "banter") { if (v.party_.banterShow_.empty()) err = "expect partyview banter: none on screen"; return err.empty(); }
+  if (what == "alert") { if (v.party_.alertShow_.empty()) err = "expect partyview alert: none on screen"; return err.empty(); }
+  if (what == "tab") { if (g.mode != Mode::Menu || v.menuTab_ != View::kPartyTab) err = "expect partyview tab: not on the PARTY page"; return err.empty(); }
   err = "expect partyview: unknown " + arg(2);
   return false;
 }
@@ -228,14 +229,14 @@ bool View::partyViewExpect(Game& g, const std::vector<std::string>& a, std::stri
 namespace {
 bool cmdPartyView(ScriptCtx& c) {
   std::string err;
-  if (!c.view.partyViewCommand(c.game, c.a, err) && !err.empty()) c.fail(err);
+  if (!ViewProbe::partyViewCommand(c.view, c.game, c.a, err) && !err.empty()) c.fail(err);
   return true;
 }
 EMB_SCRIPT_CMD("partyview", "partyview level|hound|grown|mercenary|select|hold|slide|release|radial|choose|close|page|banter|alert|hp|downt|bindt|mount|grave ...: stage M8 party screens",
                cmdPartyView);
 bool expPartyView(ScriptCtx& c) {
   std::string err;
-  if (!c.view.partyViewExpect(c.game, c.a, err) && !err.empty()) c.fail(err);
+  if (!ViewProbe::partyViewExpect(c.view, c.game, c.a, err) && !err.empty()) c.fail(err);
   return true;
 }
 EMB_SCRIPT_CMD("expect:partyview", "expect partyview radial open|closed | hot ORDER | cards N | deny | banter | alert | tab", expPartyView);

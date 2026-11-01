@@ -271,7 +271,7 @@ void View::mapMarkersParty(Game& g, MapFrame& M) {
   // (M8) the party: companions waiting out in the land, the graves of the fallen (party_view.cpp)
   if (!S.geo && (!g.party.members.empty() || !g.party.fallen.empty())) {
     auto scr = [](void* c, double x, double y) { return (*static_cast<decltype(toScr)*>(c))(x, y); };
-    drawPartyWorldMap(g, scr, &toScr, w, h);
+    party_.drawPartyWorldMap(*this, g, scr, &toScr, w, h);
   }
 }
 

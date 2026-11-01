@@ -270,7 +270,7 @@ int objAtTile(const Game& g, const home::Plot& p, int x, int y, bool inside) {
 }  // namespace
 
 // ---------------------------------------------------------------- opening the screens
-void View::openBuild(Game& g, home::UiMode mode, int plot) {
+void HomeView::openBuild(Game& g, home::UiMode mode, int plot) {
   home::Ui& U = g.home.ui;
   const home::Ui keep = U;
   U = home::Ui();
@@ -329,7 +329,7 @@ void View::openBuild(Game& g, home::UiMode mode, int plot) {
   g.mode = Mode::Build;
 }
 
-int View::homeHere(const Game& g, bool& indoors) const {
+int HomeView::homeHere(const Game& g, bool& indoors) const {
   indoors = false;
   if (g.home.plots.empty()) return -1;
   if (g.inside) {
@@ -368,20 +368,20 @@ Pills pillLay(bool touch, bool yard, bool ride) {
 }
 }  // namespace
 
-void View::drawHomeHud(Game& g) {
+void HomeView::drawHomeHud(View& v, Game& g) {
   if (g.mode != Mode::Play || g.travelling()) return;
-  Pix& P = *pix_;
+  Pix& P = *v.pix_;
   bool indoors = false;
   const int here = homeHere(g, indoors);
   const bool ride = g.homeRiding();
   if (here < 0 && !ride) return;
-  const Pills L = pillLay(touchUI, here >= 0 && !ride, ride);
+  const Pills L = pillLay(v.touchUI, here >= 0 && !ride, ride);
   auto pill = [&](const Rect& r, const std::string& key, const std::string& label) {
     P.rect(r.x + 1, r.y + 1, r.w, r.h, Color(0, 0, 0, 0.35f));
-    P.rect(r.x, r.y, r.w, r.h, Color(0.12f, 0.09f, 0.07f, touchUI ? 0.82f : 0.7f));
+    P.rect(r.x, r.y, r.w, r.h, Color(0.12f, 0.09f, 0.07f, v.touchUI ? 0.82f : 0.7f));
     P.frame(r.x, r.y, r.w, r.h, Color(0.78f, 0.62f, 0.32f, 0.95f));
     P.rect(r.x + 1, r.y + 1, r.w - 2, 1, Color(1, 0.9f, 0.6f, 0.25f));
-    if (touchUI) P.textS(r.x + r.w / 2, r.y + (r.h - 7) / 2, label, 1, kGoldC, 1);
+    if (v.touchUI) P.textS(r.x + r.w / 2, r.y + (r.h - 7) / 2, label, 1, kGoldC, 1);
     else {
       P.textS(r.x + 4, r.y + (r.h - 7) / 2, key, 1, kDimC);
       P.textS(r.x + 4 + P.textW(key, 1) + 4, r.y + (r.h - 7) / 2, label, 1, kGoldC);
@@ -391,40 +391,40 @@ void View::drawHomeHud(Game& g) {
   if (L.showRide) pill(L.dismount, "F", "DISMOUNT");
 }
 
-bool View::homeHudTap(Game& g, Vec2 p) {
+bool HomeView::homeHudTap(View& v, Game& g, Vec2 p) {
   if (g.mode != Mode::Play || g.travelling()) return false;
   bool indoors = false;
   const int here = homeHere(g, indoors);
   const bool ride = g.homeRiding();
   if (here < 0 && !ride) return false;
-  const Pills L = pillLay(touchUI, here >= 0 && !ride, ride);
+  const Pills L = pillLay(v.touchUI, here >= 0 && !ride, ride);
   auto hit = [&](const Rect& r) { return Rect{r.x - 3, r.y - 3, r.w + 6, r.h + 6}.in(p); };
-  if (L.showRide && hit(L.dismount)) { g.homeDismount(home::Dismount::Player); audio_->play(Sfx::MenuBack); return true; }
-  if (L.showYard && hit(L.yard)) { openBuild(g, indoors ? UiMode::Decorate : UiMode::Yard, here); audio_->play(Sfx::MenuSelect); return true; }
+  if (L.showRide && hit(L.dismount)) { g.homeDismount(home::Dismount::Player); v.audio_->play(Sfx::MenuBack); return true; }
+  if (L.showYard && hit(L.yard)) { openBuild(g, indoors ? UiMode::Decorate : UiMode::Yard, here); v.audio_->play(Sfx::MenuSelect); return true; }
   return false;
 }
 
-bool View::homeHudKey(Game& g, int key) {
+bool HomeView::homeHudKey(View& v, Game& g, int key) {
   if (g.mode != Mode::Play || g.travelling()) return false;
-  if (key == SDLK_F && g.homeRiding()) { g.homeDismount(home::Dismount::Player); audio_->play(Sfx::MenuBack); return true; }
+  if (key == SDLK_F && g.homeRiding()) { g.homeDismount(home::Dismount::Player); v.audio_->play(Sfx::MenuBack); return true; }
   if (key == SDLK_B && !g.homeRiding()) {
     bool indoors = false;
     const int here = homeHere(g, indoors);
     if (here < 0) return false;
     openBuild(g, indoors ? UiMode::Decorate : UiMode::Yard, here);
-    audio_->play(Sfx::MenuSelect);
+    v.audio_->play(Sfx::MenuSelect);
     return true;
   }
   return false;
 }
 
 // ---------------------------------------------------------------- the camera while building
-bool View::buildCamWant(Game& g, Vec2& want) {
+bool HomeView::buildCamWant(View& v, Game& g, Vec2& want) {
   const home::Ui& U = g.home.ui;
   if (U.mode != UiMode::Yard && U.mode != UiMode::Decorate) return false;
   if (U.plot < 0 || U.plot >= (int)g.home.plots.size()) return false;
   const home::Plot& p = g.home.plots[(size_t)U.plot];
-  const SideLay L = sideLay(touchUI);
+  const SideLay L = sideLay(v.touchUI);
   const float freeX0 = (float)Pix::SL, freeX1 = L.panel.x - 4;
   Vec2 c;
   if (U.mode == UiMode::Yard) c = Vec2((p.gx - g.world.ox + U.gx) * 16.0f + 8, (p.gy - g.world.oy + U.gy) * 16.0f + 8);
@@ -435,7 +435,7 @@ bool View::buildCamWant(Game& g, Vec2& want) {
     c = c * 0.65f + mid * 0.35f;
   }
   // (P2a) the free part's middle is a UI point: where it falls in the world view (world px from the view's top-left)
-  const Vec2 mid = toWorld(Vec2((freeX0 + freeX1) * 0.5f, (float)(Pix::ST + Pix::H - Pix::SB) * 0.5f)) - worldCam();
+  const Vec2 mid = v.camera_.toWorld(v, Vec2((freeX0 + freeX1) * 0.5f, (float)(Pix::ST + Pix::H - Pix::SB) * 0.5f)) - v.camera_.worldCam(v);
   want = c - mid;
   return true;
 }
@@ -469,7 +469,7 @@ void View::drawBuild(Game& g) {
     const std::string s = std::to_string(g.gold);
     const float w = (float)P.textW(s, 1);
     P.textS(rx - w, y, s, 1, kGoldC);
-    P.blit(iconTex(art::Icon::Gold, 0), rx - w - 17, y - 5);
+    P.blit(sprites_.iconTex(*this, art::Icon::Gold, 0), rx - w - 17, y - 5);
   };
   auto btn = [&](const Rect& r, const std::string& label, bool hot, bool enabled = true) {
     if (!enabled) {
@@ -495,22 +495,22 @@ void View::drawBuild(Game& g) {
   if (U.mode == UiMode::Yard || U.mode == UiMode::Decorate) {
     const bool inside = U.mode == UiMode::Decorate;
     const std::vector<Cat>& cs = cats(inside);
-    if (catOf(inside, U.sel) >= 0) buildCat_ = catOf(inside, U.sel);
-    buildCat_ = std::clamp(buildCat_, 0, (int)cs.size() - 1);
+    if (catOf(inside, U.sel) >= 0) home_.buildCat_ = catOf(inside, U.sel);
+    home_.buildCat_ = std::clamp(home_.buildCat_, 0, (int)cs.size() - 1);
     const SideLay L = sideLay(touch);
     panel(L.panel.x, L.panel.y, L.panel.w, L.panel.h, 0.94f);
     P.textS(L.panel.x + 7, L.panel.y + 6, inside ? "DECORATE" : "YARD", 1, kGoldC);
     gold(L.panel.x + L.panel.w - 7, L.panel.y + 6);
     for (int i = 0; i < (int)cs.size() && i < 5; i++) {
       const Rect& r = L.tabs[i];
-      const bool on = i == buildCat_;
+      const bool on = i == home_.buildCat_;
       P.rect(r.x, r.y, r.w, r.h, on ? Color(0.34f, 0.25f, 0.13f, 0.98f) : Color(0.13f, 0.11f, 0.10f, 0.95f));
       P.frame(r.x, r.y, r.w, r.h, on ? kGoldC : Color(0.40f, 0.33f, 0.22f));
       if (on) P.rect(r.x + 1, r.y + r.h - 2, r.w - 2, 2, kGoldC);
       P.text(r.x + r.w / 2, r.y + (r.h - 7) / 2, cs[(size_t)i].tab, 1, on ? Color(1, 0.95f, 0.8f) : kDimC, 1);
     }
     // the grid of pieces
-    const Cat& cat = cs[(size_t)buildCat_];
+    const Cat& cat = cs[(size_t)home_.buildCat_];
     const cult::Culture* C = nullptr;
     if (g.world.src) {
       uint64_t cid = p.style;
@@ -535,35 +535,35 @@ void View::drawBuild(Game& g) {
       const art::FarmObj fa = home::farmObjArt(o);
       if (fa != art::FarmObj::COUNT) {
         const uint64_t key = (0xB1ull << 56) | (uint64_t)fa << 40 | (C ? (C->id & 0xFFFFFFFFull) : 0);
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           art::FarmObjLook lk;
           lk.kind = fa;
           lk.style = C ? &C->arch : nullptr;
           if (fa == art::FarmObj::Fence || fa == art::FarmObj::Gate) lk.joins = 2 | 8;
           if (oi.flags & home::OBJ_ANIMALS) lk.stage = 2;
-          it = homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(art::farmObjSprite(lk))).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Path || o == Obj::Farmland) {
         const uint64_t key = (0xB2ull << 56) | (uint64_t)o;
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) {
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) {
           Canvas c(32, 16);
           const Canvas a = o == Obj::Path ? art::pathTile(2, 0, 1) : art::farmlandTile(2, false, 1);
           const Canvas b = o == Obj::Path ? art::pathTile(8, 0, 2) : art::farmlandTile(8, false, 2);
           for (int y = 0; y < 16; y++)
             for (int x = 0; x < 16; x++) { c.set(x, y, a.px[(size_t)y * a.w + x]); c.set(16 + x, y, b.px[(size_t)y * b.w + x]); }
-          it = homeTex_.emplace(key, P.bake(c)).first;
+          it = sprites_.homeTex_.emplace(key, P.bake(c)).first;
         }
         t = &it->second; sw = t->w; sh = t->h;
       } else if (o == Obj::Trophy) {
         const uint64_t key = (0xB3ull << 56) | 1;
-        auto it = homeTex_.find(key);
-        if (it == homeTex_.end()) it = homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
+        auto it = sprites_.homeTex_.find(key);
+        if (it == sprites_.homeTex_.end()) it = sprites_.homeTex_.emplace(key, P.bake(art::trophySprite(art::Monster::Wolf, 0))).first;
         t = &it->second; sw = t->w; sh = t->h;
-      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < props_.size()) {
-        t = &props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
+      } else if (oi.prop != art::Prop::COUNT && (size_t)oi.prop < sprites_.props_.size()) {
+        t = &sprites_.props_[(size_t)oi.prop]; sw = art::propW(oi.prop); sh = t->h;
       }
       if (t) {
         const float fitW = r.w - 4, fitH = r.h - 22;
@@ -622,12 +622,12 @@ void View::drawBuild(Game& g) {
     btn(L.place, "PLACE " + std::to_string(si.price), fits, fits);
     btn(L.done, "DONE", false);
     // a hint over the world, once: how to move the ghost (gone for good after the first move or placement)
-    if (buildHintGx_ == INT32_MIN) { buildHintGx_ = U.gx; buildHintGy_ = U.gy; }
-    else if (U.gx != buildHintGx_ || U.gy != buildHintGy_) buildHintDone_ = true;
+    if (home_.buildHintGx_ == INT32_MIN) { home_.buildHintGx_ = U.gx; home_.buildHintGy_ = U.gy; }
+    else if (U.gx != home_.buildHintGx_ || U.gy != home_.buildHintGy_) home_.buildHintDone_ = true;
     const float hx = ((float)Pix::SL + L.panel.x) / 2;   // (at the top: the bottom is where the yard's gate usually is)
     const std::string hint = touch ? "TAP OR DRAG ON THE GROUND TO MOVE" : "ARROWS MOVE   Q E PICK   R TURN   ENTER PLACE";
     const float hw = (float)P.textW(hint, 1) + 10;
-    if (!buildHintDone_ && U.placedKey < 0 && hw < L.panel.x - Pix::SL - 8) {
+    if (!home_.buildHintDone_ && U.placedKey < 0 && hw < L.panel.x - Pix::SL - 8) {
       const float hy = (float)Pix::ST + 7;
       P.rect(hx - hw / 2, hy - 3, hw, 13, Color(0.04f, 0.03f, 0.05f, 0.6f));
       P.text(hx, hy, hint, 1, Color(0.95f, 0.9f, 0.8f, 0.9f), 1);
@@ -683,10 +683,10 @@ void View::drawBuild(Game& g) {
       q.state = home::PlotState::Built;
       if (!q.houseSeed) q.houseSeed = (uint32_t)ew::mix64(p.id ^ 0x5348454C4Cull);
       const uint64_t key = (0xB4ull << 56) ^ ((uint64_t)U.sel << 48) ^ (style & 0xFFFFFFFFFFFull) ^ ((uint64_t)q.houseSeed << 20);
-      auto it = homeTex_.find(key);
-      if (it == homeTex_.end()) {
+      auto it = sprites_.homeTex_.find(key);
+      if (it == sprites_.homeTex_.end()) {
         const Bldg b = home::houseBldg(q, g);
-        it = homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
+        it = sprites_.homeTex_.emplace(key, P.bake(art::buildingSprite(bld::design(bldgRequest(b))))).first;
       }
       const Tex& t = it->second;
       float sc = 1.0f;
@@ -696,7 +696,7 @@ void View::drawBuild(Game& g) {
       const float dx = std::floor(pv.x + (pv.w - dw) / 2), dy = std::floor(pv.y + pv.h - 10 - dh);
       // its ground shadow, thrown down-right
       const float sw = dw * 0.9f, shh = std::max(6.0f, dh * 0.12f);
-      P.blitEx(shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
+      P.blitEx(sprites_.shadowBig_, 0, 0, 40, 12, dx + (dw - sw) / 2 + 4 * sc, dy + dh - shh * 0.75f - art::BLDG_PAD_B * sc, sw, shh, false, Color(1, 1, 1, 0.75f));
       P.blitEx(t, 0, 0, t.w, t.h, dx, dy, dw, dh, false, Color(1, 1, 1, 1));
     }
     // the style picker
@@ -745,12 +745,12 @@ void View::drawBuild(Game& g) {
     for (const home::PlacedObj& o : p.inside) if ((home::objInfo((Obj)o.kind).flags & home::OBJ_STORAGE) && (int)o.data == U.store) sname = home::objInfo((Obj)o.kind).name;
     for (const home::PlacedObj& o : p.outside) if ((home::objInfo((Obj)o.kind).flags & home::OBJ_STORAGE) && (int)o.data == U.store) sname = home::objInfo((Obj)o.kind).name;
     const std::string heads[2] = {"PACK " + std::to_string(g.inv.size()), sname + " " + std::to_string(st.size()) + "/" + std::to_string(home::STORE_STACKS)};
-    int* scrolls[2] = {&packScroll_, &storeScroll_};
+    int* scrolls[2] = {&home_.packScroll_, &home_.storeScroll_};
     const int counts[2] = {(int)g.inv.size(), (int)st.size()};
     for (int c = 0; c < 2; c++) {
       const Rect& r = S.col[c];
       *scrolls[c] = std::clamp(*scrolls[c], 0, std::max(0, counts[c] - S.rows));
-      P.textS(r.x + 2, M.y + 21, heads[c], 1, c == storeSide_ ? kGoldC : kTextC);
+      P.textS(r.x + 2, M.y + 21, heads[c], 1, c == home_.storeSide_ ? kGoldC : kTextC);
       arrowBtn(S.up[c], true, *scrolls[c] > 0);
       arrowBtn(S.down[c], false, *scrolls[c] + S.rows < counts[c]);
       P.rect(r.x, r.y, r.w, r.h, Color(0.10f, 0.09f, 0.08f, 0.9f));
@@ -761,10 +761,10 @@ void View::drawBuild(Game& g) {
         if (i >= (int)items.size()) break;
         const Item& it = items[(size_t)i];
         const float ry = r.y + k * S.rowH;
-        const bool sel = c == storeSide_ && i == storeSel_;
+        const bool sel = c == home_.storeSide_ && i == home_.storeSel_;
         if (sel) { P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(0.32f, 0.24f, 0.13f, 0.95f)); P.frame(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, kGoldC); }
         else if (k & 1) P.rect(r.x + 1, ry + 1, r.w - 2, S.rowH - 1, Color(1, 1, 1, 0.03f));
-        P.blit(itemTex(g, it), r.x + 3, ry + (S.rowH - 16) / 2);
+        P.blit(sprites_.itemTex(*this, g, it), r.x + 3, ry + (S.rowH - 16) / 2);
         bool worn = false;
         if (c == 0) for (int w : g.worn()) if (w == i) worn = true;
         const std::string cnt = it.stackable() && it.count > 1 ? " X" + std::to_string(it.count) : "";
@@ -793,10 +793,10 @@ void View::drawBuild(Game& g) {
     const std::vector<home::Meal> meals = home::knownMeals(g);
     P.textS(M.x + 8, M.y + 6, std::string("COOK AT THE ") + stationName(U.station), 1, kGoldC);
     gold(M.x + M.w - 8, M.y + 6);
-    cookScroll_ = std::clamp(cookScroll_, 0, std::max(0, (int)meals.size() - S.rows));
+    home_.cookScroll_ = std::clamp(home_.cookScroll_, 0, std::max(0, (int)meals.size() - S.rows));
     U.sel = std::clamp(U.sel, 0, std::max(0, (int)meals.size() - 1));
-    arrowBtn(S.up, true, cookScroll_ > 0);
-    arrowBtn(S.down, false, cookScroll_ + S.rows < (int)meals.size());
+    arrowBtn(S.up, true, home_.cookScroll_ > 0);
+    arrowBtn(S.down, false, home_.cookScroll_ + S.rows < (int)meals.size());
     P.rect(S.list.x, S.list.y, S.list.w, S.list.h, Color(0.10f, 0.09f, 0.08f, 0.9f));
     P.frame(S.list.x, S.list.y, S.list.w, S.list.h, Color(0.36f, 0.30f, 0.21f));
     auto canCook = [&](const home::Meal& m) {
@@ -806,7 +806,7 @@ void View::drawBuild(Game& g) {
       return true;
     };
     for (int k = 0; k < S.rows; k++) {
-      const int i = cookScroll_ + k;
+      const int i = home_.cookScroll_ + k;
       if (i >= (int)meals.size()) break;
       const home::Meal& m = meals[(size_t)i];
       const float ry = S.list.y + k * S.rowH;
@@ -825,7 +825,7 @@ void View::drawBuild(Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon(in, tint);
         const bool have = heldOf(g, in) > 0;
-        P.blitEx(iconTex(ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
+        P.blitEx(sprites_.iconTex(*this, ic, tint), 0, 0, 16, 16, ix, ry + (S.rowH - 16) / 2, 16, 16, false, Color(1, 1, 1, have ? 1.0f : 0.35f));
         if (!have) P.rect(ix + 3, ry + S.rowH / 2, 10, 1, kBadC);
         ix += 17;
       }
@@ -841,7 +841,7 @@ void View::drawBuild(Game& g) {
       float fed = 0;
       uint8_t q = 0;
       home::mealBuff(out, fed, q);
-      P.blitEx(itemTex(g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
+      P.blitEx(sprites_.itemTex(*this, g, out), 0, 0, 16, 16, d.x + 8, d.y + 8, 32, 32, false, Color(1, 1, 1, 1));
       P.textS(d.x + 48, d.y + 9, fitText(m.name, d.w - 54), 1, kGoldC);
       for (int s = 0; s < 3; s++) {   // the quality as three pips
         const float sx = d.x + 48 + s * 9, sy = d.y + 21;
@@ -861,7 +861,7 @@ void View::drawBuild(Game& g) {
         uint32_t tint = 0;
         const art::Icon ic = ingrIcon((home::Ingr)k, tint);
         const int have = heldOf(g, (home::Ingr)k);
-        P.blit(iconTex(ic, tint), d.x + 8, y - 4);
+        P.blit(sprites_.iconTex(*this, ic, tint), d.x + 8, y - 4);
         P.text(d.x + 28, y, ingrName((home::Ingr)k), 1, kTextC);
         // (M7 fixer r2, review: "'FLOUR 3/1' reads backwards") what it takes, then what the pack holds
         P.text(d.x + d.w - 8, y, "NEED " + std::to_string(need[k]) + "  HAVE " + std::to_string(std::min(have, 99)), 1, have >= need[k] ? kGoodC : kBadC, 2);
@@ -874,7 +874,7 @@ void View::drawBuild(Game& g) {
       btn(S.cook, "COOK", ok, ok);
     } else btn(S.cook, "COOK", false, false);
     if (!U.why.empty()) P.text(d.x, S.done.y - 10, fitText(U.why, d.w), 1, kBadC);
-    else if (!cookNote_.empty() && cookNoteSel_ == U.sel && t_ - cookNoteT_ < 4.0f) P.text(d.x + 8, d.y + d.h - 34 - 23, fitText(cookNote_, d.w - 16), 1, kGoodC);   // (in the panel, over the station's line)
+    else if (!home_.cookNote_.empty() && home_.cookNoteSel_ == U.sel && t_ - home_.cookNoteT_ < 4.0f) P.text(d.x + 8, d.y + d.h - 34 - 23, fitText(home_.cookNote_, d.w - 16), 1, kGoodC);   // (in the panel, over the station's line)
     btn(S.done, "DONE", false);
     return;
   }
@@ -891,9 +891,9 @@ namespace {
 void closeBuild(Game& g) { g.mode = Mode::Play; g.home.ui.mode = UiMode::None; g.home.ui.why.clear(); }
 }  // namespace
 
-void View::buildKey(Game& g, int key) {
+void HomeView::buildKey(View& v, Game& g, int key) {
   home::Ui& U = g.home.ui;
-  if (key == SDLK_ESCAPE || key == SDLK_TAB) { closeBuild(g); audio_->play(Sfx::MenuBack); return; }
+  if (key == SDLK_ESCAPE || key == SDLK_TAB) { closeBuild(g); v.audio_->play(Sfx::MenuBack); return; }
   if (!uiPlot(g)) return;
   const home::Plot& p = *uiPlot(g);
   if (U.mode == UiMode::Yard || U.mode == UiMode::Decorate) {
@@ -905,7 +905,7 @@ void View::buildKey(Game& g, int key) {
       buildCat_ = (c + (int)cs.size()) % (int)cs.size();
       U.sel = (int)cs[(size_t)buildCat_].objs.front();
       U.why.clear();
-      audio_->play(Sfx::MenuMove);
+      v.audio_->play(Sfx::MenuMove);
     };
     if (key == SDLK_LEFT || key == SDLK_A) { U.gx = std::max(0, U.gx - 1); U.why.clear(); }
     if (key == SDLK_RIGHT || key == SDLK_D) { U.gx = std::min(mw - 1, U.gx + 1); U.why.clear(); }
@@ -915,31 +915,31 @@ void View::buildKey(Game& g, int key) {
     if (key == SDLK_PAGEUP) pickCat(cat - 1);
     if (key == SDLK_PAGEDOWN) pickCat(cat + 1);
     if (key == SDLK_Q || key == SDLK_E) {
-      const std::vector<Obj>& v = cs[(size_t)cat].objs;
+      const std::vector<Obj>& objs = cs[(size_t)cat].objs;
       int i = 0;
-      for (int k = 0; k < (int)v.size(); k++) if ((int)v[(size_t)k] == U.sel) i = k;
-      i = (i + (key == SDLK_E ? 1 : -1) + (int)v.size()) % (int)v.size();
-      U.sel = (int)v[(size_t)i];
+      for (int k = 0; k < (int)objs.size(); k++) if ((int)objs[(size_t)k] == U.sel) i = k;
+      i = (i + (key == SDLK_E ? 1 : -1) + (int)objs.size()) % (int)objs.size();
+      U.sel = (int)objs[(size_t)i];
       U.why.clear();
-      audio_->play(Sfx::MenuMove);
+      v.audio_->play(Sfx::MenuMove);
     }
-    if (key == SDLK_R && (home::objInfo((Obj)U.sel).flags & home::OBJ_ROTATES)) { U.turned = !U.turned; U.why.clear(); audio_->play(Sfx::MenuMove); }
+    if (key == SDLK_R && (home::objInfo((Obj)U.sel).flags & home::OBJ_ROTATES)) { U.turned = !U.turned; U.why.clear(); v.audio_->play(Sfx::MenuMove); }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       U.why.clear();
-      if (home::placeObj(g, U.plot, (Obj)U.sel, U.gx, U.gy, U.turned, inside, U.why)) { U.placedKey = U.ghostKey(); audio_->play(Sfx::MenuSelect); }
-      else audio_->play(Sfx::MenuBack);
+      if (home::placeObj(g, U.plot, (Obj)U.sel, U.gx, U.gy, U.turned, inside, U.why)) { U.placedKey = U.ghostKey(); v.audio_->play(Sfx::MenuSelect); }
+      else v.audio_->play(Sfx::MenuBack);
     }
     if (key == SDLK_X || key == SDLK_DELETE || key == SDLK_BACKSPACE) {
       U.why.clear();
-      if (home::removeObj(g, U.plot, U.gx, U.gy, inside, U.why)) { U.placedKey = -1; audio_->play(Sfx::MenuSelect); }
-      else audio_->play(Sfx::MenuBack);
+      if (home::removeObj(g, U.plot, U.gx, U.gy, inside, U.why)) { U.placedKey = -1; v.audio_->play(Sfx::MenuSelect); }
+      else v.audio_->play(Sfx::MenuBack);
     }
     return;
   }
   if (U.mode == UiMode::Shell) {
     const int n = (int)home::Shell::COUNT;
-    if (key == SDLK_UP || key == SDLK_W) { U.sel = (U.sel + n - 1) % n; U.why.clear(); audio_->play(Sfx::MenuMove); }
-    if (key == SDLK_DOWN || key == SDLK_S) { U.sel = (U.sel + 1) % n; U.why.clear(); audio_->play(Sfx::MenuMove); }
+    if (key == SDLK_UP || key == SDLK_W) { U.sel = (U.sel + n - 1) % n; U.why.clear(); v.audio_->play(Sfx::MenuMove); }
+    if (key == SDLK_DOWN || key == SDLK_S) { U.sel = (U.sel + 1) % n; U.why.clear(); v.audio_->play(Sfx::MenuMove); }
     if ((key == SDLK_LEFT || key == SDLK_A || key == SDLK_RIGHT || key == SDLK_D || key == SDLK_Q || key == SDLK_E || key == SDLK_R) && !g.home.styles.empty()) {
       const int dir = (key == SDLK_LEFT || key == SDLK_A || key == SDLK_Q) ? -1 : 1;
       const int ns = (int)g.home.styles.size();
@@ -947,19 +947,19 @@ void View::buildKey(Game& g, int key) {
       for (int k = 0; k < ns; k++) if (g.home.styles[(size_t)k] == U.style) i = k;
       U.style = g.home.styles[(size_t)((i + dir + ns) % ns)];
       U.why.clear();
-      audio_->play(Sfx::MenuMove);
+      v.audio_->play(Sfx::MenuMove);
     }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       U.why.clear();
       uint64_t style = U.style;
       if (!style && !g.home.styles.empty()) style = g.home.styles.front();
-      if (home::startBuild(g, U.plot, (home::Shell)U.sel, style, U.timber, U.iron, U.why)) { closeBuild(g); audio_->play(Sfx::MenuSelect); }
-      else audio_->play(Sfx::MenuBack);
+      if (home::startBuild(g, U.plot, (home::Shell)U.sel, style, U.timber, U.iron, U.why)) { closeBuild(g); v.audio_->play(Sfx::MenuSelect); }
+      else v.audio_->play(Sfx::MenuBack);
     }
     return;
   }
   if (U.mode == UiMode::Storage) {
-    const ListLay S = listLay(touchUI);
+    const ListLay S = listLay(v.touchUI);
     const int n = storeSide_ == 0 ? (int)g.inv.size() : (U.store >= 0 && U.store < (int)p.stores.size() ? (int)p.stores[(size_t)U.store].items.size() : 0);
     int& scroll = storeSide_ == 0 ? packScroll_ : storeScroll_;
     if (key == SDLK_UP || key == SDLK_W) storeSel_ = std::max(0, storeSel_ - 1);
@@ -972,12 +972,12 @@ void View::buildKey(Game& g, int key) {
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       U.why.clear();
       const bool ok = storeSide_ == 0 ? home::storePut(g, U.plot, U.store, storeSel_, U.why) : home::storeTake(g, U.plot, U.store, storeSel_, U.why);
-      audio_->play(ok ? Sfx::MenuSelect : Sfx::MenuBack);
+      v.audio_->play(ok ? Sfx::MenuSelect : Sfx::MenuBack);
     }
     return;
   }
   if (U.mode == UiMode::Cook) {
-    const CookLay S = cookLay(touchUI);
+    const CookLay S = cookLay(v.touchUI);
     const std::vector<home::Meal> meals = home::knownMeals(g);
     if (key == SDLK_UP || key == SDLK_W) U.sel = std::max(0, U.sel - 1);
     if (key == SDLK_DOWN || key == SDLK_S) U.sel = std::min(std::max(0, (int)meals.size() - 1), U.sel + 1);
@@ -986,22 +986,22 @@ void View::buildKey(Game& g, int key) {
     if ((key == SDLK_RETURN || key == SDLK_SPACE) && U.sel < (int)meals.size()) {
       U.why.clear();
       if (home::cook(g, meals[(size_t)U.sel], U.station, U.why)) {
-        audio_->play(Sfx::MenuSelect);
+        v.audio_->play(Sfx::MenuSelect);
         // (M7 fix r3, review: "no feedback while the Cook screen is open, then two messages per meal") the panel says
         // it (the HUD's toasts are behind the modal); the pack's own "gained" notice is the one left for later
         const Item made = home::makeMeal(meals[(size_t)U.sel], U.station);
         int have = 0;
         for (const Item& it : g.inv) if (it.same(made)) have += it.stackable() ? std::max(1, (int)it.count) : 1;
         cookNote_ = "COOKED: " + meals[(size_t)U.sel].name + " (HAVE " + std::to_string(have) + ")";
-        cookNoteSel_ = U.sel; cookNoteT_ = t_;
-      } else { audio_->play(Sfx::MenuBack); cookNote_.clear(); }
+        cookNoteSel_ = U.sel; cookNoteT_ = v.t_;
+      } else { v.audio_->play(Sfx::MenuBack); cookNote_.clear(); }
     }
     return;
   }
   if (key == SDLK_RETURN || key == SDLK_SPACE) closeBuild(g);
 }
 
-void View::buildTap(Game& g, Vec2 p) {
+void HomeView::buildTap(View& v, Game& g, Vec2 p) {
   home::Ui& U = g.home.ui;
   buildDrag_ = BuildDrag();
   if (!uiPlot(g)) { closeBuild(g); return; }
@@ -1009,13 +1009,13 @@ void View::buildTap(Game& g, Vec2 p) {
   // ---- YARD / DECORATE
   if (U.mode == UiMode::Yard || U.mode == UiMode::Decorate) {
     const bool inside = U.mode == UiMode::Decorate;
-    const SideLay L = sideLay(touchUI);
+    const SideLay L = sideLay(v.touchUI);
     if (L.panel.in(p)) {
       const std::vector<Cat>& cs = cats(inside);
       for (int i = 0; i < (int)cs.size() && i < 5; i++)
         if (L.tabs[i].in(p)) {
           buildCat_ = i; U.sel = (int)cs[(size_t)i].objs.front(); U.why.clear();
-          audio_->play(Sfx::MenuMove);
+          v.audio_->play(Sfx::MenuMove);
           return;
         }
       const Cat& cat = cs[(size_t)std::clamp(buildCat_, 0, (int)cs.size() - 1)];
@@ -1023,17 +1023,17 @@ void View::buildTap(Game& g, Vec2 p) {
         if (cellRect(L, i).in(p)) {
           if (U.sel != (int)cat.objs[(size_t)i]) U.turned = false;
           U.sel = (int)cat.objs[(size_t)i]; U.why.clear();
-          audio_->play(Sfx::MenuMove);
+          v.audio_->play(Sfx::MenuMove);
           return;
         }
-      if (L.rot.in(p)) { buildKey(g, SDLK_R); return; }
-      if (L.sell.in(p)) { buildKey(g, SDLK_X); return; }
-      if (L.place.in(p)) { buildKey(g, SDLK_RETURN); return; }
-      if (L.done.in(p)) { buildKey(g, SDLK_ESCAPE); return; }
+      if (L.rot.in(p)) { buildKey(v, g, SDLK_R); return; }
+      if (L.sell.in(p)) { buildKey(v, g, SDLK_X); return; }
+      if (L.place.in(p)) { buildKey(v, g, SDLK_RETURN); return; }
+      if (L.done.in(p)) { buildKey(v, g, SDLK_ESCAPE); return; }
       return;
     }
     // the world: the ghost goes to the tile under the finger, and a drag from here moves it
-    const Vec2 w = toWorld(p);   // (P2a) the tap, through the world layer's projection
+    const Vec2 w = v.camera_.toWorld(v, p);   // (P2a) the tap, through the world layer's projection
     int tx = (int)std::floor(w.x / TILE), ty = (int)std::floor(w.y / TILE);
     int mw = pl.w, mh = pl.h;
     if (inside) { mw = g.map().w; mh = g.map().h; }
@@ -1046,21 +1046,21 @@ void View::buildTap(Game& g, Vec2 p) {
   }
   // ---- SHELL
   if (U.mode == UiMode::Shell) {
-    const ShellLay S = shellLay(touchUI);
+    const ShellLay S = shellLay(v.touchUI);
     for (int i = 0; i < (int)home::Shell::COUNT && i < 5; i++)
-      if (S.card[i].in(p)) { U.sel = i; U.why.clear(); audio_->play(Sfx::MenuMove); return; }
-    if (S.prev.in(p)) { buildKey(g, SDLK_LEFT); return; }
-    if (S.next.in(p)) { buildKey(g, SDLK_RIGHT); return; }
-    if (S.build.in(p)) { buildKey(g, SDLK_RETURN); return; }
-    if (S.cancel.in(p) || !modalRect().in(p)) { buildKey(g, SDLK_ESCAPE); return; }
+      if (S.card[i].in(p)) { U.sel = i; U.why.clear(); v.audio_->play(Sfx::MenuMove); return; }
+    if (S.prev.in(p)) { buildKey(v, g, SDLK_LEFT); return; }
+    if (S.next.in(p)) { buildKey(v, g, SDLK_RIGHT); return; }
+    if (S.build.in(p)) { buildKey(v, g, SDLK_RETURN); return; }
+    if (S.cancel.in(p) || !modalRect().in(p)) { buildKey(v, g, SDLK_ESCAPE); return; }
     return;
   }
   // ---- STORAGE: the rows act on release (a drag scrolls instead)
   if (U.mode == UiMode::Storage) {
-    const ListLay S = listLay(touchUI);
-    if (S.done.in(p)) { buildKey(g, SDLK_ESCAPE); return; }
-    if (pl.stores.size() > 1 && S.prev.in(p)) { buildKey(g, SDLK_Q); return; }
-    if (pl.stores.size() > 1 && S.next.in(p)) { buildKey(g, SDLK_E); return; }
+    const ListLay S = listLay(v.touchUI);
+    if (S.done.in(p)) { buildKey(v, g, SDLK_ESCAPE); return; }
+    if (pl.stores.size() > 1 && S.prev.in(p)) { buildKey(v, g, SDLK_Q); return; }
+    if (pl.stores.size() > 1 && S.next.in(p)) { buildKey(v, g, SDLK_E); return; }
     int* scrolls[2] = {&packScroll_, &storeScroll_};
     for (int c = 0; c < 2; c++) {
       if (arrowHit(S.up[c]).in(p)) { *scrolls[c] = std::max(0, *scrolls[c] - std::max(1, S.rows - 1)); return; }
@@ -1074,20 +1074,20 @@ void View::buildTap(Game& g, Vec2 p) {
   }
   // ---- COOK
   if (U.mode == UiMode::Cook) {
-    const CookLay S = cookLay(touchUI);
-    if (S.done.in(p)) { buildKey(g, SDLK_ESCAPE); return; }
-    if (S.cook.in(p)) { buildKey(g, SDLK_RETURN); return; }
+    const CookLay S = cookLay(v.touchUI);
+    if (S.done.in(p)) { buildKey(v, g, SDLK_ESCAPE); return; }
+    if (S.cook.in(p)) { buildKey(v, g, SDLK_RETURN); return; }
     if (arrowHit(S.up).in(p)) { cookScroll_ = std::max(0, cookScroll_ - std::max(1, S.rows - 1)); return; }
     if (arrowHit(S.down).in(p)) { cookScroll_ += std::max(1, S.rows - 1); return; }
     if (S.list.in(p)) { buildDrag_.on = true; buildDrag_.start = p; buildDrag_.list = 0; buildDrag_.scroll0 = (float)cookScroll_; buildDrag_.zone = 3; }
     return;
   }
   // ---- BUY and the rest
-  const ListLay S = listLay(touchUI);
-  if (S.done.in(p) || !modalRect().in(p)) buildKey(g, SDLK_ESCAPE);
+  const ListLay S = listLay(v.touchUI);
+  if (S.done.in(p) || !modalRect().in(p)) buildKey(v, g, SDLK_ESCAPE);
 }
 
-void View::buildPointer(Game& g, int phase, Vec2 p) {
+void HomeView::buildPointer(View& v, Game& g, int phase, Vec2 p) {
   home::Ui& U = g.home.ui;
   if (g.mode != Mode::Build || !buildDrag_.on) return;
   if (!uiPlot(g)) { buildDrag_ = BuildDrag(); return; }
@@ -1103,7 +1103,7 @@ void View::buildPointer(Game& g, int phase, Vec2 p) {
     return;
   }
   if (buildDrag_.zone == 2) {   // STORAGE: drag scrolls a column, a still tap moves the item
-    const ListLay S = listLay(touchUI);
+    const ListLay S = listLay(v.touchUI);
     int* scrolls[2] = {&packScroll_, &storeScroll_};
     const int c = std::clamp(buildDrag_.list, 0, 1);
     if (buildDrag_.moved) *scrolls[c] = std::max(0, (int)std::lround(buildDrag_.scroll0 - d.y / S.rowH));
@@ -1116,7 +1116,7 @@ void View::buildPointer(Game& g, int phase, Vec2 p) {
         if (row >= 0 && row < S.rows && i < n) {
           U.why.clear();
           const bool ok = c == 0 ? home::storePut(g, U.plot, U.store, i, U.why) : home::storeTake(g, U.plot, U.store, i, U.why);
-          audio_->play(ok ? Sfx::MenuSelect : Sfx::MenuBack);
+          v.audio_->play(ok ? Sfx::MenuSelect : Sfx::MenuBack);
         }
       }
       buildDrag_ = BuildDrag();
@@ -1124,7 +1124,7 @@ void View::buildPointer(Game& g, int phase, Vec2 p) {
     return;
   }
   if (buildDrag_.zone == 3) {   // COOK: drag scrolls, a still tap picks the meal (a second tap on it cooks)
-    const CookLay S = cookLay(touchUI);
+    const CookLay S = cookLay(v.touchUI);
     if (buildDrag_.moved) cookScroll_ = std::max(0, (int)std::lround(buildDrag_.scroll0 - d.y / S.rowH));
     if (phase == 2) {
       if (!buildDrag_.moved) {
@@ -1132,8 +1132,8 @@ void View::buildPointer(Game& g, int phase, Vec2 p) {
         const int i = cookScroll_ + row;
         const int n = (int)home::knownMeals(g).size();
         if (row >= 0 && row < S.rows && i < n) {
-          if (U.sel == i) buildKey(g, SDLK_RETURN);
-          else { U.sel = i; U.why.clear(); audio_->play(Sfx::MenuMove); }
+          if (U.sel == i) buildKey(v, g, SDLK_RETURN);
+          else { U.sel = i; U.why.clear(); v.audio_->play(Sfx::MenuMove); }
         }
       }
       buildDrag_ = BuildDrag();
@@ -1172,10 +1172,10 @@ bool View::buildCommand(Game& g, const std::vector<std::string>& a, std::string&
     const int m = wordIn(kModeWords, 7, arg(2));
     if (m <= 0) { err = "build tab: yard|decorate|shell|storage|cook|buy"; return false; }
     bool indoors = false;
-    int plot = homeHere(g, indoors);
+    int plot = home_.homeHere(g, indoors);
     if (plot < 0) plot = g.home.plots.empty() ? -1 : (int)g.home.plots.size() - 1;
     if (plot < 0) { err = "build tab: no property (home lot first)"; return false; }
-    openBuild(g, (UiMode)m, plot);
+    home_.openBuild(g, (UiMode)m, plot);
     if ((UiMode)m == UiMode::Storage) {   // a store: the one named by index (default: the first), made if the plot has none
       const int si = arg(3).empty() ? 0 : std::atoi(arg(3).c_str());
       U.store = g.home.plots[(size_t)plot].stores.empty() ? -1 : std::clamp(si, 0, (int)g.home.plots[(size_t)plot].stores.size() - 1);
@@ -1212,30 +1212,30 @@ bool View::buildCommand(Game& g, const std::vector<std::string>& a, std::string&
       U.sel = s;
       return true;
     }
-    if (U.mode == UiMode::Cook || U.mode == UiMode::Storage) { U.sel = std::atoi(arg(2).c_str()); storeSel_ = U.sel; return true; }
+    if (U.mode == UiMode::Cook || U.mode == UiMode::Storage) { U.sel = std::atoi(arg(2).c_str()); home_.storeSel_ = U.sel; return true; }
     const int o = wordIn(kObjWords, (int)Obj::COUNT, arg(2));
     if (o < 0) { err = "build sel: unknown object '" + arg(2) + "'"; return false; }
     U.sel = o; U.why.clear();
     const int c = catOf(U.mode == UiMode::Decorate, o);
-    if (c >= 0) buildCat_ = c;
+    if (c >= 0) home_.buildCat_ = c;
     return true;
   }
-  if (op == "cat") { buildCat_ = std::atoi(arg(2).c_str()); U.sel = (int)cats(U.mode == UiMode::Decorate)[(size_t)std::clamp(buildCat_, 0, 4)].objs.front(); return true; }
+  if (op == "cat") { home_.buildCat_ = std::atoi(arg(2).c_str()); U.sel = (int)cats(U.mode == UiMode::Decorate)[(size_t)std::clamp(home_.buildCat_, 0, 4)].objs.front(); return true; }
   if (op == "ghost") { U.gx = std::atoi(arg(2).c_str()); U.gy = std::atoi(arg(3).c_str()); U.why.clear(); return true; }
-  if (op == "rotate") { buildKey(g, SDLK_R); return true; }
-  if (op == "place") { buildKey(g, SDLK_RETURN); return true; }
-  if (op == "remove" || op == "sell") { buildKey(g, SDLK_X); return true; }
+  if (op == "rotate") { home_.buildKey(*this, g, SDLK_R); return true; }
+  if (op == "place") { home_.buildKey(*this, g, SDLK_RETURN); return true; }
+  if (op == "remove" || op == "sell") { home_.buildKey(*this, g, SDLK_X); return true; }
   if (op == "style") {   // next | prev | <n>
     if (g.home.styles.empty()) { err = "build style: no styles known"; return false; }
-    if (arg(2) == "prev") buildKey(g, SDLK_LEFT);
-    else if (arg(2).empty() || arg(2) == "next") buildKey(g, SDLK_RIGHT);
+    if (arg(2) == "prev") home_.buildKey(*this, g, SDLK_LEFT);
+    else if (arg(2).empty() || arg(2) == "next") home_.buildKey(*this, g, SDLK_RIGHT);
     else U.style = g.home.styles[(size_t)std::clamp(std::atoi(arg(2).c_str()), 0, (int)g.home.styles.size() - 1)];
     return true;
   }
-  if (op == "side") { storeSide_ = std::clamp(std::atoi(arg(2).c_str()), 0, 1); storeSel_ = 0; return true; }
-  if (op == "move") { buildKey(g, SDLK_RETURN); return true; }
-  if (op == "cook") { buildKey(g, SDLK_RETURN); return true; }
-  if (op == "done" || op == "close") { buildKey(g, SDLK_ESCAPE); return true; }
+  if (op == "side") { home_.storeSide_ = std::clamp(std::atoi(arg(2).c_str()), 0, 1); home_.storeSel_ = 0; return true; }
+  if (op == "move") { home_.buildKey(*this, g, SDLK_RETURN); return true; }
+  if (op == "cook") { home_.buildKey(*this, g, SDLK_RETURN); return true; }
+  if (op == "done" || op == "close") { home_.buildKey(*this, g, SDLK_ESCAPE); return true; }
   err = "build: tab|sel|cat|ghost|rotate|place|remove|style|side|move|cook|done";
   return false;
 }
