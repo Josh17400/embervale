@@ -369,9 +369,9 @@ struct Parted {
   ew::Gid inn = 0;             // m.hiredAt: a sellsword's inn (Bldg::id; 0 a census companion)
   uint8_t slot = 0;            // m.mercSlot: his place at that inn
 };
-// Item::flags: a piece of a companion's own kit (the same bit as items.h IF_KIT, LOOT's contract): made once when they
-// join, never reaches the hero's pack while they live (the one door refuses it), dropped without it when they die
-constexpr uint8_t IF_KIT = 16;
+// Item::flags: a piece of a companion's own kit (items.h IF_KIT, LOOT's contract): made once when they join, never
+// reaches the hero's pack while they live (the one door refuses it), dropped without it when they die
+constexpr uint8_t IF_KIT = ::IF_KIT;
 constexpr int GIFT_BETTER_PCT = 3;     // a gift is worn only when it is more than this % better at their level
 
 class Party {
@@ -535,9 +535,8 @@ constexpr uint8_t GF_HOME = 16;        // ... in their home settlement's temple 
 Stake stakeFor(Game& g, int site, int res);
 
 // ================================================================ P3 PARTY additions (Batch B: the owner's companion rules 1-8)
-// the gift rule (the compare arrow's own, gear::verdictAt in LOOT's contract: identical numbers): +1 the gift is more
-// than GIFT_BETTER_PCT % better than `worn` at this level (gear::powerScore), 0 a tie, -1 worse; no worn piece: +1.
-// pct: the difference in whole %
+// the gift rule: gear::verdictAt (LOOT's contract, the compare arrow's own rule) at their level: +1 the gift is more than
+// GIFT_BETTER_PCT % better than `worn` (gear::powerScore), 0 a tie, -1 worse; no worn piece: +1. pct: the difference in %
 int giftVerdict(const Item& gift, const Item* worn, int level, int* pct = nullptr);
 // a slot this vocation never uses (a warrior's bow, a mage's shield...): a piece for it is declined
 bool vocationSkips(Vocation v, int slot);

@@ -534,14 +534,8 @@ bool Party::operator==(const Party& o) const {
 
 // ================================================================ P3 PARTY: the gift rule, the vocations' slots, the kit
 int giftVerdict(const Item& gift, const Item* worn, int level, int* pct) {
-  // the compare arrow's rule (lootp::verdict; gear::verdictAt in LOOT's contract), numbers identical
-  if (pct) *pct = 0;
-  if (!worn) return 1;
-  const float a = gear::powerScore(gift, level), b = gear::powerScore(*worn, level);
-  const float d = (a - b) / std::max(1.0f, b);
-  if (pct) *pct = (int)std::lround(d * 100.0f);
-  const float edge = (float)GIFT_BETTER_PCT / 100.0f;
-  return d > edge ? 1 : d < -edge ? -1 : 0;
+  static_assert(GIFT_BETTER_PCT == 3, "the gift rule is the compare arrow's (gear::verdictAt: 3 % either way)");
+  return gear::verdictAt(gift, worn, level, pct);
 }
 
 bool vocationSkips(Vocation v, int slot) {
