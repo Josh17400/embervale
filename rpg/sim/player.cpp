@@ -48,16 +48,22 @@ void Game::recalcPlayer() {
 
   // ---- the look: the chosen appearance (Appearance defaults = the pre-M0 hero) dressed in the equipped gear.
   // Every field is set here, so the look never keeps a piece that was taken off. (M6: rpg/sim/gear_look.cpp)
+  p.look = heroLook(app);
+}
+
+// the hero's look for an appearance: recalcPlayer's, and the creator's preview (so the hero who walks out of the creator
+// is the one the player made)
+art::HumanLook Game::heroLook(const Appearance& a) const {
   auto valid = [&](int idx) { return idx >= 0 && idx < (int)inv.size(); };
   auto at = [&](int idx) -> const Item* { return valid(idx) ? &inv[(size_t)idx] : nullptr; };
-  const cult::Culture* home = app.homeland && world.src ? &world.src->culture(app.homeland) : nullptr;
-  art::HumanLook L = appearanceLook(app, home);
+  const cult::Culture* home = a.homeland && world.src ? &world.src->culture(a.homeland) : nullptr;
+  art::HumanLook L = appearanceLook(a, home);
   WornGear wg;
   wg.weapon = at(eqWeapon); wg.bow = at(eqBow); wg.staff = at(eqStaff); wg.armor = at(eqArmor); wg.helmet = at(eqHelmet);
   wg.shield = at(eqShield); wg.ring = at(eqRing); wg.amulet = at(eqAmulet); wg.gloves = at(eqGloves); wg.boots = at(eqBoots);
   wg.cloak = at(eqCloak);
   wearGear(L, wg, [this](uint64_t id) -> const cult::Culture* { return id && world.src ? &world.src->culture(id) : nullptr; });
-  p.look = L;
+  return L;
 }
 
 // (M6, 7.2) the armour rating: every worn piece's power synced to the player's level (level sync), the classic

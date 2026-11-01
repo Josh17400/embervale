@@ -505,6 +505,11 @@ DollRamps rampsOf(const HumanLook& L) {
   if (L.age == 3) hairCol = toLab(L.hairColor).L < 45 ? hex(0x8E8A94) : hex(0xD8D4D8);
   curatedHair(hairCol, R.c[(int)Slot::Hair]);
   rampA3(L.topColor, Material::Cloth, R.c[(int)Slot::Cloth1]);
+  // (polish i1's rule, the owner 2026-11-01: "yes") the T1 floor's padded jerkin (gear::fillLadder's empty body slot, made
+  // padded by ladderLook) is quilted from the wearer's own shirt colour, so the shirt picked in the creator is the one worn:
+  // his quilt (Cloth3) and hers (Linen), the HOMESPUN hood with them. A worn padded coat keeps its buff and linen.
+  if ((L.floor >> HumanLook::TIER_BODY & 1) && L.tier[HumanLook::TIER_BODY] == 1 && L.armorStyle == 1 && L.bodyForm == 1)
+    for (int i = 0; i < 5; i++) R.c[(int)(L.body == 1 ? Slot::Linen : Slot::Cloth3)][i] = R.c[(int)Slot::Cloth1][i];
   rampA3(L.bottomColor, Material::Cloth, R.c[(int)Slot::Cloth2]);
   // MOTION_P2 14: the trouser-body floor. A trouser body (Cloth2 step 1, A3's leg char '2') darker than A3's own (#33304E,
   // luma 52) reads as a shadow band on grass; its base is lifted (RGB scaled: HSV hue and saturation kept) to the smallest
