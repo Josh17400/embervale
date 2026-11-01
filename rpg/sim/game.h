@@ -1166,6 +1166,7 @@ class Game {
   friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
   friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
+  friend struct MagicLaunch;           // (SOLID 3.5) MagicOps::launch's form groups (magic_launch.cpp), as MagicOps
   friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
   friend struct AnimOps;               // P2a ANIM: the animation pick's hooks into the sim (rpg/sim/anim.h, anim.cpp)
   friend struct ServiceOps;            // M12 SERVICE: enlisting, ranks, orders, missions (rpg/sim/service_ops.h)
@@ -1236,6 +1237,38 @@ class Game {
   void tollTalk(Actor& troll);         // the troll's demand as a dialogue
   int rumourSite(int32_t gx, int32_t gy);              // the nearest unknown place worth a rumour (-1 none)
   std::string rumourLine(int site, int32_t fromX, int32_t fromY) const;
+  // ---- (SOLID 3.5) the pieces the big sim functions were split into: private helpers in one marked block (wave 4
+  //      re-homes them). Each runs exactly the code (and draws exactly the dice) of the stretch it was cut from.
+  // the key killedSlots[0] holds for an overworld spawn of a site (M1: 4096 slots per site; saves store site id + slot)
+  static int owKillKey(int site, int slot) { return site * 4096 + (slot & 4095); }   // (game.cpp, game_combat.cpp)
+  // updateFolk's pieces (ai.cpp): the missing person, the watch's fight, the flight from danger, the stall keeper
+  // (true: this step is done)
+  void folkMissing(Actor& a, float dt, bool talking);
+  bool folkGuard(Actor& a, float dt, bool town, bool ringing, bool soldier, bool guard);
+  bool folkShelter(Actor& a, float dt, bool ringing);
+  bool folkStall(Actor& a, float dt);
+  // updateAI's behaviour sets (ai_beasts.cpp): p the target, toP / dist from the hostile to it
+  struct BeastKind;                    // the kind flags (pack, brute, kite ...) and the windup
+  static BeastKind beastKindOf(const Actor& a);
+  void beastDragon(Actor& a, Actor& p, Vec2 toP, float dist, float dt);
+  void beastStep(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow);
+  void beastPursue(Actor& a, Actor& p, Vec2 toP, float dist, float dt, float slow, const BeastKind& k);
+  void beastAttack(Actor& a, Actor& p, float dist, float dt, const BeastKind& k);
+  void beastPackAttack(Actor& a, Actor& p, float dist, bool inMelee, const BeastKind& k);
+  void beastWander(Actor& a, float dt, float slow);
+  // offerFor's pieces (quest_offers.cpp): one builder per kind of offer (false: it does not fit), the pitch
+  struct OfferCtx;                     // one offer being built (the giver, the dice, the grammar's variables)
+  bool offerBuild(OfferCtx& oc, int kind);
+  bool offerClear(OfferCtx& oc, int kind);
+  bool offerBounty(OfferCtx& oc, int kind);
+  bool offerHunt(OfferCtx& oc);
+  bool offerDeliver(OfferCtx& oc);
+  bool offerHeirloom(OfferCtx& oc);
+  bool offerStolen(OfferCtx& oc);
+  bool offerSupply(OfferCtx& oc);
+  bool offerMissing(OfferCtx& oc);
+  bool offerProtect(OfferCtx& oc);
+  void offerPitch(OfferCtx& oc, int madeKind);
 };
 
 // M11 CLIMB: moving over the relief (rpg/sim/game.cpp moveActor, ai.cpp navStep): the internals the tests and scripts
