@@ -14,6 +14,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/magic.h"
+#include "rpg/sim/quest_traits.h"
 #include "rpg/sim/sea_ops.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/skills.h"
@@ -100,7 +101,7 @@ std::string trackedStep(const Game& g, const Quest& q) {
   // (P1b ENGINE lane) a story stage's clock ("6 DAYS LEFT", "ONE DAY LEFT", "LAST DAY") is the line that must never be
   // cut: it is read from the engine (the stage's deadline) and takes the second line of its own; the step above it, its
   // copy of the clock dropped (the status line's fit may have cut it anywhere), is trimmed at a word to the column
-  if (q.type == QType::Story) {
+  if (questTraits(q.type).journal == QJournal::Clock) {
     std::string clock;
     for (const story::Instance& in : g.story.running())
       if (!in.done && in.questId == q.id) {
@@ -137,7 +138,7 @@ std::string trackedStep(const Game& g, const Quest& q) {
   if (s.size() <= 30) return s;
   // (P1) a hunt keeps its count and its way on the first line, the ground on the second ("THIN THE WOLVES 2/5 (NE)"
   // over "BY THE GREY TEETH")
-  if (q.type == QType::Hunt && q.state == QState::Active && s.rfind("THIN THE ", 0) == 0) {
+  if (questTraits(q.type).journal == QJournal::Count && q.state == QState::Active && s.rfind("THIN THE ", 0) == 0) {
     const size_t by = s.find(" BY "), at = by != std::string::npos ? by : s.find(" AT THEIR DEN") != std::string::npos ? s.find(" AT THEIR DEN") : s.find(" IN THE WILDS");
     const std::string prog = std::to_string(q.have) + "/" + std::to_string(q.need);
     const size_t pp = s.rfind(" " + prog);
@@ -981,9 +982,9 @@ void View::hudQuest(Game& g, HudFrame& H) {
           // (P1b ENGINE lane) a story's clock reads at a glance: gold while days remain, the last day a warning red
           const std::string l2 = obj.substr(nl + 1);
           Color c2 = kText;
-          if (q->type == QType::Story && l2 == "LAST DAY") c2 = ((int)(t_ * 2.5f) & 1) ? Color(1.0f, 0.42f, 0.32f) : Color(1.0f, 0.62f, 0.45f);
-          else if (q->type == QType::Story && l2 == "ONE DAY LEFT") c2 = Color(1.0f, 0.62f, 0.38f);
-          else if (q->type == QType::Story && l2.find("DAYS LEFT") != std::string::npos) c2 = kGold;
+          if (questTraits(q->type).journal == QJournal::Clock && l2 == "LAST DAY") c2 = ((int)(t_ * 2.5f) & 1) ? Color(1.0f, 0.42f, 0.32f) : Color(1.0f, 0.62f, 0.45f);
+          else if (questTraits(q->type).journal == QJournal::Clock && l2 == "ONE DAY LEFT") c2 = Color(1.0f, 0.62f, 0.38f);
+          else if (questTraits(q->type).journal == QJournal::Clock && l2.find("DAYS LEFT") != std::string::npos) c2 = kGold;
           H.colText(T + 130 + kdy, l2, H.fa(c2));
         }
       }
@@ -1868,7 +1869,7 @@ void View::drawMenu(Game& g) {
         else if (touchUI && (r & 1)) P.rect(C.lx, rowTop, C.lw, L.pitch - 1, Color(0.16f, 0.12f, 0.08f, 0.35f));
         if (jr.q >= 0) {
           const Quest& q = g.quests[(size_t)jr.q];
-          Color c = q.state == QState::Done ? kDim : (q.type == QType::Main ? kGold : kText);
+          Color c = q.state == QState::Done ? kDim : (questTraits(q.type).icon == QIcon::Main ? kGold : kText);
           P.text(C.lx + 4, y, (q.id == g.trackedQuest ? "> " : "  ") + fitText(q.title, C.lw - 20), 1, c);
           continue;
         }
@@ -1932,14 +1933,15 @@ void View::drawMenu(Game& g) {
       } else if (!rows.empty()) {
         const Quest& q = g.quests[(size_t)rows[(size_t)menuSel_].q];
         float y = top - journalStripH() + 12;
-        for (const std::string& l : wrap(q.title, per)) { P.text(C.dx, y, l, 1, q.type == QType::Main ? kGold : kText); y += 10; }
+        for (const std::string& l : wrap(q.title, per)) { P.text(C.dx, y, l, 1, questTraits(q.type).icon == QIcon::Main ? kGold : kText); y += 10; }
         y += 2;
         std::string st = q.state == QState::Done ? ((q.flags & QF_FAILED) ? "ENDED UNFINISHED" : "COMPLETED") : q.state == QState::Complete ? "READY TO TURN IN" : "IN PROGRESS";
         if (q.state != QState::Done) { std::string qs = g.questStatus(q); if (!qs.empty()) st = qs; }
         for (const std::string& l : wrap(st, per)) { P.text(C.dx, y, l, 1, q.state == QState::Complete ? Color(0.5f, 1, 0.5f) : kDim); y += 10; }
         y += 6;
         // the description fills the room down to the progress / reward lines (never under them)
-        const bool prog = (q.type == QType::Hunt) || (q.type == QType::Main && q.stage == 1);
+        const QJournal jl = questTraits(q.type).journal;
+        const bool prog = (jl == QJournal::Count) || (jl == QJournal::Shards && q.stage == 1);
         const bool rew = q.gold > 0 && q.state != QState::Done;
         float footY = L.trackY - 8 - (rew ? 12.0f : 0.0f) - (prog ? 12.0f : 0.0f);
         const int maxLines = std::max(1, (int)((footY - y) / 10));
@@ -1950,8 +1952,8 @@ void View::drawMenu(Game& g) {
           P.text(C.dx, y + k * 10, l, 1, kText);
         }
         float fy = L.trackY - 8 - (rew ? 12.0f : 0.0f) - (prog ? 12.0f : 0.0f) + 2;
-        if (q.type == QType::Hunt) { P.text(C.dx, fy, "PROGRESS " + std::to_string(q.have) + "/" + std::to_string(q.need), 1, kGold); fy += 12; }
-        if (q.type == QType::Main && q.stage == 1) { P.text(C.dx, fy, "EMBER SHARDS " + std::to_string(q.have) + "/3", 1, kGold); fy += 12; }
+        if (jl == QJournal::Count) { P.text(C.dx, fy, "PROGRESS " + std::to_string(q.have) + "/" + std::to_string(q.need), 1, kGold); fy += 12; }
+        if (jl == QJournal::Shards && q.stage == 1) { P.text(C.dx, fy, "EMBER SHARDS " + std::to_string(q.have) + "/3", 1, kGold); fy += 12; }
         if (rew) P.text(C.dx, fy, "REWARD " + std::to_string(q.gold) + " GOLD", 1, kGold);
         if (q.state != QState::Done) button(C.dx, L.trackY, std::min(C.dw, touchUI ? 140.0f : 110.0f), L.trackH, q.id == g.trackedQuest ? "TRACKED" : "TRACK", q.id == g.trackedQuest);
       } else P.text(C.dx, top - journalStripH() + 14, "NO QUESTS YET", 1, kDim);

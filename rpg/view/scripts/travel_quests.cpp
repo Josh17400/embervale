@@ -31,6 +31,7 @@
 #include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/quest_traits.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
@@ -139,11 +140,12 @@ bool expQuote(ScriptCtx& c) {
 }
 EMB_SCRIPT_CMD("expect:quote", "expect quote ok|refused [reason words] [at] <place> [carriage]: the travel quote", expQuote);
 
+// the quest type a script names (quest_traits.h: each row's name and alias), QType::COUNT for none
 QType typeOf(const std::string& w) {
-  static const struct { const char* n; QType t; } k[] = {{"deliver", QType::Deliver}, {"heirloom", QType::Heirloom}, {"missing", QType::Missing},
-                                                        {"named", QType::NamedBandit}, {"namedbandit", QType::NamedBandit}, {"protect", QType::Protect},
-                                                        {"clear", QType::Clear}, {"bounty", QType::Bounty}, {"hunt", QType::Hunt}};
-  for (auto& e : k) if (w == e.n) return e.t;
+  for (int t = 0; t < (int)QType::COUNT; t++) {
+    const QuestTraits& tr = kQuestTraits[t];
+    if ((tr.name && w == tr.name) || (tr.alias && w == tr.alias)) return (QType)t;
+  }
   return QType::COUNT;
 }
 
@@ -182,8 +184,8 @@ bool cmdQuestGo(ScriptCtx& c) {
   Quest* q = tracked(g);
   if (!q) { c.fail("questgo: no tracked quest"); return true; }
   g.mode = Mode::Play;
-  switch (q->type) {
-    case QType::Deliver: {
+  switch (questTraits(q->type).go) {   // (SOLID 5.3) the way in is the type's quest_traits.h row
+    case QGo::Building: {   // Deliver
       if (q->destBldg < 0) {   // the recipient's place: its records come in with the window (the building is found then)
         const Site& s = g.world.sites[(size_t)q->target];
         g.teleportGlobal(g.world.ox + s.ex, g.world.oy + s.ey + 3);
@@ -192,17 +194,17 @@ bool cmdQuestGo(ScriptCtx& c) {
       if (q->destBldg < 0 || !g.debugEnterBuilding(q->destBldg, 0)) { c.fail("questgo: cannot reach the recipient's building"); return true; }
       break;
     }
-    case QType::Heirloom: case QType::Missing:
+    case QGo::Dungeon:   // Heirloom, Missing
       if (!g.debugEnterSite(q->target)) { c.fail("questgo: cannot enter the quest's cave or ruin"); return true; }
       break;
-    case QType::NamedBandit: case QType::Bounty: case QType::Clear: {
+    case QGo::Camp: {   // NamedBandit, Bounty, Clear
       const Site& s = g.world.sites[(size_t)q->target];
       g.teleportGlobal(g.world.ox + s.ex, g.world.oy + s.r.y + s.r.h + 3);
       g.pl().aim = Vec2(0, -1); g.pl().face = 1;
       break;
     }
-    case QType::Protect: g.teleportGlobal(q->tgx, q->tgy + 1); g.pl().aim = Vec2(0, -1); g.pl().face = 1; break;
-    case QType::Hunt:   // the den or the ground, from a dozen tiles south: the pack comes out as a walker would meet it
+    case QGo::Fields: g.teleportGlobal(q->tgx, q->tgy + 1); g.pl().aim = Vec2(0, -1); g.pl().face = 1; break;
+    case QGo::Ground:   // Hunt: the den or the ground, from a dozen tiles south: the pack comes out as a walker would meet it
       if (!q->hasPos) { c.fail("questgo: the hunt has no place"); return true; }
       g.teleportGlobal(q->tgx, q->tgy + 12); g.pl().aim = Vec2(0, -1); g.pl().face = 1;
       break;

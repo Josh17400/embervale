@@ -26,6 +26,7 @@
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/travel_ops.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/sim/quest_traits.h"
 #include "rpg/sim/game.h"
 
 using art::Monster;
@@ -240,6 +241,7 @@ Quest QuestOps::makeOffer(Game& g, const Actor& npc, bool* okOut) {
 }
 
 // ---------------------------------------------------------------- markers and journal lines
+// (SOLID 5.3) the kind of place a type's marker points at is its quest_traits.h row
 bool QuestOps::questTargetM2(const Game& g, const Quest& q, int& tx, int& ty) {
   if (q.state != QState::Active) return false;
   auto global = [&](int32_t gx, int32_t gy) { tx = gx - g.world.ox; ty = gy - g.world.oy; return true; };
@@ -247,24 +249,22 @@ bool QuestOps::questTargetM2(const Game& g, const Quest& q, int& tx, int& ty) {
     if (q.target >= 0 && q.target < (int)g.world.sites.size()) { tx = g.world.sites[(size_t)q.target].ex; ty = g.world.sites[(size_t)q.target].ey; return true; }
     return q.hasPos ? global(q.tgx, q.tgy) : false;
   };
-  switch (q.type) {
-    case QType::Deliver:
+  switch (questTraits(q.type).target) {
+    case QTarget::DeliverDoor:
       if (q.destBldg >= 0 && q.destBldg < (int)g.world.over.bldgs.size()) {
         tx = g.world.over.bldgs[(size_t)q.destBldg].doorX(); ty = g.world.over.bldgs[(size_t)q.destBldg].doorY();
         return true;
       }
       return atSite();
-    case QType::Heirloom: case QType::NamedBandit: return atSite();
-    case QType::Missing: return atSite();
-    case QType::Protect: return q.hasPos ? global(q.tgx, q.tgy) : atSite();
-    case QType::Story: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M4: the story engine's marker (rpg/story)
-    case QType::War: return q.hasPos ? global(q.tgx, q.tgy) : atSite();   // M4: the enemy camp (relief) or the town (assault)
-    case QType::Supply: return (q.flags & life::QF_SUP_GOODS) ? false : atSite();   // M5: where the goods are to be had
-    case QType::Sea: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M10: the chart chain's place, the king's capital
-    case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12: the order's / court's / holding's place
-      return q.hasPos ? global(q.tgx, q.tgy) : atSite();
-    case QType::Errand: return q.hasPos ? global(q.tgx, q.tgy) : false;   // P1: the street incident's place (LIFE lane)
-    case QType::Hunt: {   // P1: the den or the hunting ground; a quarry in sight first (out of doors, within 20 tiles)
+    case QTarget::Site: return atSite();   // Heirloom, Missing, NamedBandit
+    // Protect; M4 War: the enemy camp (relief) or the town (assault); M12 Campaign / Envoy / Fief: the order's / court's /
+    // holding's place
+    case QTarget::PosOrSite: return q.hasPos ? global(q.tgx, q.tgy) : atSite();
+    // M4 Story: the story engine's marker (rpg/story); M10 Sea: the chart chain's place, the king's capital; P1 Errand:
+    // the street incident's place (LIFE lane)
+    case QTarget::PosOnly: return q.hasPos ? global(q.tgx, q.tgy) : false;
+    case QTarget::SupplySite: return (q.flags & life::QF_SUP_GOODS) ? false : atSite();   // M5: where the goods are to be had
+    case QTarget::HuntGround: {   // P1: the den or the hunting ground; a quarry in sight first (out of doors, within 20 tiles)
       if (!q.hasPos) return false;   // (a hunt from before P1: questTarget looks for the quarry and the dens itself)
       if (!g.inside) {
         float bd = (20.0f * TILE) * (20.0f * TILE);
@@ -285,6 +285,273 @@ bool QuestOps::questTargetM2(const Game& g, const Quest& q, int& tx, int& ty) {
   }
 }
 
+namespace {
+// (M7b) where a quest's place lies as its giver says it: "SESAI CAVERN, NORTH-WEST OF HERE" ("" without a place)
+std::string placeFromGiver(const Game& g, const Quest& q) {
+  if (q.target < 0 || q.target >= (int)g.world.sites.size()) return "";
+  const Site& T = g.world.sites[(size_t)q.target];
+  if (q.giverSite < 0 || q.giverSite >= (int)g.world.sites.size() || q.giverSite == q.target) return spokenPlace(T.name);
+  const Site& H = g.world.sites[(size_t)q.giverSite];
+  return spokenPlace(T.name) + ", " + dirWord(T.ex - H.ex, T.ey - H.ey, false) + " OF HERE";
+}
+// the keepsake of a heirloom ("GRANDMOTHER'S SILVER RING" -> "SILVER RING")
+std::string keepsakeOf(const std::string& subject) {
+  const size_t ap = subject.find("'S ");
+  return ap == std::string::npos ? subject : subject.substr(ap + 3);
+}
+
+// (SOLID 5.3) what a quest's words see besides the game and the quest: worked out once, before the type is looked at
+struct StepCtx {   // questStatusM2: the way there, long and short (" (NORTH-EAST)", " (NE)"), and the site's name
+  const std::string& dl;
+  const std::string& ds;
+  const std::string& tname;
+};
+struct TurnInCtx {   // turnInLine: the gold, the site as spoken, whether the quest's person is a woman
+  const std::string& g;
+  const std::string& tname;
+  bool fem;
+};
+struct ReminderCtx {   // questReminder: the place from the giver's door, the giver's town, the person's words, the day's hash
+  const std::string& place;
+  const std::string& home;
+  bool fem;
+  const std::string& obj;
+  const std::string& subj;
+  uint32_t h;
+};
+struct AcceptCtx {   // acceptLine: the place by its name ("" at home), and as it is marked ("THE PLACE" once named)
+  const std::string& place;
+  const std::string& marked;
+};
+using StepFn = std::string (*)(const Game&, const Quest&, const StepCtx&);
+using TurnInFn = std::string (*)(const Game&, const Quest&, const TurnInCtx&);
+using ReminderFn = std::string (*)(const Game&, const Quest&, const ReminderCtx&);
+using AcceptFn = std::string (*)(const Game&, const Quest&, const AcceptCtx&);
+// one row per QType (the words beside quest_traits.h's row); nullptr takes the line's default
+struct QuestLines {
+  StepFn step = nullptr;           // the journal step (default: none)
+  TurnInFn turnIn = nullptr;       // the giver's thanks as the reward is collected (default: turnInDefault)
+  ReminderFn reminder = nullptr;   // the giver's words while it is under way (default: "HAVE YOU DONE WHAT I ASKED?")
+  AcceptFn accept = nullptr;       // the giver's words as it is taken (default: "THANK YOU. COME BACK WHEN IT'S DONE.")
+};
+
+std::string turnInDefault(const Game&, const Quest&, const TurnInCtx& c) {
+  return (c.tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + c.tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + c.g +
+         " GOLD.";
+}
+// the story engine / the SERVICE and LORD lanes write what to do next in subject ("SPEAK WITH ASTRID", "2/4 WOLVES")
+std::string stepFromSubject(const Game&, const Quest& q, const StepCtx& c) {
+  return q.subject.empty() ? std::string() : fitLine({q.subject + c.dl, q.subject + c.ds, q.subject});
+}
+// Clear / Bounty / NamedBandit as taken
+std::string acceptCamp(const Game&, const Quest&, const AcceptCtx& c) {
+  return c.place.empty() ? "GOOD. COME BACK TO ME WHEN IT'S DONE." : "GOOD. I'VE MARKED " + c.marked + " ON YOUR MAP. COME BACK TO ME WHEN IT'S DONE.";
+}
+
+const QuestLines kQuestLines[] = {
+  /* Main */ {},
+  /* Clear */
+  {.reminder = [](const Game&, const Quest&, const ReminderCtx& c) -> std::string {
+     return c.place.empty() ? "IT'S STILL OUT THERE. KILL WHATEVER LEADS THEM, THEN COME BACK TO ME."
+                            : "NOTHING'S CHANGED AT " + c.place + ". KILL WHATEVER LEADS THEM, THEN COME BACK TO ME.";
+   },
+   .accept = acceptCamp},
+  /* Hunt */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {   // P1: "THIN THE WOLVES BY THE GREY TEETH 2/5 (NORTH-EAST)"
+     if (!q.hasPos) return "";
+     const std::string m = monsterPlural(q.mon), prog = std::to_string(q.have) + "/" + std::to_string(q.need);
+     const std::string area = !q.subject.empty() ? " BY " + spokenPlace(q.subject) : q.targetId ? std::string(" AT THEIR DEN") : std::string(" IN THE WILDS");
+     return fitLine({"THIN THE " + m + area + " " + prog + c.dl, "THIN THE " + m + area + " " + prog + c.ds, "THIN THE " + m + " " + prog + c.ds, m + " " + prog + c.ds,
+                     m + " " + prog});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     return std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT. WE CAN SLEEP AGAIN. I OWE YOU " + c.g + " GOLD.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     const int left = std::max(0, q.need - q.have);
+     const std::string m = monsterPlural(q.mon);
+     const std::string by = q.hasPos && !q.subject.empty() ? "OUT BY " + spokenPlace(q.subject) : "THE WILDS ROUND " + c.home;   // (P1) the hunt's ground
+     if (q.have <= 0)
+       return c.h % 2 ? "NO LUCK WITH THE " + m + " YET? THEY ROAM " + by + ". I NEED " + speech::countWord(q.need) + " OF THEM DEAD."
+                      : "THE " + m + " ARE STILL OUT THERE, BOLDER EVERY NIGHT. KILL " + speech::countWord(q.need) + " OF THEM AND I'LL PAY WHAT I PROMISED.";
+     return "HOW GOES THE HUNT? THAT'S " + speech::countWord(q.have) + " DOWN, SO " + speech::countWord(left) + " MORE " + m + " TO GO.";
+   },
+   .accept = [](const Game&, const Quest& q, const AcceptCtx&) -> std::string {   // (P1) the den or the ground is on the map
+     return q.hasPos ? std::string("GOOD. I'VE MARKED ") + (q.targetId ? "THEIR DEN" : "WHERE THEY ROAM") + " ON YOUR MAP. COME BACK WHEN " + speech::countWord(q.need) +
+                           " OF THE " + monsterPlural(q.mon) + " ARE DEAD."
+                     : "GOOD. COME BACK TO ME WHEN " + speech::countWord(q.need) + " OF THE " + monsterPlural(q.mon) + " ARE DEAD.";
+   }},
+  /* Retrieve */ {},
+  /* Bounty */
+  {.turnIn = [](const Game&, const Quest&, const TurnInCtx& c) -> std::string {
+     return c.tname.empty() ? "YOU'RE BACK, AND THE BANDITS' CHIEF IS DEAD. THE BOUNTY IS " + c.g + " GOLD."
+                            : "THEY SAY THE BANDITS OF " + c.tname + " HAVE SCATTERED, AND THEIR CHIEF IS DEAD. THE BOUNTY IS " + c.g + " GOLD.";
+   },
+   .reminder = [](const Game&, const Quest&, const ReminderCtx& c) -> std::string {
+     return c.place.empty() ? "THOSE BANDITS ARE STILL ON THE ROADS. KILL THEIR CHIEF AND THE BOUNTY IS YOURS."
+                            : "THE BANDITS ARE STILL RAIDING FROM " + c.place + ". KILL THEIR CHIEF AND THE BOUNTY IS YOURS.";
+   },
+   .accept = acceptCamp},
+  /* Deliver */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {
+     return fitLine({"BRING THE PARCEL TO " + q.subject + " IN " + c.tname + c.dl, "PARCEL FOR " + q.subject + " IN " + c.tname + c.ds,
+                     "PARCEL: " + q.subject + c.ds, "PARCEL TO " + c.tname + c.ds});
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     const std::string r = std::string(roleWord(questRecipientRole(q)));
+     return "YOU STILL HAVE MY PARCEL? " + q.subject + ", THE " + r + (c.place.empty() ? std::string(", IS WAITING ON IT.") : " IN " + c.place + ", IS WAITING ON IT.");
+   },
+   .accept = [](const Game&, const Quest& q, const AcceptCtx& c) -> std::string {
+     return "HERE'S THE PARCEL. " + q.subject + (c.place.empty() ? std::string(" PAYS ON DELIVERY.") : " IS IN " + c.place + ", AND PAYS ON DELIVERY.") +
+            " KEEP IT DRY, AND KEEP IT SHUT.";
+   }},
+  /* Heirloom */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {
+     const size_t ap = q.subject.find("'S "); const std::string item = ap == std::string::npos ? q.subject : q.subject.substr(ap + 3);
+     return fitLine({"FIND THE " + item + " IN " + c.tname + c.dl, "FIND THE " + item + " IN " + c.tname + c.ds, "FIND IT IN " + c.tname + c.ds, c.tname + c.ds});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     if (q.subject.rfind("THE TEMPLE'S ", 0) == 0)   // (P1) a temple's relic
+       return "THE " + keepsakeOf(q.subject) + ", BACK WHERE IT BELONGS! THE GODS WILL REMEMBER THIS. " + c.g + " GOLD FROM THE OFFERINGS, AND OUR BLESSING.";
+     if (q.subject.rfind("THE CARAVAN'S ", 0) == 0)   // (P1) a merchant's stolen goods
+       return "MY " + keepsakeOf(q.subject) + ", AND NOT A SEAL BROKEN! THOSE THIEVES WILL GET NOTHING FROM ME. " + c.g + " GOLD, AS PROMISED.";
+     return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. I PROMISED YOU " + c.g + " GOLD, AND YOU HAVE MY BLESSING TOO.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     const std::string k = keepsakeOf(q.subject);
+     const bool many = k.size() > 2 && k.back() == 'S' && k[k.size() - 2] != 'S';   // PRAYER BEADS
+     return "ANY SIGN OF THE " + k + "? " + (many ? "THEY" : "IT") + " SHOULD LIE IN AN OLD CHEST IN " + (c.place.empty() ? std::string("THAT PLACE") : c.place) + ".";
+   },
+   .accept = [](const Game&, const Quest&, const AcceptCtx& c) -> std::string { return "THANK YOU. I'VE MARKED " + c.marked + " ON YOUR MAP. I'LL BE WAITING FOR IT."; }},
+  /* Missing */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {
+     if (q.flags & QF_FOUND) return fitLine({"LEAD " + q.subject + " OUT OF " + c.tname, "LEAD " + q.subject + " OUT", "LEAD THEM OUT"});
+     return fitLine({"FIND " + q.subject + " IN " + c.tname + c.dl, "FIND " + q.subject + " IN " + c.tname + c.ds, "FIND " + q.subject + c.ds, c.tname + c.ds});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     return q.subject + " IS HOME, AND SAFE! I DON'T KNOW HOW TO THANK YOU. " + std::string(c.fem ? "SHE" : "HE") + " TOLD US WHAT YOU DID. THE " + c.g +
+            " GOLD IS YOURS.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     if (q.flags & QF_FOUND) return "YOU FOUND " + q.subject + "? THEN BRING " + c.obj + " HOME, PLEASE. I CAN'T BEAR ANOTHER NIGHT OF THIS.";
+     return "PLEASE, HAVE YOU FOUND " + q.subject + "? " + c.subj + " IS SOMEWHERE IN " + (c.place.empty() ? std::string("THAT PLACE") : c.place) + ".";
+   },
+   .accept = [](const Game&, const Quest& q, const AcceptCtx& c) -> std::string {
+     return "THANK YOU. GODS, THANK YOU. BRING " + q.subject + " HOME ALIVE. I'VE MARKED " + c.marked + " ON YOUR MAP.";
+   }},
+  /* NamedBandit */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {
+     return fitLine({"KILL " + q.subject + " AT " + c.tname + c.dl, "KILL " + q.subject + c.ds, "KILL " + q.subject, c.tname + c.ds});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     return "SO " + q.subject + " IS DEAD. THE ROADS WILL BREATHE EASIER NOW. THE BOUNTY IS " + c.g + " GOLD, AND YOU'VE EARNED IT.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     const std::string p = c.fem ? "HER" : "HIS";
+     return q.subject + " STILL HOLDS " + (c.place.empty() ? std::string("THE CAMP") : c.place) + ". BRING ME WORD OF " + p + " DEATH AND THE BOUNTY IS YOURS.";
+   },
+   .accept = acceptCamp},
+  /* Protect */
+  {.step = [](const Game& g, const Quest& q, const StepCtx& c) -> std::string {
+     const bool night = (g.day == q.deadlineDay && g.hour >= 20.5f) || (g.day == q.deadlineDay + 1 && g.hour < 5.5f);
+     const std::string home = giverTown(g.world, q);
+     if (night) return fitLine({"HOLD THE FIELDS UNTIL DAWN" + c.ds, "HOLD THE FIELDS UNTIL DAWN"});
+     return fitLine({"AT NIGHTFALL: THE FIELDS OF " + home + c.ds, "AT NIGHTFALL: THE FIELDS" + c.ds, "GUARD THE FIELDS AT NIGHT"});
+   },
+   .turnIn = [](const Game&, const Quest&, const TurnInCtx& c) -> std::string {
+     return "WE SAW THE FIELDS AT DAWN, STILL STANDING. YOU HELD THE NIGHT FOR US. " + c.g + " GOLD, AS I PROMISED.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     static const char* const v[] = {"DON'T FORGET: THE FIELDS AT NIGHTFALL. THEY COME AFTER DARK, AND I CAN'T HOLD THEM ALONE.",
+                                      "I'LL BE AT THE FIELDS WHEN THE SUN GOES DOWN. BE THERE, OR THERE'LL BE NO HARVEST.",
+                                      "TONIGHT, THEN. I'VE SHARPENED THE PITCHFORK, FOR WHAT GOOD IT WILL DO. MEET ME AT THE FIELDS AT DUSK."};
+     return v[(hash32((uint32_t)q.giverSlot * 2654435761u ^ (uint32_t)q.giverId) + c.h) % 3];
+   },
+   .accept = [](const Game&, const Quest&, const AcceptCtx&) -> std::string {
+     return "THEN MEET ME AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK, AND THEY DON'T GIVE UP EASILY.";
+   }},
+  /* Story */ {.step = stepFromSubject},   // M4: the story engine writes what to do next in subject
+  /* War */
+  {.turnIn = [](const Game&, const Quest&, const TurnInCtx& c) -> std::string { return "YOU FOUGHT WELL OUT THERE. THE CAPTAINS ALL SAY IT. YOUR PAY IS " + c.g + " GOLD."; },
+   .reminder = [](const Game&, const Quest&, const ReminderCtx&) -> std::string { return "YOU'RE WITH US, THEN. DO WHAT WE AGREED, AND COME BACK ALIVE."; }},
+  /* Supply */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {   // M5: fetch the goods (then the classic RETURN TO line)
+     if (q.flags & life::QF_SUP_GOODS) return "";
+     return fitLine({"FETCH " + std::to_string(q.need) + " " + q.subject + " FROM " + c.tname + c.dl, "FETCH " + q.subject + " FROM " + c.tname + c.ds,
+                     q.subject + ": " + c.tname + c.ds, c.tname + c.ds});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     return goodUnits(q.need, q.subject) + "! NOW THE WORK CAN GO ON. THE WHOLE TOWN WILL THANK YOU. I OWE YOU " + c.g + " GOLD.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx& c) -> std::string {
+     if (q.flags & life::QF_SUP_GOODS) return "YOU HAVE THE " + q.subject + "? THEN BRING THEM IN. PEOPLE ARE WAITING.";
+     const std::string t = c.place.empty() ? std::string("THE NEXT TOWN") : c.place.find(", ") != std::string::npos ? c.place + "," : c.place;
+     return "STILL NO " + q.subject + "? " + t + " HAS PLENTY. I NEED " + goodUnits(q.need, q.subject) + ".";
+   },
+   .accept = [](const Game&, const Quest&, const AcceptCtx& c) -> std::string {
+     return "GOOD. " + (c.place.empty() ? std::string("THE NEXT TOWN") : c.place) + " HAS WHAT I NEED. COME STRAIGHT BACK WITH IT.";
+   }},
+  /* Sea */
+  {.step = [](const Game& g, const Quest& q, const StepCtx& c) -> std::string {   // M10 (sea_chain.cpp): the chain's step / the word to the king; a fishmonger's order
+     if (q.stage == 3) return fitLine({"CATCH " + std::to_string(q.need) + " " + q.subject + " (" + std::to_string(q.have) + "/" + std::to_string(q.need) + ")",
+                                       q.subject + " " + std::to_string(q.have) + "/" + std::to_string(q.need)});
+     return stepFromSubject(g, q, c);
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {
+     return q.stage == 3 ? "FINE FISH, AND FRESH! " + c.g + " GOLD, AS AGREED." : "YOU'VE DONE A GREAT THING. " + c.g + " GOLD, AND MY THANKS.";
+   }},
+  /* Campaign */
+  {.step = stepFromSubject,   // M12 (service_game.cpp writes subject)
+   .turnIn = [](const Game& gm, const Quest& q, const TurnInCtx& c) -> std::string {   // M12 (SERVICE lane): the army's thanks for the order's kind
+     const service::Order* o = nullptr;
+     for (const service::Order& x : gm.service.orders) if ((int)x.id == q.stage) o = &x;
+     static const char* by[] = {"ORDERS CARRIED OUT. THE CAPTAINS WILL HEAR OF IT.", "THE SIEGE IS BROKEN AND OUR PEOPLE EAT AGAIN.",
+                                "THE GATE FELL BECAUSE YOU WENT IN FIRST.", "THE CARTS GOT THROUGH. THE GARRISON WILL HOLD.",
+                                "A GOOD REPORT, AND YOU CAME BACK ALIVE TO GIVE IT.", "THEIR CAPTAIN IS DEAD, AND HIS MEN ALREADY WAVER.",
+                                "THOSE FAMILIES ARE ALIVE BECAUSE OF YOU.", "THE FRONTIER HELD THE NIGHT, AND YOU HELD IT WITH THEM."};
+     return std::string(by[o ? std::clamp((int)o->kind, 0, 7) : 0]) + " " + c.g + " GOLD FROM THE WAR CHEST.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx&) -> std::string {   // M12
+     return q.subject.empty() ? "YOU HAVE YOUR ORDERS, SOLDIER. CARRY THEM OUT." : "YOUR ORDERS STAND: " + q.subject + ". MOVE, SOLDIER.";
+   }},
+  /* Envoy */
+  {.step = stepFromSubject,   // M12 (service_game.cpp writes subject)
+   .turnIn = [](const Game& gm, const Quest& q, const TurnInCtx& c) -> std::string {   // M12 (SERVICE lane): the court's thanks, by what its word won
+     const service::Mission* m = nullptr;
+     for (const service::Mission& x : gm.service.missions) if ((int)x.id == q.stage) m = &x;
+     static const char* by[] = {"THEY REFUSED, BUT YOU CARRIED OUR WORD WITH HONOUR.", "PEACE. YOU CARRIED IT, AND IT HELD.",
+                                "AN ALLIANCE! WE WILL NOT STAND ALONE NOW.", "THEY WILL PAY. YOU SPOKE FOR US WELL."};
+     if (m && m->kind == service::MissionKind::FirstEnvoy) return "THE COURT BEYOND THE MIST HAS OUR GREETING. A NEW WORLD OPENS. " + c.g + " GOLD, AND OUR THANKS.";
+     return std::string(by[m ? std::clamp((int)m->outcome, 0, 3) : 0]) + " " + c.g + " GOLD, AND THE COURT'S THANKS.";
+   },
+   .reminder = [](const Game&, const Quest& q, const ReminderCtx&) -> std::string {
+     return q.subject.empty() ? "OUR WORD IS STILL IN YOUR SATCHEL? THEY ARE WAITING FOR IT." : "OUR WORD IS STILL IN YOUR SATCHEL? " + q.subject + ", AND QUICKLY.";
+   }},
+  /* Fief */
+  {.step = stepFromSubject,   // M12 (lord_game.cpp writes subject)
+   .turnIn = [](const Game&, const Quest&, const TurnInCtx& c) -> std::string { return "THE VILLAGE WON'T FORGET THIS, MY LORD. " + c.g + " GOLD FROM THE COFFERS."; }},
+  /* Errand */
+  {.step = [](const Game&, const Quest& q, const StepCtx& c) -> std::string {   // P1 (LIFE lane writes subject: "CATCH THE THIEF"); without one, the kind says it
+     static const char* const byKind[] = {"CATCH THE THIEF", "MEND THE CART", "BREAK UP THE BRAWL", "BRING THEM BACK", "LEND A HAND"};
+     const std::string what = !q.subject.empty() ? q.subject : byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)];
+     return fitLine({what + c.dl, what + c.ds, what});
+   },
+   .turnIn = [](const Game&, const Quest& q, const TurnInCtx& c) -> std::string {   // P1: a street incident's thanks, by its kind (jobs.h ErrandKind)
+     static const char* const byKind[] = {"MY PURSE! I THOUGHT I'D NEVER SEE IT AGAIN.", "THE WHEEL HOLDS! I'D HAVE BEEN STUCK HERE TILL DARK.",
+                                          "THANK THE GODS SOMEBODY STEPPED IN BEFORE THE WATCH CAME.", "HOME SAFE! I DON'T KNOW WHAT I'D HAVE DONE.",
+                                          "THAT WAS KIND OF YOU, STRANGER."};
+     return std::string(byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)]) + " TAKE THESE " + c.g + " GOLD, AND MY THANKS.";
+   }},
+};
+static_assert(sizeof(kQuestLines) / sizeof(kQuestLines[0]) == (size_t)QType::COUNT, "kQuestLines: one row per QType, in its order");
+
+// the row of a quest type (out of range reads as all defaults, as the old switches' default branches did)
+const QuestLines& questLines(QType t) {
+  static const QuestLines kNone{};
+  return (size_t)t < (size_t)QType::COUNT ? kQuestLines[(size_t)t] : kNone;
+}
+}  // namespace
+
 std::string QuestOps::questStatusM2(const Game& g, const Quest& q) {
   if (q.state == QState::Done) return "";
   int px, py;
@@ -300,120 +567,16 @@ std::string QuestOps::questStatusM2(const Game& g, const Quest& q) {
     return fitLine({"LAY IT ON THE LONE GRAVE (" + dirWord(gx - px, gy - py, false) + ")", "LAY IT ON THE GRAVE (" + dirWord(gx - px, gy - py, true) + ")"});
   }
   if (q.state != QState::Active) return "";
-  switch (q.type) {
-    case QType::Deliver:
-      return fitLine({"BRING THE PARCEL TO " + q.subject + " IN " + tname + dl, "PARCEL FOR " + q.subject + " IN " + tname + ds,
-                      "PARCEL: " + q.subject + ds, "PARCEL TO " + tname + ds});
-    case QType::Heirloom:
-      { const size_t ap = q.subject.find("'S "); const std::string item = ap == std::string::npos ? q.subject : q.subject.substr(ap + 3);
-        return fitLine({"FIND THE " + item + " IN " + tname + dl, "FIND THE " + item + " IN " + tname + ds, "FIND IT IN " + tname + ds, tname + ds}); }
-    case QType::Missing:
-      if (q.flags & QF_FOUND) return fitLine({"LEAD " + q.subject + " OUT OF " + tname, "LEAD " + q.subject + " OUT", "LEAD THEM OUT"});
-      return fitLine({"FIND " + q.subject + " IN " + tname + dl, "FIND " + q.subject + " IN " + tname + ds, "FIND " + q.subject + ds, tname + ds});
-    case QType::NamedBandit:
-      return fitLine({"KILL " + q.subject + " AT " + tname + dl, "KILL " + q.subject + ds, "KILL " + q.subject, tname + ds});
-    case QType::Story:   // M4: the story engine writes what to do next in subject ("SPEAK WITH ASTRID", "2/4 WOLVES")
-      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
-    case QType::Supply:   // M5: fetch the goods (then the classic RETURN TO line)
-      if (q.flags & life::QF_SUP_GOODS) return "";
-      return fitLine({"FETCH " + std::to_string(q.need) + " " + q.subject + " FROM " + tname + dl, "FETCH " + q.subject + " FROM " + tname + ds,
-                      q.subject + ": " + tname + ds, tname + ds});
-    case QType::Sea:   // M10 (sea_chain.cpp): the chain's step / the word to the king in subject; a fishmonger's order
-      if (q.stage == 3) return fitLine({"CATCH " + std::to_string(q.need) + " " + q.subject + " (" + std::to_string(q.have) + "/" + std::to_string(q.need) + ")",
-                                        q.subject + " " + std::to_string(q.have) + "/" + std::to_string(q.need)});
-      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
-    case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12 (service_game.cpp / lord_game.cpp write subject)
-      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
-    case QType::Errand: {   // P1 (LIFE lane writes subject: "CATCH THE THIEF"); without one, the kind says it
-      static const char* const byKind[] = {"CATCH THE THIEF", "MEND THE CART", "BREAK UP THE BRAWL", "BRING THEM BACK", "LEND A HAND"};
-      const std::string what = !q.subject.empty() ? q.subject : byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)];
-      return fitLine({what + dl, what + ds, what});
-    }
-    case QType::Hunt: {   // P1: "THIN THE WOLVES BY THE GREY TEETH 2/5 (NORTH-EAST)"
-      if (!q.hasPos) return "";
-      const std::string m = monsterPlural(q.mon), prog = std::to_string(q.have) + "/" + std::to_string(q.need);
-      const std::string area = !q.subject.empty() ? " BY " + spokenPlace(q.subject) : q.targetId ? std::string(" AT THEIR DEN") : std::string(" IN THE WILDS");
-      return fitLine({"THIN THE " + m + area + " " + prog + dl, "THIN THE " + m + area + " " + prog + ds, "THIN THE " + m + " " + prog + ds, m + " " + prog + ds,
-                      m + " " + prog});
-    }
-    case QType::Protect: {
-      const bool night = (g.day == q.deadlineDay && g.hour >= 20.5f) || (g.day == q.deadlineDay + 1 && g.hour < 5.5f);
-      const std::string home = giverTown(g.world, q);
-      if (night) return fitLine({"HOLD THE FIELDS UNTIL DAWN" + ds, "HOLD THE FIELDS UNTIL DAWN"});
-      return fitLine({"AT NIGHTFALL: THE FIELDS OF " + home + ds, "AT NIGHTFALL: THE FIELDS" + ds, "GUARD THE FIELDS AT NIGHT"});
-    }
-    default: return "";
-  }
+  const StepFn f = questLines(q.type).step;
+  return f ? f(g, q, StepCtx{dl, ds, tname}) : std::string();
 }
-
-namespace {
-// (M7b) where a quest's place lies as its giver says it: "SESAI CAVERN, NORTH-WEST OF HERE" ("" without a place)
-std::string placeFromGiver(const Game& g, const Quest& q) {
-  if (q.target < 0 || q.target >= (int)g.world.sites.size()) return "";
-  const Site& T = g.world.sites[(size_t)q.target];
-  if (q.giverSite < 0 || q.giverSite >= (int)g.world.sites.size() || q.giverSite == q.target) return spokenPlace(T.name);
-  const Site& H = g.world.sites[(size_t)q.giverSite];
-  return spokenPlace(T.name) + ", " + dirWord(T.ex - H.ex, T.ey - H.ey, false) + " OF HERE";
-}
-// the keepsake of a heirloom ("GRANDMOTHER'S SILVER RING" -> "SILVER RING")
-std::string keepsakeOf(const std::string& subject) {
-  const size_t ap = subject.find("'S ");
-  return ap == std::string::npos ? subject : subject.substr(ap + 3);
-}
-}  // namespace
 
 std::string QuestOps::turnInLine(const Game& gm, const Quest& q) {
   const std::string g = std::to_string(q.gold);
   const std::string tname = q.target >= 0 && q.target < (int)gm.world.sites.size() ? spokenPlace(gm.world.sites[(size_t)q.target].name) : std::string();
   const bool fem = personFemale(q, gm.seed);
-  switch (q.type) {
-    case QType::Heirloom:
-      if (q.subject.rfind("THE TEMPLE'S ", 0) == 0)   // (P1) a temple's relic
-        return "THE " + keepsakeOf(q.subject) + ", BACK WHERE IT BELONGS! THE GODS WILL REMEMBER THIS. " + g + " GOLD FROM THE OFFERINGS, AND OUR BLESSING.";
-      if (q.subject.rfind("THE CARAVAN'S ", 0) == 0)   // (P1) a merchant's stolen goods
-        return "MY " + keepsakeOf(q.subject) + ", AND NOT A SEAL BROKEN! THOSE THIEVES WILL GET NOTHING FROM ME. " + g + " GOLD, AS PROMISED.";
-      return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. I PROMISED YOU " + g + " GOLD, AND YOU HAVE MY BLESSING TOO.";
-    case QType::Missing:
-      return q.subject + " IS HOME, AND SAFE! I DON'T KNOW HOW TO THANK YOU. " + std::string(fem ? "SHE" : "HE") + " TOLD US WHAT YOU DID. THE " + g +
-             " GOLD IS YOURS.";
-    case QType::NamedBandit: return "SO " + q.subject + " IS DEAD. THE ROADS WILL BREATHE EASIER NOW. THE BOUNTY IS " + g + " GOLD, AND YOU'VE EARNED IT.";
-    case QType::Protect: return "WE SAW THE FIELDS AT DAWN, STILL STANDING. YOU HELD THE NIGHT FOR US. " + g + " GOLD, AS I PROMISED.";
-    case QType::Hunt:
-      return std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT. WE CAN SLEEP AGAIN. I OWE YOU " + g + " GOLD.";
-    case QType::Supply: return goodUnits(q.need, q.subject) + "! NOW THE WORK CAN GO ON. THE WHOLE TOWN WILL THANK YOU. I OWE YOU " + g + " GOLD.";
-    case QType::Bounty:
-      return tname.empty() ? "YOU'RE BACK, AND THE BANDITS' CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD."
-                           : "THEY SAY THE BANDITS OF " + tname + " HAVE SCATTERED, AND THEIR CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD.";
-    case QType::War: return "YOU FOUGHT WELL OUT THERE. THE CAPTAINS ALL SAY IT. YOUR PAY IS " + g + " GOLD.";
-    case QType::Sea: return q.stage == 3 ? "FINE FISH, AND FRESH! " + g + " GOLD, AS AGREED." : "YOU'VE DONE A GREAT THING. " + g + " GOLD, AND MY THANKS.";
-    case QType::Campaign: {   // M12 (SERVICE lane): the army's thanks for the order's kind
-      const service::Order* o = nullptr;
-      for (const service::Order& x : gm.service.orders) if ((int)x.id == q.stage) o = &x;
-      static const char* by[] = {"ORDERS CARRIED OUT. THE CAPTAINS WILL HEAR OF IT.", "THE SIEGE IS BROKEN AND OUR PEOPLE EAT AGAIN.",
-                                 "THE GATE FELL BECAUSE YOU WENT IN FIRST.", "THE CARTS GOT THROUGH. THE GARRISON WILL HOLD.",
-                                 "A GOOD REPORT, AND YOU CAME BACK ALIVE TO GIVE IT.", "THEIR CAPTAIN IS DEAD, AND HIS MEN ALREADY WAVER.",
-                                 "THOSE FAMILIES ARE ALIVE BECAUSE OF YOU.", "THE FRONTIER HELD THE NIGHT, AND YOU HELD IT WITH THEM."};
-      return std::string(by[o ? std::clamp((int)o->kind, 0, 7) : 0]) + " " + g + " GOLD FROM THE WAR CHEST.";
-    }
-    case QType::Envoy: {   // M12 (SERVICE lane): the court's thanks, by what its word won
-      const service::Mission* m = nullptr;
-      for (const service::Mission& x : gm.service.missions) if ((int)x.id == q.stage) m = &x;
-      static const char* by[] = {"THEY REFUSED, BUT YOU CARRIED OUR WORD WITH HONOUR.", "PEACE. YOU CARRIED IT, AND IT HELD.",
-                                 "AN ALLIANCE! WE WILL NOT STAND ALONE NOW.", "THEY WILL PAY. YOU SPOKE FOR US WELL."};
-      if (m && m->kind == service::MissionKind::FirstEnvoy) return "THE COURT BEYOND THE MIST HAS OUR GREETING. A NEW WORLD OPENS. " + g + " GOLD, AND OUR THANKS.";
-      return std::string(by[m ? std::clamp((int)m->outcome, 0, 3) : 0]) + " " + g + " GOLD, AND THE COURT'S THANKS.";
-    }
-    case QType::Fief: return "THE VILLAGE WON'T FORGET THIS, MY LORD. " + g + " GOLD FROM THE COFFERS.";
-    case QType::Errand: {   // P1: a street incident's thanks, by its kind (jobs.h ErrandKind)
-      static const char* const byKind[] = {"MY PURSE! I THOUGHT I'D NEVER SEE IT AGAIN.", "THE WHEEL HOLDS! I'D HAVE BEEN STUCK HERE TILL DARK.",
-                                           "THANK THE GODS SOMEBODY STEPPED IN BEFORE THE WATCH CAME.", "HOME SAFE! I DON'T KNOW WHAT I'D HAVE DONE.",
-                                           "THAT WAS KIND OF YOU, STRANGER."};
-      return std::string(byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)]) + " TAKE THESE " + g + " GOLD, AND MY THANKS.";
-    }
-    default:
-      return (tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + g +
-             " GOLD.";
-  }
+  const TurnInFn f = questLines(q.type).turnIn;
+  return (f ? f : turnInDefault)(gm, q, TurnInCtx{g, tname, fem});
 }
 
 // M7b: what a giver says while their job is under way: what is still to do and where, in the first person (never the
@@ -424,54 +587,8 @@ std::string QuestOps::questReminder(const Game& g, const Quest& q) {
   const bool fem = personFemale(q, g.seed);
   const std::string obj = fem ? "HER" : "HIM", subj = fem ? "SHE" : "HE";
   const uint32_t h = hash32((uint32_t)q.id * 2654435761u ^ (uint32_t)g.day);
-  switch (q.type) {
-    case QType::Hunt: {
-      const int left = std::max(0, q.need - q.have);
-      const std::string m = monsterPlural(q.mon);
-      const std::string by = q.hasPos && !q.subject.empty() ? "OUT BY " + spokenPlace(q.subject) : "THE WILDS ROUND " + home;   // (P1) the hunt's ground
-      if (q.have <= 0)
-        return h % 2 ? "NO LUCK WITH THE " + m + " YET? THEY ROAM " + by + ". I NEED " + speech::countWord(q.need) + " OF THEM DEAD."
-                     : "THE " + m + " ARE STILL OUT THERE, BOLDER EVERY NIGHT. KILL " + speech::countWord(q.need) + " OF THEM AND I'LL PAY WHAT I PROMISED.";
-      return "HOW GOES THE HUNT? THAT'S " + speech::countWord(q.have) + " DOWN, SO " + speech::countWord(left) + " MORE " + m + " TO GO.";
-    }
-    case QType::Clear:
-      return place.empty() ? "IT'S STILL OUT THERE. KILL WHATEVER LEADS THEM, THEN COME BACK TO ME."
-                           : "NOTHING'S CHANGED AT " + place + ". KILL WHATEVER LEADS THEM, THEN COME BACK TO ME.";
-    case QType::Bounty:
-      return place.empty() ? "THOSE BANDITS ARE STILL ON THE ROADS. KILL THEIR CHIEF AND THE BOUNTY IS YOURS."
-                           : "THE BANDITS ARE STILL RAIDING FROM " + place + ". KILL THEIR CHIEF AND THE BOUNTY IS YOURS.";
-    case QType::NamedBandit: {
-      const std::string p = fem ? "HER" : "HIS";
-      return q.subject + " STILL HOLDS " + (place.empty() ? std::string("THE CAMP") : place) + ". BRING ME WORD OF " + p + " DEATH AND THE BOUNTY IS YOURS.";
-    }
-    case QType::Deliver: {
-      const std::string r = std::string(roleWord(questRecipientRole(q)));
-      return "YOU STILL HAVE MY PARCEL? " + q.subject + ", THE " + r + (place.empty() ? std::string(", IS WAITING ON IT.") : " IN " + place + ", IS WAITING ON IT.");
-    }
-    case QType::Heirloom: {
-      const std::string k = keepsakeOf(q.subject);
-      const bool many = k.size() > 2 && k.back() == 'S' && k[k.size() - 2] != 'S';   // PRAYER BEADS
-      return "ANY SIGN OF THE " + k + "? " + (many ? "THEY" : "IT") + " SHOULD LIE IN AN OLD CHEST IN " + (place.empty() ? std::string("THAT PLACE") : place) + ".";
-    }
-    case QType::Missing:
-      if (q.flags & QF_FOUND) return "YOU FOUND " + q.subject + "? THEN BRING " + obj + " HOME, PLEASE. I CAN'T BEAR ANOTHER NIGHT OF THIS.";
-      return "PLEASE, HAVE YOU FOUND " + q.subject + "? " + subj + " IS SOMEWHERE IN " + (place.empty() ? std::string("THAT PLACE") : place) + ".";
-    case QType::Protect: {
-      static const char* const v[] = {"DON'T FORGET: THE FIELDS AT NIGHTFALL. THEY COME AFTER DARK, AND I CAN'T HOLD THEM ALONE.",
-                                       "I'LL BE AT THE FIELDS WHEN THE SUN GOES DOWN. BE THERE, OR THERE'LL BE NO HARVEST.",
-                                       "TONIGHT, THEN. I'VE SHARPENED THE PITCHFORK, FOR WHAT GOOD IT WILL DO. MEET ME AT THE FIELDS AT DUSK."};
-      return v[(hash32((uint32_t)q.giverSlot * 2654435761u ^ (uint32_t)q.giverId) + h) % 3];
-    }
-    case QType::Supply: {
-      if (q.flags & life::QF_SUP_GOODS) return "YOU HAVE THE " + q.subject + "? THEN BRING THEM IN. PEOPLE ARE WAITING.";
-      const std::string t = place.empty() ? std::string("THE NEXT TOWN") : place.find(", ") != std::string::npos ? place + "," : place;
-      return "STILL NO " + q.subject + "? " + t + " HAS PLENTY. I NEED " + goodUnits(q.need, q.subject) + ".";
-    }
-    case QType::War: return "YOU'RE WITH US, THEN. DO WHAT WE AGREED, AND COME BACK ALIVE.";
-    case QType::Campaign: return q.subject.empty() ? "YOU HAVE YOUR ORDERS, SOLDIER. CARRY THEM OUT." : "YOUR ORDERS STAND: " + q.subject + ". MOVE, SOLDIER.";   // M12
-    case QType::Envoy: return q.subject.empty() ? "OUR WORD IS STILL IN YOUR SATCHEL? THEY ARE WAITING FOR IT." : "OUR WORD IS STILL IN YOUR SATCHEL? " + q.subject + ", AND QUICKLY.";
-    default: return "HAVE YOU DONE WHAT I ASKED? I'M STILL WAITING.";
-  }
+  const ReminderFn f = questLines(q.type).reminder;
+  return f ? f(g, q, ReminderCtx{place, home, fem, obj, subj, h}) : std::string("HAVE YOU DONE WHAT I ASKED? I'M STILL WAITING.");
 }
 
 // M7b: what a giver says as the job is taken (where to go, who pays, when to come back)
@@ -480,22 +597,8 @@ std::string QuestOps::acceptLine(const Game& g, const Quest& q) {
   const std::string place = q.target >= 0 && q.target < (int)g.world.sites.size() && q.target != q.giverSite ? spokenPlace(g.world.sites[(size_t)q.target].name) : std::string();
   // (a place spoken with its article was named in the pitch already: "THE TOMB OF SHENSHA" once is enough)
   const std::string marked = place.empty() || place.rfind("THE ", 0) == 0 ? std::string("THE PLACE") : place;
-  switch (q.type) {
-    case QType::Deliver:
-      return "HERE'S THE PARCEL. " + q.subject + (place.empty() ? std::string(" PAYS ON DELIVERY.") : " IS IN " + place + ", AND PAYS ON DELIVERY.") +
-             " KEEP IT DRY, AND KEEP IT SHUT.";
-    case QType::Protect: return "THEN MEET ME AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK, AND THEY DON'T GIVE UP EASILY.";
-    case QType::Hunt:   // (P1) the den or the ground is on the map
-      return q.hasPos ? std::string("GOOD. I'VE MARKED ") + (q.targetId ? "THEIR DEN" : "WHERE THEY ROAM") + " ON YOUR MAP. COME BACK WHEN " + speech::countWord(q.need) +
-                            " OF THE " + monsterPlural(q.mon) + " ARE DEAD."
-                      : "GOOD. COME BACK TO ME WHEN " + speech::countWord(q.need) + " OF THE " + monsterPlural(q.mon) + " ARE DEAD.";
-    case QType::Missing: return "THANK YOU. GODS, THANK YOU. BRING " + q.subject + " HOME ALIVE. I'VE MARKED " + marked + " ON YOUR MAP.";
-    case QType::Heirloom: return "THANK YOU. I'VE MARKED " + marked + " ON YOUR MAP. I'LL BE WAITING FOR IT.";
-    case QType::Supply: return "GOOD. " + (place.empty() ? std::string("THE NEXT TOWN") : place) + " HAS WHAT I NEED. COME STRAIGHT BACK WITH IT.";
-    case QType::Clear: case QType::Bounty: case QType::NamedBandit:
-      return place.empty() ? "GOOD. COME BACK TO ME WHEN IT'S DONE." : "GOOD. I'VE MARKED " + marked + " ON YOUR MAP. COME BACK TO ME WHEN IT'S DONE.";
-    default: return "THANK YOU. COME BACK WHEN IT'S DONE.";
-  }
+  const AcceptFn f = questLines(q.type).accept;
+  return f ? f(g, q, AcceptCtx{place, marked}) : std::string("THANK YOU. COME BACK WHEN IT'S DONE.");
 }
 
 // ---------------------------------------------------------------- the people of quests
