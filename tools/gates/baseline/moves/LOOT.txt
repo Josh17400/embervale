@@ -1,0 +1,33 @@
+# moves/LOOT.txt - the baseline moves of P3 LOOT (docs/FIX_BATCH_P3.md 8.1, 10), measured against 119de74 with
+# tools/gates/step_gates.sh --bdir build-solid at the P3 LOOT head. Format: <gate> <item or glob> <id> <reason>.
+# Every other step gate was identical: S1 (36 exes, warnings 366 <= 366), S2.seeds, S3.save, S3.fixtures, S3.savever,
+# S5.rig1/rig2, S6.freeze/freeze1/pool, S7.rig1/rig2, S9.test/shot, S10.audio, S10.layers.
+#
+# S10.digest: every differing seed is the building-chest fix alone (proven: with only that hunk reverted the digest is
+# 560/560 identical). A door interior's chest now reads the town outside its door for its level and maker
+# (game_items.cpp openChest / chestSource), so its gold (8 + irange(15 + 4 lvl)) and its piece change, then the
+# serialize bytes; act moves only in seed 5 (the bot auto-equips a different chest piece).
+S10.digest seed1,t60+ gold,ser,len LOOT-IN building chests: the town's level and maker, not interior coordinates
+S10.digest seed2,t30+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed3,t10+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed5,t30+ gold,ser,act LOOT-IN building chests: the town's level and maker (the bot wears a different chest piece)
+S10.digest seed6,t70+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed8,t90+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed10,t100+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed12,t40+ gold,ser LOOT-IN building chests: the town's level and maker
+S10.digest seed16,t20+ gold,ser,len LOOT-IN building chests: the town's level and maker
+S10.digest seed18,t110+ gold,ser,len LOOT-IN building chests: the town's level and maker
+W6.digest_clang seed1,2,3,5,6,8,10,12,16,18 gold,ser,len,act LOOT-IN expected (not run here): the same building-chest move in the clang record
+# S10.view (the quick view pack): 13 PNGs of 425
+S10.view m8b_view_shop/m8bv_shop_buy*.png LOOT-B9 the smith's shelf holds two body armours (the band's metal and leather): rows shift
+S10.view m8b_view_shop_phone/m8bv_shopp_buy*.png LOOT-B9 the same shelf at phone size
+S10.view m8b_view_pack/m8bv_pack_{amulet,common,mythic,mythic_b,worn}.png LOOT-R1 band-4 culture pieces (ilvl 28-31) take the everyday alloy (alloys in order), so names, colours and power change
+S10.view m8b_view_doll/m8bv_doll_{compare,compare2,set,set_b}.png LOOT-R1 band-6 culture pieces (ilvl 42-45) take the masterwork and the band-step strength floor
+# W2.view_all (not run by this area; expected in the same way): any script that opens a smith's shelf (B9), stocks or
+# gives band-4+ culture gear (R1), opens a building chest (IN) or shows a commission (R7 seed)
+W2.view_all scripts opening a smith shop LOOT-B9 the two-coat shelf
+W2.view_all scripts with gear6 / lootroll culture gear at ilvl 25+ LOOT-R1 alloys in order and the strength floor
+# Test constants re-recorded by this area (its own files)
+rpg_test--loot tools/tests/test_loot.cpp kGolden LOOT-R6 the luck gate narrows Legendary to 17+ and Mythic to 27+ (0xd3668a99c9a33407 -> 0xb6db22ceb3b965c0)
+rpg_test--ladder-pace output LOOT the command moved to test_loot_pace.cpp and gained LP4-LP10 and --worlds/--report/--gates
+rpg_test--loot-sources output LOOT new WAR SPOILS and RELIC rows (LootSrc::Spoils added after Debug)
