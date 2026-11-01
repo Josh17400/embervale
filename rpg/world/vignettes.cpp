@@ -90,6 +90,91 @@ const char* kWonderPlace[] = {"ELDHOLM", "VARRAK", "MORNVALE", "ISENGARTH", "THU
 std::string folkName(int slot, uint32_t sd) { return kFolk[(size_t)slot + 9 * (sd % 12u)]; }
 }  // namespace
 
+// ============================================================== the kind tables
+// One row per kind holds all that a kind does its own way: a vignette's footprint, land test, the planner's rules for
+// it, how its name is made and how it is stamped; a wonder's clearing, name and stamp. The rows (kVignettes, kWonders)
+// sit at the end of the file, after the functions they name.
+namespace {
+// what a vignette's name is made from (vignetteTitle works these out the same way for every kind)
+struct VigName {
+  EndlessSource::Impl& I;
+  const std::string& who;   // the kind's person in its region
+  int slot;                 // the region's ninth of each name pool
+  uint32_t v, rb, sd, river;
+};
+struct VigPatch;        // stampVignette's ragged patch of trodden earth
+struct VigSpawn;        // and its spawns
+struct WonderOval;      // stampWonder's ragged clearing test
+struct WonderSprinkle;  // and its scatter of small props
+// the land test: the footprint (p.gx, gy, w, h) is already set from hw, hh; lv is the heart's relief level
+using VigFitFn = bool (*)(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p);
+using VigStampFn = void (*)(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                            const VigPatch& patch, const VigSpawn& spawnAt);
+struct VignetteDef {
+  int hw, hh;        // the footprint's half sizes: 2 hw + 1 by 2 hh + 1 about the heart (a land test may set its own)
+  VigFitFn fit;      // the land test
+  int stepOut;       // the planner: a road-side place steps up to this far out from a winding road
+  int clearPad;      // the planner: tiles kept clear of the other places (road-side 1)
+  bool knoll;        // crowns a knoll: its flat zone levels round it at the heart's level (else no terraces)
+  std::string (*title)(const VigName& n);
+  VigStampFn stamp;
+};
+const VignetteDef& vigDef(VignetteKind k);   // (k < COUNT)
+
+using WonderStampFn = void (*)(const SitePlan& p, Stamp& S, int32_t x, int32_t y, uint32_t sd, const WonderOval& inOval,
+                               const WonderSprinkle& sprinkle);
+struct WonderDef {
+  int w, h;          // the clearing
+  std::string (*title)(uint32_t v, const std::string& place);
+  WonderStampFn stamp;
+};
+const WonderDef& wonderDef(WonderKind k);    // (k < COUNT)
+
+// ---- the vignettes' names
+std::string titleCaravan(const VigName& n) {
+  static const char* t[] = {"'S LAST WAGON", "'S WRECKED WAGON", "'S CARAVAN"};
+  return n.who + t[(n.v >> 4) % 3];
+}
+std::string titleHunterCamp(const VigName& n) {
+  const uint32_t q = (n.v >> 4) % 3;
+  return q == 0 ? "OLD " + n.who + "'S CAMP" : q == 1 ? n.who + "'S HUNTING CAMP" : n.who + "'S LODGE";
+}
+std::string titleStandingStones(const VigName& n) { return std::string("THE ") + kStoneAdj[(size_t)n.slot + 9 * (n.rb % 3)] + " STONES"; }
+std::string titleWatchtower(const VigName& n) {
+  const uint32_t q = (n.v >> 4) % 3;
+  return q == 0 ? n.who + "'S WATCH" : q == 1 ? n.who + "'S TOWER" : "THE WATCH OF " + n.who;
+}
+std::string titleFishingHut(const VigName& n) {
+  static const char* t[] = {"'S LANDING", "'S JETTY", "'S FISHING HUT"};
+  return n.who + t[(n.v >> 4) % 3];
+}
+std::string titleTollBridge(const VigName& n) { return std::string(kTollHead[n.slot]) + " ON THE " + n.I.riverName(n.river); }
+std::string titleHerbGarden(const VigName& n) {
+  static const char* t[] = {"'S HERB GARDEN", "'S GARDEN", "'S PHYSIC GARDEN"};
+  return n.who + t[(n.v >> 4) % 3];
+}
+std::string titleLoneGrave(const VigName& n) { return (n.v >> 4) & 1 ? "THE GRAVE OF " + n.who : n.who + "'S CAIRN"; }
+std::string titleWayrest(const VigName& n) {
+  static const char* t[] = {"'S REST", "'S FIRE", "'S WAYREST"};
+  return n.who + t[(n.v >> 4) % 3];
+}
+std::string titleShipwreck(const VigName& n) {   // (M10) the ship's own name
+  static const char* a[] = {"GREY", "SALT", "RED", "SILVER", "WANDERING", "PATIENT", "BOLD", "DROWSY", "NORTHERN"};
+  static const char* b[] = {"GULL", "HERON", "WIDOW", "MAIDEN", "OTTER", "PETREL", "LANTERN", "PROMISE", "SWALLOW"};
+  return std::string("WRECK OF THE ") + a[(size_t)n.slot] + " " + b[(mix64(n.sd ^ 0x5A11u) >> 29) % 9];
+}
+std::string titleLighthouse(const VigName& n) {
+  const uint32_t q = (n.v >> 4) % 3;
+  return q == 0 ? n.who + "'S LIGHT" : q == 1 ? "THE LIGHT OF " + n.who : n.who + "'S BEACON";
+}
+
+// ---- the wonders' names
+std::string titleElderTree(uint32_t v, const std::string& place) { return (v >> 2) & 1 ? "THE ELDER OAK OF " + place : "THE GREAT TREE OF " + place; }
+std::string titleColossus(uint32_t v, const std::string& place) { return (v >> 2) & 1 ? "THE COLOSSUS OF " + place : "THE SUNKEN KING OF " + place; }
+std::string titleStarfall(uint32_t v, const std::string& place) { return (v >> 2) & 1 ? "THE STARFALL OF " + place : "THE FALLEN STAR OF " + place; }
+std::string titleDragonBones(uint32_t v, const std::string& place) { return (v >> 2) & 1 ? "THE DRAGON BONES OF " + place : "THE WYRM'S REST OF " + place; }
+}  // namespace
+
 // ============================================================== names
 std::string EndlessSource::Impl::riverName(uint32_t river) {
   // the river's spring cell picks the first word's ninth: rivers rising near each other never share a name
@@ -105,45 +190,8 @@ std::string EndlessSource::Impl::vignetteTitle(VignetteKind k, int32_t x, int32_
   // one person per kind and instance in a region (kinds 0-8, second places 9-17, twelve to a slot): never two the same
   const uint32_t rb = (uint32_t)(mix64(seed ^ tag("vig.names") ^ key2(regionOf(x), regionOf(y))) >> 24) + (uint32_t)instance;
   const std::string who = folkName(slot, rb + (uint32_t)k + 9u * (uint32_t)instance);
-  switch (k) {
-    case VignetteKind::Caravan: {
-      static const char* t[] = {"'S LAST WAGON", "'S WRECKED WAGON", "'S CARAVAN"};
-      return who + t[(v >> 4) % 3];
-    }
-    case VignetteKind::HunterCamp: {
-      const uint32_t q = (v >> 4) % 3;
-      return q == 0 ? "OLD " + who + "'S CAMP" : q == 1 ? who + "'S HUNTING CAMP" : who + "'S LODGE";
-    }
-    case VignetteKind::StandingStones: return std::string("THE ") + kStoneAdj[(size_t)slot + 9 * (rb % 3)] + " STONES";
-    case VignetteKind::Watchtower: {
-      const uint32_t q = (v >> 4) % 3;
-      return q == 0 ? who + "'S WATCH" : q == 1 ? who + "'S TOWER" : "THE WATCH OF " + who;
-    }
-    case VignetteKind::FishingHut: {
-      static const char* t[] = {"'S LANDING", "'S JETTY", "'S FISHING HUT"};
-      return who + t[(v >> 4) % 3];
-    }
-    case VignetteKind::TollBridge: return std::string(kTollHead[slot]) + " ON THE " + riverName(river);
-    case VignetteKind::HerbGarden: {
-      static const char* t[] = {"'S HERB GARDEN", "'S GARDEN", "'S PHYSIC GARDEN"};
-      return who + t[(v >> 4) % 3];
-    }
-    case VignetteKind::LoneGrave: return (v >> 4) & 1 ? "THE GRAVE OF " + who : who + "'S CAIRN";
-    case VignetteKind::Wayrest: {
-      static const char* t[] = {"'S REST", "'S FIRE", "'S WAYREST"};
-      return who + t[(v >> 4) % 3];
-    }
-    case VignetteKind::Shipwreck: {   // (M10) the ship's own name
-      static const char* a[] = {"GREY", "SALT", "RED", "SILVER", "WANDERING", "PATIENT", "BOLD", "DROWSY", "NORTHERN"};
-      static const char* b[] = {"GULL", "HERON", "WIDOW", "MAIDEN", "OTTER", "PETREL", "LANTERN", "PROMISE", "SWALLOW"};
-      return std::string("WRECK OF THE ") + a[(size_t)slot] + " " + b[(mix64(sd ^ 0x5A11u) >> 29) % 9];
-    }
-    case VignetteKind::Lighthouse: {
-      const uint32_t q = (v >> 4) % 3;
-      return q == 0 ? who + "'S LIGHT" : q == 1 ? "THE LIGHT OF " + who : who + "'S BEACON";
-    }
-    default: return vignetteName(k);
-  }
+  if ((int)k >= (int)VignetteKind::COUNT) return vignetteName(k);
+  return vigDef(k).title(VigName{*this, who, slot, v, rb, sd, river});
 }
 
 std::string EndlessSource::Impl::wonderTitle(WonderKind k, int32_t x, int32_t y, uint32_t sd, bool forcedOne) {
@@ -151,13 +199,8 @@ std::string EndlessSource::Impl::wonderTitle(WonderKind k, int32_t x, int32_t y,
   const int slot = (int)floorMod(floorDiv(x, WCELL), 3) + 3 * (int)floorMod(floorDiv(y, WCELL), 3);
   const uint32_t v = (uint32_t)(mix64(sd ^ 0x30D3u) >> 24);
   const std::string place = kWonderPlace[(size_t)slot + 9 * (forcedOne ? 2 : (v & 1))];
-  switch (k) {
-    case WonderKind::ElderTree: return (v >> 2) & 1 ? "THE ELDER OAK OF " + place : "THE GREAT TREE OF " + place;
-    case WonderKind::Colossus: return (v >> 2) & 1 ? "THE COLOSSUS OF " + place : "THE SUNKEN KING OF " + place;
-    case WonderKind::Starfall: return (v >> 2) & 1 ? "THE STARFALL OF " + place : "THE FALLEN STAR OF " + place;
-    case WonderKind::DragonBones: return (v >> 2) & 1 ? "THE DRAGON BONES OF " + place : "THE WYRM'S REST OF " + place;
-    default: return wonderName(k);
-  }
+  if ((int)k >= (int)WonderKind::COUNT) return wonderName(k);
+  return wonderDef(k).title(v, place);
 }
 
 // ============================================================== helpers
@@ -200,6 +243,56 @@ struct LandCheck {
     return true;
   }
 };
+// ---- the vignettes' land tests
+// (the field kinds' tail: no lake near; the layout direction rides in the seed's top byte)
+bool fitTail(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, SitePlan& p) {
+  if (I.lakeNear(x, y, std::max(hw, hh) + 4)) return false;
+  p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24);
+  return true;
+}
+// the footprint and a tile round it are land on the heart's level
+bool fitField(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p) {
+  if (!LandCheck{I}(x - hw - 1, y - hh - 1, x + hw + 1, y + hh + 1, lv)) return false;
+  return fitTail(I, x, y, dir, sd, hw, hh, p);
+}
+// the same, marsh allowed (a lone grave)
+bool fitFieldSwamp(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p) {
+  if (!LandCheck{I}(x - hw - 1, y - hh - 1, x + hw + 1, y + hh + 1, lv, true)) return false;
+  return fitTail(I, x, y, dir, sd, hw, hh, p);
+}
+// (a watchtower crowns a knoll: only the tower's own ground must be level; the flats level the rest round it)
+bool fitKnoll(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p) {
+  if (!LandCheck{I}(x - 2, y - 2, x + 2, y + 1, lv)) return false;
+  return fitTail(I, x, y, dir, sd, hw, hh, p);
+}
+bool fitShore(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p) {
+  (void)hw; (void)hh;
+  const LandCheck land{I};
+  // the shack's box (3 x 2 above the heart) and a path to the shore are land; the jetty (3-5 tiles) is water
+  const int L = 3 + (int)((sd >> 3) % 3u);
+  const int dS = dir == 3 ? 3 : 2;                            // heart -> shore tile
+  const int32_t sx = x + DX4[dir] * dS, sy = y + DY4[dir] * dS;
+  if (!land(x - 2, y - 2, x + 2, y + 1, lv)) return false;
+  for (int s = 0; s <= dS; s++)
+    if (I.natLevel(x + DX4[dir] * s, y + DY4[dir] * s) != lv || I.waterAtPlan(x + DX4[dir] * s, y + DY4[dir] * s)) return false;
+  for (int s = 1; s <= L; s++)
+    if (!I.waterAtPlan(sx + DX4[dir] * s, sy + DY4[dir] * s)) return false;
+  // the jetty's far end may not reach the other bank (a wide river): one more tile of water beyond it
+  if (!I.waterAtPlan(sx + DX4[dir] * (L + 1), sy + DY4[dir] * (L + 1))) return false;
+  const int32_t ex2 = sx + DX4[dir] * L, ey2 = sy + DY4[dir] * L;
+  p.gx = std::min(x - 2, ex2); p.gy = std::min(y - 2, ey2);
+  p.w = std::max(x + 2, ex2) - p.gx + 1; p.h = std::max(y + 1, ey2) - p.gy + 1;
+  p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24) | ((uint32_t)L << 28);
+  return true;
+}
+bool fitBridge(EndlessSource::Impl& I, int32_t x, int32_t y, int dir, uint32_t sd, int hw, int hh, int lv, SitePlan& p) {
+  (void)hw; (void)hh; (void)lv;
+  // the post on the bank beside the road (dir: from the road to the post), checked by the planner; only its tile and
+  // the troll's must be dry land
+  if (I.tile(x, y).sea || I.riverWidthCell(x, y) >= 8) return false;
+  p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24);
+  return true;
+}
 }  // namespace
 
 // ============================================================== one vignette's geometry and land
@@ -213,54 +306,12 @@ bool EndlessSource::Impl::vignetteAt(VignetteKind k, int32_t x, int32_t y, int d
   p.kind = (uint8_t)k;
   p.ex = x; p.ey = y;
   dir &= 3;
-  int hw = 4, hh = 3;
-  switch (k) {
-    case VignetteKind::Caravan: hw = 4; hh = 3; break;
-    case VignetteKind::HunterCamp: hw = 4; hh = 3; break;
-    case VignetteKind::StandingStones: hw = 5; hh = 4; break;
-    case VignetteKind::Watchtower: hw = 4; hh = 3; break;
-    case VignetteKind::HerbGarden: hw = 5; hh = 4; break;
-    case VignetteKind::LoneGrave: hw = 2; hh = 2; break;
-    case VignetteKind::Wayrest: hw = 3; hh = 2; break;
-    case VignetteKind::TollBridge: hw = 0; hh = 0; break;
-    case VignetteKind::FishingHut: hw = 3; hh = 3; break;
-    default: break;
-  }
+  const bool known = (int)k < (int)VignetteKind::COUNT;
+  const int hw = known ? vigDef(k).hw : 4, hh = known ? vigDef(k).hh : 3;
   p.w = 2 * hw + 1; p.h = 2 * hh + 1;
   p.gx = x - hw; p.gy = y - hh;
   const int lv = natLevel(x, y);
-  LandCheck land{*this};
-  if (k == VignetteKind::FishingHut) {
-    // the shack's box (3 x 2 above the heart) and a path to the shore are land; the jetty (3-5 tiles) is water
-    const int L = 3 + (int)((sd >> 3) % 3u);
-    const int dS = dir == 3 ? 3 : 2;                            // heart -> shore tile
-    const int32_t sx = x + DX4[dir] * dS, sy = y + DY4[dir] * dS;
-    if (!land(x - 2, y - 2, x + 2, y + 1, lv)) return false;
-    for (int s = 0; s <= dS; s++)
-      if (natLevel(x + DX4[dir] * s, y + DY4[dir] * s) != lv || waterAtPlan(x + DX4[dir] * s, y + DY4[dir] * s)) return false;
-    for (int s = 1; s <= L; s++)
-      if (!waterAtPlan(sx + DX4[dir] * s, sy + DY4[dir] * s)) return false;
-    // the jetty's far end may not reach the other bank (a wide river): one more tile of water beyond it
-    if (!waterAtPlan(sx + DX4[dir] * (L + 1), sy + DY4[dir] * (L + 1))) return false;
-    const int32_t ex2 = sx + DX4[dir] * L, ey2 = sy + DY4[dir] * L;
-    p.gx = std::min(x - 2, ex2); p.gy = std::min(y - 2, ey2);
-    p.w = std::max(x + 2, ex2) - p.gx + 1; p.h = std::max(y + 1, ey2) - p.gy + 1;
-    p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24) | ((uint32_t)L << 28);
-    return true;
-  }
-  if (k == VignetteKind::TollBridge) {
-    // the post on the bank beside the road (dir: from the road to the post), checked by the planner; only its tile and
-    // the troll's must be dry land
-    if (tile(x, y).sea || riverWidthCell(x, y) >= 8) return false;
-    p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24);
-    return true;
-  }
-  // (a watchtower crowns a knoll: only the tower's own ground must be level; the flats level the rest round it)
-  if (k == VignetteKind::Watchtower) { if (!land(x - 2, y - 2, x + 2, y + 1, lv)) return false; }
-  else if (!land(x - hw - 1, y - hh - 1, x + hw + 1, y + hh + 1, lv, k == VignetteKind::LoneGrave)) return false;
-  if (lakeNear(x, y, std::max(hw, hh) + 4)) return false;
-  p.seed = (sd & 0xFFFFFFu) | ((uint32_t)dir << 24);
-  return true;
+  return (known ? vigDef(k).fit : fitField)(*this, x, y, dir, sd, hw, hh, lv, p);
 }
 
 // water at a tile, judged from the plans only (rivers by their pieces, lakes by their shores; no settlement test, so
@@ -562,12 +613,12 @@ void EndlessSource::Impl::planVignettes(int32_t rx, int32_t ry, RegionData& D, c
     for (const Cand& c : cs) {
       if (++tries > 16) break;
       SitePlan p;
-      const bool roadside = k == VignetteKind::Caravan || k == VignetteKind::Wayrest || k == VignetteKind::TollBridge;
+      const VignetteDef& d = vigDef(k);
       // (a road-side place steps further out from a winding road until the road clears its footprint)
       bool ok = false;
-      for (int extra = 0; extra <= (roadside && k != VignetteKind::TollBridge ? 4 : 0) && !ok; extra++) {
+      for (int extra = 0; extra <= d.stepOut && !ok; extra++) {
         const int32_t qx = c.x + DX4[c.dir & 3] * extra, qy = c.y + DY4[c.dir & 3] * extra;
-        ok = quick(qx, qy) && vignetteAt(k, qx, qy, c.dir & 3, c.sd, p, false) && clear(p, roadside ? 1 : k == VignetteKind::Watchtower ? 3 : 6);
+        ok = quick(qx, qy) && vignetteAt(k, qx, qy, c.dir & 3, c.sd, p, false) && clear(p, d.clearPad);
       }
       if (!ok) continue;
       if (k == VignetteKind::TollBridge) p.seed = (p.seed & 0xFFFFFFu) | ((uint32_t)c.dir << 24);   // side and along
@@ -603,7 +654,7 @@ void EndlessSource::Impl::planVignettes(int32_t rx, int32_t ry, RegionData& D, c
     R.sites.back().culture = cultureAt(p.ex, p.ey);   // M3
     // (the land under a wayside place was checked level, footprint and a tile round it: no terraces needed; a watchtower
     // crowns a knoll, which its flat zone levels round the tower)
-    D.flatLevel.push_back({p.kind == (uint8_t)VignetteKind::Watchtower ? natLevel(p.ex, p.ey) : -1, 0});
+    D.flatLevel.push_back({vigDef((VignetteKind)p.kind).knoll ? natLevel(p.ex, p.ey) : -1, 0});
   }
 }
 
@@ -638,12 +689,7 @@ bool EndlessSource::Impl::wonderSpot(int32_t x, int32_t y, uint32_t sd, SitePlan
   p.type = SiteType::Wonder;
   p.kind = (uint8_t)k;
   p.ex = x; p.ey = y;
-  switch (k) {
-    case WonderKind::ElderTree: p.w = 15; p.h = 11; break;
-    case WonderKind::Colossus: p.w = 13; p.h = 11; break;
-    case WonderKind::Starfall: p.w = 15; p.h = 13; break;
-    default: p.w = 15; p.h = 9; break;
-  }
+  p.w = wonderDef(k).w; p.h = wonderDef(k).h;
   p.gx = x - p.w / 2; p.gy = y - p.h / 2;
   p.seed = sd & 0xFFFFFFu;
   p.name = wonderTitle(k, x, y, p.seed);
@@ -938,6 +984,328 @@ void dirt(Stamp& S, int32_t x, int32_t y) {
       g == Ground::Rock || g == Ground::Farmland)
     S.g(x, y, Ground::Dirt);
 }
+
+// ---- stampVignette's helpers
+  // a ragged patch of trodden earth (radii in tiles, the edge noisy)
+  // (the edge wanders with a smooth noise, then a little per-tile fray, so the patch is never a box or a diamond)
+struct VigPatch {
+  uint32_t sd;
+  Stamp& S;
+  void operator()(int32_t cx, int32_t cy, int32_t rxx, int32_t ryy) const {
+    for (int32_t yy = cy - ryy - 2; yy <= cy + ryy + 2; yy++)
+      for (int32_t xx = cx - rxx - 2; xx <= cx + rxx + 2; xx++) {
+        const int32_t dx = (xx - cx) * 100 / std::max(1, rxx), dy = (yy - cy) * 100 / std::max(1, ryy);
+        const int32_t wob = (vnoiseQ(xx * 2, yy * 2, 2, mix64(sd ^ 0xD178u)) - 32768) * 45 / 32768;   // -45..45
+        const int32_t j = (int32_t)(tileHash(sd ^ 0xD177u, xx, yy) % 16);
+        const int32_t r = 92 + wob + j;
+        if (dx * dx + dy * dy < r * r) dirt(S, xx, yy);
+      }
+  }
+};
+struct VigSpawn {
+  const SitePlan& p;
+  Stamp& S;
+  void operator()(int slot, int32_t sx, int32_t sy, bool npc, Role role, bool bandit, Monster mon, bool boss) const {
+    SpawnPlan s;
+    s.siteId = p.id;
+    s.sp.x = sx; s.sp.y = sy;
+    s.sp.npc = npc; s.sp.role = role; s.sp.bandit = bandit; s.sp.mon = mon; s.sp.boss = boss;
+    s.sp.slot = slot;
+    S.c.spawns.push_back(s);
+  }
+};
+
+// ---- the vignettes' stamps (the one Rng r of the place, drawn in the same order as ever)
+void stampCaravan(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // the wagon on its side beside the road, its load spilled toward the road; the ambushers lie in wait further out
+  patch(x, y, 3, 2);
+  putWild(S, x, y, Prop::CaravanWreck);
+  const int tx = -DX4[dir], ty = -DY4[dir];                 // toward the road
+  const int px = -ty, py = tx;                              // along the road
+  S.p(x + tx + px * 2, y + ty + py * 2 + (ty == 0 ? 1 : 0), Prop::Crate);
+  S.p(x + px * -2 + tx, y + py * -2 + ty + (ty == 0 ? 1 : 0), Prop::Barrel);
+  S.p(x - 2 + (r.irange(2)), y + 2, Prop::Crate);
+  S.p(x + 2, y + 1 + r.irange(2), Prop::Chest);
+  if (r.irange(2)) S.p(x - 3, y - 1, Prop::Barrel);
+  S.p(x + 1 - 2 * r.irange(2), y - 2, Prop::Bones);
+  for (int k2 = 0; k2 < 3; k2++) {
+    const int out = 3 + r.irange(4);                          // 6-10 tiles off the road
+    const int sidew = (k2 - 1) * 3 + r.irange(2);
+    spawnAt(1 + k2, x + DX4[dir] * out + px * sidew, y + DY4[dir] * out + py * sidew, false, Role::Bandit, true, Monster::Wolf, false);
+  }
+}
+void stampHunterCamp(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  patch(x, y, 3, 2);
+  S.p(x, y, Prop::Campfire);
+  S.p(x - 2, y - 2, Prop::Tent);
+  S.p(x + 2, y - 2, Prop::HideRack);
+  S.p(x + 3, y + 1, Prop::Woodpile);
+  S.p(x - 2, y + 1, Prop::Log);
+  if (r.irange(2)) S.p(x + 1, y - 2, Prop::Barrel);
+  S.p(x - 3, y - 1, Prop::Bones);
+  spawnAt(0, x + 1, y + 1, true, Role::Hunter, false, Monster::Wolf, false);
+}
+void stampStandingStones(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // a ring of 5-7 menhirs about a heart stone, the grass inside kept short and starred with flowers
+  for (int32_t yy = y - 3; yy <= y + 3; yy++)
+    for (int32_t xx = x - 4; xx <= x + 4; xx++) {
+      const int32_t dx = xx - x, dy = yy - y;
+      if (dx * dx * 9 + dy * dy * 16 > 144) continue;
+      const Ground g = S.at(xx, yy);
+      if (g == Ground::Grass || g == Ground::Tundra || g == Ground::ForestFloor) S.g(xx, yy, Ground::Meadow);
+    }
+  putWild(S, x, y, Prop::StandingStone);
+  const int n = 5 + r.irange(3);
+  const int32_t a0 = r.irange(1024);
+  for (int k2 = 0; k2 < n; k2++) {
+    const int32_t a = a0 + k2 * 1024 / n + r.irange(40) - 20;
+    const int32_t sx = x + (icosR(a, 4 * 256) + (icosR(a, 4 * 256) >= 0 ? 128 : -128)) / 256;
+    const int32_t sy = y + (isinR(a, 3 * 256) + (isinR(a, 3 * 256) >= 0 ? 128 : -128)) / 256;
+    if (sx == x && sy == y) continue;
+    putWild(S, sx, sy, Prop::StandingStone);
+  }
+  for (int k2 = 0; k2 < 3; k2++) {
+    const int32_t fx = x + r.irange(5) - 2, fy = y + r.irange(3) - 1;
+    if (S.in(fx, fy) && !S.c.prop[S.idx(fx, fy)]) S.p(fx, fy, k2 == 0 ? Prop::Flowers1 : k2 == 1 ? Prop::Flowers2 : Prop::Flowers3);
+  }
+}
+void stampWatchtower(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  patch(x, y + 1, 3, 2);
+  putWild(S, x, y, Prop::WatchtowerRuin);
+  // fallen masonry round its foot, the chest in the lee of the wall
+  static const int rub[6][2] = {{-3, -1}, {-3, 0}, {3, -2}, {3, 0}, {-2, 2}, {2, -3}};
+  for (int k2 = 0; k2 < 6; k2++)
+    if (r.irange(3)) S.p(x + rub[k2][0], y + rub[k2][1], k2 < 4 ? Prop::RuinWall : (r.irange(2) ? Prop::Rock : Prop::MossRock));
+  S.p(x + 2, y + 1, Prop::Chest);
+  S.p(x - 1, y + 2, Prop::Bones);
+  spawnAt(1, x - 2, y + 1, false, Role::Bandit, true, Monster::Wolf, false);
+  spawnAt(2, x + 2, y - 1 + (int)(sd & 1) * 3, false, Role::Bandit, true, Monster::Wolf, false);
+}
+void stampFishingHut(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  const int L = (int)((p.seed >> 28) & 7);
+  const int dS = dir == 3 ? 3 : 2;
+  const int32_t sx = x + DX4[dir] * dS, sy = y + DY4[dir] * dS;
+  // the path from the shack to the water, the jetty's planks out over it
+  for (int s = 0; s <= dS; s++) dirt(S, x + DX4[dir] * s, y + DY4[dir] * s);
+  for (int s = 1; s <= L; s++) {
+    const int32_t jx = sx + DX4[dir] * s, jy = sy + DY4[dir] * s;
+    if (wetG(S.at(jx, jy))) { S.g(jx, jy, Ground::Bridge); S.clear(jx, jy); }
+  }
+  putWild(S, x, y, Prop::FishingShack);
+  // the drying rack and the catch beside the shack, on the side away from the path
+  const int sideX = (sd & 1) ? 1 : -1;
+  if (dir == 1 || dir == 3) { S.p(x + 3 * sideX, y, Prop::DryingRack); S.p(x - 2 * sideX, y + (dir == 1 ? 1 : 0), Prop::Barrel); }
+  else { S.p(x, y + 1 + 0 * sideX, Prop::DryingRack); S.p(x - DX4[dir] * 2, y - 1, Prop::Barrel); }
+  spawnAt(0, x + DX4[dir] * (dS - 1) + (dir == 1 || dir == 3 ? 1 : 0), y + DY4[dir] * (dS - 1) + (dir == 0 || dir == 2 ? 1 : 0), true, Role::Fisher,
+          false, Monster::Wolf, false);
+}
+void stampTollBridge(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // the post on the bank beside the road at the bridge head; the troll waits beside the road at the head
+  dirt(S, x, y);
+  S.p(x, y, Prop::TollPost);
+  // (M2 fixer round 2) at the bridge head between his post and the road, so the post, the troll and the bridge
+  // read as one crossing (the planner puts the post two tiles off the road's edge at the head)
+  const int32_t tx = x - DX4[dir], ty = y - DY4[dir];
+  spawnAt(0, tx, ty, false, Role::Villager, false, Monster::Troll, true);
+  // (M2 fixer round 3, review: "the hero at the approach is almost hidden under a tree crown") the bridge head is
+  // a clearing: no tree, bush or boulder grows within three tiles of the post or the troll's spot
+  for (int32_t yy = -3; yy <= 3; yy++)
+    for (int32_t xx = -3; xx <= 3; xx++) {
+      if (xx * xx + yy * yy > 10) continue;
+      for (int k = 0; k < 2; k++) {
+        const int32_t qx = (k ? tx : x) + xx, qy = (k ? ty : y) + yy;
+        if (wetG(S.at(qx, qy))) continue;
+        S.reserve(qx, qy);
+        if (!(qx == x && qy == y)) S.clear(qx, qy);
+      }
+    }
+}
+void stampHerbGarden(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // a fenced plot with a gap in its south side, beds of herbs in rows either side of the middle path
+  const int32_t fx0 = x - 4, fx1 = x + 4, fy0 = y - 3, fy1 = y + 3;
+  for (int32_t yy = fy0; yy <= fy1; yy++)
+    for (int32_t xx = fx0; xx <= fx1; xx++) {
+      if (yy > fy0 && yy < fy1 && xx > fx0 && xx < fx1) { dirt(S, xx, yy); continue; }
+      if (yy == fy1 && xx == x) { dirt(S, xx, yy); continue; }   // the gate
+      S.p(xx, yy, (yy == fy0 || yy == fy1) ? Prop::FenceH : Prop::FenceV);
+    }
+  int beds = 0;
+  for (int32_t yy : {y - 2, y, y + 2})
+    for (int32_t xx = x - 3; xx <= x + 3; xx++) {
+      if (xx == x) continue;
+      if (yy == y + 2 && std::abs(xx - x) <= 1) continue;          // room by the gate
+      if (beds >= 6 && (tileHash(sd ^ 0xBEDu, xx, yy) & 3) == 0) continue;
+      S.p(xx, yy, Prop::HerbBed);
+      beds++;
+    }
+  S.p(x + 5, y + 2, Prop::Baskets);
+  if (r.irange(2)) S.p(x - 5, y + 2, Prop::Barrel);
+  spawnAt(0, x, y + 1, true, Role::Herbalist, false, Monster::Wolf, false);
+}
+void stampLoneGrave(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // (M2 fixer round 3) a little clearing round it, so no boulder of the field beside it reads as another grave
+  for (int32_t yy = -3; yy <= 2; yy++)
+    for (int32_t xx = -3; xx <= 3; xx++)
+      if (xx * xx + yy * yy <= 10 && !wetG(S.at(x + xx, y + yy))) { S.reserve(x + xx, y + yy); S.clear(x + xx, y + yy); }
+  putWild(S, x, y, Prop::GraveCairn);
+  if (sd & 1) S.p(x + 1 + (int)((sd >> 1) & 1), y - 1, Prop::DeadTree);
+  else { S.p(x - 1, y + 1, Prop::Flowers2); S.p(x + 1, y + 1, Prop::Flowers3); }
+  if ((sd >> 2) & 1) S.p(x - 1, y, Prop::Flowers1);
+}
+void stampWayrest(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  patch(x, y, 2, 1);
+  S.p(x, y, Prop::Campfire);
+  S.p(x - 2, y, Prop::Bedroll);
+  S.p(x + 1, y - 1, Prop::Log);
+  S.p(x + 2, y + 1, Prop::Log);
+  if (sd & 1) S.p(x - 2, y - 1, Prop::Barrel);
+  spawnAt(0, x + 1, y + 1, true, Role::Traveller, false, Monster::Wolf, false);
+}
+void stampShipwreck(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // (M10) a ship's broken hull run up on the beach or a sandbar (the sea pass found the 3x2 of land under it), the
+  // chest from its hold dragged up beside it, flotsam strewn along the tide line toward the water
+  auto putSea = [&](int32_t px, int32_t py, Prop pr) {
+    int w = 1, h = 1;
+    art::seaFootprint(pr, w, h);
+    for (int32_t yy = py - h + 1; yy <= py; yy++)
+      for (int32_t xx = px - w / 2; xx <= px + w / 2; xx++) S.p(xx, yy, Prop::Filler);
+    S.p(px, py, pr);
+  };
+  putSea(x, y, Prop::Wreck);
+  auto onLand = [&](int32_t px, int32_t py) { return S.in(px, py) && !wetG(S.at(px, py)) && !groundSolid(S.at(px, py)); };
+  static const int chestAt[4][2] = {{2, 1}, {-2, 1}, {2, -2}, {-2, -2}};
+  for (int k2 = 0; k2 < 4; k2++) {
+    const int q = (int)((sd + (uint32_t)k2) & 3);
+    const int32_t cx2 = x + chestAt[q][0], cy2 = y + chestAt[q][1];
+    if (I.waterE(cx2, cy2) >= ELEV_SEA) { S.p(cx2, cy2, Prop::Chest); break; }   // (pure: every chunk picks the same)
+  }
+  static const int flot[6][2] = {{-3, 1}, {3, 0}, {1, 2}, {-1, -2}, {3, -1}, {-3, -1}};
+  for (int k2 = 0; k2 < 6; k2++) {
+    if (r.irange(3) == 0) continue;
+    const int32_t fx = x + flot[k2][0], fy = y + flot[k2][1];
+    if (onLand(fx, fy) && S.in(fx, fy) && !S.c.prop[S.idx(fx, fy)]) S.p(fx, fy, k2 % 3 == 0 ? Prop::Barrel : k2 % 3 == 1 ? Prop::Crate : Prop::Log);
+  }
+  if (onLand(x + 1, y - 2) && S.in(x + 1, y - 2) && !S.c.prop[S.idx(x + 1, y - 2)]) S.p(x + 1, y - 2, Prop::Bones);
+}
+void stampLighthouse(EndlessSource::Impl& I, const SitePlan& p, Stamp& S, Rng& r, int32_t x, int32_t y, int dir, uint32_t sd,
+                 const VigPatch& patch, const VigSpawn& spawnAt) {
+  // (M10) the tower on its headland, a patch of bare rock and turf round its foot, the keeper's stores beside it
+  patch(x, y + 1, 2, 2);
+  S.p(x, y, Prop::Lighthouse);
+  if (S.in(x + 2, y) && !wetG(S.at(x + 2, y))) S.p(x + 2, y, Prop::Barrel);
+  if (S.in(x - 2, y + 1) && !wetG(S.at(x - 2, y + 1))) S.p(x - 2, y + 1, (sd & 1) ? Prop::Crate : Prop::Woodpile);
+  spawnAt(0, x + 1, y + 1, true, Role::Sailor, false, Monster::Wolf, false);
+}
+
+// ---- stampWonder's helpers
+struct WonderOval {
+  int32_t x, y, rxx, ryy;
+  uint32_t sd;
+  bool operator()(int32_t xx, int32_t yy, int32_t shrink) const {
+    const int32_t dx = (xx - x) * 100 / std::max(1, rxx - shrink), dy = (yy - y) * 100 / std::max(1, ryy - shrink);
+    const int32_t j = (int32_t)(tileHash(sd ^ 0x0A1Bu, xx, yy) % 22);
+    return dx * dx + dy * dy < (88 + j) * (88 + j);
+  }
+};
+struct WonderSprinkle {
+  uint32_t sd;
+  const SitePlan& p;
+  const WonderOval& inOval;
+  int32_t x, y;
+  Stamp& S;
+  void operator()(uint32_t salt, int n, std::initializer_list<Prop> l) const {
+    for (int k2 = 0; k2 < n; k2++) {
+      const uint64_t h = mix64(sd ^ salt ^ (uint64_t)k2 * 0x9E37u);
+      const int32_t xx = p.gx + 1 + (int32_t)(h % (uint64_t)std::max(1, p.w - 2)), yy = p.gy + 1 + (int32_t)((h >> 20) % (uint64_t)std::max(1, p.h - 2));
+      if (!inOval(xx, yy, 1) || (std::abs(xx - x) <= 3 && yy >= y - 3 && yy <= y + 1)) continue;
+      if (S.in(xx, yy) && !S.c.prop[S.idx(xx, yy)] && !groundSolid(S.at(xx, yy))) S.p(xx, yy, *(l.begin() + (size_t)((h >> 40) % l.size())));
+    }
+  }
+};
+
+// ---- the wonders' stamps
+void stampElderTree(const SitePlan& p, Stamp& S, int32_t x, int32_t y, uint32_t sd, const WonderOval& inOval,
+                 const WonderSprinkle& sprinkle) {
+  // the glade: mossy forest floor and meadow under the great crown, ferns and mushrooms round its roots
+  for (int32_t yy = p.gy; yy < p.gy + p.h; yy++)
+    for (int32_t xx = p.gx; xx < p.gx + p.w; xx++)
+      if (inOval(xx, yy, 2)) { const Ground g = S.at(xx, yy); if (g != Ground::Void && !wetG(g)) S.g(xx, yy, (tileHash(sd, xx, yy) & 3) ? Ground::Meadow : Ground::ForestFloor); }
+  putWild(S, x, y, Prop::ElderTree);
+  sprinkle(0x11u, 10, {Prop::Fern, Prop::Mushrooms, Prop::Flowers1, Prop::Flowers3, Prop::MossRock});
+}
+void stampColossus(const SitePlan& p, Stamp& S, int32_t x, int32_t y, uint32_t sd, const WonderOval& inOval,
+                 const WonderSprinkle& sprinkle) {
+  // broken paving round the statue's foot, toppled masonry about it
+  for (int32_t yy = y - 3; yy <= y + 3; yy++)
+    for (int32_t xx = x - 4; xx <= x + 4; xx++) {
+      const uint32_t h = (uint32_t)(tileHash(sd ^ 0xC010u, xx, yy) & 255);
+      const int32_t dd = std::abs(xx - x) + std::abs(yy - y);
+      if (dd <= 4 && (int32_t)h < 200 - dd * 30) S.g(xx, yy, Ground::StoneFloor);
+      else if (dd <= 5 && h < 90) S.g(xx, yy, Ground::Dirt);
+    }
+  putWild(S, x, y, Prop::Colossus);
+  sprinkle(0x22u, 6, {Prop::RuinColumn, Prop::Rock, Prop::MossRock, Prop::Boulder});
+}
+void stampStarfall(const SitePlan& p, Stamp& S, int32_t x, int32_t y, uint32_t sd, const WonderOval& inOval,
+                 const WonderSprinkle& sprinkle) {
+  // the crater: a bowl of scorched earth (an oval 6 x 5, its edge wandering), the thrown-up rim a broken ring of
+  // boulders and rocks with gaps, the heart shard in the middle and a few more strewn across the floor, never two
+  // side by side
+  for (int32_t yy = y - 6; yy <= y + 6; yy++)
+    for (int32_t xx = x - 7; xx <= x + 7; xx++) {
+      const int32_t dx = xx - x, dy = yy - y;
+      const int32_t q = (dx * dx * 100) / 36 + (dy * dy * 100) / 25;   // 100 on the oval
+      const int32_t wob = (vnoiseQ(xx * 3, yy * 3, 2, mix64(sd ^ 0x5F0u)) - 32768) * 22 / 32768;
+      if (q < 70 + wob) dirt(S, xx, yy);
+      else if (q < 125 + wob && q >= 85 + wob) {
+        const uint32_t h = (uint32_t)(tileHash(sd ^ 0x5F2u, xx, yy) % 7);
+        if (h < 3 && S.in(xx, yy) && !S.c.prop[S.idx(xx, yy)] && !groundSolid(S.at(xx, yy)) && !wetG(S.at(xx, yy)))
+          S.p(xx, yy, h == 0 ? Prop::Boulder : h == 1 ? Prop::Rock : Prop::MossRock);
+        else if (h == 3) dirt(S, xx, yy);
+      }
+    }
+  putWild(S, x, y, Prop::StarShard);
+  Rng r(sd ^ 0x5A4Du);
+  const int n = 3 + r.irange(3);
+  std::vector<GTile> put{GTile{x, y}};
+  for (int k2 = 0; k2 < n * 3 && (int)put.size() <= n; k2++) {
+    const int32_t a = r.irange(1024), rr = 2 + r.irange(3);
+    const int32_t sx = x + icosR(a, rr), sy = y + isinR(a, rr) * 4 / 5;
+    bool near = false;
+    for (const GTile& t : put) if (std::abs(t.x - sx) <= 1 && std::abs(t.y - sy) <= 1) near = true;
+    if (near) continue;
+    putWild(S, sx, sy, Prop::StarShard);
+    put.push_back(GTile{sx, sy});
+  }
+}
+void stampDragonBones(const SitePlan& p, Stamp& S, int32_t x, int32_t y, uint32_t sd, const WonderOval& inOval,
+                 const WonderSprinkle& sprinkle) {
+  // (M2 fixer round 2) a ragged oval of trampled earth under the bones (not tile-sized blotches), and none on snow:
+  // the bones lie in the snow
+  const Biome hb = S.in(x, y) ? (Biome)S.c.biome[S.idx(x, y)] : Biome::Plains;
+  const bool snowy = S.at(x, y) == Ground::Snow || S.at(x, y) == Ground::Ice || S.at(x, y) == Ground::Tundra || hb == Biome::Snow ||
+                     hb == Biome::Taiga || hb == Biome::Mountain;
+  if (!snowy)
+    for (int32_t yy = y - 3; yy <= y + 2; yy++)
+      for (int32_t xx = x - 7; xx <= x + 7; xx++) {
+        const int32_t dx = xx - x, dy = yy - y;
+        const int32_t q = (dx * dx * 100) / 36 + (dy * dy * 100) / 6;   // 100 on the oval
+        const int32_t wob = (vnoiseQ(xx * 3, yy * 3, 2, mix64(sd ^ 0xD4Cu)) - 32768) * 30 / 32768;
+        if (q < 75 + wob) dirt(S, xx, yy);
+      }
+  putWild(S, x, y, Prop::DragonBones);
+  sprinkle(0x33u, 7, {Prop::Bones, Prop::SkullPile, Prop::Bones, Prop::Rock});
+}
 }  // namespace
 
 void EndlessSource::Impl::stampVignette(const SitePlan& p, Stamp& S) {
@@ -953,219 +1321,9 @@ void EndlessSource::Impl::stampVignette(const SitePlan& p, Stamp& S) {
       S.clear(xx, yy);
       if (S.at(xx, yy) == Ground::Rock) S.g(xx, yy, Ground::Dirt);
     }
-  auto spawnAt = [&](int slot, int32_t sx, int32_t sy, bool npc, Role role, bool bandit, Monster mon, bool boss) {
-    SpawnPlan s;
-    s.siteId = p.id;
-    s.sp.x = sx; s.sp.y = sy;
-    s.sp.npc = npc; s.sp.role = role; s.sp.bandit = bandit; s.sp.mon = mon; s.sp.boss = boss;
-    s.sp.slot = slot;
-    S.c.spawns.push_back(s);
-  };
-  // a ragged patch of trodden earth (radii in tiles, the edge noisy)
-  // (the edge wanders with a smooth noise, then a little per-tile fray, so the patch is never a box or a diamond)
-  auto patch = [&](int32_t cx, int32_t cy, int32_t rxx, int32_t ryy) {
-    for (int32_t yy = cy - ryy - 2; yy <= cy + ryy + 2; yy++)
-      for (int32_t xx = cx - rxx - 2; xx <= cx + rxx + 2; xx++) {
-        const int32_t dx = (xx - cx) * 100 / std::max(1, rxx), dy = (yy - cy) * 100 / std::max(1, ryy);
-        const int32_t wob = (vnoiseQ(xx * 2, yy * 2, 2, mix64(sd ^ 0xD178u)) - 32768) * 45 / 32768;   // -45..45
-        const int32_t j = (int32_t)(tileHash(sd ^ 0xD177u, xx, yy) % 16);
-        const int32_t r = 92 + wob + j;
-        if (dx * dx + dy * dy < r * r) dirt(S, xx, yy);
-      }
-  };
-  switch (k) {
-    case VignetteKind::Caravan: {
-      // the wagon on its side beside the road, its load spilled toward the road; the ambushers lie in wait further out
-      patch(x, y, 3, 2);
-      putWild(S, x, y, Prop::CaravanWreck);
-      const int tx = -DX4[dir], ty = -DY4[dir];                 // toward the road
-      const int px = -ty, py = tx;                              // along the road
-      S.p(x + tx + px * 2, y + ty + py * 2 + (ty == 0 ? 1 : 0), Prop::Crate);
-      S.p(x + px * -2 + tx, y + py * -2 + ty + (ty == 0 ? 1 : 0), Prop::Barrel);
-      S.p(x - 2 + (r.irange(2)), y + 2, Prop::Crate);
-      S.p(x + 2, y + 1 + r.irange(2), Prop::Chest);
-      if (r.irange(2)) S.p(x - 3, y - 1, Prop::Barrel);
-      S.p(x + 1 - 2 * r.irange(2), y - 2, Prop::Bones);
-      for (int k2 = 0; k2 < 3; k2++) {
-        const int out = 3 + r.irange(4);                          // 6-10 tiles off the road
-        const int sidew = (k2 - 1) * 3 + r.irange(2);
-        spawnAt(1 + k2, x + DX4[dir] * out + px * sidew, y + DY4[dir] * out + py * sidew, false, Role::Bandit, true, Monster::Wolf, false);
-      }
-      break;
-    }
-    case VignetteKind::HunterCamp: {
-      patch(x, y, 3, 2);
-      S.p(x, y, Prop::Campfire);
-      S.p(x - 2, y - 2, Prop::Tent);
-      S.p(x + 2, y - 2, Prop::HideRack);
-      S.p(x + 3, y + 1, Prop::Woodpile);
-      S.p(x - 2, y + 1, Prop::Log);
-      if (r.irange(2)) S.p(x + 1, y - 2, Prop::Barrel);
-      S.p(x - 3, y - 1, Prop::Bones);
-      spawnAt(0, x + 1, y + 1, true, Role::Hunter, false, Monster::Wolf, false);
-      break;
-    }
-    case VignetteKind::StandingStones: {
-      // a ring of 5-7 menhirs about a heart stone, the grass inside kept short and starred with flowers
-      for (int32_t yy = y - 3; yy <= y + 3; yy++)
-        for (int32_t xx = x - 4; xx <= x + 4; xx++) {
-          const int32_t dx = xx - x, dy = yy - y;
-          if (dx * dx * 9 + dy * dy * 16 > 144) continue;
-          const Ground g = S.at(xx, yy);
-          if (g == Ground::Grass || g == Ground::Tundra || g == Ground::ForestFloor) S.g(xx, yy, Ground::Meadow);
-        }
-      putWild(S, x, y, Prop::StandingStone);
-      const int n = 5 + r.irange(3);
-      const int32_t a0 = r.irange(1024);
-      for (int k2 = 0; k2 < n; k2++) {
-        const int32_t a = a0 + k2 * 1024 / n + r.irange(40) - 20;
-        const int32_t sx = x + (icosR(a, 4 * 256) + (icosR(a, 4 * 256) >= 0 ? 128 : -128)) / 256;
-        const int32_t sy = y + (isinR(a, 3 * 256) + (isinR(a, 3 * 256) >= 0 ? 128 : -128)) / 256;
-        if (sx == x && sy == y) continue;
-        putWild(S, sx, sy, Prop::StandingStone);
-      }
-      for (int k2 = 0; k2 < 3; k2++) {
-        const int32_t fx = x + r.irange(5) - 2, fy = y + r.irange(3) - 1;
-        if (S.in(fx, fy) && !S.c.prop[S.idx(fx, fy)]) S.p(fx, fy, k2 == 0 ? Prop::Flowers1 : k2 == 1 ? Prop::Flowers2 : Prop::Flowers3);
-      }
-      break;
-    }
-    case VignetteKind::Watchtower: {
-      patch(x, y + 1, 3, 2);
-      putWild(S, x, y, Prop::WatchtowerRuin);
-      // fallen masonry round its foot, the chest in the lee of the wall
-      static const int rub[6][2] = {{-3, -1}, {-3, 0}, {3, -2}, {3, 0}, {-2, 2}, {2, -3}};
-      for (int k2 = 0; k2 < 6; k2++)
-        if (r.irange(3)) S.p(x + rub[k2][0], y + rub[k2][1], k2 < 4 ? Prop::RuinWall : (r.irange(2) ? Prop::Rock : Prop::MossRock));
-      S.p(x + 2, y + 1, Prop::Chest);
-      S.p(x - 1, y + 2, Prop::Bones);
-      spawnAt(1, x - 2, y + 1, false, Role::Bandit, true, Monster::Wolf, false);
-      spawnAt(2, x + 2, y - 1 + (int)(sd & 1) * 3, false, Role::Bandit, true, Monster::Wolf, false);
-      break;
-    }
-    case VignetteKind::FishingHut: {
-      const int L = (int)((p.seed >> 28) & 7);
-      const int dS = dir == 3 ? 3 : 2;
-      const int32_t sx = x + DX4[dir] * dS, sy = y + DY4[dir] * dS;
-      // the path from the shack to the water, the jetty's planks out over it
-      for (int s = 0; s <= dS; s++) dirt(S, x + DX4[dir] * s, y + DY4[dir] * s);
-      for (int s = 1; s <= L; s++) {
-        const int32_t jx = sx + DX4[dir] * s, jy = sy + DY4[dir] * s;
-        if (wetG(S.at(jx, jy))) { S.g(jx, jy, Ground::Bridge); S.clear(jx, jy); }
-      }
-      putWild(S, x, y, Prop::FishingShack);
-      // the drying rack and the catch beside the shack, on the side away from the path
-      const int sideX = (sd & 1) ? 1 : -1;
-      if (dir == 1 || dir == 3) { S.p(x + 3 * sideX, y, Prop::DryingRack); S.p(x - 2 * sideX, y + (dir == 1 ? 1 : 0), Prop::Barrel); }
-      else { S.p(x, y + 1 + 0 * sideX, Prop::DryingRack); S.p(x - DX4[dir] * 2, y - 1, Prop::Barrel); }
-      spawnAt(0, x + DX4[dir] * (dS - 1) + (dir == 1 || dir == 3 ? 1 : 0), y + DY4[dir] * (dS - 1) + (dir == 0 || dir == 2 ? 1 : 0), true, Role::Fisher,
-              false, Monster::Wolf, false);
-      break;
-    }
-    case VignetteKind::TollBridge: {
-      // the post on the bank beside the road at the bridge head; the troll waits beside the road at the head
-      dirt(S, x, y);
-      S.p(x, y, Prop::TollPost);
-      // (M2 fixer round 2) at the bridge head between his post and the road, so the post, the troll and the bridge
-      // read as one crossing (the planner puts the post two tiles off the road's edge at the head)
-      const int32_t tx = x - DX4[dir], ty = y - DY4[dir];
-      spawnAt(0, tx, ty, false, Role::Villager, false, Monster::Troll, true);
-      // (M2 fixer round 3, review: "the hero at the approach is almost hidden under a tree crown") the bridge head is
-      // a clearing: no tree, bush or boulder grows within three tiles of the post or the troll's spot
-      for (int32_t yy = -3; yy <= 3; yy++)
-        for (int32_t xx = -3; xx <= 3; xx++) {
-          if (xx * xx + yy * yy > 10) continue;
-          for (int k = 0; k < 2; k++) {
-            const int32_t qx = (k ? tx : x) + xx, qy = (k ? ty : y) + yy;
-            if (wetG(S.at(qx, qy))) continue;
-            S.reserve(qx, qy);
-            if (!(qx == x && qy == y)) S.clear(qx, qy);
-          }
-        }
-      break;
-    }
-    case VignetteKind::HerbGarden: {
-      // a fenced plot with a gap in its south side, beds of herbs in rows either side of the middle path
-      const int32_t fx0 = x - 4, fx1 = x + 4, fy0 = y - 3, fy1 = y + 3;
-      for (int32_t yy = fy0; yy <= fy1; yy++)
-        for (int32_t xx = fx0; xx <= fx1; xx++) {
-          if (yy > fy0 && yy < fy1 && xx > fx0 && xx < fx1) { dirt(S, xx, yy); continue; }
-          if (yy == fy1 && xx == x) { dirt(S, xx, yy); continue; }   // the gate
-          S.p(xx, yy, (yy == fy0 || yy == fy1) ? Prop::FenceH : Prop::FenceV);
-        }
-      int beds = 0;
-      for (int32_t yy : {y - 2, y, y + 2})
-        for (int32_t xx = x - 3; xx <= x + 3; xx++) {
-          if (xx == x) continue;
-          if (yy == y + 2 && std::abs(xx - x) <= 1) continue;          // room by the gate
-          if (beds >= 6 && (tileHash(sd ^ 0xBEDu, xx, yy) & 3) == 0) continue;
-          S.p(xx, yy, Prop::HerbBed);
-          beds++;
-        }
-      S.p(x + 5, y + 2, Prop::Baskets);
-      if (r.irange(2)) S.p(x - 5, y + 2, Prop::Barrel);
-      spawnAt(0, x, y + 1, true, Role::Herbalist, false, Monster::Wolf, false);
-      break;
-    }
-    case VignetteKind::LoneGrave: {
-      // (M2 fixer round 3) a little clearing round it, so no boulder of the field beside it reads as another grave
-      for (int32_t yy = -3; yy <= 2; yy++)
-        for (int32_t xx = -3; xx <= 3; xx++)
-          if (xx * xx + yy * yy <= 10 && !wetG(S.at(x + xx, y + yy))) { S.reserve(x + xx, y + yy); S.clear(x + xx, y + yy); }
-      putWild(S, x, y, Prop::GraveCairn);
-      if (sd & 1) S.p(x + 1 + (int)((sd >> 1) & 1), y - 1, Prop::DeadTree);
-      else { S.p(x - 1, y + 1, Prop::Flowers2); S.p(x + 1, y + 1, Prop::Flowers3); }
-      if ((sd >> 2) & 1) S.p(x - 1, y, Prop::Flowers1);
-      break;
-    }
-    case VignetteKind::Wayrest: {
-      patch(x, y, 2, 1);
-      S.p(x, y, Prop::Campfire);
-      S.p(x - 2, y, Prop::Bedroll);
-      S.p(x + 1, y - 1, Prop::Log);
-      S.p(x + 2, y + 1, Prop::Log);
-      if (sd & 1) S.p(x - 2, y - 1, Prop::Barrel);
-      spawnAt(0, x + 1, y + 1, true, Role::Traveller, false, Monster::Wolf, false);
-      break;
-    }
-    case VignetteKind::Shipwreck: {
-      // (M10) a ship's broken hull run up on the beach or a sandbar (the sea pass found the 3x2 of land under it), the
-      // chest from its hold dragged up beside it, flotsam strewn along the tide line toward the water
-      auto putSea = [&](int32_t px, int32_t py, Prop pr) {
-        int w = 1, h = 1;
-        art::seaFootprint(pr, w, h);
-        for (int32_t yy = py - h + 1; yy <= py; yy++)
-          for (int32_t xx = px - w / 2; xx <= px + w / 2; xx++) S.p(xx, yy, Prop::Filler);
-        S.p(px, py, pr);
-      };
-      putSea(x, y, Prop::Wreck);
-      auto onLand = [&](int32_t px, int32_t py) { return S.in(px, py) && !wetG(S.at(px, py)) && !groundSolid(S.at(px, py)); };
-      static const int chestAt[4][2] = {{2, 1}, {-2, 1}, {2, -2}, {-2, -2}};
-      for (int k2 = 0; k2 < 4; k2++) {
-        const int q = (int)((sd + (uint32_t)k2) & 3);
-        const int32_t cx2 = x + chestAt[q][0], cy2 = y + chestAt[q][1];
-        if (waterE(cx2, cy2) >= ELEV_SEA) { S.p(cx2, cy2, Prop::Chest); break; }   // (pure: every chunk picks the same)
-      }
-      static const int flot[6][2] = {{-3, 1}, {3, 0}, {1, 2}, {-1, -2}, {3, -1}, {-3, -1}};
-      for (int k2 = 0; k2 < 6; k2++) {
-        if (r.irange(3) == 0) continue;
-        const int32_t fx = x + flot[k2][0], fy = y + flot[k2][1];
-        if (onLand(fx, fy) && S.in(fx, fy) && !S.c.prop[S.idx(fx, fy)]) S.p(fx, fy, k2 % 3 == 0 ? Prop::Barrel : k2 % 3 == 1 ? Prop::Crate : Prop::Log);
-      }
-      if (onLand(x + 1, y - 2) && S.in(x + 1, y - 2) && !S.c.prop[S.idx(x + 1, y - 2)]) S.p(x + 1, y - 2, Prop::Bones);
-      break;
-    }
-    case VignetteKind::Lighthouse: {
-      // (M10) the tower on its headland, a patch of bare rock and turf round its foot, the keeper's stores beside it
-      patch(x, y + 1, 2, 2);
-      S.p(x, y, Prop::Lighthouse);
-      if (S.in(x + 2, y) && !wetG(S.at(x + 2, y))) S.p(x + 2, y, Prop::Barrel);
-      if (S.in(x - 2, y + 1) && !wetG(S.at(x - 2, y + 1))) S.p(x - 2, y + 1, (sd & 1) ? Prop::Crate : Prop::Woodpile);
-      spawnAt(0, x + 1, y + 1, true, Role::Sailor, false, Monster::Wolf, false);
-      break;
-    }
-    default: break;
-  }
+  const VigSpawn spawnAt{p, S};
+  const VigPatch patch{sd, S};
+  if ((int)k < (int)VignetteKind::COUNT) vigDef(k).stamp(*this, p, S, r, x, y, dir, sd, patch, spawnAt);
   // (M10) an uncharted islet's cache: the cairn's chest
   if (k == VignetteKind::LoneGrave && (p.flags & SPF_CACHE) && S.in(x + 1, y) && !wetG(S.at(x + 1, y))) S.p(x + 1, y, Prop::Chest);
 }
@@ -1176,100 +1334,45 @@ void EndlessSource::Impl::stampWonder(const SitePlan& p, Stamp& S) {
   const uint32_t sd = p.seed & 0xFFFFFFu;
   // the clearing: an oval with a ragged edge, cleared of the wild
   const int32_t rxx = p.w / 2, ryy = p.h / 2;
-  auto inOval = [&](int32_t xx, int32_t yy, int32_t shrink) {
-    const int32_t dx = (xx - x) * 100 / std::max(1, rxx - shrink), dy = (yy - y) * 100 / std::max(1, ryy - shrink);
-    const int32_t j = (int32_t)(tileHash(sd ^ 0x0A1Bu, xx, yy) % 22);
-    return dx * dx + dy * dy < (88 + j) * (88 + j);
-  };
+  const WonderOval inOval{x, y, rxx, ryy, sd};
   for (int32_t yy = p.gy; yy < p.gy + p.h; yy++)
     for (int32_t xx = p.gx; xx < p.gx + p.w; xx++) {
       if (!inOval(xx, yy, 0)) continue;
       S.clear(xx, yy);
       if (S.at(xx, yy) == Ground::Rock) S.g(xx, yy, Ground::Dirt);
     }
-  auto sprinkle = [&](uint32_t salt, int n, std::initializer_list<Prop> l) {
-    for (int k2 = 0; k2 < n; k2++) {
-      const uint64_t h = mix64(sd ^ salt ^ (uint64_t)k2 * 0x9E37u);
-      const int32_t xx = p.gx + 1 + (int32_t)(h % (uint64_t)std::max(1, p.w - 2)), yy = p.gy + 1 + (int32_t)((h >> 20) % (uint64_t)std::max(1, p.h - 2));
-      if (!inOval(xx, yy, 1) || (std::abs(xx - x) <= 3 && yy >= y - 3 && yy <= y + 1)) continue;
-      if (S.in(xx, yy) && !S.c.prop[S.idx(xx, yy)] && !groundSolid(S.at(xx, yy))) S.p(xx, yy, *(l.begin() + (size_t)((h >> 40) % l.size())));
-    }
-  };
-  switch (k) {
-    case WonderKind::ElderTree: {
-      // the glade: mossy forest floor and meadow under the great crown, ferns and mushrooms round its roots
-      for (int32_t yy = p.gy; yy < p.gy + p.h; yy++)
-        for (int32_t xx = p.gx; xx < p.gx + p.w; xx++)
-          if (inOval(xx, yy, 2)) { const Ground g = S.at(xx, yy); if (g != Ground::Void && !wetG(g)) S.g(xx, yy, (tileHash(sd, xx, yy) & 3) ? Ground::Meadow : Ground::ForestFloor); }
-      putWild(S, x, y, Prop::ElderTree);
-      sprinkle(0x11u, 10, {Prop::Fern, Prop::Mushrooms, Prop::Flowers1, Prop::Flowers3, Prop::MossRock});
-      break;
-    }
-    case WonderKind::Colossus: {
-      // broken paving round the statue's foot, toppled masonry about it
-      for (int32_t yy = y - 3; yy <= y + 3; yy++)
-        for (int32_t xx = x - 4; xx <= x + 4; xx++) {
-          const uint32_t h = (uint32_t)(tileHash(sd ^ 0xC010u, xx, yy) & 255);
-          const int32_t dd = std::abs(xx - x) + std::abs(yy - y);
-          if (dd <= 4 && (int32_t)h < 200 - dd * 30) S.g(xx, yy, Ground::StoneFloor);
-          else if (dd <= 5 && h < 90) S.g(xx, yy, Ground::Dirt);
-        }
-      putWild(S, x, y, Prop::Colossus);
-      sprinkle(0x22u, 6, {Prop::RuinColumn, Prop::Rock, Prop::MossRock, Prop::Boulder});
-      break;
-    }
-    case WonderKind::Starfall: {
-      // the crater: a bowl of scorched earth (an oval 6 x 5, its edge wandering), the thrown-up rim a broken ring of
-      // boulders and rocks with gaps, the heart shard in the middle and a few more strewn across the floor, never two
-      // side by side
-      for (int32_t yy = y - 6; yy <= y + 6; yy++)
-        for (int32_t xx = x - 7; xx <= x + 7; xx++) {
-          const int32_t dx = xx - x, dy = yy - y;
-          const int32_t q = (dx * dx * 100) / 36 + (dy * dy * 100) / 25;   // 100 on the oval
-          const int32_t wob = (vnoiseQ(xx * 3, yy * 3, 2, mix64(sd ^ 0x5F0u)) - 32768) * 22 / 32768;
-          if (q < 70 + wob) dirt(S, xx, yy);
-          else if (q < 125 + wob && q >= 85 + wob) {
-            const uint32_t h = (uint32_t)(tileHash(sd ^ 0x5F2u, xx, yy) % 7);
-            if (h < 3 && S.in(xx, yy) && !S.c.prop[S.idx(xx, yy)] && !groundSolid(S.at(xx, yy)) && !wetG(S.at(xx, yy)))
-              S.p(xx, yy, h == 0 ? Prop::Boulder : h == 1 ? Prop::Rock : Prop::MossRock);
-            else if (h == 3) dirt(S, xx, yy);
-          }
-        }
-      putWild(S, x, y, Prop::StarShard);
-      Rng r(sd ^ 0x5A4Du);
-      const int n = 3 + r.irange(3);
-      std::vector<GTile> put{GTile{x, y}};
-      for (int k2 = 0; k2 < n * 3 && (int)put.size() <= n; k2++) {
-        const int32_t a = r.irange(1024), rr = 2 + r.irange(3);
-        const int32_t sx = x + icosR(a, rr), sy = y + isinR(a, rr) * 4 / 5;
-        bool near = false;
-        for (const GTile& t : put) if (std::abs(t.x - sx) <= 1 && std::abs(t.y - sy) <= 1) near = true;
-        if (near) continue;
-        putWild(S, sx, sy, Prop::StarShard);
-        put.push_back(GTile{sx, sy});
-      }
-      break;
-    }
-    case WonderKind::DragonBones: {
-      // (M2 fixer round 2) a ragged oval of trampled earth under the bones (not tile-sized blotches), and none on snow:
-      // the bones lie in the snow
-      const Biome hb = S.in(x, y) ? (Biome)S.c.biome[S.idx(x, y)] : Biome::Plains;
-      const bool snowy = S.at(x, y) == Ground::Snow || S.at(x, y) == Ground::Ice || S.at(x, y) == Ground::Tundra || hb == Biome::Snow ||
-                         hb == Biome::Taiga || hb == Biome::Mountain;
-      if (!snowy)
-        for (int32_t yy = y - 3; yy <= y + 2; yy++)
-          for (int32_t xx = x - 7; xx <= x + 7; xx++) {
-            const int32_t dx = xx - x, dy = yy - y;
-            const int32_t q = (dx * dx * 100) / 36 + (dy * dy * 100) / 6;   // 100 on the oval
-            const int32_t wob = (vnoiseQ(xx * 3, yy * 3, 2, mix64(sd ^ 0xD4Cu)) - 32768) * 30 / 32768;
-            if (q < 75 + wob) dirt(S, xx, yy);
-          }
-      putWild(S, x, y, Prop::DragonBones);
-      sprinkle(0x33u, 7, {Prop::Bones, Prop::SkullPile, Prop::Bones, Prop::Rock});
-      break;
-    }
-    default: break;
-  }
+  const WonderSprinkle sprinkle{sd, p, inOval, x, y, S};
+  if ((int)k < (int)WonderKind::COUNT) wonderDef(k).stamp(p, S, x, y, sd, inOval, sprinkle);
 }
+
+// ============================================================== the rows
+namespace {
+// in VignetteKind order: {hw, hh, land test, step out, clear pad, knoll, name, stamp}
+constexpr VignetteDef kVignettes[] = {
+    {4, 3, fitField, 4, 1, false, titleCaravan, stampCaravan},
+    {4, 3, fitField, 0, 6, false, titleHunterCamp, stampHunterCamp},
+    {5, 4, fitField, 0, 6, false, titleStandingStones, stampStandingStones},
+    {4, 3, fitKnoll, 0, 3, true, titleWatchtower, stampWatchtower},
+    {3, 3, fitShore, 0, 6, false, titleFishingHut, stampFishingHut},
+    {0, 0, fitBridge, 0, 1, false, titleTollBridge, stampTollBridge},
+    {5, 4, fitField, 0, 6, false, titleHerbGarden, stampHerbGarden},
+    {2, 2, fitFieldSwamp, 0, 6, false, titleLoneGrave, stampLoneGrave},
+    {3, 2, fitField, 4, 1, false, titleWayrest, stampWayrest},
+    // (M10) the sea's places, planned by the sea pass: the land planner's rules are unused
+    {4, 3, fitField, 0, 6, false, titleShipwreck, stampShipwreck},
+    {4, 3, fitField, 0, 6, false, titleLighthouse, stampLighthouse},
+};
+static_assert(sizeof(kVignettes) / sizeof(kVignettes[0]) == (size_t)VignetteKind::COUNT, "a row for every vignette");
+// in WonderKind order: {w, h, name, stamp}
+constexpr WonderDef kWonders[] = {
+    {15, 11, titleElderTree, stampElderTree},
+    {13, 11, titleColossus, stampColossus},
+    {15, 13, titleStarfall, stampStarfall},
+    {15, 9, titleDragonBones, stampDragonBones},
+};
+static_assert(sizeof(kWonders) / sizeof(kWonders[0]) == (size_t)WonderKind::COUNT, "a row for every wonder");
+const VignetteDef& vigDef(VignetteKind k) { return kVignettes[(int)k]; }
+const WonderDef& wonderDef(WonderKind k) { return kWonders[(int)k]; }
+}  // namespace
 
 }  // namespace ew
