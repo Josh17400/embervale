@@ -493,9 +493,104 @@ float View::biomeBannerY(float half) const {
   return y;
 }
 
+// (SOLID 3.4c) one HUD frame's shared values: the safe area, the world-to-UI scale, the hero's rig, and the location
+// column's fade, line offset and extent (set by hudLocationColumn, read by hudQuest)
+struct View::HudFrame {
+  Pix& P;
+  const Actor& p;                 // the hero
+  float L, T, R, B;               // M1: the safe area every HUD piece is anchored to
+  float kw;                       // (P2a) UI px per world px
+  const art::RigMetrics& RM;      // the hero's rig (as drawn)
+  float hudA = 1.0f, backA = 0.58f;   // the column's text alpha and its backing's
+  float kdy = 0;                  // the realm / state lines' height under the place's name
+  float colBottom = 0, colLeft = 0;   // the foot and the left edge of the location / quest column
+  float clipY = 1e9f;             // (M2) the column's lines stop above a dialogue panel
+  Color fa(Color c) const { c.a *= hudA; return c; }
+  void colText(float y, const std::string& s, Color c) const { if (y + 8 <= clipY) P.textS(R - 5, y, s, 1, c, 2); }
+};
+
+// (M2 integration) the place's name as the column shows it: long wayside names cut between words (hudLocationColumn)
+static std::string hudPlaceName(const Game& g) {
+  std::string loc = g.locName;
+  {   // (M2 integration) long wayside names ("UNDERBRIDGE ON THE COLDBROOK"): more room on a wide screen, and a cut
+      // falls between words, never mid-word
+    const size_t maxc = Pix::W >= 560 ? 32 : 26;
+    // (fixer M6b r3) a building's name too long for the line drops its article first ("BAB AA - THE PROVOST'S
+    // GUILDHALL" -> "BAB AA - PROVOST'S GUILDHALL"), so the noun is not what the cut loses
+    if (loc.size() > maxc) {
+      const size_t th = loc.find(" - THE ");
+      if (th != std::string::npos) loc.erase(th + 3, 4);
+    }
+    // ... then the owner's possessive ("BAB AA - PROVOST'S GUILDHALL" -> "BAB AA - GUILDHALL")
+    if (loc.size() > maxc) {
+      const size_t dash = loc.find(" - "), ps = dash == std::string::npos ? dash : loc.find("'S ", dash);
+      if (ps != std::string::npos) {
+        const size_t w0 = loc.rfind(' ', ps);
+        if (w0 != std::string::npos && w0 >= dash + 2) loc.erase(w0 + 1, ps + 3 - (w0 + 1));
+      }
+    }
+    if (loc.size() > maxc) {
+      const size_t sp = loc.find_last_of(' ', maxc);
+      loc.resize(sp != std::string::npos && sp >= maxc / 2 ? sp : maxc);
+      // never end on a dangling little word ("UNDERBRIDGE ON THE"), a possessive with nothing after it ("THE
+      // PROVOST'S") or a bare dash
+      for (int pass = 0; pass < 3; pass++) {
+        for (const char* w : {" THE", " ON", " OF", " IN", " AT", " BY", " AND", " -"}) {
+          const size_t n = std::strlen(w);
+          if (loc.size() > n + 4 && loc.compare(loc.size() - n, n, w) == 0) loc.resize(loc.size() - n);
+        }
+        if (loc.size() > 6 && loc.compare(loc.size() - 2, 2, "'S") == 0) {
+          const size_t ws = loc.find_last_of(' ');
+          if (ws != std::string::npos && ws >= 4) loc.resize(ws);
+        }
+      }
+    }
+  }
+  return loc;
+}
+
+// the column's clock line: "DAY n HH:MM" (hudLocationColumn)
+static std::string hudClock(const Game& g) {
+  int hh = (int)g.hour, mm = (int)((g.hour - hh) * 60);
+  char clock[16];
+  std::snprintf(clock, sizeof clock, "%02d:%02d", hh, mm);
+  std::string dayStr = std::string("DAY ") + std::to_string(g.day) + " " + clock;
+  return dayStr;
+}
+
 void View::drawHud(Game& g) {
   Pix& P = *pix_;
   const Actor& p = g.pl();
+  // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
+  const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  // (P2a) what the HUD places over the world is projected through toUi; a world size is kw UI px per world px and the
+  // heights over a body come from the rig's metrics
+  const float kw = uiPerWorld();
+  const art::RigMetrics& RM = rigFor(g.pl().look);   // the hero's (as drawn)
+  HudFrame H{P, p, L, T, R, B, kw, RM};
+  const float spellX = hudVitals(g, H);
+  hudQuickSlots(g, H, spellX);
+  hudBurden(g, H);
+
+  hudLocationColumn(g, H);
+
+  hudQuest(g, H);
+
+  hudBossBar(g, H);
+
+  hudPrompt(g, H);
+
+  const bool ringOpen = hudNotices(g, H);   // (the companions' order ring is open: the title cards step away)
+  if (!ringOpen) drawHerald(g);
+  drawHomeHud(g);   // (M7) YARD / DECORATE, DISMOUNT (buildmode.cpp)
+  drawPartyHud(g);  // (M8) the companions' portraits and alerts (party_hud.cpp)
+}
+
+// (SOLID 3.4c) the vitals: level, health / magicka / stamina bars, buffs, xp, gold, arrows, the potion belt (drawHud)
+float View::hudVitals(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const Actor& p = H.p;
+  const float L = H.L, T = H.T;
   // vitals
   float mpMax = g.maxMp + (float)g.craft.live.stats.get(Affix::Magicka), stMax = g.maxSt;
   for (int idx : g.worn()) {
@@ -511,12 +606,6 @@ void View::drawHud(Game& g) {
     P.rect(x, y, w * k, 4, c);
     P.rect(x, y, w * k, 1, Color(std::min(1.0f, c.r + 0.3f), std::min(1.0f, c.g + 0.3f), std::min(1.0f, c.b + 0.3f)));
   };
-  // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
-  const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
-  // (P2a) what the HUD places over the world is projected through toUi; a world size is kw UI px per world px and the
-  // heights over a body come from the rig's metrics
-  const float kw = uiPerWorld();
-  const art::RigMetrics& RM = rigFor(g.pl().look);   // the hero's (as drawn)
   drawSeaHud(g);   // (M10) the sail and fishing panels (render_sea.cpp)
   drawRiseHud(g);  // (M12) the herald's banner of a rise, the rank's insignia (render_rise.cpp)
   P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
@@ -547,6 +636,13 @@ void View::drawHud(Game& g) {
       spellX = L + 124;
     }
   }
+  return spellX;
+}
+
+// (M9) the quick slots, the sneak eye, LEVEL UP and the blessing (drawHud)
+void View::hudQuickSlots(Game& g, const HudFrame& H, float spellX) {
+  Pix& P = H.P;
+  const float L = H.L, T = H.T;
   // (M9) the prepared spells from the book: on the desktop a bar of the four quick slots (number, orb, cooldown; keys
   // 1-4); on touch the quick-cast buttons round the attack button show them (drawTouch)
   g_quickBarR = spellX;
@@ -559,6 +655,12 @@ void View::drawHud(Game& g) {
   SkillsUiOps::drawSneakEye(*this, g, L + 130, T + 4);   // (M9) sneaking: a lidded eye beside the health bar
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(L + 6, T + (g.perkPts > 0 ? 54 : 44), g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
+}
+
+// (P1b) a story's burden: the HEAVY LOAD chip (drawHud)
+void View::hudBurden(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const float L = H.L, T = H.T;
   // (P1b ENGINE lane) a story's burden (a body carried home, a cask, a sack): the HEAVY LOAD chip, a small iron weight
   // and the words on a dark plate with an amber rim, so the slower step is never a mystery
   if (g.story.burdened()) {
@@ -577,11 +679,18 @@ void View::drawHud(Game& g) {
     P.rect(wx, wy + 6, 9, 1, Color(0.22f, 0.22f, 0.26f));
     P.textS(x0 + 14, cy + 2, lab, 1, Color(1.0f, 0.78f, 0.45f));
   }
+}
 
+// the location / quest column's fade over a hall's rooms, a boss or a foe under it; whether the minimap shows (hudLocationColumn)
+bool View::hudColumnFade(Game& g, HudFrame& H) {
+  const float T = H.T, R = H.R;
+  const float kw = H.kw;
+  float& hudA = H.hudA;
+  float& backA = H.backA;
   // M0b fix round 3: inside a building the rooms fill the screen and a wide one runs on under the minimap and the
   // location / quest column. The building is in full view, so its minimap is dropped there, and the column fades to
   // a faint overlay (fainter still with the hero right under it) so the hearth corner and the shelves show through.
-  float hudA = 1.0f, backA = 0.58f;   // (M2 fixer: 0.38 let bright paving, snow and roofs wash the lines out)
+  hudA = 1.0f; backA = 0.58f;   // (M2 fixer: 0.38 let bright paving, snow and roofs wash the lines out)
   bool showMini = true;
   // (fixer M7b r2, review: "a tall touch-mode dialogue panel leaves the minimap's empty frame sticking out beside it")
   // while the phone's tall talk panel is up the minimap stands down (the panel reaches the top of the screen)
@@ -633,44 +742,22 @@ void View::drawHud(Game& g) {
     hudA = std::min(hudA, 1.0f - 0.7f * e);
     backA = std::min(backA, 0.58f - 0.36f * e);
   }
+  return showMini;
+}
+
+// the minimap and the location / clock column: the place, its mood, its realm and state, the danger skull, the day (drawHud)
+void View::hudLocationColumn(Game& g, HudFrame& H) {
+  Pix& P = H.P;
+  const float T = H.T, R = H.R;
+  float& hudA = H.hudA;
+  float& backA = H.backA;
+  float& colBottom = H.colBottom;
+  float& colLeft = H.colLeft;
+  float& clipY = H.clipY;
+  const bool showMini = hudColumnFade(g, H);
   // minimap + location
   if (showMini) drawMinimap(g, R - 70, T + 24, 64);
-  auto fa = [&](Color c) { c.a *= hudA; return c; };
-  std::string loc = g.locName;
-  {   // (M2 integration) long wayside names ("UNDERBRIDGE ON THE COLDBROOK"): more room on a wide screen, and a cut
-      // falls between words, never mid-word
-    const size_t maxc = Pix::W >= 560 ? 32 : 26;
-    // (fixer M6b r3) a building's name too long for the line drops its article first ("BAB AA - THE PROVOST'S
-    // GUILDHALL" -> "BAB AA - PROVOST'S GUILDHALL"), so the noun is not what the cut loses
-    if (loc.size() > maxc) {
-      const size_t th = loc.find(" - THE ");
-      if (th != std::string::npos) loc.erase(th + 3, 4);
-    }
-    // ... then the owner's possessive ("BAB AA - PROVOST'S GUILDHALL" -> "BAB AA - GUILDHALL")
-    if (loc.size() > maxc) {
-      const size_t dash = loc.find(" - "), ps = dash == std::string::npos ? dash : loc.find("'S ", dash);
-      if (ps != std::string::npos) {
-        const size_t w0 = loc.rfind(' ', ps);
-        if (w0 != std::string::npos && w0 >= dash + 2) loc.erase(w0 + 1, ps + 3 - (w0 + 1));
-      }
-    }
-    if (loc.size() > maxc) {
-      const size_t sp = loc.find_last_of(' ', maxc);
-      loc.resize(sp != std::string::npos && sp >= maxc / 2 ? sp : maxc);
-      // never end on a dangling little word ("UNDERBRIDGE ON THE"), a possessive with nothing after it ("THE
-      // PROVOST'S") or a bare dash
-      for (int pass = 0; pass < 3; pass++) {
-        for (const char* w : {" THE", " ON", " OF", " IN", " AT", " BY", " AND", " -"}) {
-          const size_t n = std::strlen(w);
-          if (loc.size() > n + 4 && loc.compare(loc.size() - n, n, w) == 0) loc.resize(loc.size() - n);
-        }
-        if (loc.size() > 6 && loc.compare(loc.size() - 2, 2, "'S") == 0) {
-          const size_t ws = loc.find_last_of(' ');
-          if (ws != std::string::npos && ws >= 4) loc.resize(ws);
-        }
-      }
-    }
-  }
+  std::string loc = hudPlaceName(g);
   // (M5, 15.12) a settlement's mood after its name ("BJALFVA - CONTENT", "- HUNGRY", "- FESTIVAL", "- WAR-TORN"), in its
   // colour, while its census is known (outdoors there)
   std::string moodS;
@@ -686,16 +773,93 @@ void View::drawHud(Game& g) {
   }
   const std::string locSuffix = moodS.empty() ? std::string() : "  " + moodS;
   // clock
-  int hh = (int)g.hour, mm = (int)((g.hour - hh) * 60);
-  char clock[16];
-  std::snprintf(clock, sizeof clock, "%02d:%02d", hh, mm);
-  std::string dayStr = std::string("DAY ") + std::to_string(g.day) + " " + clock;
+  std::string dayStr = hudClock(g);
   // (M1) kingdom identity: in a settlement, the line under its name says whose it is (and marks a capital)
   std::string kingLine;
   Color kingCol = kDim;
   // (M4) the owner NOW, in its society's word ("KHAGANATE OF QIBA"), and the settlement's state under it in its colour
   std::string stateLine;
   Color stateCol = kDim;
+  hudKingLines(g, loc, kingLine, kingCol, stateLine, stateCol);
+  if (kingLine.empty() && !stateLine.empty()) { kingLine = stateLine; kingCol = stateCol; stateLine.clear(); }
+  H.kdy = (kingLine.empty() ? 0.0f : 9.0f) + (stateLine.empty() ? 0.0f : 9.0f);
+  const float kdy = H.kdy;
+  colBottom = T + 150;   // the foot of the location / quest column (the quest arrow keeps below it)
+  colLeft = R - 160;     // and its left edge (a long quest line on a phone runs further left than 160 px)
+  // (M2) a dialogue panel runs under the column on a wide screen: the column's lines stop above the panel's top
+  clipY = 1e9f;
+  if (g.mode == Mode::Dialogue) {
+    const UiBox db = uiBox(300);
+    P.pushBox(db.x, db.y, db.w, db.h);
+    clipY = db.y + dlgLay(g, dlgRowH(), dlgFirst_).y - 2;
+    P.popBox();
+  }
+  {
+    // a soft backing so the location / clock / quest column stays readable over busy roofs and snow
+    const Quest* tq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
+    bool hasQ = tq && tq->state != QState::Done;
+    int wmax = std::max(std::max(P.textW(loc + locSuffix, 1), P.textW(dayStr, 1)), std::max(P.textW(kingLine, 1), P.textW(stateLine, 1)));
+    if (dangerSkull(g) >= 0) wmax = std::max(wmax, P.textW(loc + locSuffix, 1) + 11);
+    if (hasQ) wmax = std::max(wmax, P.textW(hudQuestTitle(tq->title), 1));
+    float extra = 0;
+    if (hasQ) {
+      const std::string st = trackedStep(g, *tq);
+      const size_t nl = st.find('\n');
+      wmax = std::max(wmax, P.textW(st.substr(0, nl), 1));
+      if (nl != std::string::npos) { wmax = std::max(wmax, P.textW(st.substr(nl + 1), 1)); extra = 9.0f; }
+    }
+    float bh = (hasQ ? 42.0f : 21.0f) + kdy + extra;
+    // (fixer M7b r3, review: "a sliver of the region box and half its skull poke out above a tall dialogue panel") the
+    // column shows whole above an open dialogue or not at all
+    if (g.mode == Mode::Dialogue && T + 88 + bh > clipY) clipY = -1e9f;
+    P.rect(R - wmax - 10, T + 88, (float)wmax + 8, std::max(0.0f, std::min(bh, clipY - (T + 88))), Color(0.03f, 0.02f, 0.05f, backA));
+    colBottom = T + 88 + bh + 12;
+    colLeft = std::min(colLeft, R - wmax - 16);
+    hudColLeft_ = R - wmax - 12; hudColBottom_ = T + 88 + bh + 2;
+  }
+  if (locSuffix.empty()) H.colText(T + 91, loc, H.fa(kText));
+  else if (T + 99 <= clipY) {   // the name, then the mood in its colour (a dot between)
+    const float mw = (float)P.textW(locSuffix, 1);
+    P.textS(R - 5, T + 91, moodS, 1, H.fa(moodC), 2);
+    P.rect(std::floor(R - 5 - mw + 3), T + 94, 2, 2, H.fa(Color(kDim.r, kDim.g, kDim.b, 0.9f)));
+    P.textS(R - 5 - mw, T + 91, loc, 1, H.fa(kText), 2);
+  }
+  if (!kingLine.empty() && T + 108 <= clipY) {
+    // the kingdom line in its colour, with a full dark outline (its tint sits close to the land's own colours)
+    const Color o(0.02f, 0.02f, 0.04f, 0.9f * hudA);
+    for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 100 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), kingLine, 1, o, 2);
+    P.text(R - 4, T + 101, kingLine, 1, o, 2);
+    P.text(R - 5, T + 100, kingLine, 1, H.fa(kingCol), 2);
+    if (!stateLine.empty() && T + 117 <= clipY) {
+      for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 109 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), stateLine, 1, o, 2);
+      P.text(R - 5, T + 109, stateLine, 1, H.fa(stateCol), 2);
+    }
+  }
+  // (M4, VISION_PLAN 7.1) dangerous country: a skull before the place's name, coloured by how far the land's danger
+  // runs past the hero's level (yellow, red, purple); none at home or in safe country
+  {
+    const int dk = dangerSkull(g);
+    if (dk >= 0 && T + 99 <= clipY) {
+      static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
+      const Color sc = dk == 0 ? Color(0.45f, 0.90f, 0.42f) : dk == 1 ? Color(0.98f, 0.86f, 0.30f) : dk == 2 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
+      const float sx = R - 5 - P.textW(loc + locSuffix, 1) - 10, sy = T + 91;
+      for (int j = 0; j < 7; j++)
+        for (int i = 0; i < 7; i++) {
+          if (kSkull[j][i] != 'x') continue;
+          P.rect(sx + i + 1, sy + j + 1, 1, 1, Color(0, 0, 0, 0.7f * hudA));
+          P.rect(sx + i, sy + j, 1, 1, H.fa(sc));
+        }
+    }
+  }
+  H.colText(T + 100 + kdy, dayStr, H.fa(kDim));
+  hudRaidPointer(g, H);
+  hudMenuBadge(g, H);
+}
+
+// (M1, M4, M2) the line under the place's name: whose it is and its state, or what a wayside place is (hudLocationColumn)
+void View::hudKingLines(Game& g, const std::string& loc, std::string& kingLine, Color& kingCol, std::string& stateLine, Color& stateCol) {
+  // (M1) kingdom identity: in a settlement, the line under its name says whose it is (and marks a capital)
+  // (M4) the owner NOW, in its society's word ("KHAGANATE OF QIBA"), and the settlement's state under it in its colour
   if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement()) {
     const Site& cs = g.world.sites[(size_t)g.curSite];
     if (const Kingdom* k = g.world.kingdomOf(g.curSite)) {
@@ -733,77 +897,14 @@ void View::drawHud(Game& g) {
       }
     }
   }
-  if (kingLine.empty() && !stateLine.empty()) { kingLine = stateLine; kingCol = stateCol; stateLine.clear(); }
-  const float kdy = (kingLine.empty() ? 0.0f : 9.0f) + (stateLine.empty() ? 0.0f : 9.0f);
-  float colBottom = T + 150;   // the foot of the location / quest column (the quest arrow keeps below it)
-  float colLeft = R - 160;     // and its left edge (a long quest line on a phone runs further left than 160 px)
-  // (M2) a dialogue panel runs under the column on a wide screen: the column's lines stop above the panel's top
-  float clipY = 1e9f;
-  if (g.mode == Mode::Dialogue) {
-    const UiBox db = uiBox(300);
-    P.pushBox(db.x, db.y, db.w, db.h);
-    clipY = db.y + dlgLay(g, dlgRowH(), dlgFirst_).y - 2;
-    P.popBox();
-  }
-  auto colText = [&](float y, const std::string& s, Color c) { if (y + 8 <= clipY) P.textS(R - 5, y, s, 1, c, 2); };
-  {
-    // a soft backing so the location / clock / quest column stays readable over busy roofs and snow
-    const Quest* tq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
-    bool hasQ = tq && tq->state != QState::Done;
-    int wmax = std::max(std::max(P.textW(loc + locSuffix, 1), P.textW(dayStr, 1)), std::max(P.textW(kingLine, 1), P.textW(stateLine, 1)));
-    if (dangerSkull(g) >= 0) wmax = std::max(wmax, P.textW(loc + locSuffix, 1) + 11);
-    if (hasQ) wmax = std::max(wmax, P.textW(hudQuestTitle(tq->title), 1));
-    float extra = 0;
-    if (hasQ) {
-      const std::string st = trackedStep(g, *tq);
-      const size_t nl = st.find('\n');
-      wmax = std::max(wmax, P.textW(st.substr(0, nl), 1));
-      if (nl != std::string::npos) { wmax = std::max(wmax, P.textW(st.substr(nl + 1), 1)); extra = 9.0f; }
-    }
-    float bh = (hasQ ? 42.0f : 21.0f) + kdy + extra;
-    // (fixer M7b r3, review: "a sliver of the region box and half its skull poke out above a tall dialogue panel") the
-    // column shows whole above an open dialogue or not at all
-    if (g.mode == Mode::Dialogue && T + 88 + bh > clipY) clipY = -1e9f;
-    P.rect(R - wmax - 10, T + 88, (float)wmax + 8, std::max(0.0f, std::min(bh, clipY - (T + 88))), Color(0.03f, 0.02f, 0.05f, backA));
-    colBottom = T + 88 + bh + 12;
-    colLeft = std::min(colLeft, R - wmax - 16);
-    hudColLeft_ = R - wmax - 12; hudColBottom_ = T + 88 + bh + 2;
-  }
-  if (locSuffix.empty()) colText(T + 91, loc, fa(kText));
-  else if (T + 99 <= clipY) {   // the name, then the mood in its colour (a dot between)
-    const float mw = (float)P.textW(locSuffix, 1);
-    P.textS(R - 5, T + 91, moodS, 1, fa(moodC), 2);
-    P.rect(std::floor(R - 5 - mw + 3), T + 94, 2, 2, fa(Color(kDim.r, kDim.g, kDim.b, 0.9f)));
-    P.textS(R - 5 - mw, T + 91, loc, 1, fa(kText), 2);
-  }
-  if (!kingLine.empty() && T + 108 <= clipY) {
-    // the kingdom line in its colour, with a full dark outline (its tint sits close to the land's own colours)
-    const Color o(0.02f, 0.02f, 0.04f, 0.9f * hudA);
-    for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 100 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), kingLine, 1, o, 2);
-    P.text(R - 4, T + 101, kingLine, 1, o, 2);
-    P.text(R - 5, T + 100, kingLine, 1, fa(kingCol), 2);
-    if (!stateLine.empty() && T + 117 <= clipY) {
-      for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 109 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), stateLine, 1, o, 2);
-      P.text(R - 5, T + 109, stateLine, 1, fa(stateCol), 2);
-    }
-  }
-  // (M4, VISION_PLAN 7.1) dangerous country: a skull before the place's name, coloured by how far the land's danger
-  // runs past the hero's level (yellow, red, purple); none at home or in safe country
-  {
-    const int dk = dangerSkull(g);
-    if (dk >= 0 && T + 99 <= clipY) {
-      static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
-      const Color sc = dk == 0 ? Color(0.45f, 0.90f, 0.42f) : dk == 1 ? Color(0.98f, 0.86f, 0.30f) : dk == 2 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
-      const float sx = R - 5 - P.textW(loc + locSuffix, 1) - 10, sy = T + 91;
-      for (int j = 0; j < 7; j++)
-        for (int i = 0; i < 7; i++) {
-          if (kSkull[j][i] != 'x') continue;
-          P.rect(sx + i + 1, sy + j + 1, 1, 1, Color(0, 0, 0, 0.7f * hudA));
-          P.rect(sx + i, sy + j, 1, 1, fa(sc));
-        }
-    }
-  }
-  colText(T + 100 + kdy, dayStr, fa(kDim));
+}
+
+// (M5 fixer) a live night raid: the chevron toward the nearest raider out of sight (hudLocationColumn)
+void View::hudRaidPointer(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const float L = H.L, T = H.T, R = H.R, B = H.B;
+  const float colBottom = H.colBottom;
+  const float colLeft = H.colLeft;
   // (M5 fixer, review: "nothing points to the fight") a live night raid: a red chevron at the screen's edge toward the
   // nearest raider out of sight, pulsing, so a phone player can find (and join) the town's defence
   if (g.life.raid.site && g.life.raid.outcome == 0 && !g.inside && g.mode == Mode::Play) {
@@ -839,6 +940,12 @@ void View::drawHud(Game& g) {
       P.textS(a.x - d.x * 22, a.y - d.y * 22 - 3, "RAID", 1, Color(1.0f, 0.36f, 0.28f), 1);
     }
   }
+}
+
+// the menu key's label (desktop) or the hamburger button (touch), with the perk badge (hudLocationColumn)
+void View::hudMenuBadge(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const float T = H.T, R = H.R;
   if (!touchUI) {
     P.textS(R - 24, T + 7, "TAB", 1, kDim, 1);
     SkillsUiOps::drawBadge(*this, R - 46, T + 7, g.skills.perkPts);   // (M9) perk points to spend
@@ -849,17 +956,27 @@ void View::drawHud(Game& g) {
     for (int k = 0; k < 3; k++) P.rect(b.x - 5, b.y - 4 + k * 4, 10, 2, kText);
     SkillsUiOps::drawBadge(*this, b.x - 15, b.y + 4, g.skills.perkPts);   // (M9) on the hamburger's lower-left corner
   }
+}
 
+// the tracked quest under the column: its title, its step, the compass caret and the map pin (drawHud)
+void View::hudQuest(Game& g, HudFrame& H) {
+  Pix& P = H.P;
+  const Actor& p = H.p;
+  const float L = H.L, T = H.T, R = H.R, B = H.B;
+  const float kw = H.kw;
+  float& colBottom = H.colBottom;
+  float& colLeft = H.colLeft;
+  const float kdy = H.kdy;
   // tracked quest
   if (g.trackedQuest >= 0) {
     const Quest* q = g.questById(g.trackedQuest);
     if (q && q->state != QState::Done) {
       const std::string obj = trackedStep(g, *q);
       const std::string t = hudQuestTitle(q->title);
-      colText(T + 112 + kdy, t, fa(kGold));
+      H.colText(T + 112 + kdy, t, H.fa(kGold));
       if (!obj.empty()) {
         const size_t nl = obj.find('\n');
-        colText(T + 121 + kdy, obj.substr(0, nl), fa(kText));
+        H.colText(T + 121 + kdy, obj.substr(0, nl), H.fa(kText));
         if (nl != std::string::npos) {
           // (P1b ENGINE lane) a story's clock reads at a glance: gold while days remain, the last day a warning red
           const std::string l2 = obj.substr(nl + 1);
@@ -867,7 +984,7 @@ void View::drawHud(Game& g) {
           if (q->type == QType::Story && l2 == "LAST DAY") c2 = ((int)(t_ * 2.5f) & 1) ? Color(1.0f, 0.42f, 0.32f) : Color(1.0f, 0.62f, 0.45f);
           else if (q->type == QType::Story && l2 == "ONE DAY LEFT") c2 = Color(1.0f, 0.62f, 0.38f);
           else if (q->type == QType::Story && l2.find("DAYS LEFT") != std::string::npos) c2 = kGold;
-          colText(T + 130 + kdy, l2, fa(c2));
+          H.colText(T + 130 + kdy, l2, H.fa(c2));
         }
       }
       // off-screen arrow toward the objective
@@ -1034,7 +1151,13 @@ void View::drawHud(Game& g) {
       }
     }
   }
+}
 
+// the bosses' bars over their heads (drawHud)
+void View::hudBossBar(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const Actor& p = H.p;
+  const float B = H.B;
   // boss bar
   for (const Actor& a : g.actors) {
     if (!a.boss || a.st == AState::Dead || !a.aggro) continue;
@@ -1046,7 +1169,14 @@ void View::drawHud(Game& g) {
     P.rect(x, y, w * clampf(a.hp / a.maxHp, 0, 1), 4, Color(0.75f, 0.12f, 0.1f));
     break;
   }
+}
 
+// the NPC's name and the interact prompt (drawHud)
+void View::hudPrompt(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const float L = H.L, T = H.T;
+  const float kw = H.kw;
+  const art::RigMetrics& RM = H.RM;
   // NPC name / interact prompt
   tagOn_ = false;
   int it = g.mode == Mode::Play ? g.interactTarget() : -1;
@@ -1180,7 +1310,12 @@ void View::drawHud(Game& g) {
       P.textS(s.x, s.y - 10, lab, 1, kGold, 1);
     }
   }
+}
 
+// the notice line, the biome banner and the arrival banner; true while the companions' order ring is open (drawHud)
+bool View::hudNotices(Game& g, const HudFrame& H) {
+  Pix& P = H.P;
+  const float L = H.L, T = H.T, B = H.B;
   // (toasts are drawn by drawToasts, above the dialogue panel)
   // (M2 fixer round 2) not under a dialogue (it showed through the panel as ghost text), on a backing band (a 1-px
   // drop shadow was lost over foliage and birch trunks), and clear of the quest pointer's distance at the bottom
@@ -1245,9 +1380,7 @@ void View::drawHud(Game& g) {
       P.textS(Pix::W / 2, y + 30, bannerState_, 1, Color(sc.r, sc.g, sc.b, a), 1);
     }
   }
-  if (!ringOpen) drawHerald(g);
-  drawHomeHud(g);   // (M7) YARD / DECORATE, DISMOUNT (buildmode.cpp)
-  drawPartyHud(g);  // (M8) the companions' portraits and alerts (party_hud.cpp)
+  return ringOpen;
 }
 
 // Toasts (items received, quest steps, notices): a column on the left under the vitals, clear of the thumbs (the

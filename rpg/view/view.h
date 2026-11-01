@@ -554,6 +554,20 @@ class View {
   void drawLighting(Game& g);
   void drawWeather(Game& g, float dt);
   void drawHud(Game& g);
+  // ---- (SOLID 3.4c) drawHud's pieces, in this order (hud.cpp); HudFrame: the frame's shared values
+  struct HudFrame;
+  float hudVitals(Game& g, const HudFrame& H);   // returns the quick bar's left edge
+  void hudQuickSlots(Game& g, const HudFrame& H, float spellX);
+  void hudBurden(Game& g, const HudFrame& H);
+  void hudLocationColumn(Game& g, HudFrame& H);
+  bool hudColumnFade(Game& g, HudFrame& H);      // true: the minimap shows
+  void hudKingLines(Game& g, const std::string& loc, std::string& kingLine, Color& kingCol, std::string& stateLine, Color& stateCol);
+  void hudRaidPointer(Game& g, const HudFrame& H);
+  void hudMenuBadge(Game& g, const HudFrame& H);
+  void hudQuest(Game& g, HudFrame& H);
+  void hudBossBar(Game& g, const HudFrame& H);
+  void hudPrompt(Game& g, const HudFrame& H);
+  bool hudNotices(Game& g, const HudFrame& H);   // true: the companions' order ring is open
   float biomeBannerY(float half) const;   // (M9 fixer) the region banner's text line: below a boss bar, clear of the quick bar
   void drawTouch(Game& g);
   void drawToasts();
