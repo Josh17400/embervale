@@ -30,6 +30,38 @@ seed 7
 +0.1 p3grab
 +0.4 expect toast + *
 +0.0 shot p3_view_pickup_rare.png
+# ---- the card's maker row (gear::makerLine: the people, the metal and, with LOOT's rules, the alloy's rank "(2 OF 3)" or
+# an old maker's metal "OLD MAKERS' WORK: OBSIDIAN (2 OF 4)")
++0.1 gear6 sword ilvl 31 rarity 3
++0.1 gear6 armor ilvl 2 rarity 0 mat bronze
++0.1 menu 0
++0.3 lootsel menu last
++0.4 expect lootmaker *WORK*
++0.0 expect lootmaker *BRONZE*
++0.0 shot p3_view_card_bronze.png
++0.1 key Escape
+# ---- the PARTY page: a companion, their own kit (TAKE BACK greyed), a lent piece (the gold tab, YOU LENT THIS), the
+# compare arrow at their level, their own words, and the PARTED list (where each waits)
++0.2 party recruit
++0.1 walk east 1.2
++0.3 partyview level 12
++0.1 p3kit 0 0
++0.1 partyview page 0 gear 6
++0.4 shot p3_view_party_kit.png
++0.1 key X
++0.3 shot p3_view_party_kit_takeback.png
++0.1 partyview page 0 gear 3
++0.4 shot p3_view_party_lent.png
++0.1 p3say 0 MINE SERVES ME BETTER.
++0.1 key Escape
++0.2 p3parted 0 2
++0.1 p3parted 0 9 angry
++0.1 partyview page 0
++0.2 p3page parted
++0.4 shot p3_view_party_parted.png
++0.1 key S
++0.3 shot p3_view_party_parted_waits.png
++0.1 key Escape
 # ---- the phone window (iPhone 15 Pro, 2556 x 1179): D0 5, NEAR 6, CLOSE 10 (117 world rows)
 +0.5 firstlaunch phone 2556x1179
 +0.3 zoom close

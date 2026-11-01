@@ -153,6 +153,20 @@ void tilePos(witness::Json& j, Vec2 p, const Game& g) {
   const double ox = g.inside ? 0.0 : (double)g.world.ox, oy = g.inside ? 0.0 : (double)g.world.oy;
   j.vec(r2(p.x / TILE + ox), r2(p.y / TILE + oy));
 }
+// (P3 B11) the toast column as a tester would read it: the last 5, oldest first (text, age in seconds)
+void toastsJson(witness::Json& j, const View& v) {
+  j.key("toasts").begin_array();
+  const std::vector<Toast>& ts = v.toastsShown();
+  for (size_t i = ts.size() > 5 ? ts.size() - 5 : 0; i < ts.size(); i++)
+    j.begin_object().field("text", ts[i].s).field("age", r2(ts[i].t)).end_object();
+  j.end_array();
+}
+// (P3 B12) rank 0 ordinary, 1 elite, 2 champion, 3 named, 4 boss, 5 world boss (foes::Rank; a boss body is at least 4);
+// boss: rank >= 4, so a tester's goto never picks a fight with a dungeon or world boss by accident
+void rankJson(witness::Json& j, const Actor& a) {
+  const int rank = std::max((int)a.rank, a.boss ? (int)foes::Rank::Boss : 0);
+  j.field("rank", rank).field("boss", rank >= (int)foes::Rank::Boss);
+}
 }  // namespace
 
 void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessExtra& x) {
@@ -171,14 +185,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   // (Witness 0.6/0.7) the outcome: trace --xy and heatmap mark deaths from it, a playtest wakes on it
   j.field("dead", g.mode == Mode::Dead);
   if (g.noticeT > 0 && !g.notice.empty()) j.field("notice", g.notice);
-  // (P3 B11) the toast column as a tester would read it: the last 5, oldest first (text, age in seconds)
-  j.key("toasts").begin_array();
-  {
-    const std::vector<Toast>& ts = v.toastsShown();
-    for (size_t i = ts.size() > 5 ? ts.size() - 5 : 0; i < ts.size(); i++)
-      j.begin_object().field("text", ts[i].s).field("age", r2(ts[i].t)).end_object();
-  }
-  j.end_array();
+  toastsJson(j, v);   // (P3 B11)
 
   // the player
   auto eq = [&](int i) -> std::string { return i >= 0 && i < (int)g.inv.size() ? g.inv[(size_t)i].name : std::string(); };
@@ -410,10 +417,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.key("pos"); tilePos(j, a.p, g);
     j.field("dist", r2(near[i].first)).field("hp", r2(a.hp)).field("maxHp", r2(a.maxHp)).field("level", a.level)
         .field("hostile", a.hostile).field("aggro", a.aggro).field("faction", factionName(a.faction)).field("state", stateName(a.st));
-    // (P3 B12) rank 0 ordinary, 1 elite, 2 champion, 3 named, 4 boss, 5 world boss (foes::Rank; a boss body is at least 4);
-    // boss: rank >= 4, so a tester's goto never picks a fight with a dungeon or world boss by accident
-    const int rank = std::max((int)a.rank, a.boss ? (int)foes::Rank::Boss : 0);
-    j.field("rank", rank).field("boss", rank >= (int)foes::Rank::Boss);
+    rankJson(j, a);   // (P3 B12)
     if (a.human) {   // (P2a) what a person shows, and how long the dead have lain
       const AnimPick k = animPick(g, a);
       j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
