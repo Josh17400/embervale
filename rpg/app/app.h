@@ -16,6 +16,7 @@
 #ifdef EMB_WITNESS
 #include <map>
 #include "engine/witness.h"
+#include "rpg/app/recorder.h"
 #include "rpg/view/witness_state.h"
 #endif
 
@@ -110,23 +111,8 @@ struct App : AppSetup {
     long long chunks0 = 0;                    // chunks generated (main source + streamer) at the last print
   } pacc;
 #ifdef EMB_WITNESS
-  struct StartSpec {
-    bool god = false, enter = false, creator = false, atSet = false;
-    std::string scene, fight, name;
-    float hour = -1;
-    int32_t atX = 0, atY = 0;
-    int talk = -1, menu = -1, count = 0, background = 0, ids = 0;
-  };
   WitnessExtra wStart;   // where the start put the player (state.player.start / moved)
-  struct RecHeld {
-    struct Finger { bool on = false; SDL_TouchFingerEvent ev{}; };   // ev: its last event (the release goes there)
-    std::vector<std::string> keys, keysLetGo;    // Witness key names
-    bool button[3] = {}, buttonLetGo[3] = {};    // 0 left, 1 middle, 2 right
-    SDL_MouseButtonEvent buttonEv[3] = {};       // each press (a release is made from it)
-    float mouseX = 0, mouseY = 0;                // the pointer's last window position
-    Finger finger[10];                           // slot i is the replay's finger i (0 = the first finger down)
-    std::vector<SDL_FingerID> fingersLetGo;
-  } rec;
+  RecHeld rec;
   // ---- Witness (the harness's handlers and what they hold between commands)
   std::vector<SDL_Scancode> wHeld;   // keys the harness holds down
   std::vector<Lift> wFingers;        // fingers the harness holds down (witness finger n is SDL finger n + 1)
