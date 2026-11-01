@@ -391,7 +391,7 @@ void View::riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& 
           q.size = r.range(4.5f, 7.5f);
           q.grav = -1.5f;
           q.kind = 2;
-          parts_.push_back(q);
+          fx_.parts_.push_back(q);
         }
       }
     }

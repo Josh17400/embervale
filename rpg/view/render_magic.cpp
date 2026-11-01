@@ -1286,7 +1286,7 @@ void View::magicUpdate(Game& g, float dt) {
     }
     W.sounds.clear();
     for (bool& b : S.classicSfx) b = false;
-    if (W.shake > 0) { shake_ = std::max(shake_, W.shake); W.shake = 0; }
+    if (W.shake > 0) { fx_.shake_ = std::max(fx_.shake_, W.shake); W.shake = 0; }
     if (W.flashA > S.flashA) { S.flashA = W.flashA; S.flashC = W.flashC; }
     if (W.lift > S.liftA) { S.liftA = W.lift; S.liftC = W.liftC; }
     W.flashA = 0; W.lift = 0;

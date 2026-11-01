@@ -293,14 +293,14 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
           homeLights_.push_back({Vec2(bx + 8.0f, by - 6.0f), 34, Color(1.0f, 0.78f, 0.42f), 0.95f * k});
           homeLights_.push_back({Vec2(bx + 8.0f, by - 2.0f), 92, Color(1.0f, 0.55f, 0.25f), 0.62f * k});
         }
-        if (hashf((int)(t_ * 12), o.x * 7 + o.y, 77) < 0.18f && parts_.size() < 560) {   // a wisp of smoke, now and then
+        if (hashf((int)(t_ * 12), o.x * 7 + o.y, 77) < 0.18f && fx_.parts_.size() < 560) {   // a wisp of smoke, now and then
           Particle q;
           q.p = Vec2(bx + 7.0f + hashf((int)(t_ * 31), o.x, 3) * 3, by - 10.0f);
           q.v = Vec2(2.0f + hashf((int)(t_ * 17), o.y, 5) * 4, -10.0f - hashf((int)(t_ * 13), o.x, 9) * 4);
           q.life = q.max = 2.4f;
           q.c = Color(0.72f, 0.70f, 0.70f);
           q.size = 1; q.grav = -1.2f; q.kind = 2;
-          parts_.push_back(q);
+          fx_.parts_.push_back(q);
         }
       }
     }
@@ -531,7 +531,7 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   layer(full, 0);
   if (flash > 0) layer(Color(1, 1, 1, flash), 1);
   // a gallop throws up a little dust behind the hooves
-  if (gallop && hashf((int)(t_ * 30), a.id, 41) < 0.35f && parts_.size() < 560) {
+  if (gallop && hashf((int)(t_ * 30), a.id, 41) < 0.35f && fx_.parts_.size() < 560) {
     Particle q;
     const Vec2 back = a.face == 0 ? Vec2(0, -6) : a.face == 1 ? Vec2(0, 4) : a.face == 2 ? Vec2(-12, 0) : Vec2(12, 0);
     q.p = a.p + back + Vec2(hashf((int)(t_ * 57), a.id, 3) * 6 - 3, -1);
@@ -539,7 +539,7 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
     q.life = q.max = 0.5f;
     q.c = Color(0.62f, 0.54f, 0.42f);
     q.size = 2; q.grav = 0; q.kind = 0;
-    parts_.push_back(q);
+    fx_.parts_.push_back(q);
   }
   if (v2) rideGhost_ = g2;
   else { const Tex* rt = sprites_.poseTex(*this, a.look, art::Posture::Ride); rideGhost_.t = rt ? rt : &sprites_.humanTex(*this, a.look); rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }

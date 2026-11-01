@@ -729,12 +729,12 @@ void View::drawPropSorted(Game& g, FrameCtx& F, const Drawable& d) {
       q.life = q.max = 1.1f;
       q.c = Color(1, 0.62f, 0.22f);
       q.size = 1;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
   }
   if (p == Prop::Campfire || p == Prop::Brazier) {
     Rng r((uint32_t)(t_ * 30) + d.tx * 7);
-    if (r.f() < 0.3f) { Particle q; q.p = Vec2(d.tx * 16 + 8 + r.range(-3, 3), d.ty * 16 + 6.0f); q.v = Vec2(r.range(-5, 5), r.range(-30, -15)); q.life = q.max = 0.8f; q.c = Color(1, 0.6f, 0.2f); q.size = 1; parts_.push_back(q); }
+    if (r.f() < 0.3f) { Particle q; q.p = Vec2(d.tx * 16 + 8 + r.range(-3, 3), d.ty * 16 + 6.0f); q.v = Vec2(r.range(-5, 5), r.range(-30, -15)); q.life = q.max = 0.8f; q.c = Color(1, 0.6f, 0.2f); q.size = 1; fx_.parts_.push_back(q); }
   }
 }
 
@@ -1186,7 +1186,7 @@ void View::drawBuildingSorted(Game& g, FrameCtx& F, const Drawable& d) {
       q.size = r.f() < 0.5f ? 2.0f : 1.0f;
       q.grav = -1.5f;
       q.kind = 2;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
   if (b.charred && m.kind == MapKind::Overworld) burnedFx(g, m, b, d.idx, 0);   // (M4) a burned building smoulders
 }
@@ -1551,7 +1551,7 @@ void View::drawProjSorted(Game& g, FrameCtx& F, const Drawable& d) {
       float sc = pr.kind == ProjKind::DragonFire ? 1.5f : 1.0f;
       P.blitEx(t, fr * fw, 0, fw, fh, x - fw * sc / 2, y - fh * sc / 2, fw * sc, fh * sc, dir.x < 0);
       Rng r((uint32_t)(t_ * 60) + d.idx);
-      Particle q; q.p = pr.p; q.v = Vec2(r.range(-10, 10), r.range(-10, 10)); q.life = q.max = 0.3f; q.c = Color(1, r.range(0.3f, 0.7f), 0.1f); q.size = 1; parts_.push_back(q);
+      Particle q; q.p = pr.p; q.v = Vec2(r.range(-10, 10), r.range(-10, 10)); q.life = q.max = 0.3f; q.c = Color(1, r.range(0.3f, 0.7f), 0.1f); q.size = 1; fx_.parts_.push_back(q);
       break;
     }
     case ProjKind::IceSpike: {

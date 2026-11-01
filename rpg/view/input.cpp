@@ -98,7 +98,7 @@ void View::menuKey(Game& g, int key) {
           g.trackedQuest = g.quests[(size_t)rows[(size_t)menuSel_].q].id;
       }
       if (menuTab_ == 4) {
-        if (menuSel_ == 0) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerState_.clear(); bannerT_ = 2; }
+        if (menuSel_ == 0) { wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; bannerState_.clear(); fx_.bannerT_ = 2; }
         if (menuSel_ == 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
         if (menuSel_ == 2) touchUI = !touchUI;
         if (menuSel_ == 3) { wantSave = true; wantsQuit = true; }
@@ -315,7 +315,7 @@ void View::tap(Game& g, Vec2 p) {
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;
         const float bw = std::clamp(std::floor(Pix::W * 0.36f), 140.0f, 220.0f), bx = std::floor((Pix::W - bw) / 2), by = sysTop(top, sh, touchUI);
-        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerState_.clear(); bannerT_ = 2; }
+        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; fx_.banner_ = "GAME SAVED"; fx_.bannerSub_ = ""; bannerState_.clear(); fx_.bannerT_ = 2; }
         if (inR(bx, by + pitch, bw, sh)) { menuSel_ = 1; openSettings(); audio_->play(Sfx::MenuSelect); }
         if (inR(bx, by + pitch * 2, bw, sh)) { menuSel_ = 2; touchUI = !touchUI; }
         if (inR(bx, by + pitch * 3, bw, sh)) { wantSave = true; wantsQuit = true; }

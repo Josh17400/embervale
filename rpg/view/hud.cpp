@@ -330,12 +330,12 @@ void View::draw(Game& g, bool hasSave) {
   drawWeather(g, 0);
   // quest-giver markers after the night/weather pass so the "!" stays readable in the dark
   if (g.mode != Mode::Title && g.mode != Mode::Creator) {
-    drawMarkers(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));
-    companionOverlays(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
-    drawPowerFx(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
-    drawMagicFx(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
-    drawReliefOver(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
-    drawSeaOver(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
+    drawMarkers(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));
+    companionOverlays(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8) the wound, the binding
+    drawPowerFx(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8b) the worn powers' effects
+    drawMagicFx(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
+    drawReliefOver(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
+    drawSeaOver(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
   P.endWorld();
   // (P2a `ui 0`) the world alone: the device shots p2_measure.mjs checks for whole D x D blocks
@@ -347,7 +347,7 @@ void View::draw(Game& g, bool hasSave) {
   plateBoxes_.clear();
   std::vector<PlateBox> speechBands;
   if (g.mode == Mode::Play) hudBands(g, speechBands);
-  for (const FloatText& f : texts_) {
+  for (const FloatText& f : fx_.texts_) {
     if (f.speech) {
       // (M5) a spoken line: wrapped to ~22 characters, centred over the speaker on a dark plate with a 1 px rim, in the
       // speaker's colour; fades in over a tenth of a second and out over its last half second; whole pixels
@@ -394,7 +394,7 @@ void View::draw(Game& g, bool hasSave) {
     P.text(fu.x + 1, fu.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
     P.text(fu.x, fu.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
   }
-  if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y)));   // (M8) party_hud.cpp
+  if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y)));   // (M8) party_hud.cpp
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
   else if (g.mode == Mode::Creator) { drawCreator(g); }
   else {
@@ -408,7 +408,7 @@ void View::draw(Game& g, bool hasSave) {
     if (g.mode == Mode::Dialogue) drawDialogue(g);
     // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
     // panel is tall and anything drawn over it hides the speaker and the first line
-    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build && !(radial_.open && g.mode == Mode::Play)) drawToasts();
+    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build && !(radial_.open && g.mode == Mode::Play)) fx_.drawToasts(*this);
     if (g.mode == Mode::Shop) drawShop(g);
     if (g.mode == Mode::Forge) drawForge(g);   // M6 (craft_ui.cpp)
     if (g.mode == Mode::Build) drawBuild(g);   // M7 (buildmode.cpp)
@@ -1035,7 +1035,7 @@ void View::hudQuest(Game& g, HudFrame& H) {
               else a.y = riseBanBottom_ + 14;
             }
           }
-          if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
+          if (biomeBannerT_ > 0 && !biomeBanner_.empty() && fx_.bannerT_ <= 0 && g.mode == Mode::Play) {
             const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
             const float by1 = biomeBannerY(half) + 11 + 14;
             const float mx = Pix::W / 2.0f;
@@ -1250,12 +1250,12 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
           // (fixer M8 r3, review: "the HUNGRY hint box overlaps E: TALK / A GUARD") clear of the toast column on the
           // left, as the yard's and the props' prompts keep (M7 fix): the label steps right of the notices
           const float ly0 = ly - (touchUI ? 2.0f : 11.0f), ly1 = ly + 9.0f;
-          if (toastX1_ > 0 && lx - labelW < toastX1_ + 4 && ly0 < toastY1_ + 2 && ly1 > toastY0_ - 2) lx = toastX1_ + 4 + labelW;
+          if (fx_.toastX1_ > 0 && lx - labelW < fx_.toastX1_ + 4 && ly0 < fx_.toastY1_ + 2 && ly1 > fx_.toastY0_ - 2) lx = fx_.toastX1_ + 4 + labelW;
         }
         // (P1 fixer) the centre banner ("QUEST COMPLETE / STOP, THIEF!") is drawn after the tag, its plate over the
         // label ("STOP, TALK THIEF!"): while it shows, a label in its band waits for it to fade (moved under it, it
         // landed on the "+16 GOLD" rising off the hero)
-        if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
+        if (fx_.bannerT_ > 0 && g.mode != Mode::Dialogue) {
           const float b0 = T + 50.0f, b1 = T + 56.0f + (bannerState_.empty() ? 30.0f : 42.0f);
           const float l0 = ly - (touchUI ? 2.0f : 11.0f), l1 = ly + 9.0f;
           if (l1 > b0 - 2 && l0 < b1 + 2) break;
@@ -1285,7 +1285,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
                                  : std::string(touchUI ? "TAP: " : "E: ") + homeVerb;
     const float w = (float)P.textW(lab, 1) + 8;
     // (M7 fix) clear of the toast column on the left (a need's notice ran into the prompt: "...OR AE: LOOK AT")
-    if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 13 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;
+    if (fx_.toastX1_ > 0 && s.x - w / 2 < fx_.toastX1_ + 4 && s.y - 13 < fx_.toastY1_ + 2 && s.y - 2 > fx_.toastY0_ - 2) s.x = fx_.toastX1_ + 4 + w / 2;
     if (touchUI) { float ty = s.y - 13; clearOfTouch(s.x, ty, w, 11); s.y = ty + 13; }   // (M7 fixer r2)
     P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
     P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
@@ -1305,7 +1305,7 @@ void View::hudPrompt(Game& g, const HudFrame& H) {
       Vec2 s = camera_.toUi(*this, Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f));
       const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty);
       const float w = (float)P.textW(lab, 1);
-      if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 11 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;   // (M7 fix)
+      if (fx_.toastX1_ > 0 && s.x - w / 2 < fx_.toastX1_ + 4 && s.y - 11 < fx_.toastY1_ + 2 && s.y - 2 > fx_.toastY0_ - 2) s.x = fx_.toastX1_ + 4 + w / 2;   // (M7 fix)
       if (touchUI) { float ty = s.y - 11; clearOfTouch(s.x, ty, w + 4, 10); s.y = ty + 11; }   // (M7 fixer r2)
       P.textS(s.x, s.y - 10, lab, 1, kGold, 1);
     }
@@ -1350,7 +1350,7 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
   // (fixer M8 r3, review: "radial labels run into the region banner: WAIT LLAGE") the title cards, the herald and the
   // toasts step away while the companions' order ring is open (their clocks run on; the ring is a moment's choice)
   const bool ringOpen = radial_.open && g.mode == Mode::Play;
-  if (!ringOpen && biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+  if (!ringOpen && biomeBannerT_ > 0 && !biomeBanner_.empty() && (fx_.bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
     const float tw = (float)P.textW(biomeBanner_, 1);
     const float half = std::min(tw / 2 + 26, Pix::W / 2.0f - 70);
@@ -1362,8 +1362,8 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
     P.textS(Pix::W / 2, y, biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
   }
   // banner (not on the death screen: its words own the centre, and an arrival card under them read "YOU HAVE FALLARS")
-  if (bannerT_ > 0 && g.mode != Mode::Dialogue && g.mode != Mode::Dead && !ringOpen) {
-    const float a0 = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
+  if (fx_.bannerT_ > 0 && g.mode != Mode::Dialogue && g.mode != Mode::Dead && !ringOpen) {
+    const float a0 = clampf(std::min(fx_.bannerT_, 4.0f - fx_.bannerT_) * 2.5f, 0, 1);
     // (fixer M4 r3, review: "a ghost of the town name stays on the ground after the plate fades") the plate fades last:
     // the words go first (a squared), so no name ever floats over the street without its dark plate under it
     const float plateA = std::min(1.0f, a0 * 1.6f), a = a0 * a0;
@@ -1371,9 +1371,9 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
     P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * plateA));
     P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
     P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
-    P.textS(Pix::W / 2, y, banner_, 1, Color(kGold.r, kGold.g, kGold.b, a), 1);
-    P.textS(Pix::W / 2 + 1, y + 11, bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
-    P.textS(Pix::W / 2, y + 10, bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
+    P.textS(Pix::W / 2, y, fx_.banner_, 1, Color(kGold.r, kGold.g, kGold.b, a), 1);
+    P.textS(Pix::W / 2 + 1, y + 11, fx_.bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
+    P.textS(Pix::W / 2, y + 10, fx_.bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
     if (!bannerState_.empty()) {   // (M4) the settlement's state under its name, in its colour
       const Color sc = col(bannerStateCol_ ? bannerStateCol_ : rgba(236, 120, 90));
       P.rect(0, y + 28, Pix::W, 11, Color(0, 0, 0, 0.45f * plateA));
@@ -1387,22 +1387,22 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
 // touch stick and buttons sit at the bottom), the centre notice and the quest column; newest at the top.
 // (M2) a toast never runs under the minimap or the quest column (the right 160 px of the safe area): a long one wraps
 // onto a second line, and the column stops above the touch stick.
-void View::drawToasts() {
-  Pix& P = *pix_;
+void FxState::drawToasts(View& v) {
+  Pix& P = *v.pix_;
   // (M8) with a party the column of portraits stands at the left edge under the vitals: the toasts step right of it
   // (fixer M8 r1, review: "WEARY: FIND A BED reads as the hound's label") a clear gap from the cards and a firmer plate
-  const float L = partyColR_ > 0 ? std::max((float)Pix::SL, partyColR_ + 6) : (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  const float L = v.partyColR_ > 0 ? std::max((float)Pix::SL, v.partyColR_ + 6) : (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   // (M8b fixer r3, review: "IRON MAIL floats at the left edge with no backing panel") a firm plate and a rule for every
   // toast, so a find's name reads as a notice on its strip, not a stray label over a dark floor
-  const float plateA = partyColR_ > 0 ? 0.7f : 0.66f;
+  const float plateA = v.partyColR_ > 0 ? 0.7f : 0.66f;
   // (M6 fixer r4, review: "event text is drawn right over the world boss") at most 30 characters a line, so a long
   // notice wraps in the left column instead of running across the middle of the screen, where the hero and his foe stand
   const int per = std::clamp((int)((R - 166 - (L + 6)) / 6), 16, 30);
-  const float bottom = B - (touchUI ? 86.0f : 30.0f);
+  const float bottom = B - (v.touchUI ? 86.0f : 30.0f);
   float ty = (float)Pix::ST + 92;
   // (fixer M4 r2) the full-width banner (T+50 .. T+84, its state line to T+95) is never written over: the column
   // starts under it while it shows
-  if (bannerT_ > 0) ty = std::max(ty, (float)Pix::ST + 56 + (bannerState_.empty() ? 30.0f : 42.0f));
+  if (bannerT_ > 0) ty = std::max(ty, (float)Pix::ST + 56 + (v.bannerState_.empty() ? 30.0f : 42.0f));
   int shown = 0;
   toastX1_ = 0; toastY0_ = ty - 2; toastY1_ = ty - 2;
   for (int i = (int)toasts_.size() - 1; i >= 0 && shown < 5; i--, shown++) {
@@ -1421,7 +1421,7 @@ void View::drawToasts() {
       P.rect(L + 4, ty + 8, w + 5, 1, Color(0, 0, 0, 0.35f * a));   // a hairline under the plate: it sits on the screen
       if (a > 0.05f) { toastX1_ = std::max(toastX1_, L + 9 + w); toastY1_ = ty + 8; }
       if (skillT) {
-        if (k == 0) SkillsUiOps::toastDecor(*this, t, L + 6 + ind, ty, w - ind, a);
+        if (k == 0) SkillsUiOps::toastDecor(v, t, L + 6 + ind, ty, w - ind, a);
         P.textS(L + 6 + ind, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
         ty += k + 1 < lines.size() ? 10.0f : 11.0f;
         continue;
@@ -1429,7 +1429,7 @@ void View::drawToasts() {
       P.textS(L + 7, ty + 1, s, 1, Color(0, 0, 0, a * 0.6f));
       if (t.rarity > 0) {   // (M8b) a find: its name in the ladder colour (a Mythic's in the flame), a rule in it
         P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r, t.c.g, t.c.b, 0.9f * a));
-        rarityText(L + 6, ty, s, (Rarity)t.rarity, a, 0, true);
+        v.rarityText(L + 6, ty, s, (Rarity)t.rarity, a, 0, true);
       } else {
         P.textS(L + 6, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
       }
@@ -2174,11 +2174,11 @@ bool View::buffTap(Game& g, Vec2 p) {
   int n = 0;
   for (uint8_t bit : {life::BUFF_WELLFED, life::BUFF_RESTED, life::BUFF_HUNGRY, life::BUFF_WEARY}) if (bf & bit) n++;
   if (p.x < x0 || p.x >= x0 + n * 13.0f + 6 || p.y < y0 || p.y >= y0 + 19) return false;
-  auto say = [&](const char* s, uint32_t c) { Toast t; t.s = s; t.c = col(c); toasts_.push_back(t); };
+  auto say = [&](const char* s, uint32_t c) { Toast t; t.s = s; t.c = col(c); fx_.toasts_.push_back(t); };
   if (bf & life::BUFF_WELLFED) {
     static const char* kQ[] = {"WELL FED", "WELL FED (GOOD MEAL)", "WELL FED (FINE MEAL)", "WELL FED (SUPERB MEAL)"};
     const std::string s = std::string(kQ[std::min(3, (int)g.life.player.mealQuality)]) + ": STAMINA AND HEALTH COME BACK FASTER";
-    Toast t; t.s = s; t.c = col(rgba(240, 200, 110)); toasts_.push_back(t);
+    Toast t; t.s = s; t.c = col(rgba(240, 200, 110)); fx_.toasts_.push_back(t);
   }
   if (bf & life::BUFF_RESTED) say("RESTED: +10% EXPERIENCE", rgba(150, 200, 255));
   if (bf & life::BUFF_HUNGRY) say("HUNGRY: STAMINA COMES BACK SLOWER. EAT FOOD (ITEMS) OR A MEAL AT AN INN", rgba(220, 160, 110));

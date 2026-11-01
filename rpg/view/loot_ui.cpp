@@ -327,7 +327,7 @@ void View::lootUpdate(Game& g, float dt) {
       q.size = ((h >> 12) % 3u) == 0 ? 2 : 1;
       q.grav = -6;
       q.layer = 0;   // a solid pixel (an additive one vanishes on a sunlit field): the hot core of an ember
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
       lootCount_.embers++;
     }
   }

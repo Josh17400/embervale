@@ -83,7 +83,7 @@ void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
       q.size = out ? r.range(3.0f, 5.0f) : r.range(2.0f, 3.0f);
       q.grav = -1.5f;
       q.kind = 2;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
     if (out && r.f() < 0.05f) {   // sparks and embers lifting from the ruin
       Particle q;
@@ -93,7 +93,7 @@ void View::burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt) {
       q.c = r.f() < 0.5f ? Color(1.0f, 0.62f, 0.18f) : Color(1.0f, 0.86f, 0.40f);
       q.size = 1;
       q.grav = 8.0f;
-      parts_.push_back(q);
+      fx_.parts_.push_back(q);
     }
   }
 }

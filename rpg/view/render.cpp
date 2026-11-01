@@ -427,7 +427,7 @@ const Tex& SpriteCache::humanTex(View& v, const art::HumanLook& L, bool child) {
 
 // ---- P2a phase A (VISION_PLAN 15.36 items 3 and 4): the projection and the v2 atlases. LENS owns these from here (the
 //      world layer, the MB caps on the people caches, the bake queue for folk entering the stream radius).
-Vec2 Camera::worldCam(const View& v) const { return Vec2(std::floor(cam_.x + v.shakeOff_.x), std::floor(cam_.y + v.shakeOff_.y)); }
+Vec2 Camera::worldCam(const View& v) const { return Vec2(std::floor(cam_.x + v.fx_.shakeOff_.x), std::floor(cam_.y + v.fx_.shakeOff_.y)); }
 Vec2 Camera::toUi(const View& v, Vec2 w) const {
   if (!v.pix_) return w;
   const Pix::Layer& wl = v.pix_->worldLayer();
@@ -1915,8 +1915,8 @@ void View::snap(Game& g) {
 }
 
 // ------------------------------------------------------------------ events -> particles / audio / UI
-void View::spawnParticles(const Event& e, Game& g) {
-  Rng r((uint32_t)(t_ * 1000) ^ (uint32_t)(e.p.x * 7 + e.p.y * 13));
+void FxState::spawnParticles(View& v, const Event& e, Game& g) {
+  Rng r((uint32_t)(v.t_ * 1000) ^ (uint32_t)(e.p.x * 7 + e.p.y * 13));
   auto add = [&](Vec2 p, Vec2 v, float life, Color c, float size, float grav) {
     Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.grav = grav; parts_.push_back(q);
   };
@@ -1924,7 +1924,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     Particle q; q.p = p; q.life = q.max = life; q.kind = 1; q.fx = (int)f; parts_.push_back(q);
   };
   switch (e.type) {
-    case Ev::Sfx: audio_->play((Sfx)e.a, e.f, e.vol); mfxNoteSfx(*this, e.a); break;   // (M9: the magic's voice won't double it)
+    case Ev::Sfx: v.audio_->play((Sfx)e.a, e.f, e.vol); mfxNoteSfx(v, e.a); break;   // (M9: the magic's voice won't double it)
     case Ev::Hit:
       for (int i = 0; i < 6; i++) add(e.p, Vec2(r.range(-70, 70), r.range(-80, 20)), 0.25f, Color(1, 1, 0.85f), 1, 200);
       break;
@@ -1932,7 +1932,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       for (int i = 0; i < 7; i++) add(e.p, Vec2(r.range(-50, 50), r.range(-70, 0)), 0.45f, Color(0.7f, 0.08f, 0.08f), r.f() < 0.5f ? 2.f : 1.f, 260);
       break;
     case Ev::Explode:
-      if (mfxClaimExplode(*this, e.p)) break;   // (M9) a classic FIREBOLT's burst: the magic's own impact is there (render_magic.cpp)
+      if (mfxClaimExplode(v, e.p)) break;   // (M9) a classic FIREBOLT's burst: the magic's own impact is there (render_magic.cpp)
       addFx(art::Fx::Explosion, e.p, 0.45f);
       for (int i = 0; i < 14; i++) add(e.p, Vec2(r.range(-90, 90), r.range(-100, 40)), 0.5f, Color(1, r.range(0.4f, 0.8f), 0.2f), 1.5f, 120);
       shake_ = std::max(shake_, 2.0f * e.f);
@@ -1962,7 +1962,7 @@ void View::spawnParticles(const Event& e, Game& g) {
             ft.actor = sp->id; ft.off = e.p - sp->p;
             // (P2a) the sim places lines over a v1 head: a speaker drawn on v2 is that much taller
             // (P2b VIEW-B) and by the doll frame's own top (a child, a sitter, a hat)
-            if (sp->human) { const float lift = (float)(rigFor(sp->look).headTop - art::rig(1).headTop) + topLift(*sp); ft.off.y -= lift; ft.p.y -= lift; }
+            if (sp->human) { const float lift = (float)(v.rigFor(sp->look).headTop - art::rig(1).headTop) + v.topLift(*sp); ft.off.y -= lift; ft.p.y -= lift; }
           }
         int words = 1;
         for (char ch : e.s) if (ch == ' ') words++;
@@ -1983,7 +1983,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::Discover: {
-      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f; bannerState_.clear();
+      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f; v.bannerState_.clear();
       // (M2) what was found heads the line: "DISCOVERED - HUNTER'S CAMP", "WONDER DISCOVERED - ELDER TREE" (a settlement
       // keeps the plain word: the arrival banner adds its trade and kingdom to it in update())
       if (e.a >= 0 && e.a < (int)g.world.sites.size()) {
@@ -1994,11 +1994,11 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::LevelUp:
-      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f; bannerState_.clear();
+      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f; v.bannerState_.clear();
       // a bigger moment: a layered fanfare, two rings of light and a column of rising sparks
-      audio_->play(Sfx::LevelUp, 0.5f, 1.2f);
-      audio_->play(Sfx::QuestDone, 1.5f, 0.8f);
-      audio_->play(Sfx::Discover, 0.75f, 0.7f);
+      v.audio_->play(Sfx::LevelUp, 0.5f, 1.2f);
+      v.audio_->play(Sfx::QuestDone, 1.5f, 0.8f);
+      v.audio_->play(Sfx::Discover, 0.75f, 0.7f);
       for (int i = 0; i < 32; i++) { float a = i / 32.0f * TAU; add(e.p + Vec2(0, -10), Vec2(std::cos(a) * 75, std::sin(a) * 48), 1.0f, Color(1, 0.85f, 0.3f), 2.0f, 0); }
       for (int i = 0; i < 20; i++) { float a = i / 20.0f * TAU; add(e.p + Vec2(0, -10), Vec2(std::cos(a) * 38, std::sin(a) * 24), 0.8f, Color(1, 1, 0.8f), 1.0f, 0); }
       for (int i = 0; i < 26; i++) add(e.p + Vec2(r.range(-9, 9), r.range(-4, 2)), Vec2(r.range(-6, 6), r.range(-90, -40)), r.range(0.8f, 1.4f), Color(1, r.range(0.75f, 0.95f), 0.35f), 1, -20);
@@ -2018,31 +2018,31 @@ void View::spawnParticles(const Event& e, Game& g) {
         toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started || t.s == added; }), toasts_.end());
       }
       if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole && !bannerSays) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
-      if (e.f == 0 || e.f == 1) { bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
+      if (e.f == 0 || e.f == 1) { v.bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
     case Ev::Notice: {
-      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); lootNotice(g, e, t); toasts_.push_back(t); }
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); v.lootNotice(g, e, t); toasts_.push_back(t); }
       break;
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
-    case Ev::Border: heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
-    case Ev::News: newsEvent(g, e); break;       // (M4) a world event heard of
-    case Ev::Banter: case Ev::PartyAlert: partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
-    case Ev::Power: powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
-    case Ev::Spell: magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
-    case Ev::Skill: skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
-    case Ev::Sea: seaEvent(g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
-    case Ev::Rise: riseEvent(g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
-    case Ev::MapChange: fade_ = 1.0f; snap(g); break;
+    case Ev::Border: v.heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
+    case Ev::News: v.newsEvent(g, e); break;       // (M4) a world event heard of
+    case Ev::Banter: case Ev::PartyAlert: v.partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
+    case Ev::Power: v.powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
+    case Ev::Spell: v.magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
+    case Ev::Skill: v.skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
+    case Ev::Sea: v.seaEvent(g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
+    case Ev::Rise: v.riseEvent(g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
+    case Ev::MapChange: v.fade_ = 1.0f; v.snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
-      camera_.cam_ += e.p;
+      v.camera_.cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
       for (FloatText& ft : texts_) ft.p += e.p;
-      for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
-      magicShift(e.p);                                           // (M9) spell effects and decals
-      seaShift(e.p);                                             // (M10) wakes and splashes
-      reliefShift(e.p);                                          // (M11) mist and spray
+      for (View::PowerFx& f : v.powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
+      v.magicShift(e.p);                                           // (M9) spell effects and decals
+      v.seaShift(e.p);                                             // (M10) wakes and splashes
+      v.reliefShift(e.p);                                          // (M11) mist and spray
       break;
     default: break;
   }
@@ -2062,7 +2062,7 @@ void View::update(Game& g, float dt) {
     if (g.mode == Mode::Shop) { shopSide_ = 0; shopSel_ = 0; shopArm_ = -1; }
     lastMode_ = g.mode;
   }
-  for (const Event& e : g.events) spawnParticles(e, g);
+  for (const Event& e : g.events) fx_.spawnParticles(*this, e, g);
   g.events.clear();
   partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
   powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
@@ -2073,12 +2073,12 @@ void View::update(Game& g, float dt) {
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   updateBanners(g);   // (M1, M4) the arrival banner
   if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
-  if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
+  if (fx_.toasts_.size() > 5) fx_.toasts_.erase(fx_.toasts_.begin(), fx_.toasts_.begin() + (fx_.toasts_.size() - 5));
   float VW = 0, VH = 0;   // the world view (VW x VH world px), as lensUpdate left it
   const bool camHeld = camera_.updateCamera(*this, g, dt, VW, VH);
   updateBeastCues(g, dt);   // (M6 BEASTS)
-  updateShake(g, dt, camHeld);
-  updateEffects(g, dt);   // particles, floating texts, toasts, banners, the dialogue's typing
+  fx_.updateShake(*this, g, dt, camHeld);
+  fx_.updateEffects(*this, g, dt);   // particles, floating texts, toasts, banners, the dialogue's typing
 
   updateMusic(g, dt);
 
@@ -2111,23 +2111,23 @@ void View::updateBanners(Game& g) {
         std::string line, state;
         uint32_t stc = 0;
         arrivalText(g, cs, line, state, stc);
-        const bool arrival = banner_.find(" OF ") != std::string::npos || banner_.find(" VILLAGE") != std::string::npos ||
-                             banner_.find(" TOWN") != std::string::npos || banner_.find(" CITY") != std::string::npos;
+        const bool arrival = fx_.banner_.find(" OF ") != std::string::npos || fx_.banner_.find(" VILLAGE") != std::string::npos ||
+                             fx_.banner_.find(" TOWN") != std::string::npos || fx_.banner_.find(" CITY") != std::string::npos;
         if (!line.empty()) {
-          if (bannerT_ > 0 && banner_ == "DISCOVERED") { banner_ = "DISCOVERED  -  " + line; bannerState_ = state; bannerStateCol_ = stc; }
-          else if (bannerT_ <= 0 || arrival || changed) {
-            banner_ = line; bannerSub_ = S.name; bannerT_ = changed ? 4.0f : 3.5f;
+          if (fx_.bannerT_ > 0 && fx_.banner_ == "DISCOVERED") { fx_.banner_ = "DISCOVERED  -  " + line; bannerState_ = state; bannerStateCol_ = stc; }
+          else if (fx_.bannerT_ <= 0 || arrival || changed) {
+            fx_.banner_ = line; fx_.bannerSub_ = S.name; fx_.bannerT_ = changed ? 4.0f : 3.5f;
             bannerState_ = state; bannerStateCol_ = stc;
             // (fixer M4 r1, review: three bands stacked on arrival) the arrival banner names the kingdom: the border
             // herald's plaque gives way to it rather than stacking above it
             herald_.t = 0;
           }
         }
-      } else if (arriveSite_ >= 0 && arriveSite_ < (int)g.world.sites.size() && bannerT_ > 0.5f &&
-                 bannerSub_ == g.world.sites[(size_t)arriveSite_].name) {
+      } else if (arriveSite_ >= 0 && arriveSite_ < (int)g.world.sites.size() && fx_.bannerT_ > 0.5f &&
+                 fx_.bannerSub_ == g.world.sites[(size_t)arriveSite_].name) {
         // (fixer M4 r2) left the place (a teleport, a quick walk out): its arrival banner fades out now instead of
         // naming a town the hero no longer stands in
-        bannerT_ = 0.5f;
+        fx_.bannerT_ = 0.5f;
       }
       arriveSite_ = cs;
       arriveOwner_ = own;
@@ -2245,13 +2245,13 @@ void View::updateBeastCues(Game& g, float dt) {
         if (a.mon == Monster::Golem && a.st == AState::Strike) {
           audio_->play(Sfx::GolemSlam, a.heavy ? 1.0f : 1.3f, vol * (a.heavy ? 1.0f : 0.55f));
           if (a.heavy) {
-            shake_ = std::max(shake_, 3.5f * vol);
+            fx_.shake_ = std::max(fx_.shake_, 3.5f * vol);
             const Vec2 hit = a.p + a.aim * 14.0f;
             for (int k = 0; k < 6; k++) {
               Particle q;
               q.p = hit + Vec2(std::cos(k * 1.05f) * 10.0f, std::sin(k * 1.05f) * 5.0f);
               q.life = q.max = 0.4f; q.kind = 1; q.fx = (int)art::Fx::Dust;
-              parts_.push_back(q);
+              fx_.parts_.push_back(q);
             }
           }
         }
@@ -2268,12 +2268,12 @@ void View::updateBeastCues(Game& g, float dt) {
       if (beasts::isRank(a, foes::Rank::WorldBoss) && a.aggro && !mm.roared) {
         mm.roared = true;
         audio_->play(Sfx::BossRoar, 1.0f, 1.0f);
-        shake_ = std::max(shake_, 4.0f);
+        fx_.shake_ = std::max(fx_.shake_, 4.0f);
       }
       if (a.bossPhase > mm.phase) {   // a boss passed a phase mark
         mm.phase = a.bossPhase;
         mm.flashT = 0.45f;
-        shake_ = std::max(shake_, 4.5f);
+        fx_.shake_ = std::max(fx_.shake_, 4.5f);
         audio_->play(Sfx::BossRoar, 1.12f, 0.85f);
       }
     }
@@ -2281,9 +2281,9 @@ void View::updateBeastCues(Game& g, float dt) {
 }
 
 // the screen shake and the finisher's camera nudge (update)
-void View::updateShake(Game& g, float dt, bool camHeld) {
+void FxState::updateShake(View& v, Game& g, float dt, bool camHeld) {
   shake_ = std::max(0.0f, shake_ - dt * 12);
-  shakeOff_ = shake_ > 0.1f && !camHeld ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
+  shakeOff_ = shake_ > 0.1f && !camHeld ? Vec2(std::sin(v.t_ * 91) * shake_, std::cos(v.t_ * 77) * shake_ * 0.7f) : Vec2();
   // (P2c SWITCH, delight) the camera nudge on a heavy finisher's impact (AnimPick::impact: hit 3 of the greatsword, axe and
   // mace, FOLK-SIM-C's flag): the view leans 2 px the way the blow lands and settles back on a half sine over 0.18 s, a
   // little shorter or longer each time (never a shake, never lockstep with the swing's frames). The hero's own blows and a
@@ -2298,18 +2298,18 @@ void View::updateShake(Game& g, float dt, bool camHeld) {
       if (!a.player && len2(a.p - pl.p) > 64.0f * 64.0f) continue;
       if (animPick(g, a, 2).impact) { hit = true; dir = faceDir(a.face); if (a.player) break; }
     }
-    if (hit && !camera_.nudgeWas_) { camera_.nudgeT_ = 0; camera_.nudgeDir_ = dir; camera_.nudgeLen_ = 0.16f + 0.04f * (float)((hash32((uint32_t)(t_ * 1000.0f)) % 100u) / 100.0f); }
-    camera_.nudgeWas_ = hit;
-    if (camera_.nudgeT_ >= 0) {
-      camera_.nudgeT_ += dt;
-      if (camera_.nudgeT_ >= camera_.nudgeLen_) camera_.nudgeT_ = -1;
-      else shakeOff_ += camera_.nudgeDir_ * (2.0f * std::sin(3.14159265f * camera_.nudgeT_ / camera_.nudgeLen_));
+    if (hit && !v.camera_.nudgeWas_) { v.camera_.nudgeT_ = 0; v.camera_.nudgeDir_ = dir; v.camera_.nudgeLen_ = 0.16f + 0.04f * (float)((hash32((uint32_t)(v.t_ * 1000.0f)) % 100u) / 100.0f); }
+    v.camera_.nudgeWas_ = hit;
+    if (v.camera_.nudgeT_ >= 0) {
+      v.camera_.nudgeT_ += dt;
+      if (v.camera_.nudgeT_ >= v.camera_.nudgeLen_) v.camera_.nudgeT_ = -1;
+      else shakeOff_ += v.camera_.nudgeDir_ * (2.0f * std::sin(3.14159265f * v.camera_.nudgeT_ / v.camera_.nudgeLen_));
     }
   }
 }
 
 // particles, floating texts and toasts age; the banners, the fade and the dialogue's typing (update)
-void View::updateEffects(Game& g, float dt) {
+void FxState::updateEffects(View& v, Game& g, float dt) {
   for (size_t i = 0; i < parts_.size();) {
     Particle& q = parts_[i];
     q.life -= dt;
@@ -2338,13 +2338,13 @@ void View::updateEffects(Game& g, float dt) {
     if (toasts_[i].t > 4.0f) toasts_.erase(toasts_.begin() + i); else i++;
   }
   if (bannerT_ > 0 && g.mode != Mode::Dialogue) bannerT_ -= dt;   // shown once the dialogue closes (drawHud)
-  if (fade_ > 0) fade_ = std::max(0.0f, fade_ - dt * 2.2f);
+  if (v.fade_ > 0) v.fade_ = std::max(0.0f, v.fade_ - dt * 2.2f);
   {
-    float before = dlgChars_;
-    dlgChars_ += dt * 70;
-    if (g.mode == Mode::Dialogue && (int)(before / 3) != (int)(dlgChars_ / 3) && dlgChars_ < (float)g.dlg.text.size()) {
-      size_t ci = std::min(g.dlg.text.size() - 1, (size_t)dlgChars_);
-      if (g.dlg.text[ci] != ' ') audio_->play(Sfx::Talk, 0.7f + (hash32((uint32_t)std::hash<std::string>()(g.dlg.speaker)) % 80) / 100.0f, 0.8f);
+    float before = v.dlgChars_;
+    v.dlgChars_ += dt * 70;
+    if (g.mode == Mode::Dialogue && (int)(before / 3) != (int)(v.dlgChars_ / 3) && v.dlgChars_ < (float)g.dlg.text.size()) {
+      size_t ci = std::min(g.dlg.text.size() - 1, (size_t)v.dlgChars_);
+      if (g.dlg.text[ci] != ' ') v.audio_->play(Sfx::Talk, 0.7f + (hash32((uint32_t)std::hash<std::string>()(g.dlg.speaker)) % 80) / 100.0f, 0.8f);
     }
   }
 }
@@ -2436,7 +2436,7 @@ void View::updateBiomeBanner(Game& g, float dt, bool outdoors) {
       if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
     }
   }
-  if (biomeBannerT_ > 0 && ((bannerT_ <= 0 && herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+  if (biomeBannerT_ > 0 && ((fx_.bannerT_ <= 0 && herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
 }
 
 // the weather (update)
@@ -2530,7 +2530,7 @@ void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
     const Biome b = ecoFamily(e);
     Rng r((uint32_t)(t_ * 997));
     auto spawn = [&](Vec2 p, Vec2 v, float life, Color c, float size, int layer) {
-      Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.layer = layer; parts_.push_back(q);
+      Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.layer = layer; fx_.parts_.push_back(q);
     };
     auto anywhere = [&]() { return camera_.cam_ + Vec2(r.range(0, VW), r.range(0, VH)); };
     auto fromTop = [&]() { return camera_.cam_ + Vec2(r.range(-40, VW), -4); };
@@ -2567,9 +2567,9 @@ void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
   if (g.inside && g.subSite >= 0 && hashf((int)(t_ * 10), 0, 9) < dt * 4) {
     Rng r((uint32_t)(t_ * 331));
     Particle q; q.p = camera_.cam_ + Vec2(r.range(0, VW), r.range(0, VH)); q.v = Vec2(r.range(-3, 3), r.range(-5, -1));
-    q.life = q.max = 3; q.c = Color(0.7f, 0.65f, 0.6f); q.size = 1; q.layer = 1; parts_.push_back(q);
+    q.life = q.max = 3; q.c = Color(0.7f, 0.65f, 0.6f); q.size = 1; q.layer = 1; fx_.parts_.push_back(q);
   }
-  if (parts_.size() > 600) parts_.erase(parts_.begin(), parts_.begin() + (parts_.size() - 600));
+  if (fx_.parts_.size() > 600) fx_.parts_.erase(fx_.parts_.begin(), fx_.parts_.begin() + (fx_.parts_.size() - 600));
 }
 
 // ------------------------------------------------------------------ world
@@ -2801,7 +2801,7 @@ void View::drawWorld(Game& g) {
   const Map& m = *mp;
   const bool endlessOver = bake_.chunkEndless_;
   if (g.mode != Mode::Title) bake_.rebakeHomeHouses(*this, g, m, mapId);   // (M7) the ground under the player's houses: their shadows
-  Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
+  Vec2 cam(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y));
   sprites_.trimCaches(*this);
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
   beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
@@ -2851,7 +2851,7 @@ void View::drawWorld(Game& g) {
     festLights_.clear();
   }
   // particles (world layer)
-  for (const Particle& q : parts_) {
+  for (const Particle& q : fx_.parts_) {
     float a = clampf(q.life / q.max, 0, 1);
     if (q.kind == 1) {
       art::Fx f = (art::Fx)q.fx;
@@ -2918,7 +2918,7 @@ void View::drawLighting(Game& g) {
     }
   }
   if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) { liftRecs_.clear(); g_occRecs.clear(); lensStats.liftFigs = 0; return; }
-  Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
+  Vec2 cam(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y));
   // (M1) the light map is half the canvas: re-made when the screen fit changes the canvas size
   if (lightMap_.w != (Pix::W + 1) / 2 || lightMap_.h != (Pix::H + 1) / 2) {
     P.destroy(lightMap_);
@@ -3052,7 +3052,7 @@ void View::drawLighting(Game& g) {
     else if (pr.kind == ProjKind::Magic && pr.ench == Ench::None && !pr.fromPlayer) light(pr.p, 40, Color(0.4f, 1.0f, 0.95f), 0.8f);
     else if (pr.kind == ProjKind::IceSpike || pr.kind == ProjKind::Magic) light(pr.p, 40, Color(0.5f, 0.6f, 1), 0.8f);
   }
-  for (const Particle& q : parts_) if (q.kind == 1 && q.fx == (int)art::Fx::Explosion) light(q.p, 90, Color(1, 0.6f, 0.3f), q.life / q.max);
+  for (const Particle& q : fx_.parts_) if (q.kind == 1 && q.fx == (int)art::Fx::Explosion) light(q.p, 90, Color(1, 0.6f, 0.3f), q.life / q.max);
   // (M3c) the ash fields' red-brown glow under the haze, and the magic lands' faint night light
   if (!g.inside && g.mode != Mode::Title && dark > 0.2f && wx_.ash > 0.05f)
     P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(0.30f, 0.10f, 0.04f, wx_.ash * dark * 0.6f));
@@ -3091,7 +3091,7 @@ void View::drawWeather(Game& g, float dt) {
     const auto t0 = beasts::Clock::now();
     struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
     beasts::cur.glows += (int)beasts::glows.size();
-    const Vec2 cam(std::floor(camera_.cam_.x + shakeOff_.x), std::floor(camera_.cam_.y + shakeOff_.y));
+    const Vec2 cam(std::floor(camera_.cam_.x + fx_.shakeOff_.x), std::floor(camera_.cam_.y + fx_.shakeOff_.y));
     // the glow stands out as much as the night is dark (a little by day: embers and runes still smoulder)
     const bool dungeon = g.inside && g.subSite >= 0;
     const float dk = dungeon ? 0.7f : g.inside ? clampf(1.0f - g.daylight(), 0, 1) * 0.6f : clampf(1.0f - g.daylight() * 1.4f, 0, 1);

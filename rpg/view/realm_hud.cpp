@@ -105,7 +105,7 @@ void View::heraldEvent(Game& g, const Event& e) {
   const ew::Gid was = herald_.kingdom;
   // (fixer M4 r1) crossing into a kingdom by arriving in one of its settlements (or the settlement changing hands under
   // the player): the arrival banner already says whose it is, so the herald's plaque does not stack over it
-  const bool quiet = bannerT_ > 0 && !g.inside && g.settlementAt(g.pl().p) >= 0;
+  const bool quiet = fx_.bannerT_ > 0 && !g.inside && g.settlementAt(g.pl().p) >= 0;
   herald_ = Herald();
   herald_.kingdom = land;
   herald_.wild = land == 0;
@@ -133,7 +133,7 @@ void View::newsEvent(Game& g, const Event& e) {
   Toast t;
   t.s = "NEWS: " + e.s;
   t.c = Color(0.98f, 0.86f, 0.62f);
-  toasts_.push_back(t);
+  fx_.toasts_.push_back(t);
 }
 
 // ---------------------------------------------------------------- the arrival banner's words

@@ -22,24 +22,11 @@
 #include "rpg/sim/game.h"
 #include "rpg/view/loot_paint.h"
 #include "rpg/view/camera.h"
+#include "rpg/view/fx_state.h"
 #include "rpg/view/sprite_cache.h"
 #include "rpg/view/terrain_bake.h"
 
 union SDL_Event;
-
-struct Particle {
-  Vec2 p, v;
-  float life = 1, max = 1, size = 1, grav = 0;
-  Color c;
-  int kind = 0;      // 0 square, 1 fx sprite
-  int fx = 0, layer = 0;
-  bool world = true;
-};
-// a floating line over the world: a combat number rising and fading (0.9 s), or (M5) a spoken line (an overheard
-// remark, a greeting by name: Ev::Text of words) held over the speaker on a dark plate, wrapped, for `life` seconds
-// (P1 fixer r2) actor: a spoken line's speaker (Actor::id; -1 none), whom the plate follows at off from their feet
-struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; int actor = -1; Vec2 off; };
-struct Toast { std::string s; Color c; float t = 0; int rarity = -1; };   // (M8b) rarity: an item notice (its name in the ladder colour)
 
 // (Witness, View::witnessRelease) each file's presentation state kept outside View, back to its start
 void witnessResetBeasts();      // render.cpp: the ranked foes' memo (roars, phases)
@@ -225,8 +212,10 @@ class View {
   // the camera: where the view stands, its zoom and the zoom's hand-over, the pinch, the wheel, the finisher's nudge
   friend struct Camera;
   Camera camera_;   // (camera.h)
-  float shake_ = 0, titleT_ = 0;
-  Vec2 shakeOff_;
+  float titleT_ = 0;
+  // the effects: particles, floating text, toasts, the banner and the screen shake (FxState, fx_state.h)
+  friend struct FxState;
+  FxState fx_;   // (fx_state.h)
 
   // ---- sprites: every texture cache (people, poses, v2 atlases, buildings, walls, forts, heraldry, props, icons,
   //      the lanes' sprites), its LRU trims and bake budgets live in the SpriteCache part (sprite_cache.h)
@@ -261,8 +250,6 @@ class View {
   float miniT_ = 0;
 
   // ---- effects
-  std::vector<Particle> parts_;
-  std::vector<FloatText> texts_;
   // (M5 fixer) the location / quest column's box as the HUD last drew it (screen): spoken lines keep out of it
   float hudColLeft_ = 1e9f, hudColBottom_ = 0;
   float colFoeFade_ = 0, colFoeT_ = -1;   // (C10 fix) the column's fade while the hero's foe stands under it, eased
@@ -272,9 +259,6 @@ class View {
   // (M5) last frame's NPC name tag / interact prompt (drawHud): a spoken line's plate stacks above it, never over it
   bool tagOn_ = false;
   float tagX0_ = 0, tagY0_ = 0, tagX1_ = 0, tagY1_ = 0;
-  std::vector<Toast> toasts_;
-  std::string banner_, bannerSub_;
-  float bannerT_ = 0;
   float fade_ = 0;
   Music music_ = Music::Silence;
   uint64_t musicStyle_ = 0, musicStyleOn_ = 0;   // M3: the culture's MusicStyle (packed) where the player is / playing
@@ -349,8 +333,6 @@ class View {
   // ---- (SOLID 3.4b) update's pieces, called in this order (render.cpp)
   void updateBanners(Game& g);
   void updateBeastCues(Game& g, float dt);
-  void updateShake(Game& g, float dt, bool camHeld);
-  void updateEffects(Game& g, float dt);
   void updateMusic(Game& g, float dt);
   void updateBiomeBanner(Game& g, float dt, bool outdoors);
   void updateWeather(Game& g, float dt, bool outdoors);
@@ -407,7 +389,6 @@ class View {
   bool hudNotices(Game& g, const HudFrame& H);   // true: the companions' order ring is open
   float biomeBannerY(float half) const;   // (M9 fixer) the region banner's text line: below a boss bar, clear of the quick bar
   void drawTouch(Game& g);
-  void drawToasts();
   float dlgRowH() const { return touchUI ? 25.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows, 25 px = 33 pt)
   void drawMenu(Game& g);
   void drawDialogue(Game& g);
@@ -498,7 +479,6 @@ class View {
   void panel(float x, float y, float w, float h, float alpha = 0.92f);
   void button(float x, float y, float w, float h, const std::string& label, bool hot);
   void wrapText(float x, float y, float w, const std::string& s, Color c, int maxChars = -1, int lineH = 9);
-  void spawnParticles(const Event& e, Game& g);
   void tap(Game& g, Vec2 p);             // UI tap / click in logical coords
   int buttonAt(Vec2 p) const;            // touch control hit test
   void menuKey(Game& g, int key);
@@ -695,7 +675,6 @@ class View {
   std::string cookNote_;   // (M7 fix r3) the Cook screen's own "COOKED: X (HAVE n)" line (for the meal row cookNoteSel_)
   int cookNoteSel_ = -1;
   float cookNoteT_ = -100.0f;   // (t_ when it was set: it shows for a few seconds)
-  float toastX1_ = 0, toastY0_ = 0, toastY1_ = 0;   // (M7 fix) the toast column's extent last frame (world prompts keep clear)
   bool buildHintDone_ = false;                       // (M7) the yard / decorate move hint was seen and used
   int buildHintGx_ = INT32_MIN, buildHintGy_ = INT32_MIN;   // the ghost tile the hint was first shown at
 

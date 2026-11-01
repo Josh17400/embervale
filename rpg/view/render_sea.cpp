@@ -515,7 +515,7 @@ void View::seaEvent(Game& g, const Event& e) {
       SeaViewOps::spray(*this, e.p, 10, 0.8f, rgba(132, 92, 56), seed);
       SeaViewOps::spray(*this, e.p, 8, 0.9f, rgba(230, 244, 250), seed + 5);
       SeaViewOps::ring(*this, e.p, 8, 0.8f);
-      shake_ = std::max(shake_, 0.18f);
+      fx_.shake_ = std::max(fx_.shake_, 0.18f);
       break;
     case sea::SeaEv::Sink:
       for (int k = 0; k < 4; k++) SeaViewOps::ring(*this, e.p, 10.0f + k * 6, 1.6f + k * 0.4f);
@@ -593,7 +593,7 @@ void View::seaUpdate(Game& g, float dt) {
   // (fixer M10 r1) the title plays AT the landing, never queued behind LEVEL UP / NEW QUEST (it landed 10 s late, in a
   // town or an inn): while a big banner shows it eases down under it (contactHide: 0 its own place, 1 under the
   // banner); walked indoors it fades out early
-  S.contactHide += ((bannerT_ > 0 ? 1.0f : 0.0f) - S.contactHide) * std::min(1.0f, dt * 5.0f);
+  S.contactHide += ((fx_.bannerT_ > 0 ? 1.0f : 0.0f) - S.contactHide) * std::min(1.0f, dt * 5.0f);
   if (g.inside && S.firstContactT > 0.6f) S.firstContactT = 0.6f;
   S.firstContactT = std::max(0.0f, S.firstContactT - dt);
   if (S.puffs.size() > 900) S.puffs.erase(S.puffs.begin(), S.puffs.begin() + (S.puffs.size() - 900));

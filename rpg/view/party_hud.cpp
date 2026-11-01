@@ -428,7 +428,7 @@ void View::partyUpdate(Game& g, float dt) {
     // bracket the player on a phone") a line runs its clock only while it is on show over its speaker: it waits out
     // the arrival card and the herald, and for a free place by its speaker (drawBanter marks it shown); a line kept
     // waiting too long is let go unsaid
-    const bool cards = (bannerT_ > 0 && !bannerSub_.empty()) || herald_.t > 0;
+    const bool cards = (fx_.bannerT_ > 0 && !fx_.bannerSub_.empty()) || herald_.t > 0;
     for (size_t i = 0; i < banterShow_.size();) {
       PartyNote& n = banterShow_[i];
       if (n.shown && !cards) n.t += dt;
@@ -1010,7 +1010,7 @@ bool View::partyRibbonBox(const Game& g, PlateBox& b, float& textW) {
   if (herald_.t > 0 || (biomeBannerT_ > 0 && !biomeBanner_.empty())) ay += 24;
   if (biomeBannerT_ > 0 && !biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
     ay = std::max(ay, biomeBannerY(std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
-  if (bannerT_ > 0) ay = std::max(ay, T + (bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
+  if (fx_.bannerT_ > 0) ay = std::max(ay, T + (bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
   textW = (float)P.textW(n.s, 1);
   const float w = textW + (mi >= 0 ? 30.0f : 14.0f), h = 20;
   b.x0 = std::floor(Pix::W / 2.0f - w / 2); b.y0 = ay; b.x1 = b.x0 + w; b.y1 = ay + h;
@@ -1018,7 +1018,7 @@ bool View::partyRibbonBox(const Game& g, PlateBox& b, float& textW) {
   // faced person's name tag: the ribbon steps above it (else below)
   if (tagOn_ && b.x0 < tagX1_ + 2 && b.x1 > tagX0_ - 2 && b.y0 < tagY1_ + 2 && b.y1 > tagY0_ - 2) {
     const float up = tagY0_ - 3 - h;
-    const float floorY = bannerT_ > 0 ? T + (bannerState_.empty() ? 88.0f : 99.0f) : T + 30;   // (never into the banner)
+    const float floorY = fx_.bannerT_ > 0 ? T + (bannerState_.empty() ? 88.0f : 99.0f) : T + 30;   // (never into the banner)
     if (up >= floorY) { b.y0 = up; b.y1 = up + h; }
     else { b.y0 = tagY1_ + 3; b.y1 = b.y0 + h; }
   }
@@ -1029,7 +1029,7 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
   Pix& P = *pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
   auto add = [&](float x0, float y0, float x1, float y1) { PlateBox b; b.x0 = x0; b.y0 = y0; b.x1 = x1; b.y1 = y1; out.push_back(b); };
-  if (bannerT_ > 0 && g.mode != Mode::Dialogue) add(0, T + 49, (float)Pix::W, T + (bannerState_.empty() ? 85.0f : 96.0f));
+  if (fx_.bannerT_ > 0 && g.mode != Mode::Dialogue) add(0, T + 49, (float)Pix::W, T + (bannerState_.empty() ? 85.0f : 96.0f));
   if (herald_.t > 0 && g.mode == Mode::Play) {   // (as drawHerald lays it out)
     const int tw = std::max(P.textW(herald_.title, 1), P.textW(herald_.top, 1));
     const float side = !herald_.wild ? 22.0f : 10.0f, w = tw + side * 2 + 12;
@@ -1039,7 +1039,7 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
     const float y = std::max(T + 5, bossBarBottom_ + 3);
     add(x - 4, y, x + w + 4, y + 27);
   }
-  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && fx_.bannerT_ <= 0 && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = biomeBannerY(half);
     add(Pix::W / 2.0f - half, y - 4, Pix::W / 2.0f + half, y + 11);
   }
@@ -1086,7 +1086,7 @@ void View::drawBanter(Game& g, Vec2 cam) {
   std::vector<PlateBox> avoid = plateBoxes_;
   hudBands(g, avoid);
   // (fixer M8 r3) the arrival card and the herald first: the lines wait for them (partyUpdate holds their clocks)
-  if ((bannerT_ > 0 && !bannerSub_.empty()) || herald_.t > 0) return;
+  if ((fx_.bannerT_ > 0 && !fx_.bannerSub_.empty()) || herald_.t > 0) return;
   // one spoken plate at a time on a phone (two on a wide screen): the rest wait their turn, the oldest first
   const int cap = touchUI ? 1 : 2;
   int onShow = 0;

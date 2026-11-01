@@ -179,12 +179,12 @@ void View::skillEvent(Game& g, const Event& e) {
   const Color base = sk < skills::SKILLS ? skCol(skills::skillInfo((Skill)sk).color) : kGoldS;
   t.c = kind == 6 ? kGoldS : kind == 2 ? kGoldS : lift(base, 0.25f);
   t.rarity = -(100 + kind * 32 + sk);
-  if (!toasts_.empty()) {
-    Toast& last = toasts_.back();
+  if (!fx_.toasts_.empty()) {
+    Toast& last = fx_.toasts_.back();
     if (last.rarity == t.rarity && last.t < 2.5f) { last.s = t.s; last.t = std::min(last.t, 0.25f); t.rarity = 0; }
   }
-  S.lastToast = t.rarity != 0 ? t.s : toasts_.back().s;
-  if (t.rarity != 0) toasts_.push_back(t);
+  S.lastToast = t.rarity != 0 ? t.s : fx_.toasts_.back().s;
+  if (t.rarity != 0) fx_.toasts_.push_back(t);
   S.toastsSkill++;
   if (kind == 1 || kind == 6) {
     S.glowT = t_; S.glowSkill = sk; S.glowMaster = kind == 6;
