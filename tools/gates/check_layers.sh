@@ -23,7 +23,11 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 ALLOW="$HERE/layers_allow.txt"
-BASE_ALLOW="$HERE/baseline/119de74/checks/layers_allow.txt"
+# the baseline root (tools/gates/baseline/CURRENT; lib.sh's rule, inlined: this script also runs in CI without lib.sh)
+BASE_ID="$(tr -dc '[:alnum:]_.-' < "$HERE/baseline/CURRENT" 2>/dev/null)"
+[ -n "$BASE_ID" ] && [ -d "$HERE/baseline/$BASE_ID" ] || { echo "check_layers: no baseline root (tools/gates/baseline/CURRENT: '$BASE_ID')"; exit 2; }
+BASE_REV="$BASE_ID"; [ -f "$HERE/baseline/$BASE_ID/REV" ] && BASE_REV="$(tr -dc '[:alnum:]' < "$HERE/baseline/$BASE_ID/REV")"
+BASE_ALLOW="$HERE/baseline/$BASE_ID/checks/layers_allow.txt"
 EMIT=0; QUIET=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -107,15 +111,15 @@ END {
 NEW=$(grep -c '^NEW' "$TMP/report"); STALE=$(grep -c '^STALE' "$TMP/report")
 TOTAL=$(wc -l < "$TMP/found" | tr -d ' '); NALLOW=$(wc -l < "$TMP/allow" | tr -d ' ')
 
-# The allowlist may only shrink against the wave-0 record. A file moved since 119de74 keeps its entries under its new
-# path (git diff -M --name-status 119de74..HEAD renames map the record's paths first), and a knot may move between files
+# The allowlist may only shrink against the baseline root's record (wave 0's at 119de74). A file moved since the root's
+# revision keeps its entries under its new path (git diff -M --name-status <rev>..HEAD renames map the record's paths first), and a knot may move between files
 # of one folder (a split routing it through the step's private header): per (rule, folder, target) the allowlist may
 # hold at most as many lines as the mapped record. Anything else is growth.
 GREW=0
 if [ -f "$BASE_ALLOW" ] && [ "$(cd "$(dirname "$ALLOW")" && pwd)/$(basename "$ALLOW")" != "$BASE_ALLOW" ]; then
   : > "$TMP/renames"
-  if git -C "$ROOT" rev-parse -q --verify '119de74^{commit}' >/dev/null 2>&1; then
-    git -C "$ROOT" diff -M --name-status 119de74 HEAD 2>/dev/null | tr -d '\r' | gawk -F'\t' '$1 ~ /^R/ { print $2 "\t" $3 }' > "$TMP/renames"
+  if git -C "$ROOT" rev-parse -q --verify "$BASE_REV^{commit}" >/dev/null 2>&1; then
+    git -C "$ROOT" diff -M --name-status "$BASE_REV" HEAD 2>/dev/null | tr -d '\r' | gawk -F'\t' '$1 ~ /^R/ { print $2 "\t" $3 }' > "$TMP/renames"
   fi
   grep -vE '^[[:space:]]*(#|$)' "$BASE_ALLOW" | sed 's/[[:space:]]*#.*$//; s/[[:space:]]\+/ /g; s/ $//' \
     | gawk -v RN="$TMP/renames" 'BEGIN { while ((getline l < RN) > 0) { split(l, a, "\t"); to[a[1]] = a[2] } }

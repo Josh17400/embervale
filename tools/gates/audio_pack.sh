@@ -7,7 +7,7 @@
 #
 #   tools/gates/audio_pack.sh [--bdir DIR] [--out DIR] [--check FILE | --record] [--keep]
 #
-#   --check FILE  default tools/gates/baseline/119de74/probes/audio_hashes.txt
+#   --check FILE  default tools/gates/baseline/<CURRENT>/probes/audio_hashes.txt
 #   --record      write hashes.txt only (how the baseline was made)
 #   --keep        keep the WAVs (default: deleted after hashing)
 #
@@ -32,7 +32,8 @@ done
 EXE="$BDIR/audio_preview.exe"
 case "$EXE" in /*|?:*) ;; *) EXE="$ROOT/$EXE" ;; esac
 [ -x "$EXE" ] || { echo "audio_pack FAIL: $EXE not found (build it first)"; exit 2; }
-[ -z "$CHECK" ] && [ $RECORD -eq 0 ] && CHECK="$ROOT/tools/gates/baseline/119de74/probes/audio_hashes.txt"
+REPO="$ROOT"; . "$ROOT/tools/gates/lib.sh"   # GATES_BASE: the baseline root (tools/gates/baseline/CURRENT)
+[ -z "$CHECK" ] && [ $RECORD -eq 0 ] && CHECK="$GATES_BASE/probes/audio_hashes.txt"
 [ -z "$OUT" ] && OUT="$(mktemp -d "${TMPDIR:-/tmp}/emb_audiopack.XXXXXX")"
 mkdir -p "$OUT"
 start=$SECONDS

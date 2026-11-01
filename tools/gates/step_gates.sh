@@ -14,11 +14,13 @@
 #               (owner ruling D2: once per wave, at the wave gates); wave_gates.sh always passes --all.
 #   --web-bdir  emscripten build dir for S8 (default build-web-<basename of --bdir>)
 #   --copy      WSL copy for S4 (default emb_solid_<basename of --bdir>); never ~/emb
-#   --base      the baseline revision (default 119de74): S3's fixture diff and S10's move_check range start
+#   --base      the baseline revision (default: the root's, lib.sh GATES_BASE_REV; 119de74 at wave 0): S3's fixture
+#               diff and S10's move_check range start
 #   --expect    override one expected value of baseline/expect.txt (the negative test passes a wrong TOTAL here)
-#   --baseline  the dir holding the expected records (default tools/gates/baseline/119de74/gates)
+#   --baseline  the dir holding the expected records (default tools/gates/baseline/<CURRENT>/gates: the root that
+#               tools/gates/baseline/CURRENT names; rebase_baseline.sh moves it)
 #   --record    write the records into this dir instead of comparing (how wave 0 made the baseline; never during the
-#               plan: section 4.4 says no baseline is re-recorded)
+#               plan: section 4.4 says no baseline is re-recorded; a batch moves a baseline with rebase_baseline.sh)
 #
 # Lines (each heavy one through tools/slot.sh; S4 and S8 start first and run beside S1 and the rest):
 #   S1.build    tools\build.bat (all targets): rc 0, every baseline exe present, no new warning kind, warnings <= base
@@ -26,9 +28,9 @@
 #   S2.seeds    rpg_test --seeds 1..20: "20 passed, 0 failed", output equal to baseline
 #   S3.save     save_test: ALL OK, output equal to baseline (load-sensitive byte counts masked, see unstable.txt :mask);  S3.fixtures  git diff <base> -- tests/fixtures empty and
 #               nothing untracked there;  S3.savever  SAVE_VER is 23
-#   S4.clang    tools/gates/clang_ci.sh: clang build rc 0, CLANG_FAILS=0 over the 68 web.yml commands
+#   S4.clang    tools/gates/clang_ci.sh: clang build rc 0, CLANG_FAILS=0 over the web.yml commands (CLANG_CMDS in expect.txt)
 #               (side by side in their own slots; a failing command is rerun once alone before it counts, its first
-#               log kept as <out>/clang/logs/clang_fail_<n>.log)
+#               log kept as <out>/clang/logs/clang_fail_<n>.log; the rerun line says alone or NOT ALONE)
 #   S5.rig2/rig1 art_hash.exe / --rig=1: TOTAL as expected and every line equal to baseline
 #   S6.freeze   rpg_test --doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt: 0 changed, equal.
 #   S6.freeze1  rpg_test --rig=1 --doll-wear --freeze-check tools/doll/freeze/p2c_freeze_rig1.txt (rig 1's own
@@ -37,7 +39,7 @@
 #   S7.rig2/rig1 city_gallery.exe [--rig=1] --village-art-check [...rig1 fixture]: 65 groups, 0 changed, equal
 #   S8.build    tools\gates\build_web.bat (emsdk 6.0.13 from EMSDK);  S8.exports  web.yml's runtime export grep
 #   S9.test     witness_smoke.sh test (4 files);  S9.shot  witness_smoke.sh shot (ssim >= 0.999 vs village_start)
-#   S10.digest  rpg_test --sim-digest --check baseline/119de74/probes/sim_digest_msvc.txt
+#   S10.digest  rpg_test --sim-digest --check <root>/probes/sim_digest_msvc.txt
 #   S10.view    node tools/gates/witness_pack.mjs --quick --check probes/<quick record> (hidden --witness instances; a
 #               witness_pack that can still start a visible window is REFUSED, never run);  S10.audio  audio_pack.sh
 #   S10.layers  tools/gates/check_layers.sh;  S10.move  tools/gates/move_check.sh <base> WORKTREE [files] (count; for
@@ -49,7 +51,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$REPO/tools/gates/lib.sh"
 cd "$REPO"
 
-BDIR=""; OUT=""; LINES=""; ONLY=""; ALL=0; WEBB=""; COPY=""; BASE=119de74; BL=""; REC=""; MOVEFILES=""
+BDIR=""; OUT=""; LINES=""; ONLY=""; ALL=0; WEBB=""; COPY=""; BASE="$GATES_BASE_REV"; BL=""; REC=""; MOVEFILES=""
 EXPECT_OVR=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -65,13 +67,13 @@ while [ $# -gt 0 ]; do
     --baseline) BL="$2"; shift 2 ;;
     --record) REC="$2"; shift 2 ;;
     --move-files) MOVEFILES="$2"; shift 2 ;;
-    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,45p' "$0"; exit 0 ;;
     *) echo "step_gates: unknown arg $1" >&2; exit 2 ;;
   esac
 done
 [ -n "$BDIR" ] && [ -n "$OUT" ] || { echo "step_gates: --bdir and --out are required (see --help)" >&2; exit 2; }
-BL="${BL:-$REPO/tools/gates/baseline/119de74/gates}"
-PROBES="$REPO/tools/gates/baseline/119de74/probes"
+BL="${BL:-$GATES_BASE/gates}"
+PROBES="$GATES_BASE/probes"
 case "$BDIR" in /*|?:*) BABS="$BDIR" ;; *) BABS="$REPO/$BDIR" ;; esac
 BNAME=$(basename "$BDIR")
 WEBB="${WEBB:-build-web-$BNAME}"
@@ -85,7 +87,7 @@ write_sha
 
 # expected values: baseline/expect.txt (KEY=VALUE), then --expect overrides
 declare -A EXP
-EXPF="$BL/expect.txt"; [ -n "$REC" ] && EXPF="$REPO/tools/gates/baseline/119de74/gates/expect.txt"
+EXPF="$BL/expect.txt"; [ -n "$REC" ] && EXPF="$GATES_BASE/gates/expect.txt"
 if [ -f "$EXPF" ]; then while IFS='=' read -r k v; do k="${k%$'\r'}"; v="${v%$'\r'}"; case "$k" in ''|\#*) continue ;; esac; EXP[$k]="$v"; done < "$EXPF"; fi
 for kv in "${EXPECT_OVR[@]+"${EXPECT_OVR[@]}"}"; do EXP[${kv%%=*}]="${kv#*=}"; done
 exp() { echo "${EXP[$1]:-}"; }
@@ -137,7 +139,7 @@ chk_savever() {
 chk_clang() {
   local cmds fails want; cmds=$(grep -oE 'CLANG_CMDS=[0-9]+' "$2" | tail -1 | cut -d= -f2); fails=$(grep -oE 'CLANG_FAILS=[0-9]+' "$2" | tail -1 | cut -d= -f2)
   want=$(exp CLANG_CMDS)
-  if [ "$3" -eq 0 ] && [ "${fails:-x}" = 0 ] && { [ -z "$want" ] || [ "$cmds" = "$want" ]; }; then echo "PASS $(grep -m1 'clang build rc' "$2" | cut -c1-40), $cmds commands, CLANG_FAILS=0$(grep -oE 'CLANG_RERUN_OK=[1-9][0-9]*' "$2" | tail -1 | sed 's/^/ (/; s/$/ ok on the alone rerun)/')"
+  if [ "$3" -eq 0 ] && [ "${fails:-x}" = 0 ] && { [ -z "$want" ] || [ "$cmds" = "$want" ]; }; then echo "PASS $(grep -m1 'clang build rc' "$2" | cut -c1-40), $cmds commands, CLANG_FAILS=0$(grep -oE 'CLANG_RERUN_OK=[1-9][0-9]*' "$2" | tail -1 | sed 's/^/ (/; s/$/ ok on the rerun)/')$(grep -qE 'NOT ALONE \(held' "$2" && echo ' [a rerun was NOT ALONE]')"
   else echo "FAIL $(grep -m1 'clang build rc' "$2" | cut -c1-60), cmds=$cmds (want ${want:-any}), CLANG_FAILS=${fails:-?} $(grep -m2 '^FAIL' "$2" | cut -c1-80 | tr '\n' ' ')"; fi
 }
 chk_art() {   # S5: TOTAL as expected (expect.txt / --expect) and the whole output equal to baseline
@@ -151,10 +153,10 @@ chk_art() {   # S5: TOTAL as expected (expect.txt / --expect) and the whole outp
 chk_freeze() {
   local r ok; r=$(base_cmp "$1" "$2"); ok=$?
   local line; line=$(grep -m1 'freeze:.*frames checked' "$2" | tr -d '\r' | sed 's/^ *//')
-  local red; red=$(exp "KNOWN_RED_$1")   # already red at 119de74 (4.4): judged as "same output as baseline", same rc
+  local red; red=$(exp "KNOWN_RED_$1")   # already red at the root (4.4): judged as "same output as baseline", same rc
   if [ -n "$red" ]; then
-    if [ "$3" = "$red" ] && [ $ok -eq 0 ]; then echo "PASS known red at 119de74 (rc=$red), same output: ${line:0:70}; $r"
-    else echo "FAIL known red at 119de74 (rc=$red) but output/rc changed: rc=$3 ${line:0:70}; $r"; fi; return
+    if [ "$3" = "$red" ] && [ $ok -eq 0 ]; then echo "PASS known red at $GATES_BASE_ID (rc=$red), same output: ${line:0:70}; $r"
+    else echo "FAIL known red at $GATES_BASE_ID (rc=$red) but output/rc changed: rc=$3 ${line:0:70}; $r"; fi; return
   fi
   if [ "$3" -eq 0 ] && echo "$line" | grep -q ' 0 changed, 0 gone, 0 new frames' && [ $ok -eq 0 ]; then echo "PASS ${line:0:90}; $r"
   else echo "FAIL rc=$3 ${line:0:90}; $r"; fi
@@ -226,7 +228,7 @@ run_move() {
 }
 
 # ---------------------------------------------------------------- the run
-echo "step_gates: bdir=$BDIR out=$OUT $( [ $ALL -eq 1 ] && echo '(--all: S4 and S8 included)' || echo '(S4 and S8 wave-end only; --all runs them)')"
+echo "step_gates: baseline root $GATES_BASE_ID (rev $BASE), bdir=$BDIR out=$OUT $( [ $ALL -eq 1 ] && echo '(--all: S4 and S8 included)' || echo '(S4 and S8 wave-end only; --all runs them)')"
 BG=()
 # S4 and S8 do not need the MSVC build: start them first, beside S1
 if wave_end_ok S4.clang; then ( gate_run S4.clang chk_clang -- "$REPO/tools/gates/clang_ci.sh" --copy "$COPY" --out "$OUT/clang" ) &

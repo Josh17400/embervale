@@ -165,7 +165,13 @@ On top of these, each step lists **its own lines**, the rpg_test commands for th
 
   A gate that is already red at 119de74 is recorded with its exact output at wave 0, and the owner is told before
   wave 1. It is then judged as "same output as baseline".
-- Timing and perf lines are rerun alone before they count.
+  (After the plan, P3 on: a batch that changes behaviour moves a baseline only by declaring each expected difference
+  in `tools/gates/baseline/moves/<AREA>.txt`; `tools/gates/rebase_baseline.sh` checks a wave run against the declared
+  moves and re-records only those into a new root that `tools/gates/baseline/CURRENT` then names. See
+  `tools/gates/baseline/README.md` and docs/FIX_BATCH_P3.md 10.)
+- Timing and perf lines are rerun alone before they count: `slot_alone` (tools/gates/lib.sh) holds every slot 1..5
+  whatever the gaming cap, then waits for the machine CPU to fall to its idle level + 15 % (at most 240 s); each rerun
+  line says `alone` or `NOT ALONE (held k/5, cpu x %)`.
 - Every heavy process goes through `tools/slot.sh` (5 at most, machine-wide). Witness runs headless with
   `WITNESS_MAX_PROCS=5` and `WITNESS_MAX_BROWSERS=1`. Run the keep-awake loop during long gate runs, because the PC
   sleeps otherwise.
@@ -399,7 +405,8 @@ Rules for every wave-1 step:
   - `SAVE_VER` appears in exactly one .cpp, and `game_rpg.cpp` is 700 lines or fewer;
   - move_check is clean, and the sim digest is identical;
   - S1-S10 pass, plus `--loot`, `--loot-sources --seeds 1..3`, `--quests`, `--dialogue --seeds 1..3`,
-    `--quest-mix --seeds 1..20 --gates --p1b --gates-p1b` and `--save-soak 100`.
+    `--quest-mix --seeds 1..20 --gates --p1b --gates-p1b --ports` and `--save-soak 100` (since P3 C6 `--gates-p1b`
+    implies `--ports`: the P1b gates need the port town in the visit set; CI always passed it).
 - **Watch:** never move loot code into `gear.cpp`/`items.cpp` (the precise FP group).
 
 **1.2 SIM-LIFE** · engineer-high · about 5.2k lines
@@ -747,7 +754,8 @@ Seven areas run in parallel, with no CMake edits. Each shared header has one own
 - **Done:**
   - no touched function is over 300 lines (offerFor 120 or fewer, as a dispatcher);
   - the sim digest is identical (RNG draw order);
-  - these pass: `--quest-mix --seeds 1..20 --gates --p1b --gates-p1b`, `--quests`, `--mainquest`, `--loot`,
+  - these pass: `--quest-mix --seeds 1..20 --gates --p1b --gates-p1b --ports` (`--gates-p1b` implies `--ports` since
+    P3 C6), `--quests`, `--mainquest`, `--loot`,
     `--foes --seeds 1..3`, `--spells`, `--skills`, `--powers`, `--companion --seeds 1..3`;
   - S1-S10 pass.
 

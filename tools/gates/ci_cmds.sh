@@ -5,7 +5,7 @@
 #
 # Every `./build-native/<exe> <args>` in the workflow, with the `./build-native/` prefix dropped, trailing blanks
 # trimmed and comments cut. Lines that use a shell variable (the `for s in 7 99 12345` loop) are left out, as the
-# harness has always done (SOLID_PLAN 4.1: "the 68 commands"). Exit 1 when the list is empty.
+# harness has always done (SOLID_PLAN 4.1 counted 68; P3 C5 added --look-key: 69). Exit 1 when the list is empty.
 set -u
 cd "$(dirname "$0")/../.."
 WF="${1:-.github/workflows/web.yml}"

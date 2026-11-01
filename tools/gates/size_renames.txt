@@ -1,0 +1,9 @@
+# tools/gates/size_renames.txt - functions (or files) renamed since the baseline root's size record, for
+# size_report.sh --check BASELINE --renames tools/gates/size_renames.txt (P3 C4). One "old new" per line: a baseline
+# item named old is matched as new, so a renamed function is not reported as NEW (and still as GREW if it got bigger).
+# Names as size_report prints them (Class::name), or file paths for "OVER file" items. '#' starts a comment.
+# The SOLID renames (waves 3-5, against baseline/119de74/checks/size_report.txt):
+Game::partyChoose            PartyTalkOps::choose                       # SOLID 41 party talk: Game hooks -> PartyTalkOps
+Game::warStep                WarOps::step                               # SOLID 41 war/realm (3fa3c07)
+Game::foeStep                FoeHooks::step                             # SOLID 41 foes (b0e51b2)
+EndlessSource::Impl::chunk   EndlessSource::Impl::chunkReliefBits       # SOLID 32 (3513343): chunk() (1604 lines) became a driver over named stages; its relief stage (390) is the one piece still over 300

@@ -39,6 +39,7 @@
 # (PERF_ALONE_WAIT: 240 s for --check, 1800 s for --record); a --check that hits the cap measures anyway, flagged NOT ALONE.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="$ROOT"; . "$ROOT/tools/gates/lib.sh"   # the baseline root and the shared CPU sampler (cpu_start / cpu_avg / cpu_nsamp)
 cd "$ROOT"
 BDIR="${BDIR:-build}"; OUT=""; RUNS=""; CHECK=""; RECORD=0
 while [ $# -gt 0 ]; do
@@ -56,7 +57,7 @@ done
 case "$BDIR" in /*|?:*) B="$BDIR" ;; *) B="$ROOT/$BDIR" ;; esac
 for x in rpg_test.exe embervale.exe; do [ -x "$B/$x" ] || { echo "perf_pack FAIL: $B/$x not found"; exit 2; }; done
 [ -z "$RUNS" ] && { [ $RECORD -eq 1 ] && RUNS=7 || RUNS=5; }
-[ -z "$CHECK" ] && [ $RECORD -eq 0 ] && CHECK="$ROOT/tools/gates/baseline/119de74/probes/perf.txt"
+[ -z "$CHECK" ] && [ $RECORD -eq 0 ] && CHECK="$GATES_BASE/probes/perf.txt"
 [ -z "$OUT" ] && OUT="$(mktemp -d "${TMPDIR:-/tmp}/emb_perfpack.XXXXXX")"
 mkdir -p "$OUT"
 # ---- run alone: hold every slot, then wait out foreign heavy processes ----
@@ -91,17 +92,11 @@ foreign() {   # heavy processes that are not ours (the owner's Desktop game coun
 }
 # The machine CPU (typeperf, % of all logical processors) is sampled every second from here on: load that never takes
 # a slot (a WSL build, a browser, another session's Witness instances) shows there.
-CPUCSV="$OUT/cpu.csv"; : > "$CPUCSV"
-typeperf "\\Processor(_Total)\\% Processor Time" -si 1 > "$CPUCSV" 2>/dev/null < /dev/null &
-TYPEPERF=$!
-cleanup() { rm -f "$OUT/.watching"; kill "$TYPEPERF" 2>/dev/null; release_all; }
+cpu_start "$OUT/cpu.csv"   # lib.sh: CPUCSV, CPU_PID
+cleanup() { rm -f "$OUT/.watching"; cpu_stop; release_all; }
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM HUP
-nsamp() { tr -d '\r' < "$CPUCSV" 2>/dev/null | grep -cE '^"[^"]*","[0-9.]+"$'; }
-cpu_avg() {   # cpu_avg N: mean machine CPU % over the last N samples ("" when typeperf gave fewer)
-  tr -d '\r' < "$CPUCSV" 2>/dev/null | awk -F'","' 'NF == 2 && $2 ~ /^[0-9.]+"?$/ { v = $2; gsub(/"/, "", v); a[++n] = v }
-    END { k = '"$1"'; if (n < k) exit; for (i = n - k + 1; i <= n; i++) s += a[i]; printf("%.0f", s / k) }'
-}
+nsamp() { cpu_nsamp; }   # and cpu_avg N (lib.sh): mean machine CPU % over the last N samples ("" when fewer)
 IDLE=""   # the lowest 5 s mean machine CPU % seen so far (this machine's idle level)
 set_quiet() {   # QUIET: mean machine CPU % (5 s) that counts as quiet before a run; MAXCPU: a run with 3+ samples above is tainted
   local q=$(( ${IDLE:-0} + ${PERF_QUIET_ABOVE:-5} )); [ $q -gt "${PERF_QUIET_MAX:-25}" ] && q="${PERF_QUIET_MAX:-25}"
@@ -145,6 +140,7 @@ while :; do
   [ $said -eq 0 ] && { echo "perf_pack: waiting to run alone (cap ${c:-?}/$NSLOT, slots held ${#HELD[@]}/$NSLOT, cpu $(cpu_avg 1)%, foreign: $(foreign))"; said=1; }
   sleep 2
 done
+[ -n "$IDLE" ] && [ "$(nsamp)" -ge 10 ] && cpu_idle_note "$IDLE"   # remembered for lib.sh slot_alone's quiet wait
 echo "perf_pack: machine idle ${IDLE:-?}% -> quiet below ${QUIET}%, a run tainted above ${MAXCPU}% (waited $((SECONDS - t0)) s)"
 NOTALONE=""
 if [ $ALONE -eq 0 ]; then
