@@ -27,6 +27,7 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/home.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/travel_ops.h"
 
 // ---------------------------------------------------------------- HomeOps: shared helpers
 void HomeOps::dropAt(Game& g, int i) {
@@ -67,7 +68,7 @@ void HomeOps::travelHomeOnRespawn(Game& g, int32_t gx, int32_t gy) {
   g.travel.site = -1;
   g.travel.kind = 2;
   g.travel.gx = gx; g.travel.gy = gy;
-  g.journeyWindow();
+  TravelOps::journeyWindow(g);
   g.travel.t = kTravelFadeOut;
   g.sleepFade = 1.0f;
 }

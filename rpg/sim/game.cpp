@@ -28,6 +28,8 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/life_hooks.h"
 #include "rpg/sim/foe_hooks.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/wayside_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -1289,7 +1291,7 @@ void Game::streamSitePeople(int si) {
     const Spawn& sp = world.over.spawns[(size_t)w.second];
     const bool counts = sp.npc && sp.role != Role::Guard;
     if (counts && !whole && folk >= FOLK_CAP) continue;
-    if (st.type == SiteType::Vignette && waysideSpawn(si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
+    if (st.type == SiteType::Vignette && WaysideOps::spawn(*this, si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
     spawnHuman(sp, Vec2(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f));
     questSpawned(actors.back());   // M2: a named bandit chief (quests.cpp)
     // M2 town defence: a town's or city's watch keeps a post on the square (where the market and the crowd are), so a
@@ -1641,7 +1643,7 @@ void Game::enterBuilding(int bi, int col) {
   // (M7 fix) by this building's door (the rider may have been set down at the door from afar: a journey, a script)
   if (rode && home.horse >= 0 && !home.horseInn) { home.horseGx = world.ox + b.doorX(); home.horseGy = world.oy + b.doorY() + 1; }
   inside = true; subSite = -1; subBldg = bi; subFloor = 0;
-  if (takePreparedInterior(b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
+  if (TravelOps::takePrepared(*this, b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
   else { genInterior(sub, b, b.seed, 0); prepMisses++; }
   for (int i = 0; i < sub.w * sub.h; i++)
     if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;

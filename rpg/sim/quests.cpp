@@ -24,6 +24,7 @@
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
 #include "rpg/sim/life_hooks.h"
+#include "rpg/sim/travel_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -131,7 +132,7 @@ int Game::pickDestination(int32_t gx, int32_t gy, Rng& r) {
   if (!world.endless || !world.src) return -1;
   const int rings = 3;
   const int32_t rx0 = ew::regionOf(gx), ry0 = ew::regionOf(gy);
-  const int32_t land = landAt(gx, gy);
+  const int32_t land = TravelOps::landAt(*this, gx, gy);
   std::vector<std::pair<float, ew::Gid>> c;
   for (int32_t ry = ry0 - rings; ry <= ry0 + rings; ry++)
     for (int32_t rx = rx0 - rings; rx <= rx0 + rings; rx++) {
@@ -143,7 +144,7 @@ int Game::pickDestination(int32_t gx, int32_t gy, Rng& r) {
         bool taken = false;
         for (const Quest& o : quests) if (o.type == QType::Deliver && o.state != QState::Done && o.targetId == p.id) taken = true;
         if (taken) continue;
-        if (land && landAt(p.ex, p.ey) != land) continue;
+        if (land && TravelOps::landAt(*this, p.ex, p.ey) != land) continue;
         c.push_back({d, p.id});
       }
     }

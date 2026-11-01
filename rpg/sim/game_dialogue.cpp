@@ -8,6 +8,7 @@
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/craft_hooks.h"
 #include "rpg/sim/war_ops.h"
+#include "rpg/sim/wayside_ops.h"
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
@@ -390,7 +391,7 @@ void Game::talkToInner(Actor& a) {
   dlg.role = a.role;
   if (a.comp && PartyTalkOps::talk(*this, a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
   // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
-  if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
+  if (a.npc && !a.human && a.mon == Monster::Troll) { WaysideOps::tollTalk(*this, a); return; }
   using speech::Topic;
   if (a.quest > 0) {
     const Quest* q = questById(a.quest);
@@ -853,7 +854,7 @@ void Game::dialogueChooseInner(int oi) {
       mode = Mode::Play;
       return;
     case A_TOLLPAY: {
-      const int si = o.arg, toll = tollOf(si);
+      const int si = o.arg, toll = WaysideOps::tollOf(*this, si);
       if (gold < toll) { dlg.text = "NO GOLD, NO CROSSING. COME BACK RICHER."; dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return; }
       gold -= toll;
       if (si >= 0 && si < (int)world.sites.size()) marks[markKey(world.sites[(size_t)si].id, Mk::Toll)] = day;

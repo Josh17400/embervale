@@ -32,6 +32,8 @@
 #include "rpg/sim/foe_hooks.h"
 #include "rpg/sim/realm_ops.h"
 #include "rpg/sim/war_ops.h"
+#include "rpg/sim/travel_ops.h"
+#include "rpg/sim/wayside_ops.h"
 
 // ------------------------------------------------------------------ main update
 namespace {
@@ -46,7 +48,7 @@ void Game::update(float dt, const Input& in) {
   // headless step (rpg_test --anim) advances the body's state time the same way
   if (mode == Mode::Dead && art::rigVersion() >= 2 && pl().st == AState::Dead) pl().stT += dt;
   if (mode != Mode::Play) return;
-  if (travel.phase != TravelPhase::None) { travelStep(dt); return; }   // M2: on the road behind the fade (travel.cpp)
+  if (travel.phase != TravelPhase::None) { TravelOps::step(*this, dt); return; }   // M2: on the road behind the fade (travel.cpp)
   // 1. the clocks: the stamina flash, the hit-stop freeze, the slow-motion blip, sim time and the hour of the day
   if (stFlash > 0) stFlash -= dt;
   if (hitStop > 0) { hitStop -= dt; return; }
@@ -63,7 +65,7 @@ void Game::update(float dt, const Input& in) {
   if (blessT > 0) { blessT -= dt; if (blessT <= 0) recalcPlayer(); }
   if (sleepFade > 0) sleepFade = std::max(0.0f, sleepFade - dt);
 
-  if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
+  if (!inside) TravelOps::prepTick(*this, dt);   // (M3c carry) the interior of the door ahead, before it is reached
   const bool rig2 = art::rigVersion() >= 2;
   if (rig2) {
     tlWalk.resize(actors.size());
@@ -147,7 +149,7 @@ void Game::update(float dt, const Input& in) {
     if (ms > perf.sysWorstMs[sys]) perf.sysWorstMs[sys] = ms;
   };
   using PC = PerfCounters;
-  timed(PC::S_QUEST, [&] { questTick(dt); waysideTick(dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
+  timed(PC::S_QUEST, [&] { questTick(dt); WaysideOps::tick(*this, dt); });   // M2: deliveries, escorts, the Protect night; the toll bridge
   timed(PC::S_REALM, [&] { RealmOps::step(*this, dt); });   // M4: the living world (realm_game.cpp, REALM lane)
   timed(PC::S_WAR, [&] { WarOps::step(*this, dt); });       // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
   timed(PC::S_STORY, [&] { storyStep(dt); });   // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)

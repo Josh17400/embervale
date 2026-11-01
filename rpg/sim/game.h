@@ -627,8 +627,6 @@ class Game {
   // the kingdom whose camp a war prop at overworld tile (tx, ty) belongs to (0: none / not a war prop): the view draws
   // it in that kingdom's colours (art::warPropSprite). war_game.cpp.
   ew::Gid warPropKingdom(int tx, int ty) const;
-  // M2 SIM lane: a carriage can be hired here (the player stands in a town or a city, or in one of its buildings)
-  bool carriageHere() const;
   // M2 quests (rpg/sim/quests.cpp). offerFor: the offer this NPC would make when asked for work, of a given type
   // (QType::COUNT: whatever they would offer); `ok` false when they have none of that kind. Scripts and tests use it
   // with debugAccept to drive every quest type from code.
@@ -639,8 +637,7 @@ class Game {
   // M2 rumours (rpg/sim/wayside.cpp): mark the nearest unknown dungeon, wayside place or wonder as rumoured and return
   // the line that tells of it ("" when there is nothing left to hear of)
   std::string hearRumour();
-  // M2 wayside: the toll a troll bridge asks (10-25 gold), and whether the player may cross it today
-  int tollOf(int site) const;
+  // M2 wayside: whether the player may cross the troll bridge of `site` today (WaysideOps::tollOf: the toll)
   bool tollPaid(int site) const;
   void respawn();
   int interactTarget() const;          // actor id the player would talk to (-1 none)
@@ -886,18 +883,6 @@ class Game {
   uint64_t prepJobKey_ = 0;
   int prepJobBldg_ = -1;
 #endif
-  static uint64_t interiorKey(const Bldg& b, int floor) { return (b.id ? b.id : ((uint64_t)b.seed << 20 | 0x5EA7ull)) * 31ull + (uint64_t)floor + 1; }
-  void prepInteriorTick(float dt);
-  bool takePreparedInterior(const Bldg& b, int floor, Map& out);   // false: nothing made ahead for it
-  void travelStep(float dt);           // one update step of a journey (Gather / Arrive)
-  void travelWant();                   // the streamer's wish list for the destination window
-  bool travelReady();                  // every chunk and region plan the arrival needs is ready
-  void travelArriveNow();              // move the window and the player (the Arrive step)
-  void travelDest(const Site& s, int kind, int32_t& gx, int32_t& gy) const;   // the arrival tile (global)
-  void arriveInOpen(const Site& s);    // settlements: the nearest open tile with a free step south
-  int32_t landAt(int32_t gx, int32_t gy) const;   // the landmass id at (or near) a global tile
-  bool startJourney(int site, int kind, float hours, int gold);
-  void journeyWindow();                // the journey's destination window and wish list (startJourney, beginTravelTo)
   // ---- M4: the realm's runtime state (the hooks: RealmOps in realm_ops.h, WarOps in war_ops.h, StoryOps in story_ops.h)
   uint32_t realmSeen_ = 0;             // the realm's eventSerial() last applied (realm_game.cpp)
   uint32_t riseSeen_ = 0;              // (M12) the last realm event id told to the view as a rise banner (realm_game.cpp)
@@ -1024,6 +1009,8 @@ class Game {
   friend struct QuestMixOps;           // P1 lead: rpg_test --quest-mix asks the game's own offer code (test_quest_mix.cpp)
   friend struct RealmOps;              // M4 REALM: the living world's hook (rpg/sim/realm_ops.h, realm_game.cpp)
   friend struct WarOps;                // M4 WARDS: the war's hooks (rpg/sim/war_ops.h, war_game.cpp)
+  friend struct TravelOps;             // M2 SIM: travel behind the fade, the interior made ahead (rpg/sim/travel_ops.h)
+  friend struct WaysideOps;            // M2 SIM: wayside life, tolls, rumours (rpg/sim/wayside_ops.h, wayside.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,
@@ -1082,12 +1069,6 @@ class Game {
   // wayside life (wayside.cpp)
   float tollAskT_ = 0;                 // the troll asked a moment ago (no repeat while the player stays on the bridge)
   Vec2 offBridge_;                     // the player's last position off a toll bridge (the troll's demand turns them back)
-  bool waysideSpawn(int site, const Spawn& sp);        // a vignette's spawn (true: handled, spawned or held back)
-  void waysideTick(float dt);          // ambushes, toll bridges
-  bool useWaysideProp(art::Prop p, int tx, int ty);   // standing stones, a lone grave (true: handled)
-  void tollTalk(Actor& troll);         // the troll's demand as a dialogue
-  int rumourSite(int32_t gx, int32_t gy);              // the nearest unknown place worth a rumour (-1 none)
-  std::string rumourLine(int site, int32_t fromX, int32_t fromY) const;
   // ---- (SOLID 3.5) the pieces the big sim functions were split into: private helpers in one marked block (wave 4
   //      re-homes them). Each runs exactly the code (and draws exactly the dice) of the stretch it was cut from.
   // the key killedSlots[0] holds for an overworld spawn of a site (M1: 4096 slots per site; saves store site id + slot)

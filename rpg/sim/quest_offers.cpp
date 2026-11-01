@@ -16,6 +16,7 @@
 #include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
+#include "rpg/sim/travel_ops.h"
 
 using art::Monster;
 using art::Prop;
@@ -503,12 +504,12 @@ bool Game::offerHunt(OfferCtx& oc) {
     // the ground: 40-60 tiles out, the first of eight ways (from the dice) on the home's own land
     static const int dx8[8] = {1, 1, 0, -1, -1, -1, 0, 1}, dy8[8] = {0, 1, 1, 1, 0, -1, -1, -1};
     const int d0 = r.irange(8), far = 40 + r.irange(21);
-    const int32_t land = landAt(hx, hy);
+    const int32_t land = TravelOps::landAt(*this, hx, hy);
     ax = hx + dx8[d0] * far; ay = hy + dy8[d0] * far;
     for (int k = 0; k < 8; k++) {
       const int d = (d0 + k) % 8, m = (dx8[d] && dy8[d]) ? far * 7 / 10 : far;
       const int32_t tx = hx + dx8[d] * m, ty = hy + dy8[d] * m;
-      if (!land || landAt(tx, ty) == land) { ax = tx; ay = ty; break; }
+      if (!land || TravelOps::landAt(*this, tx, ty) == land) { ax = tx; ay = ty; break; }
     }
   }
   if (world.endless && world.src) {

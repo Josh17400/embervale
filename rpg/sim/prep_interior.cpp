@@ -18,6 +18,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/interior_v4.h"
 #include "rpg/sim/stream.h"
+#include "rpg/sim/travel_ops.h"
 
 namespace {
 constexpr int kPrepTiles = 9;
@@ -49,32 +50,32 @@ std::unordered_map<const Game*, WebPrep>& webPreps() {
 uint64_t worldTag(const Game& g) { return g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)g.world.genVersion; }
 }  // namespace
 
-bool Game::takePreparedInterior(const Bldg& b, int floor, Map& out) {
-  const uint64_t key = interiorKey(b, floor);
+bool TravelOps::takePrepared(Game& g, const Bldg& b, int floor, Map& out) {
+  const uint64_t key = TravelOps::interiorKey(b, floor);
 #ifndef __EMSCRIPTEN__
-  if (prepJob_ && prepJob_->valid() && prepJobKey_ == key) {   // still being made: wait for it (shorter than starting over)
-    prep_.map = prepJob_->get();
-    prep_.key = key;
-    prep_.ready = true;
-    prepJob_.reset();
+  if (g.prepJob_ && g.prepJob_->valid() && g.prepJobKey_ == key) {   // still being made: wait for it (shorter than starting over)
+    g.prep_.map = g.prepJob_->get();
+    g.prep_.key = key;
+    g.prep_.ready = true;
+    g.prepJob_.reset();
   }
 #endif
   if (webPath()) {
     // the job for this door, part made: finish it now (the rest of its units: shorter than starting over)
-    auto it = webPreps().find(this);
-    if (it != webPreps().end() && it->second.job && it->second.key == key && it->second.world == worldTag(*this)) {
+    auto it = webPreps().find(&g);
+    if (it != webPreps().end() && it->second.job && it->second.key == key && it->second.world == worldTag(g)) {
       it->second.job->step(1e9);
-      prep_.map = std::move(it->second.job->map());
-      prep_.key = key;
-      prep_.ready = true;
+      g.prep_.map = std::move(it->second.job->map());
+      g.prep_.key = key;
+      g.prep_.ready = true;
       it->second.job.reset();
       it->second.key = 0;
     }
   }
-  if (!prep_.ready || prep_.key != key) return false;
-  out = std::move(prep_.map);
-  prep_ = PrepInterior();
-  prepBldg_ = -1;
+  if (!g.prep_.ready || g.prep_.key != key) return false;
+  out = std::move(g.prep_.map);
+  g.prep_ = Game::PrepInterior();
+  g.prepBldg_ = -1;
   return true;
 }
 
@@ -83,33 +84,33 @@ const Map* Game::preparedInterior(int& bldg) const {
   return prep_.ready && prepBldg_ >= 0 && prepBldg_ < (int)world.over.bldgs.size() ? &prep_.map : nullptr;
 }
 
-void Game::prepInteriorTick(float dt) {
+void TravelOps::prepTick(Game& g, float dt) {
 #ifndef __EMSCRIPTEN__
   // a finished job is collected whenever it lands
-  if (prepJob_ && prepJob_->valid() && prepJob_->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    prep_.map = prepJob_->get();
-    prep_.key = prepJobKey_;
-    prep_.ready = true;
-    prepBldg_ = prepJobBldg_;
-    prepJob_.reset();
+  if (g.prepJob_ && g.prepJob_->valid() && g.prepJob_->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    g.prep_.map = g.prepJob_->get();
+    g.prep_.key = g.prepJobKey_;
+    g.prep_.ready = true;
+    g.prepBldg_ = g.prepJobBldg_;
+    g.prepJob_.reset();
   }
 #endif
   // the web path: the job in progress takes its slice of this update
   if (webPath()) {
-    WebPrep& W = webPreps()[this];
-    if (W.job && W.world != worldTag(*this)) { W.job.reset(); W.key = 0; }
-    if (W.job && !inside) {
-      const bool busy = world.streamer && !world.streamer->idle();
+    WebPrep& W = webPreps()[&g];
+    if (W.job && W.world != worldTag(g)) { W.job.reset(); W.key = 0; }
+    if (W.job && !g.inside) {
+      const bool busy = g.world.streamer && !g.world.streamer->idle();
       const auto s0 = std::chrono::steady_clock::now();
       const bool fin = W.job->step(busy ? kWebBusyBudgetMs : kWebBudgetMs, &W.worstUnitMs);
       const double sl = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
       W.totalMs += sl; W.worstSliceMs = std::max(W.worstSliceMs, sl); W.slices++;
       if (fin) {
-        prep_ = PrepInterior();
-        prep_.map = std::move(W.job->map());
-        prep_.key = W.key;
-        prep_.ready = true;
-        prepBldg_ = W.bldg;
+        g.prep_ = Game::PrepInterior();
+        g.prep_.map = std::move(W.job->map());
+        g.prep_.key = W.key;
+        g.prep_.ready = true;
+        g.prepBldg_ = W.bldg;
         W.job.reset();
         W.key = 0;
         if (std::getenv("EMB_TIMING"))
@@ -117,12 +118,12 @@ void Game::prepInteriorTick(float dt) {
       }
     }
   }
-  prepT_ -= dt;
-  if (prepT_ > 0 || inside) return;
-  prepT_ = 0.15f;
-  const Map& m = world.over;
+  g.prepT_ -= dt;
+  if (g.prepT_ > 0 || g.inside) return;
+  g.prepT_ = 0.15f;
+  const Map& m = g.world.over;
   if (m.bldgAt.empty()) return;
-  const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
+  const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
   int best = -1, bestD = 1 << 30;
   for (int y = py - kPrepTiles; y <= py + kPrepTiles; y++)
     for (int x = px - kPrepTiles; x <= px + kPrepTiles; x++) {
@@ -137,16 +138,16 @@ void Game::prepInteriorTick(float dt) {
     }
   if (best < 0 || bestD > kPrepTiles * kPrepTiles * 2) return;
   const Bldg& b = m.bldgs[(size_t)best];
-  const uint64_t key = interiorKey(b, 0);
-  if (prep_.key == key && prep_.ready) { prepBldg_ = best; return; }
+  const uint64_t key = TravelOps::interiorKey(b, 0);
+  if (g.prep_.key == key && g.prep_.ready) { g.prepBldg_ = best; return; }
   if (webPath()) {
-    WebPrep& W = webPreps()[this];
+    WebPrep& W = webPreps()[&g];
     if (W.job && W.key == key) return;   // being made
     // a new door: the old job (another door the player turned from) gives way
     W.job.reset(new InteriorJob(b, b.seed, 0));
     W.key = key;
     W.bldg = best;
-    W.world = worldTag(*this);
+    W.world = worldTag(g);
     W.worstUnitMs = 0; W.totalMs = 0; W.worstSliceMs = 0; W.slices = 0;
     // EMB_PREP_ONESHOT=1: the M3c behaviour (the whole interior in one step), for before / after measurements
     static const bool oneShot = std::getenv("EMB_PREP_ONESHOT") != nullptr;
@@ -159,11 +160,11 @@ void Game::prepInteriorTick(float dt) {
     return;
   }
 #ifndef __EMSCRIPTEN__
-  if (prepJob_ && prepJob_->valid()) return;   // one at a time (the one being made lands first)
-  prepJobKey_ = key;
-  prepJobBldg_ = best;
+  if (g.prepJob_ && g.prepJob_->valid()) return;   // one at a time (the one being made lands first)
+  g.prepJobKey_ = key;
+  g.prepJobBldg_ = best;
   const Bldg copy = b;
-  prepJob_ = std::make_shared<std::future<Map>>(std::async(std::launch::async, [copy] {
+  g.prepJob_ = std::make_shared<std::future<Map>>(std::async(std::launch::async, [copy] {
     Map out;
     genInterior(out, copy, copy.seed, 0);
     return out;
