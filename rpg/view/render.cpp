@@ -2169,6 +2169,26 @@ void View::update(Game& g, float dt) {
   reliefUpdate(g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
   riseUpdate(g, dt);    // (M12) the herald's banners of the player's rise (render_rise.cpp)
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
+  updateBanners(g);   // (M1, M4) the arrival banner
+  if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
+  if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
+  float VW = 0, VH = 0;   // the world view (VW x VH world px), as lensUpdate left it
+  const bool camHeld = updateCamera(g, dt, VW, VH);
+  updateBeastCues(g, dt);   // (M6 BEASTS)
+  updateShake(g, dt, camHeld);
+  updateEffects(g, dt);   // particles, floating texts, toasts, banners, the dialogue's typing
+
+  updateMusic(g, dt);
+
+  const bool outdoors = g.mode != Mode::Title && !g.inside;
+  updateBiomeBanner(g, dt, outdoors);   // (M3c LIFE)
+  updateWeather(g, dt, outdoors);
+  updateAmbience(g, outdoors);
+  updateDrift(g, dt, outdoors, VW, VH);
+}
+
+// (M1) arriving in a settlement: the banner (update)
+void View::updateBanners(Game& g) {
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
   // there (a conquest, a siege laid or broken: realm_hud.cpp arrivalText)
@@ -2212,8 +2232,10 @@ void View::update(Game& g, float dt) {
       arriveFlags_ = flags;
     }
   }
-  if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
-  if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
+}
+
+// the camera: the follow, the room framing, the title drift, the pixel rounding and the hold, as one unit (update)
+bool View::updateCamera(Game& g, float dt, float& VW, float& VH) {
   // camera follows with a little lead in the aim direction (P2a: framing the world view, VW x VH world px)
   // (P2b `camhold`, Witness reset param camera:"hold": the same flag) the camera stays where it was drawn: no follow, no
   // zoom recentring, no shake (a window shift still carries it with the world, a snap or a map change still cuts)
@@ -2222,7 +2244,7 @@ void View::update(Game& g, float dt) {
   cam_ += s_camRes;   // (P2a slice) the eased camera again: the draw read it rounded (rvSnapCamera, below)
   s_camRes = Vec2();
   lensUpdate(g, dt);
-  const float VW = (float)viewW(), VH = (float)viewH();
+  VW = (float)viewW(); VH = (float)viewH();
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
     Vec2 want(p.p.x - VW / 2.0f + p.aim.x * 10, p.p.y - 10 - VH / 2.0f + p.aim.y * 6);
@@ -2291,6 +2313,11 @@ void View::update(Game& g, float dt) {
     s_camRes = eased - cam_;
   }
   if (camHeld) { cam_ = heldCam; s_camRes = Vec2(); }
+  return camHeld;
+}
+
+// (M6 BEASTS) the foes' cues the view plays (update)
+void View::updateBeastCues(Game& g, float dt) {
   // (M6 BEASTS) what the view hears and shows of the foes' moves: the harpy's shriek as it rears for the swoop, the
   // golem's slam (a shake and dust), the sting when an elite or a champion first comes into view, a world boss's roar
   // when it turns on the player, and a boss passing a phase (a roar, a shake, a white-hot flash). The sim may also play
@@ -2349,6 +2376,10 @@ void View::update(Game& g, float dt) {
       }
     }
   }
+}
+
+// the screen shake and the finisher's camera nudge (update)
+void View::updateShake(Game& g, float dt, bool camHeld) {
   shake_ = std::max(0.0f, shake_ - dt * 12);
   shakeOff_ = shake_ > 0.1f && !camHeld ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
   // (P2c SWITCH, delight) the camera nudge on a heavy finisher's impact (AnimPick::impact: hit 3 of the greatsword, axe and
@@ -2373,6 +2404,10 @@ void View::update(Game& g, float dt) {
       else shakeOff_ += nudgeDir_ * (2.0f * std::sin(3.14159265f * nudgeT_ / nudgeLen_));
     }
   }
+}
+
+// particles, floating texts and toasts age; the banners, the fade and the dialogue's typing (update)
+void View::updateEffects(Game& g, float dt) {
   for (size_t i = 0; i < parts_.size();) {
     Particle& q = parts_[i];
     q.life -= dt;
@@ -2410,7 +2445,10 @@ void View::update(Game& g, float dt) {
       if (g.dlg.text[ci] != ' ') audio_->play(Sfx::Talk, 0.7f + (hash32((uint32_t)std::hash<std::string>()(g.dlg.speaker)) % 80) / 100.0f, 0.8f);
     }
   }
+}
 
+// the music director (update)
+void View::updateMusic(Game& g, float dt) {
   // music director
   Music want = Music::Wild;
   if (g.mode == Mode::Title) want = Music::Title;
@@ -2455,9 +2493,11 @@ void View::update(Game& g, float dt) {
     audio_->setMusic(want, style ? &ms : nullptr, festive);
   }
   m5Stats_.music = (int)want;
+}
 
+// (M3c LIFE) the land under the player and its biome banner (update)
+void View::updateBiomeBanner(Game& g, float dt, bool outdoors) {
   // (M3c LIFE) the land under the player (its eco), looked up a few times a second
-  const bool outdoors = g.mode != Mode::Title && !g.inside;
   ecoT_ -= dt;
   if (ecoT_ <= 0) {
     ecoT_ = 0.25f;
@@ -2495,7 +2535,10 @@ void View::update(Game& g, float dt) {
     }
   }
   if (biomeBannerT_ > 0 && ((bannerT_ <= 0 && herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+}
 
+// the weather (update)
+void View::updateWeather(Game& g, float dt, bool outdoors) {
   // the weather (drawWeather paints wx_): what each nearby tile's Sky makes of this day and hour, averaged over five
   // points round the player (so it fades in over a dozen tiles at a border) and eased over a few seconds
   if (outdoors && g.map().kind == MapKind::Overworld) {
@@ -2552,7 +2595,10 @@ void View::update(Game& g, float dt) {
     ease(wx_.ash, wxWant_.ash); ease(wx_.eerie, wxWant_.eerie);
     ease(wx_.er, wxWant_.er); ease(wx_.eg, wxWant_.eg); ease(wx_.eb, wxWant_.eb);
   } else if (g.inside) wxInit_ = false;   // (back outside, the weather is simply there)
+}
 
+// the land's sound bed and mood (update)
+void View::updateAmbience(Game& g, bool outdoors) {
   // the land's sound bed and the wilderness music's mood (engine/audio.cpp): silent indoors, in caves and the menus,
   // softer in towns and dialogue, under a fight
   {
@@ -2572,7 +2618,10 @@ void View::update(Game& g, float dt) {
     audio_->setMood(nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
     audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
   }
+}
 
+// the ambient particles: the land's own drift, the dust indoors (update)
+void View::updateDrift(Game& g, float dt, bool outdoors, float VW, float VH) {
   // ambient particles (world layer): the land's own drift
   if (outdoors && hereEco_ >= 0) {
     const Eco e = (Eco)hereEco_;

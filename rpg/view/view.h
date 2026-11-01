@@ -508,6 +508,17 @@ class View {
   void drawWorld(Game& g);
   void layoutWallKeys(Game& g, const Map& m, uint64_t mapId, bool endlessOver);   // (SOLID 3.4a) once per map
   void spanWallGaps(Game& g, const Map& m);
+  // ---- (SOLID 3.4b) update's pieces, called in this order (render.cpp)
+  void updateBanners(Game& g);
+  bool updateCamera(Game& g, float dt, float& VW, float& VH);   // true: the camera is held (p2b.camHold)
+  void updateBeastCues(Game& g, float dt);
+  void updateShake(Game& g, float dt, bool camHeld);
+  void updateEffects(Game& g, float dt);
+  void updateMusic(Game& g, float dt);
+  void updateBiomeBanner(Game& g, float dt, bool outdoors);
+  void updateWeather(Game& g, float dt, bool outdoors);
+  void updateAmbience(Game& g, bool outdoors);
+  void updateDrift(Game& g, float dt, bool outdoors, float VW, float VH);
   // ---- (SOLID 3.4a) drawWorld's sorted pass (rpg/view/render_sorted.cpp): what stands is collected as a Drawable,
   //      sorted by its foot line, its ground shadow drawn, then its body, one member per kind (FrameCtx: the frame's
   //      camera, the roofs in view, the hidden hero)
