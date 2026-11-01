@@ -55,6 +55,21 @@ Canvas marketStall(int trade, int awning);
 // (fixer M5 r3) snow on the market's 3/4 models (stalls, tables, cloths, carts): while set, every up-facing surface at
 // or above model height z is painted under snow; 1e9 (the default) for none. Per thread: set, paint, reset.
 void setMarketSnow(float z, uint32_t seed = 0);   // seed: this stall's own drifts (neighbours differ)
+// (SOLID 5.5) the same snow, scoped: a MarketSnowScope sets it for its lifetime (only when on()) and always puts back
+// "none" (setMarketSnow(1e9f)) when it ends, so a paint never leaves snow behind for the next model on this thread.
+// setMarketSnow stays as the shim the scope calls.
+struct MarketSnow {
+  float z = 1e9f;      // up-facing surfaces at or above this model height lie under snow; 1e9: none
+  uint32_t seed = 0;   // this stall's own drifts
+  bool on() const { return z < 1e9f; }
+};
+class MarketSnowScope {
+ public:
+  explicit MarketSnowScope(const MarketSnow& s) { if (s.on()) setMarketSnow(s.z, s.seed); }
+  ~MarketSnowScope() { setMarketSnow(1e9f); }
+  MarketSnowScope(const MarketSnowScope&) = delete;
+  MarketSnowScope& operator=(const MarketSnowScope&) = delete;
+};
 constexpr int kStallAwnings = 8;
 // (M1 fixer round 2) one stall in three looks: 0 the cloth-awning booth, 1 a peaked canvas tent over a clothed trestle,
 // 2 a timber booth under a shingle roof with a painted board. closed: packed up for the night (the goods under a
@@ -75,6 +90,8 @@ Canvas marketStallFacing(int trade, int awning, int form, bool closed, int facin
 // 3 a tiled lean-to (the timber booth's roof), 4 silk with tassels, 5 hide; awningA / awningB colours, else the cloth).
 // The layout, goods, keeper spots and canvas are the classic stall's; a classic style gives exactly marketStallFacing.
 Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facing, const PropStyle& st);
+// (SOLID 5.5) the same stall painted under `snow` (scoped: the snow state is "none" again when it returns)
+Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facing, const PropStyle& st, const MarketSnow& snow);
 void stallOrigin(int facing, int& dx, int& dy);
 // the ground shadow a stall casts (soft, to the lower right: the light is top-left), drawn under everything standing;
 // its top-left from the prop tile's top-left is (kVendorShadowX, kVendorShadowY)
