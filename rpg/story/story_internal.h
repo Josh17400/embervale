@@ -59,8 +59,9 @@ RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* ma
 // (M8b) the reward source of a stage of a script: a success ending is a finale (a campaign's: tier 3), else Saga
 gear::LootSrc rewardSrcOf(const dsl::Script& s, const dsl::StageDef& G);
 // (M8b) `do loot` (the M4 tales' random find; no library script uses it now): a piece of gear by the gear rules at
-// danger D, as a Saga reward (a finale's when `finale`)
-Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale);
+// danger D, as a Saga reward (a finale's when `finale`). (P3 LOOT) maker: the hook's people (the reward's culture; null:
+// unknown, the piece is made with no maker)
+Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale, const cult::Culture* maker = nullptr);
 // the danger (World site level) a story's rewards are paid at: its hook settlement's (1 when unknown)
 int storyDanger(Game& g, const Instance& in);
 

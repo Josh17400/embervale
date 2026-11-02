@@ -165,8 +165,21 @@ Item wildGood(int base, const char* name, art::Icon icon, int value, uint32_t ti
 }
 }  // namespace
 
+namespace {
+// (P3 LOOT, ruling 2) the dungeon the hero stands in is an old place (a ruin's or a shrine's): half its metal gear from
+// band 4 is an old maker's (bodies of the undead, its boss, its chests); a dragon's lair holds only relics
+int oldPlacePct(const Game& gm) {
+  if (!gm.inside || gm.subSite < 0 || gm.subSite >= (int)gm.world.sites.size() || gm.subBldg >= 0) return 0;
+  const SiteType st = gm.world.sites[(size_t)gm.subSite].type;
+  if (st == SiteType::DragonLair) return gear::RELIC_ALL;
+  return st == SiteType::Ruin || st == SiteType::Shrine ? gear::RELIC_HALF : 0;
+}
+}  // namespace
+
 void LootOps::dropLoot(Game& gm, const Actor& a) {
   if (a.npc) return;
+  // (P3 LOOT) a summon, a raised thrall (a summon of RAISE DEAD) or a decoy is no body: it carries nothing
+  if (a.magicTag == magic::MT_SUMMON || a.magicTag == magic::MT_DECOY) return;
   Rng r(hash32((uint32_t)a.id * 7919u) ^ (uint32_t)gm.seed ^ (uint32_t)(gm.time * 10));
   // (M6, 7.2 / 7.6) what a body drops is rolled by gear::rollDrop at the danger it fell at, its rank and its maker culture:
   // a soldier's or a bandit's own (Actor::culture, the FOES lane), else the land's
@@ -183,9 +196,15 @@ void LootOps::dropLoot(Game& gm, const Actor& a) {
   // (M8b, 15.27.4) the source by how hard the foe was: a world boss's hoard is Epic or better, a dungeon boss's drop is
   // boosted a step, a named unique's is Rare or better (7.6), every other body an ordinary roll (an elite's +1 roll is
   // rollDrop's own)
+  // (P3 LOOT, ruling 2) old makers' metals: a world boss's hoard is all relics; in an old place the undead and the boss
+  // carry them half the time; people (bandits, raiders, soldiers) never: they carry their own people's make
+  const bool undead = !a.human && (a.mon == Monster::Skeleton || a.mon == Monster::Draugr);
+  const int oldPct = oldPlacePct(gm);
   auto loot = [&](bool boss) {
     gear::DropSource s2 = ds;
     if (boss && s2.rank < 4) s2.rank = 4;
+    if (s2.rank >= 5) s2.relicPct = gear::RELIC_ALL;
+    else if (s2.rank == 4 || undead) s2.relicPct = (uint8_t)oldPct;
     if (s2.rank >= 5) { s2.src = gear::LootSrc::WorldBoss; s2.atLeast = Rarity::Epic; }
     else if (s2.rank == 4) { s2.src = gear::LootSrc::Boss; s2.boost = 1; }
     else if (s2.rank == 3) { s2.src = gear::LootSrc::Body; s2.atLeast = Rarity::Rare; }
@@ -287,7 +306,10 @@ void LootOps::openChest(Game& gm, int tx, int ty) {
   gm.looted.insert(lk);
   m.rebuildSolid();
   gm.sfx((int)Sfx::Chest, gm.pl().p);
-  int lvl = gm.inside && gm.subSite >= 0 ? gm.world.sites[gm.subSite].level : gm.world.zoneLevel(tx, ty);
+  // (P3 LOOT) a building's chest: the level and the maker of the town outside its door (never interior coordinates)
+  int otx = tx, oty = ty;
+  if (gm.inside && gm.subBldg >= 0) overworldTile(gm, otx, oty);
+  int lvl = gm.inside && gm.subSite >= 0 ? gm.world.sites[gm.subSite].level : gm.world.zoneLevel(otx, oty);
   Rng r(gm.world.endless ? (uint32_t)ew::mix64(lk ^ gm.seed) : hash2(tx, ty, (uint32_t)gm.seed + gm.mapKey()));
   bool rich = gm.inside && gm.subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
@@ -325,7 +347,7 @@ void LootOps::openChest(Game& gm, int tx, int ty) {
     return place(jx, jy);
   };
   // (M6) the chest's loot by the place's danger (gear::rollDrop) in the make of the land's (or the dungeon's) culture
-  const cult::Culture* cc = gm.inside && gm.subSite >= 0 ? gm.world.cultureOf(gm.subSite) : (gm.inside ? nullptr : gm.world.cultureAtTile(tx, ty));
+  const cult::Culture* cc = gm.inside && gm.subSite >= 0 ? gm.world.cultureOf(gm.subSite) : gm.world.cultureAtTile(otx, oty);
   if (cc && gm.world.src) cc = &gm.world.src->culture(cc->id);
   // (M8b, 15.27.4) what kind of find it is (a dungeon's hoard, an exploration cache, a plain chest): LootOps::chestSource
   gear::DropSource ds = LootOps::chestSource(gm, tx, ty);
@@ -374,7 +396,10 @@ void LootOps::openChest(Game& gm, int tx, int ty) {
 gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {
   gear::DropSource ds;
   const bool dungeon = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() && g.subBldg < 0;
-  const int lvl = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() ? g.world.sites[(size_t)g.subSite].level : g.world.zoneLevel(tx, ty);
+  // (P3 LOOT) a building's chest reads the danger outside its door (interior coordinates are not the world's)
+  int otx = tx, oty = ty;
+  if (g.inside && g.subBldg >= 0) overworldTile(g, otx, oty);
+  const int lvl = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() ? g.world.sites[(size_t)g.subSite].level : g.world.zoneLevel(otx, oty);
   ds.D = std::clamp(lvl, 1, gear::MAX_D);
   ds.chest = true;
   ds.playerLevel = g.plLevel;
@@ -401,6 +426,8 @@ gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {
     const SiteType st = g.world.sites[(size_t)g.subSite].type;
     if (byBoss) { ds.src = gear::LootSrc::Hoard; ds.boost = 1; }
     else if (st == SiteType::Ruin || st == SiteType::Shrine) { ds.src = gear::LootSrc::Explore; ds.boost = 1; }   // a ruin's cache
+    // (P3 LOOT, ruling 2) an old place's chests: half their metal gear from band 4 is the old makers'; a lair's hoard all
+    ds.relicPct = (uint8_t)oldPlacePct(g);
     // a harder dungeon (beyond the hero: 15.27.4) pays a step more
     if (ds.D >= g.plLevel + 3) ds.boost = (int8_t)(ds.boost + 1);
   } else if (!g.inside) {
@@ -409,6 +436,8 @@ gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {
     if (si >= 0) {
       const SiteType st = g.world.sites[(size_t)si].type;
       if (st == SiteType::Vignette || st == SiteType::Wonder || st == SiteType::Ruin || st == SiteType::Shrine) { ds.src = gear::LootSrc::Explore; ds.boost = 1; }
+      // an outdoor cache at a wonder, a ruin or a shrine is an old place's (a wayside cache is not)
+      if (st == SiteType::Wonder || st == SiteType::Ruin || st == SiteType::Shrine) ds.relicPct = gear::RELIC_HALF;
     }
   }
   return ds;

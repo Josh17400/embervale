@@ -128,10 +128,13 @@ void ladder(Ctx& X) {
         for (int k = 0; k < RARITIES; k++) { sum += p[k]; if (p[k] < 0) X.fail(std::string(c.name) + ": negative odds"); }
         if (std::fabs(sum - 100.0f) > 0.01f) X.fail(std::string(c.name) + ": odds sum to " + std::to_string(sum));
         const std::string at = std::string(c.name) + " at level " + std::to_string(L) + " D " + std::to_string(D);
-        // the gate: the gate top of the finder's level (a shop's: its D) + one step
+        // the gate: the gate top of the finder's level (a shop's: its D) + one step (narrowed by the luck gate, P3 LOOT)
         if (c.src != LootSrc::CampaignFinale && c.src != LootSrc::Debug) {
           const int gl = (c.src == LootSrc::Shop || c.src == LootSrc::Merchant) ? D : L;
-          const int top = std::min((int)gear::rarityGateTop(gl) + 1, RARITIES - 1);
+          int top = std::min((int)gear::rarityGateTop(gl) + 1, RARITIES - 1);
+          // (P3 LOOT, ruling 6 (b)) luck's step reaches Legendary only from level 17 and Mythic only from 27
+          if (top == (int)Rarity::Legendary && gl < gear::LUCK_LEGENDARY_FROM) top--;
+          if (top == (int)Rarity::Mythic && gl < gear::LUCK_MYTHIC_FROM) top--;
           for (int k = top + 1; k < RARITIES; k++)
             if (p[k] > 0) X.fail(at + ": " + rarityName((Rarity)k) + " past the gate (top " + rarityName(gear::rarityGateTop(gl)) + " + 1)");
           if (gear::rarityAllowedTop(s) != (Rarity)(c.src == LootSrc::Shop || c.src == LootSrc::Merchant ? std::min(top, (int)Rarity::Epic) : top))
@@ -438,7 +441,7 @@ int lintDraws(Ctx& X, const std::string& rel) {
 }
 // the golden stream: rarity, item level, kind, material, form, seed, power, affix count, every affix's kind and value,
 // the unique power and the price; MSVC's value, the clang build in CI must match it
-constexpr uint64_t kGolden = 0xd3668a99c9a33407ull;   // MSVC /fp:precise (gear.cpp, items.cpp: CMakeLists), 2026-10-12 (M8b fixer r1: + affix kinds, values, the power, the price); re-record when the ladder or makers change
+constexpr uint64_t kGolden = 0xb6db22ceb3b965c0ull;   // MSVC /fp:precise (gear.cpp, items.cpp: CMakeLists), re-recorded 2026-11-01 by P3 LOOT (ruling 6: the luck gate narrows Legendary to 17+, Mythic to 27+; was 0xd3668a99c9a33407); re-record when the ladder or makers change
 void determinism(Ctx& X) {
   int checked = 0;
   for (uint32_t sd = 1; sd <= 300; sd++) {

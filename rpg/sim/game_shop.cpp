@@ -42,7 +42,10 @@ std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
     const Kingdom* K = g.world.kingdomOf(si);
     epicOk = K && g.realm.rep(K->id) >= gear::REP_HONOURED;
   }
-  auto gearOf = [&](ItemKind k, int sub) {
+  // (P3 LOOT, ruling 7) a shelf sells up to its people's warriors' alloy; a hidden people's smiths are not capped
+  const int alloyCap = cc && !cc->hidden ? gear::SHELF_ALLOY_CAP : 0;
+  enum { ANY = 0, METAL = 1, LIGHT = 2 };   // (B9) what a body piece is made of: the band's metal or leather
+  auto gearOf = [&](ItemKind k, int sub, int stuffOf = ANY) {
     const int il = std::clamp(D - gear::SHOP_BAND_SPREAD + r.irange(2 * gear::SHOP_BAND_SPREAD + 1), 1, gear::MAX_D);
     // (M8b) a shop's or a merchant's shelf: capped at Rare (Epic in a capital at Honoured), and gated by the
     // settlement's band, never by the player's level (7.5 rule 4): the shelf's "finder" is the settlement
@@ -53,7 +56,8 @@ std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
     ds.culture = cc ? cc->id : 0;
     ds.atMost = epicOk ? Rarity::Epic : Rarity::Rare;
     const Rarity rar = gear::rollRarity(r, ds);
-    Item it = gear::makeGearC(r, k, sub, il, rar, cc);
+    const Mat mat = stuffOf == LIGHT ? Mat::Leather : stuffOf == METAL && gear::bandOf(il) == 1 ? Mat::Bronze : Mat::None;
+    Item it = gear::makeGearCapped(r, k, sub, il, rar, cc, alloyCap, mat);
     it.flags |= IF_SHOP;
     s.push_back(it);
   };
@@ -95,7 +99,11 @@ std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
     case Role::Smith: {
       const bool spear = cc && cc->arms.polearm != cult::Polearm::None;
       for (int i = 0; i < 4; i++) gearOf(ItemKind::Weapon, r.irange(spear ? 6 : 5));
-      gearOf(ItemKind::Armor, 0); gearOf(ItemKind::Helmet, 0); gearOf(ItemKind::Shield, 0);
+      // (P3 LOOT, B9) a real choice of body armour: the band's metal coat (bronze in the first band, then iron, steel, the
+      // people's alloy) and a light one (leather), both at the shelf's item levels
+      gearOf(ItemKind::Armor, 0, METAL);
+      gearOf(ItemKind::Armor, 0, LIGHT);
+      gearOf(ItemKind::Helmet, 0); gearOf(ItemKind::Shield, 0);
       gearOf(ItemKind::Bow, 0);
       s.push_back(makeArrows(25));
       gearOf(ItemKind::Gloves, 0); gearOf(ItemKind::Boots, 0);
@@ -248,6 +256,7 @@ bool Game::sell(int ii) {
   Item& it = inv[ii];
   if (it.kind == ItemKind::Quest) return false;
   if (it.kind == ItemKind::Misc && it.sub == home::MISC_DEED) { say("A DEED IS NOT SOLD OVER A COUNTER"); return false; }   // M7
+  if (it.flags & IF_KIT) { say("THAT IS A COMPANION'S OWN KIT: IT IS NOT YOURS TO SELL"); return false; }   // (P3 LOOT)
   int price = gear::sellPrice(it);
   price = std::max(1, (int)((float)price * SkillOps::sellMul(*this) + 0.5f));   // (M9 integration) Speech pays more
   // M7: a crop foreign to the merchant's people fetches 25..50 % more (8.4's small trading game), and what is sold

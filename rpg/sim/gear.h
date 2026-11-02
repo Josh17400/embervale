@@ -52,6 +52,8 @@ enum class LootSrc : uint8_t {
   Forge,            // the player's own crafting (the craft skill's rolls)
   Companion,        // a companion's own kit (the same rules as the player's)
   Debug,            // scripts and tests that want an exact rarity (rollRarity is not used: makeGear's rarity is)
+  Spoils,           // (P3 LOOT, ruling 10) war spoils: a fallen enemy soldier's or captain's gear at a siege the hero
+                    // fights in (a body roll that always gives gear; the hero is the finder, so the +4 cap holds)
   COUNT
 };
 const char* lootSrcName(LootSrc s);    // "BODY", "CHEST" ... (the --loot report)
@@ -69,6 +71,11 @@ struct DropSource {
                                        // than one step ("beat the gate a little, never a lot")
   Rarity atLeast = Rarity::Common;     // a guaranteed floor (a campaign finale: Legendary; a named unique: Rare)
   Rarity atMost = Rarity::Mythic;      // a cap (shops: Rare / Epic; a village smith: Rare)
+  // ---- P3 LOOT (ARMOUR_SPAWN_RARITY section 3, ruling 2). Runtime only, never saved.
+  uint8_t relicPct = 0;                // percent of the metal gear (weapons, armour but cloaks) from band 4 that is an
+                                       // old maker's piece (a relic: made with no maker): 0 most places, RELIC_HALF an
+                                       // old place (a ruin's or shrine's dungeon, an outdoor old-place cache), 100 a
+                                       // world boss or a dragon's lair. The decision hashes a draw already made.
 };
 Rarity rollRarity(Rng& r, const DropSource& s);
 int dropIlvl(const DropSource& s);     // D, bosses +2, named uniques +3 (clamped 1..60). (M8b) = itemLevelFor(s)
@@ -247,6 +254,53 @@ float powerScore(const Item& it, int playerLevel);
 // TODO (later milestones), listed so legendaries never roll them: FireTrail (a roll leaves fire: needs ground fire
 // hazards), SpectralWolf (an allied summon: needs companion AI, M8), SplitArrows (projectile splitting by range),
 // ReflectBlock (missile reflection on a roll), Shadowstep (foes losing track: needs an AI "unseen" state, FOES lane).
+
+// =====================================================================================================================
+// P3 LOOT additions (docs/FIX_BATCH_P3.md 2, 8.1; docs/ARMOUR_SPAWN_RARITY.md rev 6, Batch B). Added; nothing above
+// changed its signature.
+// =====================================================================================================================
+
+// ---- the "better" rule, shared by the sim (a companion takes a gift only if it is better) and the compare arrow (moved
+//      from lootp::verdict, numbers identical): 1 better, -1 worse, 0 about even, by powerScore at `level`, 3 % either
+//      way; an empty slot (worn == nullptr) is better. pct: the difference in whole percent (0 for an empty slot).
+int verdictAt(const Item& it, const Item* worn, int level, int* pct = nullptr);
+inline bool betterAt(const Item& it, const Item* worn, int level) { return verdictAt(it, worn, level) > 0; }
+
+// ---- metals: the alloy ranks and the old makers' metals (rulings 1 and 2)
+// a kind made of metal (weapons and armour other than cloaks): the kinds that take an alloy, and that can be a relic
+bool metalKind(ItemKind k);
+// the band a people's alloy of rank r (1 everyday, 2 warriors', 3 masterwork) first comes at: 4, 5, 6
+constexpr int alloyRankBand(int rank) { return 3 + (rank < 1 ? 1 : rank > 3 ? 3 : rank); }
+// the alloy (1-based rank) a maker's metal piece takes at a band: none below 4; the everyday at 4, the warriors' at 5,
+// the masterwork at 6-7 (a two-alloy people keeps its warriors' from 5 on): "alloys in order", whatever tierStep says
+uint8_t alloyForBand(const cult::Culture* c, int band);
+// the words of an alloy rank, from one table: "EVERYDAY METAL", "WARRIORS' METAL", "MASTERWORK" ("" outside 1..3)
+const char* alloyRankWord(int rank);
+// the band relics start at, and the old places' share (the knob --ladder-pace measures: 8-20 % of metal armour drops)
+constexpr int RELIC_BAND = 4, RELIC_HALF = 50, RELIC_ALL = 100;
+// a relic: an old maker's metal piece (no maker, so no culture id, from band 4: GILDED, OBSIDIAN, EMBERFORGED, STARMETAL)
+bool isRelic(const Item& it);
+// a relic's rank among the old makers' four metals (1 GILDED .. 4 STARMETAL); 0 for anything else
+int relicRank(const Item& it);
+// the relic decision for one piece: hashes the draw `drawn` (already made by the roll) and the kind; true when the piece
+// is an old maker's at this share. No new random draw.
+bool relicChosen(float drawn, int pct);
+// the luck gate (ruling 6, question 6 (b)): luck lifts a find one step over the level's gate top, but to Legendary only
+// from level 17 and to Mythic only from 27 (campaign finales and the dragon's hoard are not rolled through the gate)
+constexpr int LUCK_LEGENDARY_FROM = 17, LUCK_MYTHIC_FROM = 27;
+// the shelf and commission cap (ruling 7): a settlement's smith sells up to its people's warriors' alloy (rank 2); the
+// exemptions (a hidden people's smiths; for a commission also a capital smith who trusts the hero) are uncapped
+constexpr int SHELF_ALLOY_CAP = 2, COMMISSION_TRUST = 60;
+// a piece made as makeGearC would, but its alloy capped at rank capRank (0: uncapped): a metal piece whose band would
+// give a better alloy takes the capped one instead (no extra draw)
+Item makeGearCapped(Rng& r, ItemKind kind, int sub, int ilvl, Rarity rarity, const cult::Culture* c, int capRank, Mat mat = Mat::None);
+
+// ---- the words the view shows (VIEW reads these; the card and the HUD never assemble them themselves)
+// the item card's maker row: "HIGHLAND WORK: GWESTEEL, WARRIORS' METAL (2 OF 3)", "OLD MAKERS' WORK: OBSIDIAN (2 OF 4)",
+// "HIGHLAND WORK, IRON" ("" for a piece with no material)
+std::string makerLine(const Item& it, const cult::Culture* maker);
+// the HUD's word for a worn piece: its own metal ("BRONZE", "GWESTEEL", "OBSIDIAN"), never the band's best
+std::string metalWord(const Item& it, const cult::Culture* maker);
 
 // ---- the worn gear summed (recalcPlayer fills Live::stats; affix values synced to the player's level)
 struct GearStats {

@@ -212,6 +212,14 @@ ItemKind randomArmorSlot(Rng& r) {
   if (s < 0.86f) return ItemKind::Boots;
   return ItemKind::Cloak;
 }
+ItemKind relicArmorSlot(Rng& r) {
+  const float s = r.f();
+  if (s < 0.40f) return ItemKind::Armor;
+  if (s < 0.65f) return ItemKind::Helmet;
+  if (s < 0.80f) return ItemKind::Shield;
+  if (s < 0.90f) return ItemKind::Gloves;
+  return ItemKind::Boots;
+}
 
 Item makeJewel(Rng& r, int level) {
   const bool ring = r.f() < 0.5f;

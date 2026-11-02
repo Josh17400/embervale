@@ -18,16 +18,24 @@
 //   expect lootbeams <rarity> <n>: at least n pickups of that rarity were drawn with their ground presence last frame
 //   expect lootchimes <n>: the LootChime has played at least n times; expect lootembers: a Mythic wearer's embers rose
 //   expect lootframes <n>: at least n rarity frames were drawn last frame
+// (P3 LOOT)
+//   expect lootmaker <words...>: gear::makerLine of the last piece in the pack (the card's maker row) holds the words
+//        ("OLD MAKERS' WORK", "WARRIORS' METAL (2 OF 3)")
+//   expect lootshelf <mat> [<mat> ...]: the open shop's stock holds a body armour of each material (leather, bronze,
+//        iron, steel, alloy): the smith's real choice of coat (B9)
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <string>
+#include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/scripts/script_util.h"
 #include "rpg/view/view.h"
 #include "rpg/view/view_probe.h"
+#include "rpg/world/source.h"
 
 namespace {
 
@@ -265,5 +273,32 @@ bool expLootFrames(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("expect:lootframes", "expect lootframes <n>: at least n rarity frames drawn last frame (M8b)", expLootFrames);
+
+bool expLootMaker(ScriptCtx& c) {
+  const Game& g = c.game;
+  if (g.inv.empty()) { c.fail("lootmaker: the pack is empty"); return true; }
+  std::string want;
+  for (size_t i = 2; i < c.a.size(); i++) want += (want.empty() ? "" : " ") + c.a[i];
+  for (char& ch : want) ch = (char)std::toupper((unsigned char)ch);
+  const Item& it = g.inv.back();
+  const cult::Culture* mk = it.culture && g.world.src ? &g.world.src->culture(it.culture) : nullptr;
+  const std::string line = gear::makerLine(it, mk);
+  if (line.find(want) == std::string::npos) c.fail("lootmaker: '" + line + "' lacks '" + want + "' (" + it.name + ")");
+  return true;
+}
+EMB_SCRIPT_CMD("expect:lootmaker", "expect lootmaker <words>: the last pack piece's maker row (gear::makerLine) holds the words (P3 LOOT)", expLootMaker);
+
+bool expLootShelf(ScriptCtx& c) {
+  const Game& g = c.game;
+  if (g.mode != Mode::Shop) { c.fail("lootshelf: no shop open"); return true; }
+  for (size_t i = 2; i < c.a.size(); i++) {
+    const std::string w = low(c.a[i]);
+    bool found = false;
+    for (const Item& it : g.shop.stock) found |= it.kind == ItemKind::Armor && low(matName(it.mat)) == w;
+    if (!found) c.fail("lootshelf: no " + w + " body armour on the shelf");
+  }
+  return true;
+}
+EMB_SCRIPT_CMD("expect:lootshelf", "expect lootshelf <mat> [<mat> ...]: the open shop sells a body armour of each material (P3 LOOT, B9)", expLootShelf);
 
 }  // namespace

@@ -6,6 +6,7 @@
 #include "rpg/sim/gear.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 
@@ -78,7 +79,7 @@ void affixQuality(Rarity r, float& lo, float& hi) {
 // ---- M8b Treasure (15.27 / 15.28). Phase A (lead) wrote the contract; the NUMBERS lane the level-gated ladder below.
 const char* lootSrcName(LootSrc s) {
   static const char* n[] = {"BODY", "CHEST", "HOARD", "EXPLORE", "BOSS", "WORLD BOSS", "SHOP", "MERCHANT", "QUEST", "SAGA",
-                            "SAGA FINALE", "CAMPAIGN FINALE", "FORGE", "COMPANION", "DEBUG"};
+                            "SAGA FINALE", "CAMPAIGN FINALE", "FORGE", "COMPANION", "DEBUG", "WAR SPOILS"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)LootSrc::COUNT, "a name for every loot source");
   return n[std::clamp((int)s, 0, (int)LootSrc::COUNT - 1)];
 }
@@ -155,7 +156,12 @@ Rarity rarityGateTop(int level) {
 }
 Rarity rarityAllowedTop(const DropSource& s) {
   if (ungated(s.src)) return Rarity::Mythic;
-  int t = std::min((int)rarityGateTop(gateLevel(s)) + 1, RARITIES - 1);
+  // one step of luck over the gate top, but (P3 LOOT, ruling 6 (b)) to Legendary only from level 17 and to Mythic only
+  // from 27: the floors (20, 30) are unchanged, the lift is narrowed to 3 levels below each
+  const int L = gateLevel(s);
+  int t = std::min((int)rarityGateTop(L) + 1, RARITIES - 1);
+  if (t == (int)Rarity::Legendary && L < LUCK_LEGENDARY_FROM) t--;
+  if (t == (int)Rarity::Mythic && L < LUCK_MYTHIC_FROM) t--;
   if (shopSrc(s.src)) t = std::min(t, (int)Rarity::Epic);
   return (Rarity)t;
 }
@@ -540,12 +546,8 @@ std::string bandWord(int band, const cult::Culture* c) {
   band = std::clamp(band, 1, BANDS);
   static const char* low[] = {"BRONZE", "IRON", "STEEL"};
   if (band <= 3) return low[band - 1];
-  // the culture's alloys by the band they reach (3 + tierStep), best that fits
-  if (c && !c->arms.alloys.empty()) {
-    const cult::Alloy* best = &c->arms.alloys[0];
-    for (const cult::Alloy& A : c->arms.alloys) if (3 + (int)A.tierStep <= band) best = &A;
-    return best->name;
-  }
+  // (P3 LOOT, ruling 1) the culture's alloys in order: the everyday at band 4, the warriors' at 5, the masterwork at 6-7
+  if (const uint8_t al = alloyForBand(c, band)) return c->arms.alloys[(size_t)al - 1].name;
   return kHeartHigh[band - 4];
 }
 
@@ -564,10 +566,9 @@ Mat matFor(ItemKind kind, int ilvl, uint32_t seed, const cult::Culture* c, uint8
   }
   if (band == 2) return Mat::Iron;
   if (band == 3 || !c || c->arms.alloys.empty()) return Mat::Steel;
-  // the exotic tier: the best of the maker's alloys this band reaches (best last; the first when none fits)
-  alloy = 1;
-  for (size_t i = 0; i < c->arms.alloys.size(); i++)
-    if (3 + (int)c->arms.alloys[i].tierStep <= band) alloy = (uint8_t)(i + 1);
+  // the exotic tier (P3 LOOT, ruling 1: alloys in order, whatever tierStep says): the everyday alloy at band 4, the
+  // warriors' at 5, the masterwork at 6-7 (a two-alloy people keeps its warriors' from 5 on)
+  alloy = alloyForBand(c, band);
   return Mat::Alloy;
 }
 
@@ -576,7 +577,8 @@ int matBandCap(Mat m, const cult::Culture* c, uint8_t alloy) {
     case Mat::Leather: case Mat::Bronze: return 1;
     case Mat::Iron: return 2;
     case Mat::Steel: case Mat::Cloth: case Mat::Wood: case Mat::Bone: return 3;
-    case Mat::Alloy: { const cult::Alloy* A = alloyOf(c, alloy); return std::min(BANDS, 3 + (A ? std::max(1, (int)A->tierStep) : 1)); }
+    // (P3 LOOT, ruling 1) crafting caps follow the alloy's rank: everyday band 4, warriors' 5, masterwork 6
+    case Mat::Alloy: { (void)c; return std::min(BANDS, alloyRankBand(alloy ? (int)alloy : 1)); }
     default: return BANDS;
   }
 }
@@ -955,8 +957,11 @@ float matMult(const Item& it, const cult::Culture* c) {
     case Mat::Iron: return 1.06f;
     case Mat::Steel: return band >= 4 ? bandStep(band) : 1.12f;   // above band 3 the heartland's band words (GILDED...)
     case Mat::Alloy: {
+      // (P3 LOOT, ruling 1) from band 4 an alloy is never weaker than its band's step: max(1.12 + 0.04 tierStep, step)
       const cult::Alloy* A = alloyOf(c, it.alloy);
-      return A ? 1.12f + 0.04f * (float)std::max(1, (int)A->tierStep) : bandStep(std::max(4, band));
+      if (!A) return bandStep(std::max(4, band));
+      const float own = 1.12f + 0.04f * (float)std::max(1, (int)A->tierStep);
+      return band >= RELIC_BAND ? std::max(own, bandStep(band)) : own;
     }
     default: return bandStep(band);   // wood, cloth, bone, jewellery: their band's step
   }
@@ -1078,17 +1083,22 @@ Item rollDropC(Rng& r, const DropSource& s, const cult::Culture* c) {
   ItemKind kind;
   int sub = 0;
   const float g = big ? r.f() : (q - 0.64f) / 0.36f;
+  // (P3 LOOT, ruling 2) an old maker's piece: from band 4, part of the metal gear of an old place is made with no maker
+  // (its band word names and draws it: GILDED .. STARMETAL). The decision hashes the draw g; no new draw.
+  const int il = itemLevelFor(s);
+  const bool relic = g < 0.72f && bandOf(il) >= RELIC_BAND && relicChosen(g, s.relicPct);
+  const cult::Culture* maker = relic ? nullptr : c;
   if (g < 0.39f) {
     kind = ItemKind::Weapon;
-    const bool spear = c && c->arms.polearm != cult::Polearm::None;
+    const bool spear = maker && maker->arms.polearm != cult::Polearm::None;
     sub = r.irange(spear ? 6 : 5);
-  } else if (g < 0.72f) kind = randomArmorSlot(r);
+  } else if (g < 0.72f) kind = relic ? relicArmorSlot(r) : randomArmorSlot(r);
   else if (g < 0.86f) kind = ItemKind::Bow;
   else if (g < 0.95f) kind = r.f() < 0.5f ? ItemKind::Ring : ItemKind::Amulet;
   else kind = ItemKind::Staff;
   // (M8b NUMBERS) one roll on the level-gated ladder: the rank, the source, its boost, floor and cap are all in the odds
   const Rarity rar = rollRarity(r, s);
-  return makeGearC(r, kind, sub, itemLevelFor(s), rar, c);
+  return makeGearC(r, kind, sub, il, rar, maker);
 }
 
 Item rollDrop(Rng& r, const DropSource& s) { return rollDropC(r, s, nullptr); }
@@ -1129,6 +1139,69 @@ std::string gearName(const Item& it, const cult::Culture* maker) {
   Item t = it;
   finishGear(t, maker);
   return t.name;
+}
+
+// ===================================================================================================== P3 LOOT
+// (docs/FIX_BATCH_P3.md 8.1) the shared "better" rule, the metal ranks, the relics, the shelf cap and the view's words.
+int verdictAt(const Item& it, const Item* worn, int level, int* pct) {
+  if (pct) *pct = 0;
+  if (!worn) return 1;
+  const float a = powerScore(it, level), b = powerScore(*worn, level);
+  const float d = (a - b) / std::max(1.0f, b);
+  if (pct) *pct = (int)std::lround(d * 100.0f);
+  return d > 0.03f ? 1 : d < -0.03f ? -1 : 0;
+}
+
+bool metalKind(ItemKind k) { return k == ItemKind::Weapon || armourish(k); }
+
+uint8_t alloyForBand(const cult::Culture* c, int band) {
+  if (!c || c->arms.alloys.empty() || band < RELIC_BAND) return 0;
+  const int n = (int)c->arms.alloys.size();
+  const int want = band >= alloyRankBand(3) ? 3 : band >= alloyRankBand(2) ? 2 : 1;
+  return (uint8_t)std::min(want, n);
+}
+
+const char* alloyRankWord(int rank) {
+  static const char* const w[] = {"", "EVERYDAY METAL", "WARRIORS' METAL", "MASTERWORK"};
+  return w[rank >= 1 && rank <= 3 ? rank : 0];
+}
+
+bool isRelic(const Item& it) {
+  return metalKind(it.kind) && it.culture == 0 && it.mat == Mat::Steel && bandOf(std::max(1, (int)it.ilvl)) >= RELIC_BAND;
+}
+int relicRank(const Item& it) { return isRelic(it) ? std::clamp(bandOf(it.ilvl) - 3, 1, 4) : 0; }
+
+bool relicChosen(float drawn, int pct) {
+  if (pct <= 0) return false;
+  if (pct >= 100) return true;
+  uint32_t bits = 0;
+  std::memcpy(&bits, &drawn, sizeof bits);
+  return hash32(bits ^ 0x0A1D3E11u) % 100u < (uint32_t)pct;
+}
+
+Item makeGearCapped(Rng& r, ItemKind kind, int sub, int ilvl, Rarity rarity, const cult::Culture* c, int capRank, Mat mat) {
+  if (capRank > 0 && mat == Mat::None && c && metalKind(kind)) {
+    const uint8_t al = alloyForBand(c, bandOf(std::clamp(ilvl, 1, MAX_D)));
+    if (al > capRank) return makeGearC(r, kind, sub, ilvl, rarity, c, Mat::Alloy, (uint8_t)capRank);
+  }
+  return makeGearC(r, kind, sub, ilvl, rarity, c, mat);
+}
+
+std::string metalWord(const Item& it, const cult::Culture* maker) { return matWord(it, maker); }
+
+std::string makerLine(const Item& it, const cult::Culture* maker) {
+  // (ruling 6 of the design's "explain the metal") the rank of the metal on the card; "Heartland" leaves the UI
+  if (isRelic(it)) return "OLD MAKERS' WORK: " + matWord(it, nullptr) + " (" + std::to_string(relicRank(it)) + " OF 4)";
+  std::string who = maker ? maker->adjective + " WORK" : std::string("TRADE WORK");
+  const std::string mw = matWord(it, maker);
+  if (it.mat == Mat::Alloy && maker && it.alloy >= 1 && it.alloy <= maker->arms.alloys.size()) {
+    // a two-alloy people's warriors' alloy is its best: it reads as its rank all the same (2 OF 2)
+    return who + ": " + mw + ", " + alloyRankWord(it.alloy) + " (" + std::to_string((int)it.alloy) + " OF " +
+           std::to_string((int)maker->arms.alloys.size()) + ")";
+  }
+  if (!mw.empty()) who += ", " + mw;
+  else if (it.mat != Mat::None) who += std::string(", ") + matName(it.mat);
+  return who;
 }
 
 }  // namespace gear

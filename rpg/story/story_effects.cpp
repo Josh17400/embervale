@@ -188,7 +188,11 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       const dsl::Script* sc = scriptOf(in);
       const bool fin = sc && in.stage >= 0 && in.stage < (int)sc->stages.size() && rewardSrcOf(*sc, sc->stages[(size_t)in.stage]) != gear::LootSrc::Saga;
       const uint64_t key = ew::mix64(strHash(in.script) ^ ((uint64_t)in.stage << 40) ^ 0x100Full ^ (in.cast.empty() ? 0 : in.cast[0].id));
-      const Item it = storyLoot(hookLevel(g, in) + 1, g.plLevel, key, fin);
+      // (P3 LOOT) in the make of the hook's people, as the stage reward's piece is (EffType::Reward)
+      uint64_t cu = 0;
+      if (!in.cast.empty() && in.cast[0].site) { const int h = siteByIdLoad(g, in.cast[0].site); if (h >= 0) cu = g.world.sites[(size_t)h].culture; }
+      const cult::Culture* maker = cu && g.world.src ? &g.world.src->culture(cu) : nullptr;
+      const Item it = storyLoot(hookLevel(g, in) + 1, g.plLevel, key, fin, maker);
       if (host().item) host().item(g, it); else g.inv.push_back(it);
       break;
     }
