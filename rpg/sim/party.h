@@ -351,10 +351,34 @@ struct Stats {
   double banterMsWorst = 0;                     // party::banterStep's worst step (VOICE; not in stepMs*)
 };
 
+// ---------------------------------------------------------------- P3 PARTY: the parted roll (ARMOUR_SPAWN_RARITY 6, rule 8)
+// A companion who parts while living and can be met again (a census companion dismissed or sent off by their personal
+// quest's end; a sellsword dismissed, unpaid or gone in anger) waits here whole, in a member's saved form, and comes back
+// as themselves: the same id, bond, skills, approval, memories, flags, days, kills, VOICE fields, horse, look and the kit
+// they left in (never made again). VIEW reads the parted list from the named fields below (filled at the parting and at
+// a load from the record); the sim reads `m`.
+constexpr int MAX_PARTED = 32;         // the friend parted longest ago is forgotten first (and would join anew)
+struct Parted {
+  Member m;                    // the whole record as it left (writeMember / readMember form: runtime fields fresh)
+  int32_t day = 0;             // the day they parted
+  bool angry = false;          // a sellsword who left in anger: ANGRY at his table until the apology is made there
+  // ---- what VIEW reads (copies of m's fields: Party::syncParted keeps them)
+  std::string name;            // m.name
+  Origin origin = Origin::Tavern;   // m.origin
+  ew::Gid home = 0;            // m.site: their home settlement (a census companion waits there in their own life)
+  ew::Gid inn = 0;             // m.hiredAt: a sellsword's inn (Bldg::id; 0 a census companion)
+  uint8_t slot = 0;            // m.mercSlot: his place at that inn
+};
+// Item::flags: a piece of a companion's own kit (items.h IF_KIT, LOOT's contract): made once when they join, never
+// reaches the hero's pack while they live (the one door refuses it), dropped without it when they die
+constexpr uint8_t IF_KIT = ::IF_KIT;
+constexpr int GIFT_BETTER_PCT = 3;     // a gift is worn only when it is more than this % better at their level
+
 class Party {
  public:
   std::vector<Member> members;
   std::vector<Fallen> fallen;
+  std::vector<Parted> parted;  // (P3 PARTY, v5) the friends parted from while living, oldest first (MAX_PARTED)
   uint32_t nextId = 1;
   int32_t animalDay = -1;      // the day the animal was taken in (a pup grows up over 14 days)
   // ---- runtime (never saved)
@@ -397,8 +421,13 @@ class Party {
   bool animal() const;                   // an animal is with the player
   bool empty() const { return members.empty(); }
   void clear();
+  // (P3 PARTY) the parted roll: the record of a census companion (npc) or a sellsword (inn, slot); -1 none
+  int partedOf(ew::Gid npc, ew::Gid inn, int slot) const;
+  static void syncParted(Parted& p);     // the VIEW copies from p.m
   // the party block (Game's save, after the talk block: a length-prefixed blob, its own version byte first)
-  static constexpr uint8_t VERSION = 4;   // 4: fixer M8 r3 (Fallen female)
+  static constexpr uint8_t VERSION = 5;   // 5: P3 PARTY (the parted roll after the fallen; a version-4 block still loads,
+                                          //    with an empty roll)
+  //  4: fixer M8 r3 (Fallen female)
   //  3: fixer M8 r1 (Member hasLook / look)
   //  2: M8 phase B (Member leftDay / hiredAt / mercSlot / mountedDay; Fallen rite / weapon / species / wasAt)
   void serialize(std::vector<uint8_t>& out) const;
@@ -504,5 +533,22 @@ constexpr uint8_t GF_HOME = 16;        // ... in their home settlement's temple 
 // the ruins near home), deterministic: the hook and every id it can fill (site, kin, foe, kingdom, ruin, day, seed).
 // Game::partyRecruit calls it; tests and VOICE may call it for anyone (party_recruit.cpp)
 Stake stakeFor(Game& g, int site, int res);
+
+// ================================================================ P3 PARTY additions (Batch B: the owner's companion rules 1-8)
+// the gift rule: gear::verdictAt (LOOT's contract, the compare arrow's own rule) at their level: +1 the gift is more than
+// GIFT_BETTER_PCT % better than `worn` (gear::powerScore), 0 a tie, -1 worse; no worn piece: +1. pct: the difference in %
+int giftVerdict(const Item& gift, const Item* worn, int level, int* pct = nullptr);
+// a slot this vocation never uses (a warrior's bow, a mage's shield...): a piece for it is declined
+bool vocationSkips(Vocation v, int slot);
+// is this piece one of their own kit (IF_KIT)
+inline bool isKit(const Item& it) { return (it.flags & IF_KIT) != 0; }
+// a member as their saved record reads back (writeMember then readMember): the runtime fields fresh, as after a load
+// (the parted roll keeps this form)
+Member savedForm(const Member& m);
+// a member holds at least one kit piece (worn or stowed)
+bool holdsKit(const Member& m);
+// a gift answer in their own voice (VOICE, banter.cpp): why 0 declined (a tie or worse: "MINE SERVES ME BETTER."), 1 a
+// piece their vocation never uses, 2 TAKE BACK on a kit piece ("THAT'S MINE. I CAME WITH IT."), 3 a gift taken
+std::string giftLine(const Game& g, const Member& m, int why);
 
 }  // namespace party

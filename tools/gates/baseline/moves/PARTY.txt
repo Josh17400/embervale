@@ -1,0 +1,20 @@
+# P3 PARTY moves (FIX_BATCH_P3 section 10): <gate> <item or glob> <id> <reason>
+S3.save save_test:SAVE_VER PARTY SAVE_VER 23 -> 24 (party block v5: the parted roll)
+S3.save "save_v23 loads (party block v4, empty parted roll)" PARTY new line: save_v23.bin read through SAVE_VER_MIN 23
+S3.save "save_v24 round trip: * bytes" PARTY new line: the save_v24.bin fixture round-trips
+S3.save "endless seed * (aboard a rowboat|after play|far east|after 420 realm days): * bytes" PARTY C2 determinism switches (unbounded realm focus, no stream worker) plus the party block's parted-count byte; now stable under load
+S3.save "endless upstairs in the inn: * bytes" PARTY the party block's parted-count byte (+1)
+S3.save "realm block after * days|damaged realm blocks: *" PARTY C2: the realm focus finished before the save (stable)
+S3.save "save soak: *|endless save soak: * bytes|damaged life blocks: *" PARTY +1 byte (parted count) and C2
+S3.save "damaged saves: * loaded and played, * refused" PARTY C2: the 48 flips land on stable bytes (39 / 9 at f21ae86)
+S3.save unstable.txt:S3.save:mask(both) PARTY C2 makes both masked lines stable: the two S3.save masks may go (unstable.txt is GATES'/integrator's file)
+S3.savever SAVE_VER PARTY 24
+S3.fixtures tests/fixtures/save_v24.bin PARTY new fixture (save_test --make-fixture): a parted angry sellsword with his kit, IF_KIT kit; save_v23.bin untouched
+S10.digest ser,len PARTY SAVE_VER 24 / party block v5 (+1 byte); act, rng, marks identical in all 560 checkpoints of the 119de74 msvc record
+S10.digest S PARTY the serialize block hashes follow ser (all 560 S lines)
+W6.digest_clang ser,len,S PARTY as S10.digest
+W2.scripts p3_party PARTY new script (PASS)
+W2.view_all p3_party/p3_party_* PARTY new script's 13 PNGs
+W3.witness p3_party_return.witness.json PARTY new Witness test (passes)
+S10.view m8_view_party/m8v_desk_0[1-6]_*.png PARTY the companion's kit is now made in their people's make (makeGearC: culture forms and words, e.g. IRON LAMELLAR for IRON PLATE); measured at f21ae86: exactly these 6 of 425 differ
+W2.view_all m8_view_party*/*,m8_lead_party/*,m11_climb_party/*,m8_*party*/* PARTY the same kit look on every staged companion (shots that show a companion's gear); not measured by a W2 run here

@@ -239,7 +239,7 @@ struct PartyOps {
   static void dropActor(Game& g, int mi);              // the member's body leaves play (the record stays)
   static life::Resident* resident(Game& g, const party::Member& m);
   static void alert(Game& g, int mi, int kind, const std::string& s);
-  static void kit(Game& g, party::Member& m, int level);
+  static void kit(Game& g, party::Member& m, int level, uint32_t salt = 0);   // (P3) salt: a remade kit (old saves) is new
   static void body(Game& g, const party::Member& m, Actor& a);
   static bool baseLook(Game& g, const party::Member& m, art::HumanLook& out);   // (fixer M8 r1) street look, before gear
   static void fixLook(Game& g, party::Member& m);      // Member::look fixed once their census has dressed them
@@ -254,6 +254,25 @@ struct PartyOps {
   //   true = handled. Following, fighting by vocation and stance, skills, downed, mounted
   static bool actorStep(Game& g, Actor& a, float dt);
   static void leave(Game& g, int mi, bool angry);      // Left (angry) or dismissed: the body walks home out of sight
+  // ---- P3 PARTY: gifts, the one door, partings and returns, the death pile (party_game.cpp; returns party_recruit.cpp)
+  //   the one door from a companion to the hero's pack: m.inv[e] into Game::inv, refused for a kit piece (IF_KIT)
+  static bool toHero(Game& g, party::Member& m, int e);
+  //   their stowed kit piece for this slot put back on (an empty slot stays empty when they have none): true = worn
+  static bool wearKit(party::Member& m, int slot);
+  //   every gift handed back through the door, their stowed kit re-worn in each slot a gift held: the count
+  static int giftsBack(Game& g, int mi);
+  //   every living parting (dismissed, unpaid, a personal quest's farewell, a sellsword's angry leave): the gifts back
+  //   (the alert names how many), a sellsword's hire mark set to the day, the body walks off, and the record into
+  //   Party::parted when they can be met again (else it goes, as before); the member is removed
+  static void part(Game& g, int mi, bool angry);
+  //   a parted friend comes back as themselves (rule 8): Party::parted[pi] moved into the party (its kit made only when
+  //   it holds none: an old save's companion); their actor at `at`; the members index (-1: no room)
+  static int rejoin(Game& g, int pi, Vec2 at);
+  //   a death: everything they carried laid on the ground round `at` as Pickups (IF_KIT cleared, one per item, spread
+  //   by each item's seed: no new random draw); nothing when `onMap` is false (no body on the hero's map)
+  static void dropAll(Game& g, party::Member& m, Vec2 at, bool onMap);
+  //   parted census companions the census shows dead: their records leave the roll
+  static void partedDeaths(Game& g);
   // ---- fighting (party_ai.cpp)
   static int pickFoe(Game& g, const Actor& a, const party::Member& m);
   static bool fight(Game& g, Actor& a, party::Member& m, int mi, float dt);   // true: the fight drove the body this step

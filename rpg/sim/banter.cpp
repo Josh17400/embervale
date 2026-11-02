@@ -941,6 +941,25 @@ std::string aboutLine(const Game& g, const Member& m) {
   return joinAll(parts, (size_t)speech::PANEL_CHARS * speech::PANEL_LINES);
 }
 
+// (P3 PARTY) what they say to a gift, and to TAKE BACK on their own kit (the owner's rules 1-4): always a line (a decline
+// is never silent), the first of the pool that has not been said lately, else the pool's own
+std::string giftLine(const Game& g, const Member& m, int why) {
+  if (m.voc == Vocation::Hound) return std::string();
+  static const char* const kWorse[] = {"MINE SERVES ME BETTER.", "KEEP IT. WHAT I HAVE IS BETTER THAN THAT.",
+                                       "THANK YOU, BUT I'LL STAY WITH MY OWN."};
+  static const char* const kSkip[] = {"I'VE NO USE FOR THAT. IT'S NOT HOW I FIGHT.", "WHAT WOULD I DO WITH THAT? KEEP IT FOR SOMEONE WHO CAN USE IT.",
+                                      "THAT'S NOT FOR ME. I'D ONLY GET IN MY OWN WAY WITH IT."};
+  static const char* const kMine[] = {"THAT'S MINE. I CAME WITH IT.", "NO. THAT ONE'S MINE, AND IT STAYS WITH ME.",
+                                      "THAT'S MY OWN. I BROUGHT IT FROM HOME."};
+  static const char* const kTaken[] = {"THAT'S BETTER THAN MINE. THANK YOU.", "NOW THAT'S A FINE PIECE. I'LL TAKE GOOD CARE OF IT.",
+                                       "FOR ME? I'LL WEAR IT GLADLY."};
+  const char* const* pool = why == 1 ? kSkip : why == 2 ? kMine : why == 3 ? kTaken : kWorse;
+  std::vector<std::string> opts(pool, pool + 3);
+  const uint32_t h = mixh(m.id * 0x51u + (uint32_t)why, (uint32_t)g.day * 13u + (uint32_t)g.inv.size());
+  const std::string s = choose(g, opts, h);
+  return s.empty() ? opts[h % opts.size()] : s;
+}
+
 }  // namespace party
 
 // (the shared word tables for the talk: rpg/sim/party_talk.cpp reads these through the VOICE header)

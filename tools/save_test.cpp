@@ -25,7 +25,8 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v23.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v24.bin (P3; save_v23.bin is never edited and must keep
+//                                    loading): the facts below plus a parted sellsword and IF_KIT kit pieces. Was: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -62,6 +63,17 @@ namespace {
 int bad = 0;
 void check(bool ok, const char* what) {
   if (!ok) { printf("FAIL: %s\n", what); bad++; }
+}
+
+// (P3 C2) the sim digest's determinism switches (test_sim_digest.cpp runDigest): no stream worker, every cold generation
+// made at once on this thread, and the realm's kingdom instantiation unbounded instead of a 2 ms wall-clock slice. With
+// them every save this test makes has the same bytes whatever else the machine is doing (under load the realm was less
+// far along when a save was made, and the 48 random flips of section 4 landed elsewhere)
+void quiet(Game& g) { g.streamThreads = false; g.syncStreams = true; }
+void newQuietGame(Game& g, uint64_t seed) {
+  quiet(g);
+  g.newEndlessGame(seed);
+  g.realm.focusBudgetMs = 1e18;   // (after the new game: Realm::reset puts the 2 ms back)
 }
 
 // the rpg_test wandering bot
@@ -536,9 +548,34 @@ int addM8Facts(Game& g) {
   if (g.partyAdoptAnimal(1, 0xB0B5u, g.pl().p + Vec2(-14, 0), why) < 0) { printf("save_test: the pup: %s\n", why.c_str()); return -1; }
   return idx;
 }
+// ---- P3 PARTY (SAVE_VER 24, the party block v5): a sellsword parted from in anger, waiting at his inn with his record
+//      and the kit he left with (IF_KIT), and the travelling companion's own kit pieces (IF_KIT)
+const char* const FIX_PARTED = "ORVIN SELLSWORD";
+constexpr ew::Gid FIX_PARTED_INN = 0x1E2Full;
+constexpr int32_t FIX_PARTED_DAY = 1;
+void addP3Facts(Game& g) {
+  // hired as a stranger (his kit made by the game's own PartyOps::kit, IF_KIT), given his inn and table, then let go:
+  // the parting puts his record in the roll (and starts his week); then the anger and the record's facts
+  const int lvl = g.plLevel;
+  g.plLevel = party::LEADERSHIP_LEVEL;   // (room for a second person beside the fixture's companion)
+  const int mi = g.partyRecruitStranger(FIX_PARTED, false, g.world.sites[(size_t)g.world.startSite].culture, 0x5E12u, party::Origin::Mercenary,
+                                        g.pl().p + Vec2(0, 16));
+  g.plLevel = lvl;
+  if (mi < 0) { printf("save_test: the parted sellsword could not be hired\n"); return; }
+  party::Member& s = g.party.members[(size_t)mi];
+  s.hiredAt = FIX_PARTED_INN; s.mercSlot = 0; s.wage = FIX_WAGE; s.approval = -72; s.bond = 12;
+  g.partyDismiss(mi);
+  if (g.party.parted.empty()) { printf("save_test: the parted sellsword has no record\n"); return; }
+  party::Parted& p = g.party.parted.back();
+  p.angry = true;
+  p.day = FIX_PARTED_DAY;
+  p.m.leftDay = FIX_PARTED_DAY;
+  p.m.flags |= party::MF_LEFT_ONCE;
+  party::Party::syncParted(p);
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
-  g.newEndlessGame(FIX_SEED);
+  newQuietGame(g, FIX_SEED);
   makeCharacter(g);
   play(g, FIX_SEED, 90);
   if (g.inside) g.debugLeave();   // (M7 phase B) the walk may end in a doorway: the fixture is saved outdoors
@@ -555,6 +592,7 @@ int makeFixture(const char* out) {
   addM10Facts(g);
   addM12Facts(g);
   addP1Facts(g);
+  addP3Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -587,10 +625,14 @@ int main(int argc, char** argv) {
   std::vector<uint8_t> fx;
   if (!readFile(dir + "/save_v23.bin", fx)) check(false, "cannot read tests/fixtures/save_v23.bin");
   else {
-    check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
+    // (P3 PARTY) save_v23.bin is never edited: SAVE_VER 24 reads it (SAVE_VER_MIN 23), its party block v4 with an empty
+    // parted roll; every fact it was made with still checked below
+    check(Game::saveVersion(fx) == 23, "save_v23.bin is not a SAVE_VER 23 file (it is never regenerated)");
     Game g(1);
     const bool fxLoaded = g.deserialize(fx);
     check(fxLoaded, "fixture did not load");
+    check(fxLoaded && g.party.parted.empty(), "save_v23 loads (party block v4, empty parted roll)");
+    if (fxLoaded && g.party.parted.empty()) printf("save_v23 loads (party block v4, empty parted roll)\n");
     if (fxLoaded) {   // (M7c) a fixture that fails to load is not checked further (that read a game that is not there)
     check(g.seed == FIX_SEED && g.world.endless, "fixture seed / world kind");
     check(g.plLevel == FIX6.level && g.plXp == FIX6.xp && g.gold == FIX6.gold && g.inv.size() == FIX6.inv && g.quests.size() == FIX6.quests &&
@@ -783,10 +825,42 @@ int main(int argc, char** argv) {
     }
     }  // fxLoaded
   }
+  // ---- 1c. (P3 PARTY) save_v24.bin: the current SAVE_VER, a parted sellsword with his record and kit, the travelling
+  //      companion's IF_KIT kit; it round-trips byte-identically
+  {
+    std::vector<uint8_t> f24;
+    if (!readFile(dir + "/save_v24.bin", f24)) check(false, "cannot read tests/fixtures/save_v24.bin");
+    else {
+      check(Game::saveVersion(f24) == Game::currentSaveVersion(), "save_v24.bin is not the current SAVE_VER (regenerate it)");
+      Game g(1);
+      quiet(g);
+      const bool ok = g.deserialize(f24);
+      check(ok, "save_v24 did not load");
+      if (ok) {
+        const party::Parted* p = g.party.parted.size() == 1 ? &g.party.parted[0] : nullptr;
+        int kitWorn = 0;
+        if (p) for (int16_t e : p->m.eq) kitWorn += e >= 0 && e < (int)p->m.inv.size() && party::isKit(p->m.inv[(size_t)e]);
+        check(p && p->m.name == FIX_PARTED && p->name == FIX_PARTED && p->origin == party::Origin::Mercenary && p->inn == FIX_PARTED_INN && p->slot == 0 &&
+                  p->day == FIX_PARTED_DAY && p->angry && p->m.approval == -72 && p->m.bond == 12 && (p->m.flags & party::MF_LEFT_ONCE) && kitWorn >= 2,
+              "save_v24: the parted sellsword, his record, his anger and the kit he left with (party block v5)");
+        const party::Member* m = g.party.members.empty() ? nullptr : &g.party.members[0];
+        int kit = 0;
+        if (m) for (const Item& it : m->inv) kit += party::isKit(it);
+        check(m && kit > 0 && kit == (int)m->inv.size(), "save_v24: the travelling companion's own kit (IF_KIT)");
+        int packKit = 0;
+        for (const Item& it : g.inv) packKit += party::isKit(it);
+        check(packKit == 0, "save_v24: no kit piece in the hero's pack");
+        std::vector<uint8_t> again;
+        g.serialize(again);
+        check(again == f24, "save_v24: load and save is not byte-identical to the file");
+        roundTrip(g, "save_v24 round trip");
+      }
+    }
+  }
   // ---- 1b. (M10) aboard a boat: a save made at sea loads at sea, byte-identical
   {
     Game g(5150);
-    g.newEndlessGame(5150);
+    newQuietGame(g, 5150);
     makeCharacter(g);
     g.mode = Mode::Play;
     g.noWildSpawns = true;
@@ -814,7 +888,7 @@ int main(int argc, char** argv) {
   // ---- 2. round trips
   for (uint64_t s : {5150ull, 7ull, 99ull}) {
     Game g(s);
-    g.newEndlessGame(s);
+    newQuietGame(g, s);
     makeCharacter(g);
     play(g, s, 45);
     addM2Facts(g);
@@ -834,7 +908,7 @@ int main(int argc, char** argv) {
   }
   {
     Game g(707);
-    g.newEndlessGame(707);
+    newQuietGame(g, 707);
     makeCharacter(g);
     g.mode = Mode::Play;
     int inn = startInn(g);
@@ -858,7 +932,7 @@ int main(int argc, char** argv) {
   //      round-trips byte-identically; a damaged realm block is refused or loads and ticks on without a crash, fast
   {
     Game g(5150);
-    g.newEndlessGame(5150);
+    newQuietGame(g, 5150);
     makeCharacter(g);
     g.mode = Mode::Play;
     g.noWildSpawns = true;
@@ -901,7 +975,7 @@ int main(int argc, char** argv) {
   //      within the budget, write fast, and round-trip byte-identically.
   {
     Game g(4242);
-    g.newEndlessGame(4242);
+    newQuietGame(g, 4242);
     makeCharacter(g);
     g.mode = Mode::Play;
     g.godMode = true;
@@ -974,12 +1048,16 @@ int main(int argc, char** argv) {
   // ---- 3. refusals
   {
     Game n(31);
-    n.newEndlessGame(31);
+    newQuietGame(n, 31);
     n.mode = Mode::Play;
     std::vector<uint8_t> b;
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    {   // (P3 PARTY) SAVE_VER_MIN 23: a SAVE_VER 23 header over this layout loads (the party block reads its own version)
+      Game y(1);
+      check(y.deserialize(patched(4, 23)) && Game::saveVersion(patched(4, 23)) == 23, "refused (or misread) a SAVE_VER 23 (P1) save");
+    }
     check(!x.deserialize(patched(4, 22)) && Game::saveVersion(patched(4, 22)) == 22, "accepted (or misread) a SAVE_VER 22 (M12) save");
     check(!x.deserialize(patched(4, 20)) && Game::saveVersion(patched(4, 20)) == 20, "accepted (or misread) a SAVE_VER 20 (M9) save");
     check(!x.deserialize(patched(4, 19)) && Game::saveVersion(patched(4, 19)) == 19, "accepted (or misread) a SAVE_VER 19 (M8b) save");
@@ -1011,7 +1089,7 @@ int main(int argc, char** argv) {
   //      a playable game or is refused. Bytes after the header are flipped at random, and the file is cut short.
   {
     Game n(5150);
-    n.newEndlessGame(5150);
+    newQuietGame(n, 5150);
     makeCharacter(n);
     play(n, 5150, 20);
     std::vector<uint8_t> b;
@@ -1023,7 +1101,9 @@ int main(int argc, char** argv) {
       int flips = 1 + r.irange(4);
       for (int k = 0; k < flips; k++) c[(size_t)(32 + r.irange((int)c.size() - 32))] ^= (uint8_t)(1u << r.irange(8));
       Game x(1);
+      quiet(x);
       if (x.deserialize(c)) {
+        x.realm.focusBudgetMs = 1e18;
         loaded++;
         x.mode = Mode::Play;
         x.godMode = true;
