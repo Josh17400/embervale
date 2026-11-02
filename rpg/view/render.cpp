@@ -2023,7 +2023,7 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
       break;
     }
     case Ev::Notice: {
-      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); v.loot_.lootNotice(v, g, e, t); toasts_.push_back(t); }
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); v.loot_.lootNotice(v, g, e, t); t.dlg = g.mode == Mode::Dialogue && t.s.rfind("+ ", 0) == 0; toasts_.push_back(t); }   // (P4 3) a gift said
       break;
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
@@ -2035,7 +2035,7 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
     case Ev::Skill: SkillsLane::skillEvent(v, g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
     case Ev::Sea: SeaLane::seaEvent(v, g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
     case Ev::Rise: RiseLane::riseEvent(v, g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
-    case Ev::MapChange: v.fade_ = 1.0f; v.snap(g); break;
+    case Ev::MapChange: v.fade_ = 1.0f; v.snap(g); dangerBanner(v, g); break;   // (P4 6a) into a dungeon well above the hero
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       v.camera_.cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
@@ -2334,6 +2334,7 @@ void FxState::updateEffects(View& v, Game& g, float dt) {
   const bool modal = g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::Menu || g.mode == Mode::LevelUp || g.mode == Mode::Paused ||
                      g.mode == Mode::Forge || g.mode == Mode::Build;
   for (size_t i = 0; i < toasts_.size();) {
+    if (toasts_[i].dlg && g.mode != Mode::Dialogue) { toasts_.erase(toasts_.begin() + i); continue; }   // (P4 3) the panel said it
     if (modal) { i++; continue; }
     toasts_[i].t += dt;
     if (toasts_[i].t > 4.0f) toasts_.erase(toasts_.begin() + i); else i++;
