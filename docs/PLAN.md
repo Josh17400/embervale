@@ -3944,6 +3944,13 @@ untouched.**
   wearer's own (gear_look: no maker's-cloth topColor for a leather padded coat), as under a leather jerkin; rig 1 keeps the
   M6 rule. The floor jerkin (hotfix ecdcb5f) and the bronze brigandine (D114) are unchanged. Every leather-gambeson wearer
   moves: the hero and companions who wear one, and census men in a padded leather coat (a leather man's quilted coat).
+  Measured (tools/doll/p4_measure.py on tools/scripts/p4_art.txt's NEAR shots, the torso's mean facing D): his gambeson
+  (196 137 81), hue 29, saturation 0.49; hers (193 138 89), hue 28, 0.46; 125 / 128 from the floor jerkin and 78 / 83 from
+  the bronze brigandine (RGB). The freeze manifests are re-signed for the 8 leather padded looks only (slice_lt1, lt1w,
+  g_cov6-8 in slice and forge: 1,568 frames each; rig 1's record for the same shared doll frames, D115's reading).
+  Not done, for the owner: a people's leather CAP still draws as that people's helm form in the iron fittings' metal (the
+  grey kettle hat over the brown coat in the pack's `set` row); drawing it in leather moves every census leather-helm wearer,
+  outside this batch's planned baselines.
 - **D117. Every body-armour icon wears its material** (6e; W7 shot C1: "a grey-white vest for both leather and bronze").
   art_items bodyIcon painted a padded coat and a brigandine in the maker's cloth (a people whose metal body form is the
   brigandine showed bronze, iron and steel as one cloth vest). Now: a leather gambeson is quilted leather laced up the
@@ -3951,7 +3958,9 @@ untouched.**
   in the seams between them, a rivet head every third pixel on each plate's lit edge (as the doll's D114 coat); iron's body
   icon sits a step under its ramp (two under a gilt rim) and bronze's body a third of a step toward its cream glint, so the
   four read apart at 16 px. The leather cap, gloves and boots icons were already the leather ramp (unchanged). Measured by
-  tools/preview/icons_gallery --check (new): every maker's leather, bronze, iron and steel coats pairwise >= 30 in mean RGB.
+  tools/preview/icons_gallery --check (new): every maker's leather, bronze, iron and steel coats pairwise >= 30 in mean RGB
+  (13 makers, the closest pair 31.8), and the gambeson from the brigandine. A people's gilt rim on its iron coat is drawn at
+  the collar and shoulders only (a whole gold rim carried its mean onto bronze's). Rig 2 only: rig 1's icons as they were.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
