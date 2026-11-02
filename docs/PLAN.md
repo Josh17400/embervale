@@ -3921,7 +3921,12 @@ rig 1 untouched.**
   re-signed". Re-signed only the frames that changed (1,967 of 39,152; every one in a look holding a sword, axe or mace
   strike or a brigandine), the rest byte for byte. Rig 1's own art is unchanged: art_hash --rig=1, the rig-1 village art
   and S5.rig1 / S7.rig1 identical. The other reading (split the manifest so rig 1 signs only rig-1 art) is the owner's
-  if he prefers it.
+  if they prefer it.
+- **Owner rulings, 2026-11-02 ("Looks good", on the P3 owner pack):** D113 (the axe strike; the mace left as it is), D114
+  (the bronze brigandine's plate courses), D115 (keep the re-signed rig-1 freeze record, no split), the B1 sword cut, the
+  band-4 companion's LASTEEL lamellar, and the AUDIO side effect (louder oars and mist) are all accepted. Also shipped with
+  P3: main's creator hotfix ecdcb5f (Game::heroLook shared by the game and the creator preview; the T1 floor jerkin quilted
+  in the wearer's shirt colour, owner "yes").
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
