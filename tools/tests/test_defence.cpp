@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/talk.h"
 #include "tools/tests/tests.h"
 #include "rpg/sim/quest_ops.h"
 #include "rpg/world/source.h"
@@ -337,15 +338,20 @@ int bountyChecks(const Game& base) {
   int tx = 0, ty = 0;
   if (!g.questTarget(q.id, tx, ty) || tx != g.world.over.bldgs[inn].doorX() || ty != g.world.over.bldgs[inn].doorY()) { out("FAIL: bounty: the marker does not point at the giver's door\n"); bad++; }
   out("bounty: done -> \"%s\", journal \"%s\" / \"%s\"\n", g.notice.c_str(), st0.c_str(), st1.c_str());
-  // back to the giver: "!", the first option collects
+  // back to the giver: "!", COLLECT on the first page with the keyboard cursor on it (P4: the speaker's trade keeps the
+  // first numbers; talk.h section 6), and choosing it pays
   if (!enterBuilding(g, inn)) { out("FAIL: bounty: cannot re-enter the inn\n"); return bad + 1; }
   k = findRole(g, Role::Innkeeper);
   if (k < 0 || !g.rewardWaiting(g.actors[k])) { out("FAIL: bounty: no '!' over the giver with the reward waiting\n"); bad++; }
   if (k >= 0 && talk(g, k)) {
-    std::string lab = g.dlg.opts.empty() ? "" : g.dlg.opts[0].label;
-    if (lab != "COLLECT BOUNTY (+150 GOLD)") { out("FAIL: bounty: first option is '%s'\n", lab.c_str()); bad++; }
+    std::vector<int> page;
+    for (size_t i = 0; i < g.dlg.opts.size(); i++) if (g.dlg.shows(g.dlg.opts[i])) page.push_back((int)i);
+    const int cur = speech::startCursor(g.dlg);
+    const int oi = cur >= 0 && cur < (int)page.size() ? page[(size_t)cur] : -1;
+    std::string lab = oi >= 0 ? g.dlg.opts[(size_t)oi].label : "";
+    if (lab != "COLLECT BOUNTY (+150 GOLD)") { out("FAIL: bounty: the cursor starts on '%s', not COLLECT on the first page\n", lab.c_str()); bad++; }
     int gold0 = g.gold;
-    g.dialogueChoose(0);
+    if (oi >= 0) g.dialogueChoose(oi);
     if (g.gold < gold0 + 150 || g.questById(q.id)->state != QState::Done) { out("FAIL: bounty: collecting paid %d\n", g.gold - gold0); bad++; }
     g.mode = Mode::Play;
     k = findRole(g, Role::Innkeeper);

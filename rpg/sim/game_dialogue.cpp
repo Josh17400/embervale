@@ -323,17 +323,6 @@ bool opensWithGreeting(const std::string& t) {
   return false;
 }
 
-// the kind of option a first page can do without: the services (grouped under one header) and the kindnesses
-// (offered once the player asks how someone is keeping)
-bool serviceOpt(const DlgOpt& o) {
-  if (o.action == A_TRADE || o.action == A_REST || o.action == A_RUMOR || o.action == A_HEAL || o.action == A_LEARN) return true;
-  if (o.action >= DLG_HOME && o.action < DLG_HOME_END) return true;    // deeds, horses, recipes, the kitchen, the mill
-  if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END) return true;  // (M9) a teacher's spells, attunement
-  if (o.action >= DLG_SEA && o.action < DLG_SEA_END && o.action != DLG_SEA + 95) return true;   // (M10) boats, the yard, passages
-  if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END) return true;  // (M9 integration) lessons, prices, unlearning
-  if (o.action >= DLG_CRAFT && o.action < DLG_M6_END) return true;     // the forge, the craft
-  return lifeOptKind(o.action) == 1;                                    // the inn's meal, food for the stores
-}
 }  // namespace
 
 std::string Game::speakerTitle(const Actor& a) const {
@@ -435,7 +424,7 @@ void Game::talkToInner(Actor& a) {
     if (background == Background::Farmhand && a.role == Role::Innkeeper && !say1) bg("A FARMHAND, BY THOSE HANDS. THEN YOU KNOW WHAT GOOD BREAD IS WORTH ON THE ROAD.");
     if (background == Background::Hunter && a.role == Role::Villager && say1) bg("YOU WALK LIKE A HUNTER. THE WOLVES WON'T HEAR YOU COMING, WILL THEY?");
   }
-  // ---- 2. a reward waiting comes first: the first option collects it
+  // ---- 2. a reward waiting: COLLECT (a passing quest option: after the speaker's trade, with the cursor on it; talk.h 6)
   for (auto& q : quests)
     if (q.state == QState::Complete && q.type != QType::Main && isGiver(q, a)) {
       bool bounty = q.type == QType::Bounty || q.type == QType::Hunt || q.type == QType::NamedBandit;
@@ -555,36 +544,10 @@ void Game::talkToInner(Actor& a) {
   }
   talkMem.said(speech::lineHash(core), day);
   dlg.front = core;
-  // ---- 9. the first page holds about six options: the services go under one header, the kindnesses come up when the
-  // player asks how the speaker is keeping
-  {
-    auto shown = [&]() { int n = 1; for (const DlgOpt& o : dlg.opts) if (o.grp == 0) n++; return n; };   // (+ FAREWELL)
-    if (shown() > speech::FIRST_PAGE) {
-      int nserv = 0;
-      for (const DlgOpt& o : dlg.opts) if (o.grp == 0 && serviceOpt(o)) nserv++;
-      if (nserv >= 2) {
-        size_t at = dlg.opts.size();
-        for (size_t i = 0; i < dlg.opts.size(); i++)
-          if (dlg.opts[i].grp == 0 && serviceOpt(dlg.opts[i])) { if (at == dlg.opts.size()) at = i; dlg.opts[i].grp = 1; }
-        dlg.opts.insert(dlg.opts.begin() + (std::ptrdiff_t)at, DlgOpt{"WHAT CAN YOU OFFER?", A_GROUP, 1, 0});
-        // a keeper with more to offer than one page holds: the house and kitchen business gets its own header
-        int n1 = 0, nh = 0;
-        for (const DlgOpt& o : dlg.opts) if (o.grp == 1) { n1++; if (o.action >= DLG_HOME && o.action < DLG_HOME_END) nh++; }
-        if (n1 > speech::FIRST_PAGE - 1 && nh >= 2 && n1 - nh >= 2) {
-          for (DlgOpt& o : dlg.opts) if (o.grp == 1 && o.action >= DLG_HOME && o.action < DLG_HOME_END) o.grp = 3;
-          dlg.opts.insert(dlg.opts.begin() + (std::ptrdiff_t)at + 1, DlgOpt{"WHAT ELSE DO YOU DO HERE?", A_GROUP, 3, 0});
-        }
-      }
-    }
-    bool g1 = false;
-    for (const DlgOpt& o : dlg.opts) if (o.action == A_GROUP && o.arg == 1) g1 = true;
-    if (shown() > speech::FIRST_PAGE && g1)   // the keeper's word of the beasts about goes with the inn's news
-      for (DlgOpt& o : dlg.opts) if (o.grp == 0 && o.action >= DLG_FOES && o.action < DLG_CRAFT) o.grp = 1;
-    bool chat = false;
-    for (const DlgOpt& o : dlg.opts) if (o.grp == 0 && lifeOptKind(o.action) == 3) chat = true;
-    if (shown() > speech::FIRST_PAGE && chat)
-      for (DlgOpt& o : dlg.opts) if (o.grp == 0 && lifeOptKind(o.action) == 2) o.grp = 2;   // (L_CHAT shows them: lifeChoose)
-  }
+  // ---- 9. one order of options (P4, talk.h section 6; dlg_order.cpp): the speaker's trade in the table's order, this
+  // visit's passing options after it, FAREWELL last; the services go under one header when the speaker has many of them
+  // (decided by the speaker's standing kinds, never by a visit's count), the kindnesses under HOW ARE YOU KEEPING?
+  speech::orderFirstPage(dlg);
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
   mode = Mode::Dialogue;
   sfx((int)Sfx::Talk, a.p);

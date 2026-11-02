@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/talk.h"
 #include "rpg/world/poi.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
@@ -101,7 +102,7 @@ int giverActor(Game& g, const Quest& q) {
   }
   return id;
 }
-// collect the reward from the giver: the first option of the talk is COLLECT ...
+// collect the reward from the giver: the cursor starts on COLLECT (P4: after the giver's trade on the first page) ...
 bool turnIn(Game& g, int qid, std::string& why) {
   Quest* q = questOf(g, qid);
   if (!q) { why = "no quest"; return false; }
@@ -111,9 +112,17 @@ bool turnIn(Game& g, int qid, std::string& why) {
   const int k = findActorIdx(g, id);
   if (!g.rewardWaiting(g.actors[(size_t)k])) { why = "no reward marker over the giver"; return false; }
   if (!talk(g, id)) { why = "could not talk to the giver"; return false; }
-  if (g.dlg.opts.empty() || g.dlg.opts[0].label.find("COLLECT") == std::string::npos) { why = "first option '" + (g.dlg.opts.empty() ? std::string() : g.dlg.opts[0].label) + "'"; return false; }
+  // (P4) COLLECT is on the first page, after the giver's trade, and the keyboard cursor starts on it (talk.h section 6)
+  std::vector<int> page;
+  for (size_t o = 0; o < g.dlg.opts.size(); o++) if (g.dlg.shows(g.dlg.opts[o])) page.push_back((int)o);
+  const int cur = speech::startCursor(g.dlg);
+  const int oi = cur < (int)page.size() ? page[(size_t)cur] : -1;
+  if (oi < 0 || g.dlg.opts[(size_t)oi].label.find("COLLECT") == std::string::npos) {
+    why = "the cursor starts on '" + (oi < 0 ? std::string() : g.dlg.opts[(size_t)oi].label) + "', not COLLECT";
+    return false;
+  }
   const int gold0 = g.gold;
-  g.dialogueChoose(0);
+  g.dialogueChoose(oi);
   g.mode = Mode::Play;
   q = questOf(g, qid);
   if (!q || q->state != QState::Done || g.gold < gold0 + copy.gold) { why = "collecting did not pay"; return false; }
@@ -711,6 +720,82 @@ int supplySeed(uint64_t seed) {
   return bad;
 }
 
+// ---------------------------------------------------------------- (P4 item 2) the pin
+// A just-accepted quest is the one the player follows (game_quests.cpp acceptQuest): taken the player's way (ask the
+// giver for work, I'LL DO IT.) it takes the pin from the main quest, with the banner QUEST STARTED: <title>; a street
+// errand takes the pin and hands it back when done; the journal's TRACK switches back and the pin stays there.
+int pinSeed(uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: quests: pin: %s\n", s.c_str()); bad++; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play;
+  g.godMode = true;
+  g.noWildSpawns = true;
+  g.hour = 10.0f;
+  tick(g, 20);
+  int mainId = -1;
+  for (const Quest& q : g.quests) if (q.type == QType::Main) mainId = q.id;
+  if (mainId < 0) { fail("no main quest"); return bad; }
+  g.trackedQuest = mainId;   // (as the opening's end leaves it: giveFirstWeapon finds no job open and pins the main quest)
+  // a giver of the start village with work to offer, asked the player's way
+  int job = -1;
+  std::string how = "the dialogue";
+  for (size_t k = 1; k < g.actors.size() && job < 0; k++) {
+    const Actor& a = g.actors[k];
+    if (!a.npc || !a.human || a.site != g.world.startSite || a.st == AState::Dead) continue;
+    const int id = a.id;
+    if (!talk(g, id)) continue;
+    const int ask = dlgReach(g, [](const DlgOpt& o) { return o.action == A_ASK; }, true);
+    if (ask < 0) { g.mode = Mode::Play; continue; }
+    g.events.clear();
+    g.dialogueChoose(ask);
+    const int acc = dlgReach(g, [](const DlgOpt& o) { return o.action == A_ACCEPT; }, true);
+    if (acc < 0) { g.mode = Mode::Play; continue; }
+    const size_t n0 = g.quests.size();
+    g.dialogueChoose(acc);
+    g.mode = Mode::Play;
+    if (g.quests.size() > n0) job = g.quests.back().id;
+  }
+  if (job < 0) {   // (no one asked has plain work today: the same accept, by the test seam)
+    how = "debugAccept";
+    for (size_t k = 1; k < g.actors.size() && job < 0; k++) {
+      const Actor& a = g.actors[k];
+      if (!a.npc || !a.human || a.site != g.world.startSite || a.role != Role::Villager) continue;
+      bool ok = false;
+      const Quest q = g.offerFor(a, QType::Hunt, ok);
+      if (!ok) continue;
+      g.events.clear();
+      g.debugAccept(q);
+      job = g.quests.back().id;
+    }
+  }
+  const Quest* jq = job >= 0 ? g.questById(job) : nullptr;
+  if (!jq) { fail("no job could be accepted"); return bad; }
+  if (g.trackedQuest != job) fail("an accepted job did not take the pin from the main quest (tracked " + std::to_string(g.trackedQuest) + ")");
+  bool banner = false;
+  for (const Event& e : g.events) if (e.type == Ev::QuestUpdate && e.s == "QUEST STARTED: " + jq->title) banner = true;
+  if (!banner) fail("no 'QUEST STARTED: " + jq->title + "' banner");
+  const std::string title = jq->title;
+  // a street errand takes the pin and hands it back
+  Quest e;
+  e.title = "CATCH THE CUTPURSE";
+  e.desc = "A THIEF RAN OFF WITH A PURSE.";
+  e.giverName = "A STALLHOLDER";
+  e.gold = 5;
+  const int eid = g.openErrand(e);
+  if (g.trackedQuest != eid) fail("a street errand did not take the pin");
+  g.finishErrand(eid, true);
+  if (g.trackedQuest != job) fail("the errand did not hand the pin back to " + title + " (tracked " + std::to_string(g.trackedQuest) + ")");
+  // the journal's TRACK switches back (input.cpp: trackedQuest = the row's quest), and nothing takes it away again
+  g.trackedQuest = mainId;
+  tick(g, 60);
+  if (g.trackedQuest != mainId) fail("TRACK on the main quest did not stay (tracked " + std::to_string(g.trackedQuest) + ")");
+  out("seed %llu: pin: %s accepted (%s) takes the pin with QUEST STARTED; an errand hands it back; TRACK switches it\n", (unsigned long long)seed,
+      title.c_str(), how.c_str());
+  return bad;
+}
+
 int cmdQuests(int argc, char** argv) {
   uint64_t a = 1, b = 3;
   for (int i = 1; i < argc; i++) {
@@ -722,7 +807,7 @@ int cmdQuests(int argc, char** argv) {
   int bad = 0, failedSeeds = 0;
   for (uint64_t s = a; s <= b; s++) {
     g_curSeed = s;
-    const int f = questsSeed(s) + supplySeed(s);
+    const int f = questsSeed(s) + supplySeed(s) + pinSeed(s);
     bad += f;
     if (f) failedSeeds++;
   }

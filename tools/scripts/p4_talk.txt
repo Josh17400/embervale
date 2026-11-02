@@ -1,0 +1,47 @@
+# P4 TALK (docs/FIX_BATCH_P4.md 3, 5, 9.2): the pin and one order of dialogue options, seed 7 from the start.
+# The start inn's keeper hands over the old blade; the wolves taken from him become the tracked quest at once (the
+# banner QUEST STARTED, the HUD's goal line and the map's marker on the den), and the journal's TRACK still switches.
+# Then the smith GAOLD twice, with bread in the pack and without: each shared option keeps its number (talk.h 6).
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p4_talk.txt
+seed 7
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.2 enter inn
++0.2 talkto innkeeper            # the opening: the old blade and a draught for the road
++1.5 expect mode dialogue
++0.1 expect quest done A BLADE OF YOUR OWN
++0.1 choose ANY WORK GOING
++2.6 expect option I'LL DO IT
++0.1 choose I'LL DO IT
++0.3 expect quest active THE WOLVES OF OSLARS
++0.1 expect tracked THE WOLVES OF OSLARS   # (P4 item 2) the job just taken is the one the pointer follows
++0.1 key Escape
++0.3 expect mode play
++0.2 shot p4_talk_1_hud_wolves.png        # the goal line names the wolves, the banner QUEST STARTED
++0.2 menu 2
++0.8 shot p4_talk_2_map_wolves.png        # the map's marker on the den
++0.2 key Escape
++0.3 expect mode play
++0.1 talkto innkeeper            # the keeper again: his trade at the same numbers, the job under way
++1.5 expect mode dialogue
++0.1 expect optindex WHAT CAN YOU OFFER 1
++0.1 choose FAREWELL
++0.3 expect mode play
++0.2 enter smithy
++0.3 p4food give
++0.2 talkto smith                # GAOLD with bread in the pack
++1.5 expect mode dialogue
++0.1 expect optindex WHAT CAN YOU OFFER 1
++0.1 expect optindex HOW ARE YOU KEEPING 2
++2.6 shot p4_talk_3_gaold_bread.png
++0.1 choose FAREWELL
++0.3 expect mode play
++0.1 p4food drop
++0.2 talkto smith                # GAOLD without: the same rows at the same numbers
++1.5 expect mode dialogue
++0.1 expect optindex WHAT CAN YOU OFFER 1
++0.1 expect optindex HOW ARE YOU KEEPING 2
++2.6 shot p4_talk_4_gaold_plain.png
++0.1 choose FAREWELL
++0.3 expect mode play

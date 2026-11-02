@@ -34,6 +34,7 @@
 #include "rpg/sim/party.h"
 #include "rpg/sim/party_voice.h"
 #include "rpg/sim/talk.h"
+#include "rpg/sim/items.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -452,6 +453,149 @@ int sampleCompanions(Game& g, int& convs) {
   return people;
 }
 
+// ---------------------------------------------------------------- (P4 item 4) the order check (talk.h section 6)
+// Every keyed speaker of the start village and the nearest town (the street and the trades inside), visited three
+// times: as is; with bread in the pack and a reward of theirs due (a job they would offer gives way to it); and without
+// (no food, a job of theirs under way, so nothing of this visit is offered). On every pair of visits each option shown
+// on both first pages keeps its index and the headers are the same; FAREWELL is last; every option of every visit is
+// reachable the player's way (dlgReach); and the first page holds at most FIRST_PAGE rows on 95 % or more of the talks.
+struct OrderStats { int speakers = 0, visits = 0, within = 0, staged = 0, bad = 0; };
+struct FirstPage { std::vector<std::string> labels, headers; };
+
+FirstPage firstPage(const Game& g) {
+  FirstPage p;
+  for (int i : shown(g)) {
+    const DlgOpt& o = g.dlg.opts[(size_t)i];
+    p.labels.push_back(o.label);
+    if (o.action == A_GROUP) p.headers.push_back(o.label);
+  }
+  return p;
+}
+
+// a quest of this speaker's for the check (a hunt: done = a reward due, under way = no job offered); -1: they give none
+int stageQuest(Game& g, const Actor& a, QState state) {
+  Quest q;
+  q.type = QType::Hunt; q.mon = art::Monster::Wolf; q.need = 3; q.have = state == QState::Complete ? 3 : 0; q.gold = 40; q.xp = 20;
+  q.title = "THE ORDER CHECK"; q.giverName = a.name; q.giverSite = a.site; q.giverBldg = a.bldg; q.giverSlot = a.slot;
+  q.state = state;
+  if (!isGiver(q, a)) return -1;
+  q.id = g.nextQuestId++;
+  g.quests.push_back(q);
+  return q.id;
+}
+
+void orderSpeaker(Game& g, int id, const std::string& where, OrderStats& st) {
+  const int ai0 = findById(g, id);
+  if (ai0 < 0) return;
+  const Actor& a0 = g.actors[(size_t)ai0];
+  if (!a0.npc || !a0.human || a0.comp || a0.quest > 0 || !g.npcKey(a0)) return;
+  const std::string who = a0.name;
+  static const char* const names[3] = {"as is", "bread and a reward due", "without"};
+  std::vector<FirstPage> pages;
+  for (int v = 0; v < 3; v++) {
+    const int ai = findById(g, id);
+    if (ai < 0) return;
+    Actor& a = g.actors[(size_t)ai];
+    int staged = -1;
+    if (v == 1) {
+      Item bread = makeFood(0);
+      bread.count = 2;
+      g.inv.push_back(bread);
+      staged = stageQuest(g, a, QState::Complete);
+      if (staged >= 0) st.staged++;
+    }
+    if (v == 2) {
+      for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].kind == ItemKind::Food) g.dropItem(i);
+      staged = stageQuest(g, a, QState::Active);
+    }
+    HomeOps::talkTo(g, a);
+    if (g.mode == Mode::Dialogue) {
+      st.visits++;
+      const FirstPage p = firstPage(g);
+      if ((int)p.labels.size() <= speech::FIRST_PAGE) st.within++;
+      if (p.labels.empty() || p.labels.back() != "FAREWELL.") {
+        out("FAIL: dialogue: order: seed %llu %s in %s (%s): FAREWELL is not last ('%s')\n", (unsigned long long)g_curSeed, who.c_str(), where.c_str(),
+            names[v], p.labels.empty() ? "" : p.labels.back().c_str());
+        st.bad++;
+      }
+      // every option reachable the player's way (dlgReach on a copy of the dialogue: report only)
+      const Dialogue keep = g.dlg;
+      for (const DlgOpt& want : keep.opts) {
+        if (want.action == A_BACK) continue;
+        g.dlg = keep;
+        const int k = dlgReach(g, [&](const DlgOpt& x) { return x.label == want.label && x.action == want.action && x.arg == want.arg; }, false);
+        bool chatDoor = false;   // (a kindness: HOW ARE YOU KEEPING? on show brings it up, lifeChoose; dlgReach knows only headers)
+        if (k < 0 && want.grp == 2)
+          for (const DlgOpt& c : keep.opts) if (c.grp == 0 && lifeOptKind(c.action) == 3) chatDoor = true;
+        if (k < 0 && !chatDoor) {
+          out("FAIL: dialogue: order: seed %llu %s in %s (%s): '%s' cannot be reached\n", (unsigned long long)g_curSeed, who.c_str(), where.c_str(), names[v],
+              want.label.c_str());
+          st.bad++;
+        }
+      }
+      g.dlg = keep;
+      pages.push_back(p);
+    }
+    g.mode = Mode::Play;
+    if (staged >= 0) g.quests.erase(std::remove_if(g.quests.begin(), g.quests.end(), [&](const Quest& q) { return q.id == staged; }), g.quests.end());
+    if (pages.size() != (size_t)v + 1) return;   // (not a conversation: a companion, a critter)
+  }
+  st.speakers++;
+  for (size_t x = 0; x < pages.size(); x++)
+    for (size_t y = x + 1; y < pages.size(); y++) {
+      if (pages[x].headers != pages[y].headers) {
+        out("FAIL: dialogue: order: seed %llu %s in %s: the headers differ between '%s' and '%s'\n", (unsigned long long)g_curSeed, who.c_str(),
+            where.c_str(), names[x], names[y]);
+        st.bad++;
+      }
+      for (size_t i = 0; i < pages[x].labels.size(); i++)
+        for (size_t j = 0; j < pages[y].labels.size(); j++)
+          if (pages[x].labels[i] == pages[y].labels[j] && i != j && pages[x].labels[i] != "FAREWELL.") {   // (FAREWELL: always last)
+            out("FAIL: dialogue: order: seed %llu %s in %s: '%s' is option %zu %s but %zu %s\n", (unsigned long long)g_curSeed, who.c_str(),
+                where.c_str(), pages[x].labels[i].c_str(), i + 1, names[x], j + 1, names[y]);
+            st.bad++;
+            if (getenv("EMB_ORDER_DUMP"))
+              for (size_t k = 0; k < pages.size(); k++) {
+                std::string l;
+                for (const std::string& t : pages[k].labels) l += " | " + t;
+                out("    %s:%s\n", names[k], l.c_str());
+              }
+          }
+    }
+}
+
+void orderCheck(uint64_t s, size_t maxPeople, OrderStats& st) {
+  Game g(s);
+  g.newEndlessGame(s);
+  g.mode = Mode::Play;
+  g.noWildSpawns = true;
+  g.godMode = true;
+  g.gold = 5000;
+  const int sites[2] = {g.world.startSite, nearestOfType(g, SiteType::Town)};
+  for (const int si : sites) {
+    if (si < 0 || si >= (int)g.world.sites.size()) continue;
+    g.world.sites[(size_t)si].discovered = true;
+    if (si != g.world.startSite && !g.fastTravel(si)) continue;
+    g.hour = 12;
+    settle(g, 90);
+    const Site S = g.world.sites[(size_t)si];
+    for (int id : peopleHere(g, si, maxPeople)) orderSpeaker(g, id, S.name, st);
+    std::set<int> seenType;
+    for (int b = S.bldgFirst; b < S.bldgFirst + S.bldgCount && b < (int)g.world.over.bldgs.size(); b++) {
+      const Bldg& B = g.world.over.bldgs[(size_t)b];
+      const bool want = B.type == art::Building::Inn || B.type == art::Building::Shop || B.type == art::Building::Smithy ||
+                        B.type == art::Building::Temple || bldgIsSeat(B);
+      if (!want || seenType.count((int)B.type)) continue;
+      seenType.insert((int)B.type);
+      if (!g.debugEnterBuilding(b)) continue;
+      settle(g, 20);
+      for (int id : peopleHere(g, -1, 4)) orderSpeaker(g, id, S.name, st);
+      g.debugLeave();
+      settle(g, 5);
+    }
+  }
+}
+
 // the review lens over one seed's conversations (beyond the lint): a crowded first page, a chorus of one line, the
 // journal read aloud
 void review(const std::vector<speech::Conversation>& convs, const std::vector<std::string>& journal, std::vector<std::vector<speech::Issue>>& out) {
@@ -500,8 +644,10 @@ int cmdDialogue(int argc, char** argv) {
   std::map<std::string, int> byRole, issuesByRole;
   std::string dumpText;
   int printed = 0;
+  OrderStats ord;
   for (uint64_t s = a; s <= b; s++) {
     g_curSeed = s;
+    orderCheck(s, maxPeople, ord);
     Game g(s);
     g.newEndlessGame(s);
     g.mode = Mode::Play;
@@ -588,6 +734,15 @@ int cmdDialogue(int argc, char** argv) {
   for (auto& kv : storyByCheck) printf(" %s %d,", reviewName(kv.first), kv.second);
   printf("\n");
   if (convs == 0) { printf("FAIL: dialogue: no conversation recorded\n"); bad++; }
+  {   // (P4 item 4) the order check's verdict, named
+    const double pct = ord.visits ? 100.0 * ord.within / ord.visits : 0.0;
+    printf("dialogue: order check (P4): %d speakers x 3 visits (%d talks, %d with a reward staged): shared options keep their index, "
+           "headers equal, FAREWELL last, every option reachable: %d failures; first page <= %d rows on %.1f%% (gate >= 95%%)\n",
+           ord.speakers, ord.visits, ord.staged, ord.bad, speech::FIRST_PAGE, pct);
+    bad += ord.bad;
+    if (ord.speakers == 0) { printf("FAIL: dialogue: order check: no speaker visited\n"); bad++; }
+    if (pct < 95.0) { printf("FAIL: dialogue: order check: the first page holds <= %d rows on only %.1f%% of the talks\n", speech::FIRST_PAGE, pct); bad++; }
+  }
   printf("dialogue: %d failures\n", bad);
   return bad ? 1 : 0;
 }
