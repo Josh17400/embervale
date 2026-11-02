@@ -376,3 +376,4 @@ every other record is byte for byte the one in `119de74`. Moves files: ART.txt A
 ## Integration addendum
 
 - `checks/layers_allow.txt` re-recorded at this root's revision (today's tools/gates/layers_allow.txt, 52 lines): check_layers maps renames only from the root's REV, so wave 0's record (paths of 119de74) read the SOLID-era renames as growth. The wave run's S10.layers PASSED against 119de74 (new=0, grew=0), so the record did not loosen.
+- `probes/view_all/hashes.txt` m4_view_warprops/m4_view_warprops_burned_night.png: the wave run recorded fd0a1bfe (1 of 5 fresh runs of the integrated build); the other 4 (run 1, the recheck, two A/A runs) give 23bb2da7, now recorded. The PNG is A/A unstable at the integrated build: a finding for GATES (not excluded).
