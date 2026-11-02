@@ -3,6 +3,9 @@
 # and the campfire burns. Then the village is burned: its buildings smoulder (smoke columns, sparks, a red glow by
 # night). warcamp / charbldgs stand in for the WARDS overlays so the drawing can be judged on its own.
 #   embervale.exe --script tools/scripts/m4_view_warprops.txt     (m4_view_warprops*.png in the working directory)
+# (P3 fix round 1, W2.view_all flake) `settle` before the burned night shot: the burned village's ground chunks re-bake on
+# the background bakers (charbldgs, the night's light), and under a full wave's load a bake could land after the shot
+# (2 of 2 wave runs drew fd0a1bfe..., every lone and busy run 23bb2da7...); the shot now waits for no bake in flight
 seed 2
 0.3  newgame
 +0.02 hour 11
@@ -20,5 +23,6 @@ seed 2
 +4.0 expect m4 burned 3
 +0.1 shot m4_view_warprops_burned.png
 +0.1 hour 21
-+1.5 shot m4_view_warprops_burned_night.png
++1.5 settle
++0.0 shot m4_view_warprops_burned_night.png
 +0.3 quit
