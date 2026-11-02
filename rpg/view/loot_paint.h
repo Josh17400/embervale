@@ -331,7 +331,9 @@ struct CardRow {
   int arrow = -9;        // -9 none; else -1 down, 0 even, 1 up (drawn in the line's gutter)
   bool bullet = false;   // an affix line with no compare: a small diamond in the gutter
   bool flame = false;    // a Mythic power's name (the flame, letter by letter)
-  int prio = 0;          // 0 always; 1 compare losses; 2 power words; 3 warnings; 5 maker; 6 lore; 7 value
+  int prio = 0;          // 0 always; 1 compare losses; 2 power words; 3 warnings, an old maker's or an alloy's maker row;
+                         // 4 armour trade-offs; 5 maker; 6 lore; 7 value
+  bool maker = false;    // (P3 fix) the maker row: CardInfo::maker is what the fit left of it on screen
   int delta = 0;         // the base stat's change (shown after the text when deltaOn)
   bool deltaOn = false;
 };
@@ -496,9 +498,11 @@ float itemCard(Pt& P, float t, const CardCtx& X, const Item& it, float x, float 
   if (gearItem) {
     // (P3) the maker row from one place (gear::makerLine): the people and the metal, an alloy's rank ("WARRIORS' METAL
     // (2 OF 3)"), an old maker's metal ("OLD MAKERS' WORK: OBSIDIAN (2 OF 4)")
+    // (P3 fix) an old maker's piece or a people's alloy names what the piece IS: its row outlasts the armour trade-offs
+    // (a Rare relic's plate card dropped it under its five trade lines)
     const std::string who = gear::makerLine(it, X.maker);
-    info.maker = who;
-    add(who, kQuiet, 5);
+    const bool named = gear::isRelic(it) || (it.mat == Mat::Alloy && X.maker && it.alloy >= 1);
+    add(who, kQuiet, named ? 3 : 5).maker = true;
     if (it.flags & IF_CRAFTED) add("CRAFTED", kQuiet, 6);
   }
   if (it.rarity >= Rarity::Legendary && gearItem) {
@@ -546,6 +550,7 @@ float itemCard(Pt& P, float t, const CardCtx& X, const Item& it, float x, float 
           P.rect(x + 3, cy + 1, 1, 1, bc); P.rect(x + 2, cy + 2, 3, 1, bc); P.rect(x + 3, cy + 3, 1, 1, bc);
         }
       }
+      if (r.maker) info.maker += (k ? " " : "") + lines[k];   // (P3 fix) the maker row as drawn, after the fit
       if (r.flame) rarityText(P, t, lx, cy, lines[k], Rarity::Mythic);
       else P.text(lx, cy, lines[k], r.c, 0);
       if (k == 0 && r.deltaOn) {   // the base stat's change after it

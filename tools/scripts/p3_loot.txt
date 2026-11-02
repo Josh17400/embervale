@@ -21,11 +21,25 @@ seed 7
 +0.1 lootsel menu last
 +0.5 expect lootcard rarity rare
 +0.1 shot p3_loot_1_relic_card.png
++0.0 expect cardmaker OLD MAKERS' WORK: OBSIDIAN (2 OF 4)
 +0.1 key Escape
 +0.2 gear6 body ilvl 36 rarity 1 here
 +0.1 expect lootmaker WARRIORS' METAL
 +0.1 lootsel menu last
 +0.5 expect lootcard rarity uncommon
 +0.1 shot p3_loot_2_alloy_card.png
++0.0 expect cardmaker *WARRIORS' METAL*
++0.1 key Escape
+# (P3 fix) the maker row as DRAWN (expect cardmaker reads it after the card's fit): an Epic relic and a Legendary alloy
+# coat keep it on a long card too (no shots: the view pack's PNGs above stay as they are)
++0.2 gear6 body ilvl 37 rarity 3 none
++0.1 lootsel menu last
++0.5 expect lootcard rarity epic
++0.0 expect cardmaker OLD MAKERS' WORK: OBSIDIAN*
++0.1 key Escape
++0.2 gear6 body ilvl 36 rarity 4 here
++0.1 lootsel menu last
++0.5 expect lootcard rarity legendary
++0.0 expect cardmaker *WARRIORS' METAL*
 +0.1 key Escape
 +0.3 quit
