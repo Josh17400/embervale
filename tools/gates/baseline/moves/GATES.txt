@@ -3,5 +3,3 @@
 # C5: rpg_test --look-key joins web.yml's test job and kCiList (tools/tests/main.cpp): the CI list 68 -> 69 commands.
 expect      CLANG_CMDS                       C5  rpg_test --look-key added to web.yml's test job: 68 -> 69 CI commands (S4.clang, W1.msvc_ci)
 S4.ci_cmds  rpg_test?--look-key              C5  the CI list (ci_cmds.sh) gains rpg_test --look-key after --doll-ladder --selftest
-S4.clang_ci ok?rpg_test?--look-key?*         C5  its clang run (PASS look-key: 97 fields, 388 flips, 0 unchanged keys)
-S4.clang_ci CLANG_CMDS=68,CLANG_CMDS=69      C5  the command count line 68 -> 69

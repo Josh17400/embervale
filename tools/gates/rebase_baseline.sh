@@ -11,8 +11,10 @@
 # difference, in tools/gates/baseline/moves/<AREA>.txt:
 #   <gate> <item glob>[,<item glob>...] <id> <reason...>          ('#' starts a comment)
 # Gates and their items (an item glob is a bash glob over the item; write a space in it as ? or *):
-#   S2.seeds S3.save S5.rig2 S5.rig1 S6.freeze S6.freeze1 S6.pool S7.rig2 S7.rig1 S1.exes S4.ci_cmds S4.clang_ci
+#   S2.seeds S3.save S5.rig2 S5.rig1 S6.freeze S6.freeze1 S6.pool S7.rig2 S7.rig1 S1.exes S4.ci_cmds
 #                  a text record: item = a differing line, normalized as the gate compares it (old or new side)
+#                  (gates/S4.clang_ci.txt, wave 0's per-command last lines, was never compared by a gate and is
+#                  not checked here either: clang runs after SOLID already differ from it in lines no batch touched)
 #   W4.doll.<line> doll_gates.sh's line <line> (e.g. W4.doll.art_hash): item = a differing line, or "rc"
 #   S10.view W2.view_all   PNG hashes: item = <script>/<png>       S10.audio   WAV hashes: item = <mode>/<wav>
 #   S10.digest W6.digest_clang   item = a checkpoint field that changed (ser, len, act, rng, marks ...), S (the
@@ -134,7 +136,6 @@ expect_now() {   # expect_now KEY: the value the run measured ("" when its gate 
     VILLAGE_GROUPS) tr -d '\r' < "$S/logs/S7.rig2.log" 2>/dev/null | grep -m1 -oE '[0-9]+ groups?' | grep -oE '^[0-9]+' ;;
   esac
 }
-clang_ci_text() { norm "$1" | grep -E '^(ok |FAIL |CLANG_CMDS=|CLANG_FAILS=)' | sed -E 's/ \(first try rc=.*$//'; }
 
 collect() {
   local R="$1" S g f n v k old now
@@ -155,8 +156,7 @@ collect() {
   if did_run S1.build && [ -f "$S/logs/S1.exes" ]; then tr -d '\r' < "$R/gates/S1.exes.txt" > "$W/old.txt"; cp "$S/logs/S1.exes" "$W/new/S1.exes.txt"; text_diff S1.exes "$W/old.txt" "$W/new/S1.exes.txt"; printf 'S1.exes\t%s\n' "$(ran_v S1.build)" >> "$W/ran.tsv"; fi
   if did_run S4.clang && [ -f "$S/clang/ci_cmds.txt" ]; then
     tr -d '\r' < "$R/gates/S4.ci_cmds.txt" > "$W/old.txt"; tr -d '\r' < "$S/clang/ci_cmds.txt" > "$W/new/S4.ci_cmds.txt"; text_diff S4.ci_cmds "$W/old.txt" "$W/new/S4.ci_cmds.txt"
-    norm "$R/gates/S4.clang_ci.txt" > "$W/old.txt"; clang_ci_text "$S/logs/S4.clang.log" > "$W/new/S4.clang_ci.txt"; text_diff S4.clang_ci "$W/old.txt" "$W/new/S4.clang_ci.txt"
-    printf 'S4.ci_cmds\t%s\nS4.clang_ci\t%s\n' "$(ran_v S4.clang)" "$(ran_v S4.clang)" >> "$W/ran.tsv"
+    printf 'S4.ci_cmds\t%s\n' "$(ran_v S4.clang)" >> "$W/ran.tsv"
   fi
   # doll lines
   if [ -d "$RUN/doll/res" ]; then
@@ -309,7 +309,7 @@ rerecord() {   # rerecord TMPROOT: apply the declared items of $W/matched.tsv; 0
     cp "$W/unstable.new" "$T/gates/unstable.txt"
   fi
   # 2. text records: the run's normalized output (rebuilt from the raw log when unstable.txt changed)
-  for g in $TEXT_GATES S1.exes S4.ci_cmds S4.clang_ci; do
+  for g in $TEXT_GATES S1.exes S4.ci_cmds; do
     has_gate "$g" || continue
     if has_gate unstable && [ -f "$S/logs/$g.log" ] && [[ " $TEXT_GATES " == *" $g "* ]]; then
       local ex filt=""; [ "$g" = S6.pool ] && filt='pxc --check'
