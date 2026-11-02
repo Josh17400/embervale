@@ -20,10 +20,38 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 
 delete process.env.WITNESS_WATCH;   // (before any launch: Witness passes its environment on, and WITNESS_WATCH=1 shows the game window)
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const WITNESS = process.env.WITNESS_HOME || process.env.WITNESS_DIR || path.resolve(REPO, "../witness");   // WITNESS_HOME (shared by every gate tool); WITNESS_DIR kept as an alias
+// Witness (P4 7a; the order of tools/gates/lib.sh witness_find): WITNESS_HOME, else ../witness, else the clone's
+// origin's ../witness (origin a local checkout), else $HOME/Documents/witness. None: "Witness not found: looked in ..."
+// and exit 2. (The gate scripts export the one they found, so this mostly reads WITNESS_HOME.)
+function findWitness(repo, tool, alias) {
+  const ok = (d) => !!d && fs.existsSync(path.join(d, "bin/witness.js")) && fs.existsSync(path.join(d, "src/core/launch.js"));
+  const win = (p) => (/^\/[a-zA-Z]\//.test(p) ? `${p[1]}:${p.slice(2)}` : p);   // a Git Bash path (/c/...) for node
+  const set = process.env.WITNESS_HOME || (alias && process.env[alias]);
+  if (set) {
+    if (ok(win(set))) return path.resolve(win(set));
+    console.log(`${tool}: Witness not found: looked in WITNESS_HOME=${set} (set, but no bin/witness.js there); set WITNESS_HOME`);
+    process.exit(2);
+  }
+  const tried = [path.resolve(repo, "../witness")];
+  try {
+    let o = execFileSync("git", ["-C", repo, "remote", "get-url", "origin"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (o.startsWith("file://")) o = o.slice(7);
+    o = win(o);
+    if (/^([A-Za-z]:[\\/]|\/)/.test(o)) {
+      if (path.basename(o) === ".git") o = path.dirname(o);
+      if (fs.existsSync(o)) tried.push(path.resolve(o, "../witness"));
+    }
+  } catch { /* no git or no origin: skip that rule */ }
+  tried.push(path.join(win(process.env.HOME || os.homedir()), "Documents/witness"));
+  for (const d of tried) if (ok(d)) return path.resolve(d);
+  console.log(`${tool}: Witness not found: looked in WITNESS_HOME (unset), ${tried.join(", ")}; set WITNESS_HOME`);
+  process.exit(2);
+}
+const WITNESS = findWitness(REPO, "perf_frame", "WITNESS_DIR");   // WITNESS_HOME (shared by every gate tool); WITNESS_DIR kept as an alias
 const { openGame } = await import(pathToFileURL(path.join(WITNESS, "src/core/launch.js")).href);
 
 const argv = process.argv.slice(2);

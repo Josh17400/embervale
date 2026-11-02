@@ -1,0 +1,31 @@
+# tools/gates/baseline/moves_p4/GATES.txt: the moves of P4's GATES area (docs/FIX_BATCH_P4.md 8, 9.6), against root p3f2.
+# <gate> <item glob>[,...] <id> <reason>. GATES moves NO record: every line below is a comment.
+#
+# README / ARCHITECTURE (merged last, by GATES): README "Where is ..." rows "which Witness the gates use" and "a gate line
+# that fails only under load"; docs/ARCHITECTURE.md 4 "The wall clock". The other areas' rows go in when their moves
+# files' headers send them (none had at the time of this commit).
+#
+# P4-7a Witness is found once (lib.sh witness_find: WITNESS_HOME, ../witness, the clone's origin's ../witness,
+#   $HOME/Documents/witness), exported and named in each run's log; none: "Witness not found: looked in ..." exit 2.
+# P4-7b rebase_baseline.sh reads a doll .rc only when it exists (selftest case 5).
+# P4-7c tools/gates/alone_rerun.txt + lib.sh alone_try (GATES_SELFTEST=alone_rerun bash tools/gates/lib.sh).
+#
+# P4-7 THE DIGEST FLAKE (the 3 h box). Finding, at def586c / be058c9, cap 2 (the owner's Blender open all session):
+# - Every wall-clock budget in the sim is switched off in the probes (streamThreads off, syncStreams on: the streamer
+#   pump, the journey gather, cold foes; realm.focusBudgetMs = 1e18 after the new game; life/censuses count residents,
+#   never time). The ONE wall-clock/thread path left was the interior made ahead of a door: natively a std::async worker
+#   (rpg/sim/prep_interior.cpp) whatever the switches say. Its map is bit-identical to genInterior's, so where it lands
+#   should not matter: the full digest with it replaced by the web path, one shot, on this thread (EMB_WEBSIM +
+#   EMB_PREP_ONESHOT) is 560/560 identical to the record. The probes now always run that way (test_sim_digest.cpp and
+#   save_test.cpp noPrepWorker): no worker thread, no clock in either. Any race inside the worker is out of them too.
+# - Loaded runs, all identical to the record: seed 3 (--sim-digest --seeds 3..3 --check p3f2 msvc record) 10/10 at
+#   def586c (4 while a clean 816-edge MSVC build ran on all 24 cores, 6 beside the other P4 areas' builds and Witness
+#   batches) + 5/5 on be058c9 beside the full step gates and the other areas; full 1..20 digests 3/3 (560/560) beside a
+#   clean build; 2 A/A step_gates --only S2,S3,S10.digest on be058c9 beside the full step run: both PASS first try.
+#   The flake did NOT reproduce, so no differing field was dumped (--dump kept only for failures; none).
+# - save_test's damaged-save lines: 6/6 loaded runs (4 at def586c, 2 at be058c9) "damaged life blocks: 300 tried, 87
+#   loaded", "damaged saves: 39 loaded and played, 9 refused", as the record. Same probe path (play() enters buildings),
+#   same hardening.
+# - Not proven: the hotfix's failure (seed 3 from t90; 532/560) ran beside 5 slots + WSL clang + Witness; under cap 2
+#   that load could not be rebuilt. If it comes back, S10.digest / W6.digest_clang / S3.save are on alone_rerun.txt
+#   (the differing seeds rerun alone; a seed that differs alone is a real change) and --dump names the field.

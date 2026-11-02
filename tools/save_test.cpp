@@ -611,9 +611,25 @@ constexpr Fix6 FIX6 = {1, 96, 30, 12, 5, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.
 
 }  // namespace
 
+// (P4 GATES, the digest flake) no worker thread in save_test: the interior made ahead of a door takes the web path,
+// whole in one step on this thread (EMB_WEBSIM + EMB_PREP_ONESHOT, rpg/sim/prep_interior.cpp). Natively it is made by a
+// std::async worker even with streamThreads off, the one thread (and the one wall-clock dependency) the Witness switches
+// leave in the sim; its map is bit-identical to genInterior's, and the output does not move (S3.save identical with and
+// without at def586c), but where it lands, and any race inside it, no longer depends on how loaded the machine is.
+void noPrepWorker() {
+#ifdef _WIN32
+  _putenv_s("EMB_WEBSIM", "1");
+  _putenv_s("EMB_PREP_ONESHOT", "1");
+#else
+  setenv("EMB_WEBSIM", "1", 1);
+  setenv("EMB_PREP_ONESHOT", "1", 1);
+#endif
+}
+
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);   // (M4) progress shows as it happens (CI logs, a stalled section is visible)
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture")) return makeFixture(argv[2]);
+  noPrepWorker();   // (the damaged-save counts are cut from played games: no worker thread in them)
 #ifdef EMB_SOURCE_DIR
   std::string dir = argc >= 2 ? argv[1] : std::string(EMB_SOURCE_DIR) + "/tests/fixtures";
 #else

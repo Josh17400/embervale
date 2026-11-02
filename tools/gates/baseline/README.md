@@ -21,3 +21,9 @@ hashes, perf) and `checks/` (layer allowlist, size report); a moved root adds `R
 `REASONS.md`. The gate names and item forms a moves line can use are listed in `rebase_baseline.sh --help`;
 `rebase_baseline.sh --selftest` proves the mechanism in a throwaway copy. `unstable.txt` and the layer allowlist may
 only shrink; never loosen a gate to make a move pass.
+
+Load-sensitive lines (P4 7c) are not records: `tools/gates/alone_rerun.txt` names them (`<gate> <regex>  # why`). A
+listed line that FAILs or differs under load is rerun alone with the same limits (`tools/gates/lib.sh` `alone_try`); a
+line that PASSed on that rerun says "(alone rerun: ...)" and `rebase_baseline.sh` treats its gate as matching the record
+(its first try's text is kept as `logs/<gate>.first.log`, never recorded). The list is no place to hide a real change:
+any unlisted difference on the same line blocks the rerun.

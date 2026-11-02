@@ -33,6 +33,47 @@ GATES_BASE_REV="$(gates_root_rev "$GATES_BASE_ID")"
 SLOT_NOISE='^([^ ]*/)?(tools/)?slot\.sh: |^slot_alone: '   # a line tools/slot.sh (or bash running it) or slot_alone wrote
 unset WITNESS_WATCH   # WITNESS_WATCH=1 makes a --witness game show its window: never in the gates
 
+# ---- Witness (P4 7a): found ONCE, in this order, exported as WITNESS_HOME (C:/... form) for every tool below ----
+#   1. WITNESS_HOME (an explicit setting that holds no bin/witness.js stops the run: it is never silently passed over)
+#   2. $REPO/../witness                       (a checkout or worktree beside Witness)
+#   3. <origin>/../witness                    (a clone whose origin is a local checkout: the scratchpad clones)
+#   4. $HOME/Documents/witness                (Git Bash's HOME is %USERPROFILE%)
+# witness_find sets WITNESS_HOME and WITNESS_FROM (which rule) and returns 0, or sets WITNESS_LOOKED (every place tried)
+# and returns 1. witness_require NAME... prints "<tool>: Witness <dir> (<rule>)" and, when none is found and any NAME
+# is selected (gate_selected), "Witness not found: looked in ...; set WITNESS_HOME" and exits 2 before any gate runs.
+witness_ok() { [ -n "$1" ] && [ -f "$1/bin/witness.js" ] && [ -f "$1/src/core/launch.js" ]; }
+witness_origin_dir() {   # the local checkout this clone came from (empty when origin is a URL or missing)
+  local o; o=$(git -C "$REPO" remote get-url origin 2>/dev/null | tr -d '\r') || return 0
+  case "$o" in file://*) o="${o#file://}" ;; /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;; *) return 0 ;; esac
+  command -v cygpath >/dev/null 2>&1 && o=$(cygpath -u "$o" 2>/dev/null || echo "$o")
+  [ "$(basename "$o")" = .git ] && o=$(dirname "$o")
+  [ -d "$o" ] && (cd "$o" && pwd)
+}
+witness_find() {
+  local c="" o r="" i tried=() why=()
+  WITNESS_FROM=""; WITNESS_LOOKED=""
+  if [ -n "${WITNESS_HOME:-}" ]; then
+    witness_ok "$WITNESS_HOME" || { WITNESS_LOOKED="WITNESS_HOME=$WITNESS_HOME (set, but no bin/witness.js there)"; return 1; }
+    c="$WITNESS_HOME"; r="${WITNESS_FROM_GATES:-WITNESS_HOME}"   # (a gate script found it first: its rule)
+  else
+    o=$(witness_origin_dir)
+    tried=("$REPO/../witness"); why=("../witness beside this checkout")
+    [ -n "$o" ] && { tried+=("$o/../witness"); why+=("../witness beside the clone's origin $o"); }
+    tried+=("${HOME:-/nonexistent}/Documents/witness"); why+=("\$HOME/Documents/witness")
+    for i in "${!tried[@]}"; do witness_ok "${tried[$i]}" && { c="${tried[$i]}"; r="${why[$i]}"; break; }; done
+    [ -n "$c" ] || { WITNESS_LOOKED="WITNESS_HOME (unset), $(printf "%s, " "${tried[@]}" | sed "s/, $//")"; return 1; }
+  fi
+  c=$(cd "$c" && pwd); command -v cygpath >/dev/null 2>&1 && c=$(cygpath -m "$c")
+  export WITNESS_HOME="$c" WITNESS_FROM_GATES="$r"; WITNESS_FROM="$r"
+}
+witness_require() {   # witness_require NAME...: stop (exit 2) when a selected line needs Witness and none is found
+  local n need=0 tool; tool=$(basename "$0" .sh)
+  for n in "$@"; do gate_selected "$n" && { need=1; break; }; done
+  if witness_find; then echo "$tool: Witness $WITNESS_HOME ($WITNESS_FROM)"; return 0; fi
+  if [ $need -eq 1 ]; then echo "$tool: Witness not found: looked in $WITNESS_LOOKED; set WITNESS_HOME" >&2; exit 2; fi
+  echo "$tool: Witness not found (looked in $WITNESS_LOOKED); no selected line needs it"
+}
+
 # gate_selected NAME: ONLY is a comma list of prefixes (S5 selects S5.rig2 and S5.rig1; S5.rig1 only that line)
 gate_selected() {
   [ -z "${ONLY:-}" ] && return 0
@@ -106,8 +147,8 @@ gate_run() {
   [ "${1:-}" = "--" ] && shift
   gate_selected "$name" || return 0
   mkdir -p "$OUT/logs" "$OUT/res"
-  local log="$OUT/logs/$name.log" t0 t1 rc dt verdict note waited=""
-  t0=$(date +%s)
+  local log="$OUT/logs/$name.log" t0 t1 rc dt verdict note waited="" ld0
+  t0=$(date +%s); ld0=$(slots_busy)
   if [ $slot -eq 2 ]; then
     rm -f "$OUT/logs/$name.start"
     slot_alone bash -c 'date +%s > "$0"; exec "$@"' "$OUT/logs/$name.start" "$@" > "$log" 2>&1 < /dev/null; rc=$?
@@ -126,6 +167,11 @@ gate_run() {
   verdict="${note%% *}"; note="${note#* }"
   case "$verdict" in PASS|FAIL|SKIP) ;; *) verdict=FAIL; note="check gave: $verdict $note" ;; esac
   [ -z "$note" ] && note=$(lastline "$log")
+  # (P4 7c) a FAIL whose every failing or differing line is on the alone-rerun list is rerun alone with today's limits
+  if [ "$verdict" = FAIL ] && [ $slot -ne 2 ] && [ -z "${REC:-}" ] && [ "${ALONE_RERUN:-1}" != 0 ] && [ -n "$(alone_list_re "$name")" ]; then
+    local ar; ar=$(alone_try "$name" "$check" "$log" "$rc" "$ld0" "$@")
+    verdict="${ar%%|*}"; ar="${ar#*|}"; rc="${ar%%|*}"; note="${ar#*|}"
+  fi
   printf '%s %s rc=%s %ss | %s%s\n' "$name" "$verdict" "$rc" "$dt" "$note" "$waited" | tee "$OUT/res/$name.txt"
 }
 
@@ -316,7 +362,7 @@ slot_alone() (
   cpu_stop; rm -f "$R/alone_cpu.$BASHPID.csv"
   if [ ${#HELD[@]} -ge "$N" ] && [ "$QUIET_OK" = 1 ]; then echo "slot_alone: alone (held ${#HELD[@]}/$N, cpu $QUIET_CPU %)" >&2
   else echo "slot_alone: NOT ALONE (held ${#HELD[@]}/$N, cpu $QUIET_CPU %) after $(( $(date +%s) - t0 )) s" >&2; fi
-  "$@"
+  EMB_ALONE=1 "$@"   # (the command may tell it runs alone: the alone_rerun selftest's fake load reads it)
 )
 # alone_note LOG: "alone" or "NOT ALONE (held k/5, cpu x %)" from slot_alone's status line in LOG ("alone?" when none)
 alone_note() {
@@ -326,6 +372,72 @@ alone_note() {
     "slot_alone: NOT ALONE "*) l="${l#slot_alone: }"; echo "${l% after *}" ;;
     *) echo "alone? (no slot_alone status)" ;;
   esac
+}
+
+# ---- the alone-rerun list (P4 7c; docs/FIX_BATCH_P4.md 8): tools/gates/alone_rerun.txt ----
+# One line per load-sensitive check: "<gate>[,<gate>...] <regex>  # why". A gate line that FAILs where EVERY failing or
+# differing line matches its gate's regexes (the evidence: the lines that differ from the record and the FAIL lines,
+# less the summary lines that only count them, ALONE_CONSEQ) is rerun ALONE (slot_alone: every slot held, the CPU
+# quiet) with today's limits: the same command, nothing loosened. It passes only when that rerun matches the record;
+# its line then says
+#   (alone rerun: <regex> failed under load; first log kept: logs/<NAME>.first.log) [alone|NOT ALONE ...]
+#   (first try: k/5 slots busy at its start, j/5 at its end, cpu x %; rerun Ns)
+# A line with any unlisted failing or differing line, or a gate with no entry, is never rerun. Hooks a caller may
+# define (fn = NAME with every non-alnum as _, e.g. S2_seeds):
+#   alone_ev_<fn> NAME LOG                          prints the evidence lines (default alone_evidence_default)
+#   alone_rr_<fn> NAME LOG RERUNLOG CHECK -- CMD... the rerun (default: CMD again under slot_alone, then CHECK on it);
+#                                                   writes RERUNLOG, prints "PASS|FAIL <note>"
+# ALONE_RERUN=0 turns the reruns off (a raw loaded run); ALONE_RERUN_FILE points at another list (the selftest);
+# ALONE_KEY_PREFIX goes before NAME when the list is read (doll_gates.sh: W4.doll.<line>).
+alone_file() { echo "${ALONE_RERUN_FILE:-$REPO/tools/gates/alone_rerun.txt}"; }
+alone_list_re() {   # alone_list_re NAME: the alternation of NAME's listed regexes (empty when none)
+  local f; f=$(alone_file); [ -f "$f" ] || return 0
+  tr -d '\r' < "$f" | awk -v n="${ALONE_KEY_PREFIX:-}$1" '/^[[:space:]]*(#|$)/ { next }
+    { g = $1; r = $0; sub(/^[^[:space:]]+[[:space:]]+/, "", r); sub(/[[:space:]]+#[[:space:]].*$/, "", r)
+      k = split(g, gs, ","); for (i = 1; i <= k; i++) if (gs[i] == n) { print r; break } }' | paste -sd'|' -
+}
+alone_fn() { echo "${1//[^A-Za-z0-9]/_}"; }
+slots_busy() {   # "k/N": tools/slot.sh slots held right now (any holder on this machine)
+  local n; n=$(ls "$(slot_root)" 2>/dev/null | grep -cE '^[0-9]+$'); echo "$n/${EMB_SLOTS:-5}"
+}
+cpu_now() {   # the machine CPU % over about a second ("?" without typeperf)
+  command -v typeperf >/dev/null 2>&1 || { echo "?"; return; }
+  typeperf "\\Processor(_Total)\\% Processor Time" -sc 2 2>/dev/null < /dev/null | tr -d '\r' | grep -E '^"[^"]*","[0-9.]+"$' | tail -1 \
+    | awk -F'","' '{ v = $2; gsub(/"/, "", v); printf("%.0f", v) }'
+}
+# base_ref NAME: the record's comparable text (base_cmp's left side)
+base_ref() { local ex; ex=$(unstable_re "$1"); norm "$BL/$1.txt" | { if [ -n "$ex" ]; then grep -vE -- "$ex"; else cat; fi; } | masked "$1"; }
+ALONE_CONSEQ='^(save_test: )?(FAILED \([0-9]+\)|ALL OK)$|^[0-9]+ passed, [0-9]+ failed|^sim-digest (PASS|FAIL): |^(rpg_test|doll|rig): [0-9]+ failures?'
+alone_evidence_default() {   # NAME LOG: the differing lines (both sides) and the FAIL lines, less ALONE_CONSEQ
+  local name="$1" log="$2"
+  { if [ -f "$OUT/logs/$name.norm" ] && [ -f "$BL/$name.txt" ]; then diff <(base_ref "$name") "$OUT/logs/$name.norm" | grep -E '^[<>] ' | cut -c3-; fi
+    norm "$log" | grep -E '(^|[^A-Za-z])FAIL'; } | sed -E 's/^ +//' | grep -vE -- "$ALONE_CONSEQ" | grep -v '^$' | sort -u
+}
+alone_rerun_default() {   # NAME LOG RERUNLOG CHECK -- CMD...
+  local name="$1" rl="$3" chk="$4" rc; shift 4; [ "${1:-}" = -- ] && shift
+  slot_alone "$@" > "$rl" 2>&1 < /dev/null; rc=$?
+  "$chk" "$name" "$rl" "$rc" 2>&1 | head -n1
+}
+# alone_try NAME CHECK LOG RC LOAD0 CMD...: prints "VERDICT|RC|note", the gate line's verdict, rc and note after the rule
+alone_try() {
+  local name="$1" chk="$2" log="$3" rc="$4" ld0="$5" re fn ev bad hit ld1 cpu r v rl t0 tn; shift 5
+  re=$(alone_list_re "$name"); fn=$(alone_fn "$name")
+  ld1=$(slots_busy); cpu=$(cpu_now)
+  if declare -F "alone_ev_$fn" > /dev/null; then ev=$("alone_ev_$fn" "$name" "$log"); else ev=$(alone_evidence_default "$name" "$log"); fi
+  if [ -z "$ev" ]; then echo "FAIL|$rc|$(lastline "$log") (listed for an alone rerun, but no failing or differing line to judge: not rerun)"; return; fi
+  bad=$(echo "$ev" | grep -vE -- "$re" | head -1 | cut -c1-100)
+  if [ -n "$bad" ]; then
+    r=$("$chk" "$name" "$log" "$rc" 2>&1 | head -n1); echo "FAIL|$rc|${r#* } (not rerun: an unlisted line fails or differs: '$bad')"; return
+  fi
+  hit=$(echo "$ev" | grep -oE -- "$re" | sort -u | head -3 | paste -sd';' - | cut -c1-80)
+  cp "$log" "$OUT/logs/$name.first.log"; [ -f "$OUT/logs/$name.norm" ] && cp "$OUT/logs/$name.norm" "$OUT/logs/$name.first.norm"
+  rl="$OUT/logs/$name.alone.log"; t0=$(date +%s)
+  if declare -F "alone_rr_$fn" > /dev/null; then r=$("alone_rr_$fn" "$name" "$log" "$rl" "$chk" -- "$@")
+  else r=$(alone_rerun_default "$name" "$log" "$rl" "$chk" -- "$@"); fi
+  v="${r%% *}"; r="${r#* }"
+  tn="(alone rerun: $hit failed under load; first log kept: logs/$name.first.log) [$(alone_note "$rl")] (first try: $ld0 slots busy at its start, $ld1 at its end, cpu ${cpu:-?} %; rerun $(( $(date +%s) - t0 ))s)"
+  if [ "$v" = PASS ]; then echo "PASS|0|$r $tn"
+  else echo "FAIL|$rc|$r (failed on the alone rerun too: logs/$name.alone.log) $tn"; fi
 }
 
 # ci_pool LIST LOGDIR TAG [--defer]: run every command line of LIST (one per line) as `ci_exec "<line>"` - ci_exec is a
@@ -361,7 +473,7 @@ ci_pool() {
   ci_finish "$list" "$dir" "$tag"
 }
 ci_finish() {
-  local list="$1" dir="$2" tag="$3" c i rc dt first fails=0 rerun_ok=0 t1 TAGU
+  local list="$1" dir="$2" tag="$3" c i rc dt first fails=0 rerun_ok=0 t1 TAGU lre lh an
   TAGU=$(echo "$tag" | tr 'a-z' 'A-Z'); i=0
   while IFS= read -r c || [ -n "$c" ]; do
     c="${c%$'\r'}"; [ -z "$c" ] && continue; i=$((i+1))
@@ -371,7 +483,11 @@ ci_finish() {
     slot_alone bash -c 'ci_exec "$1"' _ "$c" > "$dir/${tag}_cmd_$i.log" 2>&1 < /dev/null; rc=$?
     dt=$(( $(date +%s) - t1 )); echo "$rc $dt" > "$dir/${tag}_cmd_$i.rc"; an=$(alone_note "$dir/${tag}_cmd_$i.log")
     if [ "$rc" -eq 0 ]; then rerun_ok=$((rerun_ok+1))
-      echo "ok $c ${dt}s | $(lastline "$dir/${tag}_cmd_$i.log") (first try rc=$first under load, ok on the rerun, $an; log ${tag}_fail_$i.log)"
+      # (P4 7c) name the listed load-sensitive check the first try failed on (alone_rerun.txt; W1.msvc_ci / S4.clang)
+      lre=$(alone_list_re "${CI_GATE:-$( [ "$tag" = clang ] && echo S4.clang || echo W1.msvc_ci)}")
+      lh=""; [ -n "$lre" ] && lh=$(norm "$dir/${tag}_fail_$i.log" | grep -E '(^|[^A-Za-z])FAIL' | grep -oE -- "$lre" | sort -u | head -2 | paste -sd';' -)
+      [ -n "$lh" ] && lh=" (alone rerun: $lh failed under load; first log kept)"
+      echo "ok $c ${dt}s | $(lastline "$dir/${tag}_cmd_$i.log") (first try rc=$first under load, ok on the rerun, $an; log ${tag}_fail_$i.log)$lh"
     else fails=$((fails+1)); mv "$dir/${tag}_cmd_$i.log" "$dir/${tag}_fail_$i.rerun.log"
       echo "FAIL rc=$rc $c ${dt}s | $(lastline "$dir/${tag}_fail_$i.rerun.log") (failed on the rerun too, $an; logs ${tag}_fail_$i.log, ${tag}_fail_$i.rerun.log)"
       tr -d '\r' < "$dir/${tag}_fail_$i.rerun.log" | grep -m3 -iE 'fail' | cut -c1-200 | sed 's/^/    /'
@@ -416,4 +532,45 @@ if [ "${BASH_SOURCE[0]}" = "$0" ] && [ "${GATES_SELFTEST:-}" = alone ]; then
   for i in 3 4 5; do read -r p _r < "$EMB_SLOT_ROOT/$i/owner" 2>/dev/null; kill "$p" 2>/dev/null; done; wait 2>/dev/null
   rm -rf "$ST"
   echo "lib.sh selftest: $FAILS failed"; exit $(( FAILS > 0 ))
+fi
+
+# ---- self-test (GATES_SELFTEST=alone_rerun bash tools/gates/lib.sh): the alone-rerun list (P4 7c) ----
+# A private slot root, list and records. A fake tool prints "damaged saves: 4" under (fake) load and 5 when slot_alone
+# runs it (EMB_ALONE=1), the record says 5. Case 1: a listed line that differs under load passes only after its alone
+# rerun matches (and names it). Case 2: a listed line that differs alone too FAILs. Case 3: an unlisted line is never
+# rerun. Case 4: a listed line with an unlisted difference beside it is never rerun. Case 5: ALONE_RERUN=0 never reruns.
+if [ "${BASH_SOURCE[0]}" = "$0" ] && [ "${GATES_SELFTEST:-}" = alone_rerun ]; then
+  ST=$(mktemp -d "${TMPDIR:-/tmp}/emb_alone_rerun_selftest.XXXXXX"); export EMB_SLOT_ROOT="$ST/slots" EMB_SLOTS=5
+  export ALONE_RERUN_FILE="$ST/alone_rerun.txt" ALONE_WAIT=30 ALONE_QUIET_WAIT=2
+  mkdir -p "$EMB_SLOT_ROOT" "$ST/bl" "$ST/out"; FAILS=0; OUT="$ST/out"; BL="$ST/bl"; REC=""
+  pf() { if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; FAILS=$((FAILS+1)); fi; }
+  printf '%s\n' "# selftest list" "T.listed,T.alone,T.mixed,T.off ^damaged saves:  # fake load-sensitive count" > "$ALONE_RERUN_FILE"
+  for n in listed alone unlisted mixed off; do printf '%s\n' "save_test: header" "damaged saves: 5 loaded" "save_test: ALL OK" > "$BL/T.$n.txt"; done
+  fake() {   # fake MODE: load = 4 unless alone; always4; mixed = load + an unlisted line that differs
+    echo "$1" >> "$ST/runs.$1"; echo "save_test: header"
+    if [ "$1" = always4 ] || [ -z "${EMB_ALONE:-}" ]; then echo "damaged saves: 4 loaded"; else echo "damaged saves: 5 loaded"; fi
+    [ "$1" = mixed ] && echo "save_test: an unlisted line"
+    echo "save_test: ALL OK"
+  }
+  runs() { grep -c . "$ST/runs.$1" 2>/dev/null || echo 0; }
+  l=$(gate_run T.listed chk_allok_base -- fake load 2>&1 | tail -1); echo "  $l" | cut -c1-230
+  echo "$l" | grep -q '^T.listed PASS .*(alone rerun: \^\?damaged saves: failed under load; first log kept: logs/T.listed.first.log) \[' && [ "$(runs load)" = 2 ] && [ -f "$OUT/logs/T.listed.first.log" ]
+  pf $? "1 a listed line failing under fake load passes after a matching alone rerun (2 runs, first log kept, line names it)"
+  echo "$l" | grep -qE '\(first try: [0-9]+/5 slots busy at its start, [0-9]+/5 at its end, cpu [0-9?]+ %; rerun [0-9]+s\)'; pf $? "1 the line says how loaded the first try was"
+  l=$(gate_run T.alone chk_allok_base -- fake always4 2>&1 | tail -1); echo "  $l" | cut -c1-200
+  echo "$l" | grep -q '^T.alone FAIL .*failed on the alone rerun too' && [ "$(runs always4)" = 2 ]; pf $? "2 a listed line failing alone too FAILs"
+  l=$(gate_run T.unlisted chk_allok_base -- fake unl 2>&1 | tail -1); echo "  $l" | cut -c1-200
+  echo "$l" | grep -q '^T.unlisted FAIL ' && [ "$(runs unl)" = 1 ] && ! echo "$l" | grep -q 'alone rerun'; pf $? "3 an unlisted line is never rerun (1 run)"
+  l=$(gate_run T.mixed chk_allok_base -- fake mixed 2>&1 | tail -1); echo "  $l" | cut -c1-200
+  echo "$l" | grep -q "^T.mixed FAIL .*not rerun: an unlisted line fails or differs: 'save_test: an unlisted line'" && [ "$(runs mixed)" = 1 ]; pf $? "4 a listed line beside an unlisted difference is never rerun"
+  l=$(ALONE_RERUN=0 gate_run T.off chk_allok_base -- fake off 2>&1 | tail -1)
+  echo "$l" | grep -q '^T.off FAIL ' && [ "$(runs off)" = 1 ]; pf $? "5 ALONE_RERUN=0: no rerun"
+  [ "$(alone_list_re S10.digest)" = "" ]; pf $? "6 the selftest list holds no real gate (S10.digest unlisted here)"
+  ALONE_RERUN_FILE="$REPO/tools/gates/alone_rerun.txt"; c=0
+  for g in S2.seeds S3.save S10.digest W6.digest_clang W1.msvc_ci S4.clang; do [ -n "$(alone_list_re "$g")" ] && c=$((c+1)); done
+  [ $c = 6 ] && [ -n "$(ALONE_KEY_PREFIX=W4.doll. alone_list_re gates_parity)" ] && [ -z "$(alone_list_re S5.rig2)" ]
+  pf $? "7 the real list names S2.seeds S3.save S10.digest W6.digest_clang W1.msvc_ci S4.clang W4.doll.gates_parity, not S5.rig2"
+  [ "$(grep -cvE '^[[:space:]]*(#|$)' "$REPO/tools/gates/alone_rerun.txt")" = 5 ]; pf $? "7 the real list has five lines"
+  rm -rf "$ST"
+  echo "lib.sh alone_rerun selftest: $FAILS failed"; exit $(( FAILS > 0 ))
 fi

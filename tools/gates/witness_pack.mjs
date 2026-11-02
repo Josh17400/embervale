@@ -73,17 +73,44 @@
 // summary, then (with --check) "witness_pack PASS|FAIL: ...". Exit 0 when no script FAILed (and the check matched).
 // WITNESS_WATCH is deleted from the environment before any launch (Witness passes its environment to the game, and
 // WITNESS_WATCH=1 would show the --witness window: rpg/main.cpp). No visible window, whatever the caller's shell holds.
-// Environment: WITNESS_HOME (default ../witness), WITNESS_MAX_PROCS (default 5), WITNESS_MAX_BROWSERS (default 1).
+// Environment: WITNESS_HOME (else ../witness, the origin's ../witness, ~/Documents/witness: findWitness), WITNESS_MAX_PROCS (default 5), WITNESS_MAX_BROWSERS (default 1).
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 
 delete process.env.WITNESS_WATCH;   // (before any launch: a set WITNESS_WATCH shows the game window)
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const WITNESS = process.env.WITNESS_HOME || path.resolve(REPO, "../witness");
+// Witness (P4 7a; the order of tools/gates/lib.sh witness_find): WITNESS_HOME, else ../witness, else the clone's
+// origin's ../witness (origin a local checkout), else $HOME/Documents/witness. None: "Witness not found: looked in ..."
+// and exit 2. (The gate scripts export the one they found, so this mostly reads WITNESS_HOME.)
+function findWitness(repo, tool, alias) {
+  const ok = (d) => !!d && fs.existsSync(path.join(d, "bin/witness.js")) && fs.existsSync(path.join(d, "src/core/launch.js"));
+  const win = (p) => (/^\/[a-zA-Z]\//.test(p) ? `${p[1]}:${p.slice(2)}` : p);   // a Git Bash path (/c/...) for node
+  const set = process.env.WITNESS_HOME || (alias && process.env[alias]);
+  if (set) {
+    if (ok(win(set))) return path.resolve(win(set));
+    console.log(`${tool}: Witness not found: looked in WITNESS_HOME=${set} (set, but no bin/witness.js there); set WITNESS_HOME`);
+    process.exit(2);
+  }
+  const tried = [path.resolve(repo, "../witness")];
+  try {
+    let o = execFileSync("git", ["-C", repo, "remote", "get-url", "origin"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (o.startsWith("file://")) o = o.slice(7);
+    o = win(o);
+    if (/^([A-Za-z]:[\\/]|\/)/.test(o)) {
+      if (path.basename(o) === ".git") o = path.dirname(o);
+      if (fs.existsSync(o)) tried.push(path.resolve(o, "../witness"));
+    }
+  } catch { /* no git or no origin: skip that rule */ }
+  tried.push(path.join(win(process.env.HOME || os.homedir()), "Documents/witness"));
+  for (const d of tried) if (ok(d)) return path.resolve(d);
+  console.log(`${tool}: Witness not found: looked in WITNESS_HOME (unset), ${tried.join(", ")}; set WITNESS_HOME`);
+  process.exit(2);
+}
+const WITNESS = findWitness(REPO, "witness_pack");
 if (!process.env.WITNESS_MAX_PROCS) process.env.WITNESS_MAX_PROCS = "5";
 if (!process.env.WITNESS_MAX_BROWSERS) process.env.WITNESS_MAX_BROWSERS = "1";
 // the whole wait for a launch (slot.sh + budget); the budget itself is only ever TRIED (WITNESS_BUDGET_WAIT=0 here)

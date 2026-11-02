@@ -4,7 +4,9 @@
 #   tools/gates/doll_gates.sh --bdir <dir> --out <dir> [--only NAMES] [--jobs N] [--baseline DIR] [--record DIR]
 #
 # Wall-clock lines (B10 / R6 bake p50/p95) are left out of the compare through <root>/gates/unstable.txt (each
-# with its cause); a TIMING line that FAILs anyway is rerun once alone (every slot held) before it counts. motion_arms
+# with its cause); a line that FAILs anyway is rerun alone (every slot held) before it counts: gates_parity's B10 under
+# the alone-rerun list (tools/gates/alone_rerun.txt, W4.doll.gates_parity: only when B10 is all that failed), the other
+# TIMING lines (rig_gates, anim_gates) as before. motion_arms
 # (29 MB of output) is compared as line count + sha256 of the normalized text + its last 40 lines.
 # Every line of the flip's R2 list at the default rig (no EMB_RIG), plus the rig-1 proofs (D101). Each line passes when
 # its rc equals the recorded rc (<name>.rc; 0 except lines red at 119de74) and its output, timing tokens masked, equals the root's record in
@@ -125,19 +127,30 @@ one() {   # one NAME SPEC
 }
 
 running=0
+export ALONE_KEY_PREFIX="W4.doll."   # (P4 7c) the doll lines on tools/gates/alone_rerun.txt are W4.doll.<line>
 while IFS='|' read -r name spec; do
   [ -z "$name" ] && continue
   gate_selected "$name" || continue
-  one "$name" "$spec" &
+  ALONE_RERUN=0 one "$name" "$spec" &   # (the listed reruns wait for the parallel lines: below)
   running=$((running+1))
   if [ $running -ge "$JOBS" ]; then wait -n 2>/dev/null || wait; running=$((running-1)); fi
 done <<< "$LIST"
 wait
-# timing lines that FAILed under load: rerun once alone, first try kept as logs/NAME.first.log
+# lines that FAILed under load, once every parallel line is done:
+# - a line on tools/gates/alone_rerun.txt (W4.doll.<line>: gates_parity's B10) is rerun alone only when every failing
+#   or differing line is a listed one (lib.sh alone_try), and passes only when the rerun matches the record;
+# - the other TIMING lines (rig_gates' R6, anim_gates) are rerun once alone as before; first try kept as logs/NAME.first.log
 while IFS='|' read -r name spec; do
   [ -z "$name" ] && continue; gate_selected "$name" || continue
-  [[ "$TIMING" == *" $name "* ]] || continue
   grep -q "^$name FAIL " "$OUT/res/$name.txt" 2>/dev/null || continue
+  if [ -n "$(alone_list_re "$name")" ]; then
+    rc=$(grep -oE ' rc=[0-9]+' "$OUT/res/$name.txt" | head -1 | cut -d= -f2); t=$(grep -oE ' [0-9]+s \|' "$OUT/res/$name.txt" | head -1 | tr -dc 0-9)
+    if [ "${spec:0:1}" = '!' ]; then c="${spec:1}"; c="${c//B\//$B/}"; read -ra CMD <<< "$c"; else read -ra CMD <<< "$spec"; CMD=("$EXE" "${CMD[@]}"); fi
+    ar=$(alone_try "$name" chk_doll "$OUT/logs/$name.log" "${rc:-1}" "?" "${CMD[@]}")
+    v="${ar%%|*}"; ar="${ar#*|}"; printf '%s %s rc=%s %ss | %s\n' "$name" "$v" "${ar%%|*}" "${t:-0}" "${ar#*|}" | tee "$OUT/res/$name.txt"
+    continue
+  fi
+  [[ "$TIMING" == *" $name "* ]] || continue
   mv "$OUT/logs/$name.log" "$OUT/logs/$name.first.log"; cp "$OUT/res/$name.txt" "$OUT/logs/$name.first.res"
   ALONE_FLAG=--alone one "$name" "$spec" > /dev/null
   sed -i "s/\$/ (the rerun; first try FAILed under load: logs\/$name.first.log)/" "$OUT/res/$name.txt"
