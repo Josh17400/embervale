@@ -9,5 +9,6 @@ struct CardInfo {
   int rarity = -1, ilvl = 0, affixLines = 0, lostLines = 0, verdict = -2;   // verdict: 1 / 0 / -1, -2 none (WORN or no compare)
   bool power = false, compare = false, worn = false;
   std::string name;
+  std::string maker;   // (P3) the maker row as drawn (gear::makerLine: the alloy's rank, an old maker's metal); "" none
 };
 }  // namespace lootp

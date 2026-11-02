@@ -338,12 +338,26 @@ void LootView::lootUpdate(View& v, Game& g, float dt) {
   lootCount_.embers = embers;
 }
 
+// (P3 B11) a notice that names a piece in the pack ("NAME" or "NAME xN", Game::addItem's words)
+static bool isPickupNotice(const Game& g, const std::string& s) {
+  for (const Item& it : g.inv) {
+    if (it.name.empty() || s.compare(0, it.name.size(), it.name) != 0) continue;
+    if (s.size() == it.name.size() || s.compare(it.name.size(), 2, " x") == 0) return true;
+  }
+  return false;
+}
+
 // an item's pickup notice (Ev::Notice in the rarity's colour, Game::addItem): the toast keeps the rarity (its name is
 // drawn in the ladder colour, a Mythic's in the flame) and an Epic or better find chimes, unless it just did on sight
+// (P3 B11) a find reads as an event: "+ LEATHER ARMOR" in its rarity's colour (a notice in a rarity's colour naming a
+// piece now in the pack; any other notice keeps its words)
 void LootView::lootNotice(View& v, Game& g, const Event& e, Toast& t) {
-  (void)g;
-  for (int r = 1; r < RARITIES; r++)
-    if ((uint32_t)e.a == rarityColor((Rarity)r)) t.rarity = r;
+  int rar = -1;
+  for (int r = 0; r < RARITIES; r++)
+    if ((uint32_t)e.a == rarityColor((Rarity)r)) rar = r;
+  if (rar < 0 || !isPickupNotice(g, e.s)) return;
+  if (rar > 0) t.rarity = rar;
+  t.s = "+ " + e.s;
   if (t.rarity >= (int)Rarity::Epic && v.t_ - lootChimeT_ > 3.0f) {
     v.audio_->play(Sfx::LootChime, t.rarity == (int)Rarity::Mythic ? 1.26f : t.rarity == (int)Rarity::Legendary ? 1.12f : 1.0f, 0.8f);
     lootChimeT_ = v.t_;

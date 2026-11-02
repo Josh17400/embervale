@@ -494,10 +494,10 @@ float itemCard(Pt& P, float t, const CardCtx& X, const Item& it, float x, float 
         add(l.s, l.tone > 0 ? kUp : l.tone < 0 ? kDown : kQuiet, 4).bullet = true;
   }
   if (gearItem) {
-    std::string who = X.maker ? X.maker->adjective + " WORK" : std::string("HEARTLAND WORK");
-    const std::string mw = gear::matWord(it, X.maker);
-    if (!mw.empty()) who += ", " + mw;
-    else if (it.mat != Mat::None) who += std::string(", ") + matName(it.mat);
+    // (P3) the maker row from one place (gear::makerLine): the people and the metal, an alloy's rank ("WARRIORS' METAL
+    // (2 OF 3)"), an old maker's metal ("OLD MAKERS' WORK: OBSIDIAN (2 OF 4)")
+    const std::string who = gear::makerLine(it, X.maker);
+    info.maker = who;
     add(who, kQuiet, 5);
     if (it.flags & IF_CRAFTED) add("CRAFTED", kQuiet, 6);
   }

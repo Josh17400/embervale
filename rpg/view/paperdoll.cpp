@@ -135,9 +135,9 @@ std::string enchLine(const Item& it) {
 // its own name); empty for things not made of anything (food, potions, classic pieces of no culture and no material)
 std::string makerLine(const Game& g, const Item& it) {
   const cult::Culture* c = it.culture && g.world.src ? &g.world.src->culture(it.culture) : nullptr;
-  std::string mat;
-  if (it.mat == Mat::Alloy && c && it.alloy >= 1 && it.alloy <= c->arms.alloys.size()) mat = c->arms.alloys[(size_t)it.alloy - 1].name;
-  else if (it.mat != Mat::None && it.mat != Mat::Alloy) mat = matName(it.mat);
+  // (P3) the piece's own metal (gear::metalWord: an alloy by its name, an old maker's metal), never the band's best
+  std::string mat = gear::metalWord(it, c);
+  if (mat.empty() && it.mat != Mat::None && it.mat != Mat::Alloy) mat = matName(it.mat);
   if (!c) return mat;
   return mat.empty() ? c->adjective + " MAKE" : c->adjective + " " + mat;
 }
@@ -636,6 +636,54 @@ PartyLay partyLay(int W, int H, bool touch) {
 }
 float pslotX(const PartyLay& L, int i) { return L.slotX[kPSlots[i].col]; }
 float pslotY(const PartyLay& L, int i) { return L.slotTop + kPSlots[i].row * L.pitch; }
+// (P3) the PARTED button, left of REMEMBERED
+constexpr float kPartedW = 62;
+float partedX(const PartyLay& L) { return L.remX - kPartedW - 6; }
+// N steps the pages: the companions, REMEMBERED, PARTED (each only while it has someone), round again
+int nextPage(const Game& g, int page) {
+  for (int k = 1; k <= 3; k++) {
+    const int q = (page + k) % 3;
+    if (q == 0 && !g.party.members.empty()) return 0;
+    if (q == 1 && !g.party.fallen.empty()) return 1;
+    if (q == 2 && !g.party.parted.empty()) return 2;
+  }
+  return page;
+}
+// (P3) the page that can show: 0 the companions, 1 REMEMBERED (the fallen), 2 PARTED (the friends parted from), each
+// only while it has someone
+int pageShown(const Game& g, int page) {
+  if ((page == 1 && g.party.fallen.empty()) || (page == 2 && g.party.parted.empty())) page = 0;
+  if (page == 0 && g.party.members.empty()) page = !g.party.fallen.empty() ? 1 : !g.party.parted.empty() ? 2 : 0;
+  return page;
+}
+// a loaded settlement's name ("" when it is not loaded)
+std::string siteNameOf(const Game& g, ew::Gid site) {
+  const int si = site ? g.world.siteHandle(site) : -1;
+  return si >= 0 ? g.world.sites[(size_t)si].name : std::string();
+}
+// the town of a loaded building by its id ("" when it is not loaded)
+std::string bldgTown(const Game& g, ew::Gid bldg) {
+  if (!bldg) return "";
+  for (const Bldg& b : g.world.over.bldgs)
+    if (b.id == bldg) return b.site >= 0 && b.site < (int)g.world.sites.size() ? g.world.sites[(size_t)b.site].name : std::string();
+  return "";
+}
+// where a parted friend waits, in words: a sellsword back at his inn once his week is out (on the road till then), a
+// census companion at home in their own life
+std::string partedWhere(const Game& g, const party::Parted& p, bool& waiting) {
+  waiting = true;
+  if (p.origin == party::Origin::Mercenary) {
+    const std::string town = bldgTown(g, p.inn);
+    const int left = p.day + 7 - g.day;
+    if (left > 0) {
+      waiting = false;
+      return "ON THE ROAD, BACK AT " + (town.empty() ? std::string("HIS INN") : "THE INN AT " + town) + " IN " + std::to_string(left) + (left == 1 ? " DAY" : " DAYS");
+    }
+    return town.empty() ? "WAITS AT THE INN WHERE YOU HIRED HIM" : "WAITS AT THE INN AT " + town;
+  }
+  const std::string town = siteNameOf(g, p.home);
+  return town.empty() ? "GONE HOME TO THEIR OWN LIFE" : "AT HOME IN " + town;
+}
 // the pack's items that fit a slot (supplies: potions and food); what the hero wears stays on the hero
 std::vector<int> packFor(Game& g, int slot) {
   std::vector<int> v;
@@ -675,14 +723,40 @@ int suppliesOf(const party::Member& m) {
   for (const Item& x : m.inv) if (x.kind == ItemKind::Potion || x.kind == ItemKind::Food) n += std::max(1, (int)x.count);
   return n;
 }
+// ---- (P3 A-UI) the lent piece, their kit, their own words
+const Color kLentC(0.96f, 0.80f, 0.42f);
+// a piece the hero lent: a small gold tab in the slot's top-left corner (their own kit has none)
+void lentMark(Pix& P, float sx, float sy) {
+  P.rect(sx + 2, sy + 2, 5, 2, Color(0.08f, 0.05f, 0.03f, 0.9f));
+  P.rect(sx + 2, sy + 4, 2, 3, Color(0.08f, 0.05f, 0.03f, 0.9f));
+  P.rect(sx + 2, sy + 2, 4, 1, kLentC);
+  P.rect(sx + 2, sy + 3, 1, 3, kLentC);
+}
+// a button that cannot be used now (TAKE BACK on a kit piece: pressing it still asks, they answer in their own words)
+void greyButton(Pix& P, float x, float y, float w, float h, const std::string& label) {
+  P.rect(x, y, w, h, Color(0.10f, 0.09f, 0.085f, 0.9f));
+  P.frame(x, y, w, h, Color(0.28f, 0.25f, 0.21f));
+  P.text(x + w / 2, y + (h - 7) / 2, label, 1, Color(0.42f, 0.40f, 0.37f), 1);
+}
+// the line a companion just said (an Ev::Banter the sim raised during the call, from event `from` on), as the page's
+// note in their voice; else Party::lastBanter when it is theirs
+void spokenNote(const Game& g, size_t from, int member) {
+  std::string said;
+  for (size_t i = from; i < g.events.size(); i++)
+    if (g.events[i].type == Ev::Banter && !g.events[i].s.empty()) said = g.events[i].s;
+  if (said.empty() && g.events.size() > from && g.party.lastBanterBy == member) said = g.party.lastBanter;
+  if (said.empty()) return;
+  const std::string who = member >= 0 && member < (int)g.party.members.size() ? g.party.members[(size_t)member].name : std::string();
+  partyNote = who.empty() ? "\"" + said + "\"" : who + ": \"" + said + "\"";
+  partyNoteC = Color(0.95f, 0.86f, 0.62f);
+}
 }  // namespace
 
 void View::drawPartyPage(Game& g) {
   Pix& P = *pix_;
   const PartyLay L = partyLay(Pix::W, Pix::H, touchUI);
   const int n = (int)g.party.members.size();
-  if (n == 0 && !g.party.fallen.empty()) party_.partyPage_ = 1;
-  if (g.party.fallen.empty()) party_.partyPage_ = 0;
+  party_.partyPage_ = pageShown(g, party_.partyPage_);   // (P3) the companions, REMEMBERED or PARTED
   party_.partySel_ = std::clamp(party_.partySel_, 0, std::max(0, n - 1));
   // ---- the faces row and REMEMBERED
   for (int i = 0; i < n; i++) {
@@ -701,15 +775,17 @@ void View::drawPartyPage(Game& g) {
   else if (party_.partyPage_ == 0) {   // the picked one's name and how they stand, beside the faces
     const party::Member& m = g.party.members[(size_t)party_.partySel_];
     const float nx = 18 + n * L.chipPitch + 6;
-    if (nx + 120 < L.remX) {
+    if (nx + 120 < (g.party.parted.empty() ? L.remX : partedX(L))) {
       P.textS(nx, L.chipY + 4, m.name, 1, kGoldC);
       P.text(nx, L.chipY + 15, party::stateName(m.state), 1, m.state == party::State::Downed ? Color(1, 0.45f, 0.38f) : kDimC);
     }
   }
   if (!g.party.fallen.empty()) button(L.remX, L.chipY + 2, L.remW, 22, "REMEMBERED", party_.partyPage_ == 1);
+  if (!g.party.parted.empty()) button(partedX(L), L.chipY + 2, kPartedW, 22, "PARTED", party_.partyPage_ == 2);
   P.rect(16, L.chipY + L.chipS + 4, (float)Pix::W - 32, 1, Color(0.4f, 0.32f, 0.2f));
   const float noteA = clampf(2.5f - (t_ - partyNoteT), 0, 1);
 
+  if (party_.partyPage_ == 2) { drawPartedPage(g, L.dTop); return; }
   if (party_.partyPage_ == 1) {
     // ---- REMEMBERED: the fallen, the newest first; the picked one's stone beside the list
     const int nf = (int)g.party.fallen.size();
@@ -877,6 +953,7 @@ void View::drawPartyPage(Game& g) {
       if (sup) P.textS(sx + L.box - 2, sy + L.box - 9, std::to_string(sup), 1, kTextC, 2);
     } else if (it) {
       P.blitEx(sprites_.itemTex(*this, g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
+      if (!party::isKit(*it)) lentMark(P, sx, sy);   // (P3) a piece the hero lent them
     } else {
       P.blitEx(sprites_.iconTex(*this, kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }
@@ -945,8 +1022,11 @@ void View::drawPartyPage(Game& g) {
       loot_.rarityText(*this, dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), it->rarity);
       const std::string made = makerLine(g, *it);
       if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
-      button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
+      if (party::isKit(*it)) greyButton(P, dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)");
+      else button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
       y += 12;
+      P.text(dx + 20, y + 19, party::isKit(*it) ? "THEIR OWN KIT" : "YOU LENT THIS", 1, party::isKit(*it) ? kDimC : kLentC);
+      y += 9;
       // (M8b fix, 15.27.2 "show in plain words") what the piece does for them: its affixes and power, a hero-only one
       // (it works only on the hero: gear::affixWorksForCompanion) marked so
       std::vector<std::pair<std::string, bool>> lines;
@@ -981,9 +1061,10 @@ void View::drawPartyPage(Game& g) {
       const std::string nm = pi.name + (pi.count > 1 ? " (" + std::to_string(pi.count) + ")" : std::string());
       loot_.rarityText(*this, dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 52), pi.rarity);
       P.text(dx + dw - 4, ry + std::floor((L.rowH - 2 - 7) / 2), ps.slot == kSupplies ? "GIVE" : "EQUIP", 1, hot ? kGoldC : kDimC, 2);
-      // (M8b) better or worse than what they wear there (gear::powerScore at their level: the hero's, as Game::partyEquip)
+      // (M8b) better or worse than what they wear there; (P3) read at the companion's own level (gear::verdictAt, the
+      // rule the sim's gift test uses)
       if (ps.slot != kSupplies && itemEquippable(pi.kind))
-        loot_.cmpArrow(*this, dx + dw - 4 - (float)P.textW("EQUIP", 1) - 10, ry + std::floor((L.rowH - 2 - 7) / 2), loot_.cmpVerdict(g, pi, it));
+        loot_.cmpArrow(*this, dx + dw - 4 - (float)P.textW("EQUIP", 1) - 10, ry + std::floor((L.rowH - 2 - 7) / 2), gear::verdictAt(pi, it, party::levelFor(g.plLevel)));
     }
     if ((int)c.size() > rows) P.text(dx + dw, y - 14, std::to_string(party_.partyPack_ + 1) + "/" + std::to_string(c.size()), 1, kDimC, 2);
   }
@@ -996,10 +1077,63 @@ void View::drawPartyPage(Game& g) {
   }
 }
 
+// (P3 A-UI, delight) PARTED: the friends parted from while living, the newest first, and where each waits
+void View::drawPartedPage(Game& g, float top) {
+  Pix& P = *pix_;
+  const int np = (int)g.party.parted.size();
+  party_.partyScroll_ = std::clamp(party_.partyScroll_, 0, std::max(0, np - 1));
+  const float lx = 18, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f));
+  const float rh = touchUI ? 24.0f : 18.0f;
+  const int rows = std::max(3, (int)((Pix::H - 20 - top) / rh));
+  const int first = std::clamp(party_.partyScroll_ - rows + 1, 0, std::max(0, np - rows));
+  for (int r = 0; r < rows && first + r < np; r++) {
+    const int k = first + r;
+    const party::Parted& pt = g.party.parted[(size_t)(np - 1 - k)];
+    const float y = top + r * rh, ty = y + std::floor((rh - 2 - 7) / 2);
+    P.rect(lx, y, lw, rh - 2, k == party_.partyScroll_ ? Color(0.30f, 0.22f, 0.12f, 0.85f) : Color(0.10f, 0.085f, 0.08f, 0.6f));
+    if (k == party_.partyScroll_) P.frame(lx, y, lw, rh - 2, kGoldC);
+    bool waiting = true;
+    (void)partedWhere(g, pt, waiting);
+    // a small door: lit while they wait for you, dark while they are on the road
+    P.rect(lx + 5, ty - 1, 7, 9, Color(0.08f, 0.06f, 0.05f));
+    P.rect(lx + 6, ty, 5, 8, waiting ? Color(0.95f, 0.76f, 0.38f) : Color(0.36f, 0.30f, 0.24f));
+    P.text(lx + 18, ty, fitTextD(pt.name, lw - 66), 1, pt.angry ? Color(1, 0.55f, 0.48f) : kTextC);
+    P.text(lx + lw - 5, ty, "DAY " + std::to_string(pt.day), 1, kDimC, 2);
+  }
+  if (np == 0) return;
+  const party::Parted& pt = g.party.parted[(size_t)(np - 1 - party_.partyScroll_)];
+  const float dx = lx + lw + 16, dw = (float)Pix::W - 18 - dx;
+  const int per = std::max(12, (int)(dw / 6));
+  float y = top;
+  P.text(dx, y, pt.name, P.textW(pt.name, 2) <= dw ? 2 : 1, kGoldC);
+  y += 18;
+  P.text(dx, y, std::string(party::vocationName(pt.m.voc)) + "  -  " + party::originName(pt.origin), 1, kDimC);
+  y += 12;
+  P.text(dx, y, "PARTED ON DAY " + std::to_string(pt.day) + ",  " + std::to_string(pt.m.days) + (pt.m.days == 1 ? " DAY" : " DAYS") + " TOGETHER", 1, kTextC);
+  y += 12;
+  bool waiting = true;
+  for (const std::string& l : wrapD(partedWhere(g, pt, waiting), per)) { P.text(dx, y, l, 1, waiting ? Color(0.95f, 0.80f, 0.45f) : kDimC); y += 10; }
+  if (pt.angry)
+    for (const std::string& l : wrapD("LEFT IN ANGER: HE WANTS AN APOLOGY AT HIS TABLE", per)) { P.text(dx, y, l, 1, Color(1, 0.55f, 0.48f)); y += 10; }
+  y += 4;
+  for (const std::string& l : wrapD("THEY COME BACK AS THEMSELVES: THE SAME FRIEND, THEIR BOND AND THE KIT THEY LEFT WITH", per)) {
+    if (y > Pix::H - 24) break;
+    P.text(dx, y, l, 1, Color(0.62f, 0.58f, 0.52f));
+    y += 10;
+  }
+}
+
 void PartyUi::partyPageKey(View& v, Game& g, int key) {
   const int n = (int)g.party.members.size();
   auto mv = [&]() { v.audio_->play(Sfx::MenuMove); };
-  if (key == SDLK_N && !g.party.fallen.empty()) { partyPage_ ^= 1; partyScroll_ = 0; mv(); return; }
+  if (key == SDLK_N && (!g.party.fallen.empty() || !g.party.parted.empty())) { partyPage_ = nextPage(g, partyPage_); partyScroll_ = 0; mv(); return; }
+  if (partyPage_ == 2) {   // (P3) PARTED: W / S its rows, [ ] back to the companions
+    const int np = (int)g.party.parted.size();
+    if (key == SDLK_UP || key == SDLK_W) { partyScroll_ = std::max(0, partyScroll_ - 1); mv(); }
+    if (key == SDLK_DOWN || key == SDLK_S) { partyScroll_ = std::min(std::max(0, np - 1), partyScroll_ + 1); mv(); }
+    if ((key == SDLK_LEFTBRACKET || key == SDLK_RIGHTBRACKET) && n > 0) { partyPage_ = 0; mv(); }
+    return;
+  }
   if (partyPage_ == 1) {
     const int nf = (int)g.party.fallen.size();
     if (key == SDLK_UP || key == SDLK_W) { partyScroll_ = std::max(0, partyScroll_ - 1); mv(); }
@@ -1031,9 +1165,11 @@ void PartyUi::partyPageKey(View& v, Game& g, int key) {
   if ((key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_KP_ENTER) && !c.empty()) {
     const int idx = c[(size_t)std::clamp(partyPack_, 0, (int)c.size() - 1)];
     const std::string nm = g.inv[(size_t)idx].name;
+    const size_t ev0 = g.events.size();
     const bool ok = ps.slot == kSupplies ? g.partyGive(partySel_, idx) : g.partyEquip(partySel_, idx);
     partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES THE " + nm : who + " PUTS ON THE " + nm) : who + " CANNOT USE THAT";
     if (partyNote.size() > 46) partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES IT" : who + " PUTS IT ON") : who + " CANNOT USE THAT";
+    if (!ok) spokenNote(g, ev0, partySel_);   // (P3) a declined gift: their own words
     partyNoteC = ok ? Color(0.6f, 0.95f, 0.6f) : Color(1, 0.55f, 0.48f);
     partyNoteT = v.t_;
     v.audio_->play(ok ? Sfx::Buy : Sfx::MenuBack);
@@ -1041,9 +1177,11 @@ void PartyUi::partyPageKey(View& v, Game& g, int key) {
   }
   if ((key == SDLK_X || key == SDLK_BACKSPACE) && ps.slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], ps.slot)) {
     const std::string nm = wornBy(g.party.members[(size_t)partySel_], ps.slot)->name;
+    const size_t ev0 = g.events.size();
     const bool ok = g.partyUnequip(partySel_, ps.slot);
     partyNote = ok ? "YOU TAKE BACK THE " + nm : who + " KEEPS IT FOR NOW";
     if (partyNote.size() > 46) partyNote = ok ? "YOU TAKE IT BACK" : who + " KEEPS IT FOR NOW";
+    if (!ok) spokenNote(g, ev0, partySel_);   // (P3) TAKE BACK on their own kit: their own words
     partyNoteC = ok ? kTextC : Color(1, 0.55f, 0.48f);
     partyNoteT = v.t_;
     v.audio_->play(ok ? Sfx::Pickup : Sfx::MenuBack);
@@ -1055,7 +1193,17 @@ void PartyUi::partyPageTap(View& v, Game& g, Vec2 p) {
   const int n = (int)g.party.members.size();
   for (int i = 0; i < n; i++)
     if (inR(p, 18 + i * L.chipPitch - 2, L.chipY - 2, L.chipS + 4, L.chipS + 4)) { partySel_ = i; partyPage_ = 0; partyPack_ = 0; v.audio_->play(Sfx::MenuMove); return; }
-  if (!g.party.fallen.empty() && inR(p, L.remX, L.chipY, L.remW, 26)) { partyPage_ ^= 1; partyScroll_ = 0; v.audio_->play(Sfx::MenuMove); return; }
+  if (!g.party.fallen.empty() && inR(p, L.remX, L.chipY, L.remW, 26)) { partyPage_ = partyPage_ == 1 ? 0 : 1; partyScroll_ = 0; v.audio_->play(Sfx::MenuMove); return; }
+  if (!g.party.parted.empty() && inR(p, partedX(L), L.chipY, kPartedW, 26)) { partyPage_ = partyPage_ == 2 ? 0 : 2; partyScroll_ = 0; v.audio_->play(Sfx::MenuMove); return; }
+  if (partyPage_ == 2) {   // (P3) a row of the PARTED list
+    const int np = (int)g.party.parted.size();
+    const float rh = v.touchUI ? 24.0f : 18.0f, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f));
+    const int rows = std::max(3, (int)((Pix::H - 20 - L.dTop) / rh));
+    const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, np - rows));
+    for (int r = 0; r < rows && first + r < np; r++)
+      if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; v.audio_->play(Sfx::MenuMove); return; }
+    return;
+  }
   if (partyPage_ == 1) {
     const int nf = (int)g.party.fallen.size();
     const float lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), rh = v.touchUI ? 24.0f : 18.0f;

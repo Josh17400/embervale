@@ -986,7 +986,8 @@ int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feet
   if (it == sprites_.menuBoxes_.end()) {
     if (sprites_.menuBoxes_.size() > 64) sprites_.menuBoxes_.clear();
     SpriteCache::MenuBox b;
-    b.u = kEnvUp; b.d = kEnvDown; b.l = b.r = envSide();
+    // (P3 B7) the creator (swing): the look's own idle, walk and run frames only (no T6 reserve: it never shows armour)
+    if (swing) { b.u = b.d = b.l = b.r = 0; } else { b.u = kEnvUp; b.d = kEnvDown; b.l = b.r = envSide(); }
     auto take = [&](art::RigPart part) {
       if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(L, part)) return;
       sprites_.rigBakeNow_ = true;
@@ -999,7 +1000,7 @@ int View::menuDollScale(const art::HumanLook& L, const MenuStage& st, float feet
       }
     };
     take(art::RigPart::Loco);
-    if (swing) { take(art::RigPart::Run); take(art::RigPart::Action); }
+    if (swing) take(art::RigPart::Run);   // (P3 B7) the blow shows only where menuSwingFits says it fits at this size
     it = sprites_.menuBoxes_.emplace(k, b).first;
   }
   const SpriteCache::MenuBox& b = it->second;

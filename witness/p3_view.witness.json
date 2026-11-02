@@ -1,0 +1,22 @@
+[
+  { "name": "p3 view: a find's toast reads '+ <NAME>' and the Witness state lists the toasts (text, age)",
+    "params": { "window": [960, 540], "hour": 11 },
+    "steps": [ { "at": 0.2, "call": [["god", "1"], ["lootdrop", "armor", "rarity", "common", "ilvl", "2"]] },
+               { "at": 0.4, "call": [["p3grab"]] },
+               { "at": 1.2, "expect": ["state.toasts.length >= 1", "state.toasts.length <= 5",
+                                       "state.toasts.some(t => t.text.startsWith('+ ') && t.age >= 0 && t.age < 4)"] } ] },
+  { "name": "p3 view: a staged boss carries boss: true, rank: 4; an ordinary wolf boss: false, rank: 0",
+    "params": { "window": [960, 540], "hour": 11 },
+    "steps": [ { "at": 0.2, "call": [["god", "1"], ["skill", "foe", "wolf", "3", "0", "unaware"]] },
+               { "at": 0.3, "expect": ["state.entities.some(e => e.hostile && e.boss === false && e.rank === 0)"] },
+               { "at": 0.4, "call": [["p3boss"]] },
+               { "at": 0.5, "expect": ["state.entities.some(e => e.hostile && e.boss === true && e.rank === 4)"] } ] },
+  { "name": "p3 view: zoom CLOSE is twice NORMAL: 4 at 960 x 540, 10 on the iPhone 15 Pro window",
+    "params": { "window": [960, 540], "hour": 11 },
+    "steps": [ { "at": 0.2, "call": [["zoom", "close"]] },
+               { "at": 0.4, "expect": ["state.screen.world.scale == 4", "JSON.stringify(state.screen.world.levels) == '[2,3,4]'"] } ] },
+  { "name": "p3 view: CLOSE on the phone window (2556 x 1179) is 10",
+    "params": { "window": [2556, 1179], "screen": "fill", "hour": 11 },
+    "steps": [ { "at": 0.2, "call": [["zoom", "close"]] },
+               { "at": 0.4, "expect": ["state.screen.world.scale == 10", "state.screen.zoomName == 'CLOSE'"] } ] }
+]

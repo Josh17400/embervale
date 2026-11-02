@@ -61,6 +61,8 @@ class View {
   // (M7b CITYART, tests) the kerbs within r tiles of the hero: every walk with a carriageway south of it shows a face
   // (its rows below the lit arris darker than the walk's top); returns the walks without one, faces = the walks checked
   int urbKerbCheck(const Game& g, int r, int& faces);
+  // (P3 B11) the toast column as drawn (oldest first; the Witness state's `toasts`, scripts' `expect toast`)
+  const std::vector<Toast>& toastsShown() const { return fx_.toasts_; }
   friend struct ViewProbe;
   // (view_probe.h) the hooks only the script commands and the Witness state use (camera, menu page, forced weather and
   // town look, the presented layers, herald and journal, the M4 / M5 / loot counters, partyview): ViewProbe's statics
@@ -174,7 +176,8 @@ class View {
   std::vector<MenuFigure> menuFigs;
   // the largest whole multiple (at most want, at least 1) at which the T6 envelope (the fin at F-41, 28 px shoulders, the
   // cloak 8 px behind) and the look's own menu frames stand inside the stage with their feet at feetY; 0 at rig 1 or when
-  // the doll does not cover the look (the caller draws v1)
+  // the doll does not cover the look (the caller draws v1). (P3 B7) swing: the creator's box, the look's own idle, walk
+  // and run frames with no envelope reserve (the caller shows the blow only where menuSwingFits)
   int menuDollScale(const art::HumanLook& L, const MenuStage& st, float feetX, float feetY, int want, bool swing = false);
   // a doll frame at a whole multiple with its living finish (T5-T6, the Mythic's flame on its own frame), the stir on the
   // idle's breathe frame; facing 0 D 1 U 2 R 3 L, never flipped. topRows > 0: only that many rows from the frame's top
@@ -488,6 +491,7 @@ class View {
   LensState lens_;   // (lens_state.h)
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
   friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
+  friend struct P3ViewScriptOps;   // (rpg/view/scripts/view_p3.cpp: the P3 VIEW test commands)
   // ---- (P2a LENS) the rider on v2, the elites' plates (the ring, the night lift, the pips: LensState, lens_state.h)
   struct RideGhost;
   bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost, int horseFrame = 0, int riderId = -1);
@@ -495,6 +499,7 @@ class View {
   friend struct PartyUi;
   PartyUi party_;   // (party_ui.h)
   void drawPartyPage(Game& g);   // the menu's PARTY page (paperdoll.cpp; a View member as the size gate names it)
+  void drawPartedPage(Game& g, float top);   // (P3) its PARTED page: the friends parted from and where each waits
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
   // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
