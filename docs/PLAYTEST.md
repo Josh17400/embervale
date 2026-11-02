@@ -68,6 +68,26 @@ step, so the hero turns to that side and takes one step (`tools/scripts/p3_keys.
 `expect face 2`). Every other key, and any key in a menu or the party radial, is the event pair as before. `hold` and
 `walk` are unchanged.
 
+## What testers can read (P4)
+
+The snapshot carries the screens a tester would otherwise only see in pictures (rpg/view/witness_state.cpp; all of it
+read-only, and `state.menu` stays the bare tab int that determinism and touch_snapshot read):
+- `state.shop` (null when no shop is open): `{title, side: "buy"|"sell", cursor, gold, purse, deal, stock[{i, name,
+  price, canAfford, rarity, kind}], pack[{i, name, price, worn}]}`, 40 rows each at most; `deal` is the panel's line
+  ("BUY FOR 48 GOLD", "NOT ENOUGH GOLD", "YOU WEAR IT - PRESS ENTER AGAIN TO SELL", "HE HAS NO GOLD LEFT").
+- `state.menuPage` (null when closed): `{tab, index, cursor, first, count, rows, hint}`: the page's name (VIEW's
+  `menuTabName`), up to 24 rows (ITEMS the pack with `(WORN)`, QUESTS the journal rows, EQUIP each slot and what it
+  wears plus `slot`, `candidate`, `candidateWorn`) and the page's key line (`menuHint`).
+- the ground loot within 20 tiles as things: `{id: 49200000 + n, type: "Item"|"Gold", kind: "item", item: true, name,
+  pos, dist}`, nearest 12, so `pickup` walks over them.
+- `state.dialogue.gifts`: what was handed over in this conversation (VIEW's `Toast::dlg`, "OLD BLADE").
+- `state.location.level` (the dungeon's inside a cave, ruin or shrine, else the zone's) and `.danger` (level - hero).
+- `state.screenText`: the open shop's or menu page's lines in reading order ('>' marks the cursor row).
+
+Both play configs map them: `item: "e.item === true"`, `notice` adds toasts younger than 2 s to the game's notice,
+`menu` names the shop or the page, `textCap.screen` 4000 and the brief says how to read each. `witness/p4_state.witness.json`
+covers every field (it calls VIEW's `p4dungeon ruin above 5`).
+
 ## Baselines: witness/refs
 
 Reference pictures for `shot --diff` live in `witness/refs/<name>.png` and are committed (`.gitignore` has an
@@ -92,9 +112,12 @@ purpose, when the picture is meant to change.
 - Goals files (`tools/scripts/p2c_playtests.txt`) are JSON lists of `{name, persona, goal, seed, params, minutes,
   wallMinutes}`. A start a tester cannot make with calls goes in the goal's `params` (the batch's own start line passes
   them; a tester's `--params` is denied): T5's woman is `"params": {"female": true}`. Setup the goal names as calls
-  (`call ladderkit lt1` .. `lt6`, `call gotoculture other town`) needs the batch run with `--allow-calls`. Check a goals
+  (`call ladderkit lt1` .. `lt6`, `call gotoculture other town`, `call goto ruin enter`) needs the batch run with `--allow-calls`. Check a goals
   file before a batch: `node tools/gates/witness_pack/goals_check.mjs --bdir <build> [FILE]` (it parses, every `call`
   it names is a registered or built-in command, params are objects).
+- The P4 W7 goals (12 testers): T5 x3 (the outfitter; the leather step without a gold call), T7 x3 (the ladder),
+  T8 x3 (the newcomer, seeds 7/4/2: blade, job, hunt, sell, the first armour, no gold calls) and T9 x3 (the talker,
+  seeds 7/1/10: options twice with and without bread, a shop and a menu read from text, a worn piece sold, a ruin).
 - After runs: `node ../witness/bin/witness.js clean --dry-run` (lists what would go), then `clean` (applies retention:
   the newest 5 playtests within 7 days; a playtest written in the last 24 hours always stays, a judge may cite it) or
   `clean --all` once the reports have been read. Running playtests are never touched.
