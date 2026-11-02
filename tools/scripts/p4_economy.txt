@@ -1,0 +1,32 @@
+# P4 ECONOMY (docs/FIX_BATCH_P4.md 2, 9.1): the first armour within reach. Seed 7's start smith GAOLD sells the
+# beginner's coat (L2: a Common LEATHER GAMBESON at the shelf's lowest item level) at 3/5 of its worth (L1): 48 gold,
+# the row beside the 80-gold BRONZE BRIGANDINE; a hero with 48 gold buys it (the purse empties) and wears it (a bought
+# piece goes onto an empty slot: the hero starts with no coat over the floor jerkin); the pack shows it worn.
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p4_economy.txt   (p4_economy_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 expect lootshelf leather bronze
++0.0 expect shopprice LEATHER GAMBESON == 48
++0.0 expect shopprice BRONZE BRIGANDINE == 80
++0.0 expect shopprice LEATHER GLOVES == 12
++0.0 expect shopprice BRONZE HELM == 32
++0.1 gold 48
++0.1 p4row shop LEATHER GAMBESON
++0.4 shot p4_economy_0_shelf.png
++0.1 key Return
++0.3 expect gold 0
++0.0 expect slot armor
++0.0 expect wornname armor LEATHER GAMBESON
++0.1 key Escape
++0.3 expect mode play
++0.1 p4row pack LEATHER GAMBESON
++0.5 expect lootcard worn
++0.0 key Escape
++0.6 shot p4_economy_1_worn.png
++0.3 quit

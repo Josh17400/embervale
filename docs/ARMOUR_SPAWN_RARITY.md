@@ -444,6 +444,7 @@ percentages in the order Common / Uncommon / Rare / Epic / Legendary / Mythic.
 | 7 | the same, or STARMETAL (the largest shoulders, new), T5 | T5 + glyph | T5 + glyph + inlay | T6 | as band 4 |
 
 - **The metal never changes along a row.** Only the finish does, and the helmet stays the metal's own.
+- **The first coat (P4 ECONOMY, 2026-11-02).** Shelves price leather gear at 3/5 of its worth and a band-1 smith's light coat is always a Common leather coat at item level max(1, D - 2): 48 gold at the start, the bronze coat beside it 80-102 (`rpg_test --first-armour`, FA1-FA4).
 - **Legendary** keeps its metal's style and helmet with T6's finish (PLAN.md:2533). **Mythic**: section 7.
 - **The Rare trim.** At T4 it turns from brass to gold (doll_resolve.cpp:867-869). At T5 it needs the new glyph to show.
 - **What shows on the hero.**
