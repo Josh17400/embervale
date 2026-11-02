@@ -217,8 +217,26 @@ float LootView::itemCard(View& v, const Game& g, const Item& it, float x, float 
 // ------------------------------------------------------------------------------------------------ the loot on the ground
 // The sorted world pass draws each pickup here (the beam stands behind its icon; actors and props south of it are drawn
 // after and stand in front, so a beam never hides them); loot_paint.h lootGround draws it.
+// (P4 6f) a fresh drop (Pickup::t < 0.3 s: a death's pile, a beast's hide, a piece let fall) is tossed out of the body: it
+// leaves at the body's middle (8 px up), a little to one side (by its spot, so each piece of a pile goes its own way),
+// rises on a short arc and lands on its spot, easing out. View only: the sim's spot and the 240 s clock never move.
+namespace { float g_tossLift = 0, g_tossAge = -1; }
+Vec2 pickupToss(const Pickup& k) {
+  if (!(k.t >= 0 && k.t < kTossTime)) return Vec2(0, 0);
+  const float u = k.t / kTossTime, e = 1 - (1 - u) * (1 - u);
+  const uint32_t h = (uint32_t)(int)std::floor(k.p.x * 7.0f) * 2654435761u ^ (uint32_t)(int)std::floor(k.p.y * 5.0f) * 40503u;
+  const float side = ((h >> 7) & 1 ? 1.0f : -1.0f) * (3.0f + (float)((h >> 9) % 5));
+  return Vec2(std::floor(-side * (1 - e) + 0.5f), std::floor(-(8.0f * (1 - u) + 16.0f * u * (1 - u)) + 0.5f));
+}
+float pickupLiftDrawn(float& age) { age = g_tossAge; const float l = g_tossLift; g_tossLift = 0; g_tossAge = -1; return l; }   // (read once)
+
 void LootView::drawLootGround(View& v, Game& g, const Pickup& k, int idx, Vec2 cam, float bob) {
   View::LootPainter lp{v, &g, *v.pix_};
+  {   // (P4 6f) the toss: drawn where the arc has it (the beams' redraw of other pieces below keeps the true camera)
+    const Vec2 toss = pickupToss(k);
+    if (toss.y < 0) { g_tossLift = -toss.y; g_tossAge = k.t; }
+    if (toss.x != 0 || toss.y != 0) { cam = cam - toss; bob = 0; }
+  }
   const int r = k.gold > 0 || !itemEquippable(k.item.kind) ? 0 : (int)k.item.rarity;
   if (r > 0) lootCount_.beams[std::min(r, 5)]++;
   const float d = std::sqrt(len2(k.p - g.pl().p));

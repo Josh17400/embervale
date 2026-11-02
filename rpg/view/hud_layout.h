@@ -326,7 +326,11 @@ struct DlgLay {
   bool more = false;
   float moreTop = 0, moreH = 0;
   float optsTop = 0;         // the top of the option block (the divider sits just above it)
+  float giftH = 0;           // (P4 item 3) the gift strip under the speaker's name (g_dlgGiftH), the speech below it
 };
+// (P4 item 3) the gift strip's height this conversation: set by drawDialogue from the toasts given while it is open
+// (FxState::dlgGifts) before it lays the panel out, so the taps (input.cpp) find the rows where they are drawn
+inline float g_dlgGiftH = 0;
 // The first option of the page that holds option `sel`, for a list paged from option 0 (pages are greedy, so the
 // keyboard and a tap on MORE walk the same pages).
 // (M7b) the options on show (Dialogue::shows: the first page, or the option group opened), as indices into dlg.opts
@@ -363,7 +367,7 @@ inline DlgLay dlgLay(const Game& g, float rowH, int first = 0) {
   L.optTop.assign((size_t)n, -1e6f);
   // the room the options may take: the panel stays on screen (8 px margins) with its title and two speech lines
   const float minText = 18.0f;
-  float avail = (float)Pix::H - 16 - 22 - minText - 10 - 6;
+  float avail = (float)Pix::H - 16 - 22 - g_dlgGiftH - minText - 10 - 6;
   // (fixer M7b r2, review: "the phone's 7-option inn panel covers 85 % of the screen and hides the gold") with the
   // finger-sized rows the options take at most about half the screen; the rest page behind MORE
   if (rowH >= 20.0f) avail = std::min(avail, std::floor((float)Pix::H * 0.5f));
@@ -382,11 +386,12 @@ inline DlgLay dlgLay(const Game& g, float rowH, int first = 0) {
   }
   // the speech: at least two lines' room (four with a portrait), and never more than the box allows
   float textH = std::max((float)L.lines.size(), L.portrait ? 4.0f : 2.0f) * 9;
-  const float maxText = (float)Pix::H - 16 - 22 - 10 - 6 - shownH;
+  L.giftH = g_dlgGiftH;
+  const float maxText = (float)Pix::H - 16 - 22 - L.giftH - 10 - 6 - shownH;
   textH = std::min(textH, std::max(minText, maxText));
-  L.h = 22 + textH + 10 + shownH + 6;
+  L.h = 22 + L.giftH + textH + 10 + shownH + 6;
   L.y = std::max(8.0f, (float)Pix::H - L.h - 8);
-  float top = L.y + 22 + textH + 10;
+  float top = L.y + 22 + L.giftH + textH + 10;
   L.optsTop = top;
   for (int i = 0; i < n; i++) {
     if (i < L.first || i >= L.first + L.count) { L.optH[(size_t)i] = 0; continue; }
@@ -449,3 +454,41 @@ inline int shopScroll(int sel, int rows) { return sel >= rows ? sel - rows + 1 :
 // the item rows of one list: on touch a list longer than the rows gives its last row to the page buttons
 inline int shopRows(const ShopLay& L, bool touch, int n) { return touch && n > L.rows ? L.rows - 1 : L.rows; }
 }  // namespace hudlay
+
+// (P4 item 6b) the menu's page names (the tab strip's labels, by menuTab_ id: ITEMS 0, QUESTS 1, MAP 2, HERO 3, SYSTEM 4,
+// EQUIP 5, PARTY 6, SKILLS 7, SPELLS 8) and each page's keyboard hint, drawn at the panel's foot (input.cpp's menuKey and
+// the pages' own key handlers are the source; touch keeps its buttons, so no hint: ""). Read by the Witness state too.
+inline const char* menuTabName(int tab) {
+  static const char* const kNames[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY", "SKILLS", "SPELLS"};
+  return tab >= 0 && tab < 9 ? kNames[tab] : "";
+}
+inline const char* menuHint(int tab, bool touch) {
+  static const char* const kHints[] = {
+      "Q/E TABS  W/S PICK  ENTER USE / WEAR  X DROP  ESC CLOSE",                  // ITEMS
+      "Q/E TABS  W/S PICK  ENTER TRACK  N SECTION  ESC CLOSE",                    // QUESTS
+      "PGUP/PGDN TABS  ESC CLOSE",                                                // MAP (Q/E zoom there; its own line says how)
+      "Q/E TABS  W/S STAT  ENTER RAISE  ESC CLOSE",                               // HERO
+      "Q/E TABS  W/S PICK  ENTER SELECT  ESC CLOSE",                              // SYSTEM
+      "Q/E TABS  W/S SLOT  A/D CHOOSE  ENTER WEAR / TAKE OFF  [ ] TURN",          // EQUIP
+      "Q/E TABS  [ ] WHO  W/S SLOT  A/D CHOOSE  ENTER GIVE  N PAGE",              // PARTY
+      "Q/E TABS  W/S SKILL  A/D PERK  ENTER TAKE",                                // SKILLS
+      "Q/E TABS  W/S SPELL  A/D OR 1-4 SLOT  ENTER PREPARE  X CLEAR"};            // SPELLS
+  return touch || tab < 0 || tab >= 9 ? "" : kHints[tab];
+}
+
+// (P4 item 6a) the dungeon the hero is inside (a cave, a ruin or a shrine; not a building): its level, else -1
+inline int dungeonLevel(const Game& g) {
+  if (!g.inside || g.subSite < 0 || g.subSite >= (int)g.world.sites.size()) return -1;
+  const Site& s = g.world.sites[(size_t)g.subSite];
+  return s.type == SiteType::Cave || s.type == SiteType::Ruin || s.type == SiteType::Shrine ? s.level : -1;
+}
+// (M4, VISION_PLAN 7.1; M6 the full bands) the danger skull beside the place's name: -1 none (in a building, in a
+// settlement), else by D - the hero's level: 0 green (<= 0), 1 yellow (<= 4), 2 red (<= 10), 3 purple (beyond)
+// (P4 6a) inside a cave, ruin or shrine D is the dungeon's level (moved here from hud.cpp for the scripts and Witness)
+inline int dangerSkull(const Game& g) {
+  const int dl = dungeonLevel(g);
+  if ((g.inside && dl < 0) || g.mode == Mode::Title || !g.world.endless) return -1;
+  if (!g.inside && g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) return -1;
+  const int d = (g.inside ? dl : g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE))) - g.plLevel;
+  return d <= 0 ? 0 : d <= 4 ? 1 : d <= 10 ? 2 : 3;
+}

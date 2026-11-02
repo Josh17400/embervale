@@ -59,7 +59,6 @@ void clearOfTouch(float& cx, float& y0, float w, float h) {
 // the resting place of the movement stick (bottom-left of the safe area)
 Vec2 stickRest() { return Vec2((float)Pix::SL + 60, (float)(Pix::H - Pix::SB) - 55); }
 
-const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY", "SKILLS", "SPELLS"};
 float g_quickBarR = 0;   // (M9) the desktop quick bar's right end this frame (the NPC labels keep clear of the HUD block)
 // a lead's source word and its colour (the journal's palette: amber, sage, rose, parchment, lilac)
 Color leadColour(jobs::LeadFrom f) {
@@ -230,14 +229,6 @@ bool questTile(const Game& g, const Quest& q, int& tx, int& ty) {
   tx = (int)std::clamp<int64_t>(lx, -1000000, 1000000);
   ty = (int)std::clamp<int64_t>(ly, -1000000, 1000000);
   return true;
-}
-// (M4, VISION_PLAN 7.1; M6 the full bands) the danger skull beside the place's name: -1 none (indoors, in a settlement),
-// else by D - the hero's level: 0 green (<= 0), 1 yellow (<= 4), 2 red (<= 10), 3 purple (beyond)
-int dangerSkull(const Game& g) {
-  if (g.inside || g.mode == Mode::Title || !g.world.endless) return -1;
-  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) return -1;
-  const int d = g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)) - g.plLevel;
-  return d <= 0 ? 0 : d <= 4 ? 1 : d <= 10 ? 2 : 3;
 }
 // a distance in tiles for the edge arrow: "87", "1.4K", "23K"
 std::string distText(float d) {
@@ -1370,9 +1361,10 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
     const float plateA = std::min(1.0f, a0 * 1.6f), a = a0 * a0;
     float y = T + 56;
     P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * plateA));
-    P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
-    P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
-    P.textS(Pix::W / 2, y, fx_.banner_, 1, Color(kGold.r, kGold.g, kGold.b, a), 1);
+    const Color bc = fx_.banner_.rfind("DANGEROUS GROUND", 0) == 0 ? Color(0.96f, 0.36f, 0.26f) : kGold;   // (P4 6a) danger in the skull's red
+    P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
+    P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
+    P.textS(Pix::W / 2, y, fx_.banner_, 1, Color(bc.r, bc.g, bc.b, a), 1);
     P.textS(Pix::W / 2 + 1, y + 11, fx_.bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
     P.textS(Pix::W / 2, y + 10, fx_.bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
     if (!realm_.bannerState_.empty()) {   // (M4) the settlement's state under its name, in its colour
@@ -1762,7 +1754,7 @@ void View::drawMenu(Game& g) {
   g_partyTab = partyTabShown(g);
   if (!g_partyTab && menuTab_ == kPartyTab) menuTab_ = 5;
   const TabLay T = tabLay(touchUI);
-  for (int i = 0; i < nTabs(); i++) button(T.x0 + i * T.tw, T.y, T.tw - 4, T.h, kTabs[tabAt(i)], tabAt(i) == menuTab_);
+  for (int i = 0; i < nTabs(); i++) button(T.x0 + i * T.tw, T.y, T.tw - 4, T.h, menuTabName(tabAt(i)), tabAt(i) == menuTab_);
   for (int i = 0; i < nTabs(); i++)   // (M9) perk points to spend: a pulsing gold pip on the SKILLS tab
     if (tabAt(i) == kSkillsTab && g.skills.perkPts > 0) {
       const float k = 0.6f + 0.4f * std::sin(t_ * 5.0f);
@@ -2080,6 +2072,7 @@ void View::drawMenu(Game& g) {
       SkillsLane::drawSpellsPage(*this, g);
       break;
   }
+  FxState::drawMenuHint(*this, menuTab_);   // (P4 6b) the page's keys at the foot, over the page (dialogue_ui.cpp)
 }
 
 // ------------------------------------------------------------------ M5 "Hearth and Hall": the player's buffs, the mood

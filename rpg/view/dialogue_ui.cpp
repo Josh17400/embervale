@@ -1,8 +1,34 @@
 // dialogue_ui.cpp: the dialogue panel (View::drawDialogue): the speech, the speaker's portrait and the paged
 // options. Its layout (dlgLay) is in hud_layout.h, shared with input.cpp's keys and taps. Moved from hud.cpp (SOLID 1.4).
+// (P4) also the small HUD notes the over-long hud.cpp and render.cpp call (FxState's statics, fx_state.h): the gift strip
+// under the speaker's name (item 3), the danger banner on entering a dungeon (6a) and the menu page's key hint (6b).
+#include <cctype>
 #include "rpg/view/hud_layout.h"
 
 using namespace hudlay;
+
+namespace {
+// (P4 item 3) the gift strip's words: "+ OLD BLADE", "+ MINOR HEALTH POTION" (the toasts' own words), flowed into lines
+// of the speech column's width, two spaces apart; at most two lines (the toast list keeps five)
+struct GiftWord { const Toast* t; float x; int line; };
+std::vector<GiftWord> giftFlow(const View& v, float width) {
+  std::vector<GiftWord> out;
+  float x = 0;
+  int line = 0;
+  for (const Toast* t : FxState::dlgGifts(v)) {
+    const float w = (float)t->s.size() * 6;
+    if (x > 0 && x + w > width) { x = 0; line++; }
+    if (line > 1) break;
+    out.push_back({t, x, line});
+    x += w + 12;
+  }
+  return out;
+}
+float giftStripH(const View& v, float width) {
+  const std::vector<GiftWord> f = giftFlow(v, width);
+  return f.empty() ? 0.0f : (float)(f.back().line + 1) * 9 + 1;
+}
+}  // namespace
 
 void View::drawDialogue(Game& g) {
   Pix& P = *pix_;
@@ -12,6 +38,7 @@ void View::drawDialogue(Game& g) {
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   const Dialogue& d = g.dlg;
   const float rowH = dlgRowH();
+  g_dlgGiftH = giftStripH(*this, dlgLay(g, rowH, dlgFirst_).tw);   // (P4) before every layout below (and the taps')
   int nOpt = (int)dlgShown(d).size();
   dlgSel_ = std::clamp(dlgSel_, 0, std::max(0, nOpt - 1));
   {   // the page follows the selection (keyboard), and a page past the list's end starts over
@@ -21,6 +48,7 @@ void View::drawDialogue(Game& g) {
   }
   const DlgLay L = dlgLay(g, rowH, dlgFirst_);
   const float x = L.x, w = L.w, y = L.y;
+  const float sy = y + 20 + L.giftH;   // (P4) the speech's first line, under the gift strip
   panel(x, y, w, L.h, 0.94f);
   if (L.portrait) {
     // the speaker on a small lit stage, framed like the inventory's icons
@@ -60,15 +88,20 @@ void View::drawDialogue(Game& g) {
     P.frame(px + 1, py + 1, pw - 2, ph - 2, Color(0.22f, 0.18f, 0.12f));
   }
   P.text(L.tx, y + 8, g.speakerTitle(), 1, kGold);   // (M7b) "SUSUT, INNKEEPER" once introduced, "THE INNKEEPER" before
+  for (const GiftWord& gw : giftFlow(*this, L.tw)) {   // (P4 item 3) the gifts said here, each in its rarity's colour
+    const float gx = L.tx + gw.x, gy = y + 18 + gw.line * 9;
+    if (gw.t->rarity > 0) loot_.rarityText(*this, gx, gy, gw.t->s, (Rarity)gw.t->rarity, 1, 0, true);
+    else { P.text(gx + 1, gy + 1, gw.t->s, 1, Color(0, 0, 0, 0.6f)); P.text(gx, gy, gw.t->s, 1, gw.t->c); }
+  }
   {   // the speech, typed out
     int shown = 0;
-    const int maxLines = std::max(2, (int)((L.optTop.empty() ? L.h - 30 : L.optsTop - 10 - (y + 20)) / 9));
+    const int maxLines = std::max(2, (int)((L.optTop.empty() ? L.h - 30 : L.optsTop - 10 - sy) / 9));
     for (size_t i = 0; i < L.lines.size() && (int)i < maxLines; i++) {
       if (shown >= (int)dlgChars_) break;
       std::string s = L.lines[i];
       if (shown + (int)s.size() > (int)dlgChars_) s = s.substr(0, (size_t)std::max(0, (int)dlgChars_ - shown));
       shown += (int)L.lines[i].size();
-      P.text(L.tx, y + 20 + i * 9, s, 1, kText);
+      P.text(L.tx, sy + i * 9, s, 1, kText);
     }
   }
   // the options stay dimmed until the line has finished typing (a tap meanwhile only skips the text, see tap())
@@ -96,4 +129,40 @@ void View::drawDialogue(Game& g) {
     const std::string pg = std::to_string(L.first + 1) + "-" + std::to_string(L.first + L.count) + " OF " + std::to_string(nOpt);
     P.text(x + w - 14, ty, pg, 1, Color(0.6f, 0.55f, 0.45f), 2);
   }
+}
+
+// ------------------------------------------------------------------ (P4) FxState's HUD notes (fx_state.h)
+const FxState& FxState::of(const View& v) { return v.fx_; }
+
+std::vector<const Toast*> FxState::dlgGifts(const View& v) {
+  std::vector<const Toast*> out;
+  for (const Toast& t : v.fx_.toasts_) if (t.dlg) out.push_back(&t);
+  return out;
+}
+
+// (P4 6a, VISION_PLAN 7.1/7.5: danger by place, never scaled to the hero) entering a cave, ruin or shrine five or more
+// levels above the hero: "DANGEROUS GROUND" / "TOMB OF KEE: LEVEL 7 - YOU ARE LEVEL 2" (red, hud.cpp's banner); a name
+// too long for the big line goes up beside the heading
+void FxState::dangerBanner(View& v, const Game& g) {
+  const int dl = dungeonLevel(g);
+  if (dl < 0 || dl - g.plLevel < 5) return;
+  std::string name = g.world.sites[(size_t)g.subSite].name;
+  for (char& ch : name) ch = (char)std::toupper((unsigned char)ch);
+  const std::string lv = "LEVEL " + std::to_string(dl) + " - YOU ARE LEVEL " + std::to_string(g.plLevel);
+  FxState& f = v.fx_;
+  f.banner_ = "DANGEROUS GROUND";
+  f.bannerSub_ = name + ": " + lv;
+  if (v.pix_->textW(f.bannerSub_, 2) > Pix::W - 16) { f.banner_ += "  -  " + name; f.bannerSub_ = lv; }
+  f.bannerT_ = 4.0f;
+  v.realm_.bannerState_.clear();
+}
+
+// (P4 6b) the page's keys at the panel's foot, keyboard only (touch keeps its buttons): "Q/E TABS" and the page's own
+void FxState::drawMenuHint(View& v, int tab) {
+  const char* h = menuHint(tab, v.touchUI);
+  if (!*h) return;
+  Pix& P = *v.pix_;
+  const float y = (float)Pix::H - 15, w = (float)P.textW(h, 1);
+  P.rect(std::floor(Pix::W / 2.0f - w / 2 - 4), y - 2, w + 8, 10, Color(0.05f, 0.04f, 0.06f, 0.92f));
+  P.text(Pix::W / 2.0f, y, h, 1, kDim, 1);
 }
