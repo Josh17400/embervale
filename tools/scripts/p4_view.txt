@@ -1,0 +1,67 @@
+# P4 VIEW (docs/FIX_BATCH_P4.md 4, 7 6a/6b/6f, 9.3): the innkeeper's gift said on his panel ("+ OLD BLADE" under his
+# name, in rarity colours) and not repeated after FAREWELL; the danger skull and the DANGEROUS GROUND banner inside a
+# dungeon well above the hero; the key hint on every menu page; a fresh drop tossed out of the body.
+#   node tools/gates/witness_pack.mjs --bdir build-solid --out <dir> --keep tools/scripts/p4_view.txt
+seed 7
+0.3  newgame
++0.02 hour 10
++0.1 expect tracked A BLADE OF YOUR OWN
+# ---- item 3: the old blade changes hands on the innkeeper's panel
++0.1 walkto inn
++0.7 expect inside 1
++0.4 walkto innkeeper
++0.2 key E
++0.2 expect mode dialogue
++2.6 expect slot weapon 1
++0.0 expect dlggift OLD BLADE
++0.0 expect dlggift MINOR HEALTH POTION
++0.0 shot p4_view_inn_gift.png
++0.1 key Escape
++0.3 expect mode play
++0.0 expect notoast + OLD BLADE
++0.0 expect notoast + MINOR HEALTH POTION
++0.6 shot p4_view_inn_after.png
+# ---- 6b: the key hint at every menu page's foot (keyboard)
++0.2 menu 0
++0.4 expect menuhint Q/E*
++0.0 shot p4_view_hint_items.png
++0.1 menu 5
++0.4 expect menuhint Q/E TABS  W/S SLOT  A/D CHOOSE  ENTER WEAR / TAKE OFF  [ ] TURN
++0.0 shot p4_view_hint_equip.png
++0.1 menu 1
++0.4 expect menuhint Q/E*
++0.1 menu 7
++0.4 expect menuhint Q/E*
++0.1 menu 8
++0.4 expect menuhint Q/E*
++0.1 menu 4
++0.4 expect menuhint Q/E*
++0.1 menu 2
++0.4 expect menuhint PGUP/PGDN*
++0.2 key Escape
++0.3 expect mode play
++0.2 walkto exit
++1.0 expect inside 0
+# ---- 6f: a fresh drop leaves the body on a short arc and lands on its spot
++0.3 god 1
++0.1 lootdrop armor rarity common ilvl 2
++0.1 expect pickuplift
++0.0 shot p4_view_toss_01.png
++0.5 shot p4_view_toss_landed.png
+# a companion falls for good and drops everything: the pile leaves the body on short arcs and lands on its spots
++0.2 party recruit
++0.3 party near 0
++0.3 party kill 0
++0.05 shot p4_view_pile_005.png
++0.05 expect pickuplift
++0.0 shot p4_view_pile_01.png
++0.1 shot p4_view_pile_02.png
++0.4 shot p4_view_pile_landed.png
+# ---- 6a: the skull indoors, and the banner on entering ground five levels above the hero
++0.2 p4dungeon ruin above 5
++0.3 expect inside 1
++0.0 expect banner DANGEROUS*
++0.0 expect skull 2,3
++0.6 shot p4_view_ruin_banner.png
++4.5 expect skull 2,3
++0.0 shot p4_view_ruin_skull.png

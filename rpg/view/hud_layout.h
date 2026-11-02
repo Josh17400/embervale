@@ -102,7 +102,7 @@ inline int journalRowOf(const Game& g) {
 struct MenuLay { float pitch; int rows; float btnY, btnH, trackY, trackH, sysH; };
 inline MenuLay menuLay(bool touch) {
   if (touch) return {24.0f, std::max(5, (Pix::H - 96) / 24), (float)Pix::H - 46, 24.0f, (float)Pix::H - 46, 24.0f, 26.0f};
-  return {12.0f, std::max(12, (Pix::H - 64) / 12), (float)Pix::H - 40, 16.0f, (float)Pix::H - 40, 16.0f, 20.0f};
+  return {12.0f, std::max(12, (Pix::H - 76) / 12), (float)Pix::H - 40, 16.0f, (float)Pix::H - 40, 16.0f, 20.0f};   // (P4 6b) a row less: the key hint at the foot
 }
 // The list | detail columns of a menu tab: the list widens with the box by `share` of the extra width, the detail pane
 // takes the rest (at 480: ITEMS 18+236 | 272..460, QUESTS 18+200 | 236..456)

@@ -1773,7 +1773,7 @@ void View::drawMenu(Game& g) {
       button(pb.downX, pb.y, pb.w, pb.h, "DOWN", false);
       P.text(C.lx + C.lw / 2, pb.y + std::floor((pb.h - 7) / 2), cnt, 1, kDim, 1);
     } else {
-      P.text(C.lx + C.lw / 2, Pix::H - 18, cnt, 1, kDim, 1);
+      P.text(C.lx + C.lw / 2, Pix::H - 28, cnt, 1, kDim, 1);
     }
   };
   switch (menuTab_) {
@@ -2013,7 +2013,7 @@ void View::drawMenu(Game& g) {
         if (const magic::SpellDef* d = magic::spellById(id)) { if (!spells.empty()) spells += ", "; spells += d->name; }
       P.text(x, y, "SPELLS", 1, kDim);
       auto sl = wrap(spells.empty() ? "NONE" : spells, std::max(8, (int)((H.lw - 48) / 6)));
-      for (size_t k = 0; k < sl.size() && y + k * 10 < Pix::H - 20; k++) P.text(x + H.lw, y + k * 10, sl[k], 1, Color(0.6f, 0.75f, 1.0f), 2);
+      for (size_t k = 0; k < sl.size() && y + k * 10 < Pix::H - 26; k++) P.text(x + H.lw, y + k * 10, sl[k], 1, Color(0.6f, 0.75f, 1.0f), 2);
       // the stage
       P.rect(H.sx, H.sy, H.sw, H.sh, Color(0.03f, 0.025f, 0.04f, 0.55f));
       P.frame(H.sx, H.sy, H.sw, H.sh, Color(0.3f, 0.24f, 0.15f));

@@ -18,8 +18,15 @@
 #include "rpg/view/view_probe.h"
 
 namespace {
-// "*a*" substring, "a*" prefix, "*a" suffix, else exact
-bool wild(const std::string& have, std::string want) {
+// runs of spaces as one (a script line's words are joined by single spaces)
+std::string squeeze(const std::string& s) {
+  std::string o;
+  for (char ch : s) if (!(ch == ' ' && !o.empty() && o.back() == ' ')) o += ch;
+  return o;
+}
+// "*a*" substring, "a*" prefix, "*a" suffix, else exact (spaces squeezed on both sides)
+bool wild(std::string have, std::string want) {
+  have = squeeze(have); want = squeeze(want);
   const bool head = !want.empty() && want.front() == '*';
   if (head) want.erase(0, 1);
   const bool tail = !want.empty() && want.back() == '*';
