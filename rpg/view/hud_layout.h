@@ -196,7 +196,9 @@ inline std::string itemStats(const Game& g, const Item& it) {
   const cult::Culture* maker = it.culture && g.world.src ? &g.world.src->culture(it.culture) : nullptr;
   const int eff = gear::effLevel(it.ilvl, g.plLevel);
   if (gearItem) {
-    s = gear::bandWord(gear::bandOf(it.ilvl), maker) + " - ITEM LEVEL " + std::to_string((int)it.ilvl);
+    // (P3) the piece's own metal (gear::metalWord), never the band's best; a piece of no metal keeps the band word
+    const std::string mw = gear::metalWord(it, maker);
+    s = (mw.empty() ? gear::bandWord(gear::bandOf(it.ilvl), maker) : mw) + " - ITEM LEVEL " + std::to_string((int)it.ilvl);
     if (eff < it.ilvl) s += "\n\x03SYNCED TO " + std::to_string(eff) + " (YOUR LEVEL + 4)";
     s += "\n";
   }
