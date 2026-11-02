@@ -187,6 +187,12 @@ const char* peopleFlagName(int makerPeople) {
                                     "sylvan", "starspire"};
   return makerPeople >= 1 && makerPeople <= 12 ? k[makerPeople - 1] : "none";
 }
+// (P4 ART, 6e, D116) a worn padded coat of LEATHER (gear_look's armour band 1 on a padded body form, or a census leather man's
+// quilted coat): not the T1 floor's padded jerkin (gear::fillLadder's empty body slot, its floor bit), not a herald's cloth
+bool leatherCoat(const HumanLook& L) {
+  const char* a = armourOf(L);
+  return a && std::string(a) == "padded" && L.armorStyle == 1 && !(L.floor >> HumanLook::TIER_BODY & 1);
+}
 bool t2Kit(const HumanLook& L) {
   return L.forgeKit && L.tier[HumanLook::TIER_BODY] == 2 && L.forge[HumanLook::TIER_BODY] && (L.forge[HumanLook::TIER_BODY] & 0xFF) == forge::B_TANNER;
 }
@@ -877,6 +883,9 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   // (P3 ART, B10) the brigandine as a coat of plates: its base views' `when brig-plates replace` re-cuts (tools/doll/p3_brig.py;
   // the T5 / T6 / Mythic views come first in the file and still win)
   if (const char* a = armourOf(L)) if (std::string(a) == "brigandine") flag("brig-plates");
+  // (P4 ART, 6e, D116) a worn padded coat of leather (armour band 1; never the T1 floor's jerkin, which is quilted in the shirt)
+  // draws in the wearer's leather, laced in rawhide: the padded files' `when leather-coat` re-cuts (tools/doll/p4_leather.py)
+  if (leatherCoat(L)) flag("leather-coat");
   const Family fam = familyOf(L);
   if (!L.civil && L.weapon >= 1 && L.weapon <= 9) {
     if (fam == Family::Greatsword || fam == Family::Spear || fam == Family::Staff) flag("twohand");

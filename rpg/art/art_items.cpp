@@ -1,6 +1,7 @@
 // EMBERVALE art: item icons. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
 #include "rpg/art/art_internal.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/art_rig.h"
 
 namespace art {
 
@@ -280,8 +281,15 @@ void helmIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc, const Ramp& t
   }
 }
 // cult::BodyArm + 1: 1 padded, 2 leather, 3 mail, 4 scale, 5 lamellar, 6 brigandine, 7 plate, 8 leaf
-void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc) {
-  const Ramp& base = form == 1 || form == 6 ? acc : (form == 2 ? kLeather : M);
+// (P4 ART, 6e; the W7 testers: "the body icon is a grey-white vest for both leather and bronze") every body icon wears its
+// MATERIAL: a leather gambeson is quilted leather laced up the front in rawhide (never the maker's cloth, so the bag, the shop
+// and the worn coat agree: D116), a brigandine is a coat of plates in its metal with the maker's cloth at the shoulders and
+// the plate seams (as the doll's D114 re-cut); a padded coat of no leather keeps the maker's cloth
+void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc, bool leather) {
+  // (rig 2 only: rig 1's icons stay as they were, art_hash --rig=1)
+  const bool p4 = rigVersion() >= 2;
+  const bool leatherCoat = p4 && form == 1 && leather, plates = p4 && form == 6 && !leather;
+  const Ramp& base = leatherCoat ? kLeather : (form == 1 || form == 6) ? acc : (form == 2 ? kLeather : M);
   for (int y = 2; y <= 14; y++)
     for (int x = 1; x <= 14; x++) {
       const bool shoulders = y <= 5 && (x <= 4 || x >= 11) && y >= 2 && !(y == 2 && (x == 1 || x == 14));
@@ -303,7 +311,18 @@ void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc) {
           else if (x % 3 == 0) k--;
           else if (ry % 3 == 1) k++;
           break;
-        case 6: if (ry > 0 && (ry % 3) == 1 && ((x + ry) & 1)) { c.set(x, y, M[4]); continue; } break;     // rivets
+        case 6:
+          if (plates) {   // (D117) courses of plates in the metal, the shoulders too: the maker's cloth in the seam between
+            // two courses (half cloth, half the plate's shadow), the plate's lit top edge with a rivet head every third pixel,
+            // its body
+            const int t = ry % 3;
+            if (ry > 0 && t == 0 && torso) { c.set(x, y, mix(acc[std::clamp(k - 1, 0, 4)], M[std::clamp(k - 1, 0, 4)], 0.5f)); continue; }
+            else if (t == 1) { if (x % 3 == 2) { c.set(x, y, M[std::max(0, k - 2)]); continue; } k++; }
+            c.set(x, y, M[std::clamp(k, 0, 4)]);
+            continue;
+          }
+          if (ry > 0 && (ry % 3) == 1 && ((x + ry) & 1)) { c.set(x, y, M[4]); continue; }   // rivets
+          break;
         case 7: if (y >= 12 && y <= 13 && ((y - 12) == 0)) k--; break;                                     // faulds
         case 8: { const int ph = (ry / 2) & 1, m = (x + ph * 2) % 4; k += (ry & 1) == 0 ? (m == 1 ? 1 : (m == 3 ? -1 : 0)) : (m == 2 ? -1 : 0); break; }
         default: break;
@@ -317,6 +336,16 @@ void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc) {
   } else if (form == 2) {   // leather: a stitched seam down the front, a buckle
     for (int y = 5; y <= 13; y += 2) c.set(7, y, kLeather[0]);
     c.set(6, 4, kBrass[4]); c.set(9, 4, kBrass[3]);
+  } else if (leatherCoat) {   // (D116) the leather gambeson: laced up the front in rawhide (the lit cross a step over the
+    // hide's lit plane), a dark belt with its buckle
+    static const uint32_t kLace[2] = {rgba(238, 222, 178), rgba(192, 164, 116)};
+    for (int y = 5; y <= 10; y++) {
+      const bool a = (y & 1) != 0;
+      c.set(7, y, a ? kLace[0] : kLeather[0]);
+      c.set(8, y, a ? kLeather[0] : kLace[1]);
+    }
+    for (int x = 4; x <= 11; x++) c.set(x, 11, kLeather[x < 7 ? 1 : 0]);
+    c.set(7, 11, kBrass[4]); c.set(8, 11, kBrass[2]);
   } else if (form == 6 || form == 1) {   // a belt over the cloth
     for (int x = 4; x <= 11; x++) c.set(x, 11, kLeather[x < 7 ? 2 : 1]);
     c.set(7, 11, kBrass[4]);
@@ -1092,6 +1121,15 @@ Canvas itemIconLook(const IconLook& l) {
   } else if (l.tint) {
     M = ramp(l.tint, 1.1f);
   }
+  // (P4 ART, D117) iron's body armour icon is dark and matte, a step under its ramp (the doll's "iron dark, steel bright"):
+  // at the icon's size an iron and a steel coat of one form otherwise met within 13-29 of mean RGB
+  // and bronze's a third of a step over its olive body toward the cream glint: the warm gold the doll's bronze plates read as
+  // (a bronze coat sat 14-28 from the leather one's browns)
+  const bool p4 = rigVersion() >= 2;   // (rig 2 only: rig 1's icons as they were)
+  if (p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather) {
+    M = ramp5(M[0], mix(M[0], M[1], 0.5f), M[1], M[2], M[3]);
+  }
+  if (p4 && l.icon == Icon::Armor && l.dollMetal == 2 && !leather) M = ramp5(M[0], mix(M[1], M[2], 0.5f), mix(M[2], M[3], 0.4f), M[3], M[4]);
   const Ramp acc = l.accent ? ramp(l.accent) : kRed;
   const Ramp trim = (l.ornament & 4) ? kGold : M;
   const Ramp grip = l.accent ? ramp(mix(l.accent, rgba(92, 54, 40), 0.35f)) : kLeather;
@@ -1099,7 +1137,7 @@ Canvas itemIconLook(const IconLook& l) {
   bool done = true;
   switch (l.icon) {
     case Icon::Helmet: if (l.form >= 1 && l.form <= 10) helmIcon(c, l.form, M, acc, trim); else done = false; break;
-    case Icon::Armor: if (l.form >= 1 && l.form <= 8) bodyIcon(c, l.form, M, l.accent ? acc : ramp(rgba(120, 60, 50))); else done = false; break;
+    case Icon::Armor: if (l.form >= 1 && l.form <= 8) bodyIcon(c, l.form, M, l.accent ? acc : ramp(rgba(120, 60, 50)), leather); else done = false; break;
     case Icon::Shield: if (l.form >= 1 && l.form <= 8) shieldIcon(c, l.form, M, acc, (l.ornament & 4) != 0); else done = false; break;
     case Icon::Sword: case Icon::Greatsword: case Icon::Dagger: bladeIcon(c, l.icon, l.form ? l.form : 1, M, grip, gold); break;
     case Icon::Spear: spearIcon(c, l.form, M, l.accent && (l.ornament & (64 | 8 | 1)) ? l.accent : 0, l.ornament); break;
@@ -1112,7 +1150,21 @@ Canvas itemIconLook(const IconLook& l) {
     paintIcon(c, l.icon, l.tint, metalKind ? &M : nullptr);
   }
   if (l.sheen) iconSheen(c, M, l.sheen);
-  iconOrnament(c, M, l.ornament, l.icon);
+  // (P4 ART, D117) a gilt iron coat is gilt at the collar and the shoulders only: a whole gold rim round a dark iron coat read,
+  // by its mean, as bronze (Imperial, Sun-Temple, Starspire iron sat 22-27 from their bronze); the gold still marks the maker
+  const bool ironGilt = p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);
+  if (ironGilt) {
+    const Canvas src = c;
+    iconOrnament(c, M, (uint16_t)(l.ornament & ~4u), l.icon);
+    for (int y = 0; y <= 5; y++)
+      for (int x = 0; x < ICON; x++) {
+        if (!(src.get(x, y) >> 24)) continue;
+        const bool edge = !(src.get(x - 1, y) >> 24) || !(src.get(x, y - 1) >> 24) || !(src.get(x + 1, y) >> 24);
+        if (edge) c.set(x, y, kGold[(!(src.get(x - 1, y) >> 24) || !(src.get(x, y - 1) >> 24)) ? 4 : 2]);
+      }
+  } else {
+    iconOrnament(c, M, l.ornament, l.icon);
+  }
   iconGlint(c, l.rarity);
   const Canvas raw = c;
   outline(c);

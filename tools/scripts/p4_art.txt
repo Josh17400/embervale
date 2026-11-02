@@ -1,0 +1,166 @@
+# P4 ART (docs/FIX_BATCH_P4.md 7 item 6e, 9.5): leather that reads as leather. Seed 7, the start village's clearing, rig 2,
+# NEAR, four facings each (down right left up): the T1 floor jerkin (the hero's own shirt), a LEATHER GAMBESON and a LEATHER
+# JERKIN of the start village's make, a heartland leather coat, the bronze brigandine (D114, kept), the man and the woman;
+# the leather gambeson with the leather cap, gloves and boots; then the start town smith's shelf (its body icons).
+# Measured by tools/doll/p4_measure.py on these shots (the torso's mean colour); the icons by icons_gallery --check.
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p4_art.txt   (p4_art_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 zoom near
+# ---- the T1 floor: no body armour (the padded jerkin quilted in the hero's own shirt colour), the woman then the man
++0.1 body woman
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_floor_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_floor_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_floor_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_floor_u.png
++0.1 body man
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_floor_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_floor_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_floor_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_floor_u.png
+# ---- the man
+# a LEATHER GAMBESON of the start village's make (form 1: padded)
++0.1 gear6 armor ilvl 2 here mat leather form 1 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_gambeson_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_gambeson_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_gambeson_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_gambeson_u.png
+# a LEATHER JERKIN of the start village's make (form 2: leather)
++0.1 gear6 armor ilvl 2 here mat leather form 2 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_jerkin_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_jerkin_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_jerkin_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_jerkin_u.png
+# a heartland leather coat (no maker)
++0.1 gear6 armor ilvl 2 none mat leather equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_heart_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_heart_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_heart_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_heart_u.png
+# the bronze brigandine (D114: kept)
++0.1 gear6 armor ilvl 2 here mat bronze form 6 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_brig_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_brig_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_brig_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_brig_u.png
+# ---- the woman
++0.1 body woman
++0.3 expect doll covered
+# a LEATHER GAMBESON of the start village's make (form 1: padded)
++0.1 gear6 armor ilvl 2 here mat leather form 1 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_gambeson_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_gambeson_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_gambeson_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_gambeson_u.png
+# a LEATHER JERKIN of the start village's make (form 2: leather)
++0.1 gear6 armor ilvl 2 here mat leather form 2 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_jerkin_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_jerkin_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_jerkin_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_jerkin_u.png
+# a heartland leather coat (no maker)
++0.1 gear6 armor ilvl 2 none mat leather equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_heart_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_heart_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_heart_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_heart_u.png
+# the bronze brigandine (D114: kept)
++0.1 gear6 armor ilvl 2 here mat bronze form 6 equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_brig_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_brig_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_brig_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_brig_u.png
+# ---- the leather gambeson with the leather cap, gloves and boots (the woman, then the man)
++0.1 gear6 armor ilvl 2 here mat leather form 1 equip
++0.1 gear6 helmet ilvl 2 here mat leather equip
++0.1 gear6 gloves ilvl 2 here mat leather equip
++0.1 gear6 boots ilvl 2 here mat leather equip
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_w_set_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_w_set_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_w_set_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_w_set_u.png
++0.1 body man
++0.3 expect doll covered
++0.1 p2cline face 0
++0.2 shot p4_art_m_set_d.png
++0.1 p2cline face 2
++0.2 shot p4_art_m_set_r.png
++0.1 p2cline face 3
++0.2 shot p4_art_m_set_l.png
++0.1 p2cline face 1
++0.2 shot p4_art_m_set_u.png
+# ---- the start town smith's shelf: the body icons by material (the leather coat, the bronze brigandine)
++0.1 ui 1
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 lootsel shop buy 4
++0.4 shot p4_art_shop_shelf.png
++0.1 key Escape
++0.3 quit
