@@ -46,6 +46,11 @@ struct AppSetup {
   const char* saveOverride = nullptr;   // EMB_SAVE_PATH (test hook: the title reads its save from another file)
   uint64_t startSeed = 0;
   bool touchUIStart = false;     // (a Witness reset puts it back: a test's finger turns the controls on)
+  // (P3 D, runtime only, never saved) under Witness, New Game opens the character creator as the windowed game does
+  // (startNew, beginCreator, creatorPrepare) instead of starting play at once. Set for the whole run by the launch flag
+  // --witness-creator (scripted runs that start on the title), or by a reset's "creatorUi": true (that run only)
+  bool wCreatorLaunch = false;
+  bool wCreator = false;
 
   int parse(int argc, char** argv);           // -1: go on; else the exit code (--script-help 0, a script that fails 2)
   void witnessFlags(int argc, char** argv);   // witness, watch, recordEnv, recordSync
@@ -121,6 +126,7 @@ struct App : AppSetup {
   std::vector<uint8_t> wShot;
   double mouseX = 0, mouseY = 0;
   std::vector<int> wButtons;   // mouse buttons the harness holds down (0 left, 1 middle, 2 right)
+  Mode wPrevMode = Mode::Title;   // (P3 D) the mode after the last step: the creator's hand-over to play is seen once
   std::map<std::string, std::string> wMatch;
   uint64_t wAudioHash = 1469598103934665603ull;   // (audiomatch) FNV-1a of every sample mixed since the reset
   long long wAudioN = 0;
@@ -199,6 +205,7 @@ struct App : AppSetup {
   void wSnapshot(witness::Json& j);
   bool wScreenshot(witness_image& img);
   void wCall(const char* name, witness::Value args, witness::Json& result);
+  void openCreator();   // (P3 D) NEW ADVENTURE's creator under the harness (wCreator)
 #endif
   void runWitness();   // (rpg/app/witness_driver.cpp; a no-op without EMB_WITNESS, below)
 };

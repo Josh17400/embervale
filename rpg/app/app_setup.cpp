@@ -74,6 +74,10 @@ int AppSetup::parse(int argc, char** argv) {
 void AppSetup::witnessFlags(int argc, char** argv) {
 #ifdef EMB_WITNESS
   witness = witness_active(argc, argv);   // a Witness harness drives this run (rpg/app/witness_driver.cpp)
+  // (P3 D) --witness-creator: New Game opens the creator under the harness too (App::wStep); without it the harness
+  // keeps skipping the creator (playtests, the existing tests)
+  for (int i = 1; i < argc; i++) if (!std::strcmp(argv[i], "--witness-creator")) wCreatorLaunch = true;
+  wCreator = witness && wCreatorLaunch;
   // WITNESS_WATCH=1 (`witness play start --watch`, Witness PROTOCOL.md section 9): a person watches the harness play.
   // The window is shown and every step is presented; real input is dropped; nothing else changes (no pacing: the
   // harness paces, and the sim is the headless one)

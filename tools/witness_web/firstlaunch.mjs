@@ -2,7 +2,9 @@
 // player meets it, with no Witness: Chromium as an "iPhone 15 Pro landscape" (touch, a fresh context, no saved state),
 // site-witness served on 127.0.0.1:8090 WITHOUT ?witness, New Game started from the title (N), the creator walked through
 // with Enter (each tab, then BEGIN), 3 s waited, one screenshot (the viewport, under 8,000 px).
-//   node tools/witness_web/firstlaunch.mjs [--site site-witness] [--out firstlaunch.png] [--query rig=1] [--port 8090]
+//   node tools/witness_web/firstlaunch.mjs [--site site-witness] [--out firstlaunch.png] [--query rig=1] [--port 8090] [--no-idb]
+// --no-idb (P3 B3): IndexedDB is blocked in the page (as some private windows do): the screenshot is the TITLE, 3 s after
+// the game starts, where the note "SAVES ARE OFF IN THIS BROWSER - PROGRESS WILL NOT BE KEPT" must show; the run stops there.
 // --query k=v adds URL params (rig=1: the v1 fallback, opt-in until the owner's retirement OK). When nothing listens on the
 // port, the site folder is served here (a plain static server) for the run.
 import { createServer } from 'node:http';
@@ -37,6 +39,7 @@ const site = resolve(opt('--site', 'site-witness'));
 const out = resolve(opt('--out', 'firstlaunch.png'));
 const port = Number(opt('--port', '8090'));
 const query = args.flatMap((a, i) => (a === '--query' && i + 1 < args.length ? [args[i + 1]] : []));
+const noIdb = args.includes('--no-idb');
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.png': 'image/png',
   '.json': 'application/json', '.data': 'application/octet-stream', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -72,6 +75,10 @@ const url = `http://127.0.0.1:${port}/` + (query.length ? '?' + query.join('&') 
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ ...devices['iPhone 15 Pro landscape'] });
+  // (--no-idb) no IndexedDB in the page, before any of its scripts runs: reading it throws, as a blocked store does
+  if (noIdb) await context.addInitScript(() => {
+    Object.defineProperty(window, 'indexedDB', { configurable: true, get() { throw new DOMException('IndexedDB is blocked (firstlaunch --no-idb)', 'SecurityError'); } });
+  });
   const page = await context.newPage();
   const logs = [];
   page.on('console', (m) => logs.push(m.text()));
@@ -80,16 +87,23 @@ try {
   // the page hides its loading status when the game has started (index.html's onRuntimeInitialized)
   await page.waitForFunction(() => { const s = document.getElementById('status'); return !s || s.style.display === 'none'; }, null, { timeout: 90000 });
   await page.waitForTimeout(3000);                   // the title screen
-  await page.locator('canvas').first().focus().catch(() => {});
-  await page.keyboard.press('KeyN');                 // NEW ADVENTURE
-  await page.waitForTimeout(2500);                   // the world is forged behind its card, then the creator opens
-  for (let i = 0; i < 4; i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(400); }   // each tab, then BEGIN
-  await page.waitForTimeout(3000);
-  await page.screenshot({ path: out });
-  const vp = page.viewportSize();
-  console.log(`firstlaunch: ${url} -> ${out} (${vp.width} x ${vp.height} CSS px, scale ${devices['iPhone 15 Pro landscape'].deviceScaleFactor})`);
-  const rig = logs.find((l) => l.startsWith('rig 1:'));
-  if (rig) console.log(`firstlaunch: the page said "${rig}"`);
+  if (noIdb) {
+    await page.screenshot({ path: out });
+    const vp = page.viewportSize();
+    const said = logs.find((l) => /saves disabled|save load failed/.test(l));
+    console.log(`firstlaunch --no-idb: ${url} -> ${out} (the title, ${vp.width} x ${vp.height} CSS px)${said ? `; the page said "${said}"` : ''}`);
+  } else {
+    await page.locator('canvas').first().focus().catch(() => {});
+    await page.keyboard.press('KeyN');                 // NEW ADVENTURE
+    await page.waitForTimeout(2500);                   // the world is forged behind its card, then the creator opens
+    for (let i = 0; i < 4; i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(400); }   // each tab, then BEGIN
+    await page.waitForTimeout(3000);
+    await page.screenshot({ path: out });
+    const vp = page.viewportSize();
+    console.log(`firstlaunch: ${url} -> ${out} (${vp.width} x ${vp.height} CSS px, scale ${devices['iPhone 15 Pro landscape'].deviceScaleFactor})`);
+    const rig = logs.find((l) => l.startsWith('rig 1:'));
+    if (rig) console.log(`firstlaunch: the page said "${rig}"`);
+  }
 } finally {
   await browser.close();
   if (server) server.close();

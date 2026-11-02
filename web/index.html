@@ -39,16 +39,21 @@
     // Only the exports listed in CMakeLists.txt (Module.FS / IDBFS / addRunDependency / removeRunDependency) are used,
     // never Emscripten's internal globals, and a missing save store never stops the game: it starts without saved games
     // and says so in the console (an Emscripten update once dropped IDBFS and the page hung on the loading screen).
+    // (P3 B3) Module.embSaves records it for the game: '' saves work, 'off' no save store this visit (no IDBFS, the mount
+    // or the first load from IndexedDB failed: a private window, IndexedDB blocked) and the title says so, 'failed' a
+    // save could not be written to IndexedDB (save_store.cpp writeSave sets it; the game says so once)
+    embSaves: '',
     preRun: [function () {
       var fs = Module.FS, idb = Module.IDBFS;
       try {
         fs.mkdir('/save');
         if (!idb) throw new Error('IDBFS missing from the build (EXPORTED_RUNTIME_METHODS)');
+        if (typeof indexedDB === 'undefined' || !indexedDB) throw new Error('IndexedDB is not available in this browser');
         fs.mount(idb, {}, '/save');
-      } catch (e) { console.warn('saves disabled:', e && e.message ? e.message : e); return; }
+      } catch (e) { Module.embSaves = 'off'; console.warn('saves disabled:', e && e.message ? e.message : e); return; }
       Module.addRunDependency('syncfs');
       fs.syncfs(true, function (err) {
-        if (err) console.log('save load failed', err);
+        if (err) { Module.embSaves = 'off'; console.log('save load failed', err); }
         Module.removeRunDependency('syncfs');
       });
     }],

@@ -61,9 +61,11 @@
 // list when it is such a script): a fresh `embervale.exe --witness --script <file>` (still hidden): the game's own
 // script engine runs the lines inside each step; after a step that ran a line, one `call log` writes a pending shot and
 // reports busy. The same draws are made before the step that runs a line batch.
+// The creator (P3 D): a script with an `expect mode creator` line runs on a fresh hidden `--witness --witness-creator
+// --script <file>` instance (the game's own engine, on the title world): with that flag New Game under Witness opens the
+// character creator as the windowed game does (App::wStep -> startNew, beginCreator, creatorPrepare), BEGIN hands over.
 // Not runnable under Witness (SKIP, never FAIL, reason in scripts.txt; reported as a Witness gap): a `blur` line (the
-// hidden window never loses the focus: main.cpp fails it) and `expect mode creator` (under Witness New Game on the title
-// skips the creator: h.step wantNewGame -> startNew). Nothing falls back to a visible window.
+// hidden window never loses the focus: main.cpp fails it). Nothing falls back to a visible window.
 //
 // Output in --out: hashes.txt "<script>/<png> <sha256>" (sorted, byte order); scripts.txt "<script> PASS|FAIL|XFAIL|SKIP
 // <secs>s <first failure>" (sorted); summary.txt (counts, timings, launches, v1draws rig2 = the sum of
@@ -162,7 +164,7 @@ const drawEvery = new Set(fs.existsSync(abs(everyFile)) ? readNames(abs(everyFil
 const F = Math.fround;
 const NUM_RE = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
 function parseScript(file) {
-  const sc = { name: path.basename(file, ".txt"), file, seed: 0, phone: false, cmds: [], refuse: "", skip: "", titleStart: "" };
+  const sc = { name: path.basename(file, ".txt"), file, seed: 0, phone: false, cmds: [], refuse: "", skip: "", titleStart: "", creator: "" };
   let last = F(0), lineNo = 0;
   for (let ln of fs.readFileSync(file, "latin1").split("\n")) {
     lineNo++;
@@ -181,8 +183,8 @@ function parseScript(file) {
     last = ct;
     const a = tok.slice(1);
     a[0] = a[0].toLowerCase();
-    if (!sc.skip && a[0] === "expect" && (a[1] || "").toLowerCase() === "mode" && (a[2] || "").toLowerCase() === "creator")
-      sc.skip = `line ${lineNo} expect mode creator: under Witness New Game on the title skips the creator (main.cpp h.step wantNewGame -> startNew)`;
+    if (!sc.creator && a[0] === "expect" && (a[1] || "").toLowerCase() === "mode" && (a[2] || "").toLowerCase() === "creator")
+      sc.creator = `line ${lineNo} expect mode creator`;
     if (!sc.skip && a[0] === "blur") sc.skip = `line ${lineNo} blur: a Witness instance's hidden window never loses the focus (main.cpp fails 'blur' under Witness)`;
     // (the run's working directory is its instance folder, not the repo root as for run_scripts.sh: a repo-relative
     // file argument is made absolute)
@@ -194,6 +196,7 @@ function parseScript(file) {
   // a pool reset is a world in play (applyStart): a script that does anything before its first `newgame` needs the
   // title world a --script run starts on
   if (forceScripted && sc.cmds.length) sc.titleStart = "--scripted";
+  else if (sc.creator && sc.cmds.length) sc.titleStart = `${sc.creator}: the creator opens from the title (--witness-creator)`;
   else if (scriptedList.has(sc.name) && sc.cmds.length) sc.titleStart = `listed in ${path.basename(scriptedFile)}`;
   else if (!sc.cmds.length || sc.cmds[0].a[0] !== "newgame") sc.titleStart = sc.cmds.length ? `line ${sc.cmds[0].line} ${sc.cmds[0].a.join(" ")}` : "no lines";
   return sc;
@@ -432,7 +435,7 @@ async function worker(w) {
           };
           fs.writeFileSync(file, fs.readFileSync(sc.file, "latin1").split("\n").map(fix).join("\n"), "latin1");
         }
-        const si = await launchRetry(`${w}s`, ["--script", file], sc.name, log);
+        const si = await launchRetry(`${w}s`, [...(sc.creator ? ["--witness-creator"] : []), "--script", file], sc.name, log);
         try { const r = await runScripted(si, sc, log); rc = r.rc; frames = r.frames; v1 = r.v1; }
         catch (e) { log.unshift(`instance failed: ${errText(e)}`); rc = 255; }
         traceV1(si, log); await stop(si);

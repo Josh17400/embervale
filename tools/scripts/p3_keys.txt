@@ -1,0 +1,29 @@
+# P3 B5 (HARNESS): a script `key` on a movement key in play is a real tap. Before P3 `key d` pushed the down and up events
+# in one frame and the hero never turned (View::input moves and turns from held keys only); now it is held for exactly one
+# sim step. Each tap turns the hero to its facing (0 down, 1 up, 2 right, 3 left); menus still read the key events.
+#   node tools/gates/witness_pack.mjs --bdir build-solid --out <dir> tools/scripts/p3_keys.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 skill clearing 6
++0.2 p2cline face 0
++0.1 expect face 0
++0.1 key d
++0.1 expect face 2
++0.1 key w
++0.1 expect face 1
++0.1 key Left
++0.1 expect face 3
++0.1 key s
++0.1 expect face 0
++0.1 key Right
++0.1 expect face right
++0.1 key Tab
++0.3 expect mode menu
++0.1 key d
++0.1 expect mode menu
++0.1 key Escape
++0.3 expect mode play
++0.1 expect face right
++0.2 quit
