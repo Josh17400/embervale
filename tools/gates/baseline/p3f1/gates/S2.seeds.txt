@@ -1,0 +1,26 @@
+seed 1      ok    gen  <t>  sites  92  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 2/5 (grp 4, near 1, count 3)  greet 97%  bldg grp 26
+seed 2      ok    gen  <t>  sites  86  bot kills   0 lvl  1  step <t>  | poi 12/3  shapes 2/6 (grp 5, near 1, count 4)  greet 97%  bldg grp 31
+seed 3      ok    gen  <t>  sites  91  bot kills   5 lvl  1  step <t>  | poi 10/3  shapes 2/3 (grp 2, near 1, count 1)  greet 96%  bldg grp 20
+seed 4      ok    gen  <t>  sites 132  bot kills   4 lvl  1  step <t>  | poi 11/3  shapes 2/8 (grp 7, near 1, count 6)  greet 95%  bldg grp 22
+seed 5      ok    gen  <t>  sites  95  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 2/6 (grp 5, near 1, count 4)  greet 100%  bldg grp 34
+seed 6      ok    gen  <t>  sites 132  bot kills   7 lvl  2  step <t>  | poi 10/3  shapes 3/8 (grp 6, near 1, count 5)  greet 98%  bldg grp 34
+seed 7      ok    gen  <t>  sites 113  bot kills   0 lvl  1  step <t>  | poi 11/3  shapes 3/6 (grp 3, near 1, count 2)  greet 100%  bldg grp 60
+seed 8      ok    gen  <t>  sites  88  bot kills   0 lvl  1  step <t>  | poi 11/3  shapes 3/6 (grp 4, near 1, count 4)  greet 97%  bldg grp 38
+seed 9      ok    gen  <t>  sites 123  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 4/6 (grp 3, near 1, count 3)  greet 100%  bldg grp 24
+seed 10     ok    gen  <t>  sites 116  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 3/8 (grp 5, near 1, count 4)  greet 98%  bldg grp 33
+seed 11     ok    gen  <t>  sites 114  bot kills   7 lvl  2  step <t>  | poi 10/3  shapes 2/3 (grp 2, near 1, count 1)  greet 100%  bldg grp 19
+seed 12     ok    gen  <t>  sites  92  bot kills   0 lvl  1  step <t>  | poi 11/3  shapes 2/5 (grp 4, near 1, count 3)  greet 97%  bldg grp 26
+seed 13     ok    gen  <t>  sites  65  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 2/2 (grp 1, near 1, count 1)  greet 100%  bldg grp 19
+seed 14     ok    gen  <t>  sites  97  bot kills   3 lvl  1  step <t>  | poi 11/3  shapes 3/3 (grp 1, near 1, count 1)  greet 100%  bldg grp 32
+seed 15     ok    gen  <t>  sites 106  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 3/7 (grp 3, near 1, count 2)  greet 98%  bldg grp 40
+seed 16     ok    gen  <t>  sites  88  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 3/5 (grp 3, near 1, count 2)  greet 100%  bldg grp 25
+seed 17     ok    gen  <t>  sites  92  bot kills   1 lvl  1  step <t>  | poi 12/3  shapes 2/4 (grp 3, near 1, count 2)  greet 100%  bldg grp 20
+seed 18     ok    gen  <t>  sites  92  bot kills   0 lvl  1  step <t>  | poi 10/3  shapes 2/4 (grp 3, near 1, count 2)  greet 97%  bldg grp 20
+seed 19     ok    gen  <t>  sites 141  bot kills  12 lvl  2  step <t>  | poi 11/3  shapes 3/6 (grp 4, near 1, count 3)  greet 97%  bldg grp 27
+seed 20     ok    gen  <t>  sites  89  bot kills   4 lvl  1  step <t>  | poi 11/3  shapes 2/5 (grp 4, near 1, count 3)  greet 97%  bldg grp 22
+repetition audit over 20 seeds (informational):
+  poi kinds within 120 tiles of the start village: avg 10.6, min 10 (target >= 8); within 60: avg 3.0 (target >= 3)
+  settlement shapes: 47% distinct, worst same-shape group 7 world-wide, 1 within 120 tiles (target 1), same building count 6
+  greetings: 99% distinct per town on average, worst seed 95%
+  identical buildings: avg largest group 28.6, worst 60
+20 passed, 0 failed

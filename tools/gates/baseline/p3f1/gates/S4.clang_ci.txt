@@ -1,0 +1,70 @@
+ok rpg_test --seeds 1..20 <t> | 20 passed, 0 failed
+ok save_test <t> | save_test: ALL OK
+ok rpg_test --endless --seeds 1..10 --no-budget <t> | endless: 10 seeds, 0 failed (0 failures)
+ok rpg_test --window --seeds 1..5 <t> | window: 5 seeds, 0 failed (0 failures)
+ok rpg_test --towns --seeds 1..10 <t> | towns: 0 failures
+ok rpg_test --realm --seeds 1..10 <t> | realm: 0 failures
+ok rpg_test --history 2000 --seeds 1..20 <t> | history: 0 failures
+ok rpg_test --wards --seeds 1..10 <t> | wards: 0 failures
+ok rpg_test --story --seeds 1..5 <t> | story: 335 scripts cast, 27040 paths walked to an ending, 13648 ms; 0 failures
+ok rpg_test --sagalib <t> | sagalib: 12766 compositions, 0 failed; 0 failures
+ok rpg_test --sagas 2000 --seeds 1..5 <t> | sagas: 0 failures
+ok rpg_test --campaigns --seeds 1..5 <t> | campaigns: 70 walks, 9611 (stage, vars) states, 25 hooks offered a campaign, 5918 ms; 0 failures
+ok rpg_test --voice <t> | voice: 0 failures
+ok rpg_test --voice --lane <t> | voice lane: 73 archetypes, 8636 compositions, 0 failures
+ok rpg_test --life --seeds 1..5 <t> | life: 0 failures
+ok rpg_test --folk --seeds 1..5 <t> | folk: 0 failures
+ok rpg_test --gear --seeds 1..3 <t> | gear: 0 failure(s)
+ok rpg_test --power-curve <t> | power-curve: 0 failure(s)
+ok rpg_test --loot-audit <t> | loot-audit: 0 failure(s)
+ok rpg_test --foes --seeds 1..3 <t> | foes: 0 failure(s)
+ok rpg_test --arms --seeds 1..3 <t> | arms: ALL OK (0 failures)
+ok rpg_test --arms --seeds 1..3 --rig=1 <t> | arms: ALL OK (0 failures)
+ok rpg_test --loot <t> | loot: 0 failure(s)
+ok rpg_test --loot-sources --seeds 1..3 <t> | loot-sources: 0 failure(s)
+ok rpg_test --powers <t> | powers: 86 A/B runs, 0 failure(s)
+ok rpg_test --skills <t> | skills: OK (0 failures)
+ok rpg_test --spells <t> | spells: OK (0 failures)
+ok rpg_test --sea --seeds 1..3 <t> | sea: OK (0 failures)
+ok rpg_test --sail --seeds 1..3 <t> | sail: OK (0 failures)
+ok rpg_test --relief --seeds 1..3 --no-budget <t> | relief: 0 failures
+ok rpg_test --climb --seeds 1..3 <t> | climb: guards 36/36, far ways up 5/5, companions 6/6; worst search 2522 nodes, 0.20 ms; 0 failures
+ok rpg_test --rise --seeds 1..3 <t> | rise: 0 failures
+ok rpg_test --save-soak 100 <t> | save-soak: 0 failures
+ok rpg_test --service --seeds 1..3 <t> | service: 0 failures
+ok rpg_test --lord --seeds 1..3 <t> | lord: 0 failures
+ok rpg_test --quest-mix --seeds 1..20 --gates --p1b --gates-p1b --ports <t> | quest-mix gates: ok
+ok rpg_test --town-motion --seeds 1..8 --city --gates <t> | town-motion gates: ok
+ok rpg_test --jobs --seeds 1..3 <t> | PASS: --jobs
+ok rpg_test --life-p1 --seeds 1..3 --hooks <t> | life-p1: 0 failures (3 s)
+ok rpg_test --story-p1 --seeds 1..3 <t> | story-p1: 0 failures
+ok rpg_test --story-events --seeds 1..3 <t> |   FirstContact        2 events, in 2 seeds
+ok rpg_test --content-p1b --seeds 1..3 --gates <t> | content-p1b: seeds 1..3: 165 scripts and 261 composed jobs played, 10503 paths walked (6 s); 0 failures
+ok rpg_test --radiant --seeds 1..3 <t> | radiant: 15 kinds, 3480 compositions; offers: (not cast) fence 1, beacon 11, bounds 3, champion 7, feast 3, fence 5, hau
+ok rpg_test --p1b-engine --seeds 1..5 <t> | p1b-engine: seeds 1..5 (6 s): 0 failures
+ok rpg_test --rig <t> | rig: 0 failures
+ok rpg_test --anim --gates <t> | anim: 0 failures
+ok rpg_test --doll --gates <t> | doll: 0 failures
+ok rpg_test --doll-coverage --scope all --seeds 1..20 --gates <t> |   postures drawn on v1: 0 (0 body x posture)
+ok rpg_test --doll-variety --seeds 1..3 --gates <t> | ok    C11 fighters' faces        13 checks,    0 failed
+ok rpg_test --doll-ladder --selftest <t> | doll-ladder: 0 failing line(s)
+ok rpg_test --home --seeds 1..3 <t> | home: 0 failure(s)
+ok rpg_test --companion --seeds 1..3 <t> | companion: 0 failure(s)
+ok rpg_test --banter --seeds 1..3 <t> | banter: 0 failure(s)
+ok rpg_test --quests <t> | quests: 3 seeds, 0 failed (0 failures)
+ok rpg_test --mainquest <t> | mainquest: 10 seeds, 0 failed
+ok rpg_test --towns --golden <t> | towns golden: 201 hashes: ok
+ok rpg_test --villages --strict <t> | villages: 183 synthetic and 21 real villages, 196 changed since M7b (review them), character: ok
+ok rpg_test --structure --strict <t> | structure: 521 settlements (seeds 1..6, real regions 3): ok
+ok rpg_test --city-unique --strict <t> | city-unique: ok
+ok rpg_test --plan-controls <t> | controls: ok (0 similarity, 0 structure failures)
+ok rpg_test --dialogue --seeds 1..3 <t> | dialogue: 0 failures
+ok rpg_test --cultures 400 --seeds 1..5 <t> | cultures: OK
+ok rpg_test --builder --seeds 1..12 --strict --society-strict <t> | builder: 0 failure(s)
+ok rpg_test --biomes --seeds 1..5 --strict <t> | biomes: 0 failures
+ok rpg_test --forest --seeds 1..20 <t> | FOREST: OK
+ok rpg_test --specialties --seeds 1..20 <t> | specialties: 0 failures
+ok rpg_test --golden <t> | golden: 8 integer hashes, dsin/dcos err 3.5e-06, datan2 err 1.9e-06: ok
+ok rpg_test --endless --golden <t> | endless golden: 39 hashes: ok
+CLANG_CMDS=68
+CLANG_FAILS=0

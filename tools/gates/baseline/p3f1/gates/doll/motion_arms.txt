@@ -1,0 +1,41 @@
+full output: 490535 lines, sha256 be10cd16c4861a4fc49ce1961ef7336769f94ab081f201b9ac58851ea786faf0
+ HEAD ok dx +0 dy +0 (clip headX 0 headY 0) touch 8/6 loose 0/6
+ BUNCH ok apart, 0 interior contacts, far boot shows 19/20 = 95%
+ HIPLINE ok overhang 0 px; hem y-11 span -5..8 inside
+ ANKLE ok n min 6px/5.4 (1 rows) f min 6px/4.6 (2 rows)
+ BOOT ok n 19px T2.73 f 19px T2.73 shows 19 (idle 20px T3.00)
+ PUSH ok support f hip-ankle leans back 33 deg (>= 10)
+ BOOTTILT ok n tilt 26 T2.73 f tilt 26 T2.73 (idle axis 3 T3.00)
+ BOOTSIZE ok n 19px f 19px differ 0% (<= 10%)
+ POST ok support f hip-ankle 33 deg from vertical, knee bend 13
+ RHYTHM ok hold 6 px, cycle 6/6/6/6/6/6 spread 0 (<= 2)
+ BOB ok bob -1, cycle +0/-1/-2/+0/-1/-2 range 2 (<= 2)
+ AREA ok legs 99 / idle 85 = 116% (>= 89.5%)
+ HIPW ok hip row 9 px at F-10 (idle 11, at most 2 narrower)
+ SLIVER ok shortest visible run 6 px at u-4 y-7 (>= 3)
+ SQUAT ok bob -1 (<= +1)
+ JOINTS ok each leg one piece, boot-shin-thigh joined
+ GROUND ok 2 sole px on the ground row (> 0)
+m12_mantle_t6_w_great drun L5 [run6] ok
+ FARWIDTH ok far min 5 (idle 5)
+ LEGLEN ok n7.7 f6.3/7.4end (idle 8.1)
+ THICK ok nt4.1 ns5.2 ft4.9 fs5.3
+ HEAD ok dx +0 dy +0 (clip headX 0 headY 0) touch 8/6 loose 0/6
+ HIPLINE ok overhang 0 px; hem y-12 span -5..8 inside
+ ANKLE ok n min 5px/5.0 (2 rows) f min 5px/4.9 (1 rows)
+ BOOT ok n 22px T2.79 (3 under its shaft) f 21px T4.02 shows 17 (4 under its shaft) (idle 20px T3.00)
+ FLIGHT ok n sole y-3 f sole y-3 trailing f knee bend 90 deg
+ BOOTTILT ok n tilt 27 T2.79 f tilt 32 T4.02 (idle axis 3 T3.00)
+ BOOTSIZE ok n 22px f 21px differ 5% (<= 10%)
+ FOLD ok trailing f thigh 21 deg from vertical (rows 0) bend 36 (shin mass 36, far end 53; joints 7, rows 90); rows to y-10 (the hem y-12 + 2) span u-5..u8; below the hip rows 2 px behind (allowed)
+ POST ok lead n hip-ankle 20 deg from vertical, knee bend 32; flight lead n knee bend 32 (>= 25)
+ RHYTHM ok hold 6 px, cycle 6/6/6/6/6/6 spread 0 (<= 2)
+ BOB ok bob -2, cycle +0/-1/-2/+0/-1/-2 range 2 (<= 2)
+ AREA ok legs 92 / idle 85 = 108% (>= 89.5%)
+ HIPW ok hip row 9 px at F-11 (idle 11, at most 2 narrower)
+ SLIVER ok shortest visible run 5 px at u-3 y-9 (>= 3)
+ SQUAT ok bob -2 (<= +1)
+ JOINTS ok each leg one piece, boot-shin-thigh joined
+ GROUND ok 0 sole px on the ground row in the flight (0)
+ motion m12_mantle_t6_w_great 48 side frames: ok
+motion: 802 looks, 25248 side frames, 0 failure(s)

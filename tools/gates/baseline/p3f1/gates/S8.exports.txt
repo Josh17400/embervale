@@ -1,0 +1,1 @@
+exports ok (web.yml step, 4 lines): FS IDBFS addRunDependency removeRunDependency + indexedDB (172536 B js, 18222626 B wasm)

@@ -1,0 +1,17 @@
+# perf_pack record: recorded ALONE (2026-10-30 19:32, every one of 5 tools/slot.sh slots held by perf_pack, game_cap 5, no foreign embervale/rpg_test/compiler process), 7 clean runs (0 tainted runs redone), bdir build-solid-judge1, git 2aaa3fc. Gated noise <= 15%.
+cityperf.s1.step_avg min 0.132 median 0.135 max 0.137 noise 3.7% runs 7
+cityperf.s1.step_p99 min 0.300 median 0.300 max 0.340 noise 3.3% runs 7
+cityperf.s1.step_worst min 537.570 median 538.890 max 561.340 noise 0.7% runs 7
+cityperf.s2.step_avg min 0.126 median 0.127 max 0.132 noise 3.1% runs 7
+cityperf.s2.step_p99 min 0.040 median 0.040 max 0.050 noise 25.0% runs 7
+cityperf.s2.step_worst min 573.790 median 579.960 max 598.950 noise 2.4% runs 7
+cityperf.s3.step_avg min 0.117 median 0.121 max 0.129 noise 3.3% runs 7
+cityperf.s3.step_p99 min 0.040 median 0.050 max 0.070 noise 40.0% runs 7
+cityperf.s3.step_worst min 548.950 median 560.220 max 580.860 noise 3.8% runs 7
+cityperf.s1.townsfolk_lane min 0.018 median 0.018 max 0.019 noise 0.0% runs 7
+cityperf.s2.townsfolk_lane min 0.015 median 0.016 max 0.017 noise 6.3% runs 7
+cityperf.s3.townsfolk_lane min 0.016 median 0.017 max 0.019 noise 11.8% runs 7
+chunkbench.ms_per_chunk min 0.972 median 0.979 max 1.008 noise 1.4% runs 7
+frame.step_med min 0.334 median 0.344 max 0.368 noise 7.3% runs 7
+frame.shot_med min 7.485 median 7.947 max 8.742 noise 11.0% runs 7
+frame.step_worst min 2.329 median 2.449 max 7.552 noise 9.1% runs 7
