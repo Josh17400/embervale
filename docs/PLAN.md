@@ -3928,6 +3928,31 @@ rig 1 untouched.**
   P3: main's creator hotfix ecdcb5f (Game::heroLook shared by the game and the creator preview; the T1 floor jerkin quilted
   in the wearer's shirt colour, owner "yes").
 
+**Fix batch P4, ART (2026-11-02; docs/FIX_BATCH_P4.md 7 item 6e, 9.5). Every change below is PENDING THE OWNER'S REVIEW
+(the owner pack's before/after sheets, `p4-pack/ART`); nothing drawn was deleted (`when leather-coat` views ADDed), rig 1
+untouched.**
+- **D116. The leather gambeson is leather** (6e; W7 seed 7: "a LEATHER GAMBESON is a cream tunic beside my own jerkin").
+  gear_look's M6 rule painted a padded coat in its maker's cloth, and the doll drew the gambeson's quilt in undyed buff
+  (his cloth3, her linen) whatever it was made of. Now a worn padded coat of leather (the resolver's `leather-coat`: armour
+  padded, armour band 1, never the T1 floor's jerkin, never a herald's cloth) draws its `when leather-coat` re-cut, ADDed to
+  armour/{man,woman}/padded.pxm and padded_hang.pxm by tools/doll/p4_leather.py for every view (base, tier `replace` and
+  overlay): the same mask, origin, regions and build row (T1 as slim and simple as before), the quilt in the wearer's
+  leather step for step (the channels read as stitched panels), the belt a step darker so it still parts from the hide, and
+  the front laced in rawhide (cloth3 buff: facing D a criss-cross down the centre from the collar to the belt, facing R / L
+  a run of lace eyes inside the front edge; the back and the lying body plain). The laces' lit crossing is the buff's lit
+  step, brighter than the hide's lit plane (the delight line). At rig 2 the shirt under a leather gambeson stays the
+  wearer's own (gear_look: no maker's-cloth topColor for a leather padded coat), as under a leather jerkin; rig 1 keeps the
+  M6 rule. The floor jerkin (hotfix ecdcb5f) and the bronze brigandine (D114) are unchanged. Every leather-gambeson wearer
+  moves: the hero and companions who wear one, and census men in a padded leather coat (a leather man's quilted coat).
+- **D117. Every body-armour icon wears its material** (6e; W7 shot C1: "a grey-white vest for both leather and bronze").
+  art_items bodyIcon painted a padded coat and a brigandine in the maker's cloth (a people whose metal body form is the
+  brigandine showed bronze, iron and steel as one cloth vest). Now: a leather gambeson is quilted leather laced up the
+  front in rawhide with a dark belt; a brigandine is courses of plates in its metal (the shoulders too), the maker's cloth
+  in the seams between them, a rivet head every third pixel on each plate's lit edge (as the doll's D114 coat); iron's body
+  icon sits a step under its ramp (two under a gilt rim) and bronze's body a third of a step toward its cream glint, so the
+  four read apart at 16 px. The leather cap, gloves and boots icons were already the leather ramp (unchanged). Measured by
+  tools/preview/icons_gallery --check (new): every maker's leather, bronze, iron and steel coats pairwise >= 30 in mean RGB.
+
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It

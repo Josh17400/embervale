@@ -333,8 +333,11 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
     // (M6 fixer round 2, review: "a worn padded gambeson does not look like its icon: the shirt's colour, quilted to
     // a checker") a padded coat or a brigandine is cloth: the maker's cloth, as its icon shows it (gearIcon's accent),
     // never the shirt under it
+    // (P4 ART, 6e, D116) at rig 2 a padded coat of LEATHER is the wearer's leather, laced (the doll's `leather-coat` re-cut, the
+    // icon's laced hide): the shirt under it stays the wearer's own, as under a leather jerkin. Rig 1 keeps the M6 rule.
     const cult::BodyArm bf = (cult::BodyArm)(L.bodyForm - 1);
-    if (A.cloth && (bf == cult::BodyArm::Padded || bf == cult::BodyArm::Brigandine)) L.topColor = A.cloth | 0xFF000000u;
+    const bool leatherCoat = bf == cult::BodyArm::Padded && metal(g.armor).band == 1 && art::rigVersion() >= 2;
+    if (A.cloth && !leatherCoat && (bf == cult::BodyArm::Padded || bf == cult::BodyArm::Brigandine)) L.topColor = A.cloth | 0xFF000000u;
   }
   if (const cult::Culture* c = maker(g.shield)) {
     L.shieldForm = shieldFormOf(*g.shield, c->arms);
