@@ -497,6 +497,7 @@ class Game {
   void partySay(int member, const std::string& line, float secs = 4.0f);
   //   the companion's look: their census look (or their generated one) dressed in their gear in its makers' styles
   art::HumanLook partyLook(const party::Member& m) const;
+  art::HumanLook heroLook(const Appearance& app) const;   // recalcPlayer's look: app dressed in the equipped gear (player.cpp)
   //   (M8 lead; rpg/sim/life_game.cpp) a census resident's street look on any actor, as the TOWNSFOLK rules dress them:
   //   the look, the name and the role the census gives them. false: no such resident
   bool dressAsResident(Actor& a, ew::Gid site, int idx);

@@ -11,6 +11,7 @@
 #include "rpg/sim/game_internal.h"
 #include "tools/tests/tests.h"
 #include "rpg/sim/quest_ops.h"
+#include "rpg/world/source.h"
 
 namespace {
 // the nearest site of a type to the start village (exclude: skip this one)
@@ -395,8 +396,29 @@ int shelfValue(Game& g, art::Building type, Role role) {
   return v;
 }
 
-int backgroundChecks(const Game& base) {
+// the creator's preview (creator.cpp lookOf: heroLook of the appearance as created) is the hero who walks out of it.
+// Owner 2026-11-01: "when they start the game their character isn't the one they created" (the preview skipped the
+// created face hash and the starting kit's T1 jerkin).
+int creatorLookChecks(const Game& base) {
   int bad = 0;
+  for (int k = 0; k < 6; k++) {
+    Game g = base;
+    Appearance& a = g.app;
+    a.name = k & 1 ? "ASTRID" : "AELA"; a.female = k & 1; a.build = (uint8_t)(k % 3); a.hair = (uint8_t)(1 + k % 4);
+    a.beard = !a.female && k > 2; a.people = (uint8_t)(k % 3); a.topColor = rgba(40 + 30 * k, 90, 160 - 20 * k);
+    if (k >= 3 && g.world.src) a.homeland = g.world.src->cultureAt(g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE));
+    g.background = (Background)(1 + k % ((int)Background::COUNT - 1));
+    Appearance shown = a;
+    shown.created = true;
+    const uint64_t preview = g.heroLook(shown).key();
+    g.finishCreator();
+    if (g.pl().look.key() != preview) { out("FAIL: creator: hero %d leaves the creator looking unlike its preview\n", k); bad++; }
+  }
+  return bad;
+}
+
+int backgroundChecks(const Game& base) {
+  int bad = creatorLookChecks(base);
   Game none = withBackground(base, Background::None);
   // blacksmith's child: smiths charge a fifth less; urchin: merchants a little less
   {

@@ -21,7 +21,6 @@
 #include "rpg/world/coords.h"
 #include "rpg/world/source.h"
 
-art::HumanLook appearanceLook(const Appearance& a, const cult::Culture* home);   // rpg/sim/player.cpp
 
 namespace {
 const Color kGoldC(0.98f, 0.82f, 0.42f), kTextC(0.93f, 0.9f, 0.82f), kDimC(0.62f, 0.58f, 0.52f);
@@ -161,11 +160,13 @@ void randomizeLooks(Appearance& a) {
   if (g_rng.f() < 0.55f) a.beard = false;   // fewer beards than a coin flip
 }
 
-// the creator's preview look: the appearance in a shirt and trousers (rpg/sim/player.cpp dresses the same way)
-// (M3: the shared builder in player.cpp, with the people, the homeland's cut and the personal arms' field)
+// the creator's preview look: exactly the hero recalcPlayer will make (Game::heroLook, rpg/sim/player.cpp), as created:
+// the face and the cut within the hair family that finishCreator's hash gives, in the starting kit (an empty body slot
+// drawn as T1's jerkin). Owner 2026-11-01: "when they start the game their character isn't the one they created".
 art::HumanLook lookOf(const Game& g) {
-  const cult::Culture* home = g.app.homeland && g.world.src ? &g.world.src->culture(g.app.homeland) : nullptr;
-  return appearanceLook(g.app, home);
+  Appearance a = g.app;
+  a.created = true;
+  return g.heroLook(a);
 }
 
 // ---- M3: homeland and personal arms
