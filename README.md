@@ -31,6 +31,13 @@ Each answer names the file and the symbol to open.
 | the dialogue routing | `rpg/sim/dlg_routes.cpp`: `kDlgRoutes`, one row per `DLG_*` range (`rpg/sim/game_types.h`) |
 | a saved mark tag | `rpg/sim/mark_tags.h`: `kMarkTags`, `kMarkRanges`, `markKey` |
 | which lane hooks tests may call | the `API (SOLID 5.6)` block above the struct in each `rpg/sim/*_ops.h` |
+| a companion's own kit, gifts and the hero's gifts handed back | `rpg/sim/party_game.cpp`: `kKit` (one row per vocation), `PartyOps::kit`, `wearKit`, `giftsBack`; the kit flag is `IF_KIT` (`rpg/sim/items.h`, `party::isKit`); the gift rule is `party::` over `gear::verdictAt` (`rpg/sim/party.h`) |
+| the death pile and the parted roll (a friend who rejoins as themselves) | `rpg/sim/party_game.cpp`: `PartyOps::dropAll` (everything on the ground, 240 s), `part`, `rejoin`; the record is `Party::parted` / `party::Parted` (`rpg/sim/party.h`, `MAX_PARTED`, `partedOf`), saved in the party block (version 5) |
+| relics (the old makers' metals), war spoils and the luck gate | `rpg/sim/gear.h`/`gear.cpp`: `DropSpec::relicPct`, `relicChosen`, `LUCK_LEGENDARY_FROM`/`LUCK_MYTHIC_FROM`, `SHELF_ALLOY_CAP`, `makeGearCapped`; where a drop gets its share: `rpg/sim/game_items.cpp` (`oldPlacePct`); war spoils: `WarOps::spoils` (`rpg/sim/war_game.cpp`, `LootSrc::Spoils`) |
+| the words an item card and the HUD show (maker row, compare verdict) | `rpg/sim/gear.h`: `gear::makerLine` (the card's maker row), `gear::verdictAt` / `betterAt` (the compare arrow and the gift rule); the card lays its rows out in `rpg/view/loot_paint.h` (`CardRow::prio`, the fit step) |
+| the creator under the harness | `rpg/app/app_setup.cpp`: the `--witness-creator` flag (`App::wCreatorLaunch`, `wCreator`, `rpg/app/app.h`); `App::openCreator`; a reset's `"creatorUi": true` (`rpg/app/witness_driver.cpp`) |
+| the gear ladder's pace checks | `tools/tests/test_loot_pace.cpp`: `rpg_test --ladder-pace [--worlds A..B] [--report] [--gates]` (LP1-LP3 tiers, P3's Batch B rows LP4+) |
+| the P3 batch's script checks | `rpg/view/scripts/view_p3.cpp` (`expect zoomscale`, `expect toast`, `expect cardmaker`, `p3kit`, `p3parted`, `p3boss` ...) and `rpg/view/scripts/harness_p3.cpp` (`expect face`) |
 
 ## Build
 
@@ -48,7 +55,7 @@ Each answer names the file and the symbol to open.
 - `tools/gates/step_gates.sh --bdir <dir> --out <dir>`: the step gates (build, seeds, saves, art and freeze hashes,
   village art, Witness smoke, sim digest, view and audio packs, layer and move checks). `tools/gates/wave_gates.sh` adds
   every script, Witness x2, the doll gates, first launch and perf. Each script's header documents it. The records live
-  in `tools/gates/baseline/<root>/`, the root named by `tools/gates/baseline/CURRENT` (`119de74`, wave 0's); a batch
+  in `tools/gates/baseline/<root>/`, the root named by `tools/gates/baseline/CURRENT` (`p3`, the P3 batch's root; `119de74`, wave 0's, stays as it was); a batch
   moves one only through declared moves and `tools/gates/rebase_baseline.sh` (`tools/gates/baseline/README.md`).
 - `tools/gates/size_report.sh --check tools/gates/baseline/<root>/checks/size_report.txt --renames
   tools/gates/size_renames.txt`: no new file over 2,000 lines or function over 300 (renamed functions mapped).
@@ -157,7 +164,7 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 |---|---|
 | `tools/tests/` | `rpg_test`: one `test_<subject>.cpp` per lane, each command registered with `RPG_TEST_CMD` (`tools/tests/tests.h`); the doll tests share `doll_test_common.h`/`doll_test_common.cpp` (looks lines, cross-file entry points) and register their gates with `RPG_DOLL_GATE(order, name, fn)`, run in key order by `rpg_test --doll --gates` |
 | `tools/gates/` | the gate harness: `step_gates.sh`, `wave_gates.sh`, `witness_pack.mjs`, `move_check.sh`, `check_layers.sh` (+ `layers_allow.txt`), `size_report.sh` (+ `size_renames.txt`), `lib.sh` (shared: `slot_alone`, the CPU quiet wait, the baseline root), `rebase_baseline.sh` |
-| `tools/gates/baseline/` | the gate records: `CURRENT` names the root (`119de74/`), `moves/<AREA>.txt` a batch's declared moves, `README.md` how a baseline moves |
+| `tools/gates/baseline/` | the gate records: `CURRENT` names the root (`p3/`; the older `119de74/` is kept), `moves/<AREA>.txt` a batch's declared moves, `README.md` how a baseline moves |
 | `tools/preview/` | the gallery exes (one PNG sheet per art family) |
 | `tools/doll/` | doll tooling: `pxc.mjs` (makes `rpg/art/doll/gen/`), looks lists, the freeze manifests |
 | `tools/scripts/` | the game scripts (`*.txt`): timed commands that drive the game and take shots |

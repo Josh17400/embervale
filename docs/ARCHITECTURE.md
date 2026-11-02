@@ -101,9 +101,9 @@ stays a Game member, so those layers did not change. Where each lane's hooks liv
 | `LifeHooks` | `life_hooks.h` | `life_game.cpp` and its cluster files, `life_raids.cpp`, `life_quests.cpp` | townsfolk and citizens: step, talk, choose, raids |
 | `FoeHooks` | `foe_hooks.h` | `foes_game.cpp` | elites, champions, uniques, boss phases, world bosses, culture arms |
 | `CraftHooks` | `craft_hooks.h` | `craft_game.cpp` | crafting's talk and choose |
-| `HomeOps`, `PartyOps`, `PartyTalkOps`, `LootOps`, `PowerOps`, `ClimbOps` | their lane headers (`ClimbOps` in `game.h`) | their lane files | the existing Ops structs, now holding the hooks too |
+| `HomeOps`, `PartyOps`, `PartyTalkOps`, `LootOps`, `PowerOps`, `ClimbOps` | their lane headers (`ClimbOps` in `game.h`) | their lane files | the existing Ops structs, now holding the hooks too; P3: `PartyOps::kit`/`wearKit`/`giftsBack`/`part`/`rejoin`/`dropAll` (companion kit `IF_KIT`, gifts, the parted roll `Party::parted`, the death pile) in `party_game.cpp`; relics, the luck gate and `gear::makerLine`/`verdictAt` in `gear.h`/`gear.cpp` |
 | `RealmOps` | `realm_ops.h` | `realm_game.cpp` | `RealmOps::step`, the living world's step |
-| `WarOps` | `war_ops.h` | `war_game.cpp` | siege camps, patrols, refugees, the war's talk, choose and kills |
+| `WarOps` | `war_ops.h` | `war_game.cpp` | siege camps, patrols, refugees, the war's talk, choose and kills; `WarOps::spoils` (P3: war spoils, a fallen soldier's gear) |
 | `TravelOps` | `travel_ops.h` | `travel.cpp`, `prep_interior.cpp` | travel behind the fade, the interior made ahead |
 | `WaysideOps` | `wayside_ops.h` | `wayside.cpp` | vignettes, ambushes, tolls, stones, graves, rumours |
 | `QuestOps` | `quest_ops.h` | `quests.cpp`, `quest_offers.cpp`, `game_quests.cpp` | offer builders, quest ticks, markers, escorts, the main quest |
