@@ -7,6 +7,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_forge.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +18,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/view.h"
+#include "rpg/view/hud_layout.h"
 #include "rpg/view/view_probe.h"
 
 namespace {
@@ -186,6 +188,243 @@ void dollJson(witness::Json& j, const View& v, const Actor& P) {
   }
   j.end_object();
 }
+
+// ---- (P4 WITNESS, FIX_BATCH_P4 section 6) what testers can read: the shop, the menu page, the ground loot, the gifts,
+// the danger and the screen's text. Read-only; state.menu stays the bare tab int determinism and touch_snapshot read.
+const char* kindName(ItemKind k) {
+  static const char* n[] = {"weapon", "bow", "staff", "armor", "helmet", "shield", "ring", "amulet", "potion", "food", "arrows", "misc",
+                            "quest", "gloves", "boots", "cloak", "material", "book"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)ItemKind::COUNT, "a name for every item kind");
+  return (size_t)k < sizeof(n) / sizeof(n[0]) ? n[(int)k] : "misc";
+}
+std::string rarityWord(Rarity r) {
+  std::string s = rarityName(r);
+  for (char& c : s) c = (char)std::tolower((unsigned char)c);
+  return s;
+}
+// the price a row shows (shop_ui.cpp shopPrice: a stall's value, or what the merchant pays with Speech's bonus)
+int rowPrice(const Game& g, const Item& it, bool buying) {
+  if (buying) return it.kind == ItemKind::Arrows ? it.count : it.value;
+  return std::max(1, (int)((float)gear::sellPrice(it) * SkillOps::sellMul(g) + 0.5f));
+}
+// a row's words as the list draws them: the name, " x<count>", " (E)" on a worn piece
+std::string rowName(const Item& it) {
+  return it.name + (it.count > 1 || it.kind == ItemKind::Arrows ? " x" + std::to_string(it.count) : std::string());
+}
+// state.shop: the open stall (null when none). deal is the line the panel shows for the row under the cursor
+// (drawShop's words; a worn piece's first Enter arms the sale: "YOU WEAR IT - PRESS ENTER AGAIN TO SELL")
+void shopJson(witness::Json& j, const Game& g, const View& v, std::vector<std::string>& lines) {
+  if (g.mode != Mode::Shop) { j.key("shop").value(nullptr); return; }
+  const int side = ViewProbe::shopSide(v), sel = ViewProbe::shopCursor(v), armedAt = ViewProbe::shopArmed(v);
+  int purse = -1;
+  { const auto pu = g.craft.live.purse.find(g.shop.key); if (pu != g.craft.live.purse.end()) purse = pu->second.second; }
+  const std::vector<Item>& src = side == 0 ? g.shop.stock : g.inv;
+  std::string deal;
+  if (sel >= 0 && sel < (int)src.size()) {
+    const int price = rowPrice(g, src[(size_t)sel], side == 0);
+    const bool armed = side == 1 && armedAt == sel;
+    if (side == 0) deal = g.gold < price ? "NOT ENOUGH GOLD" : "BUY FOR " + std::to_string(price) + " GOLD";
+    else if (armed) deal = v.touchUI ? "YOU WEAR IT - TAP AGAIN TO SELL" : "YOU WEAR IT - PRESS ENTER AGAIN TO SELL";
+    else if (purse >= 0 && price > purse) deal = purse > 0 ? "SELL FOR HIS LAST " + std::to_string(purse) + " GOLD" : "HE HAS NO GOLD LEFT";
+    else deal = "SELL FOR " + std::to_string(price) + " GOLD";
+  }
+  constexpr size_t kRows = 40;
+  j.key("shop").begin_object().field("title", g.shop.title).field("side", side == 0 ? "buy" : "sell").field("cursor", sel)
+      .field("gold", g.gold).field("purse", purse).field("deal", deal);
+  lines.push_back(g.shop.title);
+  lines.push_back("YOUR GOLD " + std::to_string(g.gold) + (purse >= 0 ? "  HIS PURSE " + std::to_string(purse) : std::string()));
+  lines.push_back(std::string(side == 0 ? "[BUY]" : "BUY") + " - what he sells:");
+  j.key("stock").begin_array();
+  for (size_t i = 0; i < g.shop.stock.size() && i < kRows; i++) {
+    const Item& it = g.shop.stock[i];
+    const int price = rowPrice(g, it, true);
+    j.begin_object().field("i", (int)i).field("name", rowName(it)).field("price", price).field("canAfford", g.gold >= price)
+        .field("rarity", rarityWord(it.rarity)).field("kind", kindName(it.kind)).end_object();
+    lines.push_back(std::string(side == 0 && (int)i == sel ? "> " : "  ") + std::to_string(i + 1) + ") " + rowName(it) + " - " +
+                    std::to_string(price) + " GOLD" + (g.gold >= price ? "" : " (TOO DEAR)"));
+  }
+  if (g.shop.stock.empty()) lines.push_back("  SOLD OUT");
+  j.end_array();
+  lines.push_back(std::string(side == 1 ? "[SELL]" : "SELL") + " - your pack:");
+  j.key("pack").begin_array();
+  for (size_t i = 0; i < g.inv.size() && i < kRows; i++) {
+    const Item& it = g.inv[i];
+    const int price = rowPrice(g, it, false);
+    const bool worn = hudlay::equipped(g, (int)i);
+    j.begin_object().field("i", (int)i).field("name", rowName(it)).field("price", price).field("worn", worn).end_object();
+    lines.push_back(std::string(side == 1 && (int)i == sel ? "> " : "  ") + std::to_string(i + 1) + ") " + rowName(it) + (worn ? " (WORN)" : "") +
+                    " - " + std::to_string(purse >= 0 ? std::min(price, std::max(0, purse)) : price) + " GOLD");
+  }
+  if (g.inv.empty()) lines.push_back("  NOTHING TO SELL");
+  j.end_array().end_object();
+  if (!deal.empty()) lines.push_back(deal);
+  lines.push_back(v.touchUI ? "TAP AN ITEM, THEN THE BUTTON" : "ARROWS SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE");
+}
+// state.menuPage: the open menu's page (null when closed): its tab name and index, the row cursor, the rows on show
+// (at most 24, from `first`) and the page's key hint (VIEW's menuTabName / menuHint, hud_layout.h)
+void menuPageJson(witness::Json& j, const Game& g, const View& v, std::vector<std::string>& lines) {
+  if (g.mode != Mode::Menu) { j.key("menuPage").value(nullptr); return; }
+  const int tab = ViewProbe::menuTab(v), cur = ViewProbe::menuCursor(v);
+  std::vector<std::string> rows;
+  int cursor = cur;
+  j.key("menuPage").begin_object().field("tab", menuTabName(tab)).field("index", tab);
+  if (tab == 0) {   // ITEMS: the pack, worn pieces marked
+    for (size_t i = 0; i < g.inv.size(); i++) rows.push_back(rowName(g.inv[i]) + (hudlay::equipped(g, (int)i) ? " (WORN)" : ""));
+  } else if (tab == 1) {   // QUESTS: the journal's rows (open quests, leads, finished), the tracked one marked
+    if (ViewProbe::journalSection(v) == 0) {
+      for (const hudlay::JRow& r : hudlay::journalRows(g)) {
+        if (r.q >= 0) {
+          const Quest& q = g.quests[(size_t)r.q];
+          rows.push_back(q.title + (q.id == g.trackedQuest ? " (TRACKED)" : "") + (q.state == QState::Done ? " (DONE)" : ""));
+        } else rows.push_back("LEAD: " + g.jobBook.leads[(size_t)r.lead].text);
+      }
+    }
+    j.field("section", ViewProbe::journalSection(v));
+  } else if (tab == 5) {   // EQUIP: each slot and what it wears; the cursor is the slot, the candidate the pack piece picked
+    const ViewProbe::EquipPage e = ViewProbe::equipPage(v, g);
+    for (const ViewProbe::EquipRow& r : e.slots) rows.push_back(r.slot + ": " + (r.item.empty() ? std::string("-") : r.item));
+    cursor = e.slot;
+    j.field("slot", e.slots.empty() ? std::string() : e.slots[(size_t)e.slot].slot).field("candidate", e.candidate)
+        .field("candidateWorn", e.candidateWorn).field("candidates", e.candidates);
+  }
+  constexpr int kRows = 24;
+  const int n = (int)rows.size(), first = std::clamp(cursor - kRows / 2, 0, std::max(0, n - kRows));
+  j.field("cursor", cursor).field("first", first).field("count", n);
+  const std::string hint = menuHint(tab, v.touchUI);
+  j.key("rows").begin_array();
+  {
+    std::string strip;
+    for (int i = 0; i < hudlay::nTabs(); i++) {
+      const int t = hudlay::tabAt(i);
+      strip += (i ? " " : "") + (t == tab ? "[" + std::string(menuTabName(t)) + "]" : std::string(menuTabName(t)));
+    }
+    lines.push_back(strip);
+  }
+  for (int i = first; i < n && i < first + kRows; i++) {
+    j.value(rows[(size_t)i]);
+    lines.push_back((i == cursor ? "> " : "  ") + rows[(size_t)i]);
+  }
+  if (tab == 5) {
+    const ViewProbe::EquipPage e = ViewProbe::equipPage(v, g);
+    lines.push_back(e.cand >= 0 ? "PICKED: " + e.candidate + (e.candidateWorn ? " (WORN)" : "") : std::string("NOTHING IN THE PACK FOR THIS SLOT"));
+  }
+  j.end_array().field("hint", hint).end_object();
+  if (!hint.empty()) lines.push_back(hint);
+}
+// the ground loot within 20 tiles as things (nearest first, at most 12): ids 49200000 + the pickup's index; type Gold for
+// a purse, else Item; kind item, item: true (witness.json play.item), so `pickup` walks over them. Pieces already flying
+// to the hero (magnet) are left out: they are his.
+void groundLootJson(witness::Json& j, const Game& g, const Actor& P) {
+  struct Near { float d; size_t i; };
+  std::vector<Near> near;
+  for (size_t i = 0; i < g.pickups.size(); i++) {
+    if (g.pickups[i].magnet) continue;
+    const float d = len(g.pickups[i].p - P.p) / TILE;
+    if (d <= 20.0f) near.push_back({d, i});
+  }
+  std::stable_sort(near.begin(), near.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
+  for (size_t k = 0; k < near.size() && k < 12; k++) {
+    const Pickup& pk = g.pickups[near[k].i];
+    const bool gold = pk.gold > 0 && pk.item.name.empty();
+    j.begin_object().field("id", 49200000 + (int)near[k].i).field("type", gold ? "Gold" : "Item").field("kind", "item").field("item", true)
+        .field("name", gold ? std::to_string(pk.gold) + " GOLD" : rowName(pk.item));
+    if (!gold) j.field("rarity", rarityWord(pk.item.rarity));
+    j.key("pos"); tilePos(j, pk.p, g);
+    j.field("dist", r2(near[k].d)).field("hostile", false).field("talk", false).end_object();
+  }
+}
+// the place's level (the dungeon's inside a cave, ruin or shrine; else the zone's where the hero stands, or, inside a
+// building, at its door) and the danger: that level less the hero's (hud.cpp's skull reads the same gap)
+void dangerJson(witness::Json& j, const Game& g) {
+  int level = 0;
+  bool have = false;
+  if (g.inside && g.subBldg < 0 && g.subSite >= 0 && g.subSite < (int)g.world.sites.size()) { level = g.world.sites[(size_t)g.subSite].level; have = true; }
+  else if (g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size()) {
+    const Bldg& b = g.world.over.bldgs[(size_t)g.subBldg];
+    level = g.world.zoneLevel(b.doorX(), b.doorY()); have = true;
+  } else if (!g.inside && g.world.endless) {
+    level = g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)); have = true;
+  }
+  if (have) j.field("level", level).field("danger", level - g.plLevel);
+}
+// (agent playtests) outside: the doors of the public buildings within 40 tiles, nearest first (at most 8), so "goto
+// Inn" walks in (stepping onto a door enters). kind "building"; the id is the door's global tile (stable while the
+// window shifts), far above any actor id
+void doorsJson(witness::Json& j, const Game& g, const Actor& P) {
+  struct Door { float d; int bi; };
+  std::vector<Door> doors;
+  const auto& B = g.world.over.bldgs;
+  for (size_t bi = 0; bi < B.size(); bi++) {
+    if (!buildingType(B[bi].type) || B[bi].charred || B[bi].home == 3) continue;
+    const float d = std::hypot(B[bi].doorX() + 0.5f - P.p.x / TILE, B[bi].doorY() + 0.5f - P.p.y / TILE);
+    if (d <= 40.0f) doors.push_back({d, (int)bi});
+  }
+  std::stable_sort(doors.begin(), doors.end(), [](const Door& a, const Door& b) { return a.d < b.d; });
+  for (size_t i = 0; i < doors.size() && i < 8; i++) {
+    const Bldg& b = B[(size_t)doors[i].bi];
+    const int32_t gx = g.world.ox + b.doorX(), gy = g.world.oy + b.doorY();
+    const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
+    // door: the playtest keeps off it unless it is the goal; leadsTo: `goto Inn` enters by it
+    j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false)
+        .field("door", true).field("leadsTo", buildingType(b.type)).field("enter", "n");   // doors face south: push north (up) onto the door tile
+    j.key("pos").vec(gx + 0.5, gy + 0.5);
+    j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
+  }
+}
+// (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
+void screenJson(witness::Json& j, const View& v) {
+  const Pix::Layer& ul = ViewProbe::uiLayerForTests(v);
+  const Pix::Layer& wl = ViewProbe::worldLayerForTests(v);
+  int pw = 0, ph = 0;
+  ViewProbe::outputSizeForTests(v, pw, ph);
+  const screen::Settings ss = screen::get();
+  j.key("screen").begin_object();
+  j.key("window").vec(pw, ph);
+  j.key("ui").begin_object().field("w", ul.w).field("h", ul.h).field("scale", r2(ul.scale))
+      .field("integer", std::fabs(ul.scale - std::round(ul.scale)) < 1e-4f).end_object();
+  j.key("world").begin_object().field("w", wl.w).field("h", wl.h).field("scale", r2(wl.scale))
+      .field("integer", std::fabs(wl.scale - std::round(wl.scale)) < 1e-4f).field("d0", screen::defaultWorldScale())
+      .field("want", screen::worldScale()).key("levels").begin_array();
+  for (int d : screen::zoomLevels()) j.value(d);
+  j.end_array().end_object();
+  j.field("zoom", ss.zoom).field("zoomName", screen::zoomName(ss.zoom)).field("ring", ss.ring)
+      .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
+      .field("v1Draws", v.v1Draws).field("v1DrawsRun", (int)v.v1DrawsRunAt(2)).field("peopleMB", r2(v.peopleMB())).field("rigMB", r2(v.lensStats.rigMB)).field("rigCapMB", r2(v.rigCapMB()))
+      .field("rigEvictions", v.lensStats.rigEvictions).field("rigRebakes", v.lensStats.rigRebakes).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
+  j.end_object();
+  // (Witness 0.7.1) the layers in screen pixels, so measure scale / doctor read each one at its own scale: the world
+  // layer (integer D) and the UI layer (its fit scale); rect [x, y, w, h]
+  auto layer = [&](const char* name, const Pix::Layer& l) {
+    j.begin_object().field("name", name).key("rect").begin_array().value(l.offX).value(l.offY)
+        .value((int)std::lround(l.w * l.scale)).value((int)std::lround(l.h * l.scale)).end_array().end_object();
+  };
+  j.key("layers").begin_array();
+  layer("world", wl);
+  layer("ui", ul);
+  j.end_array();
+  // (P2c SWITCH) the menu figures drawn last frame (C7): where, the rig they came from, the whole multiple, the rect and
+  // the stage on the UI layer (UI px), cropped (the rect leaves its stage), the furthest finish light off the silhouette
+  // (auraOut, px; -1 none), the lights drawn, the doll part / clip / frame / facing and the look's top tier
+  static const char* const kWhere[] = {"paperdoll", "creator", "hero", "party", "dialogue", "portrait", "loot"};
+  j.key("menus").begin_array();
+  for (const View::MenuFigure& f : v.menuFigs) {
+    j.begin_object().field("where", f.where >= 0 && f.where < View::kMenuWhereN ? kWhere[f.where] : "?").field("rig", f.rig).field("scale", f.scale)
+        .key("rect").begin_array().value(r2(f.x)).value(r2(f.y)).value(f.w).value(f.h).end_array()
+        .key("stage").begin_array().value(r2(f.stage.x)).value(r2(f.stage.y)).value(r2(f.stage.w)).value(r2(f.stage.h)).end_array()
+        .field("cropped", f.cropped).field("auraOut", f.auraOut).field("lights", f.lights).field("part", f.part).field("clip", f.clip)
+        .field("frame", f.frame).field("facing", f.facing).field("tier", f.tier).end_object();
+  }
+  j.end_array();
+}
+// state.dialogue.gifts: the names handed over in this conversation (the toasts VIEW marks dlg, "+ NAME" -> "NAME")
+void giftsJson(witness::Json& j, const View& v) {
+  j.key("gifts").begin_array();
+  for (const Toast& t : v.toastsShown()) {
+    if (!t.dlg) continue;
+    j.value(t.s.rfind("+ ", 0) == 0 ? t.s.substr(2) : t.s);
+  }
+  j.end_array();
+}
 }  // namespace
 
 void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessExtra& x) {
@@ -193,13 +432,21 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.begin_object();
   j.field("mode", modeName(g.mode)).field("day", g.day).field("hour", r2(g.hour)).field("time", r2(g.time));
   if (g.mode == Mode::Menu) j.field("menu", ViewProbe::menuTab(v));
+  {   // (P4 WITNESS) the shop, the menu page and the screen's text in reading order (only while one is open)
+    std::vector<std::string> lines;
+    shopJson(j, g, v, lines);
+    menuPageJson(j, g, v, lines);
+    if (!lines.empty()) { j.key("screenText").begin_array(); for (const std::string& l : lines) j.value(l); j.end_array(); }
+  }
   if (g.mode == Mode::Dialogue) {
     j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 1200)).key("options").begin_array();
     // only the options on show (the page the player sees: the first page's headers, or the open group's options), in
     // screen order, so a playtester's `choose N` (N - 1 arrow presses) lands on the option it named (P2b fix round 1:
     // listing the grouped options too made "choose 6) RENT A ROOM" press FAREWELL)
     for (const DlgOpt& o : g.dlg.opts) if (g.dlg.shows(o)) j.value(o.label);
-    j.end_array().end_object();
+    j.end_array();
+    giftsJson(j, v);   // (P4 WITNESS)
+    j.end_object();
   } else j.key("dialogue").value(nullptr);   // (Witness 0.6 playtest-ready: null while none is open)
   // (Witness 0.6/0.7) the outcome: trace --xy and heatmap mark deaths from it, a playtest wakes on it
   j.field("dead", g.mode == Mode::Dead);
@@ -264,51 +511,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   }
   j.end_object();
 
-  // (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
-  {
-    const Pix::Layer& ul = ViewProbe::uiLayerForTests(v);
-    const Pix::Layer& wl = ViewProbe::worldLayerForTests(v);
-    int pw = 0, ph = 0;
-    ViewProbe::outputSizeForTests(v, pw, ph);
-    const screen::Settings ss = screen::get();
-    j.key("screen").begin_object();
-    j.key("window").vec(pw, ph);
-    j.key("ui").begin_object().field("w", ul.w).field("h", ul.h).field("scale", r2(ul.scale))
-        .field("integer", std::fabs(ul.scale - std::round(ul.scale)) < 1e-4f).end_object();
-    j.key("world").begin_object().field("w", wl.w).field("h", wl.h).field("scale", r2(wl.scale))
-        .field("integer", std::fabs(wl.scale - std::round(wl.scale)) < 1e-4f).field("d0", screen::defaultWorldScale())
-        .field("want", screen::worldScale()).key("levels").begin_array();
-    for (int d : screen::zoomLevels()) j.value(d);
-    j.end_array().end_object();
-    j.field("zoom", ss.zoom).field("zoomName", screen::zoomName(ss.zoom)).field("ring", ss.ring)
-        .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
-        .field("v1Draws", v.v1Draws).field("v1DrawsRun", (int)v.v1DrawsRunAt(2)).field("peopleMB", r2(v.peopleMB())).field("rigMB", r2(v.lensStats.rigMB)).field("rigCapMB", r2(v.rigCapMB()))
-        .field("rigEvictions", v.lensStats.rigEvictions).field("rigRebakes", v.lensStats.rigRebakes).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
-    j.end_object();
-    // (Witness 0.7.1) the layers in screen pixels, so measure scale / doctor read each one at its own scale: the world
-    // layer (integer D) and the UI layer (its fit scale); rect [x, y, w, h]
-    auto layer = [&](const char* name, const Pix::Layer& l) {
-      j.begin_object().field("name", name).key("rect").begin_array().value(l.offX).value(l.offY)
-          .value((int)std::lround(l.w * l.scale)).value((int)std::lround(l.h * l.scale)).end_array().end_object();
-    };
-    j.key("layers").begin_array();
-    layer("world", wl);
-    layer("ui", ul);
-    j.end_array();
-    // (P2c SWITCH) the menu figures drawn last frame (C7): where, the rig they came from, the whole multiple, the rect and
-    // the stage on the UI layer (UI px), cropped (the rect leaves its stage), the furthest finish light off the silhouette
-    // (auraOut, px; -1 none), the lights drawn, the doll part / clip / frame / facing and the look's top tier
-    static const char* const kWhere[] = {"paperdoll", "creator", "hero", "party", "dialogue", "portrait", "loot"};
-    j.key("menus").begin_array();
-    for (const View::MenuFigure& f : v.menuFigs) {
-      j.begin_object().field("where", f.where >= 0 && f.where < View::kMenuWhereN ? kWhere[f.where] : "?").field("rig", f.rig).field("scale", f.scale)
-          .key("rect").begin_array().value(r2(f.x)).value(r2(f.y)).value(f.w).value(f.h).end_array()
-          .key("stage").begin_array().value(r2(f.stage.x)).value(r2(f.stage.y)).value(r2(f.stage.w)).value(r2(f.stage.h)).end_array()
-          .field("cropped", f.cropped).field("auraOut", f.auraOut).field("lights", f.lights).field("part", f.part).field("clip", f.clip)
-          .field("frame", f.frame).field("facing", f.facing).field("tier", f.tier).end_object();
-    }
-    j.end_array();
-  }
+  screenJson(j, v);   // (P2a) the screen, the layers, the menu figures
 
   // where a quest's next step happens, outside: the objective's tile centre in the frame `pos` uses (Game::questTarget,
   // else the quest's own place: a den, a camp), global tiles as pos is outside; false inside or when it has no place
@@ -366,6 +569,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.field("site", s.name).field("siteType", siteTypeName(s.type)).field("capital", s.capital);
     if (const Kingdom* K = g.world.kingdomOf(si)) j.field("kingdom", K->name);
   }
+  dangerJson(j, g);   // (P4 WITNESS) level, danger
   j.end_object();
   // in every mode with a world in play (a menu over it too: an agent playtest reads a change of scene as a new place)
   const bool inWorld = g.mode != Mode::Title && g.mode != Mode::Creator;
@@ -441,30 +645,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     }
     j.end_object();
   }
-  // (agent playtests) outside: the doors of the public buildings within 40 tiles, nearest first (at most 8), so "goto
-  // Inn" walks in (stepping onto a door enters). kind "building"; the id is the door's global tile (stable while the
-  // window shifts), far above any actor id
-  if (!g.inside && inWorld) {
-    struct Door { float d; int bi; };
-    std::vector<Door> doors;
-    const auto& B = g.world.over.bldgs;
-    for (size_t bi = 0; bi < B.size(); bi++) {
-      if (!buildingType(B[bi].type) || B[bi].charred || B[bi].home == 3) continue;
-      const float d = std::hypot(B[bi].doorX() + 0.5f - P.p.x / TILE, B[bi].doorY() + 0.5f - P.p.y / TILE);
-      if (d <= 40.0f) doors.push_back({d, (int)bi});
-    }
-    std::stable_sort(doors.begin(), doors.end(), [](const Door& a, const Door& b) { return a.d < b.d; });
-    for (size_t i = 0; i < doors.size() && i < 8; i++) {
-      const Bldg& b = B[(size_t)doors[i].bi];
-      const int32_t gx = g.world.ox + b.doorX(), gy = g.world.oy + b.doorY();
-      const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
-      // door: the playtest keeps off it unless it is the goal; leadsTo: `goto Inn` enters by it
-      j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false)
-          .field("door", true).field("leadsTo", buildingType(b.type)).field("enter", "n");   // doors face south: push north (up) onto the door tile
-      j.key("pos").vec(gx + 0.5, gy + 0.5);
-      j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
-    }
-  }
+  if (!g.inside && inWorld) doorsJson(j, g, P);
   // (Witness 0.6 playtest-ready) every open quest with a place to go, as a marker thing at that place (type Quest, named
   // by its title, quest: the title, objective: true), so `goto "<title>"` walks there; ids 49100000 + the quest's id
   for (const Quest* q : qs) {
@@ -487,6 +668,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     if (g.sub.up.valid()) place(49000002, "StairsUp", g.sub.up.x, g.sub.up.y, nullptr);
     if (g.sub.down.valid()) place(49000003, "StairsDown", g.sub.down.x, g.sub.down.y, nullptr);
   }
+  if (inWorld) groundLootJson(j, g, P);   // (P4 WITNESS) the ground loot as things
   j.end_array();
 
   // counts (as --perf and the CI suites track them) and the harness's own facts

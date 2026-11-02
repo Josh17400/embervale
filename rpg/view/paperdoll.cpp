@@ -22,6 +22,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/view/view.h"
+#include "rpg/view/view_probe.h"   // (P4 WITNESS) ViewProbe::equipPage is defined here, beside the page's state
 #include "rpg/view/rise_view.h"
 #include "rpg/world/source.h"
 
@@ -491,6 +492,27 @@ void View::paperdollPeek(Game& g, int slot, int cand) {
   S.cand = std::clamp(cand, 0, std::max(0, n - 1));
   S.peek = true;
   clampCand(g);
+}
+
+// (P4 WITNESS, view_probe.h) the EQUIP page as a tester reads it: every slot and what it wears, the slot under the cursor
+// and the pack piece picked for it. Read-only: the cursor is not clamped or moved (equipSlot only names the eq* field).
+ViewProbe::EquipPage ViewProbe::equipPage(const View& v, const Game& g) {
+  (void)v;
+  EquipPage e;
+  auto worn = [&](ItemKind k) { const int* p = const_cast<Game&>(g).equipSlot(k); return p && *p >= 0 && *p < (int)g.inv.size() ? *p : -1; };
+  for (int i = 0; i < kNSlots; i++) {
+    const int w = worn(kSlots[i].kind);
+    e.slots.push_back({kSlots[i].name, w >= 0 ? g.inv[(size_t)w].name : std::string()});
+  }
+  e.slot = std::clamp(S.slot, 0, kNSlots - 1);
+  const std::vector<int> c = candidates(g, kSlots[e.slot].kind);
+  e.candidates = (int)c.size();
+  e.cand = c.empty() ? -1 : std::clamp(S.cand, 0, (int)c.size() - 1);
+  if (e.cand >= 0) {
+    e.candidate = g.inv[(size_t)c[(size_t)e.cand]].name;
+    e.candidateWorn = c[(size_t)e.cand] == worn(kSlots[e.slot].kind);
+  }
+  return e;
 }
 
 void View::paperdollKey(Game& g, int key) {

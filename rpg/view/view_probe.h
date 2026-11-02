@@ -2,7 +2,8 @@
 // the Witness state (witness_state.cpp) use: the camera and open menu page they report, the forced weather and town
 // look, the presented layers, the herald and journal state, the M4 / M5 / loot counters and the last item card, and the
 // `partyview` commands. A friend of View with static functions only: the state stays where the draws keep it. Include
-// it ONLY from rpg/view/scripts/*.cpp and rpg/view/witness_state.cpp (view.h never does).
+// it ONLY from rpg/view/scripts/*.cpp and rpg/view/witness_state.cpp (view.h never does), and from paperdoll.cpp, which
+// defines equipPage beside the EQUIP page's state (P4 WITNESS).
 #pragma once
 #include <string>
 #include <vector>
@@ -30,4 +31,14 @@ struct ViewProbe {
   static bool partyViewExpect(View& v, Game& g, const std::vector<std::string>& a, std::string& err);
   static View::LootStats lootStats(const View& v) { return v.loot_.lootShown_; }
   static View::CardInfo lastCard(const View& v) { return v.loot_.lastCard_; }
+  // (P4 WITNESS) the menu's row cursor and the shop's side, row and armed sale (a worn piece's first Enter), as drawn
+  static int menuCursor(const View& v) { return v.menuSel_; }
+  static int shopSide(const View& v) { return v.shopSide_; }
+  static int shopCursor(const View& v) { return v.shopSel_; }
+  static int shopArmed(const View& v) { return v.shopArm_; }
+  // (P4 WITNESS) the EQUIP page: each slot's name and what it wears, the slot under the cursor and the pack piece picked
+  // for it (cand -1: none to pick). Defined in paperdoll.cpp, beside the page's own state; read-only.
+  struct EquipRow { std::string slot, item; };
+  struct EquipPage { std::vector<EquipRow> slots; int slot = 0, cand = -1, candidates = 0; std::string candidate; bool candidateWorn = false; };
+  static EquipPage equipPage(const View& v, const Game& g);
 };
