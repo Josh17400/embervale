@@ -1,0 +1,98 @@
+# moves_p4/TALK.txt - the baseline moves of P4 TALK (docs/FIX_BATCH_P4.md 3, 5, 9.2, 13), measured against root p3f2 with
+# tools/gates/step_gates.sh --bdir build-solid at the TALK head (and the rpg_test / witness_pack lines named below).
+# Format: <gate> <item glob>[,...] <id> <reason>  (rebase_baseline.sh --help). Ids: P4-2 the pin, P4-4 one order of options.
+# Every other step gate was identical: S1 (36 exes, warnings 0 <= 366), S3.fixtures, S3.savever (24), S5.rig1/rig2,
+# S6.freeze/freeze1/pool, S7.rig1/rig2, S9.test/shot, S10.audio, S10.layers.
+# For GATES (README / ARCHITECTURE rows): "the option table: rpg/sim/dlg_order.cpp (talk.h section 6), the order check in
+# rpg_test --dialogue, the pin cases in rpg_test --quests".
+#
+# Two lines other areas own carry these moves (plan gaps, see the TALK report):
+#  - tools/tests/seed_run.cpp:396 fell back to dialogueChoose(0) on the opening innkeeper's FIRST page when the inn had no job,
+#    and passed only because a story pitch used to be option 0; with the one order (headers first) seeds 4 8 10 15 16 17 20
+#    FAIL "quest not accepted" until the requested 5-line change (ask for work, else take the story offered) is merged.
+#    With it: 20 passed, and only the bot lines of seeds 6 and 14 move (below).
+#  - rpg/view/render.cpp:2062 resets the dialogue cursor to 0; the requested line puts it on speech::startCursor (COLLECT).
+#    Without it bounty.txt / opening.txt "key Return" press the first header and FAIL; with it both PASS.
+#
+# S2.seeds: the bot's option 0 (seed_run.cpp:359) is now the speaker's first standing option (a header, COULD YOU TRAIN ME?,
+# HOW ARE YOU KEEPING?) where it was the first option pushed (ANY WORK GOING?, a story pitch, SHARE YOUR BREAD ...): the
+# bot's walk and fights differ from its first talk on.
+S2.seeds seed?6?ok*,seed?14?ok* P4-4 the bot's dialogue choice (option 0) is the first standing option now: kills 7 -> 6 (seed 6), 3 -> 5 (seed 14)
+#
+# S3.save: save_test.cpp:101 has the same option-0 bot (the plan listed seed_run, test_sim_digest and metrics, not this one):
+# the played games' saves differ in size, and the damaged-save fuzz built from them loads 42 / refuses 6 (was 39 / 9; none
+# crashed, still ALL OK). SAVE_VER and the format are unchanged.
+S3.save endless?seed?5150?after?play:?*?bytes,endless?seed?5150?far?east:?*?bytes,endless?seed?7?after?play:?*?bytes,endless?seed?7?far?east:?*?bytes,endless?seed?99?after?play:?*?bytes,endless?seed?99?far?east:?*?bytes P4-4 save_test's play bot picks option 0 (now the first standing option): a different game is saved
+S3.save damaged?saves:?* P4-4 the fuzzed saves are cut from those different games: 42 loaded / 6 refused (was 39 / 9), none crashed
+#
+# S10.digest / W6.digest_clang: 17 of 20 seeds differ (2, 3 and 16 identical: their bot never meets a reordered page before
+# 120 s). Each seed's first differing checkpoint and the talk that changed it (rpg_test --sim-digest with a transient log of
+# every bot dialogue, old first option inferred from the pre-P4 push order), cause P4-4 unless named:
+#   seed 1  t 20: t 17 a guard: now COULD YOU TRAIN ME?, was the story pitch YOU'VE BEEN STARING AT THAT PAGE.
+#   seed 4  t 10: t 5 a guard: now COULD YOU TRAIN ME?, was ANY BEASTS ABOUT?
+#   seed 5  t 70: t 64 AHILD: now HOW ARE YOU KEEPING?, was SHARE YOUR BREAD (the kindness now waits under it)
+#   seed 6  t 20: t 12 a guard: now COULD YOU TRAIN ME?, was the story pitch YOU LOOK LIKE YOU CAN KEEP QUIET.
+#   seed 7  t 10: t 2 a guard: now COULD YOU TRAIN ME?, was ANY BEASTS ABOUT?
+#   seed 8  t 50: t 40 innkeeper BRESTICE: now WHAT CAN YOU OFFER?, was ANY WORK GOING?
+#   seed 9  t 40: t 31 innkeeper BELLULF: now WHAT CAN YOU OFFER?, was ANY WORK GOING?
+#   seed 10 t 40: t 33 VANLEILIOS: now COULD YOU TRAIN ME?, was HOW ARE YOU KEEPING?
+#   seed 11 t 10: t 4 LILL: now COULD YOU TRAIN ME?, was SHARE YOUR BREAD
+#   seed 12 t 10: t 2 a guard: now COULD YOU TRAIN ME?, was ANY BEASTS ABOUT?
+#   seed 13 t 10: t 5 TZUXOL: now COULD YOU TRAIN ME?, was DO YOU NEED HELP?
+#   seed 14 t 10: t 1 a guard: now COULD YOU TRAIN ME?, was ANY BEASTS ABOUT?
+#   seed 15 t 120: t 110 MOOBIRDWYN: now COULD YOU TRAIN ME?, was HOW ARE YOU KEEPING?
+#   seed 17 t 30: t 25 a guard: now COULD YOU TRAIN ME?, was ANY BEASTS ABOUT?
+#   seed 18 t 20: t 11 WAULOLD: now COULD YOU TRAIN ME?, was DO YOU NEED HELP?
+#   seed 19 t 10: t 4 NIST: now COULD YOU TRAIN ME?, was SHARE YOUR BREAD
+#   seed 20 t 50: t 48 MAXLILIUS: now COULD YOU TRAIN ME?, was HOW ARE YOU KEEPING?
+# From there on the bot's run differs (every checkpoint of those seeds: 423 C lines; fields as listed).
+S10.digest ser,len,act,n,rng,marks,evs,bot,time,hour,kills,xp,gold,lvl,day,S,A P4-4 the digest bot's option 0 is the speaker's first standing option (seeds 1 4-15 17-20 from the checkpoints above; 2 3 16 identical)
+W6.digest_clang ser,len,act,n,rng,marks,evs,bot,time,hour,kills,xp,gold,lvl,day,S,A P4-4 the same bot move in the clang record (not measured on the TALK branch: WSL)
+#
+# S10.view (the quick record) and W2.view_all (witness_pack --all --check p3f2/probes/view_all/hashes.txt: 424 scripts, 422 PASS,
+# 2 XFAIL, 0 FAIL; 110 PNGs differ, 4 new p4_talk shots), measured WITH the requested render.cpp cursor line (without it
+# bounty.txt and opening.txt FAIL at 'key Return' and bounty_10_paid differs too). Each move is the dialogue order (P4-4: the
+# panel's rows and the cursor row) or the pin (P4-2: a quest the script starts or takes now leads the HUD goal line, the
+# compass, the map's tracked marker and the journal mark, with the QUEST STARTED toast); spot-checked against the 25d47da
+# build for m3c_life_weather, m12_view_banners, m10_integ_tour_s3 and m10_fix_r1_trial (all the goal line / toast).
+S10.view bounty/bounty_9_collect.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all bounty/bounty_9_collect.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+S10.view dialogue_tap/dialogue_tap_0.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all dialogue_tap/dialogue_tap_0.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all inn/inn_3_greeting.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m10_art_harbour/m10_art_harbour_map_rumoured.png P4-2 the map's tracked-quest marker follows the quest just started (the pin)
+W2.view_all m10_fix_r1_trial/m10_fix_r1_trial_reload_fresh.png,m10_fix_r1_trial/m10_fix_r1_trial_sanctum.png P4-2 the HUD goal line follows the quest just started (the pin)
+W2.view_all m10_integ_tour_s3/m10_integ_s3_hidden_land_contact.png,m10_integ_tour_s3/m10_integ_s3_hidden_seat_dusk.png,m10_integ_tour_s3/m10_integ_s3_hidden_seat_in.png,m10_integ_tour_s3/m10_integ_s3_hidden_seat_out.png P4-2,P4-4 the HUD goal line follows the quest just started (the pin); the seat's dialogue in table order
+W2.view_all m12_lead_rise/m12_lead_free.png,m12_lead_rise/m12_lead_lord.png,m12_lead_rise/m12_lead_orders.png P4-2,P4-4 the HUD goal line follows the quest just started (fief task, order: the pin); the steward's page in table order
+W2.view_all m12_service_mission/m12_service_mission_1_court.png,m12_service_mission/m12_service_mission_3_enemy_court.png P4-2,P4-4 the mission just given takes the pin (HUD goal line); the court's page in table order
+W2.view_all m12_service_squad/m12_service_squad_1_order.png,m12_service_squad/m12_service_squad_3_marching.png P4-2 the order just given takes the pin (HUD goal line)
+W2.view_all m12_view_banners/m12_view_b_bossraid.png,m12_view_banners/m12_view_b_burst1.png,m12_view_banners/m12_view_b_burst2.png,m12_view_banners/m12_view_b_crowned.png,m12_view_banners/m12_view_b_fief.png,m12_view_banners/m12_view_b_free.png,m12_view_banners/m12_view_b_mission.png,m12_view_banners/m12_view_b_order.png,m12_view_banners/m12_view_b_refused.png,m12_view_banners/m12_view_b_wage.png,m12_view_banners/m12_view_b_warlord.png P4-2 the quest each staged event starts takes the pin: QUEST STARTED toast, the HUD goal line
+W2.view_all m2_phone_touch/m2_phone_touch_0_talk.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m2_sim_quests/m2_sim_q02_protect_journal.png,m2_sim_quests/m2_sim_q03_protect_wave1.png,m2_sim_quests/m2_sim_q04_protect_wave2.png,m2_sim_quests/m2_sim_q05_protect_dawn.png,m2_sim_quests/m2_sim_q06_protect_turnin.png,m2_sim_quests/m2_sim_q07_heirloom_offer.png,m2_sim_quests/m2_sim_q08_heirloom_inside.png,m2_sim_quests/m2_sim_q09_heirloom_found.png,m2_sim_quests/m2_sim_q10_missing_offer.png,m2_sim_quests/m2_sim_q11_missing_found.png,m2_sim_quests/m2_sim_q12_missing_out.png,m2_sim_quests/m2_sim_q13_named_offer.png,m2_sim_quests/m2_sim_q14_named_camp.png,m2_sim_quests/m2_sim_q15_deliver_offer.png,m2_sim_quests/m2_sim_q16_deliver_map.png,m2_sim_quests/m2_sim_q17_deliver_recipient.png,m2_sim_quests/m2_sim_q18_deliver_paid.png P4-2,P4-4 each job just taken takes the pin (HUD goal line, journal mark); the givers' pages in table order, the cursor on COLLECT
+W2.view_all m2_sim_wayside/m2_sim_w02_hunter_talk.png,m2_sim_wayside/m2_sim_w10_grave_read.png,m2_sim_wayside/m2_sim_w11_wayrest_news.png P4-2,P4-4 the grave's quest just started takes the pin; the hunter's and the wayrest's pages in table order
+W2.view_all m2_ui_screens/ui_14_inn_dialogue.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m3c_life_weather/m3c_life_w_arid.png,m3c_life_weather/m3c_life_w_ashfall.png,m3c_life_weather/m3c_life_w_ashfall_night.png,m3c_life_weather/m3c_life_w_blizzard.png,m3c_life_weather/m3c_life_w_blossom_petals.png,m3c_life_weather/m3c_life_w_eerie.png,m3c_life_weather/m3c_life_w_meadow_fireflies.png,m3c_life_weather/m3c_life_w_monsoon.png,m3c_life_weather/m3c_life_w_snowy.png P4-2 a quest the script starts (TELL ... OF THE MIST) takes the pin: QUEST STARTED toast, the HUD goal line and compass on it
+W2.view_all m4_story_board/m4_story_b2_bounty.png,m4_story_board/m4_story_b4_square.png P4-2 the board's bounty just taken takes the pin (HUD goal line)
+W2.view_all m4_story_rumours/m4_story_r1_innkeeper.png,m4_story_rumours/m4_story_r2_guard.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m4_wards_siege/m4_wards_siege_captain.png,m4_wards_siege/m4_wards_siege_fight.png P4-2,P4-4 the siege job just taken takes the pin (HUD goal line); the captain's page in table order
+W2.view_all m6_numbers_forge/m6_numbers_forge_0_talk.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m6b_composer_offer/m6b_composer_1_pitch.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m6b_int_tour_b/m6b_intb_1_pitch_day.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m6b_int_tour_c/m6b_intc_1_pitch_temple.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m7b_lead_talk/m7b_lead_talk.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m7b_saga_phone/m7b_saga_1a_teller.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m7b_talk_phone/m7b_talk_01_inn_first.png,m7b_talk_phone/m7b_talk_02_inn_again.png,m7b_talk_phone/m7b_talk_04_inn_rumour.png,m7b_talk_phone/m7b_talk_05_shop.png,m7b_talk_phone/m7b_talk_06_smith.png,m7b_talk_phone/m7b_talk_08_guard.png,m7b_talk_phone/m7b_talk_10_accept.png,m7b_talk_phone/m7b_talk_12_turnin.png,m7b_talk_phone/m7b_talk_14_thanked.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m8_fellows_tavern/m8_fellows_tavern_talk.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m8_voice_kin/m8_voice_kin_1_lookafter.png,m8_voice_kin/m8_voice_kin_2_grief.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m8_voice_regular/m8_voice_regular_1_open.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all m9_magic_tradition/m9_magic_trad_attuned.png,m9_magic_tradition/m9_magic_trad_teacher.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+S10.view opening/opening_15_collect.png,opening/opening_2_journal.png,opening/opening_3_inn.png,opening/opening_4_blade.png P4-2,P4-4 the villager's job takes the pin from A BLADE OF YOUR OWN (journal, HUD, the inn shots); the innkeeper's page in table order, the cursor on COLLECT
+W2.view_all opening/opening_15_collect.png,opening/opening_2_journal.png,opening/opening_3_inn.png,opening/opening_4_blade.png P4-2,P4-4 the villager's job takes the pin from A BLADE OF YOUR OWN (journal, HUD, the inn shots); the innkeeper's page in table order, the cursor on COLLECT
+W2.view_all p1_life_hooks/p1_life_thief_talk.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all p1b_req_tour/p1b_req_city_sergeant.png,p1b_req_tour/p1b_req_town_hook.png,p1b_req_tour/p1b_req_village_hook.png,p1b_req_tour/p1b_req_village_reading.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all p1b_req_tour_phone/p1b_req_city_sergeant_phone.png,p1b_req_tour_phone/p1b_req_town_hook_phone.png,p1b_req_tour_phone/p1b_req_village_hook_phone.png,p1b_req_tour_phone/p1b_req_village_reading_phone.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all sim_inn/sim_inn_3_greeting.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all sim_kingdom/sim_kingdom_2_innkeeper.png,sim_kingdom/sim_kingdom_4_king.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all sim_opening/sim_opening_2_blade.png,sim_opening/sim_opening_4_journal.png,sim_opening/sim_opening_5_outside.png P4-2,P4-4 the job taken takes the pin (journal, HUD goal line); the innkeeper's page in table order
+S10.view view_screen/fit_7_dialogue.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all view_screen/fit_7_dialogue.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
