@@ -3904,6 +3904,8 @@ rig 1 untouched.**
   mc_2f a315 / a337, L a225 / a202; D a level sweep mc_2s a180 and a low one ax_2s a202; U ax_1s a045, ax_3s a112), every
   head clear of the body's silhouette. Both bodies, shield or not; arm keys and weapon views the library already draws
   (nothing drawn). p3_measure B2: 0 FAIL (axe vs mace >= 4.9 px, axe vs idle >= 4.0 px).
+  Live, the axe's Chop Arc (the 32 x 32 crescent behind the body, which t4c read as "a blade, not an axe head") is now
+  D108's smear from the strike frame's fist to its head (View::drawSwingFx, kAxeSweep: each blow's way from its windup).
 - **D114. The bronze brigandine reads as bronze** (B10 r1; all three W7 T5 testers: "brown/red cloth", "leather and
   bronze too alike"). Two causes: D112's re-cut lit whole plate rows in the cream step between red cloth rows, and a
   bought bronze piece draws its metal in gear_look's bronze tint (a matte mid step at the leather's browns). Now every coat

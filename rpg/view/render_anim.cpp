@@ -97,6 +97,10 @@ std::unordered_map<int, RvSwingTip>& rvSwingTips() {
 // the way each sword blow's tip runs (screen: +1 clockwise, y down), by facing (D U R L) and hit (sword.clip's strike
 // frames: hits 1 and 3 cut down, hit 2 rises; facing down every blow sweeps counter-clockwise, facing up hit 2 does)
 constexpr int8_t kSmearSweep[4][3] = {{-1, -1, -1}, {1, -1, 1}, {1, -1, 1}, {-1, 1, -1}};
+// (P3 fix round 1, B2: W7 t4c read the axe's live crescent as "a blade, not an axe head") the axe's trail is the sword's
+// smear ending at its head, each blow's way from its windup to its strike (axe.clip): facing R every chop clockwise, L
+// counter-clockwise, D counter-clockwise, U hit 2 clockwise
+constexpr int8_t kAxeSweep[4][3] = {{-1, -1, -1}, {-1, 1, -1}, {1, 1, 1}, {-1, -1, -1}};
 // the tip from the fist (px) where the strike frame's blade is a drawn key with no tip mark: A3's hit-1 blade facing down
 // (held=a3d1, kept for the A3 parity; tools/doll/p3_smears.py's table measures the same); {0, 0}: none
 constexpr int8_t kSmearReach[4][3][2] = {{{9, 7}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}};
@@ -684,7 +688,8 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
   // drawn with, its radius the blade's reach, its head at the tip and its tail back the way the blade came (kSmearSweep),
   // over the strike in 4 frames; the hero's finisher a pixel wider in the Finisher tint #FFE6A0. No frame record (a body
   // not drawn this frame): no trail (the strike frame's own baked trail, fx/arc t1-t3, still shows).
-  if (v2 && f == art::Fx::SwingArc && fam == art::Family::Sword) {
+  if (v2 && ((f == art::Fx::SwingArc && fam == art::Family::Sword) || (f == art::Fx::ChopArc && fam == art::Family::Axe))) {   // (P3 fix r1) and the axe's chop
+    const int8_t(&sweep)[4][3] = fam == art::Family::Axe ? kAxeSweep : kSmearSweep;
     const auto it = rvSwingTips().find(a.id);
     if (it == rvSwingTips().end() || std::fabs(it->second.t - t_) > 0.1f) return;
     const RvSwingTip& st = it->second;
@@ -696,7 +701,7 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
     const int head = ((int)std::lround(std::atan2((float)dy, (float)dx) * 57.29578f) % 360 + 360) % 360;
     const int frames = std::max(1, art::fxFrames(f));
     const int fr = std::clamp((int)(prog * frames), 0, frames - 1);
-    const uint64_t key = 0x7Eull << 56 | (uint64_t)radius << 32 | (uint64_t)head << 20 | (kSmearSweep[face][variant] > 0 ? 1ull << 16 : 0ull) |
+    const uint64_t key = 0x7Eull << 56 | (uint64_t)radius << 32 | (uint64_t)head << 20 | (sweep[face][variant] > 0 ? 1ull << 16 : 0ull) |
                          (fin ? 1ull << 12 : 0ull) | (uint64_t)(fr & 3);
     const Tex& ft = sprites_.cachedTex(*this, key, rvSmearCells);
     const int n = 2 * radius + 5;
