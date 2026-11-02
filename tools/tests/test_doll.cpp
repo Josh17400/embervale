@@ -9,8 +9,8 @@
 //   24 from the 8 families, the names), the A3 palettes against docs/ref/style_a3/palettes.json's colours, rampA3 giving
 //   A3's hand ramps back for their bases, the walk table's defaults (man 19, woman 20, run 36 px), the look fields (v1 and
 //   rig 1 keys ignore them; rig 2 keys see them), the elder's height, an empty pool covering nothing.
-// --parity: B1's pixels: the A3 hero and woman composed with A3's palettes against docs/ref/style_a3/frames: the 16 kept
-//   frames (8 idles, 8 swing keys) at 0 px differing; the 48 walk frames reported for the review (redrawn 2026-10-19 for
+// --parity: B1's pixels: the A3 hero and woman composed with A3's palettes against docs/ref/style_a3/frames: the 15 kept
+//   frames (8 idles, 7 swing keys: P3 B1 redrew hero SWING_R1, now reviewed) at 0 px differing; the 48 walk frames reported for the review (redrawn 2026-10-19 for
 //   the owner with the idle's leg mass: B11 gates them). --dump DIR writes each frame beside its reference (x4).
 // B11 leg mass (with --gates; the owner's walk fix, 2026-10-19): every walk and run frame of the A3 hero and woman against
 //   the idle of its facing, on the legs and the garments composed apart: the legs visible under the hem 90 % of the
@@ -200,7 +200,9 @@ std::vector<ParityFrame> parityFrames() {
     }
   for (int f : {2, 0}) {
     v.push_back({0, nullptr, RigPart::Action, f, Clip::Windup, 0, true});
-    v.push_back({0, nullptr, RigPart::Action, f, Clip::Strike, 0, true});
+    // (P3 B1, D108) hit 1's strike facing R was redrawn by the plan (the level blade + crescent read as a bow): it moves
+    // from the kept set to the review set, like the redrawn walk; its px against A3 still print under --report
+    v.push_back({0, nullptr, RigPart::Action, f, Clip::Strike, 0, f != 2});
     v.push_back({0, nullptr, RigPart::Action, f, Clip::Follow, 0, true});
     v.push_back({0, nullptr, RigPart::Action, f, Clip::Follow, 1, true});
   }

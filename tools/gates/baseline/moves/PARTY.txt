@@ -1,20 +1,42 @@
 # P3 PARTY moves (FIX_BATCH_P3 section 10): <gate> <item or glob> <id> <reason>
-S3.save save_test:SAVE_VER PARTY SAVE_VER 23 -> 24 (party block v5: the parted roll)
-S3.save "save_v23 loads (party block v4, empty parted roll)" PARTY new line: save_v23.bin read through SAVE_VER_MIN 23
-S3.save "save_v24 round trip: * bytes" PARTY new line: the save_v24.bin fixture round-trips
-S3.save "endless seed * (aboard a rowboat|after play|far east|after 420 realm days): * bytes" PARTY C2 determinism switches (unbounded realm focus, no stream worker) plus the party block's parted-count byte; now stable under load
-S3.save "endless upstairs in the inn: * bytes" PARTY the party block's parted-count byte (+1)
-S3.save "realm block after * days|damaged realm blocks: *" PARTY C2: the realm focus finished before the save (stable)
-S3.save "save soak: *|endless save soak: * bytes|damaged life blocks: *" PARTY +1 byte (parted count) and C2
-S3.save "damaged saves: * loaded and played, * refused" PARTY C2: the 48 flips land on stable bytes (39 / 9 at f21ae86)
-S3.save unstable.txt:S3.save:mask(both) PARTY C2 makes both masked lines stable: the two S3.save masks may go (unstable.txt is GATES'/integrator's file)
-S3.savever SAVE_VER PARTY 24
-S3.fixtures tests/fixtures/save_v24.bin PARTY new fixture (save_test --make-fixture): a parted angry sellsword with his kit, IF_KIT kit; save_v23.bin untouched
-S10.digest ser,len PARTY SAVE_VER 24 / party block v5 (+1 byte); act, rng, marks identical in all 560 checkpoints of the 119de74 msvc record
-S10.digest S PARTY the serialize block hashes follow ser (all 560 S lines)
+# (integration, P3: lines rewritten into the rebase_baseline.sh --help forms; reasons and ids as the area wrote them)
+S3.save save_test:?SAVE_VER?2[34] PARTY SAVE_VER 23 -> 24 (party block v5: the parted roll)
+S3.save save_v23?loads?* PARTY new line: save_v23.bin read through SAVE_VER_MIN 23
+S3.save save_v24?round?trip:?*?bytes PARTY new line: the save_v24.bin fixture round-trips
+S3.save endless?seed?5150?aboard?a?rowboat:?*?bytes PARTY the party block's parted-count byte (+1)
+S3.save endless?upstairs?in?the?inn:?*?bytes PARTY the party block's parted-count byte (+1)
+S3.save save?soak:?*,endless?save?soak:?*?bytes PARTY +1 byte (the parted count)
+S3.save damaged?saves:?* PARTY C2: the 48 flips land on stable bytes (39 / 9 at f21ae86)
+unstable S3.save:mask PARTY C2 (save_test runs with the sim digest's determinism switches: unbounded realm focus, no stream worker) makes both masked S3.save lines stable
+expect SAVE_VER PARTY 23 -> 24 (S3.savever)
+S3.fixtures save_v24.bin PARTY new fixture (save_test --make-fixture): a parted angry sellsword with his kit; save_v23.bin untouched
+S10.digest ser,len,S PARTY SAVE_VER 24 / party block v5 (+1 byte); the serialize block hashes follow ser
 W6.digest_clang ser,len,S PARTY as S10.digest
-W2.scripts p3_party PARTY new script (PASS)
-W2.view_all p3_party/p3_party_* PARTY new script's 13 PNGs
-W3.witness p3_party_return.witness.json PARTY new Witness test (passes)
+# (no record difference; new script/test, or measured by W2 at integration) W2.scripts p3_party PARTY new script (PASS)
+# (no record difference; new script/test, or measured by W2 at integration) W2.view_all p3_party/p3_party_* PARTY new script's 13 PNGs
+# (no record difference; new script/test, or measured by W2 at integration) W3.witness p3_party_return.witness.json PARTY new Witness test (passes)
 S10.view m8_view_party/m8v_desk_0[1-6]_*.png PARTY the companion's kit is now made in their people's make (makeGearC: culture forms and words, e.g. IRON LAMELLAR for IRON PLATE); measured at f21ae86: exactly these 6 of 425 differ
-W2.view_all m8_view_party*/*,m8_lead_party/*,m11_climb_party/*,m8_*party*/* PARTY the same kit look on every staged companion (shots that show a companion's gear); not measured by a W2 run here
+# (no record difference; new script/test, or measured by W2 at integration) W2.view_all m8_view_party*/*,m8_lead_party/*,m11_climb_party/*,m8_*party*/* PARTY the same kit look on every staged companion (shots that show a companion's gear); not measured by a W2 run here
+
+# W2.view_all (integration, P3): every PNG the full W2 run moved, attributed by running the moved scripts on a build of this area's branch alone (scratchpad p3/attr); a PNG two areas both move is listed in both files
+W2.view_all m10_fix_r1_s7/m10_fix_r1_party_aboard.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m11_climb_party/m11_climb_party_0_stairs_foot.png,m11_climb_party/m11_climb_party_1_stairs_up.png,m11_climb_party/m11_climb_party_2_stairs_top.png,m11_climb_party/m11_climb_party_3_switchback.png,m11_climb_party/m11_climb_party_4_switchback_up.png,m11_climb_party/m11_climb_party_5_switchback_top.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_fellows_downed/m8_fellows_binding.png,m8_fellows_downed/m8_fellows_bound.png,m8_fellows_downed/m8_fellows_downed.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_fellows_fight/m8_fellows_fight_mage_healer2.png,m8_fellows_fight/m8_fellows_fight_rogue_hound.png,m8_fellows_fight/m8_fellows_fight_rogue_hound2.png,m8_fellows_fight/m8_fellows_fight_warrior_archer.png,m8_fellows_fight/m8_fellows_fight_warrior_archer2.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_fellows_grave/m8_fellows_grave.png,m8_fellows_grave/m8_fellows_grave_flowers.png,m8_fellows_grave/m8_fellows_grave_talk.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_fellows_house/m8_fellows_house_day.png,m8_fellows_house/m8_fellows_house_meal.png,m8_fellows_house/m8_fellows_house_yard.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_fellows_ride/m8_fellows_ride.png,m8_fellows_ride/m8_fellows_ride2.png,m8_fellows_ride/m8_fellows_ride_down.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_integ_tour_s12/m8i_s12_01_town_day.png,m8_integ_tour_s12/m8i_s12_02_town_night.png,m8_integ_tour_s12/m8i_s12_03_inn_night.png,m8_integ_tour_s12/m8i_s12_04_ruin_day.png,m8_integ_tour_s12/m8i_s12_05_ruin_walls.png,m8_integ_tour_s12/m8i_s12_06_cave_inside.png,m8_integ_tour_s12/m8i_s12_07_fight_dusk.png,m8_integ_tour_s12/m8i_s12_08_downed.png,m8_integ_tour_s12/m8i_s12_09_binding.png,m8_integ_tour_s12/m8i_s12_10_pup.png,m8_integ_tour_s12/m8i_s12_12_grave_talk.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_integ_tour_s3/m8i_s3_01_town_day.png,m8_integ_tour_s3/m8i_s3_02_town_night.png,m8_integ_tour_s3/m8i_s3_03_inn_night.png,m8_integ_tour_s3/m8i_s3_04_ruin_day.png,m8_integ_tour_s3/m8i_s3_05_ruin_walls.png,m8_integ_tour_s3/m8i_s3_06_cave_inside.png,m8_integ_tour_s3/m8i_s3_07_fight_dusk.png,m8_integ_tour_s3/m8i_s3_08_downed.png,m8_integ_tour_s3/m8i_s3_09_binding.png,m8_integ_tour_s3/m8i_s3_10_pup.png,m8_integ_tour_s3/m8i_s3_12_grave_talk.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_lead_party/m8_lead_downed.png,m8_lead_party/m8_lead_follow.png,m8_lead_party/m8_lead_inn.png,m8_lead_party/m8_lead_talk.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_doll_phone/m8v_doll_01_story.png,m8_view_doll_phone/m8v_doll_02_gear_hands.png,m8_view_doll_phone/m8v_doll_03_gear_weapon.png,m8_view_doll_phone/m8v_doll_04_supplies.png,m8_view_doll_phone/m8v_doll_05_hound.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_downed_phone/m8v_down_01_downed.png,m8_view_downed_phone/m8v_down_02_binding.png,m8_view_downed_phone/m8v_down_03_revived.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_mount_phone/m8v_mount_01_east.png,m8_view_mount_phone/m8v_mount_02_south.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_party/m8v_desk_01_one.png,m8_view_party/m8v_desk_02_three.png,m8_view_party/m8v_desk_03_radial.png,m8_view_party/m8v_desk_04_refused.png,m8_view_party/m8v_desk_05_doll.png,m8_view_party/m8v_desk_06_doll_gear.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_party_phone/m8v_party_01_one.png,m8_view_party_phone/m8v_party_02_three.png,m8_view_party_phone/m8v_party_03_tag_lowhp.png,m8_view_party_phone/m8v_party_04_banter_alert.png,m8_view_party_phone/m8v_party_05_waiting.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_view_radial_phone/m8v_radial_01_held.png,m8_view_radial_phone/m8v_radial_02_attack.png,m8_view_radial_phone/m8v_radial_03_refused.png,m8_view_radial_phone/m8v_radial_04_skill_ready.png,m8_view_radial_phone/m8v_radial_05_hound.png,m8_view_radial_phone/m8v_radial_06_waiting_busts.png,m8_view_radial_phone/m8v_radial_07_waiting_ring.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_voice_border/m8_voice_border_1.png,m8_voice_border/m8_voice_border_2_night.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_voice_kin/m8_voice_kin_1_lookafter.png,m8_voice_kin/m8_voice_kin_2_grief.png,m8_voice_kin/m8_voice_kin_3_grave.png,m8_voice_kin/m8_voice_kin_4_words.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_voice_quest/m8_voice_quest_1_offer.png,m8_voice_quest/m8_voice_quest_2_story.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all m8_voice_talk/m8_voice_talk_1_front.png,m8_voice_talk/m8_voice_talk_2_about.png,m8_voice_talk/m8_voice_talk_3_stake.png,m8_voice_talk/m8_voice_talk_4_deeds.png,m8_voice_talk/m8_voice_talk_5_opinion.png,m8_voice_talk/m8_voice_talk_6_orders.png,m8_voice_talk/m8_voice_talk_7_status.png,m8_voice_talk/m8_voice_talk_8_feel.png PARTY PARTY companions wear their own people's kit (makeGearC), climbing the metal ladder (measured at integration on the PARTY-only build)
+W2.view_all p3_party/* PARTY new script tools/scripts/p3_party.txt (13 PNGs)

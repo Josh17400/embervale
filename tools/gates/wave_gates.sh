@@ -221,6 +221,11 @@ run_perf() {
 gate_run W6.perf chk_probe -- run_perf
 if [ $W7 -eq 1 ]; then
   CFG="$OUT/witness15/witness.gates.json"
+  # (P3 integration) `witness play batch` does not pass --allow-calls on to its testers' sessions (they read the config's
+  # play.allowCalls), so W7 plays from a copy of the gates config with play.allowCalls set; --allow-calls stays for a
+  # Witness that does forward it
+  W7CFG="$OUT/witness15/witness.w7.json"
+  node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));c.play=c.play||{};c.play.allowCalls=true;fs.writeFileSync(process.argv[2],JSON.stringify(c,null,2));' "$CFG" "$W7CFG" && CFG="$W7CFG"
   gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "${WITNESS_HOME:-$REPO/../witness}/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --allow-calls --parallel 2 --model sonnet --effort low
 else gate_skip W7.play "waves 3 and 4 only (--w7)"; fi
 # wall vs the sum of the line durations (how much ran side by side)

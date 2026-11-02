@@ -1,17 +1,18 @@
 # tools/gates/baseline/moves/HARNESS.txt - P3 HARNESS's expected baseline differences (docs/FIX_BATCH_P3.md 10).
+# (integration, P3: lines with no record difference are kept as comments; rebase_baseline.sh counts a declared move that shows no difference as MISSING)
 # <gate> <item or glob> <id> <reason>. Measured against the 119de74 record at f80b240 (S10.view 425 PNGs, the 13 scripts with a
 # movement `key`, m8_view_party: identical; S1-S7, S9, S10.digest/audio/layers: PASS, same as baseline).
 # The nine creator scripts' 107 PNGs were A/A identical over two fresh runs.
-W2.scripts creator D was SKIP (expect mode creator); PASS on --witness --witness-creator --script
-W2.scripts inn D was SKIP; PASS (creator under Witness)
-W2.scripts m2_ui_screens D was SKIP; PASS (creator under Witness)
-W2.scripts m3_people_creator_phone D was SKIP; PASS (creator under Witness, phone screen)
-W2.scripts p2c_flip_look D was SKIP; PASS (creator under Witness)
-W2.scripts p2c_flip_look_phone D was SKIP; PASS (creator under Witness, phone screen)
-W2.scripts p2c_menus_creator D was SKIP; PASS (creator under Witness)
-W2.scripts p2c_menus_creator_phone D was SKIP; PASS (creator under Witness)
-W2.scripts sim_inn D was SKIP; PASS (creator under Witness)
-W2.scripts p3_keys B5 new script: a movement key tap turns the hero (expect face)
+# (no record difference) W2.scripts creator D was SKIP (expect mode creator); PASS on --witness --witness-creator --script
+# (no record difference) W2.scripts inn D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts m2_ui_screens D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts m3_people_creator_phone D was SKIP; PASS (creator under Witness, phone screen)
+# (no record difference) W2.scripts p2c_flip_look D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts p2c_flip_look_phone D was SKIP; PASS (creator under Witness, phone screen)
+# (no record difference) W2.scripts p2c_menus_creator D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts p2c_menus_creator_phone D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts sim_inn D was SKIP; PASS (creator under Witness)
+# (no record difference) W2.scripts p3_keys B5 new script: a movement key tap turns the hero (expect face)
 W2.view_all creator/* D new PNGs (16): the script ran for the first time under Witness
 W2.view_all inn/* D new PNGs (8)
 W2.view_all m2_ui_screens/* D new PNGs (22)
@@ -21,7 +22,7 @@ W2.view_all p2c_flip_look_phone/* D new PNGs (19)
 W2.view_all p2c_menus_creator/* D new PNGs (5)
 W2.view_all p2c_menus_creator_phone/* D new PNGs (5)
 W2.view_all sim_inn/* D new PNGs (7)
-W3.witness p3_creator.witness.json D new file (3 tests: creatorUi reset lands in the creator, title round trip, default unchanged)
-S8 web/index.html B3 the shell records Module.embSaves; build and runtime exports unchanged (no new EXPORTED_RUNTIME_METHODS)
-W5.firstlaunch firstlaunch.png B3 default screenshot unchanged (IndexedDB works: no note); --no-idb is a new mode, not in the gate
-W7.play tools/scripts/p2c_playtests.txt C1 goals rewritten (T5 ladder, T5b params female, T7 call ladderkit lt1..lt6)
+# (no record difference) W3.witness p3_creator.witness.json D new file (3 tests: creatorUi reset lands in the creator, title round trip, default unchanged)
+# (no record difference) S8 web/index.html B3 the shell records Module.embSaves; build and runtime exports unchanged (no new EXPORTED_RUNTIME_METHODS)
+# (no record difference) W5.firstlaunch firstlaunch.png B3 default screenshot unchanged (IndexedDB works: no note); --no-idb is a new mode, not in the gate
+# (no record difference) W7.play tools/scripts/p2c_playtests.txt C1 goals rewritten (T5 ladder, T5b params female, T7 call ladderkit lt1..lt6)

@@ -116,8 +116,9 @@ digest_args() { head -1 "$1" | tr -d '\r' | awk '{ for (i = 1; i < NF; i++) if (
 full_digest_msvc() {   # the run's build, the root record's arguments -> $W/new_digest_msvc.txt
   [ -n "$RBDIR" ] && [ -x "$RBDIR/rpg_test.exe" ] || return 1
   [ -s "$W/new_digest_msvc.txt" ] && return 0
+  # (P3 integration) < /dev/null goes to rpg_test: at the end of the pipe it fed grep, and the record came out empty
   # shellcheck disable=SC2046
-  "$REPO/tools/slot.sh" "$RBDIR/rpg_test.exe" --sim-digest $(digest_args "$1") 2>/dev/null | tr -d '\r' | grep -vE "$SLOT_NOISE" > "$W/new_digest_msvc.txt" < /dev/null
+  "$REPO/tools/slot.sh" "$RBDIR/rpg_test.exe" --sim-digest $(digest_args "$1") 2>/dev/null < /dev/null | tr -d '\r' | grep -vE "$SLOT_NOISE" > "$W/new_digest_msvc.txt"
   grep -q '^# sim-digest: ' "$W/new_digest_msvc.txt"
 }
 full_digest_clang() {
@@ -237,13 +238,15 @@ match_moves() {   # sets UND, MISS, UNCH, DECL; writes $W/matched.tsv (n<TAB>gat
   UND=0; MISS=0; UNCH=0; DECL=0; : > "$W/matched.tsv"; : > "$W/undeclared.tsv"
   # unstable moves: declared lines exist in the root's unstable.txt
   while IFS=$'\t' read -r dg di dd; do
+    # (P3 integration) a difference two areas both explain (a fight shot with B1's strike and B11's toast) credits every
+    # move that names it, so neither area's move reads as "did not happen"; it still counts once
     hit=""
     while IFS=$'\t' read -r n a g it id rs; do
       [[ "$dg" == $g ]] || continue
-      local IFS_SAVE="$IFS"; IFS=','; for alt in $it; do [[ "$di" == $alt ]] && { hit=$n; break; }; done; IFS="$IFS_SAVE"
-      [ -n "$hit" ] && break
+      local IFS_SAVE="$IFS" m=""; IFS=','; for alt in $it; do [[ "$di" == $alt ]] && { m=1; break; }; done; IFS="$IFS_SAVE"
+      [ -n "$m" ] && { printf '%s\t%s\t%s\t%s\n' "$n" "$dg" "$di" "$dd" >> "$W/matched.tsv"; hit=$n; }
     done < "$W/moves.tsv"
-    if [ -n "$hit" ]; then printf '%s\t%s\t%s\t%s\n' "$hit" "$dg" "$di" "$dd" >> "$W/matched.tsv"; DECL=$((DECL+1))
+    if [ -n "$hit" ]; then DECL=$((DECL+1))
     else printf '%s\t%s\t%s\n' "$dg" "$di" "$dd" >> "$W/undeclared.tsv"; UND=$((UND+1)); fi
   done < "$W/diffs.tsv"
   : > "$W/missing.tsv"; : > "$W/unchecked.tsv"
