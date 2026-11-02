@@ -110,6 +110,7 @@ constexpr const char* kCiList[] = {
     "rpg_test --doll-coverage --scope all --seeds 1..20 --gates",
     "rpg_test --doll-variety --seeds 1..3 --gates",
     "rpg_test --doll-ladder --selftest",
+    "rpg_test --look-key",
     "rpg_test --home --seeds 1..3",
     "rpg_test --companion --seeds 1..3",
     "rpg_test --banter --seeds 1..3",

@@ -11,10 +11,10 @@
 #
 # Lines:
 #   W1          step_gates.sh --all (S1-S10 with S4 clang and S8 web) into <out>/step; then
-#   W1.msvc_ci  the 68 web.yml commands (tools/gates/ci_cmds.sh) on the MSVC build, from the repo root, 5 side by side
+#   W1.msvc_ci  the web.yml commands (tools/gates/ci_cmds.sh; 69 since P3 C5) on the MSVC build, from the repo root, 5 side by side
 #               (each in its own tools/slot.sh slot): each rc 0. A command that fails under load keeps its log
 #               (logs/msvc_fail_<n>.log) and is rerun once alone (every slot held) after the parallel lines; only a
-#               failed alone rerun FAILs the line (logs/msvc_fail_<n>.rerun.log)
+#               failed alone rerun FAILs the line (logs/msvc_fail_<n>.rerun.log); each rerun line says alone or NOT ALONE
 #   W2.scripts  witness_pack.mjs --all (every script tools/run_scripts.sh would run, on hidden `--witness` instances;
 #               never run_scripts.sh itself, which opens one visible window per script): 0 failed, and "v1draws rig2: 0"
 #               when witness_pack reports the v1draws sum (state.screen.v1DrawsRun)
@@ -23,9 +23,11 @@
 #   W4.doll     tools/gates/doll_gates.sh: every line as at baseline (<out>/doll/summary.txt)
 #   W5.firstlaunch  tools/witness_web/firstlaunch.mjs on the S8 web build (site assembled under <out>/site): it reaches
 #               the started game (status hidden, title, creator, 3 s) and writes its screenshot
-#   W6.digest_clang rpg_test --sim-digest --check probes/sim_digest_clang.txt in the S4 WSL copy
+#   W6.digest_clang rpg_test --sim-digest --check <root>/probes/sim_digest_clang.txt in the S4 WSL copy
+# Records come from the baseline root that tools/gates/baseline/CURRENT names (lib.sh GATES_BASE; README.md there).
 #   W6.perf     tools/gates/perf_pack.sh --check (alone, after everything else): within the wave-0 noise + 3 %
-#   W7.play     witness play batch --goals tools/scripts/p2c_playtests.txt (only with --w7; read its report)
+#   W7.play     witness play batch --goals tools/scripts/p2c_playtests.txt --allow-calls (goals may `call` game resets such
+#               as ladderkit; only with --w7; read its report)
 # Writes <out>/summary.txt (the step lines, then the W lines) and <out>/build.sha. Exit 0 only when nothing FAILs.
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -55,7 +57,7 @@ while [ $# -gt 0 ]; do
     --w7-goals) W7GOALS="$2"; shift 2 ;;
     --skip-w2) SKIPW2=1; shift ;;
     --web-bdir|--copy|--base|--expect|--baseline) PASS+=("$1" "$2"); shift 2 ;;
-    -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) echo "wave_gates: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -69,8 +71,8 @@ done
 case "$WEBB" in /*|?:*) WABS="$WEBB" ;; *) WABS="$REPO/$WEBB" ;; esac
 mkdir -p "$OUT/logs" "$OUT/res"; OUT="$(cd "$OUT" && pwd)"; rm -f "$OUT"/res/*.txt
 write_sha
-PROBES="$REPO/tools/gates/baseline/119de74/probes"
-BL="$REPO/tools/gates/baseline/119de74/gates"; REC=""
+PROBES="$GATES_BASE/probes"
+BL="$GATES_BASE/gates"; REC=""
 
 # W1: the step gates with S4 and S8, in their own out dir; their lines are copied into this summary
 step_only=""
@@ -82,10 +84,10 @@ chk_msvc_ci() {   # phase 1 (pool) or the final line after ci_finish
   [ -z "$p" ] && n=$(grep -c '^ok ' "$2")
   if [ "$3" -eq 0 ] && [ "$f" -eq 0 ]; then
     [ -n "$p" ] && n=$(grep -c . "$OUT/logs/msvc_cmds.txt")
-    echo "PASS $n commands ok, MSVC_FAILS=0$( [ "${k:-0}" -gt 0 ] && echo " ($k ok on the alone rerun; first logs logs/msvc_fail_<n>.log)")"
+    echo "PASS $n commands ok, MSVC_FAILS=0$( [ "${k:-0}" -gt 0 ] && echo " ($k ok on the rerun; first logs logs/msvc_fail_<n>.log)")$(grep -qE 'NOT ALONE \(held' "$2" && echo ' [a rerun was NOT ALONE]')"
   else echo "FAIL MSVC_FAILS=$f $(grep -m2 '^FAIL' "$2" | cut -c1-80 | tr '\n' ' ')"; fi
 }
-# the 68 web.yml commands on the MSVC build, CI_JOBS (5) side by side through tools/slot.sh (lib.sh ci_pool --defer):
+# the web.yml commands on the MSVC build, CI_JOBS (5) side by side through tools/slot.sh (lib.sh ci_pool --defer):
 # a command that fails keeps its log (logs/msvc_fail_<n>.log) and is rerun alone after the parallel lines (msvc_finish)
 ci_exec() {
   local c="$1" exe args; exe="${c%% *}"; args="${c#"${c%% *}"}"
@@ -143,7 +145,7 @@ run_site() {   # assemble the site like web.yml, then the first-launch probe
 chk_firstlaunch() { [ "$3" -eq 0 ] && echo "PASS $(lastline "$2")" || echo "FAIL $(lastline "$2")"; }
 run_digest_clang() {
   [ -f "$PROBES/sim_digest_clang.txt" ] || { echo "SKIP (tool missing): no record $PROBES/sim_digest_clang.txt"; return 0; }
-  MSYS_NO_PATHCONV=1 wsl -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc "cd ~/$COPY && ./build-native/rpg_test --sim-digest --check tools/gates/baseline/119de74/probes/sim_digest_clang.txt" < /dev/null
+  MSYS_NO_PATHCONV=1 wsl -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc "cd ~/$COPY && ./build-native/rpg_test --sim-digest --check tools/gates/baseline/$GATES_BASE_ID/probes/sim_digest_clang.txt" < /dev/null
 }
 chk_probe() {
   if grep -q 'SKIP (tool missing)' "$2"; then echo "SKIP $(lastline "$2")"; return; fi
@@ -154,7 +156,7 @@ tool_or_skip() { local p="$1"; shift; [ -e "$p" ] || { echo "SKIP (tool missing)
 
 # ---------------------------------------------------------------- the run (docs/SOLID_PLAN.md 0.1 Depth: side by side)
 # W1 (step_gates --all) starts first. As soon as its S1 build PASSes, W1.msvc_ci's pool and W3 start beside the rest of
-# W1; W2 and W4 start when the msvc pool is done (the 68 commands get the slots first: W1.msvc_ci <= 1200 s), still beside
+# W1; W2 and W4 start when the msvc pool is done (the CI commands get the slots first: W1.msvc_ci <= 1200 s), still beside
 # W1's S4 and the others; W5 starts when S8 is done, W6.digest_clang when S4 is done. Every heavy process goes through
 # tools/slot.sh, so the machine cap (5, or 2 while the owner plays) holds. Then W1.msvc_ci's alone reruns, W6.perf alone
 # and last, and W7. <out>/parallel.txt = wall vs the sum of the line durations.
@@ -183,7 +185,7 @@ if [ $BUILD_OK -eq 1 ]; then
   ( gate_run W1.msvc_ci chk_msvc_ci -- run_msvc_ci ) & MSVC_PID=$!; BGW+=($MSVC_PID)
   ( gate_run W3.witness chk_rc -- "$REPO/tools/gates/witness_smoke.sh" all15 --bdir "$BABS" --out "$OUT/witness15"
     rm -f "$OUT"/witness15/shots/*.png 2>/dev/null ) & BGW+=($!)
-  # W2 and W4 wait for the msvc pool (not its alone reruns) so the 68 commands get the slots first
+  # W2 and W4 wait for the msvc pool (not its alone reruns) so the CI commands get the slots first
   ( while kill -0 "$MSVC_PID" 2>/dev/null; do sleep 3; done
     if [ $SKIPW2 -eq 0 ]; then
       # never tools/run_scripts.sh or view_pack.sh's old `--script` path: both open visible game windows
@@ -219,7 +221,7 @@ run_perf() {
 gate_run W6.perf chk_probe -- run_perf
 if [ $W7 -eq 1 ]; then
   CFG="$OUT/witness15/witness.gates.json"
-  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "${WITNESS_HOME:-$REPO/../witness}/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --parallel 2 --model sonnet --effort low
+  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "${WITNESS_HOME:-$REPO/../witness}/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --allow-calls --parallel 2 --model sonnet --effort low
 else gate_skip W7.play "waves 3 and 4 only (--w7)"; fi
 # wall vs the sum of the line durations (how much ran side by side)
 sumd=$(cat "$OUT"/res/*.txt 2>/dev/null | awk '{ if ($4 ~ /^[0-9]+s$/) s += $4 + 0 } END { print s + 0 }')

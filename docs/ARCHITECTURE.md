@@ -265,7 +265,8 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
    included only by the files their headers name.
 7. **Size guardrails.** A hand-written logic file stays under about 2,000 lines and a function under about 300 (new
    code: under about 150). A file over that is split along its section banners before anything is added
-   (`tools/gates/size_report.sh`). Data tables and generated files are exempt.
+   (`tools/gates/size_report.sh`; `--renames tools/gates/size_renames.txt` maps functions renamed since the baseline
+   root, so only a genuinely new big function counts). Data tables and generated files are exempt.
 8. **No new process-wide mutable globals** in sim, art or view. Per-world state lives in Game as runtime-only fields
    marked "never saved"; per-frame screen state lives in View or one of its parts; any file-scope state registers a
    Witness reset with `EMB_VIEW_RESET(fn)` next to it.

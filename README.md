@@ -47,8 +47,11 @@ Each answer names the file and the symbol to open.
 
 - `tools/gates/step_gates.sh --bdir <dir> --out <dir>`: the step gates (build, seeds, saves, art and freeze hashes,
   village art, Witness smoke, sim digest, view and audio packs, layer and move checks). `tools/gates/wave_gates.sh` adds
-  every script, Witness x2, the doll gates, first launch and perf. Each script's header documents it; the baselines in
-  `tools/gates/baseline/119de74/` are never re-recorded.
+  every script, Witness x2, the doll gates, first launch and perf. Each script's header documents it. The records live
+  in `tools/gates/baseline/<root>/`, the root named by `tools/gates/baseline/CURRENT` (`119de74`, wave 0's); a batch
+  moves one only through declared moves and `tools/gates/rebase_baseline.sh` (`tools/gates/baseline/README.md`).
+- `tools/gates/size_report.sh --check tools/gates/baseline/<root>/checks/size_report.txt --renames
+  tools/gates/size_renames.txt`: no new file over 2,000 lines or function over 300 (renamed functions mapped).
 - `rpg_test <flag>`: one lane's checks (`rpg_test --help` lists them); `rpg_test --seeds 1..20` is the broad sweep.
 - Game scripts (`tools/scripts/*.txt`) run on hidden Witness instances through `tools/gates/witness_pack.mjs`.
   Never start `embervale.exe` without `--witness` from a tool: it opens a window.
@@ -153,7 +156,8 @@ Folders, top down. "Lane" means one game system with its own files (see `docs/AR
 | Path | What it holds |
 |---|---|
 | `tools/tests/` | `rpg_test`: one `test_<subject>.cpp` per lane, each command registered with `RPG_TEST_CMD` (`tools/tests/tests.h`); the doll tests share `doll_test_common.h`/`doll_test_common.cpp` (looks lines, cross-file entry points) and register their gates with `RPG_DOLL_GATE(order, name, fn)`, run in key order by `rpg_test --doll --gates` |
-| `tools/gates/` | the gate harness: `step_gates.sh`, `wave_gates.sh`, `witness_pack.mjs`, `move_check.sh`, `check_layers.sh` (+ `layers_allow.txt`), `size_report.sh`, baselines |
+| `tools/gates/` | the gate harness: `step_gates.sh`, `wave_gates.sh`, `witness_pack.mjs`, `move_check.sh`, `check_layers.sh` (+ `layers_allow.txt`), `size_report.sh` (+ `size_renames.txt`), `lib.sh` (shared: `slot_alone`, the CPU quiet wait, the baseline root), `rebase_baseline.sh` |
+| `tools/gates/baseline/` | the gate records: `CURRENT` names the root (`119de74/`), `moves/<AREA>.txt` a batch's declared moves, `README.md` how a baseline moves |
 | `tools/preview/` | the gallery exes (one PNG sheet per art family) |
 | `tools/doll/` | doll tooling: `pxc.mjs` (makes `rpg/art/doll/gen/`), looks lists, the freeze manifests |
 | `tools/scripts/` | the game scripts (`*.txt`): timed commands that drive the game and take shots |

@@ -3,12 +3,12 @@
 #
 #   tools/gates/doll_gates.sh --bdir <dir> --out <dir> [--only NAMES] [--jobs N] [--baseline DIR] [--record DIR]
 #
-# Wall-clock lines (B10 / R6 bake p50/p95) are left out of the compare through baseline/119de74/gates/unstable.txt (each
+# Wall-clock lines (B10 / R6 bake p50/p95) are left out of the compare through <root>/gates/unstable.txt (each
 # with its cause); a TIMING line that FAILs anyway is rerun once alone (every slot held) before it counts. motion_arms
 # (29 MB of output) is compared as line count + sha256 of the normalized text + its last 40 lines.
 # Every line of the flip's R2 list at the default rig (no EMB_RIG), plus the rig-1 proofs (D101). Each line passes when
-# its rc equals the recorded rc (<name>.rc; 0 except lines red at 119de74) and its output, timing tokens masked, equals the 119de74 record in
-# tools/gates/baseline/119de74/gates/doll/<name>.txt ("every line as at baseline"). Lines run --jobs at a time (default
+# its rc equals the recorded rc (<name>.rc; 0 except lines red at 119de74) and its output, timing tokens masked, equals the root's record in
+# tools/gates/baseline/<CURRENT>/gates/doll/<name>.txt (the root: tools/gates/baseline/CURRENT, lib.sh) ("every line as at baseline"). Lines run --jobs at a time (default
 # 4), each through tools/slot.sh. Writes <out>/logs, <out>/res, <out>/summary.txt and <out>/build.sha (lib.sh).
 # Exit 0 only when no line FAILs.
 set -u
@@ -30,7 +30,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$BDIR" ] && [ -n "$OUT" ] || { echo "doll_gates: --bdir and --out are required" >&2; exit 2; }
 case "$BDIR" in /*|?:*) B="$BDIR" ;; *) B="$REPO/$BDIR" ;; esac
-BL="${BL:-$REPO/tools/gates/baseline/119de74/gates/doll}"
+BL="${BL:-$GATES_BASE/gates/doll}"
 mkdir -p "$OUT/logs" "$OUT/res"; OUT="$(cd "$OUT" && pwd)"; rm -f "$OUT"/res/*.txt
 [ -n "$REC" ] && { mkdir -p "$REC"; REC="$(cd "$REC" && pwd)"; }
 write_sha
@@ -93,7 +93,8 @@ EOF
 # sha256 H" of the normalized text plus its last 40 lines (where the summary sits), so any changed line still FAILs.
 HASHED=" motion_arms "
 # TIMING: lines that time something on the wall clock (B10 / R6 bake p95). Their timing lines are left out through
-# baseline/119de74/gates/unstable.txt; if such a line FAILs anyway it is rerun once alone (slot_alone) before it counts.
+# <root>/gates/unstable.txt; if such a line FAILs anyway it is rerun once alone (slot_alone) before it counts; the rerun's
+# result line says "alone" or "NOT ALONE (held k/5, cpu x %)".
 TIMING=" gates_parity rig_gates anim_gates "
 reduce_big() {   # reduce_big NAME LOG > reduced text
   local t="$OUT/logs/$1.full" ex; norm "$2" > "$t"; ex=$(unstable_re "$1")
@@ -139,7 +140,7 @@ while IFS='|' read -r name spec; do
   grep -q "^$name FAIL " "$OUT/res/$name.txt" 2>/dev/null || continue
   mv "$OUT/logs/$name.log" "$OUT/logs/$name.first.log"; cp "$OUT/res/$name.txt" "$OUT/logs/$name.first.res"
   ALONE_FLAG=--alone one "$name" "$spec" > /dev/null
-  sed -i "s/\$/ (rerun alone; first try FAILed under load: logs\/$name.first.log)/" "$OUT/res/$name.txt"
+  sed -i "s/\$/ (the rerun; first try FAILed under load: logs\/$name.first.log)/" "$OUT/res/$name.txt"
   cat "$OUT/res/$name.txt"
 done <<< "$LIST"
 gates_summary

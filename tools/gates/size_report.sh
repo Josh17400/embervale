@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # size_report.sh: the size guardrails of SOLID plan rule 7 (gate S10, judge check 5). Lists hand-written files over
 # 2,000 lines and functions over 300 lines, apart from today's cohesive big files in tools/gates/size_allow.txt.
-# Neighbours: check_layers.sh (one-way layers), move_check.sh (was it only moved?), baseline/119de74/checks/.
+# Neighbours: check_layers.sh (one-way layers), move_check.sh (was it only moved?), baseline/<CURRENT>/checks/.
 #
-# Usage: tools/gates/size_report.sh [--root DIR] [--allow FILE] [--all] [--check BASELINE] [--file-max N] [--func-max N]
+# Usage: tools/gates/size_report.sh [--root DIR] [--allow FILE] [--all] [--check BASELINE [--renames FILE]] [--file-max N]
+#                                   [--func-max N]
 #   --all             also print the allowlisted items (ALLOW lines)
 #   --check BASELINE  fail (exit 1) when an OVER item is not in BASELINE (a saved report): a new big file, or a new
 #                     big function (functions are matched by name, so moving one to another file is not "new");
 #                     items larger than at baseline print as GREW (information, not a failure)
+#   --renames FILE    "old new" per line (tools/gates/size_renames.txt): baseline items named old are matched as new
+#                     first, so a function renamed since the baseline (SOLID moved hooks off Game) is not NEW
 #   --func NAME       print the length of every function whose name contains NAME (for step reports)
 # Output lines: "OVER file <lines> <path>", "OVER func <lines> <path>:<line> <name>", then one summary line.
 # Exit 0 = report written (and --check passed); 1 = --check found a new item; 2 = usage error.
@@ -19,17 +22,18 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 ALLOW="$HERE/size_allow.txt"
-ALL=0; CHECK=""; FILEMAX=2000; FUNCMAX=300; FUNCQ=""
+ALL=0; CHECK=""; RENAMES=""; FILEMAX=2000; FUNCMAX=300; FUNCQ=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) ROOT="$(cd "$2" && pwd)" || exit 2; shift 2 ;;
     --allow) ALLOW="$2"; shift 2 ;;
     --all) ALL=1; shift ;;
     --check) CHECK="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"; shift 2 ;;
+    --renames) RENAMES="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")" || exit 2; shift 2 ;;
     --file-max) FILEMAX="$2"; shift 2 ;;
     --func-max) FUNCMAX="$2"; shift 2 ;;
     --func) FUNCQ="$2"; shift 2 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "size_report: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -150,15 +154,22 @@ NFILES=$(wc -l < "$TMP/files" | tr -d ' ')
 RC=0; NEWN=0
 if [ -n "$CHECK" ]; then
   [ -f "$CHECK" ] || { echo "size_report: no baseline $CHECK" >&2; exit 2; }
-  gawk -v BASEF="$CHECK" '
-    BEGIN { while ((getline l < BASEF) > 0) { split(l, b, " "); if (b[1] != "OVER") continue
-              if (b[2] == "file") bf[b[4]] = b[3]; else bu[b[5]] = (b[5] in bu && bu[b[5]] > b[3]) ? bu[b[5]] : b[3] } }
+  : > "$TMP/renames"
+  if [ -n "$RENAMES" ]; then
+    [ -f "$RENAMES" ] || { echo "size_report: no renames file $RENAMES" >&2; exit 2; }
+    sed 's/[[:space:]]*#.*$//' "$RENAMES" | tr -d '' | awk 'NF >= 2 { print $1, $2 }' > "$TMP/renames"
+  fi
+  gawk -v BASEF="$CHECK" -v RNF="$TMP/renames" '
+    function rn(x) { return (x in to) ? to[x] : x }
+    BEGIN { while ((getline r < RNF) > 0) { split(r, a, " "); to[a[1]] = a[2] }
+            while ((getline l < BASEF) > 0) { split(l, b, " "); if (b[1] != "OVER") continue
+              if (b[2] == "file") bf[rn(b[4])] = b[3]; else { k = rn(b[5]); bu[k] = (k in bu && bu[k] + 0 > b[3] + 0) ? bu[k] : b[3] } } }
     $1 != "OVER" { next }
     $2 == "file" { if (!($4 in bf)) print "NEW  " $0; else if ($3 + 0 > bf[$4] + 0) print "GREW " $0 " (baseline " bf[$4] ")" }
     $2 == "func" { if (!($5 in bu)) print "NEW  " $0; else if ($3 + 0 > bu[$5] + 0) print "GREW " $0 " (baseline " bu[$5] ")" }' "$TMP/rep" > "$TMP/cmp"
   cat "$TMP/cmp"
   NEWN=$(grep -c '^NEW' "$TMP/cmp"); [ "$NEWN" -gt 0 ] && RC=1
 fi
-if [ -n "$CHECK" ]; then V=$([ $RC = 0 ] && echo PASS || echo FAIL); echo "size_report: $V files=$NFILES over=$NOVER allowed=$NALLOW new=$NEWN (file>$FILEMAX func>$FUNCMAX)"
+if [ -n "$CHECK" ]; then V=$([ $RC = 0 ] && echo PASS || echo FAIL); echo "size_report: $V files=$NFILES over=$NOVER allowed=$NALLOW new=$NEWN (file>$FILEMAX func>$FUNCMAX)$([ -n "$RENAMES" ] && echo ", $(grep -c . "$TMP/renames") renames mapped")"
 else echo "size_report: files=$NFILES over=$NOVER allowed=$NALLOW (file>$FILEMAX func>$FUNCMAX)"; fi
 exit $RC

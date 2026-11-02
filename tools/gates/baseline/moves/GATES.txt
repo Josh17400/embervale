@@ -1,0 +1,5 @@
+# GATES (docs/FIX_BATCH_P3.md 8.6): the baselines GATES' own change moves, against root 119de74.
+# <gate> <item glob>[,<item glob>...] <id> <reason>   (tools/gates/rebase_baseline.sh; a space in a glob is ? or *)
+# C5: rpg_test --look-key joins web.yml's test job and kCiList (tools/tests/main.cpp): the CI list 68 -> 69 commands.
+expect      CLANG_CMDS                       C5  rpg_test --look-key added to web.yml's test job: 68 -> 69 CI commands (S4.clang, W1.msvc_ci)
+S4.ci_cmds  rpg_test?--look-key              C5  the CI list (ci_cmds.sh) gains rpg_test --look-key after --doll-ladder --selftest

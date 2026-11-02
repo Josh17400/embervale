@@ -11,7 +11,7 @@
 #   --bdir DIR   build dir holding embervale.exe (default: $BDIR, else build)
 #   --out DIR    hashes.txt, scripts.txt, summary.txt, logs/ (default: a new temp dir)
 #   --jobs N     instances at once (default 5, max 5; each holds a tools/slot.sh slot)
-#   --check FILE the record to compare with (default: --quick tools/gates/baseline/119de74/probes/view_quick/hashes.txt,
+#   --check FILE the record to compare with (default: --quick tools/gates/baseline/<CURRENT>/probes/view_quick/hashes.txt,
 #                --all .../view_all/hashes.txt; a named-scripts run checks against view_all)
 #   --exclude F  "<script>[/<png>]  # cause" lines left out of the comparison (default: exclude.txt next to the record)
 #   --record     no comparison (how a baseline is made: copy <out>/hashes.txt and scripts.txt into the record dir)
@@ -39,7 +39,8 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-BASE="$ROOT/tools/gates/baseline/119de74/probes"
+REPO="$ROOT"; . "$ROOT/tools/gates/lib.sh"   # GATES_BASE: the baseline root (tools/gates/baseline/CURRENT)
+BASE="$GATES_BASE/probes"
 if [ -z "$CHECK" ] && [ $RECORD -eq 0 ]; then
   case "$MODE" in quick) CHECK="$BASE/view_quick/hashes.txt" ;; *) CHECK="$BASE/view_all/hashes.txt" ;; esac
 fi

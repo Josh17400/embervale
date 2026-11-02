@@ -28,7 +28,7 @@
 // P1b DONE gates: every radiant job kind and every request offered at least once over the seeds, top-3 job kinds below
 // P1's 53.6 %, top-4 tales below P1's 13.6 % (the tales are also force-played by --content-p1b, so a tale the visit set
 // never meets is reported, not failed). The visit set can grow: --more-towns N (the N next nearest towns and cities
-// too) and --ports (the nearest port town or city too).
+// too) and --ports (the nearest port town or city too; --gates-p1b implies it: the P1b gates need the port town).
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -270,7 +270,7 @@ int questMix(int argc, char** argv) {
     else if (!strcmp(argv[i], "--no-towns")) towns = false;
     else if (!strcmp(argv[i], "--report")) report = true;
     else if (!strcmp(argv[i], "--p1b")) p1b = true;
-    else if (!strcmp(argv[i], "--gates-p1b")) { gatesP1b = true; p1b = true; }
+    else if (!strcmp(argv[i], "--gates-p1b")) { gatesP1b = true; p1b = true; ports = true; }   // (P3 C6) needs the port town
     else if (!strcmp(argv[i], "--more-towns") && i + 1 < argc) moreTowns = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--ports")) ports = true;
   }
@@ -281,7 +281,13 @@ int questMix(int argc, char** argv) {
     g_curSeed = seed;
     seeds++;
     Game g(seed);
+    // (P3 C6) the sim digest's determinism switches (test_sim_digest.cpp runDigest): no stream worker, every cold
+    // generation at once on this thread, and the realm's wall-clock focus slice unbounded. Without them the visit set's
+    // streaming and the realm's 2 ms slice follow machine load, so two runs could differ (a timing effect of the probe).
+    g.streamThreads = false;
+    g.syncStreams = true;
     g.newEndlessGame(seed);
+    g.realm.focusBudgetMs = 1e18;   // (after the new game: Realm::reset puts the 2 ms back)
     g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
     for (int f = 0; f < 10; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
     // the N settlements nearest the start, from the region plans (two rings round the start's region: the survey's

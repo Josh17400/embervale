@@ -10,7 +10,26 @@
 # Variables the caller sets: REPO (repo root), OUT (output dir), BL (baseline dir for compares), REC (record dir, or
 # empty), ONLY (comma list of name prefixes, or empty = all).
 
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 GATES_T0=$(date +%s)
+
+# The baseline root (P3, docs/FIX_BATCH_P3.md 10): every gate reads its records from tools/gates/baseline/<root>/, where
+# <root> is the one word in tools/gates/baseline/CURRENT (119de74 = the wave-0 record; rebase_baseline.sh writes a new
+# root and flips CURRENT). GATES_BASE_ID = that word, GATES_BASE = the root dir, GATES_BASE_REV = the git revision the
+# root was recorded at (<root>/REV, or the root's name when it has none: 119de74 is its own revision). GATES_CURRENT_FILE
+# and GATES_BASELINE_DIR override the pointer file and the baseline dir (rebase_baseline.sh --selftest).
+gates_baseline_dir() { echo "${GATES_BASELINE_DIR:-$REPO/tools/gates/baseline}"; }
+gates_root_id() { tr -dc '[:alnum:]_.-' < "${GATES_CURRENT_FILE:-$(gates_baseline_dir)/CURRENT}" 2>/dev/null; }
+gates_root_rev() {   # gates_root_rev [ID]
+  local id="${1:-$(gates_root_id)}" f; f="$(gates_baseline_dir)/$id/REV"
+  if [ -f "$f" ]; then tr -dc '[:alnum:]' < "$f"; else echo "$id"; fi
+}
+GATES_BASE_ID="$(gates_root_id)"
+if [ -z "$GATES_BASE_ID" ] || [ ! -d "$(gates_baseline_dir)/$GATES_BASE_ID" ]; then
+  echo "lib.sh: no baseline root: $(gates_baseline_dir)/CURRENT names '${GATES_BASE_ID}' (see tools/gates/baseline/README.md)" >&2
+fi
+GATES_BASE="$(gates_baseline_dir)/$GATES_BASE_ID"
+GATES_BASE_REV="$(gates_root_rev "$GATES_BASE_ID")"
 SLOT_NOISE='^([^ ]*/)?(tools/)?slot\.sh: |^slot_alone: '   # a line tools/slot.sh (or bash running it) or slot_alone wrote
 unset WITNESS_WATCH   # WITNESS_WATCH=1 makes a --witness game show its window: never in the gates
 
@@ -37,7 +56,7 @@ norm() {
 
 # unstable_re NAME: one grep -E alternation of the unstable-line regexes recorded for NAME (empty when none)
 unstable_re() {
-  local f="${UNSTABLE_FILE:-$REPO/tools/gates/baseline/119de74/gates/unstable.txt}"
+  local f="${UNSTABLE_FILE:-$GATES_BASE/gates/unstable.txt}"
   [ -f "$f" ] || return 0
   tr -d '\r' < "$f" | awk -F'\t' -v n="$1" '$1 == n { sub(/[[:space:]]+#.*$/, "", $2); print $2 }' | paste -sd'|' -
 }
@@ -59,8 +78,8 @@ base_cmp() {
   local name="$1" log="$2" filt="${3:-}" tmp
   tmp="$OUT/logs/$name.norm"
   if [ -n "$filt" ]; then norm "$log" | grep -E -- "$filt" > "$tmp"; else norm "$log" > "$tmp"; fi
-  # lines that are not A/A-stable at 119de74 (two runs of one binary differ) are left out on both sides; each is listed
-  # with its cause in baseline/119de74/gates/unstable.txt ("NAME<tab>regex  # cause") and reported as a finding
+  # lines that are not A/A-stable (two runs of one binary differ) are left out on both sides; each is listed with its
+  # cause in <root>/gates/unstable.txt ("NAME<tab>regex  # cause") and reported as a finding
   local ex; ex=$(unstable_re "$name")
   if [ -n "$ex" ]; then grep -vE -- "$ex" "$tmp" > "$tmp.x"; mv "$tmp.x" "$tmp"; fi
   masked "$name" < "$tmp" > "$tmp.x"; mv "$tmp.x" "$tmp"
@@ -93,7 +112,8 @@ gate_run() {
     rm -f "$OUT/logs/$name.start"
     slot_alone bash -c 'date +%s > "$0"; exec "$@"' "$OUT/logs/$name.start" "$@" > "$log" 2>&1 < /dev/null; rc=$?
     t1=$(cat "$OUT/logs/$name.start" 2>/dev/null || echo "$t0"); rm -f "$OUT/logs/$name.start"
-    [ $(( t1 - t0 )) -gt 2 ] && waited=" (+$(( t1 - t0 ))s waiting to run alone)"
+    waited=" [$(alone_note "$log")]"
+    [ $(( t1 - t0 )) -gt 2 ] && waited="$waited (+$(( t1 - t0 ))s waiting to run alone)"
   elif [ $slot -eq 1 ]; then
     # the duration counts from the moment the slot is held; the wait for it is reported apart
     rm -f "$OUT/logs/$name.start"
@@ -175,12 +195,76 @@ headed_launch() {
   return 1
 }
 
-# slot_alone CMD...: run CMD while holding EVERY tools/slot.sh slot the cap allows (game_cap.sh: 5, or 2 while the owner
-# plays), so no build, gate or slot-run Witness instance runs beside it: how a timing line is "rerun alone" before it
-# counts (SOLID_PLAN 4.4). An alone.lock mutex comes first, so two alone-runners never each hold part of the slots and
-# wait on each other. Slots are taken as they free up and kept; after ALONE_WAIT seconds (default 1800) CMD runs with
-# what is held and "slot_alone: not alone (held k of n)" goes to stderr. Never call it while this process tree already
-# holds a slot (it would wait on itself).
+# ---- the machine's CPU (shared by slot_alone and perf_pack.sh; P3 C3) ----
+# cpu_start FILE: sample the machine CPU (typeperf, % of all logical processors) into FILE once a second, in the
+# background (CPU_PID); cpu_stop ends it. Without typeperf (Linux) nothing is sampled and cpu_avg prints nothing.
+# cpu_avg N: mean CPU % over the last N samples ("" when fewer); cpu_nsamp: how many samples so far.
+# The machine's idle level is remembered across runs in <slot root>/idle_cpu ("<percent> <epoch>"): the lowest 5 s mean
+# any quiet wait saw in the last 7 days (this PC idles at ~14 % with tray apps). cpu_idle prints the level to use: that
+# file, else the lowest 5 s mean seen in this wait (IDLE_SEEN), never above CPU_IDLE_MAX (25).
+cpu_start() {
+  CPUCSV="$1"; : > "$CPUCSV"; CPU_PID=""
+  command -v typeperf >/dev/null 2>&1 || return 0
+  typeperf "\\Processor(_Total)\\% Processor Time" -si 1 > "$CPUCSV" 2>/dev/null < /dev/null &
+  CPU_PID=$!
+}
+cpu_stop() { [ -n "${CPU_PID:-}" ] && kill "$CPU_PID" 2>/dev/null; CPU_PID=""; }
+cpu_nsamp() { tr -d '\r' < "$CPUCSV" 2>/dev/null | grep -cE '^"[^"]*","[0-9.]+"$'; }
+cpu_avg() {
+  tr -d '\r' < "$CPUCSV" 2>/dev/null | awk -F'","' 'NF == 2 && $2 ~ /^[0-9.]+"?$/ { v = $2; gsub(/"/, "", v); a[++n] = v }
+    END { k = '"$1"'; if (n < k) exit; for (i = n - k + 1; i <= n; i++) s += a[i]; printf("%.0f", s / k) }'
+}
+cpu_idle_file() { echo "$(slot_root)/idle_cpu"; }
+cpu_idle_note() {   # cpu_idle_note PCT: remember PCT as the machine's idle level when it is lower (or the record is old)
+  local f v t; f="$(cpu_idle_file)"; v=""; t=0
+  [ -f "$f" ] && read -r v t < "$f" 2>/dev/null
+  case "$v" in ""|*[!0-9]*) v="" ;; esac; case "$t" in ""|*[!0-9]*) t=0 ;; esac
+  if [ -z "$v" ] || [ "$1" -lt "$v" ] || [ $(( $(date +%s) - t )) -gt 604800 ]; then echo "$1 $(date +%s)" > "$f" 2>/dev/null; fi
+}
+cpu_idle() {
+  local f v t m="${CPU_IDLE_MAX:-25}"; f="$(cpu_idle_file)"; v=""; t=0
+  [ -f "$f" ] && read -r v t < "$f" 2>/dev/null
+  case "$v" in ""|*[!0-9]*) v="" ;; esac; case "$t" in ""|*[!0-9]*) t=0 ;; esac
+  [ -n "$v" ] && [ $(( $(date +%s) - t )) -gt 604800 ] && v=""
+  [ -z "$v" ] && v="${IDLE_SEEN:-$m}"
+  [ -n "${IDLE_SEEN:-}" ] && [ "$IDLE_SEEN" -lt "$v" ] && v="$IDLE_SEEN"
+  [ "$v" -gt "$m" ] && v="$m"
+  echo "$v"
+}
+# quiet_wait MAXSECS: wait (sampling, cpu_start must run) until the 5 s mean CPU is at or below the machine's idle level +
+# QUIET_ABOVE (default 15) %, at least 10 samples in; at most MAXSECS. Sets QUIET_CPU (the last 5 s mean, "?" without
+# samples) and QUIET_OK (1 quiet, 0 not). Without typeperf it returns at once with QUIET_OK=1, QUIET_CPU="?".
+quiet_wait() {
+  local max="$1" t0=$SECONDS c lim
+  QUIET_OK=0; QUIET_CPU="?"; IDLE_SEEN=""
+  if [ -z "${CPU_PID:-}" ]; then QUIET_OK=1; return 0; fi
+  while :; do
+    c="$(cpu_avg 5)"
+    if [ -n "$c" ]; then
+      QUIET_CPU="$c"
+      { [ -z "$IDLE_SEEN" ] || [ "$c" -lt "$IDLE_SEEN" ]; } && IDLE_SEEN="$c"
+      lim=$(( $(cpu_idle) + ${QUIET_ABOVE:-15} ))
+      if [ "$(cpu_nsamp)" -ge 10 ] && [ "$c" -le "$lim" ]; then QUIET_OK=1; break; fi
+    fi
+    if [ $((SECONDS - t0)) -ge "$max" ]; then [ "$QUIET_CPU" = "?" ] && { c="$(cpu_avg 1)"; [ -n "$c" ] && QUIET_CPU="$c"; }; break; fi
+    sleep 1
+  done
+  [ -n "$IDLE_SEEN" ] && [ "$(cpu_nsamp)" -ge 10 ] && cpu_idle_note "$IDLE_SEEN"
+  return 0
+}
+
+# slot_alone CMD...: run CMD while holding EVERY tools/slot.sh slot, 1..EMB_SLOTS (5), whatever the cap: while the owner
+# plays (game_cap.sh 2) slot.sh only hands out 1..2, but jobs that started before still hold 3-5, so slot_alone waits
+# for those to drain too (P3 C3). Then it waits for the machine to be quiet (load outside slot.sh: a WSL build,
+# another session's Witness instances): the 5 s mean CPU at the machine's idle level + 15 % (quiet_wait), capped at
+# ALONE_QUIET_WAIT (240) seconds. How a timing line is "rerun alone" before it counts (SOLID_PLAN 4.4). An alone.lock
+# mutex comes first, so two alone-runners never each hold part of the slots and wait on each other. Slots are taken as
+# they free up and kept; after ALONE_WAIT seconds (default 1800) CMD runs with what is held. Before CMD it writes ONE
+# status line to stderr:
+#   slot_alone: alone (held 5/5, cpu 16 %)
+#   slot_alone: NOT ALONE (held 2/5, cpu 41 %) after <s> s
+# alone_note LOG reads it back ("alone" / "NOT ALONE (held k/5, cpu x %)") for the rerun's result line. Never call it
+# while this process tree already holds a slot (it would wait on itself).
 slot_root() {
   if [ -n "${EMB_SLOT_ROOT:-}" ]; then echo "$EMB_SLOT_ROOT"
   elif [ -n "${LOCALAPPDATA:-}" ] && command -v cygpath >/dev/null 2>&1; then echo "$(cygpath -u "$LOCALAPPDATA")/Temp/emb_slots"
@@ -188,7 +272,8 @@ slot_root() {
 }
 slot_alone() (
   R=$(slot_root); mkdir -p "$R"; HELD=(); LOCK="$R/alone.lock"; t0=$(date +%s); waitmax="${ALONE_WAIT:-1800}"
-  release() { local d; for d in "${HELD[@]+"${HELD[@]}"}"; do rm -rf "$d"; done; [ "${GOTLOCK:-0}" = 1 ] && rm -rf "$LOCK"; }
+  N="${EMB_SLOTS:-5}"; CPU_PID=""
+  release() { local d; cpu_stop; for d in "${HELD[@]+"${HELD[@]}"}"; do rm -rf "$d"; done; [ "${GOTLOCK:-0}" = 1 ] && rm -rf "$LOCK"; }
   trap release EXIT; trap 'release; exit 130' INT TERM HUP
   stale_d() {   # tools/slot.sh's rule: owner gone, older than EMB_SLOT_MAX_AGE, or ownerless for 60 s
     local d="$1" pid t _r
@@ -206,14 +291,13 @@ slot_alone() (
     sleep 2
   done
   while :; do
-    c=$(bash "$REPO/tools/game_cap.sh" 2>/dev/null); case "$c" in ""|*[!0-9]*) c="${EMB_SLOTS:-5}" ;; esac
-    for i in $(seq 1 "$c"); do
+    for i in $(seq 1 "$N"); do
       d="$R/$i"; case " ${HELD[*]+"${HELD[*]}"} " in *" $d "*) continue ;; esac
       [ -d "$d" ] && stale_d "$d" && { mv "$d" "$d.stale.$BASHPID" 2>/dev/null && rm -rf "$d.stale.$BASHPID"; }
       # (a slot another waiter removed between our mkdir and the owner write is simply not ours: no message, not held)
       if mkdir "$d" 2>/dev/null; then { echo "$BASHPID $(date +%s) slot_alone (holds every slot: a timing rerun) $*" > "$d/owner"; } 2>/dev/null && HELD+=("$d"); fi
     done
-    [ ${#HELD[@]} -ge "$c" ] && break
+    [ ${#HELD[@]} -ge "$N" ] && break
     # another every-slot holder (perf_pack.sh takes no alone.lock) holds part of the slots: give ours back so the two
     # never wait on each other, and start over once it is done
     other=""
@@ -223,17 +307,32 @@ slot_alone() (
     if [ ${#HELD[@]} -gt 0 ] && [ -n "$other" ]; then
       for d in "${HELD[@]}"; do rm -rf "$d"; done; HELD=()
     fi
-    if [ $(( $(date +%s) - t0 )) -gt "$waitmax" ]; then echo "slot_alone: not alone (held ${#HELD[@]} of $c after ${waitmax}s)" >&2; break; fi
+    [ $(( $(date +%s) - t0 )) -gt "$waitmax" ] && break
     sleep 2
   done
+  # every slot held (or the wait ran out): now the machine itself must be quiet
+  cpu_start "$R/alone_cpu.$BASHPID.csv"
+  quiet_wait "${ALONE_QUIET_WAIT:-240}"
+  cpu_stop; rm -f "$R/alone_cpu.$BASHPID.csv"
+  if [ ${#HELD[@]} -ge "$N" ] && [ "$QUIET_OK" = 1 ]; then echo "slot_alone: alone (held ${#HELD[@]}/$N, cpu $QUIET_CPU %)" >&2
+  else echo "slot_alone: NOT ALONE (held ${#HELD[@]}/$N, cpu $QUIET_CPU %) after $(( $(date +%s) - t0 )) s" >&2; fi
   "$@"
 )
+# alone_note LOG: "alone" or "NOT ALONE (held k/5, cpu x %)" from slot_alone's status line in LOG ("alone?" when none)
+alone_note() {
+  local l; l=$(tr -d '\r' < "$1" 2>/dev/null | grep -m1 -E '^slot_alone: (alone|NOT ALONE) ')
+  case "$l" in
+    "slot_alone: alone "*) echo "alone" ;;
+    "slot_alone: NOT ALONE "*) l="${l#slot_alone: }"; echo "${l% after *}" ;;
+    *) echo "alone? (no slot_alone status)" ;;
+  esac
+}
 
 # ci_pool LIST LOGDIR TAG [--defer]: run every command line of LIST (one per line) as `ci_exec "<line>"` - ci_exec is a
 # function the caller defines and exports (export -f) - CI_JOBS (default 5) at a time, each in its own tools/slot.sh slot.
 # A command that fails is rerun ONCE through slot_alone (alone on the machine: timing checks such as rpg_test --doll
 # --gates B10 fail under load) and only then counts; the first try's log is kept as LOGDIR/<TAG>_fail_<n>.log (n = line
-# number), a failed rerun's as <TAG>_fail_<n>.rerun.log. Without --defer the reruns follow at once (ci_finish); with
+# number), a failed rerun's as <TAG>_fail_<n>.rerun.log; every rerun line says "alone" or "NOT ALONE (held k/5, cpu x %)". Without --defer the reruns follow at once (ci_finish); with
 # --defer the failures are only listed (<TAG>_retry.txt, "RETRY" lines, <TAG>_PENDING=k) and the caller runs
 # `ci_finish LIST LOGDIR TAG` later, when its own parallel lines are done (wave_gates: before W6.perf).
 # ci_finish prints one "ok|FAIL rc=N <cmd> <secs>s | <last line>" per command in list order (ok lines that needed the
@@ -270,11 +369,11 @@ ci_finish() {
     if [ "$rc" -eq 0 ]; then echo "ok $c ${dt}s | $(lastline "$dir/${tag}_cmd_$i.log")"; continue; fi
     first=$rc; t1=$(date +%s)
     slot_alone bash -c 'ci_exec "$1"' _ "$c" > "$dir/${tag}_cmd_$i.log" 2>&1 < /dev/null; rc=$?
-    dt=$(( $(date +%s) - t1 )); echo "$rc $dt" > "$dir/${tag}_cmd_$i.rc"
+    dt=$(( $(date +%s) - t1 )); echo "$rc $dt" > "$dir/${tag}_cmd_$i.rc"; an=$(alone_note "$dir/${tag}_cmd_$i.log")
     if [ "$rc" -eq 0 ]; then rerun_ok=$((rerun_ok+1))
-      echo "ok $c ${dt}s | $(lastline "$dir/${tag}_cmd_$i.log") (first try rc=$first under load, ok rerun alone; log ${tag}_fail_$i.log)"
+      echo "ok $c ${dt}s | $(lastline "$dir/${tag}_cmd_$i.log") (first try rc=$first under load, ok on the rerun, $an; log ${tag}_fail_$i.log)"
     else fails=$((fails+1)); mv "$dir/${tag}_cmd_$i.log" "$dir/${tag}_fail_$i.rerun.log"
-      echo "FAIL rc=$rc $c ${dt}s | $(lastline "$dir/${tag}_fail_$i.rerun.log") (failed alone too; logs ${tag}_fail_$i.log, ${tag}_fail_$i.rerun.log)"
+      echo "FAIL rc=$rc $c ${dt}s | $(lastline "$dir/${tag}_fail_$i.rerun.log") (failed on the rerun too, $an; logs ${tag}_fail_$i.log, ${tag}_fail_$i.rerun.log)"
       tr -d '\r' < "$dir/${tag}_fail_$i.rerun.log" | grep -m3 -iE 'fail' | cut -c1-200 | sed 's/^/    /'
     fi
   done < "$list"
@@ -282,3 +381,39 @@ ci_finish() {
   echo "${TAGU}_CMDS=$i"; echo "${TAGU}_RERUN_OK=$rerun_ok"; echo "${TAGU}_FAILS=$fails"
   [ "$i" -gt 0 ] && [ "$fails" -eq 0 ]
 }
+
+# ---- self-test (bash tools/gates/lib.sh with GATES_SELFTEST=alone): slot_alone holds every slot whatever the cap ----
+# A private slot root; fake holders (live sleep processes) on slots 3-5; the cap forced to 2 (EMB_SLOTS_GAMING=2 and a
+# fresh "gaming" cache saying so). Case 1: the holders go after 6 s: slot_alone must wait for them (it never runs with
+# 2/5) and say "alone" or, if the machine is busy, "NOT ALONE (held 5/5 ...)". Case 2: the holders stay: after its
+# ALONE_WAIT it must say "NOT ALONE (held 2/5 ...)". One PASS/FAIL line per check.
+if [ "${BASH_SOURCE[0]}" = "$0" ] && [ "${GATES_SELFTEST:-}" = alone ]; then
+  ST=$(mktemp -d "${TMPDIR:-/tmp}/emb_alone_selftest.XXXXXX"); export EMB_SLOT_ROOT="$ST/slots" EMB_SLOTS=5 EMB_SLOTS_GAMING=2
+  mkdir -p "$EMB_SLOT_ROOT"; FAILS=0
+  pf() { if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; FAILS=$((FAILS+1)); fi; }
+  cap_forced() { echo "selftest-game.exe" > "$EMB_SLOT_ROOT/gaming"; bash "$REPO/tools/game_cap.sh" 2>/dev/null; }
+  fake() {   # a holder like tools/slot.sh's: its own process, its slot dir removed when it ends
+    for i in 3 4 5; do mkdir -p "$EMB_SLOT_ROOT/$i"
+      ( sleep "$1"; rm -rf "$EMB_SLOT_ROOT/$i" ) & echo "$! $(date +%s) selftest fake holder" > "$EMB_SLOT_ROOT/$i/owner"; done; }
+  c=$(cap_forced); echo "cap now: $c (game_cap.sh; forced through EMB_SLOTS_GAMING=2 and the gaming cache)"
+  # case 1: holders on 3-5 for 6 s
+  fake 6; ts=$(date +%s)
+  out=$(ALONE_WAIT=60 ALONE_QUIET_WAIT=${ST_QUIET:-20} slot_alone bash -c 'ls "$EMB_SLOT_ROOT" | grep -cE "^[0-9]+$"' 2>&1); dt=$(( $(date +%s) - ts ))
+  st=$(echo "$out" | grep -m1 '^slot_alone: '); held=$(echo "$out" | grep -vE '^slot_alone: ' | tail -1)
+  echo "case 1: $st; slots the command saw: $held; ${dt}s"
+  [ "$dt" -ge 5 ]; pf $? "case 1: slot_alone waited for slots 3-5 under cap $c (${dt}s >= 5 s)"
+  [ "$held" = 5 ]; pf $? "case 1: the command ran with all 5 slots held (saw $held)"
+  echo "$st" | grep -qE '^slot_alone: (alone \(held 5/5, cpu [0-9?]+ %\)|NOT ALONE \(held 5/5, cpu [0-9?]+ %\))'; pf $? "case 1: status line says alone or NOT ALONE with held 5/5 and the cpu"
+  wait
+  # case 2: holders stay (60 s); ALONE_WAIT 4 s
+  fake 60; ts=$(date +%s); cap_forced > /dev/null
+  out=$(ALONE_WAIT=4 ALONE_QUIET_WAIT=3 slot_alone true 2>&1); dt=$(( $(date +%s) - ts ))
+  st=$(echo "$out" | grep -m1 '^slot_alone: ')
+  echo "case 2: $st; ${dt}s"
+  echo "$st" | grep -qE '^slot_alone: NOT ALONE \(held 2/5, cpu [0-9?]+ %\)'; pf $? "case 2: NOT ALONE (held 2/5, cpu x %) after the wait"
+  echo 'slot_alone: NOT ALONE (held 2/5, cpu 41 %) after 9 s' > "$ST/log"; n=$(alone_note "$ST/log")
+  [ "$n" = "NOT ALONE (held 2/5, cpu 41 %)" ]; pf $? "alone_note reads it back: '$n'"
+  for i in 3 4 5; do read -r p _r < "$EMB_SLOT_ROOT/$i/owner" 2>/dev/null; kill "$p" 2>/dev/null; done; wait 2>/dev/null
+  rm -rf "$ST"
+  echo "lib.sh selftest: $FAILS failed"; exit $(( FAILS > 0 ))
+fi
