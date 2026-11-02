@@ -77,16 +77,16 @@
   /* the sea's continuous sound (waves, surf, gulls, wind in the sails, rigging, oars, the storm, the Mist) is the sea */ \
   /* bed (Audio::setSea). k: a pitch / size. */ \
   X(WaveCrash, 1.0f) /* a wave breaking on the hull or a rock: a thump of water, then the hiss of spray */ \
-  X(SailFlap, 2.4f) /* canvas filling or luffing: two or three quick flaps and a taut thrum */ \
-  X(OarStroke, 1.2f) /* an oar's blade dipping and pulling through, the knock of its lock */ \
-  X(ReelClick, 3.0f) /* the reel's ratchet clicking as line is won (k: faster with the tension) */ \
-  X(LineSnap, 1.2f) /* the line parting under strain: a twang and a whip */ \
-  X(FishPlop, 1.3f) /* a fish taking the float under: a small plop */ \
+  X(SailFlap, 6.3f) /* canvas filling or luffing: two or three quick flaps and a taut thrum */ \
+  X(OarStroke, 2.7f) /* an oar's blade dipping and pulling through, the knock of its lock */ \
+  X(ReelClick, 7.0f) /* the reel's ratchet clicking as line is won (k: faster with the tension) */ \
+  X(LineSnap, 1.45f) /* the line parting under strain: a twang and a whip */ \
+  X(FishPlop, 1.57f) /* a fish taking the float under: a small plop */ \
   X(SerpentRoar, 0.75f) /* the sea serpent rising: a hissing, bubbling roar that rolls into a deep bellow */ \
   X(KrakenRumble, 0.8f) /* the kraken's arm breaking the surface: a deep groan, water streaming off it */ \
-  X(MerrowChatter, 2.0f) /* merrow calling to each other: clicking, gurgling chirps */ \
+  X(MerrowChatter, 3.05f) /* merrow calling to each other: clicking, gurgling chirps */ \
   X(HullCrack, 1.0f) /* the hull struck: timber cracking, a groan of the frames */ \
-  X(MistWhisper, 1.0f) /* the Mist closing in: breathy whispers over a cold, beating drone */ \
+  X(MistWhisper, 1.16f) /* the Mist closing in: breathy whispers over a cold, beating drone */ \
   X(MistChime, 1.1f) /* the Mist parting: a rising shimmer of bells into a warm chord */ \
   X(ShipBell, 0.9f) /* a ship's bell rung twice (a harbour, a turn of the watch) */
 

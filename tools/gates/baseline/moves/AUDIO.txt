@@ -1,0 +1,18 @@
+S10.audio full/__rc__ E audio_preview mix check passes now (exit 2 -> 0): the seven M10 sea sfx stand 6 dB over the music
+S10.audio full/sfx_ReelClick.wav E ratchet denser (14 clicks in ~180 ms, was 4) and trim 3.0 -> 7.0
+S10.audio full/sfx_SailFlap.wav E trim 2.4 -> 6.3 (phone level over the music)
+S10.audio full/sfx_OarStroke.wav E trim 1.2 -> 2.7
+S10.audio full/sfx_MerrowChatter.wav E trim 2.0 -> 3.05
+S10.audio full/sfx_LineSnap.wav E trim 1.2 -> 1.45
+S10.audio full/sfx_FishPlop.wav E trim 1.3 -> 1.57
+S10.audio full/sfx_MistWhisper.wav E trim 1.0 -> 1.16
+S10.audio sea/sfx_ReelClick.wav E the same render as full/ (--sea writes every sea sfx again)
+S10.audio sea/sfx_SailFlap.wav E the same render as full/
+S10.audio sea/sfx_OarStroke.wav E the same render as full/
+S10.audio sea/sfx_MerrowChatter.wav E the same render as full/
+S10.audio sea/sfx_LineSnap.wav E the same render as full/
+S10.audio sea/sfx_FishPlop.wav E the same render as full/
+S10.audio sea/sfx_MistWhisper.wav E the same render as full/
+S10.audio sea/seabed_rowboat.wav E the bed's oar strokes go through the OarStroke trim (ambience.cpp:263): peak 0.149 -> 0.252
+S10.audio sea/seabed_mist.wav E the bed's whispers go through the MistWhisper trim (ambience.cpp:265): +1.3 dB
+S10.audio sea/seabed_turnback.wav E the bed's whispers go through the MistWhisper trim (ambience.cpp:265): +1.3 dB

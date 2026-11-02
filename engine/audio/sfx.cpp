@@ -560,9 +560,12 @@ void Audio::fxOarStroke(float k, float V, uint32_t arg) { // the blade dipping (
   add(NB(Sine, 340 * r, 0.22f * V).perc(0.04f).pitch(1.2f, 0.01f).at(0.02f));
   add(NB(Noise, 0, 0.15f * V).perc(0.012f).bp(1800 * r, 2.0f).at(0.02f));
 }
-void Audio::fxReelClick(float k, float V, uint32_t arg) { // the ratchet: a burst of small dry clicks
-  const float r = k;
-  for (int i = 0; i < 4; i++) add(NB(Noise, 0, 0.30f * V).perc(0.006f).bp(3200 * r, 3.0f).at(0.035f * (float)i / r));
+void Audio::fxReelClick(float k, float V, uint32_t arg) { // the ratchet: a dense run of small dry clicks, the pawl's tick-tack
+  const float r = k, gap = 0.0135f / r;   // (P3 E) fourteen clicks in ~180 ms at k 1, closer together with the tension
+  for (int i = 0; i < 14; i++) {
+    const float accent = (i & 1) ? 0.8f : 1.0f;
+    add(NB(Noise, 0, 0.30f * accent * V).perc(0.012f).bp(3200 * r * rnd(0.95f, 1.05f), 3.0f).at(gap * (float)i + rnd(0, 0.003f) / r));
+  }
 }
 void Audio::fxLineSnap(float k, float V, uint32_t arg) { // a twang that whips away
   add(NB(Pluck, 660 * k, 0.5f * V).ring(0.25f).slide(-1.5f));
