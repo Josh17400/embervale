@@ -154,17 +154,6 @@ seed 7
 +0.2 shot p4_art_m_set_l.png
 +0.1 p2cline face 1
 +0.2 shot p4_art_m_set_u.png
-# ---- census fighters in leather (the bandits and the rank-0 soldiers of three peoples whose leather coat is padded)
-+0.1 p2cline face 0
-+0.1 p2cline npc heartland bandit 0 5 mixed
-+0.4 shot p4_art_npc_heartland_bandit.png
-+0.1 p2cline npc dune bandit 0 5 mixed
-+0.4 shot p4_art_npc_dune_bandit.png
-+0.1 p2cline npc river soldier 0 5 mixed
-+0.4 shot p4_art_npc_river_soldier.png
-+0.1 p2cline npc heartland soldier 0 5 mixed
-+0.4 shot p4_art_npc_heartland_soldier.png
-+0.1 p2cline clear
 # ---- the start town smith's shelf: the body icons by material (the leather coat, the bronze brigandine)
 +0.1 ui 1
 +0.1 enter smithy

@@ -1,6 +1,7 @@
 // EMBERVALE art: item icons. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
 #include "rpg/art/art_internal.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/art_rig.h"
 
 namespace art {
 
@@ -285,7 +286,9 @@ void helmIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc, const Ramp& t
 // and the worn coat agree: D116), a brigandine is a coat of plates in its metal with the maker's cloth at the shoulders and
 // the plate seams (as the doll's D114 re-cut); a padded coat of no leather keeps the maker's cloth
 void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc, bool leather) {
-  const bool leatherCoat = form == 1 && leather, plates = form == 6 && !leather;
+  // (rig 2 only: rig 1's icons stay as they were, art_hash --rig=1)
+  const bool p4 = rigVersion() >= 2;
+  const bool leatherCoat = p4 && form == 1 && leather, plates = p4 && form == 6 && !leather;
   const Ramp& base = leatherCoat ? kLeather : (form == 1 || form == 6) ? acc : (form == 2 ? kLeather : M);
   for (int y = 2; y <= 14; y++)
     for (int x = 1; x <= 14; x++) {
@@ -1122,10 +1125,11 @@ Canvas itemIconLook(const IconLook& l) {
   // at the icon's size an iron and a steel coat of one form otherwise met within 13-29 of mean RGB
   // and bronze's a third of a step over its olive body toward the cream glint: the warm gold the doll's bronze plates read as
   // (a bronze coat sat 14-28 from the leather one's browns)
-  if (l.icon == Icon::Armor && l.dollMetal == 3 && !leather) {
+  const bool p4 = rigVersion() >= 2;   // (rig 2 only: rig 1's icons as they were)
+  if (p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather) {
     M = ramp5(M[0], mix(M[0], M[1], 0.5f), M[1], M[2], M[3]);
   }
-  if (l.icon == Icon::Armor && l.dollMetal == 2 && !leather) M = ramp5(M[0], mix(M[1], M[2], 0.5f), mix(M[2], M[3], 0.4f), M[3], M[4]);
+  if (p4 && l.icon == Icon::Armor && l.dollMetal == 2 && !leather) M = ramp5(M[0], mix(M[1], M[2], 0.5f), mix(M[2], M[3], 0.4f), M[3], M[4]);
   const Ramp acc = l.accent ? ramp(l.accent) : kRed;
   const Ramp trim = (l.ornament & 4) ? kGold : M;
   const Ramp grip = l.accent ? ramp(mix(l.accent, rgba(92, 54, 40), 0.35f)) : kLeather;
@@ -1148,7 +1152,7 @@ Canvas itemIconLook(const IconLook& l) {
   if (l.sheen) iconSheen(c, M, l.sheen);
   // (P4 ART, D117) a gilt iron coat is gilt at the collar and the shoulders only: a whole gold rim round a dark iron coat read,
   // by its mean, as bronze (Imperial, Sun-Temple, Starspire iron sat 22-27 from their bronze); the gold still marks the maker
-  const bool ironGilt = l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);
+  const bool ironGilt = p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);
   if (ironGilt) {
     const Canvas src = c;
     iconOrnament(c, M, (uint16_t)(l.ornament & ~4u), l.icon);
