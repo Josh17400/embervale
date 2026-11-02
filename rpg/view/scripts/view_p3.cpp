@@ -7,7 +7,7 @@
 //                                 daysago days back (the PARTED page's staging; the member stays)
 //   p3page parted|remembered|party   the PARTY page's page (after `partyview page`)
 //   p3say <member> <words...>     the member says a line (Game::partySay: Ev::Banter, Party::lastBanter)
-//   expect lootmaker <text>       the last item card's maker row (gear::makerLine); * at either end: a prefix / suffix /
+//   expect cardmaker <text>       the last item card's maker row (gear::makerLine); * at either end: a prefix / suffix /
 //                                 substring match
 //   p3boss                        the nearest living hostile becomes a dungeon boss (foes::Rank::Boss): the Witness
 //                                 state's `boss` / `rank` fields for a staged boss
@@ -101,11 +101,11 @@ bool wildMatch(const std::string& have, std::string want) {
 
 bool expLootMaker(ScriptCtx& c) {
   const View::CardInfo ci = ViewProbe::lastCard(c.view);
-  if (ci.rarity < 0) { c.fail("expect lootmaker: no item card drawn"); return true; }
-  if (!wildMatch(ci.maker, c.rest(2))) c.fail("expect lootmaker " + c.rest(2) + ": the maker row reads '" + ci.maker + "' on " + ci.name);
+  if (ci.rarity < 0) { c.fail("expect cardmaker: no item card drawn"); return true; }
+  if (!wildMatch(ci.maker, c.rest(2))) c.fail("expect cardmaker " + c.rest(2) + ": the maker row reads '" + ci.maker + "' on " + ci.name);
   return true;
 }
-EMB_SCRIPT_CMD("expect:lootmaker", "expect lootmaker <text>: the last item card's maker row (gear::makerLine; * wildcards) (P3)", expLootMaker);
+EMB_SCRIPT_CMD("expect:cardmaker", "expect cardmaker <text>: the last item card's maker row as drawn (gear::makerLine; * wildcards) (P3 VIEW; expect lootmaker is LOOT's pack-piece check)", expLootMaker);
 
 party::Member* memberArg(ScriptCtx& c, size_t i) {
   const int k = std::atoi(c.arg(i).c_str());

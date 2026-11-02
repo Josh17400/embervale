@@ -38,8 +38,8 @@ seed 7
 +0.1 gear6 armor ilvl 2 rarity 0 mat bronze
 +0.1 menu 0
 +0.3 lootsel menu last
-+0.4 expect lootmaker *WORK*
-+0.0 expect lootmaker *BRONZE*
++0.4 expect cardmaker *WORK*
++0.0 expect cardmaker *BRONZE*
 +0.0 shot p3_view_card_bronze.png
 +0.1 key Escape
 # ---- the PARTY page: a companion, their own kit (TAKE BACK greyed), a lent piece (the gold tab, YOU LENT THIS), the

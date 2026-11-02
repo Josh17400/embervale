@@ -42,8 +42,8 @@
     "at": 1.0,
     "expect": [
      "state.screen.zoom == 2",
-     "state.screen.world.scale == 7",
-     "state.screen.world.w == 275 && state.screen.world.h == 155"
+     "state.screen.world.scale == 10",
+     "state.screen.world.w == 192 && state.screen.world.h == 108"
     ]
    },
    {
@@ -73,7 +73,7 @@
   ]
  },
  {
-  "name": "p2a LENS lane: the iPhone app's FAR, NORMAL, NEAR and CLOSE frame 639, 512, 426 and 366 world px across; the UI's fit never moves",
+  "name": "p2a LENS lane: the iPhone app's FAR, NORMAL, NEAR and CLOSE frame 639, 512, 426 and 256 world px across (P3 B8: CLOSE = min(2 x D0, h / 100)); the UI's fit never moves",
   "params": {
    "window": [
     2556,
@@ -141,8 +141,8 @@
    {
     "at": 0.55,
     "expect": [
-     "state.screen.world.scale == 7",
-     "state.screen.world.w == 366 && state.screen.world.h == 169",
+     "state.screen.world.scale == 10",
+     "state.screen.world.w == 256 && state.screen.world.h == 118",
      "state.screen.ui.w == 639 && state.screen.ui.h == 295 && state.screen.ui.scale == 4"
     ]
    }
