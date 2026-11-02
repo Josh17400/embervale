@@ -1,0 +1,39 @@
+✔ pass  walking east moves the player  (4 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  the start village has people about  (2 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  fast travel into a town  (2 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  a wolf fight costs the wolves hp and earns xp  (5 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  dialogue, a quest and its completion through calls  (12 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+    ⚠ steps 1, 4, 9: "expect" runs after the step's "call" (call → input → expect), so it sees the state after the call; an expect about the state before it belongs in an earlier step
+✔ pass  time passing moves the clock  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  a witness run never writes the save  (2 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+✔ pass  the same seed gives the same world  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\embervale.witness.json
+8 passed, 0 failed
+✔ pass  determinism: a plain start, first (reference for the run after a finger was left down)  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: a town shot, first (reference for the same shot after other tests)  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: the world map tab, first (painted in full at once under Witness: no 5 ms budget, no fade; the first draw opens it on the hero, then a zoom in over explored land)  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: a journey behind the fade  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+    ⚠ step 1: "expect" runs after the step's "call" (call → input → expect), so it sees the state after the call; an expect about the state before it belongs in an earlier step
+✔ pass  determinism: the same journey again matches it exactly  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+    ⚠ step 1: "expect" runs after the step's "call" (call → input → expect), so it sees the state after the call; an expect about the state before it belongs in an earlier step
+✔ pass  determinism: a wolf fight (particles, sounds, ranked-foe memo)  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: the same wolf fight again matches it exactly  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: a run that ends with a finger still on the move stick  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: the next run starts with no finger down and the plain start's picture  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: a run that ends with a harness finger (protocol touch) still on the move stick  (2 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: after it, the plain start again (the reset let go of the harness's finger)  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: the town shot after all of that equals the first one  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+✔ pass  determinism: the world map tab after all of that equals the first one  (3 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\determinism.witness.json
+13 passed, 0 failed
+✔ pass  a death inside a ruin: the death screen waits, then Enter wakes the hero in a settlement outside  (15 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\death_respawn.witness.json
+    ⚠ step 2: "expect" runs after the step's "call" (call → input → expect), so it sees the state after the call; an expect about the state before it belongs in an earlier step
+✔ pass  the death screen's own clock: a held key from the fight does not skip it, and space also respawns  (5 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\death_respawn.witness.json
+    ⚠ step 1: "expect" runs after the step's "call" (call → input → expect), so it sees the state after the call; an expect about the state before it belongs in an earlier step
+2 passed, 0 failed
+✔ pass  touch: a tap on the menu button opens the menu (iPhone 15 Pro, protocol touch events)  (5 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  touch: a swipe on the left half is the move stick and walks the hero (iPhone 15 Pro)  (4 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  touch: a cancelled finger (the system ended the touch) lets go of the move stick, and its id is free again  (6 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  touch: a tap on the world away from anyone swings the sword, as on a phone  (1 expect passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  snapshot: animals are typed by their kind and cannot be talked to; the nearest one to talk to is a person  (5 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  snapshot: the walkability window is 41 x 41 tiles round the player, who stands on open ground, as everyone else does  (8 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+✔ pass  snapshot: inside a building the window is the building's floor, walled round  (5 expects passed)  ..\..\..\..\..\..\..\..\..\Documents\embervale\witness\touch_snapshot.witness.json
+7 passed, 0 failed

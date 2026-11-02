@@ -1,0 +1,9 @@
+ok    C19 A1                     17 checks,    0 failed
+ok    C19 A2                     19 checks,    0 failed
+ok    C19 A3                     21 checks,    0 failed
+ok    C19 A4                     36 checks,    0 failed
+ok    C19 A5                     19 checks,    0 failed
+ok    C19 A6                     24 checks,    0 failed
+ok    C19 A7                     17 checks,    0 failed
+ok    C19 A8                    672 checks,    0 failed
+doll-adefects: 0 failure(s)

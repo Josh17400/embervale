@@ -7,6 +7,15 @@ How a batch moves a baseline, in five lines:
 4. `tools/gates/rebase_baseline.sh --check-moves --run <run>` must PASS: every difference declared, every declared move seen.
 5. `tools/gates/rebase_baseline.sh --from <old> --to <new> --run <run> --bdir <build>` writes `<new>/` (only the declared items re-recorded, `REASONS.md`, `REV`), flips `CURRENT`; commit both.
 
+The roots, oldest first (each made from the one before it by `rebase_baseline.sh`, its moves files named in its
+`REASONS.md`):
+- `119de74/` wave 0's record (main re-recorded its view hashes for the hotfix ecdcb5f; the P3 roots never read it again);
+- `p3/` the P3 batch's integration (moves in `moves/<AREA>.txt`);
+- `p3f1/` the P3 fix round 1 (`moves_p3f1/FIX1.txt`);
+- `p3f2/` **CURRENT**: the P3 batch merged with main's hotfix ecdcb5f (the creator preview is `Game::heroLook` as created;
+  the T1 floor jerkin quilted from the wearer's shirt colour): 326 view-quick and 3607 view-all shots (3603 recorded; 4 sit in exclude.txt) with the hero or a
+  companion in the floor jerkin, or a creator preview (`moves_p3f2/HOTFIX.txt`, reasons HOTFIX ecdcb5f).
+
 A root holds `gates/` (the step and doll records, `expect.txt`, `unstable.txt`), `probes/` (sim digests, PNG and WAV
 hashes, perf) and `checks/` (layer allowlist, size report); a moved root adds `REV` (its git revision) and
 `REASONS.md`. The gate names and item forms a moves line can use are listed in `rebase_baseline.sh --help`;
