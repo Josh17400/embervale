@@ -54,17 +54,17 @@ witness_find() {
   WITNESS_FROM=""; WITNESS_LOOKED=""
   if [ -n "${WITNESS_HOME:-}" ]; then
     witness_ok "$WITNESS_HOME" || { WITNESS_LOOKED="WITNESS_HOME=$WITNESS_HOME (set, but no bin/witness.js there)"; return 1; }
-    c="$WITNESS_HOME"; r="WITNESS_HOME"
+    c="$WITNESS_HOME"; r="${WITNESS_FROM_GATES:-WITNESS_HOME}"   # (a gate script found it first: its rule)
   else
     o=$(witness_origin_dir)
     tried=("$REPO/../witness"); why=("../witness beside this checkout")
     [ -n "$o" ] && { tried+=("$o/../witness"); why+=("../witness beside the clone's origin $o"); }
     tried+=("${HOME:-/nonexistent}/Documents/witness"); why+=("\$HOME/Documents/witness")
     for i in "${!tried[@]}"; do witness_ok "${tried[$i]}" && { c="${tried[$i]}"; r="${why[$i]}"; break; }; done
-    [ -n "$c" ] || { WITNESS_LOOKED="WITNESS_HOME (unset), ${tried[*]}"; return 1; }
+    [ -n "$c" ] || { WITNESS_LOOKED="WITNESS_HOME (unset), $(printf "%s, " "${tried[@]}" | sed "s/, $//")"; return 1; }
   fi
   c=$(cd "$c" && pwd); command -v cygpath >/dev/null 2>&1 && c=$(cygpath -m "$c")
-  export WITNESS_HOME="$c"; WITNESS_FROM="$r"
+  export WITNESS_HOME="$c" WITNESS_FROM_GATES="$r"; WITNESS_FROM="$r"
 }
 witness_require() {   # witness_require NAME...: stop (exit 2) when a selected line needs Witness and none is found
   local n need=0 tool; tool=$(basename "$0" .sh)

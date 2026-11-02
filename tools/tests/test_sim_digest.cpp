@@ -282,7 +282,23 @@ std::string explain(const std::vector<std::string>& base, const std::vector<std:
   return why.empty() ? "lines differ" : why;
 }
 
+// (P4 GATES, the digest flake) no worker thread in this probe: the interior made ahead of a door takes the web path,
+// whole in one step on this thread (EMB_WEBSIM + EMB_PREP_ONESHOT, rpg/sim/prep_interior.cpp). Natively it is made by a
+// std::async worker even with streamThreads off, the one thread (and the one wall-clock dependency) the Witness switches
+// leave in the sim; its map is bit-identical to genInterior's, and the record does not move (560/560 with and without at
+// def586c), but where it lands, and any race inside it, no longer depends on how loaded the machine is.
+void noPrepWorker() {
+#ifdef _WIN32
+  _putenv_s("EMB_WEBSIM", "1");
+  _putenv_s("EMB_PREP_ONESHOT", "1");
+#else
+  setenv("EMB_WEBSIM", "1", 1);
+  setenv("EMB_PREP_ONESHOT", "1", 1);
+#endif
+}
+
 int simDigest(int argc, char** argv) {
+  noPrepWorker();   // (before the first Game: prep_interior.cpp reads the switches once)
   uint64_t A = 1, B = 20;
   bool seedsGiven = false;
   float secs = 120;
