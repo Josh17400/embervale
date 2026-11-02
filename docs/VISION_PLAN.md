@@ -2142,6 +2142,9 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
     (merchant gold limits, saturation).
   - A balance sim (bot playthroughs measuring gold/hour and gear tier over 1, 5, 20 and 50 hours) gates every economy change against
     target curves.
+  - *The first armour within reach* (P4 ECONOMY, 2026-11-02; FIX_BATCH_P4 2): every shelf prices leather gear at 3/5 of its worth
+    (L1; the LEATHER material and all metal keep theirs) and a band-1 smith always has a Common leather coat at the shelf's lowest
+    item level (L2), so the first coat costs 48 gold at every start (30 + about 5 beast kills' goods); `rpg_test --first-armour`.
   - **Ruled 2026-10-28 (owner; 15.37), planned for the armour rules update after P2c DONE:**
     - *Great gear is earned.* Shelves and commissions stop at a people's warriors' alloy (7.5 rule 4). The masterwork
       comes from band-6 drops, the hero's forge, a trusting capital smith or a hidden-kingdom smith.

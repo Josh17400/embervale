@@ -22,6 +22,17 @@ int siteOfActor(const World& w, const Actor& a) {
   if (a.bldg >= 0 && a.bldg < (int)w.over.bldgs.size()) return w.over.bldgs[(size_t)a.bldg].site;
   return -1;
 }
+// (P4 ECONOMY, L1) a leather gear piece: priced at 3/5 of its worth on every shelf (never the LEATHER crafting material)
+bool leatherGear(const Item& it) { return itemEquippable(it.kind) && it.mat == Mat::Leather; }
+// (P4 ECONOMY, L2) a band-1 smith's beginner's coat: a plain Common leather coat at the shelf's lowest item level, drawn
+// from its own stream so every other row of the shelf is the one the shared stream drew before
+Item beginnersCoat(const Game& g, const Actor& a, int D, const cult::Culture* cc, int alloyCap) {
+  const uint64_t key = g.npcKey(a);
+  Rng r(hash32((uint32_t)key ^ (uint32_t)(key >> 32) ^ 0xC0A7B1u) ^ (uint32_t)(g.day / 2) ^ (uint32_t)g.seed);
+  Item it = gear::makeGearCapped(r, ItemKind::Armor, 0, std::max(1, D - gear::SHOP_BAND_SPREAD), Rarity::Common, cc, alloyCap, Mat::Leather);
+  it.flags |= IF_SHOP;
+  return it;
+}
 int urbanOf(const World& w, int si) {
   if (si < 0 || si >= (int)w.sites.size()) return 0;
   const Site& S = w.sites[(size_t)si];
@@ -103,6 +114,8 @@ std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
       // people's alloy) and a light one (leather), both at the shelf's item levels
       gearOf(ItemKind::Armor, 0, METAL);
       gearOf(ItemKind::Armor, 0, LIGHT);
+      // (P4 ECONOMY, L2) in the first band the light coat is the beginner's: Common, at the shelf's lowest item level
+      if (gear::bandOf(D) == 1) s.back() = beginnersCoat(g, a, D, cc, alloyCap);
       gearOf(ItemKind::Helmet, 0); gearOf(ItemKind::Shield, 0);
       gearOf(ItemKind::Bow, 0);
       s.push_back(makeArrows(25));
@@ -195,6 +208,8 @@ std::vector<Item> LootOps::shopStock(Game& g, const Actor& a) {
           if (pct > 0) it.value = std::max(1, it.value * pct / 100);
         }
   }
+  // (P4 ECONOMY, L1) leather gear costs 3/5 of its worth (the band's metal what it is worth): the 48-gold first coat
+  for (Item& it : s) if (leatherGear(it)) it.value = std::max(1, (it.value * 3 + 2) / 5);
   // background prices (blacksmith's child at smiths, urchin at merchants): the shelf shows what you pay
   float pf = g.priceFactor(a.role);
   if (pf != 1.0f)
