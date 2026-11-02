@@ -1,0 +1,10 @@
+the tier envelope (art::doll::kEnvelope; docs/PLAN.md "The envelope"; a man facing D, the woman one row lower)
+tier | shoulders | head rows (orn) | head cols shell/brim/flare | pauldron | cloak (sideD, back) | flare stir | moved | area | LOCO RUN DRAWN ACTION DEATH POSTURE KB
+--   |         0 |    4 (6) F-35 | 1 / 1 / 3 |        0 | 3 the long cloak (2, 2) | 0 0 | 0-0 | 0.00 | 128 64 256 512 52 64
+T1   |        16 |    2 (2) F-33 | 0 / 1 / 3 |        0 | 0 none (0, 2) | 0 0 | 0-0 | 1.00 | 128 64 256 512 52 64
+T2   |        18 |    3 (6) F-34 | 0 / 1 / 3 |        2 | 0 none (0, 2) | 0 0 | 0-0 | 1.10 | 128 64 256 512 52 64
+T3   |        20 |    4 (6) F-35 | 1 / 1 / 3 |        3 | 1 the people's cape (0, 2) | 0 0 | 0-0 | 1.20 | 128 64 256 512 52 64
+T4   |        22 |    6 (6) F-37 | 1 / 1 / 3 |        4 | 2 a cape or the travel cloak (0, 4) | 0 0 | 0-0 | 1.35 | 160 80 320 512 52 64
+T5   |        26 |    8 (8) F-39 | 2 / 2 / 3 |        5 | 3 the long cloak (2, 8) | 1 1 | 8-32 | 1.55 | 200 100 400 512 59 74
+T6   |        28 |   10 (10) F-41 | 2 / 2 / 3 |        6 | 3 the long cloak (2, 8) | 1 2 | 16-48 | 1.70 | 200 100 400 512 59 74
+area step 5 (x100 of T1); head OD step 0.10; head area step 5 %; pool 2621440 B (2.5 MiB)

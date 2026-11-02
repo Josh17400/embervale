@@ -1,0 +1,137 @@
+ freeze CHANGED hero action 0 4 0 0
+ freeze CHANGED hero action 0 4 1 0
+ freeze CHANGED hero action 0 4 2 0
+ freeze CHANGED hero action 0 4 2 1
+ freeze CHANGED hero action 1 4 0 0
+ freeze CHANGED hero action 1 4 1 0
+ freeze CHANGED hero action 1 4 2 0
+ freeze CHANGED hero action 1 4 2 1
+ freeze CHANGED hero action 2 4 0 0
+ freeze CHANGED hero action 2 4 1 0
+ freeze CHANGED hero action 2 4 2 0
+ freeze CHANGED hero action 2 4 2 1
+ freeze CHANGED hero action 3 4 0 0
+ freeze CHANGED hero action 3 4 1 0
+ freeze CHANGED hero action 3 4 2 0
+ freeze CHANGED hero action 3 4 2 1
+ freeze CHANGED hdrawn action 0 4 0 0
+ freeze CHANGED hdrawn action 0 4 1 0
+ freeze CHANGED hdrawn action 0 4 2 0
+ freeze CHANGED hdrawn action 0 4 2 1
+ freeze: 39152 frames checked, 1946 changed, 0 gone, 0 new frames, 0 looks not in the manifest; 0 changed as ruled (freeze_accepted.txt)
+ freeze rig: manifest drawn at rig 1 (no stamp: a pre-flip manifest), checked at rig 1
+ freeze changed arms_m8_brigandine_mb0_t4 73 frames
+ freeze changed arms_m8_brigandine_wb0_t4 29 frames
+ freeze changed arms_m8_lamellar_mb0_t4 16 frames
+ freeze changed arms_m8_lamellar_wb0_t4 16 frames
+ freeze changed arms_m8_leaf_mb0_t4 16 frames
+ freeze changed arms_m8_leaf_wb0_t4 16 frames
+ freeze changed arms_m8_leather_mb0_t4 16 frames
+ freeze changed arms_m8_leather_wb0_t4 16 frames
+ freeze changed arms_m8_mail_mb0_t4 16 frames
+ freeze changed arms_m8_mail_wb0_t4 16 frames
+ freeze changed arms_m8_padded_mb0_t4 16 frames
+ freeze changed arms_m8_padded_wb0_t4 16 frames
+ freeze changed arms_m8_plate_mb0_t4 16 frames
+ freeze changed arms_m8_plate_wb0_t4 16 frames
+ freeze changed arms_m8_scale_mb0_t4 16 frames
+ freeze changed arms_m8_scale_wb0_t4 16 frames
+ freeze changed cloak_man_cape 16 frames
+ freeze changed cloak_man_fur 16 frames
+ freeze changed cloak_man_noble 16 frames
+ freeze changed cloak_man_travel 16 frames
+ freeze changed cloak_woman_cape 16 frames
+ freeze changed cloak_woman_fur 16 frames
+ freeze changed cloak_woman_noble 16 frames
+ freeze changed cloak_woman_travel 16 frames
+ freeze changed cover_back_man 16 frames
+ freeze changed cover_back_woman 16 frames
+ freeze changed cover_form6_man 72 frames
+ freeze changed cover_form6_woman 72 frames
+ freeze changed cover_wpn2_man 16 frames
+ freeze changed cover_wpn2_woman 16 frames
+ freeze changed cover_wpn6_man 16 frames
+ freeze changed cover_wpn6_woman 16 frames
+ freeze changed cover_wpn8_man 6 frames
+ freeze changed cover_wpn8_woman 6 frames
+ freeze changed forge_g_cov3w 16 frames
+ freeze changed forge_g_cov6 16 frames
+ freeze changed forge_g_cov7 16 frames
+ freeze changed forge_g_cov8 16 frames
+ freeze changed hdrawn 16 frames
+ freeze changed hero 16 frames
+ freeze changed mail_man 16 frames
+ freeze changed mail_woman 16 frames
+ freeze changed slice_a_fj2 16 frames
+ freeze changed slice_a_hl1 16 frames
+ freeze changed slice_a_hl2 16 frames
+ freeze changed slice_a_hl3 16 frames
+ freeze changed slice_a_jade3 6 frames
+ freeze changed slice_a_star3 16 frames
+ freeze changed slice_f5_ember 16 frames
+ freeze changed slice_f5_gilt 16 frames
+ freeze changed slice_f5_obsid 16 frames
+ freeze changed slice_f5_star 16 frames
+ freeze changed slice_f5_steel 16 frames
+ freeze changed slice_fjord3 16 frames
+ freeze changed slice_fm_bronze 16 frames
+ freeze changed slice_fm_ember 16 frames
+ freeze changed slice_fm_gilt 16 frames
+ freeze changed slice_fm_home 16 frames
+ freeze changed slice_fm_iron 16 frames
+ freeze changed slice_fm_myth 16 frames
+ freeze changed slice_fm_obsid 16 frames
+ freeze changed slice_fm_star 16 frames
+ freeze changed slice_fm_steel 16 frames
+ freeze changed slice_fm_tan 16 frames
+ freeze changed slice_fw_bronze 16 frames
+ freeze changed slice_fw_star 16 frames
+ freeze changed slice_fw_steel 16 frames
+ freeze changed slice_g_cov3w 16 frames
+ freeze changed slice_g_cov6 16 frames
+ freeze changed slice_g_cov7 16 frames
+ freeze changed slice_g_cov8 16 frames
+ freeze changed slice_g_dune1 16 frames
+ freeze changed slice_g_fj1 16 frames
+ freeze changed slice_g_hl1 16 frames
+ freeze changed slice_g_hl2 16 frames
+ freeze changed slice_g_hl3 16 frames
+ freeze changed slice_g_jd2w 16 frames
+ freeze changed slice_g_jd3a 16 frames
+ freeze changed slice_g_jd3b 16 frames
+ freeze changed slice_g_mars2 16 frames
+ freeze changed slice_g_star3 16 frames
+ freeze changed slice_g_step1 16 frames
+ freeze changed slice_g_sun1 16 frames
+ freeze changed slice_g_sylv1w 16 frames
+ freeze changed slice_guard 16 frames
+ freeze changed slice_hero 16 frames
+ freeze changed slice_imp3 16 frames
+ freeze changed slice_jade3 6 frames
+ freeze changed slice_knight 6 frames
+ freeze changed slice_knightm 16 frames
+ freeze changed slice_lt1 16 frames
+ freeze changed slice_lt1w 16 frames
+ freeze changed slice_lt2 16 frames
+ freeze changed slice_lt3 16 frames
+ freeze changed slice_lt4 16 frames
+ freeze changed slice_lt5 16 frames
+ freeze changed slice_lt6 16 frames
+ freeze changed slice_lt6m 16 frames
+ freeze changed slice_lt6w 6 frames
+ freeze changed slice_mr_1 16 frames
+ freeze changed slice_mr_2 16 frames
+ freeze changed slice_mr_3 16 frames
+ freeze changed slice_mr_4 16 frames
+ freeze changed slice_mr_5 16 frames
+ freeze changed slice_mr_6 16 frames
+ freeze changed slice_nband 16 frames
+ freeze changed slice_ncapt_hl 16 frames
+ freeze changed slice_ncapt_jd 16 frames
+ freeze changed slice_nking 16 frames
+ freeze changed slice_nroyal 16 frames
+ freeze changed sword_elf 16 frames
+ freeze changed sword_man 16 frames
+ freeze changed sword_woman 16 frames
+ freeze changed wdrawn 16 frames
+ doll-wear: <t>

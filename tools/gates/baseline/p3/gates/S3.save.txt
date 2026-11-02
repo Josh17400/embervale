@@ -1,0 +1,25 @@
+save_test: SAVE_VER 24
+save_v23 loads (party block v4, empty parted roll)
+save_v24 round trip: 27357 bytes
+endless seed 5150 aboard a rowboat: 19753 bytes
+2. round trips
+endless seed 5150 after play: 26081 bytes
+endless seed 5150 far east: 26657 bytes
+endless seed 7 after play: 21185 bytes
+endless seed 7 far east: 21706 bytes
+endless seed 99 after play: 24770 bytes
+endless seed 99 far east: 25546 bytes
+endless upstairs in the inn: 2782 bytes
+2a. the realm block after long ticking
+endless seed 5150 after 420 realm days: 22915 bytes
+realm block after 421 days: 17918 bytes, 15 kingdoms, 75 events
+damaged realm blocks: 300 tried, 182 loaded and ticked 30 days, <t>
+2b. the save soak
+save soak: 20000 tiles walked, 93 fog regions, 19 chests looted, 608 sites, 82 quests: save 74025 bytes (72.3 KB), written in <t>
+save soak: the life block 10479 bytes (10 censuses built)
+damaged life blocks: 300 tried, 87 loaded and rebuilt without a crash
+endless save soak: 74025 bytes
+3. refusals
+4. damaged saves
+damaged saves: 39 loaded and played, 9 refused, 15 cut short refused, none crashed
+save_test: ALL OK
