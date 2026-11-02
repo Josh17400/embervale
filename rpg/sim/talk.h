@@ -34,8 +34,8 @@ constexpr int OPTION_CHARS = 66;
 std::vector<std::string> wrapLines(const std::string& s, int perLine);   // the HUD's greedy word wrap ('\n' breaks)
 inline bool fitsPanel(const std::string& text) { return wrapLines(text, PANEL_CHARS).size() <= (size_t)PANEL_LINES; }
 inline bool fitsOption(const std::string& label) { return wrapLines(label, OPTION_CHARS).size() <= 2; }
-// (TALK lane) the first page of a conversation shows at most FIRST_PAGE options before the services are grouped under
-// one header ("WHAT CAN YOU OFFER?")
+// (TALK lane) the first page of a conversation shows about FIRST_PAGE options: a speaker with many standing services
+// has them under one header ("WHAT CAN YOU OFFER?"; section 6); a visit whose passing options overflow pages behind MORE
 constexpr int FIRST_PAGE = 6;
 // a + " " + b when that still fits the panel, else b (a lead-in that gives way to the line that matters)
 std::string joinFit(const std::string& a, const std::string& b);
@@ -168,5 +168,26 @@ std::vector<Issue> lint(const Conversation& c, const LintCtx& ctx = LintCtx());
 // the conversation as the phone panel shows it (the speaker, each line wrapped to PANEL_CHARS, the options, "> " on the
 // one chosen), for review dumps
 std::string formatPhone(const Conversation& c);
+
+// ---------------------------------------------------------------- 6. one order of options (P4 item 4; dlg_order.cpp)
+// Every first-page option has a kind from one table (rows by action range or value): STANDING (the speaker's trade,
+// offered on every visit: wares, the room, rumours, blessing, lessons, the forge, the house trades, the sea, the army,
+// the lordship, HOW ARE YOU KEEPING? and the group headers) or PASSING (this visit only: a reward to collect, a parcel,
+// the main quest, a story scene or pitch, a job on offer, news, the beasts' word, a kindness, a companion's offer).
+// The first page lists the standing kinds in table order, then the passing ones, then FAREWELL; the headers are decided
+// by the speaker's standing kinds, never by how many options a visit brings, so a speaker's standing options keep their
+// index from visit to visit. A group's page follows the table's order (SOMETHING ELSE. and FAREWELL last). Answers (an
+// offer's I'LL DO IT., a story scene's choices, a companion's voice) keep their own order: only talkTo's first page is
+// ordered.
+int optRow(int action);              // the option's row in the table (headers -1 first; unknown kinds after every row;
+                                     // FAREWELL last)
+bool optStanding(int action);        // the speaker's trade (and the group headers)
+bool optQuest(int action);           // a passing quest step (COLLECT, a parcel, the main quest, a story scene)
+const char* optKindName(int action); // the row's name ("wares", "collect", ...) for tests and dumps
+// talkTo's first page, before FAREWELL is added: the table's order, the headers, the kindnesses under HOW ARE YOU KEEPING?
+void orderFirstPage(Dialogue& d);
+// where the keyboard cursor starts on the page on show (an index among the options shown): the first passing quest
+// option (COLLECT, the main quest, a story scene) when there is one, so Enter still collects at once; else 0
+int startCursor(const Dialogue& d);
 
 }  // namespace speech
