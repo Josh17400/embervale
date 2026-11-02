@@ -118,6 +118,9 @@ purpose, when the picture is meant to change.
 - The P4 W7 goals (12 testers): T5 x3 (the outfitter; the leather step without a gold call), T7 x3 (the ladder),
   T8 x3 (the newcomer, seeds 7/4/2: blade, job, hunt, sell, the first armour, no gold calls) and T9 x3 (the talker,
   seeds 7/1/10: options twice with and without bread, a shop and a menu read from text, a worn piece sold, a ruin).
+- A batch run with `--cmd` uses NO config: the play section (item, notice, menu, brief) and the launch env are
+  dropped and the seed falls back to 1. To run a batch on another build dir, copy witness.play.json and point its
+  `launch.command` at that build's embervale.exe, then pass the copy as `--config`.
 - After runs: `node ../witness/bin/witness.js clean --dry-run` (lists what would go), then `clean` (applies retention:
   the newest 5 playtests within 7 days; a playtest written in the last 24 hours always stays, a judge may cite it) or
   `clean --all` once the reports have been read. Running playtests are never touched.
