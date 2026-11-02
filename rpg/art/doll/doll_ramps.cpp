@@ -675,7 +675,11 @@ DollRamps rampsOf(const HumanLook& L) {
     };
     // (ladder i2, D20) a heartland high metal (gilded, jade, obsidian, ember, starmetal) draws as itself, not gear_look's band tint
     // (which draws a band-7 STARMETAL piece as ember); an alloy (10) or a look with no kind takes the tint
-    if (L.armourTint && (mk == 10 || mk <= 4)) {
+    // (P3 fix round 1, B10: the W7 T5 testers read a bought bronze brigandine as "brown cloth", "leather and bronze too
+    // alike") a bronze brigandine's coat of plates draws in the curated bronze (kMetalKind 2: an orange-gold body, a cream
+    // glint), never gear_look's bronze tint, whose matte mid step sat on the leather's browns; rig 2 only (rig 1 reads the tint)
+    const bool brigBronze = L.bodyForm == 6 && mk == 2;
+    if (L.armourTint && (mk == 10 || mk <= 4) && !brigBronze) {
       if (mk == 10) alloyRamp(L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen), L.sheen, R.c[(int)Slot::Metal]);
       else metalRampKeys(L.armourTint, L.armourTint2, L.sheen, R.c[(int)Slot::Metal]);
     } else if (mk == 1) metalRamp(3, R.c[(int)Slot::Metal]);   // (polish i3, LADDER-ARMS: "T2's sword and boss draw in the

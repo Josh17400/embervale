@@ -2488,14 +2488,14 @@ build
 # (P3 ART, B10) the coat of plates (T1-T4): see tools/doll/p3_brig.py; the views above are ARMOUR-M's, kept.
 view D key rest origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwmm
-|..mmyyxxxmmmm
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxmm
+|..mmyxxxxmmmm
 |..fghhPOhggff
-|..myyzxxzwwmm
+|..mzywyywxxmm
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2511,14 +2511,14 @@ regions
 
 view D key idle origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..mmyyxxxmmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..mmyxxxxmmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2534,14 +2534,14 @@ regions
 
 view D key run origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..mmyyxxxmmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..mmyxxxxmmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2557,14 +2557,14 @@ regions
 
 view D key runl origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..mmyyxxxmmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..mmyxxxxmmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2580,14 +2580,14 @@ regions
 
 view D key drawn origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..mmyyxxxmmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..mmyxxxxmmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2603,14 +2603,14 @@ regions
 
 view D key swing origin 7 0 when brig-plates replace
 |...vxyzyxwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..mmyyxxxmmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..mmyxxxxmmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwmmm.
 regions
 |....RRRR.....
@@ -2626,14 +2626,14 @@ regions
 
 view D key lie origin 7 0 when brig-plates replace
 |...vxyyxwwv..
-|vyooonmmnnnwv
-|..myyzxxzwwm.
-|..myyyxxxwwm.
-|..mnnnnnnnnm.
-|..myyzxxzwwm.
-|..myyyxxxwmm.
+|vyxxxxmmxwwwv
+|..mzywyywxxm.
+|..myxxxxxwwm.
+|..mwwwvvvvvm.
+|..mzywyywxxm.
+|..myxxxxxwmm.
 |..fghhPOhggf.
-|..myyzxxzwwm.
+|..mzywyywxxm.
 |..mxxxwwwwmm.
 regions
 |....RRRR.....
@@ -2649,14 +2649,14 @@ regions
 
 view U key rest origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2672,14 +2672,14 @@ regions
 
 view U key idle origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2695,14 +2695,14 @@ regions
 
 view U key run origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2718,14 +2718,14 @@ regions
 
 view U key runl origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2741,14 +2741,14 @@ regions
 
 view U key drawn origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2764,14 +2764,14 @@ regions
 
 view U key swing origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnmnnnm..
-|..myyzxmxwwm..
-|..mmyyxmxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvmvvvm..
+|..mzywymyxxm..
+|..mmyxxmxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwmmm..
 regions
 |...RRRRR......
@@ -2787,14 +2787,14 @@ regions
 
 view U key lie origin 7 0 when brig-plates replace
 |..vxyyxxwwwv..
-|vyooonnmnnnnwv
-|..myyzxxzwwm..
-|..myyyxxxwwm..
-|..mnnnnnnnnm..
-|..myyzxxzwwm..
-|..myyyxxxwmm..
+|vyxxxxxmxxwwwv
+|..mzywyywxxm..
+|..myxxxxxwwm..
+|..mwwwvvvvvm..
+|..mzywyywxxm..
+|..myxxxxxwmm..
 |..fghhhhhggf..
-|..myyzxxzwwm..
+|..mzywyywxxm..
 |..mxxxwwwwmm..
 regions
 |...RRRRR......
@@ -2810,14 +2810,14 @@ regions
 
 view R key rest origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.mmyyxxxmmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.mmyxxxxmmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2835,14 +2835,14 @@ build
 
 view R key idle origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.mmyyxxxmmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.mmyxxxxmmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2858,14 +2858,14 @@ regions
 
 view R key run origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.mmyyxxxmmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.mmyxxxxmmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2883,14 +2883,14 @@ build
 
 view R key runl origin 7 0 when brig-plates replace
 |....vxyxwv....
-|...vyonnnwv...
-|...myzxxzwwm..
-|..myyyxxxwwwm.
-|..mnnnnnnnnnm.
-|..myyzxxzwwm..
-|..mmyyxxxmmm..
+|...vyxxxwwv...
+|...mzwyywxxm..
+|..myxxxxxwwwm.
+|..mwwwvvvvvvm.
+|..mzywyywxxm..
+|..mmyxxxxmmm..
 |.fghhhhhgOf...
-|.myyyzxxywm...
+|.mzyywyywxm...
 |mxxxwwwwwmm...
 regions
 |.....RRR......
@@ -2908,14 +2908,14 @@ build
 
 view R key drawn origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.mmyyxxxmmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.mmyxxxxmmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2933,14 +2933,14 @@ build
 
 view R key swing origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.mmyyxxxmmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.mmyxxxxmmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2958,14 +2958,14 @@ build
 
 view R key lie origin 5 0 when brig-plates replace
 |..vxyxwv....
-|.vyonnnwv...
-|.myzxxzwwm..
-|.myyyxxxwwwm
-|.mnnnnnnnnnm
-|.myzyxzxwwm.
-|.myyyxxxwmm.
+|.vyxxxwwv...
+|.mzwyywxxm..
+|.myxxxxxwwwm
+|.mwwwvvvvvvm
+|.mzwyywyxxm.
+|.myxxxxxwmm.
 |.fghhhhhgOf.
-|.myzyxzxwwm.
+|.mzwyywyxxm.
 |mxxxwwwwwmm.
 regions
 |...RRR......
@@ -2983,14 +2983,14 @@ build
 
 view L key rest origin 8 0 when brig-plates replace
 |.....vxyxwv..
-|...vyonnnwv..
-|..myyyzxxywwm
-|myyyxxxxwwwm.
-|mnnnnnnnnnm..
-|.myzyxzxwwm..
-|.mmyyxxxmmm..
+|...vyxxxwwv..
+|..mzyywyywxxm
+|myxxxxxxwwwm.
+|mwwwvvvvvvm..
+|.mzwyywyxxm..
+|.mmyxxxxmmm..
 |.fOghhhhhgf..
-|.myzyxzxwwm..
+|.mzwyywyxxm..
 |.mxxxwwwwwwm.
 regions
 |......RRR....
@@ -3008,14 +3008,14 @@ build
 
 view L key idle origin 8 0 when brig-plates replace
 |.....vxyxwv..
-|...vyonnnwv..
-|..myyyzxxywwm
-|myyyxxxxwwwm.
-|mnnnnnnnnnm..
-|.myzyxzxwwm..
-|.mmyyxxxmmm..
+|...vyxxxwwv..
+|..mzyywyywxxm
+|myxxxxxxwwwm.
+|mwwwvvvvvvm..
+|.mzwyywyxxm..
+|.mmyxxxxmmm..
 |.fOghhhhhgf..
-|.myzyxzxwwm..
+|.mzwyywyxxm..
 |.mxxxwwwwwwm.
 regions
 |......RRR....
@@ -3031,14 +3031,14 @@ regions
 
 view L key run origin 8 0 when brig-plates replace
 |.....vxyxwv..
-|...vyonnnwv..
-|..myyyzxxywwm
-|myyyxxxxwwwm.
-|mnnnnnnnnnm..
-|.myzyxzxwwm..
-|.mmyyxxxmmm..
+|...vyxxxwwv..
+|..mzyywyywxxm
+|myxxxxxxwwwm.
+|mwwwvvvvvvm..
+|.mzwyywyxxm..
+|.mmyxxxxmmm..
 |.fOghhhhhgf..
-|.myzyxzxwwm..
+|.mzwyywyxxm..
 |.mxxxwwwwwwm.
 regions
 |......RRR....
@@ -3056,14 +3056,14 @@ build
 
 view L key runl origin 8 0 when brig-plates replace
 |.....vxyxwv....
-|...vyonnnwv....
-|..myyyzxxywwm..
-|.myyyxxxxwwwm..
-|.mnnnnnnnnnm...
-|..myyyzxxywm...
-|..mmyyxxxmmm...
+|...vyxxxwwv....
+|..mzyywyywxxm..
+|.myxxxxxxwwwm..
+|.mwwwvvvvvvm...
+|..mzyywyywxm...
+|..mmyxxxxmmm...
 |...fOghhhhhgf..
-|...myyzxxzwwm..
+|...mzywyywxxm..
 |...mxxxwwwwwwm.
 regions
 |......RRR......
@@ -3081,14 +3081,14 @@ build
 
 view L key drawn origin 8 0 when brig-plates replace
 |.....vxyxwv..
-|...vyonnnwv..
-|..myyyzxxywwm
-|myyyxxxxwwwm.
-|mnnnnnnnnnm..
-|.myzyxzxwwm..
-|.mmyyxxxmmm..
+|...vyxxxwwv..
+|..mzyywyywxxm
+|myxxxxxxwwwm.
+|mwwwvvvvvvm..
+|.mzwyywyxxm..
+|.mmyxxxxmmm..
 |.fOghhhhhgf..
-|.myzyxzxwwm..
+|.mzwyywyxxm..
 |.mxxxwwwwwwm.
 regions
 |......RRR....
@@ -3106,14 +3106,14 @@ build
 
 view L key swing origin 8 0 when brig-plates replace
 |.....vxyxwv..
-|...vyonnnwv..
-|..myyyzxxywwm
-|myyyxxxxwwwm.
-|mnnnnnnnnnm..
-|.myzyxzxwwm..
-|.mmyyxxxmmm..
+|...vyxxxwwv..
+|..mzyywyywxxm
+|myxxxxxxwwwm.
+|mwwwvvvvvvm..
+|.mzwyywyxxm..
+|.mmyxxxxmmm..
 |.fOghhhhhgf..
-|.myzyxzxwwm..
+|.mzwyywyxxm..
 |.mxxxwwwwwwm.
 regions
 |......RRR....
@@ -3131,15 +3131,15 @@ build
 
 view L key lie origin 6 0 when brig-plates replace
 |..vxyxwv...
-|.vyonnnnwv.
-|myyyzxxywwm
-|myyyxxxwwwm
-|mnnnnnnnnnm
-|myyyzxxywwm
-|myyyxxxwwmm
+|.vyxxxxwwv.
+|mzyywyywxxm
+|myxxxxxwwwm
+|mwwwvvvvvvm
+|mzyywyywxxm
+|myxxxxxwwmm
 |.fOhhhhgggf
-|...myyxzwwm
-|...myyxxwwm
+|...mzyywxxm
+|...myxxxwwm
 |...mmmmmmmm
 regions
 |...RR......

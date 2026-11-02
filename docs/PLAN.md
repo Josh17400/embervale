@@ -3896,6 +3896,31 @@ rig 1 untouched.**
   unchanged. The T5 / T6 / Mythic views come first in each file and still win. Every brigandine wearer moves (the hero, the
   River guards and soldiers under their tabards).
 
+**Fix batch P3, fix round 1 (2026-11-02; the P3 judge's items). PENDING THE OWNER'S REVIEW (`p3-pack/ART/*r1*`).**
+- **D113. The axe strike shows its head** (B2 r1; W7 t4b/t4c: "a staff-like rod with a gold tip, no axe head"). D109's
+  axe strikes held a022 / a000 at arm's length: a level 13 px haft with the head end-on, a jab. Variant 0 (the frozen
+  `pose strike axe 0 0` and hit 1) now holds the head as the idle draws it, on a diagonal haft at shoulder height out ahead
+  of the body (R ax_2s a045, L ax_2s a157, D ax_2s a157, U ax_2s a135); variants 1-2 chop down from the raised fist (R
+  mc_2f a315 / a337, L a225 / a202; D a level sweep mc_2s a180 and a low one ax_2s a202; U ax_1s a045, ax_3s a112), every
+  head clear of the body's silhouette. Both bodies, shield or not; arm keys and weapon views the library already draws
+  (nothing drawn). p3_measure B2: 0 FAIL (axe vs mace >= 4.9 px, axe vs idle >= 4.0 px).
+- **D114. The bronze brigandine reads as bronze** (B10 r1; all three W7 T5 testers: "brown/red cloth", "leather and
+  bronze too alike"). Two causes: D112's re-cut lit whole plate rows in the cream step between red cloth rows, and a
+  bought bronze piece draws its metal in gear_look's bronze tint (a matte mid step at the leather's browns). Now every coat
+  row is plate in the metal's body step with one lit pixel at the run's lit edge, each rivet course the plate's bright top
+  edge with dark rivet heads, the row above it the dark seam, the coat's cloth only at its outline (tools/doll/p3_brig.py
+  re-run; the mask, regions and build rows unchanged: T1-T2 as slim); and a bronze brigandine (bodyForm 6, metal kind 2)
+  draws in the curated bronze ramp (kMetalKind 2: the orange-gold body, the cream glint) instead of the tint, rig 2 only
+  (doll_ramps.cpp; rig 1 reads the tint, untouched). The look's helm and fittings share the Metal slot, so a bronze helm
+  worn with it takes the same bronze (its drawing unchanged).
+- **D115. The rig-1 freeze manifest re-signed for the shared doll frames (the integrator's call; the owner confirms or
+  splits it).** tools/doll/freeze/p2c_freeze_rig1.txt is `--rig=1 --doll-wear`'s record, and that record signs the doll's
+  own frames, which B1, B2 and B10 (D108, D109, D112-D114) redrew: S6.freeze1 could not stay green with "rig-1 freeze never
+  re-signed". Re-signed only the frames that changed (1,967 of 39,152; every one in a look holding a sword, axe or mace
+  strike or a brigandine), the rest byte for byte. Rig 1's own art is unchanged: art_hash --rig=1, the rig-1 village art
+  and S5.rig1 / S7.rig1 identical. The other reading (split the manifest so rig 1 signs only rig-1 art) is the owner's
+  if he prefers it.
+
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It
