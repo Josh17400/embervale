@@ -4,6 +4,7 @@
 // The ANIM lane owns this file from here: at rig 2, where art::rig2Covers(look), it draws the v2 atlas frame by its pivot
 // (View::rigTex; never flipped) and the family effects (art::Fx::SwingArc...) timed by the family's pace.
 #include <algorithm>
+#include <unordered_map>
 #include <unordered_set>
 #include <chrono>
 #include <cmath>
@@ -15,6 +16,7 @@
 #include "rpg/story/story_api.h"
 #include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
+#include "rpg/world/source.h"   // (P3 ART, B4) the worn gear's makers (rvShotLook)
 
 // render.cpp's helpers this draw shares (defined there, beside the rest of the sorted pass)
 float seaHeroLift(View& v, const Game& g);
@@ -74,6 +76,53 @@ Canvas rvArcCells(uint64_t key) {
         o.set(k * sz + nx, ny, c);
       }
   return o;
+}
+
+// (P3 ART, B1) the sword's live trail cells (art::steelSmear). key: 0x7E << 56 | radius << 32 | head angle (0-359) << 20 |
+// clockwise << 16 | finisher << 12 | frame (0-3)
+Canvas rvSmearCells(uint64_t key) {
+  const int radius = (int)((key >> 32) & 0xFF), head = (int)((key >> 20) & 0x1FF), frame = (int)(key & 3);
+  const int sweep = ((key >> 16) & 1) ? 1 : -1;
+  const Canvas c = art::steelSmear(radius, head, sweep, frame, ((key >> 12) & 1) != 0);
+  return c.w > 0 ? c : Canvas(1, 1);
+}
+// (P3 ART, B1) the strike frame a fighter's body was last drawn with: its fist and blade tip (pivot-relative, the frame's
+// RigAnchors) and its screen pivot, so the live trail starts on the fist and ends at the tip. drawSwingFx runs after the
+// body; facing up (rvSwingFxBehind) before it, on the record the previous frame left (a frozen strike pose: the same).
+struct RvSwingTip { int gx = 0, gy = 0, tx = 0, ty = 0; float pivX = 0, pivY = 0, t = -1; };
+std::unordered_map<int, RvSwingTip>& rvSwingTips() {
+  static std::unordered_map<int, RvSwingTip> m;
+  return m;
+}
+// the way each sword blow's tip runs (screen: +1 clockwise, y down), by facing (D U R L) and hit (sword.clip's strike
+// frames: hits 1 and 3 cut down, hit 2 rises; facing down every blow sweeps counter-clockwise, facing up hit 2 does)
+constexpr int8_t kSmearSweep[4][3] = {{-1, -1, -1}, {1, -1, 1}, {1, -1, 1}, {-1, 1, -1}};
+// the tip from the fist (px) where the strike frame's blade is a drawn key with no tip mark: A3's hit-1 blade facing down
+// (held=a3d1, kept for the A3 parity; tools/doll/p3_smears.py's table measures the same); {0, 0}: none
+constexpr int8_t kSmearReach[4][3][2] = {{{9, 7}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}, {{0, 0}, {0, 0}, {0, 0}}};
+
+// (P3 ART, B4) the hero's shot with a melee weapon (or a staff) in hand: a bow worn, an arrow just loosed (Cast with no
+// spell held: Game::shootArrow; the loosed arrow still in flight, else no spell's shared cooldown running) and the bow not
+// already the hand's (gear_look's rule: melee, else staff, else bow). The body is then picked and drawn from a copy of the
+// hero's look dressed again in the worn gear with the bow in hand and the melee weapon put away, so the Release and Draw
+// clips play. Draw side only: the sim, the worn look (Actor::look) and the paperdoll are untouched.
+bool rvHeroShooting(const Game& g, const Actor& a, const art::HumanLook& look) {
+  if (!a.player || a.st != AState::Cast || g.arcana.live.cast.spell != 0) return false;
+  if (g.eqBow < 0 || g.eqBow >= (int)g.inv.size() || art::familyOf(look) == art::Family::Bow) return false;
+  for (const Projectile& pr : g.projs)
+    if (pr.fromPlayer && pr.owner == a.id && pr.kind == ProjKind::Arrow && pr.life >= 0.9f - a.stT - 0.05f) return true;
+  return g.arcana.live.gcd <= 0.0f;
+}
+art::HumanLook rvShotLook(const Game& g) {
+  auto at = [&](int i) -> const Item* { return i >= 0 && i < (int)g.inv.size() ? &g.inv[(size_t)i] : nullptr; };
+  const cult::Culture* home = g.app.homeland && g.world.src ? &g.world.src->culture(g.app.homeland) : nullptr;
+  art::HumanLook L = appearanceLook(g.app, home);
+  WornGear wg;   // Game::recalcPlayer's slots, but no melee weapon and no staff: the bow is the hand's
+  wg.bow = at(g.eqBow); wg.armor = at(g.eqArmor); wg.helmet = at(g.eqHelmet); wg.shield = at(g.eqShield); wg.ring = at(g.eqRing);
+  wg.amulet = at(g.eqAmulet); wg.gloves = at(g.eqGloves); wg.boots = at(g.eqBoots); wg.cloak = at(g.eqCloak);
+  wearGear(L, wg, [&g](uint64_t id) -> const cult::Culture* { return id && g.world.src ? &g.world.src->culture(id) : nullptr; });
+  if (g.service.enlisted()) RiseViewOps::dressHero(g, L);
+  return L;
 }
 
 // (P2a `pose`) a frozen clip's v1 sheet column at rig 1 (the v1 sheet has one column per clip but the walk and roll)
@@ -259,6 +308,13 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   if (v2Look && !posing) {
     AnimPick k = animPick(g, a, 2);
     art::HumanLook lookP = look;
+    if (!(a.player && p2a.poseOn) && rvHeroShooting(g, a, look)) {   // (P3 ART, B4) the bow drawn for the shot
+      lookP = rvShotLook(g);
+      Actor shooter = a;
+      shooter.look = lookP;
+      k = animPick(g, shooter, 2);
+      sprites_.rigBakeNow_ = true;   // the shot's look bakes now (never a fallback frame for the release)
+    }
     if (a.player && p2a.poseOn) {
       k.clip = p2a.poseClip; k.variant = (uint8_t)p2a.poseVariant; k.frame = (uint8_t)p2a.poseFrame;
       if (p2a.poseFamily != art::familyOf(look)) lookP.weapon = weaponOfFamily(p2a.poseFamily);
@@ -306,6 +362,15 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
+      if (k.clip == art::Clip::Strike && an && an->gripX != art::kNoAnchor) {   // (P3 ART, B1) the live trail's fist and tip
+        const int8_t* reach = kSmearReach[std::clamp(facing, 0, 3)][std::clamp((int)k.variant, 0, 2)];
+        const bool tip = an->tipX != art::kNoAnchor;
+        if (tip || reach[0] || reach[1]) {
+          const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
+          rvSwingTips()[a.id] = RvSwingTip{an->gripX, an->gripY, tip ? an->tipX : an->gripX + reach[0], tip ? an->tipY : an->gripY + reach[1],
+                                           std::floor(at.x - cam.x + 0.5f), std::floor(at.y + bob2 - cam.y + 0.5f), t_};
+        }
+      }
       // (P2c ladder) the living finish over it (T5-T6; the dead lie dark)
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
         const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
@@ -605,6 +670,34 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
   const art::RigMetrics& M = art::rig(v2 ? 2 : 1);
   const art::Fx f = animSwingFx(g, a);
   const art::Family fam = art::familyOf(a.look);
+  // (P3 ART, B1; was P2a's 32 x 32 Steel Arc crescent, which closed ahead of the hand: with a level blade through it, a
+  // drawn bow and its arrow) the sword's trail on a v2 body: art::steelSmear centred on the fist the strike frame was
+  // drawn with, its radius the blade's reach, its head at the tip and its tail back the way the blade came (kSmearSweep),
+  // over the strike in 4 frames; the hero's finisher a pixel wider in the Finisher tint #FFE6A0. No frame record (a body
+  // not drawn this frame): no trail (the strike frame's own baked trail, fx/arc t1-t3, still shows).
+  if (v2 && f == art::Fx::SwingArc && fam == art::Family::Sword) {
+    const auto it = rvSwingTips().find(a.id);
+    if (it == rvSwingTips().end() || std::fabs(it->second.t - t_) > 0.1f) return;
+    const RvSwingTip& st = it->second;
+    const int face = std::clamp(a.face, 0, 3), variant = std::clamp((int)animPick(g, a, 2).variant, 0, 2);
+    const bool fin = a.player && a.combo == 2;   // the hero's third hit (as the v1 finisher)
+    const int dx = st.tx - st.gx, dy = st.ty - st.gy;
+    const int radius = std::clamp((int)std::lround(std::sqrt((float)(dx * dx + dy * dy))), 0, 60);
+    if (radius < 4) return;
+    const int head = ((int)std::lround(std::atan2((float)dy, (float)dx) * 57.29578f) % 360 + 360) % 360;
+    const int frames = std::max(1, art::fxFrames(f));
+    const int fr = std::clamp((int)(prog * frames), 0, frames - 1);
+    const uint64_t key = 0x7Eull << 56 | (uint64_t)radius << 32 | (uint64_t)head << 20 | (kSmearSweep[face][variant] > 0 ? 1ull << 16 : 0ull) |
+                         (fin ? 1ull << 12 : 0ull) | (uint64_t)(fr & 3);
+    const Tex& ft = sprites_.cachedTex(*this, key, rvSmearCells);
+    const int n = 2 * radius + 5;
+    const Color tint = fin ? Color(1, 0xE6 / 255.0f, 0xA0 / 255.0f, 1) : Color(1, 1, 1, 1);
+    // never below the soles: the trail's lowest row a pixel above them (the owner, 2026-10-23: the D crescent dropped under the feet)
+    const float x0 = st.pivX + (float)st.gx - (float)(n / 2), y0 = st.pivY + (float)st.gy - (float)(n / 2);
+    const int rows = std::clamp((int)(st.pivY - 1.0f - y0), 0, n);
+    if (rows > 0) P.blitEx(ft, 0, 0, n, rows, x0, y0, (float)n, (float)rows, false, tint);
+    return;
+  }
   // (P2a style slice) the Steel Arc on a v2 body (STYLE_P2 12): a 32 x 32 crescent (the finisher painted natively at 38 x
   // 38 in the Finisher tint #FFE6A0), drawn opaque so its core #F4F1E6 and edge #B8C4D8 land exactly. Its circle's centre
   // (1/32 of the cell beyond the cell's body side) sits on the body: facing down at the crown, so the crescent crosses
@@ -615,7 +708,7 @@ void View::drawSwingFx(const Game& g, const Actor& a, Vec2 cam) {
   // facing down or up is the overhead cut seen end-on: its tip runs straight up or down the screen beside the weapon arm,
   // so its crescent stands upright there (facing down a "(" down the hero's right side, from over the head to the shins;
   // facing up a ")" up the right side from the back to over the head) instead of lying across the body.
-  if (v2 && f == art::Fx::SwingArc) {
+  if (v2 && f == art::Fx::SwingArc) {   // (P3 ART) the dagger's (the sword's trail is the smear above)
     const int face = std::clamp(a.face, 0, 3);
     const bool fin = a.player && a.combo == 2;   // the hero's third hit (as the v1 finisher)
     const int base = art::fxH(f), sz = fin ? (int)std::lround(base * 1.2f) : base;

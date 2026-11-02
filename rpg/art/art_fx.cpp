@@ -458,6 +458,31 @@ Canvas fxSprite(Fx f) {
   }
   return sheet;
 }
+// (P3 ART, B1) the live trail (art_fx.h); the same smear tools/doll/p3_smears.py bakes into the strike frames (fx/arc t1-t3)
+Canvas steelSmear(int radius, int headDeg, int sweep, int frame, bool fin) {
+  if (radius < 4) return Canvas();
+  // per frame: how far behind the tip its head is, its span and its width at the head (degrees, px)
+  struct Beat { float lag, span, w; };
+  static const Beat kBeat[4] = {{36, 26, 2.0f}, {12, 58, 4.0f}, {0, 85, 5.0f}, {0, 60, 2.0f}};
+  const Beat& b = kBeat[frame & 3];
+  const int n = 2 * radius + 5, c0 = n / 2;
+  Canvas c(n, n);
+  const float r = (float)radius, wmax = b.w + (fin ? 1.0f : 0.0f), sg = sweep < 0 ? -1.0f : 1.0f;
+  const float head = (float)headDeg - sg * b.lag;
+  for (int y = 0; y < n; y++)
+    for (int x = 0; x < n; x++) {
+      const float dx = (float)(x - c0), dy = (float)(y - c0), d = std::sqrt(dx * dx + dy * dy);
+      if (d < 1.0f) continue;
+      float rel = (std::atan2(dy, dx) * 57.29578f - head) * sg;   // 0 at the head, negative behind it
+      rel = std::fmod(rel + 540.0f, 360.0f) - 180.0f;
+      const float s = 1.0f + rel / b.span;                         // 0 the tail .. 1 the head
+      if (s < 0 || s > 1.0f) continue;
+      const float w = 1.0f + (wmax - 1.0f) * s, dd = r + 0.5f - d;
+      if (dd < 0 || dd >= w) continue;
+      c.set(x, y, dd < 1.2f && s > 0.25f ? kSteelCore : kSteelEdge);
+    }
+  return c;
+}
 Canvas fxSpriteSized(Fx f, int w, int h) {
   if ((int)f < (int)Fx::SwingArc || (int)f >= (int)Fx::COUNT || w <= 0 || h <= 0) return Canvas();
   const int n = fxFrames(f);

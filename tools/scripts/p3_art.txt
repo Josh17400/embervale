@@ -1,0 +1,294 @@
+# P3 ART (docs/FIX_BATCH_P3.md 3 B1 B2 B4 B6 B10, 8.4): the sword's cut, the axe's chop and the mace's smash, the spear's
+# thrust facing up, the bow drawn for a shot with a sword in hand, the bronze brigandine as a coat of plates. Seed 7, the
+# start village's clearing, rig 2, NEAR, the hero frozen by `pose` (four facings) or live (frame-exact shots after `key`).
+# Measured by tools/doll/p3_measure.py on rpg_test --doll --limbs (head centres, the spear point) and on these shots.
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p3_art.txt   (p3_art_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
++0.1 zoom near
+# ---- B4: a sword and a bow on (`kit`: the iron sword in hand, the hunting bow on the back, 20 arrows); `key k` shoots:
+# the release (0.08 s) and the nock that follows are the bow's, in hand, the sword put away; then back to the sword
++0.1 kit
++0.3 expect doll covered
++0.1 p2cline face 2
++0.5 shot p3_art_b4_before_shot.png
++0.1 key k
++0.034 shot p3_art_b4_release.png
++0.1 shot p3_art_b4_nock.png
++0.6 shot p3_art_b4_after.png
+# ---- B1: the sword strikes (the blade diagonal, the trail ending at the tip)
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=sword
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose idle sword 1 0
++0.1 shot p3_art_sword_r_idle.png
++0.1 pose strike sword 0 0
++0.1 shot p3_art_sword_r_h1_strike.png
++0.1 pose strike sword 1 0
++0.1 shot p3_art_sword_r_h2_strike.png
++0.1 pose strike sword 2 0
++0.1 shot p3_art_sword_r_h3_strike.png
++0.1 p2cline face 0
++0.1 pose idle sword 1 0
++0.1 shot p3_art_sword_d_idle.png
++0.1 pose strike sword 0 0
++0.1 shot p3_art_sword_d_h1_strike.png
++0.1 pose strike sword 1 0
++0.1 shot p3_art_sword_d_h2_strike.png
++0.1 pose strike sword 2 0
++0.1 shot p3_art_sword_d_h3_strike.png
++0.1 p2cline face 3
++0.1 pose idle sword 1 0
++0.1 shot p3_art_sword_l_idle.png
++0.1 pose strike sword 0 0
++0.1 shot p3_art_sword_l_h1_strike.png
++0.1 pose strike sword 1 0
++0.1 shot p3_art_sword_l_h2_strike.png
++0.1 pose strike sword 2 0
++0.1 shot p3_art_sword_l_h3_strike.png
++0.1 p2cline face 1
++0.1 pose idle sword 1 0
++0.1 shot p3_art_sword_u_idle.png
++0.1 pose strike sword 0 0
++0.1 shot p3_art_sword_u_h1_strike.png
++0.1 pose strike sword 1 0
++0.1 shot p3_art_sword_u_h2_strike.png
++0.1 pose strike sword 2 0
++0.1 shot p3_art_sword_u_h3_strike.png
++0.1 pose off
+# ---- B1 live: hit 1 facing right, a shot every two frames over the strike (the trail grows to the tip, never ahead of it)
++0.1 p2cline face 2
++0.5 key j
++0.034 shot p3_art_sword_live_1.png
++0.034 shot p3_art_sword_live_2.png
++0.034 shot p3_art_sword_live_3.png
++0.034 shot p3_art_sword_live_4.png
++0.034 shot p3_art_sword_live_5.png
++0.034 shot p3_art_sword_live_6.png
++0.6 p2cline face 0
++0.3 key j
++0.034 shot p3_art_sword_live_d1.png
++0.034 shot p3_art_sword_live_d2.png
++0.034 shot p3_art_sword_live_d3.png
++0.034 shot p3_art_sword_live_d4.png
+# ---- B2: the axe chop (the head at shoulder-to-chest height, the torso turned)
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=axe
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose idle axe 1 0
++0.1 shot p3_art_axe_r_idle.png
++0.1 pose strike axe 0 0
++0.1 shot p3_art_axe_r_h1_strike.png
++0.1 pose strike axe 1 0
++0.1 shot p3_art_axe_r_h2_strike.png
++0.1 pose strike axe 2 0
++0.1 shot p3_art_axe_r_h3_strike.png
++0.1 p2cline face 0
++0.1 pose idle axe 1 0
++0.1 shot p3_art_axe_d_idle.png
++0.1 pose strike axe 0 0
++0.1 shot p3_art_axe_d_h1_strike.png
++0.1 pose strike axe 1 0
++0.1 shot p3_art_axe_d_h2_strike.png
++0.1 pose strike axe 2 0
++0.1 shot p3_art_axe_d_h3_strike.png
++0.1 p2cline face 3
++0.1 pose idle axe 1 0
++0.1 shot p3_art_axe_l_idle.png
++0.1 pose strike axe 0 0
++0.1 shot p3_art_axe_l_h1_strike.png
++0.1 pose strike axe 1 0
++0.1 shot p3_art_axe_l_h2_strike.png
++0.1 pose strike axe 2 0
++0.1 shot p3_art_axe_l_h3_strike.png
++0.1 p2cline face 1
++0.1 pose idle axe 1 0
++0.1 shot p3_art_axe_u_idle.png
++0.1 pose strike axe 0 0
++0.1 shot p3_art_axe_u_h1_strike.png
++0.1 pose strike axe 1 0
++0.1 shot p3_art_axe_u_h2_strike.png
++0.1 pose strike axe 2 0
++0.1 shot p3_art_axe_u_h3_strike.png
++0.1 pose off
+# ---- B2: the mace smash (the head above the waist, the body leaning in)
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=mace
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose idle mace 1 0
++0.1 shot p3_art_mace_r_idle.png
++0.1 pose strike mace 0 0
++0.1 shot p3_art_mace_r_h1_strike.png
++0.1 pose strike mace 1 0
++0.1 shot p3_art_mace_r_h2_strike.png
++0.1 pose strike mace 2 0
++0.1 shot p3_art_mace_r_h3_strike.png
++0.1 p2cline face 0
++0.1 pose idle mace 1 0
++0.1 shot p3_art_mace_d_idle.png
++0.1 pose strike mace 0 0
++0.1 shot p3_art_mace_d_h1_strike.png
++0.1 pose strike mace 1 0
++0.1 shot p3_art_mace_d_h2_strike.png
++0.1 pose strike mace 2 0
++0.1 shot p3_art_mace_d_h3_strike.png
++0.1 p2cline face 3
++0.1 pose idle mace 1 0
++0.1 shot p3_art_mace_l_idle.png
++0.1 pose strike mace 0 0
++0.1 shot p3_art_mace_l_h1_strike.png
++0.1 pose strike mace 1 0
++0.1 shot p3_art_mace_l_h2_strike.png
++0.1 pose strike mace 2 0
++0.1 shot p3_art_mace_l_h3_strike.png
++0.1 p2cline face 1
++0.1 pose idle mace 1 0
++0.1 shot p3_art_mace_u_idle.png
++0.1 pose strike mace 0 0
++0.1 shot p3_art_mace_u_h1_strike.png
++0.1 pose strike mace 1 0
++0.1 shot p3_art_mace_u_h2_strike.png
++0.1 pose strike mace 2 0
++0.1 shot p3_art_mace_u_h3_strike.png
++0.1 pose off
+# ---- B6: the spear thrust (facing up: straight up, the point over the helm)
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=spear
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose idle spear 1 0
++0.1 shot p3_art_spear_r_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_spear_r_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_spear_r_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_spear_r_h3_strike.png
++0.1 p2cline face 0
++0.1 pose idle spear 1 0
++0.1 shot p3_art_spear_d_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_spear_d_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_spear_d_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_spear_d_h3_strike.png
++0.1 p2cline face 3
++0.1 pose idle spear 1 0
++0.1 shot p3_art_spear_l_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_spear_l_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_spear_l_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_spear_l_h3_strike.png
++0.1 p2cline face 1
++0.1 pose idle spear 1 0
++0.1 shot p3_art_spear_u_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_spear_u_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_spear_u_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_spear_u_h3_strike.png
++0.1 pose off
+# ---- B6: the glaive (variant 2 its sweep)
++0.1 ladderkit hero=1,kit=heartland:4:7,wpn=spear,polearmForm=2
++0.3 expect doll covered
++0.1 p2cline face 2
++0.1 pose idle spear 1 0
++0.1 shot p3_art_glaive_r_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_glaive_r_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_glaive_r_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_glaive_r_h3_strike.png
++0.1 p2cline face 0
++0.1 pose idle spear 1 0
++0.1 shot p3_art_glaive_d_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_glaive_d_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_glaive_d_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_glaive_d_h3_strike.png
++0.1 p2cline face 3
++0.1 pose idle spear 1 0
++0.1 shot p3_art_glaive_l_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_glaive_l_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_glaive_l_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_glaive_l_h3_strike.png
++0.1 p2cline face 1
++0.1 pose idle spear 1 0
++0.1 shot p3_art_glaive_u_idle.png
++0.1 pose strike spear 0 0
++0.1 shot p3_art_glaive_u_h1_strike.png
++0.1 pose strike spear 1 0
++0.1 shot p3_art_glaive_u_h2_strike.png
++0.1 pose strike spear 2 0
++0.1 shot p3_art_glaive_u_h3_strike.png
++0.1 pose off
+# ---- B10: the bronze brigandine, T1 and T2, the man and the woman, beside leather
++0.1 ladderkit hero=1,kit=heartland:1:7,bodyForm=6,mat=bronze
++0.3 expect doll covered
++0.1 p2cline face 2
++0.2 shot p3_art_brig_t1_r.png
++0.1 p2cline face 0
++0.2 shot p3_art_brig_t1_d.png
++0.1 p2cline face 3
++0.2 shot p3_art_brig_t1_l.png
++0.1 p2cline face 1
++0.2 shot p3_art_brig_t1_u.png
++0.1 ladderkit hero=1,kit=heartland:2:7,bodyForm=6,mat=bronze
++0.3 expect doll covered
++0.1 p2cline face 2
++0.2 shot p3_art_brig_t2_r.png
++0.1 p2cline face 0
++0.2 shot p3_art_brig_t2_d.png
++0.1 p2cline face 3
++0.2 shot p3_art_brig_t2_l.png
++0.1 p2cline face 1
++0.2 shot p3_art_brig_t2_u.png
++0.1 ladderkit heroine=1,kit=heartland:1:7,bodyForm=6,mat=bronze
++0.3 expect doll covered
++0.1 p2cline face 2
++0.2 shot p3_art_brig_w1_r.png
++0.1 p2cline face 0
++0.2 shot p3_art_brig_w1_d.png
++0.1 p2cline face 3
++0.2 shot p3_art_brig_w1_l.png
++0.1 p2cline face 1
++0.2 shot p3_art_brig_w1_u.png
++0.1 ladderkit heroine=1,kit=heartland:2:7,bodyForm=6,mat=bronze
++0.3 expect doll covered
++0.1 p2cline face 2
++0.2 shot p3_art_brig_w2_r.png
++0.1 p2cline face 0
++0.2 shot p3_art_brig_w2_d.png
++0.1 p2cline face 3
++0.2 shot p3_art_brig_w2_l.png
++0.1 p2cline face 1
++0.2 shot p3_art_brig_w2_u.png
++0.1 ladderkit hero=1,kit=heartland:1:7,bodyForm=2
++0.3 expect doll covered
++0.1 p2cline face 2
++0.2 shot p3_art_leather_t1_r.png
++0.1 p2cline face 0
++0.2 shot p3_art_leather_t1_d.png
++0.1 p2cline face 3
++0.2 shot p3_art_leather_t1_l.png
++0.1 p2cline face 1
++0.2 shot p3_art_leather_t1_u.png

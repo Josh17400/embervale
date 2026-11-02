@@ -1,0 +1,43 @@
+# tools/gates/baseline/moves/ART.txt: the P3 ART area's expected baseline differences (docs/FIX_BATCH_P3.md 10).
+# <gate> <item or glob> <id> <reason>. Measured against the 119de74 record from the ART worktree (fix-p3-ART).
+S5.rig2 doll B1,B2,B6,B10 the doll category: the sword/axe/mace/spear strike frames re-posed, the strike trails, the brigandine re-cuts
+S5.rig2 TOTAL B1,B2,B6,B10 follows the doll line
+S6.pool bytes,hash B1,B6,B10 views ADDed (fx/arc t1-t3, fx/thrust up1, brigandine when brig-plates): 2579484 B, 91f4a563d3b1bbd7 (under 2621440)
+S6.freeze manifest B1,B2,B6,B10 tools/doll/freeze/p2c_freeze.txt re-signed: 1946 frames of 114 looks (strike frames, clip 4, of the four families; the brigandine looks arms_m8_brigandine_*_t4 and cover_form6_* in every clip); header pool hash
+S6.freeze1 1946-frames B1,B2,B6,B10 the rig-1 doll manifest moves with the same 1946 doll frames (doll clips are rig-independent); p2c_freeze_rig1.txt is NOT re-signed (the brief: never) - the integrator or the owner decides
+W4.doll gates_parity B1 rpg_test --doll --gates: B1 parity hero_SWING_R1 34 px from A3 (hit 1 strike R re-posed: the level blade was the bow read); rc 1; and the pool line
+W4.doll pxc_check B1,B6,B10 the pool line (bytes, hash)
+W4.doll arms_matrix B1,B2,B6,B10 the pool line only (C3 0 failed as at baseline)
+W4.doll ladder_finish_L B10 C12 cover river sword man s1 lt3 D: armour/man/brigandine over 21 px of lt2, 11 of its own colours (was 9: the plates)
+S10.view bounty/* (15 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view fight/* (2 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view m0b_keep_tower/* (3 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m3_towns_tour/* (2 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m3b_interiors/* (1 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m4_view_journal/* (3 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m6_arms_doll/* (9 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m6_foes_boss/* (1 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view m6_menu_tap_phone/* (3 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m7b_art_city/* (3 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m8_view_party/* (6 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m8b_view_doll/* (6 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m8b_view_pack/* (5 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m8b_view_shop/* (1 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m8b_view_shop_phone/* (1 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m9_ui_skills/* (2 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view m9_ui_spells/* (3 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view opening/* (4 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view p2a_death/* (16 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view p2a_death_phone/* (16 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view p2b_slice/* (31 PNGs) B1,B10 B1/B2/B6 strike frames and the sword trail in a fight, B10 brigandine wearers in shot
+S10.view p2c_menus/* (12 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view p2c_menus_phone/* (12 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view paperdoll/* (18 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view view_map/* (7 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view view_screen/* (5 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+S10.view view_walk/* (1 PNGs) B1,B10 B10 brigandine wearers in shot (the start village guards, companions, menus over the world)
+W2.view_all p3_art/* B1,B2,B4,B6,B10 new script tools/scripts/p3_art.txt (114 PNGs)
+W4.doll art_hash B1,B2,B6,B10 the doll category line (as S5.rig2)
+W4.doll rig_gates B1 rig --gates --report: the two baseline lines "R5 frames: sword strike f0 v0/v1 #0: 2 transparent px enclosed" are gone (hit 1's level blade and crescent enclosed them); rc 1 as at baseline
+W4.doll freeze_dressed_rig1 B1,B2,B6,B10 rig-1 dressed check against the re-signed rig-2 manifest: 5465 changed (was 5466); rc 1 as at baseline
+W4.doll gates_parity:B10 timing the "B10 atlas and speed" LOCO p95 failure lines of the record are absent (timing; passes alone now) - not an ART move, noted

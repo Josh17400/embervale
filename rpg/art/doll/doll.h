@@ -18,6 +18,10 @@
 //   doll_ramps.cpp     the ramps: rampA3 (the generator calibrated on A3), the curated skin, hair, eye, linen, leather and
 //                      metal tables, and a look's DollRamps
 //   doll_fit.cpp       seatFit2 / bedFit2 (moved from the procedural rig with their numbers unchanged), the sleeper canvas
+//   (P3 ART, docs/FIX_BATCH_P3.md B1 B10) two generators ADD map views (re-run them, never hand-edit their blocks):
+//   tools/doll/p3_smears.py   the sword's strike trails (fx/arc.pxm t1-t3, `anchor grip`; art::steelSmear paints the live one)
+//   tools/doll/p3_brig.py     the brigandine's coat of plates (`when brig-plates replace` in armour/*/brigandine*.pxm; the
+//                             resolver flags `brig-plates` on every brigandine)
 //
 // ======================================================================================== The .pxm format (version 1)
 // One part per file, UTF-8 text, under rpg/art/doll/maps/. A line starting with '|' is a grid row (one character per

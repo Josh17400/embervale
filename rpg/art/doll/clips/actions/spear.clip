@@ -39,8 +39,8 @@ clip windup U family spear variant 0 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=35 at=0,1
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=42 at=1,1
 clip strike U family spear variant 0 when spear
-f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=71 at=-1,-1
-f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=50 at=-1,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 bob=1 lean=-1 ms=71 at=-1,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 bob=1 lean=-1 ms=50 at=-1,-1
 clip follow U family spear variant 0 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
@@ -122,8 +122,8 @@ clip windup U family spear variant 0 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=35 at=0,1
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 tuft=- ms=42 at=1,1
 clip strike U family spear variant 0 when spear
-f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=71 at=-1,-1
-f armL=sp_hit armR=sp_hit held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 bob=1 ms=50 at=-1,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 bob=1 lean=-1 ms=71 at=-1,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 bob=1 lean=-1 ms=50 at=-1,-1
 clip follow U family spear variant 0 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=70 at=-1,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=73
@@ -242,8 +242,8 @@ clip windup U family spear variant 1 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=35 at=0,1
 f armL=sp_load2 armR=sp_load2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=42 at=0,1
 clip strike U family spear variant 1 when spear
-f armL=sp_hit2 armR=sp_hit2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=48 at=0,-1
-f armL=sp_hit2 armR=sp_hit2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=73 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 lean=-1 ms=48 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 lean=-1 ms=73 at=0,-1
 clip follow U family spear variant 1 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=72 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=71
@@ -251,8 +251,8 @@ clip windup U family spear variant 2 when spear,pole-glaive
 f armL=sp_swa armR=sp_swa weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=35 at=0,1
 f armL=sp_swb armR=sp_swb weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear,pole-glaive
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear,pole-glaive
 f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154
@@ -260,8 +260,8 @@ clip windup U family spear variant 2 when spear,pole-halberd
 f armL=sp_swa armR=sp_swa weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=35 at=0,1
 f armL=sp_swb armR=sp_swb weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear,pole-halberd
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear,pole-halberd
 f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154
@@ -269,8 +269,8 @@ clip windup U family spear variant 2 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=35 at=0,1
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear
-f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=a1 bob=2 ms=48 at=0,-1
-f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=a1 bob=2 ms=73 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=up1 bob=2 lean=-1 ms=48 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=up1 bob=2 lean=-1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154
@@ -404,8 +404,8 @@ clip windup U family spear variant 1 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=35 at=0,1
 f armL=sp_load2 armR=sp_load2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=42 at=0,1
 clip strike U family spear variant 1 when spear
-f armL=sp_hit2 armR=sp_hit2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=48 at=0,-1
-f armL=sp_hit2 armR=sp_hit2 held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a1 ms=73 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 lean=-1 ms=48 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=rest fx=up1 lean=-1 ms=73 at=0,-1
 clip follow U family spear variant 1 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=72 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=71
@@ -413,8 +413,8 @@ clip windup U family spear variant 2 when spear,pole-glaive
 f armL=sp_swa armR=sp_swa weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=35 at=0,1
 f armL=sp_swb armR=sp_swb weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear,pole-glaive
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear,pole-glaive
 f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154
@@ -422,8 +422,8 @@ clip windup U family spear variant 2 when spear,pole-halberd
 f armL=sp_swa armR=sp_swa weapon=67.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=35 at=0,1
 f armL=sp_swb armR=sp_swb weapon=45,back legs=drawn neck=rest sheath=drawn torso=rest pauld=up bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear,pole-halberd
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
-f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=48 at=0,-1
+f armL=sp_sws armR=sp_sws weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest bob=1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear,pole-halberd
 f armL=sp_sws armR=sp_sws weapon=202.5,back legs=buckle neck=rest sheath=drawn torso=rest ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154
@@ -431,8 +431,8 @@ clip windup U family spear variant 2 when spear
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=35 at=0,1
 f armL=sp_wind armR=sp_wind held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 ms=42 at=0,1
 clip strike U family spear variant 2 when spear
-f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=a1 bob=2 ms=48 at=0,-1
-f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=a1 bob=2 ms=73 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=up1 bob=2 lean=-1 ms=48 at=0,-1
+f armL=sp_lunge armR=sp_lunge weapon=90,back legs=drawn neck=rest sheath=drawn torso=runl fx=up1 bob=2 lean=-1 ms=73 at=0,-1
 clip follow U family spear variant 2 when spear
 f armL=sp_pull armR=sp_pull held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest fx=a2 bob=1 ms=154 at=0,-1
 f armL=sp_guard armR=sp_guard held=fU weapon=157.5,back legs=drawn neck=rest sheath=drawn torso=rest bob=1 ms=154

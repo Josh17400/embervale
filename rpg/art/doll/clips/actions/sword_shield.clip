@@ -50,13 +50,13 @@ f armL=- armR=sw_r0 held=a3r0 hilt=- legs=stance neck=rest sheath=rest torso=res
 clip windup L family sword variant 0 when shield
 f armL=- armR=sw_l0 held=a3l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70 sharm=shtuck shield=guard at=1,0
 clip strike D family sword variant 0 when shield
-f armL=- armR=sw_d1 expr=fierce fx=a1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110 sharm=shtuck shield=guard at=0,1
+f armL=- armR=sw_d1 expr=fierce fx=t1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110 sharm=shtuck shield=guard at=0,1
 clip strike U family sword variant 0 when shield
-f armL=- armR=sw_u1 fx=a1 held=a3u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110 sharm=shtuck shield=guard at=0,-1
+f armL=- armR=sw_u1 fx=t1 weapon=202,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110 sharm=shtuck shield=guard at=0,-1
 clip strike R family sword variant 0 when shield
-f armL=- armR=sw_r1 expr=fierce fx=a1 held=a3r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110 sharm=shtuck shield=guard at=2,0
+f armL=- armR=sw_r1 expr=fierce fx=t1 weapon=315,front hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110 sharm=shtuck shield=guard at=2,0
 clip strike L family sword variant 0 when shield
-f armL=- armR=sw_l1 expr=fierce fx=a1 held=a3l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110 sharm=shtuck shield=guard at=-2,0
+f armL=- armR=sw_l1 expr=fierce fx=t1 weapon=225,front hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110 sharm=shtuck shield=guard at=-2,0
 clip follow D family sword variant 0 when shield
 f armL=- armR=sw_d2 expr=fierce fx=a2 held=a3d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70 sharm=shtuck shield=guard at=0,1
 f armL=- armR=sw_d3 held=a3d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60 sharm=guard shield=guard
@@ -168,13 +168,13 @@ f armL=- armR=sw_r0 held=a3r0 hilt=- legs=stance neck=rest sheath=rest torso=res
 clip windup L family sword variant 0 when shield
 f armL=- armR=sw_l0 held=a3l0 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70 sharm=shtuck shield=guard at=1,0
 clip strike D family sword variant 0 when shield
-f armL=- armR=sw_d1 expr=fierce fx=a1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110 sharm=shtuck shield=guard at=0,1
+f armL=- armR=sw_d1 expr=fierce fx=t1 held=a3d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110 sharm=shtuck shield=guard at=0,1
 clip strike U family sword variant 0 when shield
-f armL=- armR=sw_u1 fx=a1 held=a3u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110 sharm=shtuck shield=guard at=0,-1
+f armL=- armR=sw_u1 fx=t1 weapon=202,back legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110 sharm=shtuck shield=guard at=0,-1
 clip strike R family sword variant 0 when shield
-f armL=- armR=sw_r1 expr=fierce fx=a1 held=a3r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110 sharm=shtuck shield=guard at=2,0
+f armL=- armR=sw_r1 expr=fierce fx=t1 weapon=315,front hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110 sharm=shtuck shield=guard at=2,0
 clip strike L family sword variant 0 when shield
-f armL=- armR=sw_l1 expr=fierce fx=a1 held=a3l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110 sharm=shtuck shield=guard at=-2,0
+f armL=- armR=sw_l1 expr=fierce fx=t1 weapon=225,front hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110 sharm=shtuck shield=guard at=-2,0
 clip follow D family sword variant 0 when shield
 f armL=- armR=sw_d2 expr=fierce fx=a2 held=a3d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70 sharm=shtuck shield=guard at=0,1
 f armL=- armR=sw_d3 held=a3d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60 sharm=guard shield=guard

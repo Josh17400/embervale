@@ -48,6 +48,21 @@ view U key a1 origin 21 20 layer fxBack
 |............BC..
 |..............CC
 
+# (P3 ART, B6) the thrust facing up: the U strike points straight up now (a090 behind the body, the head over the helm),
+# so its streak runs up the haft: two speed lines either side, thinning down to the edge, and a flash past the point.
+# up1 for hits 1-3 (the point 42-44 rows over the pivot, the leaf between the lines). The WNW a1 stays (the pull, a2, too).
+view U key up1 origin 3 46 layer fxBack
+|....S....
+|...SAS...
+|....A....
+|.A.....A.
+|.A.....A.
+|.B.....B.
+|.B.....B.
+|.B.....B.
+|.C.....C.
+|.C.....C.
+
 view U key a2 origin 15 21 layer fxBack
 |BC....
 |..BC..

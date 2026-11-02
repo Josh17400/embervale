@@ -18,6 +18,14 @@ Canvas fxSprite(Fx f);
 // STYLE_P2 6) keeps one pixel size instead of a sprite stretched at runtime. Only the Steel Arc (SwingArc) scales its
 // art with the cell; any other effect returns an empty canvas (the renderer then stretches fxSprite as before).
 Canvas fxSpriteSized(Fx f, int w, int h);
+// (P3 ART, B1) the sword's live trail on a v2 body (View::drawSwingFx): a smear on the circle the blade's tip runs round,
+// centred on the fist, from the tip BACK the way the blade came (sweep +1: clockwise on the screen, y down; -1 the other
+// way), widest at the tip (the core #F4F1E6 on the rim, the edge #B8C4D8 inward) and thinning to a 1 px wisp at its tail,
+// so it never reaches ahead of the blade (the old crescent closed ahead of the hand and, with the blade through it, read as
+// a drawn bow). One frame of 4 over the strike: the trail grows toward the tip, holds, then thins. The canvas is
+// (2 * radius + 5) square with the fist at its centre; empty for a radius under 4. headDeg: the tip's angle from the fist
+// (screen degrees, 0 east, 90 down). fin: the finisher's trail, a pixel wider (the view tints it).
+Canvas steelSmear(int radius, int headDeg, int sweep, int frame, bool fin);
 
 // ---------------------------------------------------------------- M6 Steel: elite auras (VISION_PLAN 7.6)
 // An elite's, a champion's or a named unique's aura in its affix colour: AURA_FRAMES frames side by side, each w x h
