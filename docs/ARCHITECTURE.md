@@ -231,9 +231,18 @@ Worlds, fights and frames are repeatable, and the gates check them bit for bit.
 - **RNG.** Never pass two RNG draws as arguments of one call (the evaluation order is unspecified).
 - **Fixed orders.** `Game::update`'s order (`rpg/sim/sim_schedule.cpp`), `damage()`'s modifier chain, RNG draw order, the drawable push order and
   sort ties in `render.cpp`, the Bx draw order in `rpg/build`, and `rpg/story/arch/index.cpp`'s order are contracts.
-- **Saves.** `SAVE_VER` is 23 and lives only in `rpg/sim/game_save.cpp`, whose header lists every block in write order.
+- **Saves.** `SAVE_VER` is 24 and lives only in `rpg/sim/game_save.cpp`, whose header lists every block in write order.
   Enum values (Prop, Monster, Sfx, QType, Building, Mk ...) are append only.
 - The GCC `no-unswitch-loops` guard in `rpg/sim/life.cpp` stays.
+- **The wall clock.** A few sim parts work to a wall-clock budget so a frame never hitches: the realm's kingdom
+  focus (`Realm::focusBudgetMs`, 2 ms), the chunk streamer's pump, the web path's interior job, and natively the
+  interior made ahead on a worker thread (`rpg/sim/prep_interior.cpp`, bit-identical to `genInterior`). The harnesses
+  switch the first three off (`streamThreads = false`, `syncStreams = true`, `realm.focusBudgetMs = 1e18` after the new
+  game: `--sim-digest`, `save_test`, `--witness`). Checks that time something on the wall clock (prepinterior's 3 s,
+  towns' 8 ms phase, B10's 0.385 ms) and the lines that drifted under load (save_test's damaged-save counts, the
+  digest's differing seeds) are listed in `tools/gates/alone_rerun.txt`: under load they are rerun alone with the same
+  limits before they count (`tools/gates/lib.sh` `alone_try`). A new budget on the clock in the sim needs its
+  harness switch, or the digest stops being repeatable.
 - **/fp:fast and function boundaries.** The game outside the FP groups builds with `/fp:fast` (MSVC), so moving float
   code into a new function can change its rounding even when the source is unchanged. Wave 3 kept bits identical by
   keeping `beastStep`'s windup and strike inline (`rpg/sim/ai_beasts.cpp`), keeping `Audio::add`/`rnd` `inline` in

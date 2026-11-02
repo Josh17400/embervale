@@ -227,8 +227,41 @@ run_move() {
   "$REPO/tools/gates/move_check.sh" "$BASE" WORKTREE $MOVEFILES
 }
 
+# ---------------------------------------------------------------- alone reruns (P4 7c; lib.sh alone_try, alone_rerun.txt)
+# S2.seeds: only the failing seeds are rerun alone (rpg_test --seeds N..N); each must pass and print its record line.
+# Their own summary lines ("seed N FAIL ...") are consequences, not evidence; every other differing line still counts.
+failing_seeds() { tr -d '\r' < "$1" | grep -oE '[0-9]+ passed, [0-9]+ failed \(seeds[ 0-9]+\)' | tail -1 | sed -E 's/.*\(seeds ([ 0-9]+)\)/\1/'; }
+alone_ev_S2_seeds() {
+  local sd re; sd=$(failing_seeds "$2" | tr ' ' '|'); re='^$'; [ -n "$sd" ] && re="^seed ($sd) "
+  alone_evidence_default "$1" "$2" | grep -vE -- "$re"
+}
+alone_rr_S2_seeds() {   # NAME LOG RERUNLOG CHECK -- CMD
+  local s rc bad="" ok="" want got; : > "$3"
+  for s in $(failing_seeds "$2"); do
+    slot_alone "$BABS/rpg_test.exe" --seeds "$s..$s" > "$3.$s" 2>&1 < /dev/null; rc=$?; cat "$3.$s" >> "$3"
+    want=$(base_ref "$1" | grep -E "^seed $s ok "); got=$(norm "$3.$s" | grep -E "^seed $s ")
+    if [ "$rc" -eq 0 ] && [ -n "$want" ] && [ "$got" = "$want" ]; then ok="$ok $s"; else bad="$bad $s(rc=$rc${got:+, '${got:0:60}'})"; fi
+    rm -f "$3.$s"
+  done
+  if [ -n "$ok" ] && [ -z "$bad" ]; then echo "PASS $(lastline "$2"); seeds$ok rerun alone: ok, each line as the record"
+  else echo "FAIL $(lastline "$2"); alone rerun of seeds:${bad:- none found}"; fi
+}
+# S10.digest: only the differing seeds are rerun alone (--sim-digest --seeds N..N --check <record>); each must match
+digest_seeds() { tr -d '\r' < "$1" | grep -oE '^sim-digest FAIL seed [0-9]+' | awk '{ print $4 }' | sort -un | paste -sd' ' -; }
+alone_rr_S10_digest() {   # NAME LOG RERUNLOG CHECK -- CMD
+  local s rc bad="" ok=""; : > "$3"
+  for s in $(digest_seeds "$2"); do
+    slot_alone "$BABS/rpg_test.exe" --sim-digest --seeds "$s..$s" --check "$DIGEST_REC" >> "$3" 2>&1 < /dev/null; rc=$?
+    if [ "$rc" -eq 0 ]; then ok="$ok $s"; else bad="$bad $s"; fi
+  done
+  if [ -n "$ok" ] && [ -z "$bad" ]; then echo "PASS $(lastline "$2"); differing seeds$ok rerun alone: identical to the record"
+  else echo "FAIL $(lastline "$2"); alone rerun: seeds${bad:- (none found)} still differ"; fi
+}
+DIGEST_REC=""; for f in "$PROBES/sim_digest_msvc.txt" "$PROBES/sim_digest.txt"; do [ -f "$f" ] && { DIGEST_REC="$f"; break; }; done
+
 # ---------------------------------------------------------------- the run
 echo "step_gates: baseline root $GATES_BASE_ID (rev $BASE), bdir=$BDIR out=$OUT $( [ $ALL -eq 1 ] && echo '(--all: S4 and S8 included)' || echo '(S4 and S8 wave-end only; --all runs them)')"
+witness_require S9.test S9.shot S10.view   # (P4 7a) found once, exported, named; exit 2 here when a selected line needs it
 BG=()
 # S4 and S8 do not need the MSVC build: start them first, beside S1
 if wave_end_ok S4.clang; then ( gate_run S4.clang chk_clang -- "$REPO/tools/gates/clang_ci.sh" --copy "$COPY" --out "$OUT/clang" ) &

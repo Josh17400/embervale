@@ -1,0 +1,18 @@
+# tools/gates/alone_rerun.txt - the load-sensitive lines (P4 7c, docs/FIX_BATCH_P4.md 8; read by tools/gates/lib.sh).
+#
+# Format: <gate>[,<gate>...] <regex>  # why        (grep -E regex; it ends at the first whitespace + "# ")
+#
+# A gate line that FAILs or differs from its record where EVERY failing or differing line matches one of its gate's
+# regexes is rerun alone (lib.sh slot_alone: every tools/slot.sh slot held, the CPU quiet) with today's limits, and
+# passes only when that rerun matches the record. Its result line says "(alone rerun: <regex> failed under load; first
+# log kept: logs/<gate>.first.log)" and how loaded the first try was. A line with any other difference is never rerun,
+# and no limit is loosened here: the rerun is the same command (the idle limits live in the tests, unchanged).
+# Rerun units: S2.seeds the failing seeds only (rpg_test --seeds N..N); S10.digest / W6.digest_clang the differing
+# seeds only (--sim-digest --seeds N..N --check); S3.save the whole save_test; W4.doll the doll line (doll_gates.sh);
+# W1.msvc_ci / S4.clang rerun every failing CI command alone as before (lib.sh ci_finish) and name the listed check.
+
+S2.seeds,W1.msvc_ci,S4.clang nothing made ahead  # prepinterior (tools/tests/test_window.cpp:613): the interior is made on a worker thread and the check waits at most 3 s of WALL time for it; a loaded machine starves the worker
+W1.msvc_ci,S4.clang FAIL: towns: a generator phase costs  # towns per-phase gate (test_towns.cpp): the slowest generator phase is timed on the wall clock against 8 ms (one web frame)
+W4.doll.gates_parity,W1.msvc_ci,S4.clang B10 atlas and speed  # B10 (rpg_test --doll --gates): one LOCO bake timed on the wall clock, p95 against 0.385 ms (0.285 alone, 0.500 seen under load)
+S3.save,W1.msvc_ci,S4.clang ^damaged (saves|life blocks):  # save_test's damaged-save counts: the played game the damage is cut from differs under load (see tools/gates/baseline/moves_p4/GATES.txt)
+S10.digest,W6.digest_clang ^sim-digest FAIL seed [0-9]+ t  # the sim digest's differing seeds: a seed that differs only under load (seed 3 from t90 in the hotfix's runs; see tools/gates/baseline/moves_p4/GATES.txt)

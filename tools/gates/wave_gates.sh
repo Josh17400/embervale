@@ -62,6 +62,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$BDIR" ] && [ -n "$OUT" ] || { echo "wave_gates: --bdir and --out are required" >&2; exit 2; }
+# (P4 7a) Witness found once (lib.sh: WITNESS_HOME, ../witness, the origin's ../witness, $HOME/Documents/witness),
+# exported for every tool below and named here; none found while a selected line needs it: exit 2 before any gate
+witness_require W1 W2.scripts W2.view_all W3.witness W6.perf W7.play S9 S10.view
 case "$BDIR" in /*|?:*) BABS="$BDIR" ;; *) BABS="$REPO/$BDIR" ;; esac
 BNAME=$(basename "$BDIR"); WEBB="build-web-$BNAME"; COPY="emb_solid_$BNAME"
 for ((i=0; i<${#PASS[@]}; i++)); do
@@ -143,9 +146,19 @@ run_site() {   # assemble the site like web.yml, then the first-launch probe
   [ -s "$OUT/firstlaunch.png" ] && echo "firstlaunch: screenshot $(wc -c < "$OUT/firstlaunch.png") B" || { echo "no screenshot"; return 1; }
 }
 chk_firstlaunch() { [ "$3" -eq 0 ] && echo "PASS $(lastline "$2")" || echo "FAIL $(lastline "$2")"; }
-run_digest_clang() {
+run_digest_clang() {   # run_digest_clang [--seeds N..N]
   [ -f "$PROBES/sim_digest_clang.txt" ] || { echo "SKIP (tool missing): no record $PROBES/sim_digest_clang.txt"; return 0; }
-  MSYS_NO_PATHCONV=1 wsl -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc "cd ~/$COPY && ./build-native/rpg_test --sim-digest --check tools/gates/baseline/$GATES_BASE_ID/probes/sim_digest_clang.txt" < /dev/null
+  MSYS_NO_PATHCONV=1 wsl -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc "cd ~/$COPY && ./build-native/rpg_test --sim-digest $* --check tools/gates/baseline/$GATES_BASE_ID/probes/sim_digest_clang.txt" < /dev/null
+}
+# (P4 7c) W6.digest_clang: only the differing seeds are rerun alone (lib.sh alone_try; tools/gates/alone_rerun.txt)
+alone_rr_W6_digest_clang() {   # NAME LOG RERUNLOG CHECK -- CMD
+  local s rc bad="" ok=""; : > "$3"
+  for s in $(tr -d '\r' < "$2" | grep -oE '^sim-digest FAIL seed [0-9]+' | awk '{ print $4 }' | sort -un); do
+    slot_alone run_digest_clang --seeds "$s..$s" >> "$3" 2>&1 < /dev/null; rc=$?
+    if [ "$rc" -eq 0 ]; then ok="$ok $s"; else bad="$bad $s"; fi
+  done
+  if [ -n "$ok" ] && [ -z "$bad" ]; then echo "PASS $(lastline "$2"); differing seeds$ok rerun alone: identical to the record"
+  else echo "FAIL $(lastline "$2"); alone rerun: seeds${bad:- (none found)} still differ"; fi
 }
 chk_probe() {
   if grep -q 'SKIP (tool missing)' "$2"; then echo "SKIP $(lastline "$2")"; return; fi
@@ -226,7 +239,7 @@ if [ $W7 -eq 1 ]; then
   # Witness that does forward it
   W7CFG="$OUT/witness15/witness.w7.json"
   node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));c.play=c.play||{};c.play.allowCalls=true;fs.writeFileSync(process.argv[2],JSON.stringify(c,null,2));' "$CFG" "$W7CFG" && CFG="$W7CFG"
-  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "${WITNESS_HOME:-$REPO/../witness}/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --allow-calls --parallel 2 --model sonnet --effort low
+  gate_run W7.play chk_rc -- env WITNESS_MAX_PROCS=5 WITNESS_MAX_BROWSERS=1 node "$WITNESS_HOME/bin/witness.js" play batch --config "$CFG" --goals "$W7GOALS" --allow-calls --parallel 2 --model sonnet --effort low
 else gate_skip W7.play "waves 3 and 4 only (--w7)"; fi
 # wall vs the sum of the line durations (how much ran side by side)
 sumd=$(cat "$OUT"/res/*.txt 2>/dev/null | awk '{ if ($4 ~ /^[0-9]+s$/) s += $4 + 0 } END { print s + 0 }')

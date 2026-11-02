@@ -127,14 +127,15 @@ full_digest_clang() {
   MSYS_NO_PATHCONV=1 wsl -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc "cd ~/$RCOPY && ./build-native/rpg_test --sim-digest $(digest_args "$1")" < /dev/null 2>/dev/null | tr -d '\r' > "$W/new_digest_clang.txt"
   grep -q '^# sim-digest: ' "$W/new_digest_clang.txt"
 }
+alone_passed() { grep -qE '^[^ ]+ PASS .*\(alone rerun: ' "$1" 2>/dev/null; }   # a res line that passed on its alone rerun (lib.sh)
 expect_now() {   # expect_now KEY: the value the run measured ("" when its gate did not run)
   local S; S=$(step_dir)
   case "$1" in
     CLANG_CMDS) grep -oE 'CLANG_CMDS=[0-9]+' "$S/logs/S4.clang.log" 2>/dev/null | tail -1 | cut -d= -f2 ;;
-    ART_TOTAL_RIG2) tr -d '\r' < "$S/logs/S5.rig2.log" 2>/dev/null | grep -m1 '^TOTAL' | awk '{ print $2 }' ;;
-    ART_TOTAL_RIG1) tr -d '\r' < "$S/logs/S5.rig1.log" 2>/dev/null | grep -m1 '^TOTAL' | awk '{ print $2 }' ;;
+    ART_TOTAL_RIG2) { tr -d '\r' < "$S/logs/S5.rig2.log"; } 2>/dev/null | grep -m1 '^TOTAL' | awk '{ print $2 }' ;;
+    ART_TOTAL_RIG1) { tr -d '\r' < "$S/logs/S5.rig1.log"; } 2>/dev/null | grep -m1 '^TOTAL' | awk '{ print $2 }' ;;
     SAVE_VER) grep -oE 'SAVE_VER = [0-9]+' "$S/logs/S3.savever.log" 2>/dev/null | head -1 | grep -oE '[0-9]+$' ;;
-    VILLAGE_GROUPS) tr -d '\r' < "$S/logs/S7.rig2.log" 2>/dev/null | grep -m1 -oE '[0-9]+ groups?' | grep -oE '^[0-9]+' ;;
+    VILLAGE_GROUPS) { tr -d '\r' < "$S/logs/S7.rig2.log"; } 2>/dev/null | grep -m1 -oE '[0-9]+ groups?' | grep -oE '^[0-9]+' ;;
   esac
 }
 
@@ -151,6 +152,7 @@ collect() {
   # text records
   for g in $TEXT_GATES; do
     did_run "$g" && [ -f "$S/logs/$g.norm" ] && [ -f "$R/gates/$g.txt" ] || continue
+    alone_passed "$S/res/$g.txt" && continue   # (P4 7c) it matched its record on the alone rerun: the first try is no move
     old_text "$R/gates/$g.txt" "$g" > "$W/old.txt"; cp "$S/logs/$g.norm" "$W/new/$g.txt"
     text_diff "$g" "$W/old.txt" "$W/new/$g.txt"
   done
@@ -164,9 +166,12 @@ collect() {
     for f in "$RUN"/doll/res/*.txt; do
       n=$(basename "$f" .txt); g="W4.doll.$n"
       [ -f "$RUN/doll/logs/$n.norm" ] && [ -f "$R/gates/doll/$n.txt" ] || continue
+      alone_passed "$f" && continue
       old_text "$R/gates/doll/$n.txt" "$n" > "$W/old.txt"; mkdir -p "$W/new/doll"; cp "$RUN/doll/logs/$n.norm" "$W/new/doll/$n.txt"
       text_diff "$g" "$W/old.txt" "$W/new/doll/$n.txt"
-      old=$(tr -d '\r\n ' < "$R/gates/doll/$n.rc" 2>/dev/null); now=$(grep -oE ' rc=[0-9]+' "$f" | head -1 | cut -d= -f2)
+      # (P4 7b) the record's rc file is optional (0 when absent): test for it first (a 2>/dev/null written after the
+      # input redirect cannot silence that redirect's own error)
+      old=""; [ -f "$R/gates/doll/$n.rc" ] && old=$(tr -d '\r\n ' < "$R/gates/doll/$n.rc"); now=$(grep -oE ' rc=[0-9]+' "$f" | head -1 | cut -d= -f2)
       [ "${now:-x}" != "${old:-0}" ] && printf '%s\trc\t%s -> %s\n' "$g" "${old:-0}" "${now:-?}" >> "$W/diffs.tsv"
     done
   fi
@@ -460,6 +465,12 @@ selftest() {
   [ $rc -ne 0 ] && [ ! -e "$ST/baseline/r3" ] && [ "$(cat "$ST/baseline/CURRENT")" = r1 ]; pf $? "3 rebase refused, CURRENT still r1"
   # 4. the old root is untouched
   [ "$(cd "$R0" && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -c1-16)" = "$sum0" ]; pf $? "4 root r0 byte for byte as before ($sum0)"
+  # 5. (P4 7b) a doll line whose record has no .rc (every line green at its root): no "No such file", no difference
+  local D5="$ST/run5" dn; dn=$(cd "$R0/gates/doll" && ls *.txt | while read -r f; do [ -f "${f%.txt}.rc" ] || { echo "${f%.txt}"; break; }; done)
+  mkdir -p "$D5/res" "$D5/logs" "$D5/doll/res" "$D5/doll/logs"; echo "abc1234def" > "$D5/build.sha"
+  echo "$dn PASS rc=0 1s | same" > "$D5/doll/res/$dn.txt"; old_text "$R0/gates/doll/$dn.txt" "$dn" > "$D5/doll/logs/$dn.norm"
+  RUN="$D5"; out=$(check_against r0 2>&1)
+  ! echo "$out" | grep -q 'No such file' && [ ! -f "$R0/gates/doll/$dn.rc" ] && ! echo "$out" | grep -q "W4.doll.$dn"; pf $? "5 doll line $dn without a recorded .rc: no 'No such file', no difference"
   rm -rf "$ST"
   echo "rebase_baseline: selftest $([ $fails -eq 0 ] && echo PASS || echo FAIL): $fails failed"
   return $(( fails > 0 ))
