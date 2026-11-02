@@ -167,6 +167,25 @@ void rankJson(witness::Json& j, const Actor& a) {
   const int rank = std::max((int)a.rank, a.boss ? (int)foes::Rank::Boss : 0);
   j.field("rank", rank).field("boss", rank >= (int)foes::Rank::Boss);
 }
+// (P2b) state.sprite.doll: whether the doll covers the hero's look (rig 2 draws the doll, else v1 whole), what it still
+// lacks, what it puts on the hero and the envelope measures (witnessState's piece)
+void dollJson(witness::Json& j, const View& v, const Actor& P) {
+  const bool cov = art::rig2Covers(P.look);
+  j.key("doll").begin_object().field("covered", cov).field("pool", art::doll::partCount());
+  j.key("missing").begin_array();
+  if (!cov) {
+    int n = 0;
+    for (const art::doll::Missing& m : art::doll::dollMissing(P.look)) { if (n++ >= 12) break; j.value(m.what()); }
+  }
+  j.end_array();
+  if (!v.p2b.dollPart.empty()) j.field("part", v.p2b.dollPart);
+  dollGear(j, P.look);   // (P2c) what the doll puts on the hero
+  {   // (P2c envelope, contracts 7) the hero's envelope measures (rig 2's doll)
+    const art::doll::EnvelopeMeasure em = art::doll::measureEnvelope(P.look);
+    j.key("envelope").begin_object().field("tier", em.tier).field("shoulders", em.shoulders).field("rows", em.rows).field("area", em.area).end_object();
+  }
+  j.end_object();
+}
 }  // namespace
 
 void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessExtra& x) {
@@ -219,23 +238,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     }
     j.key("pivot").vec(r2(wl.offX + hs.pivX * wl.scale), r2(wl.offY + hs.pivY * wl.scale));
     if (hs.part >= 0) j.field("part", hs.part == 0 ? "loco" : hs.part == 1 ? "action" : hs.part == 2 ? "death" : hs.part == 3 ? "run" : hs.part == 5 ? "drawn" : "posture");
-    {   // (P2b) the doll: whether it covers the hero's look (rig 2 draws the doll, else v1 whole) and what it still lacks
-      const bool cov = art::rig2Covers(P.look);
-      j.key("doll").begin_object().field("covered", cov).field("pool", art::doll::partCount());
-      j.key("missing").begin_array();
-      if (!cov) {
-        int n = 0;
-        for (const art::doll::Missing& m : art::doll::dollMissing(P.look)) { if (n++ >= 12) break; j.value(m.what()); }
-      }
-      j.end_array();
-      if (!v.p2b.dollPart.empty()) j.field("part", v.p2b.dollPart);
-      dollGear(j, P.look);   // (P2c) what the doll puts on the hero
-      {   // (P2c envelope, contracts 7) the hero's envelope measures (rig 2's doll)
-        const art::doll::EnvelopeMeasure em = art::doll::measureEnvelope(P.look);
-        j.key("envelope").begin_object().field("tier", em.tier).field("shoulders", em.shoulders).field("rows", em.rows).field("area", em.area).end_object();
-      }
-      j.end_object();
-    }
+    dollJson(j, v, P);   // (P2b) the doll
     j.end_object();
   }
   {   // (P2a) what the hero shows (rpg/sim/anim.h animPick, or the frozen `pose`)

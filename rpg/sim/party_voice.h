@@ -40,6 +40,10 @@ struct PartyTalkOps {
   static bool talk(Game& g, Actor& a);
   static void folkTalk(Game& g, Actor& a);
   static bool choose(Game& g, const DlgOpt& o);
+  // choose's pieces (P3 fix: choose was over 300 lines): an order to a member (P_CMD + party::Cmd) and a sellsword's
+  // apology at his table (P_MERC_AMENDS, P_MERC_AMENDS_YES)
+  static bool chooseCmd(Game& g, const DlgOpt& o);
+  static bool chooseMercAmends(Game& g, const DlgOpt& o);
 };
 
 namespace party {

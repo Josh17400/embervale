@@ -125,6 +125,31 @@ art::HumanLook rvShotLook(const Game& g) {
   return L;
 }
 
+// (P3 ART, B4) drawHumanBody's shot: the bow-in-hand look and its pick (true: the shot is drawn this frame)
+bool rvShotPick(const Game& g, const Actor& a, const art::HumanLook& look, art::HumanLook& lookP, AnimPick& k) {
+  if (!rvHeroShooting(g, a, look)) return false;
+  lookP = rvShotLook(g);
+  Actor shooter = a;
+  shooter.look = lookP;
+  k = animPick(g, shooter, 2);
+  return true;
+}
+// a body's screen pivot (the hero lifted onto the deck at sea), as drawHumanBody draws it
+Vec2 rvPivot(View& v, const Game& g, const Actor& a, Vec2 at, Vec2 cam) {
+  const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(v, g) : 0.0f;
+  return Vec2{std::floor(at.x - cam.x + 0.5f), std::floor(at.y + bob2 - cam.y + 0.5f)};
+}
+// (P3 ART, B1) a strike frame just drawn: the live trail's fist and tip (rvSwingTips), when the frame has a tip mark or
+// kSmearReach gives one
+void rvKeepSwingTip(View& v, const Game& g, const Actor& a, int variant, int facing, const art::RigAnchors* an, Vec2 at, Vec2 cam, float t) {
+  if (!an || an->gripX == art::kNoAnchor) return;
+  const int8_t* reach = kSmearReach[std::clamp(facing, 0, 3)][std::clamp(variant, 0, 2)];
+  const bool tip = an->tipX != art::kNoAnchor;
+  if (!tip && !reach[0] && !reach[1]) return;
+  const Vec2 pv = rvPivot(v, g, a, at, cam);
+  rvSwingTips()[a.id] = RvSwingTip{an->gripX, an->gripY, tip ? an->tipX : an->gripX + reach[0], tip ? an->tipY : an->gripY + reach[1], pv.x, pv.y, t};
+}
+
 // (P2a `pose`) a frozen clip's v1 sheet column at rig 1 (the v1 sheet has one column per clip but the walk and roll)
 int v1ColumnOf(art::Clip c, int frame) {
   switch (c) {
@@ -308,13 +333,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   if (v2Look && !posing) {
     AnimPick k = animPick(g, a, 2);
     art::HumanLook lookP = look;
-    if (!(a.player && p2a.poseOn) && rvHeroShooting(g, a, look)) {   // (P3 ART, B4) the bow drawn for the shot
-      lookP = rvShotLook(g);
-      Actor shooter = a;
-      shooter.look = lookP;
-      k = animPick(g, shooter, 2);
-      sprites_.rigBakeNow_ = true;   // the shot's look bakes now (never a fallback frame for the release)
-    }
+    if (!(a.player && p2a.poseOn) && rvShotPick(g, a, look, lookP, k)) sprites_.rigBakeNow_ = true;   // (P3 ART, B4) the shot's look bakes now
     if (a.player && p2a.poseOn) {
       k.clip = p2a.poseClip; k.variant = (uint8_t)p2a.poseVariant; k.frame = (uint8_t)p2a.poseFrame;
       if (p2a.poseFamily != art::familyOf(look)) lookP.weapon = weaponOfFamily(p2a.poseFamily);
@@ -326,8 +345,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     // side facing, never a flip); the hero and a frozen pose keep Actor::face
     const int facing = std::clamp(a.player ? a.face : (int)k.face, 0, 3);
     RigTex rt;
-    const art::FrameRect* fr2 = nullptr;
-    const art::RigAnchors* an = nullptr;
+    const art::FrameRect* fr2 = nullptr; const art::RigAnchors* an = nullptr;
     // (P2b slice fix, SLICE-RUN-INGAME) the part the anim key picked first (the RUN part above the gait switch: its
     // own drawings on its own table, so the soles register; the ACTION part's drawn walk / idle), then the clip's
     // usual part (a part whose atlas lacks the clip, is not baked yet or is empty for this look)
@@ -362,20 +380,11 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
-      if (k.clip == art::Clip::Strike && an && an->gripX != art::kNoAnchor) {   // (P3 ART, B1) the live trail's fist and tip
-        const int8_t* reach = kSmearReach[std::clamp(facing, 0, 3)][std::clamp((int)k.variant, 0, 2)];
-        const bool tip = an->tipX != art::kNoAnchor;
-        if (tip || reach[0] || reach[1]) {
-          const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
-          rvSwingTips()[a.id] = RvSwingTip{an->gripX, an->gripY, tip ? an->tipX : an->gripX + reach[0], tip ? an->tipY : an->gripY + reach[1],
-                                           std::floor(at.x - cam.x + 0.5f), std::floor(at.y + bob2 - cam.y + 0.5f), t_};
-        }
-      }
+      if (k.clip == art::Clip::Strike) rvKeepSwingTip(*this, g, a, (int)k.variant, facing, an, at, cam, t_);   // (P3 ART, B1)
       // (P2c ladder) the living finish over it (T5-T6; the dead lie dark)
       if (a.st != AState::Dead && lookP.topTier() >= 5) {
-        const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
-        const float pivX = std::floor(at.x - cam.x + 0.5f), pivY = std::floor(at.y + bob2 - cam.y + 0.5f);
-        lens_.queueLivingFinish(*this, a, lookP, rt, *fr2, an, pivX - fr2->px, pivY - fr2->py, pivX, pivY, alpha, k.clip == art::Clip::Strike);
+        const Vec2 pv = rvPivot(*this, g, a, at, cam);
+        lens_.queueLivingFinish(*this, a, lookP, rt, *fr2, an, pv.x - fr2->px, pv.y - fr2->py, pv.x, pv.y, alpha, k.clip == art::Clip::Strike);
       }
       // (P2c) HeroSprite::part: 0 loco 1 action 2 death 3 run, 4 a posture atlas (home_view's too), 5 the DRAWN part
       if (a.player) heroSprite.part = partDrawn == (int)art::RigPart::Drawn ? 5 : partDrawn;

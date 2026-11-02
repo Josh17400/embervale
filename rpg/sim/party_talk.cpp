@@ -462,36 +462,68 @@ void PartyTalkOps::graveTalk(Game& g, int fi) {
   g.mode = Mode::Dialogue;
 }
 
+// an order to a member (P_CMD + party::Cmd): the order given, and their answer
+bool PartyTalkOps::chooseCmd(Game& g, const DlgOpt& o) {
+  const party::Cmd c = (party::Cmd)(o.action - P_CMD);
+  Member* m = o.arg >= 0 && o.arg < (int)g.party.members.size() ? &g.party.members[(size_t)o.arg] : nullptr;
+  if (!m) return false;
+  if (!g.partyCommand(o.arg, c)) {
+    g.dlg.text = c == party::Cmd::Follow && g.party.people() >= party::capacity(g.plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. I'D ONLY BE IN THE WAY."
+                                                                                     : "NOT NOW. LOOK AROUND YOU.";
+    g.dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
+    return true;
+  }
+  const uint32_t h = mixh(m->id, (uint32_t)g.day + (uint32_t)c);
+  switch (c) {
+    case party::Cmd::Follow: g.dlg.text = h % 2 ? "RIGHT BEHIND YOU. I'LL FOLLOW WHEREVER YOU GO." : "I'LL FOLLOW. LEAD ON, AND I'LL KEEP UP."; break;
+    case party::Cmd::Wait: g.dlg.text = h % 2 ? "I'LL WAIT HERE. DON'T BE LONG." : "I'LL BE HERE WHEN YOU COME BACK. COME BACK."; break;
+    case party::Cmd::Attack: g.dlg.text = "THEN I'LL GO WHERE YOU POINT."; break;
+    case party::Cmd::Defend: g.dlg.text = h % 2 ? "I WON'T LEAVE YOUR SIDE." : "ANYTHING THAT WANTS YOU GOES THROUGH ME FIRST."; break;
+    case party::Cmd::Passive: g.dlg.text = h % 2 ? "I'LL HOLD BACK AND KEEP OUT OF THE FIGHTING UNLESS YOU NEED ME." : "I'LL HOLD BACK. SHOUT IF THE FIGHT GOES BADLY."; break;
+    case party::Cmd::Home:
+      g.dlg.text = g.home.plots.empty() ? "HOME, THEN. COME AND FIND ME WHEN THE ROAD CALLS." : "YOUR HOUSE, THEN. I'LL KEEP THE FIRE IN UNTIL YOU'RE BACK.";
+      break;
+    default: g.dlg.text = "AS YOU SAY."; break;
+  }
+  g.dlg.opts = {{"GOOD.", A_BYE, 0}};
+  return true;
+}
+
+// (P3 PARTY) a sellsword parted from in anger, at his table: the census companion's own steps (sorry; another day;
+// said properly: he takes his wage again)
+bool PartyTalkOps::chooseMercAmends(Game& g, const DlgOpt& o) {
+  if (o.arg < 0 || o.arg >= (int)g.party.parted.size()) return false;
+  if (o.action == P_MERC_AMENDS) {
+    Member* m = &g.party.parted[(size_t)o.arg].m;
+    const bool another = (m->talkBits & party::voice::TB_REBUFF) && m->lastTalkDay >= 0 && m->lastTalkDay < g.day && m->leftDay < g.day;
+    if (!another) {
+      g.dlg.text = "SORRY? WORDS ARE CHEAP, AND I'VE HEARD THEM BEFORE. COME BACK ANOTHER DAY, IF YOU STILL MEAN IT.";
+      m->talkBits |= party::voice::TB_REBUFF;
+      m->lastTalkDay = g.day;
+      g.dlg.opts = {{"I'LL COME BACK.", A_BYE, 0}};
+      return true;
+    }
+    g.dlg.text = "YOU CAME BACK, AS YOU SAID YOU WOULD. ALL RIGHT. SAY IT, THEN, AND SAY IT PROPERLY THIS TIME.";
+    g.dlg.opts = {{"I WAS WRONG, AND I'LL DO BETTER.", P_MERC_AMENDS_YES, o.arg}, {"FORGET IT.", A_BYE, 0}};
+    return true;
+  }
+  party::Parted& p = g.party.parted[(size_t)o.arg];
+  p.angry = false;
+  p.m.approval = (int8_t)std::max<int>(p.m.approval, party::APPROVAL_COMPLAIN + 10);
+  p.m.talkBits = (p.m.talkBits & ~party::voice::TB_REBUFF) | party::voice::TB_AMENDS;
+  p.m.flags = (uint16_t)(p.m.flags & ~party::MF_COMPLAINED);
+  g.dlg.text = "ALL RIGHT. I HEARD YOU. PAY ME THE DAY UP FRONT, AND I'LL WALK WITH YOU AGAIN.";
+  g.dlg.opts = {{"HERE'S YOUR WAGE.", P_HIRE_YES, 0}, {"NOT TODAY.", A_BYE, 0}};
+  return true;
+}
+
 // ================================================================ the choices
 bool PartyTalkOps::choose(Game& g, const DlgOpt& o) {
   const int ai = g.findActor(g.dlg.actor);
   auto member = [&](int mi) -> Member* { return mi >= 0 && mi < (int)g.party.members.size() ? &g.party.members[(size_t)mi] : nullptr; };
   auto backTo = [&](int mi) { g.dlg.opts.push_back({"SOMETHING ELSE.", P_BACK, mi}); };
-  if (o.action >= P_CMD && o.action < P_CMD + (int)party::Cmd::COUNT) {
-    const party::Cmd c = (party::Cmd)(o.action - P_CMD);
-    Member* m = member(o.arg);
-    if (!m) return false;
-    if (!g.partyCommand(o.arg, c)) {
-      g.dlg.text = c == party::Cmd::Follow && g.party.people() >= party::capacity(g.plLevel) ? "YOU'VE COMPANY ENOUGH ALREADY. I'D ONLY BE IN THE WAY."
-                                                                                       : "NOT NOW. LOOK AROUND YOU.";
-      g.dlg.opts = {{"FAIR ENOUGH.", A_BYE, 0}};
-      return true;
-    }
-    const uint32_t h = mixh(m->id, (uint32_t)g.day + (uint32_t)c);
-    switch (c) {
-      case party::Cmd::Follow: g.dlg.text = h % 2 ? "RIGHT BEHIND YOU. I'LL FOLLOW WHEREVER YOU GO." : "I'LL FOLLOW. LEAD ON, AND I'LL KEEP UP."; break;
-      case party::Cmd::Wait: g.dlg.text = h % 2 ? "I'LL WAIT HERE. DON'T BE LONG." : "I'LL BE HERE WHEN YOU COME BACK. COME BACK."; break;
-      case party::Cmd::Attack: g.dlg.text = "THEN I'LL GO WHERE YOU POINT."; break;
-      case party::Cmd::Defend: g.dlg.text = h % 2 ? "I WON'T LEAVE YOUR SIDE." : "ANYTHING THAT WANTS YOU GOES THROUGH ME FIRST."; break;
-      case party::Cmd::Passive: g.dlg.text = h % 2 ? "I'LL HOLD BACK AND KEEP OUT OF THE FIGHTING UNLESS YOU NEED ME." : "I'LL HOLD BACK. SHOUT IF THE FIGHT GOES BADLY."; break;
-      case party::Cmd::Home:
-        g.dlg.text = g.home.plots.empty() ? "HOME, THEN. COME AND FIND ME WHEN THE ROAD CALLS." : "YOUR HOUSE, THEN. I'LL KEEP THE FIRE IN UNTIL YOU'RE BACK.";
-        break;
-      default: g.dlg.text = "AS YOU SAY."; break;
-    }
-    g.dlg.opts = {{"GOOD.", A_BYE, 0}};
-    return true;
-  }
+  if (o.action >= P_CMD && o.action < P_CMD + (int)party::Cmd::COUNT) return chooseCmd(g, o);
+  if (o.action == P_MERC_AMENDS || o.action == P_MERC_AMENDS_YES) return chooseMercAmends(g, o);
   switch (o.action) {
     // ---- recruiting
     case P_JOIN: {
@@ -669,33 +701,6 @@ bool PartyTalkOps::choose(Game& g, const DlgOpt& o) {
       }
       g.dlg.text = "ALL RIGHT. ONE MORE CHANCE. I'LL GET MY THINGS. DON'T MAKE ME REGRET IT.";
       g.dlg.opts = {{"YOU WON'T.", A_BYE, 0}};
-      return true;
-    }
-    // ---- (P3 PARTY) a sellsword parted from in anger, at his table: the census companion's own steps
-    case P_MERC_AMENDS: {
-      if (o.arg < 0 || o.arg >= (int)g.party.parted.size()) return false;
-      Member* m = &g.party.parted[(size_t)o.arg].m;
-      const bool another = (m->talkBits & party::voice::TB_REBUFF) && m->lastTalkDay >= 0 && m->lastTalkDay < g.day && m->leftDay < g.day;
-      if (!another) {
-        g.dlg.text = "SORRY? WORDS ARE CHEAP, AND I'VE HEARD THEM BEFORE. COME BACK ANOTHER DAY, IF YOU STILL MEAN IT.";
-        m->talkBits |= party::voice::TB_REBUFF;
-        m->lastTalkDay = g.day;
-        g.dlg.opts = {{"I'LL COME BACK.", A_BYE, 0}};
-        return true;
-      }
-      g.dlg.text = "YOU CAME BACK, AS YOU SAID YOU WOULD. ALL RIGHT. SAY IT, THEN, AND SAY IT PROPERLY THIS TIME.";
-      g.dlg.opts = {{"I WAS WRONG, AND I'LL DO BETTER.", P_MERC_AMENDS_YES, o.arg}, {"FORGET IT.", A_BYE, 0}};
-      return true;
-    }
-    case P_MERC_AMENDS_YES: {
-      if (o.arg < 0 || o.arg >= (int)g.party.parted.size()) return false;
-      party::Parted& p = g.party.parted[(size_t)o.arg];
-      p.angry = false;
-      p.m.approval = (int8_t)std::max<int>(p.m.approval, party::APPROVAL_COMPLAIN + 10);
-      p.m.talkBits = (p.m.talkBits & ~party::voice::TB_REBUFF) | party::voice::TB_AMENDS;
-      p.m.flags = (uint16_t)(p.m.flags & ~party::MF_COMPLAINED);
-      g.dlg.text = "ALL RIGHT. I HEARD YOU. PAY ME THE DAY UP FRONT, AND I'LL WALK WITH YOU AGAIN.";
-      g.dlg.opts = {{"HERE'S YOUR WAGE.", P_HIRE_YES, 0}, {"NOT TODAY.", A_BYE, 0}};
       return true;
     }
     // ---- the kin of companions, and of the fallen

@@ -1018,27 +1018,7 @@ void View::drawPartyPage(Game& g) {
       P.text(dx, y, fitTextD("THEY DRINK A POTION BELOW A QUARTER HEALTH", dw), 1, kDimC);
       y += 4;
     } else if (it) {
-      loot_.rarityIcon(*this, g, *it, dx, y + 9, 16);
-      loot_.rarityText(*this, dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), it->rarity);
-      const std::string made = makerLine(g, *it);
-      if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
-      if (party::isKit(*it)) greyButton(P, dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)");
-      else button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
-      y += 12;
-      P.text(dx + 20, y + 19, party::isKit(*it) ? "THEIR OWN KIT" : "YOU LENT THIS", 1, party::isKit(*it) ? kDimC : kLentC);
-      y += 9;
-      // (M8b fix, 15.27.2 "show in plain words") what the piece does for them: its affixes and power, a hero-only one
-      // (it works only on the hero: gear::affixWorksForCompanion) marked so
-      std::vector<std::pair<std::string, bool>> lines;
-      for (const ItemAffix& a : it->affix)
-        if (a.kind != Affix::None) lines.push_back({affixText(a.kind, gear::affixUse(*it, a.kind, g.plLevel)), gear::affixWorksForCompanion(a.kind)});
-      if (it->unique != Unique::None) lines.push_back({uniqueInfo(it->unique).name, gear::uniqueWorksForCompanion(it->unique)});
-      for (size_t q = 0; q < lines.size() && q < 3; q++) {
-        std::string s = lines[q].first + (lines[q].second ? "" : " (HERO ONLY)");
-        if (q == 2 && lines.size() > 3) s = "+" + std::to_string(lines.size() - 2) + " MORE";
-        P.text(dx + 20, y + 19, fitTextD(s, dw - 20), 1, lines[q].second || (q == 2 && lines.size() > 3) ? Color(0.62f, 0.80f, 1.0f) : kDimC);
-        y += 9;
-      }
+      y = drawPartyWorn(g, *it, dx, y, dw);
     } else {
       P.text(dx + 60, y, "NOTHING WORN", 1, kDimC);
     }
@@ -1075,6 +1055,34 @@ void View::drawPartyPage(Game& g) {
     P.frame(nx, ny, w, 12, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, 0.8f * noteA));
     P.text(nx + 5, ny + 3, partyNote, 1, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, noteA));
   }
+}
+
+// the GEAR tab's worn piece (drawPartyPage's piece): its name and maker, TAKE BACK (greyed on their own kit), whose it
+// is, and what it does for them; returns the y below it
+float View::drawPartyWorn(Game& g, const Item& it, float dx, float y, float dw) {
+  Pix& P = *pix_;
+  loot_.rarityIcon(*this, g, it, dx, y + 9, 16);
+  loot_.rarityText(*this, dx + 20, y + 10, fitTextD(it.name, dw - 20 - 92), it.rarity);
+  const std::string made = makerLine(g, it);
+  if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
+  if (party::isKit(it)) greyButton(P, dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)");
+  else button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
+  y += 12;
+  P.text(dx + 20, y + 19, party::isKit(it) ? "THEIR OWN KIT" : "YOU LENT THIS", 1, party::isKit(it) ? kDimC : kLentC);
+  y += 9;
+  // (M8b fix, 15.27.2 "show in plain words") what the piece does for them: its affixes and power, a hero-only one
+  // (it works only on the hero: gear::affixWorksForCompanion) marked so
+  std::vector<std::pair<std::string, bool>> lines;
+  for (const ItemAffix& a : it.affix)
+    if (a.kind != Affix::None) lines.push_back({affixText(a.kind, gear::affixUse(it, a.kind, g.plLevel)), gear::affixWorksForCompanion(a.kind)});
+  if (it.unique != Unique::None) lines.push_back({uniqueInfo(it.unique).name, gear::uniqueWorksForCompanion(it.unique)});
+  for (size_t q = 0; q < lines.size() && q < 3; q++) {
+    std::string s = lines[q].first + (lines[q].second ? "" : " (HERO ONLY)");
+    if (q == 2 && lines.size() > 3) s = "+" + std::to_string(lines.size() - 2) + " MORE";
+    P.text(dx + 20, y + 19, fitTextD(s, dw - 20), 1, lines[q].second || (q == 2 && lines.size() > 3) ? Color(0.62f, 0.80f, 1.0f) : kDimC);
+    y += 9;
+  }
+  return y;
 }
 
 // (P3 A-UI, delight) PARTED: the friends parted from while living, the newest first, and where each waits

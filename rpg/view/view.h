@@ -500,6 +500,7 @@ class View {
   PartyUi party_;   // (party_ui.h)
   void drawPartyPage(Game& g);   // the menu's PARTY page (paperdoll.cpp; a View member as the size gate names it)
   void drawPartedPage(Game& g, float top);   // (P3) its PARTED page: the friends parted from and where each waits
+  float drawPartyWorn(Game& g, const Item& it, float dx, float y, float dw);   // its GEAR tab's worn piece; returns y
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
   // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
