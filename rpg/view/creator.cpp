@@ -393,7 +393,9 @@ void View::drawCreator(Game& g) {
   std::string nm = a.name.empty() ? std::string("_") : a.name;
   P.textS(kLX + kLW / 2, kTabY + 8, nm, 1, kGoldC, 1);
   P.text(kLX + kLW / 2, kTabY + 19, backgroundInfo(g.background).name, 1, kDimC, 1);
-  float cx = kLX + kLW / 2, footY = kBotY - 54;
+  // (P3 fix, B7) the feet 8 px lower than P2c's kBotY - 54: the stage holds 148 rows over the feet, so a look 37 art px tall
+  // (an elf's ears, the tallest hair) stands at 4x like the rest instead of dropping to 3x; the floor disc ends 7 px above TURN
+  float cx = kLX + kLW / 2, footY = kBotY - 46;
   heroStage(P, sprites_.light_, cx, footY, 1.0f);
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.faceHold > 0 ? S.face : order[(int)(t_ / 2.2f) & 3];
