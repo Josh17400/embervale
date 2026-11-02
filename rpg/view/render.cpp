@@ -29,6 +29,8 @@
 #include "rpg/view/rise_view.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/view.h"
+#include "rpg/view/hud_layout.h"   // (P4 TALK) dlgPageFirst: the dialogue opens on the cursor's page
+#include "rpg/sim/talk.h"            // (P4 TALK) speech::startCursor
 #include "rpg/view/render_internal.h"   // beasts::, rview:: (shared with render_sorted.cpp)
 #include "rpg/world/biomes.h"
 #include "rpg/world/economy.h"
@@ -2059,7 +2061,18 @@ void View::update(Game& g, float dt) {
   modeT_ += dt;
   if (g.mode != lastMode_) {
     modeT_ = 0;
-    if (g.mode == Mode::Dialogue) { dlgChars_ = 0; dlgSel_ = 0; dlgFirst_ = 0; }
+    if (g.mode == Mode::Dialogue) {
+      // (P4 TALK, talk.h 6) the keyboard cursor waits on the first passing quest option (COLLECT, the main quest, a
+      // story scene), on the page that holds it; the speaker's trade keeps the first numbers
+      dlgChars_ = 0; dlgFirst_ = 0;
+      dlgSel_ = speech::startCursor(g.dlg);
+      if (dlgSel_ > 0) {
+        const UiBox box = uiBox(300);
+        pix_->pushBox(box.x, box.y, box.w, box.h);
+        dlgFirst_ = hudlay::dlgPageFirst(g, dlgRowH(), dlgSel_);
+        pix_->popBox();
+      }
+    }
     if (g.mode == Mode::Shop) { shopSide_ = 0; shopSel_ = 0; shopArm_ = -1; }
     lastMode_ = g.mode;
   }

@@ -393,7 +393,12 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
           // count before asking: a radiant job's pitch (P1b) already mirrors its quest quietly, so the accept itself
           // may add nothing; either way exactly one new quest must stand after ACCEPT
           size_t nq = q.quests.size();
-          for (size_t o = 0; o < q.dlg.opts.size(); o++) if (q.dlg.opts[o].label.find("ANY WORK") != std::string::npos) { q.dialogueChoose((int)o); break; }
+          // (P4 TALK) ask for work; an inn with no job today offers its story instead (before the one order of options
+          // that pitch was option 0, which the old "dialogueChoose(0)" fallback relied on)
+          int ask = -1;
+          for (size_t o = 0; o < q.dlg.opts.size() && ask < 0; o++) if (q.dlg.opts[o].label.find("ANY WORK") != std::string::npos) ask = (int)o;
+          for (size_t o = 0; o < q.dlg.opts.size() && ask < 0; o++) if (q.dlg.opts[o].action >= DLG_STORY && q.dlg.opts[o].action < DLG_WAR) ask = (int)o;
+          if (ask >= 0) q.dialogueChoose(ask);
           out("offer: %s\n", q.dlg.text.c_str());
           for (size_t o = 0; o < q.dlg.opts.size(); o++) out("   offer[%zu] %s\n", o, q.dlg.opts[o].label.c_str());
           q.dialogueChoose(0);
