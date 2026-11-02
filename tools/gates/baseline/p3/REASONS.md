@@ -372,3 +372,7 @@ every other record is byte for byte the one in `119de74`. Moves files: ART.txt A
 | W2.view_all | `p2c_world_phone/p2c_world_phone_fallen.png,p2c_world_phone/p2c_world_phone_ride_east.png,p2c_world_phone/p2c_world_phone_ride_south.png` | VIEW | VIEW | VIEW-B11,A-UI the pickup toast "+ NAME" in its rarity colour, the worn line naming its own metal, the lent-piece tab (measured at integration on the VIEW-only build) | p2c_world_phone/p2c_world_phone_fallen.png (changed); p2c_world_phone/p2c_world_phone_ride_east.png (changed); p2c_world_phone/p2c_world_phone_ride_south.png (changed) |
 | W2.view_all | `paperdoll/paperdoll_1_jade.png,paperdoll/paperdoll_2_pick_jade.png` | VIEW | VIEW | VIEW-B11,A-UI the pickup toast "+ NAME" in its rarity colour, the worn line naming its own metal, the lent-piece tab (measured at integration on the VIEW-only build) | paperdoll/paperdoll_1_jade.png (changed); paperdoll/paperdoll_2_pick_jade.png (changed) |
 | W2.view_all | `p3_view/*` | VIEW | VIEW | new script tools/scripts/p3_view.txt (11 PNGs) | p3_view/p3_view_card_bronze.png (added); p3_view/p3_view_close_540.png (added); p3_view/p3_view_close_phone.png (added); ... 11 items |
+
+## Integration addendum
+
+- `checks/layers_allow.txt` re-recorded at this root's revision (today's tools/gates/layers_allow.txt, 52 lines): check_layers maps renames only from the root's REV, so wave 0's record (paths of 119de74) read the SOLID-era renames as growth. The wave run's S10.layers PASSED against 119de74 (new=0, grew=0), so the record did not loosen.

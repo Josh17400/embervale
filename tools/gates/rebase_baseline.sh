@@ -342,6 +342,12 @@ rerecord() {   # rerecord TMPROOT: apply the declared items of $W/matched.tsv; 0
     if full_digest_clang "$T/probes/sim_digest_clang.txt"; then cp "$W/new_digest_clang.txt" "$T/probes/sim_digest_clang.txt"; echo "recorded   probes/sim_digest_clang.txt"
     else echo "ERROR      W6.digest_clang is declared: give --copy <the S4 WSL copy> to re-record the clang digest"; rc=1; fi
   fi
+  # 4b. (P3 integration) the layer allowlist record moves to the new root's revision: check_layers maps renames only from
+  # the root's REV, so a record kept at an older revision's paths reads every file moved since as growth. The run's
+  # S10.layers PASSED (allowlist no larger than the old record, renames mapped), so today's allowlist is the record.
+  if [ "$(ran_v S10.layers)" = PASS ] && [ -f "$REPO/tools/gates/layers_allow.txt" ]; then
+    cp "$REPO/tools/gates/layers_allow.txt" "$T/checks/layers_allow.txt"; echo "recorded   checks/layers_allow.txt (S10.layers PASSED in the run)"
+  fi
   # 5. expected values
   for k in $(declared_items expect); do
     v=$(expect_now "$k")
