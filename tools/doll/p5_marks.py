@@ -345,13 +345,16 @@ def plaid_from(rows):
     if h <= 2 and w >= 9:
         top = ''.join('*' if x in (0, w - 1) or x % 3 == 0 else 'O' for x in range(w))
         return [top] + ['O' * w] * (h - 1)
+    field = any('V' in r for r in rows)   # a field key: PARTY PER BEND (filigree.pxm's alloys i3 rule), its own bend
     out, lit = [], False
     px = py = 2 if w >= 3 and h >= 3 else 1   # the lines at 2, 5, 8 (a gilt square top-left); at 1 on a slim fit
     for y, r in enumerate(rows):
         o = ''
         for x, c in enumerate(r):
-            if c in '.V':
+            if c == '.' or (not field and c == 'V'):
                 o += c; continue
+            if field and x / w + y / h > 0.75:
+                o += 'V'; continue
             line = x % 3 == px or y % 3 == py
             if not line and not lit:
                 o += '*'; lit = True
