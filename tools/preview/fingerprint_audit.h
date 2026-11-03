@@ -345,10 +345,16 @@ inline bool inPiece(Grp g, const dl::FrameProbe::It& it, uint8_t region, uint8_t
     default: return false;
   }
 }
+constexpr int kWhole = -1, kAllArmour = -2;   // figure(): the whole figure; every armour piece it wears
+inline bool inArmour(int grp, const dl::FrameProbe::It& it, uint8_t region, uint8_t code) {
+  if (grp != kAllArmour) return inPiece((Grp)grp, it, region, code);
+  for (int g = 0; g < G_COUNT; g++) if (inPiece((Grp)g, it, region, code)) return true;
+  return false;
+}
 struct Fig {
   Canvas full;
   int px = 0, py = 0;
-  Img piece;            // the piece's pixels (offsets from the pivot); grp < 0: the whole figure
+  Img piece;            // the piece's pixels (offsets from the pivot); kWhole: the whole figure, kAllArmour: its armour
   int area = 0, dyed = 0;
   int dyeFamily = 0;    // dye-slot pixels of the piece within the people's dye family (F5)
 };
@@ -368,7 +374,7 @@ inline Fig figure(const art::HumanLook& L, int facing, int grp, const Dye* dye =
       const uint32_t col = codeColour(r, c);
       f.full.set(x, y, col);
       const int o = p.owner[(size_t)k];
-      const bool mine = grp < 0 || (o >= 0 && o < (int)p.items.size() && inPiece((Grp)grp, p.items[(size_t)o], p.region[(size_t)k], c));
+      const bool mine = grp == kWhole || (o >= 0 && o < (int)p.items.size() && inArmour(grp, p.items[(size_t)o], p.region[(size_t)k], c));
       if (!mine) continue;
       f.piece.px[{x - p.px, y - p.py}] = col;
       if (dyeCode(c)) { f.dyed++; if (dye && inDyeFamily(col, *dye)) f.dyeFamily++; }
