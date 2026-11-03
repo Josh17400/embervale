@@ -480,6 +480,13 @@ inline const char* menuHint(int tab, bool touch) {
   return touch || tab < 0 || tab >= 9 ? "" : kHints[tab];
 }
 
+// (P4 fix r1) the DANGEROUS GROUND banner (FxState::dangerBanner, hud.cpp's banner): its red (the skull's), and the
+// widest its big line may be, so the text and the rules that scale with it stay clear of the minimap (top right,
+// R - 70) and of the vitals mirrored on the left: at 480 x 270, 288 px (60 % of the width)
+constexpr uint32_t kDangerRed = 0xFF425CF5u;   // rgba(245, 92, 66): Color(0.96f, 0.36f, 0.26f)
+inline float dangerBannerMaxW() {
+  return std::min(std::floor(Pix::W * 0.6f), 2.0f * ((float)(Pix::W - Pix::SR) - 70 - 12 - Pix::W / 2.0f));
+}
 // (P4 item 6a) the dungeon the hero is inside (a cave, a ruin or a shrine; not a building): its level, else -1
 inline int dungeonLevel(const Game& g) {
   if (!g.inside || g.subSite < 0 || g.subSite >= (int)g.world.sites.size()) return -1;

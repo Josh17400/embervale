@@ -141,20 +141,21 @@ std::vector<const Toast*> FxState::dlgGifts(const View& v) {
 }
 
 // (P4 6a, VISION_PLAN 7.1/7.5: danger by place, never scaled to the hero) entering a cave, ruin or shrine five or more
-// levels above the hero: "DANGEROUS GROUND" / "TOMB OF KEE: LEVEL 7 - YOU ARE LEVEL 2" (red, hud.cpp's banner); a name
-// too long for the big line goes up beside the heading
+// levels above the hero, the arrival banner's three lines (hud.cpp): "DANGEROUS GROUND" (red) / "TOMB OF KEE" (the big
+// line) / "LEVEL 7 - YOU ARE LEVEL 2" (red, on the state row under it). (P4 fix r1, judge: "EMBER HALLS: LEVEL 6 - YOU
+// ARE LEVEL 1" ran over 94 % of the screen, past its rules and onto the minimap) the big line is the name alone, inside
+// dangerBannerMaxW (most names are 18 letters at most; a longer one, THE TRIAL OF THE THRESHOLD, is set in small type)
 void FxState::dangerBanner(View& v, const Game& g) {
   const int dl = dungeonLevel(g);
   if (dl < 0 || dl - g.plLevel < 5) return;
   std::string name = g.world.sites[(size_t)g.subSite].name;
   for (char& ch : name) ch = (char)std::toupper((unsigned char)ch);
-  const std::string lv = "LEVEL " + std::to_string(dl) + " - YOU ARE LEVEL " + std::to_string(g.plLevel);
   FxState& f = v.fx_;
   f.banner_ = "DANGEROUS GROUND";
-  f.bannerSub_ = name + ": " + lv;
-  if (v.pix_->textW(f.bannerSub_, 2) > Pix::W - 16) { f.banner_ += "  -  " + name; f.bannerSub_ = lv; }
+  f.bannerSub_ = name;
   f.bannerT_ = 4.0f;
-  v.realm_.bannerState_.clear();
+  v.realm_.bannerState_ = "LEVEL " + std::to_string(dl) + " - YOU ARE LEVEL " + std::to_string(g.plLevel);
+  v.realm_.bannerStateCol_ = kDangerRed;
 }
 
 // (P4 6b) the page's keys at the panel's foot, keyboard only (touch keeps its buttons): "Q/E TABS" and the page's own

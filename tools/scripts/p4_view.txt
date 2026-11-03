@@ -65,3 +65,8 @@ seed 7
 +0.6 shot p4_view_ruin_banner.png
 +4.5 expect skull 2,3
 +0.0 shot p4_view_ruin_skull.png
+# (P4 fix r1) the world's longest place name on the danger banner: small type, inside its rules, clear of the minimap
++0.2 p4dungeon cave above 5 named THE TRIAL OF THE THRESHOLD
++0.3 expect inside 1
++0.0 expect banner DANGEROUS GROUND / THE TRIAL OF THE THRESHOLD
++0.6 shot p4_view_long_banner.png

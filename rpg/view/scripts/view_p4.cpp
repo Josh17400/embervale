@@ -1,6 +1,8 @@
 // P4 VIEW test commands (docs/FIX_BATCH_P4.md 4, 7 6a/6b/6f, 9.3). Every command is also a Witness call.
-//   p4dungeon ruin|cave [above N]   enter the nearest ruin (or cave) of the loaded window whose level is at least the
-//                                   hero's + N (default 0), through Game::debugEnterSite (WITNESS's state test uses it)
+//   p4dungeon ruin|cave [above N] [named <words>]   enter the nearest ruin (or cave) of the loaded window whose level is
+//                                   at least the hero's + N (default 0), through Game::debugEnterSite (WITNESS's state
+//                                   test uses it); named: the place is given that name first (P4 fix r1: the danger
+//                                   banner with the world's longest place name, THE TRIAL OF THE THRESHOLD)
 //   expect dlggift <text>|<pat*>    the open dialogue panel's gift strip holds that gift ("OLD BLADE" or "+ OLD BLADE";
 //                                   * wildcards at either end)
 //   expect notoast <text>|<pat*>    no toast on show (or waiting) reads that (a gift said in the panel is not repeated)
@@ -43,6 +45,8 @@ bool cmdDungeon(ScriptCtx& c) {
   if (kind != "ruin" && kind != "cave") { c.fail("p4dungeon ruin|cave [above N]"); return true; }
   const SiteType want = kind == "ruin" ? SiteType::Ruin : SiteType::Cave;
   const int above = c.arg(2) == "above" ? std::atoi(c.arg(3).c_str()) : 0;
+  const size_t at = c.arg(2) == "above" ? 4 : 2;
+  const std::string named = c.arg(at) == "named" ? c.rest(at + 1) : std::string();
   const float px = g.pl().p.x / TILE, py = g.pl().p.y / TILE;
   int best = -1;
   float bd = 1e30f;
@@ -53,10 +57,11 @@ bool cmdDungeon(ScriptCtx& c) {
     if (d < bd) { bd = d; best = (int)i; }
   }
   if (best < 0) { c.fail("p4dungeon: no " + kind + " of level " + std::to_string(g.plLevel + above) + "+ in the loaded world"); return true; }
+  if (!named.empty()) g.world.sites[(size_t)best].name = named;
   if (!g.debugEnterSite(best)) c.fail("p4dungeon: cannot enter " + g.world.sites[(size_t)best].name);
   return true;
 }
-EMB_SCRIPT_CMD("p4dungeon", "p4dungeon ruin|cave [above N]: into the nearest ruin or cave at least N levels above the hero (P4 6a)", cmdDungeon);
+EMB_SCRIPT_CMD("p4dungeon", "p4dungeon ruin|cave [above N] [named <words>]: into the nearest ruin or cave at least N levels above the hero (P4 6a)", cmdDungeon);
 
 bool expDlgGift(ScriptCtx& c) {
   const std::string want = c.rest(2);

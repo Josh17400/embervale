@@ -1361,12 +1361,20 @@ bool View::hudNotices(Game& g, const HudFrame& H) {
     const float plateA = std::min(1.0f, a0 * 1.6f), a = a0 * a0;
     float y = T + 56;
     P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * plateA));
-    const Color bc = fx_.banner_.rfind("DANGEROUS GROUND", 0) == 0 ? Color(0.96f, 0.36f, 0.26f) : kGold;   // (P4 6a) danger in the skull's red
-    P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
-    P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
+    const bool danger = fx_.banner_.rfind("DANGEROUS GROUND", 0) == 0;
+    const Color bc = danger ? col(kDangerRed) : kGold;   // (P4 6a) danger in the skull's red
+    // (P4 fix r1) the danger banner's big line never runs past dangerBannerMaxW (a longer name is set in small type), and
+    // its rules reach past its widest line; the other banners keep theirs (180 px)
+    const int subSz = danger && P.textW(fx_.bannerSub_, 2) > dangerBannerMaxW() ? 1 : 2;
+    const float rh = danger ? std::floor(std::clamp((float)std::max(P.textW(fx_.banner_, 1), P.textW(fx_.bannerSub_, subSz)) / 2 + 12, 90.0f,
+                                                    dangerBannerMaxW() / 2 + 12))
+                            : 90.0f;
+    P.rect(Pix::W / 2 - rh, y - 6, rh * 2, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
+    P.rect(Pix::W / 2 - rh, y + 27, rh * 2, 1, Color(bc.r, bc.g, bc.b, a * 0.8f));
     P.textS(Pix::W / 2, y, fx_.banner_, 1, Color(bc.r, bc.g, bc.b, a), 1);
-    P.textS(Pix::W / 2 + 1, y + 11, fx_.bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
-    P.textS(Pix::W / 2, y + 10, fx_.bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
+    const float sy = subSz == 2 ? y + 10 : y + 14;
+    P.textS(Pix::W / 2 + 1, sy + 1, fx_.bannerSub_, subSz, Color(0, 0, 0, a * 0.5f), 1);
+    P.textS(Pix::W / 2, sy, fx_.bannerSub_, subSz, Color(1, 0.97f, 0.9f, a), 1);
     if (!realm_.bannerState_.empty()) {   // (M4) the settlement's state under its name, in its colour
       const Color sc = col(realm_.bannerStateCol_ ? realm_.bannerStateCol_ : rgba(236, 120, 90));
       P.rect(0, y + 28, Pix::W, 11, Color(0, 0, 0, 0.45f * plateA));
