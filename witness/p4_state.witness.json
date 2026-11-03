@@ -10,7 +10,9 @@
                                        "state.shop.stock.some(r => r.kind == 'armor' && /LEATHER/.test(r.name) && r.price == 48)",
                                        "state.shop.deal == (state.shop.gold >= state.shop.stock[0].price ? 'BUY FOR ' + state.shop.stock[0].price + ' GOLD' : 'NOT ENOUGH GOLD')",
                                        "Array.isArray(state.screenText) && state.screenText[0] == state.shop.title",
-                                       "state.screenText.some(l => /LEATHER/.test(l) && / - 48 GOLD/.test(l))"] } ] },
+                                       "state.screenText.some(l => /LEATHER/.test(l) && / - 48 GOLD/.test(l))",
+                                       "state.screenText.includes('DEAL: ' + state.shop.stock[0].name + ' - ' + state.shop.deal)",
+                                       "state.screenText.some(l => l.startsWith('KEYS: '))"] } ] },
   { "name": "p4 state: the SELL side lists the pack with worn; one Enter on a worn piece makes the deal 'YOU WEAR IT - PRESS ENTER AGAIN TO SELL'",
     "seed": 7, "params": { "hour": 11, "window": [960, 540] },
     "steps": [ { "at": 0.2, "call": [["god", "1"], ["gear", "1"], ["enter", "smithy"]] },
@@ -21,7 +23,7 @@
                                        "state.shop.pack[1].worn === true", "/^SELL FOR /.test(state.shop.deal)"] },
                { "at": 1.1, "call": [["key", "Return"]] },
                { "at": 1.3, "expect": ["state.shop.deal == 'YOU WEAR IT - PRESS ENTER AGAIN TO SELL'", "state.shop.pack[1].worn === true",
-                                       "state.screenText.includes('YOU WEAR IT - PRESS ENTER AGAIN TO SELL')"] } ] },
+                                       "state.screenText.some(l => l.startsWith('DEAL: ') && l.endsWith(' - YOU WEAR IT - PRESS ENTER AGAIN TO SELL'))"] } ] },
   { "name": "p4 state: the EQUIP page reads as menuPage (tab, slots, the Q/E hint); state.menu is still the int",
     "seed": 7, "params": { "hour": 11, "window": [960, 540] },
     "steps": [ { "at": 0.2, "call": [["god", "1"], ["gear", "1"], ["menu", "5"]] },
@@ -59,5 +61,8 @@
                { "at": 0.3, "expect": ["Number.isInteger(state.location.level)", "state.location.danger == state.location.level - state.player.level"] },
                { "at": 0.4, "call": [["p4dungeon", "ruin", "above", "5"]] },
                { "at": 1.5, "expect": ["state.scene == 'inside'", "state.location.siteType == 'ANCIENT RUIN'", "state.location.danger >= 5",
-                                       "state.location.danger == state.location.level - state.player.level"] } ] }
+                                       "state.location.danger == state.location.level - state.player.level",
+                                       "state.location.line.includes('LEVEL ' + state.location.level + ', DANGER +' + state.location.danger + ' (YOU ARE LEVEL ' + state.player.level + ')')",
+                                       "state.location.line.endsWith(' - DANGEROUS GROUND')",
+                                       "state.banner.startsWith('DANGEROUS GROUND / ') && state.banner.endsWith(': LEVEL ' + state.location.level + ' - YOU ARE LEVEL ' + state.player.level)"] } ] }
 ]

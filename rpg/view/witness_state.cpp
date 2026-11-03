@@ -257,8 +257,10 @@ void shopJson(witness::Json& j, const Game& g, const View& v, std::vector<std::s
   }
   if (g.inv.empty()) lines.push_back("  NOTHING TO SELL");
   j.end_array().end_object();
-  if (!deal.empty()) lines.push_back(deal);
-  lines.push_back(v.touchUI ? "TAP AN ITEM, THEN THE BUTTON" : "ARROWS SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE");
+  // (P4 fix r2, judge: "BUY FOR 48 GOLD / ARROWS" read as a stale line) the deal names the row it prices, and the key
+  // line is labelled, so neither reads into the other
+  if (!deal.empty()) lines.push_back("DEAL: " + rowName(src[(size_t)sel]) + " - " + deal);
+  lines.push_back(v.touchUI ? "KEYS: TAP AN ITEM, THEN THE BUTTON" : "KEYS: UP/DOWN SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE");
 }
 // state.menuPage: the open menu's page (null when closed): its tab name and index, the row cursor, the rows on show
 // (at most 24, from `first`) and the page's key hint (VIEW's menuTabName / menuHint, hud_layout.h)
@@ -337,15 +339,25 @@ void groundLootJson(witness::Json& j, const Game& g, const Actor& P) {
 // building, at its door) and the danger: that level less the hero's (hud.cpp's skull reads the same gap)
 void dangerJson(witness::Json& j, const Game& g) {
   int level = 0;
-  bool have = false;
-  if (g.inside && g.subBldg < 0 && g.subSite >= 0 && g.subSite < (int)g.world.sites.size()) { level = g.world.sites[(size_t)g.subSite].level; have = true; }
+  bool have = false, dungeon = false;
+  if (g.inside && g.subBldg < 0 && g.subSite >= 0 && g.subSite < (int)g.world.sites.size()) { level = g.world.sites[(size_t)g.subSite].level; have = dungeon = true; }
   else if (g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size()) {
     const Bldg& b = g.world.over.bldgs[(size_t)g.subBldg];
     level = g.world.zoneLevel(b.doorX(), b.doorY()); have = true;
   } else if (!g.inside && g.world.endless) {
     level = g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)); have = true;
   }
-  if (have) j.field("level", level).field("danger", level - g.plLevel);
+  if (!have) return;
+  const int danger = level - g.plLevel;
+  // (P4 fix r2, judge: "the location line shows only a skull and the name, no level or danger number") the line a
+  // tester reads: "EMBER HALLS - LEVEL 6, DANGER +5 (YOU ARE LEVEL 1) - DANGEROUS GROUND" (the banner's warning: inside
+  // a cave, ruin or shrine at danger 5+)
+  std::string name = g.locName;
+  for (char& ch : name) ch = (char)std::toupper((unsigned char)ch);
+  const std::string line = (name.empty() ? std::string() : name + " - ") + "LEVEL " + std::to_string(level) + ", DANGER " +
+                           (danger > 0 ? "+" : "") + std::to_string(danger) + " (YOU ARE LEVEL " + std::to_string(g.plLevel) + ")" +
+                           (dungeon && danger >= 5 ? " - DANGEROUS GROUND" : "");
+  j.field("level", level).field("danger", danger).field("line", line);
 }
 // (agent playtests) outside: the doors of the public buildings within 40 tiles, nearest first (at most 8), so "goto
 // Inn" walks in (stepping onto a door enters). kind "building"; the id is the door's global tile (stable while the
@@ -451,6 +463,10 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   // (Witness 0.6/0.7) the outcome: trace --xy and heatmap mark deaths from it, a playtest wakes on it
   j.field("dead", g.mode == Mode::Dead);
   if (g.noticeT > 0 && !g.notice.empty()) j.field("notice", g.notice);
+  {   // (P4 fix r2) the arrival banner while it shows: "DANGEROUS GROUND / EMBER HALLS: LEVEL 6 - YOU ARE LEVEL 1"
+    const std::string b = ViewProbe::bannerText(v);
+    if (!b.empty()) j.field("banner", b);
+  }
   toastsJson(j, v);   // (P3 B11)
 
   // the player

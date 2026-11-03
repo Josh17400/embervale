@@ -41,4 +41,13 @@ struct ViewProbe {
   struct EquipRow { std::string slot, item; };
   struct EquipPage { std::vector<EquipRow> slots; int slot = 0, cand = -1, candidates = 0; std::string candidate; bool candidateWorn = false; };
   static EquipPage equipPage(const View& v, const Game& g);
+  // (P4 fix r2) the arrival banner while it shows (empty when none): "TITLE / SUB: STATE" ("DANGEROUS GROUND / EMBER
+  // HALLS: LEVEL 6 - YOU ARE LEVEL 1"), the sub and state parts only when drawn
+  static std::string bannerText(const View& v) {
+    if (v.fx_.bannerT_ <= 0 || v.fx_.banner_.empty()) return std::string();
+    std::string s = v.fx_.banner_;
+    if (!v.fx_.bannerSub_.empty()) s += " / " + v.fx_.bannerSub_;
+    if (!v.realm_.bannerState_.empty()) s += (v.fx_.bannerSub_.empty() ? " / " : ": ") + v.realm_.bannerState_;
+    return s;
+  }
 };
