@@ -1182,7 +1182,7 @@ void FramePaint::irisBands(const Item& it, const ViewRec& v, bool hasReg) {
 void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) {
   const DollRecipe& r = *rp;
   const int ts = ip.ts;
-  ip.fp = ip.fpR = ip.fpN = ip.fpThin = ip.fpOuter = ip.fpStitch = ip.fpEdge = false;
+  ip.fp = ip.fpR = ip.fpN = ip.fpThin = ip.fpOuter = ip.fpStitch = ip.fpSparse = ip.fpHemRow = ip.fpEdge = false;
   if (!r.fpOn(ts)) return;
   ip.fp = true;
   ip.fpR = r.fpR >> ts & 1;
@@ -1190,6 +1190,7 @@ void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) 
   ip.fpThin = r.fpThin >> ts & 1;
   ip.fpOuter = r.fpOuter >> ts & 1;
   ip.fpStitch = r.fpStitch >> ts & 1;
+  ip.fpSparse = r.fpSparse >> ts & 1;
   const bool cuff = (r.fpCuff >> ts & 1) && !v.regions.empty();
   const bool hem = !cuff && (r.fpHem >> ts & 1) && partHasRoleCat(*it.part, Role::Cloak) && !partHasTrim(get(), it.order);
   if (!cuff && !hem) return;
@@ -1204,6 +1205,7 @@ void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) 
       else if (codeStep(c) >= 1) { fpRow[(size_t)x] = (int16_t)y; break; }
     }
   ip.fpEdge = true;
+  ip.fpHemRow = hem;
 }
 // (P5) a pixel in the piece's dye band: the drawn step kept (1-3: the outline keeps its slot, no dye on a glint), the band
 // along canvas x + y (run px of the dye, then the dye2 to the period); N thinned to every other canvas row where heavy
@@ -1212,10 +1214,12 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   if (st < 1 || st > 3) return c;
   const Slot cs = codeSlot(c);
   if (cs == Slot::Glow || cs == Slot::Ink || cs == Slot::Skin || cs == Slot::Fx) return c;
+  // (a metal plate's lit run stays metal: a dyed lit pixel would leave its neighbour a lone lit dash, C19 A8)
+  if (st == 3 && (cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade)) return c;
   const Item& it = *ip.it;
   const ViewRec& v = *ip.v;
   const int px = it.ax + x - v.ox, py = it.ay + y - v.oy;
-  bool on = false;
+  bool on = false, edge = false;
   if (rg == (uint8_t)Region::Trim) {
     on = ip.fpR;
     if (on && ip.fpOuter) {   // (the binding only: an R pixel on the piece's outer row)
@@ -1224,14 +1228,14 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
     }
   }
   else if (rg == (uint8_t)Region::Seam) on = ip.fpN && !(ip.fpThin && (py & 1));
-  if (!on && ip.fpEdge && fpRow[(size_t)x] == y) on = true;
+  if (!on && ip.fpEdge && fpRow[(size_t)x] == y) on = edge = true;
   if (!on) return c;
   const DollRecipe& r = *rp;
   const int ts = ip.ts, period = std::max<int>(1, r.dyePeriod[ts]);
-  if (ip.fpStitch && rg == (uint8_t)Region::Trim) {   // (one period of the band, then one as drawn)
-    const int p2 = std::max(2, period);
-    int s2 = (px + py) % (2 * p2);
-    if (s2 < 0) s2 += 2 * p2;
+  if (ip.fpStitch && (edge ? ip.fpHemRow : rg == (uint8_t)Region::Trim)) {   // (one period of the band, then one or two as drawn)
+    const int p2 = std::max(2, period), cyc = (ip.fpSparse ? 3 : 2) * p2;
+    int s2 = (px + py) % cyc;
+    if (s2 < 0) s2 += cyc;
     if (s2 >= p2) return c;
   }
   int ph = (px + py) % period;
@@ -1310,11 +1314,6 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
       }
     }
   }
-  if (ip.fp && c >= 2) {   // (P5) the maker's dye band on R, N, the cuff and the hem
-    const uint8_t c0 = c;
-    c = fpColour(ip, x, y, c, rg);
-    if (c != c0) fpPre = c0;
-  }
   if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
   // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
   if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
@@ -1387,6 +1386,12 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
       c = code(tsl == Slot::Ink || toneOnTone ? codeSlot(c) : tsl, toneOnTone ? std::clamp(nk, 1, 3) : nk);
       break;
     }
+  // (P5) the maker's dye band on R, N, the cuff and the hem, last: the code under it (fpPre) is the finished pre-P5 pixel
+  if (ip.fp && c >= 2) {
+    const uint8_t c0 = c;
+    c = fpColour(ip, x, y, c, rg);
+    if (c != c0 && !fpPre) fpPre = c0;
+  }
   return c;
 }
 

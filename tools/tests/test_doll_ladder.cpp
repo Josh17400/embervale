@@ -1571,7 +1571,11 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
         const bool relief = (doll::codeSlot(ca) == doll::codeSlot(cb) && b.region[k] == (uint8_t)doll::Region::Panel) ||
                             (pt >= 5 && (b.region[k] == (uint8_t)doll::Region::Panel || b.region[k] == (uint8_t)doll::Region::Trim));
         // (a glint the glint passes moved because the T5-T6 filigree's motif moved: step 3 <-> 4 in its own slot)
-        const bool glintShift = doll::codeSlot(ca) == doll::codeSlot(cb) && doll::codeStep(ca) >= 3 && doll::codeStep(cb) >= 3 && on.L.topTier() >= 5;
+        // (or any step of the same slot on a figure whose T5-T6 filigree changed motif: the passes read the new gilding; the
+        // dye alone never moves a pass, g_fpUnder)
+        bool motifMoved = false;
+        for (int s = 0; s < 8; s++) motifMoved = motifMoved || (on.r.pieceTier[s] >= 5 && on.r.fpOn(s) && on.r.motifAt(s) != on.r.motif);
+        const bool glintShift = doll::codeSlot(ca) == doll::codeSlot(cb) && ((doll::codeStep(ca) >= 3 && doll::codeStep(cb) >= 3 && on.L.topTier() >= 5) || motifMoved);
         if (glintShift) glints++;
         if (!dyeNow && !relief && !glintShift) {
           bad++;
@@ -1626,7 +1630,7 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
       hueSat(meanOff[0] / nMean, meanOff[1] / nMean, meanOff[2] / nMean, h0, s0);
       hueSat(meanOn[0] / nMean, meanOn[1] / nMean, meanOn[2] / nMean, h1, s1);
       mean = fmt("; body mean hue %.0f -> %.0f sat %.2f -> %.2f", h0, h1, s0, s1);
-      if (maker && h0 >= 15 && h0 <= 45 && (h1 < 15 || h1 > 45 || s1 < s0 - 0.10)) { over = true; mean += " (the leather read lost)"; }
+      if (maker && h0 >= 15 && h0 <= 45 && s0 >= 0.2 && (h1 < std::min(15.0, h0 - 3) || h1 > std::max(45.0, h0 + 3) || s1 < s0 - 0.10)) { over = true; mean += " (the leather read lost)"; }
     }
     const bool fail = maskBad || bad || (!maker && diff) || over;
     fails += fail;

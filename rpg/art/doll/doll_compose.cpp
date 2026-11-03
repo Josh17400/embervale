@@ -928,7 +928,7 @@ void partContacts(DollRecipe& r, const HumanLook& L) {
 static uint64_t fpKey(const DollRecipe& r, uint64_t salt) {
   uint64_t key = trimKey(r) ^ salt;
   auto mix = [&](const void* p, size_t n) { const uint8_t* b = (const uint8_t*)p; for (size_t i = 0; i < n; i++) { key ^= b[i]; key *= 0x100000001B3ull; } };
-  mix(&r.fpSlots, 1); mix(&r.fpR, 1); mix(&r.fpN, 1); mix(&r.fpCuff, 1); mix(&r.fpHem, 1); mix(&r.fpThin, 1); mix(&r.fpOuter, 1); mix(&r.fpStitch, 1); mix(&r.fpMark, 1);
+  mix(&r.fpSlots, 1); mix(&r.fpR, 1); mix(&r.fpN, 1); mix(&r.fpCuff, 1); mix(&r.fpHem, 1); mix(&r.fpThin, 1); mix(&r.fpOuter, 1); mix(&r.fpStitch, 1); mix(&r.fpSparse, 1); mix(&r.fpMark, 1);
   mix(r.cuffMask, sizeof r.cuffMask); mix(r.dyeRun, sizeof r.dyeRun); mix(r.dyePeriod, sizeof r.dyePeriod);
   for (const std::string& m : r.slotMotif) { mix(m.data(), m.size()); const uint8_t z = 0; mix(&z, 1); }
   return key;
@@ -936,7 +936,7 @@ static uint64_t fpKey(const DollRecipe& r, uint64_t salt) {
 // (P5, FIX_BATCH_P5 3.5) the dye's share of each fingerprinted piece (its dye pixels over its pixels, the largest of the four idle
 // views) held under its cap: body 15 % at T1-T2 and 20 % at T3-T5, helm 25, shield 30, gloves 40, boots 20, cloak 15. A slot
 // over its cap thins, a step at a time: N on every other canvas row, then R on its outer row only (the binding), then R
-// stitched (a period of the band, a period as drawn), then no N.
+// stitched (a period of the band, a period as drawn; a cloak's hem too), then sparser (two as drawn), then no N.
 // Chosen once per drawing (cached) on the composed idles, so a new piece never needs a hand-tuned rule
 // (the mean colour of the body and helm pieces on the idle D: FIX_BATCH_P5 3.5's leather read)
 struct FpMean { double c[2][3] = {}; int n[2] = {}; };
@@ -978,11 +978,11 @@ int fpCap(const DollRecipe& r, int s) {
 }
 void tuneFp(DollRecipe& r) {
   if (!r.fpSlots) return;
-  struct T { uint8_t thin, outer, stitch, n; };
+  struct T { uint8_t thin, outer, stitch, sparse, n; };
   static thread_local std::unordered_map<uint64_t, T> cache;
   const uint64_t key = fpKey(r, 0x7F9A7F9A7F9A7F9Aull);
   auto it = cache.find(key);
-  if (it != cache.end()) { r.fpThin = it->second.thin; r.fpOuter = it->second.outer; r.fpStitch = it->second.stitch; r.fpN = it->second.n; return; }
+  if (it != cache.end()) { r.fpThin = it->second.thin; r.fpOuter = it->second.outer; r.fpStitch = it->second.stitch; r.fpSparse = it->second.sparse; r.fpN = it->second.n; return; }
   // the pre-P5 read of the body and the helm (a leather piece keeps its hue in 15-45 and its saturation within 0.10)
   FpMean pre;
   {
@@ -991,7 +991,7 @@ void tuneFp(DollRecipe& r) {
     int d0[8], p0[8];
     fpShares(r0, d0, p0, &pre, 1);
   }
-  for (int round = 0; round < 5; round++) {
+  for (int round = 0; round < 6; round++) {
     int dye[8], px[8];
     FpMean now;
     fpShares(r, dye, px, &now);
@@ -1003,12 +1003,13 @@ void tuneFp(DollRecipe& r) {
         double h0, s0, h1, s1;
         meanHueSat(pre, s, h0, s0);
         meanHueSat(now, s, h1, s1);
-        if (pre.n[s] && h0 >= 15 && h0 <= 45 && (h1 < 15 || h1 > 45 || s1 < s0 - 0.09)) over = true;
+        if (pre.n[s] && h0 >= 15 && h0 <= 45 && s0 >= 0.2 && (h1 < std::min(15.0, h0 - 2) || h1 > std::max(45.0, h0 + 2) || s1 < s0 - 0.09)) over = true;
       }
       if (!(r.fpSlots & b) || !over) continue;
       if ((r.fpN & b) && !(r.fpThin & b)) r.fpThin |= b;
       else if ((r.fpR & b) && !(r.fpOuter & b)) r.fpOuter |= b;
-      else if ((r.fpR & b) && !(r.fpStitch & b)) r.fpStitch |= b;
+      else if (((r.fpR | r.fpHem) & b) && !(r.fpStitch & b)) r.fpStitch |= b;
+      else if (((r.fpR | r.fpHem) & b) && !(r.fpSparse & b)) r.fpSparse |= b;
       else if (r.fpN & b) r.fpN &= (uint8_t)~b;
       else continue;
       moved = true;
@@ -1016,7 +1017,7 @@ void tuneFp(DollRecipe& r) {
     if (!moved) break;
   }
   if (cache.size() > 20000) cache.clear();
-  cache[key] = T{r.fpThin, r.fpOuter, r.fpStitch, r.fpN};
+  cache[key] = T{r.fpThin, r.fpOuter, r.fpStitch, r.fpSparse, r.fpN};
 }
 
 void partDyeContacts(DollRecipe& r) {

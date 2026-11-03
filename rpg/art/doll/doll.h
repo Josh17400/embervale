@@ -302,7 +302,8 @@ struct DollRecipe {
   // slotMotif: the mark's and the filigree's motif (fp::Row::motif); dyeRun / dyePeriod: the band along canvas x + y
   uint8_t fpSlots = 0, fpR = 0, fpN = 0, fpCuff = 0, fpHem = 0, fpThin = 0;
   uint8_t fpOuter = 0;   // R on its outer row only (the binding: an R pixel touching the outline or the outside)
-  uint8_t fpStitch = 0;  // R stitched: the band one period on, one period as drawn (a shield's or a small piece's whole rim)
+  uint8_t fpStitch = 0;  // R (and a cloak's hem) stitched: the band one period on, one period as drawn (a shield's whole rim)
+  uint8_t fpSparse = 0;  // the stitch one period on, two as drawn (a cloak whose border is most of its side view)
   uint8_t fpMark = 0;    // the mark tile on the slot (T1-T4, its motif drawn); at T4 it takes the etch's place
   uint8_t maker[8] = {};
   uint32_t cuffMask[8] = {};

@@ -136,7 +136,7 @@ struct FramePaint {
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
     // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)
-    bool fp = false, fpR = false, fpN = false, fpThin = false, fpOuter = false, fpStitch = false, fpEdge = false;
+    bool fp = false, fpR = false, fpN = false, fpThin = false, fpOuter = false, fpStitch = false, fpSparse = false, fpHemRow = false, fpEdge = false;
   };
 
   // the frame (anchors() sets them)
