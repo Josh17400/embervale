@@ -81,5 +81,10 @@ void installLadderMacros();   // idempotent (also done at static init where the 
 art::HumanLook alloyKitLook(const art::HumanLook& base, const cult::Culture& c, int alloyIndex, int tier = 0);
 // every field of L that differs from a default HumanLook, as a looks spec (`k=v,...`; rpg_test --expand-looks)
 std::string describeLook(const art::HumanLook& L);
+// (P5, FIX_BATCH_P5 4.4) after a census look's slots change (retierLook, liftRank): every worn slot (tier > 0) keeps the arms
+// people the look carries (the first slot's maker found; a newly worn slot takes it), an empty slot none. No draw.
+void keepMakers(art::HumanLook& L);
+// (P5) census::dress: every worn slot (tier > 0) takes people (cult::Archetype + 1; 0 none), every other slot none
+void stampMakers(art::HumanLook& L, int people);
 
 }  // namespace gear

@@ -19,7 +19,10 @@
 #include "tools/tests/tests.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/gear_look.h"
+#include "rpg/sim/looks.h"
+#include "rpg/world/records.h"
 
 namespace {
 
@@ -70,6 +73,62 @@ art::HumanLook dressed(const Kit& k, const cult::Culture* home) {
   art::HumanLook L = appearanceLook(a, home);
   wearGear(L, k.w, lookup);
   return L;
+}
+
+// (P5, FIX_BATCH_P5 4.2 / 4.4) the maker on every worn piece and every icon: a people's kit carries its people on every worn
+// slot and icon (tier the piece's look tier), culture 0 none; the census's watch and officers the owner kingdom's, bandits,
+// pirates and warlords their own people's, on every worn slot (none on an empty one); retierLook keeps it. No draw: a
+// look dressed twice is equal.
+void makerChecks(int nA, uint64_t seed) {
+  using H = art::HumanLook;
+  auto slots = [](const H& L, int want, const std::string& who) {
+    int worn = 0;
+    for (int s = 0; s < H::TIER_SLOTS; s++) {
+      const int m = L.makerAt(s);
+      if (L.tier[s]) worn++;
+      if (m != (L.tier[s] ? want : 0))
+        fail(who + ": slot " + std::to_string(s) + " (tier " + std::to_string(L.tier[s]) + ") maker " + std::to_string(m) + ", want " +
+             std::to_string(L.tier[s] ? want : 0));
+    }
+    if (!worn) fail(who + ": wears no tiered slot");
+  };
+  for (int a = 0; a < nA; a++) {
+    const cult::Culture& C = g_c[(size_t)a];
+    const Kit k = kit(&C, Mat::Iron, 0, (int)WeaponType::Sword, Rarity::Common, 12, (uint32_t)seed);
+    slots(dressed(k, &C), a + 1, "kit " + std::to_string(a));
+    for (const Item& it : k.it) {
+      const art::IconLook l = gearIcon(it, &C);
+      const int t = gear::lookTier(it, &C).tier;
+      if (l.tier != t || l.people != (t ? a + 1 : 0)) fail("icon of kit " + std::to_string(a) + " kind " + std::to_string((int)it.kind) + ": people/tier " +
+                                                             std::to_string(l.people) + "/" + std::to_string(l.tier));
+    }
+    // census: C the person's people, O another kingdom (the owner whose arms a guard wears)
+    const cult::Culture& O = g_c[(size_t)((a + 5) % nA)];
+    struct RR { Role r; census::Rank k; bool local; };
+    const RR roles[] = {{Role::Guard, {}, false}, {Role::Guard, {false, true}, false}, {Role::Guard, {true, true}, false}, {Role::Soldier, {}, false},
+                        {Role::Captain, {}, false}, {Role::Herald, {}, false}, {Role::Envoy, {}, false}, {Role::Jarl, {}, false},
+                        {Role::King, {}, false}, {Role::Bandit, {}, true}, {Role::Pirate, {}, true}, {Role::Warlord, {}, true}};
+    for (const RR& rr : roles) {
+      H L, L2;
+      std::string n1, n2;
+      const uint64_t sd = seed * 977u + (uint64_t)a * 13u + (uint64_t)rr.r;
+      census::dress(L, n1, rr.r, false, C, O, sd, rr.k);
+      census::dress(L2, n2, rr.r, false, C, O, sd, rr.k);
+      if (L.key() != L2.key() || L.makers != L2.makers) fail("census::dress is not deterministic");
+      if (rr.r == Role::Envoy || rr.r == Role::Herald || rr.r == Role::Pirate || rr.r == Role::Warlord) {   // dressed later (makeLook) or unarmoured: none
+        bool any = false;
+        for (int s = 0; s < H::TIER_SLOTS; s++) any |= L.tier[s] != 0;
+        if (!any) { if (L.makers) fail("an unarmoured envoy, herald, pirate or warlord carries makers"); continue; }
+      }
+      const std::string who = "census role " + std::to_string((int)rr.r) + " of people " + std::to_string(a);
+      slots(L, (int)(rr.local ? C : O).archetype + 1, who);
+      if (rr.r == Role::Bandit) {   // the chief's retier (game.cpp: plate and cape at T2 / T3) keeps the people on every worn slot
+        L.cape = true;
+        retierLook(L, 3, nullptr);
+        slots(L, a + 1, who + " retiered");
+      }
+    }
+  }
 }
 
 // holes the armour opens: pixels inside the figure (all four neighbours painted) left transparent where the same
@@ -288,6 +347,14 @@ int cmdArms(int argc, char** argv) {
           if (c1.px == art::itemIcon(it.icon, it.tint).px) fail("a culture piece paints the classic icon");
         }
       }
+    }
+    makerChecks(nA, seed);
+    // a culture-0 kit and its icons carry no maker
+    {
+      const Kit k0 = kit(nullptr, Mat::Iron, 0, (int)WeaponType::Sword, Rarity::Common, 12, (uint32_t)seed);
+      if (dressed(k0, nullptr).makers) fail("a culture-0 kit carries makers");
+      for (const Item& it : k0.it)
+        if (gearIcon(it, nullptr).people) fail("a culture-0 icon carries a people");
     }
     // the classic icon is untouched when the look carries nothing new
     for (int i = 0; i < (int)art::Icon::COUNT; i++) {

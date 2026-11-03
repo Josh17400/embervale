@@ -585,6 +585,17 @@ struct HumanLook {
   // (wave-2 fix round 4, D96) 1: a king (Role::King; census::rankSlots sets it): the doll's `king` flag, his full cape and his
   // realm's deep cloak ramp. Derived, never saved; key() at rig 2 only when set
   uint8_t king = 0;
+  // (P5, docs/FIX_BATCH_P5.md 4.2) the maker people of the piece worn in each tier slot, 4 bits a slot (TIER_BODY bits 0-3 ..
+  // TIER_BACK bits 28-31), each cult::Archetype + 1 (0 none: culture 0, the T1 floor, a slot not worn): the doll's fingerprint
+  // (fp::row) per piece. Set by gear::fillLadder (worn items) and census::dress (the arms culture's). Derived, never saved;
+  // key() at rig 2 only when set. makerPeople and motif (D74) stay as they are.
+  uint32_t makers = 0;
+  int makerAt(int slot) const { return slot >= 0 && slot < TIER_SLOTS ? (int)(makers >> (4 * slot) & 0xFu) : 0; }
+  void setMaker(int slot, int people) {
+    if (slot < 0 || slot >= TIER_SLOTS) return;
+    const uint32_t sh = 4u * (uint32_t)slot;
+    makers = (makers & ~(0xFu << sh)) | ((uint32_t)(people > 0 && people < 16 ? people : 0) << sh);
+  }
   int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,

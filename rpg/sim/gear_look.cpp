@@ -399,6 +399,11 @@ art::IconLook gearIconKeys(const Item& it, const cult::Culture* maker) {
     const int band = gear::bandOf(std::max(1, (int)it.ilvl));
     if (band >= 4) l.tint = heart[std::min(band, 7) - 4];
   }
+  // (P5, FIX_BATCH_P5 4.2) the maker people and the piece's look tier: the icon's fingerprint (a worn piece only; 0 none)
+  if (const uint8_t lt = gear::lookTier(it, maker).tier) {
+    l.tier = lt;
+    if (maker) l.people = (uint8_t)((int)maker->archetype + 1);
+  }
   const bool m6 = maker || it.mat == Mat::Bronze || it.mat == Mat::Alloy || it.rarity >= Rarity::Epic;
   if (!m6 || it.kind == ItemKind::Material) return l;   // the classic icon (crafting stuff keeps its own)
   l.rarity = (uint8_t)it.rarity;
@@ -458,4 +463,5 @@ void retierLook(art::HumanLook& L, int tier, const cult::Culture* realm) {
   L.rare = 0; L.metalKind = 0; L.bladeKind = 0; L.mythic = 0; L.floor = 0; L.kitVar = 0; L.alloyFam = 0;
   L.forgeKit = 0; L.alloyRank = 0; L.forgeGuise = 0; L.forgeShape = 0;
   gear::rankTiers(L, tier, true, realm);
+  gear::keepMakers(L);   // (P5) the census's arms people stays on every worn slot (a piece added here wears it too)
 }
