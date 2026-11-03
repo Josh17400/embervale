@@ -1,0 +1,4 @@
+ok    C18a no twins            12987 checks,    0 failed
+ok    C18b culture outline      233 checks,    0 failed
+ok    C18c spread               259 checks,    0 failed
+doll-forge --silhouettes: 0 failure(s)

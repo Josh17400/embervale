@@ -1,0 +1,24 @@
+A1 v1 frame pick at rig 1: 21630 samples, identical (56fb08be96b73a1a)
+-- seed 1
+A2 dagger (pace 0.80): strike 6 frames, the effect reaches its end at frame 5.3 of it (off by 0.7)
+A2 mace (pace 1.25): strike 9 frames, the effect reaches its end at frame 8.2 of it (off by 0.8)
+A2 sword (pace 1.00): strike 7 frames, the effect reaches its end at frame 6.6 of it (off by 0.4)
+A3 unarmed    windup <t> in the sim, animEnemyWindup 0.288
+A3 dagger     windup <t> in the sim, animEnemyWindup 0.264
+A3 sword      windup <t> in the sim, animEnemyWindup 0.336
+A3 greatsword windup <t> in the sim, animEnemyWindup 0.456
+A3 axe        windup <t> in the sim, animEnemyWindup 0.384
+A3 mace       windup <t> in the sim, animEnemyWindup 0.432
+A3 spear      windup <t> in the sim, animEnemyWindup 0.360
+A3 staff      windup <t> in the sim, animEnemyWindup 0.360
+A3 spawn-weighted mean windup over 182 melee bandits: <t> (families: sword 95 axe 87)
+A4 rig 2: lying <t> after the blow, the corpse gone at <t>
+A4 rig 2: at most 24 corpses at once with 30 killed (cap 24)
+A5 rig 2: the hero's fall plays, lying at <t> (mode 6)
+A6 carry: 16 art ids ride as the plan says
+A6 drawn: weapons 1-8 drawn after a swing and away <t> later; tools, the stick, fists and civil trades never
+A6 threat: the guard draws and turns URD (a half turn through the side)
+A6 block: parry and shield front set <t>; frames 0@<t> 1@<t> 2@<t> 9@<t>
+A6 crossbow: draw/v1/f0/x1 draw/v1/f1/x1 release/v1/f0/x2 draw/v2/f0/x3 draw/v2/f1/x3 draw/v2/f2/x3; the recurve keeps draw v0
+A6 impact: hit 3 of the greatsword, axe and mace only (<t> windows)
+anim: 0 failures

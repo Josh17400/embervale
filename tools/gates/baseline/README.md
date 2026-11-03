@@ -15,9 +15,13 @@ The roots, oldest first (each made from the one before it by `rebase_baseline.sh
 - `p3f2/` the P3 batch merged with main's hotfix ecdcb5f (the creator preview is `Game::heroLook` as created;
   the T1 floor jerkin quilted from the wearer's shirt colour): 326 view-quick and 3607 view-all shots (3603 recorded; 4 sit in exclude.txt) with the hero or a
   companion in the floor jerkin, or a creator preview (`moves_p3f2/HOTFIX.txt`, reasons HOTFIX ecdcb5f).
-- `p4/` **CURRENT**: the P4 batch (the W7 testers' first hour; `moves_p4/<AREA>.txt`, 1090 items from 274 moves): TALK's
+- `p4/` the P4 batch (the W7 testers' first hour; `moves_p4/<AREA>.txt`, 1090 items from 274 moves): TALK's
   one dialogue order and pin (S2 bot lines, S3.save sizes, S10.digest and W6.digest_clang), ART's leather gambeson and
   body icons (S1 37 exes, S5.rig2, ART_TOTAL_RIG2, S6.pool, W4.doll), and view shots from ECONOMY, TALK, ART and VIEW.
+- `p4f1/` **CURRENT**: the P4 fix round (`moves_p4f1/FIX1.txt`, 331 items from 81 moves, judge P4 r1): the menu key hint's
+  own band at the panel foot (F1-6b), the DANGEROUS GROUND banner in three lines (F1-6a, `p4_view_long_banner.png` new),
+  the pin moved only by the player's own take (F1-2) and its QUEST STARTED banner (F1-QS): 52 view-quick and 279 view-all
+  shots; every other record is `p4`'s.
 
 A root holds `gates/` (the step and doll records, `expect.txt`, `unstable.txt`), `probes/` (sim digests, PNG and WAV
 hashes, perf) and `checks/` (layer allowlist, size report); a moved root adds `REV` (its git revision) and
