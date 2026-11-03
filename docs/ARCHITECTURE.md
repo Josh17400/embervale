@@ -133,10 +133,15 @@ Game calls a lane from a few fixed places:
   (`rpg/sim/dlg_routes.cpp`), whose table `kDlgRoutes` has one `{lo, hi, choose}` row per `DLG_*` range
   (`rpg/sim/game_types.h`) in the old check order (story first, the lord last); a static_assert keeps the ranges
   sorted and apart, so at most one lane takes an option;
+- the order of a dialogue page's options: `rpg/sim/dlg_order.cpp` (the sim layer; `rpg/sim/talk.h` section 6), whose
+  table `kOrder` gives every option a kind (standing or passing) by action range or value; `speech::orderFirstPage`
+  lays the first page out by it and `speech::startCursor` puts the keyboard cursor on its first passing quest option;
+- a quest started: `Game::acceptQuest(q, QuestStart)` (`rpg/sim/game_quests.cpp`): only `QuestStart::Player` (the
+  player's own take) moves the pin; a lane that starts a quest by itself passes nothing (`QuestStart::Game`);
 - the save (`rpg/sim/game_save.cpp`), when the lane keeps state.
 
 On the view side a lane gets its own files (`rpg/view/<lane>_ui.cpp`, `render_<lane>.cpp`) and, for tests, its own
-`rpg/view/scripts/<subject>.cpp`.
+`rpg/view/scripts/<subject>.cpp` (the P4 batch's: `economy_p4.cpp`, `talk_p4.cpp`, `view_p4.cpp`).
 
 ### 2.1 Staged functions (wave 3)
 
@@ -214,6 +219,8 @@ Tables that are hand-kept lists (one row per kind, but no self-registering macro
 - saved mark tags: the register `kMarkTags` in `rpg/sim/mark_tags.h` (every lane's tags by name, owner and value;
   the lanes keep their named constants in their own files, and `enum class Mk` holds the SIM lane's);
 - monsters: `kMonsterInfo` in `rpg/art/art_monsters.cpp` (cell size and painter, one row per `Monster`, static_assert);
+- dialogue option kinds: `kOrder` in `rpg/sim/dlg_order.cpp`, one row per kind in page order (a new `A_*` or `DLG_*`
+  option needs its row, or it is a passing option of kind `other`, ranked just before `escort`);
 - quest types: `enum class QType` in `rpg/sim/game_types.h`, with one `kQuestTraits` row each in `rpg/sim/quest_traits.h`
   and one `kQuestLines` row each in `rpg/sim/quests.cpp` (both static_assert their row count);
 - wayside places: one `VignetteDef` row per `VignetteKind` (`kVignettes`) and one `WonderDef` row per `WonderKind`
