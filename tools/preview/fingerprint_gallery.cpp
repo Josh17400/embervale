@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "rpg/art/doll/doll_internal.h"
 #include "tools/preview/fingerprint_audit.h"
 #include "tools/preview/preview_util.h"
 
@@ -197,48 +196,11 @@ void censusSheet(const Opts& o, uint32_t seed) {
 }
 
 // ---------------------------------------------------------------- the swatches: dyes, bands, marks (1x, 3x) and icons
-// a pool view drawn with the people's dye ramps (dye, dye2), the ink dark and every other slot a neutral leather
-Canvas markView(const dl::pool::Pool& P, const dl::pool::ViewRec& v, const Dye& d) {
-  Canvas c(v.w, v.h);
-  uint32_t r1[5], r2[5], lea[5];
-  dl::rampA3(hexc(d.dye), dl::Material::Cloth, r1);
-  dl::rampA3(hexc(d.dye2 ? d.dye2 : d.dye), dl::Material::Cloth, r2);
-  dl::rampA3(rgba(141, 85, 54), dl::Material::Leather, lea);
-  (void)P;
-  const int first = firstDyeSlot<dl::Slot>();
-  for (int y = 0; y < v.h; y++)
-    for (int x = 0; x < v.w; x++) {
-      const uint8_t code = v.cells.empty() ? 0 : v.cells[(size_t)(y * v.w + x)];
-      if (code < 2) continue;
-      const int s = (int)dl::codeSlot(code), st = dl::codeStep(code);
-      uint32_t col = lea[st];
-      if (s == (int)dl::Slot::Ink) col = rgba(28, 22, 26);
-      else if (s == first || (s >= first + 2 && s < first + 10)) col = r1[std::max(1, st)];
-      else if (s == first + 1 || s >= first + 10) col = r2[std::max(1, st)];
-      c.set(x, y, col | 0xFF000000u);
-    }
-  return c;
-}
-// the largest view of the role's parts whose key starts with the motif (then a digit); empty canvas: none drawn
-Canvas motifView(const std::string& role, const Dye& d) {
-  const dl::pool::Pool& P = dl::pool::get();
-  const dl::pool::ViewRec* best = nullptr;
-  for (int pi : P.partsWithRole(dl::Role::Overlay, role)) {
-    const dl::pool::PartRec& pr = P.parts[(size_t)pi];
-    for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews; vi++) {
-      const dl::pool::ViewRec& v = P.views[vi];
-      const std::string& k = P.s(v.key);
-      const size_t n = std::strlen(d.motif);
-      if (k.size() > n && k.compare(0, n, d.motif) == 0 && std::isdigit((unsigned char)k[n]) && (!best || v.w * v.h > best->w * best->h)) best = &v;
-    }
-  }
-  return best ? markView(P, *best, d) : Canvas();
-}
 void swatchSheet(const Opts& o, uint32_t seed) {
-  const int rowH = 56, lab = 70, top = 14;
+  const int rowH = 96, lab = 70, top = 14;
   Sheet sh(lab + 520, top + 12 * rowH + 4, kBg2);
-  sh.label(lab, 2, "DYE   DYE2  BAND (X+Y)     MARK 1X  MARK 3X        FILIGREE 3X     ICONS T1 COAT, T2 GLOVES, T3 STEEL");
-  const Col coat{"", G_BODY, ItemKind::Armor, kLeaT1, 0}, glov{"", G_GLOVES, ItemKind::Gloves, kLeaT2, 0}, steel{"", G_BODY, ItemKind::Armor, kSteT3, 0};
+  sh.label(lab, 2, "DYE   DYE2  BAND (X+Y)     T1 COAT WORN 1X, 2X      T5 MASTER 2X     ICONS T1 COAT, T2 GLOVES, T3 STEEL");
+  const Col master{"", G_BODY, ItemKind::Armor, kAllT5, 0}, coat{"", G_BODY, ItemKind::Armor, kLeaT1, 0}, glov{"", G_GLOVES, ItemKind::Gloves, kLeaT2, 0}, steel{"", G_BODY, ItemKind::Armor, kSteT3, 0};
   FpScope scope(!o.before);
   for (int p = 1; p < NM; p++) {
     const Dye d = dyeOf(p);
@@ -252,11 +214,10 @@ void swatchSheet(const Opts& o, uint32_t seed) {
         const int ph = d.period > 0 ? (x + y) % d.period : 0;
         sh.set(lab + 72 + x, y0 + y, hexc(ph < d.run || !d.dye2 ? d.dye : d.dye2) | 0xFF000000u);
       }
-    const Canvas mk = motifView("finish.mark", d), fil = motifView("finish.filigree", d);
-    if (mk.w) { sh.blit(mk, lab + 156, y0); sh.blit(mk, lab + 196, y0, 3); }
-    else sh.label(lab + 156, y0 + 4, "NO MARK");
-    if (fil.w) sh.blit(fil, lab + 290, y0, 3);
-    else sh.label(lab + 290, y0 + 4, "NO FILIGREE");
+    const Canvas mk = pieceCrop(seed, p, coat, kWhole), fil = pieceCrop(seed, p, master, kWhole);
+    if (mk.w) { sh.blit(mk, lab + 156, y0); sh.blit(mk, lab + 196, y0, 2); }
+    
+    if (fil.w) sh.blit(fil, lab + 300, y0, 2);
     int ix = lab + 380;
     for (const Col* c : {&coat, &glov, &steel}) {
       Item it;

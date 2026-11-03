@@ -22,14 +22,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "rpg/art/doll/doll_internal.h"
 #include "tools/preview/fingerprint_audit.h"
 #include "tools/tests/tests.h"
 
@@ -104,16 +105,31 @@ std::vector<std::pair<std::string, uint32_t>> materialSteps() {
   for (int s = 1; s <= 3 && T.size() >= 5; s++) out.push_back({"brass." + std::to_string(s), T[(size_t)s]});
   return out;
 }
-// a motif drawn in a finish role: a view keyed <motif><digit>... of a part serving `role overlay <value>`
-bool motifDrawn(const std::string& value, const std::string& motif) {
-  const dl::pool::Pool& P = dl::pool::get();
-  for (int pi : P.partsWithRole(dl::Role::Overlay, value)) {
-    const dl::pool::PartRec& pr = P.parts[(size_t)pi];
-    for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews; vi++) {
-      const std::string& k = P.s(P.views[vi].key);
-      if (k.size() > motif.size() && k.compare(0, motif.size(), motif) == 0 && std::isdigit((unsigned char)k[motif.size()])) return true;
+// the keys the finish maps draw for a role (`role overlay finish.mark` / `finish.filigree`): every `key <k>` of the
+// rpg/art/doll/maps/finish/*.pxm files serving it (the authored source; pxc.mjs --check keeps the pool equal to it)
+std::set<std::string> finishKeys(const std::string& role) {
+  std::set<std::string> keys;
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  for (const auto& e : fs::directory_iterator(std::string(EMB_SOURCE_DIR) + "/rpg/art/doll/maps/finish", ec)) {
+    if (e.path().extension() != ".pxm") continue;
+    std::ifstream f(e.path());
+    std::string ln, all;
+    bool serves = false;
+    std::set<std::string> ks;
+    static const std::regex key(" key ([A-Za-z]+[0-9]+x[0-9]+)( |$)");
+    while (std::getline(f, ln)) {
+      if (ln.rfind("role ", 0) == 0 && ln.find(role) != std::string::npos) serves = true;
+      std::smatch m;
+      if (ln.rfind("view ", 0) == 0 && std::regex_search(ln, m, key)) ks.insert(m[1].str());
     }
+    if (serves) keys.insert(ks.begin(), ks.end());
   }
+  return keys;
+}
+bool motifIn(const std::set<std::string>& keys, const std::string& motif) {
+  for (const std::string& k : keys)
+    if (k.size() > motif.size() && k.compare(0, motif.size(), motif) == 0 && std::isdigit((unsigned char)k[motif.size()])) return true;
   return false;
 }
 int lineF1(Ctx& c) {
@@ -153,9 +169,10 @@ int lineF1(Ctx& c) {
   std::sort(u.begin(), u.end());
   const bool distinct = std::unique(u.begin(), u.end()) == u.end() && motifs.size() == 12;
   std::string missing;
+  const std::set<std::string> markKeys = finishKeys("finish.mark"), filKeys = finishKeys("finish.filigree");
   for (const std::string& m : motifs) {
-    if (!motifDrawn("finish.mark", m)) missing += " mark:" + m;
-    if (!motifDrawn("finish.filigree", m)) missing += " filigree:" + m;
+    if (!motifIn(markKeys, m)) missing += " mark:" + m;
+    if (!motifIn(filKeys, m)) missing += " filigree:" + m;
   }
   bad += verdict(c, "F1 motifs", distinct && missing.empty(), fmt("12 motifs %s, each drawn in finish.mark and finish.filigree%s%s", distinct ? "all different" : "NOT all different",
                                                                       missing.empty() ? "" : "; missing", missing.c_str()));

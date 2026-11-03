@@ -79,6 +79,7 @@ motion_envelope|--doll --motion --limbs-looks tools/doll/envelope_looks.txt --re
 motion_ladder|--doll --motion --limbs-looks tools/doll/ladder_looks.txt --report
 motion_arms|--doll --motion --limbs-looks tools/doll/arms_looks.txt --report
 freeze|--doll-wear --freeze-check tools/doll/freeze/p2c_freeze.txt
+fingerprint|--fingerprint --seeds 1..3 --gates
 rig|--rig
 rig_gates|--rig --gates --report
 art_hash_rig1|!B/art_hash.exe --rig=1
