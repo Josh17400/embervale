@@ -18,18 +18,21 @@ extern const char kPoolHash[];
 // ---------------------------------------------------------------- names (the frozen tables: pxc.mjs mirrors them)
 const char* slotName(Slot s) {
   static const char* n[] = {"skin", "hair", "eyes", "face", "ink", "cloth1", "cloth2", "accent", "linen", "cloth3", "leather", "metal",
-                            "metal2", "head", "cloak", "pattern", "plume", "field", "device", "glow", "fx", "blade"};
+                            "metal2", "head", "cloak", "pattern", "plume", "field", "device", "glow", "fx", "blade",
+                            // (P5) maps name dye / dye2; the tier slots' pairs are the compositor's
+                            "dye", "dye2", "dyet0", "dyet1", "dyet2", "dyet3", "dyet4", "dyet5", "dyet6", "dyet7",
+                            "dye2t0", "dye2t1", "dye2t2", "dye2t3", "dye2t4", "dye2t5", "dye2t6", "dye2t7"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)SLOT_COUNT, "a name for every slot");
   return (int)s < SLOT_COUNT ? n[(int)s] : "?";
 }
 char regionChar(Region r) {
-  static const char c[] = ".UFCHXTKSBOERPGNW";
+  static const char c[] = ".UFCHXTKSBOERPGNWD";
   static_assert(sizeof(c) - 1 == (size_t)REGION_COUNT, "a character for every region");
   return (int)r < REGION_COUNT ? c[(int)r] : '?';
 }
 const char* regionName(Region r) {
   static const char* n[] = {"none", "upper", "fore", "cuff", "hand", "flare", "thigh", "knee", "shin", "boot", "sole", "edge",
-                            "trim", "panel", "gem", "seam", "wear"};
+                            "trim", "panel", "gem", "seam", "wear", "dyeseam"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)REGION_COUNT, "a name for every region");
   return (int)r < REGION_COUNT ? n[(int)r] : "?";
 }

@@ -156,8 +156,16 @@ namespace doll {
 // ---------------------------------------------------------------- the frozen tables (pxc.mjs mirrors every list)
 enum class Slot : uint8_t {
   Skin, Hair, Eyes, Face, Ink, Cloth1, Cloth2, Accent, Linen, Cloth3, Leather, Metal, Metal2, Head, Cloak, Pattern, Plume,
-  Field, Device, Glow, Fx, Blade, COUNT
+  Field, Device, Glow, Fx, Blade,
+  // (P5, FIX_BATCH_P5 4.3) the maker people's dye band: maps name Dye / Dye2 (`dye`, `dye2`: the mark tile's thread cells);
+  // the compositor moves a part's dye pixels to its tier slot's pair (DyeT<s> / Dye2T<s>, s = HumanLook::TIER_*, never named in
+  // maps), as it moves a held part's metal to Blade; rampsOf fills each pair from fp::row(makerAt(s)) (no maker: Accent)
+  Dye, Dye2, DyeT0, DyeT1, DyeT2, DyeT3, DyeT4, DyeT5, DyeT6, DyeT7, Dye2T0, Dye2T1, Dye2T2, Dye2T3, Dye2T4, Dye2T5, Dye2T6, Dye2T7,
+  COUNT
 };
+// (P5) the tier slot's dye pair and the test for any dye slot (the 18 slots from Dye)
+inline Slot dyeSlotOf(int tierSlot, bool second) { return (Slot)((int)(second ? Slot::Dye2T0 : Slot::DyeT0) + tierSlot); }
+inline bool isDyeSlot(Slot s) { return s >= Slot::Dye && s < Slot::COUNT; }
 // Face's steps: 0 lash, 1 eye white, 2 mouth, 3 lip tint, 4 blush. Eyes: 2 iris, 3 glint. Ink: 0. Fx: 0 edge, 1 body,
 // 2 core (A3's arc). Every other slot is a 5-step material ramp: 0 outline, 1 shadow, 2 base, 3 light, 4 highlight.
 // (P2c ladder, contracts 3b) Blade: the held weapon's Metal pixels draw in it (its own metal: bladeKind or weaponColor; equal
@@ -169,10 +177,13 @@ inline bool slotLit(Slot s) { return s != Slot::Ink && s != Slot::Face && s != S
 
 enum class Region : uint8_t { None, Upper, Fore, Cuff, Hand, Flare, Thigh, Knee, Shin, Boot, Sole, Edge,
                               Trim, Panel, Gem, Seam, Wear,   // (P2c ladder, contracts 3b) R P G N W: the finish regions
+                              // (P5) D: a dye seam, the fingerprint's N under FIX_FP (its cords and brow lines on lamellar and
+                              // helms); every other reader sees no region (the compositor reads it as '.', the probe records 0)
+                              DyeSeam,
                               COUNT };
 constexpr int REGION_COUNT = (int)Region::COUNT;
 constexpr int FIN_REGIONS = 5;   // Trim .. Wear (index = region - Region::Trim)
-char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' 'R' 'P' 'G' 'N' 'W' ('.' for None)
+char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' 'R' 'P' 'G' 'N' 'W' 'D' ('.' for None)
 const char* regionName(Region r);
 
 // the layer table (STYLE_P2 24), back to front; a view may name its own
@@ -250,6 +261,9 @@ const char* beardName(uint8_t beardStyle);         // full stubble boxed long br
 const char* neckName(uint8_t neck);                // "" scarf kerchief collar
 
 // ---------------------------------------------------------------- the recipe
+// (P2c ladder) the finish tiles (`role overlay finish.<name>`): bits of DollRecipe::finTiles
+enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32,
+                 FIN_TILE_MARK = 64 };   // (P5) the maker's mark (`role overlay finish.mark`, FIT on P by the slot's motif)
 struct DollRamps { uint32_t c[SLOT_COUNT][5] = {}; };   // every slot's 5 steps (rgba, opaque)
 struct Need { Role role = Role::Legs; std::string value; };
 struct DollRecipe {
@@ -283,6 +297,28 @@ struct DollRecipe {
   bool blade = false;                // the held part's metal draws in Slot::Blade
   bool guiseHead = false;            // (forge i3) the headwear part is a culture alloy's metal head: its cloth draws in Metal
   std::string motif = "oak";         // the filigree tile's motif (`tags fit` views <motif><w>x<h>)
+  // (P5, FIX_BATCH_P5 3.3) the maker people's fingerprint per tier slot (bits: 1 << HumanLook::TIER_*), set by the resolver
+  // only with FIX_FP and a maker on a worn armour piece (all zero: the pre-P5 recipe, pixel for pixel). maker: the fp row;
+  // fpR / fpN: R / N in the slot's dye band; fpCuff: the cuff row (the top row of cuffMask's regions: gloves, boots);
+  // fpHem: the procedural hem (the lowest row of a cloak part with no R); fpThin: N on every other canvas row (3.5's caps);
+  // tilesAt: the slot's finish tiles with the mark (FIN_TILE_MARK; at T4 instead of the etch) where fpMark has the slot;
+  // slotMotif: the mark's and the filigree's motif (fp::Row::motif); dyeRun / dyePeriod: the band along canvas x + y
+  uint8_t fpSlots = 0, fpR = 0, fpN = 0, fpCuff = 0, fpHem = 0, fpThin = 0;
+  uint8_t fpOuter = 0;   // R on its outer row only (the binding: an R pixel touching the outline or the outside)
+  uint8_t fpStitch = 0;  // R (and a cloak's hem) stitched: the band one period on, one period as drawn (a shield's whole rim)
+  uint8_t fpSparse = 0;  // the stitch one period on, two as drawn (a cloak whose border is most of its side view)
+  bool fpFlat = false;   // the dye in two steps and the dye2 in one (a figure near B8's 48 colours a frame)
+  uint8_t fpMark = 0;    // the mark tile on the slot (T1-T4, its motif drawn); at T4 it takes the etch's place
+  uint8_t maker[8] = {};
+  uint32_t cuffMask[8] = {};
+  uint8_t dyeRun[8] = {}, dyePeriod[8] = {};
+  std::string slotMotif[8];
+  bool fpOn(int ts) const { return ts >= 0 && ts < 8 && (fpSlots >> ts & 1); }
+  uint8_t tilesAt(int ts) const {
+    if (!fpOn(ts) || !(fpMark >> ts & 1)) return finTiles[ts];
+    return (uint8_t)((finTiles[ts] | FIN_TILE_MARK) & ~(pieceTier[ts] == 4 ? FIN_TILE_ETCH : 0));
+  }
+  const std::string& motifAt(int ts) const { return fpOn(ts) && !slotMotif[ts].empty() ? slotMotif[ts] : motif; }
   // (P2c forge, contracts 3c) each tier slot's forge style unpacked (rpg/art/doll/doll_forge.h axes: 0 base .. 7 fittings),
   // the body's cut already on the family its armour draws; armourFam that family (forge::Family; -1 no armour)
   uint8_t forgeAx[8][8] = {};
@@ -331,11 +367,20 @@ void contactRead(const DollRecipe& r, ContactRead& out);
 // (fix round 2, C14) a touching pair under 18 luma at step 2 that rampsOf's look-only parting could not clear, parted by the
 // figure's own contacts (resolve calls it last): the material moves, never the person (D88); only the pairs that touch hold it
 void partContacts(DollRecipe& r, const HumanLook& L);
+// (P5) the dye ramps parted from the materials they touch (C14's 18 luma), read on the fingerprinted figure's idle D and R;
+// only the dye ramps move (resolve calls it after partContacts, which reads the figure without its fingerprint)
+void partDyeContacts(DollRecipe& r);
+// (P5) the dye's share per fingerprinted slot held under FIX_BATCH_P5 3.5's caps (fpThin, fpOuter, fpN: resolve calls it first)
+void tuneFp(DollRecipe& r);
+// (P5, B8's 48 colours a frame) a fingerprinted figure over its colour budget on the idles: each dye step takes the nearest colour
+// the figure already wears (dE76 under 30), then the band goes solid (resolve calls it last)
+void fpBudget(DollRecipe& r);
+void snapDyes(DollRamps& R, const std::vector<uint32_t>& palette, bool solid);
+bool partDyeByContact(DollRamps& R, const ContactRead& c);
+void dyeRamps(const HumanLook& L, DollRamps& R);   // (P5) each tier slot's dye pair from fp::row(makerAt(slot)) (rampsOf calls it)
 // edgeOwn: the look's lit edge is held to its own step 1 (a dark sheen, KNAPPED, FURNACE, GLASS: C14), so no edge lift
 bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& c, bool edgeOwn, bool dbg);
 int trimSelftests(std::vector<std::string>* missed);   // (D93) the band's floor and ceiling modes on synthetic views   // C12b's measure on the idle frame 0 (gear px and Metal 2 trim per slot)
-// (P2c ladder) the finish tiles (`role overlay finish.<name>`): bits of DollRecipe::finTiles
-enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32 };
 // (P2c ladder) the tier slot (HumanLook::TIER_*) a part's finish follows (-1: none; see DollRecipe::fin)
 int partTierSlot(int part);
 

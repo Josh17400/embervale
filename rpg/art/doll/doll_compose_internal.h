@@ -96,6 +96,10 @@ extern thread_local bool g_breeze;
 extern thread_local bool g_deathPart;
 // (ladder i2) the pixels a held weapon wrote this frame (FramePaint writes them; a helm's erase and the speck passes spare them)
 extern thread_local std::vector<uint8_t> g_heldPx;
+// (P5) the code a fingerprinted pixel had before its dye or mark (0: the fingerprint left it): the post passes read the
+// figure as it was before P5 (composeFrame swaps them in and the fingerprint back after), so no glint, speck or seam pass
+// moves a pixel the fingerprint did not paint. Sized and written only for a recipe with DollRecipe::fpSlots
+extern thread_local std::vector<uint8_t> g_fpUnder;
 
 // ---------------------------------------------------------------- the passes (doll_passes.cpp)
 using PostPass = void (*)(const DollRecipe&, FrameOut&);
@@ -131,6 +135,8 @@ struct FramePaint {
     bool toBlade = false, toMetal = false, brassBody = false;
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
+    // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)
+    bool fp = false, fpR = false, fpN = false, fpThin = false, fpOuter = false, fpStitch = false, fpSparse = false, fpHemRow = false, fpEdge = false;
   };
 
   // the frame (anchors() sets them)
@@ -167,6 +173,9 @@ struct FramePaint {
   std::vector<Blob> blobs;
   std::vector<uint8_t> irisBand;
   std::vector<int> metalRow;
+  std::vector<int16_t> fpRow;   // (P5) per view column: the cuff's top row or the hem's bottom row (-1 none)
+  uint8_t fpPre = 0;
+  bool fpSeam = false;          // (P5) the pixel is a dye seam (Region::DyeSeam: read as no region, painted as N by the fingerprint)            // (P5) recolour's code before the fingerprint touched it (0: untouched); stamp files it in g_fpUnder
 
   // the frame, in order
   void anchors(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o);
@@ -186,8 +195,11 @@ struct FramePaint {
   void trimBandOf(const Item& it, const ViewRec& v, bool handOnly, ItemPaint& ip);
   void finishPlacements(const ViewRec& v, int ts, bool hasReg);
   void irisBands(const Item& it, const ViewRec& v, bool hasReg);
+  void fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip);
+  uint8_t fpColour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) const;
   void paintPixels(const ItemPaint& ip);
   uint8_t recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg);
+  uint8_t regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles);
   void stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]);
 };
 

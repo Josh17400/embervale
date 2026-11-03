@@ -37,8 +37,10 @@ const REPO = path.resolve(HERE, '..', '..');
 // ---------------------------------------------------------------------------------------------- the frozen tables
 // (rpg/art/doll/doll.h mirrors every list: ADD at the end, never reorder or rename)
 export const SLOTS = ['skin', 'hair', 'eyes', 'face', 'ink', 'cloth1', 'cloth2', 'accent', 'linen', 'cloth3', 'leather', 'metal',
-  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade'];
-export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16 };   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
+  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade',
+  // (P5) the maker's dye band (the mark tile's thread cells); doll.h's DyeT0..7 / Dye2T0..7 follow, the compositor's only
+  'dye', 'dye2'];
+export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16, D: 17 };   // (P5) D: a dye seam (the fingerprint's N; '.' to every other reader)   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
 export const LAYERS = ['fxBack', 'heldBack', 'back', 'cloakBack', 'hairBack', 'armFar', 'legs', 'shoes', 'hangBack', 'torso',
   'hangFront', 'belt', 'neck', 'armNear', 'head', 'face', 'beard', 'hairFront', 'ears', 'headwear', 'held', 'shield',
   'cloakFront', 'fx'];
@@ -1046,6 +1048,19 @@ function report(c) {
     }
   }
   for (const x of c.warnings) console.log(`  warning ${x.where}: ${x.msg}${x.draft ? ' (draft)' : ''}`);
+  // (P5, FIX_BATCH_P5 4.3) the base views of an armour, helm, shield or cloak part with neither R nor N cells: where the maker's
+  // fingerprint has nowhere to land (a new piece must carry them; by design: crests, plumes, the arm strap, mail sleeves, the
+  // cape and fur cloaks, the cloaks' fronts). A list, not a craft warning
+  const FP_ROLES = new Set(['armour', 'helm', 'shield', 'cloak']);
+  for (const P of c.parts) {
+    if (!P.roles.some((r) => FP_ROLES.has(ROLES[r.cat]))) continue;
+    for (const V of P.views) {
+      if (!V.cells || V.when) continue;
+      let lands = false;
+      if (V.reg) for (let k = 0; k < V.reg.length && !lands; k++) lands = (V.reg[k] === REGIONS.R || V.reg[k] === REGIONS.N || V.reg[k] === REGIONS.D) && V.cells[k] >= 2;
+      if (!lands) console.log(`fp-landing: ${P.name} ${FACINGS[V.facing] || 'any'} ${V.key}`);
+    }
+  }
   const { pk } = c;
   console.log(`pool: ${c.parts.length} parts, ${pk.views} views, ${pk.marks} marks, ${c.bodySets.length} body sets, ${c.clips.length} clips, ${pk.frames} frames`);
   console.log(`pool: ${pk.opaquePx} opaque px in ${pk.cellCount} cells; ${pk.pool.length} bytes (${(pk.pool.length / 1048576).toFixed(3)} MiB of the ${(POOL_BUDGET / 1048576).toFixed(1)} MiB budget: ${pk.pool.length <= POOL_BUDGET ? 'within' : 'OVER'}); pixel data ${pk.blobBytes} bytes; ${Math.max(1, Math.ceil(pk.pool.length / CHUNK))} chunk(s); hash ${pk.hash}`);

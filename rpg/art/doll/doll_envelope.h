@@ -82,7 +82,8 @@ enum FixRule : uint32_t {
   FIX_KING = 512,   // D96: the king's full cape, his deep ramp (the Heartland king's pinned to e25ea41's)
   FIX_TRIM4 = 1024, // D93: the trim band lands each piece inside its tier's band (floor and ceiling modes)
   FIX_C14 = 2048,   // fix round 4: C14's lit edges (D88's ramps inside the parting rules)
-  FIX_ALL = 4095
+  FIX_FP = 4096,    // (P5) the maker people's fingerprint on armour (FIX_BATCH_P5 3.3): EMB_FIX_RULES=4095 draws the pre-P5 look
+  FIX_ALL = 8191
 };
 // (fix round 2) EMB_FIX_RULES=<mask> (diagnostics only: unset in the game and every gate) starts with that mask
 inline uint32_t& fixRules() {

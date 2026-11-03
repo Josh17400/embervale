@@ -24,6 +24,7 @@
 #include "rpg/art.h"
 #include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_internal.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
@@ -1503,10 +1504,158 @@ int runLadderScope(int a, int b, bool allWeapons, bool finish, bool self, std::v
   return fails;
 }
 
+// ---------------------------------------------------------------- (P5) --doll-ladder --fp: the fingerprint on vs off
+// Every look of --looks F (default the slice's), idle frame 0 in four facings, composed with FIX_FP and without it (the pre-P5
+// look from the same build): F6's additive read (the opaque masks identical; every differing pixel a dye pixel, or a mark's
+// Ink step inside P), F7 (a look with no maker identical), the dye's share of each worn piece (the largest of the four views,
+// FIX_BATCH_P5 3.5's caps) and the worn leather body's mean hue and saturation (facing D). --png DIR: per look the D and R
+// idle off | on | on in grey at 8x (<tag>_fp.png). Returns the failing lines
+namespace {
+uint32_t greyOf(uint32_t c) {
+  const int l = (int)((c & 255u) * 0.299 + (c >> 8 & 255u) * 0.587 + (c >> 16 & 255u) * 0.114);
+  return 0xFF000000u | (uint32_t)l << 16 | (uint32_t)l << 8 | (uint32_t)l;
+}
+void hueSat(double r, double g, double b, double& h, double& s) {
+  const double mx = std::max({r, g, b}), mn = std::min({r, g, b}), d = mx - mn;
+  s = mx > 0 ? d / mx : 0;
+  if (d <= 0) { h = 0; return; }
+  if (mx == r) h = 60.0 * std::fmod((g - b) / d, 6.0);
+  else if (mx == g) h = 60.0 * ((b - r) / d + 2.0);
+  else h = 60.0 * ((r - g) / d + 4.0);
+  if (h < 0) h += 360.0;
+}
+}  // namespace
+int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
+  using doll::Slot;
+  const uint32_t all = doll::fixRules();
+  static const char* const kSlot[8] = {"body", "helm", "shield", "weapon", "gloves", "boots", "cloak", "back"};
+  int fails = 0, nLooks = 0, nMaker = 0;
+  for (const Look& l : looks) {
+    doll::fixRules() = all & ~(uint32_t)doll::FIX_FP;
+    const Built off = build(l);
+    doll::fixRules() = all;
+    const Built on = build(l);
+    nLooks++;
+    const bool maker = on.r.fpSlots != 0;
+    nMaker += maker;
+    int px[8] = {}, dye[8] = {}, bad = 0, maskBad = 0, diff = 0, glints = 0, cols[2] = {};
+    double best[8] = {};
+    std::vector<uint32_t> img;
+    int iw = 0, ih = 0;
+    double meanOn[3] = {}, meanOff[3] = {};
+    int nMean = 0;
+    for (int f = 0; f < 4; f++) {
+      const doll::FrameProbe a = doll::probeFrame(off.r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
+      const doll::FrameProbe b = doll::probeFrame(on.r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
+      if (!a.ok || !b.ok) continue;
+      if (a.w != b.w || a.h != b.h) { maskBad++; continue; }
+      int fpx[8] = {}, fdye[8] = {};
+      for (int side = 0; side < 2; side++) {   // (B8's read: each frame's distinct colours, before and after)
+        const doll::FrameProbe& q = side ? b : a;
+        std::vector<uint32_t> cs;
+        for (uint8_t c : q.code) if (c >= 2) cs.push_back(colourOf(side ? on.r : off.r, c));
+        std::sort(cs.begin(), cs.end());
+        cols[side] = std::max(cols[side], (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+      }
+      for (size_t k = 0; k < b.code.size(); k++) {
+        const uint8_t ca = a.code[k], cb = b.code[k];
+        if ((ca >= 2) != (cb >= 2)) { maskBad++; continue; }
+        if (cb < 2) continue;
+        const int it = b.owner[k];
+        const int ts = it >= 0 && (size_t)it < b.items.size() ? doll::partTierSlot(b.items[(size_t)it].partIndex) : -1;
+        if (ts >= 0) { fpx[ts]++; if (doll::isDyeSlot(doll::codeSlot(cb))) fdye[ts]++; }
+        if (f == 0 && ts == HumanLook::TIER_BODY) {
+          const uint32_t x = colourOf(on.r, cb), y = colourOf(off.r, ca);
+          meanOn[0] += x & 255u; meanOn[1] += x >> 8 & 255u; meanOn[2] += x >> 16 & 255u;
+          meanOff[0] += y & 255u; meanOff[1] += y >> 8 & 255u; meanOff[2] += y >> 16 & 255u;
+          nMean++;
+        }
+        if (ca == cb) continue;
+        diff++;
+        const bool dyeNow = doll::isDyeSlot(doll::codeSlot(cb));
+        // (a mark's Ink step inside P; the filigree in the slot's own motif at T5-T6: its P and its band rows on R)
+        const int pt = ts >= 0 ? on.r.pieceTier[ts] : 0;
+        const bool relief = (doll::codeSlot(ca) == doll::codeSlot(cb) && b.region[k] == (uint8_t)doll::Region::Panel) ||
+                            (pt >= 5 && (b.region[k] == (uint8_t)doll::Region::Panel || b.region[k] == (uint8_t)doll::Region::Trim));
+        // (a glint the glint passes moved because the T5-T6 filigree's motif moved: step 3 <-> 4 in its own slot)
+        // (or any step of the same slot on a figure whose T5-T6 filigree changed motif: the passes read the new gilding; the
+        // dye alone never moves a pass, g_fpUnder)
+        bool motifMoved = false;
+        for (int s = 0; s < 8; s++) motifMoved = motifMoved || (on.r.pieceTier[s] >= 5 && on.r.fpOn(s) && on.r.motifAt(s) != on.r.motif);
+        const bool glintShift = doll::codeSlot(ca) == doll::codeSlot(cb) && ((doll::codeStep(ca) >= 3 && doll::codeStep(cb) >= 3 && on.L.topTier() >= 5) || motifMoved);
+        if (glintShift) glints++;
+        if (!dyeNow && !relief && !glintShift) {
+          bad++;
+          if (g_report && bad <= 6)
+            std::printf("    %s f%d (%d,%d): %s %d -> %s %d (region %c, %s)\n", l.tag.c_str(), f, (int)(k % b.w), (int)(k / b.w), doll::slotName(doll::codeSlot(ca)), doll::codeStep(ca),
+                        doll::slotName(doll::codeSlot(cb)), doll::codeStep(cb), doll::regionChar((doll::Region)b.region[k]),
+                        it >= 0 && (size_t)it < b.items.size() ? b.items[(size_t)it].part.c_str() : "-");
+        }
+      }
+      for (int s = 0; s < 8; s++) {
+        px[s] = std::max(px[s], fpx[s]);
+        dye[s] = std::max(dye[s], fdye[s]);
+        if (fpx[s]) best[s] = std::max(best[s], 100.0 * fdye[s] / fpx[s]);
+      }
+      if (pngDir && (f == 0 || f == 2)) {   // off | on | grey on, 8x, D then R side by side (the figure's box)
+        int x0 = a.w, y0 = a.h, x1 = -1, y1 = -1;
+        for (int y = 0; y < a.h; y++)
+          for (int x = 0; x < a.w; x++)
+            if (a.code[(size_t)y * a.w + x] >= 2) { x0 = std::min(x0, x); y0 = std::min(y0, y); x1 = std::max(x1, x); y1 = std::max(y1, y); }
+        if (x1 >= 0) {
+          const int S = 8, gap = 3, bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+          if (img.empty()) { iw = 6 * (bw + 6) + 4 * gap; ih = bh + 4; img.assign((size_t)iw * S * ih * S, 0xFF2E5A32u); }
+          const int ox = f == 0 ? 1 : 3 * (bw + 6) + 2 * gap;
+          for (int y = 0; y < bh && y + 2 < ih; y++)
+            for (int x = 0; x < bw; x++)
+              for (int panel = 0; panel < 3; panel++) {
+                const size_t k = (size_t)(y + y0) * a.w + x + x0;
+                const uint8_t c = panel == 0 ? a.code[k] : b.code[k];
+                if (c < 2) continue;
+                uint32_t col = colourOf(panel == 0 ? off.r : on.r, c);
+                if (panel == 2) col = greyOf(col);
+                const int X = ox + panel * (bw + 6) + x;
+                if (X >= iw) continue;
+                for (int dy = 0; dy < S; dy++)
+                  for (int dx = 0; dx < S; dx++) img[(size_t)((y + 2) * S + dy) * iw * S + X * S + dx] = col;
+              }
+        }
+      }
+    }
+    std::string sh;
+    bool over = false;
+    for (int s = 0; s < 8; s++) {
+      if (!(on.r.fpSlots >> s & 1) || !px[s]) continue;
+      const int t = on.r.pieceTier[s];
+      const double cap = s == 0 ? (t <= 2 ? 15.0 : 20.0) : s == 1 ? 25.0 : s == 2 ? 30.0 : s == 4 ? 40.0 : s == 5 ? 20.0 : 15.0;
+      if (best[s] > cap) over = true;
+      sh += fmt(" %s T%d %.1f%%%s", kSlot[s], t, best[s], best[s] > cap ? fmt(">%.0f", cap).c_str() : "");
+    }
+    std::string mean;
+    if (nMean) {
+      double h0, s0, h1, s1;
+      hueSat(meanOff[0] / nMean, meanOff[1] / nMean, meanOff[2] / nMean, h0, s0);
+      hueSat(meanOn[0] / nMean, meanOn[1] / nMean, meanOn[2] / nMean, h1, s1);
+      mean = fmt("; body mean hue %.0f -> %.0f sat %.2f -> %.2f", h0, h1, s0, s1);
+      if (maker && h0 >= 15 && h0 <= 45 && s0 >= 0.2 && (h1 < std::min(15.0, h0 - 3) || h1 > std::max(45.0, h0 + 3) || s1 < s0 - 0.10)) { over = true; mean += " (the leather read lost)"; }
+    }
+    mean += fmt("; colours %d -> %d%s", cols[0], cols[1], on.r.fpFlat ? " (flat)" : "");
+    const bool fail = maskBad || bad || (!maker && diff) || over || cols[1] > std::max(48, cols[0]);
+    fails += fail;
+    std::printf("%s %-10s makers %08X%s: %d px differ, %d not dye or relief (%d glints moved), mask %d;%s%s\n", fail ? "FAIL" : "ok  ", l.tag.c_str(), on.L.makers,
+                maker ? "" : " (none)", diff, bad, glints, maskBad, sh.c_str(), mean.c_str());
+    if (pngDir && !img.empty()) writePng((std::string(pngDir) + "/" + l.tag + "_fp.png").c_str(), iw * 8, ih * 8, img);
+  }
+  doll::fixRules() = all;
+  std::printf("doll-ladder --fp: %d looks (%d with makers), %d failing\n", nLooks, nMaker, fails);
+  return fails;
+}
+
 int ladderCmd(int argc, char** argv) {
   const char* looksFile = nullptr;
   const char* pool = nullptr;
-  bool finish = false, self = false, scopeL = false, allW = false;
+  bool finish = false, self = false, scopeL = false, allW = false, fpMode = false;
+  const char* pngDir = nullptr;
   int sa = 1, sb = 3;
   for (int i = 1; i < argc; i++) {
     if ((!std::strcmp(argv[i], "--looks") || !std::strcmp(argv[i], "--limbs-looks")) && i + 1 < argc) looksFile = argv[++i];
@@ -1517,6 +1666,8 @@ int ladderCmd(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--scope") && i + 1 < argc) scopeL = !std::strcmp(argv[++i], "ladder");
     else if (!std::strcmp(argv[i], "--peoples") && i + 1 < argc) allW = !std::strcmp(argv[++i], "all");
     else if (!std::strcmp(argv[i], "--seeds") && i + 1 < argc) { if (std::sscanf(argv[++i], "%d..%d", &sa, &sb) < 2) sb = sa; }
+    else if (!std::strcmp(argv[i], "--fp")) fpMode = true;
+    else if (!std::strcmp(argv[i], "--png") && i + 1 < argc) pngDir = argv[++i];
   }
   if (pool) {
     std::string err;
@@ -1525,6 +1676,11 @@ int ladderCmd(int argc, char** argv) {
   const int was = art::rigVersion();
   art::setRigVersion(2);
   const std::string text = looksFile ? readFile(looksFile) : dollSliceLooksText();
+  if (fpMode) {   // (P5)
+    const int f = fpCmd(parseLooks(text), pngDir);
+    art::setRigVersion(was);
+    return f ? 1 : 0;
+  }
   std::vector<std::string> out;
   const int fails = scopeL ? runLadderScope(sa, sb, allW, finish, self, out) : runLadderGates(parseLooks(text), finish, self, out);
   for (const std::string& l : out) std::printf("%s\n", l.c_str());

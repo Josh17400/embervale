@@ -12,6 +12,7 @@
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
+#include "rpg/core/fingerprint.h"
 
 namespace art {
 namespace doll {
@@ -1236,6 +1237,7 @@ HumanLook ladderLook(const HumanLook& L) {
   return E;
 }
 
+void fingerprintOf(const HumanLook& L, DollRecipe& r);   // (P5; below)
 // the finish by each piece's own tier (contracts 3b's table); the Rare mark gives R the next tier's column
 void ladderOf(const HumanLook& L, DollRecipe& r) {
   if (!L.topTier()) return;
@@ -1295,6 +1297,7 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
     if (mythicAlloy(L, s)) { r.fin[s][0] = (uint8_t)Slot::Glow; if (r.fin[s][3] == 0xFF || r.fin[s][3] != (uint8_t)Slot::Glow) r.fin[s][3] = (uint8_t)Slot::Glow; }
   static const char* const kMotif[4] = {"oak", "clouds", "laurel", "knot"};
   r.motif = kMotif[L.motif < 4 ? L.motif : 0];
+  fingerprintOf(L, r);   // (P5)
   auto flagS = [&](const std::string& f) { r.flags.push_back(f); };
   static const char* const kSlotFlag[8] = {"armour", "helm", "shield", "held", "gloves", "boots", "cloak", "back"};
   for (int s = 0; s < 8; s++) {
@@ -1306,6 +1309,62 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
   static const char* const kMetal[12] = {"", "leather", "bronze", "iron", "steel", "gilded", "jade", "obsidian", "ember", "starmetal", "alloy", "mythic"};
   if (L.metalKind >= 1 && L.metalKind <= 11) flagS(std::string("metal-") + kMetal[L.metalKind]);
   if (L.mythic && !r.has("mythic")) flagS("mythic");
+}
+
+// (P5, FIX_BATCH_P5 3.3) the maker people's fingerprint, keyed on each worn armour piece's own maker (HumanLook::makerAt) and
+// its own tier: R in the dye band at T1-T2 (a cloak's border through T4; brass and gold from T3 as the ladder's), N at T1-T5
+// (T6 the runes; a glowing alloy's, FURNACE's and a Mythic alloy's N keep their Glow), the cuff row of gloves and boots at
+// T1-T5, the hem of a cloak with no R at T1-T4, the mark (FIN_TILE_MARK) at T1-T4 (at T4 instead of the etch) and the
+// filigree in the slot's motif. Not drawn: weapons, the back, a slot with no maker. Behind FIX_FP: off, nothing here is set
+void fingerprintOf(const HumanLook& L, DollRecipe& r) {
+  if (!fixOn(FIX_FP) || !L.makers) return;
+  const pool::Pool& P = pool::get();
+  using H = HumanLook;
+  uint8_t mark = 0;
+  for (int s : {(int)H::TIER_BODY, (int)H::TIER_HELM, (int)H::TIER_SHIELD, (int)H::TIER_GLOVES, (int)H::TIER_BOOTS, (int)H::TIER_CLOAK}) {
+    const int m = L.makerAt(s), t = r.pieceTier[s];
+    if (m <= 0 || m >= fp::kPeoples || t < 1 || t > 6) continue;
+    if ((s == H::TIER_GLOVES && !L.gloves) || (s == H::TIER_BOOTS && !L.boots)) continue;
+    const fp::Row& row = fp::row(m);
+    const uint8_t bit = (uint8_t)(1u << s);
+    r.fpSlots |= bit;
+    r.maker[s] = (uint8_t)m;
+    r.slotMotif[s] = row.motif;
+    r.dyePeriod[s] = row.dye2 && row.period >= 2 ? row.period : 1;
+    r.dyeRun[s] = row.dye2 && row.period >= 2 ? std::clamp<uint8_t>(row.run, 1, (uint8_t)(row.period - 1)) : 1;
+    const int tr = std::min(6, t + ((L.rare >> s & 1) ? 1 : 0));
+    const uint8_t glow = (uint8_t)Slot::Glow;
+    if (r.fin[s][0] != glow && (tr <= 2 || (s == H::TIER_CLOAK && t <= 4))) r.fpR |= bit;
+    if (r.fin[s][3] != glow && t <= 5) r.fpN |= bit;
+    if ((s == H::TIER_GLOVES || s == H::TIER_BOOTS) && t <= 5) {
+      r.fpCuff |= bit;
+      auto rb = [](Region g) { return 1u << (int)g; };
+      r.cuffMask[s] = s == H::TIER_GLOVES ? rb(Region::Hand) | (L.gloves >= 3 ? rb(Region::Flare) : 0u)
+                                          : rb(Region::Boot) | (L.boots >= 2 ? rb(Region::Shin) : 0u) | (L.boots >= 3 ? rb(Region::Knee) : 0u);
+    }
+    if (s == H::TIER_CLOAK && t <= 4) r.fpHem |= bit;
+    if (t <= 4) mark |= bit;
+  }
+  // the mark tile on each T1-T4 slot whose motif the pool draws (a decoration, never a hole: a motif with no drawing keeps the
+  // etch at T4 and adds nothing; --doll-coverage --scope envelope lists it)
+  if (!mark) return;
+  std::set<std::string> drawn;
+  if (drawnFor(Role::Overlay, "finish.mark", r.body))
+    for (int pi : P.partsWithRole(Role::Overlay, "finish.mark"))
+      for (uint32_t i = P.parts[(size_t)pi].firstView; i < P.parts[(size_t)pi].firstView + P.parts[(size_t)pi].nViews; i++) {
+        const std::string& k = P.s(P.views[i].key);
+        size_t e = k.size();
+        while (e > 0 && (std::isdigit((unsigned char)k[e - 1]) || k[e - 1] == 'x')) e--;
+        if (e > 0 && e < k.size()) drawn.insert(k.substr(0, e));
+      }
+  std::set<std::string> missing;
+  for (int s = 0; s < 8; s++) {
+    if (!(mark >> s & 1)) continue;
+    if (drawn.count(r.slotMotif[s])) r.fpMark |= (uint8_t)(1u << s);
+    else missing.insert(r.slotMotif[s]);
+  }
+  if (r.fpMark) r.needs.push_back(Need{Role::Overlay, "finish.mark"});
+  if (g_envMissing) for (const std::string& mo : missing) g_envMissing->push_back("mark " + mo + " (no drawing)");
 }
 
 }  // namespace
@@ -1466,6 +1525,10 @@ DollRecipe resolve(const HumanLook& L0) {
       r.flags.erase(std::remove_if(r.flags.begin(), r.flags.end(), [](const std::string& f) { return f.rfind("crest-", 0) == 0; }), r.flags.end());
     }
   }
+  // (P5) the trim band's levels and C14's parting read the figure without its fingerprint (the pre-P5 recipe), so every
+  // material ramp and band level stays as it was; the dye ramps part from what they touch after (partDyeContacts)
+  const uint8_t fpKeep = r.fpSlots;
+  r.fpSlots = 0;
   // (wave-2 fix round 4, D93) the trim band's level per slot, measured on the finished recipe's idle D and R
   tuneTrim(r);
   // (fix round 2, C14) a touching pair rampsOf's look-only parting left under 18 luma, parted by the figure's own contacts; the
@@ -1479,6 +1542,10 @@ DollRecipe resolve(const HumanLook& L0) {
   if (fixOn(FIX_C14) && !heroGuard && !r.has("king") &&
       !std::getenv("EMB_NO_CONTACT_PART"))   // (diagnostics only: the boards' before)
     partContacts(r, L);
+  r.fpSlots = fpKeep;
+  if (fpKeep) tuneFp(r);
+  if (fpKeep) partDyeContacts(r);
+  if (fpKeep) fpBudget(r);
   return r;
 }
 

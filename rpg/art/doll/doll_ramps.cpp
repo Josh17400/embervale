@@ -30,6 +30,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/core/fingerprint.h"
 
 namespace art {
 namespace doll {
@@ -483,6 +484,9 @@ DollRamps a3Palette(int who) {
   for (Slot s : {Slot::Head, Slot::Cloak, Slot::Pattern, Slot::Plume, Slot::Field, Slot::Device, Slot::Glow})
     for (int i = 0; i < 5; i++) R.c[(int)s][i] = R.c[(int)Slot::Accent][i];
   for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];   // (P2c ladder) the blade: A3's steel
+  // (P5) the dye slots: the Accent ramp until a maker fills its tier slot's pair (rampsOf), so a draft's dye cells render
+  for (int s = (int)Slot::Dye; s < SLOT_COUNT; s++)
+    for (int i = 0; i < 5; i++) R.c[s][i] = R.c[(int)Slot::Accent][i];
   return R;
 }
 
@@ -1314,7 +1318,110 @@ DollRamps rampsOf(const HumanLook& L) {
   if (L.forgeGuise && L.forge[HumanLook::TIER_HELM] && (L.forge[HumanLook::TIER_HELM] & 0xFF) == 0 &&
       forge::guiseHeadwear(forge::unpackGuise(L.forgeGuise).helm))
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Head][i] = R.c[(int)Slot::Metal][i];
+  dyeRamps(L, R);
   return R;
+}
+
+// (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
+// the dye again); a slot with no maker keeps the Accent ramp (a3Palette), so a draft's dye cells render. Only the dye slots
+void dyeRamps(const HumanLook& L, DollRamps& R) {
+  for (int s = 0; s < 8; s++) {
+    const int m = L.makerAt(s);
+    if (m <= 0 || m >= fp::kPeoples) continue;
+    const fp::Row& row = fp::row(m);
+    uint32_t* d1 = R.c[(int)dyeSlotOf(s, false)];
+    uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
+    rampA3(hex(row.dye), Material::Cloth, d1);
+    if (row.dye2) rampA3(hex(row.dye2), Material::Cloth, d2);
+    else for (int i = 0; i < 5; i++) d2[i] = d1[i];
+  }
+}
+
+// (P5, FIX_BATCH_P5 4.3; C14 for the dye) a dye ramp touching a material on 3 or more contacts under 18 luma at step 2 climbs or
+// sinks whole (steps 1-4, hue kept, the outline kept, the nearest scale first) until it holds 18 against every pair it touches
+// that way; never the material's ramp (the figure's other pixels stay the pre-P5 ones). Returns true when it moved a ramp
+void snapDyes(DollRamps& R, const std::vector<uint32_t>& palette, bool solid) {
+  for (int d = (int)Slot::DyeT0; d < SLOT_COUNT; d++) {
+    if (solid && d >= (int)Slot::Dye2T0) { for (int q = 0; q < 5; q++) R.c[d][q] = R.c[d - 8][q]; continue; }
+    for (int q = 1; q <= 3; q++) {
+      float best = 30.0f;
+      for (uint32_t p : palette) { const float e = deltaE76(R.c[d][q], p); if (e < best) { best = e; R.c[d][q] = p; } }
+    }
+  }
+}
+bool partDyeByContact(DollRamps& R, const ContactRead& cr) {
+  // the dye slots sharing one ramp (one maker's pieces) move as one, so a maker's pieces never part into two colours (B8)
+  std::vector<std::vector<int>> groups;
+  for (int d = (int)Slot::DyeT0; d < SLOT_COUNT; d++) {
+    bool put = false;
+    for (auto& g : groups)
+      if (std::equal(R.c[g[0]], R.c[g[0]] + 5, R.c[d])) { g.push_back(d); put = true; break; }
+    if (!put) groups.push_back({d});
+  }
+  auto inGroup = [](const std::vector<int>& g, int o) { return std::find(g.begin(), g.end(), o) != g.end(); };
+  auto setAll = [&](const std::vector<int>& g, const uint32_t* t) { for (int d : g) for (int q = 1; q < 5; q++) R.c[d][q] = t[q]; };
+  bool moved = false;
+  for (const auto& g : groups) {
+    // what the group touches (its band's other colour is a band, not a contact)
+    std::vector<int> con(SLOT_COUNT, 0);
+    for (int d : g) {
+      const int pair = d < (int)Slot::Dye2T0 ? d + 8 : d - 8;
+      for (int o = 0; o < SLOT_COUNT; o++)
+        if (o != pair && !inGroup(g, o)) con[o] += (int)cr.touch[d][o] + (int)cr.touch[o][d];
+    }
+    auto clear = [&](const uint32_t* t) {
+      for (int o = 0; o < SLOT_COUNT; o++) {
+        if (con[o] < 3 || o == (int)Slot::Ink || o == (int)Slot::Glow || o == (int)Slot::Fx || o >= (int)Slot::Dye) continue;
+        if (std::fabs(luma(t[2]) - luma(R.c[o][2])) < 18.0) return false;
+      }
+      return true;
+    };
+    const uint32_t* T = R.c[g[0]];
+    if (clear(T)) continue;
+    for (int k = 1; k <= 60; k++) {
+      bool done = false;
+      for (double dir : {1.0, -1.0}) {
+        const double f = 1.0 + dir * 0.0125 * k;
+        uint32_t t[5];
+        t[0] = T[0];
+        for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+        if (luma(t[4]) > 252.0 || luma(t[2]) - luma(T[0]) < 30.0) continue;
+        if (clear(t)) { setAll(g, t); done = moved = true; break; }
+      }
+      if (done) break;
+    }
+  }
+  // (C14's lit edge, as partByContact's lift) the lit top-left edge's upper quartile 40 luma over the darkest day ground: the
+  // dye group with the most edge pixels under the mark climbs whole (steps 1-4, hue kept), never a material
+  const double want = luma(0xFF1E2A24u) + 40.0 + 0.5;
+  for (int e = 0; e < 2; e++) {
+    auto quart = [&]() {
+      std::vector<double> v;
+      for (uint8_t c : cr.edge[e]) v.push_back(luma(R.c[(int)codeSlot(c)][codeStep(c)]));
+      if (v.empty()) return 1e9;
+      std::sort(v.begin(), v.end());
+      return v[v.size() * 3 / 4];
+    };
+    for (const auto& g : groups) {
+      if (quart() >= want) break;
+      bool onEdge = false;
+      for (uint8_t c : cr.edge[e]) onEdge = onEdge || (inGroup(g, (int)codeSlot(c)) && luma(R.c[(int)codeSlot(c)][codeStep(c)]) < want);
+      if (!onEdge) continue;
+      uint32_t base[5];
+      for (int q = 0; q < 5; q++) base[q] = R.c[g[0]][q];
+      for (int k = 1; k <= 64 && quart() < want; k++) {
+        uint32_t t[5];
+        t[0] = base[0];
+        const double f = 1.0 + 0.0125 * k;
+        for (int q = 1; q < 5; q++) t[q] = scaleRgb(base[q], f);
+        if (luma(t[4]) > 250.0) t[4] = scaleRgb(base[4], std::max(1.0, 250.0 / std::max(1.0, luma(base[4]))));   // (the glint step capped)
+        if (luma(t[3]) > 250.0) break;
+        setAll(g, t);
+        moved = true;
+      }
+    }
+  }
+  return moved;
 }
 
 // (fix round 2, C14) rampsOf parts the materials by the look alone, so it must keep every pair that was 18 apart whether or not

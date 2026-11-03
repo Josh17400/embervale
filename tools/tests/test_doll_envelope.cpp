@@ -27,6 +27,7 @@
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
+#include "rpg/core/fingerprint.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear_ladder.h"
@@ -2442,6 +2443,16 @@ int recipeCmd(int argc, char** argv) {
     for (const std::string& f : b.r.envelopeMissing) std::printf(" [%s]", f.c_str());
     std::printf("\n  forgeMissing:");
     for (const std::string& f : b.r.forgeMissing) std::printf(" [%s]", f.c_str());
+    // (P5) each tier slot's maker and motif, and what the fingerprint draws there (R N cuff hem mark; thin outer stitch)
+    std::printf("\n  makers:");
+    static const char* const kTs[8] = {"body", "helm", "shield", "weapon", "gloves", "boots", "cloak", "back"};
+    for (int s = 0; s < 8; s++) {
+      if (!b.r.maker[s]) continue;
+      auto on = [&](uint8_t m) { return (m >> s & 1) != 0; };
+      std::printf(" %s=%s/%s[%s%s%s%s%s%s%s%s]", kTs[s], fp::row(b.r.maker[s]).name, b.r.motifAt(s).c_str(), on(b.r.fpR) ? "R" : "", on(b.r.fpN) ? "N" : "",
+                  on(b.r.fpCuff) ? "C" : "", on(b.r.fpHem) ? "H" : "", on(b.r.fpMark) ? "M" : "", on(b.r.fpThin) ? " thin" : "",
+                  on(b.r.fpOuter) ? " outer" : "", on(b.r.fpStitch) ? " stitch" : "");
+    }
     const Measured m = measure(b);
     std::printf("\n  area %d (D %d R %d) shoulders %d head px %d rows %d cloak D %d back %d\n", m.area, m.areaD, m.areaR, m.shoulders, m.headArea,
                 m.hd.rows, m.cloakD, m.cloakBack);
@@ -2497,7 +2508,7 @@ int recipeCmd(int argc, char** argv) {
             if (!f.opaque(k)) { a += '.'; continue; }
             const doll::Region rg = (doll::Region)f.p.region[(size_t)k];
             const bool m2 = f.slot(k) == doll::Slot::Metal2;
-            char ch = (char)('a' + (int)f.slot(k));
+            char ch = doll::isDyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
             if (rg >= doll::Region::Trim && rg <= doll::Region::Wear) {
               ch = doll::regionChar(rg);
               if (!m2) ch = (char)std::tolower((unsigned char)ch);
@@ -2524,7 +2535,7 @@ int recipeCmd(int argc, char** argv) {
           for (int x = 0; x < f.p.w; x++) {
             const int k = y * f.p.w + x;
             if (!f.opaque(k)) { a += " ."; c += " ."; continue; }
-            a += (char)('a' + (int)f.slot(k));
+            a += doll::isDyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
             a += (char)('0' + f.step(k));
             const std::string pn = f.it(k) ? f.it(k)->part : "-";
             if (!ix.count(pn)) { ix[pn] = (int)names.size(); names.push_back(pn); }

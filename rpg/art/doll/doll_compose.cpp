@@ -322,6 +322,7 @@ thread_local bool g_breeze = false;
 // cloak, and a lifted shoulder closed 1-2 px pockets against the helm: C3a)
 thread_local bool g_deathPart = false;
 // (g_bodyPiece, g_depthPx and g_heldPx, the paint's planes the passes read, are defined beside the passes: doll_passes.cpp)
+thread_local std::vector<uint8_t> g_fpUnder;   // (P5)
 
 }  // namespace comp
 
@@ -332,12 +333,29 @@ namespace {
 void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o, const std::vector<int>* onlyParts = nullptr,
                   const char* forceKey = nullptr, bool (*keep)(const PartRec&) = nullptr) {
   static thread_local FramePaint paint;
+  const bool fp = r.fpSlots != 0;
+  if (fp) g_fpUnder.assign((size_t)CW * CH, 0);
   paint.anchors(r, facing, f, o);
   paint.gatherItems(onlyParts, forceKey, keep);
   paint.sortItems();
   paint.placeAnchors();
   paint.paintBackToFront();
+  if (!fp || o.bx1 < o.bx0) { postPasses(r, o); return; }
+  // (P5) the passes run on the figure as it was before the fingerprint; each fingerprinted pixel a pass left alone takes its
+  // dye or mark back (a pass that rewrote it, a glint or a speck, keeps the pass's pixel)
+  static thread_local std::vector<uint8_t> keepFp;
+  keepFp.assign((size_t)CW * CH, 0);
+  for (int y = o.by0; y <= o.by1; y++)
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      const size_t q = (size_t)y * CW + x;
+      if (g_fpUnder[q] && o.code[q] >= 2) { keepFp[q] = o.code[q]; o.code[q] = g_fpUnder[q]; }
+    }
   postPasses(r, o);
+  for (int y = o.by0; y <= o.by1; y++)
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      const size_t q = (size_t)y * CW + x;
+      if (keepFp[q] && o.code[q] == g_fpUnder[q]) o.code[q] = keepFp[q];
+    }
 }
 
 // a code buffer (w x h, its pivot at pvx, pvy) trimmed into a Cut coloured by the recipe's ramps
@@ -503,7 +521,7 @@ bool greySlot(Slot s) {
     case Slot::Cloth1: case Slot::Cloth2: case Slot::Cloth3: case Slot::Accent: case Slot::Linen: case Slot::Leather: case Slot::Metal:
     case Slot::Metal2: case Slot::Blade: case Slot::Cloak: case Slot::Pattern: case Slot::Plume: case Slot::Field: case Slot::Device:
     case Slot::Glow: case Slot::Head: return true;   // (forge i2) the headwear is gear: HOMESPUN's hood
-    default: return false;
+    default: return isDyeSlot(s);   // (P5) the dye band greys as a material
   }
 }
 DollRamps greyRamps(const DollRamps& r) {
@@ -904,6 +922,176 @@ void partContacts(DollRecipe& r, const HumanLook& L) {
   const bool body = L.forge[HumanLook::TIER_BODY] != 0;
   const bool edgeOwn = body && (L.sheen == 3 || L.metalKind == 7 || L.metalKind == 8 || r.has("glass"));
   partByContact(r.ramps, L, it->second, edgeOwn, std::getenv("EMB_C14_DEBUG") != nullptr);
+}
+
+// (P5) the recipe's drawing with its fingerprint (trimKey and every fp field: what the fingerprint paints, never the colours)
+static uint64_t fpKey(const DollRecipe& r, uint64_t salt) {
+  uint64_t key = trimKey(r) ^ salt;
+  auto mix = [&](const void* p, size_t n) { const uint8_t* b = (const uint8_t*)p; for (size_t i = 0; i < n; i++) { key ^= b[i]; key *= 0x100000001B3ull; } };
+  mix(&r.fpSlots, 1); mix(&r.fpR, 1); mix(&r.fpN, 1); mix(&r.fpCuff, 1); mix(&r.fpHem, 1); mix(&r.fpThin, 1); mix(&r.fpOuter, 1); mix(&r.fpStitch, 1); mix(&r.fpSparse, 1); mix(&r.fpFlat, 1); mix(&r.fpMark, 1);
+  mix(r.cuffMask, sizeof r.cuffMask); mix(r.dyeRun, sizeof r.dyeRun); mix(r.dyePeriod, sizeof r.dyePeriod);
+  for (const std::string& m : r.slotMotif) { mix(m.data(), m.size()); const uint8_t z = 0; mix(&z, 1); }
+  return key;
+}
+// (P5, FIX_BATCH_P5 3.5) the dye's share of each fingerprinted piece (its dye pixels over its pixels, the largest of the four idle
+// views) held under its cap: body 15 % at T1-T2 and 20 % at T3-T5, helm 25, shield 30, gloves 40, boots 20, cloak 15. A slot
+// over its cap thins, a step at a time: N on every other canvas row, then R on its outer row only (the binding), then R
+// stitched (a period of the band, a period as drawn; a cloak's hem too), then sparser (two as drawn), then no N.
+// Chosen once per drawing (cached) on the composed idles, so a new piece never needs a hand-tuned rule
+// (the mean colour of the body and helm pieces on the idle D: FIX_BATCH_P5 3.5's leather read)
+struct FpMean { double c[2][3] = {}; int n[2] = {}; };
+void meanHueSat(const FpMean& m, int s, double& h, double& sat) {
+  h = sat = 0;
+  if (!m.n[s]) return;
+  const double r = m.c[s][0] / m.n[s], g = m.c[s][1] / m.n[s], b = m.c[s][2] / m.n[s];
+  const double mx = std::max({r, g, b}), mn = std::min({r, g, b}), d = mx - mn;
+  sat = mx > 0 ? d / mx : 0;
+  if (d <= 0) return;
+  h = mx == r ? 60.0 * std::fmod((g - b) / d, 6.0) : mx == g ? 60.0 * ((b - r) / d + 2.0) : 60.0 * ((r - g) / d + 4.0);
+  if (h < 0) h += 360.0;
+}
+void fpShares(const DollRecipe& r, int dye[8], int px[8], FpMean* mean = nullptr, int facings = 4, int* colours = nullptr) {
+  for (int s = 0; s < 8; s++) dye[s] = px[s] = 0;
+  if (colours) *colours = 0;
+  for (int f = 0; f < facings; f++) {
+    const FrameProbe p = probeFrame(r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
+    if (!p.ok) continue;
+    if (colours) {   // (B8's read: the frame's distinct colours)
+      std::vector<uint32_t> cs;
+      for (uint8_t c : p.code) if (c >= 2) cs.push_back(r.ramps.c[(int)codeSlot(c)][codeStep(c)]);
+      std::sort(cs.begin(), cs.end());
+      *colours = std::max(*colours, (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+    }
+    int d[8] = {}, n[8] = {};
+    for (size_t k = 0; k < p.code.size(); k++) {
+      if (p.code[k] < 2 || p.owner[k] < 0 || (size_t)p.owner[k] >= p.items.size()) continue;
+      const int ts = partTierSlot(p.items[(size_t)p.owner[k]].partIndex);
+      if (ts < 0) continue;
+      n[ts]++;
+      if (isDyeSlot(codeSlot(p.code[k]))) d[ts]++;
+      if (mean && f == 0 && ts <= HumanLook::TIER_HELM) {
+        const uint32_t c = r.ramps.c[(int)codeSlot(p.code[k])][codeStep(p.code[k])];
+        mean->c[ts][0] += c & 255u; mean->c[ts][1] += c >> 8 & 255u; mean->c[ts][2] += c >> 16 & 255u;
+        mean->n[ts]++;
+      }
+    }
+    for (int s = 0; s < 8; s++)
+      if (n[s] && (long)d[s] * std::max(1, px[s]) > (long)dye[s] * n[s]) { dye[s] = d[s]; px[s] = n[s]; }
+  }
+}
+int fpCap(const DollRecipe& r, int s) {
+  static const int kCap[8] = {15, 25, 30, 100, 40, 20, 15, 100};
+  return s == HumanLook::TIER_BODY && r.pieceTier[s] >= 3 ? 20 : kCap[s];
+}
+void tuneFp(DollRecipe& r) {
+  if (!r.fpSlots) return;
+  struct T { uint8_t thin, outer, stitch, sparse, n; bool flat; };
+  static thread_local std::unordered_map<uint64_t, T> cache;
+  const uint64_t key = fpKey(r, 0x7F9A7F9A7F9A7F9Aull);
+  auto it = cache.find(key);
+  if (it != cache.end()) { r.fpThin = it->second.thin; r.fpOuter = it->second.outer; r.fpStitch = it->second.stitch; r.fpSparse = it->second.sparse; r.fpN = it->second.n; r.fpFlat = it->second.flat; return; }
+  // the pre-P5 read of the body and the helm (a leather piece keeps its hue in 15-45 and its saturation within 0.10)
+  FpMean pre;
+  {
+    DollRecipe r0 = r;
+    r0.fpSlots = 0;
+    int d0[8], p0[8];
+    fpShares(r0, d0, p0, &pre, 1);
+  }
+  // (B8: 48 colours a frame) a figure the full band would carry past 44 on its idles draws the dye in two steps, the dye2 in one
+  {
+    int d1[8], p1[8], cols = 0;
+    fpShares(r, d1, p1, nullptr, 4, &cols);
+    if (cols > 44) r.fpFlat = true;   // (the walk frames carry a few colours more than the idles)
+  }
+  for (int round = 0; round < 6; round++) {
+    int dye[8], px[8];
+    FpMean now;
+    fpShares(r, dye, px, &now);
+    bool moved = false;
+    for (int s = 0; s < 8; s++) {
+      const uint8_t b = (uint8_t)(1u << s);
+      bool over = px[s] && dye[s] * 100 > fpCap(r, s) * px[s];
+      if (s <= HumanLook::TIER_HELM && (r.fpSlots & b)) {
+        double h0, s0, h1, s1;
+        meanHueSat(pre, s, h0, s0);
+        meanHueSat(now, s, h1, s1);
+        if (pre.n[s] && h0 >= 15 && h0 <= 45 && s0 >= 0.2 && (h1 < std::min(15.0, h0 - 2) || h1 > std::max(45.0, h0 + 2) || s1 < s0 - 0.09)) over = true;
+      }
+      if (!(r.fpSlots & b) || !over) continue;
+      if ((r.fpN & b) && !(r.fpThin & b)) r.fpThin |= b;
+      else if ((r.fpR & b) && !(r.fpOuter & b)) r.fpOuter |= b;
+      else if (((r.fpR | r.fpHem) & b) && !(r.fpStitch & b)) r.fpStitch |= b;
+      else if (((r.fpR | r.fpHem) & b) && !(r.fpSparse & b)) r.fpSparse |= b;
+      else if (r.fpN & b) r.fpN &= (uint8_t)~b;
+      else continue;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  if (cache.size() > 20000) cache.clear();
+  cache[key] = T{r.fpThin, r.fpOuter, r.fpStitch, r.fpSparse, r.fpN, r.fpFlat};
+}
+
+void fpBudget(DollRecipe& r) {
+  // B8's own read: every LOCO, RUN and DRAWN frame of the composed sheets, its distinct colours (the dye ramps' colours left out of the palette)
+  auto count = [&](std::vector<uint32_t>* palette) {
+    std::vector<uint32_t> dye;
+    for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) dye.push_back(r.ramps.c[s][q] | 0xFF000000u);
+    std::sort(dye.begin(), dye.end());
+    int most = 0;
+    std::vector<uint32_t> pal, cs;
+    for (RigPart part : {RigPart::Loco, RigPart::Run, RigPart::Drawn}) {
+    const RigSheet sh = compose(r, part);
+    for (const FrameRect& fr : sh.frames) {
+      cs.clear();
+      for (int y = 0; y < fr.h; y++)
+        for (int x = 0; x < fr.w; x++) {
+          const uint32_t p = sh.atlas.get(fr.x + x, fr.y + y);
+          if (!(p >> 24)) continue;
+          cs.push_back(p);
+          if (palette && !std::binary_search(dye.begin(), dye.end(), p | 0xFF000000u)) pal.push_back(p | 0xFF000000u);
+        }
+      std::sort(cs.begin(), cs.end());
+      most = std::max(most, (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+    }
+    }
+    if (palette) { std::sort(pal.begin(), pal.end()); pal.erase(std::unique(pal.begin(), pal.end()), pal.end()); *palette = pal; }
+    return most;
+  };
+  // (cached by the drawing and its colours: the dye slots' ramps as the budget left them)
+  struct Dyes { uint32_t c[SLOT_COUNT - (int)Slot::DyeT0][5]; };
+  static thread_local std::unordered_map<uint64_t, Dyes> cache;
+  uint64_t key = fpKey(r, 0xB8B8B8B8B8B8B8B8ull);
+  for (int s = 0; s < SLOT_COUNT; s++)
+    for (int q = 0; q < 5; q++) { key ^= r.ramps.c[s][q]; key *= 0x100000001B3ull; }
+  auto it = cache.find(key);
+  if (it == cache.end()) {
+    std::vector<uint32_t> pal;
+    const int c0 = count(&pal);
+    if (c0 > 48) {
+      snapDyes(r.ramps, pal, false);
+      if (count(nullptr) > 48) snapDyes(r.ramps, pal, true);
+    }
+    Dyes d;
+    for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) d.c[s - (int)Slot::DyeT0][q] = r.ramps.c[s][q];
+    if (cache.size() > 20000) cache.clear();
+    it = cache.emplace(key, d).first;
+  }
+  for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) r.ramps.c[s][q] = it->second.c[s - (int)Slot::DyeT0][q];
+}
+
+void partDyeContacts(DollRecipe& r) {
+  static thread_local std::unordered_map<uint64_t, ContactRead> cache;
+  const uint64_t key = fpKey(r, 0xD7E0D7E0D7E0D7E0ull);
+  auto it = cache.find(key);
+  if (it == cache.end()) {
+    ContactRead v;
+    contactRead(r, v);
+    if (cache.size() > 20000) cache.clear();
+    it = cache.emplace(key, std::move(v)).first;
+  }
+  partDyeByContact(r.ramps, it->second);
 }
 
 // (D93) the band's selftests on synthetic views: a T6 plate with no R lands in 10-24 % by the floor mode; a T3 piece with every
