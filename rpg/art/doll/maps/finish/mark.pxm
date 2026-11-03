@@ -365,14 +365,14 @@ view D key horse1x2 origin 0 0
 |a
 
 view D key horse5x1 origin 0 0
-|BAAAA
+|BBABB
 
 view D key horse1x5 origin 0 0
 |B
+|B
 |A
-|A
-|A
-|A
+|B
+|B
 
 view D key horse1x1 origin 0 0
 |k
@@ -606,16 +606,16 @@ view D key ray1x2 origin 0 0
 |B
 
 view D key ray8x1 origin 0 0
-|ABA..ABA
+|AAA..AAA
 
 view D key ray1x8 origin 0 0
 |A
-|B
+|A
 |A
 |.
 |.
 |A
-|B
+|A
 |A
 
 view D key ray1x1 origin 0 0

@@ -272,8 +272,8 @@ MARK = {
 # (the brow lines) each people's own run pattern for a brow band, a rim or a slim panel (1 row; its column twin for an
 # upright panel): on metal the mark is engraved, one step down in the plate's own colour, so a 3 px line was one stroke
 # for every people (the T3 helms' brows twinned); twelve different masks of 2 px runs and more (never a dot)
-MARK_LINE = {'knot': 'AB.BA', 'plaid': 'AAB.BAA', 'oak': 'AaA.aB', 'laurel': 'BA.AA.AB', 'arab': 'AB..BA', 'horse': 'BAAAA',
-             'reed': 'BA.BAA', 'clouds': 'AAABAAA', 'wave': 'AB...BA', 'ray': 'ABA..ABA', 'vein': 'AAAB.BA', 'star': 'AB.BAB.BA'}
+MARK_LINE = {'knot': 'AB.BA', 'plaid': 'AAB.BAA', 'oak': 'AaA.aB', 'laurel': 'BA.AA.AB', 'arab': 'AB..BA', 'horse': 'BBABB',
+             'reed': 'BA.BAA', 'clouds': 'AAABAAA', 'wave': 'AB...BA', 'ray': 'AAA..AAA', 'vein': 'AAAB.BA', 'star': 'AB.BAB.BA'}
 MARK_LEGEND = [('A', 'dye', 2), ('a', 'dye', 1), ('B', 'dye2', 2), ('b', 'dye2', 1), ('k', 'ink', 1)]
 MARK_SIZES = (6, 5, 4, 3, 2, '3x1', '2x1', '1x3', '1x2')
 

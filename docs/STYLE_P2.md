@@ -2094,7 +2094,7 @@ side; B / b the dye2; k a hole one step down). One glyph a people, chosen so the
   1 px panel can hold no shape). A motif with no fitting view draws nothing (never a hole).
 - **Brow lines:** each people also has its own 1-row run pattern (and its column twin) for brow bands, rims and slim
   panels, up to 9 px (the knot `AB.BA`, the plaid `AAB.BAA`, the oak `AaA.aB`, the wreath `BA.AA.AB`, the lozenge `AB..BA`,
-  the horse `BAAAA`, the reeds `BA.BAA`, the meander `AAABAAA`, the crest `AB...BA`, the sun `ABA..ABA`, the leaf
+  the horse `BBABB`, the reeds `BA.BAA`, the meander `AAABAAA`, the crest `AB...BA`, the sun `AAA..AAA`, the leaf
   `AAAB.BA`, the stars `AB.BAB.BA`): engraved on metal, twelve different strokes.
 - **On metal** the doll draws the thread cells as Ink one step down: the mark is engraved, the same shape in the plate's
   own colour; at T4 it replaces the generic etch.
