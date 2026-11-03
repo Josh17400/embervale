@@ -85,6 +85,7 @@ bool applyLookField(HumanLook& L, const std::string& k, const std::string& v) {
   else if (k == "shieldDevice") L.shieldDevice = col0();
   else if (k == "trimColor") L.trimColor = col0();
   else if (k == "weaponColor") L.weaponColor = col();
+  else if (k == "makers") return applyLadderLookField(L, k, v);   // (P5) a looks line's makers= wherever its parser files it
   else return false;
   return true;
 }
