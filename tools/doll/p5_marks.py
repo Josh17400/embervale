@@ -269,6 +269,11 @@ MARK = {
         5: '..A.. ..A.. AABaa ..a.. ..a..', 6: '..A... ..A... AABaa. ..a... ..a... ......',
         '2x1': 'AB', '3x1': 'ABa', '1x2': 'A B', '1x3': 'A B a'},
 }
+# (the brow lines) each people's own run pattern for a brow band, a rim or a slim panel (1 row; its column twin for an
+# upright panel): on metal the mark is engraved, one step down in the plate's own colour, so a 3 px line was one stroke
+# for every people (the T3 helms' brows twinned); twelve different masks of 2 px runs and more (never a dot)
+MARK_LINE = {'knot': 'AB.BA', 'plaid': 'AAB.BAA', 'oak': 'AaA.aB', 'laurel': 'BA.AA.AB', 'arab': 'AB..BA', 'horse': 'BAAAA',
+             'reed': 'BA.BAA', 'clouds': 'AAABAAA', 'wave': 'AB...BA', 'ray': 'ABA..ABA', 'vein': 'AAAB.BA', 'star': 'AB.BAB.BA'}
 MARK_LEGEND = [('A', 'dye', 2), ('a', 'dye', 1), ('B', 'dye2', 2), ('b', 'dye2', 1), ('k', 'ink', 1)]
 MARK_SIZES = (6, 5, 4, 3, 2, '3x1', '2x1', '1x3', '1x2')
 
@@ -280,6 +285,9 @@ def mark_views():
         for size in MARK_SIZES:
             rows = MARK[m][size].split(' ')
             out.append(('%s%dx%d' % (m, len(rows[0]), len(rows)), rows))
+        line = MARK_LINE[m]
+        out.append(('%s%dx1' % (m, len(line)), [line]))
+        out.append(('%s1x%d' % (m, len(line)), list(line)))
         out.append(('%s1x1' % m, ['k']))
     return out
 
