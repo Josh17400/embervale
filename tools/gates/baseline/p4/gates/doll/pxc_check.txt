@@ -1,0 +1,2 @@
+pxc: 45 craft warning(s) (--report lists them)
+pxc --check: rpg\art\doll\gen\doll_pool.cpp is up to date (870 parts, 2589744 bytes of the 2621440 B budget, hash 5f713020a8c44527)

@@ -1,0 +1,13 @@
+ok    C16h hero styles               45 checks,    0 failed
+ok    C17 metal read (ramps)        776 checks,    0 failed
+ok    C17 the six named               6 checks,    0 failed
+ok    C17 the round-2 list           11 checks,    0 failed
+ok    C15f the spread               104 checks,    0 failed
+ok    C16d silhouette data     3834 checks,    0 failed
+ok    C16u unique keys          286 checks,    0 failed
+ok    C16k heads (data)          75 checks,    0 failed
+ok    C16k a head each          768 checks,    0 failed
+ok    C16k heads apart (1x)     666 checks,    0 failed
+ok    C16k stability              1 checks,    0 failed
+  C16k selftests: 2 of 2 caught
+doll-forge: 0 failure(s)

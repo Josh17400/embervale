@@ -1,0 +1,13 @@
+  caps source A:   127 looks,    0 outside a cap
+  caps source B:  8640 looks,    0 outside a cap
+  caps source D:  2880 looks,    0 outside a cap
+  caps source E:    77 looks,    0 outside a cap
+  caps source F:    74 looks,    0 outside a cap
+  caps source G:  5760 looks,    0 outside a cap
+  caps source K:  1458 looks,    0 outside a cap
+  caps source L:   534 looks,    0 outside a cap
+  caps source T:  1734 looks,    0 outside a cap
+  skirt flare past the bare hips facing D (reported): T1 max 3 (median 1, 6240 looks); T2 max 4 (median 1, 817 looks); T3 max 5 (median 0, 525 looks); T4 max 7 (median 0, 871 looks); T5 max 8 (median 0, 474 looks); T6 max 8 (median 5, 152 looks);
+  T1 residual (D91): 0 look(s):
+ok    C12f caps (every look)   21284 checks,    0 failed
+doll-envelope: 0 failure(s)
