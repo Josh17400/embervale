@@ -1,0 +1,20 @@
+# tools/gates/baseline/moves_p5/PACK.txt: the moves of P5 PACK (docs/FIX_BATCH_P5.md 5.6, 8, 10 play/) against root p4f1
+# (GATES_MOVES_DIR=tools/gates/baseline/moves_p5 for rebase_baseline.sh). <gate> <item glob>[,...] <id> <reason>.
+# PACK adds test files only: no game behaviour, no art, no saved field, no RNG draw. New files:
+#   tools/scripts/p5_fingerprint.txt   the in-play shots (24 PNGs: four towns' watch + seed 7's start town, a companion in
+#                                      three peoples' pieces, the hero in three peoples' T1 leather coats, three smiths'
+#                                      shelves, the EQUIP page, night under a lamp; NEAR and CLOSE); only commands 80215d7
+#                                      has, so it also shoots "before" (EMB_FIX_RULES=4095 or the 80215d7 build)
+#   tools/scripts/p5_makers.txt        the `expect makers` checks (after only; no PNG)
+#   rpg/view/scripts/view_p5.cpp       `expect makers <slot> <people>|same|differ ... [hero|companion [m]|near]` (test only;
+#                                      registered script command, a Witness call; no gate lists the commands)
+#   witness/p5_fingerprint.witness.json  2 tests: seed 7 buy and wear the start smith's leather coat (maker River), a
+#                                      companion given three peoples' pieces (three makers)
+#   tools/doll/p5_pack.py              the owner pack's play/ sheets (side-by-sides, 4x-8x zooms, greyscale, captions.txt)
+# Every other gate is identical by construction (the files above change no source the other gates read but the new
+# script command, which draws nothing).
+#   P5-6  a script the judge can rerun: the fingerprint in play and the makers read as state
+W2.view_all p5_fingerprint/* P5-6 new script tools/scripts/p5_fingerprint.txt (the owner pack's in-play shots; 24 PNGs, not in the record)
+# W2.scripts: +2 scripts (p5_fingerprint, p5_makers), both PASS; a pass/fail gate with no per-script record to move.
+# W3 is a pass/fail gate with no record, so an added file is not a difference the check can see. Kept for the record:
+# W3.witness p5_fingerprint* P5-6 new file witness/p5_fingerprint.witness.json (2 tests, --repeat 2): N -> N+1 files
