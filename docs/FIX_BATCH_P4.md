@@ -618,7 +618,9 @@ Before (25d47da build) / after images from hidden Witness runs at the same seed 
    1b. Not built: a guaranteed beginner hunt at the start inn (3 of 12 start inns have no job and 4 of 12 send a level-1
    newcomer after a bandit chief or into a dungeon): a JOBS change for a later batch if the owner wants it.
 2. **The pin:** a just-accepted quest becomes the tracked one (this reverses the 2026-10 rule "a new job never takes the
-   pin"); the banner and the goal line say so, and the journal's TRACK switches back.
+   pin"); the banner and the goal line say so, and the journal's TRACK switches back. (Fix r1, judge: only the player's
+   own take, `QuestStart::Player`: I'LL DO IT., a notice from the board. A quest the game starts by itself, the Mist
+   chain, a grave read, a fief task, an army's order or mission, keeps the 2026-10 rule and says NEW QUEST.)
 3. **Dialogue order:** the speaker's trade first in a fixed order, this visit's extras after it, FAREWELL last; COLLECT
    moves from first to just above FAREWELL, with the cursor starting on it.
 4. **Guards' weapons in town (6d):** not in P4: a visible watch (arms in hand at posts) would be an art and behaviour batch.

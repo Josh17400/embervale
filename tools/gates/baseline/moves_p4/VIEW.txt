@@ -159,3 +159,7 @@ W2.view_all p1b_engine_tour_phone/p1b_engine_phone_inside_cave.png P4-6a inside 
 W2.view_all p1b_req_tour/p1b_req_town_ruin.png P4-6a inside a cave or ruin: the danger skull beside the place name (and the DANGEROUS GROUND banner on entering one 5+ levels above the hero)
 W2.view_all p1b_req_tour_phone/p1b_req_town_ruin_phone.png P4-6a inside a cave or ruin: the danger skull beside the place name (and the DANGEROUS GROUND banner on entering one 5+ levels above the hero)
 W2.view_all p4_view/p4_view_hint_equip.png,p4_view/p4_view_hint_items.png,p4_view/p4_view_inn_after.png,p4_view/p4_view_inn_gift.png,p4_view/p4_view_pile_005.png,p4_view/p4_view_pile_01.png,p4_view/p4_view_pile_02.png,p4_view/p4_view_pile_landed.png,p4_view/p4_view_ruin_banner.png,p4_view/p4_view_ruin_skull.png,p4_view/p4_view_toss_01.png,p4_view/p4_view_toss_landed.png P4-3 new script tools/scripts/p4_view.txt (P4 VIEW items 3, 6a, 6b, 6f): its 12 shots enter the record
+# P4 fix r1: the danger banner in three lines inside its rules (dangerBannerMaxW) and the menu key hint's own band
+# (menuHintBand) move only shots already declared above (S10.view 52, W2.view_all 237 against p3f2); the quest banner
+# QUEST STARTED for the player's own take moves TALK's P4-2 shots (m2_sim_quests q08 q09 q14, p4_talk_1). New:
+W2.view_all p4_view/p4_view_long_banner.png P4-6a new shot in tools/scripts/p4_view.txt (P4 fix r1): the danger banner with the world's longest place name, THE TRIAL OF THE THRESHOLD, in small type inside its rules
