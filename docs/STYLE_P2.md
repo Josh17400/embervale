@@ -2005,6 +2005,132 @@ The owner's freeze sign-off (2026-10-29) and fix round 4 add (PLAN D90-D98):
   cloak, the crest or plume, the device and the gem. Colour is added only the drawn ways: the cowl's people's edge, T4's
   three-colour device and metal-2 rim, the T5 gem and the brow gem. Never add a hue just to raise a count.
 
+## 30. The fingerprint: every people's mark on its armour (P5 MARKS, 2026-11-03; binding on every art area; PENDING THE OWNER'S REVIEW)
+
+The owner (2026-11-03, after D117): "I would like every culture's finger print to be on the armor whether that's color or
+style, something that makes it unique to the culture." docs/FIX_BATCH_P5.md 3 is the plan; this section is the rule a new
+piece or a new people follows. The data is one table, `rpg/core/fingerprint.h` (`fp::kRows`); the doll (`doll_resolve`,
+`doll_paint`) and the icon painter (`art_items`) both read it, keyed by the piece's maker people, so the worn piece and its
+icon agree by construction.
+
+### 30.1 The feel
+
+A people's fingerprint is **how its makers finish a piece**, not a new piece: the colour of the thread, the binding on the
+edge, the lacing, the little mark a maker stitches or engraves. It sits on the edges and seams, so the material keeps the
+plane (leather looks like leather, bronze like bronze) and the silhouette keeps the ladder (T1 simple and slim). It climbs
+with the ladder: **thread** at T1-T2 (the dye on rims, hems, laces and seams; the mark stitched on the chest), **engraving**
+at T3-T4 (the rims turn brass as the ladder already does; the dye moves into the lacing and seams; the mark is cut into the
+metal), **gold** at T5-T6 (the mark becomes the people's filigree; the gem and the runes as before). Greyscale test: the
+mark and a two-tone band read with the colour removed; the dye alone may not (the owner: "color or style"), but every
+people has a mark that reads in grey.
+
+### 30.2 The table (`rpg/core/fingerprint.h`; `python tools/doll/p5_marks.py --table` checks it)
+
+| people | motif | dye | dye2 | band (run : period) |
+|---|---|---|---|---|
+| none (culture 0) | (oak, the classic filigree) | - | - | no fingerprint: classic pieces as before |
+| Fjordfolk | knot (the looped square) | woad #3C6EBE | bleached wool #E8E2CE | 3 : 4 |
+| Highland | plaid (the sett) | tartan green #1E683A | red #AC2430 | 2 : 4 (a check) |
+| Heartland | oak (the lobed leaf) | heraldic red #C42828 | white #EAE6D8 | 4 : 5 |
+| Imperial | laurel (the wreath) | purple #641E6E | gold thread #E2B840 | 2 : 3 |
+| Dune | arab (the lozenge) | indigo #243484 | saffron #ECA61E | 2 : 4 |
+| Steppe | horse (the running horse) | sky blue #3CACD6 | horse-hair red #C43028 | 2 : 3 |
+| Marsh | reed (the reeds) | moss #687E24 | faded indigo #465078 | 4 : 5 |
+| Jade | clouds (the meander scroll) | vermilion #F06E1E | black lacquer #1C1A1E | 2 : 3 |
+| River | wave (the curling crest) | river teal #12868C | white #ECEAE2 | 2 : 4 |
+| Sun Temple | ray (the sun) | magenta #B41E64 | teal #249688 | 2 : 4 |
+| Sylvan | vein (the leaf and its midrib) | leaf green #A0C850 | amber #E8B040 | 4 : 5 |
+| Starspire | star (the four-point star) | violet #9678F0 | star white #DCE4F8 | 3 : 4 |
+
+**Numbers a tuned table keeps** (FIX_BATCH_P5 3.5, `rpg_test --fingerprint` F1): the twelve dyes pairwise >= dE 25 (now
+25.0, Fjordfolk-Dune, parted by their bands); the two-tone signatures >= 25 (25.4); every dye >= dE 20 from steps 1-3 of
+the six leathers, bronze, iron, steel, gilded and brass (24.4, Steppe's sky against steel), so a dye never reads as a
+material; every dye2 >= 20 from its dye (42.0). One fingerprint per people, fixed across its kingdoms (decision 1): a
+kingdom's own cloth, heraldry and plume stay on its shields, cloth coats, tabards, cloaks and crests. Crossed families and
+the hidden peoples take their first archetype's row (decision 4).
+
+### 30.3 Where it lands (the finish regions every armour map already draws)
+
+| where | T1-T2 (thread) | T3-T4 (engraving) | T5-T6 (gold) |
+|---|---|---|---|
+| **R** rims, hems, a collar's rim, a shield's rim, a tabard's edge, a cloak's border | the dye band | the ladder's brass; a cloak's border stays the dye band through T4 | the ladder's gold |
+| **N** seams, lacing rows, a lamellar's or scale's lowest course, a brigandine's lower edge, the leather coat's laces, a helm's lining under the brow | the dye band | the dye band (thinned where a piece has many rows) | T5 the dye band; T6 the runes |
+| **P** the lit chest, the brow's panel, a shield's field | the mark (`finish.mark`), thread in the dye | the mark as Ink relief (T4: instead of the generic etch) | the filigree in the people's motif |
+| **cuffs** (gloves, boots) | the dye band | the dye band | T5 the dye band |
+| a cloak with no R (the fur mantle, the cape) | its lowest pixel row, the dye band | the same through T4 | the badge on its back (the filigree) |
+
+- **The band** runs along canvas `x + y`: `run` pixels of the dye, then dye2 to `period`. Every dyed pixel keeps its drawn
+  step (the shading carries); the outline (step 0) keeps its slot; a glint (step 4) is never dyed.
+- **A new piece inherits the fingerprint** by drawing its finish regions: R on its rims and hems, N on its seams and lacing,
+  P on its lit panel. `node tools/doll/pxc.mjs --report`'s `fp-landing` lines name every base view of an armour, helm,
+  shield or cloak part with neither R nor N; only the parts that carry no fingerprint by design may stay there (crests and
+  plumes, the shield's arm strap, the mail sleeves, the cape and fur cloaks, the `*_front` cloak parts).
+- **Not drawn:** weapons (decision 5), the T1 floor (an empty body slot's jerkin and bare feet have no maker), culture-0
+  pieces, rig 1.
+
+### 30.4 The marks (`maps/finish/mark.pxm`, drawn in `tools/doll/p5_marks.py`)
+
+The mark is the people's motif in thread, the filigree's language one rung down the ladder: **a shape, never a dot**
+(every thread pixel touches another), the light top-left (A the dye at the panel's own step, a one step down on the shadow
+side; B / b the dye2; k a hole one step down). One glyph a people, chosen so the twelve part in silhouette at 3x3:
+
+| people | the glyph | 5x5 |
+|---|---|---|
+| Fjordfolk | the looped square (St John's arms) in woad, the over-crossings in wool; an X when small | `AA.AA A.B.A .B.b. A.b.a AA.aa` |
+| Highland | the sett: two ground, one red stripe each way (the hem-plaid capelet's 2 + 1), a rounded patch | `AABAA AABAA BBbBB AABAa AABaa` |
+| Heartland | the lobed oak leaf on its stem, a white acorn | `.A.A. AAaAA .AaA. AAaAA B.a..` |
+| Imperial | the wreath, open at the top, gold berries at its tips | `B...B AA.AA A...a .A.a. ..a..` |
+| Dune | the lozenge, indigo round a saffron heart | `..A.. .A.a. A.B.a .a.a. ..a..` |
+| Steppe | the running horse, its red tail behind | `....A BAAAA .AAa. .a.a. a...a` |
+| Marsh | three reeds under faded-indigo heads, staggered | `..B.. B.A.B A.A.A A.A.a a.a.a` |
+| Jade | the square meander (the cloud scroll), vermilion round a black-lacquer core | `AAAAA A...A A.B.A A.B.a A.Baa` |
+| River | the curling crest, a white lip | `.AAA. A...A A.BB. a.... .aaaa` |
+| Sun Temple | the sun: a teal disc, eight magenta rays | `A.A.A .ABA. AABaa .aBa. a.a.a` |
+| Sylvan | the leaf on the diagonal, its amber midrib | `..AAA .AABA AABA. ABAa. B....` |
+| Starspire | the four-point star, a star-white heart | `..A.. ..A.. AABaa ..a.. ..a..` |
+
+- **Sizes:** squares 2..6 and the lines 2x1 3x1 1x2 1x3; FIT takes the largest that fits the piece's P box, centred (a
+  3x4 box wears the 3x3), so T1's 2x2 chest panel wears the 2x2 and a shield's field the 6x6. 1x1 is one engraved point (a
+  1 px panel can hold no shape). A motif with no fitting view draws nothing (never a hole).
+- **On metal** the doll draws the thread cells as Ink one step down: the mark is engraved, the same shape in the plate's
+  own colour; at T4 it replaces the generic etch.
+- **Draw a new motif** in `p5_marks.py` MARK at every size, run `python tools/doll/p5_marks.py` (it checks the shapes),
+  then `node tools/doll/pxc.mjs`; add its filigree views (the arabesque's sizes are the minimum set).
+
+### 30.5 Highland's plaid (the filigree; decision 3)
+
+Highland shared the Fjordfolk knotwork at T5-T6. Its own motif is the tartan sett: the mark is a stitched check (30.4), the
+filigree a **gilt lattice** (O the gilt plane, N an engraved line every 3 px each way: two gilt, one line, the hem-plaid
+capelet's sett, so a T5 Highland piece's lattice and its capelet's hem are the same check). The plaid's 24 views are the
+arabesque's fit sizes and masks (the field keys' PARTY PER BEND kept); bands are one gilt plane lit at each end and every
+third pixel. No two peoples share a motif.
+
+### 30.6 The re-cuts (regions only; `python tools/doll/p5_marks.py --verify`)
+
+The fingerprint needs N where a piece's T3-T4 dye shows. Views that already carried a region plane were re-cut by rule,
+never a pixel (cells, origin, mask, build row unchanged; a cell turns '.' -> N, or R -> N on a two-row brow band):
+- **lamellar** (man, woman): the lacing cord (the accent cells under the gorget) is N; the brass and alloy variants, drawn
+  without the cord, take N on their own metal in the cord's row.
+- **lamellar_hang**: the lowest course above the hem band (a lamellar skirt's laced bottom).
+- **helms** (kettle, horned, kabuto, morion, onion, sallet, veil, warhat, winged, crown, nasal, plumed, crested and their
+  `_legend` T5-T6 growth): the brow band's lower row (a band of two rows: the lower row R -> N, so T1-T2 gains no dye and
+  T3-T4 shows the lining under a brass band), or the row under a one-row band (the lining under the rim). A one-row band
+  at the helm's foot with nothing under it (the horned helm, the crown, the plumed and winged bases) stays as it is: their
+  T3-T4 fingerprint is the engraved mark and their form.
+- **the leather coat's laces** (decision 2, `tools/doll/p4_leather.py`): the lace crossings are N, so a maker's coat laces
+  in its dye band and a maker-less coat keeps D116's rawhide.
+
+### 30.7 Fingerprint don'ts
+
+- Never move an outline, a mask, a fit, a build row or a stretch row; the fingerprint lands only on finish regions, the cuff
+  and hem rows and the mark's cells inside P.
+- Never cover the material's lit plane: no dye on the lit chest outside the mark's own cells, no dye run longer than the
+  piece's R or N runs, no dye on a step-4 glint.
+- Never a checker or dither: a band is runs of 1-4 px along the edge; a mark is a shape, never a lone dot.
+- Never dye a T1 piece beyond its rims, laces and one mark: T1 stays plain and used.
+- Never change a kingdom's colours (tabard fields, shield fields, cloaks, plumes): the people's dye goes beside them.
+- Never let a mark sit where the T5 gem or the T6 runes sit (they win).
+
 ---
 
 ## Appendix: the P2a slice record (history; its look is superseded)
