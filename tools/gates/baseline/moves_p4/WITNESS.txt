@@ -2,5 +2,6 @@
 # <gate> <item or glob> <id> <reason>. Measured against the p3f2 record from the WITNESS worktree (fix-p4-WITNESS on VIEW's
 # contract 653bedf): every step gate S1-S10 is identical to p3f2 on this branch apart from VIEW's own S10.view shots
 # (declared in VIEW.txt); the snapshot is read-only, so the sim digest, saves, art and view pack do not move.
-W3.witness p4_state* P4-5 new file witness/p4_state.witness.json (the shop, the menu page, the ground loot, the gifts, the danger in the snapshot): 18 -> 19 files from WITNESS (21 with ECONOMY's p4_newcomer and TALK's p4_talk)
+# (P4 integration) W3 is a pass/fail gate with no record, so an added file is not a difference the check can see; W3 PASSed 21/21 files in the wave run. Kept for the record:
+# W3.witness p4_state* P4-5 new file witness/p4_state.witness.json (the shop, the menu page, the ground loot, the gifts, the danger in the snapshot): 18 -> 19 files from WITNESS (21 with ECONOMY's p4_newcomer and TALK's p4_talk)
 W7.play * P4-5 the P4 W7 goals (tools/scripts/p2c_playtests.txt): T5 x3 (leather without a gold call), T7 x3, T8 newcomer x3 (seeds 7/4/2), T9 talker x3 (seeds 7/1/10) replace T4 and T6; the reports read the new text (shop rows, ground items, gifts, danger)

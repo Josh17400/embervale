@@ -96,3 +96,4 @@ W2.view_all sim_kingdom/sim_kingdom_2_innkeeper.png,sim_kingdom/sim_kingdom_4_ki
 W2.view_all sim_opening/sim_opening_2_blade.png,sim_opening/sim_opening_4_journal.png,sim_opening/sim_opening_5_outside.png P4-2,P4-4 the job taken takes the pin (journal, HUD goal line); the innkeeper's page in table order
 S10.view view_screen/fit_7_dialogue.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
 W2.view_all view_screen/fit_7_dialogue.png P4-4 the dialogue panel's options in the one order (standing first, passing after, FAREWELL last; headers by the speaker's standing kinds) and the cursor on the first passing quest option
+W2.view_all p4_talk/* P4-2,P4-4 new script tools/scripts/p4_talk.txt (the pin on THE WOLVES OF OSLARS in the HUD and map, GAOLD's options in the one order; 4 PNGs, not in the record; added at integration)
