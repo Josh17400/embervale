@@ -199,6 +199,7 @@ struct FramePaint {
   uint8_t fpColour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) const;
   void paintPixels(const ItemPaint& ip);
   uint8_t recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg);
+  uint8_t regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles);
   void stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]);
 };
 

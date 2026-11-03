@@ -1081,7 +1081,7 @@ void FramePaint::finishPlacements(const ViewRec& v, int ts, bool hasReg) {
         }
     for (size_t k = 0; k < rtiles.size(); k++) {
       const RegionTile& rt = rtiles[k];
-      if (rt.forgeSlot >= 0 ? rt.forgeSlot != ts : (!rt.fin || !(r.tilesAt(ts) & rt.fin))) continue;
+      if (rt.forgeSlot >= 0 ? rt.forgeSlot != ts : (!rt.fin || !((r.tilesAt(ts) | r.finTiles[ts]) & rt.fin))) continue;   // (P5: the etch a mark replaced is placed for the under plane)
       if (rt.stamp) anyStamp = true;
       if (!rt.fit || px1 < 0) continue;
       const int bw = px1 - px0 + 1, bh = py1 - py0 + 1;
@@ -1337,6 +1337,31 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
         (brassBody && qs == Slot::Accent))
       c = code(Slot::Metal, codeStep(c));
   }
+  // the region tiles (the finish tiles by the piece's tiles: the mark where the fingerprint lays it); (P5) where the mark
+  // changed the pixel, the code under it is the pre-P5 one (its etch at T4), so the passes read the pre-P5 figure
+  const uint8_t tiles = ts >= 0 ? r.tilesAt(ts) : 0;
+  const uint8_t c1 = regionTiles(ip, x, y, c, rg, tiles);
+  if (ip.fp && ts >= 0 && tiles != r.finTiles[ts]) {
+    const uint8_t c0 = regionTiles(ip, x, y, c, rg, r.finTiles[ts]);
+    if (c0 != c1) fpPre = c0;
+  }
+  c = c1;
+  // (P5) the maker's dye band on R, N, the cuff and the hem, last: the code under it (fpPre) is the finished pre-P5 pixel
+  if (ip.fp && c >= 2) {
+    const uint8_t c0 = c;
+    c = fpColour(ip, x, y, c, rg);
+    if (c != c0 && !fpPre) fpPre = c0;
+  }
+  return c;
+}
+
+// (P2c) the region tiles over a pixel (`tiles`: the piece's finish tiles in play); recolour's last tile step
+DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles) {
+  const Pool& P = *pool;
+  const DollRecipe& r = *rp;
+  const Item& it = *ip.it;
+  const ViewRec& v = *ip.v;
+  const int ts = ip.ts;
   // (P2c) a region tile over this region's pixels (outlines kept): ink keeps the slot; step 2 keeps the step, 1 / 3 move
   // it one down / up, 0 and 4 set it
   // (ladder) tiles stack: the last-listed finish tile first (glyph over filigree); a clear cell falls through to the next
@@ -1344,7 +1369,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
     for (size_t ri = rtiles.size(); ri-- > 0;) {
       const RegionTile& rt = rtiles[ri];
       if (!(rt.mask >> rg & 1)) continue;
-      if (rt.fin && !(ts >= 0 && (r.tilesAt(ts) & rt.fin))) continue;   // (ladder) a finish tile on its tier's pieces only
+      if (rt.fin && !(ts >= 0 && (tiles & rt.fin))) continue;   // (ladder) a finish tile on its tier's pieces only
       if (rt.forgeSlot >= 0 && ts != rt.forgeSlot) continue;               // (P2c forge) fittings on their slot's pieces
       const ViewRec* tv = nullptr;
       int tx = 0, ty = 0;
@@ -1384,7 +1409,6 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
       // (P5) the mark's thread cells: the slot's dye on leather and cloth at T1-T2 (the drawn step), Ink relief one step down
       // on metal and at T3-T4 (the engraving)
       if (rt.fin == FIN_TILE_MARK && (tsl == Slot::Dye || tsl == Slot::Dye2)) {
-        if (!fpPre) fpPre = c;
         const Slot cs = codeSlot(c);
         const bool cut = cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade || r.pieceTier[ts] >= 3;
         c = cut ? code(cs, std::max(1, ck - 1)) : code(dyeSlotOf(ts, tsl == Slot::Dye2), r.fpFlat ? (tsl == Slot::Dye2 ? 2 : std::clamp(ck, 1, 2)) : std::clamp(ck, 1, 3));
@@ -1400,12 +1424,6 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
       c = code(tsl == Slot::Ink || toneOnTone ? codeSlot(c) : tsl, toneOnTone ? std::clamp(nk, 1, 3) : nk);
       break;
     }
-  // (P5) the maker's dye band on R, N, the cuff and the hem, last: the code under it (fpPre) is the finished pre-P5 pixel
-  if (ip.fp && c >= 2) {
-    const uint8_t c0 = c;
-    c = fpColour(ip, x, y, c, rg);
-    if (c != c0 && !fpPre) fpPre = c0;
-  }
   return c;
 }
 
