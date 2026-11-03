@@ -2092,6 +2092,10 @@ side; B / b the dye2; k a hole one step down). One glyph a people, chosen so the
 - **Sizes:** squares 2..6 and the lines 2x1 3x1 1x2 1x3; FIT takes the largest that fits the piece's P box, centred (a
   3x4 box wears the 3x3), so T1's 2x2 chest panel wears the 2x2 and a shield's field the 6x6. 1x1 is one engraved point (a
   1 px panel can hold no shape). A motif with no fitting view draws nothing (never a hole).
+- **Brow lines:** each people also has its own 1-row run pattern (and its column twin) for brow bands, rims and slim
+  panels, up to 9 px (the knot `AB.BA`, the plaid `AAB.BAA`, the oak `AaA.aB`, the wreath `BA.AA.AB`, the lozenge `AB..BA`,
+  the horse `BAAAA`, the reeds `BA.BAA`, the meander `AAABAAA`, the crest `AB...BA`, the sun `ABA..ABA`, the leaf
+  `AAAB.BA`, the stars `AB.BAB.BA`): engraved on metal, twelve different strokes.
 - **On metal** the doll draws the thread cells as Ink one step down: the mark is engraved, the same shape in the plate's
   own colour; at T4 it replaces the generic etch.
 - **Draw a new motif** in `p5_marks.py` MARK at every size, run `python tools/doll/p5_marks.py` (it checks the shapes),
