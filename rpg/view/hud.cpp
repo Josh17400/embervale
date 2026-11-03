@@ -1811,7 +1811,7 @@ void View::drawMenu(Game& g) {
       if (n == 0) P.text(30, top + 14, "YOUR PACK IS EMPTY", 1, kDim);
       pager(C, L, menuScroll_, n);
       // detail
-      P.rect(C.div, top + 8, 1, Pix::H - top - 24, Color(0.4f, 0.32f, 0.2f));
+      P.rect(C.div, top + 8, 1, Pix::H - top - 24 - std::min(8.0f, menuHintBand(touchUI)), Color(0.4f, 0.32f, 0.2f));   // (P4 fix r1) ends with the buttons, above the key hint
       if (n > 0) {
         const Item& it = g.inv[menuSel_];
         int eq = equippedOf(g, it.kind);
@@ -1891,7 +1891,7 @@ void View::drawMenu(Game& g) {
         }
       }
       pager(C, L, menuScroll_, (int)rows.size());
-      P.rect(C.div, top - journalStripH() + 8, 1, Pix::H - (top - journalStripH()) - 24, Color(0.4f, 0.32f, 0.2f));
+      P.rect(C.div, top - journalStripH() + 8, 1, Pix::H - (top - journalStripH()) - 24 - std::min(8.0f, menuHintBand(touchUI)), Color(0.4f, 0.32f, 0.2f));
       const int per = std::max(10, (int)(C.dw / 6));
       if (!rows.empty() && rows[(size_t)menuSel_].lead >= 0) {
         // the picked lead: its words, where it came from and when, where it points, and what to do about it

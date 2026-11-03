@@ -44,6 +44,7 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/sea.h"
 #include "rpg/story/story.h"
+#include "rpg/view/hud_layout.h"   // menuHintBand (the keyboard key hint's band at the panel's foot)
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
@@ -2437,7 +2438,7 @@ TabLayout tabLayout(float top, bool touch) {
   L.mapX = 16; L.mapY = top + 6;
   L.colX = (float)Pix::W - L.colW - 16;
   L.mapW = L.colX - 12 - L.mapX;
-  L.mapH = (float)Pix::H - top - 18;
+  L.mapH = (float)Pix::H - top - 18 - menuHintBand(touch);   // (P4 fix r1) the map's frame ends above the key hint
   L.bh = touch ? 33.0f : 16.0f;   // (M2 fixer) 33 logical px = 44 pt on a phone (Apple's touch target)
   L.btnY = top + 20;
   L.infoY = L.btnY + L.bh + 14;

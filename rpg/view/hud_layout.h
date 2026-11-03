@@ -462,6 +462,10 @@ inline const char* menuTabName(int tab) {
   static const char* const kNames[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY", "SKILLS", "SPELLS"};
   return tab >= 0 && tab < 9 ? kNames[tab] : "";
 }
+// (P4 fix r1, judge: "the hint's plate covers the TAKE OFF button, the party's bio line, the perk box, the map frame") the
+// band the keyboard hint owns at the panel's foot (its plate on rows H-17..H-8): every keyboard page lays its foot out
+// this much higher, so nothing is drawn under the hint (touch has no hint, so no band)
+inline float menuHintBand(bool touch) { return touch ? 0.0f : 12.0f; }
 inline const char* menuHint(int tab, bool touch) {
   static const char* const kHints[] = {
       "Q/E TABS  W/S PICK  ENTER USE / WEAR  X DROP  ESC CLOSE",                  // ITEMS

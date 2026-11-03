@@ -13,6 +13,7 @@
 //   - under the sky the selected perk: its name, what it needs, its plain-word line and TAKE (SkillOps::takePerk; a
 //     blocked perk says why: skills::perkBlocked).
 // Keys: W / S (up / down) the skill, A / D (left / right) the perk, Enter / Space take it; Q / E change tabs.
+#include "rpg/view/hud_layout.h"   // menuHintBand (the keyboard key hint's band at the panel's foot)
 #include "rpg/view/loot_paint.h"   // lootp::wrap / fit (the card's text fitting)
 #include "rpg/view/skills_ui.h"
 #include <SDL3/SDL.h>
@@ -55,7 +56,7 @@ SkLay skLay(bool touch) {
   L.sw = L.ix - 6 - L.sx;
   L.ch = touch ? 62.0f : 54.0f;
   L.sy = L.ly;
-  L.sh = std::floor(H - 10 - L.ch - 4 - L.sy);
+  L.sh = std::floor(H - 10 - menuHintBand(touch) - L.ch - 4 - L.sy);   // (P4 fix r1) the perk card ends above the key hint
   L.iy = L.sy; L.ih = L.sh;
   L.cx = L.sx; L.cy = L.sy + L.sh + 4; L.cw = W - 18 - L.sx;
   L.tbw = touch ? 66.0f : 50.0f; L.tbh = touch ? 24.0f : 16.0f;
@@ -252,7 +253,7 @@ void SkillsLane::drawSkillsPage(View& v, Game& g) {
     P.rect(bx, by, std::floor(bw * k), bh, fc);
     P.rect(bx, by, std::floor(bw * k), 1, lift(fc, 0.45f));
   }
-  if (!v.touchUI) P.text(L.lx, L.ly + rows.size() * L.rowH + 4, "W S SKILL  A D PERK", 1, Color(kDimS.r, kDimS.g, kDimS.b, 0.75f));
+  // (P4 fix r1) the page's keys are the menu's foot hint now (menuHint SKILLS): no second key line in the page
 
   // ---- the sky
   int n = 0;

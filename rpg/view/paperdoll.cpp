@@ -22,6 +22,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/view/view.h"
+#include "rpg/view/hud_layout.h"   // menuHintBand (the keyboard key hint's band at the panel's foot)
 #include "rpg/view/view_probe.h"   // (P4 WITNESS) ViewProbe::equipPage is defined here, beside the page's state
 #include "rpg/view/rise_view.h"
 #include "rpg/world/source.h"
@@ -59,7 +60,8 @@ float kDollCX = 110, kDollFootY = 150, kStageH = 196;
 float kDX = 206, kDW = 260;                           // detail column
 constexpr float kListY = 112, kRowH = 24;
 float kBtnY = 238;
-void relayout(int W, int H) {
+// (P4 fix r1) touch: no key hint at the foot; keyboard: the button and the list end above its band (menuHintBand)
+void relayout(int W, int H, bool touch) {
   const int ex = std::max(0, W - 480), ey = std::max(0, H - 270);
   kColX[1] = 168 + std::floor(ex * 0.2f);
   kDollCX = 110 + std::floor(ex * 0.1f);
@@ -68,8 +70,8 @@ void relayout(int W, int H) {
   kDollFootY = 150 + std::floor(ey * 0.6f);
   kDX = kColX[1] + 38;
   kDW = (float)W - 14 - kDX;
-  kBtnY = (float)H - 32;
-  kListRows = std::max(5, (int)((kBtnY - 8 - kListY) / kRowH));
+  kBtnY = (float)H - 32 - menuHintBand(touch);
+  kListRows = std::max(touch ? 5 : 4, (int)((kBtnY - 8 - kListY) / kRowH));
 }
 
 // armed: the row a tap picked; (M8b) peek: a pack piece was picked by hand (a key or a tap), so its card and the compare
@@ -271,7 +273,7 @@ art::HumanLook previewLook(Game& g, int idx) {
 void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   (void)x; (void)y; (void)w; (void)h;
   Pix& P = *pix_;
-  relayout(Pix::W, Pix::H);
+  relayout(Pix::W, Pix::H, touchUI);
   clampCand(g);
   S.hold = std::max(0.0f, S.hold - 1.0f / 60.0f);
 
@@ -452,7 +454,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   // over the doll's side of the screen (the list and the buttons stay in view; a tap on a slot under it picks that
   // slot, which closes it; a tap on the card puts it away)
   if (S.peek && canAct) {
-    const float px = 12, py = kTopY - 2, pw = kDX - 10 - px, ph = (float)Pix::H - 10 - py;
+    const float px = 12, py = kTopY - 2, pw = kDX - 10 - px, ph = (float)Pix::H - 10 - menuHintBand(touchUI) - py;
     P.rect(px, py, pw, ph, Color(0.05f, 0.04f, 0.06f, 1.0f));
     P.frame(px, py, pw, ph, Color(0.55f, 0.45f, 0.28f));
     P.rect(px + 1, py + 1, pw - 2, 1, Color(1, 1, 1, 0.05f));
@@ -486,7 +488,7 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
 
 // (M8b scripts) the slot and pack row picked by hand, as the arrow keys do: the compare card shows
 void View::paperdollPeek(Game& g, int slot, int cand) {
-  relayout(Pix::W, Pix::H);
+  relayout(Pix::W, Pix::H, touchUI);
   pickSlot(g, slot);
   const int n = (int)candidates(g, kSlots[S.slot].kind).size();
   S.cand = std::clamp(cand, 0, std::max(0, n - 1));
@@ -540,7 +542,7 @@ void View::paperdollKey(Game& g, int key) {
 }
 
 void View::paperdollTap(Game& g, Vec2 p) {
-  relayout(Pix::W, Pix::H);   // (tap() has pushed the menu's box)
+  relayout(Pix::W, Pix::H, touchUI);   // (tap() has pushed the menu's box)
   clampCand(g);
   // (P2c SWITCH, delight) rig 2: the doll turns to the side of the last tap (the left column, the right column and the
   // pack beside it), easing through the facing between; the slow turn takes over again 5 s later
@@ -548,7 +550,7 @@ void View::paperdollTap(Game& g, Vec2 p) {
   for (int i = 0; i < kNSlots; i++)
     if (inR(p, slotX(i) - 2, slotY(i) - 2, kBox + 4, kBox + 4)) { pickSlot(g, i); audio_->play(Sfx::MenuMove); return; }
   // (M8b) a tap on the compare card (not on a slot under it) puts it away
-  if (S.peek && inR(p, 12, kTopY - 2, kDX - 22, (float)Pix::H - 10 - (kTopY - 2))) {
+  if (S.peek && inR(p, 12, kTopY - 2, kDX - 22, (float)Pix::H - 10 - menuHintBand(touchUI) - (kTopY - 2))) {
     const std::vector<int> cc = candidates(g, kSlots[S.slot].kind);
     if (!cc.empty()) { S.peek = false; audio_->play(Sfx::MenuMove); return; }
   }
@@ -633,6 +635,7 @@ struct PartyLay {
   float chipY, chipS, chipPitch, remX, remW;
   float slotX[2], slotTop, box, pitch, stageX, stageW, stageY, stageH, figCX, figFootY, figScale;
   float dX, dW, dTop, btnY, rowH;
+  float foot;   // (P4 fix r1) the page's foot: the box's height, less the keyboard key hint's band (menuHintBand)
 };
 PartyLay partyLay(int W, int H, bool touch) {
   PartyLay L;
@@ -654,6 +657,7 @@ PartyLay partyLay(int W, int H, bool touch) {
   L.dTop = 72;
   L.rowH = touch ? 24.0f : 18.0f;
   L.btnY = (float)H - 32;
+  L.foot = (float)H - menuHintBand(touch);
   return L;
 }
 float pslotX(const PartyLay& L, int i) { return L.slotX[kPSlots[i].col]; }
@@ -814,7 +818,7 @@ void View::drawPartyPage(Game& g) {
     party_.partyScroll_ = std::clamp(party_.partyScroll_, 0, std::max(0, nf - 1));
     const float lx = 18, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), top = L.dTop;
     const float rh = touchUI ? 24.0f : 18.0f;
-    const int rows = std::max(3, (int)((Pix::H - 20 - top) / rh));
+    const int rows = std::max(3, (int)((L.foot - 20 - top) / rh));
     const int first = std::clamp(party_.partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
     for (int r = 0; r < rows && first + r < nf; r++) {
       const int k = first + r;
@@ -858,11 +862,11 @@ void View::drawPartyPage(Game& g) {
       }
       P.rect(dx + 10, y, dw - 20, 1, Color(0.55f, 0.45f, 0.28f));
       y += 6;
-      for (const std::string& l : el) { if (y > Pix::H - 46) break; P.text(dx + dw / 2, y, l, 1, Color(0.86f, 0.84f, 0.78f), 1); y += 10; }
+      for (const std::string& l : el) { if (y > L.foot - 46) break; P.text(dx + dw / 2, y, l, 1, Color(0.86f, 0.84f, 0.78f), 1); y += 10; }
       P.rect(dx + 10, y + 1, dw - 20, 1, Color(0.55f, 0.45f, 0.28f));
       y += 10;
       // where the stone stands, from here
-      if (!g.inside && y < Pix::H - 30) {
+      if (!g.inside && y < L.foot - 30) {
         const Actor& pl = g.pl();
         const double hx = (double)g.world.ox + pl.p.x / 16.0, hy = (double)g.world.oy + pl.p.y / 16.0;
         const double ddx = f.gx - hx, ddy = f.gy - hy, d = std::sqrt(ddx * ddx + ddy * ddy);
@@ -879,7 +883,7 @@ void View::drawPartyPage(Game& g) {
       std::string marks;
       if (f.graveFlags & party::GF_FLOWERS) marks = "FLOWERS LAID";
       if (f.graveFlags & party::GF_KEEPSAKE) marks += marks.empty() ? "A KEEPSAKE TAKEN" : ",  A KEEPSAKE TAKEN";
-      if (!marks.empty() && y < Pix::H - 20) P.text(dx, y, marks, 1, Color(0.62f, 0.86f, 0.6f));
+      if (!marks.empty() && y < L.foot - 20) P.text(dx, y, marks, 1, Color(0.62f, 0.86f, 0.6f));
     }
     return;
   }
@@ -1006,7 +1010,7 @@ void View::drawPartyPage(Game& g) {
     // the three bond skills: a lit diamond when it is theirs
     const auto sk = party::skillsOf(m.voc);
     const uint8_t un = party::unlockedSkills(m);
-    const float foot = (float)Pix::H - 22;
+    const float foot = L.foot - 22;
     for (int k = 0; k < 3; k++) {
       const party::SkillInfo& si = party::skillInfo(sk[(size_t)k]);
       const bool on = (un >> k) & 1;
@@ -1048,7 +1052,7 @@ void View::drawPartyPage(Game& g) {
     P.rect(dx, y - 4, dw, 1, Color(0.4f, 0.32f, 0.2f));
     const std::vector<int> c = packFor(g, ps.slot);
     if (c.empty()) P.text(dx + 4, y + 4, ps.slot == kSupplies ? "NO POTIONS OR FOOD IN YOUR PACK" : "NOTHING IN YOUR PACK FOR IT", 1, kDimC);
-    const int rows = std::max(2, (int)(((float)Pix::H - 14 - y) / L.rowH));
+    const int rows = std::max(2, (int)((L.foot - 14 - y) / L.rowH));
     party_.partyPack_ = std::clamp(party_.partyPack_, 0, std::max(0, (int)c.size() - 1));
     const int first = std::clamp(party_.partyPack_ - rows + 1, 0, std::max(0, (int)c.size() - rows));
     for (int r = 0; r < rows && first + r < (int)c.size(); r++) {
@@ -1072,7 +1076,7 @@ void View::drawPartyPage(Game& g) {
   }
   if (noteA > 0 && !partyNote.empty()) {
     const float w = (float)P.textW(partyNote, 1) + 10, nx = std::max(12.0f, std::floor(L.figCX - w / 2));
-    const float ny = (float)Pix::H - 21;
+    const float ny = L.foot - 21;
     P.rect(nx, ny, w, 12, Color(0.05f, 0.04f, 0.06f, 0.92f * noteA));
     P.frame(nx, ny, w, 12, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, 0.8f * noteA));
     P.text(nx + 5, ny + 3, partyNote, 1, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, noteA));
@@ -1113,8 +1117,8 @@ void View::drawPartedPage(Game& g, float top) {
   const int np = (int)g.party.parted.size();
   party_.partyScroll_ = std::clamp(party_.partyScroll_, 0, std::max(0, np - 1));
   const float lx = 18, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f));
-  const float rh = touchUI ? 24.0f : 18.0f;
-  const int rows = std::max(3, (int)((Pix::H - 20 - top) / rh));
+  const float rh = touchUI ? 24.0f : 18.0f, foot = (float)Pix::H - menuHintBand(touchUI);
+  const int rows = std::max(3, (int)((foot - 20 - top) / rh));
   const int first = std::clamp(party_.partyScroll_ - rows + 1, 0, std::max(0, np - rows));
   for (int r = 0; r < rows && first + r < np; r++) {
     const int k = first + r;
@@ -1147,7 +1151,7 @@ void View::drawPartedPage(Game& g, float top) {
     for (const std::string& l : wrapD("LEFT IN ANGER: HE WANTS AN APOLOGY AT HIS TABLE", per)) { P.text(dx, y, l, 1, Color(1, 0.55f, 0.48f)); y += 10; }
   y += 4;
   for (const std::string& l : wrapD("THEY COME BACK AS THEMSELVES: THE SAME FRIEND, THEIR BOND AND THE KIT THEY LEFT WITH", per)) {
-    if (y > Pix::H - 24) break;
+    if (y > foot - 24) break;
     P.text(dx, y, l, 1, Color(0.62f, 0.58f, 0.52f));
     y += 10;
   }
@@ -1228,7 +1232,7 @@ void PartyUi::partyPageTap(View& v, Game& g, Vec2 p) {
   if (partyPage_ == 2) {   // (P3) a row of the PARTED list
     const int np = (int)g.party.parted.size();
     const float rh = v.touchUI ? 24.0f : 18.0f, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f));
-    const int rows = std::max(3, (int)((Pix::H - 20 - L.dTop) / rh));
+    const int rows = std::max(3, (int)((L.foot - 20 - L.dTop) / rh));
     const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, np - rows));
     for (int r = 0; r < rows && first + r < np; r++)
       if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; v.audio_->play(Sfx::MenuMove); return; }
@@ -1237,7 +1241,7 @@ void PartyUi::partyPageTap(View& v, Game& g, Vec2 p) {
   if (partyPage_ == 1) {
     const int nf = (int)g.party.fallen.size();
     const float lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), rh = v.touchUI ? 24.0f : 18.0f;
-    const int rows = std::max(3, (int)((Pix::H - 20 - L.dTop) / rh));
+    const int rows = std::max(3, (int)((L.foot - 20 - L.dTop) / rh));
     const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
     for (int r = 0; r < rows && first + r < nf; r++)
       if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; v.audio_->play(Sfx::MenuMove); return; }
@@ -1274,7 +1278,7 @@ void PartyUi::partyPageTap(View& v, Game& g, Vec2 p) {
   }
   y += 22;
   const std::vector<int> c = packFor(g, ps.slot);
-  const int rows = std::max(2, (int)(((float)Pix::H - 14 - y) / L.rowH));
+  const int rows = std::max(2, (int)((L.foot - 14 - y) / L.rowH));
   const int first = std::clamp(partyPack_ - rows + 1, 0, std::max(0, (int)c.size() - rows));
   for (int r = 0; r < rows && first + r < (int)c.size(); r++)
     if (inR(p, L.dX, y + r * L.rowH, L.dW, L.rowH)) { partyPack_ = first + r; partyPageKey(v, g, SDLK_RETURN); return; }
