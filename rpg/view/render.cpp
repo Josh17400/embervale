@@ -2021,7 +2021,8 @@ void FxState::spawnParticles(View& v, const Event& e, Game& g) {
         toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started || t.s == added; }), toasts_.end());
       }
       if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole && !bannerSays) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
-      if (e.f == 0 || e.f == 1) { v.realm_.bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
+      // (P4 fix r1) the player's own take (Event::id 1, Game::acceptQuest) says QUEST STARTED, as its toast does
+      if (e.f == 0 || e.f == 1) { v.realm_.bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : e.id == 1 ? "QUEST STARTED" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
     case Ev::Notice: {
