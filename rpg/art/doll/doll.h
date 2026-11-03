@@ -165,7 +165,7 @@ enum class Slot : uint8_t {
 };
 // (P5) the tier slot's dye pair and the test for any dye slot (the 18 slots from Dye)
 inline Slot dyeSlotOf(int tierSlot, bool second) { return (Slot)((int)(second ? Slot::Dye2T0 : Slot::DyeT0) + tierSlot); }
-inline bool dyeSlot(Slot s) { return s >= Slot::Dye && s < Slot::COUNT; }
+inline bool isDyeSlot(Slot s) { return s >= Slot::Dye && s < Slot::COUNT; }
 // Face's steps: 0 lash, 1 eye white, 2 mouth, 3 lip tint, 4 blush. Eyes: 2 iris, 3 glint. Ink: 0. Fx: 0 edge, 1 body,
 // 2 core (A3's arc). Every other slot is a 5-step material ramp: 0 outline, 1 shadow, 2 base, 3 light, 4 highlight.
 // (P2c ladder, contracts 3b) Blade: the held weapon's Metal pixels draw in it (its own metal: bladeKind or weaponColor; equal

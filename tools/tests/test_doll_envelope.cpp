@@ -2508,7 +2508,7 @@ int recipeCmd(int argc, char** argv) {
             if (!f.opaque(k)) { a += '.'; continue; }
             const doll::Region rg = (doll::Region)f.p.region[(size_t)k];
             const bool m2 = f.slot(k) == doll::Slot::Metal2;
-            char ch = doll::dyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
+            char ch = doll::isDyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
             if (rg >= doll::Region::Trim && rg <= doll::Region::Wear) {
               ch = doll::regionChar(rg);
               if (!m2) ch = (char)std::tolower((unsigned char)ch);
@@ -2535,7 +2535,7 @@ int recipeCmd(int argc, char** argv) {
           for (int x = 0; x < f.p.w; x++) {
             const int k = y * f.p.w + x;
             if (!f.opaque(k)) { a += " ."; c += " ."; continue; }
-            a += doll::dyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
+            a += doll::isDyeSlot(f.slot(k)) ? ((f.slot(k) == doll::Slot::Dye2 || f.slot(k) >= doll::Slot::Dye2T0) ? 'Y' : 'X') : (char)('a' + (int)f.slot(k));
             a += (char)('0' + f.step(k));
             const std::string pn = f.it(k) ? f.it(k)->part : "-";
             if (!ix.count(pn)) { ix[pn] = (int)names.size(); names.push_back(pn); }

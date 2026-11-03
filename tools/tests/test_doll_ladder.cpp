@@ -1556,7 +1556,7 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
         if (cb < 2) continue;
         const int it = b.owner[k];
         const int ts = it >= 0 && (size_t)it < b.items.size() ? doll::partTierSlot(b.items[(size_t)it].partIndex) : -1;
-        if (ts >= 0) { fpx[ts]++; if (doll::dyeSlot(doll::codeSlot(cb))) fdye[ts]++; }
+        if (ts >= 0) { fpx[ts]++; if (doll::isDyeSlot(doll::codeSlot(cb))) fdye[ts]++; }
         if (f == 0 && ts == HumanLook::TIER_BODY) {
           const uint32_t x = colourOf(on.r, cb), y = colourOf(off.r, ca);
           meanOn[0] += x & 255u; meanOn[1] += x >> 8 & 255u; meanOn[2] += x >> 16 & 255u;
@@ -1565,7 +1565,7 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
         }
         if (ca == cb) continue;
         diff++;
-        const bool dyeNow = doll::dyeSlot(doll::codeSlot(cb));
+        const bool dyeNow = doll::isDyeSlot(doll::codeSlot(cb));
         // (a mark's Ink step inside P; the filigree in the slot's own motif at T5-T6: its P and its band rows on R)
         const int pt = ts >= 0 ? on.r.pieceTier[ts] : 0;
         const bool relief = (doll::codeSlot(ca) == doll::codeSlot(cb) && b.region[k] == (uint8_t)doll::Region::Panel) ||

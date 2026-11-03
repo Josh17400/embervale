@@ -521,7 +521,7 @@ bool greySlot(Slot s) {
     case Slot::Cloth1: case Slot::Cloth2: case Slot::Cloth3: case Slot::Accent: case Slot::Linen: case Slot::Leather: case Slot::Metal:
     case Slot::Metal2: case Slot::Blade: case Slot::Cloak: case Slot::Pattern: case Slot::Plume: case Slot::Field: case Slot::Device:
     case Slot::Glow: case Slot::Head: return true;   // (forge i2) the headwear is gear: HOMESPUN's hood
-    default: return dyeSlot(s);   // (P5) the dye band greys as a material
+    default: return isDyeSlot(s);   // (P5) the dye band greys as a material
   }
 }
 DollRamps greyRamps(const DollRamps& r) {
@@ -961,7 +961,7 @@ void fpShares(const DollRecipe& r, int dye[8], int px[8], FpMean* mean = nullptr
       const int ts = partTierSlot(p.items[(size_t)p.owner[k]].partIndex);
       if (ts < 0) continue;
       n[ts]++;
-      if (dyeSlot(codeSlot(p.code[k]))) d[ts]++;
+      if (isDyeSlot(codeSlot(p.code[k]))) d[ts]++;
       if (mean && f == 0 && ts <= HumanLook::TIER_HELM) {
         const uint32_t c = r.ramps.c[(int)codeSlot(p.code[k])][codeStep(p.code[k])];
         mean->c[ts][0] += c & 255u; mean->c[ts][1] += c >> 8 & 255u; mean->c[ts][2] += c >> 16 & 255u;
