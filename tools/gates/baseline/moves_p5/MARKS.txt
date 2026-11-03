@@ -1,0 +1,19 @@
+# tools/gates/baseline/moves_p5/MARKS.txt: the P5 MARKS area's expected baseline differences (docs/FIX_BATCH_P5.md 5.3, 8).
+# <gate> <item glob>[,...] <id> <reason>. Measured against the p4f1 record on fix-p5-MARKS (contracts, CORE, DOLL, GATES merged;
+# build-solid at c4a86c8): step_gates, doll_gates. MARKS ADDs finish/mark.pxm (the 12 marks: 144 views), the plaid's 24
+# filigree views and the leather coat's lace N (p4_leather.py); no drawn view's cells, mask, origin or build row changed
+# (python tools/doll/p5_marks.py --verify PASS). With FIX_FP off the pool's new views and the lace N draw nothing: the
+# freeze check moved 0 frames on this branch before DOLL's routing was merged (the lamellar / helm N re-cuts, which moved
+# 2276 pre-P5 frames, are NOT in the maps: PLAN D122).
+S6.pool pxc?--check:* P5-1 finish/mark.pxm and the plaid's filigree views ADDed, the leather coat's lace N: 871 parts, 29153 views, 2598795 B, hash 66a9d7991902ceb3 (<= the 2602032 ceiling; P5 adds 9051 B)
+W4.doll.pxc_check pxc?--check:* P5-1 the pool line (as S6.pool)
+W4.doll.gates_parity *pool:* P5-1 the pool line (870 parts, 28985 views -> 871 parts, 29153 views, 2598795 B); the C14 value count moves with DOLL's slots (625 -> 576 with the mark tile disabled too: DOLL.txt)
+W4.doll.arms_matrix *pool:* P5-1 the pool line
+# Not declared here (not MARKS's, or not a move):
+#   W4.doll.forge_drawn C17 "0 glints of step-4 metal" on fw_steel D, mr_1 R, mr_4 D, g_jd3a D (T4 kits): the mark's
+#   Ink-on-metal cells cover the lit chest's step-4 glint (PASS with the mark tile disabled). A DEFECT for DOLL (the mark's
+#   Ink must skip step-4 pixels, FIX_BATCH_P5 3.4 "no dye on step 4 glints"), never a re-record.
+#   S6.freeze, S6.freeze1 (14961 frames), S9.shot village_start.png (166 px), S10.view (252 PNGs), W4 freeze lines: the
+#   fingerprint as a whole on maker looks (DOLL's routing + CORE's makers + these marks); measured once at integration (GATES).
+#   ladder_selftest / ladder_finish / ladder_finish_L / motion_*: unchanged by the mark tile (same result with it disabled): DOLL.
+#   S10.layers: 2 new foreign-internal includes in tools/preview/fingerprint_gallery.cpp and tools/tests/test_fingerprint.cpp: GATES.

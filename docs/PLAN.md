@@ -3966,6 +3966,43 @@ untouched.**
   finger print to be on the armor whether that's color or style, something that makes it unique to the culture" (every
   armour piece, worn and as an icon, carries its maker people's colour or style; the next batch). 1b (a guaranteed
   beginner hunt at the start inn) declined: the owner will do something different for the start of the game.
+
+**Fix batch P5, MARKS (2026-11-03; docs/FIX_BATCH_P5.md 3, 5.3; STYLE_P2 30). Every change below is PENDING THE OWNER'S
+REVIEW (the owner pack's before / after sheets, `p5-pack/MARKS`); nothing drawn was deleted or redrawn (finish/mark.pxm and
+the plaid's filigree views ADDed; region planes re-cut, never a pixel), rig 1 untouched.**
+- **D118. Every people has its own dye** (P5-1; `rpg/core/fingerprint.h`, section 3.2's table kept as planned). Twelve
+  thread colours, each with a second for its band: Fjordfolk woad and bleached wool, Highland tartan green and red,
+  Heartland heraldic red and white, Imperial purple and gold thread, Dune indigo and saffron, Steppe sky blue and horse-hair
+  red, Marsh moss and faded indigo, Jade vermilion and black lacquer, River teal and white, Sun Temple magenta and teal,
+  Sylvan leaf green and amber, Starspire violet and star white. Measured (`python tools/doll/p5_marks.py --table`): the dyes
+  pairwise >= dE 25.0 (Fjordfolk-Dune, parted by their bands 3:1 white against 2:2 saffron), signatures >= 25.4, every dye
+  >= 24.4 from steps 1-3 of every leather, bronze, iron, steel, gilded and brass ramp (it never reads as a material). The
+  dye lands on the piece's rims, hems, laces and seams (the doll's rule, DOLL), the same on its icon (ICONS).
+- **D119. Every people stitches its mark** (P5-1; `maps/finish/mark.pxm`, drawn in `tools/doll/p5_marks.py`). The
+  people's motif in thread on the lit chest, the brow panel and a shield's field at T1-T4 (engraved, one step down, on
+  metal; at T4 instead of the generic etch): the Fjordfolk looped square, the Highland check, the Heartland oak leaf, the
+  Imperial wreath, the Dune lozenge, the Steppe running horse, the Marsh reeds, the Jade meander, the River crest, the Sun
+  Temple sun, the Sylvan leaf, the Starspire star; each at 2x2 to 6x6 and in 1-3 px lines (the fit takes the largest the
+  panel holds). Shapes, never dots; the light top-left; the same glyphs the icons draw at 16 px.
+- **D120. Highland wears the plaid, not the knotwork** (P5-2, decision 3; `finish/filigree.pxm` ADD). Highland shared the
+  Fjordfolk knot at T5-T6. Its own motif is the tartan sett: a stitched check at T1-T4 (D119) and a gilt lattice at T5-T6
+  (an engraved line every 3 px each way: two gilt, one line, the hem-plaid capelet's own sett), on the arabesque's 24 fit
+  sizes and masks. No two peoples share a motif.
+- **D121. The leather coat laces in its maker's dye** (decision 2; `tools/doll/p4_leather.py`). D116's rawhide crossing
+  down the front of a worn leather gambeson is N in the region plane, so a maker people's coat laces in its dye band (a
+  Dune coat indigo and saffron, a Highland coat green and red) and a maker-less coat keeps the rawhide. Pixels unchanged.
+- **D122. The lacing and the helm lining wait for a dye-seam region (not shipped; for the owner and DOLL)** (P5-1). The plan
+  re-cut N (seams) onto the lamellar's lacing cord, the lamellar skirt's lowest course and the brow lining of 13 helm
+  families, so their T3-T4 dye would show. Measured, that moved the PRE-P5 look: `rpg_test --doll-wear --freeze-check`
+  2276 frames in 21 looks (T4-T6 kits) with no fingerprint at all, because the ladder already reads N whoever made the
+  piece (the T4-T6 trim growth, plate lines, iris bands, T6 runes, the glowing alloys' seams). So those re-cuts are not in
+  the maps; `tools/doll/p5_marks.py` writes them (as a new region `D`, the fingerprint's seam, '.' to every older reader)
+  once DOLL adds `D` to pxc's REGIONS and the doll. Until then a T3-T4 helm and a T3 lamellar show their maker only by the
+  engraved mark (and the helm's plume and form): the fingerprint gallery's remaining worn twins (seed 1-3: the T3 steel
+  helms 1-3 pairs each, the great helm 13).
+- **D123. Every people's brow line** (P5-1; `finish/mark.pxm`). On metal the mark is engraved in the plate's own colour,
+  so a 3 px brow line cut alike for every people; each motif now has its own run pattern for brow bands, rims and slim
+  panels (12 masks of 2 px runs or more: the knot `AB.BA`, the plaid `AAB.BAA`, the stars `AB.BAB.BA` ...).
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It

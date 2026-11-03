@@ -175,7 +175,7 @@ void figureSheet(const Opts& o, uint32_t seed, const char* name, const std::vect
       std::string bad;
       const art::HumanLook L = lookOf(fl, seed, &bad);
       if (!bad.empty()) rep("bad spec %s: %s\n", spec.c_str(), bad.c_str());
-      sh.figure(figure(L, facing, -1), lab + (int)c * cw, top + (p - 1) * ch, cw, ch);
+      sh.figure(figure(L, facing, kWhole), lab + (int)c * cw, top + (p - 1) * ch, cw, ch);
     }
     sh.label(2, top + (p - 1) * ch + ch / 2, makerShort(p));
   }
