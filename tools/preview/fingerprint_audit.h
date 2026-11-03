@@ -463,6 +463,23 @@ inline ColumnRun runColumn(uint32_t seed, const Col& c, bool fpOn = true) {
   return cr;
 }
 
+// ================================================================ a piece cropped from its wearer (the swatches)
+// the man wearing the piece (facing D; grp: the piece's own pixels, kWhole the figure) cropped to its box; empty: the maker
+// makes no such piece
+inline Canvas pieceCrop(uint32_t seed, int m, const Col& c, int grp) {
+  Item it;
+  if (!makeItem(seed, m, c, it)) return Canvas();
+  art::HumanLook L = shirtLook(0);
+  wearOne(L, it, seed);
+  const Fig f = figure(L, 0, grp);
+  int x0 = 1 << 20, y0 = 1 << 20, x1 = -(1 << 20), y1 = -(1 << 20);
+  for (const auto& [k, v] : f.piece.px) { x0 = std::min(x0, k.first); y0 = std::min(y0, k.second); x1 = std::max(x1, k.first); y1 = std::max(y1, k.second); }
+  if (x1 < x0) return Canvas();
+  Canvas o(x1 - x0 + 1, y1 - y0 + 1);
+  for (const auto& [k, v] : f.piece.px) o.set(k.first - x0, k.second - y0, v);
+  return o;
+}
+
 // ================================================================ looks files (tools/doll/fp_looks.txt)
 // `tag who people spec`: who man|woman; people the expected maker (a people name, or - for maker-less looks); spec a looks
 // spec whose `@` is replaced by the seed
