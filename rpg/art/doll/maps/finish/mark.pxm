@@ -116,22 +116,22 @@ view D key plaid1x1 origin 0 0
 
 # oak (Heartland)
 view D key oak6x6 origin 0 0
-|..A.A.
-|.AAaAA
-|..AaA.
-|.AAaAA
-|.B.a..
-|BB....
+|...A..
+|.AAaA.
+|..AaAA
+|.AAaA.
+|.BAaAA
+|BB.a..
 
 view D key oak5x5 origin 0 0
-|.A.A.
-|AAaAA
-|.AaA.
-|AAaAA
+|.AA..
+|AAaA.
+|.AaAA
+|AAaA.
 |B.a..
 
 view D key oak4x4 origin 0 0
-|.A.A
+|.AA.
 |AAaA
 |.Aa.
 |B.a.

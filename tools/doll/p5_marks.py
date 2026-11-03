@@ -218,10 +218,10 @@ MARK = {
         2: 'AB BB', 3: 'AAB AAB BBb', 4: 'ABAA BbBB ABAa ABaa',
         5: 'AABAA AABAA BBbBB AABAa AABaa', 6: '.AABA. AAABAa BBBbBb AAABaa .AABa. ......',
         '2x1': 'AB', '3x1': 'AAB', '1x2': 'A B', '1x3': 'A A B'},
-    # Heartland: the lobed oak leaf on its stem, a white acorn at its foot
+    # Heartland: the oak leaf, its lobes alternating down the midrib, on its stem; a white acorn at its foot
     'oak': {
-        2: 'AA aB', 3: 'A.A AaA .a.', 4: '.A.A AAaA .Aa. B.a.',
-        5: '.A.A. AAaAA .AaA. AAaAA B.a..', 6: '..A.A. .AAaAA ..AaA. .AAaAA .B.a.. BB....',
+        2: 'AA aB', 3: 'A.A AaA .a.', 4: '.AA. AAaA .Aa. B.a.',
+        5: '.AA.. AAaA. .AaAA AAaA. B.a..', 6: '...A.. .AAaA. ..AaAA .AAaA. .BAaAA BB.a..',
         '2x1': 'Aa', '3x1': 'AaB', '1x2': 'A a', '1x3': 'A a B'},
     # Imperial: the laurel wreath, open at the top, gold berries at its tips
     'laurel': {
