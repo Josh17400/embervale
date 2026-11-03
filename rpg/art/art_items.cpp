@@ -2,6 +2,10 @@
 #include "rpg/art/art_internal.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/art_rig.h"
+#include "rpg/art/doll/doll_envelope.h"
+#include "rpg/core/fingerprint.h"
+#include <cstring>
+#include <initializer_list>
 
 namespace art {
 
@@ -477,6 +481,183 @@ void iconGlint(Canvas& c, int rarity) {
   for (int d = 0; d < 4; d++) {
     const int nx = bx + (d == 0) - (d == 1), ny = by + (d == 2) - (d == 3);
     if (c.get(nx, ny) >> 24) c.set(nx, ny, mix(c.get(nx, ny), g, 0.7f));
+  }
+}
+
+// ---------------------------------------------------------------- P5: the maker people's fingerprint (docs/FIX_BATCH_P5.md 3.3, 4.5)
+// One pass over a painted armour icon (rig 2, FIX_FP, a maker people), after the piece and its sheen and before the ornament:
+// the people's dye band (fp::row: the doll's own table, ramped by the doll's rampA3, so the bag and the hero agree) on the
+// piece's rims, seams and cuffs, and its motif as a glyph on the chest, climbing with the look tier as the doll's finish
+// does: thread at T1-T2, engraving at T3-T4, gold at T5-T6. Data, not code: kFpGlyphs (a motif -> its drawings), kFpMarks
+// (a row per Icon and form: where the band lies and on which tiers), kFpChest (where the glyph sits). Nothing here reads
+// the people but the table, so a new people is a new fp::row and a new form a new mark row.
+
+// the motif glyphs (MARKS's marks at icon scale; STYLE_P2 27.3: a shape, every thread pixel touching another, never a lone
+// dot): 'a' the dye, 'b' the second colour (the dye where the band is solid), '.' the plate. 4x4 on an open chest, 3x3 where
+// a laced or seamed front leaves only a breast
+struct FpGlyph { const char* motif; const char* g4; const char* g3; };
+const FpGlyph kFpGlyphs[] = {
+    {"knot",   ".aa." "a..b" "b..a" ".aa.",  ".a." "a.b" ".a."},    // Fjordfolk: a knotwork ring
+    {"plaid",  ".a.." "bbbb" ".a.." ".a..",  ".a." "bab" ".a."},    // Highland: the tartan sett, a check of two threads
+    {"oak",    ".a.." "aaa." ".aaa" "..b.",  "aa." "aaa" ".b."},    // Heartland: an oak leaf on its stem
+    {"laurel", "a..a" "a..a" "a..a" ".bb.",  "a.a" "a.a" ".b."},    // Imperial: the laurel wreath
+    {"arab",   ".aaa" ".a.." "..a." "bbb.",  "aa." ".a." ".bb"},    // Dune: an arabesque scroll
+    {"horse",  "aa.." ".aaa" ".a.a" ".b.b",  "a.." "aaa" "b.b"},    // Steppe: a running horse
+    {"reed",   "...a" ".a.a" ".a.a" "bbbb",  "..a" "a.a" "bbb"},    // Marsh: reeds bound at the foot
+    {"clouds", ".aa." "a..a" "a.aa" ".b..",  ".aa" "a.a" "bb."},    // Jade: a cloud scroll
+    {"wave",   ".a.." "a.a." "...a" "..bb",  ".a." "a.a" "..b"},    // River: a breaking wave
+    {"ray",    "a..a" ".ab." ".ba." "a..a",  "a.a" ".b." "a.a"},    // Sun Temple: the sun and its rays
+    {"vein",   "..aa" ".a.a" "a.b." "ab..",  ".aa" "a.a" "b.."},    // Sylvan: a leaf and its vein
+    {"star",   ".a.." "aba." ".a.." "....",  ".a." "aba" ".a."},    // Starspire: a four-point star
+};
+const FpGlyph* fpGlyph(const char* motif) {
+  for (const FpGlyph& g : kFpGlyphs) if (!std::strcmp(g.motif, motif)) return &g;
+  return nullptr;
+}
+
+// where a band lies: the opaque pixels of a rect (All), those on the piece's edge (Edge: a clear 4-neighbour), or the pixel
+// above each column's lowest (AboveBottom: a hem's inner row, so the outline keeps the material's dark); a pattern thins it
+// (x % xm == xr, y % ym == yr, and (x + y) % dm < dr: a lashed binding, runs along the edge, never a checker)
+enum class FpAt : uint8_t { All, Edge, AboveBottom };
+struct FpMark {
+  Icon icon; int8_t form;            // IconLook::form (-1: every form)
+  uint16_t mats;                     // bit m: drawn on a piece of Mat m (IconLook::mat; 0: every material)
+  uint8_t tiers;                     // bit t: drawn at look tier t (1-6)
+  FpAt at; int8_t x0, y0, x1, y1;
+  uint8_t xm, xr, ym, yr, dm, dr;
+};
+constexpr uint8_t kT12 = 0x06, kT35 = 0x38, kT15 = 0x3E, kT14 = 0x1E;
+// leather pieces carry the least thread (D117: a leather coat's, cap's, gloves' and boots' mean stays a brown, FIX_BATCH_P5 3.5)
+constexpr uint16_t kAnyM = 0, kLeatherM = 1u << 1, kHardM = (uint16_t)~(1u << 1);
+const FpMark kFpMarks[] = {
+    // body: the form's own seams (its N rows: laces, stitches, the shadow between courses) in thread from T1 to T5. Never
+    // a whole rim at 16 px: a dyed hem or collar pulled a people's bronze and iron coats together by their means (D117), a
+    // shadow seam is dark on every metal, so its thread moves no material read
+    {Icon::Armor, 1, kAnyM, kT15, FpAt::All,   7, 5, 7, 10,   0, 0, 2, 0, 0, 0},   // the gambeson's lacing: the dye threaded
+    {Icon::Armor, 1, kAnyM, kT15, FpAt::All,   8, 5, 8, 10,   0, 0, 2, 1, 0, 0},   // between D116's rawhide crossings
+    {Icon::Armor, 2, kAnyM, kT15, FpAt::All,   7, 5, 7, 13,   0, 0, 2, 1, 0, 0},   // the jerkin's front seam
+    {Icon::Armor, 3, kAnyM, kT15, FpAt::All,   4, 11, 6, 11,  0, 0, 0, 0, 0, 0},   // the mail shirt's belt, by its buckle
+    {Icon::Armor, 3, kAnyM, kT15, FpAt::All,   9, 11, 11, 11, 0, 0, 0, 0, 0, 0},
+    {Icon::Armor, 4, kAnyM, kT15, FpAt::All,   4, 12, 11, 12, 0, 0, 0, 0, 0, 0},   // the scales' lowest course
+    {Icon::Armor, 5, kAnyM, kT15, FpAt::All,   4, 9, 11, 12,  3, 1, 3, 0, 0, 0},   // the lamellar's lower lace knots
+    {Icon::Armor, 6, kAnyM, kT12, FpAt::All,   5, 12, 9, 12,  0, 0, 0, 0, 0, 0},   // the brigandine's seam: its middle at T1-T2
+    {Icon::Armor, 6, kAnyM, kT35, FpAt::All,   4, 12, 11, 12, 0, 0, 0, 0, 0, 0},   // and whole from T3
+    {Icon::Armor, 7, kAnyM, kT15, FpAt::All,   4, 12, 11, 12, 0, 0, 0, 0, 0, 0},   // the plate's fauld line
+    {Icon::Armor, 8, kAnyM, kT15, FpAt::All,   4, 13, 11, 13, 0, 0, 0, 0, 0, 0},   // the leaves' lowest course
+    // helm: the brow band (the rim at T1-T2, its lower row the lining at T3-T5: one row at 16 px)
+    {Icon::Helmet, 1, kAnyM, kT15, FpAt::All,  4, 9, 11, 9,   0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 2, kAnyM, kT15, FpAt::All,  4, 9, 11, 9,   0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 3, kAnyM, kT15, FpAt::All,  4, 13, 11, 13, 0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 4, kAnyM, kT15, FpAt::All,  3, 10, 12, 10, 0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 5, kAnyM, kT15, FpAt::All,  4, 11, 11, 11, 0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 6, kAnyM, kT15, FpAt::All,  4, 11, 11, 11, 0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 7, kAnyM, kT15, FpAt::All,  4, 8, 11, 8,   0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 8, kAnyM, kT15, FpAt::All,  4, 8, 11, 8,   0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 9, kAnyM, kT15, FpAt::All,  4, 9, 11, 9,   0, 0, 0, 0, 0, 0},
+    {Icon::Helmet, 10, kAnyM, kT15, FpAt::All, 4, 11, 11, 11, 0, 0, 0, 0, 0, 0},
+    // shield: the binding lashed over the board's edge, runs of 2 every 6 px (a lashing wraps the edge; the kingdom's field and
+    // device stay as painted), T1-T5
+    {Icon::Shield, -1, kAnyM, kT15, FpAt::Edge, 0, 0, 15, 15, 0, 0, 0, 0, 6, 2},
+    // gloves: the cuff's middle row (leather), and its lit top row on a gauntlet; boots: each boot's cuff (its lower row;
+    // the top row too on a hard boot), the far boot's, then the near one's; T1-T5
+    {Icon::Gloves, -1, kAnyM, kT15, FpAt::All,  4, 13, 11, 13, 0, 0, 0, 0, 0, 0},
+    {Icon::Gloves, -1, kHardM, kT15, FpAt::All, 4, 12, 11, 12, 0, 0, 0, 0, 0, 0},
+    {Icon::Boots, -1, kAnyM, kT15, FpAt::All,   3, 1, 6, 1,    0, 0, 0, 0, 0, 0},
+    {Icon::Boots, -1, kAnyM, kT15, FpAt::All,   6, 3, 9, 3,    0, 0, 0, 0, 0, 0},
+    {Icon::Boots, -1, kHardM, kT15, FpAt::All,  3, 0, 6, 0,    0, 0, 0, 0, 0, 0},
+    {Icon::Boots, -1, kHardM, kT15, FpAt::All,  8, 2, 9, 2,    0, 0, 0, 0, 0, 0},
+    // cloak: the hem's inner row through T4 (a cloak's border keeps its thread longer: FIX_BATCH_P5 3.3), the hood's rim T1-T5
+    {Icon::Cloak, -1, kAnyM, kT14, FpAt::AboveBottom, 0, 9, 15, 15, 0, 0, 0, 0, 0, 0},
+    {Icon::Cloak, -1, kAnyM, kT14, FpAt::All,         6, 5, 10, 5,  0, 0, 0, 0, 0, 0},
+    {Icon::Cloak, -1, kAnyM, 0x20, FpAt::All,         5, 5, 11, 5,  0, 0, 0, 0, 0, 0},   // T5: the whole rim (no hem)
+};
+// where the glyph sits: the 4x4 on an open chest, the 3x3 on the lit breast beside a laced or seamed front; on a cloak the
+// clasp becomes the people's brooch at T5-T6 (gold)
+struct FpChest { Icon icon; int8_t form; uint16_t mats; uint8_t tiers; int8_t x, y; bool small; };
+const FpChest kFpChest[] = {
+    // a leather gambeson's mark is its laced front at T1-T2 (a stitched glyph on its lit breast pulled D117's browns grey)
+    {Icon::Armor, 1, kLeatherM, 0x78, 4, 6, true}, {Icon::Armor, 1, kHardM, 0x7E, 4, 6, true},
+    {Icon::Armor, 2, kAnyM, 0x7E, 4, 6, true},     {Icon::Armor, 7, kAnyM, 0x7E, 4, 6, true},
+    {Icon::Armor, 6, kAnyM, 0x78, 6, 6, false},    // a coat of plates: its seam at T1-T2, the engraved mark from T3
+    {Icon::Armor, -1, kAnyM, 0x7E, 6, 6, false},
+    {Icon::Cloak, -1, kAnyM, 0x60, 6, 6, true},
+};
+
+// the drawn step of a painted pixel: its index in the ramps it was painted from, else by its brightness
+int fpStep(uint32_t v, std::initializer_list<const Ramp*> rs) {
+  for (const Ramp* r : rs)
+    for (int k = 0; k < 5; k++) if ((*r)[k] == v) return k;
+  const float l = luma(v);
+  return l < 0.22f ? 0 : l < 0.40f ? 1 : l < 0.62f ? 2 : l < 0.80f ? 3 : 4;
+}
+Ramp fpRamp(uint32_t rgb) {
+  uint32_t k[5];
+  doll::rampA3(rgba((int)(rgb >> 16 & 255), (int)(rgb >> 8 & 255), (int)(rgb & 255)), doll::Material::Cloth, k);
+  return ramp5(k[0], k[1], k[2], k[3], k[4]);
+}
+
+void iconFingerprint(Canvas& c, const IconLook& l, const Ramp& M, const Ramp& acc) {
+  const fp::Row& row = fp::row(l.people);
+  if (!row.period || l.tier < 1 || l.tier > 6) return;
+  const uint8_t tbit = (uint8_t)(1u << l.tier);
+  const Ramp D = fpRamp(row.dye), D2 = row.dye2 ? fpRamp(row.dye2) : D;
+  auto band = [&](int x, int y) -> const Ramp& { return ((x + y) % row.period) < row.run ? D : D2; };
+  const Canvas src = c;
+  auto op = [&](int x, int y) { return x >= 0 && y >= 0 && x < ICON && y < ICON && (src.get(x, y) >> 24) != 0; };
+  auto edge = [&](int x, int y) { return op(x, y) && (!op(x - 1, y) || !op(x + 1, y) || !op(x, y - 1) || !op(x, y + 1)); };
+  const bool leatherPiece = l.mat == 1;   // Mat::Leather
+  auto inM = [&](uint32_t v) { for (int k = 0; k < 5; k++) if (M[k] == v) return true; return false; };
+  auto dye = [&](int x, int y, const Ramp& R) {
+    // the drawn step carries (shadow 1, else the dye's own 2: the thread keeps its hue on a lit rim), never a glint; on
+    // leather the dye's own step, a dark thread on a boot's lit cuff (the hide keeps its browns: D117)
+    const int k = leatherPiece ? (l.icon == Icon::Boots ? 1 : 2) : std::clamp(fpStep(src.get(x, y), {&M, &acc, &kLeather}), 1, 2);
+    c.set(x, y, R[k]);
+  };
+  for (const FpMark& m : kFpMarks) {
+    if (m.icon != l.icon || (m.form >= 0 && m.form != l.form) || !(m.tiers & tbit) || (m.mats && !(m.mats & (1u << l.mat)))) continue;
+    for (int x = m.x0; x <= m.x1; x++) {
+      int lowest = -1;
+      for (int y = m.y0; y <= m.y1; y++) {
+        if (!op(x, y)) continue;
+        if (m.xm > 1 && x % m.xm != m.xr) continue;
+        if (m.ym > 1 && y % m.ym != m.yr) continue;
+        if (m.dm > 1 && (x + y) % m.dm >= m.dr) continue;
+        bool hit = true;
+        switch (m.at) {
+          case FpAt::All: break;
+          case FpAt::Edge: hit = edge(x, y); break;
+          case FpAt::AboveBottom: hit = false; lowest = y; break;
+        }
+        if (hit) dye(x, y, band(x, y));
+      }
+      if (m.at == FpAt::AboveBottom && lowest > m.y0 && op(x, lowest - 1)) dye(x, lowest - 1, band(x, lowest - 1));   // a hem's inner row
+    }
+  }
+  // the glyph: thread at T1-T2 on leather (a dark thread, so the hide keeps its browns: D117) and cloth (one step over the
+  // plate), Ink relief one step under the plate on metal and at T3-T4 (engraved), gold at T5-T6 (the filigree's language:
+  // the lit point top-left)
+  const FpGlyph* g = fpGlyph(row.motif);
+  if (!g) return;
+  const bool metal = l.mat != 1 && l.mat != 6 && !(l.icon == Icon::Armor && l.form == 1);   // Mat::Leather, Mat::Cloth, a padded coat
+  for (const FpChest& ch : kFpChest) {
+    if (ch.icon != l.icon || (ch.form >= 0 && ch.form != l.form) || (ch.mats && !(ch.mats & (1u << l.mat)))) continue;
+    if (!(ch.tiers & tbit)) break;   // the first row for the piece decides
+    const char* cells = ch.small ? g->g3 : g->g4;
+    const int n = ch.small ? 3 : 4;
+    bool first = true;
+    for (int j = 0; j < n; j++)
+      for (int i = 0; i < n; i++) {
+        const char cc = cells[j * n + i];
+        const int x = ch.x + i, y = ch.y + j;
+        if (cc == '.' || !op(x, y)) continue;
+        const uint32_t v = src.get(x, y);
+        const int k = fpStep(v, {&M, &acc, &kLeather});
+        if (l.tier >= 5) c.set(x, y, kGold[first ? 4 : 3]);
+        else if (l.tier >= 3 || metal) c.set(x, y, inM(v) ? M[std::max(0, k - 1)] : mix(v, kInk, 0.35f));
+        else c.set(x, y, (cc == 'b' ? D2 : D)[leatherPiece ? 1 : std::clamp(k + 1, 2, 3)]);
+        first = false;
+      }
+    break;
   }
 }
 
@@ -1150,6 +1331,11 @@ Canvas itemIconLook(const IconLook& l) {
     paintIcon(c, l.icon, l.tint, metalKind ? &M : nullptr);
   }
   if (l.sheen) iconSheen(c, M, l.sheen);
+  // (P5, FIX_BATCH_P5 4.5) the maker people's fingerprint: rig 2 and FIX_FP only (EMB_FIX_RULES without it, rig 1 and a piece
+  // with no maker people paint as before)
+  const bool fpKind = l.icon == Icon::Armor || l.icon == Icon::Helmet || l.icon == Icon::Shield || l.icon == Icon::Gloves ||
+                      l.icon == Icon::Boots || l.icon == Icon::Cloak;
+  if (p4 && fpKind && l.people >= 1 && doll::fixOn(doll::FIX_FP)) iconFingerprint(c, l, M, acc);
   // (P4 ART, D117) a gilt iron coat is gilt at the collar and the shoulders only: a whole gold rim round a dark iron coat read,
   // by its mean, as bronze (Imperial, Sun-Temple, Starspire iron sat 22-27 from their bronze); the gold still marks the maker
   const bool ironGilt = p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);
