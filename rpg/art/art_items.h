@@ -59,6 +59,8 @@ struct IconLook {
   uint8_t mat = 0;          // Mat (rpg/sim/items.h) as int: leather and cloth paint differently from metal
   uint8_t dollMetal = 0;    // (alloys i1, rig 2) the doll's metal (HumanLook::metalKind 2-11) and, for an alloy (10), its
   uint8_t alloyFam = 0;     // family (1-based): the icon paints the doll's own ramp, so the bag and the hero agree (0: classic)
+  uint8_t people = 0;       // (P5, FIX_BATCH_P5 4.2) the maker people (cult::Archetype + 1, 1..12; 0 none): the fingerprint
+  uint8_t tier = 0;         // (P5) the piece's look tier (gear::lookTier, 1-6; 0 none)
   uint64_t key() const {    // identity for the view's icon cache: equal keys paint identical pixels
     uint64_t k = 0x9AE16A3B2F90404Full;
     auto mx = [&](uint64_t v) { k ^= v; k *= 0x100000001B3ull; };
@@ -66,6 +68,7 @@ struct IconLook {
     mx((uint64_t)tint << 32 | tint2);
     mx(accent);
     mx((uint64_t)dollMetal << 8 | alloyFam);
+    if (people || tier) mx(0x5E0F1A0000000000ull ^ ((uint64_t)people << 8 | tier));   // (P5) only when set: older keys hold
     return k;
   }
 };

@@ -483,6 +483,9 @@ DollRamps a3Palette(int who) {
   for (Slot s : {Slot::Head, Slot::Cloak, Slot::Pattern, Slot::Plume, Slot::Field, Slot::Device, Slot::Glow})
     for (int i = 0; i < 5; i++) R.c[(int)s][i] = R.c[(int)Slot::Accent][i];
   for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];   // (P2c ladder) the blade: A3's steel
+  // (P5) the dye slots: the Accent ramp until a maker fills its tier slot's pair (rampsOf), so a draft's dye cells render
+  for (int s = (int)Slot::Dye; s < SLOT_COUNT; s++)
+    for (int i = 0; i < 5; i++) R.c[s][i] = R.c[(int)Slot::Accent][i];
   return R;
 }
 

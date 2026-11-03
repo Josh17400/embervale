@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <cstdlib>
 #include <string>
+#include <vector>
 #include "rpg/art/doll/doll_internal.h"
 #include "rpg/art/doll/doll_look_fields.h"
+#include "rpg/core/fingerprint.h"
 
 // ---------------------------------------------------------------- (P2c SLICE-DOLL) the looks-file fields, one list (moved here from doll_resolve.cpp by LADDER-DOLL: rpg_doll)
 namespace art {
@@ -117,6 +119,38 @@ void applyLookSpecPlain(HumanLook& L, const std::string& spec, bool* lookPal, bo
 // ---------------------------------------------------------------- (SOLID 5.4) the ladder fields, one list
 namespace art {
 namespace doll {
+namespace {
+// (P5, FIX_BATCH_P5 4.3) one maker people: a name (fp::kRows: "fjordfolk" ...), a number (0..12) or "-" (none); -1 unknown
+int makerOf(const std::string& t) {
+  if (t.empty() || t == "-") return 0;
+  if (t[0] >= '0' && t[0] <= '9') { const int n = (int)std::strtol(t.c_str(), nullptr, 10); return n >= 0 && n < fp::kPeoples ? n : -1; }
+  for (int i = 0; i < fp::kPeoples; i++) if (t == fp::kRows[i].name) return i;
+  return -1;
+}
+// makers=<body>:<helm>:<shield>:<weapon>:<gloves>:<boots>:<cloak>:<back> (colons: the spec splits on commas); one people alone
+// sets every worn armour slot (body helm shield gloves boots cloak)
+bool applyMakers(HumanLook& L, const std::string& v) {
+  std::vector<int> ps;
+  size_t a = 0;
+  while (a <= v.size()) {
+    size_t b = v.find(':', a);
+    if (b == std::string::npos) b = v.size();
+    const int m = makerOf(v.substr(a, b - a));
+    if (m < 0) return false;
+    ps.push_back(m);
+    a = b + 1;
+  }
+  if (ps.size() == 1) {
+    for (int s : {(int)HumanLook::TIER_BODY, (int)HumanLook::TIER_HELM, (int)HumanLook::TIER_SHIELD, (int)HumanLook::TIER_GLOVES,
+                  (int)HumanLook::TIER_BOOTS, (int)HumanLook::TIER_CLOAK})
+      L.setMaker(s, ps[0]);
+    return true;
+  }
+  if (ps.size() > (size_t)HumanLook::TIER_SLOTS) return false;
+  for (size_t s = 0; s < ps.size(); s++) L.setMaker((int)s, ps[s]);
+  return true;
+}
+}  // namespace
 bool applyLadderLookField(HumanLook& L, const std::string& k, const std::string& v) {
   const int n = (int)std::strtol(v.c_str(), nullptr, 0);
   static const char* const kTier[8] = {"tierBody", "tierHelm", "tierShield", "tierWeapon", "tierGloves", "tierBoots", "tierCloak", "tierBack"};
@@ -125,6 +159,7 @@ bool applyLadderLookField(HumanLook& L, const std::string& k, const std::string&
     if (k == kTier[s]) { L.tier[s] = (uint8_t)std::clamp(n, 0, 6); return true; }
     if (k == kForge[s]) { L.forge[s] = std::strtoull(v.c_str(), nullptr, 0); return true; }
   }
+  if (k == "makers") return applyMakers(L, v);   // (P5)
   if (k == "rare") L.rare = (uint8_t)n;
   else if (k == "mythic") L.mythic = (uint8_t)n;
   else if (k == "metalKind") L.metalKind = (uint8_t)n;
