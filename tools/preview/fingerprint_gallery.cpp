@@ -197,14 +197,14 @@ void censusSheet(const Opts& o, uint32_t seed) {
 }
 
 // ---------------------------------------------------------------- the swatches: dyes, bands, marks (1x, 3x) and icons
-// a pool view drawn with the people's dye ramps (dye, dye2), the ink dark and every other slot a neutral leather
-Canvas markView(const dl::pool::Pool& P, const dl::pool::ViewRec& v, const Dye& d) {
+// a pool view drawn with the people's dye ramps (dye, dye2), the ink dark and every other slot in `other` (the mark on a
+// leather, the filigree in gold)
+Canvas markView(const dl::pool::ViewRec& v, const Dye& d, uint32_t other, dl::Material om) {
   Canvas c(v.w, v.h);
   uint32_t r1[5], r2[5], lea[5];
   dl::rampA3(hexc(d.dye), dl::Material::Cloth, r1);
   dl::rampA3(hexc(d.dye2 ? d.dye2 : d.dye), dl::Material::Cloth, r2);
-  dl::rampA3(rgba(141, 85, 54), dl::Material::Leather, lea);
-  (void)P;
+  dl::rampA3(other, om, lea);
   const int first = firstDyeSlot<dl::Slot>();
   for (int y = 0; y < v.h; y++)
     for (int x = 0; x < v.w; x++) {
@@ -232,7 +232,8 @@ Canvas motifView(const std::string& role, const Dye& d) {
       if (k.size() > n && k.compare(0, n, d.motif) == 0 && std::isdigit((unsigned char)k[n]) && (!best || v.w * v.h > best->w * best->h)) best = &v;
     }
   }
-  return best ? markView(P, *best, d) : Canvas();
+  const bool gold = role == "finish.filigree";
+  return best ? markView(*best, d, gold ? rgba(200, 160, 32) : rgba(141, 85, 54), gold ? dl::Material::Metal : dl::Material::Leather) : Canvas();
 }
 void swatchSheet(const Opts& o, uint32_t seed) {
   const int rowH = 56, lab = 70, top = 14;

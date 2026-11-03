@@ -43,6 +43,7 @@ it; include the seam, not the wide header beside it.
 | `engine/canvas.h` | `rgba()`, `Canvas` | painters, culture/build, core, tools; code that bakes or blits textures needs `engine/pix.h` |
 | `rpg/core/common.h` | TILE, SIM_DT, hashes, value noise, IRect, BinW/BinR (`rpg/sim/common.h` forwards here) | anyone |
 | `rpg/core/art_ids.h` | the art vocabulary: `Prop` with its predicates, footprints and stall geometry; `Monster`, `Species`, `Building` + `BuildingFacts`, `Posture`, the Fx ids, `HumanLook`, `MonsterLook` | anyone |
+| `rpg/core/fingerprint.h` | (P5) the peoples' fingerprints on armour: `fp::kRows` (name, motif, dye, dye2, band run and period per maker people), `fp::row`; data only, includes only `<cstdint>` | anyone (the doll's resolver and the icon painter read it; tools measure it) |
 | `rpg/world/records.h` | the plain world records: `MapKind`, `SiteType`, `Role`, `Bldg`, `Site`, `Kingdom`, `Spawn`, `Den`, `WORLDGEN_*`, `MapBits`, plus `siteTypeName` and `bldgRiseTiles` | world and up |
 | `rpg/world/map.h` | `Map` (the tile map), the `bldg*` helpers (`bldgArch`, `bldgRequest`, `bldgBlueprint`, open fronts, the V7 storey and hearth rules), `propSolid`, the name makers | world and up |
 | `rpg/world/rooms.h` | interior rooms and storeys: `Stairs`, `RoomKind`, `RoomInfo`, the trial layouts (the geometry contract) | world and up |
@@ -226,6 +227,12 @@ Tables that are hand-kept lists (one row per kind, but no self-registering macro
 - wayside places: one `VignetteDef` row per `VignetteKind` (`kVignettes`) and one `WonderDef` row per `WonderKind`
   (`kWonders`) in `rpg/world/vignettes.cpp`;
 - the CI list: `kCiList` in `tools/tests/main.cpp` (`rpg_test --list-ci`; every line must be a registered gate).
+- (P5) the fingerprint: one row per people in `fp::kRows` (`rpg/core/fingerprint.h`); a piece's maker rides on the look
+  (`HumanLook::makers`, 4 bits per tier slot, derived, never saved) and the icon (`IconLook::people`); the doll draws it in the
+  dye slots (`Slot::Dye`, `Dye2`, `DyeT0..7`, `Dye2T0..7`: never named in maps but `dye` / `dye2`) behind the `FIX_FP` rule bit
+  (`doll_envelope.h`; `EMB_FIX_RULES=4095` is the pre-P5 look for A/B proofs). A new armour piece inherits it by carrying R or N
+  cells (`pxc.mjs --report` `fp-landing`); a new body, helm or shield form joins the gate by itself (`tools/preview/fingerprint_audit.h`
+  `columns()` enumerates the enums), measured by `rpg_test --fingerprint` and drawn by `fingerprint_gallery`.
 
 ## 4. Determinism and floating point
 
