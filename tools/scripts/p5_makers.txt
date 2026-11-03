@@ -1,0 +1,87 @@
+# P5 PACK (docs/FIX_BATCH_P5.md 4.2, 4.4, 5.6): the maker people of every worn piece, read as state (`expect makers`,
+# rpg/view/scripts/view_p5.cpp), on the stagings of tools/scripts/p5_fingerprint.txt. AFTER ONLY (80215d7 has no makers):
+#   the hero's T1 floor and a classic (culture 0) piece carry none; a piece carries its maker's people, not the wearer's
+#   or the town's; a companion given three peoples' pieces wears three makers; the watch and soldiers wear the owner
+#   kingdom's people, bandits the local people (census::dress); a swap of the worn piece swaps the maker.
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> tools/scripts/p5_makers.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
+# ---- the hero as the game starts: the T1 floor, no maker anywhere
++0.1 expect makers body none
++0.0 expect makers helm none
++0.0 expect makers boots none
+# ---- a companion given three peoples' pieces (the new piece is the pack's second, index 1)
++0.1 gotosite start
++2.0 expect culture river
++0.0 party recruit
++0.1 gear6 armor ilvl 5 rarity 2 fjordfolk mat iron
++0.1 party give 1
++0.1 gear6 helmet ilvl 5 rarity 4 steppe mat leather
++0.1 party give 1
++0.1 gear6 boots ilvl 5 rarity 4 marsh mat leather
++0.1 party give 1
++0.1 party near
++0.3 expect makers body fjordfolk companion 0
++0.0 expect makers helm steppe companion 0
++0.0 expect makers boots marsh companion 0
++0.0 expect makers differ body helm companion 0
++0.0 expect makers differ helm boots companion 0
+# the hero, who gave the pieces away, still wears no maker
++0.0 expect makers body none hero
+# ---- the hero in three peoples' T1 leather coats, one after the other (the worn coat's maker follows the swap)
++0.1 gear6 armor ilvl 2 dune mat leather form 1 equip
++0.3 expect makers body dune
++0.0 expect makers helm none
++0.1 gear6 armor ilvl 2 highland mat leather form 1 equip
++0.3 expect makers body highland
++0.1 gear6 armor ilvl 2 jade mat leather form 1 equip
++0.3 expect makers body jade
+# a classic piece (no maker culture) carries no fingerprint
++0.1 gear6 armor ilvl 2 none mat leather equip
++0.3 expect makers body none
+# ---- three peoples on one hero (the EQUIP page's staging): a Dune coat, a Highland cap, Jade gloves and boots
++0.1 gear6 armor ilvl 2 dune mat leather form 1 equip
++0.1 gear6 helmet ilvl 2 highland mat leather equip
++0.1 gear6 gloves ilvl 2 jade mat leather equip
++0.1 gear6 boots ilvl 2 jade mat leather equip
++0.3 expect makers body dune
++0.0 expect makers helm highland
++0.0 expect makers gloves jade
++0.0 expect makers boots jade
++0.0 expect makers same gloves boots
++0.0 expect makers differ body helm
+# a full kit of one people (kit6): every armour slot that people's
++0.1 kit6 fjordfolk
++0.3 expect makers body fjordfolk
++0.0 expect makers helm fjordfolk
++0.0 expect makers shield fjordfolk
++0.0 expect makers boots fjordfolk
+# ---- the watch: the start town's people, then four towns' (a census row; the nearest is the row's middle)
++0.1 lineup river guard 4 mixed
++0.3 expect makers body river near
++0.0 expect makers helm river near
++0.1 gotoculture dune town
++2.5 lineup dune guard 4 mixed
++0.3 expect makers body dune near
++0.0 expect makers helm dune near
++0.1 gotoculture jade town
++2.5 lineup jade guard 4 mixed
++0.3 expect makers body jade near
++0.1 gotoculture highland town
++2.5 lineup highland guard 4 mixed
++0.3 expect makers body highland near
++0.1 gotoculture suntemple town
++2.5 lineup suntemple guard 4 mixed
++0.3 expect makers body suntemple near
++0.0 expect makers helm suntemple near
+# soldiers of the same people; a bandit of another
++0.1 lineup suntemple soldier 3
++0.3 expect makers body suntemple near
++0.1 lineup steppe bandit 3
++0.3 expect makers body steppe near
++0.1 quit

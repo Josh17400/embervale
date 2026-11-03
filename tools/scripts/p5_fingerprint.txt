@@ -1,0 +1,139 @@
+# P5 PACK (docs/FIX_BATCH_P5.md 5.6, 10 play/): every people's fingerprint on its armour, in play. Seed 7, rig 2, by day
+# (11:00, clear) unless said, each staging at NEAR then CLOSE, the world alone (ui 0) but the shop and the EQUIP page:
+#   1. the watch of seed 7's start town (a River town: a row of four of its people's watch);
+#   2. the watch of four towns: Dune, Jade, Highland, Sun Temple (gotoculture <people> town; a row of four, ranks 0);
+#   3. a companion in three peoples' pieces: a Fjordfolk mail shirt, a Steppe leather cap, Marsh leather boots (given);
+#   4. the hero in three peoples' T1 leather coats (the start smith's padded coat, form 1): Dune, Highland, Jade;
+#   5. a smith's shelf in three peoples' towns (the start town, Dune, Highland): the shop's body-armour icons;
+#   6. the EQUIP page of a hero in three peoples' pieces (a Dune coat, a Highland cap, Jade gloves and boots);
+#   7. night under a lamp (23:00) in a Jade town: the hero in three peoples' pieces, the bands under lamp light.
+# Uses only commands 80215d7 already has, so the same file shoots "before" on the old build or with EMB_FIX_RULES=4095.
+# The `expect makers` checks are in tools/scripts/p5_makers.txt (after only). Never a visible window:
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5_fingerprint.txt   (p5_fp_*.png)
+#   python tools/doll/p5_pack.py <before>/runs/p5_fingerprint <after>/runs/p5_fingerprint <scratch>/p5-pack/play
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 ui 0
++0.0 ring 0
+# ---- 1. seed 7's start town (a River town; no census guard is out by day): a row of four of its people's watch
++0.1 gotosite start
++2.0 expect culture river
++0.0 zoom near
++0.1 lineup river guard 4 mixed
++0.4 shot p5_fp_start_watch_near.png
++0.1 zoom close
++0.3 shot p5_fp_start_watch_close.png
+# ---- 2. the watch of four towns
++0.1 zoom near
++0.1 gotoculture dune town
++2.5 lineup dune guard 4 mixed
++0.4 shot p5_fp_dune_watch_near.png
++0.1 zoom close
++0.3 shot p5_fp_dune_watch_close.png
++0.1 zoom near
++0.1 gotoculture jade town
++2.5 lineup jade guard 4 mixed
++0.4 shot p5_fp_jade_watch_near.png
++0.1 zoom close
++0.3 shot p5_fp_jade_watch_close.png
++0.1 zoom near
++0.1 gotoculture highland town
++2.5 lineup highland guard 4 mixed
++0.4 shot p5_fp_highland_watch_near.png
++0.1 zoom close
++0.3 shot p5_fp_highland_watch_close.png
++0.1 zoom near
++0.1 gotoculture suntemple town
++2.5 lineup suntemple guard 4 mixed
++0.4 shot p5_fp_suntemple_watch_near.png
++0.1 zoom close
++0.3 shot p5_fp_suntemple_watch_close.png
+# ---- 3. a companion in three peoples' pieces, each given from the pack (the new piece is the pack's second, index 1: given
+# before the hero dresses, whose swapped-off coats would stay in the pack)
++0.1 zoom near
++0.1 gotosite start
++2.0 gotoground grass
++0.6 party recruit
++0.1 gear6 armor ilvl 5 rarity 2 fjordfolk mat iron
++0.1 party give 1
++0.1 gear6 helmet ilvl 5 rarity 4 steppe mat leather
++0.1 party give 1
++0.1 gear6 boots ilvl 5 rarity 4 marsh mat leather
++0.1 party give 1
++0.1 party near
++0.0 party cmd wait 0
++0.8 shot p5_fp_comp_near.png
++0.1 zoom close
++0.3 shot p5_fp_comp_close.png
+# ---- 4. the hero in three peoples' T1 leather coats (the padded coat, form 1), back at the start
++0.1 zoom near
++0.1 gotosite start
++2.0 gotoground grass
++0.6 gear6 armor ilvl 2 dune mat leather form 1 equip
++0.3 expect doll covered
++0.1 shot p5_fp_hero_dune_near.png
++0.1 zoom close
++0.3 shot p5_fp_hero_dune_close.png
++0.1 zoom near
++0.1 gear6 armor ilvl 2 highland mat leather form 1 equip
++0.3 expect doll covered
++0.1 shot p5_fp_hero_highland_near.png
++0.1 zoom close
++0.3 shot p5_fp_hero_highland_close.png
++0.1 zoom near
++0.1 gear6 armor ilvl 2 jade mat leather form 1 equip
++0.3 expect doll covered
++0.1 shot p5_fp_hero_jade_near.png
++0.1 zoom close
++0.3 shot p5_fp_hero_jade_close.png
+# ---- 5. a smith's shelf in three peoples' towns (the shop's own make: its stock as it stands), keyboard UI on
++0.1 zoom near
++0.1 ui 1
++0.1 gotosite start
++2.0 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 shot p5_fp_shelf_start.png
++0.1 key Escape
++0.2 leave
++0.3 gotoculture dune town
++2.5 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 shot p5_fp_shelf_dune.png
++0.1 key Escape
++0.2 leave
++0.3 gotoculture highland town
++2.5 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 shot p5_fp_shelf_highland.png
++0.1 key Escape
++0.2 leave
+# ---- 6. the EQUIP page: a Dune coat, a Highland cap, Jade gloves and boots
++0.2 gear6 armor ilvl 2 dune mat leather form 1 equip
++0.1 gear6 helmet ilvl 2 highland mat leather equip
++0.1 gear6 gloves ilvl 2 jade mat leather equip
++0.1 gear6 boots ilvl 2 jade mat leather equip
++0.2 menu 5
++0.5 shot p5_fp_equip.png
++0.1 key Escape
+# ---- 7. night under a lamp in a Jade town: the hero as dressed above (the companion waits at the start town)
++0.2 ui 0
++0.1 zoom near
++0.1 gotoculture jade town
++2.5 hour 23
++0.1 tolamp
++1.5 shot p5_fp_night_lamp_near.png
++0.1 zoom close
++0.3 shot p5_fp_night_lamp_close.png
++0.1 quit
