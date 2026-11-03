@@ -410,6 +410,19 @@ BROW = ['headwear/helm/%s%s.pxm' % (f, s) for f in HELMS for s in ('', '_legend'
 LANDABLE = ('metal', 'metal2', 'leather', 'cloth1', 'cloth2', 'cloth3', 'linen', 'accent', 'head')
 
 
+def dye_seam_letter():
+    """the region the re-cuts write: DOLL's `D` (a dye seam: the fingerprint's N under FIX_FP, '.' to every older reader)
+    once tools/doll/pxc.mjs's REGIONS has it; until then None and the re-cuts write nothing. Plain N cannot be used: the
+    ladder already reads N whoever made the piece (the T4-T6 trim growth, the floor band, plate lines, iris bands, T6
+    runes, the glowing alloys' seams), so N added to old views moved 2276 pre-P5 frames in 21 freeze looks (measured)."""
+    src = open(os.path.join(REPO, 'tools', 'doll', 'pxc.mjs'), encoding='utf-8').read()
+    m = re.search(r'export const REGIONS = \{([^}]*)\}', src)
+    return 'D' if m and re.search(r'D:\s*\d+', m.group(1)) else None
+
+
+SEAM = dye_seam_letter()
+
+
 def landable(L, ch):
     """a pixel the dye may take: drawn, a material slot, never the outline (step 0) or a glint (step 4)."""
     e = L.get(ch)
@@ -428,7 +441,7 @@ def regrid(V):
 def recut_lacing(V, L, base):
     """lamellar: the lacing cords (accent cells) take N; a variant drawn without the cord (the brass body, the alloy
     shapes) takes N on its own landable metal in the rows its base view (same facing and key) laces."""
-    if V.regions is None or has(V, 'N'): return None
+    if SEAM is None or V.regions is None or has(V, 'N') or has(V, SEAM): return None
     R, w = regrid(V)
     acc = lambda c: L.get(c, ('',))[0] == 'accent'
     n = 0
@@ -441,13 +454,13 @@ def recut_lacing(V, L, base):
                  if L.get(c, ('',))[0] in ('metal', 'metal2')]
     for x, y in cells:
         if y < len(R) and x < len(V.grid[y]) and landable(L, V.grid[y][x]) and R[y][x] == '.':
-            R[y][x] = 'N'; n += 1
+            R[y][x] = SEAM; n += 1
     return [''.join(r) for r in R] if n else None
 
 
 def recut_course(V, L, base):
     """lamellar skirt: the lowest course (the row above the hem band, R) takes N: the lacing that binds the hem."""
-    if V.regions is None or has(V, 'N'): return None
+    if SEAM is None or V.regions is None or has(V, 'N') or has(V, SEAM): return None
     R, w = regrid(V)
     rows = [y for y, r in enumerate(R) if r.count('R') >= 3]
     if not rows: return None
@@ -458,28 +471,21 @@ def recut_course(V, L, base):
     n = 0
     for x, c in enumerate(V.grid[y]):
         if landable(L, c) and R[y][x] == '.':
-            R[y][x] = 'N'; n += 1
+            R[y][x] = SEAM; n += 1
     return [''.join(r) for r in R] if n >= 2 else None
 
 
 def recut_brow(V, L, base):
-    """helm: the brow band's lower row takes N (a band of two rows or more, or a brim under the band: its lowest row turns from R to N, so the
-    dye adds nothing at T1-T2 and the lining shows under a brass band at T3-T4); a one-row band: the row under it (the
-    lining under the rim, its landable cells) takes N."""
-    if V.regions is None or has(V, 'N'): return None
+    """helm: the lining under the brow band (the row under the lowest R row of three cells or more: its landable cells)
+    takes the dye seam. A band at the helm's foot with nothing under it keeps no seam (its brass is never re-cut)."""
+    if SEAM is None or V.regions is None or has(V, 'N') or has(V, SEAM): return None
     R, w = regrid(V)
     band = [y for y, r in enumerate(R) if ''.join(r).count('R') >= 3]
     if not band: return None
     y = band[-1]
     under = y + 1 < len(V.grid) and [x for x, c in enumerate(V.grid[y + 1]) if landable(L, c) and R[y + 1][x] == '.']
-    if any(y - k >= 0 and ''.join(R[y - k]).count('R') >= 3 for k in (1, 2)):
-        n = 0
-        for x, c in enumerate(V.grid[y]):
-            if R[y][x] == 'R' and landable(L, c):
-                R[y][x] = 'N'; n += 1
-        return [''.join(r) for r in R] if n >= 3 else None
     if under and len(under) >= 3:
-        for x in under: R[y + 1][x] = 'N'
+        for x in under: R[y + 1][x] = SEAM
         return [''.join(r) for r in R]
     return None
 
@@ -560,7 +566,7 @@ def write(check):
 
 def verify(base):
     """every map changed since `base`: the same views in the same order with the same header, cells, build row, puts and
-    marks; a region plane only where one was; a changed region cell only '.' -> N, or R -> N on a helm's brow (BROW);
+    marks; a region plane only where one was; a changed region cell only '.' -> N (the laces) or D (the dye seam);
     new views only in finish/mark.pxm and the plaid block of finish/filigree.pxm."""
     names = subprocess.run(['git', '-C', REPO, 'diff', '--name-only', base, '--', 'rpg/art/doll/maps'], capture_output=True,
                            text=True, check=True).stdout.split()
@@ -608,7 +614,7 @@ def verify(base):
                     cb = rb[x] if x < len(rb) else '.'
                     if ca == cb: continue
                     ncells += 1
-                    if cb != 'N' or not (ca == '.' or (ca == 'R' and name in brow)):
+                    if cb not in 'ND' or ca != '.':
                         fail('%s: region %s -> %s at %d,%d' % (where, ca, cb, x, y))
     print('p5_marks --verify: %d maps, %d re-cut views, %d region cells -> N, cells / origins / masks / build rows unchanged: %s'
           % (len(set(names)), nviews, ncells, 'PASS' if not bad else 'FAIL (%d)' % bad))
