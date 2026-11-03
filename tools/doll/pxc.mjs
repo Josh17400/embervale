@@ -37,7 +37,9 @@ const REPO = path.resolve(HERE, '..', '..');
 // ---------------------------------------------------------------------------------------------- the frozen tables
 // (rpg/art/doll/doll.h mirrors every list: ADD at the end, never reorder or rename)
 export const SLOTS = ['skin', 'hair', 'eyes', 'face', 'ink', 'cloth1', 'cloth2', 'accent', 'linen', 'cloth3', 'leather', 'metal',
-  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade'];
+  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade',
+  // (P5) the maker's dye band (the mark tile's thread cells); doll.h's DyeT0..7 / Dye2T0..7 follow, the compositor's only
+  'dye', 'dye2'];
 export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16 };   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
 export const LAYERS = ['fxBack', 'heldBack', 'back', 'cloakBack', 'hairBack', 'armFar', 'legs', 'shoes', 'hangBack', 'torso',
   'hangFront', 'belt', 'neck', 'armNear', 'head', 'face', 'beard', 'hairFront', 'ears', 'headwear', 'held', 'shield',
