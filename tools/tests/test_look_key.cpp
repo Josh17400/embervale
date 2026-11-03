@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <type_traits>
+#include "rpg/art/art_items.h"
 #include "rpg/art/art_rig.h"
 #include "rpg/core/art_ids.h"
 #include "tools/tests/tests.h"
@@ -57,6 +58,7 @@ const Field kFields[] = {
     LK(rare), LK(metalKind), LK(bladeKind), LK(mythic), LK(gemColor), LK(motif), LK(floor), LK(kitVar), LK(alloyFam),
     LKA(forge, 0), LKA(forge, 1), LKA(forge, 2), LKA(forge, 3), LKA(forge, 4), LKA(forge, 5), LKA(forge, 6), LKA(forge, 7),
     LK(forgeKit), LK(alloyRank), LK(forgeGuise), LK(forgeShape), LK(makerPeople), LK(relicHelm), LK(relicBody), LK(king),
+    LK(makers),   // (P5) the maker people per worn piece
 };
 #undef LK
 #undef LKA
@@ -89,9 +91,25 @@ int lookKeyCmd(int, char**) {
     fails++;
     std::printf("FAIL look-key: equal looks give different keys\n");
   }
+  // (P5) the icon's maker people and look tier change IconLook::key(); unset, the key is the pre-P5 one
+  {
+    art::IconLook il;
+    const uint64_t k0 = il.key();
+    for (int f = 0; f < 2; f++)
+      for (int v : {1, 12}) {
+        art::IconLook m = il;
+        (f ? m.tier : m.people) = (uint8_t)v;
+        checks++;
+        if (m.key() == k0) {
+          fails++;
+          std::printf("FAIL look-key: IconLook %s=%d leaves key() unchanged\n", f ? "tier" : "people", v);
+        }
+      }
+  }
   art::setRigVersion(rigWas);
-  std::printf("%s look-key: %d fields, %d flips, %d unchanged keys\n", fails ? "FAIL" : "PASS", (int)(sizeof(kFields) / sizeof(kFields[0])),
-              checks, fails);
+  const int nf = (int)(sizeof(kFields) / sizeof(kFields[0]));
+  std::printf("%s look-key: %d fields (last: %s; + IconLook people, tier), %d flips, %d unchanged keys\n", fails ? "FAIL" : "PASS", nf,
+              kFields[nf - 1].name, checks, fails);
   return fails ? 1 : 0;
 }
 
