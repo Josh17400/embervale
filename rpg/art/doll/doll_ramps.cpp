@@ -30,6 +30,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/core/fingerprint.h"
 
 namespace art {
 namespace doll {
@@ -1317,7 +1318,55 @@ DollRamps rampsOf(const HumanLook& L) {
   if (L.forgeGuise && L.forge[HumanLook::TIER_HELM] && (L.forge[HumanLook::TIER_HELM] & 0xFF) == 0 &&
       forge::guiseHeadwear(forge::unpackGuise(L.forgeGuise).helm))
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Head][i] = R.c[(int)Slot::Metal][i];
+  dyeRamps(L, R);
   return R;
+}
+
+// (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
+// the dye again); a slot with no maker keeps the Accent ramp (a3Palette), so a draft's dye cells render. Only the dye slots
+void dyeRamps(const HumanLook& L, DollRamps& R) {
+  for (int s = 0; s < 8; s++) {
+    const int m = L.makerAt(s);
+    if (m <= 0 || m >= fp::kPeoples) continue;
+    const fp::Row& row = fp::row(m);
+    uint32_t* d1 = R.c[(int)dyeSlotOf(s, false)];
+    uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
+    rampA3(hex(row.dye), Material::Cloth, d1);
+    if (row.dye2) rampA3(hex(row.dye2), Material::Cloth, d2);
+    else for (int i = 0; i < 5; i++) d2[i] = d1[i];
+  }
+}
+
+// (P5, FIX_BATCH_P5 4.3; C14 for the dye) a dye ramp touching a material on 3 or more contacts under 18 luma at step 2 climbs or
+// sinks whole (steps 1-4, hue kept, the outline kept, the nearest scale first) until it holds 18 against every pair it touches
+// that way; never the material's ramp (the figure's other pixels stay the pre-P5 ones). Returns true when it moved a ramp
+bool partDyeByContact(DollRamps& R, const ContactRead& cr) {
+  bool moved = false;
+  for (int d = (int)Slot::DyeT0; d < SLOT_COUNT; d++) {
+    const int pair = d < (int)Slot::Dye2T0 ? d + 8 : d - 8;   // (its band's other colour: a band, not a contact)
+    auto con = [&](int o) { return (int)cr.touch[d][o] + (int)cr.touch[o][d]; };
+    auto clear = [&](const uint32_t* t) {
+      for (int o = 0; o < SLOT_COUNT; o++) {
+        if (o == d || o == pair || con(o) < 3 || o == (int)Slot::Ink || o == (int)Slot::Glow || o == (int)Slot::Fx) continue;
+        if (std::fabs(luma(t[2]) - luma(R.c[o][2])) < 18.0) return false;
+      }
+      return true;
+    };
+    uint32_t* T = R.c[d];
+    if (clear(T)) continue;
+    bool done = false;
+    for (int k = 1; k <= 60 && !done; k++)
+      for (double dir : {1.0, -1.0}) {
+        const double f = 1.0 + dir * 0.0125 * k;
+        uint32_t t[5];
+        t[0] = T[0];
+        for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+        if (luma(t[4]) > 252.0 || luma(t[2]) - luma(T[0]) < 30.0) continue;
+        if (clear(t)) { for (int q = 1; q < 5; q++) T[q] = t[q]; done = true; break; }
+      }
+    moved = moved || done;
+  }
+  return moved;
 }
 
 // (fix round 2, C14) rampsOf parts the materials by the look alone, so it must keep every pair that was 18 apart whether or not

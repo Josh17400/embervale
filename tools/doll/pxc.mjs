@@ -1048,6 +1048,19 @@ function report(c) {
     }
   }
   for (const x of c.warnings) console.log(`  warning ${x.where}: ${x.msg}${x.draft ? ' (draft)' : ''}`);
+  // (P5, FIX_BATCH_P5 4.3) the base views of an armour, helm, shield or cloak part with neither R nor N cells: where the maker's
+  // fingerprint has nowhere to land (a new piece must carry them; by design: crests, plumes, the arm strap, mail sleeves, the
+  // cape and fur cloaks, the cloaks' fronts). A list, not a craft warning
+  const FP_ROLES = new Set(['armour', 'helm', 'shield', 'cloak']);
+  for (const P of c.parts) {
+    if (!P.roles.some((r) => FP_ROLES.has(ROLES[r.cat]))) continue;
+    for (const V of P.views) {
+      if (!V.cells || V.when) continue;
+      let lands = false;
+      if (V.reg) for (let k = 0; k < V.reg.length && !lands; k++) lands = (V.reg[k] === REGIONS.R || V.reg[k] === REGIONS.N) && V.cells[k] >= 2;
+      if (!lands) console.log(`fp-landing: ${P.name} ${FACINGS[V.facing] || 'any'} ${V.key}`);
+    }
+  }
   const { pk } = c;
   console.log(`pool: ${c.parts.length} parts, ${pk.views} views, ${pk.marks} marks, ${c.bodySets.length} body sets, ${c.clips.length} clips, ${pk.frames} frames`);
   console.log(`pool: ${pk.opaquePx} opaque px in ${pk.cellCount} cells; ${pk.pool.length} bytes (${(pk.pool.length / 1048576).toFixed(3)} MiB of the ${(POOL_BUDGET / 1048576).toFixed(1)} MiB budget: ${pk.pool.length <= POOL_BUDGET ? 'within' : 'OVER'}); pixel data ${pk.blobBytes} bytes; ${Math.max(1, Math.ceil(pk.pool.length / CHUNK))} chunk(s); hash ${pk.hash}`);
