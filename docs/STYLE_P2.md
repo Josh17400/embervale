@@ -2107,18 +2107,18 @@ third pixel. No two peoples share a motif.
 
 ### 30.6 The re-cuts (regions only; `python tools/doll/p5_marks.py --verify`)
 
-The fingerprint needs N where a piece's T3-T4 dye shows. Views that already carried a region plane were re-cut by rule,
-never a pixel (cells, origin, mask, build row unchanged; a cell turns '.' -> N, or R -> N on a two-row brow band):
-- **lamellar** (man, woman): the lacing cord (the accent cells under the gorget) is N; the brass and alloy variants, drawn
-  without the cord, take N on their own metal in the cord's row.
-- **lamellar_hang**: the lowest course above the hem band (a lamellar skirt's laced bottom).
-- **helms** (kettle, horned, kabuto, morion, onion, sallet, veil, warhat, winged, crown, nasal, plumed, crested and their
-  `_legend` T5-T6 growth): the brow band's lower row (a band of two rows: the lower row R -> N, so T1-T2 gains no dye and
-  T3-T4 shows the lining under a brass band), or the row under a one-row band (the lining under the rim). A one-row band
-  at the helm's foot with nothing under it (the horned helm, the crown, the plumed and winged bases) stays as it is: their
-  T3-T4 fingerprint is the engraved mark and their form.
-- **the leather coat's laces** (decision 2, `tools/doll/p4_leather.py`): the lace crossings are N, so a maker's coat laces
-  in its dye band and a maker-less coat keeps D116's rawhide.
+The fingerprint needs a seam where a piece's T3-T4 dye shows. Views that already carry a region plane are re-cut by rule,
+never a pixel (cells, origin, mask, build row unchanged; a cell turns '.' into the seam letter, never an R):
+- **the leather coat's laces** (decision 2, `tools/doll/p4_leather.py`, shipped): the lace crossings are N, so a maker's
+  coat laces in its dye band and a maker-less coat keeps D116's rawhide (no pre-P5 frame moves: the leather coat is T1-T2).
+- **lamellar** (man, woman): the lacing cord (the accent cells under the gorget), and the cord's row on the brass and
+  alloy cuts drawn without it; **lamellar_hang**: the lowest course above the hem band; **helms** (kettle, horned, kabuto,
+  morion, onion, sallet, veil, warhat, winged, crown, nasal, plumed, crested and their `_legend` growth): the lining under
+  the brow band (the row under its lowest R row). These wait for the dye-seam region `D` (PLAN D122): plain N cannot be
+  added to old views, because the ladder already reads N on every piece (the T4-T6 trim growth, plate lines, iris bands,
+  T6 runes, the glowing alloys' seams): measured, 2276 pre-P5 frames moved. `p5_marks.py` writes them as `D` once pxc's
+  REGIONS has it. A brow band is never re-cut from R (its brass is the ladder's).
+- **a new piece** draws its own N (or, from P5 on, `D` where only the fingerprint should land) on its seams and lacing.
 
 ### 30.7 Fingerprint don'ts
 
