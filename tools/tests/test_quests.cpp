@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/sea_ops.h"   // (P4 fix r1) SeaOps::seaQuest: a quest the game starts by itself
 #include "rpg/sim/talk.h"
 #include "rpg/world/poi.h"
 #include "rpg/world/source.h"
@@ -724,6 +725,8 @@ int supplySeed(uint64_t seed) {
 // A just-accepted quest is the one the player follows (game_quests.cpp acceptQuest): taken the player's way (ask the
 // giver for work, I'LL DO IT.) it takes the pin from the main quest, with the banner QUEST STARTED: <title>; a street
 // errand takes the pin and hands it back when done; the journal's TRACK switches back and the pin stays there.
+// (P4 fix r1) a quest the GAME starts (the Mist chain's first step, SeaOps::seaQuest) leaves the pin where it is, with
+// the toast NEW QUEST: <title> (and no QUEST STARTED banner mark, Event::id 0).
 int pinSeed(uint64_t seed) {
   int bad = 0;
   auto fail = [&](const std::string& s) { out("FAIL: quests: pin: %s\n", s.c_str()); bad++; };
@@ -776,7 +779,22 @@ int pinSeed(uint64_t seed) {
   bool banner = false;
   for (const Event& e : g.events) if (e.type == Ev::QuestUpdate && e.s == "QUEST STARTED: " + jq->title) banner = true;
   if (!banner) fail("no 'QUEST STARTED: " + jq->title + "' banner");
+  bool mark = false;   // the player's take marks its event (Event::id 1): the view's banner reads QUEST STARTED
+  for (const Event& e : g.events) if (e.type == Ev::QuestUpdate && e.a == job && e.id == 1) mark = true;
+  if (!mark) fail("the player's take of " + jq->title + " is not marked as the player's (Event::id 1)");
   const std::string title = jq->title;
+  // (P4 fix r1) an auto-started quest leaves the pin: the Mist chain starts itself on the job just taken
+  g.events.clear();
+  const int sea = SeaOps::seaQuest(g, 1, 0, "THE LAND BEYOND THE MIST", 0, 0, 0);
+  if (sea < 0) fail("the Mist chain's quest did not start");
+  else {
+    if (g.trackedQuest != job) fail("an auto-started quest took the pin from " + title + " (tracked " + std::to_string(g.trackedQuest) + ")");
+    bool said = false, marked = false;
+    for (const Event& e : g.events)
+      if (e.type == Ev::QuestUpdate && e.a == sea) { said |= e.s == "NEW QUEST: THE LAND BEYOND THE MIST"; marked |= e.id == 1; }
+    if (!said) fail("the auto-started quest's toast is not 'NEW QUEST: THE LAND BEYOND THE MIST'");
+    if (marked) fail("the auto-started quest is marked as the player's take");
+  }
   // a street errand takes the pin and hands it back
   Quest e;
   e.title = "CATCH THE CUTPURSE";
@@ -791,7 +809,7 @@ int pinSeed(uint64_t seed) {
   g.trackedQuest = mainId;
   tick(g, 60);
   if (g.trackedQuest != mainId) fail("TRACK on the main quest did not stay (tracked " + std::to_string(g.trackedQuest) + ")");
-  out("seed %llu: pin: %s accepted (%s) takes the pin with QUEST STARTED; an errand hands it back; TRACK switches it\n", (unsigned long long)seed,
+  out("seed %llu: pin: %s accepted (%s) takes the pin with QUEST STARTED; an auto-started quest leaves the pin; an errand hands it back; TRACK switches it\n", (unsigned long long)seed,
       title.c_str(), how.c_str());
   return bad;
 }

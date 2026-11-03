@@ -222,7 +222,7 @@ class Game {
   // (QType::COUNT: whatever they would offer); `ok` false when they have none of that kind. Scripts and tests use it
   // with debugAccept to drive every quest type from code.
   Quest offerFor(const Actor& npc, QType want, bool& ok);
-  void debugAccept(const Quest& q) { acceptQuest(q); }
+  void debugAccept(const Quest& q) { acceptQuest(q, QuestStart::Player); }   // (the player's take: a notice board uses it)
   bool questChestAt(int qid, int& tx, int& ty) const;   // inside: the tile of an Heirloom quest's chest (scripts)
   bool debugOfferTalk(int actorId, QType t);   // scripts: this NPC offers a job of that type as a dialogue (accept / decline)
   // M2 rumours (rpg/sim/wayside.cpp): mark the nearest unknown dungeon, wayside place or wonder as rumoured and return
@@ -416,7 +416,7 @@ class Game {
   void makeLook(Actor& a, Role r, Rng& rr);
   void applyLevel(Actor& a, int level);
   bool hasOffer(const Actor& npc) const;
-  void acceptQuest(const Quest& q);
+  void acceptQuest(const Quest& q, QuestStart how = QuestStart::Game);   // (P4 fix r1) only QuestStart::Player takes the pin
   std::string greeting(const Actor& a, int salt = 0);   // (M7b salt: another pick when the first was said lately)
   // ---- M2 SIM lane
   // travel behind the fade (travel.cpp)

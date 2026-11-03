@@ -270,7 +270,8 @@ struct Event {
   float f = 1;        // pitch / magnitude
   std::string s;
   float vol = 1;      // Sfx volume
-  uint32_t id = 0;    // (M8) Ev::Banter / Ev::PartyAlert: the speaker's party::Member::id (a, their members index, can
+  uint32_t id = 0;    // (P4 fix r1) Ev::QuestUpdate: 1 when the player took the quest (QuestStart::Player: its banner
+                      // reads QUEST STARTED). (M8) Ev::Banter / Ev::PartyAlert: the speaker's party::Member::id (a, their members index, can
                       // be stale by the time the view reads it: a member who dies that step is gone from the list)
   Vec2 q;             // (M8b) Ev::Power: the second point (a lightning arc's end, a falling star's mark)
   uint32_t spell = 0; // (M9) Ev::Spell: the spell id; Ev::Skill: the level reached / the perk index
@@ -319,6 +320,10 @@ struct Quest {
   int deadlineDay = -1;         // Protect: the day of the night attack (-1 none)
   uint32_t flags = 0;           // per-type progress bits (QF_*: defined by the sim lane next to the code that sets them)
 };
+// (P4 fix r1) who started a quest (Game::acceptQuest): the player, who took it (I'LL DO IT., a notice torn from the board,
+// the scripts' and tests' debugAccept), or the game itself (the Mist chain, a grave read, a fief task, an army's order
+// or mission, a war joined). Only the player's own take moves the pin.
+enum class QuestStart : uint8_t { Game, Player };
 // Quest::flags (M2 SIM lane, rpg/sim/quests.cpp). Bits 8-15 hold a Deliver's recipient Role; bits 16-31 are free.
 constexpr uint32_t QF_DANGER = 1u << 0;   // offered as "DANGEROUS COUNTRY" (the target is beyond the player: +50 % reward)
 constexpr uint32_t QF_PARCEL = 1u << 1;   // Deliver: the parcel was handed over at the accept (it is in the pack)

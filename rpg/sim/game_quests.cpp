@@ -16,7 +16,7 @@ const Quest* Game::questById(int id) const {
 
 // makeOffer: rpg/sim/quests.cpp (M2: radiant targets over the region plans, the new quest types, the text grammar)
 
-void Game::acceptQuest(const Quest& q0) {
+void Game::acceptQuest(const Quest& q0, QuestStart how) {
   Quest q = q0;
   q.id = nextQuestId++;
   q.state = QState::Active;
@@ -39,16 +39,22 @@ void Game::acceptQuest(const Quest& q0) {
   if (q.giverSlot >= 0 || q.giverBldg >= 0) marks[markKey(npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot), Mk::LastOffer)] = (int)q.type + 1;
   quests.push_back(q);
   JobOps::accepted(*this, q);   // (P1) the week's pool job given out, the leads that named it taken (jobs.cpp)
-  // (P4 item 2) a just-accepted quest is the one the player follows: it takes the pin, loudly (the banner and the toast
-  // say QUEST STARTED: <title>, the HUD's goal line and the map's marker move to it), and the journal's TRACK switches
-  // back. (This reverses the 2026-10 rule "a new job never takes the pin from an open quest", after the W7 testers
-  // took the wolves and found the pointer still on the main quest; that rule's complaint, a SILENT switch, is met by the
-  // banner and the goal line changing in front of the player.)
+  // (P4 item 2) a quest the PLAYER just took (QuestStart::Player: I'LL DO IT., a notice from the board) is the one they
+  // follow: it takes the pin, loudly (the banner and the toast say QUEST STARTED: <title>, the HUD's goal line and the
+  // map's marker move to it), and the journal's TRACK switches back. (This reverses the 2026-10 rule "a new job never
+  // takes the pin from an open quest" for the player's own take, after the W7 testers took the wolves and found the
+  // pointer still on the main quest; that rule's complaint, a SILENT switch, is met by the banner and the goal line.)
+  // (P4 fix r1, judge: "the Mist chain took A BLADE OF YOUR OWN's pin from a new hero") a quest the GAME starts (the Mist
+  // chain, a grave read, a fief task, an army's order or mission, a war joined) keeps the 2026-10 rule: it never takes
+  // the pin from an open quest being followed (the toast says NEW QUEST: <title>), only when nothing open is tracked.
   // (P1 fixer) a street errand keeps its own rule: it takes the pin, and finishErrand hands the pin back to whatever was
   // tracked before it
+  const Quest* pinned = trackedQuest >= 0 && trackedQuest != q.id ? questById(trackedQuest) : nullptr;
+  const bool keepPin = how == QuestStart::Game && q.type != QType::Errand && pinned && pinned->state != QState::Done;
   if (q.type == QType::Errand) errandPrevTracked_ = trackedQuest;
-  trackedQuest = q.id;
-  emit(Ev::QuestUpdate, pl().p, q.id, 0, "QUEST STARTED: " + q.title);
+  if (!keepPin) trackedQuest = q.id;
+  emit(Ev::QuestUpdate, pl().p, q.id, 0, (keepPin ? "NEW QUEST: " : "QUEST STARTED: ") + q.title);
+  if (how == QuestStart::Player) events.back().id = 1;   // (the view's banner reads QUEST STARTED for the player's take)
   sfx((int)Sfx::QuestStart, pl().p);
 }
 

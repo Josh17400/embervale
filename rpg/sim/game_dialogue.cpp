@@ -782,7 +782,7 @@ void Game::dialogueChooseInner(int oi) {
       dlg.opts = {{"I'LL DO IT.", A_ACCEPT, 0}, {"NOT RIGHT NOW.", A_DECLINE, 0}};
       return;
     case A_ACCEPT:
-      acceptQuest(pendingOffer_);
+      acceptQuest(pendingOffer_, QuestStart::Player);   // I'LL DO IT.: the player's own take (the pin moves to it)
       dlg.text = QuestOps::acceptLine(*this, pendingOffer_);
       if (ai >= 0 && actors[(size_t)ai].npc && actors[(size_t)ai].human) {
         const Actor& ga = actors[(size_t)ai];
