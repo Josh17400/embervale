@@ -1034,20 +1034,27 @@ void tuneFp(DollRecipe& r) {
 }
 
 void fpBudget(DollRecipe& r) {
+  // B8's own read: every LOCO, RUN and DRAWN frame of the composed sheets, its distinct colours (the dye ramps' colours left out of the palette)
   auto count = [&](std::vector<uint32_t>* palette) {
+    std::vector<uint32_t> dye;
+    for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) dye.push_back(r.ramps.c[s][q] | 0xFF000000u);
+    std::sort(dye.begin(), dye.end());
     int most = 0;
-    std::vector<uint32_t> pal;
-    for (int f = 0; f < 4; f++) {
-      const FrameProbe p = probeFrame(r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
-      if (!p.ok) continue;
-      std::vector<uint32_t> cs;
-      for (uint8_t c : p.code)
-        if (c >= 2) {
-          cs.push_back(r.ramps.c[(int)codeSlot(c)][codeStep(c)]);
-          if (palette && !isDyeSlot(codeSlot(c))) pal.push_back(cs.back());
+    std::vector<uint32_t> pal, cs;
+    for (RigPart part : {RigPart::Loco, RigPart::Run, RigPart::Drawn}) {
+    const RigSheet sh = compose(r, part);
+    for (const FrameRect& fr : sh.frames) {
+      cs.clear();
+      for (int y = 0; y < fr.h; y++)
+        for (int x = 0; x < fr.w; x++) {
+          const uint32_t p = sh.atlas.get(fr.x + x, fr.y + y);
+          if (!(p >> 24)) continue;
+          cs.push_back(p);
+          if (palette && !std::binary_search(dye.begin(), dye.end(), p | 0xFF000000u)) pal.push_back(p | 0xFF000000u);
         }
       std::sort(cs.begin(), cs.end());
       most = std::max(most, (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+    }
     }
     if (palette) { std::sort(pal.begin(), pal.end()); pal.erase(std::unique(pal.begin(), pal.end()), pal.end()); *palette = pal; }
     return most;
@@ -1061,9 +1068,10 @@ void fpBudget(DollRecipe& r) {
   auto it = cache.find(key);
   if (it == cache.end()) {
     std::vector<uint32_t> pal;
-    if (count(&pal) > 46) {
+    const int c0 = count(&pal);
+    if (c0 > 48) {
       snapDyes(r.ramps, pal, false);
-      if (count(nullptr) > 46) snapDyes(r.ramps, pal, true);
+      if (count(nullptr) > 48) snapDyes(r.ramps, pal, true);
     }
     Dyes d;
     for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) d.c[s - (int)Slot::DyeT0][q] = r.ramps.c[s][q];
