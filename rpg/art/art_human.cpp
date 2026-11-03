@@ -4971,6 +4971,7 @@ uint64_t HumanLook::key() const {
     if (relicHelm) mx(0xF0E6E60000000000ull ^ relicHelm);       // (wave-2 fix round, D83) a Mythic relic's helm family
     if (relicBody) mx(0xF0E6E70000000000ull ^ relicBody);       // (wave-2 fix round 2, D84) a Mythic relic body's outline
     if (king) mx(0xF0E6E80000000000ull ^ king);                 // (wave-2 fix round 4, D96) the king's cape and ramp
+    if (makers) mx(0xF0E6E90000000000ull ^ makers);             // (P5) the maker people per worn piece (the fingerprint)
   }
   return k;
 }
