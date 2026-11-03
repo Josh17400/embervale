@@ -3962,6 +3962,10 @@ untouched.**
   (13 makers, the closest pair 31.8), and the gambeson from the brigandine. A people's gilt rim on its iron coat is drawn at
   the collar and shoulders only (a whole gold rim carried its mean onto bronze's). Rig 2 only: rig 1's icons as they were.
 
+- **Owner rulings, 2026-11-03:** D116 accepted ("it looks good"). D117 extended: "I would like every culture's
+  finger print to be on the armor whether that's color or style, something that makes it unique to the culture" (every
+  armour piece, worn and as an icon, carries its maker people's colour or style; the next batch). 1b (a guaranteed
+  beginner hunt at the start inn) declined: the owner will do something different for the start of the game.
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It
