@@ -149,6 +149,10 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     const LookTier t = lookTier(*it, maker(it));
     if (!t.tier) return;
     L.tier[slot] = t.tier;
+    // (P5, FIX_BATCH_P5 4.4) the piece's maker people (culture 0: none), the doll's fingerprint per worn piece
+    // (a recruit's census maker on that slot gives way to the worn piece's, none included)
+    const cult::Culture* mc = maker(it);
+    L.setMaker(slot, mc ? (int)mc->archetype + 1 : 0);
     if (t.rare) L.rare |= (uint8_t)(1u << slot);
     if (t.flame) L.mythic |= (uint8_t)(1u << slot);
   };
@@ -349,11 +353,11 @@ CultureLookup LadderKit::lookup() const {
   return [c](uint64_t id) -> const cult::Culture* { return id == c->id ? c : nullptr; };
 }
 
+static const char* const kPeopleNames[12] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade",
+                                             "river", "suntemple", "sylvan", "starspire"};
 bool peopleOf(const std::string& n, cult::Archetype& out) {
-  static const char* const k[12] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple",
-                                    "sylvan", "starspire"};
   for (int i = 0; i < 12; i++)
-    if (n == k[i]) { out = (cult::Archetype)i; return true; }
+    if (n == kPeopleNames[i]) { out = (cult::Archetype)i; return true; }
   return false;
 }
 
@@ -860,6 +864,15 @@ namespace {
 struct AutoInstall { AutoInstall() { installLadderMacros(); } } g_autoInstall;
 }
 
+void stampMakers(art::HumanLook& L, int people) {
+  for (int s = 0; s < art::HumanLook::TIER_SLOTS; s++) L.setMaker(s, L.tier[s] ? people : 0);
+}
+void keepMakers(art::HumanLook& L) {
+  int p = 0;
+  for (int s = 0; s < art::HumanLook::TIER_SLOTS && !p; s++) p = L.makerAt(s);
+  if (p) stampMakers(L, p);
+}
+
 std::string describeLook(const art::HumanLook& L) {
   const art::HumanLook D;
   std::string out;
@@ -899,6 +912,22 @@ std::string describeLook(const art::HumanLook& L) {
     for (int s = 0; s < 8; s++)
       if (L.forge[s]) { std::snprintf(b, sizeof b, "%s%s=0x%016llX", out.empty() ? "" : ",", kFg[s], (unsigned long long)L.forge[s]); out += b; }
     if (L.forgeShape) { std::snprintf(b, sizeof b, "%sforgeShape=0x%08X", out.empty() ? "" : ",", (unsigned)L.forgeShape); out += b; }
+  }
+  // (P5) the maker people per worn slot, the looks field's grammar (body:helm:shield:weapon:gloves:boots:cloak:back; 0 none).
+  // The hands (shield, weapon, back) print `-`: a kit is one look whatever it carries (D97, --doll-envelope's kit test strips
+  // only the hands' own fields); their makers are in the look and `rpg_test --arms` checks them.
+  {
+    using H = art::HumanLook;
+    std::string mk;
+    bool any = false;
+    for (int s = 0; s < H::TIER_SLOTS; s++) {
+      const bool hand = s == H::TIER_SHIELD || s == H::TIER_WEAPON || s == H::TIER_BACK;
+      const int p = L.makerAt(s);
+      any |= !hand && p;
+      mk += s ? ":" : "";
+      mk += hand ? "-" : (p >= 1 && p <= 12 ? kPeopleNames[p - 1] : "0");
+    }
+    if (any) out += (out.empty() ? "makers=" : ",makers=") + mk;
   }
 #undef N_
 #undef C_

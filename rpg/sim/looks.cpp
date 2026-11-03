@@ -826,6 +826,11 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
   //      ladder's own fields only, no draw (rig 1 never reads them).
   gear::rankTiers(L, rankTier(r, rank), true, &owner);   // (P2c forge, D29) the realm: its officers' alloy
   rankSlots(L, r);
+  // (P5, FIX_BATCH_P5 4.4) the maker on every worn piece: the arms the look wears (the roles' A / Al split above): the
+  // local people's for bandits, pirates and warlords, the owner kingdom's for the watch, soldiers, captains, heralds, envoys,
+  // jarls and kings. Ladder fields only, no draw (the sim digest holds)
+  const bool local = r == Role::Bandit || r == Role::Pirate || r == Role::Warlord;
+  gear::stampMakers(L, (int)(local ? C : owner).archetype + 1);
 }
 
 // (P2c ladder, PLAN "People") the rank's tier: bandits, militia and pirates T1; the village watch and soldiers T2; the capital
@@ -895,6 +900,7 @@ static void liftRank(const World& world, art::HumanLook& L, Role r, const census
   if (t <= 0) return;
   gear::rankTiers(L, std::min(6, t + 1), true, realm);
   census::rankSlots(L, r);
+  gear::keepMakers(L);   // (P5) the arms people dress gave stays (the same slots: rankTiers keeps the set)
 }
 
 void Game::makeLook(Actor& a, Role r, Rng& rr) {
