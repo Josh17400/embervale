@@ -15,6 +15,8 @@
 #     slit between them the leather's step 1); facing R / L a run of lace eyes one pixel inside the front edge; facing U
 #     and the lying views no lace (the back of the coat, the body on the ground);
 #   - the collar, the hem, metal and every other character kept.
+#   - (P5 MARKS, decision 2) the lace crossings take N in the region plane (a view that has one; only '.' cells): a maker
+#     people's coat laces in its dye band (FIX_BATCH_P5 3.3), a maker-less coat keeps the rawhide.
 # Where the views go: a re-cut of a base view is `when leather-coat replace`, appended after every view of the file (so a
 # file's own tier views still win where no leather re-cut of theirs exists: there is one for each); a re-cut of a `replace`
 # view (`when C replace`) is `when leather-coat,C replace`, placed just BEFORE it (the first replacing view that holds wins);
@@ -109,6 +111,7 @@ def recut(view, woman):
     if belt >= 0:
         out[belt] = [DARKER[c] if c in DARKER else c for c in out[belt]]
     lit, mid = lace_chars(woman)
+    laces = []   # (P5 MARKS, decision 2) the crossings' cells: N in the region plane, so a maker's coat laces in its dye
     is_overlay = cond is not None and not rep
     if belt > 1 and key != 'lie' and not is_overlay and 'hang' not in os.path.basename(CUR):
         if facing == 'D':
@@ -121,6 +124,7 @@ def recut(view, woman):
                     a = (y % 2) == 1
                     out[y][cx - 1] = lit if a else SLIT
                     out[y][cx] = SLIT if a else mid
+                    laces.append((cx - 1, y) if a else (cx, y))
         elif facing in ('R', 'L'):
             # the lace eyes one pixel inside the front edge (R: the right, L: the left), every other row
             for y in range(1, belt):
@@ -128,7 +132,25 @@ def recut(view, woman):
                 if len(xs) < 4: continue
                 x = xs[-2] if facing == 'R' else xs[1]
                 out[y][x] = (lit if facing == 'R' else mid) if (y % 2) == 1 else SLIT
-    return [new_header(h)] + ['|' + ''.join(r) for r in out] + rest
+                if (y % 2) == 1: laces.append((x, y))
+    return [new_header(h)] + ['|' + ''.join(r) for r in out] + lace_regions(rest, laces)
+
+
+def lace_regions(rest, laces):
+    """(P5 MARKS, FIX_BATCH_P5 3.3 / decision 2) the lace crossings take N in the view's region plane (only a view that
+    has one, only where the plane is '.'): the doll draws N in the maker people's dye band, a maker-less coat (no
+    fingerprint) keeps the rawhide. Pixels unchanged."""
+    if not laces or 'regions' not in [r.strip() for r in rest]: return rest
+    out = list(rest)
+    k = [r.strip() for r in out].index('regions') + 1
+    for x, y in laces:
+        i = k + y
+        if i >= len(out) or not out[i].startswith('|'): continue
+        row = list(out[i][1:])
+        while len(row) <= x: row.append('.')
+        if row[x] == '.': row[x] = 'N'
+        out[i] = '|' + ''.join(row)
+    return out
 
 
 def generate(path):
