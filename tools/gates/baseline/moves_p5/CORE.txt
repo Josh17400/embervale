@@ -1,0 +1,10 @@
+# tools/gates/baseline/moves_p5/CORE.txt: the P5 CORE area's expected baseline differences (docs/FIX_BATCH_P5.md 4.2, 4.4, 5.1, 8).
+# <gate> <item glob>[,...] <id> <reason>. CORE moves NO record: every line below is a comment.
+# P5-1 / P5-3: HumanLook::makers (the maker people per worn slot: gear::fillLadder from each piece's culture, census::dress
+# from the arms culture, retierLook and liftRank keep it) and IconLook::people / tier (gearIconKeys). Both enter key() only
+# when set; nothing reads them until DOLL and ICONS do, so no pixel moves on this branch. No RNG draw, no saved field, no
+# Game member: S2.seeds, S3.*, S10.digest identical; SAVE_VER 24.
+# Measured on fix-p5-CORE (build-solid) against p4f1: tools/gates/step_gates.sh (default set) every line PASS.
+# Text outputs that move (not recorded by a gate): rpg_test --expand-looks prints makers= on kit, npc and census lines
+# (describeLook; the hands print `-`, D97's kit test strips only the hands' own fields); --look-key 97 -> 98 fields;
+# --arms gains the maker checks (kits, icons, census roles with owner != people, the bandit chief's retier, culture 0).
