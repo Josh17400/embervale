@@ -1,0 +1,21 @@
+# tools/gates/baseline/moves_p5/ICONS.txt: the P5 ICONS area's expected baseline differences (docs/FIX_BATCH_P5.md 3.3, 4.5, 5.4, 8).
+# <gate> <item glob>[,...] <id> <reason>. Measured on fix-p5-ICONS (contracts + CORE merged, build-p5-icons) against p4f1:
+# tools/gates/step_gates.sh (default set): every line PASS but S10.view (26 shots, below).
+# P5-4 / P5-1 (icon side): art::itemIconLook paints the maker people's fingerprint on armour icons (rig 2, FIX_FP, people >= 1):
+# the dye band on the form's seams, brow band, shield lashings, cuffs, cloak hem and hood rim; the people's mark on the chest.
+# The A/B: EMB_FIX_RULES=4095 on the same build reproduces p4f1 (S10.view 425 PNGs identical, S5.rig2 and S5.rig1 equal) and
+# icons_gallery --check prints 80215d7's lines.
+# Not moved (the plan expected it): S5.rig2 icons+new and TOTAL. art_hash's M6 icon looks are IconLook literals with no maker
+# people (people 0), so they paint as before; S5.rig2 and S5.rig1 equal the record with FIX_FP on.
+# Rig 1 identical (S5.rig1, S7.rig1). No draw, no saved field: S2, S3, S10.digest identical.
+# W2.view_all (the full pack, measured once at integration by GATES: VIEW.txt) moves likewise wherever an armour icon of a
+# maker people is on screen (pack, shop, EQUIP, PARTY, forge, cards, ground loot).
+S10.view m6_arms_doll/m6doll_dune_bronze.png,m6_arms_doll/m6doll_dune_helm.png,m6_arms_doll/m6doll_fjordfolk_alloy.png,m6_arms_doll/m6doll_fjordfolk_turned.png,m6_arms_doll/m6doll_highland_poor.png,m6_arms_doll/m6doll_jade_alloy.png,m6_arms_doll/m6doll_pack.png,m6_arms_doll/m6doll_shirt.png,m6_arms_doll/m6doll_steppe_bow.png P5-4 the doll-slot and pack armour icons wear their maker people's fingerprint (the figures are identical: DOLL's rules are not on this branch)
+S10.view m6_menu_tap_phone/m6_menutap_1_items.png,m6_menu_tap_phone/m6_menutap_2_doll.png P5-4 the pack and doll-slot armour icons
+S10.view m8_view_party/m8v_desk_05_doll.png,m8_view_party/m8v_desk_06_doll_gear.png P5-4 the companion's equipped armour icons on the party page
+S10.view m8b_view_doll/m8bv_doll_set.png,m8b_view_doll/m8bv_doll_set_b.png P5-4 the EQUIP page's armour slot icons
+S10.view m8b_view_pack/m8bv_pack_amulet.png,m8b_view_pack/m8bv_pack_common.png,m8b_view_pack/m8bv_pack_mythic.png,m8b_view_pack/m8bv_pack_mythic_b.png,m8b_view_pack/m8bv_pack_worn.png P5-4 the pack's armour icons
+S10.view m8b_view_shop/m8bv_shop_buy.png,m8b_view_shop/m8bv_shop_buy_legendary.png,m8b_view_shop/m8bv_shop_sell.png P5-4 the shelf's armour icons (a smith's people on its pieces)
+S10.view m8b_view_shop_phone/m8bv_shopp_sell.png P5-4 the shelf's armour icons
+S10.view p2c_menus/p2c_menus_party.png P5-4 the party page's armour icons
+S10.view p2c_menus_phone/p2c_menus_phone_party.png P5-4 the party page's armour icons
