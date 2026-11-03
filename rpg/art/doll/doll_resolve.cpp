@@ -1545,6 +1545,7 @@ DollRecipe resolve(const HumanLook& L0) {
   r.fpSlots = fpKeep;
   if (fpKeep) tuneFp(r);
   if (fpKeep) partDyeContacts(r);
+  if (fpKeep) fpBudget(r);
   return r;
 }
 

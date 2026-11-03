@@ -26,13 +26,13 @@ const char* slotName(Slot s) {
   return (int)s < SLOT_COUNT ? n[(int)s] : "?";
 }
 char regionChar(Region r) {
-  static const char c[] = ".UFCHXTKSBOERPGNW";
+  static const char c[] = ".UFCHXTKSBOERPGNWD";
   static_assert(sizeof(c) - 1 == (size_t)REGION_COUNT, "a character for every region");
   return (int)r < REGION_COUNT ? c[(int)r] : '?';
 }
 const char* regionName(Region r) {
   static const char* n[] = {"none", "upper", "fore", "cuff", "hand", "flare", "thigh", "knee", "shin", "boot", "sole", "edge",
-                            "trim", "panel", "gem", "seam", "wear"};
+                            "trim", "panel", "gem", "seam", "wear", "dyeseam"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)REGION_COUNT, "a name for every region");
   return (int)r < REGION_COUNT ? n[(int)r] : "?";
 }

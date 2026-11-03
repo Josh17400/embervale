@@ -1538,7 +1538,7 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
     nLooks++;
     const bool maker = on.r.fpSlots != 0;
     nMaker += maker;
-    int px[8] = {}, dye[8] = {}, bad = 0, maskBad = 0, diff = 0, glints = 0;
+    int px[8] = {}, dye[8] = {}, bad = 0, maskBad = 0, diff = 0, glints = 0, cols[2] = {};
     double best[8] = {};
     std::vector<uint32_t> img;
     int iw = 0, ih = 0;
@@ -1550,6 +1550,13 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
       if (!a.ok || !b.ok) continue;
       if (a.w != b.w || a.h != b.h) { maskBad++; continue; }
       int fpx[8] = {}, fdye[8] = {};
+      for (int side = 0; side < 2; side++) {   // (B8's read: each frame's distinct colours, before and after)
+        const doll::FrameProbe& q = side ? b : a;
+        std::vector<uint32_t> cs;
+        for (uint8_t c : q.code) if (c >= 2) cs.push_back(colourOf(side ? on.r : off.r, c));
+        std::sort(cs.begin(), cs.end());
+        cols[side] = std::max(cols[side], (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+      }
       for (size_t k = 0; k < b.code.size(); k++) {
         const uint8_t ca = a.code[k], cb = b.code[k];
         if ((ca >= 2) != (cb >= 2)) { maskBad++; continue; }
@@ -1632,7 +1639,8 @@ int fpCmd(const std::vector<Look>& looks, const char* pngDir) {
       mean = fmt("; body mean hue %.0f -> %.0f sat %.2f -> %.2f", h0, h1, s0, s1);
       if (maker && h0 >= 15 && h0 <= 45 && s0 >= 0.2 && (h1 < std::min(15.0, h0 - 3) || h1 > std::max(45.0, h0 + 3) || s1 < s0 - 0.10)) { over = true; mean += " (the leather read lost)"; }
     }
-    const bool fail = maskBad || bad || (!maker && diff) || over;
+    mean += fmt("; colours %d -> %d%s", cols[0], cols[1], on.r.fpFlat ? " (flat)" : "");
+    const bool fail = maskBad || bad || (!maker && diff) || over || cols[1] > std::max(48, cols[0]);
     fails += fail;
     std::printf("%s %-10s makers %08X%s: %d px differ, %d not dye or relief (%d glints moved), mask %d;%s%s\n", fail ? "FAIL" : "ok  ", l.tag.c_str(), on.L.makers,
                 maker ? "" : " (none)", diff, bad, glints, maskBad, sh.c_str(), mean.c_str());

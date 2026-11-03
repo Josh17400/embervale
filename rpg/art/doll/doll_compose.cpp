@@ -928,7 +928,7 @@ void partContacts(DollRecipe& r, const HumanLook& L) {
 static uint64_t fpKey(const DollRecipe& r, uint64_t salt) {
   uint64_t key = trimKey(r) ^ salt;
   auto mix = [&](const void* p, size_t n) { const uint8_t* b = (const uint8_t*)p; for (size_t i = 0; i < n; i++) { key ^= b[i]; key *= 0x100000001B3ull; } };
-  mix(&r.fpSlots, 1); mix(&r.fpR, 1); mix(&r.fpN, 1); mix(&r.fpCuff, 1); mix(&r.fpHem, 1); mix(&r.fpThin, 1); mix(&r.fpOuter, 1); mix(&r.fpStitch, 1); mix(&r.fpSparse, 1); mix(&r.fpMark, 1);
+  mix(&r.fpSlots, 1); mix(&r.fpR, 1); mix(&r.fpN, 1); mix(&r.fpCuff, 1); mix(&r.fpHem, 1); mix(&r.fpThin, 1); mix(&r.fpOuter, 1); mix(&r.fpStitch, 1); mix(&r.fpSparse, 1); mix(&r.fpFlat, 1); mix(&r.fpMark, 1);
   mix(r.cuffMask, sizeof r.cuffMask); mix(r.dyeRun, sizeof r.dyeRun); mix(r.dyePeriod, sizeof r.dyePeriod);
   for (const std::string& m : r.slotMotif) { mix(m.data(), m.size()); const uint8_t z = 0; mix(&z, 1); }
   return key;
@@ -950,11 +950,18 @@ void meanHueSat(const FpMean& m, int s, double& h, double& sat) {
   h = mx == r ? 60.0 * std::fmod((g - b) / d, 6.0) : mx == g ? 60.0 * ((b - r) / d + 2.0) : 60.0 * ((r - g) / d + 4.0);
   if (h < 0) h += 360.0;
 }
-void fpShares(const DollRecipe& r, int dye[8], int px[8], FpMean* mean = nullptr, int facings = 4) {
+void fpShares(const DollRecipe& r, int dye[8], int px[8], FpMean* mean = nullptr, int facings = 4, int* colours = nullptr) {
   for (int s = 0; s < 8; s++) dye[s] = px[s] = 0;
+  if (colours) *colours = 0;
   for (int f = 0; f < facings; f++) {
     const FrameProbe p = probeFrame(r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
     if (!p.ok) continue;
+    if (colours) {   // (B8's read: the frame's distinct colours)
+      std::vector<uint32_t> cs;
+      for (uint8_t c : p.code) if (c >= 2) cs.push_back(r.ramps.c[(int)codeSlot(c)][codeStep(c)]);
+      std::sort(cs.begin(), cs.end());
+      *colours = std::max(*colours, (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+    }
     int d[8] = {}, n[8] = {};
     for (size_t k = 0; k < p.code.size(); k++) {
       if (p.code[k] < 2 || p.owner[k] < 0 || (size_t)p.owner[k] >= p.items.size()) continue;
@@ -978,11 +985,11 @@ int fpCap(const DollRecipe& r, int s) {
 }
 void tuneFp(DollRecipe& r) {
   if (!r.fpSlots) return;
-  struct T { uint8_t thin, outer, stitch, sparse, n; };
+  struct T { uint8_t thin, outer, stitch, sparse, n; bool flat; };
   static thread_local std::unordered_map<uint64_t, T> cache;
   const uint64_t key = fpKey(r, 0x7F9A7F9A7F9A7F9Aull);
   auto it = cache.find(key);
-  if (it != cache.end()) { r.fpThin = it->second.thin; r.fpOuter = it->second.outer; r.fpStitch = it->second.stitch; r.fpSparse = it->second.sparse; r.fpN = it->second.n; return; }
+  if (it != cache.end()) { r.fpThin = it->second.thin; r.fpOuter = it->second.outer; r.fpStitch = it->second.stitch; r.fpSparse = it->second.sparse; r.fpN = it->second.n; r.fpFlat = it->second.flat; return; }
   // the pre-P5 read of the body and the helm (a leather piece keeps its hue in 15-45 and its saturation within 0.10)
   FpMean pre;
   {
@@ -990,6 +997,12 @@ void tuneFp(DollRecipe& r) {
     r0.fpSlots = 0;
     int d0[8], p0[8];
     fpShares(r0, d0, p0, &pre, 1);
+  }
+  // (B8: 48 colours a frame) a figure the full band would carry past 44 on its idles draws the dye in two steps, the dye2 in one
+  {
+    int d1[8], p1[8], cols = 0;
+    fpShares(r, d1, p1, nullptr, 4, &cols);
+    if (cols > 44) r.fpFlat = true;   // (the walk frames carry a few colours more than the idles)
   }
   for (int round = 0; round < 6; round++) {
     int dye[8], px[8];
@@ -1017,7 +1030,47 @@ void tuneFp(DollRecipe& r) {
     if (!moved) break;
   }
   if (cache.size() > 20000) cache.clear();
-  cache[key] = T{r.fpThin, r.fpOuter, r.fpStitch, r.fpSparse, r.fpN};
+  cache[key] = T{r.fpThin, r.fpOuter, r.fpStitch, r.fpSparse, r.fpN, r.fpFlat};
+}
+
+void fpBudget(DollRecipe& r) {
+  auto count = [&](std::vector<uint32_t>* palette) {
+    int most = 0;
+    std::vector<uint32_t> pal;
+    for (int f = 0; f < 4; f++) {
+      const FrameProbe p = probeFrame(r, RigPart::Loco, f, Clip::Idle, 0, 0, true);
+      if (!p.ok) continue;
+      std::vector<uint32_t> cs;
+      for (uint8_t c : p.code)
+        if (c >= 2) {
+          cs.push_back(r.ramps.c[(int)codeSlot(c)][codeStep(c)]);
+          if (palette && !isDyeSlot(codeSlot(c))) pal.push_back(cs.back());
+        }
+      std::sort(cs.begin(), cs.end());
+      most = std::max(most, (int)(std::unique(cs.begin(), cs.end()) - cs.begin()));
+    }
+    if (palette) { std::sort(pal.begin(), pal.end()); pal.erase(std::unique(pal.begin(), pal.end()), pal.end()); *palette = pal; }
+    return most;
+  };
+  // (cached by the drawing and its colours: the dye slots' ramps as the budget left them)
+  struct Dyes { uint32_t c[SLOT_COUNT - (int)Slot::DyeT0][5]; };
+  static thread_local std::unordered_map<uint64_t, Dyes> cache;
+  uint64_t key = fpKey(r, 0xB8B8B8B8B8B8B8B8ull);
+  for (int s = 0; s < SLOT_COUNT; s++)
+    for (int q = 0; q < 5; q++) { key ^= r.ramps.c[s][q]; key *= 0x100000001B3ull; }
+  auto it = cache.find(key);
+  if (it == cache.end()) {
+    std::vector<uint32_t> pal;
+    if (count(&pal) > 46) {
+      snapDyes(r.ramps, pal, false);
+      if (count(nullptr) > 46) snapDyes(r.ramps, pal, true);
+    }
+    Dyes d;
+    for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) d.c[s - (int)Slot::DyeT0][q] = r.ramps.c[s][q];
+    if (cache.size() > 20000) cache.clear();
+    it = cache.emplace(key, d).first;
+  }
+  for (int s = (int)Slot::DyeT0; s < SLOT_COUNT; s++) for (int q = 0; q < 5; q++) r.ramps.c[s][q] = it->second.c[s - (int)Slot::DyeT0][q];
 }
 
 void partDyeContacts(DollRecipe& r) {

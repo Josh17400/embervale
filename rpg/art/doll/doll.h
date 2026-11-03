@@ -177,10 +177,13 @@ inline bool slotLit(Slot s) { return s != Slot::Ink && s != Slot::Face && s != S
 
 enum class Region : uint8_t { None, Upper, Fore, Cuff, Hand, Flare, Thigh, Knee, Shin, Boot, Sole, Edge,
                               Trim, Panel, Gem, Seam, Wear,   // (P2c ladder, contracts 3b) R P G N W: the finish regions
+                              // (P5) D: a dye seam, the fingerprint's N under FIX_FP (its cords and brow lines on lamellar and
+                              // helms); every other reader sees no region (the compositor reads it as '.', the probe records 0)
+                              DyeSeam,
                               COUNT };
 constexpr int REGION_COUNT = (int)Region::COUNT;
 constexpr int FIN_REGIONS = 5;   // Trim .. Wear (index = region - Region::Trim)
-char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' 'R' 'P' 'G' 'N' 'W' ('.' for None)
+char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' 'R' 'P' 'G' 'N' 'W' 'D' ('.' for None)
 const char* regionName(Region r);
 
 // the layer table (STYLE_P2 24), back to front; a view may name its own
@@ -304,6 +307,7 @@ struct DollRecipe {
   uint8_t fpOuter = 0;   // R on its outer row only (the binding: an R pixel touching the outline or the outside)
   uint8_t fpStitch = 0;  // R (and a cloak's hem) stitched: the band one period on, one period as drawn (a shield's whole rim)
   uint8_t fpSparse = 0;  // the stitch one period on, two as drawn (a cloak whose border is most of its side view)
+  bool fpFlat = false;   // the dye in two steps and the dye2 in one (a figure near B8's 48 colours a frame)
   uint8_t fpMark = 0;    // the mark tile on the slot (T1-T4, its motif drawn); at T4 it takes the etch's place
   uint8_t maker[8] = {};
   uint32_t cuffMask[8] = {};
@@ -368,6 +372,10 @@ void partContacts(DollRecipe& r, const HumanLook& L);
 void partDyeContacts(DollRecipe& r);
 // (P5) the dye's share per fingerprinted slot held under FIX_BATCH_P5 3.5's caps (fpThin, fpOuter, fpN: resolve calls it first)
 void tuneFp(DollRecipe& r);
+// (P5, B8's 48 colours a frame) a fingerprinted figure over its colour budget on the idles: each dye step takes the nearest colour
+// the figure already wears (dE76 under 30), then the band goes solid (resolve calls it last)
+void fpBudget(DollRecipe& r);
+void snapDyes(DollRamps& R, const std::vector<uint32_t>& palette, bool solid);
 bool partDyeByContact(DollRamps& R, const ContactRead& c);
 void dyeRamps(const HumanLook& L, DollRamps& R);   // (P5) each tier slot's dye pair from fp::row(makerAt(slot)) (rampsOf calls it)
 // edgeOwn: the look's lit edge is held to its own step 1 (a dark sheen, KNAPPED, FURNACE, GLASS: C14), so no edge lift

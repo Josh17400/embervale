@@ -1088,8 +1088,14 @@ void FramePaint::finishPlacements(const ViewRec& v, int ts, bool hasReg) {
       // (P5) the slot's maker motif (the filigree and the mark); a slot with no maker keeps the look's motif
       const std::string pre = r.fpOn(ts) ? fitPrefix(P, *rt.part, rt.fin, r.motifAt(ts), r.motif) : fitPrefix(P, *rt.part, rt.fin, r.motif);
       if (pre.empty()) continue;
-      if (const ViewRec* fv = fitView(P, *rt.part, pre, bw, bh))
-        fitAt[k] = Place{fv, px0 + (bw - fv->w) / 2, py0 + (bh - fv->h) / 2};
+      const ViewRec* fv = fitView(P, *rt.part, pre, bw, bh);
+      // (P5) the people's filigree where it fits this panel as well as the look's own drawing does; a panel its motif has no
+      // fit as large for (the T5 set-stone fits of the shoulders) keeps the look's (FIX_BATCH_P5 3.3: never a lesser finish)
+      if (rt.fin == FIN_TILE_FILIGREE && r.fpOn(ts) && pre != r.motif) {
+        const ViewRec* own = fitView(P, *rt.part, fitPrefix(P, *rt.part, rt.fin, r.motif), bw, bh);
+        if (own && (!fv || own->w * own->h > fv->w * fv->h)) fv = own;
+      }
+      if (fv) fitAt[k] = Place{fv, px0 + (bw - fv->w) / 2, py0 + (bh - fv->h) / 2};
     }
     if (anyStamp) {
       blob.assign((size_t)v.w * v.h, -1);
@@ -1214,21 +1220,26 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   if (st < 1 || st > 3) return c;
   const Slot cs = codeSlot(c);
   if (cs == Slot::Glow || cs == Slot::Ink || cs == Slot::Skin || cs == Slot::Fx) return c;
-  // (a metal plate's lit run stays metal: a dyed lit pixel would leave its neighbour a lone lit dash, C19 A8)
-  if (st == 3 && (cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade)) return c;
+  // (a metal plate's lit run stays metal in R and N: a dyed lit pixel would leave its neighbour a lone lit dash, C19 A8)
+  const bool litMetal = st == 3 && (cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade);
   const Item& it = *ip.it;
   const ViewRec& v = *ip.v;
   const int px = it.ax + x - v.ox, py = it.ay + y - v.oy;
   bool on = false, edge = false;
-  if (rg == (uint8_t)Region::Trim) {
+  if (litMetal) on = false;
+  else if (rg == (uint8_t)Region::Trim) {
     on = ip.fpR;
     if (on && ip.fpOuter) {   // (the binding only: an R pixel on the piece's outer row)
       auto out = [&](int qx, int qy) { if (qx < 0 || qy < 0 || qx >= v.w || qy >= v.h) return true; const uint8_t q = v.cells[(size_t)qy * v.w + qx]; return q < 2 || codeStep(q) == 0; };
       on = out(x - 1, y) || out(x + 1, y) || out(x, y - 1) || out(x, y + 1);
     }
   }
-  else if (rg == (uint8_t)Region::Seam) on = ip.fpN && !(ip.fpThin && (py & 1));
-  if (!on && ip.fpEdge && fpRow[(size_t)x] == y) on = edge = true;
+  else if (rg == (uint8_t)Region::Seam || fpSeam) on = ip.fpN && !(ip.fpThin && (py & 1));
+  // (the cuff and the hem dye a garment's own material only: leather, metal, cloth, the cloak; never a pixel a probe's region
+  // marker recoded, the motion gates' Plume boot, Field knee, Device sole)
+  if (!on && !litMetal && ip.fpEdge && fpRow[(size_t)x] == y)
+    on = edge = cs == Slot::Leather || cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Cloth1 || cs == Slot::Cloth2 ||
+                cs == Slot::Cloth3 || cs == Slot::Linen || cs == Slot::Accent || cs == Slot::Cloak || cs == Slot::Pattern || cs == Slot::Head;
   if (!on) return c;
   const DollRecipe& r = *rp;
   const int ts = ip.ts, period = std::max<int>(1, r.dyePeriod[ts]);
@@ -1240,7 +1251,8 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   }
   int ph = (px + py) % period;
   if (ph < 0) ph += period;
-  return code(dyeSlotOf(ts, ph >= r.dyeRun[ts]), st);
+  const bool second = ph >= r.dyeRun[ts];
+  return code(dyeSlotOf(ts, second), r.fpFlat ? (second ? 2 : std::min(st, 2)) : st);
 }
 
 void FramePaint::paintPixels(const ItemPaint& ipIn) {
@@ -1264,7 +1276,9 @@ void FramePaint::paintPixels(const ItemPaint& ipIn) {
         const int cx = x - v.ox + it.clip->ox, cy = y - v.oy + it.clip->oy;
         if (cx < 0 || cy < 0 || cx >= it.clip->w || cy >= it.clip->h || it.clip->cells[(size_t)cy * it.clip->w + cx] < 2) continue;
       }
-      const uint8_t rg = c >= 2 && (hasReg || bandOn) ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
+      uint8_t rg = c >= 2 && (hasReg || bandOn) ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
+      fpSeam = rg == (uint8_t)Region::DyeSeam;   // (P5) a dye seam reads as no region to every rule but the fingerprint's
+      if (fpSeam) rg = 0;
       if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
       c = recolour(ip, x, y, c, rg);
       stamp(ip, x, c, rg, sx, ys);
@@ -1373,7 +1387,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
         if (!fpPre) fpPre = c;
         const Slot cs = codeSlot(c);
         const bool cut = cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade || r.pieceTier[ts] >= 3;
-        c = cut ? code(cs, std::max(1, ck - 1)) : code(dyeSlotOf(ts, tsl == Slot::Dye2), std::clamp(ck, 1, 3));
+        c = cut ? code(cs, std::max(1, ck - 1)) : code(dyeSlotOf(ts, tsl == Slot::Dye2), r.fpFlat ? (tsl == Slot::Dye2 ? 2 : std::clamp(ck, 1, 2)) : std::clamp(ck, 1, 3));
         break;
       }
       int nk;

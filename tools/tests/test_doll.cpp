@@ -343,7 +343,7 @@ void contract() {
       std::string(doll::slotName(Slot::Dye2)) != "dye2" || doll::dyeSlotOf(7, true) != Slot::Dye2T7 || doll::code(Slot::Dye2T7, 4) != 201)
     cfail("the slot table");
   if (doll::LAYER_COUNT != 24 || std::string(doll::layerName(doll::Layer::Fx)) != "fx" || std::string(doll::layerName(doll::Layer::FxBack)) != "fxBack") cfail("the layer table");
-  if (doll::ANCHOR_COUNT != 9 || std::string(doll::anchorName(doll::Anchor::Crown)) != "crown" || doll::REGION_COUNT != 17 || doll::regionChar(doll::Region::Sole) != 'O' || doll::regionChar(doll::Region::Trim) != 'R' ||
+  if (doll::ANCHOR_COUNT != 9 || std::string(doll::anchorName(doll::Anchor::Crown)) != "crown" || doll::REGION_COUNT != 18 || doll::regionChar(doll::Region::DyeSeam) != 'D' || doll::regionChar(doll::Region::Sole) != 'O' || doll::regionChar(doll::Region::Trim) != 'R' ||
       doll::regionChar(doll::Region::Wear) != 'W') cfail("the anchors and regions");
   if (doll::ROLE_COUNT != 26 || std::string(doll::roleName(doll::Role::Hair)) != "hair") cfail("the role table");
   if (doll::code(Slot::Metal, 4) != 2 + 11 * 5 + 4 || doll::codeSlot(doll::code(Slot::Cloth3, 3)) != Slot::Cloth3 || doll::codeStep(doll::code(Slot::Cloth3, 3)) != 3) cfail("pixel codes");

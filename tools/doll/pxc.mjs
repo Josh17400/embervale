@@ -40,7 +40,7 @@ export const SLOTS = ['skin', 'hair', 'eyes', 'face', 'ink', 'cloth1', 'cloth2',
   'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade',
   // (P5) the maker's dye band (the mark tile's thread cells); doll.h's DyeT0..7 / Dye2T0..7 follow, the compositor's only
   'dye', 'dye2'];
-export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16 };   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
+export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16, D: 17 };   // (P5) D: a dye seam (the fingerprint's N; '.' to every other reader)   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
 export const LAYERS = ['fxBack', 'heldBack', 'back', 'cloakBack', 'hairBack', 'armFar', 'legs', 'shoes', 'hangBack', 'torso',
   'hangFront', 'belt', 'neck', 'armNear', 'head', 'face', 'beard', 'hairFront', 'ears', 'headwear', 'held', 'shield',
   'cloakFront', 'fx'];
@@ -1057,7 +1057,7 @@ function report(c) {
     for (const V of P.views) {
       if (!V.cells || V.when) continue;
       let lands = false;
-      if (V.reg) for (let k = 0; k < V.reg.length && !lands; k++) lands = (V.reg[k] === REGIONS.R || V.reg[k] === REGIONS.N) && V.cells[k] >= 2;
+      if (V.reg) for (let k = 0; k < V.reg.length && !lands; k++) lands = (V.reg[k] === REGIONS.R || V.reg[k] === REGIONS.N || V.reg[k] === REGIONS.D) && V.cells[k] >= 2;
       if (!lands) console.log(`fp-landing: ${P.name} ${FACINGS[V.facing] || 'any'} ${V.key}`);
     }
   }

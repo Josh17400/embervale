@@ -174,7 +174,8 @@ struct FramePaint {
   std::vector<uint8_t> irisBand;
   std::vector<int> metalRow;
   std::vector<int16_t> fpRow;   // (P5) per view column: the cuff's top row or the hem's bottom row (-1 none)
-  uint8_t fpPre = 0;            // (P5) recolour's code before the fingerprint touched it (0: untouched); stamp files it in g_fpUnder
+  uint8_t fpPre = 0;
+  bool fpSeam = false;          // (P5) the pixel is a dye seam (Region::DyeSeam: read as no region, painted as N by the fingerprint)            // (P5) recolour's code before the fingerprint touched it (0: untouched); stamp files it in g_fpUnder
 
   // the frame, in order
   void anchors(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& o);
