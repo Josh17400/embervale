@@ -1395,7 +1395,7 @@ int freeze(const char* file, bool write) {
       static const struct { uint32_t bit; const char* name; } kRules[] = {
           {doll::FIX_CLOAK, "rule D73 cloak ladder"}, {doll::FIX_T2, "rule D74 T2 cowl"}, {doll::FIX_T4, "rule D75 T4 size 4"}, {doll::FIX_TRIM, "rule D78 trim band"},
           {doll::FIX_SHIELD, "rule D82 shield guard"}, {doll::FIX_RELIC, "rule D83-D84 relic / Mythic"}, {doll::FIX_LINES, "rule D86 lines"}, {doll::FIX_COLOUR, "rule D88 colour"},
-          {doll::FIX_KIT, "rule D97 one kit"}, {doll::FIX_KING, "rule D96 king"}, {doll::FIX_TRIM4, "rule D93 trim band"}, {doll::FIX_C14, "rule fr4 C14"}};
+          {doll::FIX_KIT, "rule D97 one kit"}, {doll::FIX_KING, "rule D96 king"}, {doll::FIX_TRIM4, "rule D93 trim band"}, {doll::FIX_C14, "rule fr4 C14"}, {doll::FIX_FP, "rule P5 fingerprint"}};
       std::set<std::string> byRule;
       for (const auto& ru : kRules) {
         doll::fixRules() = doll::FIX_ALL & ~ru.bit;
