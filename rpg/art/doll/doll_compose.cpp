@@ -503,7 +503,7 @@ bool greySlot(Slot s) {
     case Slot::Cloth1: case Slot::Cloth2: case Slot::Cloth3: case Slot::Accent: case Slot::Linen: case Slot::Leather: case Slot::Metal:
     case Slot::Metal2: case Slot::Blade: case Slot::Cloak: case Slot::Pattern: case Slot::Plume: case Slot::Field: case Slot::Device:
     case Slot::Glow: case Slot::Head: return true;   // (forge i2) the headwear is gear: HOMESPUN's hood
-    default: return false;
+    default: return dyeSlot(s);   // (P5) the dye band greys as a material
   }
 }
 DollRamps greyRamps(const DollRamps& r) {

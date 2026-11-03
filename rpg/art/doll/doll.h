@@ -156,8 +156,16 @@ namespace doll {
 // ---------------------------------------------------------------- the frozen tables (pxc.mjs mirrors every list)
 enum class Slot : uint8_t {
   Skin, Hair, Eyes, Face, Ink, Cloth1, Cloth2, Accent, Linen, Cloth3, Leather, Metal, Metal2, Head, Cloak, Pattern, Plume,
-  Field, Device, Glow, Fx, Blade, COUNT
+  Field, Device, Glow, Fx, Blade,
+  // (P5, FIX_BATCH_P5 4.3) the maker people's dye band: maps name Dye / Dye2 (`dye`, `dye2`: the mark tile's thread cells);
+  // the compositor moves a part's dye pixels to its tier slot's pair (DyeT<s> / Dye2T<s>, s = HumanLook::TIER_*, never named in
+  // maps), as it moves a held part's metal to Blade; rampsOf fills each pair from fp::row(makerAt(s)) (no maker: Accent)
+  Dye, Dye2, DyeT0, DyeT1, DyeT2, DyeT3, DyeT4, DyeT5, DyeT6, DyeT7, Dye2T0, Dye2T1, Dye2T2, Dye2T3, Dye2T4, Dye2T5, Dye2T6, Dye2T7,
+  COUNT
 };
+// (P5) the tier slot's dye pair and the test for any dye slot (the 18 slots from Dye)
+inline Slot dyeSlotOf(int tierSlot, bool second) { return (Slot)((int)(second ? Slot::Dye2T0 : Slot::DyeT0) + tierSlot); }
+inline bool dyeSlot(Slot s) { return s >= Slot::Dye && s < Slot::COUNT; }
 // Face's steps: 0 lash, 1 eye white, 2 mouth, 3 lip tint, 4 blush. Eyes: 2 iris, 3 glint. Ink: 0. Fx: 0 edge, 1 body,
 // 2 core (A3's arc). Every other slot is a 5-step material ramp: 0 outline, 1 shadow, 2 base, 3 light, 4 highlight.
 // (P2c ladder, contracts 3b) Blade: the held weapon's Metal pixels draw in it (its own metal: bladeKind or weaponColor; equal
@@ -335,7 +343,8 @@ void partContacts(DollRecipe& r, const HumanLook& L);
 bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& c, bool edgeOwn, bool dbg);
 int trimSelftests(std::vector<std::string>* missed);   // (D93) the band's floor and ceiling modes on synthetic views   // C12b's measure on the idle frame 0 (gear px and Metal 2 trim per slot)
 // (P2c ladder) the finish tiles (`role overlay finish.<name>`): bits of DollRecipe::finTiles
-enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32 };
+enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32,
+                 FIN_TILE_MARK = 64 };   // (P5) the maker's mark (`role overlay finish.mark`, FIT on P by the slot's motif)
 // (P2c ladder) the tier slot (HumanLook::TIER_*) a part's finish follows (-1: none; see DollRecipe::fin)
 int partTierSlot(int part);
 
