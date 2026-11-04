@@ -807,3 +807,22 @@ half and the kits sheet show them):
   left are T3 steel face helms (masked, plumed, spangen) and T4 alloy bodies whose D view shows no dye: their seams lie under
   a belt or skirt, or on lit plate the rules keep metal. Clearing them needs map re-cuts the pool's ceiling no longer holds
   (94 B left) or a per-piece rule the owner should see first; the alloy itself parts the peoples at T4 (F2 0 twins).
+
+## 14. Fix round 2 (the judge's R2 items; behind FIX_FP, PENDING THE OWNER'S REVIEW)
+
+- **River's teal lands** (F5: River held 152 of the 330 short pieces). `doll::dyeRamp` (the doll's dye pairs and the icons'
+  `fpRamp`, so the bag and the hero still agree by construction) keeps a dye's shadow and lit steps (1, 3) within 10 degrees
+  of its CIELAB hue: the generator's hue shift is a fixed a*b* offset, so River's soft teal (chroma 29) turned 22 and 15
+  degrees and read as another blue-green beside the teal shirt. Every other row already lay within 12, so only River's ramp
+  moved. A dye group that must part from a contact and would sink its shadow step under chroma 20 (River's teal between dark
+  hair and a helm's metal: luma 72, chroma 18, no teal left) climbs instead where a climb clears (its glint capped).
+  A piece whose finished frame shows under 2 px of its dye and more of its dye2 (a hand's 2 px cuff on a 2:2 band's white
+  pair) turns its band's phase (dye and dye2 trade slots, steps kept).
+- **B10.** The per-pixel paint runs in two instantiations: a frame with no fingerprint runs the pre-P5 loop (no fingerprint
+  branch, no under plane); LOCO p50 back to 80215d7's.
+- **The pack.** `p5_pack.py --sheets` writes every sheet of section 10 from one build (`build.sha`).
+- **Still open: F5 194 of 4,176** (river 16, the others 9-29: highland 29, sun temple 26, imperial 19, sylvan 17, steppe
+  16, heartland 15, starspire 14, marsh 11, fjordfolk 11, dune 11, jade 9). What is left: the T4 alloy bodies whose kit
+  layer covers the torso in the D view (67; 7 more alloy helms, gloves and shields), the T3 masked / plumed / spangen steel helms with no D or N plane on their
+  steel view (84), and 36 others (T3 steel helms 15, Heartland's bucklers 12, Sun Temple's iron coats 6, a steel oval shield 3). Clearing them needs the planner's ruling: map
+  re-cuts past this plan's 2,602,032 B ceiling (94 B left; the budget is 2,621,440 B) or an F5 exemption for those classes.
