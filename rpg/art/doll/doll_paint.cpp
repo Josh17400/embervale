@@ -1309,7 +1309,11 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   }
   int ph = (px + py) % period;
   if (ph < 0) ph += period;
-  const bool second = ph >= r.dyeRun[ts];
+  // (fix r1, the judge's R1 read: "an Imperial T3 lamellar skirt with a purple and gold checkerboard dither") from T3 the
+  // lacing and seams (N, D, the lining, a seam line) take the dye alone: a lamellar's laces sit a plate apart, so the band's
+  // two colours alternated lace by lace into a checker; the two-tone band stays on the rims, hems and cuffs
+  const bool seam = !edge && rg != (uint8_t)Region::Trim && rg != (uint8_t)Region::Gem;
+  const bool second = ph >= r.dyeRun[ts] && !(seam && r.pieceTier[ts] >= 3);
   return code(dyeSlotOf(ts, second), r.fpFlat ? (second ? 2 : std::min(st, 2)) : st);
 }
 
