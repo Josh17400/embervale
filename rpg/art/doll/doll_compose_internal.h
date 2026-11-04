@@ -204,10 +204,13 @@ struct FramePaint {
   void irisBands(const Item& it, const ViewRec& v, bool hasReg);
   void fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip);
   uint8_t fpColour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) const;
+  // (P5 fix r2, B10) the per-pixel path in two instantiations: Fp (a frame with a fingerprint: DollRecipe::fpSlots) files the
+  // pre-P5 code under each pixel; without it the loop is the pre-P5 one (no fingerprint branch, no under plane)
   void paintPixels(const ItemPaint& ip);
-  uint8_t recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg);
+  template <bool Fp> void paintPixelsT(const ItemPaint& ip);
+  template <bool Fp> uint8_t recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg);
   uint8_t regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles, bool pre5 = false);
-  void stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]);
+  template <bool Fp> void stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]);
 };
 
 }  // namespace comp

@@ -1317,7 +1317,12 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   return code(dyeSlotOf(ts, second), r.fpFlat ? (second ? 2 : std::min(st, 2)) : st);
 }
 
-void FramePaint::paintPixels(const ItemPaint& ipIn) {
+void FramePaint::paintPixels(const ItemPaint& ip) {
+  if (rp->fpSlots) paintPixelsT<true>(ip);
+  else paintPixelsT<false>(ip);
+}
+template <bool Fp>
+void FramePaint::paintPixelsT(const ItemPaint& ipIn) {
   const ItemPaint ip = ipIn;   // (a local copy: the per-pixel pieces read it from registers, not through the caller's frame)
   const Item& it = *ip.it;
   const ViewRec& v = *ip.v;
@@ -1339,17 +1344,18 @@ void FramePaint::paintPixels(const ItemPaint& ipIn) {
         if (cx < 0 || cy < 0 || cx >= it.clip->w || cy >= it.clip->h || it.clip->cells[(size_t)cy * it.clip->w + cx] < 2) continue;
       }
       uint8_t rg = c >= 2 && (hasReg || bandOn) ? (bandOn ? bandReg[(size_t)y * v.w + x] : v.regions[(size_t)y * v.w + x]) : 0;
-      fpSeam = rg == (uint8_t)Region::DyeSeam;   // (P5) a dye seam reads as no region to every rule but the fingerprint's
-      if (fpSeam) rg = 0;
+      if constexpr (Fp) fpSeam = rg == (uint8_t)Region::DyeSeam;   // (P5) a dye seam reads as no region to every rule but the fingerprint's
+      if (rg == (uint8_t)Region::DyeSeam) rg = 0;
       if (handOnly && (c < 2 || rg != (uint8_t)Region::Hand)) continue;
-      c = recolour(ip, x, y, c, rg);
-      stamp(ip, x, c, rg, sx, ys);
+      c = recolour<Fp>(ip, x, y, c, rg);
+      stamp<Fp>(ip, x, c, rg, sx, ys);
     }
   }
 }
 
 // a pixel's code: the recipe's region slot, the tier's finish, the trim band's tile, the held weapon's metal, the
 // iridescent bands, the culture alloy's metal and the region tiles
+template <bool Fp>
 DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) {
   const Pool& P = *pool;
   const DollRecipe& r = *rp;
@@ -1358,7 +1364,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   const int ts = ip.ts;
   const bool bandOn = ip.bandOn, toBlade = ip.toBlade, toMetal = ip.toMetal, brassBody = ip.brassBody;
   const ViewRec* bandView = ip.bandView;
-  fpPre = 0;
+  if constexpr (Fp) fpPre = 0;
   // (P5) a part's dye cells draw in its tier slot's pair (as a held part's metal in Blade); no tier slot: the Accent default
   if (c >= code(Slot::Dye, 0) && c < code(Slot::DyeT0, 0) && ts >= 0) c = code(dyeSlotOf(ts, codeSlot(c) == Slot::Dye2), codeStep(c));
   if (rg && rg < REGION_COUNT && r.region[rg] != 0xFF) c = code((Slot)r.region[rg], codeStep(c));
@@ -1401,6 +1407,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   }
   // the region tiles (the finish tiles by the piece's tiles: the mark where the fingerprint lays it); (P5) where the mark
   // changed the pixel, the code under it is the pre-P5 one (its etch at T4), so the passes read the pre-P5 figure
+  if constexpr (!Fp) return regionTiles(ip, x, y, c, rg, ts >= 0 ? r.finTiles[ts] : 0);   // (no fingerprint: tilesAt is finTiles)
   const uint8_t tiles = ts >= 0 ? r.tilesAt(ts) : 0;
   const uint8_t c1 = regionTiles(ip, x, y, c, rg, tiles);
   if (ip.fp && ts >= 0 && (tiles != r.finTiles[ts] || !fitAt0.empty())) {
@@ -1496,6 +1503,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, in
 
 // a pixel written at its build columns and stretch rows: the erase cells (the shield and held gear spared), the pattern
 // tile, the body-piece, depth, held and shield planes, the probe's owner and region, the dirty box
+template <bool Fp>
 DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]) {
   FrameOut& o = *op;
   std::vector<Item>& items = *itemsV;
@@ -1508,7 +1516,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
   const ViewRec& v = *ip.v;
   const uint8_t heldMark = ip.heldMark, shieldMark = ip.shieldMark, bodyPiece = ip.bodyPiece, depthMark = ip.depthMark;
   const bool helmErase = ip.helmErase, tiled = ip.tiled;
-  const bool fpFrame = rp->fpSlots != 0;   // (P5) g_fpUnder is sized for this frame
+  constexpr bool fpFrame = Fp;   // (P5) g_fpUnder is sized for this frame (rp->fpSlots)
   for (int yi = 0; yi < 2; yi++) {
     if (ys[yi] == INT32_MIN) continue;
     for (int xi = 0; xi < 2; xi++) {
@@ -1523,7 +1531,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
         if (fixOn(FIX_SHIELD) && shieldKeep[(size_t)Y * CW + X] && !shieldMark) {   // (D82) the shield under an erased overpaint
           const size_t q = (size_t)Y * CW + X;
           o.code[q] = shieldKeep[q];
-          if (fpFrame) { g_fpUnder[q] = 0; g_fpCuffOwn[q] = 0; }
+          if constexpr (fpFrame) { g_fpUnder[q] = 0; g_fpCuffOwn[q] = 0; }
           bodyPx[q] = 0;
           depthPx[q] = 1;
           heldPx[q] = 0;
@@ -1532,17 +1540,17 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
           continue;
         }
         o.code[(size_t)Y * CW + X] = 0;
-        if (fpFrame) { g_fpUnder[(size_t)Y * CW + X] = 0; g_fpCuffOwn[(size_t)Y * CW + X] = 0; }
+        if constexpr (fpFrame) { g_fpUnder[(size_t)Y * CW + X] = 0; g_fpCuffOwn[(size_t)Y * CW + X] = 0; }
         bodyPx[(size_t)Y * CW + X] = 0;
         depthPx[(size_t)Y * CW + X] = 0;
         if (probeOwner) { (*probeOwner)[(size_t)Y * CW + X] = -1; (*probeRegion)[(size_t)Y * CW + X] = 0; }
         continue;
       }
-      uint8_t w = c, u = fpPre;
+      uint8_t w = c, u = Fp ? fpPre : 0;
       // the pattern tile: a cloth pixel (not its outline) takes the tile's slot where the tile marks it, keeping
       // the cloth's own step (so the garment's shading runs through the pattern); the tile's grid: Item::tx, ty
       // (P5: the code under a fingerprinted pixel the same, so the passes see the pre-P5 figure)
-      for (int pass = 0; pass < (fpPre ? 2 : 1); pass++) {
+      for (int pass = 0; pass < (Fp && fpPre ? 2 : 1); pass++) {
         uint8_t& z = pass ? u : w;
         if (tiled && (uint8_t)codeSlot(z) == tileOn && codeStep(z) >= 1) {
           const ViewRec& t = *tile.v;
@@ -1554,7 +1562,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
         }
       }
       o.code[(size_t)Y * CW + X] = w;
-      if (fpFrame) {
+      if constexpr (fpFrame) {
         g_fpUnder[(size_t)Y * CW + X] = u;
         // (fix r1) the cuff's owner plane: a glove's or boot's worn-region pixel (cuffMask) as last painted (0: another part's)
         g_fpCuffOwn[(size_t)Y * CW + X] = ip.fpEdge && !ip.fpHemRow && ip.ts >= 0 && (rp->cuffMask[ip.ts] >> rg & 1) ? (uint8_t)(ip.ts + 1) : 0;
