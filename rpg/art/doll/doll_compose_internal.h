@@ -104,6 +104,7 @@ extern thread_local std::vector<uint8_t> g_fpUnder;
 // (0: any other part); the visible cuff pass (fpVisibleCuffs) reads it, so a cuff a sleeve or a hem covers shows below it
 extern thread_local std::vector<uint8_t> g_fpCuffOwn;
 void fpVisibleCuffs(const DollRecipe& r, FrameOut& o);
+void fpDyeLeads(const DollRecipe& r, FrameOut& o);   // (P5 fix r2) a band showing its dye2 alone (dye < 2 px) turns its phase
 
 // ---------------------------------------------------------------- the passes (doll_passes.cpp)
 using PostPass = void (*)(const DollRecipe&, FrameOut&);

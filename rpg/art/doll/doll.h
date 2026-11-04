@@ -380,6 +380,7 @@ void fpBudget(DollRecipe& r);
 void snapDyes(DollRamps& R, const std::vector<uint32_t>& palette, bool solid);
 bool partDyeByContact(DollRamps& R, const ContactRead& c);
 void dyeRamps(const HumanLook& L, DollRamps& R);   // (P5) each tier slot's dye pair from fp::row(makerAt(slot)) (rampsOf calls it)
+void dyeRamp(uint32_t base, uint32_t out[5]);      // (P5 fix r2) one people's dye ramp: rampA3(base, Cloth), steps 1 and 3 kept on the dye's hue (the doll and the icons)
 // edgeOwn: the look's lit edge is held to its own step 1 (a dark sheen, KNAPPED, FURNACE, GLASS: C14), so no edge lift
 bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& c, bool edgeOwn, bool dbg);
 int trimSelftests(std::vector<std::string>* missed);   // (D93) the band's floor and ceiling modes on synthetic views   // C12b's measure on the idle frame 0 (gear px and Metal 2 trim per slot)

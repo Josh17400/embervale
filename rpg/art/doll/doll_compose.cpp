@@ -367,6 +367,36 @@ void fpVisibleCuffs(const DollRecipe& r, FrameOut& o) {
   }
 }
 
+// (P5 fix r2, F5: River's gloves showed only their white) a piece whose frame shows its two-tone band with fewer than 2 px of
+// the dye and more of the dye2 (a short cuff or hem run on the dye2's phase: a hand's cuff 2 px wide on a 2:2 band's white
+// pair) turns its band's phase: its dye and dye2 pixels trade slots, each keeping its step, so the people's colour leads
+void fpDyeLeads(const DollRecipe& r, FrameOut& o) {
+  if (o.bx1 < o.bx0) return;
+  int n1[8] = {}, n2[8] = {};
+  for (int y = o.by0; y <= o.by1; y++)
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      const uint8_t c = o.code[(size_t)y * CW + x];
+      if (c < 2) continue;
+      const int s = (int)codeSlot(c);
+      if (s >= (int)Slot::DyeT0 && s < (int)Slot::Dye2T0) n1[s - (int)Slot::DyeT0]++;
+      else if (s >= (int)Slot::Dye2T0 && s < (int)Slot::COUNT) n2[s - (int)Slot::Dye2T0]++;
+    }
+  uint8_t turn = 0;
+  for (int ts = 0; ts < 8; ts++)
+    if ((r.fpSlots >> ts & 1) && r.dyePeriod[ts] >= 2 && n1[ts] < 2 && n2[ts] > n1[ts]) turn |= (uint8_t)(1u << ts);
+  if (!turn) return;
+  for (int y = o.by0; y <= o.by1; y++)
+    for (int x = o.bx0; x <= o.bx1; x++) {
+      uint8_t& c = o.code[(size_t)y * CW + x];
+      if (c < 2) continue;
+      const int s = (int)codeSlot(c), st = codeStep(c);
+      if (s >= (int)Slot::DyeT0 && s < (int)Slot::Dye2T0 && (turn >> (s - (int)Slot::DyeT0) & 1))
+        c = code(dyeSlotOf(s - (int)Slot::DyeT0, true), r.fpFlat ? 2 : st);
+      else if (s >= (int)Slot::Dye2T0 && s < (int)Slot::COUNT && (turn >> (s - (int)Slot::Dye2T0) & 1))
+        c = code(dyeSlotOf(s - (int)Slot::Dye2T0, false), r.fpFlat ? std::min(st, 2) : st);
+    }
+}
+
 }  // namespace comp
 
 namespace {
@@ -457,6 +487,7 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
       o.code[q] = preFin[q];
       keepFp[q] = 0;
     }
+  fpDyeLeads(r, o);   // (P5 fix r2) a band that shows its dye2 alone (on the finished figure) turns its phase
 }
 
 // a code buffer (w x h, its pivot at pvx, pvy) trimmed into a Cut coloured by the recipe's ramps

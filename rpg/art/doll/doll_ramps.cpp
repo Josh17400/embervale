@@ -1322,6 +1322,29 @@ DollRamps rampsOf(const HumanLook& L) {
   return R;
 }
 
+// (P5 fix round 2) dyeRamp: rampA3(base, Cloth), whose shadow and lit steps (1, 3) keep the dye's own hue within 10 degrees (CIELAB): the
+// generator's hue shift is a fixed a*b* offset, so a soft dye turns further than a strong one (River's teal, chroma 29: its
+// shadow 22 degrees off, its lit step 15, both read as another blue-green beside a teal shirt and failed F5). Every other
+// row's steps 1 and 3 already lie within 12 degrees, so only a soft dye moves. A re-hued step keeps its lightness and at
+// least 0.85 of the dye's chroma; a near-white (chroma under 20) has no hue to keep.
+void dyeRamp(uint32_t base, uint32_t r[5]) {
+  rampA3(base, Material::Cloth, r);
+  constexpr double kDeg = 3.14159265358979 / 180.0;
+  const Lab b = toLab(base);
+  const double cb = std::hypot(b.a, b.b);
+  if (cb < 20.0) return;
+  const double hb = std::atan2(b.b, b.a);
+  for (int q : {1, 3}) {
+    Lab l = toLab(r[q]);
+    const double dh = std::remainder(std::atan2(l.b, l.a) - hb, 2 * 3.14159265358979);
+    if (std::fabs(dh) <= 12.0 * kDeg) continue;
+    const double h = hb + std::copysign(10.0 * kDeg, dh), c = std::max(std::hypot(l.a, l.b), 0.85 * cb);
+    l.a = c * std::cos(h);
+    l.b = c * std::sin(h);
+    r[q] = fromLab(l) | 0xFF000000u;
+  }
+}
+
 // (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
 // the dye again); a slot with no maker keeps the Accent ramp (a3Palette), so a draft's dye cells render. Only the dye slots
 void dyeRamps(const HumanLook& L, DollRamps& R) {
@@ -1331,8 +1354,8 @@ void dyeRamps(const HumanLook& L, DollRamps& R) {
     const fp::Row& row = fp::row(m);
     uint32_t* d1 = R.c[(int)dyeSlotOf(s, false)];
     uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
-    rampA3(hex(row.dye), Material::Cloth, d1);
-    if (row.dye2) rampA3(hex(row.dye2), Material::Cloth, d2);
+    dyeRamp(hex(row.dye), d1);
+    if (row.dye2) dyeRamp(hex(row.dye2), d2);
     else for (int i = 0; i < 5; i++) d2[i] = d1[i];
   }
 }
@@ -1378,18 +1401,37 @@ bool partDyeByContact(DollRamps& R, const ContactRead& cr) {
     };
     const uint32_t* T = R.c[g[0]];
     if (clear(T)) continue;
-    for (int k = 1; k <= 60; k++) {
-      bool done = false;
-      for (double dir : {1.0, -1.0}) {
-        const double f = 1.0 + dir * 0.0125 * k;
-        uint32_t t[5];
-        t[0] = T[0];
-        for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
-        if (luma(t[4]) > 252.0 || luma(t[2]) - luma(T[0]) < 30.0) continue;
-        if (clear(t)) { setAll(g, t); done = moved = true; break; }
-      }
-      if (done) break;
+    // the nearest scale that clears, climbing first at each step; capGlint (fix r2): a climb whose glint passes 252 caps the
+    // glint (as the lit edge's lift does) instead of stopping, and only climbs are tried
+    auto search = [&](bool capGlint, uint32_t t[5]) {
+      for (int k = 1; k <= 60; k++)
+        for (double dir : {1.0, -1.0}) {
+          if (capGlint && dir < 0) continue;
+          const double f = 1.0 + dir * 0.0125 * k;
+          t[0] = T[0];
+          for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+          if (capGlint && luma(t[4]) > 252.0) {
+            t[4] = scaleRgb(T[4], std::max(1.0, 250.0 / std::max(1.0, luma(T[4]))));
+            if (luma(t[3]) > 250.0) return 0.0;
+          }
+          if (luma(t[4]) > 252.0 || luma(t[2]) - luma(T[0]) < 30.0) continue;
+          if (clear(t)) return dir;
+        }
+      return 0.0;
+    };
+    uint32_t t[5];
+    const double dir = search(false, t);
+    if (dir == 0.0) continue;
+    // (P5 fix r2, F5) a sink that takes the dye's shadow step out of its family (CIELAB chroma under 20) climbs instead when
+    // a climb can clear: a soft dye darkened toward grey-black at its gamut's edge (River's teal between dark hair and a
+    // helm's metal sank to luma 72, chroma 18: the brim showed no teal)
+    auto chroma = [](uint32_t c) { const Lab l = toLab(c); return std::hypot(l.a, l.b); };
+    if (dir < 0 && chroma(T[1]) >= 20.0 && chroma(t[1]) < 20.0) {
+      uint32_t u[5];
+      if (search(true, u) > 0) for (int q = 0; q < 5; q++) t[q] = u[q];
     }
+    setAll(g, t);
+    moved = true;
   }
   // (C14's lit edge, as partByContact's lift) the lit top-left edge's upper quartile 40 luma over the darkest day ground: the
   // dye group with the most edge pixels under the mark climbs whole (steps 1-4, hue kept), never a material

@@ -592,7 +592,7 @@ int fpStep(uint32_t v, std::initializer_list<const Ramp*> rs) {
 }
 Ramp fpRamp(uint32_t rgb) {
   uint32_t k[5];
-  doll::rampA3(rgba((int)(rgb >> 16 & 255), (int)(rgb >> 8 & 255), (int)(rgb & 255)), doll::Material::Cloth, k);
+  doll::dyeRamp(rgba((int)(rgb >> 16 & 255), (int)(rgb >> 8 & 255), (int)(rgb & 255)), k);   // (P5 fix r2) the doll's own dye ramp
   return ramp5(k[0], k[1], k[2], k[3], k[4]);
 }
 
