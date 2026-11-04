@@ -100,6 +100,10 @@ extern thread_local std::vector<uint8_t> g_heldPx;
 // figure as it was before P5 (composeFrame swaps them in and the fingerprint back after), so no glint, speck or seam pass
 // moves a pixel the fingerprint did not paint. Sized and written only for a recipe with DollRecipe::fpSlots
 extern thread_local std::vector<uint8_t> g_fpUnder;
+// (P5 fix r1) the cuff owner per pixel: the tier slot + 1 of the glove or boot whose cuff-region pixel was painted there last
+// (0: any other part); the visible cuff pass (fpVisibleCuffs) reads it, so a cuff a sleeve or a hem covers shows below it
+extern thread_local std::vector<uint8_t> g_fpCuffOwn;
+void fpVisibleCuffs(const DollRecipe& r, FrameOut& o);
 
 // ---------------------------------------------------------------- the passes (doll_passes.cpp)
 using PostPass = void (*)(const DollRecipe&, FrameOut&);
@@ -137,6 +141,8 @@ struct FramePaint {
     bool bandOn = false;
     // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)
     bool fp = false, fpR = false, fpN = false, fpThin = false, fpOuter = false, fpStitch = false, fpSparse = false, fpHemRow = false, fpEdge = false;
+    bool fpBoss = false;   // (fix r1) a T1-T4 shield view with no P (the buckler: rim and boss): its boss (G) takes the dye band
+    bool fpLining = false; // (fix r1) a T3-T5 body, helm or shield view with R but no N or D: the lining along the rim's inner edge
   };
 
   // the frame (anchors() sets them)
@@ -169,6 +175,7 @@ struct FramePaint {
   std::vector<uint8_t> bandReg;
   std::vector<int8_t> bandRow;
   std::vector<Place> fitAt;
+  std::vector<Place> fitAt0;   // (P5) the pre-P5 fits (finishPlacements; empty: the same as fitAt)
   std::vector<int> blob, stack;
   std::vector<Blob> blobs;
   std::vector<uint8_t> irisBand;
@@ -199,7 +206,7 @@ struct FramePaint {
   uint8_t fpColour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) const;
   void paintPixels(const ItemPaint& ip);
   uint8_t recolour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg);
-  uint8_t regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles);
+  uint8_t regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles, bool pre5 = false);
   void stamp(const ItemPaint& ip, int x, uint8_t c, uint8_t rg, int sx, const int ys[2]);
 };
 

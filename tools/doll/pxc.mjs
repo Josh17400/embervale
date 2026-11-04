@@ -1048,14 +1048,17 @@ function report(c) {
     }
   }
   for (const x of c.warnings) console.log(`  warning ${x.where}: ${x.msg}${x.draft ? ' (draft)' : ''}`);
-  // (P5, FIX_BATCH_P5 4.3) the base views of an armour, helm, shield or cloak part with neither R nor N cells: where the maker's
-  // fingerprint has nowhere to land (a new piece must carry them; by design: crests, plumes, the arm strap, mail sleeves, the
-  // cape and fur cloaks, the cloaks' fronts). A list, not a craft warning
+  // (P5, FIX_BATCH_P5 4.3) the base views of an armour, helm, shield or cloak part with neither R, N nor D cells: where the
+  // maker's fingerprint has nowhere to land (a new piece must carry them; by design: crests, plumes, the arm strap, the mail
+  // shirt's sleeves, skirt and stride (mail_sleeve_, mail_hang, mail_stride: the shirt carries it), every cloak (a view with no R
+  // takes the doll's procedural hem, fix r1: cape, fur, halfcape, noble, travel and the fronts), so cloaks are not listed).
+  // Empty placeholder views are skipped. A list, not a craft warning
   const FP_ROLES = new Set(['armour', 'helm', 'shield', 'cloak']);
   for (const P of c.parts) {
     if (!P.roles.some((r) => FP_ROLES.has(ROLES[r.cat]))) continue;
+    if (P.roles.some((r) => ROLES[r.cat] === 'cloak')) continue;   // (fix r1) a cloak view with no R takes the doll's procedural hem
     for (const V of P.views) {
-      if (!V.cells || V.when) continue;
+      if (!V.cells || V.when || !V.opaque) continue;   // (fix r1) an empty placeholder (the legend helms' 1x1 base views) draws nothing
       let lands = false;
       if (V.reg) for (let k = 0; k < V.reg.length && !lands; k++) lands = (V.reg[k] === REGIONS.R || V.reg[k] === REGIONS.N || V.reg[k] === REGIONS.D) && V.cells[k] >= 2;
       if (!lands) console.log(`fp-landing: ${P.name} ${FACINGS[V.facing] || 'any'} ${V.key}`);

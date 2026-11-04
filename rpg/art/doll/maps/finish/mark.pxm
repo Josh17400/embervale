@@ -77,34 +77,34 @@ view D key knot1x1 origin 0 0
 
 # plaid (Highland)
 view D key plaid6x6 origin 0 0
-|.AABA.
-|AAABAa
-|BBBbBb
-|AAABaa
-|.AABa.
-|......
+|.A..A.
+|ABAABa
+|.A..a.
+|.A..a.
+|aBaaba
+|.a..a.
 
 view D key plaid5x5 origin 0 0
-|AABAA
-|AABAA
-|BBbBB
-|AABAa
-|AABaa
+|.A..A
+|ABAAB
+|.A..a
+|.a..a
+|aBaab
 
 view D key plaid4x4 origin 0 0
-|ABAA
-|BbBB
+|.A..
 |ABAa
-|ABaa
+|.A..
+|.a..
 
 view D key plaid3x3 origin 0 0
-|AAB
-|AAB
-|BBb
+|.A.
+|ABa
+|.a.
 
 view D key plaid2x2 origin 0 0
 |AB
-|BB
+|Bb
 
 view D key plaid3x1 origin 0 0
 |AAB

@@ -1314,7 +1314,7 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
 // (P5, FIX_BATCH_P5 3.3) the maker people's fingerprint, keyed on each worn armour piece's own maker (HumanLook::makerAt) and
 // its own tier: R in the dye band at T1-T2 (a cloak's border through T4; brass and gold from T3 as the ladder's), N at T1-T5
 // (T6 the runes; a glowing alloy's, FURNACE's and a Mythic alloy's N keep their Glow), the cuff row of gloves and boots at
-// T1-T5, the hem of a cloak with no R at T1-T4, the mark (FIN_TILE_MARK) at T1-T4 (at T4 instead of the etch) and the
+// T1-T5, the hem of a cloak view with no R at T1-T5, the mark (FIN_TILE_MARK) at T1-T4 (at T4 over the etch; not on a chased T4 body) and the
 // filigree in the slot's motif. Not drawn: weapons, the back, a slot with no maker. Behind FIX_FP: off, nothing here is set
 void fingerprintOf(const HumanLook& L, DollRecipe& r) {
   if (!fixOn(FIX_FP) || !L.makers) return;
@@ -1342,8 +1342,17 @@ void fingerprintOf(const HumanLook& L, DollRecipe& r) {
       r.cuffMask[s] = s == H::TIER_GLOVES ? rb(Region::Hand) | (L.gloves >= 3 ? rb(Region::Flare) : 0u)
                                           : rb(Region::Boot) | (L.boots >= 2 ? rb(Region::Shin) : 0u) | (L.boots >= 3 ? rb(Region::Knee) : 0u);
     }
-    if (s == H::TIER_CLOAK && t <= 4) r.fpHem |= bit;
-    if (t <= 4) mark |= bit;
+    // (fix r1: a T5 fur cloak's front showed nothing of its maker, F2 seed 2) the procedural hem through T5; T6 the back's badge only
+    if (s == H::TIER_CLOAK && t <= 5) r.fpHem |= bit;
+    // (fix r1, C16m: "highland STAGIRON vs CRAGSILVER 9.7 luma apart") a T4 body whose forge style chases its own motif (an
+    // alloy's motif part over the torso: disc, straps, bands ...) keeps that motif as its engraving: the mark would lie the
+    // same on two alloys and hide their motifs (the alloy and the dye band part the peoples)
+    const bool chased = s == H::TIER_BODY && t == 4 && r.shape[forge::SX_MOTIF] > forge::MO_PLAIN;
+    if (t <= 4 && !chased) mark |= bit;
+    // (fix r1) the leather read only on leather (a T1 bronze cap draws in its own metal: no leather mean to hold); a gauntlet's
+    // cuff two rows deep (its 3 px hand's top row is glint and outline)
+    if ((s == H::TIER_BODY || s == H::TIER_HELM) && L.metalKind <= 1) r.fpLeather |= bit;
+    if (s == H::TIER_GLOVES && L.gloves >= 3 && t <= 5) r.fpWide |= bit;
   }
   // the mark tile on each T1-T4 slot whose motif the pool draws (a decoration, never a hole: a motif with no drawing keeps the
   // etch at T4 and adds nothing; --doll-coverage --scope envelope lists it)

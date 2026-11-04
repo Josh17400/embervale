@@ -300,15 +300,17 @@ struct DollRecipe {
   // (P5, FIX_BATCH_P5 3.3) the maker people's fingerprint per tier slot (bits: 1 << HumanLook::TIER_*), set by the resolver
   // only with FIX_FP and a maker on a worn armour piece (all zero: the pre-P5 recipe, pixel for pixel). maker: the fp row;
   // fpR / fpN: R / N in the slot's dye band; fpCuff: the cuff row (the top row of cuffMask's regions: gloves, boots);
-  // fpHem: the procedural hem (the lowest row of a cloak part with no R); fpThin: N on every other canvas row (3.5's caps);
-  // tilesAt: the slot's finish tiles with the mark (FIN_TILE_MARK; at T4 instead of the etch) where fpMark has the slot;
+  // fpHem: the procedural hem (the lowest row of a cloak part with no R); fpThin: N on every other pair of canvas rows (3.5's caps);
+  // tilesAt: the slot's finish tiles with the mark (FIN_TILE_MARK; at T4 over the etch, fix r1) where fpMark has the slot;
   // slotMotif: the mark's and the filigree's motif (fp::Row::motif); dyeRun / dyePeriod: the band along canvas x + y
   uint8_t fpSlots = 0, fpR = 0, fpN = 0, fpCuff = 0, fpHem = 0, fpThin = 0;
   uint8_t fpOuter = 0;   // R on its outer row only (the binding: an R pixel touching the outline or the outside)
   uint8_t fpStitch = 0;  // R (and a cloak's hem) stitched: the band one period on, one period as drawn (a shield's whole rim)
   uint8_t fpSparse = 0;  // the stitch one period on, two as drawn (a cloak whose border is most of its side view)
   bool fpFlat = false;   // the dye in two steps and the dye2 in one (a figure near B8's 48 colours a frame)
-  uint8_t fpMark = 0;    // the mark tile on the slot (T1-T4, its motif drawn); at T4 it takes the etch's place
+  uint8_t fpMark = 0;    // the mark tile on the slot (T1-T4, its motif drawn); at T4 it lies over the etch (fix r1, C17)
+  uint8_t fpLeather = 0; // (fix r1) a leather piece (the look's metal leather or legacy): tuneFp holds its mean hue and saturation
+  uint8_t fpWide = 0;    // (fix r1) a gauntlet's cuff on its top two visible rows (fpVisibleCuffs; tuneFp narrows it to one)
   uint8_t maker[8] = {};
   uint32_t cuffMask[8] = {};
   uint8_t dyeRun[8] = {}, dyePeriod[8] = {};
@@ -316,7 +318,7 @@ struct DollRecipe {
   bool fpOn(int ts) const { return ts >= 0 && ts < 8 && (fpSlots >> ts & 1); }
   uint8_t tilesAt(int ts) const {
     if (!fpOn(ts) || !(fpMark >> ts & 1)) return finTiles[ts];
-    return (uint8_t)((finTiles[ts] | FIN_TILE_MARK) & ~(pieceTier[ts] == 4 ? FIN_TILE_ETCH : 0));
+    return (uint8_t)(finTiles[ts] | FIN_TILE_MARK);   // (fix r1, C17) at T4 the mark lies over the etch (its clear cells fall through to it)
   }
   const std::string& motifAt(int ts) const { return fpOn(ts) && !slotMotif[ts].empty() ? slotMotif[ts] : motif; }
   // (P2c forge, contracts 3c) each tier slot's forge style unpacked (rpg/art/doll/doll_forge.h axes: 0 base .. 7 fittings),

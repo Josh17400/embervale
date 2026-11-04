@@ -412,21 +412,6 @@ std::string fitPrefix(const Pool& P, const PartRec& p, uint8_t fin, const std::s
   if (fin == FIN_TILE_MARK) return std::string();
   return second ? motif2 : first;
 }
-// (P5) a part with an R cell in any view (a cloak with none takes the procedural hem), memoised per pool
-bool partHasTrim(const Pool& P, int pi) {
-  static uint32_t gen = 0xFFFFFFFFu;
-  static std::vector<int8_t> memo;
-  if (gen != generation() || memo.size() != P.parts.size()) { gen = generation(); memo.assign(P.parts.size(), -1); }
-  if (pi < 0 || (size_t)pi >= memo.size()) return true;
-  int8_t& m = memo[(size_t)pi];
-  if (m < 0) {
-    m = 0;
-    const PartRec& p = P.parts[(size_t)pi];
-    for (uint32_t i = p.firstView; i < p.firstView + p.nViews && !m; i++)
-      for (uint8_t g : P.views[i].regions) if (g == (uint8_t)Region::Trim) { m = 1; break; }
-  }
-  return m == 1;
-}
 const ViewRec* keyView(const Pool& P, const PartRec& p, const std::string& key) {
   const uint16_t id = P.strId(key);
   return id == 0xFFFF ? nullptr : viewOf(p, 0, id);
@@ -1068,6 +1053,7 @@ void FramePaint::finishPlacements(const ViewRec& v, int ts, bool hasReg) {
   const Pool& P = get();
   const DollRecipe& r = *rp;
   fitAt.assign(rtiles.size(), Place{});
+  fitAt0.clear();   // (P5) the pre-P5 fits where the slot's maker motif moved one (empty: none moved)
   blobs.clear();
   bool anyStamp = false;
   bool forgeFit = false;   // (P2c forge) a fittings tile placed on this slot's P box
@@ -1096,7 +1082,20 @@ void FramePaint::finishPlacements(const ViewRec& v, int ts, bool hasReg) {
         if (own && (!fv || own->w * own->h > fv->w * fv->h)) fv = own;
       }
       if (fv) fitAt[k] = Place{fv, px0 + (bw - fv->w) / 2, py0 + (bh - fv->h) / 2};
+      // (P5, F6) the fit the pre-P5 figure drew here (the look's motif), so recolour files the pre-P5 code under a moved
+      // filigree pixel and the post passes read the figure as it was (no pass moves a pixel outside the panel)
+      if (r.fpOn(ts) && rt.fin == FIN_TILE_FILIGREE && pre != r.motif) {
+        const std::string pre0 = fitPrefix(P, *rt.part, rt.fin, r.motif);
+        const ViewRec* f0 = pre0.empty() ? nullptr : fitView(P, *rt.part, pre0, bw, bh);
+        if (f0 != fv) {
+          if (fitAt0.empty()) fitAt0 = fitAt;
+          fitAt0[k] = f0 ? Place{f0, px0 + (bw - f0->w) / 2, py0 + (bh - f0->h) / 2} : Place{};
+        }
+      }
     }
+    if (!fitAt0.empty())   // (the later fits as placed: only the moved filigree differs)
+      for (size_t k = 0; k < rtiles.size(); k++)
+        if (!(r.fpOn(ts) && rtiles[k].fin == FIN_TILE_FILIGREE)) fitAt0[k] = fitAt[k];
     if (anyStamp) {
       blob.assign((size_t)v.w * v.h, -1);
       for (int y = 0; y < v.h; y++)
@@ -1188,9 +1187,33 @@ void FramePaint::irisBands(const Item& it, const ViewRec& v, bool hasReg) {
 void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) {
   const DollRecipe& r = *rp;
   const int ts = ip.ts;
-  ip.fp = ip.fpR = ip.fpN = ip.fpThin = ip.fpOuter = ip.fpStitch = ip.fpSparse = ip.fpHemRow = ip.fpEdge = false;
+  ip.fp = ip.fpR = ip.fpN = ip.fpThin = ip.fpOuter = ip.fpStitch = ip.fpSparse = ip.fpHemRow = ip.fpEdge = ip.fpBoss = ip.fpLining = false;
   if (!r.fpOn(ts)) return;
   ip.fp = true;
+  // (fix r1, F2: the T3 buckler, 61 colour-only pairs of 78) a shield view with no panel (P) is rim and boss: at T1-T4, while
+  // the boss is no gem yet, the boss (G) takes the dye band, so the people's colours sit where a larger shield wears its mark
+  if (ts == HumanLook::TIER_SHIELD && r.pieceTier[ts] <= 4 && !v.regions.empty()) {
+    bool panel = false, gem = false;
+    for (size_t k = 0; k < v.regions.size() && !panel; k++) {
+      if (v.cells[k] < 2) continue;
+      panel = v.regions[k] == (uint8_t)Region::Panel;
+      gem = gem || v.regions[k] == (uint8_t)Region::Gem;
+    }
+    ip.fpBoss = gem && !panel;
+  }
+  // (fix r1, F5: a T3-T5 metal piece whose view draws its brass rim (R) but no seam (N, D) showed nothing of its maker on the
+  // doll while its icon wore the dye) the lining: the piece's own pixels along the rim's inner edge take the dye band as N
+  // would (thinned as N), the rim itself stays the ladder's brass (C12's trim)
+  if ((ts == HumanLook::TIER_BODY || ts == HumanLook::TIER_HELM || ts == HumanLook::TIER_SHIELD) && r.pieceTier[ts] >= 3 && r.pieceTier[ts] <= 5 &&
+      (r.fpN >> ts & 1) && !v.regions.empty()) {
+    bool trim = false, seam = false;
+    for (size_t k = 0; k < v.regions.size() && !seam; k++) {
+      if (v.cells[k] < 2) continue;
+      trim = trim || v.regions[k] == (uint8_t)Region::Trim;
+      seam = v.regions[k] == (uint8_t)Region::Seam || v.regions[k] == (uint8_t)Region::DyeSeam;
+    }
+    ip.fpLining = trim && !seam;
+  }
   ip.fpR = r.fpR >> ts & 1;
   ip.fpN = r.fpN >> ts & 1;
   ip.fpThin = r.fpThin >> ts & 1;
@@ -1198,7 +1221,19 @@ void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) 
   ip.fpStitch = r.fpStitch >> ts & 1;
   ip.fpSparse = r.fpSparse >> ts & 1;
   const bool cuff = (r.fpCuff >> ts & 1) && !v.regions.empty();
-  const bool hem = !cuff && (r.fpHem >> ts & 1) && partHasRoleCat(*it.part, Role::Cloak) && !partHasTrim(get(), it.order);
+  // (fix r1, fp-landing) the procedural hem on a cloak VIEW with no R (the halfcape's, the noble's and the travel cloak's base
+  // views draw no border: before, only a part with no R in any view took the hem, so those views carried nothing)
+  bool viewTrim = false;
+  for (size_t k = 0; k < v.regions.size() && !viewTrim; k++) viewTrim = v.regions[k] == (uint8_t)Region::Trim && v.cells[k] >= 2;
+  // (fix r1, F5) a body, helm or shield view with no landing region at all (no R, N, D or P: the T4 alloy plates, scales and
+  // lamellae, an iron round shield's studded face) takes the same procedural hem: its lowest pixel per column
+  bool bare = (ts == HumanLook::TIER_BODY || ts == HumanLook::TIER_HELM || ts == HumanLook::TIER_SHIELD) && r.pieceTier[ts] <= 5 && (r.fpN >> ts & 1);
+  for (size_t k = 0; k < v.regions.size() && bare; k++)
+    if (v.cells[k] >= 2) {
+      const uint8_t g = v.regions[k];
+      bare = !(g == (uint8_t)Region::Trim || g == (uint8_t)Region::Seam || g == (uint8_t)Region::DyeSeam || g == (uint8_t)Region::Panel);
+    }
+  const bool hem = !cuff && (((r.fpHem >> ts & 1) && partHasRoleCat(*it.part, Role::Cloak) && !viewTrim) || bare);
   if (!cuff && !hem) return;
   fpRow.assign(v.w, -1);
   for (int x = 0; x < v.w; x++)
@@ -1216,7 +1251,18 @@ void FramePaint::fingerprintOf(const Item& it, const ViewRec& v, ItemPaint& ip) 
 // (P5) a pixel in the piece's dye band: the drawn step kept (1-3: the outline keeps its slot, no dye on a glint), the band
 // along canvas x + y (run px of the dye, then the dye2 to the period); N thinned to every other canvas row where heavy
 DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg) const {
-  const int st = codeStep(c);
+  const ViewRec& v0 = *ip.v;
+  // (fix r1, F5: the T3 mail, scale and plate bodies draw their seams as interior lines) a seam pixel drawn as a line inside
+  // the piece (step 0, every 4-neighbour opaque in the view: never the silhouette's ring) takes the dye at its shadow step
+  auto interior = [&]() {
+    for (const auto& d : {std::pair<int, int>{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+      const int qx = x + d.first, qy = y + d.second;
+      if (qx < 0 || qy < 0 || qx >= v0.w || qy >= v0.h || v0.cells[(size_t)qy * v0.w + qx] < 2) return false;
+    }
+    return true;
+  };
+  const bool seamLine = codeStep(c) == 0 && ip.fpN && (rg == (uint8_t)Region::Seam || fpSeam) && interior();
+  const int st = seamLine ? 1 : codeStep(c);
   if (st < 1 || st > 3) return c;
   const Slot cs = codeSlot(c);
   if (cs == Slot::Glow || cs == Slot::Ink || cs == Slot::Skin || cs == Slot::Fx) return c;
@@ -1226,7 +1272,10 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
   const ViewRec& v = *ip.v;
   const int px = it.ax + x - v.ox, py = it.ay + y - v.oy;
   bool on = false, edge = false;
-  if (litMetal) on = false;
+  // (fix r1) a T1-T2 piece's thread binding (R) takes its lit metal too: a bronze coat's collar is lit along its whole run, so
+  // the binding showed only on its outline (the despeckle then cleared the rest); the glints (step 4) stay metal
+  const bool thread = rg == (uint8_t)Region::Trim && ip.fpR && rp->pieceTier[ip.ts] <= 2;
+  if (litMetal && !(ip.fpBoss && rg == (uint8_t)Region::Gem) && !thread) on = false;
   else if (rg == (uint8_t)Region::Trim) {
     on = ip.fpR;
     if (on && ip.fpOuter) {   // (the binding only: an R pixel on the piece's outer row)
@@ -1234,10 +1283,19 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::fpColour(const ItemPaint& ip, int x, int y
       on = out(x - 1, y) || out(x + 1, y) || out(x, y - 1) || out(x, y + 1);
     }
   }
-  else if (rg == (uint8_t)Region::Seam || fpSeam) on = ip.fpN && !(ip.fpThin && (py & 1));
+  else if (rg == (uint8_t)Region::Seam || fpSeam) on = ip.fpN && !(ip.fpThin && (py >> 1 & 1));   // (fix r1) thinned in two-row blocks: a vertical lace keeps runs, never dots
+  else if (rg == (uint8_t)Region::Gem && ip.fpBoss) on = true;   // (fix r1) the buckler's boss, lit plane and all (a glint stays)
+  else if (!rg && ip.fpLining) {   // (fix r1) the lining: an unregioned pixel of the piece touching its drawn rim (R)
+    auto isR = [&](int qx, int qy) {
+      if (qx < 0 || qy < 0 || qx >= v.w || qy >= v.h) return false;
+      const size_t q = (size_t)qy * v.w + qx;
+      return v.cells[q] >= 2 && v.regions[q] == (uint8_t)Region::Trim;
+    };
+    on = (isR(x - 1, y) || isR(x + 1, y) || isR(x, y - 1) || isR(x, y + 1)) && !(ip.fpThin && (py >> 1 & 1));
+  }
   // (the cuff and the hem dye a garment's own material only: leather, metal, cloth, the cloak; never a pixel a probe's region
   // marker recoded, the motion gates' Plume boot, Field knee, Device sole)
-  if (!on && !litMetal && ip.fpEdge && fpRow[(size_t)x] == y)
+  if (!on && (!litMetal || !ip.fpHemRow) && !(ip.fpHemRow && rg == (uint8_t)Region::Trim) && ip.fpEdge && fpRow[(size_t)x] == y)   // (fix r1: a hem never takes the trim band's brass: C12)
     on = edge = cs == Slot::Leather || cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Cloth1 || cs == Slot::Cloth2 ||
                 cs == Slot::Cloth3 || cs == Slot::Linen || cs == Slot::Accent || cs == Slot::Cloak || cs == Slot::Pattern || cs == Slot::Head;
   if (!on) return c;
@@ -1341,8 +1399,8 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   // changed the pixel, the code under it is the pre-P5 one (its etch at T4), so the passes read the pre-P5 figure
   const uint8_t tiles = ts >= 0 ? r.tilesAt(ts) : 0;
   const uint8_t c1 = regionTiles(ip, x, y, c, rg, tiles);
-  if (ip.fp && ts >= 0 && tiles != r.finTiles[ts]) {
-    const uint8_t c0 = regionTiles(ip, x, y, c, rg, r.finTiles[ts]);
+  if (ip.fp && ts >= 0 && (tiles != r.finTiles[ts] || !fitAt0.empty())) {
+    const uint8_t c0 = regionTiles(ip, x, y, c, rg, r.finTiles[ts], true);
     if (c0 != c1) fpPre = c0;
   }
   c = c1;
@@ -1356,7 +1414,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
 }
 
 // (P2c) the region tiles over a pixel (`tiles`: the piece's finish tiles in play); recolour's last tile step
-DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles) {
+DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, int y, uint8_t c, uint8_t rg, uint8_t tiles, bool pre5) {
   const Pool& P = *pool;
   const DollRecipe& r = *rp;
   const Item& it = *ip.it;
@@ -1374,8 +1432,9 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, in
       const ViewRec* tv = nullptr;
       int tx = 0, ty = 0;
       bool placed = false;
-      if (rt.fit && fitAt[ri].v) {
-        tv = fitAt[ri].v; tx = x - fitAt[ri].ox; ty = y - fitAt[ri].oy;
+      const std::vector<Place>& fits = pre5 && !fitAt0.empty() ? fitAt0 : fitAt;   // (P5) the pre-P5 fits for the under plane
+      if (rt.fit && fits[ri].v) {
+        tv = fits[ri].v; tx = x - fits[ri].ox; ty = y - fits[ri].oy;
         placed = true;
         if (tx < 0 || ty < 0 || tx >= tv->w || ty >= tv->h) continue;
       } else if (rt.stamp && !blobs.empty() && blob[(size_t)y * v.w + x] >= 0) {
@@ -1408,9 +1467,13 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::regionTiles(const ItemPaint& ip, int x, in
       const int tk = codeStep(tc), ck = codeStep(c);
       // (P5) the mark's thread cells: the slot's dye on leather and cloth at T1-T2 (the drawn step), Ink relief one step down
       // on metal and at T3-T4 (the engraving)
+      if (rt.fin == FIN_TILE_MARK && ck >= 4 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2 || codeSlot(c) == Slot::Blade))
+        break;   // (fix r1, C17) a metal glint stays the metal's light: no mark cell cuts or dyes it (a lit cloth plane still takes it)
       if (rt.fin == FIN_TILE_MARK && (tsl == Slot::Dye || tsl == Slot::Dye2)) {
         const Slot cs = codeSlot(c);
-        const bool cut = cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade || r.pieceTier[ts] >= 3;
+        // (fix r1, F5: a T3-T4 shield's painted field and a cloth helm showed nothing of their maker) the cut is the metal's:
+        // on a painted field, cloth or leather the mark stays thread (stitched, appliqued) at every tier it is drawn
+        const bool cut = cs == Slot::Metal || cs == Slot::Metal2 || cs == Slot::Blade;
         c = cut ? code(cs, std::max(1, ck - 1)) : code(dyeSlotOf(ts, tsl == Slot::Dye2), r.fpFlat ? (tsl == Slot::Dye2 ? 2 : std::clamp(ck, 1, 2)) : std::clamp(ck, 1, 3));
         break;
       }
@@ -1456,7 +1519,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
         if (fixOn(FIX_SHIELD) && shieldKeep[(size_t)Y * CW + X] && !shieldMark) {   // (D82) the shield under an erased overpaint
           const size_t q = (size_t)Y * CW + X;
           o.code[q] = shieldKeep[q];
-          if (fpFrame) g_fpUnder[q] = 0;
+          if (fpFrame) { g_fpUnder[q] = 0; g_fpCuffOwn[q] = 0; }
           bodyPx[q] = 0;
           depthPx[q] = 1;
           heldPx[q] = 0;
@@ -1465,7 +1528,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
           continue;
         }
         o.code[(size_t)Y * CW + X] = 0;
-        if (fpFrame) g_fpUnder[(size_t)Y * CW + X] = 0;
+        if (fpFrame) { g_fpUnder[(size_t)Y * CW + X] = 0; g_fpCuffOwn[(size_t)Y * CW + X] = 0; }
         bodyPx[(size_t)Y * CW + X] = 0;
         depthPx[(size_t)Y * CW + X] = 0;
         if (probeOwner) { (*probeOwner)[(size_t)Y * CW + X] = -1; (*probeRegion)[(size_t)Y * CW + X] = 0; }
@@ -1487,7 +1550,11 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
         }
       }
       o.code[(size_t)Y * CW + X] = w;
-      if (fpFrame) g_fpUnder[(size_t)Y * CW + X] = u;
+      if (fpFrame) {
+        g_fpUnder[(size_t)Y * CW + X] = u;
+        // (fix r1) the cuff's owner plane: a glove's or boot's worn-region pixel (cuffMask) as last painted (0: another part's)
+        g_fpCuffOwn[(size_t)Y * CW + X] = ip.fpEdge && !ip.fpHemRow && ip.ts >= 0 && (rp->cuffMask[ip.ts] >> rg & 1) ? (uint8_t)(ip.ts + 1) : 0;
+      }
       bodyPx[(size_t)Y * CW + X] = (uint8_t)(bodyPiece | (rg == (uint8_t)Region::Trim ? 8 : 0));   // (envelope fix round) bit 8: the drawn trim (R)
       depthPx[(size_t)Y * CW + X] = depthMark;
       heldPx[(size_t)Y * CW + X] = heldMark;
