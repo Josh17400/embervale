@@ -4003,6 +4003,12 @@ the plaid's filigree views ADDed; region planes re-cut, never a pixel), rig 1 un
 - **D123. Every people's brow line** (P5-1; `finish/mark.pxm`). On metal the mark is engraved in the plate's own colour,
   so a 3 px brow line cut alike for every people; each motif now has its own run pattern for brow bands, rims and slim
   panels (12 masks of 2 px runs or more: the knot `AB.BA`, the plaid `AAB.BAA`, the stars `AB.BAB.BA` ...).
+- **D124. Fix round 1: the fingerprint lands on every piece (PENDING THE OWNER'S REVIEW)** (P5-1, P5-2; FIX_BATCH_P5 13).
+  D122's lacing and brow re-cuts land as the dye seam D; the T1 bronze caps, the great helm's breath band, the T3 kettle,
+  horned, crested and winged domes and the HOMESPUN hood, the leather and leaf coats' back collar gain D cells; cuffs show
+  on their visible row; a brass rim with no seam takes a lining inside it; a bare view takes the hem; the buckler's boss its
+  band; no lone dye pixel survives; from T3 the laces take the dye alone (no checker); Highland's plaid is an open check
+  (mark) and a gilt lattice with its gem (filigree); the shield icon's lashing every 8 px. Images: scratchpad/p5-pack/play.
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It

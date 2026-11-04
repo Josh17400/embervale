@@ -370,6 +370,10 @@ inline const Row& row(int people) { return kRows[people > 0 && people < kPeoples
   (`headwear/helm/crest/*`, `*_crest`, `*_plume`), the shield's arm strap (`shield/arm`), the mail sleeves
   (`armour/*/mail_sleeve_*`: the shirt's own part carries it), the `cape` and `fur` cloaks (their hem is procedural) and the
   `*_front` cloak parts. Not a craft warning: `pxc --check`'s output (the `pxc_check` record) does not change.
+  **Amended in fix round 1 (owner-visible by-design list):** D (the dye seam) lands as R and N do; an empty placeholder view
+  (no opaque cell: the `*_legend` helms' 1x1 base views, `mail_stride`, `mail_hang`) is not listed; and no cloak part is
+  listed, because the doll's procedural hem now lands on every cloak VIEW with no R (`halfcape`, `noble` and `travel` draw
+  their border only in their tier views), through T5. The judge's grep prints nothing.
 
 ### 4.4 Who sets `makers` (CORE)
 
@@ -769,3 +773,37 @@ From the state a player starts in, look and feel first, measured (eyes for shots
 - **the rules:** rig 1 identical; no drawn view's cells changed (`p5_marks.py --verify`, `git diff` of the maps: ADDed views
   and region rows only); no draw in the census (the digest); the ladder intact (T1 slim and plain: the envelope's areas and
   shoulders unchanged).
+
+---
+
+## 13. Fix round 1 (the judge's R1 items; what changed in the rules, all behind FIX_FP, PENDING THE OWNER'S REVIEW)
+
+The plan's 2.5 prediction (bands, cuffs and hems alone clear the twins) failed where a piece's region planes carry nothing
+the rules land on, and where another part covers the row a rule picks. Round 1 changed these rules (the owner pack's play
+half and the kits sheet show them):
+
+- **Region D lands.** `p5_marks.py`'s probe for DOLL's `D` read a literal backspace, so D122's re-cuts never wrote; they land
+  now (lamellar lacing and lowest course, the helms' brow lining), with new D rules: the T1 caps the bronze spangen, plumed
+  and masked helms draw (a D-only plane on the brim row: decision 7's hood path for the face helms), the great helm's breath
+  band under the slit, the band above the dome's foot on the kettle, horned, crested and winged T3 views (the HOMESPUN and
+  TANNER hood's row over its panel), the leather and leaf coats' back collar. The pool is 2,601,938 B (ceiling 2,602,032).
+- **Cuffs where they show.** A glove's or boot's cuff covered by a sleeve or a hem shows on its topmost visible row; a
+  gauntlet's two rows (one when its share would pass 40 %).
+- **The rim's lining and the bare views.** A T3-T5 body, helm or shield view with a brass rim but no seam takes the dye on the
+  plate along the rim's inner edge (the rim stays brass: C12's trim); a view with no landing region at all takes the
+  procedural hem (never on the trim band's brass); the buckler's boss takes the band at T1-T4; a T1-T2 binding takes its lit
+  metal; an interior seam line (step 0 inside the piece) takes the dye at its shadow step.
+- **The mark.** No mark cell cuts or dyes a metal glint (C17); at T4 the mark lies over the etch (C17: the etch's lowered
+  glint stays lowered), and a chased T4 body (an alloy's forge motif over the torso) keeps its motif and no mark (C16m); on a
+  painted field, cloth or leather the mark stays thread at T3-T4 (only metal is cut).
+- **Never a lone dot.** N thins in two-row blocks; after the passes every fingerprinted pixel with no changed 4-neighbour
+  goes back to the pre-P5 pixel; from T3 the lacing and seams take the dye alone (the two-tone band alternated lace by lace
+  into a checker on a lamellar skirt); the band stays two-tone on rims, hems, cuffs and the T1-T2 laces.
+- **Highland's plaid.** The mark is an open check; the filigree a gilt lattice over the piece's metal (lines every 3 px, U
+  where they cross, the squares clear) on the arabesque's sizes, the knotwork's set stones copied in place (the T5 gem).
+- **Icons.** The share counts the outline ring (the eye sees it; ICONS and GATES print the same number); the shield's
+  lashing runs 2 px every 8.
+- **Not cleared: F5 agreement** (worn D view >= 2 px of the dye family, icon >= 3): 1,290 -> 330 of 4,176 pieces. What is
+  left are T3 steel face helms (masked, plumed, spangen) and T4 alloy bodies whose D view shows no dye: their seams lie under
+  a belt or skirt, or on lit plate the rules keep metal. Clearing them needs map re-cuts the pool's ceiling no longer holds
+  (94 B left) or a per-piece rule the owner should see first; the alloy itself parts the peoples at T4 (F2 0 twins).
