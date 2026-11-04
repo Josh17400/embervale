@@ -11,10 +11,12 @@
 //        and the foes::variantFor look set (the FOES lane's own spawn logic may add more)
 //   expect gearlook: the player's look shows its worn culture forms (helmForm / bodyForm set when a culture piece is worn)
 #include <algorithm>
+#include <cmath>
 #include <initializer_list>
 #include <cctype>
 #include <cstdlib>
 #include <string>
+#include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/foes.h"
@@ -59,6 +61,21 @@ uint64_t cultureOfWord(Game& g, const std::string& w) {
     for (size_t si = 0; si < g.world.sites.size(); si++) {
       const cult::Culture* c = g.world.cultureOf((int)si);
       if (c && (int)c->archetype == a) return c->id;
+    }
+    // (P5 fix r1: "expect makers boots fjordfolk: the hero's boots has no maker") no loaded site of that people: the
+    // nearest culture cell of it in the world (gotoculture's search: culture cells, nearest first, 25 x 25 around the hero)
+    struct Cell { int32_t x, y; double d; };
+    std::vector<Cell> cells;
+    const int32_t ci0 = ew::floorDiv(gx, ew::CCELL), cj0 = ew::floorDiv(gy, ew::CCELL);
+    for (int32_t cj = cj0 - 12; cj <= cj0 + 12; cj++)
+      for (int32_t ci = ci0 - 12; ci <= ci0 + 12; ci++) {
+        const int32_t x = ci * ew::CCELL + ew::CCELL / 2, y = cj * ew::CCELL + ew::CCELL / 2;
+        cells.push_back({x, y, std::hypot((double)(x - gx), (double)(y - gy))});
+      }
+    std::sort(cells.begin(), cells.end(), [](const Cell& p, const Cell& q) { return p.d < q.d; });
+    for (const Cell& cl : cells) {
+      const uint64_t id = g.world.src->cultureAt(cl.x, cl.y);
+      if (id && (int)g.world.src->culture(id).archetype == a) return id;
     }
   }
   return 0;
