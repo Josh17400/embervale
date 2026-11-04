@@ -18,3 +18,8 @@ W2.view_all p5_fingerprint/* P5-6 new script tools/scripts/p5_fingerprint.txt (t
 # W2.scripts: +2 scripts (p5_fingerprint, p5_makers), both PASS; a pass/fail gate with no per-script record to move.
 # W3 is a pass/fail gate with no record, so an added file is not a difference the check can see. Kept for the record:
 # W3.witness p5_fingerprint* P5-6 new file witness/p5_fingerprint.witness.json (2 tests, --repeat 2): N -> N+1 files
+# (fix round 1) gear6 / kit6 <people> find the people's culture beyond the loaded sites (rpg/view/scripts/gear.cpp cultureOfWord):
+# a staging that named a people with no loaded town got a classic culture-0 piece before, its own people's piece now. Not
+# FIX_FP: these four are the only PNGs the A/B (EMB_FIX_RULES=4095) does not reproduce at p4f1.
+W2.view_all m6_menu_tap_phone/m6_menutap_2_doll.png,m6_menu_tap_phone/m6_menutap_3_world.png,p2c_alloys/p2c_alloys_legend_t6.png,p2c_alloys/p2c_alloys_steel_t3.png P5-6 gear6 steppe / kit6 heartland now make the people's own pieces (a culture-0 piece before: no Steppe or Heartland site was loaded)
+S10.view m6_menu_tap_phone/m6_menutap_2_doll.png,m6_menu_tap_phone/m6_menutap_3_world.png,p2c_alloys/p2c_alloys_legend_t6.png,p2c_alloys/p2c_alloys_steel_t3.png P5-6 gear6 steppe / kit6 heartland now make the people's own pieces (a culture-0 piece before: no Steppe or Heartland site was loaded)
