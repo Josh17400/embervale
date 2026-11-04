@@ -1343,7 +1343,8 @@ void fingerprintOf(const HumanLook& L, DollRecipe& r) {
                                           : rb(Region::Boot) | (L.boots >= 2 ? rb(Region::Shin) : 0u) | (L.boots >= 3 ? rb(Region::Knee) : 0u);
     }
     // (fix r1: a T5 fur cloak's front showed nothing of its maker, F2 seed 2) the procedural hem through T5; T6 the back's badge only
-    if (s == H::TIER_CLOAK && t <= 5) r.fpHem |= bit;
+    // (and never on the king's full cape: D96 holds its hem's Cloak pixels by the boots, so it shows its maker by its badge)
+    if (s == H::TIER_CLOAK && t <= 5 && !r.has("king")) r.fpHem |= bit;
     // (fix r1, C16m: "highland STAGIRON vs CRAGSILVER 9.7 luma apart") a T4 body whose forge style chases its own motif (an
     // alloy's motif part over the torso: disc, straps, bands ...) keeps that motif as its engraving: the mark would lie the
     // same on two alloys and hide their motifs (the alloy and the dye band part the peoples)

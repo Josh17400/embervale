@@ -421,6 +421,35 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
     const size_t q = (size_t)y * CW + x;
     return keepFp[q] && o.code[q] != preFin[q];
   };
+  // (fix r1, C19 A8: "a_thorn: 2 lone 1 px lit pixels" by a cuff) a lit metal pixel (step 3) the fingerprint left must keep a
+  // lit neighbour if it had one: where its lit neighbours were all dyed, they go back (until none is left alone)
+  auto litAt = [&](int x, int y, bool pre) {
+    if (x < o.bx0 || x > o.bx1 || y < o.by0 || y > o.by1) return false;
+    const size_t q = (size_t)y * CW + x;
+    const uint8_t c = pre && keepFp[q] ? preFin[q] : o.code[q];
+    const Slot s = c >= 2 ? codeSlot(c) : Slot::Skin;
+    return c >= 2 && codeStep(c) >= 3 && (s == Slot::Metal || s == Slot::Metal2 || s == Slot::Blade);
+  };
+  const int nb4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  for (bool again = true; again;) {
+    again = false;
+    for (int y = o.by0; y <= o.by1; y++)
+      for (int x = o.bx0; x <= o.bx1; x++) {
+        const size_t q = (size_t)y * CW + x;
+        if (changed(x, y) || !litAt(x, y, false) || codeStep(o.code[q]) != 3) continue;
+        bool litNow = false, litBefore = false;
+        for (const auto& d : nb4) { litNow = litNow || litAt(x + d[0], y + d[1], false); litBefore = litBefore || litAt(x + d[0], y + d[1], true); }
+        if (litNow || !litBefore) continue;
+        for (const auto& d : nb4) {
+          const int nx = x + d[0], ny = y + d[1];
+          if (!changed(nx, ny) || !litAt(nx, ny, true)) continue;
+          const size_t n = (size_t)ny * CW + nx;
+          o.code[n] = preFin[n];
+          keepFp[n] = 0;
+          again = true;
+        }
+      }
+  }
   for (int y = o.by0; y <= o.by1; y++)
     for (int x = o.bx0; x <= o.bx1; x++) {
       const size_t q = (size_t)y * CW + x;

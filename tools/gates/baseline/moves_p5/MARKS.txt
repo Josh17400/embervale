@@ -4,10 +4,11 @@
 # filigree views and the leather coat's lace N (p4_leather.py); no drawn view's cells, mask, origin or build row changed
 # (python tools/doll/p5_marks.py --verify PASS). With FIX_FP off the pool's new views and the lace N draw nothing: the
 # freeze check moved 0 frames on this branch before DOLL's routing was merged (the lamellar / helm N re-cuts, which moved
-# 2276 pre-P5 frames, are NOT in the maps: PLAN D122).
-S6.pool pxc?--check:* P5-1 finish/mark.pxm and the plaid's filigree views ADDed, the leather coat's lace N: 871 parts, 29153 views, 2598795 B, hash 66a9d7991902ceb3 (<= the 2602032 ceiling; P5 adds 9051 B)
+# 2276 pre-P5 frames, are NOT in the maps: PLAN D122). Fix r1: they land as the dye seam D ('.' to every pre-P5 reader;
+# EMB_FIX_RULES=4095 --freeze-check against 80215d7's manifest: 0 changed), PLAN D124.
+S6.pool pxc?--check:* P5-1 finish/mark.pxm and the plaid's filigree views ADDed, the leather coat's lace N, (fix r1) the dye-seam D re-cuts (lamellar laces, helm brows, the T1 caps, the great helm's breath band, the T3 domes, the coats' back collars) and the plaid's lattice: 871 parts, 29153 views, 2601938 B, hash 0684d6520af6bfa9 (<= the 2602032 ceiling; P5 adds 12194 B)
 W4.doll.pxc_check pxc?--check:* P5-1 the pool line (as S6.pool)
-W4.doll.gates_parity *pool:* P5-1 the pool line (870 parts, 28985 views -> 871 parts, 29153 views, 2598795 B); the C14 value count moves with DOLL's slots (625 -> 576 with the mark tile disabled too: DOLL.txt)
+W4.doll.gates_parity *pool:* P5-1 the pool line (870 parts, 28985 views -> 871 parts, 29153 views, 2601938 B after fix r1); the C14 value count moves with DOLL's slots (625 -> 576 with the mark tile disabled too: DOLL.txt)
 W4.doll.arms_matrix *pool:* P5-1 the pool line
 # Not declared here (not MARKS's, or not a move):
 #   W4.doll.forge_drawn C17 "0 glints of step-4 metal" on fw_steel D, mr_1 R, mr_4 D, g_jd3a D (T4 kits): the mark's
