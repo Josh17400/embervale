@@ -1,12 +1,14 @@
 # P5 PACK (docs/FIX_BATCH_P5.md 5.6, 10 play/): every people's fingerprint on its armour, in play. Seed 7, rig 2, by day
 # (11:00, clear) unless said, each staging at NEAR then CLOSE, the world alone (ui 0) but the shop and the EQUIP page:
 #   1. the watch of seed 7's start town (a River town: a row of four of its people's watch);
-#   2. the watch of four towns: Dune, Jade, Highland, Sun Temple (gotoculture <people> town; a row of four, ranks 0);
+#   2. the watch of four towns: Dune, Jade, Highland, Sun Temple (gotoculture <people> town; a row of four, ranks 0; fix r1:
+#      Highland's second town, whose watch stands on open ground, not behind a roof's cut-away);
 #   3. a companion in three peoples' pieces: a Fjordfolk mail shirt, a Steppe leather cap, Marsh leather boots (given);
 #   4. the hero in three peoples' T1 leather coats (the start smith's padded coat, form 1): Dune, Highland, Jade;
 #   5. a smith's shelf in three peoples' towns (the start town, Dune, Highland): the shop's body-armour icons;
 #   6. the EQUIP page of a hero in three peoples' pieces (a Dune coat, a Highland cap, Jade gloves and boots);
-#   7. night under a lamp (23:00) in a Jade town: the hero in three peoples' pieces, the bands under lamp light.
+#   7. night under a lamp (23:00) in a Jade town: the hero in three peoples' pieces, the bands under lamp light;
+#   8. (fix r1) soldiers of two realms (Steppe, Imperial) and a Steppe bandit row, four of each.
 # Uses only commands 80215d7 already has, so the same file shoots "before" on the old build or with EMB_FIX_RULES=4095.
 # The `expect makers` checks are in tools/scripts/p5_makers.txt (after only). Never a visible window:
 #   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5_fingerprint.txt   (p5_fp_*.png)
@@ -43,7 +45,7 @@ seed 7
 +0.1 zoom close
 +0.3 shot p5_fp_jade_watch_close.png
 +0.1 zoom near
-+0.1 gotoculture highland town
++0.1 gotoculture highland town 2
 +2.5 lineup highland guard 4 mixed
 +0.4 shot p5_fp_highland_watch_near.png
 +0.1 zoom close
@@ -136,4 +138,25 @@ seed 7
 +1.5 shot p5_fp_night_lamp_near.png
 +0.1 zoom close
 +0.3 shot p5_fp_night_lamp_close.png
+# ---- 8. soldiers of two realms (Steppe, Imperial) and a Steppe bandit row (the local people's), by day, every figure on open
+# ground (fix r1: the judge's judge_soldiers.txt stagings)
++0.1 zoom near
++0.1 hour 11
++0.1 gotoculture steppe town
++2.5 zoom close
++0.1 lineup steppe soldier 4 mixed
++0.4 shot p5_fp_steppe_soldier_close.png
++0.1 zoom near
++0.3 shot p5_fp_steppe_soldier_near.png
++0.1 zoom close
++0.1 lineup steppe bandit 4 mixed
++0.4 shot p5_fp_steppe_bandit_close.png
++0.1 zoom near
++0.3 shot p5_fp_steppe_bandit_near.png
++0.1 gotoculture imperial village
++2.5 zoom close
++0.1 lineup imperial soldier 4 mixed
++0.4 shot p5_fp_imperial_soldier_close.png
++0.1 zoom near
++0.3 shot p5_fp_imperial_soldier_near.png
 +0.1 quit

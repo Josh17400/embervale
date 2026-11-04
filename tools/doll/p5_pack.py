@@ -37,6 +37,9 @@ CAPTIONS = [
     (r'shelf_dune', "a Dune smith's shelf: the armour icons in indigo and saffron"),
     (r'shelf_highland', "a Highland smith's shelf: the armour icons in green and red"),
     (r'equip', "the EQUIP page: a Dune coat, a Highland cap, Jade gloves and boots; the list's coats of three peoples"),
+    (r'steppe_soldier', "a Steppe realm's soldiers: sky blue and horse-hair red on every piece, the running horse"),
+    (r'steppe_bandit', "Steppe bandits (the local people's): sky blue and red, worn and plain"),
+    (r'imperial_soldier', "an Imperial realm's soldiers: purple and gold thread, the laurel"),
     (r'night_lamp', "night under a Jade town lamp (23:00): the hero's three peoples' bands still read in lamp light"),
 ]
 ZOOMS = {'near': 'NEAR', 'close': 'CLOSE'}
