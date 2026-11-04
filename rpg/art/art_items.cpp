@@ -555,9 +555,9 @@ const FpMark kFpMarks[] = {
     {Icon::Helmet, 8, kAnyM, kT15, FpAt::All,  4, 8, 11, 8,   0, 0, 0, 0, 0, 0},
     {Icon::Helmet, 9, kAnyM, kT15, FpAt::All,  4, 9, 11, 9,   0, 0, 0, 0, 0, 0},
     {Icon::Helmet, 10, kAnyM, kT15, FpAt::All, 4, 11, 11, 11, 0, 0, 0, 0, 0, 0},
-    // shield: the binding lashed over the board's edge, runs of 2 every 6 px (a lashing wraps the edge; the kingdom's field and
+    // shield: the binding lashed over the board's edge, runs of 2 every 8 px (a lashing wraps the edge; the kingdom's field and
     // device stay as painted), T1-T5
-    {Icon::Shield, -1, kAnyM, kT15, FpAt::Edge, 0, 0, 15, 15, 0, 0, 0, 0, 6, 2},
+    {Icon::Shield, -1, kAnyM, kT15, FpAt::Edge, 0, 0, 15, 15, 0, 0, 0, 0, 8, 2},   // (fix r1: every 8 px, so the lashing and its ring hold 15 %)
     // gloves: the cuff's middle row (leather), and its lit top row on a gauntlet; boots: each boot's cuff (its lower row;
     // the top row too on a hard boot), the far boot's, then the near one's; T1-T5
     {Icon::Gloves, -1, kAnyM, kT15, FpAt::All,  4, 13, 11, 13, 0, 0, 0, 0, 0, 0},

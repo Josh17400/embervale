@@ -20,9 +20,10 @@
 //                            greyscale and palette all within max(3, area / 40) px of another maker's icon), every maker's icon
 //                            >= 3 px of its own dye family among the pixels the fingerprint drew (hue within 15 deg of the row's
 //                            dye or dye2, chroma >= 20; a T6 piece wears the ladder's gold, not thread, and is exempt), and the
-//                            fingerprint's share of the icon's opaque pixels (the pixels it paints; the outline ring that
-//                            takes their colour is printed beside) under FIX_BATCH_P5 3.5's caps (a leather body or
-//                            cap 10 %, any other body, helm, shield or cloak 15 %, gloves and boots 20 %)
+//                            fingerprint's share of the icon's opaque pixels (every pixel FIX_FP changed, the outline ring
+//                            that takes their colour included: the eye sees it; fix r1, the rule rpg_test --fingerprint F4
+//                            counts by) under FIX_BATCH_P5 3.5's caps (a leather body or cap 10 %, any other body, helm,
+//                            shield or cloak 15 %, gloves and boots 20 %); the ring's own part is printed beside
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -379,11 +380,12 @@ int checkFp(uint32_t s0, uint32_t s1) {
       for (int m = 1; m < NM; m++) {
         if (!have[m]) continue;
         const FpMeasure f = measure(before[m], after[m], m);
-        const double share = f.area ? (double)f.drawn / f.area : 0;
+        // (fix r1) the ring counts (the eye sees it), as F4 counts it: the share is every changed pixel over the opaque ones
+        const double share = f.area ? (double)(f.drawn + f.ring) / f.area : 0;
         maxShare = std::max(maxShare, share);
-        maxRing = std::max(maxRing, f.area ? (double)(f.drawn + f.ring) / f.area : 0);
+        maxRing = std::max(maxRing, f.area ? (double)f.ring / f.area : 0);
         if (share > capOf(c) + 1e-9) {
-          std::printf("FAIL: fp seed %u %s %s: the fingerprint takes %d of %d px (%.1f %%, cap %.0f %%)\n", seed, c.tag, kMk[m], f.drawn, f.area, share * 100, capOf(c) * 100);
+          std::printf("FAIL: fp seed %u %s %s: the fingerprint takes %d of %d px with the outline ring (%.1f %%, cap %.0f %%)\n", seed, c.tag, kMk[m], f.drawn + f.ring, f.area, share * 100, capOf(c) * 100);
           fails++;
         }
         if (tierOf[m] <= 5) {
@@ -395,7 +397,7 @@ int checkFp(uint32_t s0, uint32_t s1) {
         }
       }
       if (twins) { std::printf("FAIL: fp seed %u %s: %d twin pair(s):%s\n", seed, c.tag, twins, twinList.c_str()); fails++; }
-      std::printf("fp seed %u %-17s pairs %2d twin %d colour-only %2d  share max %4.1f %% (cap %2.0f %%; with the outline ring %4.1f %%)  dye px min %d\n", seed,
+      std::printf("fp seed %u %-17s pairs %2d twin %d colour-only %2d  share max %4.1f %% (cap %2.0f %%; the outline ring's part %4.1f %%)  dye px min %d\n", seed,
                   c.tag, pairs, twins, colour, maxShare * 100, capOf(c) * 100, maxRing * 100, minFam == 99 ? 0 : minFam);
       cols++;
       totPairs += pairs;
