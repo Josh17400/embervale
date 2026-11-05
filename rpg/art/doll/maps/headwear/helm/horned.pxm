@@ -13,6 +13,72 @@ keys hatpose
 tags overlay
 legend X glow 3
 
+# (P5b SIG) begin fjordfolk-horns5: the Fjordfolk T5 gilt horns (fix r1): grown to the flare and over the crown (an overlay)
+legend J metal2 0
+legend Q metal2 4
+view D key rest origin 4 4 when sighelm-fjordfolk,helm.t5,!helm.t6
+|....JJ............JJ....
+|...JQJ............JPJ...
+|..JPOJ............JONJ..
+|.JPOJ..............JONJ.
+|.JPOJ..............JONJ.
+|.JPOJ..............JONJ.
+|.JPONJ............JPONJ.
+|.JPONJ............JPONJ.
+|.JPONNJ..........JPPONJ.
+|.JOONNJ..........JPPOOJ.
+|..JONNNJ........JPPPOJ..
+|...JJNNJ........JPPJJ...
+view U key rest origin 4 4 when sighelm-fjordfolk,helm.t5,!helm.t6
+|....JJ............JJ....
+|...JQJ............JPJ...
+|..JPOJ............JONJ..
+|.JPOJ..............JONJ.
+|.JPOJ..............JONJ.
+|.JPOJ..............JONJ.
+|.JPONJ............JPONJ.
+|.JPONJ............JPONJ.
+|.JPONNJ..........JPPONJ.
+|.JOONNJ..........JPPOOJ.
+|..JONNNJ........JPPPOJ..
+|...JJNNJ........JPPJJ...
+view R key rest origin 5 4 when sighelm-fjordfolk,helm.t5,!helm.t6
+|....JJ..............JJ...
+|...JQJ..............JQJ..
+|...JPOJ............JPOJ..
+|..JPOJ..............JPOJ.
+|..JPOJ..............JPOJ.
+|..JPOJ..............JPOJ.
+|..JPONJ.............JPOJ.
+|..JPONJ............JPONJ.
+|..JOONNJ..........JPONNJ.
+|..JONNNJ.........JPONNJ..
+|...JNNNJ........JONNNJ...
+view L key rest origin 4 4 when sighelm-fjordfolk,helm.t5,!helm.t6
+|...JJ..............JJ....
+|..JPJ..............JPJ...
+|..JONJ............JONJ...
+|.JONJ..............JONJ..
+|.JONJ..............JONJ..
+|.JONJ..............JONJ..
+|.JONJ.............JPONJ..
+|.JPONJ............JPONJ..
+|.JPPONJ..........JPPOOJ..
+|..JPPONJ.........JPPPOJ..
+|...JPPPOJ........JPPPJ...
+view L key lie origin 4 4 when sighelm-fjordfolk,helm.t5,!helm.t6
+|...JJ..............JJ....
+|..JPJ..............JPJ...
+|..JONJ............JONJ...
+|.JONJ..............JONJ..
+|.JONJ..............JONJ..
+|.JONJ..............JONJ..
+|.JONJ.............JPONJ..
+|.JPONJ............JPONJ..
+|.JPPONJ..........JPPOOJ..
+|..JPPONJ.........JPPPOJ..
+|...JPPPOJ........JPPPJ...
+# (P5b SIG) end fjordfolk-horns5
 view D key rest origin 4 1
 mark crown 11 3
 |.----------------------.

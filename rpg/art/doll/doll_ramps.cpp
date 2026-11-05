@@ -492,6 +492,8 @@ DollRamps a3Palette(int who) {
 }
 
 void sigRamps(const HumanLook& L, DollRamps& R);   // (P5b) below
+static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was);   // (P5b fix r1) below
+int sigCloakPeople(const HumanLook& L);   // (P5b fix r1) below
 DollRamps rampsOf(const HumanLook& L) {
   DollRamps R = a3Palette(L.body == 1 ? 1 : 0);
   // skin: the curated ramp from A3's four skins (elves a shade paler and cooler); the face's mouth, lip and blush with it
@@ -557,6 +559,7 @@ DollRamps rampsOf(const HumanLook& L) {
   // (P5b, STYLE_P5B 3) a signed piece's cloth in its people's pair with the hue held (dyeRamp: crimson stays crimson, vermilion
   // never climbs to yellow): the body's layer (Accent), the helm's crest (Plume) and soft head (Head), the shield's field, the cloak
   sigRamps(L, R);
+  const DollRamps sigWas = R;   // (P5b fix r1) the signed cloth as sigRamps made it, for sigRehue after the partings below
   // leather: one of six per person (a stable pick from the person's colours; A3's brown the most common)
   {
     const uint32_t h = mixHash(mixHash(mixHash(0x1EA7u, L.skin), L.topColor), L.bottomColor);
@@ -1288,7 +1291,9 @@ DollRamps rampsOf(const HumanLook& L) {
     // (wave-2 fix round 4, D96) a king's cape is passed by: his realm's deep colour as the owner judged it (C14 reads his lit
     // fold against the cape's own step 3)
     const bool kingCape = fixOn(FIX_KING) && L.king;
-    if (fixOn(FIX_COLOUR) && !kingCape && (L.cloak || L.cape || L.tier[HumanLook::TIER_CLOAK]) && !(L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3)) {
+    // (P5b fix r1) a signed cloak keeps its people's ramp (sigRamp: hue held, its step 3 lit by lightness, never scaled by channel)
+    const bool sigCloak = sigCloakPeople(L) != 0;
+    if (fixOn(FIX_COLOUR) && !kingCape && !sigCloak && (L.cloak || L.cape || L.tier[HumanLook::TIER_CLOAK]) && !(L.forgeKit && L.makerPeople == 3 && L.topTier() <= 3)) {
       uint32_t* C = R.c[(int)Slot::Cloak];
       for (int it = 0; it < 24 && luma(C[3]) < 86.0; it++) { C[3] = scaleRgb(C[3], 1.05); if (luma(C[4]) < luma(C[3]) + 12.0) C[4] = scaleRgb(C[4], 1.05); }
       for (int it = 0; it < 20 && luma(C[1]) < 82.0 && luma(scaleRgb(C[1], 1.05)) < luma(C[2]) - 6.0; it++) C[1] = scaleRgb(C[1], 1.05);
@@ -1323,6 +1328,7 @@ DollRamps rampsOf(const HumanLook& L) {
   if (L.forgeGuise && L.forge[HumanLook::TIER_HELM] && (L.forge[HumanLook::TIER_HELM] & 0xFF) == 0 &&
       forge::guiseHeadwear(forge::unpackGuise(L.forgeGuise).helm))
     for (int i = 0; i < 5; i++) R.c[(int)Slot::Head][i] = R.c[(int)Slot::Metal][i];
+  sigRehue(R, L, sigWas);   // (P5b fix r1) the partings above moved the signed cloth by channel: its people's hue back
   dyeRamps(L, R);
   return R;
 }
@@ -1350,21 +1356,109 @@ void dyeRamp(uint32_t base, uint32_t r[5]) {
   }
 }
 
-// (P5b) the signed pieces' cloth (rampsOf calls it after the generator's cloth): see sigLookOf (doll_resolve.cpp)
-void sigRamps(const HumanLook& L, DollRamps& R) {
+// (P5b fix r1) a signed people's cloth ramp: every step holds the pair's own CIELAB hue (the lights 3 and 6 degrees warmer,
+// the shadows 2 and 3 cooler; a near-white or near-black, chroma under 20, none), each step brought inside the sRGB gamut by
+// its chroma, never by a clipped channel (dyeRamp's rampA3 lifted a crimson cloak by channel: its shadow went fuchsia and
+// its lights pink, and a vermilion horo's lights yellow). Lightness: the base, a step 1 and a step 0 down by the base's own
+// depth (at most 15 and 38), a step 3 and 4 up 13 and 25; step 3 a little richer than the base (1.15 of its chroma: a lit
+// crimson stays crimson, S >= 0.65), step 4 a little paler
+static uint32_t lchIn(double L, double C, double h) {
+  auto rgbOf = [&](double c, double out[3]) {
+    const double fy = (L + 16) / 116, fx = fy + c * std::cos(h) / 500, fz = fy - c * std::sin(h) / 200;
+    auto fi = [](double t) { return t * t * t > 0.008856 ? t * t * t : (t - 16.0 / 116.0) / 7.787; };
+    const double X = fi(fx) * 0.95047, Y = fi(fy), Z = fi(fz) * 1.08883;
+    out[0] = 3.2406 * X - 1.5372 * Y - 0.4986 * Z; out[1] = -0.9689 * X + 1.8758 * Y + 0.0415 * Z; out[2] = 0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+  };
+  auto ok = [&](double c) { double o[3]; rgbOf(c, o); for (double v : o) if (v < -1e-4 || v > 1 + 1e-4) return false; return true; };
+  if (!ok(C)) {
+    double lo = 0.0, hi = C;
+    for (int i = 0; i < 30; i++) { const double m = (lo + hi) * 0.5; (ok(m) ? lo : hi) = m; }
+    C = lo;
+  }
+  double o[3];
+  rgbOf(C, o);
+  return rgba((int)std::lround(unlin(o[0])), (int)std::lround(unlin(o[1])), (int)std::lround(unlin(o[2])));
+}
+// (P5b fix r1) the people whose cloak the figure wears: a signed cloak item (or the worn cape), else a signed body's own cape
+// or half cape (its layer: ladderLook dresses the tier cloak in the layer's cloth, the paludamentum of an Imperial T3); 0 none
+int sigCloakPeople(const HumanLook& L) {
   using H = HumanLook;
+  const int pc = L.makerAt(H::TIER_CLOAK), pb = L.makerAt(H::TIER_BODY);
+  if (sigOn(pc) && (L.cloak || L.cape)) return pc;
+  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.cape) return pb;   // (the ladder's T3 cape behind a signed body: its people's cloth)
+  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.forgeShape) {
+    uint8_t sx[forge::SX_COUNT];
+    forge::unpackShapeAxes(L.forgeShape, sx);
+    if (sx[forge::SX_LAYER] == forge::LY_CAPE || sx[forge::SX_LAYER] == forge::LY_HALFCAPE) return pb;
+  }
+  return 0;
+}
+// (P5b fix r1) the signed cloth slots and their people's colour (sigRamps' own choice of base), for sigRehue
+static int sigSlots(const HumanLook& L, Slot out[6], uint32_t base[6]) {
+  using H = HumanLook;
+  int n = 0;
   const int pb = L.makerAt(H::TIER_BODY), ph = L.makerAt(H::TIER_HELM), ps = L.makerAt(H::TIER_SHIELD), pc = L.makerAt(H::TIER_CLOAK);
-  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.tabardColor == rgba((int)(fp::sig(pb)->dom >> 16 & 255u), (int)(fp::sig(pb)->dom >> 8 & 255u), (int)(fp::sig(pb)->dom & 255u)))
-    dyeRamp(hex(fp::sig(pb)->dom), R.c[(int)Slot::Accent]);   // (sigLookOf set the layer's cloth)
+  auto rgbOf = [](uint32_t x) { return rgba((int)(x >> 16 & 255u), (int)(x >> 8 & 255u), (int)(x & 255u)); };
+  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.tabardColor == rgbOf(fp::sig(pb)->dom)) { out[n] = Slot::Accent; base[n++] = fp::sig(pb)->dom; }
   if (sigOn(ph) && L.tier[H::TIER_HELM]) {
     const fp::Sig& g = *fp::sig(ph);
-    dyeRamp(hex(g.crest ? g.crest : g.dom), R.c[(int)Slot::Plume]);
-    // the accent on a soft head's cloth and a T1 cap's band (the fleece): a T2-T6 helm's own cloth keeps its colour
+    out[n] = Slot::Plume; base[n++] = g.crest ? g.crest : g.dom;
     const bool soft = L.headwear && !(L.helmet || L.helmStyle || L.helmForm);
-    if (soft || L.tier[H::TIER_HELM] <= 1) dyeRamp(hex(g.acc), R.c[(int)Slot::Head]);
+    if (soft || L.tier[H::TIER_HELM] <= 1) { out[n] = Slot::Head; base[n++] = g.acc; }
   }
-  if (sigOn(ps) && L.tier[H::TIER_SHIELD]) dyeRamp(hex(fp::sig(ps)->dom), R.c[(int)Slot::Field]);
-  if (sigOn(pc) && (L.cloak || L.cape)) dyeRamp(hex(fp::sig(pc)->dom), R.c[(int)Slot::Cloak]);
+  if (sigOn(ps) && L.tier[H::TIER_SHIELD]) { out[n] = Slot::Field; base[n++] = fp::sig(ps)->dom; }
+  if (const int cp = sigCloakPeople(L)) { out[n] = Slot::Cloak; base[n++] = fp::sig(cp)->dom; }
+  (void)pc;
+  return n;
+}
+// (P5b fix r1) a signed cloak or cape: the dominant at a deep value (CIELAB L at most 44, the hue and chroma held): the figure's
+// largest cloth mass reads as dyed cloth with a dark ground under its folds (a Jade horo deep vermilion over its lacquer-dark
+// shadow, never a lit orange panel; a crimson already deep keeps its own). #RRGGBB in, an rgba out
+static uint32_t sigCloakBase(uint32_t dom) {
+  const Lab b = toLab(hex(dom));
+  if (b.L <= 44.0) return hex(dom);
+  return lchIn(44.0, std::hypot(b.a, b.b), std::atan2(b.b, b.a)) | 0xFF000000u;
+}
+void sigRamp(uint32_t base, uint32_t r[5]) {
+  constexpr double kDeg = 3.14159265358979 / 180.0;
+  const Lab b = toLab(base);
+  const double C = std::hypot(b.a, b.b), h = std::atan2(b.b, b.a);
+  // (the outline dark enough for any cloth: a quarter of the base's lightness at most, so a parting may sink the cloth to a deep
+  // value with its 40 luma over the outline kept: a vermilion obi parts from the leather it crosses by going deeper, never pale)
+  const double Ls[5] = {std::min(b.L - std::min(38.0, b.L * 0.72), std::max(6.0, b.L * 0.25 + 2.0)), b.L - std::min(15.0, b.L * 0.42), b.L,
+                        std::min(97.0, b.L + 13), std::min(98.0, b.L + 25)};
+  static const double kC[5] = {0.6, 0.97, 1.0, 1.15, 0.95}, kH[5] = {-3, -2, 0, 3, 6};
+  for (int i = 0; i < 5; i++) r[i] = i == 2 ? base : lchIn(Ls[i], C * kC[i], h + (C < 20.0 ? 0.0 : kH[i] * kDeg)) | 0xFF000000u;
+}
+
+static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was) {
+  constexpr double kDeg = 3.14159265358979 / 180.0;
+  static const double kH[5] = {-3, -2, 0, 3, 6};
+  Slot sl[6];
+  uint32_t base[6];
+  const int n = sigSlots(L, sl, base);
+  for (int i = 0; i < n; i++) {
+    uint32_t* T = R.c[(int)sl[i]];
+    const Lab b = toLab(hex(base[i]));
+    const double C = std::hypot(b.a, b.b), h = std::atan2(b.b, b.a);
+    if (C < 20.0) continue;   // (a near-white or near-black has no hue to turn)
+    // (a ramp set whole since, its outline with it: the T1 shield's plain wood, the Mythic flame, the king's crimson: kept)
+    if (T[0] != was.c[(int)sl[i]][0]) continue;
+    for (int q = 1; q < 5; q++) {
+      if (T[q] == was.c[(int)sl[i]][q]) continue;
+      const Lab m = toLab(T[q]), w = toLab(was.c[(int)sl[i]][q]);
+      T[q] = lchIn(m.L, std::max(std::hypot(m.a, m.b), std::hypot(w.a, w.b)), h + kH[q] * kDeg) | 0xFF000000u;
+    }
+  }
+}
+
+// (P5b) the signed pieces' cloth (rampsOf calls it after the generator's cloth): see sigLookOf (doll_resolve.cpp)
+void sigRamps(const HumanLook& L, DollRamps& R) {
+  Slot sl[6];
+  uint32_t base[6];
+  const int n = sigSlots(L, sl, base);
+  // (the cloak and the body's layer, the figure's large cloth, at the deep value: a parting then sinks them, never pales them)
+  for (int i = 0; i < n; i++) sigRamp(sl[i] == Slot::Cloak || sl[i] == Slot::Accent ? sigCloakBase(base[i]) : hex(base[i]), R.c[(int)sl[i]]);
 }
 
 // (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
@@ -1378,6 +1472,7 @@ void dyeRamps(const HumanLook& L, DollRamps& R) {
     uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
     // (P5b, STYLE_P5B 3) a signed people's pair is its dominant and accent
     const uint32_t dye = sigOn(m) ? row.sig->dom : row.dye, dye2 = sigOn(m) ? row.sig->acc : row.dye2;
+    if (sigOn(m)) { sigRamp(hex(dye), d1); sigRamp(hex(dye2), d2); continue; }   // (fix r1: the pair's hue held on every step)
     dyeRamp(hex(dye), d1);
     if (dye2) dyeRamp(hex(dye2), d2);
     else for (int i = 0; i < 5; i++) d2[i] = d1[i];
@@ -1497,7 +1592,19 @@ bool partDyeByContact(DollRamps& R, const ContactRead& cr) {
 // person's hair or skin, D88), holding 18 only against what that material touches (every pair it touches on 3 or more
 // contacts, C14's own count, clears 18) and keeping rampsOf's metal rules (the plate read, the glint, the selout
 // edge, C17's distances). Returns true when it moved a ramp
+static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead& cr, bool edgeOwn, bool dbg);
+// (P5b fix r1) the signed cloth slots after C14's parting: the parting moves a ramp by scaling its channels (scaleRgb), which
+// turns a saturated dye's hue as a channel clips (a vermilion obi or horo climbed to yellow, a crimson cloak to fuchsia and
+// pink); each moved step keeps the lightness the parting chose and takes back its people's hue (sigRamp's per-step hue) at
+// the chroma the gamut allows there, so the contacts it parted stay parted and the cloth stays its people's colour
+static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was);
 bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& cr, bool edgeOwn, bool dbg) {
+  const DollRamps was = R;
+  const bool moved = partByContactRaw(R, L, cr, edgeOwn, dbg);
+  if (moved) sigRehue(R, L, was);
+  return moved;
+}
+static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead& cr, bool edgeOwn, bool dbg) {
   const auto& touch = cr.touch;
   using S = Slot;
   static const S kMat[] = {S::Cloth1, S::Cloth2, S::Accent, S::Leather, S::Metal, S::Hair, S::Skin, S::Cloak, S::Field, S::Head};

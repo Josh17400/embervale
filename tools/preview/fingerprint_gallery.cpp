@@ -328,6 +328,26 @@ void sliceShare(FILE* mf, const char* tag, const art::HumanLook& L) {
   }
   std::fprintf(mf, "share %s area %d dye %d cloth %d total %.1f%%\n", tag, area, dye, cloth, area ? 100.0 * (dye + cloth) / area : 0.0);
 }
+// (P5b fix r1) the head alone for the slice's S1 head line: the helm parts and every hat the figure wears through the guise
+// path (a T1-T2 soft head: the jingasa, a hood, a band, a circlet; headwear/cloth/**), never a collar or the hair. G_HELM
+// (fingerprint_audit.h, the P5 audit's helm piece) counts headwear/helm/** only, so a cloth head measured 0 px
+Canvas headCanvas(const art::HumanLook& L, int facing) {
+  Canvas hc(kFigW, kFigH);
+  const dl::DollRecipe r = dl::resolve(L);
+  const dl::FrameProbe p = dl::probeFrame(r, art::RigPart::Loco, facing, art::Clip::Idle, 0, 0, true);
+  if (!p.ok) return hc;
+  for (int y = 0; y < p.h; y++)
+    for (int x = 0; x < p.w; x++) {
+      const int k = y * p.w + x;
+      const uint8_t c = p.code[(size_t)k];
+      const int o = p.owner[(size_t)k];
+      if (c < 2 || o < 0 || o >= (int)p.items.size()) continue;
+      const auto& it = p.items[(size_t)o];
+      const bool hat = it.has(dl::Role::Helm) || (it.has(dl::Role::Headwear) && it.part.find("headwear/collar/") == std::string::npos);
+      if (hat) hc.set(kFigPx - p.px + x, kFigPy - p.py + y, codeColour(r, c));
+    }
+  return hc;
+}
 int sliceRun(const Opts& o) {
   static const char* const kPeople[3] = {"jade", "imperial", "fjordfolk"};
   FpScope scope(!o.before);
@@ -340,7 +360,9 @@ int sliceRun(const Opts& o) {
           std::snprintf(spec, sizeof spec, "%skit=%s:%d:%u", body ? "heroine=1," : "hero=1,", p, t, seed);
           std::snprintf(base, sizeof base, "slice_%s_T%d_%s_s%u", p, t, body ? "w" : "m", seed);
           for (int ns = 0; ns < 2; ns++) {
-            const FpLook fl{base, body ? "woman" : "man", p, std::string(spec) + (ns ? ",shield=0" : "")};
+            // (P5b fix r1) truly without the shield: the kit sets the shield's form and style, and doll_resolve's shieldOf() reads
+            // any of shield, shieldStyle and shieldForm, so shield=0 alone drew it; shieldForm=9 is ShieldForm::None + 1
+            const FpLook fl{base, body ? "woman" : "man", p, std::string(spec) + (ns ? ",shield=0,shieldForm=9,shieldStyle=0" : "")};
             const art::HumanLook L = lookOf(fl, seed);
             if (!ns) sliceShare(mf, base, L);
             for (int f : {0, 2}) {
@@ -349,10 +371,7 @@ int sliceRun(const Opts& o) {
               if (!ns) {
                 // the walk's passing frame (frame 2 of the LOCO walk) and the head alone (the helm and headwear parts)
                 saveFig(o, nm + "_walk", L, f, art::Clip::Walk, 2);
-                const Fig hf = figure(L, f, G_HELM);
-                Canvas hc(kFigW, kFigH);
-                for (const auto& kv : hf.piece.px) hc.set(kFigPx + kv.first.first, kFigPy + kv.first.second, kv.second);
-                savePng(hc, o.out + "/" + nm + "_head.png", 1);
+                savePng(headCanvas(L, f), o.out + "/" + nm + "_head.png", 1);
               }
             }
           }

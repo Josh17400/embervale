@@ -31,7 +31,7 @@ TIERS = [1, 3, 5]
 BG = (118, 132, 96)
 INK = (236, 228, 206)
 DARK = (36, 32, 40)
-PAIR = {'jade': (0xE8641C, 0x1C1A1E), 'imperial': (0x701E3E, 0xE2B840), 'fjordfolk': (0x4878C8, 0xE8E2CE)}   # rpg/core/fingerprint.h
+PAIR = {'jade': (0xE8641C, 0x1C1A1E), 'imperial': (0x7C082A, 0xE2B840), 'fjordfolk': (0x4878C8, 0xE8E2CE)}   # rpg/core/fingerprint.h
 REFS = {   # STYLE_P5B 5's "From:" lists (real armour photographs: thumbnails only)
     'jade': ['jade_3_jingasa', 'jade_ashigaru_jingasa', 'jade_akaito_odoshi_yoroi_replica', 'jade_akaito_odoshi_yoroi_replica_kabuto',
              'jade_helmet_hoshi_kabuto_met_dt306020', 'jade_antique_samurai_o_yoroi_1'],
@@ -84,6 +84,11 @@ FIG_BOX = (10, 12, 54, 62)   # the figure window inside the 64x64 gallery canvas
 def fig(dirp, p, t, b, f, suffix='', seed=1):
     path = os.path.join(dirp, 'slice_%s_T%d_%s_s%d_%s%s.png' % (p, t, b, seed, f, suffix))
     return load(path).crop(FIG_BOX) if os.path.exists(path) else None
+
+
+def whole(dirp, p, t, b, f, suffix='', seed=1):
+    """a gallery figure's whole 64x64 canvas (the measures: nothing cropped, as the judge's harness reads them)"""
+    return load(os.path.join(dirp, 'slice_%s_T%d_%s_s%d_%s%s.png' % (p, t, b, seed, f, suffix)))
 
 
 def thumb(path, h):
@@ -275,33 +280,37 @@ def measure(fdir, out, budget_line, env=''):
     L = ['P5b style slice measures (STYLE_P5B 9.3), from fingerprint_gallery --slice (idle frame 0, aligned on the pivot)', '']
     L.append('S1 silhouette (opaque masks, XOR px; need >= max(12, smaller/25) with the shield, >= max(8, smaller/40) without, the head')
     L.append('   >= max(6, smaller head/5) in one facing and >= 3 in the other)')
+    # (fix r1) every seed the gallery rendered (1-3), the judge's thresholds as written (no floor division), and the no-shield
+    # line on the true shield-less renders (_ns: shield=0,shieldForm=9,shieldStyle=0): the same numbers as the judge's ns_measure
+    seeds = sorted({int(n.split('_s')[-1].split('_')[0]) for n in os.listdir(fdir) if n.startswith('slice_jade_T1_m_s') and n.endswith('_D.png')})
     ok_all = True
-    for t in TIERS:
-        for b in 'mw':
-            for i, p in enumerate(PEOPLE):
-                for q in PEOPLE[i + 1:]:
-                    parts = []
-                    good = True
-                    heads = []
-                    for f in 'DR':
-                        A, B = fig(fdir, p, t, b, f), fig(fdir, q, t, b, f)
-                        An, Bn = fig(fdir, p, t, b, f, '_ns'), fig(fdir, q, t, b, f, '_ns')
-                        Ah, Bh = fig(fdir, p, t, b, f, '_head'), fig(fdir, q, t, b, f, '_head')
-                        ma, mb = mask(A), mask(B)
-                        x1 = len(ma ^ mb)
-                        n1 = max(12, min(len(ma), len(mb)) // 25)
-                        na, nb = mask(An), mask(Bn)
-                        x2 = len(na ^ nb)
-                        n2 = max(8, min(len(na), len(nb)) // 40)
-                        ha, hb = mask(Ah), mask(Bh)
-                        x3 = len(ha ^ hb)
-                        heads.append((x3, max(6, min(len(ha), len(hb)) // 5)))
-                        good &= x1 >= n1 and x2 >= n2
-                        parts.append('%s fig %d/%d noshield %d/%d head %d' % (f, x1, n1, x2, n2, x3))
-                    hd = (heads[0][0] >= heads[0][1] and heads[1][0] >= 3) or (heads[1][0] >= heads[1][1] and heads[0][0] >= 3)
-                    good &= hd
-                    ok_all &= good
-                    L.append('  T%d %s %-9s/%-9s %s | %s' % (t, 'man  ' if b == 'm' else 'woman', p, q, '; '.join(parts), 'ok' if good else 'MISS'))
+    for seed in seeds or [1]:
+        for t in TIERS:
+            for b in 'mw':
+                for i, p in enumerate(PEOPLE):
+                    for q in PEOPLE[i + 1:]:
+                        parts = []
+                        good = True
+                        heads = []
+                        for f in 'DR':
+                            A, B = whole(fdir, p, t, b, f, '', seed), whole(fdir, q, t, b, f, '', seed)
+                            An, Bn = whole(fdir, p, t, b, f, '_ns', seed), whole(fdir, q, t, b, f, '_ns', seed)
+                            Ah, Bh = whole(fdir, p, t, b, f, '_head', seed), whole(fdir, q, t, b, f, '_head', seed)
+                            ma, mb = mask(A), mask(B)
+                            x1 = len(ma ^ mb)
+                            n1 = max(12, min(len(ma), len(mb)) / 25)
+                            na, nb = mask(An), mask(Bn)
+                            x2 = len(na ^ nb)
+                            n2 = max(8, min(len(na), len(nb)) / 40)
+                            ha, hb = mask(Ah), mask(Bh)
+                            x3 = len(ha ^ hb)
+                            heads.append((x3, max(6, min(len(ha), len(hb)) / 5)))
+                            good &= x1 >= n1 and x2 >= n2
+                            parts.append('%s fig %d/%.0f noshield %d/%.0f head %d/%d' % (f, x1, n1, x2, n2, x3, min(len(ha), len(hb))))
+                        hd = (heads[0][0] >= heads[0][1] and heads[1][0] >= 3) or (heads[1][0] >= heads[1][1] and heads[0][0] >= 3)
+                        good &= hd
+                        ok_all &= good
+                        L.append('  s%d T%d %s %-9s/%-9s %s | %s' % (seed, t, 'man  ' if b == 'm' else 'woman', p, q, '; '.join(parts), 'ok' if good else 'MISS'))
     L.append('S1: %s' % ('PASS' if ok_all else 'FAIL'))
     L.append('')
     L.append('S2 the people colour on the figure (fingerprint_gallery --slice slice_shares.txt, idle D, seed 1): the dye slots and the')
@@ -337,15 +346,17 @@ CAPTIONS = {
                       'the horo cloak and the jinbaori. Right: the kit icons (the jingasa, the kabuto, the kuwagata; the oval).',
     'sheet_imperial.png': 'IMPERIAL (rectangular, banded, the crest arc; crimson and gold). T1 the bronze knob cap '
                           '(a Montefortino: knob, neck lip, cheek guards) over a leather jerkin and the crimson focale, the plain '
-                          'scutum; T3 the crested helm with its transverse crimson crest, banded shoulders, pteruges, the '
-                          'paludamentum over the right shoulder, the crimson scutum with its gold rim; T5 the Attic crest, great '
-                          'banded shoulders, the long crimson cloak, the gilt scutum. Icons: the knob cap, the transverse crest, '
-                          'the tall crest; the scutum.',
+                          'scutum; T3 the crested helm with its transverse crimson crest (a fan across the crown facing D, '
+                          'edge-on facing R), banded shoulders, pteruges, the paludamentum over the right shoulder, the crimson '
+                          'scutum with its gold rim; T5 the legate: the Attic helm with its gilt brow band and cheek guards under '
+                          'the tall crimson crest, great banded shoulders, the long crimson cloak, the scutum on its gilt rim. '
+                          'Icons: the knob cap, the transverse crest, the tall crest; the scutum.',
     'sheet_fjordfolk.png': 'FJORDFOLK (round, heavy-shouldered; woad and wool). T1 the round leather cap with its fleece brow, '
                            'bare forearms, the round shield bound in woad; T3 the spangenhelm with nasal, cheek plates and a mail '
                            'aventail, the fur roll at the neck, the split mail skirt, the woad cape, the quartered round shield; '
-                           'T5 the horned helm with its iron comb and gilt fittings, the great pelt, the long woad cloak, the gilt '
-                           'rim. Icons: the fleece cap, the spangenhelm on its mail, the gilt horns; the quartered round.',
+                           'T5 the jarl: the horned helm, its horns gilt and grown to the flare and over the crown (no comb), the '
+                           'great pelt, the long woad cloak, the gilt rim. Icons: the fleece cap, the spangenhelm on its mail, '
+                           'the gilt horns; the quartered round.',
     'tiers_doll_grey.png': 'The three peoples side by side at T1, T3 and T5 from the doll at 3x (man D R, woman D R): colour, '
                            'greyscale and the black silhouette fill. Each people is its outline before its colour.',
     'tiers_near.png': 'In play at NEAR (hidden Witness, tools/scripts/p5b_slice.txt): each tier a row of six (Jade man, woman; '

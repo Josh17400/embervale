@@ -32,6 +32,11 @@ struct SigTier {
   const char* shoulder;  // the pauldron drawing's family (`role pauldron <family>.<size>`): layered slab fur flap ...; "" none
   const char* layer;     // shapeList layer: none tabard sash halfcape cape scarf; "" the ladder's own (the T3 people's cape)
   const char* arm;       // shapeList arm: close bare wide heavy
+  bool ownGrowth = false;   // (fix r1) the people's head grows itself at this tier (its own ADDED views: the Fjordfolk jarl's
+                            // gilt horns), so the family's legend growth part (`<family>_legend`: the horned helm's T5 comb)
+                            // steps aside
+  bool giltGrowth = false;  // (fix r1) the family's legend growth at this tier in the gilt (the Jade T5 kuwagata: the legend
+                            // part's metal steps 1-4 drawn in Device, the T5 device's gold; no pool bytes)
 };
 struct Sig {
   uint32_t dom, acc;     // the dominant and the accent (0xRRGGBB): the cloth (heads, the layer, cape and cloak, linings,
@@ -41,6 +46,10 @@ struct Sig {
   bool laces;            // the people laces its plates (Jade): the body's dye seams in full, the dominant alone
   uint32_t trim;         // a T1 metal head's fittings metal (Metal 2 by the look's trim: Imperial's legion brass); 0 the look's
   SigTier t[7];          // by the piece's tier, [1]..[6]; [0] unused
+  bool gilt = false;     // (fix r1) the legend's gilt: a signed T5 helm's and shield's fittings (their Metal 2: the brow band,
+                         // the cheek guards, the horns, the rim; drawn in Device, the T5 device's gold) over a culture alloy's own
+                         // polished trim, never the body's Metal 2 (an alloy's banded rows): Imperial crimson and gold, the
+                         // Fjordfolk jarl's gilt horns and rim; false keeps the alloy's
 };
 // clang-format off
 // Jade (flared, banded): the jingasa, then the kabuto, then gilt kuwagata; sode, the kusazuri's bell, wide sleeves, the
@@ -51,18 +60,18 @@ inline constexpr Sig kSigJade{0xE8641C, 0x1C1A1E, "oval", 0, true, 0, {
     {"",           0, "",      "",        "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 0, "",      "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 0, "fin",   "bell",    "drop",   "layered", "sash",     "wide"},
-    {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide"},
+    {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide", false, true},
     {"fam.kabuto", 0, "crown", "bell",    "drop",   "layered", "tabard",   "wide"}}};
 // Imperial (rectangular, banded, the crest's arc): the bronze knob cap, then the crested helm with a transverse crimson crest,
 // the Attic crest at the top; banded shoulders, pteruges, the focale, the paludamentum, the scutum; crimson and gold
-inline constexpr Sig kSigImperial{0x701E3E, 0xE2B840, "tower", 0xB4243C, false, 0xCB9034, {
+inline constexpr Sig kSigImperial{0x7C082A, 0xE2B840, "tower", 0xB4243C, false, 0xCB9034, {
     {},
     {"form1",      0, "",      "",        "none",   "",        "scarf",    "close"},
     {"",           0, "",      "",        "broad",  "layered", "scarf",    "close"},
     {"form9",      0, "",      "strips",  "broad",  "layered", "halfcape", "close"},
     {"fam.plumed", 1, "",      "strips",  "broad",  "layered", "halfcape", "close"},
-    {"fam.crested",0, "fin",   "strips",  "broad",  "layered", "cape",     "close"},
-    {"fam.crested",0, "fin",   "strips",  "broad",  "layered", "cape",     "close"}}};
+    {"fam.crested",0, "",      "strips",  "broad",  "layered", "cape",     "close"},
+    {"fam.crested",0, "fin",   "strips",  "broad",  "layered", "cape",     "close"}}, true};
 // Fjordfolk (round, heavy-shouldered): the leather cap with a fur brow, the spangenhelm with nasal and aventail, gilt horns
 // at the saga tier; the fur mantle, the split mail skirt, bare forearms, the woad cape; the biggest round shield
 inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false, 0, {
@@ -71,8 +80,8 @@ inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false,
     {"form4",      0, "",      "",        "mantle", "roll",    "none",     "bare"},
     {"form4",      0, "",      "hauberk", "mantle", "roll",    "",         "bare"},
     {"fam.cone",   0, "spike", "hauberk", "mantle", "pelt",    "cape",     "bare"},
-    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"},
-    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}};
+    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true},
+    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}, true};
 // clang-format on
 
 struct Row {

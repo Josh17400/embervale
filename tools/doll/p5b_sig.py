@@ -15,11 +15,18 @@ The heads (hand-placed; the dome shading is computed from each hand-drawn mask s
   Jade T1       the jingasa: headwear/cloth/conical in black lacquer (Head: the accent) with a vermilion mon (Plume) on its
                 front face; the cone's own outline and radial ribs kept cell for cell
   Imperial T1   the bronze knob cap (a Montefortino): headwear/helm/nasal at T1 in Metal 2 (the brass-bronze fittings metal):
-                a round bowl, a knob on the crown, a short flared neck guard, hinged cheek guards beside the face
-  Fjordfolk T1  the round leather cap with a fleece brow: headwear/helm/spangen at T1, its dome a row taller and rounder in
-                the leather, a 2-row fleece roll (Head: the accent, bleached wool) round the brow
+                (fix r1) an ogive bowl rising two rows to its knob, a short flared neck guard, hinged cheek guards
+  Fjordfolk T1  the round leather cap with a fleece brow: headwear/helm/spangen at T1, (fix r1) a low flat-crowned dome in the
+                leather, its gore seams in the people's thread (D), on a 2-row fleece roll (Head: the accent) the full head box
+                wide, its ends down the temples (the S1 twin of r1: the two T1 caps had one outline)
   Fjordfolk T3  the spangenhelm's mail aventail: an overlay on headwear/helm/spangen at T3 (mail strips beside the face and a
-                mail collar under the chin; the nasal and the face stay open)
+                mail collar under the chin; the nasal and the face stay open); the T4 cone keeps it
+  Imperial T3   (fix r1) the transverse crimson crest: a fan across the crown on headwear/helm/crested_crest (wide facing D / U,
+                edge-on facing R / L; rest and the bob lag's up)
+  Fjordfolk T5  (fix r1) the jarl's gilt horns: an overlay on headwear/helm/horned at T5, the horns grown to the flare and five
+                rows over the crown in Metal 2, which the gilt people's T5 helm draws in the gilt; the family's legend comb
+                steps aside in the resolver (fp::SigTier::ownGrowth)
+  Jade T5       the kabuto legend's kuwagata in gilt: (fix r1) the resolver's (fp::SigTier::giltGrowth), no view re-cut
 """
 import os
 import subprocess
@@ -72,6 +79,15 @@ def shade_dome(mask, out='J', s1='N', s2='O', s3='P', s4='Q', solid='#'):
     return out_rows
 
 
+def box_erase(rows, box):
+    """(fix r1, the pool's bytes) an erase only where hair can lie: inside the head box's columns (box: (first, last)) and
+    never on the grid's top row (three rows over the crown: no hair reaches it); every other '-' becomes '.' (kept)"""
+    out = []
+    for y, r in enumerate(rows):
+        out.append(''.join('.' if c == '-' and (y == 0 or x < box[0] or x > box[1]) else c for x, c in enumerate(r)))
+    return out
+
+
 def remap(rows, table):
     return [''.join(table.get(c, c) for c in r) for r in rows]
 
@@ -116,12 +132,13 @@ def jingasa(base_views):
 
 
 # Imperial T1: the knob cap. '#': the bronze shell; '-' erases the hair under the bowl's rows; '.' keeps what is below.
-KNOB_D = [
+KNOB_D = [   # (fix r1) the bowl rises to an ogive under the knob (4, 8, 10, 12 columns down from the knob): the Montefortino's
+             # acorn, never the fleece cap's low round dome (the judge's S1 no-shield twin: the two caps differed by the knob alone)
     '--------------------',
     '---------##---------',
-    '-------######-------',
+    '--------####--------',
+    '------########------',
     '-----##########-----',
-    '----############----',
     '----############----',
     '---##############---',
     '---##############---',
@@ -132,12 +149,12 @@ KNOB_D = [
     '....#..........#....',
 ]
 KNOB_R = [   # (a round bowl seen side on: the knob over its crown, a short flared lip at the nape, the hinged cheek guard
-             # before the ear; never a brim, so it never reads as the Jade's jingasa)
+             # before the ear; never a brim, so it never reads as the Jade's jingasa) (fix r1: the ogive, as facing D)
     '---------------------',
     '---------##----------',
-    '-------######--------',
+    '--------####---------',
+    '------########-------',
     '-----##########------',
-    '----############-----',
     '----############-----',
     '---##############----',
     '---##############----',
@@ -168,10 +185,11 @@ def knob_cap():
     # the bronze in Metal 2 (the fittings metal: fp::Sig::trim sets the look's trim to the legion brass): J N O P Q = 0-4
     legend = ['legend J metal2 0', 'legend Q metal2 4']
     views = []
-    d = paint(shade_dome(KNOB_D), {(1, 9): 'Q'})
-    r = paint(shade_dome(KNOB_R), {(1, 9): 'Q'})
+    d = paint(shade_dome(KNOB_D), {(1, 9): 'Q', (2, 9): 'Q', (2, 10): 'P'})
+    r = paint(shade_dome(KNOB_R), {(1, 9): 'Q', (2, 9): 'Q', (2, 10): 'P'})
     lmask = mirror(KNOB_R)
-    l = paint(shade_dome(lmask), {(1, 10): 'Q'})
+    l = paint(shade_dome(lmask), {(1, 10): 'Q', (2, 10): 'Q', (2, 11): 'P'})
+    d, r, l = box_erase(d, (2, 17)), box_erase(r, (3, 18)), box_erase(l, (2, 17))
     views.append(('D', 'rest', d, knob_regions(KNOB_D)))
     views.append(('U', 'rest', d, knob_regions(KNOB_D)))
     views.append(('R', 'rest', r, knob_regions(KNOB_R)))
@@ -180,37 +198,45 @@ def knob_cap():
     return legend, views
 
 
-# Fjordfolk T1: the round leather cap ('#', leather) over a fleece roll ('*', Head: the accent)
+# Fjordfolk T1: the round leather cap ('#', leather) over a fleece roll ('*', Head: the accent). (fix r1) A low, flat-crowned
+# dome (10, 12, 14 columns, its crown on the hair's: the Imperial's knob cap is an ogive two rows up under its knob) on a
+# fleece roll the full head box wide, past the hair at the temples, its ends hanging a row down beside the brow over the hair:
+# the round, heavy Fjordfolk outline at T1, in the figure area of P5b's first cap (the ladder's T2 and T3 steps)
 FUR_D = [
     '--------------------',
     '--------------------',
-    '-------######-------',
+    '--------------------',
     '-----##########-----',
     '----############----',
-    '----############----',
-    '...**************...',
-    '...**************...',
+    '---##############---',
+    '..****************..',
+    '..****************..',
+    '...**..........**...',
 ]
 FUR_R = [
     '---------------------',
     '---------------------',
-    '-------#######-------',
-    '-----###########-----',
+    '---------------------',
+    '-----##########------',
     '----############-----',
-    '---#############-----',
-    '....*************....',
-    '....*************....',
+    '---##############----',
+    '...****************..',
+    '...****************..',
+    '....**..........**...',
 ]
-# the cap's seams (leather step 1, g): its four gores meet at the crown (D, U: the front gore's two seams; R, L: one seam)
-FUR_SEAMS = {'D': [(2, 7), (3, 7), (4, 6), (2, 12), (3, 12), (4, 13)], 'R': [(2, 10), (3, 10), (4, 11), (5, 11)]}
+# the cap's four gores meet at the crown: their seams stitched in the people's thread (region D, the dye seam: woad and
+# wool), the leather between them (D, U: the front gore's two seams; R, L: one seam)
+FUR_SEAMS = {'D': [(3, 8), (4, 7), (5, 7), (3, 11), (4, 12), (5, 12)], 'R': [(3, 10), (4, 10), (5, 11)]}
+
+
 def fleece(mask):
     """the fleece roll: curls in two offset courses (V J lit on the left half, I H shaded on the right), its ends rounded off
-    (H), its lower edge broken by tufts (the row under it: a curl every third column, '.' between: the fur's ragged hem)"""
+    (H); (fix r1) the ends hang a row lower beside the brow: two curls each, the outer lit on the left, shaded on the right"""
     out = []
-    tuft = None
     for y, row in enumerate(mask):
         r = []
         xs = [x for x, c in enumerate(row) if c == '*']
+        half = len(row) // 2
         for x, c in enumerate(row):
             if c != '*':
                 r.append(c)
@@ -218,16 +244,26 @@ def fleece(mask):
             i = x - xs[0]
             n = len(xs)
             left = i < n * 0.5
-            if i == 0 or i == n - 1:
+            if y >= 8:
+                r.append(('J' if x == xs[0] else 'H') if x < half else ('I' if x != xs[-1] else 'F'))
+            elif i == 0 or i == n - 1:
                 r.append('H')
             elif y == 6:   # the roll's lit top: curls, the light on the left
                 r.append(('JVIJ' if left else 'IJHI')[i % 4])
             else:          # its shaded underside: the curls' shadows between them
                 r.append(('IHJH' if left else 'HFIH')[(i + 1) % 4])
         out.append(''.join(r))
-        if xs:
-            tuft = (y, xs)
     return out
+
+
+def fur_regions(mask, seams):
+    """the gore seams' D cells (the people's thread); every other cell none"""
+    h, w = len(mask), len(mask[0])
+    reg = [['.'] * w for _ in range(h)]
+    for y, x in seams:
+        if mask[y][x] == '#':
+            reg[y][x] = 'D'
+    return [''.join(r) for r in reg]
 
 
 def fur_cap():
@@ -242,9 +278,9 @@ def fur_cap():
         g = paint(g, {(y, x): 'g' for y, x in seams if g[y][x] in 'hij'})
         top = next(y for y, row in enumerate(mask) if '#' in row)   # the crown's lit cells (a 1-row run is all outline)
         g = paint(g, {(top, xs): c for xs, c in zip([i for i, ch in enumerate(mask[top]) if ch == '#'][1:3], 'ji')})
-        g = fleece(g)
+        g = box_erase(fleece(g), (3, 18) if f[0] == 'R' else (2, 17))
         fac, key = (f.split() + ['rest'])[:2]
-        views.append((fac, key, g, None))
+        views.append((fac, key, g, fur_regions(mask, seams)))
     return legend, views
 
 
@@ -334,6 +370,109 @@ def kuwagata_recut(path):
         org = (int(p[p.index('origin') + 1]), int(p[p.index('origin') + 2])) if 'origin' in p else None
         views.append((fac, key, remap(g, KUWA), reg, org))
     return views
+
+
+# (fix r1) Imperial T3: the transverse crest (STYLE_P5B 4: "crested, transverse crimson crest"), a crimson horsehair brush
+# across the crown from side to side on its steel holder: facing D / U a wide low fan (12 columns, the crest's arc), facing
+# R / L edge-on, a narrow upright brush. Plume steps Q R S T U = 0-4 (the crest colour: the Imperial's crimson), the holder
+# in the helm's metal (v x w). T4's centurion fan (plumed, variant 1) is the same crest grown: taller, its ends down the sides
+CREST3_D = [   # a fan: the bristle tips widest, gathered into the holder on the crown (never a cap's flat block on the dome)
+    '...QQQQQQQQQQ...',
+    '..QTUTUTTSSRRQ..',
+    '...QTUTSTSRRQ...',
+    '.....QQSRQQ.....',
+    '......vxwv......',
+]
+CREST3_R = [
+    '.......QQ.......',
+    '......QTSQ......',
+    '......QUSQ......',
+    '......QTRQ......',
+    '.....vxxwv......',
+]
+
+
+def crest3():
+    views = []
+    l = ['.' + row[:-1] for row in CREST3_R]   # facing L: the crown a column right of R's (the T3 views' own placement), the light kept
+    for key, oy in (('rest', 2), ('up', 1)):   # up: the bob lag, a row lower (the crest channel's walk and run frames)
+        for f, g in (('D', CREST3_D), ('U', CREST3_D), ('R', CREST3_R), ('L', l)):
+            views.append((f, key, g, None, (0, oy)))
+    return [], views
+
+
+# (fix r1) Fjordfolk T5: the jarl's gilt horns (decision 2: horns at T5-T6), an overlay on headwear/helm/horned's own views:
+# each horn grown from the temple out to the flare (3 columns past the head box, T5's cap) and up to two rows over the crown,
+# its tip turned in, in Metal 2 (J N O P Q = 0-4), which the gilt people's T5 helm draws in the gilt (doll_paint toGilt:
+# Metal 2 -> Device, the T5 device's gold). Facing D / U both horns; facing R / L the far horn behind the dome and the near
+# one before the brow. Every base horn pixel is covered (the leather horn under it never shows)
+# (fix r1) the horns drawn as rows from base row -2 (five rows over the crown, inside T5's 8) down to the root on the dome's
+# side at base row 8; '.' keeps the base. Each horn sweeps out from the temple to the flare (3 columns past the head box) and
+# rises, its tip curling in over the brow: the aurochs horn of the icon, never the Jade's kuwagata (a V from the brow's centre)
+HORN_TOP = -3   # the first row of the drawings below, in the base view's rows
+HORN_L_ROWS = [   # facing D, the left horn, columns 0-7 of the base grid (head box columns 4-19)
+    '....JJ..',
+    '...JQJ..',
+    '..JPOJ..',
+    '.JPOJ...',
+    '.JPOJ...',
+    '.JPOJ...',
+    '.JPONJ..',
+    '.JPONJ..',
+    '.JPONNJ.',
+    '.JOONNJ.',
+    '..JONNNJ',
+    '...JJNNJ',
+]
+HORN_R_ROWS = [   # facing R, both horns, columns 0-24 of the base grid (head box columns 5-20): the far horn behind the dome,
+                  # the near one before the brow
+    '....JJ..............JJ...',
+    '...JQJ..............JQJ..',
+    '...JPOJ............JPOJ..',
+    '..JPOJ..............JPOJ.',
+    '..JPOJ..............JPOJ.',
+    '..JPOJ..............JPOJ.',
+    '..JPONJ.............JPOJ.',
+    '..JPONJ............JPONJ.',
+    '..JOONNJ..........JPONNJ.',
+    '..JONNNJ.........JPONNJ..',
+    '...JNNNJ........JONNNJ...',
+]
+
+
+def rows_cells(rows, top):
+    return {(top + y, x): c for y, r in enumerate(rows) for x, c in enumerate(r) if c != '.'}
+
+
+HORN_L = rows_cells(HORN_L_ROWS, HORN_TOP)
+HORN_R = rows_cells(HORN_R_ROWS, HORN_TOP)
+RELIT = {'P': 'N', 'N': 'P', 'Q': 'P'}   # a horn turned to the other side: its lit edge moves to the light's side
+
+
+def grid_of(cells, w, h):
+    g = [['.'] * w for _ in range(h)]
+    for (y, x), c in cells.items():
+        g[y][x] = c
+    return [''.join(r) for r in g]
+
+
+def horns5():
+    W = 24
+    right = {(y, W - 1 - x): RELIT.get(c, c) for (y, x), c in HORN_L.items()}
+    t = HORN_TOP
+    shift = lambda cells: {(y - t, x): c for (y, x), c in cells.items()}   # grid row 0 = base row HORN_TOP
+    d = grid_of(shift({**HORN_L, **right}), W, 9 - t)
+    WR = 25
+    r = grid_of(shift(HORN_R), WR, 8 - t)
+    l = grid_of(shift({(y, WR - 1 - x): RELIT.get(c, c) for (y, x), c in HORN_R.items()}), WR, 8 - t)
+    legend = ['legend J metal2 0', 'legend Q metal2 4']
+    oy = 1 - t   # the base's origin row 1, the grid starting HORN_TOP rows above the base's row 0
+    views = [('D', 'rest', d, None, (4, oy)), ('U', 'rest', d, None, (4, oy)), ('R', 'rest', r, None, (5, oy)),
+             ('L', 'rest', l, None, (4, oy)), ('L', 'lie', l, None, (4, oy))]
+    return legend, views
+
+
+# (the T5 comb, horned_legend's growth, steps aside in the resolver: fp::SigTier::ownGrowth, no pool bytes)
 
 
 # ------------------------------------------------------------------------------------------------ the pxm plumbing
@@ -428,10 +567,15 @@ def plan():
     views = [v for v in views if has_view(nas, v[0], v[1])]
     out.append((nas, 'fjordfolk-aventail-cone', block('fjordfolk-aventail-cone', 'the Fjordfolk T4 cone helm keeps the T3 aventail (an overlay, the planes shared)',
                                                       legend, views, 'sighelm-fjordfolk,helm.t4', False)))
-    kab = os.path.join(MAPS, 'headwear', 'helm', 'kabuto_legend.pxm')
-    out.append((kab, 'jade-kuwagata', block('jade-kuwagata', 'the Jade T5 kabuto kuwagata in gilt (Device), its outline and root as drawn',
-                                            ['legend k device 1', 'legend l device 2', 'legend H device 3', 'legend I device 4'],
-                                            kuwagata_recut(kab), 'sighelm-jade,helm.t5,alloyshape,helmfam-kabuto,crest-horns', True)))
+    cc = os.path.join(MAPS, 'headwear', 'helm', 'crested_crest.pxm')
+    legend, views = crest3()
+    out.append((cc, 'imperial-crest3', block('imperial-crest3', 'the Imperial T3 transverse crimson crest (fix r1): wide facing D / U, edge-on facing R / L',
+                                             legend, views, 'sighelm-imperial,helm.t3,!helm.t4', True)))
+    hor = os.path.join(MAPS, 'headwear', 'helm', 'horned.pxm')
+    legend, views = horns5()
+    out.append((hor, 'fjordfolk-horns5', block('fjordfolk-horns5', 'the Fjordfolk T5 gilt horns (fix r1): grown to the flare and over the crown (an overlay)',
+                                               legend, views, 'sighelm-fjordfolk,helm.t5,!helm.t6', False)))
+    # (fix r1) the Jade T5 kuwagata's gilt is the resolver's (fp::SigTier::giltGrowth, doll_paint toGiltGrowth): no view re-cut
     return out
 
 

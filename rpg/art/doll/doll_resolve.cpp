@@ -916,6 +916,15 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
     if (g_sig->body && L.metalKind <= 1) flag("sigleather");
     // a signed T2 leather helm (band 1): the people's head drawn in the leather (the great kasa's lames), whatever the figure's metal
     if (g_sig->helmP && L.tier[HumanLook::TIER_HELM] == 2 && helmBandOf(L) == 1) flag("sighelmleather");
+    // (fix r1, STYLE_P5B 2.4 "T5 the legend growth in gilt") a gilt people's T5 helm and shield: their fittings in the gilt
+    // (doll_paint: the piece's Metal 2 in Device, the T5 device's gold), never the body's Metal 2 (an alloy's banded rows)
+    if (g_sig->helmP && fp::sig(g_sig->helmP)->gilt && L.tier[HumanLook::TIER_HELM] == 5) flag("sighelmgilt");
+    if (g_sig->shieldP && fp::sig(g_sig->shieldP)->gilt && L.tier[HumanLook::TIER_SHIELD] == 5) flag("sigshieldgilt");
+    // the family's legend growth in the gilt (fp::SigTier::giltGrowth: the Jade T5 kuwagata), drawn by doll_paint
+    if (g_sig->helmP) {
+      const fp::SigTier* st = fp::sigTier(g_sig->helmP, L.tier[HumanLook::TIER_HELM]);
+      if (st && st->giltGrowth) flag("sighelmgrowthgilt");
+    }
   }
   if (L.skirt >= 1 && L.skirt <= 4) flagS("skirt" + std::to_string(L.skirt));
   if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
@@ -1502,6 +1511,9 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
     E.shieldField = sigRgba(fp::sig(ps)->dom);
     E.shieldDevice = L.tier[H::TIER_SHIELD] >= 5 ? sigRgba(0xD8A32C) : sigRgba(fp::sig(ps)->acc);   // T5-T6: the gilt device
   }
+  // (fix r1) a gilt people's T5 helm draws its fittings in Device (doll_paint toGilt): with no shield carried (whose T5 device
+  // sets it above), the same gilt, so the helm's gold never hangs on the shield
+  if (u.helmP && fp::sig(u.helmP)->gilt && th == 5 && !shieldOf(L)) E.shieldDevice = sigRgba(0xD8A32C);
   // the cloak (a worn cloak item, or the T3 cape)
   const int pc = L.makerAt(H::TIER_CLOAK);
   if (sigOn(pc) && (L.cloak || L.cape)) { u.cloakP = pc; E.cloakColor = sigRgba(fp::sig(pc)->dom); }
@@ -1607,6 +1619,19 @@ DollRecipe resolve(const HumanLook& L0) {
     }
   std::sort(r.parts.begin(), r.parts.end());
   r.parts.erase(std::unique(r.parts.begin(), r.parts.end()), r.parts.end());
+  // (P5b fix r1) a signed head that grows itself at its tier (fp::SigTier::ownGrowth: the Fjordfolk T5 gilt horns, drawn as
+  // added views on the family's own part): the family's legend growth part (`headwear/helm/<family>_legend`) steps aside
+  if (g_sig && g_sig->helmP) {
+    const fp::SigTier* st = fp::sigTier(g_sig->helmP, L.tier[HumanLook::TIER_HELM]);
+    if (st && st->ownGrowth)
+      r.parts.erase(std::remove_if(r.parts.begin(), r.parts.end(), [&](int pi) {
+                      const std::string& nm = P.s(P.parts[(size_t)pi].name);
+                      const bool helm = std::any_of(P.parts[(size_t)pi].roles.begin(), P.parts[(size_t)pi].roles.end(),
+                                                    [](const pool::RoleRec& rr) { return rr.cat == (uint8_t)Role::Helm; });
+                      return helm && nm.rfind("headwear/helm/", 0) == 0 && nm.size() > 7 && nm.compare(nm.size() - 7, 7, "_legend") == 0;
+                    }),
+                    r.parts.end());
+  }
   // (forge round 2, contracts 3c.1) a styled skirt replaces the body armour's own hang (its hangFront and hangBack parts: the
   // hang, the mail stride); the T5 surcoat views of the hang go with it (D38)
   if (r.dropHang)

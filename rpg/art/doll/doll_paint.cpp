@@ -956,6 +956,20 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   bool toLeather = r.has("sigleather") && (overlayPrefix(P, *it.part, "skirt.") || overlayPrefix(P, *it.part, "sleeve."));
   if (r.has("sighelmleather"))
     for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Helm) toLeather = true;
+  // (P5b fix r1, STYLE_P5B 2.4) a gilt people's signed T5 helm (`sighelmgilt`) or shield (`sigshieldgilt`): the piece's fittings
+  // (Metal 2: the trim band, the brow band, the cheek guards, a rim, the horns' gilt) in the gilt, the piece's own steel and the
+  // body's Metal 2 bands kept
+  bool toGilt = false, toGiltGrowth = false;
+  for (const RoleRec& rr : it.part->roles) {
+    if (rr.cat == (uint8_t)Role::Helm && r.has("sighelmgilt")) toGilt = true;
+    if (rr.cat == (uint8_t)Role::Shield && r.has("sigshieldgilt")) toGilt = true;
+    // (the legend growth in the gilt: `sighelmgrowthgilt`, the helm family's `headwear/helm/<family>_legend` part, its metal
+    // steps 1-4 in Device; its outline, Metal 2 and the trim band as drawn: the pixels the kuwagata re-cut views drew)
+    if (rr.cat == (uint8_t)Role::Helm && r.has("sighelmgrowthgilt")) {
+      const std::string& nm = P.s(it.part->name);
+      toGiltGrowth = nm.size() > 7 && nm.compare(nm.size() - 7, 7, "_legend") == 0;
+    }
+  }
   finishPlacements(v, ts, hasReg);
   irisBands(it, v, hasReg);
   ip.ts = ts;
@@ -966,7 +980,7 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   ip.sway = sway; ip.swayFrom = swayFrom;
   ip.stretch = stretch; ip.hasReg = hasReg; ip.tiled = tiled;
   ip.ts = ts;
-  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather;
+  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather; ip.toGilt = toGilt; ip.toGiltGrowth = toGiltGrowth;
   paintPixels(ip);
 }
 
@@ -1403,6 +1417,8 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   }
   if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
   if (ip.toLeather && c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2)) c = code(Slot::Leather, codeStep(c));
+  if (ip.toGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Device, codeStep(c));   // (P5b fix r1) the legend's gilt
+  if (ip.toGiltGrowth && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 1) c = code(Slot::Device, codeStep(c));
   // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
   if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
   if ((toMetal || brassBody) && c >= 2) {

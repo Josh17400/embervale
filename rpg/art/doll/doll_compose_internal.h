@@ -139,6 +139,8 @@ struct FramePaint {
     int ts = -1;
     bool toBlade = false, toMetal = false, brassBody = false;
     bool toLeather = false;   // (P5b) a signed leather body's styled skirt and sleeves: their metal in the leather
+    bool toGilt = false;      // (P5b fix r1) a gilt people's signed T5 helm or shield: its fittings (Metal 2) in the gilt (Device)
+    bool toGiltGrowth = false;   // (P5b fix r1) a signed helm's legend growth part (the Jade kuwagata): its metal 1-4 in the gilt
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
     // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)
