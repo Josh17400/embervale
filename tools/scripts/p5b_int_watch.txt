@@ -1,0 +1,41 @@
+# P5b production integration, in play: four peoples' town watches (the census guard, fp_looks.txt watch lines) side by side
+# on the start village's clear ground at NEAR, rig 2: Highland, Dune, River, Starspire, each man then woman; the town watch
+# (rank 0) then the capital watch (rank 1), facing D then R. Hidden Witness only:
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_int_watch.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- rank 0
++0.1 p2cline specs hero=1,npc=highland:guard:0:1|heroine=1,npc=highland:guard:0:1|hero=1,npc=dune:guard:0:1|heroine=1,npc=dune:guard:0:1|hero=1,npc=river:guard:0:1|heroine=1,npc=river:guard:0:1|hero=1,npc=starspire:guard:0:1|heroine=1,npc=starspire:guard:0:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_int_watch0_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_int_watch0_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- rank 1
++0.1 p2cline specs hero=1,npc=highland:guard:1:1|heroine=1,npc=highland:guard:1:1|hero=1,npc=dune:guard:1:1|heroine=1,npc=dune:guard:1:1|hero=1,npc=river:guard:1:1|heroine=1,npc=river:guard:1:1|hero=1,npc=starspire:guard:1:1|heroine=1,npc=starspire:guard:1:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_int_watch1_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_int_watch1_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
