@@ -1406,7 +1406,7 @@ static uint32_t lchIn(double L, double C, double h) {
 int sigCloakPeople(const HumanLook& L) {
   using H = HumanLook;
   const int pc = L.makerAt(H::TIER_CLOAK), pb = L.makerAt(H::TIER_BODY);
-  if (sigOn(pc) && (L.cloak || L.cape)) return pc;
+  if (sigOn(pc) && fp::sig(pc)->cloth && (L.cloak || L.cape)) return pc;
   // (P5b area A) a body tier with no signature (fp::SigTier::skirt null) keeps its cape's own colour
   const bool bodySig = sigOn(pb) && L.tier[H::TIER_BODY] && fp::sigTier(pb, L.tier[H::TIER_BODY]) && fp::sigTier(pb, L.tier[H::TIER_BODY])->skirt;
   if (bodySig && L.cape) return pb;   // (the ladder's T3 cape behind a signed body: its people's cloth)
@@ -1431,7 +1431,7 @@ static int sigSlots(const HumanLook& L, Slot out[6], uint32_t base[6]) {
     const bool soft = L.headwear && !(L.helmet || L.helmStyle || L.helmForm);
     if (soft || L.tier[H::TIER_HELM] <= 1) { out[n] = Slot::Head; base[n++] = g.acc; }
   }
-  if (sigOn(ps) && L.tier[H::TIER_SHIELD]) { out[n] = Slot::Field; base[n++] = fp::sig(ps)->dom; }
+  if (sigOn(ps) && fp::sig(ps)->cloth && L.tier[H::TIER_SHIELD]) { out[n] = Slot::Field; base[n++] = fp::sig(ps)->dom; }
   if (const int cp = sigCloakPeople(L)) { out[n] = Slot::Cloak; base[n++] = fp::sig(cp)->dom; }
   (void)pc;
   return n;
@@ -1575,8 +1575,9 @@ void dyeRamps(const HumanLook& L, DollRamps& R) {
     uint32_t* d1 = R.c[(int)dyeSlotOf(s, false)];
     uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
     // (P5b, STYLE_P5B 3) a signed people's pair is its dominant and accent
-    const uint32_t dye = sigOn(m) ? row.sig->dom : row.dye, dye2 = sigOn(m) ? row.sig->acc : row.dye2;
-    if (sigOn(m)) { sigRamp(hex(dye), d1); sigRamp(hex(dye2), d2); continue; }   // (fix r1: the pair's hue held on every step)
+    const bool sc = sigOn(m) && row.sig->cloth;   // (area A) a people whose cloth keeps P5's (the Heartland) keeps P5's band
+    const uint32_t dye = sc ? row.sig->dom : row.dye, dye2 = sc ? row.sig->acc : row.dye2;
+    if (sc) { sigRamp(hex(dye), d1); sigRamp(hex(dye2), d2); continue; }   // (fix r1: the pair's hue held on every step)
     dyeRamp(hex(dye), d1);
     if (dye2) dyeRamp(hex(dye2), d2);
     else for (int i = 0; i < 5; i++) d2[i] = d1[i];

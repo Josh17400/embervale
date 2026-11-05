@@ -37,6 +37,9 @@ struct Opts {
   bool before = false, grey = false, matrix = false, kits = false, census = false, icons = false, swatches = false;
   bool slice = false;      // (P5b) --slice
   std::string figs;        // (P5b) --figs FILE
+  // (P5b production) --slice's peoples and tiers (--peoples a,b,c --tiers 1,2,3,4): the slice's three at T1/T3/T5 by default
+  std::vector<std::string> slicePeoples{"jade", "imperial", "fjordfolk"};
+  std::vector<int> sliceTiers{1, 3, 5};
 };
 
 FILE* g_rep = nullptr;
@@ -349,13 +352,13 @@ Canvas headCanvas(const art::HumanLook& L, int facing) {
   return hc;
 }
 int sliceRun(const Opts& o) {
-  static const char* const kPeople[3] = {"jade", "imperial", "fjordfolk"};
   FpScope scope(!o.before);
   FILE* mf = std::fopen((o.out + "/slice_shares.txt").c_str(), "w");
   for (uint32_t seed = o.seedA; seed <= o.seedB; seed++)
-    for (const char* p : kPeople)
-      for (int t : {1, 3, 5})
+    for (const std::string& ps : o.slicePeoples)
+      for (int t : o.sliceTiers)
         for (int body = 0; body < 2; body++) {
+          const char* p = ps.c_str();
           char spec[160], base[96];
           std::snprintf(spec, sizeof spec, "%skit=%s:%d:%u", body ? "heroine=1," : "hero=1,", p, t, seed);
           std::snprintf(base, sizeof base, "slice_%s_T%d_%s_s%u", p, t, body ? "w" : "m", seed);
@@ -452,6 +455,15 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(a, "--swatches")) o.swatches = true;
     else if (!std::strcmp(a, "--slice")) o.slice = true;
     else if (!std::strcmp(a, "--figs") && i + 1 < argc) o.figs = argv[++i];
+    else if (!std::strcmp(a, "--peoples") && i + 1 < argc) {   // (P5b production) --slice's peoples, comma separated
+      o.slicePeoples.clear();
+      std::string v = argv[++i], w;
+      for (char ch : v + ",") { if (ch == ',') { if (!w.empty()) o.slicePeoples.push_back(w); w.clear(); } else w += ch; }
+    } else if (!std::strcmp(a, "--tiers") && i + 1 < argc) {   // (P5b production) --slice's tiers, comma separated
+      o.sliceTiers.clear();
+      std::string v = argv[++i], w;
+      for (char ch : v + ",") { if (ch == ',') { if (!w.empty()) o.sliceTiers.push_back(std::atoi(w.c_str())); w.clear(); } else w += ch; }
+    }
     else { std::printf("fingerprint_gallery: unknown arg %s\n", a); return 2; }
   }
   art::RigScope rig(2);

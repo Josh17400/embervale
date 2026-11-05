@@ -50,6 +50,8 @@ struct Sig {
                          // the cheek guards, the horns, the rim; drawn in Device, the T5 device's gold) over a culture alloy's own
                          // polished trim, never the body's Metal 2 (an alloy's banded rows): Imperial crimson and gold, the
                          // Fjordfolk jarl's gilt horns and rim; false keeps the alloy's
+  bool cloth = true;     // (P5b area A) the pair on the people's cloth: the shield's field and device, the cloak, the dye band (the
+                         // pair's hue held); false keeps P5's (the Heartland: its hero's road, D54-D55, stays as the owner knows it)
 };
 // clang-format off
 // Jade (flared, banded): the jingasa, then the kabuto, then gilt kuwagata; sode, the kusazuri's bell, wide sleeves, the
@@ -95,12 +97,13 @@ inline constexpr Sig kSigHighland{0x185030, 0xD89A28, "buckler", 0, false, 0, {
     {}}};
 // (P5b area A) Heartland (the hero's road; square, heraldic): unchanged from T2 to T6 (D54, D55, D83: soft cap, nasal with
 // knife comb, open crested, gilt onion, crystal), its body the hero's shapes at every tier (skirt null: unsigned); P5b adds a
-// Heartland-made T1 helm drawn as the chapel (the levy's brimmed kettle), and the people's heraldic red and white on its
-// cloaks and shield fields (decision 3; the kit's own shield forms: shield null). STYLE_P5B 5 Heartland
+// Heartland-made T1 helm drawn as the chapel (the levy's brimmed kettle). The people's pair stays off its cloaks, shield fields
+// and dye band (cloth false): the hero's road wears them (the menus doll T1-T6, the opening), so decision 3 there is the
+// owner's to make (STYLE_P5B 5 Heartland; 11: never touch the hero's road beyond its T1 chapel)
 inline constexpr Sig kSigHeartland{0xC02030, 0xEAE6D8, nullptr, 0, false, 0, {
     {},
     {"form2",      0, "",      nullptr,   nullptr,  nullptr,   nullptr,    nullptr},   // the chapel (p5b_sig_A.py)
-    {}, {}, {}, {}, {}}};
+    {}, {}, {}, {}, {}}, false, false};
 // clang-format on
 
 struct Row {

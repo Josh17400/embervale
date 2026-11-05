@@ -666,9 +666,50 @@ const char* const kSigHelm[3][3][16] = {
      "...kkkkkkkkkk...", "................", "................", "................"},
   },
 };
+// (P5b area A) the area's heads in the bag, as worn (STYLE_P5B 4 and 7): the Highland's bonnet (T1; T2 with the clan badge:
+// a saffron brooch and the eagle feather), the kettle under its fur band and feather (T3; T4 the feather moved, a finial);
+// the Heartland's chapel (T1: boiled leather, the hatband in heraldic red and white; T2-T6 the hero's road: the classic
+// painter); the Fjordfolk's T4 spectacle helm (the owner's fix); the Imperial's T2 cap and its crimson tuft. Same palette
+// characters as kSigHelm; nullptr: the slice's grid or the classic painter
+const char* const kSigHelmHighland[4][16] = {
+  {"................", "................", "................", ".......hj.......", "......kghk......", "...kkkdeddkkk...",
+   "..kdeeddccccbbk.", ".kdeddcccccccbbk", "kdedccccccccbbak", ".kbbbbbbbbbbbak.", "..kiaiaiaiaiak..", "..kkkkkkkkkkkk..",
+   "................", "................", "................", "................"},
+  {"................", ".............e..", "............ed..", ".......hj...dc..", "......kghk..dc..", "...kkkdeddkkdck.",
+   "..kdeeddccccbbk.", ".kdeddcccccccbbk", "kdedccccccccbbak", ".kbbbbbbbbbbbak.", "..kiaiaiaiijhak.", "..kkkkkkkkkkkk..",
+   "................", "................", "................", "................"},
+  {"..............e.", ".............ed.", "......kkkk..dc..", ".....k4433kdc...", "....k443322k....", "....k433222k....",
+   "...kqrqsqrqsqk..", ".k443333322221k.", "..k1111111111k..", "...k3k####k1k...", "...k4k####k2k...", "...k3k####k1k...",
+   "...k3kk##kk1k...", "...kkk....kkk...", "................", "................"},
+  {".e..............", ".de.....kk......", "..dc..kk44kk....", "...cdk443322k...", "....k443322k....", "....k433222k....",
+   "...kqrqsqrqsqk..", ".k443333322221k.", "..k1111111111k..", "...k3k####k1k...", "...k4k####k2k...", "...k3k####k1k...",
+   "...k3kk##kk1k...", "...kkk....kkk...", "................", "................"},
+};
+const char* const kSigHelmChapel[16] = {
+  "................", "................", "................", "................", "......kkkk......", ".....ksrrqk.....",
+  "....ksrrrqqk....", "....ksrrqqqk....", "...kdidiidiidk..", "kssrrrrrqqqqqqpk", ".kppppppppppppk.", "................",
+  "................", "................", "................", "................"};
+const char* const kSigHelmSpectacle[16] = {
+  "................", ".......kk.......", "......k43k......", ".....k4432k.....", "....k443322k....", "...k44433221k...",
+  "...k44332211k...", "...k44433221k...", "..k31k#k3k#k11k.", "..k31kk43kk11k..", "..k313k##k313k..", "..k131313131313k",
+  "...kkkkkkkkkkkk.", "................", "................", "................"};
+const char* const kSigHelmTuftCap[16] = {
+  "................", "................", ".......dc.......", "......kedk......", ".......kk.......", ".....ksrrk......",
+  "....ksrrrqk.....", "...ksrrrqqqk....", "...ksrrqqqpk....", "..kbcbcbcbcbk...", "..kkkkkkkkkkk...", "................",
+  "................", "................", "................", "................"};
+const char* const* sigHelmA(int people, int t) {
+  const char* n = fp::row(people).name;
+  if (!std::strcmp(n, "highland")) return t >= 1 && t <= 4 ? kSigHelmHighland[t - 1] : nullptr;
+  if (!std::strcmp(n, "heartland")) return t == 1 ? kSigHelmChapel : nullptr;
+  if (!std::strcmp(n, "fjordfolk") && t == 4) return kSigHelmSpectacle;
+  if (!std::strcmp(n, "imperial") && t == 2) return kSigHelmTuftCap;
+  return nullptr;
+}
+bool sigAreaA(int people) { const char* n = fp::row(people).name; return !std::strcmp(n, "highland") || !std::strcmp(n, "heartland"); }
 int sigIndex(int people) {   // the slice's three peoples (STYLE_P5B 9.1); -1 every other
   const char* n = fp::row(people).name;
-  return !std::strcmp(n, "jade") ? 0 : !std::strcmp(n, "imperial") ? 1 : !std::strcmp(n, "fjordfolk") ? 2 : -1;
+  return !std::strcmp(n, "jade") ? 0 : !std::strcmp(n, "imperial") ? 1 : !std::strcmp(n, "fjordfolk") ? 2
+       : !std::strcmp(n, "highland") ? 3 : !std::strcmp(n, "heartland") ? 4 : -1;   // (P5b area A: 3, 4)
 }
 const fp::Sig* sigOf(const IconLook& l) {
   if (rigVersion() < 2 || !l.people || !doll::fixOn(doll::FIX_SIG) || !doll::fixOn(doll::FIX_FP)) return nullptr;
@@ -789,6 +830,17 @@ bool sigBodyLayer(Canvas& c, const IconLook& l) {
       }
     c.set(x, y, R[best]);
   };
+  if (si == 3 && st.layer && !std::strcmp(st.layer, "sash")) {   // (P5b area A) the Highland plaid over the left shoulder
+    // a band from the figure's left shoulder (the icon's right) down to the right hip, off the outline ring and inside FIX_BATCH_P5
+    // 3.5's tenth of the coat (icons_gallery --check): one pixel a row, two where it crosses the chest, the sett's saffron thread
+    for (int y = 4; y <= 11; y++) {
+      const int x = 10 - (y - 4) * 5 / 7;
+      lay(x, y, dom, y <= 6 ? 3 : 2);
+      if (y == 6 || y == 8) lay(x - 1, y, dom, 1);
+      if (y == 5 || y == 9) lay(x, y, fpRamp(g->acc), 3);
+    }
+    return true;
+  }
   if (st.layer && !std::strcmp(st.layer, "sash")) {   // the obi
     for (int x = 5; x <= 10; x++) {
       lay(x, 10, dom, x <= 6 ? 3 : 2);
@@ -826,10 +878,13 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
   switch (l.icon) {
     case Icon::Helmet: {
       const SigPal P{&M, &dom, si == 0 ? &kLacquer : &acc};
+      if (const char* const* a = sigHelmA(l.people, t)) { sigGrid(c, a, 16, P); return true; }   // (P5b area A)
+      if (si > 2) return false;   // (P5b area A) a tier the people leaves to the classic painter (the hero's road, T5-T6)
       sigGrid(c, kSigHelm[si][band], 16, P);
       return true;
     }
     case Icon::Shield: {
+      if (!g->cloth) return false;   // (P5b area A) the Heartland's shield keeps P5's painter
       static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
       int form = l.form;
       for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
@@ -846,11 +901,15 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
             for (int i = 0; i < 5; i++) if (v == dom[i]) k = i;
             if (q && k >= 0) c.set(x, y, acc[std::min(4, k + 1)]);
           }
+      if (si == 3 && t >= 2)   // (P5b area A) the Highland targe's studs round its boss: saffron at T2, brass from T3
+        for (const auto& q : {std::pair<int, int>{8, 3}, {4, 7}, {12, 8}, {8, 12}, {5, 4}, {11, 4}, {5, 11}, {11, 11}})
+          if ((c.get(q.first, q.second) >> 24) != 0) c.set(q.first, q.second, t >= 3 ? kGold[3] : acc[3]);
       if (si == 1 && t >= 2)   // the scutum's device: a gilt thunderbolt down its middle
         for (int y = 4; y <= 11; y++) c.set(8 + ((y & 2) ? 1 : -1) * ((y % 4) == 1), y, kGold[y < 8 ? 4 : 3]);
       return true;
     }
     case Icon::Cloak:
+      if (!g->cloth) return false;   // (P5b area A) the Heartland's cloak keeps P5's painter
       sigCloakIcon(c, si, t, dom, si == 0 ? kLacquer : acc, M);
       return true;
     default: return false;
@@ -863,6 +922,7 @@ void iconFingerprint(Canvas& c, const IconLook& l, const Ramp& M, const Ramp& ac
   const uint8_t tbit = (uint8_t)(1u << l.tier);
   // (P5b) a signed people's band in its dominant and accent (the doll's dyeRamps reads the same pair)
   const fp::Sig* sg = sigOf(l);
+  if (sg && !sg->cloth) sg = nullptr;   // (P5b area A) a people whose cloth keeps P5's (the Heartland) keeps P5's band
   const uint32_t dy = sg ? sg->dom : row.dye, dy2 = sg ? sg->acc : row.dye2;
   const Ramp D = fpRamp(dy), D2 = dy2 ? fpRamp(dy2) : D;
   auto band = [&](int x, int y) -> const Ramp& { return ((x + y) % row.period) < row.run ? D : D2; };

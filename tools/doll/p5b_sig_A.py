@@ -15,10 +15,20 @@ Re-running replaces this script's own blocks (between its begin and end comments
   python tools/doll/p5b_sig_A.py --print    print the blocks
 
 The heads (hand-placed; the dome shading computed from each hand-drawn mask so every facing keeps the top-left light):
-  Fjordfolk T4  the Viking spectacle helm (Gjermundbu): headwear/helm/spangen at T4, a low rounded cap on a ridge band
+  Fjordfolk T4  the Viking spectacle helm (Gjermundbu): headwear/helm/spangen at T4 (replace), a low rounded cap on a ridge band
                 with a knob, a riveted brow band, a spectacle guard round each eye (the eyes at the face's own spacing, as
-                under the T3 nasal) joined by a short nasal, and a mail aventail at the sides and under the chin. Between
-                the T3 nasal spangenhelm (pointed) and the T5 gilt horns
+                under the T3 nasal) joined by a short nasal, and a mail aventail at the sides and under the chin, its hem
+                bound in the people's woad (region D). Between the T3 nasal spangenhelm (pointed) and the T5 gilt horns
+  Highland T1   the Scots bonnet: headwear/cloth/cap (replace, T1-T2), a flat crown in the dominant (Plume: a guise head's
+                Dye takes no tier pair) worn at a slant, a diced band and a toorie in the accent (Head)
+  Highland T2   the clansman's badge on the bonnet (overlay): a silver brooch, an eagle feather, two ribbon tails at the nape
+  Highland T3   headwear/helm/kettle's own Highland views (the fur band, the feather, the aventail: `furtrim`), copied cell
+                for cell under the signed helm's flag (the pool shares identical planes: a copy costs its view records)
+  Highland T4   the T3 kettle (shared) and an overlay: the fur band, the feather moved to the crown's other side and grown, a
+                finial (the T4 head's outline parts from T3's by the move: the waiting T5's area caps T4's bulk)
+  Heartland T1  the chapel: headwear/helm/kettle's base views in boiled leather (Leather), the hatband in the people's red and
+                white (Plume and region D), the brim a column wider each side
+  Imperial T2   the Montefortino's short crimson tuft (overlay on headwear/helm/nasal at T2: the kit's T2 cap)
 """
 import os
 import subprocess
@@ -211,40 +221,43 @@ def gjermundbu():
 # soft crown wider than the head, tilted to show its lit top, on a diced band round the brow, a toorie on the crown. The crown
 # in the people's dominant (Plume: tartan green), the band diced green and saffron, the toorie saffron (Head: the accent).
 # Inside the cap's own rows (the T1 envelope: the soft head's 2-row rise), its crown a column over the cap's each side
-BONNET_D = [   # (round 2: lower, a column narrower each side: the T1 figure under T5's 1.55, the crown a row over the hair's top)
+BONNET_D = [   # (round 4: worn at the Highland's slant, the flat crown dipping to the figure's right (the viewer's left facing D)
+               # and its toorie off the middle: the bonnet's own outline, never the jingasa's centred cone (S1 against the Jade
+               # T1); low, its crown a row over the hair's top, the T1 figure under T5's 1.55)
     '..................',
     '..................',
-    '........tt........',
-    '....##########....',
-    '..##############..',
-    '.################.',
-    '..uuuuuuuuuuuuuu..',
-    '..dddddddddddddd..',
+    '......tt..........',
+    '..###########.....',
+    '################..',
+    '#################.',
+    'uuuuuuuuuuuuuuuuu.',
+    'uudddddddddddddd..',
     '..oooooooooooooo..',
 ]
-BONNET_R = [
+BONNET_R = [   # facing R the crown dips to the back (the slant seen side on), the toorie behind the crown's middle
     '....................',
     '....................',
-    '.........tt.........',
-    '.....##########.....',
-    '...##############...',
-    '..################..',
-    '...uuuuuuuuuuuuuu...',
-    '...dddddddddddddd...',
+    '.......tt...........',
+    '...###########......',
+    '.################...',
+    '##################..',
+    'uuuuuuuuuuuuuuuuu...',
+    'uu.dddddddddddddd...',
     '...oooooooooooooo...',
 ]
 # T2: the clansman's badge on the bonnet's left side (the figure's left: the viewer's right facing D, the near side facing L,
 # behind the crown facing R): a saffron brooch on the band and an eagle feather rising from it, two rows over the crown
 BADGE_D = {(0, 15): 'F', (1, 14): 'V', (2, 13): 'F', (2, 14): 'J', (2, 15): 'F', (3, 13): 'J', (3, 14): 'H', (4, 13): 'J', (5, 13): 'I',
-           (7, 13): 'U', (7, 14): 'S'}
+           (7, 13): 'z', (7, 14): 'z', (6, 13): 'U'}   # (the brooch's two silver glints: C12's shine climbs T1 -> T2)
 BADGE_U = {(1, 3): 'V', (2, 2): 'F', (2, 3): 'J', (2, 4): 'F', (3, 3): 'J', (3, 4): 'H', (4, 4): 'J', (5, 4): 'I',
-           (7, 3): 'U', (7, 4): 'S'}
+           (7, 3): 'z', (7, 4): 'z', (6, 4): 'U'}
 BADGE_R = {(1, 5): 'V', (2, 4): 'F', (2, 5): 'J', (2, 6): 'F'}
 BADGE_L = {(1, 6): 'V', (2, 5): 'F', (2, 6): 'J', (2, 7): 'F', (3, 6): 'J', (3, 7): 'H', (4, 6): 'J', (5, 6): 'I',
-           (7, 5): 'U', (7, 6): 'S', (7, 7): 'R'}
-# and the bonnet's two ribbon tails hanging from the band at the nape (the dominant, its shade): behind the head facing R / L,
+           (7, 5): 'z', (7, 6): 'z', (6, 6): 'U'}
+# and the bonnet's two ribbon tails hanging from the band at the nape on a silver clasp (the dominant, its shade): behind the
+# head facing R / L (the clasp's glint: C12's shine climbs T1 -> T2 facing R too),
 # down the back facing U (hidden facing D)
-TAILS_R = {(8, 3): 'H', (9, 3): 'H', (10, 3): 'I', (11, 3): 'H', (12, 3): 'H', (13, 3): 'F', (9, 2): 'F', (10, 2): 'H',
+TAILS_R = {(8, 3): 'z', (9, 3): 'H', (10, 3): 'I', (11, 3): 'H', (12, 3): 'H', (13, 3): 'F', (9, 2): 'F', (10, 2): 'H',
            (11, 2): 'H', (12, 2): 'H', (13, 2): 'H', (14, 2): 'F'}
 TAILS_U = {(9, 7): 'H', (10, 7): 'I', (11, 7): 'H', (12, 7): 'F', (9, 10): 'H', (10, 10): 'H', (11, 10): 'F'}
 BADGE_R.update(TAILS_R)
@@ -270,8 +283,9 @@ def bonnet_render(mask):
         for x, c in enumerate(r):
             if c == '#':
                 row.append(lit[y][x])
-            elif c == 't':   # the toorie: a saffron knot, lit on its left
-                row.append((HEADC[4] if x == ts[0] else HEADC[2]) if y == 0 else (HEADC[3] if x == ts[0] else HEADC[1]))
+            elif c == 't':   # the toorie: a saffron knot (two rows), lit on its left
+                top = y == min(yy for yy, rr in enumerate(mask) if 't' in rr)
+                row.append((HEADC[4] if x == ts[0] else HEADC[2]) if top else (HEADC[3] if x == ts[0] else HEADC[1]))
             elif c == 'u':
                 row.append(DYE[0] if x in (r.index('u'), r.rindex('u')) else DYE[1])
             elif c == 'd':
@@ -291,9 +305,10 @@ def bonnet_render(mask):
 def bonnet():
     legend = [f'legend {c} plume {k}' for k, c in enumerate(DYE)]
     d = bonnet_render(BONNET_D)
+    u = bonnet_render(mirror(BONNET_D))   # from behind the slant dips to the viewer's right
     r = bonnet_render(BONNET_R)
     l = bonnet_render(mirror(BONNET_R))
-    return legend, [('D', 'rest', d, None), ('U', 'rest', d, None), ('R', 'rest', r, None), ('L', 'rest', l, None),
+    return legend, [('D', 'rest', d, None), ('U', 'rest', u, None), ('R', 'rest', r, None), ('L', 'rest', l, None),
                     ('L', 'lie', l, None)]
 
 
