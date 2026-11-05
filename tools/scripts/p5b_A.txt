@@ -1,0 +1,96 @@
+# P5b area A in play (docs/STYLE_P5B.md 5, 9.2's protocol): the Highland and the Heartland at T1-T4, the Fjordfolk T4 spectacle
+# helm (the owner's fix) and the Imperial T2 Montefortino, on the start village's clear ground at NEAR, rig 2. Each row six
+# figures (`p2cline specs`: the ladder kits kit=<people>:<tier>:1, the man A3's hero, the woman A3's heroine), facing D then R.
+# Run only through Witness (hidden):
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_A.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- T1: the Highland bonnet; the Heartland hero bareheaded (the start road); the Fjordfolk fleece cap
++0.1 p2cline specs hero=1,kit=highland:1:1|heroine=1,kit=highland:1:1|hero=1,kit=heartland:1:1|heroine=1,kit=heartland:1:1|hero=1,kit=fjordfolk:1:1|heroine=1,kit=fjordfolk:1:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_t1_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_A_t1_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T2: the bonnet and its badge; the soft cap of the road; the spangen cap
++0.1 p2cline specs hero=1,kit=highland:2:1|heroine=1,kit=highland:2:1|hero=1,kit=heartland:2:1|heroine=1,kit=heartland:2:1|hero=1,kit=fjordfolk:2:1|heroine=1,kit=fjordfolk:2:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_t2_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_A_t2_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T3: the fur-banded kettle and its feather; the nasal and knife comb; the spangenhelm on its aventail
++0.1 p2cline specs hero=1,kit=highland:3:1|heroine=1,kit=highland:3:1|hero=1,kit=heartland:3:1|heroine=1,kit=heartland:3:1|hero=1,kit=fjordfolk:3:1|heroine=1,kit=fjordfolk:3:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_t3_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_A_t3_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T4: the kettle grown; the open crested of the road; the spectacle helm (the owner fix)
++0.1 p2cline specs hero=1,kit=highland:4:1|heroine=1,kit=highland:4:1|hero=1,kit=heartland:4:1|heroine=1,kit=heartland:4:1|hero=1,kit=fjordfolk:4:1|heroine=1,kit=fjordfolk:4:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_t4_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_A_t4_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- the Heartland chapel (a Heartland-made T1 helm); the Imperial T2 Montefortino; the Jade T2
++0.1 p2cline specs hero=1,kit=jade:1:1,makers=0:heartland:0:0:0:0:0:0|heroine=1,kit=jade:1:1,makers=0:heartland:0:0:0:0:0:0|hero=1,kit=imperial:2:1|heroine=1,kit=imperial:2:1|hero=1,kit=jade:2:1|heroine=1,kit=jade:2:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_chapel_t2_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_A_chapel_t2_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- close: the Fjordfolk T3 / T4 / T5 men by noon (the ladder through the spectacle helm)
++0.1 p2cline specs hero=1,kit=fjordfolk:3:1|hero=1,kit=fjordfolk:4:1|hero=1,kit=fjordfolk:5:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_close_1_fjordfolk_t345.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- close: the Highland T1 / T2 / T4 men at dusk
++0.1 p2cline specs hero=1,kit=highland:1:1|hero=1,kit=highland:2:1|hero=1,kit=highland:4:1
++0.1 hideplayer 1
++0.1 hour 18
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_A_close_2_highland_dusk.png
++0.1 p2cline clear
++0.1 hideplayer 0

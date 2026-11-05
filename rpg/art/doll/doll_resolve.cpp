@@ -1453,7 +1453,9 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   bool shaped = L.forgeShape != 0;
   // the body
   const int pb = L.makerAt(H::TIER_BODY), tb = L.tier[H::TIER_BODY];
-  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L)) {
+  // (P5b area A) a tier whose skirt is null leaves the body as the piece draws it (the Heartland hero's road, D54-D55; a new
+  // people's T5-T6 until the owner's budget ruling): "" is a word (unset), nullptr no signature
+  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L) && fp::sigTier(pb, tb)->skirt) {
     const fp::SigTier& t = *fp::sigTier(pb, tb);
     u.body = true;
     u.bodyP = pb;
@@ -1473,7 +1475,9 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   // the helm (a helmet worn: a band, a form or the legacy helmet)
   const int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
   const bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
-  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn) {
+  // (P5b area A) a tier whose head is null leaves the helm as the piece draws it, its crest colour too (the Heartland's T5-T6, a
+  // new people's T5-T6 until the owner's budget ruling); "" signs it with the piece's own head
+  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn && fp::sigTier(ph, th)->head) {
     const fp::SigTier& t = *fp::sigTier(ph, th);
     u.helmP = ph;
     const std::string head = t.head ? t.head : "";
@@ -1502,7 +1506,7 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   }
   // the shield
   const int ps = L.makerAt(H::TIER_SHIELD);
-  if (sigOn(ps) && shieldOf(L) && L.tier[H::TIER_SHIELD]) {
+  if (sigOn(ps) && fp::sig(ps)->cloth && shieldOf(L) && L.tier[H::TIER_SHIELD]) {   // (area A: cloth, the Heartland's off)
     static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
     const char* f = fp::sig(ps)->shield;
     for (int i = 0; i < 8 && f; i++) if (!std::strcmp(f, kForm[i])) u.shieldForm = i + 1;
@@ -1516,7 +1520,7 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   if (u.helmP && fp::sig(u.helmP)->gilt && th == 5 && !shieldOf(L)) E.shieldDevice = sigRgba(0xD8A32C);
   // the cloak (a worn cloak item, or the T3 cape)
   const int pc = L.makerAt(H::TIER_CLOAK);
-  if (sigOn(pc) && (L.cloak || L.cape)) { u.cloakP = pc; E.cloakColor = sigRgba(fp::sig(pc)->dom); }
+  if (sigOn(pc) && fp::sig(pc)->cloth && (L.cloak || L.cape)) { u.cloakP = pc; E.cloakColor = sigRgba(fp::sig(pc)->dom); }
   if (shaped && (u.body || u.helmFam || u.soft || !u.helmNeed.empty())) E.forgeShape = forge::withShapeVariant(forge::packShapeAxes(sx), (int)variant);
   return E;
 }

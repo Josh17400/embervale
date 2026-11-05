@@ -1,0 +1,31 @@
+# tools/gates/baseline/moves_p5b/A.txt: P5b production area A's expected baseline differences (docs/STYLE_P5B.md 4-5: the Fjordfolk
+# T4 spectacle helm (the owner's fix), the Highland and the Heartland at T1-T4, the Imperial T2 Montefortino tuft). <gate> <item
+# glob>[,...] <id> <reason>. Measured on fix-p5b-A, build-solid, over the slice (fix-p5b-slice a3f5a4c, moves_p5b/SLICE.txt):
+# tools/gates/step_gates.sh (default set): pass=16 fail=3 skip=3, the three fails S6.pool (below), S9.shot (village_start: its
+# 212 px are f914d03's own, moves_p5 P5-1, as the slice) and S10.view (255 of 425 differ from p4f1, every one already declared in
+# moves_p5/*.txt or moves_p5b/SLICE.txt; area A moves the two below and may move a slice-32 shot holding a Fjordfolk T4 or
+# Imperial T2 piece).
+# The A/B proof: the same build with EMB_FIX_RULES=8191 (FIX_SIG off) reproduces f914d03: --doll-wear --freeze-check against
+# f914d03's p2c_freeze.txt and p2c_freeze_rig1.txt 0 changed. Against the slice's manifest (a3f5a4c) 12 looks moved, 2,352 frames,
+# every one "rule P5b signature": slice_a_hl1-3, slice_g_hl1-3, slice_ncapt_hl (the Highland), slice_a_fj2 (the Fjordfolk T4),
+# slice_g_cov6-7 and forge_g_cov6-7 (signed covers). The Heartland hero's road (slice_lt1-6, lt1w, lt6m, lt6w) unchanged: the
+# Heartland signs only a Heartland-made T1 helm (the chapel); fp::Sig::cloth false keeps its cloaks, shield fields and dye band P5's.
+# Unchanged on purpose: S1, S2.seeds, S3.*, S5.rig2 / S5.rig1, S6.freeze / S6.freeze1 (re-signed: 0 changed), S7.rig2 / S7.rig1,
+# S9.test, S10.digest (560/560: the Highland's T1 kit cap is the slice's look-only draw from its own Rng stream), S10.audio,
+# S10.layers.
+S6.pool *pxc?--check:* P5b-A tools/doll/p5b_sig_A.py (ADD only, --verify): headwear/helm/spangen the Fjordfolk T4 spectacle helm (replace D U R L, L lie); headwear/cloth/cap the Highland bonnet (T1-T2, replace) and its T2 badge (overlay); headwear/helm/kettle the Highland T3-T4 kettle (the kettle's own furtrim views copied under sighelm-highland: planes shared), the T4 overlay, the Heartland chapel (replace); headwear/helm/nasal the Imperial T2 tuft (overlay): 2,605,801 -> 2,610,141 B (+4,340 of the area's 4,500), 29,188 -> 29,224 views, 871 parts
+# INT (re-signed manifests, 0 changed: no move) S6.freeze *freeze:*,*freeze?CHANGED*,rc P5b-A the 12 area-A looks above: 2,352 of 39,152 frames, every one "rule P5b signature"; 0 changed with EMB_FIX_RULES=8191 against f914d03's manifest
+# INT (re-signed manifests, 0 changed: no move) S6.freeze1 *freeze:*,*freeze?CHANGED*,rc P5b-A the same looks' shared doll frames (the rig-1 manifest signs the doll's own frames, D115)
+S10.view m3_towns_tour/m3t_highland_town_a.png,m3_towns_tour/m3t_highland_town_b.png P5b-A the Highland towns' soldiers and levies: the bonnet, the plaid over the shoulder, the kettle under its fur band and feather, the green targe and cloak (each already a P5-1 move against p4f1, moves_p5/VIEW.txt)
+# The doll gates on this build (doll_gates.sh lines): rpg_test --doll-envelope (default, --scope ladder --seeds 1..3, --scope all
+# --seeds 1..3) 0 failed; --scope ladder --seeds 1..8 fails as P5 does with FIX_SIG off (seeds 4-8: the peoples' own lines) and on
+# Highland s7 (its waiting T5 head, P5's, 320 px under the T4 kettle's 333); --fingerprint F1-F4, F6-F8 PASS (F5 29 short, the
+# unsigned peoples', was 43), the harness restated for signed cloth as STYLE_P5B 8.4 asks (fingerprint_audit.h: a signed soft head
+# is the helm piece; test_fingerprint F4 leather: a signed soft head is no leather cap, a signed layer's dominant hue off the
+# leather's stays out of the coat's mean); icons_gallery --check 0 FAIL; --doll-coverage --scope ladder 0 missing.
+# Open, as the slice's (0 with FIX_SIG off): --doll-heads C16k heads apart 10 (one signed head for all a people's alloys at a
+# tier: the slice's Jade 6, Imperial 1, Fjordfolk 1 (ASIRON / FROSTSTEEL, the T4 head) and area A's Highland THORNIRON / GWESTEEL;
+# STYLE_P5B 2.5's parting by variant and secondary family is not drawn yet); --doll-ladder --finish C12 24 lines (6 a people: the
+# slice's three and the Highland; a signed T2 body reads as styled (alloyshape) and is asked 3 glints, the slice's T5-T6 trim,
+# the Highland s3 T4 -> waiting T5 shrink), C13 2 (the slice's Jade), C14 1 (the Highland woman s1 T5 facing R: its waiting T5
+# under the signed green cloak, 19 luma over the darkest ground of the 40 wanted).
