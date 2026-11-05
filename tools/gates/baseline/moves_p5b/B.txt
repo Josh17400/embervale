@@ -1,0 +1,10 @@
+# tools/gates/baseline/moves_p5b/B.txt: P5b production area B's expected baseline differences (docs/STYLE_P5B.md 4-5; Dune,
+# Steppe, Marsh at T1-T4, their T5-T6 the people's axes on the families' own legend heads). <gate> <item glob>[,...] <id> <reason>.
+# Measured on fix-p5b-B, build-solid, against fix-p5b-slice (a3f5a4c). The A/B proof: EMB_FIX_RULES=8191 (FIX_SIG off) --doll-wear
+# --freeze-check against f914d03's p2c_freeze.txt and p2c_freeze_rig1.txt 0 changed; EMB_FIX_RULES=4095 against afedeba's 0
+# changed. tools/doll/p5b_sig_B.py --verify: 8 maps, every line added inside a P5b block; tools/doll/p5b_sig.py --verify ok.
+S6.pool *pxc?--check:* P5b-B the area's added views (headwear/cloth/turban the Dune T1-T2 turban; headwear/helm/veil the Dune T3 kulah band; headwear/cloth/furhat the Steppe T1 felt hat and T2 peaked cap; headwear/helm/plumed the Steppe T3 lamellar guards; headwear/cloth/headscarf the Marsh T1 bog cap; headwear/helm/nasal the Marsh T2 crest and feathers; headwear/helm/kettle the Marsh T3 tassels; headwear/helm/warhat the Marsh T4 war hat): 2,605,801 -> 2,609,201 B (+3,400 of the area's 4,000)
+# INT (re-signed manifests, 0 changed: no move) S6.freeze *freeze:*,*freeze?CHANGED*,rc P5b-B the 5 area-people maker looks (slice_g_dune1 slice_g_mars2 slice_g_step1 slice_mr_3 slice_mr_6): 980 of 39,152 frames, every one "rule P5b signature"
+# INT (re-signed manifests, 0 changed: no move) S6.freeze1 *freeze:*,*freeze?CHANGED*,rc P5b-B the same looks' shared doll frames (rig 1's manifest signs the doll's own frames, D115)
+# S10.view: every shot with a Dune, Steppe or Marsh maker piece (worn or in the bag) moves; not measured on this run (see the
+# area's report): EMB_FIX_RULES=8191 reproduces P5's hashes by the A/B proof above.

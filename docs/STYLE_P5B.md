@@ -205,6 +205,12 @@ with mail aventail and a turban band, a long split kaftan, wide sleeves; gilt an
 - From: `dune_18th_century_sikh_kulah_khud_helmet_inside_the_white_tower_a...jpg`, `dune_helmet_khula_khud_met_02_5_5_001mar2015.jpg`,
   `dune_13_mameluke_of_egypt.jpg`, `dune_armour_of_the_ottoman_empire_zirah_baktar_or_zirh_gomlek.jpg`; FLUX `dune_full_*.png`,
   `dune_helmets_1.png` and `_2.png` (spikes, turban wraps). Not `dune_shields.png` (heater-like): the game's Dune bears the dhal.
+- As built (P5b production, area B; T1-T4, `tools/doll/p5b_sig_B.py`, `fp::kSigDune`): T1 the turban wound two rows lower
+  (T1's 2 rows; the drawn turban stood 4), its two brow wraps teal, a brass brooch, the headcloth's TAIL to the shoulder; T2 the
+  same with the spiked cap's steel crown over it (T2's 3 rows); T3-T4 the kulah with a teal turban band wound round the bowl
+  (Plume, so B8's 48-colour budget never snaps it). Skirt none at T1 (the split stood 5 px outside T1's bare outline), split
+  T2-T4; layer sash T1, scarf T2 and T4, half cape T3 (the T3 cape stood 4 px past the legs behind the split kaftan); lobed
+  round shoulders and wide sleeves from T2; the small dhal with four brass bosses. T5-T6: these axes on the own heads.
 
 **Steppe** (a tall point, horizontal lamellar rows, a fur roll at the neck). A rust riding coat with a cream fur collar,
 a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.
@@ -218,6 +224,11 @@ a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.
 - From: `steppe_closeup_of_mongolian_reenactors_at_khaan_quest_07.jpg`, `steppe_bronze_helmet_mongol_empire_19219793614.jpg`,
   `steppe_a_man_and_woman_in_traditional_mongolian_dress_look_on_as_se...jpg`, `steppe_pursuit_by_mongol_warriors_diez_albums.jpg`;
   FLUX `steppe_full_*.png`, `steppe_helmets_1.png` (lappets), `steppe_shields.png` (studded rims), `steppe_pixel_2.png`.
+- As built (P5b production, area B; `fp::kSigSteppe`, laces: the coat's seams in full rust): T1 the furhat's felt crown two rows
+  lower, its fur flaps grown to the jaw; T2 the crown to a peak under a rust knot (the peaked felt cap); T3-T4 the plumed
+  helm's cheek and neck guards grown into lamellar flaps (the people's horizontal courses, in the helm's own metal). Skirt
+  none T1-T2 (the herder's coat), strips T3 (lamellar), split T4; the fur mantle at T2, lamellar flaps (drop) from T3 (the
+  scale shoulders stood 22 px at T3, its cap 20); the scarf from T3 in the dominant; the round shield, a black studded rim.
 
 **Marsh** (ragged, drooping, a long oval shield). Moss and bone: a fringed hide hood, a fringed skirt, bare arms, a long
 oval wooden shield; tasselled reed war hats, a heron plume and bone at the top.
@@ -232,6 +243,13 @@ oval wooden shield; tasselled reed war hats, a heron plume and bone at the top.
   `marsh_ainu_group_aborigines_of_japan_from_the_island_of_hokkaido_o...jpg`, `marsh_ancient_celt_with_carnyx_ancient_briton.jpg`;
   FLUX `marsh_full_*.png` (fringe, hide, long ovals), `marsh_helmets_1.png` (skulls and antlers: the T6 bone only),
   `marsh_shields.png`.
+- As built (P5b production, area B; `fp::kSigMarsh`): T1 the BOG CAP (the Tollund cap of the From list: the hide kerchief,
+  `cloth/headscarf`, in bone, fringed in moss over the brow and beside the face, its knot's tails a moss hank) in place of the
+  fringed hood: the hood is a third of the figure and with the body's band measured 40.6 % people colour (S2's cap 30 %); T2 the
+  rawhide kettle (form2 in the hide) under a bone crest and two moss feathers; T3 the tasselled reed hat (the kettle's tassels
+  views, keyed to the Marsh helm); T4 the wide war hat drooping, a moss wrap and a bulrush tuft. Skirt none at T1 (the strips
+  stood 12 px outside T1's bare outline), strips T2-T4; hide flaps from T2; the reed half cape T3-T4; the oval in moss with
+  three bone pales.
 
 **Jade** (flared, banded). Vermilion and black: a lacquered jingasa, then a kabuto with a flared neck guard, then gilt
 kuwagata; wide sode, a bell of laced kusazuri, wide sleeves, lacing in vermilion bands.

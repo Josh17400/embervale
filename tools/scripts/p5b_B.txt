@@ -1,0 +1,83 @@
+# P5b production, area B, in play (docs/STYLE_P5B.md 4-5): Dune, Steppe and Marsh kits side by side on the start village's
+# clear ground at NEAR, rig 2 (the slice's staging, tools/scripts/p5b_slice.txt). Each tier T1-T4 a row of six: Dune man and
+# woman, Steppe man and woman, Marsh man and woman (`p2cline specs`, the ladder kits kit=<people>:<tier>:1), facing D then R;
+# then two close rows of three (one a people): the T2 women by noon, the T4 men at dusk. Run only through Witness (hidden):
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_B.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- T1: the low turban and its tail, the fur-flapped felt hat, the fringed bog cap
++0.1 p2cline specs hero=1,kit=dune:1:1|heroine=1,kit=dune:1:1|hero=1,kit=steppe:1:1|heroine=1,kit=steppe:1:1|hero=1,kit=marsh:1:1|heroine=1,kit=marsh:1:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_t1_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B_t1_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T2: the turban over the spiked cap, the peaked felt cap, the rawhide cap with its bone crest and feathers
++0.1 p2cline specs hero=1,kit=dune:2:1|heroine=1,kit=dune:2:1|hero=1,kit=steppe:2:1|heroine=1,kit=steppe:2:1|hero=1,kit=marsh:2:1|heroine=1,kit=marsh:2:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_t2_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B_t2_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T3: the kulah and its teal turban band, the pointed helm on its lamellar guards, the tasselled reed hat
++0.1 p2cline specs hero=1,kit=dune:3:1|heroine=1,kit=dune:3:1|hero=1,kit=steppe:3:1|heroine=1,kit=steppe:3:1|hero=1,kit=marsh:3:1|heroine=1,kit=marsh:3:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_t3_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B_t3_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T4: the kulah grown, the pointed helm in the alloy, the wide war hat and its bulrushes
++0.1 p2cline specs hero=1,kit=dune:4:1|heroine=1,kit=dune:4:1|hero=1,kit=steppe:4:1|heroine=1,kit=steppe:4:1|hero=1,kit=marsh:4:1|heroine=1,kit=marsh:4:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_t4_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B_t4_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- the close rows: the T2 women by noon, the T4 men at dusk
++0.1 p2cline specs heroine=1,kit=dune:2:1|heroine=1,kit=steppe:2:1|heroine=1,kit=marsh:2:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_close_1_t2_women_noon.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 p2cline specs hero=1,kit=dune:4:1|hero=1,kit=steppe:4:1|hero=1,kit=marsh:4:1
++0.1 hideplayer 1
++0.1 hour 18
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B_close_2_t4_men_dusk.png
++0.1 p2cline clear
++0.1 hideplayer 0
