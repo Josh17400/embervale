@@ -18,3 +18,7 @@ S10.view m0b_keep_tower/m0b_keep_ground.png,m0b_keep_tower/m0b_keep_upstairs.png
 # 57) with the harness restated for signed pieces (STYLE_P5B 8.4, 8.6): F6 holds P5's additivity with FIX_SIG off; a signed
 # head, shield and cloak icon is exempt from P5's per-piece icon share (icons_gallery too) and F5 accepts the signed body,
 # helm, shield and cloak by identity; cloakBackOf's body box reads the armour's over-layers (a kusazuri, wide sleeves).
+# Fix r2 (judge r2 N1, N2): the same 17 looks re-signed again, 2,042 of 39,152 frames, every one "rule P5b signature" (a signed
+# cloak or layer parts inside its signed ramp's window, the cape over a cloak of its colour 22 luma lit, the Imperial cloak at
+# CIELAB L 40); FIX_SIG off still 0 changed against f914d03's manifests, FIX_FP off 0 against afedeba's. The quick view pack: the
+# same 32 PNGs differ, 0 undeclared (the signed coats' layers and the peoples' cloaks in the bag, the cloth colours worn).

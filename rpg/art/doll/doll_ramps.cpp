@@ -494,6 +494,25 @@ DollRamps a3Palette(int who) {
 void sigRamps(const HumanLook& L, DollRamps& R);   // (P5b) below
 static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was);   // (P5b fix r1) below
 int sigCloakPeople(const HumanLook& L);   // (P5b fix r1) below
+// (P5b fix r2) the people's large cloth holds its value through the partings: see sigHoldOf (below)
+struct SigHold {
+  bool on[SLOT_COUNT] = {};
+  double lo[SLOT_COUNT] = {}, hi[SLOT_COUNT] = {};
+  double edgeHi[SLOT_COUNT] = {};   // C14's lit-edge lift may climb further (step 2 at most 34 over the signed ramp's)
+  bool twin = false;   // a signed layer worn under a signed cloak of its colour: the two stay 18 luma apart at step 2
+  const DollRamps* R = nullptr;
+  bool win(Slot s, const uint32_t t[5], bool edge) const {
+    return !on[(int)s] || (luma(t[2]) >= lo[(int)s] - 0.5 && luma(t[2]) <= (edge ? edgeHi : hi)[(int)s] + 0.5);
+  }
+  bool ok(Slot s, const uint32_t t[5], bool edge = false) const {
+    if (!on[(int)s]) return true;
+    if (!win(s, t, edge)) return false;
+    if (twin && R && (s == Slot::Cloak || s == Slot::Accent))
+      return std::fabs(luma(t[2]) - luma(R->c[(int)(s == Slot::Cloak ? Slot::Accent : Slot::Cloak)][2])) >= 18.0;
+    return true;
+  }
+};
+static SigHold sigHoldOf(const HumanLook& L, const DollRamps& R);
 DollRamps rampsOf(const HumanLook& L) {
   DollRamps R = a3Palette(L.body == 1 ? 1 : 0);
   // skin: the curated ramp from A3's four skins (elves a shade paler and cooler); the face's mouth, lip and blush with it
@@ -560,6 +579,7 @@ DollRamps rampsOf(const HumanLook& L) {
   // never climbs to yellow): the body's layer (Accent), the helm's crest (Plume) and soft head (Head), the shield's field, the cloak
   sigRamps(L, R);
   const DollRamps sigWas = R;   // (P5b fix r1) the signed cloth as sigRamps made it, for sigRehue after the partings below
+  const SigHold hold = sigHoldOf(L, R);   // (P5b fix r2) the window each signed cloak and layer may part inside
   // leather: one of six per person (a stable pick from the person's colours; A3's brown the most common)
   {
     const uint32_t h = mixHash(mixHash(mixHash(0x1EA7u, L.skin), L.topColor), L.bottomColor);
@@ -1120,6 +1140,7 @@ DollRamps rampsOf(const HumanLook& L) {
             uint32_t t[5];
             t[0] = T[0];
             for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+            if (!hold.ok(who, t)) continue;   // (P5b fix r2) a signed cloak or layer parts inside its window, never bleached
             if (apart(t)) { for (int q = 1; q < 5; q++) T[q] = t[q]; return true; }
           }
         return false;
@@ -1186,6 +1207,7 @@ DollRamps rampsOf(const HumanLook& L) {
           std::vector<S> keep;
           for (S o : kAll) if (o != who && !near(who, o)) keep.push_back(o);
           auto ok = [&](const uint32_t* t) {
+            if (!hold.ok(who, t)) return false;   // (P5b fix r2) the signed cloth's window
             for (S m : must) if (std::fabs(luma(t[2]) - luma(R.c[(int)m][2])) < 18.0) return false;
             for (S k : keep) if (std::fabs(luma(t[2]) - luma(R.c[(int)k][2])) < 18.0) return false;
             // (C17, as the first pass: a styled figure's leather and cloths stay 16 dE off the metal's body and lit plane)
@@ -1413,11 +1435,16 @@ static int sigSlots(const HumanLook& L, Slot out[6], uint32_t base[6]) {
 }
 // (P5b fix r1) a signed cloak or cape: the dominant at a deep value (CIELAB L at most 44, the hue and chroma held): the figure's
 // largest cloth mass reads as dyed cloth with a dark ground under its folds (a Jade horo deep vermilion over its lacquer-dark
-// shadow, never a lit orange panel; a crimson already deep keeps its own). #RRGGBB in, an rgba out
+// shadow, never a lit orange panel). #RRGGBB in, an rgba out
+// (P5b fix r2) and never under CIELAB L 40: a crimson already deep (the Imperial's #7C082A, L 26: luma 47, under the darkest
+// day ground) climbs to a cloth red, its hue held and its chroma grown a fifth (the dye's strength: a lifted crimson stays
+// crimson, its lit fold S >= 0.65, never pink; the FLUX legion cloaks and the pixel sheets' scarlet: a red, not a
+// maroon), so the cloak's lit folds read on a dark field and every people's cloak sits near one value
 static uint32_t sigCloakBase(uint32_t dom) {
   const Lab b = toLab(hex(dom));
-  if (b.L <= 44.0) return hex(dom);
-  return lchIn(44.0, std::hypot(b.a, b.b), std::atan2(b.b, b.a)) | 0xFF000000u;
+  if (b.L >= 40.0 && b.L <= 44.0) return hex(dom);
+  const double C = std::hypot(b.a, b.b) * (b.L < 40.0 ? 1.2 : 1.0);
+  return lchIn(std::clamp(b.L, 40.0, 44.0), C, std::atan2(b.b, b.a)) | 0xFF000000u;
 }
 void sigRamp(uint32_t base, uint32_t r[5]) {
   constexpr double kDeg = 3.14159265358979 / 180.0;
@@ -1431,12 +1458,62 @@ void sigRamp(uint32_t base, uint32_t r[5]) {
   for (int i = 0; i < 5; i++) r[i] = i == 2 ? base : lchIn(Ls[i], C * kC[i], h + (C < 20.0 ? 0.0 : kH[i] * kDeg)) | 0xFF000000u;
 }
 
+// (P5b fix r2) signed slot i's ramp base (an rgba): the cloak and the layer at the deep value (sigCloakBase), the crest, the
+// field and the soft head at the pair's own; a layer worn under a signed cloak of its own colour (the Fjordfolk and Imperial
+// T5 cape over the long cloak, the Jade jinbaori over the horo) lifted by lightness (hue and chroma held) until its step 2
+// reads 22 luma over the cloak's: the cape on the shoulders catches the light, the cloak behind it hangs in its own shade,
+// and the two never meet as one value (C14: 18 luma at every contact)
+static uint32_t sigBaseOf(const Slot* sl, const uint32_t* base, int n, int i) {
+  if (sl[i] != Slot::Cloak && sl[i] != Slot::Accent) return hex(base[i]);
+  const uint32_t b = sigCloakBase(base[i]);
+  bool under = false;
+  for (int j = 0; j < n; j++) under = under || (sl[i] == Slot::Accent && sl[j] == Slot::Cloak && base[j] == base[i]);
+  if (!under) return b;
+  const Lab l = toLab(b);
+  const double C = std::hypot(l.a, l.b), h = std::atan2(l.b, l.a);
+  uint32_t t = b;
+  for (double dL = 0.25; dL <= 16.0; dL += 0.25) {
+    t = lchIn(l.L + dL, C, h) | 0xFF000000u;
+    if (luma(t) - luma(b) >= 22.0) break;
+  }
+  return t;
+}
+// (P5b fix r2, STYLE_P5B 3: the cape and the cloak are the people's dominant) the window a signed cloak and a signed layer
+// (the Accent: the obi, the focale) may part inside: step 2 from 12 luma under its signed ramp's (sigRamp's) to 8 over. The
+// partings move a ramp by scaling its channels until it clears every partner at once; a deep woad cape between a man's dark
+// hair, his shirt, his leather and his iron found its only clear value at x1.69 (#8EB0FF over #DCE2FF and white: ice-white
+// from behind, Starspire's star white) while the woman's, with other partners, stayed woad. Inside the window the cloth
+// stays its people's colour on every body (one kit, one cloak); a partner that cannot be cleared there moves itself, as
+// the partings' fallbacks already do. A colour with no hue (CIELAB chroma under 20: the Jade's lacquer, the Fjordfolk wool)
+// and the crest, the field and the soft head keep the partings' own moves. C14's lit-edge lift (partByContact) may climb to 34
+// over, the cape and its cloak together (a deep crimson on a dark top-left edge)
+static SigHold sigHoldOf(const HumanLook& L, const DollRamps& R) {
+  SigHold h;
+  h.R = &R;
+  Slot sl[6];
+  uint32_t base[6];
+  const int n = sigSlots(L, sl, base);
+  for (int i = 0; i < n; i++) {
+    if (sl[i] != Slot::Cloak && sl[i] != Slot::Accent) continue;
+    const Lab b = toLab(hex(base[i]));
+    if (std::hypot(b.a, b.b) < 20.0) continue;
+    uint32_t r[5];
+    sigRamp(sigBaseOf(sl, base, n, i), r);
+    h.on[(int)sl[i]] = true;
+    h.lo[(int)sl[i]] = luma(r[2]) - 12.0;
+    h.hi[(int)sl[i]] = luma(r[2]) + 8.0;
+    h.edgeHi[(int)sl[i]] = luma(r[2]) + 34.0;
+  }
+  h.twin = h.on[(int)Slot::Cloak] && h.on[(int)Slot::Accent];
+  return h;
+}
 static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was) {
   constexpr double kDeg = 3.14159265358979 / 180.0;
   static const double kH[5] = {-3, -2, 0, 3, 6};
   Slot sl[6];
   uint32_t base[6];
   const int n = sigSlots(L, sl, base);
+  const SigHold hold = sigHoldOf(L, R);
   for (int i = 0; i < n; i++) {
     uint32_t* T = R.c[(int)sl[i]];
     const Lab b = toLab(hex(base[i]));
@@ -1444,6 +1521,30 @@ static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was) {
     if (C < 20.0) continue;   // (a near-white or near-black has no hue to turn)
     // (a ramp set whole since, its outline with it: the T1 shield's plain wood, the Mythic flame, the king's crimson: kept)
     if (T[0] != was.c[(int)sl[i]][0]) continue;
+    // (P5b fix r2) a signed cloak or layer is its people's ramp (sigRamp's hue and chroma on every step) at the lightness the
+    // partings chose, that lightness held inside its window: a move past it (one the partings' searches did not make) comes
+    // back to the window's edge
+    if (hold.on[(int)sl[i]]) {
+      uint32_t ref[5];
+      sigRamp(sigBaseOf(sl, base, n, i), ref);
+      bool movedAny = false;
+      for (int q = 1; q < 5; q++) movedAny = movedAny || T[q] != ref[q];
+      if (!movedAny) continue;
+      const double lm = toLab(T[2]).L, lr = toLab(ref[2]).L;
+      auto at = [&](double dL, uint32_t t[5]) {
+        t[0] = T[0];
+        for (int q = 1; q < 5; q++) {
+          const Lab r = toLab(ref[q]);
+          t[q] = lchIn(std::clamp(r.L + dL, 1.0, 99.0), std::hypot(r.a, r.b), std::atan2(r.b, r.a)) | 0xFF000000u;
+        }
+      };
+      uint32_t t[5];
+      double dL = lm - lr;
+      at(dL, t);
+      for (int k = 0; k < 80 && !hold.ok(sl[i], t, true); k++) { dL += dL > 0 ? -0.25 : 0.25; at(dL, t); }
+      for (int q = 1; q < 5; q++) T[q] = t[q];
+      continue;
+    }
     for (int q = 1; q < 5; q++) {
       if (T[q] == was.c[(int)sl[i]][q]) continue;
       const Lab m = toLab(T[q]), w = toLab(was.c[(int)sl[i]][q]);
@@ -1458,7 +1559,7 @@ void sigRamps(const HumanLook& L, DollRamps& R) {
   uint32_t base[6];
   const int n = sigSlots(L, sl, base);
   // (the cloak and the body's layer, the figure's large cloth, at the deep value: a parting then sinks them, never pales them)
-  for (int i = 0; i < n; i++) sigRamp(sl[i] == Slot::Cloak || sl[i] == Slot::Accent ? sigCloakBase(base[i]) : hex(base[i]), R.c[(int)sl[i]]);
+  for (int i = 0; i < n; i++) sigRamp(sigBaseOf(sl, base, n, i), R.c[(int)sl[i]]);
 }
 
 // (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
@@ -1613,9 +1714,11 @@ static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead
   auto con = [&](S a, S b) { return (int)touch[(int)a][(int)b] + (int)touch[(int)b][(int)a]; };
   auto l2 = [&](S s) { return luma(R.c[(int)s][2]); };
   bool moved = false;
+  const SigHold hold = sigHoldOf(L, R);   // (P5b fix r2) a signed cloak or layer parts inside its window
   auto tryMove = [&](S m) -> bool {
     uint32_t* T = R.c[(int)m];
     auto ok = [&](const uint32_t* t) {
+      if (!hold.ok(m, t)) return false;
       for (S o : kMat) {
         if (o == m) continue;
         const int c = con(m, o);
@@ -1711,28 +1814,48 @@ static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead
         if (lifted) break;
         const S m = (S)oc.second;
         uint32_t* T = R.c[(int)m];
+        // (P5b fix r2) a signed cape and the signed cloak of its colour behind it climb together, their gap kept (one garment
+        // catching the light: the Imperial women's crimson on a dark top-left edge)
+        const bool pair = hold.twin && (m == S::Cloak || m == S::Accent);
+        const S m2 = m == S::Cloak ? S::Accent : S::Cloak;
+        uint32_t* T2 = R.c[(int)m2];
         for (int k = 1; k <= 40 && !lifted; k++) {
           const double f = 1.0 + 0.0125 * k;
-          uint32_t t[5];
+          uint32_t t[5], t2[5];
           t[0] = T[0];
           for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
-          if (luma(t[4]) > 250.0) break;
+          if (luma(t[4]) > 250.0 || !(pair ? hold.win(m, t, true) : hold.ok(m, t, true))) break;
+          if (pair) {
+            t2[0] = T2[0];
+            for (int q = 1; q < 5; q++) t2[q] = scaleRgb(T2[q], f);
+            if (luma(t2[4]) > 250.0 || !hold.win(m2, t2, true) || std::fabs(luma(t[2]) - luma(t2[2])) < 18.0) break;
+          }
           bool ok = true;
           for (S o : kMat) {
-            if (o == m || con(m, o) < 3) continue;
+            if (o == m || con(m, o) < 3 || (pair && o == m2)) continue;
             const double now = std::fabs(luma(t[2]) - l2(o)), was = std::fabs(luma(T[2]) - l2(o));
             if (now < 18.0 && now < was - 1e-9) ok = false;
           }
+          if (pair)
+            for (S o : kMat) {
+              if (o == m2 || o == m || con(m2, o) < 3) continue;
+              const double now = std::fabs(luma(t2[2]) - l2(o)), was = std::fabs(luma(T2[2]) - l2(o));
+              if (now < 18.0 && now < was - 1e-9) ok = false;
+            }
           if (ok && m == S::Metal && luma(t[3]) - luma(t[1]) < std::min(60.0, luma(T[3]) - luma(T[1])) - 0.5) ok = false;
           if (ok && styled && (m == S::Leather || m == S::Cloth1 || m == S::Cloth2))
             for (int st = 2; st <= 3; st++) if (deltaE76(t[st], R.c[(int)S::Metal][st]) < std::min(16.0f, deltaE76(T[st], R.c[(int)S::Metal][st]))) ok = false;
           if (!ok) break;   // (the climb only closes it further)
-          uint32_t keep[5];
+          uint32_t keep[5], keep2[5];
           for (int q = 0; q < 5; q++) { keep[q] = T[q]; T[q] = t[q]; }
+          if (pair) for (int q = 0; q < 5; q++) { keep2[q] = T2[q]; T2[q] = t2[q]; }
           if (quart(g) >= want) {
             lifted = true;
-            if (dbg) std::printf("    C14 edge lift %c: %s x%.4f -> quartile %.1f\n", "DR"[g], slotName(m), f, quart(g));
-          } else for (int q = 0; q < 5; q++) T[q] = keep[q];
+            if (dbg) std::printf("    C14 edge lift %c: %s%s x%.4f -> quartile %.1f\n", "DR"[g], slotName(m), pair ? " (and its twin)" : "", f, quart(g));
+          } else {
+            for (int q = 0; q < 5; q++) T[q] = keep[q];
+            if (pair) for (int q = 0; q < 5; q++) T2[q] = keep2[q];
+          }
         }
       }
       if (!lifted && dbg) std::printf("    C14 edge lift %c: none (quartile %.1f)\n", "DR"[g], quart(g));

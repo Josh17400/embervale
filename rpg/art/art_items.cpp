@@ -674,6 +674,146 @@ const fp::Sig* sigOf(const IconLook& l) {
   if (rigVersion() < 2 || !l.people || !doll::fixOn(doll::FIX_SIG) || !doll::fixOn(doll::FIX_FP)) return nullptr;
   return fp::sig(l.people);
 }
+// (P5b fix r2, judge r2 N2: the three T5 cloaks were one hooded form in three colours, Jade and Fjordfolk 15 px apart in
+// greyscale) a signed cloak is its people's own garment, as the worn one: the Jade's HORO from T3, a balloon of vermilion
+// cloth hung from a lacquered yoke (the round silhouette, the gores' seams on the frame's ribs, the black mon), a plain
+// cloak below T3; the
+// Imperial PALUDAMENTUM, a crimson rectangle hung square from the shoulders and pinned on the right one by a gilt fibula,
+// its folds falling from the pin, a half cape to the hip at T3-T4, the legate's cloak to the heel with its gilt hem from
+// T5; the Fjordfolk CLOAK, woad under a fur collar (the mantle's roll), open down the front on its bleached-wool lining,
+// a wool hem, an iron ring pin (gilt from T5), a cape to the hip at T3-T4 and to the heel from T5. The light from the top
+// left, as every icon (ac: the accent ramp, the Jade's lacquer; M the piece's metal)
+void sigCloakIcon(Canvas& c, int si, int t, const Ramp& dom, const Ramp& ac, const Ramp& M) {
+  const bool tall = t >= 5;
+  auto put = [&](int x, int y, uint32_t v) { if (x >= 0 && y >= 0 && x < ICON && y < ICON) c.set(x, y, v); };
+  if (si == 0 && t >= 3) {   // the horo: a cape that fills with air, narrow at the lacquered yoke, a full belly, the ribs
+    static const float kHalf[16] = {0, 0, 2.6f, 3.4f, 4.4f, 5.3f, 6.0f, 6.5f, 6.8f, 6.9f, 6.8f, 6.5f, 6.0f, 5.2f, 4.0f, 2.2f};
+    for (int y = 2; y < ICON; y++)
+      for (int x = 0; x < ICON; x++) {
+        const float dx = x + 0.5f - 8.0f, hw = kHalf[y];
+        if (std::fabs(dx) > hw) continue;
+        const float u = dx / std::max(1.0f, hw), v = (y - 9.0f) / 7.0f;   // across the belly, down it
+        int k = 2;
+        if (u + v < -0.55f) k = 3;
+        if (u + v < -1.05f) k = 4;
+        if (u + v > 0.55f) k = 1;
+        if (y >= 4 && y <= 14 && std::fabs(std::fabs(dx) - 0.5f * hw) < 0.5f) k = k >= 3 ? 1 : 0;   // the gores' seams on the ribs
+        if (y == 3) k = std::max(1, k - 1);   // the shade under the yoke
+        if (y == 15) k = std::max(0, k - 1);
+        put(x, y, dom[k]);
+      }
+    for (int x = 4; x <= 11; x++) put(x, 2, ac[x <= 6 ? 3 : x >= 10 ? 1 : 2]);   // the yoke, lacquered
+    put(4, 3, ac[2]); put(11, 3, ac[1]);                                         // its ends, hooked to the shoulders
+    put(8, 6, ac[1]); put(7, 7, ac[1]); put(9, 7, ac[1]); put(8, 8, ac[1]);      // the mon: a black ring of four
+    put(8, 7, dom[3]);
+    return;
+  }
+  if (si == 1) {   // the paludamentum: square from the shoulders, flaring a little, pinned on the right shoulder, folds from the pin
+    const int hem = tall ? 14 : 11;
+    for (int y = 2; y <= hem; y++) {
+      const int x0 = y <= 3 ? 3 : y >= hem - 2 ? 1 : 2, x1 = y <= 3 ? 12 : y >= hem - 2 ? 14 : 13;
+      for (int x = x0; x <= x1; x++) {
+        if (y <= 3 && x >= 6 && x <= 9 && !(y == 3 && (x == 6 || x == 9))) continue;   // the neck
+        if (!tall && y > hem - (x - 1) / 4) continue;                                     // the half cape's hem rises to the left hip
+        int k = x <= 4 ? 3 : x >= 11 ? 1 : 2;
+        if (y == 2) k = 4;
+        const int f = (x - 3) - (y - 3) / 2;   // the folds fall from the pin, down and to the right
+        if (y >= 4 && (f == 3 || f == 7)) k = std::max(1, k - 1);
+        if (y >= 4 && (f == 2 || f == 6)) k = std::min(4, k + 1);
+        if (y == hem) k = std::max(0, k - 1);
+        put(x, y, dom[k]);
+      }
+    }
+    if (tall) for (int x = 1; x <= 14; x++) put(x, 14, kGold[x <= 4 ? 3 : x >= 11 ? 1 : 2]);   // the legate's gilt hem
+    put(3, 3, kGold[4]); put(4, 3, kGold[3]); put(3, 4, kGold[2]); put(4, 4, kGold[1]);       // the fibula
+    return;
+  }
+  if (si == 2) {   // the Fjordfolk cloak: woad under a fur collar, open on its wool lining, a ring pin
+    const int hem = tall ? 14 : 11, top = tall ? 1 : 2;
+    for (int y = 4; y <= hem; y++) {
+      const int x0 = y >= hem - 3 ? 2 : 3, x1 = y >= hem - 3 ? 13 : 12;   // a little flare to the hem
+      for (int x = x0; x <= x1; x++) {
+        int k = x <= 4 ? 3 : x >= 11 ? 1 : 2;
+        if ((x == 5 || x == 10) && y >= 6) k = std::max(1, k - 1);   // two long folds
+        if (y == hem) k = std::max(0, k - 1);
+        put(x, y, dom[k]);
+      }
+    }
+    for (int y = 5; y <= hem; y++) { put(7, y, ac[3]); put(8, y, ac[1]); }   // the open front: the wool lining's edges
+    for (int x = 2; x <= 13; x++) if (x < 7 || x > 8) put(x, hem - 1, ac[x <= 4 ? 3 : x >= 11 ? 1 : 2]);   // the wool hem
+    for (int y = top; y <= 4; y++)   // the fur collar, lumpy along its top
+      for (int x = 2; x <= 13; x++) {
+        if (y == top && (x % 3 == 2 || x == 2 || x == 13)) continue;
+        if (y == 4 && (x == 2 || x == 13)) continue;
+        int k = x <= 5 ? 3 : x >= 11 ? 1 : 2;
+        if (y == top) k++;
+        if (y == 4) k--;
+        if ((x + y) % 4 == 0) k--;   // the fleece's tufts
+        put(x, y, kFurIcon[std::clamp(k, 0, 4)]);
+      }
+    const Ramp& pin = tall ? kGold : M;   // the ring pin on the right of the collar
+    put(10, 4, pin[4]); put(11, 4, pin[2]); put(10, 5, pin[2]); put(11, 5, pin[1]); put(11, 6, pin[3]);
+    return;
+  }
+  paintIcon(c, Icon::Cloak, dom[2], nullptr);
+}
+// (P5b fix r2, judge r2 N2: the three T1 body icons were one brown jerkin with coloured lace dots, 11-17 grey-distinct px
+// apart, while the worn T1 bodies wear the layer) a signed coat carries what the worn coat shows, in place of P5's thread
+// marks and inside FIX_BATCH_P5 3.5's share (a leather coat's changed px at most a tenth of it, the outline ring counted: so
+// the layer keeps off the silhouette's edge, where a changed pixel recolours the ring beside it), each pixel parted from the
+// coat under it by value so it reads in greyscale on any form and material: the Jade OBI through T4 (two rows of vermilion
+// round the waist bound by a black lacquered cord, its knotted ends on the right hip), the Imperial FOCALE at T1-T2 (the
+// crimson scarf under the throat and up both sides of the neck, knotted on the chest; the apron's straps studded in gilt at
+// the hem: the people's pair, and the gold keeps the coat's mean a brown), and the Fjordfolk
+// jerkin's SPLIT HEM at T1-T2 (the ancestor of the hirdman's split mail skirt, STYLE_P5B 5: the hem turned back in dark
+// hide over a split at the front) laced in woad. The brown stays the coat's (D117). Returns true when it drew the layer
+// (the caller then skips P5's marks)
+bool sigBodyLayer(Canvas& c, const IconLook& l) {
+  const fp::Sig* g = sigOf(l);
+  const int si = sigIndex(l.people);
+  if (!g || si < 0 || l.icon != Icon::Armor || l.tier < 1) return false;
+  const int t = std::clamp((int)l.tier, 1, 6);
+  const fp::SigTier& st = g->t[t];
+  const Ramp dom = fpRamp(g->dom);
+  static const Ramp kLacquer = ramp5(rgba(14, 12, 16), rgba(28, 26, 30), rgba(44, 40, 48), rgba(74, 68, 80), rgba(138, 132, 148));
+  auto op = [&](int x, int y) { return x >= 0 && y >= 0 && x < ICON && y < ICON && (c.get(x, y) >> 24) != 0; };
+  // the layer's step k, or the nearest step (shade first) that parts from the coat under it by 30 luma
+  auto lay = [&](int x, int y, const Ramp& R, int k) {
+    if (!op(x, y)) return;
+    const float b = luma(c.get(x, y));
+    int best = k;
+    if (std::fabs(luma(R[k]) - b) < 0.12f)
+      for (int d : {-1, 1, -2, 2}) {
+        const int q = k + d;
+        if (q >= 0 && q <= 4 && std::fabs(luma(R[q]) - b) >= 0.12f) { best = q; break; }
+      }
+    c.set(x, y, R[best]);
+  };
+  if (st.layer && !std::strcmp(st.layer, "sash")) {   // the obi
+    for (int x = 5; x <= 10; x++) {
+      lay(x, 10, dom, x <= 6 ? 3 : 2);
+      lay(x, 11, dom, x <= 6 ? 2 : 1);
+    }
+    lay(9, 10, kLacquer, 1); lay(9, 11, kLacquer, 2); lay(9, 12, kLacquer, 1);   // the black lacquered cord that binds it
+    lay(10, 12, dom, 2); lay(10, 13, dom, 1);           // the knotted ends
+    return true;
+  }
+  if (st.layer && !std::strcmp(st.layer, "scarf")) {   // the focale, and the apron's gilt studs
+    lay(5, 4, dom, 3); lay(10, 4, dom, 1);
+    for (int x = 5; x <= 10; x++) lay(x, 5, dom, x <= 6 ? 3 : x >= 9 ? 1 : 2);
+    lay(7, 6, dom, 2); lay(8, 6, dom, 1);
+    const Ramp acc = fpRamp(g->acc);
+    for (int x : {6, 9}) lay(x, 13, acc, x <= 6 ? 3 : 2);
+    return true;
+  }
+  if (t <= 2 && g->t[3].skirt && !std::strcmp(g->t[3].skirt, "hauberk")) {   // the split hem, the woad laces
+    for (int x = 5; x <= 10; x++) lay(x, 12, kLeather, x <= 6 ? 1 : 0);
+    for (int y = 13; y <= 14; y++) { c.set(7, y, 0); c.set(8, y, 0); }
+    lay(8, 7, dom, 3); lay(7, 8, dom, 2); lay(8, 9, dom, 3);
+    return true;
+  }
+  return false;
+}
 // a signed helm, shield, coat or cloak painted whole (true); false: the classic painter
 bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
   const fp::Sig* g = sigOf(l);
@@ -711,7 +851,7 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
       return true;
     }
     case Icon::Cloak:
-      paintIcon(c, Icon::Cloak, dom[2], nullptr);
+      sigCloakIcon(c, si, t, dom, si == 0 ? kLacquer : acc, M);
       return true;
     default: return false;
   }
@@ -1456,11 +1596,14 @@ Canvas itemIconLook(const IconLook& l) {
     paintIcon(c, l.icon, l.tint, metalKind ? &M : nullptr);
   }
   if (l.sheen) iconSheen(c, M, l.sheen);
+  const bool sigLayer = !sigDone && sigBodyLayer(c, l);   // (P5b fix r2) a signed coat's layer, in place of P5's marks
   // (P5, FIX_BATCH_P5 4.5) the maker people's fingerprint: rig 2 and FIX_FP only (EMB_FIX_RULES without it, rig 1 and a piece
   // with no maker people paint as before)
   const bool fpKind = l.icon == Icon::Armor || l.icon == Icon::Helmet || l.icon == Icon::Shield || l.icon == Icon::Gloves ||
                       l.icon == Icon::Boots || l.icon == Icon::Cloak;
-  if (p4 && fpKind && l.people >= 1 && doll::fixOn(doll::FIX_FP) && !(sigDone && (l.icon == Icon::Helmet || l.icon == Icon::Shield))) iconFingerprint(c, l, M, acc);
+  if (p4 && fpKind && l.people >= 1 && doll::fixOn(doll::FIX_FP) && !(sigDone && (l.icon == Icon::Helmet || l.icon == Icon::Shield || l.icon == Icon::Cloak)) &&
+      !sigLayer)
+    iconFingerprint(c, l, M, acc);
   // (P4 ART, D117) a gilt iron coat is gilt at the collar and the shoulders only: a whole gold rim round a dark iron coat read,
   // by its mean, as bronze (Imperial, Sun-Temple, Starspire iron sat 22-27 from their bronze); the gold still marks the maker
   const bool ironGilt = p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);
