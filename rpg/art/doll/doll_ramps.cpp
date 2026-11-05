@@ -1429,7 +1429,8 @@ static int sigSlots(const HumanLook& L, Slot out[6], uint32_t base[6]) {
     const fp::Sig& g = *fp::sig(ph);
     out[n] = Slot::Plume; base[n++] = g.crest ? g.crest : g.dom;
     const bool soft = L.headwear && !(L.helmet || L.helmStyle || L.helmForm);
-    if (soft || L.tier[H::TIER_HELM] <= 1) { out[n] = Slot::Head; base[n++] = g.acc; }
+    const fp::SigTier* st = fp::sigTier(ph, L.tier[H::TIER_HELM]);   // (P5b area C) a hood under the helm is the soft head's cloth
+    if (soft || L.tier[H::TIER_HELM] <= 1 || (st && st->coif)) { out[n] = Slot::Head; base[n++] = g.hood ? g.hood : g.acc; }   // (area C: Sig::hood)
   }
   if (sigOn(ps) && fp::sig(ps)->cloth && L.tier[H::TIER_SHIELD]) { out[n] = Slot::Field; base[n++] = fp::sig(ps)->dom; }
   if (const int cp = sigCloakPeople(L)) { out[n] = Slot::Cloak; base[n++] = fp::sig(cp)->dom; }

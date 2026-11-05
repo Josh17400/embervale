@@ -377,6 +377,7 @@ struct SigUse {
   bool helmFam = false;     // the helm draws a family head (`fam.<v>`: forgeShape's helm bits)
   std::string helmNeed;     // the helm draws a form head (`form<N>`)
   bool soft = false;        // the head is a soft head (headwear; the helm item's place)
+  bool coif = false;        // (P5b area C) the people's hood under the helm (fp::SigTier::coif): headwear/cloth/hood drawn too
   int crest = -1;           // the helm's crest value (AX_CREST; 0 none; -1 the piece's own)
   int shoulder = 0;         // the body's pauldron family (AX_SHOULDER value; 0 the piece's own)
   int shieldForm = 0;       // ShieldForm + 1 (0 the piece's own)
@@ -570,6 +571,7 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   else if (sk.helm > 0) need(Role::Helm, drawnForm(Role::Helm, sk.helm));
   else if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : drawnBand(hb));
   else if (L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));
+  if (g_sig && g_sig->coif) need(Role::Headwear, "hood");   // (P5b area C) the hood under the helm (drawn first: its name sorts first)
   // (wave-2 fix round, D80) the helm's views by its resolved tier: a family that draws tier views (`helm.t<N>`) but none for this
   // look's tier wears a lower tier's (never a higher one: the flags are cumulative), and the missing view is listed
   if (g_envMissing && L.tier[HumanLook::TIER_HELM] >= 3) {
@@ -1502,7 +1504,8 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
     u.crest = head.empty() ? -1 : t.crest && *t.crest ? std::max(0, forge::valueOf(forge::AX_CREST, t.crest)) : 0;
     E.plumeColor = sigRgba(fp::sig(ph)->dom);   // the crest and the plume
     if (th <= 1 && fp::sig(ph)->trim) E.trimColor = sigRgba(fp::sig(ph)->trim);   // a T1 metal head's fittings (Metal 2)
-    if (u.soft) E.headColor = sigRgba(fp::sig(ph)->acc);
+    if (u.soft) E.headColor = sigRgba(fp::sig(ph)->hood ? fp::sig(ph)->hood : fp::sig(ph)->acc);   // (area C: the hood's cloth)
+    if (t.coif && !u.soft) { u.coif = true; E.headColor = sigRgba(fp::sig(ph)->hood ? fp::sig(ph)->hood : fp::sig(ph)->acc); }
   }
   // the shield
   const int ps = L.makerAt(H::TIER_SHIELD);
@@ -1533,7 +1536,7 @@ DollRecipe resolve(const HumanLook& L0) {
     const SigUse* saved;
     explicit SigScope(const SigUse* s) : saved(g_sig) { g_sig = s; }
     ~SigScope() { g_sig = saved; }
-  } sigScope(sigUse.body || sigUse.helmP || sigUse.shieldP || sigUse.cloakP ? &sigUse : nullptr);
+  } sigScope(sigUse.body || sigUse.helmP || sigUse.shieldP || sigUse.cloakP || sigUse.coif ? &sigUse : nullptr);
   // (P2c ladder) the effective dials by tier (the look as given at no tier)
   const HumanLook L = ladderLook(Ls);
   DollRecipe r;

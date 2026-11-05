@@ -10,6 +10,123 @@ keys hatpose
 legend m accent 0
 legend p accent 3
 
+# (P5b SIG C) begin sylvan-leaves: the Sylvan T1 leaf circlet: a forest band set with leaves, the end sprigs swept back
+legend ! plume 1
+legend $ plume 2
+legend % plume 3
+legend & plume 4
+legend * head 0
+legend + head 1
+legend , head 2
+legend / head 3
+view D key rest origin 3 -2 when sighelm-sylvan,!helm.t2 replace
+|%$.................!$
+|.%%.................!.
+|..&$.%.&.%%.$.!.$!....
+|...*/,/,/,/,,+,+,+*...
+view U key rest origin 1 -4 when sighelm-sylvan,!helm.t2 replace
+|%................$
+|.%$.$.$.$.$.$.$.!.
+|.*,,,,,,,,,+++++*.
+view R key rest origin 3 -2 when sighelm-sylvan,!helm.t2 replace
+|%$................
+|.%%...............
+|..%&$.%.&.%.%.$.%.
+|...*/,/,/,/,,+,,+*
+view L key rest origin -1 -2 when sighelm-sylvan,!helm.t2 replace
+|................!$
+|...............!!.
+|.%.%.%.&.%.&.$&%!.
+|*,,/,/,/,/,/,+*...
+view L key lie origin -1 -2 when sighelm-sylvan,!helm.t2 replace
+|................!$
+|...............!!.
+|.%.%.%.&.%.&.$&%!.
+|*,,/,/,/,/,/,+*...
+# (P5b SIG C) end sylvan-leaves
+# (P5b SIG C) begin sylvan-crown: the Sylvan T2 leaf crown: five upright leaves high on the head, the outer ones swept back
+legend : plume 1
+legend ; plume 2
+legend < plume 3
+legend = plume 4
+legend > head 0
+legend ? head 1
+legend [ head 2
+legend ] head 3
+view D key rest origin 1 1 when sighelm-sylvan,helm.t2,!helm.t3 replace
+|........<=........
+|..<.....=<.....;..
+|.<=<...<==<...<;:.
+|..<=<.<=<<<;.<;:..
+|..>]]]][[[[[[??>..
+view U key rest origin 1 0 when sighelm-sylvan,helm.t2,!helm.t3 replace
+|........<<........
+|..<.....<;.....;..
+|.<<;...<<<;...;;:.
+|..<<;.<<;;;;.;;:..
+|..>[[[[[[[[[[??>..
+view R key rest origin 1 1 when sighelm-sylvan,helm.t2,!helm.t3 replace
+|.........<=.......
+|<.....<..=<..<....
+|.=<..<=<.==<.<;...
+|...<=<<=<<<;<<;...
+|...>]]][[[[[[[?>..
+view L key rest origin 0 1 when sighelm-sylvan,helm.t2,!helm.t3 replace
+|.......=<.........
+|....;..<=..<.....;
+|...;<.<==.<=<..<;.
+|...;<<;=<<=<<<;...
+|..>]]][[[[[[[?>...
+view L key lie origin 0 1 when sighelm-sylvan,helm.t2,!helm.t3 replace
+|.......=<.........
+|....;..<=..<.....;
+|...;<.<==.<=<..<;.
+|...;<<;=<<=<<<;...
+|..>]]][[[[[[[?>...
+# (P5b SIG C) end sylvan-crown
+# (P5b SIG C) begin suntemple-band: the Sun Temple T1 headband: turquoise, two rows deep, one yellow feather upright at its side
+legend ^ plume 0
+legend _ plume 3
+legend ` plume 4
+legend { head 0
+legend } head 1
+legend ~ head 2
+legend ( head 3
+legend ) head 4
+view D key rest origin 1 0 when sighelm-suntemple,!helm.t2
+|.................^.
+|................^`^
+|................^`_
+|.................^.
+|{)((((((~~~~~~}}{..
+|{~~~~~}}}}}}}}}}{..
+|........{{.........
+view U key rest origin 0 -1 when sighelm-suntemple,!helm.t2
+|.^..............
+|^`^.............
+|^`_.............
+|.^..............
+|{((((~~~~~~~}}}{
+|{~~~}}}}}}}}}}}{
+view R key rest origin 2 0 when sighelm-suntemple,!helm.t2
+|................^.
+|...............^`^
+|...............^`_
+|................^.
+|{{)(((((~~~~~~}}{.
+|{~~~~~}}}}}}}}}}{.
+|{{................
+|.{................
+view L key rest origin 0 0 when sighelm-suntemple,!helm.t2
+|.^................
+|^`^...............
+|^`_...............
+|.^................
+|.{((((((~~~~~~}}{{
+|.{~~~~~}}}}}}}}}~{
+|................{{
+|................{.
+# (P5b SIG C) end suntemple-band
 view D key rest origin 0 -4
 |.......mm.......
 |.POOOOOmpOONNNN.

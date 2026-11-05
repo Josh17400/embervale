@@ -12,6 +12,9 @@
 //     --slice   (P5b, STYLE_P5B 9.2) the style slice's figures one PNG each (slice_<people>_T<t>_<m|w>_s<seed>_<D|R>[_ns|_walk|_head])
 //               and its kits' icons (slice_icon_<people>_T<t>_<piece>_s<seed>), for tools/doll/p5b_pack.py
 //     --figs F  (P5b) one PNG per facing for each line `name who facings spec` of F (the look-and-adjust loop)
+//     --pool FILE  (P5b area C) draw from a scratch pool file (pxc.mjs --bin FILE --no-cpp) instead of the built-in one
+//     --slice-people a,b,...  --slice-tiers 1,2,...  (P5b area C) --slice for those peoples and tiers (default jade,imperial,
+//               fjordfolk and 1,3,5)
 // Writes <outDir>/report_<tag>.txt (every column's pairs, the twins and colour-only pairs named with their three measures
 // and the pixel they differ most at, the dye shares) and the sheets (<= 8000 px a side).
 #include <cstdarg>
@@ -489,6 +492,16 @@ int main(int argc, char** argv) {
     } else if (!std::strcmp(a, "--pool") && i + 1 < argc) {   // (P5b production) a pool file (pxc --bin): the look-and-adjust loop
       std::string err;
       if (!dl::loadPoolFile(argv[++i], &err)) { std::printf("fingerprint_gallery: --pool: %s\n", err.c_str()); return 1; }
+    }
+    else if ((!std::strcmp(a, "--slice-people") || !std::strcmp(a, "--slice-tiers")) && i + 1 < argc) {   // (area C's names)
+      const bool tiers = !std::strcmp(a, "--slice-tiers");
+      if (tiers) o.sliceTiers.clear(); else o.slicePeoples.clear();
+      std::string v = argv[++i], w;
+      for (char ch : v + ",") {
+        if (ch != ',') { w += ch; continue; }
+        if (!w.empty()) { if (tiers) o.sliceTiers.push_back(std::atoi(w.c_str())); else o.slicePeoples.push_back(w); }
+        w.clear();
+      }
     }
     else { std::printf("fingerprint_gallery: unknown arg %s\n", a); return 2; }
   }

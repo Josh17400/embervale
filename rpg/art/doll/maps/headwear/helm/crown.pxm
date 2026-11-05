@@ -12,6 +12,11 @@ keys hatpose
 tags overlay
 legend X glow 3
 
+# (P5b SIG C) begin starspire-crowntrim: the Starspire crown worn a tier under its own (ladderLook): its outer points taken in to the head box
+view D key rest origin 1 -2 when sighelm-starspire,helmfam-crown,!helm.t3
+|-................-
+|-................-
+# (P5b SIG C) end starspire-crowntrim
 view D key rest origin 2 1
 mark crown 9 0
 |---------vv---------

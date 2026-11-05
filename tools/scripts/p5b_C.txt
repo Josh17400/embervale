@@ -1,0 +1,65 @@
+# P5b area C in play (docs/STYLE_P5B.md 5): River, Sun Temple, Sylvan and Starspire at T1-T4 side by side on the start village's
+# clear ground at NEAR, rig 2. Each tier a row of eight (River man and woman, Sun Temple man and woman, Sylvan man and woman,
+# Starspire man and woman; `p2cline specs`: the ladder kits kit=<people>:<tier>:1), facing D then R. Run only through Witness
+# (hidden):  node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_C.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- T1
++0.1 p2cline specs hero=1,kit=river:1:1|heroine=1,kit=river:1:1|hero=1,kit=suntemple:1:1|heroine=1,kit=suntemple:1:1|hero=1,kit=sylvan:1:1|heroine=1,kit=sylvan:1:1|hero=1,kit=starspire:1:1|heroine=1,kit=starspire:1:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_C_t1_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_C_t1_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T2
++0.1 p2cline specs hero=1,kit=river:2:1|heroine=1,kit=river:2:1|hero=1,kit=suntemple:2:1|heroine=1,kit=suntemple:2:1|hero=1,kit=sylvan:2:1|heroine=1,kit=sylvan:2:1|hero=1,kit=starspire:2:1|heroine=1,kit=starspire:2:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_C_t2_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_C_t2_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T3
++0.1 p2cline specs hero=1,kit=river:3:1|heroine=1,kit=river:3:1|hero=1,kit=suntemple:3:1|heroine=1,kit=suntemple:3:1|hero=1,kit=sylvan:3:1|heroine=1,kit=sylvan:3:1|hero=1,kit=starspire:3:1|heroine=1,kit=starspire:3:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_C_t3_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_C_t3_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T4
++0.1 p2cline specs hero=1,kit=river:4:1|heroine=1,kit=river:4:1|hero=1,kit=suntemple:4:1|heroine=1,kit=suntemple:4:1|hero=1,kit=sylvan:4:1|heroine=1,kit=sylvan:4:1|hero=1,kit=starspire:4:1|heroine=1,kit=starspire:4:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_C_t4_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_C_t4_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal

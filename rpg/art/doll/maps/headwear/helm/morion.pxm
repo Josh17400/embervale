@@ -12,6 +12,45 @@ keys hatpose
 tags overlay
 legend X glow 3
 
+# (P5b SIG C) begin river-plume: the River T3 morion's lapis plume behind the comb (an overlay)
+legend ! plume 0
+legend $ plume 1
+legend % plume 2
+legend & plume 3
+legend * plume 4
+view D key rest origin -6 4 when sighelm-river,helm.t3,!helm.t4
+|..!$$!!...
+|.!&*%$$!..
+|.!&**%$$!.
+|..!!&%$$!.
+|....!%$$$!
+|.....!%$$!
+|......!!!.
+view U key rest origin 0 4 when sighelm-river,helm.t3,!helm.t4
+|..!**!!...
+|.!%$&**!..
+|.!%$$&**!.
+|..!!%&**!.
+|....!&***!
+|.....!&**!
+|......!!!.
+view R key rest origin 0 4 when sighelm-river,helm.t3,!helm.t4
+|...!$$!!..
+|..!$%**&!.
+|.!$%&***!.
+|.!$$%%&!!.
+|!$%$$.....
+|!$%!......
+|.!!.......
+view L key rest origin -6 4 when sighelm-river,helm.t3,!helm.t4
+|..!!**!...
+|.!%$$&*!..
+|.!$$$%&*!.
+|.!!%&&**!.
+|.....**&*!
+|......!&*!
+|.......!!.
+# (P5b SIG C) end river-plume
 view D key rest origin 2 1
 mark crown 9 0
 |---------vv---------
