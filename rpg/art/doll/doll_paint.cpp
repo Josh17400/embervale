@@ -951,6 +951,11 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
     for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Armour) brassBody = true;
     if (overlayPrefix(P, *it.part, "motif.")) brassBody = true;
   }
+  // (P5b) a signed leather body (`sigleather`): the styled skirt's and sleeves' metal draws in the leather (a T1 kusazuri,
+  // pteruges and the split hem are leather; their steps and outline kept)
+  bool toLeather = r.has("sigleather") && (overlayPrefix(P, *it.part, "skirt.") || overlayPrefix(P, *it.part, "sleeve."));
+  if (r.has("sighelmleather"))
+    for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Helm) toLeather = true;
   finishPlacements(v, ts, hasReg);
   irisBands(it, v, hasReg);
   ip.ts = ts;
@@ -961,7 +966,7 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   ip.sway = sway; ip.swayFrom = swayFrom;
   ip.stretch = stretch; ip.hasReg = hasReg; ip.tiled = tiled;
   ip.ts = ts;
-  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody;
+  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather;
   paintPixels(ip);
 }
 
@@ -1397,6 +1402,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
     }
   }
   if (toBlade && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Blade, codeStep(c));
+  if (ip.toLeather && c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2)) c = code(Slot::Leather, codeStep(c));
   // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
   if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
   if ((toMetal || brassBody) && c >= 2) {

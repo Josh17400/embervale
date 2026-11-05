@@ -73,6 +73,8 @@ struct Dye { uint32_t dye = 0, dye2 = 0; int run = 0, period = 0; const char* na
 inline Dye dyeOf(int people) {
 #if FPA_HAVE_TABLE
   const fp::Row& r = fp::row(people);
+  // (P5b) a signed people's pair is its dominant and accent (STYLE_P5B 3, 8.1), drawn under FIX_SIG
+  if (r.sig && dl::fixOn(dl::FIX_SIG) && dl::fixOn(dl::FIX_FP)) return Dye{r.sig->dom, r.sig->acc, r.run, r.period, r.name, r.motif};
   return Dye{r.dye, r.dye2, r.run, r.period, r.name, r.motif};
 #else
   (void)people;

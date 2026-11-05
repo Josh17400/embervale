@@ -83,7 +83,9 @@ enum FixRule : uint32_t {
   FIX_TRIM4 = 1024, // D93: the trim band lands each piece inside its tier's band (floor and ceiling modes)
   FIX_C14 = 2048,   // fix round 4: C14's lit edges (D88's ramps inside the parting rules)
   FIX_FP = 4096,    // (P5) the maker people's fingerprint on armour (FIX_BATCH_P5 3.3): EMB_FIX_RULES=4095 draws the pre-P5 look
-  FIX_ALL = 8191
+  FIX_SIG = 8192,   // (P5b, STYLE_P5B 8.2) the people's signature (fp::Sig: the head, the axes, the shield, the cloth's pair), only
+                    // with FIX_FP: EMB_FIX_RULES=8191 draws P5's look, 4095 the pre-P5 look, from the same build
+  FIX_ALL = 16383
 };
 // (fix round 2) EMB_FIX_RULES=<mask> (diagnostics only: unset in the game and every gate) starts with that mask
 inline uint32_t& fixRules() {

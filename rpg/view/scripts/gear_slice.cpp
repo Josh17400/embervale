@@ -236,6 +236,29 @@ bool cmdP2cLine(ScriptCtx& c) {
       row.push_back({people + " " + role, L});
     }
     spawnRow(g, row);
+  } else if (w == "specs") {
+    // (P5b, STYLE_P5B 9.2) p2cline specs <spec>|<spec>|...: a row of looks specs with the ladder macros (one person each, left
+    // to right; "heroine=1," starts a woman), e.g. the style slice's three peoples at one tier, man and woman
+    gear::installLadderMacros();
+    std::vector<std::pair<std::string, art::HumanLook>> row;
+    std::string all = c.arg(2);
+    for (size_t i = 3; i < c.a.size(); i++) all += " " + c.arg((int)i);
+    size_t a = 0;
+    while (a <= all.size()) {
+      const size_t b = all.find('|', a);
+      const std::string spec = all.substr(a, b == std::string::npos ? std::string::npos : b - a);
+      if (!spec.empty()) {
+        art::HumanLook L;
+        std::string bad;
+        gear::applyLadderSpec(L, spec, nullptr, nullptr, &bad);
+        if (!bad.empty()) { c.fail("p2cline specs: bad " + bad + " in " + spec); return true; }
+        row.push_back({spec, L});
+      }
+      if (b == std::string::npos) break;
+      a = b + 1;
+    }
+    if (row.empty()) { c.fail("p2cline specs <spec>|<spec>|..."); return true; }
+    spawnRow(g, row);
   } else if (w == "face") {
     const int f = std::clamp(std::atoi(c.arg(2).c_str()), 0, 3);
     for (Actor& a : g.actors) if (inRow(a)) a.face = (uint8_t)f;
@@ -253,7 +276,7 @@ bool cmdP2cLine(ScriptCtx& c) {
   } else c.fail("p2cline slice|fit|ladder|flavour|ranks|face <0-3>|foe [weapon]|clear");
   return true;
 }
-EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|ladder|flavour|ranks|npc <people> <role> [rank] [n] [mixed]|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
+EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|ladder|flavour|ranks|npc <people> <role> [rank] [n] [mixed]|specs <spec>|<spec>...|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
 
 // `expect doll gear <role>=<value>`; every other `expect doll ...` goes on to P2b's check (script_p2b.cpp)
 bool expDollGear(ScriptCtx& c);

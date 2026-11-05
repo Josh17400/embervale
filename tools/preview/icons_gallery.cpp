@@ -308,8 +308,11 @@ FpMeasure measure(const Canvas& before, const Canvas& after, int people) {
     hueSat(c3, h, s);
   };
   double h1, c1, h2 = 0, c2 = 0;
-  hc(row.dye, h1, c1);
-  if (row.dye2) hc(row.dye2, h2, c2);
+  // (P5b) a signed people's band is its dominant and accent (art_items iconFingerprint draws that pair under FIX_SIG)
+  const bool sg = row.sig && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP);
+  const uint32_t dye = sg ? row.sig->dom : row.dye, dye2 = sg ? row.sig->acc : row.dye2;
+  hc(dye, h1, c1);
+  if (dye2) hc(dye2, h2, c2);
   auto near = [](double a, double b) { const double d = std::fabs(a - b); return std::min(d, 360 - d) <= 15; };
   for (int y = 0; y < art::ICON; y++)
     for (int x = 0; x < art::ICON; x++) {
@@ -384,7 +387,11 @@ int checkFp(uint32_t s0, uint32_t s1) {
         const double share = f.area ? (double)(f.drawn + f.ring) / f.area : 0;
         maxShare = std::max(maxShare, share);
         maxRing = std::max(maxRing, f.area ? (double)f.ring / f.area : 0);
-        if (share > capOf(c) + 1e-9) {
+        // (P5b, STYLE_P5B 7 and 8.4) a signed people's helm, shield and cloak icon is the people's own drawing (the head class,
+        // the field, the cloak cloth): no P5 share cap (S5 checks the head class, 3 px of the dominant and the greyscale parting)
+        const bool sigCloth = fp::row(m).sig && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) &&
+                              (c.g == G_HELM || c.g == G_SHIELD || c.g == G_CLOAK);
+        if (share > capOf(c) + 1e-9 && !sigCloth) {
           std::printf("FAIL: fp seed %u %s %s: the fingerprint takes %d of %d px with the outline ring (%.1f %%, cap %.0f %%)\n", seed, c.tag, kMk[m], f.drawn + f.ring, f.area, share * 100, capOf(c) * 100);
           fails++;
         }

@@ -1,0 +1,71 @@
+# P5b style slice in play (docs/STYLE_P5B.md 9.2): the three slice peoples' kits side by side on the start village's clear
+# ground at NEAR, rig 2. Each tier (T1, T3, T5) a row of six: Jade man and woman, Imperial man and woman, Fjordfolk man and
+# woman (`p2cline specs`: the ladder kits kit=<people>:<tier>:1, the man A3's hero, the woman A3's heroine), facing D then R;
+# then two close rows of three (one a people): the T3 women by noon, the T5 men at dusk. Run only through Witness (hidden):
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_slice.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- T1: the jingasa, the bronze knob cap, the fleece-browed cap
++0.1 p2cline specs hero=1,kit=jade:1:1|heroine=1,kit=jade:1:1|hero=1,kit=imperial:1:1|heroine=1,kit=imperial:1:1|hero=1,kit=fjordfolk:1:1|heroine=1,kit=fjordfolk:1:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t1_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t1_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T3: the kabuto and its laced lames, the transverse crest and the scutum, the spangenhelm on its aventail
++0.1 p2cline specs hero=1,kit=jade:3:1|heroine=1,kit=jade:3:1|hero=1,kit=imperial:3:1|heroine=1,kit=imperial:3:1|hero=1,kit=fjordfolk:3:1|heroine=1,kit=fjordfolk:3:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t3_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t3_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T5: the gilt kuwagata and the horo, the Attic crest and the long cloak, the horns over the great fur
++0.1 p2cline specs hero=1,kit=jade:5:1|heroine=1,kit=jade:5:1|hero=1,kit=imperial:5:1|heroine=1,kit=imperial:5:1|hero=1,kit=fjordfolk:5:1|heroine=1,kit=fjordfolk:5:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t5_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_slice_t5_r.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- the close rows: the T3 women by noon, the T5 men at dusk
++0.1 p2cline specs heroine=1,kit=jade:3:1|heroine=1,kit=imperial:3:1|heroine=1,kit=fjordfolk:3:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_slice_close_1_t3_women_noon.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 p2cline specs hero=1,kit=jade:5:1|hero=1,kit=imperial:5:1|hero=1,kit=fjordfolk:5:1
++0.1 hideplayer 1
++0.1 hour 18
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_slice_close_2_t5_men_dusk.png
++0.1 p2cline clear
++0.1 hideplayer 0

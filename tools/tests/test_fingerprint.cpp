@@ -211,11 +211,17 @@ void judgeColumn(const ColumnRun& r, uint64_t seed, ColTotals& t, bool report) {
     if (!e.have) continue;
     const Caps cap = capsOf(r.col, e.tier);
     if (e.maxShare > cap.worn) { t.shareBad++; t.notes.push_back(fmt("s%llu %s %s: worn dye share %d%% > %d%%", (unsigned long long)seed, r.col.tag.c_str(), makerShort(m), e.maxShare, cap.worn)); }
+    // (P5b, STYLE_P5B 8.4 and 8.6, decision 3) a signed people's head, shield and cloak are the people's own drawing and cloth
+    // (the head class, the field, the cloak: only the figure's 30 % cap holds them, S2); its body, helm, shield and cloak carry
+    // the people by identity (the head family, the axes, the shield's form, the cloak's dominant): F5 accepts them by it
+    const bool sig = fp::sig(m) && dl::fixOn(dl::FIX_SIG) && dl::fixOn(dl::FIX_FP);
+    const bool sigCloth = sig && (r.col.g == G_HELM || r.col.g == G_SHIELD || r.col.g == G_CLOAK);
+    const bool sigIdentity = sig && r.col.g != G_GLOVES && r.col.g != G_BOOTS;
     const int is = e.iconArea ? 100 * e.iconChanged / e.iconArea : 0;
-    if (is > cap.icon) { t.iconShareBad++; t.notes.push_back(fmt("s%llu %s %s: icon share %d%% > %d%%", (unsigned long long)seed, r.col.tag.c_str(), makerShort(m), is, cap.icon)); }
+    if (is > cap.icon && !sigCloth) { t.iconShareBad++; t.notes.push_back(fmt("s%llu %s %s: icon share %d%% > %d%%", (unsigned long long)seed, r.col.tag.c_str(), makerShort(m), is, cap.icon)); }
     if (e.tier >= 1 && e.tier <= 4) {
       t.f5Checked++;
-      if (e.fig[0].dyeFamily < 2 || e.iconFamily < 3) {
+      if (!sigIdentity && (e.fig[0].dyeFamily < 2 || e.iconFamily < 3)) {
         t.f5Bad++;
         if (t.f5Bad <= 40 || report) t.notes.push_back(fmt("s%llu %s %s: F5 worn D %d dye-family px (>= 2), icon %d (>= 3)", (unsigned long long)seed, r.col.tag.c_str(), makerShort(m), e.fig[0].dyeFamily, e.iconFamily));
       }
@@ -321,7 +327,16 @@ void diffFrame(const dl::FrameProbe& a, const dl::DollRecipe& ra, const dl::Fram
                                                                     dl::slotName(dl::codeSlot(b.code[k])), dl::codeStep(b.code[k]), dl::slotName(dl::codeSlot(a.code[k])), dl::codeStep(a.code[k])); }
   }
 }
+// (P5b) F6 is P5's own rule (the fingerprint adds colour, never an outline): it holds with FIX_SIG off, whose moves are the
+// people's signature by design (STYLE_P5B 8.3: maker pieces wear new added views and the people's parts); F7 (maker-less and
+// people-0 looks untouched) runs with every rule on, the signature's included
+struct SigOff {
+  uint32_t saved;
+  explicit SigOff(bool off) : saved(dl::fixRules()) { if (off) dl::fixRules() = saved & ~(uint32_t)dl::FIX_SIG; }
+  ~SigOff() { dl::fixRules() = saved; }
+};
 void diffLook(const art::HumanLook& L, bool strict, const std::string& tag, FrameDiff& d) {
+  SigOff sig(!strict);
   const Probed on = probeAll(L, true), off = probeAll(L, false);
   static const char* const kF[kProbeFrames] = {"D idle", "D walk", "U idle", "U walk", "R idle", "R walk", "L idle", "L walk"};
   for (int i = 0; i < kProbeFrames; i++) diffFrame(on.p[(size_t)i], on.r, off.p[(size_t)i], off.r, strict, tag + " " + kF[i], d);

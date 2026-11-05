@@ -345,8 +345,11 @@ int cloakBackOf(const Fig& f, int facing, const Fig* box = nullptr) {
   const int dx = f.p.px - bf.p.px;   // (box columns into f's)
   for (int k = 0; k < bf.p.w * bf.p.h; k++) {
     const auto* it = bf.opaque(k) ? bf.it(k) : nullptr;
+    // (P5b) the armour's own over-layers (a styled skirt's bell, wide sleeves, the sash) are the body's outline: they cover the
+    // limbs they hang over, so the box reads them too (a signed Jade's kusazuri and sode sleeves hid the legs' and arms' back
+    // columns facing R, and the same cape measured 2 columns further behind)
     if (it && (it->has(Role::Legs) || it->has(Role::Arms) || it->has(Role::Body) || it->has(Role::Head) || it->has(Role::Armour) ||
-               it->has(Role::Garment))) { b0 = std::min(b0, k % bf.p.w + dx); b1 = std::max(b1, k % bf.p.w + dx); }
+               it->has(Role::Garment) || it->has(Role::Overlay))) { b0 = std::min(b0, k % bf.p.w + dx); b1 = std::max(b1, k % bf.p.w + dx); }
   }
   if (b0 > b1) return 0;
   int reach = 0;

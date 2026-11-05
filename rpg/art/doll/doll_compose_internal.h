@@ -138,6 +138,7 @@ struct FramePaint {
     bool stretch = false, hasReg = false, tiled = false;
     int ts = -1;
     bool toBlade = false, toMetal = false, brassBody = false;
+    bool toLeather = false;   // (P5b) a signed leather body's styled skirt and sleeves: their metal in the leather
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
     // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)

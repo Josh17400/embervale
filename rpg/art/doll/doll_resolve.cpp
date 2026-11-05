@@ -369,11 +369,35 @@ std::string drawnForm(Role role, int form) {
 // (FURNACE's furnace helm and heavy arms, STARFALL's crystal helm and split skirt). The round-1 guise (forgeGuise, the
 // selftests' old bodies) turns the silhouette off
 struct ShapeUse { bool body = false, helm = false; int bodyBase = -1, helmBase = -1; uint8_t sx[forge::SX_COUNT] = {}; };
+// (P5b, STYLE_P5B 4-5 and 8) the people's signature as resolve() applies it (sigLookOf): set for the length of one resolve
+// (SigScope), read by shapeUseOf (the body's axes and the helm's family from the people's row, whatever the piece's base),
+// needsOf (the head, the shoulders, the shield's form) and resolve (the crest). Null outside resolve and under !FIX_SIG
+struct SigUse {
+  bool body = false;        // the body piece's people draws its axes (fp::SigTier skirt mass layer arm; the shoulders)
+  bool helmFam = false;     // the helm draws a family head (`fam.<v>`: forgeShape's helm bits)
+  std::string helmNeed;     // the helm draws a form head (`form<N>`)
+  bool soft = false;        // the head is a soft head (headwear; the helm item's place)
+  int crest = -1;           // the helm's crest value (AX_CREST; 0 none; -1 the piece's own)
+  int shoulder = 0;         // the body's pauldron family (AX_SHOULDER value; 0 the piece's own)
+  int shieldForm = 0;       // ShieldForm + 1 (0 the piece's own)
+  int bodyP = 0, helmP = 0, shieldP = 0, cloakP = 0;   // the signed pieces' peoples (0 none)
+};
+thread_local const SigUse* g_sig = nullptr;
+}  // namespace
+bool sigOn(int people) { return fixOn(FIX_SIG) && fixOn(FIX_FP) && fp::sig(people) != nullptr; }
+namespace {
 ShapeUse shapeUseOf(const HumanLook& L) {
   ShapeUse u;
   forge::unpackShapeAxes(L.forgeShape, u.sx);
   if (L.forge[HumanLook::TIER_BODY]) u.bodyBase = (int)(L.forge[HumanLook::TIER_BODY] & 0xFF);
   if (L.forge[HumanLook::TIER_HELM]) u.helmBase = (int)(L.forge[HumanLook::TIER_HELM] & 0xFF);
+  // (P5b) a signed piece draws its people's axes and head whatever its base (leather, steel, an alloy): sigLookOf set them
+  if (g_sig && (g_sig->body || g_sig->helmFam) && !L.forgeGuise) {
+    u.body = g_sig->body && L.tier[HumanLook::TIER_BODY] && armourOf(L) != nullptr;
+    u.helm = g_sig->helmFam && u.sx[forge::SX_HELM] >= 1 && u.sx[forge::SX_HELM] <= forge::H_ALLOY_LAST;
+    if (!u.body && !g_sig->body) u.body = u.bodyBase == forge::B_ALLOY && L.tier[HumanLook::TIER_BODY] && armourOf(L) != nullptr;
+    return u;
+  }
   if (!L.forgeShape || L.forgeGuise) return u;
   u.body = u.bodyBase == forge::B_ALLOY && L.tier[HumanLook::TIER_BODY] && armourOf(L) != nullptr;
   u.helm = u.helmBase == forge::B_ALLOY && (helmBandOf(L) || L.helmForm) && u.sx[forge::SX_HELM] >= 1 && u.sx[forge::SX_HELM] <= forge::H_ALLOY_LAST;
@@ -520,7 +544,10 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // today's helm and is listed (forgeMissing)
   const ShapeUse su = shapeUseOf(L);
   std::string famHelm;
-  if (su.helm) famHelm = std::string("fam.") + forge::shapeName(forge::SX_HELM, su.sx[forge::SX_HELM]);
+  // (P5b) a signed helm's head; a relic metal's own helm still wins (D83: on those the people shows by crest and colour)
+  const char* sigRelic = g_sig && (g_sig->helmFam || !g_sig->helmNeed.empty()) ? relicHelmOf(L, su, r.body) : nullptr;
+  if (sigRelic) famHelm = sigRelic;
+  else if (su.helm) famHelm = std::string("fam.") + forge::shapeName(forge::SX_HELM, su.sx[forge::SX_HELM]);
   // (wave-2 fix round, D83) every metal keeps its helmet: PARADE (gilded) the onion helm and STARFALL (starmetal) the crystal helm
   // at every tier (their T5 / T6 views); a Mythic relic its metal's family (e6m the crystal) under the black, gold and fire
   else if (const char* relic = relicHelmOf(L, su, r.body)) famHelm = relic;
@@ -531,6 +558,7 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
     famHelm.clear();
   }
   if (!famHelm.empty()) { need(Role::Helm, famHelm); r.shape[forge::SX_HELM] = (uint8_t)forge::shapeValueOf(forge::SX_HELM, famHelm.c_str() + 4); }
+  else if (g_sig && !g_sig->helmNeed.empty() && L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));   // (P5b) a form head
   else if (sk.hw) { need(Role::Headwear, kHeadwear[sk.hw]); r.guiseHead = true; }
   else if (sk.helm == -2) need(Role::Headwear, "hood");
   else if (sk.helm == -1 && t2Kit(L) && drawnFor(Role::Helm, "softcap", r.body)) need(Role::Helm, "softcap");   // (D55) its own part
@@ -566,7 +594,8 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   // form9 is ShieldForm::None: no shield at all (v1's hasShield rule)
   if (shieldOf(L)) {
     need(Role::Shield, "arm");
-    need(Role::Shield, sk.shield ? drawnForm(Role::Shield, sk.shield)
+    need(Role::Shield, g_sig && g_sig->shieldForm ? drawnForm(Role::Shield, g_sig->shieldForm)   // (P5b) the people's form
+                       : sk.shield ? drawnForm(Role::Shield, sk.shield)
                                  : L.shieldForm ? drawnForm(Role::Shield, L.shieldForm) : "shape" + std::to_string(L.shieldStyle));
   }
   // (P2c restated) pauldrons: <family>.<size> (plate: plate brigandine leaf; fur: padded leather; scale: mail scale
@@ -877,6 +906,17 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
     flagS(std::string("people-") + peopleFlagName(L.makerPeople));
     if (L.makerPeople == 2) flagS("hem-plaid");
   }
+  // (P5b, STYLE_P5B 4-5) the signed pieces' peoples: sighelm- sigbody- sigshield- sigcloak-<name> (the people's added views key
+  // on them); sigleather: a signed leather body (its styled skirt and sleeves in the leather, never a metal plane at T1-T2)
+  if (g_sig) {
+    if (g_sig->helmP) flagS(std::string("sighelm-") + fp::row(g_sig->helmP).name);
+    if (g_sig->bodyP) flagS(std::string("sigbody-") + fp::row(g_sig->bodyP).name);
+    if (g_sig->shieldP) flagS(std::string("sigshield-") + fp::row(g_sig->shieldP).name);
+    if (g_sig->cloakP) flagS(std::string("sigcloak-") + fp::row(g_sig->cloakP).name);
+    if (g_sig->body && L.metalKind <= 1) flag("sigleather");
+    // a signed T2 leather helm (band 1): the people's head drawn in the leather (the great kasa's lames), whatever the figure's metal
+    if (g_sig->helmP && L.tier[HumanLook::TIER_HELM] == 2 && helmBandOf(L) == 1) flag("sighelmleather");
+  }
   if (L.skirt >= 1 && L.skirt <= 4) flagS("skirt" + std::to_string(L.skirt));
   if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
   if (L.pauldron >= 2 && L.pauldron <= 4) flagS("pauldron" + std::to_string(L.pauldron));
@@ -1137,7 +1177,10 @@ HumanLook ladderLook(const HumanLook& L) {
         // TABARD, SASH or SCARF is worn over the armour with the kit's cloak behind; a CAPE is the tier cloak (the noble
         // cloak's views, `when cloak.t4` at T4) in the people's colour darkened; a HALFCAPE is the tier cloak with its
         // left-shoulder drape (cloak halfcape, whose T4-T6 views carry the whole cloak): one Cloak-slot piece a figure
-        E.cape = false;
+        // (P5b) a signed body's sash, scarf or tabard is worn over the armour with the ladder's T3 cape behind it (D73's T3
+        // cloak on every people's line: the layer is the people's colour on the front, never the cape's replacement)
+        const bool sigFront = g_sig && g_sig->body && (ly == forge::LY_SASH || ly == forge::LY_SCARF || ly == forge::LY_TABARD);
+        if (!sigFront) E.cape = false;
         if (!fixOn(FIX_CLOAK)) E.cloak = 0;   // (before D73: the layer took the worn cloak off)
         const uint32_t c = L.tabardColor ? L.tabardColor : (L.topColor ? L.topColor : rgba(110, 40, 40));
         auto dk = [&](int sh) { return (uint32_t)((c >> sh & 255u) * 70u / 100u); };
@@ -1332,9 +1375,14 @@ void fingerprintOf(const HumanLook& L, DollRecipe& r) {
     r.slotMotif[s] = row.motif;
     r.dyePeriod[s] = row.dye2 && row.period >= 2 ? row.period : 1;
     r.dyeRun[s] = row.dye2 && row.period >= 2 ? std::clamp<uint8_t>(row.run, 1, (uint8_t)(row.period - 1)) : 1;
+    // (P5b) a lacing people's body: its seams in full, the dominant alone (STYLE_P5B 3: "the lacing in full where the people laces")
+    if (s == H::TIER_BODY && sigOn(m) && row.sig->laces) { r.dyePeriod[s] = 1; r.dyeRun[s] = 1; }
     const int tr = std::min(6, t + ((L.rare >> s & 1) ? 1 : 0));
     const uint8_t glow = (uint8_t)Slot::Glow;
-    if (r.fin[s][0] != glow && (tr <= 2 || (s == H::TIER_CLOAK && t <= 4))) r.fpR |= bit;
+    // (P5b, STYLE_P5B 8.6) a signed helm carries its people by its head (the class, the crest's colour): no dye band on its rim
+    // at T1-T2 (a T2 great kasa's brim is its own material; the leather reads first, D116)
+    const bool sigHead = s == H::TIER_HELM && g_sig && g_sig->helmP;
+    if (r.fin[s][0] != glow && (tr <= 2 || (s == H::TIER_CLOAK && t <= 4)) && !sigHead) r.fpR |= bit;
     if (r.fin[s][3] != glow && t <= 5) r.fpN |= bit;
     if ((s == H::TIER_GLOVES || s == H::TIER_BOOTS) && t <= 5) {
       r.fpCuff |= bit;
@@ -1379,9 +1427,99 @@ void fingerprintOf(const HumanLook& L, DollRecipe& r) {
 
 }  // namespace
 
+// (P5b, STYLE_P5B 4-5 and 8) the people's signature on a look: each worn piece's own maker people with a signature row
+// (fp::Sig, FIX_SIG) dresses it by the piece's tier. The body: its axes (skirt mass layer arm; the shoulders' family), the
+// layer's cloth in the people's dominant; the helm: its head (a family, a form, or a soft head in the helm's place) and its
+// crest in the dominant; the shield: the people's form, its field in the dominant and its device in the accent; the cloak:
+// the dominant. Maker-less pieces, culture-0 pieces and rig 1 never reach here (makers are set at rig 2 only)
+static uint32_t sigRgba(uint32_t hex) { return rgba((int)(hex >> 16 & 255u), (int)(hex >> 8 & 255u), (int)(hex & 255u)); }
+static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
+  HumanLook E = L;
+  if (!fixOn(FIX_SIG) || !fixOn(FIX_FP) || !L.makers) return E;
+  using H = HumanLook;
+  auto word = [](int axis, const char* w) { return w && *w ? std::max(0, forge::shapeValueOf(axis, w)) : 0; };
+  uint8_t sx[forge::SX_COUNT];
+  forge::unpackShapeAxes(L.forgeShape, sx);
+  uint32_t variant = forge::shapeVariant(L.forgeShape);
+  bool shaped = L.forgeShape != 0;
+  // the body
+  const int pb = L.makerAt(H::TIER_BODY), tb = L.tier[H::TIER_BODY];
+  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L)) {
+    const fp::SigTier& t = *fp::sigTier(pb, tb);
+    u.body = true;
+    u.bodyP = pb;
+    sx[forge::SX_SKIRT] = (uint8_t)word(forge::SX_SKIRT, t.skirt);
+    sx[forge::SX_MASS] = (uint8_t)word(forge::SX_MASS, t.mass);
+    sx[forge::SX_LAYER] = (uint8_t)word(forge::SX_LAYER, t.layer);
+    sx[forge::SX_ARM] = (uint8_t)word(forge::SX_ARM, t.arm);
+    if (t.shoulder && *t.shoulder) u.shoulder = std::max(0, forge::valueOf(forge::AX_SHOULDER, t.shoulder));
+    // the shoulders' size by the tier (the envelope: T1 none, T2 small, T3 medium, T4 up large; ladderLook lifts T5-T6)
+    static const uint8_t kPd[7] = {0, 1, 2, 3, 4, 4, 4};
+    E.pauldron = sx[forge::SX_MASS] == forge::MS_NONE ? 1 : kPd[tb];
+    // the layer's cloth (the sash, the scarf, the cape: Accent) and the tabard; a body with no layer keeps its accent (a T1-T2
+    // leather coat's own cloth cells: the leather reads first, D116)
+    if (sx[forge::SX_LAYER] > forge::LY_NONE || L.cape) E.tabardColor = sigRgba(fp::sig(pb)->dom);
+    shaped = true;
+  }
+  // the helm (a helmet worn: a band, a form or the legacy helmet)
+  const int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
+  const bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
+  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn) {
+    const fp::SigTier& t = *fp::sigTier(ph, th);
+    u.helmP = ph;
+    const std::string head = t.head ? t.head : "";
+    if (head.rfind("hw:", 0) == 0) {
+      int hw = 0;
+      for (int i = 1; i < 9; i++) if (head.compare(3, std::string::npos, kHeadwear[i]) == 0) hw = i;
+      if (hw) {
+        u.soft = true;
+        E.helmet = false; E.helmStyle = 0; E.helmForm = 0; E.hood = false;
+        E.headwear = (uint8_t)hw;
+        sx[forge::SX_HELM] = 0;
+      }
+    } else if (head.rfind("fam.", 0) == 0) {
+      const int f = forge::shapeValueOf(forge::SX_HELM, head.c_str() + 4);
+      if (f > 0) { u.helmFam = true; sx[forge::SX_HELM] = (uint8_t)f; variant = t.variant; shaped = true; }
+    } else if (head.rfind("form", 0) == 0) {
+      u.helmNeed = head;
+      E.helmForm = (uint8_t)std::atoi(head.c_str() + 4);
+      sx[forge::SX_HELM] = 0;
+      if (th >= 4) E.crest = 4;   // a form head's crest from T4 at its tallest (the crested helm's crest4: the ladder climbs)
+    }
+    u.crest = head.empty() ? -1 : t.crest && *t.crest ? std::max(0, forge::valueOf(forge::AX_CREST, t.crest)) : 0;
+    E.plumeColor = sigRgba(fp::sig(ph)->dom);   // the crest and the plume
+    if (th <= 1 && fp::sig(ph)->trim) E.trimColor = sigRgba(fp::sig(ph)->trim);   // a T1 metal head's fittings (Metal 2)
+    if (u.soft) E.headColor = sigRgba(fp::sig(ph)->acc);
+  }
+  // the shield
+  const int ps = L.makerAt(H::TIER_SHIELD);
+  if (sigOn(ps) && shieldOf(L) && L.tier[H::TIER_SHIELD]) {
+    static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
+    const char* f = fp::sig(ps)->shield;
+    for (int i = 0; i < 8 && f; i++) if (!std::strcmp(f, kForm[i])) u.shieldForm = i + 1;
+    if (u.shieldForm) E.shieldForm = (uint8_t)u.shieldForm;
+    u.shieldP = ps;
+    E.shieldField = sigRgba(fp::sig(ps)->dom);
+    E.shieldDevice = L.tier[H::TIER_SHIELD] >= 5 ? sigRgba(0xD8A32C) : sigRgba(fp::sig(ps)->acc);   // T5-T6: the gilt device
+  }
+  // the cloak (a worn cloak item, or the T3 cape)
+  const int pc = L.makerAt(H::TIER_CLOAK);
+  if (sigOn(pc) && (L.cloak || L.cape)) { u.cloakP = pc; E.cloakColor = sigRgba(fp::sig(pc)->dom); }
+  if (shaped && (u.body || u.helmFam || u.soft || !u.helmNeed.empty())) E.forgeShape = forge::withShapeVariant(forge::packShapeAxes(sx), (int)variant);
+  return E;
+}
+
 DollRecipe resolve(const HumanLook& L0) {
+  // (P5b) the people's signature first (ladderLook reads the axes it sets); SigScope keeps it for this resolve only
+  SigUse sigUse;
+  const HumanLook Ls = sigLookOf(L0, sigUse);
+  struct SigScope {
+    const SigUse* saved;
+    explicit SigScope(const SigUse* s) : saved(g_sig) { g_sig = s; }
+    ~SigScope() { g_sig = saved; }
+  } sigScope(sigUse.body || sigUse.helmP || sigUse.shieldP || sigUse.cloakP ? &sigUse : nullptr);
   // (P2c ladder) the effective dials by tier (the look as given at no tier)
-  const HumanLook L = ladderLook(L0);
+  const HumanLook L = ladderLook(Ls);
   DollRecipe r;
   struct EnvGuard { explicit EnvGuard(std::vector<std::string>* v) { g_envMissing = v; } ~EnvGuard() { g_envMissing = nullptr; } } envGuard(&r.envelopeMissing);
   r.body = bodySetOf(L);
@@ -1401,12 +1539,26 @@ DollRecipe resolve(const HumanLook& L0) {
     for (int s = 0; s < 8 && s < HumanLook::TIER_SLOTS; s++) forge::unpack(L.forge[s], r.forgeAx[s]);
     uint8_t* b = r.forgeAx[HumanLook::TIER_BODY];
     if (L.forge[HumanLook::TIER_BODY] && r.armourFam >= 0) b[forge::AX_CUT] = (uint8_t)forge::cutFor(b, r.armourFam);
+    // (P5b) the signed body's shoulders and the signed helm's crest (0: none; the people's head carries its own)
+    if (g_sig && g_sig->body && g_sig->shoulder) b[forge::AX_SHOULDER] = (uint8_t)g_sig->shoulder;
+    if (g_sig && g_sig->helmP && g_sig->crest >= 0) r.forgeAx[HumanLook::TIER_HELM][forge::AX_CREST] = (uint8_t)g_sig->crest;
   }
   r.sheen = L.sheen;
   needsOf(L, r);
   regionsOf(L, garmentOf(L), r);
   flagsOf(L, r);
   ladderOf(L, r);
+  // (P5b, STYLE_P5B 3) a signed shield keeps its people's field at every tier: its panel cells (P) as drawn (the field), the
+  // rim (R) and the boss in the ladder's finish (T5 gilt)
+  // (STYLE_P5B 2.4: "T5 the legend growth in gilt") a signed T5-T6 helm's trim (R: the crest's root, the kuwagata, the horns'
+  // fittings) in the gilt (Device: the shield's device at T5-T6 is gold, sigLookOf); a glowing trim (the Mythic's) keeps its Glow
+  if (g_sig && g_sig->helmP && L.tier[HumanLook::TIER_HELM] >= 5 && r.fin[HumanLook::TIER_HELM][0] != (uint8_t)Slot::Glow)
+    r.fin[HumanLook::TIER_HELM][0] = (uint8_t)Slot::Device;
+  // (the etch, filigree, runes and glyphs over its panel step aside: the field is the people's; the gem and the wear stay)
+  if (g_sig && g_sig->shieldP) {
+    r.fin[HumanLook::TIER_SHIELD][(int)Region::Panel - (int)Region::Trim] = 0xFF;
+    r.finTiles[HumanLook::TIER_SHIELD] &= (uint8_t)~(FIN_TILE_ETCH | FIN_TILE_FILIGREE | FIN_TILE_RUNE | FIN_TILE_GLYPH);
+  }
   r.ramps = rampsOf(L);
   // (P2c ladder) the held part's metal draws in Slot::Blade where its ramp differs from the armour's
   for (int i = 0; i < 5; i++) if (r.ramps.c[(int)Slot::Blade][i] != r.ramps.c[(int)Slot::Metal][i]) r.blade = true;
@@ -1494,7 +1646,7 @@ DollRecipe resolve(const HumanLook& L0) {
       r.irisBands = true;
     }
     // D39: the shield's field mixed 30 % toward the body metal's step 2 (its rim and boss already in the metal)
-    if (r.has("alloyface"))
+    if (r.has("alloyface") && !(g_sig && g_sig->shieldP))   // (P5b: a signed shield keeps its people's field)
       for (int i = 1; i < 5; i++) {
         const uint32_t a = r.ramps.c[(int)Slot::Field][i], m = r.ramps.c[(int)Slot::Metal][2];
         auto ch = [&](int sh) { const int x = (int)(a >> sh & 255u), y = (int)(m >> sh & 255u); return (uint32_t)(x + (y - x) * 30 / 100); };

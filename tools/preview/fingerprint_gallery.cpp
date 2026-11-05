@@ -9,6 +9,9 @@
 //     --matrix  the worn matrices per piece group (and the icon matrix); --icons the icon matrix alone; --kits every people's
 //               T1-T6 ladder kit (man, woman); --census the watch ranks 0-2, a soldier, a bandit, a captain and the king of
 //               every people (D and R); --swatches the twelve dyes, bands, marks and icons (swatches.png). None: all of them.
+//     --slice   (P5b, STYLE_P5B 9.2) the style slice's figures one PNG each (slice_<people>_T<t>_<m|w>_s<seed>_<D|R>[_ns|_walk|_head])
+//               and its kits' icons (slice_icon_<people>_T<t>_<piece>_s<seed>), for tools/doll/p5b_pack.py
+//     --figs F  (P5b) one PNG per facing for each line `name who facings spec` of F (the look-and-adjust loop)
 // Writes <outDir>/report_<tag>.txt (every column's pairs, the twins and colour-only pairs named with their three measures
 // and the pixel they differ most at, the dye shares) and the sheets (<= 8000 px a side).
 #include <cstdarg>
@@ -32,6 +35,8 @@ struct Opts {
   std::string out = ".";
   uint32_t seedA = 1, seedB = 1;
   bool before = false, grey = false, matrix = false, kits = false, census = false, icons = false, swatches = false;
+  bool slice = false;      // (P5b) --slice
+  std::string figs;        // (P5b) --figs FILE
 };
 
 FILE* g_rep = nullptr;
@@ -229,6 +234,149 @@ void swatchSheet(const Opts& o, uint32_t seed) {
   sh.save(o, std::string("swatches") + (o.before ? "_before" : ""), 3);
 }
 
+// ---------------------------------------------------------------- (P5b, STYLE_P5B 9.2) the style slice, figure by figure
+// --slice: every slice people's (Jade, Imperial, Fjordfolk) T1/T3/T5 ladder kit (sword, the seed), man and woman, facings D
+// and R, idle frame 0 and the walk's passing frame; each figure its own 1x PNG on a clear 64x64 canvas, the pivot at (32, 60)
+// (so the pack aligns them), with and without the shield; every kit piece's 16 px icon; measure lines (S1 masks, S2 shares).
+// --figs FILE: the same for free lines `name who facing spec` (who man|woman, facing D|R|U|L; the look-and-adjust loop).
+constexpr int kFigW = 64, kFigH = 64, kFigPx = 32, kFigPy = 60;
+Canvas figCanvas(const Fig& f) {
+  Canvas c(kFigW, kFigH);
+  for (int y = 0; y < f.full.h; y++)
+    for (int x = 0; x < f.full.w; x++) {
+      const uint32_t v = f.full.get(x, y);
+      if (v >> 24) c.set(kFigPx - f.px + x, kFigPy - f.py + y, v);
+    }
+  return c;
+}
+int facingOf(char c) { return c == 'U' ? 1 : c == 'R' ? 2 : c == 'L' ? 3 : 0; }
+void saveFig(const Opts& o, const std::string& name, const art::HumanLook& L, int facing, art::Clip clip = art::Clip::Idle, int frame = 0) {
+  const Fig f = figure(L, facing, kWhole, nullptr, clip, frame);
+  savePng(figCanvas(f), o.out + "/" + name + ".png", 1);
+}
+int figsRun(const Opts& o, const std::string& file) {
+  FILE* fp = std::fopen(file.c_str(), "r");
+  if (!fp) { std::printf("cannot read %s\n", file.c_str()); return 2; }
+  char line[2048];
+  int n = 0;
+  while (std::fgets(line, sizeof line, fp)) {
+    char name[256], who[32], fc[8];
+    int off = 0;
+    if (line[0] == '#' || std::sscanf(line, "%255s %31s %7s %n", name, who, fc, &off) < 3) continue;
+    std::string spec = line + off;
+    while (!spec.empty() && (spec.back() == '\n' || spec.back() == '\r' || spec.back() == ' ')) spec.pop_back();
+    const FpLook fl{name, who, "-", spec};
+    std::string bad;
+    const art::HumanLook L = lookOf(fl, o.seedA, &bad);
+    if (!bad.empty()) std::printf("%s: bad spec %s\n", name, bad.c_str());
+    for (const char* f = fc; *f; f++) {
+      saveFig(o, std::string(name) + "_" + *f, L, facingOf(*f));
+      if (std::getenv("EMB_FIGS_DUMP")) {   // the composed frame's slot and step per pixel (the look-and-adjust loop's probe)
+        const dl::DollRecipe r = dl::resolve(L);
+        const dl::FrameProbe p = dl::probeFrame(r, art::RigPart::Loco, facingOf(*f), art::Clip::Idle, 0, 0, true);
+        FILE* df = std::fopen((o.out + "/" + name + "_" + *f + "_codes.txt").c_str(), "w");
+        if (df && p.ok) {
+          for (int y = 0; y < p.h; y++) {
+            for (int x = 0; x < p.w; x++) {
+              const uint8_t c = p.code[(size_t)(y * p.w + x)];
+              std::fprintf(df, "%s", c < 2 ? " .." : (" " + std::string(1, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"[(int)dl::codeSlot(c) % 52]) + std::to_string(dl::codeStep(c))).c_str());
+            }
+            std::fprintf(df, "\n");
+          }
+          std::fprintf(df, "flags:");
+          for (const std::string& fl : r.flags) std::fprintf(df, " %s", fl.c_str());
+          std::fprintf(df, "\nfin shield:");
+          for (int k = 0; k < 5; k++) std::fprintf(df, " %d", r.fin[2][k]);
+          std::fprintf(df, "\nfin helm:");
+          for (int k = 0; k < 5; k++) std::fprintf(df, " %d", r.fin[1][k]);
+          std::fprintf(df, "\nparts:");
+          for (int pi : r.parts) std::fprintf(df, " %s", dl::partName(pi));
+          std::fprintf(df, "\n");
+        }
+        if (df) std::fclose(df);
+      }
+    }
+    n++;
+  }
+  std::fclose(fp);
+  std::printf("figs: %d looks -> %s\n", n, o.out.c_str());
+  return 0;
+}
+// (P5b, S2) the people's share of a figure, idle D: its dye slots and the cloth the signature dresses in the people's pair
+// (the layer's Accent, the cloak, the crest's Plume, the shield's Field, a soft head's or a T1 cap's Head), steps 1-4, over its
+// opaque px
+void sliceShare(FILE* mf, const char* tag, const art::HumanLook& L) {
+  const dl::DollRecipe r = dl::resolve(L);
+  const dl::FrameProbe p = dl::probeFrame(r, art::RigPart::Loco, 0, art::Clip::Idle, 0, 0, true);
+  if (!p.ok || !mf) return;
+  bool body = false, helm = false, shield = false, cloak = false;
+  for (const std::string& f : r.flags) {
+    body |= f.rfind("sigbody-", 0) == 0; helm |= f.rfind("sighelm-", 0) == 0;
+    shield |= f.rfind("sigshield-", 0) == 0; cloak |= f.rfind("sigcloak-", 0) == 0;
+  }
+  int area = 0, dye = 0, cloth = 0;
+  for (size_t k = 0; k < p.code.size(); k++) {
+    const uint8_t c = p.code[k];
+    if (c < 2) continue;
+    area++;
+    const dl::Slot sl = dl::codeSlot(c);
+    if (dl::codeStep(c) == 0) continue;   // (the outline ring is the figure's ink, whatever its slot)
+    if (dl::isDyeSlot(sl)) { dye++; continue; }
+    if ((body && sl == dl::Slot::Accent) || (cloak && sl == dl::Slot::Cloak) || (helm && (sl == dl::Slot::Plume || sl == dl::Slot::Head)) ||
+        (shield && sl == dl::Slot::Field))
+      cloth++;
+  }
+  std::fprintf(mf, "share %s area %d dye %d cloth %d total %.1f%%\n", tag, area, dye, cloth, area ? 100.0 * (dye + cloth) / area : 0.0);
+}
+int sliceRun(const Opts& o) {
+  static const char* const kPeople[3] = {"jade", "imperial", "fjordfolk"};
+  FpScope scope(!o.before);
+  FILE* mf = std::fopen((o.out + "/slice_shares.txt").c_str(), "w");
+  for (uint32_t seed = o.seedA; seed <= o.seedB; seed++)
+    for (const char* p : kPeople)
+      for (int t : {1, 3, 5})
+        for (int body = 0; body < 2; body++) {
+          char spec[160], base[96];
+          std::snprintf(spec, sizeof spec, "%skit=%s:%d:%u", body ? "heroine=1," : "hero=1,", p, t, seed);
+          std::snprintf(base, sizeof base, "slice_%s_T%d_%s_s%u", p, t, body ? "w" : "m", seed);
+          for (int ns = 0; ns < 2; ns++) {
+            const FpLook fl{base, body ? "woman" : "man", p, std::string(spec) + (ns ? ",shield=0" : "")};
+            const art::HumanLook L = lookOf(fl, seed);
+            if (!ns) sliceShare(mf, base, L);
+            for (int f : {0, 2}) {
+              const std::string nm = std::string(base) + (f ? "_R" : "_D") + (ns ? "_ns" : "");
+              saveFig(o, nm, L, f);
+              if (!ns) {
+                // the walk's passing frame (frame 2 of the LOCO walk) and the head alone (the helm and headwear parts)
+                saveFig(o, nm + "_walk", L, f, art::Clip::Walk, 2);
+                const Fig hf = figure(L, f, G_HELM);
+                Canvas hc(kFigW, kFigH);
+                for (const auto& kv : hf.piece.px) hc.set(kFigPx + kv.first.first, kFigPy + kv.first.second, kv.second);
+                savePng(hc, o.out + "/" + nm + "_head.png", 1);
+              }
+            }
+          }
+          if (body) continue;
+          // the kit's pieces as icons (helm body shield gloves boots cloak)
+          cult::Archetype a{};
+          gear::peopleOf(p, a);
+          const gear::LadderKit K = gear::ladderKit(a, t, 0, "", -1, seed);
+          const auto look = K.lookup();
+          const std::pair<const char*, std::pair<bool, const Item*>> pieces[6] = {
+              {"helm", {K.hasHelmet, &K.helmet}}, {"body", {K.hasArmor, &K.armor}}, {"shield", {K.shieldMade, &K.shield}},
+              {"gloves", {K.hasGloves, &K.gloves}}, {"boots", {K.hasBoots, &K.boots}}, {"cloak", {K.hasCloak, &K.cloak}}};
+          for (const auto& pc : pieces) {
+            if (!pc.second.first) continue;
+            const Item& it = *pc.second.second;
+            const cult::Culture* mk = it.culture ? look(it.culture) : nullptr;
+            savePng(art::itemIconLook(gearIcon(it, mk)), o.out + "/slice_icon_" + p + "_T" + std::to_string(t) + "_" + pc.first + "_s" + std::to_string(seed) + ".png", 1);
+          }
+        }
+  if (mf) std::fclose(mf);
+  std::printf("slice -> %s\n", o.out.c_str());
+  return 0;
+}
+
 bool parseSeeds(const char* s, uint32_t& a, uint32_t& b) {
   const char* dots = std::strstr(s, "..");
   a = (uint32_t)std::strtoul(s, nullptr, 10);
@@ -283,9 +431,13 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(a, "--census")) o.census = true;
     else if (!std::strcmp(a, "--icons")) o.icons = true;
     else if (!std::strcmp(a, "--swatches")) o.swatches = true;
+    else if (!std::strcmp(a, "--slice")) o.slice = true;
+    else if (!std::strcmp(a, "--figs") && i + 1 < argc) o.figs = argv[++i];
     else { std::printf("fingerprint_gallery: unknown arg %s\n", a); return 2; }
   }
   art::RigScope rig(2);
+  if (!o.figs.empty()) return figsRun(o, o.figs);
+  if (o.slice) return sliceRun(o);
   int rc = 0;
   for (uint32_t s = o.seedA; s <= o.seedB; s++) rc |= runSeed(o, s);
   return rc;

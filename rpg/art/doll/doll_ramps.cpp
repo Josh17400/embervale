@@ -30,6 +30,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/art/doll/doll_internal.h"
 #include "rpg/core/fingerprint.h"
 
 namespace art {
@@ -490,6 +491,7 @@ DollRamps a3Palette(int who) {
   return R;
 }
 
+void sigRamps(const HumanLook& L, DollRamps& R);   // (P5b) below
 DollRamps rampsOf(const HumanLook& L) {
   DollRamps R = a3Palette(L.body == 1 ? 1 : 0);
   // skin: the curated ramp from A3's four skins (elves a shade paler and cooler); the face's mouth, lip and blush with it
@@ -552,6 +554,9 @@ DollRamps rampsOf(const HumanLook& L) {
   rampA3(L.plumeColor ? L.plumeColor : L.tabardColor, Material::Cloth, R.c[(int)Slot::Plume]);
   rampA3(L.shieldField ? L.shieldField : L.tabardColor, Material::Cloth, R.c[(int)Slot::Field]);
   rampA3(L.shieldDevice ? L.shieldDevice : hex(0xCB9034), Material::Metal, R.c[(int)Slot::Device]);
+  // (P5b, STYLE_P5B 3) a signed piece's cloth in its people's pair with the hue held (dyeRamp: crimson stays crimson, vermilion
+  // never climbs to yellow): the body's layer (Accent), the helm's crest (Plume) and soft head (Head), the shield's field, the cloak
+  sigRamps(L, R);
   // leather: one of six per person (a stable pick from the person's colours; A3's brown the most common)
   {
     const uint32_t h = mixHash(mixHash(mixHash(0x1EA7u, L.skin), L.topColor), L.bottomColor);
@@ -1345,6 +1350,23 @@ void dyeRamp(uint32_t base, uint32_t r[5]) {
   }
 }
 
+// (P5b) the signed pieces' cloth (rampsOf calls it after the generator's cloth): see sigLookOf (doll_resolve.cpp)
+void sigRamps(const HumanLook& L, DollRamps& R) {
+  using H = HumanLook;
+  const int pb = L.makerAt(H::TIER_BODY), ph = L.makerAt(H::TIER_HELM), ps = L.makerAt(H::TIER_SHIELD), pc = L.makerAt(H::TIER_CLOAK);
+  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.tabardColor == rgba((int)(fp::sig(pb)->dom >> 16 & 255u), (int)(fp::sig(pb)->dom >> 8 & 255u), (int)(fp::sig(pb)->dom & 255u)))
+    dyeRamp(hex(fp::sig(pb)->dom), R.c[(int)Slot::Accent]);   // (sigLookOf set the layer's cloth)
+  if (sigOn(ph) && L.tier[H::TIER_HELM]) {
+    const fp::Sig& g = *fp::sig(ph);
+    dyeRamp(hex(g.crest ? g.crest : g.dom), R.c[(int)Slot::Plume]);
+    // the accent on a soft head's cloth and a T1 cap's band (the fleece): a T2-T6 helm's own cloth keeps its colour
+    const bool soft = L.headwear && !(L.helmet || L.helmStyle || L.helmForm);
+    if (soft || L.tier[H::TIER_HELM] <= 1) dyeRamp(hex(g.acc), R.c[(int)Slot::Head]);
+  }
+  if (sigOn(ps) && L.tier[H::TIER_SHIELD]) dyeRamp(hex(fp::sig(ps)->dom), R.c[(int)Slot::Field]);
+  if (sigOn(pc) && (L.cloak || L.cape)) dyeRamp(hex(fp::sig(pc)->dom), R.c[(int)Slot::Cloak]);
+}
+
 // (P5, FIX_BATCH_P5 4.3) each tier slot's dye pair from its maker's row: rampA3(dye, Cloth), the dye2 the same (a solid band:
 // the dye again); a slot with no maker keeps the Accent ramp (a3Palette), so a draft's dye cells render. Only the dye slots
 void dyeRamps(const HumanLook& L, DollRamps& R) {
@@ -1354,8 +1376,10 @@ void dyeRamps(const HumanLook& L, DollRamps& R) {
     const fp::Row& row = fp::row(m);
     uint32_t* d1 = R.c[(int)dyeSlotOf(s, false)];
     uint32_t* d2 = R.c[(int)dyeSlotOf(s, true)];
-    dyeRamp(hex(row.dye), d1);
-    if (row.dye2) dyeRamp(hex(row.dye2), d2);
+    // (P5b, STYLE_P5B 3) a signed people's pair is its dominant and accent
+    const uint32_t dye = sigOn(m) ? row.sig->dom : row.dye, dye2 = sigOn(m) ? row.sig->acc : row.dye2;
+    dyeRamp(hex(dye), d1);
+    if (dye2) dyeRamp(hex(dye2), d2);
     else for (int i = 0; i < 5; i++) d2[i] = d1[i];
   }
 }

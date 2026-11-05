@@ -596,11 +596,135 @@ Ramp fpRamp(uint32_t rgb) {
   return ramp5(k[0], k[1], k[2], k[3], k[4]);
 }
 
+// ---------------------------------------------------------------- P5b: the people's signature (docs/STYLE_P5B.md 7, 9.3 S5)
+// The bag says what the doll says: a signed people's helm is its head class at its tier (section 4: the jingasa, the kabuto,
+// the kuwagata; the knob cap, the transverse crest, the Attic crest; the fleece-browed cap, the spangenhelm on its aventail,
+// the gilt horns), its shield the people's form in its dominant (T5-T6 gilt), its coat the colour landing (the lacing, the
+// obi, the pteruges, the woad laces), its cloak the dominant. Hand-placed 16 px grids; the palette by character:
+//   k ink, 0-4 the piece's metal, a-e the dominant, f-j the accent, p-t the leather, u-y the gilt, A-E the fleece, # the face
+void paintIcon(Canvas& c, Icon ic, uint32_t tint, const Ramp* over);   // (below)
+struct SigPal { const Ramp *M, *dom, *acc; };
+void sigGrid(Canvas& c, const char* const* rows, int n, const SigPal& P) {
+  static const uint32_t kFace = rgba(64, 44, 52);
+  for (int y = 0; y < n && y < ICON; y++)
+    for (int x = 0; x < ICON && rows[y][x]; x++) {
+      const char ch = rows[y][x];
+      uint32_t v = 0;
+      if (ch == 'k') v = kInk;
+      else if (ch == '#') v = kFace;
+      else if (ch >= '0' && ch <= '4') v = (*P.M)[ch - '0'];
+      else if (ch >= 'a' && ch <= 'e') v = (*P.dom)[ch - 'a'];
+      else if (ch >= 'f' && ch <= 'j') v = (*P.acc)[ch - 'f'];
+      else if (ch >= 'p' && ch <= 't') v = kLeather[ch - 'p'];
+      else if (ch >= 'u' && ch <= 'y') v = kGold[ch - 'u'];
+      else if (ch >= 'A' && ch <= 'E') v = kFurIcon[ch - 'A'];
+      if (v) c.set(x, y, v);
+    }
+}
+// the heads: [people 0 jade, 1 imperial, 2 fjordfolk][band 0 T1, 1 T2-T4, 2 T5-T6]
+const char* const kSigHelm[3][3][16] = {
+  {  // Jade: the jingasa (black lacquer, the vermilion mon); the kabuto, its shikoro laced in vermilion; the gilt kuwagata
+    {"................", "................", "................", "................",
+     ".......jh.......", "......jjhg......", ".....jihhgg.....", "....jiihhggg....",
+     "...jiihcdhggg...", "..jiiihdehgggg..", ".jiiiihhhhggggg.", "jiiiiihhhhhggggf",
+     ".ggggggggggfffff", "................", "................", "................"},
+    {"................", "................", ".....3....3.....", "......3..3......",
+     "......k44k......", ".....k44332k....", "....k4433221k...", "....k3333221k...",
+     "...dcccccccbbb..", "..k4332222211k..", ".dccc######bbbb.", "k4332######2211k",
+     "dccc.######.bbbb", "k32..######..21k", "................", "................"},
+    {"..v..........v..", "..wv........vw..", "...xv......vx...", "....xwv..vwx....",
+     "......yxxw......", ".....k44332k....", "....k4433221k...", "....k3333221k...",
+     "...dcccccccbbb..", "..k4332222211k..", ".dccc######bbbb.", "k4332######2211k",
+     "dccc.######.bbbb", "k32..######..21k", "................", "................"},
+  },
+  {  // Imperial: the bronze knob cap and its cheek guards; the crested helm, a transverse crimson crest; the Attic, its tall crest
+    {"................", "................", ".......xw.......", "......kyxk......",
+     ".....kyxxwk.....", "....kyxxwwvk....", "....kxxwwvvk....", "...kyxwwwwvvk...",
+     "...kxwwwwvvvk...", "...kbccccccbk...", "...kxk####kvk...", "...kxk####kvk...",
+     "...kwk####kvk...", "....k......k....", "................", "................"},
+    {"................", "..c.d.e.d.c.b...", ".bdcedeedcdcbb..", ".bcdddedddccbb..",
+     "..aabbbbbbbaa...", ".....k4433k.....", "....k443322k....", "....k433222k....",
+     "...k43322211k...", "...kkxxxxxxkk...", "...k4k####k1k...", "...k3k####k1k...",
+     "...k3k####k1k...", "....k......k....", "................", "................"},
+    {"......cdec......", ".....cdeedcb....", ".....cdddccb....", "......cdccb.....",
+     "......kyxk......", ".....k4433k.....", "....k443322k....", "....k433222k....",
+     "...k43322211k...", "...kyxxxxxwwk...", "...kyk####kvk...", "...kxk####kvk...",
+     "...kxk####kvk...", "....k......k....", "................", "................"},
+  },
+  {  // Fjordfolk: the leather cap, its fleece brow; the spangenhelm, its nasal and mail aventail; the gilt horns, the comb
+    {"................", "................", "................", "................",
+     "......ksrrk.....", ".....ksrrqqk....", "....ksrrrqqpk...", "....ksrrqqqpk...",
+     "...ksrcrdqcqpk..", "..EDECEDCDCBCBA.", "..DCDCBCBCBABAA.", "...BABABAAAAAA..",
+     "................", "................", "................", "................"},
+    {"................", ".......k........", "......k4k.......", ".....k443k......",
+     ".....k4432k.....", "....k443322k....", "....k443322k....", "...k44333221k...",
+     "...kbccccccbk...", "..k31##4##13k...", "..k13##3##31k...", "..k31#####13k...",
+     "..k3131313131k..", "...kkkkkkkkkk...", "................", "................"},
+    {"................", ".x..............", "xy....4334....yx", "vx...k4433k...xv",
+     ".vw.k443322k.wv.", "..vwk443322kwv..", "...k44333221k...", "...kbccccccbk...",
+     "..k31##4##13k...", "..k13##3##31k...", "..k31#####13k...", "..k3131313131k..",
+     "...kkkkkkkkkk...", "................", "................", "................"},
+  },
+};
+int sigIndex(int people) {   // the slice's three peoples (STYLE_P5B 9.1); -1 every other
+  const char* n = fp::row(people).name;
+  return !std::strcmp(n, "jade") ? 0 : !std::strcmp(n, "imperial") ? 1 : !std::strcmp(n, "fjordfolk") ? 2 : -1;
+}
+const fp::Sig* sigOf(const IconLook& l) {
+  if (rigVersion() < 2 || !l.people || !doll::fixOn(doll::FIX_SIG) || !doll::fixOn(doll::FIX_FP)) return nullptr;
+  return fp::sig(l.people);
+}
+// a signed helm, shield, coat or cloak painted whole (true); false: the classic painter
+bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
+  const fp::Sig* g = sigOf(l);
+  const int si = sigIndex(l.people);
+  if (!g || si < 0) return false;
+  const Ramp dom = fpRamp(g->dom), acc = fpRamp(g->acc);
+  const int t = std::clamp((int)l.tier, 1, 6);
+  const int band = t <= 1 ? 0 : t <= 4 ? 1 : 2;
+  static const Ramp kLacquer = ramp5(rgba(14, 12, 16), rgba(28, 26, 30), rgba(44, 40, 48), rgba(74, 68, 80), rgba(138, 132, 148));
+  switch (l.icon) {
+    case Icon::Helmet: {
+      const SigPal P{&M, &dom, si == 0 ? &kLacquer : &acc};
+      sigGrid(c, kSigHelm[si][band], 16, P);
+      return true;
+    }
+    case Icon::Shield: {
+      static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
+      int form = l.form;
+      for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
+      const bool gilt = t >= 5;
+      // T1 plain boards bound in the dominant; T2-T4 the field in the dominant, the rim the piece's own; T5-T6 a gilt rim
+      shieldIcon(c, form, gilt ? kGold : t <= 1 ? dom : (l.mat == 1 ? kLeather : M), t <= 1 ? kLeather : dom, gilt);
+      if (si == 2 && t >= 2 && t <= 4)   // the Fjordfolk's quartered round: the wool in the upper-left and lower-right quarters
+        for (int y = 2; y < 14; y++)
+          for (int x = 2; x < 14; x++) {
+            const uint32_t v = c.get(x, y);
+            if (!(v >> 24)) continue;
+            const bool q = (x < 8) == (y < 8);
+            int k = -1;
+            for (int i = 0; i < 5; i++) if (v == dom[i]) k = i;
+            if (q && k >= 0) c.set(x, y, acc[std::min(4, k + 1)]);
+          }
+      if (si == 1 && t >= 2)   // the scutum's device: a gilt thunderbolt down its middle
+        for (int y = 4; y <= 11; y++) c.set(8 + ((y & 2) ? 1 : -1) * ((y % 4) == 1), y, kGold[y < 8 ? 4 : 3]);
+      return true;
+    }
+    case Icon::Cloak:
+      paintIcon(c, Icon::Cloak, dom[2], nullptr);
+      return true;
+    default: return false;
+  }
+}
+
 void iconFingerprint(Canvas& c, const IconLook& l, const Ramp& M, const Ramp& acc) {
   const fp::Row& row = fp::row(l.people);
   if (!row.period || l.tier < 1 || l.tier > 6) return;
   const uint8_t tbit = (uint8_t)(1u << l.tier);
-  const Ramp D = fpRamp(row.dye), D2 = row.dye2 ? fpRamp(row.dye2) : D;
+  // (P5b) a signed people's band in its dominant and accent (the doll's dyeRamps reads the same pair)
+  const fp::Sig* sg = sigOf(l);
+  const uint32_t dy = sg ? sg->dom : row.dye, dy2 = sg ? sg->acc : row.dye2;
+  const Ramp D = fpRamp(dy), D2 = dy2 ? fpRamp(dy2) : D;
   auto band = [&](int x, int y) -> const Ramp& { return ((x + y) % row.period) < row.run ? D : D2; };
   const Canvas src = c;
   auto op = [&](int x, int y) { return x >= 0 && y >= 0 && x < ICON && y < ICON && (src.get(x, y) >> 24) != 0; };
@@ -1316,7 +1440,8 @@ Canvas itemIconLook(const IconLook& l) {
   const Ramp grip = l.accent ? ramp(mix(l.accent, rgba(92, 54, 40), 0.35f)) : kLeather;
   const Ramp& gold = (l.ornament & 4) ? kGold : kBrass;
   bool done = true;
-  switch (l.icon) {
+  const bool sigDone = sigIconPiece(c, l, M);   // (P5b) a signed people's piece, painted whole
+  if (!sigDone) switch (l.icon) {
     case Icon::Helmet: if (l.form >= 1 && l.form <= 10) helmIcon(c, l.form, M, acc, trim); else done = false; break;
     case Icon::Armor: if (l.form >= 1 && l.form <= 8) bodyIcon(c, l.form, M, l.accent ? acc : ramp(rgba(120, 60, 50)), leather); else done = false; break;
     case Icon::Shield: if (l.form >= 1 && l.form <= 8) shieldIcon(c, l.form, M, acc, (l.ornament & 4) != 0); else done = false; break;
@@ -1335,7 +1460,7 @@ Canvas itemIconLook(const IconLook& l) {
   // with no maker people paint as before)
   const bool fpKind = l.icon == Icon::Armor || l.icon == Icon::Helmet || l.icon == Icon::Shield || l.icon == Icon::Gloves ||
                       l.icon == Icon::Boots || l.icon == Icon::Cloak;
-  if (p4 && fpKind && l.people >= 1 && doll::fixOn(doll::FIX_FP)) iconFingerprint(c, l, M, acc);
+  if (p4 && fpKind && l.people >= 1 && doll::fixOn(doll::FIX_FP) && !(sigDone && (l.icon == Icon::Helmet || l.icon == Icon::Shield))) iconFingerprint(c, l, M, acc);
   // (P4 ART, D117) a gilt iron coat is gilt at the collar and the shoulders only: a whole gold rim round a dark iron coat read,
   // by its mean, as bronze (Imperial, Sun-Temple, Starspire iron sat 22-27 from their bronze); the gold still marks the maker
   const bool ironGilt = p4 && l.icon == Icon::Armor && l.dollMetal == 3 && !leather && (l.ornament & 4);

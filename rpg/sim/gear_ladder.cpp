@@ -11,6 +11,7 @@
 #include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_look_fields.h"
+#include "rpg/core/fingerprint.h"
 #include "rpg/sim/gear_forge.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
@@ -557,6 +558,14 @@ LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::strin
   // no cape of its own wears the plain short cape in its colour), the travel cloak above where it is 2
   k.cape = tier == 3 && !k.hasCloak && (art::doll::fixOn(art::doll::FIX_CLOAK) || A.cape == 1 || heart);
   if (k.hasCloak && !k.cloak.tint) k.cloak.tint = (C->heraldry.field ? C->heraldry.field : (A.cloth ? A.cloth : 0)) | 0xFF000000u;
+  // (P5b, STYLE_P5B 4 and decision 4) a signed people's T1 kit wears its people's cap: a band-1 helm (Imperial's in bronze, the
+  // knob cap) made LAST from its own Rng stream, so no other draw of the kit moves; the doll draws it as the people's T1 head
+  if (tier == 1 && !heart && !k.hasHelmet && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) &&
+      fp::sig((int)people + 1)) {
+    Rng hr(0x51617EAull ^ (uint64_t)seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)people << 48);
+    k.helmet = makeGearC(hr, ItemKind::Helmet, 0, il, rar, C, people == cult::Archetype::Imperial ? Mat::Bronze : Mat::Leather, 0);
+    k.hasHelmet = true;
+  }
   return k;
 }
 

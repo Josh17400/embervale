@@ -129,6 +129,8 @@ std::vector<const ClipRec*> postureClips(const std::string& bodyKey, int family,
 // PROPS: `role held <value>`, `keys held`, anchored on the grip; the posture clip's `held=<key>` names the gripping arm's
 // key). nullptr: nothing in hand. doll_resolve.cpp holds the table.
 const char* postureProp(Posture p, uint8_t variant);
+// (P5b, STYLE_P5B 8) a people's signature is drawn: FIX_SIG and FIX_FP on and the people has a signature row (fp::Sig)
+bool sigOn(int people);
 // the recipe with the posture's prop added (its need and the parts serving it)
 DollRecipe withPosture(const DollRecipe& r, Posture p, uint8_t variant);
 }  // namespace doll
