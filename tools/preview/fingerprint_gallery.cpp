@@ -348,14 +348,36 @@ Canvas headCanvas(const art::HumanLook& L, int facing) {
     }
   return hc;
 }
+// (P5b production) EMB_SLICE_PEOPLE=dune,steppe,... and EMB_SLICE_TIERS=1234 pick other peoples and tiers (the areas' gates);
+// unset: the style slice's three at T1, T3 and T5
+std::vector<std::string> slicePeople() {
+  std::vector<std::string> v;
+  const char* e = std::getenv("EMB_SLICE_PEOPLE");
+  std::string s = e && *e ? e : "jade,imperial,fjordfolk";
+  for (size_t a = 0; a <= s.size();) {
+    const size_t b = s.find(',', a);
+    if (b != a) v.push_back(s.substr(a, b == std::string::npos ? std::string::npos : b - a));
+    if (b == std::string::npos) break;
+    a = b + 1;
+  }
+  return v;
+}
+std::vector<int> sliceTiers() {
+  std::vector<int> v;
+  const char* e = std::getenv("EMB_SLICE_TIERS");
+  for (const char* c = e && *e ? e : "135"; *c; c++) if (*c >= '1' && *c <= '6') v.push_back(*c - '0');
+  return v;
+}
 int sliceRun(const Opts& o) {
-  static const char* const kPeople[3] = {"jade", "imperial", "fjordfolk"};
+  const std::vector<std::string> kPeople = slicePeople();
+  const std::vector<int> kTiers = sliceTiers();
   FpScope scope(!o.before);
   FILE* mf = std::fopen((o.out + "/slice_shares.txt").c_str(), "w");
   for (uint32_t seed = o.seedA; seed <= o.seedB; seed++)
-    for (const char* p : kPeople)
-      for (int t : {1, 3, 5})
+    for (const std::string& ps : kPeople)
+      for (int t : kTiers)
         for (int body = 0; body < 2; body++) {
+          const char* p = ps.c_str();
           char spec[160], base[96];
           std::snprintf(spec, sizeof spec, "%skit=%s:%d:%u", body ? "heroine=1," : "hero=1,", p, t, seed);
           std::snprintf(base, sizeof base, "slice_%s_T%d_%s_s%u", p, t, body ? "w" : "m", seed);
@@ -452,6 +474,10 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(a, "--swatches")) o.swatches = true;
     else if (!std::strcmp(a, "--slice")) o.slice = true;
     else if (!std::strcmp(a, "--figs") && i + 1 < argc) o.figs = argv[++i];
+    else if (!std::strcmp(a, "--pool") && i + 1 < argc) {   // (P5b production) a pool file (pxc --bin): the look-and-adjust loop
+      std::string err;
+      if (!dl::loadPoolFile(argv[++i], &err)) { std::printf("fingerprint_gallery: --pool: %s\n", err.c_str()); return 1; }
+    }
     else { std::printf("fingerprint_gallery: unknown arg %s\n", a); return 2; }
   }
   art::RigScope rig(2);

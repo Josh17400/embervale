@@ -857,6 +857,9 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
   }
 }
 
+// (P5b production, area B) Dune, Steppe and Marsh: their own grids and painters, beside the slice's
+#include "rpg/art/sig_icons_B.inc"
+
 void iconFingerprint(Canvas& c, const IconLook& l, const Ramp& M, const Ramp& acc) {
   const fp::Row& row = fp::row(l.people);
   if (!row.period || l.tier < 1 || l.tier > 6) return;
@@ -1580,7 +1583,7 @@ Canvas itemIconLook(const IconLook& l) {
   const Ramp grip = l.accent ? ramp(mix(l.accent, rgba(92, 54, 40), 0.35f)) : kLeather;
   const Ramp& gold = (l.ornament & 4) ? kGold : kBrass;
   bool done = true;
-  const bool sigDone = sigIconPiece(c, l, M);   // (P5b) a signed people's piece, painted whole
+  const bool sigDone = sigIconPiece(c, l, M) || sigIconPieceB(c, l, M);   // (P5b) a signed people's piece, painted whole
   if (!sigDone) switch (l.icon) {
     case Icon::Helmet: if (l.form >= 1 && l.form <= 10) helmIcon(c, l.form, M, acc, trim); else done = false; break;
     case Icon::Armor: if (l.form >= 1 && l.form <= 8) bodyIcon(c, l.form, M, l.accent ? acc : ramp(rgba(120, 60, 50)), leather); else done = false; break;
@@ -1596,7 +1599,7 @@ Canvas itemIconLook(const IconLook& l) {
     paintIcon(c, l.icon, l.tint, metalKind ? &M : nullptr);
   }
   if (l.sheen) iconSheen(c, M, l.sheen);
-  const bool sigLayer = !sigDone && sigBodyLayer(c, l);   // (P5b fix r2) a signed coat's layer, in place of P5's marks
+  const bool sigLayer = !sigDone && (sigBodyLayer(c, l) || sigBodyLayerB(c, l, M));   // (P5b fix r2) a signed coat's layer, in place of P5's marks
   // (P5, FIX_BATCH_P5 4.5) the maker people's fingerprint: rig 2 and FIX_FP only (EMB_FIX_RULES without it, rig 1 and a piece
   // with no maker people paint as before)
   const bool fpKind = l.icon == Icon::Armor || l.icon == Icon::Helmet || l.icon == Icon::Shield || l.icon == Icon::Gloves ||

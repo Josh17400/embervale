@@ -82,6 +82,42 @@ inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false,
     {"fam.cone",   0, "spike", "hauberk", "mantle", "pelt",    "cape",     "bare"},
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true},
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}, true};
+// (P5b production, area B: Dune, Steppe, Marsh; their heads ADDED by tools/doll/p5b_sig_B.py, their icons rpg/art/sig_icons_B.inc;
+// T1-T4 drawn, T5-T6 the people's axes on their own heads until the budget ruling. T1 keeps its skirt unset: a split or strip
+// skirt stands outside T1's bare outline, C12f)
+// Dune (vertical spike, flowing kaftan, a small round shield): the low turban with its teal wraps and tail, the turban over the
+// spiked cap, the needle-spiked kulah with its mail aventail and a teal turban band; lobed shoulders, the split kaftan from T2,
+// wide sleeves, the sash, the scarf, the half cape at T3 (the T3 cape stood past the legs behind the split)
+inline constexpr Sig kSigDune{0x18849E, 0xECE2C8, "round", 0, false, 0, {
+    {},
+    {"hw:turban",  0, "",      "",        "none",   "",        "sash",     "close"},
+    {"hw:turban",  0, "",      "hauberk", "round",  "lobed",   "scarf",    "wide"},
+    {"fam.veil",   0, "",      "bell",    "tall",   "",        "scarf",    "wide"},
+    {"fam.veil",   2, "spike", "split",   "tall",   "",        "halfcape", "wide"},
+    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"},
+    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"}}};
+// Steppe (a tall point, horizontal lamellar rows, a fur roll at the neck): the fur-flapped felt hat, the peaked felt cap and its
+// rust knot, the pointed helm under the horsetail on lamellar cheek and neck guards; the fur mantle at T2, lamellar flaps and
+// the strip skirt at T3, the split riding coat at T4, the rust scarf from T3; laces: the coat's seams in full rust
+inline constexpr Sig kSigSteppe{0x9C4426, 0x3CACD6, "round", 0, true, 0, {
+    {},
+    {"hw:furhat",  0, "",      "",        "none",   "",        "none",     "close"},
+    {"hw:furhat",  0, "",      "strips",  "mantle", "fur",     "scarf",    "close"},
+    {"fam.plumed", 0, "",      "strips",  "drop",   "flap",    "scarf",    "close"},
+    {"fam.plumed", 2, "",      "split",   "drop",   "scale",   "halfcape", "wide"},
+    {"fam.plumed", 4, "finial","split",   "drop",   "layered", "halfcape", "heavy"},
+    {"fam.plumed", 4, "finial","bell",    "mantle", "pelt",    "halfcape", "heavy"}}};
+// Marsh (ragged, drooping, a long oval shield): the bog cap fringed in moss (the hood measured 40 % people colour, S2), the
+// rawhide kettle with a bone crest and two feathers, the tasselled reed war hat, the wide war hat; hide flaps, the fringed
+// strip skirt from T2, bare arms, the reed half cape from T3
+inline constexpr Sig kSigMarsh{0x707E28, 0xD6CCA8, "oval", 0, false, 0, {
+    {},
+    {"hw:headscarf", 0, "",    "",        "none",   "",        "none",     "bare"},
+    {"form1",      0, "",      "strips",  "none",   "",        "none",     "bare"},
+    {"form2",      0, "",      "strips",  "broad",  "",        "scarf",    "wide"},
+    {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"},
+    {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"},
+    {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"}}};
 // clang-format on
 
 struct Row {
@@ -98,9 +134,9 @@ inline constexpr Row kRows[kPeoples] = {
     {"highland",  "plaid",  0x1E683A, 0xAC2430, 2, 4},   // tartan green, red (a check); the tartan sett (new, D74's hem-plaid sett)
     {"heartland", "oak",    0xC42828, 0xEAE6D8, 4, 5},   // heraldic red, white; oak leaves
     {"imperial",  "laurel", 0x641E6E, 0xE2B840, 2, 3, &kSigImperial},   // purple, gold thread; laurel
-    {"dune",      "arab",   0x243484, 0xECA61E, 2, 4},   // indigo, saffron; arabesque
-    {"steppe",    "horse",  0x3CACD6, 0xC43028, 2, 3},   // sky blue, horse-hair red; running horses
-    {"marsh",     "reed",   0x687E24, 0x465078, 4, 5},   // moss, faded indigo; reeds
+    {"dune",      "arab",   0x243484, 0xECA61E, 2, 4, &kSigDune},   // indigo, saffron; arabesque
+    {"steppe",    "horse",  0x3CACD6, 0xC43028, 2, 3, &kSigSteppe},   // sky blue, horse-hair red; running horses
+    {"marsh",     "reed",   0x687E24, 0x465078, 4, 5, &kSigMarsh},   // moss, faded indigo; reeds
     {"jade",      "clouds", 0xF06E1E, 0x1C1A1E, 2, 3, &kSigJade},   // vermilion, black lacquer; cloud scrolls
     {"river",     "wave",   0x12868C, 0xECEAE2, 2, 4},   // river teal, white; waves
     {"suntemple", "ray",    0xB41E64, 0x249688, 2, 4},   // magenta, teal; sun rays
