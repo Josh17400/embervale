@@ -1,0 +1,482 @@
+# STYLE_P5B: every people's signature on its armour (P5b, planner, 2026-11-05)
+
+**Status: PENDING THE OWNER'S REVIEW. Binding on every P5b art and doll area.** Base `f914d03` (branch `fix-p5b-int`; the
+stopped P5 batch, `docs/FIX_BATCH_P5.md`). Read with STYLE_P2 27 (the ladder), 28.5 (the peoples' vocabularies), 29 (the
+envelope) and 30 (P5's fingerprint), and PLAN D54, D55, D83, D96, D116-D124.
+
+**The owner (2026-11-04/05):** the P5 pack, "a lot of it looks the same"; the ruling, "every culture's finger print to be on
+the armor whether that's color or style, something that makes it unique to the culture"; on the FLUX concepts, "those
+look great ... good inspiration to go off of". P5's judge (r1) failed on worn twins: thin T1-T3 dye bands read alike.
+
+**Inputs.** `C:\Users\joshu\Documents\embervale-ref\armour\INDEX.md` (a SIGNATURE per people from about 270 real images;
+`contact_<people>.png`) and `...\armour\generated\` (FLUX concepts: `<people>/<people>_full_{levy,veteran,elite}_{man,woman}.png`,
+`<people>_helmets_{1,2}.png`, `<people>_shields.png`, `<people>_pixel_{1,2}.png`; `generated_contact_<people>.png`;
+`PROMPTS.md`). The concepts are FLUX.1-dev output under a non-commercial licence: **ideas only. Draw our own pixels; never
+trace, sample or import them**, and never copy a reference photo's pixels.
+
+---
+
+## 1. The feel
+
+A player names a soldier's people from across a square at 1x, in greyscale, before reading a colour: the Jade by the
+flare of the kabuto and the bell of laced skirt, the Imperial by the crimson crest and the tall scutum, the Fjordfolk by
+the round iron dome over a fur collar and a shield as big as the man. A levy and a champion of one people are plainly the
+same people several rungs apart: the levy's cap is the ancestor of the champion's helm, its colours are the same two
+colours, its hem the same cut, only plainer, slimmer and humbler (rags to riches). The material still reads first on every
+plane (leather like leather, bronze like bronze, D116 and D117); the people shows in the **outline** of the head,
+shoulders and hem, and in **one dominant colour and one accent** on the cloth.
+
+**What changes from P5.** P5 put the people's thread on the edges (1 px bands, a stitched mark). That was the right finish
+and the wrong size: at 32 px a 1 px band is noise, so T1-T3 still read alike. P5b moves the fingerprint into the three
+biggest reads a 32 px figure has (INDEX "pixel_style": the head is a third of the sprite, then the shoulders, then the
+hem) and into one dominant colour on the large cloth areas. P5's thread, marks, filigree, makers and gates stay as the
+detail and the plumbing (section 8).
+
+## 2. Rules at 32 px (every area)
+
+1. **Read order: head, shoulders, hem, colour pair, motif.** Spend effort and bytes in that order.
+2. **Greyscale first.** At every tier the twelve heads are twelve outlines. Test every head, kit and icon in greyscale and
+   as a black silhouette fill before colour.
+3. **One dominant and one accent per people** (section 3), on cloth, lacing, binding, linings, crests and painted fields.
+   Never on a lit metal or leather plane, never more than 30 % of a figure, never a checker or dither.
+4. **The ladder holds** (STYLE_P2 27, 29.3). T1 is simple and slim: a cap or hood inside the hair's 2-row rise (only the
+   brims and flares 29.3 names may pass, by up to 3 px), no pauldrons, a short hem, close or bare arms. T2 is a soft cap or
+   a plain metal one (3 rows) with small shoulders. From T3 the people's metal helm grows every tier: T4 the crest or
+   plume, T5 the legend growth in gilt, T6 the living finish. Areas keep C12f's steps (T3 >= 1.20, T5 >= 1.55 x T1).
+5. **One signature family a people from T3 to T6, growing** (where the people has one). Identity comes from consistency:
+   the Jade's kabuto at T3 gains its flare at T4 and gilt kuwagata at T5. Consecutive tiers still differ in outline at 1x.
+   Within a people, its alloys part by the family's variant and crest (D51); where the family has too few, the people's
+   secondary (section 4) serves its warriors' alloy.
+6. **Every metal keeps its helmet** (D83). Gilded steel keeps the onion, starmetal the crystal, obsidian the mask,
+   emberforged the furnace helm: on those the people shows by its crest or plume colour, cloak, lining and motif.
+7. **Surfaces meet with intent** (28.2, 29.3): the layer (sash, plaid, tabard) sits over the armour with a dark seam, the
+   cloak hangs behind the shoulders, a crest or feather rises from its own crown, a fringe hangs from a drawn hem.
+8. **Shape language per people** (section 5's first line each): round, rectangular, flared, vertical, ragged, curved,
+   sharp. Keep each people inside its own.
+9. **Rig 1, maker-less pieces, culture-0 classic pieces and the Heartland hero's road** (D54, D55, D83) are unchanged.
+
+## 3. The palette (dominant, accent) and where it lands
+
+`fp::Row::dye` becomes the people's **dominant** and `dye2` its **accent** (P5's thread pair, retuned to the concepts). The
+starting values below come from a search that keeps P5's F1 rules (primaries >= dE 25 apart, each >= 20 from the leather,
+bronze, iron, steel, gilded and brass steps 1-3, the accent >= 20 from its dominant), measured on approximate material
+ramps; MARKS re-checks them with `python tools/doll/p5_marks.py --table` and may tune within each hue family.
+
+| people | dominant | accent | luma d / a | P5 had | from |
+|---|---|---|---|---|---|
+| Fjordfolk | woad `#4878C8` | bleached wool `#E8E2CE` | 115 / 226 | woad, wool | levy cloaks, quartered shields |
+| Highland | tartan green `#185030` | saffron `#D89A28` | 60 / 160 | green, red | the plaid over the saffron leine |
+| Heartland | heraldic red `#C02030` | white `#EAE6D8` | 82 / 230 | red, white | surcoats (the kingdom's tinctures where it has arms) |
+| Imperial | crimson `#7E1430` | gold `#E2B840` | 55 / 183 | purple, gold | legion red and brass |
+| Dune | teal `#18849E` | cream `#ECE2C8` | 103 / 226 | indigo, saffron | teal robes over cream, gold at the top |
+| Steppe | rust `#9C4426` | sky blue `#3CACD6` | 91 / 143 | sky, red | rust riding coats, sky-blue silk |
+| Marsh | moss `#707E28` | bone `#D6CCA8` | 112 / 203 | moss, indigo | moss hide and reed, bone trim |
+| Jade | vermilion `#E8641C` | black lacquer `#1C1A1E` | 131 / 27 | same | akaito-odoshi lacing, lacquer |
+| River | linen white `#E8E4D6` | lapis `#2A4C9C` | 228 / 75 | teal, white | the guild's white-and-blue livery |
+| Sun Temple | turquoise `#1CA086` | feather yellow `#F0C030` | 118 / 190 | magenta, teal | turquoise cotton, yellow feathers |
+| Sylvan | leaf green `#A0C850` | forest `#2E5A2A` | 174 / 71 | leaf, amber | green cloth, leaf-cut edges |
+| Starspire | indigo `#5A3CB4` | star white `#DCE4F8` | 83 / 228 | violet, white | indigo hoods and capes, stars |
+
+Closest dominants in the search: Heartland-Steppe dE 26.3, Imperial-Steppe 28.5, Heartland-Imperial 30.4. Steppe's rust
+sits at the material floor (20 from leather): MARKS reddens it first if the real ramps disagree. Every pair keeps 40 or
+more luma between dominant and accent, so the two-tone reads in greyscale.
+
+**Where it lands, by tier** (the doll and the icon alike; ICONS mirrors):
+
+| piece | T1-T2 | T3-T4 | T5-T6 |
+|---|---|---|---|
+| a cloth or soft head (hood, turban, bonnet, cap, headband) | its cloth: dominant; band or edge: accent; the item's own material on the brim, rim or brow band | (metal heads) the lining under the brow (P5's D), the crest or plume: dominant | as T3; gilt trim (the ladder's) |
+| the layer (sash, plaid, scarf, tabard, half cape) | dominant, accent edge (Highland: the sett, section 5) | same | same, gilt edge |
+| the body piece | leather and metal planes untouched; collar and hem 2 rows, laces and cuffs: the pair (P5's band, widened to the hem) | the lacing in full where the people laces (Jade, Steppe), the cloth under the hem and in the brigandine's cover: dominant | as T3 |
+| cape and cloak | (none: the ladder) | the people's cape and the officer's cloak: dominant, accent border and lining | the long cloak: dominant, accent lining |
+| shield | T1 plain wood, its binding: dominant; T2 the field in the pair, in the people's division | the people's field and division, the kingdom's device on it (decision 3) | gilt rim, gem boss (the ladder's) |
+
+Kings keep D96's deep crimson cape. Heraldic layers (the Heartland tabard, a kingdom's device) keep the kingdom's
+tinctures where the kingdom has arms; the people's pair is their default.
+
+## 4. The heads: one per people per tier
+
+Source: **E** an existing drawn part or view (by its part file, recoloured), **O** a new `when` view over an existing part
+(a people overlay or replace, keyed by the helm's maker), **N** a new part, **OL** a new T5-T6 legend overlay. Every new
+view is ADDED; no drawn view's cells change. The head is drawn in the helm item's material (a T1-T2 soft head's cloth in
+the people's colours, its band or rim in the item's leather or bronze).
+
+| tier | Fjordfolk | Highland | Heartland | Imperial | Dune | Steppe |
+|---|---|---|---|---|---|---|
+| T1 | round leather cap, fur brow (spangen T1 + O) | flat bonnet, toorie (O on `cloth/cap`) | the chapel: brimmed leather kettle (O: kettle T1) | bronze bowl, knob, cheek guards (O: nasal T1 replace) | turban (E `cloth/turban`) | fur-brimmed felt hat (E `cloth/furhat`) |
+| T2 | spangen cap (E spangen T2) | plaid hood, up (E `cloth/hood` + the plaid tile) | soft leather cap (E softcap, D55) | Montefortino with a short tuft (E crested T2 + crest T2) | turban over a spiked cap (O) | peaked felt cap, ear lappets (O) |
+| T3 | spangenhelm, nasal, mail aventail (E spangen T3 + O) | kettle, fur band, feather (E kettle `furtrim`) | nasal, knife comb (E, hero T3) | crested, transverse crimson crest (E crested T3 + `crested_crest` people-imperial) | kulah: needle spike, aventail, turban band (E veil T3 + O) | spike and horsetail (E plumed) |
+| T4 | spangenhelm T4, aventail (E spangen T4 + O) | kettle T4, fur band, feather (E furtrim; O if the T4 growth needs it) | open crested, fore-aft comb (E, hero T4) | crested, taller transverse crest, cheek guards (E crested T4 + crest T4) | kulah T4, turban band (E veil T4 + O) | plumed T4 (E) |
+| T5 | horned helm, gilt fittings (E horned_legend) | kettle legend, two eagle feathers (E + OL) | gilt onion (E, D83) | Attic crested legend, tall fore-aft crest (E crested_legend) | gilt kulah legend, turban, falcon plume (E veil_legend + OL) | plumed legend, fur lappets (E) |
+| T6 | horned legend T6 (E) | three eagle feathers, the chief's (E kettle_legend + OL) | crystal (E, D83) | + laurel wreath (E crested_legend + crown laurel or O) | turban-wrapped onion, aventail (E onion_legend + OL) | plumed legend T6 (E) |
+| secondary (alloys) | cone, its crests | snout | great helm (census knights) | the crested family's crests | onion (T4, T6) | plumed's variants |
+
+| tier | Marsh | Jade | River | Sun Temple | Sylvan | Starspire |
+|---|---|---|---|---|---|---|
+| T1 | fringed hide hood (O on `cloth/hood`) | jingasa, black lacquer, vermilion mon (E `cloth/conical`) | the chaperon: rolled roundel, hanging tail (N) | headband, one upright feather (O on `cloth/circlet`) | leaf circlet (E `cloth/circlet`) | deep hood with a point (O on `cloth/hood`) |
+| T2 | rawhide cap, bone crest, two feathers (O on leathercap) | the great kasa (E warhat, its kasa variant) | the chapel (E kettle) | quilted cap, three-feather fan (O on `cloth/cap`) | leaf crown, taller points (O on circlet) | stiff tall pointed cowl, high collar (O on hood) |
+| T3 | reed war hat, drooping brim, tassels (E kettle `tassels`) | kabuto: bowl and shikoro (E kabuto) | sallet with its tail (E sallet T3) | jaguar-mask helm, ears and jaws (E masked + O) | leaf-winged helm (E winged T3) | star-pointed helm (E crown) |
+| T4 | wide reed war hat (O/N: warhat, Marsh reed variant) | kabuto, flare, small maedate (E kabuto T4) | morion (E morion T4) | jaguar mask, feather crest (E masked T4 + O) | winged T4 (E) | crown T4 (E) |
+| T5 | reed hat legend, heron plume (E warhat_legend + OL) | kabuto legend, gilt kuwagata (E kabuto_legend crest horns) | morion legend, plume (E) | mask legend, feather fan (E masked_legend + OL) | winged legend, gilt veins (E) | crown legend, star spires (E) |
+| T6 | + bone brow and antler tines (OL) | + crest crown (E) | morion legend T6 (E) | the full fan (E masked_legend + OL) | winged legend T6 (E) | crown legend T6, glowing slit (E) |
+| secondary (alloys) | warhat's variants | kabuto's variant and crests | sallet | plumed's feather-fan variant | winged's variants; antlers at T4 | crown's variants |
+
+**Pairs that share a family or a class at one tier** (each must pass the head measure, 9.3 S1, at production): T1
+Fjordfolk round cap / Imperial knob cap, Marsh fringed hood / Starspire pointed hood, Sun Temple feather band / Sylvan
+leaf circlet; T2 Highland plaid hood / Starspire stiff cowl, Heartland soft cap / Marsh rawhide cap / Sun Temple quilted
+cap; T3 Highland kettle (fur, feather) / Marsh kettle (tassels); T4 Heartland crested (fore-aft) / Imperial crested
+(transverse); T6 Heartland crystal / Starspire spires. The rest differ by family.
+
+**How it is chosen** (DOLL implements; data in `rpg/core/fingerprint.h`): the helm slot's maker people and its tier pick
+the head; the helm's parts see that maker's flags (per-slot people flags, so a Jade helm on a Fjordfolk shirt is Jade);
+`E` heads resolve to the existing part and tier view; T1-T2 cloth heads draw through the guise path that already draws
+headwear shapes as helms (`forge::guiseHeadwear`). The kit's T1 helm (non-Heartland peoples: a band-1 leather helm,
+Imperial's bronze) is new, made last from its own Rng stream, so no other kit draw moves.
+
+## 5. The twelve signatures
+
+Each: the read at 32 px; shoulders (mass and shape, from T2: T1 has none); hem; body cut (arm, layer); colour; motif;
+shield; the ladder; where it comes from. Body forms stay the generator's (T1-T2 soft, T3 `body[0]`, T4+ the alloy's
+finer cut); the axes come from the people's STYLE_P2 28.5 menu, now applied from T1 (inside the envelope) instead of the
+materials' hero shapes, which keep the Heartland hero's road.
+
+**Fjordfolk** (round, heavy-shouldered). A round iron dome with a nasal over a mail byrnie, fur at the neck, the biggest
+round shield there is; woad and wool on undyed brown and iron.
+- Shoulders: MANTLE (fur), growing to the great fur at T5. Hem: HAUBERK (split mail skirt; at T1 the jerkin's split hem).
+- Body: BARE forearms (bronze arm rings from T3); layer none at T1-T2, the fur-edged woad CAPE at T3, the long cloak at T5.
+- Colour: woad on the cloak, hem and shield quarters; wool on edges and the other quarters; madder red only as one stroke
+  on the shield. Motif: the knot (bronze interlace at T5-T6).
+- Shield: ROUND, iron boss; T1 plain boards with a woad binding, T2 quartered woad and wool, T3+ riveted rim and the
+  kingdom's device, T5 gilt boss.
+- Ladder: a bondi in a leather cap and jerkin -> a hirdman in mail, spangenhelm and fur -> a jarl in gilt horns, a great
+  fur mantle and a cloak to the heels.
+- From: `fjordfolk_0920_spangen_helmet_from_5th_6th_c_replica.jpg`, `fjordfolk_0921_spangen_helmet_from_groningen_...jpg`,
+  `fjordfolk_leidang_kriger_..._0730.jpg` and `..._01.jpg` (hauberk, nasal, round shield), `fjordfolk_2004_sutton_hoo_01.jpg`;
+  FLUX `fjordfolk_full_{levy,veteran,elite}_*.png`, `fjordfolk_helmets_1.png`, `fjordfolk_shields.png`, `fjordfolk_pixel_2.png`
+  (the horned pixel read; decision 2).
+
+**Highland** (asymmetric, long quilted lines, a small round targe). A saffron-shirted kern under a dark plaid flung over
+one shoulder; later a fur-banded kettle; a chief's eagle feathers.
+- Shoulders: none to T3 (the plaid's drape over the left shoulder is the shoulder read), BROAD from T4. Hem: STRIPS★
+  (kilted; the aketon's vertical quilting to the knee from T3).
+- Body: BARE arms; layer SASH★ = the plaid over the left shoulder from T1, HALFCAPE (plaid) from T4.
+- Colour: the plaid in tartan green with the sett's saffron and red threads (P5's plaid tile on the layer's cloth);
+  saffron on the leine's sleeves and hem. Motif: the plaid (the gilt lattice at T5-T6).
+- Shield: BUCKLER (the targe): round, small, studded, a boss; T2 green field, saffron studs; T3+ brass studs.
+- Ladder: a kern in a bonnet and plaid -> a gallowglass in aketon, mail and a fur-banded kettle -> a chief in a gilt
+  kettle with three eagle feathers and a plaid half cape.
+- From: `highland_gallowglass_d_rer.jpg`, `highland_three_irish_kerns_albert_durer_1521.jpg`, `highland_charles_edward_stuart_s_targe.jpg`,
+  `highland_davidson_tartan_modern_tiling.jpg`, `highland_42nd_black_watch_officer_by_edward_dayes_c_1791_93.jpg` (bonnet,
+  plaid); FLUX `highland_full_*.png` (saffron and green), `highland_shields.png` (studded targes), `highland_pixel_2.png`.
+
+**Heartland** (the hero's road; square, heraldic). Unchanged from T2 to T6 (D54, D55, D83: soft cap, nasal with knife
+comb, open crested, gilt onion, crystal). P5b adds: a Heartland-made T1 helm draws the chapel (the brimmed kettle of the
+levy); the people's pair on the TABARD★ from T2 where the kingdom has no arms; the great helm stays the census knights'.
+- Shoulders: ROUND (cop) -> TALL at T5. Hem: TASSETS. Body: HEAVY or CLOSE; layer TABARD★. Motif: oak.
+- Shield: KITE at T3, HEATER from T4, the kingdom's device.
+- From: `heartland_chapel_de_fer_kettle_helmet_or_war_hat_snowshill_manor_nt_13...jpg`, `heartland_elbl_g_kapalin_helmet_xv_c.jpg`,
+  `heartland_1350_topfhelm_des_hans_rieter_zu_kornburg_anagoria.jpg`, `heartland_bataille_de_courtrai_1302.jpg`; FLUX
+  `heartland_full_levy_man.png` (the kettle hat), `heartland_shields.png`.
+
+**Imperial** (rectangular, banded, the crest's arc). Crimson and gold: a bronze pot with a knob, then a crested helm with
+a transverse crimson crest, banded shoulders, pteruges at the hips and a tall curved scutum; a gilt Attic helm at the top.
+- Shoulders: BROAD (banded lames), great at T5. Hem: STRIPS★ (pteruges, crimson-edged), longer each tier.
+- Body: CLOSE arms; layer SCARF (the focale, crimson) at T1-T2, HALFCAPE★ (the paludamentum, pinned on the right
+  shoulder) at T3-T4, the long crimson cloak at T5.
+- Colour: crimson on the tunic hem under the armour, the crest, the cape and the scutum's field; gold on bindings, the
+  scutum's rim and device. Motif: laurel.
+- Shield: TOWER (the scutum, curved); T1 plain boards, crimson binding; T2 crimson field; T3+ gold rim and device; T5 gilt.
+- Ladder: a recruit in a bronze pot, leather jerkin and focale -> a legionary in scale or segments, crested, with the
+  scutum -> a legate in a gilt Attic helm, muscled cuirass and crimson cloak.
+- From: `imperial_bronze_legionary_helmet_1st_half_of_the_1st_century_ad_xante...jpg` (T1-T2), `imperial_legiii.jpg`,
+  `imperial_legio_xxi_rapax_sechsel_uten_2011_lindenhof_2011_04_10_15_58.jpg` (crests, pteruges, scutum),
+  `imperial_cricau_festival_2013_lorica_squamata_1.jpg`, `imperial_bronze_roman_cavalry_helmet_and_mask_found_in_luxembourg_70_...jpg`
+  (the secondary); FLUX `imperial_full_*.png`, `imperial_helmets_1.png` and `_2.png` (Attic crests), `imperial_shields.png`,
+  `imperial_pixel_2.png`.
+
+**Dune** (vertical spike, flowing kaftan, a small round shield). Teal and cream: a turban, then a needle-spiked kulah
+with mail aventail and a turban band, a long split kaftan, wide sleeves; gilt and a turban-wrapped onion at the top.
+- Shoulders: ROUND (lobed). Hem: SPLIT★ (kaftan), long. Body: WIDE★ sleeves from T2 (T1 close: the envelope); layer
+  SCARF★ (the headcloth's tail) and SASH from T1.
+- Colour: teal on the kaftan, sash and turban band; cream on the turban and under-robe; gold from T5. Motif: arabesque.
+- Shield: CRESCENT or ROUND (the dhal): small, four bosses; T2 teal and cream; T3+ brass bosses.
+- Ladder: a levy in turban and robe -> a mamluk in mail and plates under a kulah, kaftan split for the saddle -> an amir
+  in gilt, a turban-wrapped onion, teal and gold.
+- From: `dune_18th_century_sikh_kulah_khud_helmet_inside_the_white_tower_a...jpg`, `dune_helmet_khula_khud_met_02_5_5_001mar2015.jpg`,
+  `dune_13_mameluke_of_egypt.jpg`, `dune_armour_of_the_ottoman_empire_zirah_baktar_or_zirh_gomlek.jpg`; FLUX `dune_full_*.png`,
+  `dune_helmets_1.png` and `_2.png` (spikes, turban wraps). Not `dune_shields.png` (heater-like): the game's Dune bears the dhal.
+
+**Steppe** (a tall point, horizontal lamellar rows, a fur roll at the neck). A rust riding coat with a cream fur collar,
+a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.
+- Shoulders: DROP★ (lamellar flaps) with the fur collar (MANTLE). Hem: SPLIT (riding coat), long.
+- Body: CLOSE to T3, WIDE from T4; layer SCARF (streaming sky blue) from T3.
+- Colour: rust on the coat's hem and sleeves; sky blue on the scarf and sash; the lacquer is the lamellar's own; fur
+  natural. Motif: running horses.
+- Shield: ROUND (or BUCKLER): rust field, black studded rim.
+- Ladder: a herder in a felt hat and coat -> a lancer in lamellar, pointed helm and fur -> a khan in gilt lamellar under
+  horsetails, fur and blue silk.
+- From: `steppe_closeup_of_mongolian_reenactors_at_khaan_quest_07.jpg`, `steppe_bronze_helmet_mongol_empire_19219793614.jpg`,
+  `steppe_a_man_and_woman_in_traditional_mongolian_dress_look_on_as_se...jpg`, `steppe_pursuit_by_mongol_warriors_diez_albums.jpg`;
+  FLUX `steppe_full_*.png`, `steppe_helmets_1.png` (lappets), `steppe_shields.png` (studded rims), `steppe_pixel_2.png`.
+
+**Marsh** (ragged, drooping, a long oval shield). Moss and bone: a fringed hide hood, a fringed skirt, bare arms, a long
+oval wooden shield; tasselled reed war hats, a heron plume and bone at the top.
+- Shoulders: DROP (hide or reed flaps). Hem: STRIPS, fringed, at every tier (the fringe is the Marsh).
+- Body: BARE arms; layer HALFCAPE (reed cape) from T3.
+- Colour: moss on the hood, skirt cloth and reed cape; bone on fringe tips, crest and gorget; bog-brown hide is the
+  leather's own. Motif: reeds.
+- Shield: OVAL (long, wooden, painted moss and bone stripes); LEAF where the culture rolls it.
+- Ladder: a bog hunter in a fringed hood and grass skirt -> a reed warrior in a tasselled war hat and hide flaps -> a bog
+  king under a heron plume, bone at his brow.
+- From: `marsh_01973_tollundmanden.jpg` (the bog cap), `marsh_coconut_fiber_armor_from_the_republic_of_kiribati_micronesia.jpg`,
+  `marsh_ainu_group_aborigines_of_japan_from_the_island_of_hokkaido_o...jpg`, `marsh_ancient_celt_with_carnyx_ancient_briton.jpg`;
+  FLUX `marsh_full_*.png` (fringe, hide, long ovals), `marsh_helmets_1.png` (skulls and antlers: the T6 bone only),
+  `marsh_shields.png`.
+
+**Jade** (flared, banded). Vermilion and black: a lacquered jingasa, then a kabuto with a flared neck guard, then gilt
+kuwagata; wide sode, a bell of laced kusazuri, wide sleeves, lacing in vermilion bands.
+- Shoulders: DROP★ (sode) from T2, great at T5 (26 px). Hem: BELL★ (kusazuri), short at T1.
+- Body: WIDE★ sleeves from T2 (T1 close); layer SASH (the obi, vermilion) T1-T4, TABARD (jinbaori) from T5; the horo
+  (balloon cape) as its T5 cloak.
+- Colour: vermilion on every lacing row, the obi and the mon; black lacquer on the jingasa and the horo's ground; steel
+  and the alloy's plates stay metal (the lacing is the colour). Motif: cloud scrolls.
+- Shield: none (its glaive or bow); where the culture rolls the OVAL, black lacquer with a vermilion mon.
+- Ladder: an ashigaru in a jingasa and a laced leather do -> a samurai in laced lamellar, sode and kabuto -> a daimyo in
+  gilt kuwagata and menpo, vermilion lacing, the horo.
+- From: `jade_3_jingasa.jpg`, `jade_ashigaru_jingasa.jpg`, `jade_akaito_odoshi_yoroi_replica.jpg` and `_kabuto.jpg`,
+  `jade_helmet_hoshi_kabuto_met_dt306020.jpg`, `jade_antique_japanese_samurai_menpo.jpg`, `jade_antique_samurai_o_yoroi_1.jpg`;
+  FLUX `jade_full_{levy,veteran,elite}_*.png`, `jade_helmets_1.png` and `_2.png` (kuwagata), `jade_pixel_1.png` (kuwagata and
+  sode at 32 px). Not `jade_shields.png` (round oni shields): the game's Jade bears none or the oval.
+
+**River** (decision 1: the game's guild river-city, `priors.cpp` river(): brick towns, coats and gowns, crossbows,
+halberds, heaters, brigandine; crisp sallet and morion, puffed sleeves, the guild's stripes). White and lapis livery: a
+chaperon, an iron chapel, a sallet with its tail, a morion with comb and plume; a brigandine in livery cloth with puffed,
+slashed sleeves; a heater painted per pale.
+- Shoulders: BROAD (slab). Hem: TASSETS. Body: HEAVY (puffed, slashed sleeves, lapis in the slashes); layer TABARD (the
+  livery: white with a lapis stripe) from T2.
+- Colour: linen white on the livery and puffs; lapis on stripes, slashes and bindings; brass rivets. Motif: waves.
+- Shield: HEATER per pale white and lapis; at T5-T6 drawn tall as the guild's pavise.
+- Ladder: a burgher militiaman in a chaperon with a crossbow -> a guild soldier in a sallet and livery brigandine -> a
+  guild captain in an etched morion with a plume and slashed velvet.
+- From: `progression_castrum_maris_medieval_festival_militia_1_2022.jpg`, `progression_krigshistorisk_festival_2019_freie_rostocker_f_hnlein_02.jpg`,
+  `progression_renesansni_festival_koprivnica_streli_ari.jpg` (crossbowmen), `heartland_backplate_from_a_brigandine_met_29_150_95_003august2014.jpg`,
+  `heartland_elbl_g_kapalin_helmet_xv_c.jpg`; FLUX `river_shields.png` (the tall painted shield) and `river_full_*.png` (the
+  white, blue and gold only). The INDEX's River (`river_*.jpg`, FLUX `river_helmets_*.png`: nemes, khepresh) is the Nile
+  alternative of decision 1.
+
+**Sun Temple** (radiating fans, round chimalli, animal heads). Turquoise and feather yellow: a headband with one
+feather, then a jaguar's head over the face, then a fan of feathers; a quilted cotton suit, bare arms, a feathered bell.
+- Shoulders: TALL (feathers); MANTLE (the jaguar pelt, 2 px spots) as its T5 alternative. Hem: BELL★ (feathered).
+- Body: BARE arms; layer CAPE★ (feathers) from T3.
+- Colour: turquoise on the quilted suit and the shield's field; yellow on the fan and fringe; red-orange as the plume's
+  second feather. Motif: rays.
+- Shield: ROUND (the chimalli), turquoise and yellow, its lowest rim row painted as hanging feather tips.
+- Ladder: a warrior in a quilted tunic and headband -> a jaguar warrior in the jaguar's head and a spotted suit -> a
+  sun lord under the feather fan.
+- From: `sun_temple_aztec_stone_figure_of_jaguar_warrior_9754751902.jpg`, `sun_temple_aztec_eagle_warrior_9781717682.jpg`,
+  `sun_temple_guerreros_mixtecas_con_ichcahuipilli_codice_selden_12_13.jpg`, `sun_temple_chimalli_ahuizotl.jpg`; FLUX
+  `sun_temple_full_*.png`, `sun_temple_helmets_1.png` and `_2.png` (fans), `sun_temple_shields.png` (fringed), `sun_temple_pixel_2.png`.
+
+**Sylvan** (curved, swept back, slim: the lightest silhouette at every tier). Leaf green and forest: a leaf circlet,
+then a leaf crown, then a helm whose wings are leaves swept back; slim leaf plates at shoulder and hip, a long split leaf
+skirt, a long cloak, a tall leaf shield.
+- Shoulders: DROP (leaf). Hem: SPLIT (long leaf skirt). Body: CLOSE; layer CAPE (the leaf cloak) from T3.
+- Colour: leaf green on the cloak, tunic and shield; forest on the leaf-cut edges and lining; silver metal, gold veins at
+  T5. Motif: leaf veins.
+- Shield: LEAF (tall, narrow).
+- Ladder: a scout in green with a leaf circlet -> a warden in leaf plates and a winged helm -> a lord of the wood in
+  gilt-veined silver and a long cloak.
+- From: `sylvan_corona_a_foglie_di_quercia_in_oro_da_vulci_350_ac_ca.jpg`, `sylvan_corona_a_foglie_d_alloro_in_oro_da_vulci_350_ac_ca.jpg`,
+  `sylvan_alfons_mucha_1896_lorenzaccio.jpg` (the whiplash line), `sylvan_elf_archer_in_forest.jpg`; FLUX `sylvan_full_*.png`,
+  `sylvan_helmets_1.png` (leaf crests), `sylvan_shields.png` (tall leaf shields), `sylvan_pixel_2.png`.
+
+**Starspire** (sharp, vertical, symmetric). Indigo and star white: a deep pointed hood, then a stiff pointed cowl, then a
+helm crowned with star points that grow into spires; fluted plate, tall pointed shoulders, a long indigo cape, a kite.
+- Shoulders: TALL★ (crystal and shard points). Hem: SPLIT, then pointed TASSETS. Body: CLOSE, the high collar; layer
+  CAPE (indigo) from T3.
+- Colour: indigo on the cape, hood, cowl and shield; star white on stars and edges; the alloy's violet or cyan glow at
+  T5-T6. Motif: stars.
+- Shield: KITE, indigo field, a white star.
+- Ladder: an acolyte in a deep hood -> a star knight in fluted plate under star points -> a celestial lord whose spires
+  and visor slit glow.
+- From: `starspire_german_fluted_maximillian_style_armor_about_1505_ce_1_870388...jpg`, `starspire_berlin_deutsches_historisches_museum_gothic_field_armour.jpg`,
+  `starspire_arabic_astrolabe_1.jpg`, `starspire_armillary_sphere_9541169465.jpg`; FLUX `starspire_full_*.png` (the hood to
+  the spires), `starspire_helmets_1.png`, `starspire_shields.png` (indigo kites with stars), `starspire_pixel_2.png`.
+
+## 6. The budget (pool bytes, no compression)
+
+**Today:** `node tools/doll/pxc.mjs` at f914d03: 871 parts, 29,153 views, **2,601,938 B** of the **2,621,440 B** budget:
+**19,502 B free**. (P5 spent 12,194 B of it; its plan had kept 19 KB for P6.)
+
+**What things cost** (measured 2026-11-05: each part removed from a scratch copy of the maps and the pool recompiled):
+
+| part | views | bytes | | part | views | bytes |
+|---|---|---|---|---|---|---|
+| `cloth/turban` | 5 | 1,078 | | `pauldron_layered4_{l,r}` (one tier pair) | 24 | 2,017 |
+| `cloth/furhat` | 5 | 1,200 | | `pauldron_layered*` (T2-T6) | 132 | 11,708 |
+| `helm/spangen` | 19 | 2,481 | | `skirt_bell*` (man and woman) | 98 | 7,583 |
+| `helm/kabuto` | 19 | 3,403 | | `lamellar` + `_hang` (man) | 178 | 12,216 |
+| `helm/kabuto_legend` | 49 | 4,787 | | `shield/round` | 317 | 20,438 |
+| `helm/leathercap` | 20 | 3,870 | | `shield/tower` | 286 | 21,225 |
+| `helm/kettle` | 35 | 7,079 | | `finish/mark` (P5) | 144 | 6,918 |
+| `helm/winged` | 68 | 15,410 | | every `helm/*_legend` | 1,764 | 78,830 |
+
+So a new soft head (5 views) is about 1,100 B, a `when` overlay on an existing head about 450-650 B, a T5-T6 legend
+overlay pair about 1,000-1,500 B; a new shoulder family would be about 12 KB, a skirt about 7.5 KB, a body form about
+12 KB a body, a shield form about 20 KB. **So P5b draws no new body, shoulder, skirt or shield form**: those all come
+from the library by data; it spends bytes only on heads and region re-cuts.
+
+| item | peoples | source | bytes (estimate) |
+|---|---|---|---|
+| the palette retune; the people's axes (arm, skirt, layer, motif, shoulder) from T1; the heads table; shields by form and paint | all | data, existing parts | 0 |
+| region re-cuts for the colour landing (hem 2 rows, full lacing, the brigandine's cover, cloth under the hem; `D` cells on existing planes, man and woman) | all | regions only | 1,500-3,000 |
+| T1 heads existing (turban, felt hat, jingasa, circlet) | Dune, Steppe, Jade, Sylvan | E | 0 |
+| T1 overlays (fur brow, bonnet, chapel, knob cap, fringed hood, feather band, pointed hood) | 7 | O | 3,150-4,550 |
+| T1 new part (the chaperon) | River | N | 1,100 |
+| T2 overlays (spiked turban, felt cap, bone crest, feather cap, leaf crown, stiff cowl) | 6 | O | 2,700-3,900 |
+| T3 overlays (aventail, turban band, jaguar) | 3 | O | 1,350-1,950 |
+| T4 overlays (aventail, turban band, feather crest) and Marsh's reed hat | 4 | O, N | 2,150-3,050 |
+| **core: T1-T4 for all twelve** | | | **11,950-17,550** |
+| T5-T6 legend overlays (eagle feathers, turban and plume, heron and bone, feather fan; the laurel if the crown's is not drawn) | 4-5 | OL | 4,000-6,650 |
+| **the full plan** | | | **15,950-24,200** |
+
+**Plainly: the full plan does not fit with any margin.** At its middle (about 20 KB) it takes the whole 19,502 B left,
+and at its high end it is about 4.7 KB over; either way P6 would start with nothing. The core (every people's head at
+T1-T4, every colour, every body axis) fits, leaving 2-7.5 KB. Options for the owner (decision 5):
+- **A (recommended): raise the budget by 64 KiB to 2,686,976 B** (2.5 %, no compression; D46 restated). The full plan
+  fits and P6 starts with 60 KB or more.
+- **B: keep 2,621,440 B and build the core only.** Highland, Dune, Marsh and Sun Temple wear their existing T5-T6 legend
+  heads (still twelve different families at T5 and at T6, section 4), showing their people by colour, crest and cloak,
+  without the eagle feathers, turban, heron and feather fan.
+- **C: keep the budget and cut peoples** (for example the slice's three first): not recommended; the ruling is every
+  culture.
+The slice (section 9) fits under every option and calibrates the estimates: it reports its bytes per head, and if a
+head costs more than 1.5 times its estimate the planner re-costs the rest before production.
+
+## 7. Icons (16 px; no pool bytes)
+
+The bag says what the doll says. `art_items.cpp` gains a helm icon per head class of section 4 (the hoods, turban, bonnet,
+felt hat, jingasa, kasa, chaperon, feather band, circlet; the kabuto, sallet, morion, onion, crown, war hat; the people
+crests on the existing forms), keyed by the piece's people and tier (`IconLook::people`, `tier`, P5); the body icon its
+form with the colour landing (lacing, hem, layer); the shield icon its form and the people's field. Each icon reads in
+greyscale and agrees with the worn piece (9.3 S5).
+
+## 8. What P5 built: kept, and what changes
+
+**Kept:** `HumanLook::makers` per slot and the census makers (CORE); `IconLook::people` and `tier`; the dye slots (`Dye`,
+`Dye2`, `DyeT0..7`, `Dye2T0..7`) and the compositor's routing; the `D` region (the dye seam) and its re-cuts; the marks
+(`finish/mark.pxm`), Highland's plaid filigree and the filigree per slot (all twelve motifs); `fp-landing`;
+`rpg_test --fingerprint` (F1-F8), `fingerprint_gallery`, `fingerprint_audit.h`; `p5_marks.py`, `p5_pack.py`; the FIX_FP A/B.
+
+**Changes:**
+1. `fp::Row` gains the signature: the head per tier (part, view, variant, crest), the secondary family, the body axes per
+   tier band (arm, skirt, layer, motif, shoulder mass and shape), the shield form, and the colour landing; `dye` and
+   `dye2` become the dominant and accent of section 3.
+2. **A new switch, `FIX_SIG = 8192`** (`FIX_ALL` 16383), active only with `FIX_FP`: `EMB_FIX_RULES=8191` draws P5's look,
+   `4095` the pre-P5 look, from the same build. Every P5b change sits behind it, the kit's T1 helm included.
+3. P5's "never move an outline" becomes: never change a drawn view; maker pieces may wear new ADDED views and the
+   people's existing parts (the heads, the axes). Maker-less pieces, culture-0 pieces and rig 1 are untouched.
+4. The dye's role widens from thread to cloth (section 3's table); P5's F4 shares are restated per area: a leather or
+   metal piece keeps P5's caps (the material reads first), the people's cloth (heads, layer, cape, lining) is the
+   people's own and counts only toward the 30 % figure cap.
+5. Per-slot people flags for the head, body and shield parts (the figure-level `people-<name>` stays for D74's cowls).
+6. P5's open F5 items (T3 face helms and T4 alloy bodies with no dye) close by identity: such a piece carries its people
+   by head family, crest colour and lining; F5 accepts the people's head family or 2 px of its dominant.
+7. The gates gain the silhouette line (9.3 S1) for all twelve peoples at every tier at production.
+
+## 9. The style slice (wave 1; the owner signs it off before production)
+
+### 9.1 Who and why
+
+**Jade, Imperial, Fjordfolk** (the default kept). Between them they span the hardest contrasts: the head (a flare, a
+crest's arc, a round dome), the body family (laced lamellar, scale or segments, mail), the shield (none or the oval, the
+tall scutum, the big round boss), the palette (warm vermilion on black, crimson on gold, cool woad on wool), and the
+hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, both bowls inside 2 rows).
+
+### 9.2 What it contains
+
+- **Kits:** each people at **T1, T3 and T5**, on the **man and the woman**, from the ladder kits (`kit=<people>:<tier>:<seed>`,
+  sword, seeds 1-3; sheets from seed 1), with P5b on: Jade T1 jingasa, laced leather do, vermilion obi, the oval (if its
+  culture rolls it); T3 kabuto, vermilion-laced lamellar, sode, bell; T5 kabuto legend with gilt kuwagata, great sode,
+  the horo. Imperial T1 bronze knob cap, leather jerkin, focale, short pteruges, the plain scutum; T3 crested with the
+  transverse crimson crest, banded shoulders, pteruges, half cape, the crimson scutum; T5 the Attic crested legend, great
+  banded shoulders, long crimson cloak, gilt scutum. Fjordfolk T1 round leather cap with a fur brow, jerkin with woad
+  laces, the plain round shield; T3 spangenhelm with nasal and aventail, mail, fur mantle, woad cape, the quartered round
+  shield; T5 the horned legend, scale, great fur, long woad cloak, gilt boss.
+- **Worn on the doll, facings D and R:** the composed idle (and the walk's passing frame) at 1x and 3x, in colour,
+  greyscale and black silhouette fill (`fingerprint_gallery --slice`); and **in play at NEAR**, by a hidden Witness run
+  (`tools/scripts/p5b_slice.txt` through `tools/gates/witness_pack.mjs`; never a visible window): the three peoples' T1,
+  then T3, then T5 kits side by side, facing D and R.
+- **Their icons:** every slice piece's icon (helm, body, shield, gloves, boots, cloak) at 1x and 4x, colour and greyscale.
+- **Before | after:** the same sheets with `EMB_FIX_RULES=8191` (P5) beside P5b.
+- Everything in `C:\Users\joshu\AppData\Local\Temp\claude\C--Users-joshu\1979ea42-238a-4969-bda8-d76ab6bf2de5\scratchpad\p5b-slice\`
+  with `captions.txt` and `measure.txt`.
+
+### 9.3 Done (each line checkable)
+
+- **S1 silhouette, greyscale.** For every pair of the three peoples, at T1, T3 and T5, on the man and the woman, facing D
+  and facing R (idle frame 0, aligned on the pivot, seeds 1-3): the figures' opaque masks differ by at least
+  `max(12, smaller area / 25)` px; **without the shield** (the same kit, no shield) by at least `max(8, smaller area / 40)`;
+  and the head alone (the helm and headwear parts' pixels) by at least `max(6, smaller head / 5)` px in one facing and 3
+  in the other. No pair is a twin or colour-only under P5's audit measure (`tools/preview/fingerprint_audit.h`).
+- **S2 material reads.** Each worn leather body and cap: mean hue 15-45 and saturation at least its pre-P5 value minus
+  0.10 (P5's F4); no people-colour pixel on a metal or leather plane outside the cloth, lining, crest, lacing, `R`, `N`,
+  `D` and mark cells (count 0); the dominant and accent together 5-30 % of each figure (idle D); `icons_gallery --check`
+  green with D117's lines unchanged.
+- **S3 pool.** `node tools/doll/pxc.mjs --check` clean and within 2,621,440 B; the slice's spend over f914d03's
+  2,601,938 B printed per head and in total, and at most 4,000 B.
+- **S4 the switch.** `EMB_FIX_RULES=4095` draws the pre-P5 look: P5's A/B proof reproduces p4f1's records (art hash,
+  view packs, freeze manifests) unchanged; `EMB_FIX_RULES=8191` reproduces f914d03's look on `tools/doll/fp_looks.txt` and
+  the kits (every P5b move is `FIX_SIG`'s).
+- **S5 worn equals icon.** Each slice icon's head class is its worn head's (section 4), each carries 3 px or more of its
+  people's dominant hue family, and each reads apart from the other two peoples' icon of that piece and tier in greyscale.
+- **S6 the ladder.** The envelope gates on the slice kits: heads inside T1 2 rows (the jingasa's brim inside 29.3's flare
+  rule), T3 4 rows, T5 8 rows; areas T3 >= 1.20 and T5 >= 1.55 times T1;
+  consecutive heads differ in outline; the doll gates as recorded but the declared moves.
+- **S7 the rules.** Rig 1 identical; the sim digest identical (no new draw; the kit's T1 helm from its own stream); no
+  save change; `git diff rpg/art/doll/maps` adds views and region rows only (a `--verify` like `p5_marks.py`'s); new views
+  pass `pxc --strict`.
+- **S8 eyes and the owner.** An `eyes` read of the 1x greyscale sheet names each people at each tier; the owner signs the
+  slice before the other nine peoples start.
+
+### 9.4 Who builds it (disjoint files)
+
+- **SIG-RULES (engineer-high):** `rpg/core/fingerprint.h` (the signature rows, the palette), `rpg/art/doll/doll_envelope.h`
+  (`FIX_SIG`), `rpg/art/doll/doll_resolve.cpp` (heads, per-slot people flags, axes from T1, colour landing),
+  `rpg/art/doll/doll_ramps.cpp`, `rpg/sim/gear_forge.cpp` (the people's axes over the hero shapes, behind `FIX_SIG`),
+  `rpg/sim/gear_ladder.cpp` (the kit's T1 helm, made last).
+- **SIG-ART (artist-xhigh):** the slice's new views in `rpg/art/doll/maps/headwear/**` and the region re-cuts in
+  `rpg/art/doll/maps/armour/**`, written by a new `tools/doll/p5b_sig.py` (ADD only, `--verify`), then `node tools/doll/pxc.mjs`.
+- **SIG-ICONS (artist):** `rpg/art/art_items.cpp` (the slice's helm icons and colour landing).
+- **SIG-GATES (engineer):** `tools/tests/test_fingerprint.cpp` (`--signature`: S1-S6), `tools/preview/fingerprint_gallery.cpp`
+  (`--slice`), `tools/doll/sig_looks.txt`, `tools/scripts/p5b_slice.txt`, `tools/doll/p5_pack.py` (the slice sheets),
+  `tools/gates/baseline/moves_p5b/*.txt` (every moved record declared with its reason).
+- Wave order: SIG-RULES's table and switch first (a contract commit), then ART, ICONS and GATES in parallel; one judge.
+
+## 10. Decisions for the owner (the plan proceeds on the first reading of each)
+
+1. **River is the game's guild river-city** (its towns, coats, crossbows, heaters and brigandine), its armour drawn as the
+   guild's: chaperon, chapel, sallet, morion, livery in white and lapis. (Other reading: the reference's Nile people,
+   nemes and khepresh, which would also need River's dress, towns and music re-themed: a larger batch.)
+2. **Fjordfolk keep horns at T5-T6 only** (the existing horned helm, the saga tier; T1-T4 hornless as in the concepts).
+   (Other reading: hornless throughout, a Sutton Hoo face-mask legend instead, about 2 KB more.)
+3. **The people's dominant owns the big cloth:** heads, layer, cape and cloak, linings, crests and the shield's field; the
+   kingdom keeps its device, a heraldic tabard and the king's crimson (D96). (Other reading: P5's decision 1, the
+   kingdom's colours on cloaks and shield fields, the people's beside them.)
+4. **The T1 kits wear their people's cap**; the Heartland hero's road stays bareheaded at T1 (D54) and a Heartland-made T1
+   helm draws the chapel.
+5. **The budget:** option A, +64 KiB (recommended); else option B, the core only (section 6).
+6. **The palette retune** of section 3 (Imperial crimson, not purple; Dune teal and cream; Steppe rust and sky; River
+   white and lapis; Sun Temple turquoise and yellow; Sylvan leaf and forest; Highland green and saffron; Marsh moss and bone).
+7. **One signature family a people from T3 to T6, growing** (section 2.5); 29.4's "every tier its own family" stays the
+   Heartland hero's road's rule.
+
+## 11. Don'ts
+
+- Never trace, sample or import a FLUX concept or a reference photo; draw our own pixels.
+- Never change a drawn view's cells, outline, mask, build row or stretch row; new looks are new views keyed by the maker.
+- Never put the people's colour on a lit metal or leather plane; never past 30 % of a figure; never a checker or dither.
+- Never let T1 grow past its envelope; T1 stays plain, slim and used.
+- Never give two peoples the same head at one tier unless the head measure (S1) parts them.
+- Never touch rig 1, maker-less or culture-0 pieces, or the Heartland hero's road beyond its T1 chapel.
+- Never compress the pool or delete drawn art to make room; never add a draw to the census or the loot.
