@@ -67,7 +67,7 @@ inline constexpr Sig kSigJade{0xE8641C, 0x1C1A1E, "oval", 0, true, 0, {
 inline constexpr Sig kSigImperial{0x7C082A, 0xE2B840, "tower", 0xB4243C, false, 0xCB9034, {
     {},
     {"form1",      0, "",      "",        "none",   "",        "scarf",    "close"},
-    {"",           0, "",      "",        "broad",  "layered", "scarf",    "close"},
+    {"form1",      0, "",      "",        "broad",  "layered", "scarf",    "close"},   // (P5b A) the Montefortino, its tuft (STYLE_P5B 4)
     {"form9",      0, "",      "strips",  "broad",  "layered", "halfcape", "close"},
     {"fam.plumed", 1, "",      "strips",  "broad",  "layered", "halfcape", "close"},
     {"fam.crested",0, "",      "strips",  "broad",  "layered", "cape",     "close"},
@@ -79,9 +79,28 @@ inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false,
     {"form4",      0, "",      "",        "none",   "",        "none",     "bare"},
     {"form4",      0, "",      "",        "mantle", "roll",    "none",     "bare"},
     {"form4",      0, "",      "hauberk", "mantle", "roll",    "",         "bare"},
-    {"fam.cone",   0, "spike", "hauberk", "mantle", "pelt",    "cape",     "bare"},
+    {"form4",      0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"},   // (P5b A) the spectacle helm (p5b_sig_A.py)
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true},
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}, true};
+// (P5b area A) Highland (asymmetric, long quilted lines, a small round targe): the bonnet and its toorie, the plaid hood, the
+// kettle under its fur band and feather; the plaid over the left shoulder from T1, a plaid half cape from T4, the kilted
+// strips, bare arms, broad shoulders from T4; tartan green and saffron (STYLE_P5B 5 Highland; FLUX highland_full_*)
+inline constexpr Sig kSigHighland{0x185030, 0xD89A28, "buckler", 0, false, 0, {
+    {},
+    {"hw:cap",     0, "",      "",        "none",   "",        "sash",     "bare"},
+    {"hw:cap",     0, "",      "",        "drop",   "flap",    "sash",     "bare"},   // the bonnet and its badge (the hood: over T2's head budget)
+    {"form2",      0, "",      "strips",  "none",   "",        "sash",     "bare"},
+    {"form2",      0, "",      "strips",  "broad",  "fur",     "sash",     "bare"},   // (the fur trim: the T4 figure under the waiting T5's area)
+    {},   // T5-T6 (null): P5's look until the owner's budget ruling (STYLE_P5B 6, decision 5)
+    {}}};
+// (P5b area A) Heartland (the hero's road; square, heraldic): unchanged from T2 to T6 (D54, D55, D83: soft cap, nasal with
+// knife comb, open crested, gilt onion, crystal), its body the hero's shapes at every tier (skirt null: unsigned); P5b adds a
+// Heartland-made T1 helm drawn as the chapel (the levy's brimmed kettle), and the people's heraldic red and white on its
+// cloaks and shield fields (decision 3; the kit's own shield forms: shield null). STYLE_P5B 5 Heartland
+inline constexpr Sig kSigHeartland{0xC02030, 0xEAE6D8, nullptr, 0, false, 0, {
+    {},
+    {"form2",      0, "",      nullptr,   nullptr,  nullptr,   nullptr,    nullptr},   // the chapel (p5b_sig_A.py)
+    {}, {}, {}, {}, {}}};
 // clang-format on
 
 struct Row {
@@ -95,8 +114,8 @@ struct Row {
 inline constexpr Row kRows[kPeoples] = {
     {"none",      "oak",    0x000000, 0x000000, 0, 0},   // culture 0: the classic pieces, no fingerprint (oak: the classic filigree)
     {"fjordfolk", "knot",   0x3C6EBE, 0xE8E2CE, 3, 4, &kSigFjordfolk},   // woad blue, bleached wool; knotwork
-    {"highland",  "plaid",  0x1E683A, 0xAC2430, 2, 4},   // tartan green, red (a check); the tartan sett (new, D74's hem-plaid sett)
-    {"heartland", "oak",    0xC42828, 0xEAE6D8, 4, 5},   // heraldic red, white; oak leaves
+    {"highland",  "plaid",  0x1E683A, 0xAC2430, 2, 4, &kSigHighland},   // tartan green, red (a check); the tartan sett (new, D74's hem-plaid sett)
+    {"heartland", "oak",    0xC42828, 0xEAE6D8, 4, 5, &kSigHeartland},   // heraldic red, white; oak leaves
     {"imperial",  "laurel", 0x641E6E, 0xE2B840, 2, 3, &kSigImperial},   // purple, gold thread; laurel
     {"dune",      "arab",   0x243484, 0xECA61E, 2, 4},   // indigo, saffron; arabesque
     {"steppe",    "horse",  0x3CACD6, 0xC43028, 2, 3},   // sky blue, horse-hair red; running horses

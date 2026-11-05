@@ -337,7 +337,9 @@ inline bool inPiece(Grp g, const dl::FrameProbe::It& it, uint8_t region, uint8_t
       if (it.has(R::Overlay) && (has("tabard") || has("sash"))) return true;
       if (it.has(R::Neck) && has("cowl")) return true;
       return it.has(R::Arms) && (region == (uint8_t)RG::Upper || region == (uint8_t)RG::Fore || region == (uint8_t)RG::Cuff) && armourSlotCode(code);
-    case G_HELM: return it.has(R::Helm) || (it.has(R::Headwear) && has("helm"));
+    // (P5b area A) and a signed soft head drawn through the guise path (headwear/cloth/**: the jingasa, the bonnet; never a
+    // collar), as fingerprint_gallery's S1 head line counts it: two peoples' T1 soft heads measured 0 px each read as twins
+    case G_HELM: return it.has(R::Helm) || (it.has(R::Headwear) && (has("helm") || has("headwear/cloth/")));
     case G_SHIELD: return it.has(R::Shield);
     case G_GLOVES: return it.has(R::Arms) && (region == (uint8_t)RG::Hand || region == (uint8_t)RG::Flare);
     case G_BOOTS:

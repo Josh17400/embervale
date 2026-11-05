@@ -1407,8 +1407,10 @@ int sigCloakPeople(const HumanLook& L) {
   using H = HumanLook;
   const int pc = L.makerAt(H::TIER_CLOAK), pb = L.makerAt(H::TIER_BODY);
   if (sigOn(pc) && (L.cloak || L.cape)) return pc;
-  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.cape) return pb;   // (the ladder's T3 cape behind a signed body: its people's cloth)
-  if (sigOn(pb) && L.tier[H::TIER_BODY] && L.forgeShape) {
+  // (P5b area A) a body tier with no signature (fp::SigTier::skirt null) keeps its cape's own colour
+  const bool bodySig = sigOn(pb) && L.tier[H::TIER_BODY] && fp::sigTier(pb, L.tier[H::TIER_BODY]) && fp::sigTier(pb, L.tier[H::TIER_BODY])->skirt;
+  if (bodySig && L.cape) return pb;   // (the ladder's T3 cape behind a signed body: its people's cloth)
+  if (bodySig && L.forgeShape) {
     uint8_t sx[forge::SX_COUNT];
     forge::unpackShapeAxes(L.forgeShape, sx);
     if (sx[forge::SX_LAYER] == forge::LY_CAPE || sx[forge::SX_LAYER] == forge::LY_HALFCAPE) return pb;
@@ -1422,7 +1424,8 @@ static int sigSlots(const HumanLook& L, Slot out[6], uint32_t base[6]) {
   const int pb = L.makerAt(H::TIER_BODY), ph = L.makerAt(H::TIER_HELM), ps = L.makerAt(H::TIER_SHIELD), pc = L.makerAt(H::TIER_CLOAK);
   auto rgbOf = [](uint32_t x) { return rgba((int)(x >> 16 & 255u), (int)(x >> 8 & 255u), (int)(x & 255u)); };
   if (sigOn(pb) && L.tier[H::TIER_BODY] && L.tabardColor == rgbOf(fp::sig(pb)->dom)) { out[n] = Slot::Accent; base[n++] = fp::sig(pb)->dom; }
-  if (sigOn(ph) && L.tier[H::TIER_HELM]) {
+  // (P5b area A) a helm tier with no signature (fp::SigTier::head null) keeps its crest's and cap's own colours
+  if (sigOn(ph) && L.tier[H::TIER_HELM] && fp::sigTier(ph, L.tier[H::TIER_HELM]) && fp::sigTier(ph, L.tier[H::TIER_HELM])->head) {
     const fp::Sig& g = *fp::sig(ph);
     out[n] = Slot::Plume; base[n++] = g.crest ? g.crest : g.dom;
     const bool soft = L.headwear && !(L.helmet || L.helmStyle || L.helmForm);

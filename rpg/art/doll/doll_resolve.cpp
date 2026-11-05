@@ -1453,7 +1453,9 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   bool shaped = L.forgeShape != 0;
   // the body
   const int pb = L.makerAt(H::TIER_BODY), tb = L.tier[H::TIER_BODY];
-  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L)) {
+  // (P5b area A) a tier whose skirt is null leaves the body as the piece draws it (the Heartland hero's road, D54-D55; a new
+  // people's T5-T6 until the owner's budget ruling): "" is a word (unset), nullptr no signature
+  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L) && fp::sigTier(pb, tb)->skirt) {
     const fp::SigTier& t = *fp::sigTier(pb, tb);
     u.body = true;
     u.bodyP = pb;
@@ -1473,7 +1475,9 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   // the helm (a helmet worn: a band, a form or the legacy helmet)
   const int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
   const bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
-  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn) {
+  // (P5b area A) a tier whose head is null leaves the helm as the piece draws it, its crest colour too (the Heartland's T5-T6, a
+  // new people's T5-T6 until the owner's budget ruling); "" signs it with the piece's own head
+  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn && fp::sigTier(ph, th)->head) {
     const fp::SigTier& t = *fp::sigTier(ph, th);
     u.helmP = ph;
     const std::string head = t.head ? t.head : "";

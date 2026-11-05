@@ -234,9 +234,34 @@ int leatherMeans(Ctx& c, const Col& col, uint64_t seed, const ColumnRun& on) {
   int bad = 0;
   double hLo = 999, hHi = -1, worstDrop = -9;
   std::string who;
+  // (P5b area A, STYLE_P5B 8.4) a signed people's cloth is its own, never the leather's: a signed soft head (the Highland's
+  // bonnet: the guise path's cloth) is no leather cap, and a signed body's layer (the plaid, the obi, the focale: pixels of its
+  // dominant's hue) stays out of the coat's leather mean
+  auto hueOf = [](double r, double g, double b) {
+    const double mx = std::max({r, g, b}), mn = std::min({r, g, b}), d = mx - mn;
+    if (d < 1e-6) return -1.0;
+    return mx == r ? 60 * std::fmod((g - b) / d + 6, 6.0) : mx == g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  };
   for (int m = 1; m < NM; m++) {
     if (!on.cell[m].have || !off.cell[m].have) continue;
-    const HueSat a = meanHueSat(on.cell[m].fig[0].piece.px.begin(), on.cell[m].fig[0].piece.px.end());
+    const fp::SigTier* st = fp::sig(m) && dl::fixOn(dl::FIX_SIG) && dl::fixOn(dl::FIX_FP) ? fp::sigTier(m, col.mt.tier) : nullptr;
+    if (st && col.g == G_HELM && st->head && !std::strncmp(st->head, "hw:", 3)) continue;
+    std::map<std::pair<int, int>, uint32_t> px = on.cell[m].fig[0].piece.px;
+    if (st && col.g == G_BODY && st->layer && *st->layer && std::strcmp(st->layer, "none")) {
+      const uint32_t d = fp::sig(m)->dom;
+      const double hd = hueOf((d >> 16 & 255) / 255.0, (d >> 8 & 255) / 255.0, (d & 255) / 255.0);
+      // (only a dominant off the leather's own hues: a vermilion or crimson layer is measured as P5 measured its band)
+      for (auto i = px.begin(); hd >= 0 && (hd < 5 || hd > 55) && i != px.end();) {
+        const uint32_t v = i->second;
+        const double h = hueOf((v & 255) / 255.0, (v >> 8 & 255) / 255.0, (v >> 16 & 255) / 255.0);
+        const double dh = h < 0 ? 999 : std::min(std::fabs(h - hd), 360 - std::fabs(h - hd));
+        i = dh < 25 ? px.erase(i) : std::next(i);
+      }
+    }
+    const HueSat a = meanHueSat(px.begin(), px.end());
+    if (std::getenv("EMB_F4_DEBUG"))
+      std::printf("    F4 all %s m%d tier %d sig %d: %zu of %zu px, hue %.0f sat %.2f\n", col.tag.c_str(), m, (int)col.mt.tier, st != nullptr,
+                  px.size(), on.cell[m].fig[0].piece.px.size(), a.hue, a.sat);
     const HueSat b = meanHueSat(off.cell[m].fig[0].piece.px.begin(), off.cell[m].fig[0].piece.px.end());
     hLo = std::min(hLo, a.hue); hHi = std::max(hHi, a.hue);
     if (b.sat - a.sat > worstDrop) { worstDrop = b.sat - a.sat; who = makerShort(m); }
