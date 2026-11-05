@@ -13,6 +13,33 @@ legend S head 2
 legend T head 3
 legend U head 4
 
+# (P5b SIG C) begin suntemple-fan: the Sun Temple T2 quilted cap and its fan of three yellow feathers
+legend ! plume 0
+legend $ plume 1
+legend % plume 2
+legend & plume 3
+legend * plume 4
+view D key rest origin 0 4 when sighelm-suntemple,helm.t2,!helm.t3
+|!!......!!....!!
+|!**!...!**!.!%%!
+|.!*&!..!*&!!%$!.
+|..!!....!!..!!..
+view U key rest origin 1 4 when sighelm-suntemple,helm.t2,!helm.t3
+|!!......!!....!!
+|!**!...!**!.!%%!
+|.!*&!..!*&!!%$!.
+|..!!....!!..!!..
+view R key rest origin 0 4 when sighelm-suntemple,helm.t2,!helm.t3
+|!!......!!....!!
+|!**!...!**!.!%%!
+|.!*&!..!*&!!%$!.
+|..!!....!!..!!..
+view L key rest origin 0 4 when sighelm-suntemple,helm.t2,!helm.t3
+|!!......!!....!!
+|!**!...!**!.!%%!
+|.!*&!..!*&!!%$!.
+|..!!....!!..!!..
+# (P5b SIG C) end suntemple-fan
 view D key rest origin 1 1
 |.......QQQQQ......
 |.....QQTUUTSQQ....

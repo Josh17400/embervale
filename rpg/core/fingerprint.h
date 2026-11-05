@@ -37,6 +37,8 @@ struct SigTier {
                             // steps aside
   bool giltGrowth = false;  // (fix r1) the family's legend growth at this tier in the gilt (the Jade T5 kuwagata: the legend
                             // part's metal steps 1-4 drawn in Device, the T5 device's gold; no pool bytes)
+  bool coif = false;        // (P5b area C) the people's hood worn under the helm at this tier (headwear/cloth/hood in Sig::hood:
+                            // the Starspire knight keeps the acolyte's indigo hood under his crown; no pool bytes)
 };
 struct Sig {
   uint32_t dom, acc;     // the dominant and the accent (0xRRGGBB): the cloth (heads, the layer, cape and cloak, linings,
@@ -50,6 +52,9 @@ struct Sig {
                          // the cheek guards, the horns, the rim; drawn in Device, the T5 device's gold) over a culture alloy's own
                          // polished trim, never the body's Metal 2 (an alloy's banded rows): Imperial crimson and gold, the
                          // Fjordfolk jarl's gilt horns and rim; false keeps the alloy's
+  uint32_t hood = 0;     // (P5b area C) a soft head's cloth (the Head slot of an `hw:` head and a T1 cap; 0xRRGGBB): 0 the accent.
+                         // Starspire's hood and cowl and Sun Temple's band and cap are their dominant (the crest's colour
+                         // the other of the pair: the star-white edge, the yellow feathers)
 };
 // clang-format off
 // Jade (flared, banded): the jingasa, then the kabuto, then gilt kuwagata; sode, the kusazuri's bell, wide sleeves, the
@@ -82,6 +87,57 @@ inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false,
     {"fam.cone",   0, "spike", "hauberk", "mantle", "pelt",    "cape",     "bare"},
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true},
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}, true};
+// ---- (P5b area C, STYLE_P5B 4-5) River, Sun Temple, Sylvan and Starspire at T1-T4; T5-T6 wear their families' existing legend
+// heads (no pool bytes; the T5-T6 legend overlays wait for the owner's budget decision, STYLE_P5B 6 option B). The people heads'
+// added views: tools/doll/p5b_sig_C.py
+// River (the guild river-city, decision 1; rectangular, heavy-sleeved): the chaperon on its roll, the leather chapel, then the
+// morion growing (one family from T3, the owner's default; the sallet the alloys' secondary) under a lapis plume at T4; slab
+// shoulders, tassets, the livery tabard, puffed sleeves, the heater; deep lapis and linen white (STYLE_P5B 3's white and lapis
+// livery with the lapis dominant, tuned within its family to #12335E: F1's rules hold, a near-white dominant never clears the
+// light steel and iron steps by 20, and the plan's lapis sat 18 from the Fjordfolk woad; the roll and the plume in it, the
+// chaperon's cloth the linen)
+inline constexpr Sig kSigRiver{0x12335E, 0xE8E4D6, "heater", 0, false, 0, {
+    {},
+    {"hw:headscarf", 0, "",      "",        "none",   "",        "none",     "close"},
+    {"fam.kettle", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
+    {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
+    {"fam.morion", 0, "",      "tassets", "broad",  "plate",   "tabard",   "wide", false, false, true},
+    {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
+    {"fam.morion", 1, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"}}, false, 0xE8E4D6};
+// Sun Temple (radiating fans, round chimalli, animal heads): the turquoise headband and its yellow feather, the quilted cap
+// and its fan, the jaguar's head (the masked family's place), the jaguar under a feather crest; the feather mantle, the
+// feathered bell, bare arms, the feather cape; turquoise and feather yellow (the feathers and the pelt in the yellow)
+inline constexpr Sig kSigSunTemple{0x1CA086, 0xF0C030, "round", 0xF0C030, false, 0, {
+    {},
+    {"hw:circlet", 0, "",      "",        "none",   "",        "none",     "bare"},
+    {"hw:cap",     0, "",      "",        "mantle", "feather", "none",     "bare"},
+    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"},
+    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"},
+    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare", false, false, true},
+    {"fam.crown",  1, "",      "bell",    "tall",   "winged",  "cape",     "bare", false, false, true}}, false, 0x1CA086};
+// Sylvan (curved, swept back, slim: the lightest silhouette at every tier): the leaf circlet, the leaf crown, the winged helm
+// whose wings grow (low and swept back at T3, the leaf fin at T4); leaf shoulders, the long split leaf skirt, close sleeves,
+// the leaf cloak; leaf green and forest
+inline constexpr Sig kSigSylvan{0xA0C850, 0x2E5A2A, "leaf", 0, false, 0, {
+    {},
+    {"hw:circlet", 0, "",      "",        "none",   "",        "none",     "close"},
+    {"hw:circlet", 0, "",      "split",   "drop",   "leaf",    "none",     "close"},
+    {"fam.winged", 0, "",      "strips",  "drop",   "leaf",    "",         "close"},
+    {"fam.winged", 3, "",      "split",   "drop",   "leaf",    "cape",     "close"},
+    {"fam.winged", 0, "",      "split",   "drop",   "leaf",    "cape",     "close"},
+    {"fam.winged", 2, "",      "strips",  "drop",   "leaf",    "",         "close"}}};
+// Starspire (sharp, vertical, symmetric; gothic-arched, fluted and celestial, never spiky-evil): the deep pointed hood, the
+// stiff cowl, then the star-pointed crown worn over the same indigo hood (SigTier::coif) and growing; tall flared shoulders,
+// the split hem then tassets, the indigo cape, the kite; indigo and star white (the hood's star-white edge)
+inline constexpr Sig kSigStarspire{0x5A3CB4, 0xDCE4F8, "kite", 0xDCE4F8, false, 0, {
+    {},
+    {"hw:hood",    0, "",      "",        "none",   "",        "none",     "close"},
+    {"hw:hood",    0, "",      "tassets", "tall",   "flared",  "none",     "close"},
+    {"fam.crown",  1, "",      "tassets", "tall",   "flared",  "cape",     "close", false, false, true},
+    {"fam.crown",  0, "",      "tassets", "tall",   "flared",  "cape",     "close", false, false, true},
+    {"fam.crown",  3, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true},
+    {"fam.crown",  2, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true}}, false, 0x5A3CB4};
+// ---- (end of area C)
 // clang-format on
 
 struct Row {
@@ -102,10 +158,10 @@ inline constexpr Row kRows[kPeoples] = {
     {"steppe",    "horse",  0x3CACD6, 0xC43028, 2, 3},   // sky blue, horse-hair red; running horses
     {"marsh",     "reed",   0x687E24, 0x465078, 4, 5},   // moss, faded indigo; reeds
     {"jade",      "clouds", 0xF06E1E, 0x1C1A1E, 2, 3, &kSigJade},   // vermilion, black lacquer; cloud scrolls
-    {"river",     "wave",   0x12868C, 0xECEAE2, 2, 4},   // river teal, white; waves
-    {"suntemple", "ray",    0xB41E64, 0x249688, 2, 4},   // magenta, teal; sun rays
-    {"sylvan",    "vein",   0xA0C850, 0xE8B040, 4, 5},   // leaf green, amber; leaf veins
-    {"starspire", "star",   0x9678F0, 0xDCE4F8, 3, 4},   // violet, star white; four-point stars
+    {"river",     "wave",   0x12868C, 0xECEAE2, 2, 4, &kSigRiver},   // river teal, white; waves
+    {"suntemple", "ray",    0xB41E64, 0x249688, 2, 4, &kSigSunTemple},   // magenta, teal; sun rays
+    {"sylvan",    "vein",   0xA0C850, 0xE8B040, 4, 5, &kSigSylvan},   // leaf green, amber; leaf veins
+    {"starspire", "star",   0x9678F0, 0xDCE4F8, 3, 4, &kSigStarspire},   // violet, star white; four-point stars
 };
 // clang-format on
 inline const Row& row(int people) { return kRows[people > 0 && people < kPeoples ? people : 0]; }

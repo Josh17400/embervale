@@ -814,9 +814,95 @@ bool sigBodyLayer(Canvas& c, const IconLook& l) {
   }
   return false;
 }
+// ---------------------------------------------------------------- P5b area C: River, Sun Temple, Sylvan, Starspire
+// The bag says what the doll says (STYLE_P5B 7): the helm by its head class at its band (the chaperon, the chapel, the plumed
+// morion, its gilt legend; the feathered band, the fanned cap, the jaguar, the sun crown over the hood; the leaf circlet, the leaf
+// crown, the leaf-winged helm, its gilt veins; the deep hood, the pointed cowl and its clasp, the star crown over the hood, its
+// gilt spires), the shield its people's form, field and device (River per pale lapis and linen, the Sun Temple chimalli ringed
+// and fringed in yellow, the Sylvan leaf veined in forest, the Starspire kite under a white star), the cloak the dominant
+int sigIndexC(int people) {
+  const char* n = fp::row(people).name;
+  return !std::strcmp(n, "river") ? 0 : !std::strcmp(n, "suntemple") ? 1 : !std::strcmp(n, "sylvan") ? 2 : !std::strcmp(n, "starspire") ? 3 : -1;
+}
+// [river, suntemple, sylvan, starspire][band 0 T1, 1 T2, 2 T3-T4, 3 T5-T6] (area C)
+const char* const kSigHelmC[4][4][16] = {
+  {  // river
+    {"................", "................", "......kkkk......", "....kkjjiikk....", "...kjjjiihhhgk..", "..kjjiiihhhgggk.", "..kiiiihhhgggffk", "..keeddcccbbaak.", "..kcccbbbaaaaak.", "...kkkkkkkkkkgk.", ".............kgk", "............kgfk", "............kfk.", ".............k..", "................", "................"},
+    {"................", "................", "................", "......kkkk......", ".....k4433k.....", "....k443322k....", "....k433221k....", "....kddccbak....", ".kkkk3322111kkk.", "k443333222211110", ".kkkkkkkkkkkkkk.", "................", "................", "................", "................", "................"},
+    {"........kk......", ".......kdck.kk..", "......kedcbkck..", "......kdccbabk..", ".......kk4kkk...", "......k443k.....", ".....k44332k....", "....k4433221k...", "...k443322211k..", "k4kk433222111kk1", ".k443332222111k.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+    {"........kk......", ".......kdck.kk..", "......kedcbkck..", "......kdccbabk..", ".......kkwkkk...", "......kxwvk.....", ".....k44332k....", "....k4433221k...", "...k443322211k..", "kxkk433222111kkw", ".kyxxxwwwwvvvk..", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+  },
+  {  // suntemple
+    {"................", "..........kk....", ".........kjik...", ".........kiik...", ".........khhk...", "..........kk....", "..kkkkkkkkkkkk..", ".kdeeddddcccbbk.", ".kccbbbbbbbaaak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................"},
+    {".......kk.......", "..kk..kjik..kk..", "..kik.kiik.kihk.", "...khk.kik.khk..", "....kk.kk.kk....", ".....kkkkkkk....", "....kdeeddcck...", "...kdedcdcdcbk..", "..kdeddcddcdcbk.", "..kddcddcddcbbak", "..kccccccccbbaak", "...kkkkkkkkkkkk.", "................", "................", "................", "................"},
+    {"................", "...kk......kk...", "..kjhk....khgk..", "..khjkkkkkkhgk..", ".kjjhhhhhhhggfk.", ".kjhkhhhkhhgkfk.", ".khhdkhhhhkdgfk.", ".khhhhiikhhggfk.", ".khgk4kkkk4kgfk.", ".kgk########kfk.", ".kgk########kfk.", ".khgk######kgfk.", "..kggkkkkkkgfk..", "...kkkkkkkkkk...", "................", "................"},
+    {"...k...k...k....", "..kwk.kxk.kwk...", "..kvwkkxkkwvk...", "...kxwwxwwxk....", "..kyxxwwwvvvk...", "..kdddddccccbk..", ".kdek######kcbk.", ".kdk########kbk.", ".kdk########kbk.", ".kdek######kcbk.", "..kddkkkkkkcbk..", "...kkkkkkkkkk...", "................", "................", "................", "................"},
+  },
+  {  // sylvan
+    {"................", "................", "................", "................", "..k...k...k...k.", ".kdk.kdk.kdk.kck", ".kcdkkcdkkcbkkbk", ".kiihhhhgggfffk.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................", "................"},
+    {"................", ".......kk.......", "...k...kdk...k..", "..kdk.kddk..kck.", "..kdckkdcck.kcbk", ".kddckdccbkkcbbk", ".kiihhhhgggfffk.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................", "................", "................"},
+    {"................", "k..............k", "kdk..........kbk", ".kdk..kkkk..kbk.", ".kddkk4433kkbbk.", "..kdk443322kbk..", "..kk44332221kk..", "...k43322211k...", "...k33222111k...", "...kkkkkkkkkk...", "...k1k....k1k...", "................", "................", "................", "................", "................"},
+    {"................", "k..............k", "kxk..........kwk", ".kdx..kkkk..wbk.", ".kdxkk4433kkwbk.", "..kxk443322kwk..", "..kk44332221kk..", "...k43322211k...", "...k33222111k...", "...kyyxxxwwvk...", "...k1k....k1k...", "................", "................", "................", "................", "................"},
+  },
+  {  // starspire
+    {"................", ".......kk.......", "......kddk......", ".....kdeddk.....", "....kdeedcck....", "...kdeddccccbk..", "...kjjjiiihhk...", "..kdj######hcbk.", "..kdj######hcbk.", "..kdj######hcbk.", "..kddj####hccbk.", ".kdddcjjjjccbbak", ".kddcccccccbbaak", "..kkkkkkkkkkkkk.", "................", "................"},
+    {".......kk.......", "......kddk......", "......kedk......", ".....kdedck.....", "....kdedccck....", "...kdeddcccbk...", "...kjjjiiihhk...", "..kdj######hcbk.", "..kdj######hcbk.", "..kddj####hccbk.", ".kdddcckjkccbbak", ".kddcckjjjkcbaak", "..kkkkkkjkkkkkk.", "................", "................", "................"},
+    {"................", "...k..k.k..k....", "..k4k.k4k.k3k...", "..k43kk43kk32k..", "..k443333222k...", "..kkkkkkkkkkk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+    {"...k..k..k..k...", "..kyk.kyk.kxk...", "..kxk.kxkkkwk...", "..kxwkkxwkwvk...", "..kyxxxwwwwvk...", "..kkkkkkkkkkk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+  },
+};
+bool sigIconPieceC(Canvas& c, const IconLook& l, const Ramp& M) {
+  const fp::Sig* g = sigOf(l);
+  const int si = sigIndexC(l.people);
+  if (!g || si < 0) return false;
+  const Ramp dom = fpRamp(g->dom), acc = fpRamp(g->acc);
+  const int t = std::clamp((int)l.tier, 1, 6);
+  const int band = t <= 1 ? 0 : t == 2 ? 1 : t <= 4 ? 2 : 3;
+  auto stepOf = [&](uint32_t v, const Ramp& R) { for (int i = 0; i < 5; i++) if (v == R[i]) return i; return -1; };
+  switch (l.icon) {
+    case Icon::Helmet: {
+      const SigPal P{&M, &dom, &acc};
+      sigGrid(c, kSigHelmC[si][band], 16, P);
+      return true;
+    }
+    case Icon::Shield: {
+      static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
+      int form = l.form;
+      for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
+      const bool gilt = t >= 5;
+      shieldIcon(c, form, gilt ? kGold : t <= 1 ? dom : (l.mat == 1 ? kLeather : M), t <= 1 ? kLeather : dom, gilt);
+      if (t < 2) return true;
+      for (int y = 0; y < 16; y++)
+        for (int x = 0; x < 16; x++) {
+          const uint32_t v = c.get(x, y);
+          const int k = (v >> 24) ? stepOf(v, dom) : -1;
+          if (k < 0) continue;
+          if (si == 0 && x >= 8) c.set(x, y, acc[std::min(4, k + 1)]);                           // River: per pale, lapis on the sinister
+          if (si == 1) {                                                                        // Sun Temple: a yellow ring, fringed
+            const float d = std::sqrt((x + 0.5f - 8) * (x + 0.5f - 8) + (y + 0.5f - 8) * (y + 0.5f - 8));
+            if (std::fabs(d - 3.6f) < 0.6f || (y >= 12 && (x & 1))) c.set(x, y, acc[std::min(4, k + 1)]);
+          }
+          if (si == 2 && (x == 7 || x == 8) && y >= 3 && y <= 13) c.set(x, y, acc[x == 7 ? 3 : 2]);   // Sylvan: the leaf's forest vein
+        }
+      if (si == 3) {   // Starspire: a four-point star in star white on the upper field
+        const int sx = 8, sy = 5;
+        for (int d = -2; d <= 2; d++) { c.set(sx + d, sy, acc[d == 0 ? 4 : 3]); c.set(sx, sy + d, acc[d == 0 ? 4 : 3]); }
+      }
+      return true;
+    }
+    case Icon::Cloak:
+      paintIcon(c, Icon::Cloak, dom[2], nullptr);
+      if (si == 3) { c.set(8, 7, acc[4]); c.set(7, 7, acc[3]); c.set(9, 7, acc[3]); c.set(8, 6, acc[3]); c.set(8, 8, acc[3]); }   // the star
+      if (si == 1) for (int x = 4; x <= 11; x += 2) c.set(x, 13, acc[3]);                       // the feathered hem
+      return true;
+    default: return false;
+  }
+}
+
 // a signed helm, shield, coat or cloak painted whole (true); false: the classic painter
 bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
   const fp::Sig* g = sigOf(l);
+  if (sigIconPieceC(c, l, M)) return true;   // (P5b area C)
   const int si = sigIndex(l.people);
   if (!g || si < 0) return false;
   const Ramp dom = fpRamp(g->dom), acc = fpRamp(g->acc);

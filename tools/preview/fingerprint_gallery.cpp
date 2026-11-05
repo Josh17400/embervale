@@ -12,6 +12,9 @@
 //     --slice   (P5b, STYLE_P5B 9.2) the style slice's figures one PNG each (slice_<people>_T<t>_<m|w>_s<seed>_<D|R>[_ns|_walk|_head])
 //               and its kits' icons (slice_icon_<people>_T<t>_<piece>_s<seed>), for tools/doll/p5b_pack.py
 //     --figs F  (P5b) one PNG per facing for each line `name who facings spec` of F (the look-and-adjust loop)
+//     --pool FILE  (P5b area C) draw from a scratch pool file (pxc.mjs --bin FILE --no-cpp) instead of the built-in one
+//     --slice-people a,b,...  --slice-tiers 1,2,...  (P5b area C) --slice for those peoples and tiers (default jade,imperial,
+//               fjordfolk and 1,3,5)
 // Writes <outDir>/report_<tag>.txt (every column's pairs, the twins and colour-only pairs named with their three measures
 // and the pixel they differ most at, the dye shares) and the sheets (<= 8000 px a side).
 #include <cstdarg>
@@ -37,6 +40,7 @@ struct Opts {
   bool before = false, grey = false, matrix = false, kits = false, census = false, icons = false, swatches = false;
   bool slice = false;      // (P5b) --slice
   std::string figs;        // (P5b) --figs FILE
+  std::string slicePeople = "jade,imperial,fjordfolk", sliceTiers = "1,3,5";   // (P5b area C) --slice-people / --slice-tiers
 };
 
 FILE* g_rep = nullptr;
@@ -349,13 +353,28 @@ Canvas headCanvas(const art::HumanLook& L, int facing) {
   return hc;
 }
 int sliceRun(const Opts& o) {
-  static const char* const kPeople[3] = {"jade", "imperial", "fjordfolk"};
+  auto split = [](const std::string& s) {
+    std::vector<std::string> v;
+    size_t a = 0;
+    while (a <= s.size()) {
+      const size_t b = s.find(',', a);
+      const std::string w = s.substr(a, b == std::string::npos ? std::string::npos : b - a);
+      if (!w.empty()) v.push_back(w);
+      if (b == std::string::npos) break;
+      a = b + 1;
+    }
+    return v;
+  };
+  const std::vector<std::string> people = split(o.slicePeople);
+  std::vector<int> tiers;
+  for (const std::string& t : split(o.sliceTiers)) tiers.push_back(std::atoi(t.c_str()));
   FpScope scope(!o.before);
   FILE* mf = std::fopen((o.out + "/slice_shares.txt").c_str(), "w");
   for (uint32_t seed = o.seedA; seed <= o.seedB; seed++)
-    for (const char* p : kPeople)
-      for (int t : {1, 3, 5})
+    for (const std::string& ps : people)
+      for (int t : tiers)
         for (int body = 0; body < 2; body++) {
+          const char* p = ps.c_str();
           char spec[160], base[96];
           std::snprintf(spec, sizeof spec, "%skit=%s:%d:%u", body ? "heroine=1," : "hero=1,", p, t, seed);
           std::snprintf(base, sizeof base, "slice_%s_T%d_%s_s%u", p, t, body ? "w" : "m", seed);
@@ -452,6 +471,14 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(a, "--swatches")) o.swatches = true;
     else if (!std::strcmp(a, "--slice")) o.slice = true;
     else if (!std::strcmp(a, "--figs") && i + 1 < argc) o.figs = argv[++i];
+    // (P5b area C) --pool FILE: a scratch pool (node tools/doll/pxc.mjs --bin FILE --no-cpp; the look-and-adjust loop without a
+    // rebuild); --slice-people a,b,... and --slice-tiers 1,2,...: the slice run for other peoples and tiers (default the slice's)
+    else if (!std::strcmp(a, "--pool") && i + 1 < argc) {
+      std::string err;
+      if (!dl::loadPoolFile(argv[++i], &err)) { std::printf("fingerprint_gallery: --pool: %s\n", err.c_str()); return 1; }
+    }
+    else if (!std::strcmp(a, "--slice-people") && i + 1 < argc) o.slicePeople = argv[++i];
+    else if (!std::strcmp(a, "--slice-tiers") && i + 1 < argc) o.sliceTiers = argv[++i];
     else { std::printf("fingerprint_gallery: unknown arg %s\n", a); return 2; }
   }
   art::RigScope rig(2);

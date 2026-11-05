@@ -23,6 +23,137 @@ tags overlay
 # (FORGE-HELM i2, crown_tweak.py) the crown mark two rows down the dome: the crest rides the dome, never over the frame top (B10)
 # (FORGE-HELM i3, crown3.py) mark crown on the top outline row (it sat 2 rows down in the bowl and buried every crest)
 
+# (P5b SIG C) begin suntemple-jaguar: the Sun Temple jaguar head (T3-T5): the spotted pelt, the ears, the eyes, the fangs, the face in the jaws
+legend ! plume 0
+legend $ plume 1
+legend % plume 2
+legend & plume 3
+legend * plume 4
+legend + dye 3
+legend , ink 0
+legend / metal 0
+legend : metal 1
+legend ; metal 2
+legend < metal 3
+legend = metal 4
+view D key rest origin 2 2 when sighelm-suntemple,helm.t3,!helm.t6 replace
+|....!!........!!....
+|...!,&!......!&,!...
+|..!,&%!!!!!!!!%&,!..
+|.!&&&%,&%%%,%%&%%$!.
+|.!*&%,&%%,%%&%,%%$!.
+|.!&&%+,%&&&&%,+%%$!.
+|.!&%%&&******&&%%$!.
+|.!%$%&&**,,**&&%$$!.
+|.!$%%%&&,&&,&&%%$$!.
+|.!%$/:;<<<;;;::/$%!.
+|.!$%.=........=.%$!.
+|.!%$............$%!.
+|.!,%............%,!.
+|.!%$............$%!.
+|.!$%............%$!.
+|..!$%$........$%$!..
+|...!$%=......=%$!...
+|....!$$%%%%%%$$!....
+|.....!!!!!!!!!!.....
+view U key rest origin 2 2 when sighelm-suntemple,helm.t3,!helm.t6 replace
+|....!!........!!....
+|...!,&!......!&,!...
+|..!,&%!!!!!!!!%&,!..
+|.!&&&%,&%%%,%%&%%$!.
+|.!*&%,&%%,%%&%,%%$!.
+|.!&,%%%&,%%%&,%%%$!.
+|.!%%,&%%%,%%&%,%%$!.
+|.!&%%%,&%%%,&%%,%$!.
+|.!%,%%&%,%%%&%,%%$!.
+|.!%%,%%%%,%%%%,%$$!.
+|..!%%%,%%%%,%%%%$!..
+|...!$$%%%%%%%$$$!...
+|....!!!!!!!!!!!!....
+view R key rest origin 2 2 when sighelm-suntemple,helm.t3,!helm.t6 replace
+|.....!!.............
+|....!,&!............
+|...!,&%!!!!!!!......
+|..!&&%,&%%%%%$!!....
+|.!&*,%&%%%,%%%%$!...
+|.!&&%,%%&%%%%&+,%!..
+|.!&%,%%&%%%&&****!..
+|.!&%%,&%%%%&&***,,!.
+|.!,%%&%%%%%&&&&&,!..
+|.!%$%/:;<<<;;::/!...
+|.!$%%$$!...=..=.....
+|.!,%%$$.............
+|.!%$$%!.............
+|.!$%%,!.............
+|.!%$%$!.......!=!...
+|.!$%%$$$!....!%%$!..
+|..!$$$$!!.....!!!...
+|...!!!!!............
+view L key rest origin 2 2 when sighelm-suntemple,helm.t3,!helm.t6 replace
+|.............!!.....
+|............!%,!....
+|......!!!!!!!&%,!...
+|....!!$&&&&&%,&%%!..
+|...!$&&&&,&&&%&,*%!.
+|..!&,+%&&&&%&&,&%%!.
+|..!****%%&&&%&&,&%!.
+|.!,,***%%&&&&%,&&%!.
+|..!,%%%%%&&&&&%&&,!.
+|...!/<<;;:::;</&$&!.
+|.....=..=...!$$&&$!.
+|.............$$&&,!.
+|.............!&$$&!.
+|.............!,&&$!.
+|...!=!.......!$&$&!.
+|..!$&&!....!$$$&&$!.
+|...!!!.....!!$$$$!..
+|............!!!!!...
+view L key lie origin 2 2 when sighelm-suntemple,helm.t3,!helm.t6 replace
+|.............!!.....
+|............!%,!....
+|......!!!!!!!&%,!...
+|....!!$&&&&&%,&%%!..
+|...!$&&&&,&&&%&,*%!.
+|..!&,+%&&&&%&&,&%%!.
+|..!****%%&&&%&&,&%!.
+|.!,,***%%&&&&%,&&%!.
+|..!,%%%%%&&&&&%&&,!.
+|...!/<<;;:::;</&$&!.
+|.....=..=...!$$&&$!.
+|.............$$&&,!.
+|.............!&$$&!.
+|.............!,&&$!.
+|...!=!.......!$&$&!.
+|..!$&&!....!$$$&&$!.
+|...!!!.....!!$$$$!..
+|............!!!!!...
+# (P5b SIG C) end suntemple-jaguar
+# (P5b SIG C) begin suntemple-crest: the Sun Temple T4 quetzal feather sprays from the jaguar's ears (an overlay)
+legend > plume 0
+legend ? plume 2
+legend [ plume 3
+legend ] plume 4
+view D key rest origin 3 4 when sighelm-suntemple,helm.t4,!helm.t5
+|>....................>
+|]>..................>?
+|[]>................>??
+|.>>................>>.
+view U key rest origin 3 4 when sighelm-suntemple,helm.t4,!helm.t5
+|>....................>
+|[>..................>?
+|[[>................>??
+|.>>................>>.
+view R key rest origin 3 4 when sighelm-suntemple,helm.t4,!helm.t5
+|>...
+|]>..
+|[]>.
+|.>>.
+view L key rest origin -15 4 when sighelm-suntemple,helm.t4,!helm.t5
+|...>
+|..>?
+|.>??
+|.>>.
+# (P5b SIG C) end suntemple-crest
 view D key rest origin 2 1
 mark crown 9 3
 |--------------------

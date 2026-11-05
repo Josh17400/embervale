@@ -13,6 +13,25 @@ legend S head 2
 legend T head 3
 legend U head 4
 
+# (P5b SIG C) begin river-chaperon: the River T1 chaperon: the linen kerchief and its tails on a fat lapis roll (an overlay)
+legend ! plume 0
+legend $ plume 1
+legend % plume 2
+legend & plume 3
+legend * plume 4
+view D key rest origin 0 -4 when sighelm-river,!helm.t2
+|.&**&&&%%%%%$$$.
+|!%&&%%%%%$$$$$!!
+view U key rest origin 0 -4 when sighelm-river,!helm.t2
+|!&**&&&&%%%%$$$!
+|!%&&&%%%%%$$$$!!
+view R key rest origin 1 -4 when sighelm-river,!helm.t2
+|.!&***&&&&%%%%$$!
+|!%&&&%%%%%$$$$$!!
+view L key rest origin 0 -4 when sighelm-river,!helm.t2
+|!&***&&&&%%%%$$!.
+|!%&&&%%%%%$$$$$!!
+# (P5b SIG C) end river-chaperon
 view D key rest origin 0 0
 |.....QQQQQQ.....
 |...QQTUUTTSQQ...

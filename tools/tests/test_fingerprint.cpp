@@ -236,6 +236,12 @@ int leatherMeans(Ctx& c, const Col& col, uint64_t seed, const ColumnRun& on) {
   std::string who;
   for (int m = 1; m < NM; m++) {
     if (!on.cell[m].have || !off.cell[m].have) continue;
+    // (P5b area C, STYLE_P5B 3-4) a signed people's soft head in the helm's place (`hw:`: the hood, the band, the cap, the circlet,
+    // the kerchief) is the people's cloth, never a leather cap: the leather means read the leather heads
+    if (col.g == G_HELM && fp::sig(m) && dl::fixOn(dl::FIX_SIG) && dl::fixOn(dl::FIX_FP)) {
+      const fp::SigTier* st = fp::sigTier(m, col.mt.tier);
+      if (st && st->head && std::strncmp(st->head, "hw:", 3) == 0) continue;
+    }
     const HueSat a = meanHueSat(on.cell[m].fig[0].piece.px.begin(), on.cell[m].fig[0].piece.px.end());
     const HueSat b = meanHueSat(off.cell[m].fig[0].piece.px.begin(), off.cell[m].fig[0].piece.px.end());
     hLo = std::min(hLo, a.hue); hHi = std::max(hHi, a.hue);
