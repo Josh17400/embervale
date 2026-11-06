@@ -568,8 +568,9 @@ struct HumanLook {
   // gear::alloyGuise. Derived, never saved; key() at rig 2 only when set
   uint16_t forgeGuise = 0;
   // (P2c forge round 2, contracts 3c.1) the worn armour's SILHOUETTE (art::doll::forge shape axes packed: helm bits 0-4,
-  // skirt 5-7, mass 8-10, layer 11-13, arm 14-15, motif 16-19, bit 31 set; 0 none: round 1's pixels): gear::shapeOf per
-  // worn piece (the helm piece the helm family, the body piece the rest). Derived, never saved; key() at rig 2 only when set
+  // skirt 5-7, mass 8-10, layer 11-13, arm 14-15, motif 16-19, the helm variant 20-22, (P5b2) the non-kit alloy pieces 23-24
+  // (doll_forge.h SHAPE_OWN_*), bit 31 set; 0 none: round 1's pixels): gear::shapeOf per worn piece (the helm piece the helm
+  // family, the body piece the rest). Derived, never saved; key() at rig 2 only when set
   uint32_t forgeShape = 0;
   // (P2c wave-2 fix round, D74) the body piece's maker people (cult::Archetype + 1; 0 none): the people's T2 cowl and capelet
   // hems by people (doll flags `people-<name>`, the Highland's `hem-plaid`). Derived (gear::fillLadder), never saved; key()

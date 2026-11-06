@@ -38,6 +38,31 @@ regions
 |........
 |.NNNNN..
 |........
+# (P5b2, C3d) a polearm carried at T3: the fist grips the haft at the hem of the sode (the jade3 glaive, D rest: the grip at
+# rows 10-11), so the sode ends two lames shorter, above the fist (the same lames, its hem row closed; before the T3 view: the first `replace` that holds wins)
+view D key rest origin 3 3 when armour.t3,!armour.t4,spear replace
+|....vvv
+|..vxxwv
+|.vxxxwv
+|vwwwwwv
+|.vyyyxv
+|vwwwwwv
+|.vyyyv.
+|.vxxxv.
+|vwwwwv.
+|.vvvvv.
+regions
+|.......
+|...PPP.
+|.......
+|.NNNNN.
+|.......
+|.NNNNN.
+|.......
+|.......
+|.NNNN..
+|.......
+
 # (ARMOUR-X wave 2, fitcap.py) D rest: 3 px reach -> 2 at T3
 view D key rest origin 3 3 when armour.t3,!armour.t4 replace
 |....vvv
@@ -94,6 +119,35 @@ regions
 |.NNNNN..
 |........
 # (ARMOUR-X wave 2, fitcap.py) D up: 3 px reach -> 2 at T3
+# (P5b2, C3d) a polearm carried at T3, the arm raised (D up: the hurt's recoil): the fist rises under the sode, so the sode
+# hangs behind the arm (the neck layer, under ArmNear), the same pixels; before the T3 view (the first `replace` wins)
+view D key up origin 3 4 layer neck when armour.t3,!armour.t4,spear replace
+|....vvv
+|..vxxwv
+|.vxxxwv
+|vwwwwwv
+|.vyyyxv
+|vwwwwwv
+|.vyyyv.
+|.vxxxv.
+|vwwwwv.
+|.vxxxv.
+|vwwwwv.
+|.vvvvv.
+regions
+|.......
+|...PPP.
+|.......
+|.NNNNN.
+|.......
+|.NNNNN.
+|.......
+|.......
+|.NNNN..
+|.......
+|.NNNN..
+|.......
+
 view D key up origin 3 4 when armour.t3,!armour.t4 replace
 |....vvv
 |..vxxwv

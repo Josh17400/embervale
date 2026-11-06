@@ -627,7 +627,8 @@ std::vector<SliceAtlas> sliceAtlases() {
       // so its LOCO and RUN may use 14 % more (STARFALL's crystal helm over its long split skirt the most: fm_star 77.0 of 68 crested)
       if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forgeShape) { base *= 1.14; d19 *= 1.14; }
       else if ((b.p == RigPart::Loco || b.p == RigPart::Run) && L.forge[HumanLook::TIER_BODY]) { base *= 1.03; d19 *= 1.03; }
-      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, tt >= 4 ? std::max(base, d19) : base, base});
+      // (P5b2) from T3 (doll_envelope.h: the T3 row's half step for the people's heads from T3); T1-T2 and untiered the base
+      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, tt >= 3 ? std::max(base, d19) : base, base});
     }
   }
   return v;
@@ -786,8 +787,8 @@ void gateAtlas(Gate& g) {   // B10
     if (fs.empty()) g.ok();
   }
   const doll::PoolStats ps = doll::poolStats();
-  // (P2c envelope, C8: D46, no compression D48) the pool 2.5 MiB (doll::kPoolBudget)
-  if (ps.bytes > doll::kPoolBudget) g.bad(fmt("the pool %.0f B (%.0f: 2.5 MiB, D46)", (double)ps.bytes, (double)doll::kPoolBudget)); else g.ok();
+  // (P2c envelope, C8: D46, no compression D48) the pool 5 MiB (doll::kPoolBudget; D46 restated 2026-11-06)
+  if (ps.bytes > doll::kPoolBudget) g.bad(fmt("the pool %.0f B (%.0f: 5 MiB, D46)", (double)ps.bytes, (double)doll::kPoolBudget)); else g.ok();
 }
 void gateRamps(Gate& g) {   // the generator within delta E 6 per step of A3's 14 hand ramps (given their bases)
   float worst = 0;

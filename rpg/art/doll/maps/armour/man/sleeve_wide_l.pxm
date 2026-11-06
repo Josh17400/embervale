@@ -404,6 +404,15 @@ view R key pB origin 0 0
 view R key pN origin 0 0
 |.
 
+# (P5b2, C3d) a polearm carried (the run's pM, facing L): the bell's mouth past the near wrist hid the far fist on the haft,
+# so the sleeve ends at the wrist (its first four columns off, the cut closed); before the base view
+view L key pM origin 6 -2 when spear replace
+|v......
+|vvvvvvv
+|vxxxxwv
+|vxxxwwv
+|v...vvv
+
 view L key pM origin 10 -2
 |...vv......
 |.vvyyvvvvvv

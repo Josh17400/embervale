@@ -34,6 +34,15 @@ const cult::Alloy* alloyOfItem(const Item& it, const cult::Culture* c) {
   if (!c || it.mat != Mat::Alloy || it.alloy == 0 || it.alloy > c->arms.alloys.size()) return nullptr;
   return &c->arms.alloys[(size_t)it.alloy - 1];
 }
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) a culture-alloy piece that is not its kingdom's kit alloy at its tier (FIX_SIG)
+// (P5b2) a non-kit alloy helm's crest: no horns below T5 (STYLE_P5B 2.5; decision 2)
+void ownHelmCrest(ForgeStyle& st, int tier) {
+  if (tier < 5 && st.crest == art::doll::forge::valueOf(art::doll::forge::AX_CREST, "horns")) st.crest = 0;
+}
+bool ownAlloyPiece(const Item& it, const cult::Culture* c, int tier) {
+  if (!art::doll::fixOn(art::doll::FIX_SIG) || !alloyOfItem(it, c)) return false;
+  return !kitAlloy(*c, (int)it.alloy - 1, tier);
+}
 }  // namespace
 
 LookTier lookTier(const Item& it, const cult::Culture* maker) {
@@ -145,6 +154,7 @@ std::vector<uint8_t> alloyFamilies(const cult::Culture& c) {
 void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf) {
   using H = art::HumanLook;
   auto maker = [&](const Item* it) -> const cult::Culture* { return it && it->culture && cultureOf ? cultureOf(it->culture) : nullptr; };
+  uint32_t own = 0;   // (P5b2) the non-kit alloy pieces (forge::SHAPE_OWN_BODY, SHAPE_OWN_HELM), set per worn piece below
   auto put = [&](int slot, const Item* it) {
     if (!it) return;
     const LookTier t = lookTier(*it, maker(it));
@@ -154,6 +164,8 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     // (a recruit's census maker on that slot gives way to the worn piece's, none included)
     const cult::Culture* mc = maker(it);
     L.setMaker(slot, mc ? (int)mc->archetype + 1 : 0);
+    // (P5b2, decision 8 reading 1) a culture alloy that is not its kingdom's kit alloy at this tier keeps its own look
+    if (ownAlloyPiece(*it, mc, t.tier)) own |= slot == H::TIER_BODY ? art::doll::forge::SHAPE_OWN_BODY : slot == H::TIER_HELM ? art::doll::forge::SHAPE_OWN_HELM : 0u;
     if (t.rare) L.rare |= (uint8_t)(1u << slot);
     if (t.flame) L.mythic |= (uint8_t)(1u << slot);
   };
@@ -195,7 +207,10 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
   // HOMESPUN, its leather boots TANNER'S
   auto forgeSlot = [&](int slot, const Item* it) {
     if (!it || !lookTier(*it, maker(it)).tier) return;
-    L.forge[slot] = packForge(forgeOf(*it, maker(it)));
+    ForgeStyle st = forgeOf(*it, maker(it));
+    // (P5b2, STYLE_P5B 2.5) a non-kit alloy helm wears no horns below T5 (decision 2: the horns are the saga tier's)
+    if (slot == H::TIER_HELM && (own & art::doll::forge::SHAPE_OWN_HELM)) ownHelmCrest(st, L.tier[H::TIER_HELM]);
+    L.forge[slot] = packForge(st);
   };
   forgeSlot(H::TIER_BODY, g.armor);
   forgeSlot(H::TIER_HELM, g.helmet);
@@ -218,6 +233,8 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     if (L.floor >> H::TIER_BODY & 1) s = heroShape(art::doll::forge::B_HOMESPUN, nullptr);
     else if (g.armor && lookTier(*g.armor, maker(g.armor)).tier) {
       s = shapeOf(*g.armor, maker(g.armor));
+      if (own & art::doll::forge::SHAPE_OWN_BODY)   // (P5b2, C16o, C18a) beside the kit bodies (the body piece's own helm family)
+        s.skirt = (uint8_t)ownAlloySkirt(*maker(g.armor), s.skirt, alloyShape(*maker(g.armor), g.armor->alloy - 1).helm);
       // (wave-2 fix round 2, D84 restated: "at its T6's area or more by construction") a Mythic relic body (gilded, obsidian,
       // emberforged, starmetal steel) wears MYTHIC's black, gold and fire and its tells over its own metal's outline (the
       // resolver reads relicBody: STARFALL's split skirt, FURNACE's heavy arms), as its helm keeps its family (D83)
@@ -230,6 +247,12 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     s.helm = 0;
     if (g.helmet && lookTier(*g.helmet, maker(g.helmet)).tier) {
       s.helm = shapeOf(*g.helmet, maker(g.helmet)).helm;
+      // (P5b2) a non-kit alloy helm: its own family, freed of the people's ruled-out heads (STYLE_P5B 2.5)
+      if (own & art::doll::forge::SHAPE_OWN_HELM) {
+        int v = -1;
+        const int f = ownAlloyHelm(*maker(g.helmet), g.helmet->alloy - 1, L.tier[H::TIER_HELM], &v);
+        if (v >= 0) { s.helm = (uint8_t)f; s.variant = (uint8_t)v; }
+      }
       // (wave-2 fix round, D83 / D84) a Mythic relic helm (gilded, obsidian, emberforged, starmetal steel) keeps its metal's helm
       // family in black, gold and fire: the onion, the mask, the furnace helm, the crystal (e6m the crystal's legend view)
       if (art::doll::fixOn(art::doll::FIX_RELIC) && g.helmet->rarity == Rarity::Mythic && g.helmet->mat == Mat::Steel) {
@@ -244,6 +267,7 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
       }
     }
     L.forgeShape = packShape(s);
+    if (L.forgeShape) L.forgeShape |= own;
     L.forgeGuise = 0;
   }
   // the filigree's motif: the body's maker people (else the helm's): Jade's cloud scrolls, the Imperial laurel, the northern
@@ -298,20 +322,37 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
     const cult::BodyArm form = L.bodyForm ? (cult::BodyArm)std::min<int>(L.bodyForm - 1, 7)
                                           : (L.outfit == O::Leather ? cult::BodyArm::Leather : L.outfit == O::Chain || L.outfit == O::Guard ? cult::BodyArm::Mail
                                                                                                                                          : cult::BodyArm::Plate);
-    ForgeStyle st;
+    ForgeStyle st, helmStyleOwn;
+    bool helmOwn = false;
     if (realm && t >= 4 && !realm->arms.alloys.empty() && armour) {
       const int n = (int)realm->arms.alloys.size();
       const int idx = t >= 5 ? n - 1 : (n >= 3 ? n - 2 : n - 1 >= 1 ? 1 : 0);
       st = alloyStyle(*realm, idx);
+      if (art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t) && L.tier[H::TIER_HELM]) {   // (P5b2) as fillLadder
+        ForgeStyle hs = st;
+        ownHelmCrest(hs, L.tier[H::TIER_HELM]);
+        helmStyleOwn = hs;
+        helmOwn = true;
+      }
       const std::vector<uint8_t> fam = alloyFamilies(*realm);
       L.metalKind = 10;
       if (idx < (int)fam.size()) L.alloyFam = (uint8_t)(fam[(size_t)idx] + 1);
       L.alloyRank = (uint8_t)std::min(idx + 1, 3);
       L.forgeGuise = 0;   // (forge round 2) retired: the silhouette below
       Shape sh = alloyShape(*realm, idx);
+      // (P5b2, decision 8 reading 1) the T4 officers' alloy below the masterwork is not the kingdom's kit alloy (the everyday
+      // at T4): under FIX_SIG it keeps its own look, its helm freed of the people's ruled-out heads
+      if (art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t)) {
+        int v = -1;
+        const int f = ownAlloyHelm(*realm, idx, L.tier[H::TIER_HELM] ? L.tier[H::TIER_HELM] : t, &v);
+        if (v >= 0) { sh.helm = (uint8_t)f; sh.variant = (uint8_t)v; }
+        sh.skirt = (uint8_t)ownAlloySkirt(*realm, sh.skirt, alloyShape(*realm, idx).helm);
+      }
       if (!L.tier[H::TIER_HELM]) sh.helm = 0;
       if (!L.tier[H::TIER_BODY]) { const uint8_t h = sh.helm; sh = Shape{}; sh.helm = h; }
       L.forgeShape = packShape(sh);
+      if (L.forgeShape && art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t))
+        L.forgeShape |= (L.tier[H::TIER_BODY] ? art::doll::forge::SHAPE_OWN_BODY : 0u) | (L.tier[H::TIER_HELM] ? art::doll::forge::SHAPE_OWN_HELM : 0u);
     } else if (L.metalKind && L.metalKind != 10) {
       st = baseStyle(L.metalKind, L.metalKind == 1 && form != cult::BodyArm::Padded ? cult::BodyArm::Leather : form);
     } else if (armour && (form == cult::BodyArm::Padded || L.outfit == O::Tunic)) {
@@ -327,7 +368,7 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
     }
     if (pk) {
       if (L.tier[H::TIER_BODY]) L.forge[H::TIER_BODY] = pk;
-      if (L.tier[H::TIER_HELM]) L.forge[H::TIER_HELM] = pk;
+      if (L.tier[H::TIER_HELM]) L.forge[H::TIER_HELM] = helmOwn ? packForge(helmStyleOwn) : pk;
       if (L.tier[H::TIER_SHIELD]) L.forge[H::TIER_SHIELD] = pk;
       if (L.tier[H::TIER_GLOVES]) L.forge[H::TIER_GLOVES] = pk;
       if (L.tier[H::TIER_BOOTS]) L.forge[H::TIER_BOOTS] = pk;

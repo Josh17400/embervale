@@ -89,6 +89,22 @@ uint32_t tableKey(int people, int school, int rank);
 // a culture alloy's silhouette: the table's key for its people (an isolated or hidden family its first archetype's row),
 // school and rank, plus the details' arm and motif
 Shape alloyShape(const cult::Culture& c, int alloyIndex);
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) a kingdom's KIT alloy at a look tier: the everyday (index 0) at T4 and the
+// masterwork (the culture's last alloy: the ladder kit's and the king's) at T5-T6. Under FIX_SIG a kit alloy wears its people's
+// signature; every other alloy piece (forgeShape's SHAPE_OWN_BODY and SHAPE_OWN_HELM) its own helmet and cut in the people's colours
+bool kitAlloy(const cult::Culture& c, int alloyIndex, int tier);
+// two kit alloys of one people at one tier (each alloy at its look tier): one look by design (the people's signature), not parted
+// by the P2c alloy gates (C16k, C16o, C16m, C18a-b, C19; STYLE_P5B 2.5). Always false under !FIX_SIG (P5's gates hold whole)
+bool kitTwinPair(const cult::Culture& a, int ia, int ta, const cult::Culture& b, int ib, int tb);
+// the helm family a non-kit alloy piece draws under FIX_SIG: its own (alloyShape), unless the people's signature rules it out at
+// the tier (horns below T5; the Fjordfolk's cone) or it is the people's signed family at that tier (the kit's head), then the
+// people's next menu family (STYLE_P2 28.5) not ruled out, not another of the culture's alloys' own and not a signed family
+// a non-kit alloy body's skirt under FIX_SIG: its own, unless one of the kingdom's kit bodies (the people's signature at T4 or
+// T5) wears it, or the kit of another people whose signed head is this helm's family (helm: the piece's own family, 0 none),
+// then the people's next menu skirt none of those kits wears (C16o, C18a)
+int ownAlloySkirt(const cult::Culture& c, int skirt, int helm);
+// variant: set to the freed family's variant by the alloy's name (-1: the family is its own, keep the piece's variant)
+int ownAlloyHelm(const cult::Culture& c, int alloyIndex, int tier, int* variant = nullptr);
 // a worn piece's silhouette: a Mythic metal piece the MYTHIC's, an alloy its maker's alloyShape, else its material's
 // heroShape (cloth padded HOMESPUN); all 0 for a piece with no armour look
 Shape shapeOf(const Item& it, const cult::Culture* maker);

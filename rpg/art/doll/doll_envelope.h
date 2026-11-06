@@ -28,13 +28,18 @@ constexpr TierEnvelope kEnvelope[7] = {
   {  0,  4,  6,  1,  1,  3,  0,  3,  2,  2,  0,  0,  0,  0,   0, 128,  64, 256, 512, 52, 64 },  // 0 untiered: today's rules (D80: sideD 2)
   { 16,  2,  2,  0,  1,  3,  0,  0,  0,  2,  0,  0,  0,  0, 100, 128,  64, 256, 512, 52, 64 },  // T1
   { 18,  3,  6,  0,  1,  3,  2,  0,  0,  2,  0,  0,  0,  0, 110, 128,  64, 256, 512, 52, 64 },  // T2
-  { 20,  4,  6,  1,  1,  3,  3,  1,  0,  2,  0,  0,  0,  0, 120, 128,  64, 256, 512, 52, 64 },  // T3
+  { 20,  4,  6,  1,  1,  3,  3,  1,  0,  2,  0,  0,  0,  0, 120, 128,  72, 288, 512, 56, 64 },  // T3 (P5b2: RUN DRAWN DEATH a half step)
   { 22,  6,  6,  1,  1,  3,  4,  2,  0,  4,  0,  0,  0,  0, 135, 160,  80, 320, 512, 52, 64 },  // T4 (D73: the officer's cloak 4 behind)
   { 26,  8,  8,  2,  2,  3,  5,  3,  2,  8,  1,  1,  8, 32, 155, 200, 100, 400, 512, 59, 74 },  // T5
   { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400, 512, 59, 74 },  // T6
 };
+// (P5b2, STYLE_P5B 6 and PLAN D46 restated) the T3 row's RUN, DRAWN and DEATH take half the step from T2 to T4 (64 -> 72 of 80,
+// 256 -> 288 of 320, 52 -> 56 of 52-59): P5b's people heads grow from T3 (STYLE_P5B 2.5: one signature family from T3; the
+// owner-approved Jade kabuto and layered sode at T3) and the slice's jade3 (a T3 glaive bearer) measured RUN 89.6, DRAWN 259.6,
+// DEATH 58.7 KB against 89 / 256 / 56 with its allowances. The atlases are per figure and baked on demand (not pool bytes); a T3
+// figure stays under T4's row. B10 reads the row from T3 up (tests/test_doll.cpp sliceAtlases)
 constexpr int kAreaStep = 5;                       // each tier's area >= the tier below's + 5 (x100 of T1)
-constexpr uint32_t kPoolBudget = 2621440;          // 2.5 MiB (D46); pxc.mjs prints it
+constexpr uint32_t kPoolBudget = 5242880;          // 5 MiB (D46 restated 2026-11-06, the owner: "you can have 5 MB"); pxc.mjs prints it
 // (integrator, wave 2 int3, D70) T5-T6 ACTION DEATH POSTURE from e6: 400.9 / 53.3 / 66.5 KB x 1.1 = 441 / 59 / 74, ACTION raised
 // to the T1-T3 row's 512 (never under it)
 constexpr int kMeasuredCap[3] = {716, 72, 89};     // T5-T6 ACTION, DEATH, POSTURE KB: e6 measured x 1.1, never above these
@@ -125,8 +130,8 @@ inline std::string describeEnvelope() {
                   envelopeAtlasKB(t, 5), (!e.action && t) ? " (ACTION DEATH POSTURE: the cap until e6 is measured)" : "");
     s += b;
   }
-  std::snprintf(b, sizeof b, "area step %d (x100 of T1); head OD step %.2f; head area step %d %%; pool %u B (2.5 MiB)\n", kAreaStep,
-                kHeadOdStep, kHeadAreaStepPct, (unsigned)kPoolBudget);
+  std::snprintf(b, sizeof b, "area step %d (x100 of T1); head OD step %.2f; head area step %d %%; pool %u B (%.1f MiB)\n", kAreaStep,
+                kHeadOdStep, kHeadAreaStepPct, (unsigned)kPoolBudget, kPoolBudget / 1048576.0);
   s += b;
   return s;
 }

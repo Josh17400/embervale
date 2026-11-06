@@ -1664,6 +1664,9 @@ int headGates(bool selftest, std::vector<std::string>& printed) {
     int near = 0;
     for (size_t i = 0; i < os.size(); i++)
       for (size_t j = i + 1; j < os.size(); j++) {
+        // (P5b2, STYLE_P5B 2.5, decision 8 reading 1) two kit alloys of one people at one tier wear one head by design
+        const int ti = os[i].idx >= 2 ? 5 : 4, tj = os[j].idx >= 2 ? 5 : 4;   // (alloyKitLook's tiers)
+        if (gear::kitTwinPair(os[i].c, os[i].idx, ti, os[j].c, os[j].idx, tj)) continue;
         const double od = doll::outlineDistance(outs[i], outs[j]).head;
         if (od < doll::kHeadOdStep) near++;
         meas.check(od >= doll::kHeadOdStep, os[i].name + " / " + os[j].name + fmt(": head OD %.3f (%.2f, planned)", od, doll::kHeadOdStep));
