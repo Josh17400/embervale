@@ -81,7 +81,7 @@ inline constexpr Sig kSigJade{0xE8641C, 0x1C1A1E, "oval", 0, true, 0, {
     {"fam.kabuto", 0, "",      "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 0, "fin",   "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide", false, true},
-    {"fam.kabuto", 0, "crown", "bell",    "drop",   "layered", "tabard",   "wide"}}};
+    {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide"}}};   // (P5b2 A) T5's kuwagata grown, the crest crown between
 // Imperial (rectangular, banded, the crest's arc): the bronze knob cap, then the crested helm with a transverse crimson crest,
 // the Attic crest at the top; banded shoulders, pteruges, the focale, the paludamentum, the scutum; crimson and gold
 inline constexpr Sig kSigImperial{0x7C082A, 0xE2B840, "tower", 0xB4243C, false, 0xCB9034, {
@@ -91,7 +91,7 @@ inline constexpr Sig kSigImperial{0x7C082A, 0xE2B840, "tower", 0xB4243C, false, 
     {"form9",      0, "",      "strips",  "broad",  "layered", "halfcape", "close"},
     {"fam.plumed", 1, "",      "strips",  "broad",  "layered", "halfcape", "close"},
     {"fam.crested",0, "",      "strips",  "broad",  "layered", "cape",     "close"},
-    {"fam.crested",0, "fin",   "strips",  "broad",  "layered", "cape",     "close"}}, true};
+    {"fam.crested",0, "",      "strips",  "broad",  "layered", "cape",     "close", true}}, true};   // (P5b2 A) the Attic crest grown, the laurel
 // Fjordfolk (round, heavy-shouldered): the leather cap with a fur brow, the spangenhelm with nasal and aventail, gilt horns
 // at the saga tier; the fur mantle, the split mail skirt, bare forearms, the woad cape; the biggest round shield
 inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false, 0, {
@@ -99,9 +99,9 @@ inline constexpr Sig kSigFjordfolk{0x4878C8, 0xE8E2CE, "round", 0x8C9098, false,
     {"form4",      0, "",      "",        "none",   "",        "none",     "bare"},
     {"form4",      0, "",      "",        "mantle", "roll",    "none",     "bare"},
     {"form4",      0, "",      "hauberk", "mantle", "roll",    "",         "bare"},
-    {"form4",      0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"},   // (P5b A) the spectacle helm (p5b_sig_A.py)
+    {"form4",      0, "",      "hauberk", "mantle", "fur",     "cape",     "bare"},   // (P5b A) the spectacle helm (p5b_sig_A.py)
     {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true},
-    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare"}}, true};
+    {"fam.horned", 0, "",      "hauberk", "mantle", "pelt",    "cape",     "bare", true}}, true};   // (P5b2 A) the jarl's horns grown
 // (P5b area A) Highland (asymmetric, long quilted lines, a small round targe): the bonnet and its toorie, the plaid hood, the
 // kettle under its fur band and feather; the plaid over the left shoulder from T1, a plaid half cape from T4, the kilted
 // strips, bare arms, broad shoulders from T4; tartan green and saffron (STYLE_P5B 5 Highland; FLUX highland_full_*)
@@ -111,8 +111,8 @@ inline constexpr Sig kSigHighland{0x185030, 0xD89A28, "buckler", 0, false, 0, {
     {"hw:cap",     0, "",      "",        "drop",   "flap",    "sash",     "bare"},   // the bonnet and its badge (the hood: over T2's head budget)
     {"form2",      0, "",      "strips",  "none",   "",        "sash",     "bare"},
     {"form2",      0, "",      "strips",  "broad",  "fur",     "sash",     "bare"},   // (the fur trim: the T4 figure under the waiting T5's area)
-    {},   // T5-T6 (null): P5's look until the owner's budget ruling (STYLE_P5B 6, decision 5)
-    {}}};
+    {"fam.kettle", 0, "",      "strips",  "broad",  "fur",     "halfcape", "bare", true},   // (P5b2 A) the chief's gilt kettle, two eagle feathers
+    {"fam.kettle", 0, "",      "strips",  "broad",  "fur",     "halfcape", "bare", true}}, true};   // three eagle feathers, the clan brooch's gem
 // (P5b area A) Heartland (the hero's road; square, heraldic): unchanged from T2 to T6 (D54, D55, D83: soft cap, nasal with
 // knife comb, open crested, gilt onion, crystal), its body the hero's shapes at every tier (skirt null: unsigned); P5b adds a
 // Heartland-made T1 helm drawn as the chapel (the levy's brimmed kettle). The people's pair stays off its cloaks, shield fields
@@ -121,7 +121,11 @@ inline constexpr Sig kSigHighland{0x185030, 0xD89A28, "buckler", 0, false, 0, {
 inline constexpr Sig kSigHeartland{0xC02030, 0xEAE6D8, nullptr, 0, false, 0, {
     {},
     {"form2",      0, "",      nullptr,   nullptr,  nullptr,   nullptr,    nullptr},   // the chapel (p5b_sig_A.py)
-    {}, {}, {}, {}, {}}, false, 0, false};   // (integration) gilt, hood, cloth
+    {}, {}, {},
+    {"",           0, "",      nullptr,   nullptr,  nullptr,   nullptr,    nullptr},   // (P5b2 A) T5-T6: each helm its own head (D83:
+    {"",           0, "",      nullptr,   nullptr,  nullptr,   nullptr,    nullptr}}, false, 0, false};   // the hero's road's onion, crystal,
+    // mask and furnace helm kept), the crest in the people's red; the great helm under the knight's heraldry (p5b_sig_A2.py:
+    // the torse, the mantling, the plume; T6 a crown)   // (integration) gilt, hood, cloth
 // (P5b production, area B: Dune, Steppe, Marsh; their heads ADDED by tools/doll/p5b_sig_B.py, their icons rpg/art/sig_icons_B.inc;
 // T1-T4 drawn, T5-T6 the people's axes on their own heads until the budget ruling. T1 keeps its skirt unset: a split or strip
 // skirt stands outside T1's bare outline, C12f)

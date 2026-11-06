@@ -1,0 +1,6 @@
+# (P5b2 area A) the Heartland's elite: its kingdoms' T5-T6 helms in a masterwork alloy (the hero's road kit keeps its gilt onion
+# and starmetal crystal, D83), for tools/doll/p5b_pack_A2.py: fingerprint_gallery <dir> --figs tools/doll/p5b_A2_figs.txt
+hh5a1 man DR kit=heartland:5:1,alloy=1
+hh6a1 man DR kit=heartland:6:1,alloy=1
+hh5s2 woman DR kit=heartland:5:2,alloy=1
+hh6s3 man DR kit=heartland:6:3,alloy=2
