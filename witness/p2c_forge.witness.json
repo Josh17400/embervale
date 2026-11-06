@@ -251,8 +251,8 @@
      "state.player.sprite.rig == 2",
      "state.player.sprite.doll.covered",
      "state.player.sprite.doll.forge.base == 'alloy'",
-     "state.player.sprite.doll.forge.shoulder == 'lobed'",
-     "state.player.sprite.doll.forge.crest == 'crown'"
+     "state.player.sprite.doll.forge.shoulder == 'layered'",
+     "state.player.sprite.doll.forge.crest == 'horns'"
     ]
    }
   ]

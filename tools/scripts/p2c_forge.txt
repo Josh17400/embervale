@@ -62,8 +62,11 @@ seed 7
 +0.1 ladderkit kit=jade:5:5,wpn=spear
 +0.3 expect doll covered
 +0.0 expect doll forge alloy
-+0.0 expect doll forge shoulder=lobed
-+0.0 expect doll forge crest=crown
+# (P5b, STYLE_P5B 4-5 Jade; the owner signed the slice 2026-11-05) the Jade masterwork wears its people's T5: the great sode
+# (the layered pauldron) and the kabuto legend's gilt kuwagata (the horns crest), no longer P2c's lobed shoulder and crown;
+# with EMB_FIX_RULES=8191 (FIX_SIG off) the masterwork draws P2c's lobed shoulder and crown as before
++0.0 expect doll forge shoulder=layered
++0.0 expect doll forge crest=horns
 +0.1 zoom near
 +0.3 shot p2c_forge_jade_glowing.png
 +0.1 zoom normal
