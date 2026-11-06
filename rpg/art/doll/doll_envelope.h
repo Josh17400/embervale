@@ -34,7 +34,7 @@ constexpr TierEnvelope kEnvelope[7] = {
   { 28, 10, 10,  2,  2,  3,  6,  3,  2,  8,  1,  2, 16, 48, 170, 200, 100, 400, 512, 59, 74 },  // T6
 };
 constexpr int kAreaStep = 5;                       // each tier's area >= the tier below's + 5 (x100 of T1)
-constexpr uint32_t kPoolBudget = 2621440;          // 2.5 MiB (D46); pxc.mjs prints it
+constexpr uint32_t kPoolBudget = 5242880;          // 5 MiB (the owner, 2026-11-06; was 2.5 MiB, D46); pxc.mjs prints it
 // (integrator, wave 2 int3, D70) T5-T6 ACTION DEATH POSTURE from e6: 400.9 / 53.3 / 66.5 KB x 1.1 = 441 / 59 / 74, ACTION raised
 // to the T1-T3 row's 512 (never under it)
 constexpr int kMeasuredCap[3] = {716, 72, 89};     // T5-T6 ACTION, DEATH, POSTURE KB: e6 measured x 1.1, never above these

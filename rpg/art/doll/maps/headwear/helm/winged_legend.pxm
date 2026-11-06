@@ -21,6 +21,145 @@ legend R plume 1
 legend S plume 2
 legend T plume 3
 legend U plume 4
+# (P5b SIG C2) begin legend: the characters of this script's views in this map
+legend À metal2 2
+legend Á plume 1
+legend Â plume 2
+legend Ã plume 3
+# (P5b SIG C2) end legend
+# (P5b SIG C2) begin sylvan-t5-crest: the Sylvan T5 leaf crest: a tall leaf from the brow, its midrib gilt (stirs)
+view D key rest origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|.ÁÃÂÁ.
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|.ÁÃÂÁ.
+|..ÁÁ..
+view U key rest origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|.ÁÃÂÁ.
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|.ÁÃÂÁ.
+|..ÁÁ..
+view R key rest origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|.ÁÁ...
+|ÁÀÂÂÁ.
+|ÁÃÀÂÂÁ
+|ÁÃÀÂÂÁ
+|ÁÃÃÀÂÁ
+|ÁÃÃÀÀÁ
+|..ÁÁÂ.
+view L key rest origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|...ÃÃ.
+|.ÃÂÂÀÃ
+|ÃÂÂÀÁÃ
+|ÃÂÂÀÁÃ
+|ÃÂÀÁÁÃ
+|ÃÀÀÁÁÃ
+|.ÂÃÃ..
+view L key lie origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|...ÃÃ.
+|.ÃÂÂÀÃ
+|ÃÂÂÀÁÃ
+|ÃÂÂÀÁÃ
+|ÃÂÀÁÁÃ
+|ÃÀÀÁÁÃ
+|.ÂÃÃ..
+view D key breeze origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|..ÁÃÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|.ÁÃÂÁ.
+|..ÁÁ..
+view U key breeze origin -5 6 when sighelm-sylvan,helm.t5,!helm.t6 replace
+|ÁÃÂÁ..
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|ÁÃÃÂÂÁ
+|.ÁÃÂÁ.
+|..ÁÁ..
+# (P5b SIG C2) end sylvan-t5-crest
+# (P5b SIG C2) begin sylvan-t6-crest: the Sylvan T6 leaf crest: a spray of three leaves from the brow, its midrib gilt (stirs)
+view D key rest origin -1 8 when sighelm-sylvan,helm.t6 replace
+|......ÃÂ......
+|.....ÁÃÂÁ.....
+|....ÁÃÃÂÂÁ....
+|ÁÀÁÁÁÃÃÂÂÁÁÁÀÁ
+|ÁÀÂÂÁÃÃÂÂÁÃÃÀÁ
+|ÁÃÀÂÁÃÃÂÂÁÃÀÂÁ
+|ÁÃÃÀÂÃÃÂÂÃÀÂÂÁ
+|.ÁÃÀÂÁÃÂÁÃÀÂÁ.
+|..ÁÁÁ.ÁÁ.ÁÁÁ..
+view U key rest origin -1 8 when sighelm-sylvan,helm.t6 replace
+|......ÃÂ......
+|.....ÁÃÂÁ.....
+|....ÁÃÃÂÂÁ....
+|ÁÀÁÁÁÃÃÂÂÁÁÁÀÁ
+|ÁÀÂÂÁÃÃÂÂÁÃÃÀÁ
+|ÁÃÀÂÁÃÃÂÂÁÃÀÂÁ
+|ÁÃÃÀÂÃÃÂÂÃÀÂÂÁ
+|.ÁÃÀÂÁÃÂÁÃÀÂÁ.
+|..ÁÁÁ.ÁÁ.ÁÁÁ..
+view R key rest origin -1 8 when sighelm-sylvan,helm.t6 replace
+|.....Á.......
+|....ÁÀÂÁ.....
+|....ÃÀÂÂÁ.ÁÁ.
+|...ÁÃÃÀÂÂÁÀÂÁ
+|....ÃÃÀÂÂÁÀÂÁ
+|ÁÂÂÂÁÃÃÀÂÁÀÂÁ
+|ÁÀÀÀÂÁÃÀÀÁÀÁ.
+|.ÁÃÀÀÀÁÁÂ.Á..
+|.ÁÁÃÃÀÁ......
+|...ÁÁ........
+view L key rest origin -2 8 when sighelm-sylvan,helm.t6 replace
+|.......Ã.....
+|.....ÃÂÀÃ....
+|.ÃÃ.ÃÂÂÀÁ....
+|ÃÂÀÃÂÂÀÁÁÃ...
+|ÃÂÀÃÂÂÀÁÁ....
+|ÃÂÀÃÂÀÁÁÃÂÂÂÃ
+|.ÃÀÃÀÀÁÃÂÀÀÀÃ
+|..Ã.ÂÃÃÀÀÀÁÃ.
+|......ÃÀÁÁÃÃ.
+|........ÃÃ...
+view L key lie origin -2 8 when sighelm-sylvan,helm.t6 replace
+|.......Ã.....
+|.....ÃÂÀÃ....
+|.ÃÃ.ÃÂÂÀÁ....
+|ÃÂÀÃÂÂÀÁÁÃ...
+|ÃÂÀÃÂÂÀÁÁ....
+|ÃÂÀÃÂÀÁÁÃÂÂÂÃ
+|.ÃÀÃÀÀÁÃÂÀÀÀÃ
+|..Ã.ÂÃÃÀÀÀÁÃ.
+|......ÃÀÁÁÃÃ.
+|........ÃÃ...
+view D key breeze origin -1 8 when sighelm-sylvan,helm.t6 replace
+|.......ÃÂ.....
+|......ÁÃÂÁ....
+|.....ÁÃÃÂÂÁ...
+|ÁÀÁÁÁÃÃÂÂÁÁÁÀÁ
+|ÁÀÂÂÁÃÃÂÂÁÃÃÀÁ
+|ÁÃÀÂÁÃÃÂÂÁÃÀÂÁ
+|ÁÃÃÀÂÃÃÂÂÃÀÂÂÁ
+|.ÁÃÀÂÁÃÂÁÃÀÂÁ.
+|..ÁÁÁ.ÁÁ.ÁÁÁ..
+view U key breeze origin -1 8 when sighelm-sylvan,helm.t6 replace
+|.....ÃÂ.......
+|....ÁÃÂÁ......
+|...ÁÃÃÂÂÁ.....
+|ÁÀÁÁÁÃÃÂÂÁÁÁÀÁ
+|ÁÀÂÂÁÃÃÂÂÁÃÃÀÁ
+|ÁÃÀÂÁÃÃÂÂÁÃÀÂÁ
+|ÁÃÃÀÂÃÃÂÂÃÀÂÂÁ
+|.ÁÃÀÂÁÃÂÁÃÀÂÁ.
+|..ÁÁÁ.ÁÁ.ÁÁÁ..
+# (P5b SIG C2) end sylvan-t6-crest
 view D key rest origin 0 0
 |.
 view U key rest origin 0 0

@@ -23,6 +23,121 @@ tags overlay
 # (FORGE-HELM i2, crown_tweak.py) the crown mark two rows down the dome: the crest rides the dome, never over the frame top (B10)
 # (FORGE-HELM i3, crown3.py) mark crown on the top outline row (it sat 2 rows down in the bowl and buried every crest)
 
+# (P5b SIG C2) begin legend: the characters of this script's views in this map
+legend À dye 0
+legend Á dye 1
+legend Â dye 2
+legend Ã dye 3
+legend Ä dye 4
+legend Å ink 0
+legend Æ metal 0
+legend Ç metal 1
+legend È metal 2
+legend É metal 3
+legend Ê metal 4
+legend Ë plume 0
+legend Ì plume 1
+legend Í plume 2
+legend Î plume 3
+legend Ï plume 4
+# (P5b SIG C2) end legend
+# (P5b SIG C2) begin suntemple-t6-eagle: the Sun Temple T6 eagle's head: turquoise feathers, its eyes, the yellow hooked beak over the brow
+view D key rest origin 1 3 when sighelm-suntemple,helm.t6 replace
+|.....ÀÀÀÀÀÀÀÀ......
+|...ÀÀÃÃÄÄÃÃÃÂÀÀ....
+|..ÀÃÃÄÄÃÃÃÃÃÃÂÂÀ...
+|.ÀÃÄÄÃÁÁÃÃÁÁÃÃÂÂÀ..
+|ÀÃÄÄÃÃÃÃÃÃÃÃÃÃÂÂÂÀ.
+|ÀÃÂËËÏÃÃÃÃÃÃÏËËÂÀ..
+|ÀÃÂËÅÎÂÃÃÃÃÂÅÎËÂÂÀ.
+|ÀÃÂÃËËÏËÍÏÎÍËËÏÂÃÂÀ
+|ÀÃÁÃÂÂËÍÏÏÎÍËÂÃÁÂÀ.
+|ÀÃÂÃÂÂËÍÎÎÍËÂÂÃÂÀ..
+|ÀÃÂÆÇÈÉÉËÍÉÈÈÇÇÆÂÀ.
+|ÀÃÂ.Ê....ËË...Ê.ÂÃÀ
+|ÀÃÂ..............ÂÀ
+|ÀÃÁÀ............ÁÃÀ
+|ÀÃÂ..............ÂÀ
+|ÀÃÁÀ............ÁÂÀ
+|.ÀÃÂÀ..........ÀÂÀ.
+|..ÀÎËËËËËËËËËËËËÎÀ.
+|...ËÍÎÎÎÎÍÍÍÍÌÌË...
+|....ËËËËËËËËËËË....
+view U key rest origin 1 3 when sighelm-suntemple,helm.t6 replace
+|.....ÀÀÀÀÀÀÀÀ.....
+|...ÀÀÃÃÄÄÃÃÃÂÀÀ...
+|..ÀÃÃÄÄÃÃÃÃÃÃÂÂÀ..
+|.ÀÃÄÄÃÁÁÃÃÁÁÃÃÂÂÀ.
+|ÀÃÄÃÃÃÃÃÃÃÃÃÃÃÂÂÂÀ
+|ÀÃÃÃÃÃÃÃÃÃÃÃÃÂÂÂÂÀ
+|ÀÃÃÁÁÁÃÃÁÁÁÃÃÁÁÂÂÀ
+|ÀÃÃÃÃÃÃÃÃÃÃÃÃÂÂÂÂÀ
+|ÀÃÃÃÃÃÃÃÃÃÃÃÂÂÂÂÂÀ
+|ÀÃÂÃÁÁÁÃÃÁÁÁÃÂÁÁÂÀ
+|ÀÃÂÃÃÃÃÃÃÃÃÂÂÂÂÂÂÀ
+|.ÀÃÂÃÃÃÃÃÃÂÂÂÂÂÂÀ.
+|.ÀÃÂÁÁÁÃÃÁÁÁÃÂÁÂÀ.
+|..ÀÃÂÃÃÃÃÃÂÂÂÂÂÀ..
+|...ÀÀÂÃÂÂÂÂÂÂÀÀ...
+|.....ÀÀÀÀÀÀÀÀ.....
+view R key rest origin 1 3 when sighelm-suntemple,helm.t6 replace
+|...ÀÀÀÀÀÀÀ.........
+|..ÀÃÃÄÄÃÃÃÀ........
+|.ÀÃÃÄÄÃÃÃÃÃÀ.......
+|ÀÃÄÄÃÁÁÃÃÁÃÂÀ......
+|ÀÃÄÄÃÃÃÃÃÃÃÃÂÀ.....
+|ÀÃÃÃÃÃÃÃÃÃËËÏÃÂÀ...
+|ÀÃÃÁÁÁÃÃÃÃËÅÎÏËËË..
+|ÀÃÃÃÃÃÃÃÃÃÂÏÏÏÎÍÌË.
+|ÀÃÂÃÃÃÃÃÂÂÏÏÎÎÍÌÌËË
+|ÀÃÂÁÁÁÃÃÂÆÇÈÉÉÍÌËË.
+|ÀÃÂÃÃÃÂÂ.Ê...ËÌËË..
+|ÀÃÂÃÃÃÂ..........Ë.
+|ÀÃÂÁÁÃ.............
+|ÀÃÂÃÂ..............
+|ÀÃÁÁ...............
+|ÀÃÂÀ...........ËËË.
+|ÀÃÂ............ËÍÎË
+|.ÀÀ...........ËËËË.
+view L key rest origin 2 3 when sighelm-suntemple,helm.t6 replace
+|.........ÀÀÀÀÀÀÀ...
+|........ÀÁÁÁÂÂÁÁÀ..
+|.......ÀÁÁÁÁÁÂÂÁÁÀ.
+|......ÀÂÁÃÁÁÃÃÁÂÂÁÀ
+|.....ÀÂÁÁÁÁÁÁÁÁÂÂÁÀ
+|...ÀÂÁÍËËÁÁÁÁÁÁÁÁÁÀ
+|..ËËËÍÌÅËÁÁÁÁÃÃÃÁÁÀ
+|.ËÎÍÌÍÍÍÂÁÁÁÁÁÁÁÁÁÀ
+|ËËÎÎÍÌÌÍÍÂÂÁÁÁÁÁÂÁÀ
+|.ËËÎÍÇÇÈÉÆÂÁÁÃÃÃÂÁÀ
+|..ËËÎË...È.ÂÂÁÁÁÂÁÀ
+|.Ë..........ÂÁÁÁÂÁÀ
+|.............ÁÃÃÂÁÀ
+|..............ÂÁÂÁÀ
+|...............ÃÃÁÀ
+|.ËËË...........ÀÂÁÀ
+|ËÌÍË............ÂÁÀ
+|.ËËËË...........ÀÀ.
+view L key lie origin 2 3 when sighelm-suntemple,helm.t6 replace
+|.........ÀÀÀÀÀÀÀ...
+|........ÀÁÁÁÂÂÁÁÀ..
+|.......ÀÁÁÁÁÁÂÂÁÁÀ.
+|......ÀÂÁÃÁÁÃÃÁÂÂÁÀ
+|.....ÀÂÁÁÁÁÁÁÁÁÂÂÁÀ
+|...ÀÂÁÍËËÁÁÁÁÁÁÁÁÁÀ
+|..ËËËÍÌÅËÁÁÁÁÃÃÃÁÁÀ
+|.ËÎÍÌÍÍÍÂÁÁÁÁÁÁÁÁÁÀ
+|ËËÎÎÍÌÌÍÍÂÂÁÁÁÁÁÂÁÀ
+|.ËËÎÍÇÇÈÉÆÂÁÁÃÃÃÂÁÀ
+|..ËËÎË...È.ÂÂÁÁÁÂÁÀ
+|.Ë..........ÂÁÁÁÂÁÀ
+|.............ÁÃÃÂÁÀ
+|..............ÂÁÂÁÀ
+|...............ÃÃÁÀ
+|.ËËË...........ÀÂÁÀ
+|ËÌÍË............ÂÁÀ
+|.ËËËË...........ÀÀ.
+# (P5b SIG C2) end suntemple-t6-eagle
 # (P5b SIG C) begin suntemple-jaguar: the Sun Temple jaguar head (T3-T5): the spotted pelt, the ears, the eyes, the fangs, the face in the jaws
 legend ! plume 0
 legend $ plume 1

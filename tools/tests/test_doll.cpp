@@ -786,8 +786,8 @@ void gateAtlas(Gate& g) {   // B10
     if (fs.empty()) g.ok();
   }
   const doll::PoolStats ps = doll::poolStats();
-  // (P2c envelope, C8: D46, no compression D48) the pool 2.5 MiB (doll::kPoolBudget)
-  if (ps.bytes > doll::kPoolBudget) g.bad(fmt("the pool %.0f B (%.0f: 2.5 MiB, D46)", (double)ps.bytes, (double)doll::kPoolBudget)); else g.ok();
+  // (P2c envelope, C8: D46, no compression D48) the pool 5 MiB (doll::kPoolBudget; the owner 2026-11-06)
+  if (ps.bytes > doll::kPoolBudget) g.bad(fmt("the pool %.0f B (%.0f: 5 MiB, the owner 2026-11-06)", (double)ps.bytes, (double)doll::kPoolBudget)); else g.ok();
 }
 void gateRamps(Gate& g) {   // the generator within delta E 6 per step of A3's 14 hand ramps (given their bases)
   float worst = 0;

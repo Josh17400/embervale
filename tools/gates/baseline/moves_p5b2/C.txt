@@ -1,0 +1,25 @@
+# tools/gates/baseline/moves_p5b2/C.txt: P5b production 2, area C's expected baseline differences (docs/STYLE_P5B.md 4-5; the owner's
+# rulings of 2026-11-06: the nine new peoples' T5-T6, the pool budget 5 MiB). River, Sun Temple, Sylvan and Starspire at T5-T6 on
+# their own heads (tools/doll/p5b_sig_C2.py, ADD only, --verify), the Sun Temple T3 mantle at its own size (the new part pair
+# armour/shared/pauldron_feather3_{l,r}), the envelope's shoulder measure taken on the tier's own fitted drawing.
+# <gate> <item glob>[,...] <id> <reason>. Measured on fix-p5b2-C, build-solid, tools/gates/step_gates.sh (default set), against
+# fix r2 (a22bebc): its quick view pack run from the same scripts (hidden Witness), its freeze manifests and its pool.
+# The A/B proof: EMB_FIX_RULES=8191 (FIX_SIG off) reproduces f914d03 on both rigs (--doll-wear --freeze-check, 0 changed) and 4095
+# afedeba (0 changed; art_hash = p4f1 S5.rig2, village art 0 changed): every move is FIX_SIG's. The slice: 567/567 PNGs identical
+# to the approved a3f5a4c (judge harness slice_same.py).
+# Engine (FIX_SIG only): fp::SigTier::ownHead (doll_resolve.cpp: the helmfam-<v> flag steps aside for a people's own head);
+# Sig::gilt's T5 fittings also on a gilt people's own T6 head; pauldronAcross measures a value at a body tier on its fitted view
+# (ARMOUR-X fitcap's `armour.t<N>` replace) where one is drawn (a report measure: envelopeMissing only, no pixel). The budget
+# constant 2,621,440 -> 5,242,880 (doll_envelope.h, pxc.mjs, test_doll.cpp's message: the owner's 5 MB).
+# Unchanged: S1, S2.seeds (20/20), S3.*, S5.rig2 / S5.rig1, S7.rig2 / S7.rig1 (65 groups, 0 changed), S9.test, S10.digest
+# (560/560), S10.audio, S10.layers; S9.shot village_start at a22bebc's own 917 px (moves_p5b/C P5b-C); S6.freeze / S6.freeze1 0
+# changed against the re-signed manifests.
+S6.pool *pxc?--check:* P5b2-C the area C T5-T6 heads (headwear/helm/morion and morion_legend the River captain's morion and plumes; masked the Sun Temple T6 eagle, masked_legend the T5-T6 feather fans; winged and winged_legend the Sylvan leaf helm and crests; crown and crown_legend the Starspire gothic helm, its star and the star arch) and the new pauldron_feather3_{l,r}: 2,620,409 -> 2,634,801 B (+14,392 of area C's 80,000; the budget 5,242,880), 871 -> 873 parts, 29,326 -> 29,441 views, hash f2534d6bc314244a
+# INT (re-signed manifests, 0 changed: no move) S6.freeze *freeze:*,*freeze?CHANGED*,rc P5b2-C the 4 area C T5 kit-alloy looks (slice_a_star3 slice_g_star3 slice_g_sun1 slice_mr_5): 784 of 39,152 frames; 0 changed with EMB_FIX_RULES=8191 against f914d03's manifest
+# INT (re-signed manifests, 0 changed: no move) S6.freeze1 *freeze:*,*freeze?CHANGED*,rc P5b2-C the same looks' shared doll frames (the rig-1 manifest): 784 changed
+S10.view m8b_view_doll/m8bv_doll_compare.png,m8b_view_doll/m8bv_doll_compare2.png,m8b_view_doll/m8bv_doll_night.png,m8b_view_doll/m8bv_doll_set.png,m8b_view_doll/m8bv_doll_set_b.png,m8b_view_doll/m8bv_doll_world.png P5b2-C the doll menu's T5-T6 figures (the dolls compared and set in the M8b view): against a22bebc's own quick pack (build-p5b, the same 425 scripts' PNGs) these 6 move and 419 are identical; the 256 that differ from the p4f1 record are moves_p5b's and these 6
+# The doll gates on this build, against the fix r2 judge's run (judge-p5bp-r3 reg/doll_on.log): rpg_test --doll --gates no gate
+# worse (C16o 897 -> 881 failed, C19 A7 4 -> 1; B8 0, B10 the same 3, C14 the same 1); --doll-coverage --scope envelope 0 values not
+# drawn (was 7: feather.3 -> .2, feather.4, leaf.3, slab.2, slab.3 (area C's), pelt.4 (A's), flap.3 (B's): the T3-T4 drawings are
+# their fitted views, 20-22 px; feather.3 drawn); --doll-envelope 0 failures; --scope ladder seeds 1..3: River, Sun Temple, Sylvan,
+# Starspire 24/24 (the Steppe's 12 short are area B's, as at a22bebc); --fingerprint --gates PASS; icons_gallery --check rc 0.
