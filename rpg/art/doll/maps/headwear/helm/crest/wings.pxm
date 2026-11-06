@@ -8,7 +8,10 @@ layer headwear
 anchor crown
 keys hatpose
 z 2
-tags overlay
+# (P5b2, D79 reserve) decision 8 reading 1: the Steppe kit alloys that drew the wings in P5 (WINDIRON, SKYIRON, WINDSTEEL) wear
+# the people's signature now; only a non-kit alloy with a wings crest draws it (Marsh HERONSTEEL, a T4 warriors' alloy), which no
+# census of seeds 1..20 nor the gates' looks wear: kept drawn, listed, never dead
+tags overlay reserve
 legend v metal 0
 legend w metal 1
 legend x metal 2

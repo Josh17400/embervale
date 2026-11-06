@@ -4,11 +4,14 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <initializer_list>
 #include <unordered_map>
 #include <vector>
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
+#include "rpg/core/fingerprint.h"
 #include "rpg/sim/gear_ladder.h"
 
 namespace gear {
@@ -1044,6 +1047,115 @@ Shape alloyShape(const cult::Culture& c, int alloyIndex) {
   const AlloyDetails d = alloyDetails(c, alloyIndex, s);
   s.arm = d.arm; s.motif = d.motif; s.variant = d.variant;
   return s;
+}
+
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) the kingdom's kit alloys: the ladder kit's (gear_ladder.cpp ladderKit: the first
+// alloy at T4, the last at T5-T6) and the king's (rankTiers: the last at T5)
+bool kitAlloy(const cult::Culture& c, int alloyIndex, int tier) {
+  const int n = (int)c.arms.alloys.size();
+  if (alloyIndex < 0 || alloyIndex >= n) return false;
+  return (alloyIndex == 0 && tier == 4) || (alloyIndex == n - 1 && tier >= 5);
+}
+bool kitTwinPair(const cult::Culture& a, int ia, int ta, const cult::Culture& b, int ib, int tb) {
+  using namespace art::doll;
+  if (!fixOn(FIX_SIG) || !fixOn(FIX_FP) || a.archetype != b.archetype || ta != tb || !fp::sig(peopleRow(a) + 1)) return false;
+  return kitAlloy(a, ia, ta) && kitAlloy(b, ib, tb);
+}
+// a family the people's signature rules out for a non-kit alloy at the tier: horns below T5 (decision 2: the saga tier's), the
+// Fjordfolk's cone at every tier (the owner: "overly pointy")
+static bool ownHelmRuledOut(int people, int fam, int tier) {
+  if (fam == F::H_HORNED && tier < 5) return true;
+  if (fam == F::H_CONE && people == (int)cult::Archetype::Fjordfolk) return true;
+  return false;
+}
+// (P5b2, STYLE_P5B 2.5; C16o) a non-kit alloy body's skirt beside the kingdom's kit bodies: the people's signature at T4 and T5
+// (the everyday and the masterwork its own alloys sit between) wears one skirt each; an own body on one of them reads as the
+// kit's cut (C16o: SANDSTEEL's bell under FALCONSILVER's T5 bell, smallest frame 0.029), so it takes the people's next skirt
+// (STYLE_P2 28.5's menu order) that neither kit wears; every other axis stays its own
+int ownAlloySkirt(const cult::Culture& c, int skirt, int helm) {
+  const int p = peopleRow(c);
+  std::vector<int> kit, avoid;
+  for (int t = 4; t <= 5; t++)
+    if (const fp::SigTier* st = fp::sigTier(p + 1, t))
+      if (st->skirt && *st->skirt) kit.push_back(F::shapeValueOf(F::SX_SKIRT, st->skirt));
+  // (C18a) an own helm on another people's signed family (the Fjordfolk veil is the Dune's T4 head): its body keeps off that
+  // people's kit skirts too, so the two never twin
+  for (int q = 1; q < fp::kPeoples; q++)
+    for (int t = 4; t <= 5 && q != p + 1 && helm; t++)
+      if (const fp::SigTier* st = fp::sigTier(q, t))
+        if (st->head && !std::strncmp(st->head, "fam.", 4) && F::shapeValueOf(F::SX_HELM, st->head + 4) == helm && st->skirt && *st->skirt)
+          avoid.push_back(F::shapeValueOf(F::SX_SKIRT, st->skirt));
+  const bool hit = std::find(kit.begin(), kit.end(), skirt) != kit.end() || std::find(avoid.begin(), avoid.end(), skirt) != avoid.end();
+  if (!skirt || !hit) return skirt;
+  kit.insert(kit.end(), avoid.begin(), avoid.end());
+  uint8_t vals[8];
+  const int n = F::shapeMenu(p, F::SX_SKIRT, vals, nullptr, nullptr, 8);
+  std::vector<int> freeS;
+  for (int k = 0; k < n; k++)
+    if (std::find(kit.begin(), kit.end(), (int)vals[k]) == kit.end()) freeS.push_back(vals[k]);
+  // (the first free in menu order: measured over worlds 1-6, 22 C18 reds against 27 by a seeded pick and a C16o red by the last)
+  return freeS.empty() ? skirt : freeS.front();
+}
+
+// (P5b2) the owner's board alloys whose own head meets another people's kit head at its tier (C16k: GWESTEEL's morion is the
+// River's T4 signature, SLAURIRON's 0.048 apart; the snout, of the Highland menu, the one that keeps the 37 apart): pinned, as kBoardHeads pins the 37 (H_* value, variant)
+struct OwnHead { const char* name; int tier; int helm, variant; };
+static const OwnHead kOwnHeads[] = {
+    {"GWESTEEL", 4, F::H_SNOUT, 0},
+};
+int ownAlloyHelm(const cult::Culture& c, int alloyIndex, int tier, int* variant) {
+  if (variant) *variant = -1;
+  const int own = alloyShape(c, alloyIndex).helm;
+  const int p = peopleRow(c);
+  // the people's signed family at the piece's tier (the kit alloy's head there): an own helmet is never the kit's
+  int signedFam = 0;
+  if (const fp::SigTier* st = fp::sigTier(p + 1, tier))
+    if (st->head && !std::strncmp(st->head, "fam.", 4)) signedFam = std::max(0, F::shapeValueOf(F::SX_HELM, st->head + 4));
+  // (so it still reads as its own people) another people's signed family at that tier (its kit's head)
+  std::vector<int> others;
+  for (int q = 1; q < fp::kPeoples; q++)
+    if (q != p + 1)
+      if (const fp::SigTier* st = fp::sigTier(q, tier))
+        if (st->head && !std::strncmp(st->head, "fam.", 4)) others.push_back(F::shapeValueOf(F::SX_HELM, st->head + 4));
+  // the owner's board (kBoardHeads' 37, C16k): a freed or pinned head solved so the 37 stay apart
+  for (const OwnHead& oh : kOwnHeads)
+    if (c.arms.alloys[(size_t)alloyIndex].name == oh.name && tier == oh.tier) {
+      if (variant) *variant = oh.variant;
+      return oh.helm;
+    }
+  if (!own || (!ownHelmRuledOut(p, own, tier) && own != signedFam)) return own;
+  // taken: the culture's other non-kit alloys' own families and the people's signed families at T4-T5 (fp::SigTier "fam.<v>")
+  std::vector<int> taken;
+  // (the first and the last draw the signature in their kit tiers: their own families are free to take)
+  const int na = (int)c.arms.alloys.size();
+  for (int j = 1; j + 1 < na; j++) if (j != alloyIndex) taken.push_back(alloyShape(c, j).helm);
+  if (const fp::Sig* sg = fp::sig(p + 1))
+    for (int t = 4; t <= 5; t++)
+      if (sg->t[t].head && !std::strncmp(sg->t[t].head, "fam.", 4)) taken.push_back(F::shapeValueOf(F::SX_HELM, sg->t[t].head + 4));
+  uint8_t vals[8];
+  const int n = F::shapeMenu(p, F::SX_HELM, vals, nullptr, nullptr, 8);
+  // among the free families, the one the alloy's name picks (FNV-1a of the name): two kingdoms' freed helms seldom meet (C16k)
+  uint32_t h = 2166136261u ^ 2u;   // (salt 2: the first of 0..15 that keeps the owner's 37 heads apart, C16k, with kOwnHeads)   // (salt 2: the first of 0..15 that keeps the owner's 37 heads apart, C16k, with kOwnHeads)
+  for (char ch : c.arms.alloys[(size_t)alloyIndex].name) h = (h ^ (uint8_t)ch) * 16777619u;
+  // never another people's signed family at that tier where the menu leaves another
+  std::vector<int> freeF, freeOwn;
+  int first = 0;
+  for (int k = 0; k < n; k++) {
+    const int f = vals[k];
+    if (ownHelmRuledOut(p, f, tier) || f == signedFam) continue;
+    if (!first) first = f;
+    if (std::find(taken.begin(), taken.end(), f) != taken.end()) continue;
+    freeF.push_back(f);
+    if (std::find(others.begin(), others.end(), f) == others.end()) freeOwn.push_back(f);
+  }
+  if (!freeOwn.empty()) freeF = freeOwn;
+  if (!freeF.empty()) {
+    const int f = freeF[(h >> 8) % (uint32_t)freeF.size()];
+    // its variant by the name too (D51: the family's drawn variants part two kingdoms' freed helms on one family)
+    if (variant) *variant = (int)(h % (uint32_t)(F::helmVariantCount(f) + 1));
+    return f;
+  }
+  return first ? first : F::H_KETTLE;
 }
 
 Shape shapeOf(const Item& it, const cult::Culture* maker) {

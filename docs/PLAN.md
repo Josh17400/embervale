@@ -2287,7 +2287,8 @@ area ladder.
   1/60 s; nothing toggles faster than 2 Hz).
 
 **Budgets** (no compression; D46):
-- The pool gate is 2.5 MiB (2,621,440 B). pxc.mjs prints the real budget (it still says "1.0 MB").
+- The pool gate is 5 MiB (5,242,880 B; D46 restated 2026-11-06, the owner: "you can have 5 MB man"; still no compression).
+  pxc.mjs prints the real budget.
 - B10 by tier (the figure's highest piece): T1-T3 and untiered looks LOCO 128 / RUN 64 / DRAWN 256 / ACTION 512 / DEATH 52
   / POSTURE 64 KB; T4 160 / 80 / 320 (D19's old numbers), with ACTION 512, DEATH 52, POSTURE 64; T5-T6 200 / 100 / 400, and
   ACTION, DEATH and POSTURE set at the first measured T6 look (e6) x 1.1, never above 1.4 x the T1-T3 values (716, 72 and 89
@@ -2938,7 +2939,7 @@ The rules for every step:
   2); horns, wings, the kabuto's flare, the war hat's brim, the morion's points and the sallet's tail within 3; every
   helm-layer pixel (the plume slot too) within kEnvelope's rows above the crown (T1 2, T2 3, T3 4, T4 6, T5 8, T6 10; a
   drawn crest or plume at T2-T3 to 6, today's F-37); untiered looks keep today's F-35 and F-37.
-- **C8**: the pool 2.5 MiB (2,621,440 B; D46); the atlases by tier (B10); people 24 MB or less in the capital at 15:00;
+- **C8**: the pool 5 MiB (5,242,880 B; D46 restated 2026-11-06); the atlases by tier (B10); people 24 MB or less in the capital at 15:00;
   embervale.wasm within P2c's start + 2.0 MB.
 - **C12c**: on the envelope's lines C12f's strict rise replaces "never shrinks by more than 2 %"; elsewhere C12c stands,
   with "T6 at T5's area or more" added.
@@ -3247,7 +3248,9 @@ The envelope re-plan (2026-10-27) adds:
 - **D45. T5-T6 move more**: the long cloak stirs 1 px at T5 and 2 px at T6 on the idle's breathe frame and the walk's passing
   frames, the plume sways a pixel behind the walk's bob, and the light is 27.7's and contracts 6b's. C13's light caps stand
   as built (128 sprite-bright, 320 soft a figure-frame); drawn motion 8-32 px at T5 and 16-48 at T6; nothing blinks.
-- **D46. Budgets** (answers D27 with D48): the pool gate is 2.5 MiB (2,621,440 B); B10 by tier (T1-T3 128 / 64 / 256, T4 160 /
+- **D46. Budgets** (answers D27 with D48): the pool gate is 5 MiB (5,242,880 B; restated 2026-11-06 by the owner, "you can
+  have 5 MB man", from 2.5 MiB; no compression); B10 by tier (T1-T2 128 / 64 / 256, T3 128 / 72 / 288 with DEATH 56 (P5b2:
+  half the step to T4 for the people's heads from T3, jade3 measured 89.6 / 259.6 / 58.7 KB with its allowances), T4 160 /
   80 / 320, T5-T6 200 / 100 / 400 KB; T5-T6 ACTION, DEATH and POSTURE from the first measured T6 look x 1.1, at most 716 / 72
   / 89 KB); embervale.wasm within P2c's start + 2.0 MB; the rig-2 atlas cache 16 MB unless the capital sweep evicts an
   on-screen look (then 20 MB, inside C8's 24 MB). It restates D11, D19 and D21.
@@ -5145,8 +5148,8 @@ e3caafd055beef59), every gate green on MSVC and WSL clang 18, rig 1 unchanged (a
   the world windows report their repeats, never between neighbouring schools).
 - **T5-T6 move** (D45): the long cloak's hem and the plume stir on the idle's breathe frame and the walk's passing frames;
   C13's drawn motion is 8-32 px at T5 and 16-48 at T6 on every T5-T6 look with a cloak or a plume, and nothing blinks.
-- **Budgets** (D46, D48, D70): the pool gate 2,621,440 B, no compression; B10 by tier (T1-T3 and untiered 128 / 64 / 256 /
-  512 / 52 / 64 KB; T4 160 / 80 / 320 / 512 / 52 / 64; T5-T6 200 / 100 / 400, with ACTION, DEATH and POSTURE written from
+- **Budgets** (D46, D48, D70): the pool gate 5,242,880 B (restated 2026-11-06), no compression; B10 by tier (T1-T2 and
+  untiered 128 / 64 / 256 / 512 / 52 / 64 KB; T3 128 / 72 / 288 / 512 / 56 / 64 (P5b2); T4 160 / 80 / 320 / 512 / 52 / 64; T5-T6 200 / 100 / 400, with ACTION, DEATH and POSTURE written from
   e6's full atlases, x 1.1, capped at 716 / 72 / 89); going over is the owner's question, never an art cut.
 - **Keep what is drawn** (D49): every map, view and size stays and keeps its meaning; growth ADDs sizes 5-6, `when
   <slot>.t2` to `.t6` views, `cloak.t5`, `breeze` and `variant-<n>` views; an A fix repaints its own view and names it.

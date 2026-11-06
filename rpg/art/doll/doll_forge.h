@@ -303,6 +303,11 @@ inline void unpackShapeAxes(uint32_t p, uint8_t v[SX_COUNT]) {
 //   hounskull, 3 the rondel bascinet | veil 1 the spire, 2 the turban | winged 1 the eagle, 2 the fin, 3 the messenger |
 //   kabuto 1 the crescent kabuto | onion 1 the kulah (tools/doll/rekey_variants.mjs re-keys the maps, crest placements too)
 // and new drawings the owner's board asks for (FORGE-HEAD): horned 1, crown 2-3, morion 1.
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) bits 23-24: the body piece (23) and the helm piece (24) are culture alloys that
+// are not their kingdom's kit alloy at their tier (gear::kitAlloy: the everyday at T4, the masterwork at T5-T6). Under FIX_SIG
+// such a piece keeps this silhouette (its own cut and helmet, P5's) in its people's colours, not the people's signature
+// (gear::fillLadder, rankTiers set them; only under FIX_SIG). Bits 25-30 stay free
+constexpr uint32_t SHAPE_OWN_BODY = 1u << 23, SHAPE_OWN_HELM = 1u << 24;
 inline uint32_t shapeVariant(uint32_t p) { return p >> 31 ? (p >> 20) & 7u : 0u; }
 inline uint32_t withShapeVariant(uint32_t p, int v) { return p ? (p & ~(7u << 20)) | ((uint32_t)(v & 7) << 20) : p; }
 inline uint32_t headKeyOf(int helm, int variant, int crest) { return (uint32_t)(helm & 31) | (uint32_t)(variant & 7) << 5 | (uint32_t)(crest & 255) << 8; }

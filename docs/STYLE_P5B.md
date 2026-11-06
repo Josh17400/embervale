@@ -45,7 +45,7 @@ detail and the plumbing (section 8).
    plume, T5 the legend growth in gilt, T6 the living finish. Areas keep C12f's steps (T3 >= 1.20, T5 >= 1.55 x T1).
 5. **One signature family a people from T3 to T6, growing** (where the people has one). Identity comes from consistency:
    the Jade's kabuto at T3 gains its flare at T4 and gilt kuwagata at T5. Consecutive tiers still differ in outline at 1x.
-   **The alloys (fix r2 ruling, decision 8: reading 1 recommended; it is built once the owner signs it, fix r2 leaves the r1 looks).** The people's
+   **The alloys (decision 8, reading 1: the owner's ruling 2026-11-06, built in P5b2 area E).** The people's
    signature at T4-T6 is its **kit alloy's**: the everyday alloy at T4 and the masterwork at T5-T6, of every kingdom of the
    people (the ladder's kits, the slice and the production sheets the owner approved). **Every other alloy** (the warriors'
    at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
@@ -54,7 +54,20 @@ detail and the plumbing (section 8).
    owner's "overly pointy"; no horns below T5, decision 2): it takes the people's next free family. A material piece
    (leather, bronze, iron, steel, the high metals) at T4-T6 keeps its hero's shape (2.6, D83). The P2c alloy gates (C16k,
    C16o, C16m, C18a-b, C19) hold for every pair **except two kit alloys of one people at one tier**, which are one look by
-   design and are not parted by them. *Why not the plan's first text* ("alloys part by the family's variant and crest; the
+   design and are not parted by them. **As built (P5b2 E):** `gear::kitAlloy` (a kit alloy: the first alloy at T4, the last at
+   T5-T6, as `ladderKit` and the king's `rankTiers` choose them); a worn non-kit alloy body or helm carries forgeShape bits 23-24
+   (`SHAPE_OWN_BODY`, `SHAPE_OWN_HELM`, set by `fillLadder` and `rankTiers` under FIX_SIG only), and `sigLookOf` then keeps its
+   own shape axes and family and lays the people's dominant on its layer cloth and crest; from T4 a material piece (forge base
+   not an alloy) keeps its hero's shape the same way. The freed helm (`gear::ownAlloyHelm`): ruled out are horns below T5, the
+   Fjordfolk cone, and the people's own signed family at that tier (the kit's head: KISTEEL's kabuto, SANDSTEEL's veil); it takes
+   a free family of the people's menu (not another of the culture's middle alloys', not a signed family of its own, another
+   people's signed family only where nothing else is left), its variant by the alloy's name; a horns crest below T5 is dropped.
+   An own body whose skirt is a kit's (the people's T4 or T5) or the kit of another people whose signed head is its helm family
+   takes the people's next menu skirt (`gear::ownAlloySkirt`; C16o, C18a). One pin (`kOwnHeads`): GWESTEEL's morion is the
+   River's T4 signature, so it wears the snout (C16k). The gates: two kit alloys of one people at one tier are skipped
+   (`gear::kitTwinPair`: C16k, C16o, C16m, C18a); a kingdom's kit pair at T4 and T5 (its signature a tier apart, the one body
+   growing) is parted by the head alone (C16o, C16m, C18b: head 0.10). C16m reads the torso with the shield aside (the people's
+   round shield covered BARSTEEL's torso: 67 px of the box). *Why not the plan's first text* ("alloys part by the family's variant and crest; the
    secondary serves the warriors' alloy"): measured in fix r2, a variant or crest moves a head 0.00-0.05 OD (C16k wants 0.10),
    section 5's one body per tier gives body OD 0 between a kingdom's alloys (C16o wants 0.08), the Fjordfolk secondary is the
    rejected cone, and the slice's own T5 kits of seeds 1-3 (one masterwork each of three kingdoms, pixel-identical by the
@@ -336,7 +349,11 @@ helm crowned with star points that grow into spires; fluted plate, tall pointed 
 
 ## 6. The budget (pool bytes, no compression)
 
-**Today:** `node tools/doll/pxc.mjs` at f914d03: 871 parts, 29,153 views, **2,601,938 B** of the **2,621,440 B** budget:
+**The budget is 5 MiB (5,242,880 B) since 2026-11-06** (the owner: "you can have 5 MB man"; D46 restated, still no
+compression): `kPoolBudget` and pxc.mjs's `POOL_BUDGET`. P5b2 E measured 2,620,573 B (2.50 MiB) after its three short views.
+The T3 atlas row takes half the step to T4 (RUN 72, DRAWN 288, DEATH 56 KB; doll_envelope.h).
+
+**At f914d03:** `node tools/doll/pxc.mjs` at f914d03: 871 parts, 29,153 views, **2,601,938 B** of the **2,621,440 B** budget:
 **19,502 B free**. (P5 spent 12,194 B of it; its plan had kept 19 KB for P6.)
 
 **What things cost** (measured 2026-11-05: each part removed from a scratch copy of the maps and the pool recompiled):
@@ -509,12 +526,13 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    kingdom's colours on cloaks and shield fields, the people's beside them.)
 4. **The T1 kits wear their people's cap**; the Heartland hero's road stays bareheaded at T1 (D54) and a Heartland-made T1
    helm draws the chapel.
-5. **The budget:** option A, +64 KiB (recommended); else option B, the core only (section 6).
+5. **The budget:** option A, +64 KiB (recommended); else option B, the core only (section 6). **Ruled 2026-11-06: 5 MiB
+   (5,242,880 B), no compression** (section 6).
 6. **The palette retune** of section 3 (Imperial crimson, not purple; Dune teal and cream; Steppe rust and sky; River
    white and lapis; Sun Temple turquoise and yellow; Sylvan leaf and forest; Highland green and saffron; Marsh moss and bone).
 7. **One signature family a people from T3 to T6, growing** (section 2.5); 29.4's "every tier its own family" stays the
    Heartland hero's road's rule.
-8. **(fix r2) The kingdoms' kit alloys.** Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
+8. **(fix r2) The kingdoms' kit alloys.** **Ruled 2026-11-06: reading 1, built in P5b2 E (section 2.5, "As built").** Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
    everyday at T4, the masterwork at T5-T6) wears the people's one signature (the look the owner approved: "i really like
    these"); every other alloy keeps its own helmet and cut (2026-10-24/25) in the people's colours; two kit alloys of one
    people at one tier are not parted by the P2c alloy gates. Reading 2: each kingdom's kit carries a MARK on the signature

@@ -1457,7 +1457,19 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   const int pb = L.makerAt(H::TIER_BODY), tb = L.tier[H::TIER_BODY];
   // (P5b area A) a tier whose skirt is null leaves the body as the piece draws it (the Heartland hero's road, D54-D55; a new
   // people's T5-T6 until the owner's budget ruling): "" is a word (unset), nullptr no signature
-  if (sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L) && fp::sigTier(pb, tb)->skirt) {
+  // (P5b2, STYLE_P5B 2.5-2.6, decision 8 reading 1) from T4 the signature is the kingdom's KIT alloy's: a non-kit alloy piece
+  // (forge::SHAPE_OWN_BODY, SHAPE_OWN_HELM) keeps its own cut and helmet (P5's forge look: the piece's own shape axes and family,
+  // the helm family already freed of the people's ruled-out heads by gear::ownAlloyHelm), and a material piece at T4-T6
+  // (leather, bronze, iron, steel, the high metals, the Mythic: its forge base not an alloy) keeps its hero's shape (D83); both
+  // wear the people's pair: the layer's cloth and the tabard, the crest and the plume. T1-T3 pieces are signed as before
+  auto ownPiece = [&](int slot, uint32_t bit) {
+    if (L.forgeShape & bit) return true;
+    return L.tier[slot] >= 4 && L.forge[slot] && (int)(L.forge[slot] & 0xFF) != forge::B_ALLOY;
+  };
+  const bool ownBody = ownPiece(H::TIER_BODY, forge::SHAPE_OWN_BODY), ownHelm = ownPiece(H::TIER_HELM, forge::SHAPE_OWN_HELM);
+  if (ownBody && sigOn(pb) && tb >= 1 && armourOf(L) && (sx[forge::SX_LAYER] > forge::LY_NONE || L.cape))
+    E.tabardColor = sigRgba(fp::sig(pb)->dom);
+  if (!ownBody && sigOn(pb) && tb >= 1 && tb <= 6 && armourOf(L) && fp::sigTier(pb, tb)->skirt) {
     const fp::SigTier& t = *fp::sigTier(pb, tb);
     u.body = true;
     u.bodyP = pb;
@@ -1477,9 +1489,10 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   // the helm (a helmet worn: a band, a form or the legacy helmet)
   const int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
   const bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
+  if (ownHelm && sigOn(ph) && th >= 1 && helmWorn) E.plumeColor = sigRgba(fp::sig(ph)->dom);
   // (P5b area A) a tier whose head is null leaves the helm as the piece draws it, its crest colour too (the Heartland's T5-T6, a
   // new people's T5-T6 until the owner's budget ruling); "" signs it with the piece's own head
-  if (sigOn(ph) && th >= 1 && th <= 6 && helmWorn && fp::sigTier(ph, th)->head) {
+  if (!ownHelm && sigOn(ph) && th >= 1 && th <= 6 && helmWorn && fp::sigTier(ph, th)->head) {
     const fp::SigTier& t = *fp::sigTier(ph, th);
     u.helmP = ph;
     const std::string head = t.head ? t.head : "";

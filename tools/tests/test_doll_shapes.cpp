@@ -28,6 +28,7 @@
 #include <vector>
 #include "rpg/art.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_forge.h"
 #include "rpg/art/doll/doll_internal.h"
 #include "rpg/culture/culture.h"
@@ -208,6 +209,13 @@ bool sigOpenMask(const doll::DollRecipe& r) {
   for (const std::string& f : r.flags) if (f.rfind("sighelm-", 0) == 0) return true;
   return false;
 }
+// (P5b2) an alloy's tier on gear::alloyKitLook's figure (the boards, C16o, C16m, C18): the first two at T4, the rest T5
+int kitTier(int alloyIndex) { return alloyIndex >= 2 ? 5 : 4; }
+// (P5b2, STYLE_P5B 2.5) a kingdom's two kit alloys at two tiers (the everyday at T4, the masterwork at T5): the people's signature
+// a tier apart, one body growing (section 5); under FIX_SIG only
+bool kitLadderPair(const cult::Culture& c, int i, int ti, int j, int tj) {
+  return ti != tj && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) && gear::kitAlloy(c, i, ti) && gear::kitAlloy(c, j, tj);
+}
 // C16o's pair rule for two alloys of a culture: body OD 0.08 or more with no frame under 0.05, head OD 0.10 or more
 std::string cultureRule(const doll::OutlineOD& d) {
   if (d.body < 0.08 || d.bodyMin < 0.05 || d.head < 0.10) return fmt("body OD %.3f (0.08), smallest frame %.3f (0.05), head OD %.3f (0.10)", d.body, d.bodyMin, d.head);
@@ -371,7 +379,18 @@ int dollShapeGates(bool report, std::vector<std::string>& printed, const std::ve
       for (int i = 0; i < n; i++) ol.push_back(alloyOutline(c, i));
       for (int i = 0; i < n; i++)
         for (int j = i + 1; j < n; j++) {
-          const std::string why = cultureRule(doll::outlineDistance(ol[(size_t)i], ol[(size_t)j]));
+          // (P5b2, STYLE_P5B 2.5, decision 8 reading 1) two kit alloys of one people at one tier are one look (not parted);
+          // a kingdom's two kit alloys at T4 and T5 are the people's signature growing a tier (its one body by tier, the
+          // owner-approved slice): parted by the head (0.10) alone
+          const int ti = kitTier(i), tj = kitTier(j);
+          if (gear::kitTwinPair(c, i, ti, c, j, tj)) continue;
+          const doll::OutlineOD od = doll::outlineDistance(ol[(size_t)i], ol[(size_t)j]);
+          if (kitLadderPair(c, i, ti, j, tj)) {
+            if (od.head < 0.10) o.bad(fmt("%s s%d %s vs %s (kit T%d / T%d): head OD %.3f (0.10)", kPeople[pe], sd, c.arms.alloys[(size_t)i].name.c_str(), c.arms.alloys[(size_t)j].name.c_str(), ti, tj, od.head));
+            else o.ok();
+            continue;
+          }
+          const std::string why = cultureRule(od);
           if (!why.empty()) o.bad(fmt("%s s%d %s vs %s: %s", kPeople[pe], sd, c.arms.alloys[(size_t)i].name.c_str(), c.arms.alloys[(size_t)j].name.c_str(), why.c_str()));
           else o.ok();
         }
@@ -388,7 +407,14 @@ int dollShapeGates(bool report, std::vector<std::string>& printed, const std::ve
       std::vector<MotifRead> mr;
       std::vector<int> motif;
       for (int i = 0; i < n; i++) {
-        const doll::DollRecipe r = doll::resolve(gear::alloyKitLook(a3Base(0), c, i));
+        // (P5b2) the torso read with the shield aside: the people's round shield (STYLE_P5B 5: the Fjordfolk, Steppe, Dune and Sun
+        // Temple carry the round; P5 drew the alloys' own oval and kite) covers the torso facing D (67 of the torso box's px on
+        // BARSTEEL), hiding the body's motif the gate reads
+        art::HumanLook Lm = gear::alloyKitLook(a3Base(0), c, i);
+        Lm.shield = false;
+        Lm.shieldStyle = 0;
+        Lm.tier[art::HumanLook::TIER_SHIELD] = 0;
+        const doll::DollRecipe r = doll::resolve(Lm);
         mr.push_back(motifRead(r));
         motif.push_back(r.shape[F::SX_MOTIF]);
         if (r.shape[F::SX_MOTIF] && r.shape[F::SX_MOTIF] != F::MO_PLAIN) {
@@ -398,7 +424,8 @@ int dollShapeGates(bool report, std::vector<std::string>& printed, const std::ve
       }
       for (int i = 0; i < n; i++)
         for (int j = i + 1; j < n; j++)
-          if (motif[(size_t)i] && motif[(size_t)j] && motif[(size_t)i] != motif[(size_t)j]) {
+          if (motif[(size_t)i] && motif[(size_t)j] && motif[(size_t)i] != motif[(size_t)j] && !gear::kitTwinPair(c, i, kitTier(i), c, j, kitTier(j)) &&
+              !kitLadderPair(c, i, kitTier(i), j, kitTier(j))) {
             // (silhouettes i2; PLAN C16 m "differ by 10 luma or more (mean) there") the mean of the per-pixel differences over
             // the torso box both figures share (aligned on the pivot); two equal means of two different motifs still part
             const double mad = motifMad(mr[(size_t)i], mr[(size_t)j]);
@@ -783,7 +810,11 @@ int forgeSilhouettes(int w0, int w1, bool report, bool selftest, std::vector<std
         const AlloyRef &x = sc.as[i], &y = sc.as[j];
         const bool same = x.c == y.c;
         const int dist = std::max(std::abs(x.ci - y.ci), std::abs(x.cj - y.cj));
-        if (same) {
+        // (P5b2, STYLE_P5B 2.5, decision 8 reading 1) two kit alloys of one people at one tier are one look by design (the
+        // people's signature): not twins; a kingdom's kit alloys at T4 and T5 are its signature growing (C18b's body aside)
+        if (gear::kitTwinPair(*x.c, x.idx, kitTier(x.idx), *y.c, y.idx, kitTier(y.idx))) { a.ok(); continue; }
+        const bool ladder = same && kitLadderPair(*x.c, x.idx, kitTier(x.idx), y.idx, kitTier(y.idx));
+        if (same && !ladder) {
           if (d.body < 0.08) b.bad(fmt("%s: %s vs %s: body OD %.3f (0.08)", sc.name.c_str(), refName(x).c_str(), refName(y).c_str(), d.body)); else b.ok();
         }
         if (!twin(d)) { a.ok(); continue; }
