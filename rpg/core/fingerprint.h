@@ -39,6 +39,10 @@ struct SigTier {
                             // part's metal steps 1-4 drawn in Device, the T5 device's gold; no pool bytes)
   bool coif = false;        // (P5b area C) the people's hood worn under the helm at this tier (headwear/cloth/hood in Sig::hood:
                             // the Starspire knight keeps the acolyte's indigo hood under his crown; no pool bytes)
+  bool ownHead = false;     // (P5b area C2) the people's head is drawn whole at this tier by its own ADDED replace views (on the
+                            // family's part and its `_legend` part, keyed sighelm-<people>,helm.t<N>): the family's own tier
+                            // overlays and legend views (keyed helmfam-<v>) step aside, so no other people's growth (a nasal, a
+                            // bevor, cheek guards) lands on the people's head (tools/doll/p5b_sig_C2.py)
 };
 struct Sig {
   uint32_t dom, acc;     // the dominant and the accent (0xRRGGBB): the cloth (heads, the layer, cape and cloak, linings,
@@ -166,9 +170,13 @@ inline constexpr Sig kSigMarsh{0x707E28, 0xD6CCA8, "oval", 0, false, 0, {
     {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"},
     {"fam.kettle", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare", true},   // (B2) the bog king's war hat (the T3 reed hat's family)
     {"fam.kettle", 0, "",      "strips",  "drop",   "flap",    "cape",     "bare", true}}};
-// ---- (P5b area C, STYLE_P5B 4-5) River, Sun Temple, Sylvan and Starspire at T1-T4; T5-T6 wear their families' existing legend
-// heads (no pool bytes; the T5-T6 legend overlays wait for the owner's budget decision, STYLE_P5B 6 option B). The people heads'
-// added views: tools/doll/p5b_sig_C.py
+// ---- (P5b area C, STYLE_P5B 4-5) River, Sun Temple, Sylvan and Starspire at T1-T4 (their heads' added views:
+// tools/doll/p5b_sig_C.py) and (P5b production 2, the owner's 2026-11-06 rulings) at T5-T6, the elite tiers, on their own
+// heads (tools/doll/p5b_sig_C2.py; River, Sylvan and Starspire SigTier::ownHead): the guild captain's etched morion and plume, the
+// grand plume; the jaguar under the sunburst fan, the eagle under the full fan; the leaf-crested open silver helm,
+// its spray of three leaves; the fluted gothic ogive over the indigo hood under its diamond star, the star arch (its T5-T6 body
+// the row's bell and crystal shoulders: a cape or tassets took a_star3's frames past B8's 48 colours). Gilt (Sig::gilt) the
+// River and Sylvan fittings at T5 and on their own T6 heads (a T6 shield's device burns in the glow: the T6 gilt with it)
 // River (the guild river-city, decision 1; rectangular, heavy-sleeved): the chaperon on its roll, the leather chapel, then the
 // morion growing (one family from T3, the owner's default; the sallet the alloys' secondary) under a lapis plume at T4; slab
 // shoulders, tassets, the livery tabard, puffed sleeves, the heater; deep lapis and linen white (STYLE_P5B 3's white and lapis
@@ -181,8 +189,8 @@ inline constexpr Sig kSigRiver{0x12335E, 0xE8E4D6, "heater", 0, false, 0, {
     {"fam.kettle", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
     {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
     {"fam.morion", 0, "",      "tassets", "broad",  "plate",   "tabard",   "wide", false, false, true},
-    {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"},
-    {"fam.morion", 1, "",      "tassets", "broad",  "slab",    "tabard",   "heavy"}}, false, 0xE8E4D6};
+    {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy", false, false, false, true},
+    {"fam.morion", 0, "",      "tassets", "broad",  "slab",    "tabard",   "heavy", false, false, false, true}}, true, 0xE8E4D6};
 // Sun Temple (radiating fans, round chimalli, animal heads): the turquoise headband and its yellow feather, the quilted cap
 // and its fan, the jaguar's head (the masked family's place), the jaguar under a feather crest; the feather mantle, the
 // feathered bell, bare arms, the feather cape; turquoise and feather yellow (the feathers and the pelt in the yellow)
@@ -192,8 +200,8 @@ inline constexpr Sig kSigSunTemple{0x1CA086, 0xF0C030, "round", 0xF0C030, false,
     {"hw:cap",     0, "",      "",        "mantle", "feather", "none",     "bare"},
     {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"},
     {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"},
-    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare", false, false, true},
-    {"fam.crown",  1, "",      "bell",    "tall",   "winged",  "cape",     "bare", false, false, true}}, false, 0x1CA086};
+    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"},
+    {"fam.mask",   0, "",      "bell",    "mantle", "feather", "cape",     "bare"}}, false, 0x1CA086};
 // Sylvan (curved, swept back, slim: the lightest silhouette at every tier): the leaf circlet, the leaf crown, the winged helm
 // whose wings grow (low and swept back at T3, the leaf fin at T4); leaf shoulders, the long split leaf skirt, close sleeves,
 // the leaf cloak; leaf green and forest
@@ -203,8 +211,8 @@ inline constexpr Sig kSigSylvan{0xA0C850, 0x2E5A2A, "leaf", 0, false, 0, {
     {"hw:circlet", 0, "",      "split",   "drop",   "leaf",    "none",     "close"},
     {"fam.winged", 0, "",      "strips",  "drop",   "leaf",    "",         "close"},
     {"fam.winged", 3, "",      "split",   "drop",   "leaf",    "cape",     "close"},
-    {"fam.winged", 0, "",      "split",   "drop",   "leaf",    "cape",     "close"},
-    {"fam.winged", 2, "",      "strips",  "drop",   "leaf",    "",         "close"}}};
+    {"fam.winged", 0, "",      "split",   "drop",   "leaf",    "cape",     "close", false, false, false, true},
+    {"fam.winged", 0, "",      "split",   "drop",   "leaf",    "cape",     "close", false, false, false, true}}, true};
 // Starspire (sharp, vertical, symmetric; gothic-arched, fluted and celestial, never spiky-evil): the deep pointed hood, the
 // stiff cowl, then the star-pointed crown worn over the same indigo hood (SigTier::coif) and growing; tall flared shoulders,
 // the split hem then tassets, the indigo cape, the kite; indigo and star white (the hood's star-white edge)
@@ -214,8 +222,8 @@ inline constexpr Sig kSigStarspire{0x5A3CB4, 0xDCE4F8, "kite", 0xDCE4F8, false, 
     {"hw:hood",    0, "",      "tassets", "tall",   "flared",  "none",     "close"},
     {"fam.crown",  1, "",      "tassets", "tall",   "flared",  "cape",     "close", false, false, true},
     {"fam.crown",  0, "",      "tassets", "tall",   "flared",  "cape",     "close", false, false, true},
-    {"fam.crown",  3, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true},
-    {"fam.crown",  2, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true}}, false, 0x5A3CB4};
+    {"fam.crown",  0, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true, true},
+    {"fam.crown",  0, "",      "bell",    "tall",   "crystal", "",         "close", false, false, true, true}}, false, 0x5A3CB4};
 // ---- (end of area C)
 // clang-format on
 

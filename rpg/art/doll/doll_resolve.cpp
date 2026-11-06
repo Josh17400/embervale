@@ -150,7 +150,10 @@ std::vector<std::string>* g_envMissing = nullptr;   // (P2c envelope) the recipe
 // (P2c envelope) a pauldron value's width across facing D: 16 + the reach of its parts' facing-D rest views past the 16 px
 // shoulder line (the right part's shoulder anchor sits 1 px inside the line's left end, the left part's 1 px inside its right
 // end; measured on the pool, cached per pool)
-int pauldronAcross(const std::string& v) {
+// (P5b area C2) at a body tier the drawing measured is the one the tier draws: a part's fitted view for that tier (ARMOUR-X
+// fitcap's `when armour.t<N>,!armour.t<N+1> replace`, the reach taken in to the tier's cap) where it has one, else its base
+// view (the over-wide feather.4, leaf.3, slab.2-3, pelt.4, flap.3 and layered.3 base drawings are never drawn at those tiers)
+int pauldronAcross(const std::string& v, int tier) {
   const pool::Pool& P = pool::get();
   static const void* poolAt = nullptr;
   static size_t poolParts = 0, poolViews = 0;
@@ -158,25 +161,33 @@ int pauldronAcross(const std::string& v) {
   if (poolAt != (const void*)&P || poolParts != P.parts.size() || poolViews != P.views.size()) {
     cache.clear(); poolAt = &P; poolParts = P.parts.size(); poolViews = P.views.size();
   }
-  auto it = cache.find(v);
+  const std::string ck = v + "@" + std::to_string(tier);
+  auto it = cache.find(ck);
   if (it != cache.end()) return it->second;
   const uint16_t rest = P.strId("rest");
+  const std::string fitWhen = tier >= 1 && tier <= 5 ? "armour.t" + std::to_string(tier) + ",!armour.t" + std::to_string(tier + 1) : std::string();
   int reachR = 0, reachL = 0;
   for (int pi : P.partsWithRole(Role::Pauldron, v)) {
     const pool::PartRec& pr = P.parts[(size_t)pi];
-    for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews && vi < P.views.size(); vi++) {
-      const pool::ViewRec& w = P.views[vi];
-      if (w.facing != 0 || w.when != 0 || w.key != rest || w.cells.empty()) continue;
-      int mn = 1 << 20, mx = -1;
-      for (int y = 0; y < w.h; y++)
-        for (int x = 0; x < w.w; x++) if (w.cells[(size_t)y * w.w + x] >= 2) { mn = std::min(mn, x); mx = std::max(mx, x); }
-      if (mx < 0) continue;
-      if (pr.side == 1) reachR = std::max(reachR, w.ox - mn - 1);
-      else if (pr.side == 2) reachL = std::max(reachL, mx - w.ox - 1);
+    for (int pass = 0; pass < 2; pass++) {   // the tier's fitted rest view first; none: the base
+      bool any = false;
+      for (uint32_t vi = pr.firstView; vi < pr.firstView + pr.nViews && vi < P.views.size(); vi++) {
+        const pool::ViewRec& w = P.views[vi];
+        if (w.facing != 0 || w.key != rest || w.cells.empty()) continue;
+        if (pass == 0 ? (fitWhen.empty() || w.when == 0 || !(w.flags & 1) || P.s(w.when) != fitWhen) : w.when != 0) continue;
+        int mn = 1 << 20, mx = -1;
+        for (int y = 0; y < w.h; y++)
+          for (int x = 0; x < w.w; x++) if (w.cells[(size_t)y * w.w + x] >= 2) { mn = std::min(mn, x); mx = std::max(mx, x); }
+        if (mx < 0) continue;
+        any = true;
+        if (pr.side == 1) reachR = std::max(reachR, w.ox - mn - 1);
+        else if (pr.side == 2) reachL = std::max(reachL, mx - w.ox - 1);
+      }
+      if (any) break;
     }
   }
   const int across = 16 + std::max(0, reachR) + std::max(0, reachL);
-  cache[v] = across;
+  cache[ck] = across;
   return across;
 }
 // (envelope fix round, D55; the judge's round 3: the hero's T2 measured 1.05 of T1 and read as T1's silhouette) the hero lines'
@@ -281,7 +292,7 @@ std::string pauldronOf(const HumanLook& L, int shoulder = 0) {
         if (d) g_envMissing->push_back("pauldron " + std::string(shape) + "." + std::to_string(want) + " -> ." + std::to_string(sz));
         // a drawing wider than its tier's shoulders (C12f fails it): FORGE-MANTLE redraws it to its size's reach (contracts
         // 3d: sizes 2-6 reach 1 / 2 / 3 / 5 / 6 px past the line); listed, the figure keeps it meanwhile
-        if (pauldronAcross(v) > capAcross) g_envMissing->push_back("pauldron " + v + " drawn " + std::to_string(pauldronAcross(v)) + " px across (T" + std::to_string(tb) + ": " + std::to_string(capAcross) + ")");
+        if (pauldronAcross(v, tb) > capAcross) g_envMissing->push_back("pauldron " + v + " drawn " + std::to_string(pauldronAcross(v, tb)) + " px across (T" + std::to_string(tb) + ": " + std::to_string(capAcross) + ")");
       }
       return v;
     }
@@ -920,7 +931,9 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
     if (g_sig->helmP && L.tier[HumanLook::TIER_HELM] == 2 && helmBandOf(L) == 1) flag("sighelmleather");
     // (fix r1, STYLE_P5B 2.4 "T5 the legend growth in gilt") a gilt people's T5 helm and shield: their fittings in the gilt
     // (doll_paint: the piece's Metal 2 in Device, the T5 device's gold), never the body's Metal 2 (an alloy's banded rows)
-    if (g_sig->helmP && fp::sig(g_sig->helmP)->gilt && L.tier[HumanLook::TIER_HELM] == 5) flag("sighelmgilt");
+    // (P5b area C2) and its own T6 head (fp::SigTier::ownHead: the River captain's gilt comb and brim)
+    if (g_sig->helmP && fp::sig(g_sig->helmP)->gilt && (L.tier[HumanLook::TIER_HELM] == 5 ||
+        (L.tier[HumanLook::TIER_HELM] == 6 && fp::sigTier(g_sig->helmP, 6)->ownHead))) flag("sighelmgilt");
     if (g_sig->shieldP && fp::sig(g_sig->shieldP)->gilt && L.tier[HumanLook::TIER_SHIELD] == 5) flag("sigshieldgilt");
     // the family's legend growth in the gilt (fp::SigTier::giltGrowth: the Jade T5 kuwagata), drawn by doll_paint
     if (g_sig->helmP) {
@@ -989,8 +1002,12 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
   // (FURNACE at any tier, a glowing alloy from T4: D28, D40)
   {
     static const char* const kPre[forge::SX_COUNT] = {"helmfam-", "skirt-", "mass-", "layer-", "arm-", "motif-"};
+    // (P5b area C2) a signed head drawn whole by its people at its tier (fp::SigTier::ownHead): its family's tier overlays and
+    // legend views (keyed helmfam-<v>) step aside; the people's own views key sighelm-<people>,helm.t<N>
+    const fp::SigTier* ownSt = g_sig && g_sig->helmP ? fp::sigTier(g_sig->helmP, L.tier[HumanLook::TIER_HELM]) : nullptr;
+    const bool ownHead = ownSt && ownSt->ownHead;
     for (int a = 0; a < forge::SX_COUNT; a++)
-      if (r.shape[a]) flagS(std::string(kPre[a]) + forge::shapeName(a, r.shape[a]));
+      if (r.shape[a] && !(a == forge::SX_HELM && ownHead)) flagS(std::string(kPre[a]) + forge::shapeName(a, r.shape[a]));
     const ShapeUse su = shapeUseOf(L);
     if (su.body) flag("alloyshape");
     // (P2c envelope, contracts 3d, D51) the helm's variant: a culture alloy's from its forgeShape (the board's 37: kBoardHeads),
@@ -1531,7 +1548,10 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   }
   // (fix r1) a gilt people's T5 helm draws its fittings in Device (doll_paint toGilt): with no shield carried (whose T5 device
   // sets it above), the same gilt, so the helm's gold never hangs on the shield
-  if (u.helmP && fp::sig(u.helmP)->gilt && th == 5 && !shieldOf(L)) E.shieldDevice = sigRgba(0xD8A32C);
+  // (P5b area C2) and a gilt people's own T6 head (fp::SigTier::ownHead): its fittings gilt as at T5 (with a T6 shield carried
+  // the device burns in the glow's light, doll_ramps: the T6 head's gilt with it)
+  const bool giltHead = u.helmP && fp::sig(u.helmP)->gilt && (th == 5 || (th == 6 && fp::sigTier(u.helmP, 6)->ownHead));
+  if (giltHead && !shieldOf(L)) E.shieldDevice = sigRgba(0xD8A32C);
   // the cloak (a worn cloak item, or the T3 cape)
   const int pc = L.makerAt(H::TIER_CLOAK);
   if (sigOn(pc) && fp::sig(pc)->cloth && (L.cloak || L.cape)) { u.cloakP = pc; E.cloakColor = sigRgba(fp::sig(pc)->dom); }

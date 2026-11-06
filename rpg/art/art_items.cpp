@@ -908,31 +908,37 @@ int sigIndexC(int people) {
   const char* n = fp::row(people).name;
   return !std::strcmp(n, "river") ? 0 : !std::strcmp(n, "suntemple") ? 1 : !std::strcmp(n, "sylvan") ? 2 : !std::strcmp(n, "starspire") ? 3 : -1;
 }
-// [river, suntemple, sylvan, starspire][band 0 T1, 1 T2, 2 T3-T4, 3 T5-T6] (area C)
-const char* const kSigHelmC[4][4][16] = {
+// [river, suntemple, sylvan, starspire][band 0 T1, 1 T2, 2 T3-T4, 3 T5, 4 T6] (area C; P5b production 2: T5 and T6 their own
+// heads, tools/doll/p5b_sig_C2.py: the plumed captain's morion and its grand plume; the jaguar under the sunburst and the
+// eagle under the full fan; the leaf-crested open helm and its spray; the gothic ogive under its star and the star arch)
+const char* const kSigHelmC[4][5][16] = {
   {  // river
     {"................", "................", "......kkkk......", "....kkjjiikk....", "...kjjjiihhhgk..", "..kjjiiihhhgggk.", "..kiiiihhhgggffk", "..keeddcccbbaak.", "..kcccbbbaaaaak.", "...kkkkkkkkkkgk.", ".............kgk", "............kgfk", "............kfk.", ".............k..", "................", "................"},
     {"................", "................", "................", "......kkkk......", ".....k4433k.....", "....k443322k....", "....k433221k....", "....kddccbak....", ".kkkk3322111kkk.", "k443333222211110", ".kkkkkkkkkkkkkk.", "................", "................", "................", "................", "................"},
     {"........kk......", ".......kdck.kk..", "......kedcbkck..", "......kdccbabk..", ".......kk4kkk...", "......k443k.....", ".....k44332k....", "....k4433221k...", "...k443322211k..", "k4kk433222111kk1", ".k443332222111k.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
-    {"........kk......", ".......kdck.kk..", "......kedcbkck..", "......kdccbabk..", ".......kkwkkk...", "......kxwvk.....", ".....k44332k....", "....k4433221k...", "...k443322211k..", "kxkk433222111kkw", ".kyxxxwwwwvvvk..", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+    {"........kjjk....", "......kkjiihk...", ".....kxwk.khhk..", ".....k4k....kgk.", "....k432k...kgk.", "...k44322k..kgk.", "..k4433221k..k..", ".k443332211k....", "kk44333222111kk.", "kyxxxwwwwvvvvuuk", ".kkk########kkk.", "....k######k....", ".....kkkkkk.....", "................", "................", "................"},
+    {"......kjjjjk....", "....kkjiiiihk...", "...kcdk.kkhhhk..", "...kdk.....khgk.", "...kk4k.....kgk.", "....k432k...kgfk", "...k44322k..kgfk", "..k4433221k..kfk", ".k443e332211k.k.", "kk44333222111kk.", "kyxxxwwwwvvvvuuk", ".kkk########kkk.", "....k######k....", ".....kkkkkk.....", "................", "................"},
   },
   {  // suntemple
     {"................", "..........kk....", ".........kjik...", ".........kiik...", ".........khhk...", "..........kk....", "..kkkkkkkkkkkk..", ".kdeeddddcccbbk.", ".kccbbbbbbbaaak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................"},
     {".......kk.......", "..kk..kjik..kk..", "..kik.kiik.kihk.", "...khk.kik.khk..", "....kk.kk.kk....", ".....kkkkkkk....", "....kdeeddcck...", "...kdedcdcdcbk..", "..kdeddcddcdcbk.", "..kddcddcddcbbak", "..kccccccccbbaak", "...kkkkkkkkkkkk.", "................", "................", "................", "................"},
     {"................", "...kk......kk...", "..kjhk....khgk..", "..khjkkkkkkhgk..", ".kjjhhhhhhhggfk.", ".kjhkhhhkhhgkfk.", ".khhdkhhhhkdgfk.", ".khhhhiikhhggfk.", ".khgk4kkkk4kgfk.", ".kgk########kfk.", ".kgk########kfk.", ".khgk######kgfk.", "..kggkkkkkkgfk..", "...kkkkkkkkkk...", "................", "................"},
-    {"...k...k...k....", "..kwk.kxk.kwk...", "..kvwkkxkkwvk...", "...kxwwxwwxk....", "..kyxxwwwvvvk...", "..kdddddccccbk..", ".kdek######kcbk.", ".kdk########kbk.", ".kdk########kbk.", ".kdek######kcbk.", "..kddkkkkkkcbk..", "...kkkkkkkkkk...", "................", "................", "................", "................"},
+    {"j.j.j.i.i.h.h.h.", "kddcdcdcdccbcbbk", "..kjhk....khgk..", "..khjkkkkkkhgk..", ".kjjhhhhhhhggfk.", ".kjhkhhhkhhgkfk.", ".khhdkhhhhkdgfk.", ".khhhhiikhhggfk.", ".khgk4kkkk4kgfk.", ".kgk########kfk.", ".kgk########kfk.", ".khgk######kgfk.", "..kggkkkkkkgfk..", "...kkkkkkkkkk...", "................", "................"},
+    {"j.j.j.j.i.i.h.h.", "kddcdcdcdcdcbcbk", "kjiijiiihihhghgk", "...kddddcccbk...", "..kdedddccccbk..", ".kdekjddcckjcbk.", ".kddkkjihhkkcbk.", ".kddkjiihhgkcbk.", ".kdk.kjihgk.kbk.", ".kdk##kggk##kbk.", ".kdk########kbk.", ".kdk########kbk.", "..kdk######kbk..", "...kjjiihhggk...", "....kkkkkkkk....", "................"},
   },
   {  // sylvan
     {"................", "................", "................", "................", "..k...k...k...k.", ".kdk.kdk.kdk.kck", ".kcdkkcdkkcbkkbk", ".kiihhhhgggfffk.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................", "................"},
     {"................", ".......kk.......", "...k...kdk...k..", "..kdk.kddk..kck.", "..kdckkdcck.kcbk", ".kddckdccbkkcbbk", ".kiihhhhgggfffk.", "..kkkkkkkkkkkk..", "................", "................", "................", "................", "................", "................", "................", "................"},
     {"................", "k..............k", "kdk..........kbk", ".kdk..kkkk..kbk.", ".kddkk4433kkbbk.", "..kdk443322kbk..", "..kk44332221kk..", "...k43322211k...", "...k33222111k...", "...kkkkkkkkkk...", "...k1k....k1k...", "................", "................", "................", "................", "................"},
-    {"................", "k..............k", "kxk..........kwk", ".kdx..kkkk..wbk.", ".kdxkk4433kkwbk.", "..kxk443322kwk..", "..kk44332221kk..", "...k43322211k...", "...k33222111k...", "...kyyxxxwwvk...", "...k1k....k1k...", "................", "................", "................", "................", "................"},
+    {"......kddk......", ".....kdecbk.....", "......kdck......", "k.....kkkk.....k", "kdk..k4433k..kbk", ".kdkk443322kkbk.", ".kddk4332221kbbk", "..kk43322211kk..", "...kxxwwwvvvk...", "...kfj####hgk...", "...kfj####hgk...", "...kfgj##hggk...", "....kffgggfk....", ".....kkkkkk.....", "................", "................"},
+    {"..kk..kddk..kk..", ".kdck.kdecbk.kck", "..kdkkkdckkkbk..", "k...kkkkkkkk...k", "kdk..k4433k..kbk", ".kdkk443322kkbk.", ".kddk4332221kbbk", "..kk43322211kk..", "...kyxxwwwvuk...", "...kfj#yy#hgk...", "...kfj####hgk...", "...kfgj##hggk...", "....kffgggfk....", ".....kkkkkk.....", "................", "................"},
   },
   {  // starspire
     {"................", ".......kk.......", "......kddk......", ".....kdeddk.....", "....kdeedcck....", "...kdeddccccbk..", "...kjjjiiihhk...", "..kdj######hcbk.", "..kdj######hcbk.", "..kdj######hcbk.", "..kddj####hccbk.", ".kdddcjjjjccbbak", ".kddcccccccbbaak", "..kkkkkkkkkkkkk.", "................", "................"},
     {".......kk.......", "......kddk......", "......kedk......", ".....kdedck.....", "....kdedccck....", "...kdeddcccbk...", "...kjjjiiihhk...", "..kdj######hcbk.", "..kdj######hcbk.", "..kddj####hccbk.", ".kdddcckjkccbbak", ".kddcckjjjkcbaak", "..kkkkkkjkkkkkk.", "................", "................", "................"},
     {"................", "...k..k.k..k....", "..k4k.k4k.k3k...", "..k43kk43kk32k..", "..k443333222k...", "..kkkkkkkkkkk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
-    {"...k..k..k..k...", "..kyk.kyk.kxk...", "..kxk.kxkkkwk...", "..kxwkkxwkwvk...", "..kyxxxwwwwvk...", "..kkkkkkkkkkk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"},
+    {"......kjk.......", ".....kjjik......", "......kik.......", "......k4k.......", ".....k432k......", "....k44322k.....", "...k4434321k....", "..k443433221k...", "..kyyxxxwwvuk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................"},
+    {"j.....kjk.....j.", ".....kjjik......", ".j....kik....j..", "......k4k.......", "j....k432k....j.", "....k44322k.....", "...k4434321k....", "..k443433221k...", "..kyyxxxwwvuk...", "..kdj######hck..", "..kdj######hck..", "..kddj####hcck..", ".kdddcjjjjccbbk.", ".kddcccccccbbak.", "..kkkkkkkkkkkk..", "................"},
   },
 };
 bool sigIconPieceC(Canvas& c, const IconLook& l, const Ramp& M) {
@@ -941,7 +947,7 @@ bool sigIconPieceC(Canvas& c, const IconLook& l, const Ramp& M) {
   if (!g || si < 0) return false;
   const Ramp dom = fpRamp(g->dom), acc = fpRamp(g->acc);
   const int t = std::clamp((int)l.tier, 1, 6);
-  const int band = t <= 1 ? 0 : t == 2 ? 1 : t <= 4 ? 2 : 3;
+  const int band = t <= 1 ? 0 : t == 2 ? 1 : t <= 4 ? 2 : t == 5 ? 3 : 4;
   auto stepOf = [&](uint32_t v, const Ramp& R) { for (int i = 0; i < 5; i++) if (v == R[i]) return i; return -1; };
   switch (l.icon) {
     case Icon::Helmet: {
