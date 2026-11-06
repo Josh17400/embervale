@@ -15,6 +15,89 @@ tags overlay
 # (FORGE-HELM i2, crown_tweak.py) the crown mark two rows down the dome: the crest rides the dome, never over the frame top (B10)
 # (FORGE-HELM i3, crown3.py) mark crown one row under the tip (a crest rises over the cone instead of hiding in it)
 
+# (P5b SIG FR1) begin fjordfolk-aventail-hair: the Fjordfolk T3 aventail: no hair over the mail (C3b; the slice's aventail as drawn)
+view U key rest origin 0 1 when sighelm-fjordfolk,!helm.t4,helm.t3
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+view R key rest origin 1 1 when sighelm-fjordfolk,!helm.t4,helm.t3
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+view L key rest origin -16 1 when sighelm-fjordfolk,!helm.t4,helm.t3
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+|-
+# (P5b SIG FR1) end fjordfolk-aventail-hair
+# (P5b SIG FR1) begin fjordfolk-cap2: the Fjordfolk T2 spangen cap: the fleece roll, the nasal, the leather neck curtain
+legend ! plume 1
+legend $ plume 3
+legend % leather 0
+legend & leather 1
+legend * leather 2
+legend + leather 3
+view D key rest origin 0 -1 when sighelm-fjordfolk,helm.t2,!helm.t3
+|...-........-...
+|................
+|................
+|&$&&&$&&&$&&&$&&
+|%%&%%%%&%%%%&%%%
+|................
+|................
+|................
+|&..............*
+|*..............&
+|&..............%
+|%..............%
+view U key rest origin 0 -4 when sighelm-fjordfolk,helm.t2,!helm.t3
+|&$&&&$&&&$&&&$&&
+|%%&%%%%&%%%%&%%%
+|.&************&.
+|&*+**+**+**+***&
+|&**************&
+|%&&&&&&&&&&&&&&%
+view R key rest origin 0 -4 when sighelm-fjordfolk,helm.t2,!helm.t3
+|&$&&&$&&&$&&&$&&
+|%%&%%%%&%%%%&%%%
+|&**&............
+|&*+*............
+|&**&............
+|&+*&............
+|&**&............
+|&*&.............
+|%&..............
+view L key rest origin 0 -4 when sighelm-fjordfolk,helm.t2,!helm.t3
+|++!+++!+++!+++!+
+|%%%+%%%%+%%%%+%%
+|............+**+
+|............*&*+
+|............+**+
+|............+*&+
+|............+**+
+|.............+*+
+|..............+%
+# (P5b SIG FR1) end fjordfolk-cap2
 # (P5b SIG-A) begin fjordfolk-gjermundbu: the Fjordfolk T4 spectacle helm (the owner's fix: a rounded cap, the spectacle guard round the eyes at their own spacing, a mail aventail)
 legend S metal2 0
 legend T metal2 4

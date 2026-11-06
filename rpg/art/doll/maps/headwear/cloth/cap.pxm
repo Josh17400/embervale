@@ -13,6 +13,43 @@ legend S head 2
 legend T head 3
 legend U head 4
 
+# (P5b SIG FR1) begin highland-ribbons: the Highland T1-T2 bonnet: its ribbon tails and a fuller toorie
+legend + plume 0
+legend , plume 1
+legend / plume 3
+view D key rest origin 0 -3 when sighelm-highland,!helm.t3,!helm.t4
+|..............--
+|..............--
+|..............--
+|..............-.
+|,..+............
+view U key rest origin 0 -3 when sighelm-highland,!helm.t3,!helm.t4
+|--........
+|--........
+|--........
+|.-........
+|.....,+.+,
+|.....+,.,+
+|.....,+.+.
+|.....+..,.
+|........+.
+view R key rest origin 0 -3 when sighelm-highland,!helm.t3,!helm.t4
+|..............-
+|.............--
+|.............--
+|.............-.
+|,+.............
+|+,.............
+|,+.............
+view L key rest origin -1 -3 when sighelm-highland,!helm.t3,!helm.t4
+|-..............
+|--.............
+|--.............
+|.-.............
+|.............+/
+|............./+
+|.............+/
+# (P5b SIG FR1) end highland-ribbons
 # (P5b SIG C) begin suntemple-fan: the Sun Temple T2 quilted cap and its fan of three yellow feathers
 legend ! plume 0
 legend $ plume 1

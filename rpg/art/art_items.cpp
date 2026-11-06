@@ -693,16 +693,28 @@ const char* const kSigHelmSpectacle[16] = {
   "................", ".......kk.......", "......k43k......", ".....k4432k.....", "....k443322k....", "...k44433221k...",
   "...k44332211k...", "...k44433221k...", "..k31k#k3k#k11k.", "..k31kk43kk11k..", "..k313k##k313k..", "..k131313131313k",
   "...kkkkkkkkkkkk.", "................", "................", "................"};
-const char* const kSigHelmTuftCap[16] = {
+const char* const kSigHelmTuftCap[16] = {   // (fix r1) the Montefortino: its tuft, the hinged cheek guards in the legion's brass
   "................", "................", ".......dc.......", "......kedk......", ".......kk.......", ".....ksrrk......",
-  "....ksrrrqk.....", "...ksrrrqqqk....", "...ksrrqqqpk....", "..kbcbcbcbcbk...", "..kkkkkkkkkkk...", "................",
-  "................", "................", "................", "................"};
+  "....ksrrrqk.....", "...ksrrrqqqk....", "...ksrrqqqpk....", "..kbcbcbcbcbk...", "..kxkkkkkkkvk...", "..kxk.....kvk...",
+  "..kwk.....kvk...", "...k.......k....", "................", "................"};
+// (P5b fix r1) the slice peoples' T2 heads as worn (p5b_sig_fr1.py): the Jade great kasa (plaited straw, the vermilion binding
+// and chin cords, a lacquer knob) and the Fjordfolk spangen cap (a leather cone on its riveted iron band)
+const char* const kSigHelmKasa[16] = {
+  "................", "................", "................", "................", ".......kk.......", "......kjfk......",
+  ".....ksrrqk.....", "....ksrrrqqk....", "...ksrrqrqqpk...", "..ksrrrqqqqqpk..", ".kssrrqrqqqqppk.", "kdddddccccccbbbk",
+  ".kkkkkkkkkkkkkk.", "...kbk....kbk...", "...kak....kak...", "................"};
+const char* const kSigHelmSpangenCap[16] = {
+  "................", "................", "................", ".......kk.......", "......ksrk......", ".....ksrrqk.....",
+  "....ksrrrqqk....", "...ksrrrqqqpk...", "...ksrrqqqqpk...", "..kEDkEDkCBkBAk.", "..kDCkDCkBAkAAk.", "..kpk......kpk..",
+  "..kpk......kpk..", "...k........k...", "................", "................"};
 const char* const* sigHelmA(int people, int t) {
   const char* n = fp::row(people).name;
   if (!std::strcmp(n, "highland")) return t >= 1 && t <= 4 ? kSigHelmHighland[t - 1] : nullptr;
   if (!std::strcmp(n, "heartland")) return t == 1 ? kSigHelmChapel : nullptr;
   if (!std::strcmp(n, "fjordfolk") && t == 4) return kSigHelmSpectacle;
   if (!std::strcmp(n, "imperial") && t == 2) return kSigHelmTuftCap;
+  if (!std::strcmp(n, "jade") && t == 2) return kSigHelmKasa;            // (fix r1)
+  if (!std::strcmp(n, "fjordfolk") && t == 2) return kSigHelmSpangenCap;   // (fix r1)
   return nullptr;
 }
 bool sigAreaA(int people) { const char* n = fp::row(people).name; return !std::strcmp(n, "highland") || !std::strcmp(n, "heartland"); }
@@ -918,9 +930,7 @@ bool sigIconPieceC(Canvas& c, const IconLook& l, const Ramp& M) {
       return true;
     }
     case Icon::Shield: {
-      static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
-      int form = l.form;
-      for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
+      const int form = fp::sigShieldForm(g, l.form);   // (fix r1)
       const bool gilt = t >= 5;
       shieldIcon(c, form, gilt ? kGold : t <= 1 ? dom : (l.mat == 1 ? kLeather : M), t <= 1 ? kLeather : dom, gilt);
       if (t < 2) return true;
@@ -971,9 +981,7 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
     }
     case Icon::Shield: {
       if (!g->cloth) return false;   // (P5b area A) the Heartland's shield keeps P5's painter
-      static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
-      int form = l.form;
-      for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
+      const int form = fp::sigShieldForm(g, l.form);   // (fix r1)
       const bool gilt = t >= 5;
       // T1 plain boards bound in the dominant; T2-T4 the field in the dominant, the rim the piece's own; T5-T6 a gilt rim
       shieldIcon(c, form, gilt ? kGold : t <= 1 ? dom : (l.mat == 1 ? kLeather : M), t <= 1 ? kLeather : dom, gilt);

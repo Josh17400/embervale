@@ -57,14 +57,27 @@ struct Sig {
                          // the other of the pair: the star-white edge, the yellow feathers)
   bool cloth = true;     // (P5b area A) the pair on the people's cloth: the shield's field and device, the cloak, the dye band (the
                          // pair's hue held); false keeps P5's (the Heartland: its hero's road, D54-D55, stays as the owner knows it)
+  const char* shieldAlt = nullptr;   // (fix r1) the people's second shield form (STYLE_P5B 5): a piece made in it keeps it (the
+                                     // Dune's crescent beside the dhal); nullptr: every piece the people's `shield`
 };
+// (fix r1) the form a signed shield piece draws (ShieldForm + 1: round 1 kite 2 heater 3 tower 4 crescent 5 oval 6 buckler 7
+// leaf 8), from the piece's own `own`: the people's form, or the piece's own where it is the people's second (Sig::shieldAlt)
+inline int sigShieldForm(const Sig* s, int own) {
+  static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
+  auto same = [](const char* a, const char* b) { while (*a && *a == *b) { a++; b++; } return *a == *b; };
+  auto idx = [&](const char* w) { for (int i = 0; i < 8; i++) if (w && same(w, kForm[i])) return i + 1; return 0; };
+  if (!s) return own;
+  if (s->shieldAlt && own == idx(s->shieldAlt)) return own;
+  const int f = idx(s->shield);
+  return f ? f : own;
+}
 // clang-format off
 // Jade (flared, banded): the jingasa, then the kabuto, then gilt kuwagata; sode, the kusazuri's bell, wide sleeves, the
 // vermilion obi; lacquer black and vermilion (STYLE_P5B 5 Jade; FLUX jade_full_*, jade_pixel_1)
 inline constexpr Sig kSigJade{0xE8641C, 0x1C1A1E, "oval", 0, true, 0, {
     {},
     {"hw:conical", 0, "",      "",        "none",   "",        "sash",     "close"},
-    {"",           0, "",      "",        "drop",   "layered", "sash",     "wide"},
+    {"hw:conical", 0, "",      "",        "drop",   "layered", "sash",     "wide"},   // (fix r1) the great kasa (p5b_sig_fr1.py: the jingasa's part)
     {"fam.kabuto", 0, "",      "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 0, "fin",   "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide", false, true},
@@ -115,18 +128,21 @@ inline constexpr Sig kSigHeartland{0xC02030, 0xEAE6D8, nullptr, 0, false, 0, {
 // Dune (vertical spike, flowing kaftan, a small round shield): the low turban with its teal wraps and tail, the turban over the
 // spiked cap, the needle-spiked kulah with its mail aventail and a teal turban band; lobed shoulders, the split kaftan from T2,
 // wide sleeves, the sash, the scarf, the half cape at T3 (the T3 cape stood past the legs behind the split)
-inline constexpr Sig kSigDune{0x18849E, 0xECE2C8, "round", 0, false, 0, {
+inline constexpr Sig kSigDune{0x18849E, 0xECE2C8, "round", 0, false, 0, {   // (fix r1) the crescent its second form
     {},
     {"hw:turban",  0, "",      "",        "none",   "",        "sash",     "close"},
     {"hw:turban",  0, "",      "hauberk", "round",  "lobed",   "scarf",    "wide"},
     {"fam.veil",   0, "",      "bell",    "tall",   "",        "scarf",    "wide"},
     {"fam.veil",   2, "spike", "split",   "tall",   "",        "halfcape", "wide"},
     {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"},
-    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"}}};
+    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"}}, false, 0, true, "crescent"};
 // Steppe (a tall point, horizontal lamellar rows, a fur roll at the neck): the fur-flapped felt hat, the peaked felt cap and its
 // rust knot, the pointed helm under the horsetail on lamellar cheek and neck guards; the fur mantle at T2, lamellar flaps and
 // the strip skirt at T3, the split riding coat at T4, the rust scarf from T3; laces: the coat's seams in full rust
-inline constexpr Sig kSigSteppe{0x9C4426, 0x3CACD6, "round", 0, true, 0, {
+// (fix r1) the rust reddened within its family to madder rust #9C3400 (STYLE_P5B 3: "MARKS reddens it first if the real ramps
+// disagree"): #9C4426 sat dE 5.8 from leather 5's step 2 and read as leather (F1 wants 20); #9C3400 is 20.3 from every material
+// step and 25.3 from the Heartland red, its luma 77 against the sky's 143
+inline constexpr Sig kSigSteppe{0x9C3400, 0x3CACD6, "round", 0, true, 0, {
     {},
     {"hw:furhat",  0, "",      "",        "none",   "",        "none",     "close"},
     {"hw:furhat",  0, "",      "strips",  "mantle", "fur",     "scarf",    "close"},

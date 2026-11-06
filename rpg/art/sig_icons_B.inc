@@ -62,14 +62,17 @@ const char* const kSigHelmB[3][4][16] = {
 // the Steppe riding coat (its rust hem; T2 the fur collar; T3-T4 the lamellar courses and the strip skirt), the Marsh jerkin
 // (bare arms: the sleeves cut away; from T2 the fringed strip skirt, bone-tipped). Rows by tier band; nullptr keeps the row
 struct BodyRowsB { int y; const char* r; };
+// (fix r1, the judge's F4 shares and D117) each coat's people cloth one hem row of 8 px at most (the slice's obi and focale
+// are 12-17 px; P5's caps 10-15 % of the icon): the coat's own brown and metal read first, the cut ('-': the split, the bare
+// arms) carries the people's shape
 const BodyRowsB kSigBodyB[7][8] = {
-  {{12, "...dccccbbbbb..."}, {13, "...dcccbbbbab..."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // dune T1 band
-  {{12, "...dccccbbbbb..."}, {13, "..kdccccbbbbak.."}, {14, "..kdccck--kbbak."}, {15, "..kkkkk--kkkkk.."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // dune T2 band
-  {{13, "...dccccbbbba..."}, {14, "...dcccbbbbba..."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // steppe T1 band
-  {{1, "..ppp.rqqr.ppp.."}, {2, ".pqqqrrssrrqqqp."}, {3, "...pqrsttsrqp..."}, {13, "...dccccbbbba..."}, {14, "...dcccbbbbba..."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // steppe T2 band
-  {{7, "...kkkkkkkkkk..."}, {9, "...kkkkkkkkkk..."}, {11, "...kkkkkkkkkk..."}, {13, "...0k1k0k1k0k..."}, {14, "...dk-k-k-k-k..."}, {15, "...d.-.-.-.-...."}, {-1, nullptr}, {-1, nullptr}},   // steppe T3 band
-  {{2, "--...........--."}, {3, "--............--"}, {4, "-..............-"}, {13, "...dddcdcdcbb..."}, {14, "...cdcdcbcbba..."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // marsh T1 band
-  {{2, "--...........--."}, {3, "--............--"}, {4, "-..............-"}, {12, "...dddcdcdcbb..."}, {13, "...d-c-d-c-b-..."}, {14, "...c-d-c-b-a-..."}, {15, "...g.h.h.g.f...."}, {-1, nullptr}},   // marsh T2 band
+  {{13, "......dcbb......"}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // dune T1 band
+  {{13, "......dcbb......"}, {15, ".......--......."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // dune T2 band
+  {{14, ".....dccbba....."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // steppe T1 band
+  {{14, "......dcbb......"}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // steppe T2 band
+  {{12, "....dccbba......"}, {15, ".....-..-..-...."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // steppe T3 band
+  {{2, "-..............-"}, {3, "-..............-"}, {14, ".....dccbba....."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // marsh T1 band
+  {{2, "-..............-"}, {14, "......d-c-b....."}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}, {-1, nullptr}},   // marsh T2 band
 };
 // the cloaks (T4 kits): the Dune burnous (its hood, the teal body, cream edges down the front), the Steppe coat-cloak (a
 // fur collar, the sky lining down the opening), the Marsh reed cape (its hem cut into bone-tipped strands)
@@ -110,9 +113,7 @@ bool sigIconPieceB(Canvas& c, const IconLook& l, const Ramp& M) {
       return true;
     }
     case Icon::Shield: {
-      static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
-      int form = l.form;
-      for (int i = 0; i < 8; i++) if (g->shield && !std::strcmp(g->shield, kForm[i])) form = i + 1;
+      const int form = fp::sigShieldForm(g, l.form);   // (fix r1: the Dune's crescent its second form)
       // T1 plain boards bound in the dominant; T2-T4 the field in the dominant, the rim the piece's own (STYLE_P5B 3)
       shieldIcon(c, form, t <= 1 ? dom : (l.mat == 1 ? kLeather : M), t <= 1 ? kLeather : dom, false);
       {   // (each people's shield its own at every tier, T1's plain boards too: the bosses, the studs, the pales)
@@ -188,13 +189,11 @@ bool sigBodyLayerB(Canvas& c, const IconLook& l, const Ramp& M) {
     }
   }
   if (st.layer && !std::strcmp(st.layer, "sash")) {   // the Dune sash: from the right shoulder to the left hip, its knot
-    for (int i = 0; i <= 6; i++) { lay(10 - i, 5 + i, dom, i <= 2 ? 1 : 2); lay(9 - i, 5 + i, dom, i <= 2 ? 2 : 3); }
-    lay(4, 12, dom, 2);
+    for (int i = 2; i <= 5; i++) lay(10 - i, 5 + i, dom, i <= 2 ? 1 : 2);   // (fix r1) one pixel a row (F4's share, D117's brown)
   }
-  if (st.layer && !std::strcmp(st.layer, "scarf")) {   // the scarf round the neck, its end over the chest
-    lay(5, 4, dom, 3); lay(10, 4, dom, 1);
-    for (int x = 5; x <= 10; x++) lay(x, 5, dom, x <= 6 ? 3 : x >= 9 ? 1 : 2);
-    lay(9, 6, dom, 2); lay(9, 7, dom, 1); lay(10, 8, dom, 1);
+  if (st.layer && !std::strcmp(st.layer, "scarf")) {   // the scarf round the neck, its end over the chest (fix r1: 6 px)
+    for (int x = 6; x <= 9; x++) lay(x, 5, dom, x <= 6 ? 3 : x >= 9 ? 1 : 2);
+    lay(9, 6, dom, 2); lay(9, 7, dom, 1);
   }
   return true;
 }

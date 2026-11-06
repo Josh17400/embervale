@@ -15,6 +15,70 @@ legend S cloth3 2
 legend T cloth3 3
 legend U cloth3 4
 
+# (P5b SIG FR1) begin jade-kasa: the Jade T2 great kasa: a broad shallow cone of plaited straw, the vermilion binding and chin cord
+legend ! plume 0
+legend $ plume 1
+legend % plume 2
+legend & plume 3
+legend * plume 4
+legend + leather 0
+legend , leather 1
+legend / leather 2
+legend : leather 3
+legend ; leather 4
+view D key rest origin 2 3 when sighelm-jade,helm.t2,!helm.t3 replace
+|--------------------
+|--------------------
+|--------!-----------
+|..-----;:://,-----..
+|..-;;::////,,/,..-..
+|.;;::;////,//,,.....
+|&****&&&&&%%%%$$$$!!
+|..++,,,,,,,,,,,,++..
+|...!............$...
+|...$............$...
+|...$............!...
+|...!............!...
+view U key rest origin 2 3 when sighelm-jade,helm.t2,!helm.t3 replace
+|--------------------
+|--------------------
+|--------!-----------
+|..-----;:://,-----..
+|..-;;::////,,/,..-..
+|.;;::;////,//,,.....
+|&****&&&&&%%%%$$$$!!
+|..++,,,,,,,,,,,,++..
+|...!............$...
+|...$............$...
+|...$............!...
+|...!............!...
+view R key rest origin 3 3 when sighelm-jade,helm.t2,!helm.t3 replace
+|.--------------------
+|.--------------------
+|.---------!----------
+|..------.;:://,-----.
+|..--.;;::////,,/,.--.
+|...;;::;////,//,,....
+|&&****&&&&&%%%%$$$$!!
+|..+,,,,,,,,,,,,,,++..
+|..............!......
+|..............$......
+|..............$......
+|..............!......
+view L key rest origin 2 3 when sighelm-jade,helm.t2,!helm.t3 replace
+|--------------------.
+|--------------------.
+|----------!---------.
+|.-----://,,;.------..
+|.--.:/::////,,;;.--..
+|....:://:////;,,;;...
+|!!&&&&%%%%$$$$$****$$
+|..++::::::::::::::+..
+|......!..............
+|......&..............
+|......&..............
+|......!..............
+# (P5b SIG FR1) end jade-kasa
 # (P5b SIG) begin jade-jingasa: the Jade T1 jingasa: black lacquer, a vermilion mon (STYLE_P5B 4, 9)
 legend F head 0
 legend H head 1

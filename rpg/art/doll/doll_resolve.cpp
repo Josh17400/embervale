@@ -1510,9 +1510,7 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   // the shield
   const int ps = L.makerAt(H::TIER_SHIELD);
   if (sigOn(ps) && fp::sig(ps)->cloth && shieldOf(L) && L.tier[H::TIER_SHIELD]) {   // (area A: cloth, the Heartland's off)
-    static const char* const kForm[8] = {"round", "kite", "heater", "tower", "crescent", "oval", "buckler", "leaf"};
-    const char* f = fp::sig(ps)->shield;
-    for (int i = 0; i < 8 && f; i++) if (!std::strcmp(f, kForm[i])) u.shieldForm = i + 1;
+    u.shieldForm = fp::sigShieldForm(fp::sig(ps), L.shieldForm);   // (fix r1) the people's form, or its second the piece is made in
     if (u.shieldForm) E.shieldForm = (uint8_t)u.shieldForm;
     u.shieldP = ps;
     E.shieldField = sigRgba(fp::sig(ps)->dom);
