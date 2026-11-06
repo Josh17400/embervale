@@ -127,8 +127,9 @@ inline constexpr Sig kSigHeartland{0xC02030, 0xEAE6D8, nullptr, 0, false, 0, {
     // mask and furnace helm kept), the crest in the people's red; the great helm under the knight's heraldry (p5b_sig_A2.py:
     // the torse, the mantling, the plume; T6 a crown)   // (integration) gilt, hood, cloth
 // (P5b production, area B: Dune, Steppe, Marsh; their heads ADDED by tools/doll/p5b_sig_B.py, their icons rpg/art/sig_icons_B.inc;
-// T1-T4 drawn, T5-T6 the people's axes on their own heads until the budget ruling. T1 keeps its skirt unset: a split or strip
-// skirt stands outside T1's bare outline, C12f)
+// T1-T4 drawn; (P5b production 2, the owner's ruling 3) T5-T6 the elite heads drawn whole on the family's own part by
+// tools/doll/p5b_sig_B2.py (ownGrowth: the family's legend part steps aside), the Dune and the Steppe gilt (Sig::gilt). T1 keeps
+// its skirt unset: a split or strip skirt stands outside T1's bare outline, C12f)
 // Dune (vertical spike, flowing kaftan, a small round shield): the low turban with its teal wraps and tail, the turban over the
 // spiked cap, the needle-spiked kulah with its mail aventail and a teal turban band; lobed shoulders, the split kaftan from T2,
 // wide sleeves, the sash, the scarf, the half cape at T3 (the T3 cape stood past the legs behind the split)
@@ -138,8 +139,8 @@ inline constexpr Sig kSigDune{0x18849E, 0xECE2C8, "round", 0, false, 0, {   // (
     {"hw:turban",  0, "",      "hauberk", "round",  "lobed",   "scarf",    "wide"},
     {"fam.veil",   0, "",      "bell",    "tall",   "",        "scarf",    "wide"},
     {"fam.veil",   2, "spike", "split",   "tall",   "",        "halfcape", "wide"},
-    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"},
-    {"fam.onion",  0, "spike", "bell",    "tall",   "",        "halfcape", "bare"}}, false, 0, true, "crescent"};
+    {"fam.veil",   0, "",      "split",   "round",  "lobed",   "cape",     "wide", true},   // (B2) the amir's gilt turban helm
+    {"fam.veil",   0, "",      "split",   "round",  "lobed",   "cape",     "wide", true}}, true, 0, true, "crescent"};   // the sultan's
 // Steppe (a tall point, horizontal lamellar rows, a fur roll at the neck): the fur-flapped felt hat, the peaked felt cap and its
 // rust knot, the pointed helm under the horsetail on lamellar cheek and neck guards; the fur mantle at T2, lamellar flaps and
 // the strip skirt at T3, the split riding coat at T4, the rust scarf from T3; laces: the coat's seams in full rust
@@ -150,10 +151,10 @@ inline constexpr Sig kSigSteppe{0x9C3400, 0x3CACD6, "round", 0, true, 0, {
     {},
     {"hw:furhat",  0, "",      "",        "none",   "",        "none",     "close"},
     {"hw:furhat",  0, "",      "strips",  "mantle", "fur",     "scarf",    "close"},
-    {"fam.plumed", 0, "",      "strips",  "drop",   "flap",    "scarf",    "close"},
+    {"fam.plumed", 0, "",      "strips",  "drop",   "fur",     "scarf",    "close"},   // (B2) fur.3 (20 px; the fur roll): flap.3 stood 22, scale.3's shoulder-scale view 22
     {"fam.plumed", 2, "",      "split",   "drop",   "scale",   "halfcape", "wide"},
-    {"fam.plumed", 4, "finial","split",   "drop",   "layered", "halfcape", "heavy"},
-    {"fam.plumed", 4, "finial","bell",    "mantle", "pelt",    "halfcape", "heavy"}}};
+    {"fam.plumed", 0, "",      "split",   "drop",   "flap",    "cape",     "wide", true},   // (B2) the khan's tall plumed helm
+    {"fam.plumed", 0, "finial","split",   "mantle", "fur",     "cape",     "wide", true}}, true};   // (the finial: the spire's socket)
 // Marsh (ragged, drooping, a long oval shield): the bog cap fringed in moss (the hood measured 40 % people colour, S2), the
 // rawhide kettle with a bone crest and two feathers, the tasselled reed war hat, the wide war hat; hide flaps, the fringed
 // strip skirt from T2, bare arms, the reed half cape from T3
@@ -163,8 +164,8 @@ inline constexpr Sig kSigMarsh{0x707E28, 0xD6CCA8, "oval", 0, false, 0, {
     {"form1",      0, "",      "strips",  "none",   "",        "none",     "bare"},
     {"form2",      0, "",      "strips",  "broad",  "",        "scarf",    "wide"},
     {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"},
-    {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"},
-    {"fam.warhat", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare"}}};
+    {"fam.kettle", 0, "",      "strips",  "drop",   "flap",    "halfcape", "bare", true},   // (B2) the bog king's war hat (the T3 reed hat's family)
+    {"fam.kettle", 0, "",      "strips",  "drop",   "flap",    "cape",     "bare", true}}};
 // ---- (P5b area C, STYLE_P5B 4-5) River, Sun Temple, Sylvan and Starspire at T1-T4; T5-T6 wear their families' existing legend
 // heads (no pool bytes; the T5-T6 legend overlays wait for the owner's budget decision, STYLE_P5B 6 option B). The people heads'
 // added views: tools/doll/p5b_sig_C.py

@@ -1,0 +1,72 @@
+# P5b production 2, area B, in play (docs/STYLE_P5B.md 4-5; the owner's 2026-11-06 ruling 3): the Dune, Steppe and Marsh elite
+# at T5 and T6 on the start village's clear ground, rig 2 (the staging of tools/scripts/p5b_B.txt). Each tier a row of six: Dune
+# man and woman, Steppe man and woman, Marsh man and woman (`p2cline specs`, the ladder kits kit=<people>:<tier>:1), facing D then
+# R, at NEAR and again at NORMAL; then the close rows of three (one a people): the T5 men by noon, the T6 women at dusk. Run only
+# through Witness (hidden):
+#   node tools/gates/witness_pack.mjs --bdir <build> --out <dir> --keep tools/scripts/p5b_B2.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- T5: the amir's gilt turban helm, the khan's tall plumed cone, the bog king's bulrush crown
++0.1 p2cline specs hero=1,kit=dune:5:1|heroine=1,kit=dune:5:1|hero=1,kit=steppe:5:1|heroine=1,kit=steppe:5:1|hero=1,kit=marsh:5:1|heroine=1,kit=marsh:5:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t5_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t5_r.png
++0.1 zoom normal
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t5_r_normal.png
++0.1 p2cline face 0
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t5_d_normal.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- T6: the sultan's crescent and onion, the khan of khans' great fur, the bog king crowned in bone
++0.1 p2cline specs hero=1,kit=dune:6:1|heroine=1,kit=dune:6:1|hero=1,kit=steppe:6:1|heroine=1,kit=steppe:6:1|hero=1,kit=marsh:6:1|heroine=1,kit=marsh:6:1
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t6_d.png
++0.1 p2cline face 2
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t6_r.png
++0.1 zoom normal
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t6_r_normal.png
++0.1 p2cline face 0
++0.3 settle 3 0.5
++0.0 shot p5b_B2_t6_d_normal.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- the close rows: the T5 men by noon, the T6 women at dusk
++0.1 p2cline specs hero=1,kit=dune:5:2|hero=1,kit=steppe:5:2|hero=1,kit=marsh:5:2
++0.1 hideplayer 1
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B2_close_1_t5_men_noon.png
++0.1 p2cline clear
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 p2cline specs heroine=1,kit=dune:6:3|heroine=1,kit=steppe:6:3|heroine=1,kit=marsh:6:3
++0.1 hideplayer 1
++0.1 hour 18
++0.1 zoom near
++0.3 settle 3 0.5
++0.0 shot p5b_B2_close_2_t6_women_dusk.png
++0.1 p2cline clear
++0.1 hideplayer 0

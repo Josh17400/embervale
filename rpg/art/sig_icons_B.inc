@@ -90,6 +90,42 @@ const char* const kSigCloakB[3][16] = {
    ".kdcdcccbcbbbak.", "kddcdccbcbbbbaak", "kdcdcccbcbbbbaak", "kd.dc.cb.bb.ba.k",
    "d..c..b..b..b..a", "i..h..i..h..h..h", "................", "................"},
 };
+// (P5b production 2, area B: the T5-T6 elite heads, tools/doll/p5b_sig_B2.py) the helm icons agree with the worn heads (S5):
+// the Dune amir's gilt-spiked turban helm and its falcon plume, the sultan's onion under the gilt crescent; the Steppe khan's tall
+// cone in its rust horsetail over the fur and the laced lamellar flaps, the khan of khans' taller spire and great fur; the Marsh
+// bog king's bulrush crown over the wide drooping reed brim, the antlers of bone at T6. [people][0 T5, 1 T6]
+const char* const kSigHelmB56[3][2][16] = {
+  {  // Dune
+    {".......u........", ".......v.....b..", ".......v....bd..", "......uwx..bd...",
+     ".....k3442kbd...", "...kkjjcjiwxwk..", "..kjjcdcihwyxhk.", ".kjicdciihhwhhgk",
+     ".kicdcihhhhhhggk", ".kcdihgggggggffk", "..k3k######k21k.", "..k32######k21k.",
+     "..k3k######k21k.", "..k3212121212k..", "...kkkkkkkkkk...", "................"},
+    {".....u....v.....", ".....vu..vw.....", "......vwxw......", ".......xw.......",
+     "......k43k......", ".....k4432k.....", "....k443322kc...", "....k433221kdc..",
+     "..kkjjjjiihhkdk.", ".kjjiiwxxyhhggk.", ".kiihhwyxwhhggfk", ".kvwvwvwvwvwvwvk",
+     "..k3######k21k..", "..k32####k221k..", "..kvwvwvwvwvwk..", "................"},
+  },
+  {  // Steppe
+    {".......vw.......", "......b44c......", ".....bdcccb.....", "....bdk43kcb....",
+     "...bdk4332kcb...", "...bdk4w32kcb...", "..bdk44w221kcb..", "..bk443w2211kb..",
+     ".kBCDDCCBBBBAAk.", ".kABBABBABBABBk.", ".k3hk######kh1k.", ".k3ik######ki1k.",
+     ".k4hk######kh2k.", ".kBCDCCBBBBBAAk.", "..kkkkkkkkkkkk..", "................"},
+    {".......wv.......", "......b44c......", ".....bdddcb.....", "....bdk43kcb....",
+     "...bdk4w32kcb...", "..bdk44w32kccb..", "..bdk4w3w21kcb..", ".bdk44w3w211kcb.",
+     "kBCDDDCCCBBBBAAk", "kBDCCDCCBCCBBBAk", ".k3hk######kh1k.", ".k4ik######ki2k.",
+     ".k3hk######kh1k.", "kBCDDCCBBCBBBAAk", ".kkkkkkkkkkkkkk.", "................"},
+  },
+  {  // Marsh
+    {".......rr.......", "....r..qq..r....", "....q..qq..q....", ".i..q..cd..q..h.",
+     ".h..c..cd..c..g.", ".c..c.k44k.c..b.", ".c..ck4432kc..b.", "...k44332211k...",
+     ".kddddcccbbbbak.", "kdcdcdcbcbcbcbak", "dccbbbbbbbbbaaaa", "c.k.########.k.b",
+     "c.k.########.k.b", "h...........h...", ".kdcdcdcbcbcbk..", "..h..h..h..h...."},
+    {"h.i...q...i...h.", "hi.i..p..i.ih...", ".hi.h.p.h.ih....", "..hh..p..hh.....",
+     "...hhkc4khh.....", ".....k443k......", "....k443322k....", "...k4433221k....",
+     ".kddddcccbbbbak.", "kdcdcdcbcbcbcbak", "dccbbbbbbbbbaaaa", "c.kjihihihihk..b",
+     "c.k.########.k.b", "h...........h...", ".kdcdcjiicbcbk..", "..h..hikkh.h...."},
+  },
+};
 int sigIndexB(int people) {   // the area's three peoples (Dune, Steppe, Marsh); -1 every other
   const char* n = fp::row(people).name;
   return !std::strcmp(n, "dune") ? 0 : !std::strcmp(n, "steppe") ? 1 : !std::strcmp(n, "marsh") ? 2 : -1;
@@ -103,9 +139,15 @@ const char* const* sigHelmGridB(int si, int t) {
 bool sigIconPieceB(Canvas& c, const IconLook& l, const Ramp& M) {
   const fp::Sig* g = sigOf(l);
   const int si = sigIndexB(l.people);
-  if (!g || si < 0 || l.tier < 1 || l.tier > 4) return false;   // (T5-T6: the classic painters, the budget ruling pending)
+  if (!g || si < 0 || l.tier < 1 || l.tier > 6) return false;
   const Ramp dom = fpRamp(g->dom), acc = fpRamp(g->acc);
   const int t = l.tier;
+  if (t >= 5) {   // (P5b2) T5-T6: the elite heads (the shield and the cloak keep the classic painters, the ladder's gilt)
+    if (l.icon != Icon::Helmet) return false;
+    const SigPal P{&M, &dom, &acc};
+    sigGrid(c, kSigHelmB56[si][t - 5], 16, P);
+    return true;
+  }
   switch (l.icon) {
     case Icon::Helmet: {
       const SigPal P{&M, &dom, &acc};
