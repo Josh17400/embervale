@@ -707,10 +707,30 @@ const char* const kSigHelmSpangenCap[16] = {
   "................", "................", "................", ".......kk.......", "......ksrk......", ".....ksrrqk.....",
   "....ksrrrqqk....", "...ksrrrqqqpk...", "...ksrrqqqqpk...", "..kEDkEDkCBkBAk.", "..kDCkDCkBAkAAk.", "..kpk......kpk..",
   "..kpk......kpk..", "...k........k...", "................", "................"};
+// (P5b2 area A, the elite tiers) the Highland chief's kettle: T5 its gilt brim and finial, the fur band, two eagle feathers
+// behind the gilt clan brooch; T6 three feathers fanned from the badge on the crown's front, the brim wider and turned down.
+// The Heartland knight's great helm (T5-T6, a signed helm that is no relic metal: the hero's road keeps its onion and crystal):
+// the red and white torse, the mantling falling down both sides, the red plume; T6 a gilt crown on the torse
+const char* const kSigHelmHighland56[2][16] = {
+  {"...........ts...", "..........tsr...", ".........tsrq...", ".......ytsrqk...", "......kxtsrk....", ".....k44tsk.....",
+   "....k4433rk.....", "....k43322k.....", "...kqrqsqrwxk...", ".kxyyyyyyyxxwvk.", "..kvvvvvvvvvvk..", "...k3k####k1k...",
+   "...k4k####k2k...", "...k3kk##kk1k...", "...kkk....kkk...", "................"},
+  {"..t....ts....t..", "..st...ts...ts..", "...st..ts..ts...", "....strtsrts....", ".....srrsrs.....", "......kwyk......",
+   "....kk4xwkkk....", "...k44332221k...", "...kqrqsqrqsqk..", "kxyyyyyyyxxwwwvk", "kvkvvvvvvvvvvkvk", "...k3k####k1k...",
+   "...k4k####k2k...", "...k3kk##kk1k...", "...kkk....kkk...", "................"},
+};
+const char* const kSigHelmGreat56[2][16] = {
+  {".......cb.......", "......dcbk......", "......dcbk......", ".....khcghk.....", "....dkk44kkb....", "...dck44332kcb..",
+   "..dck443322kcb..", "..dc.k43322k.cb.", ".dc.k########kcb", ".dc.k4332221k.cb", ".dc.k43#3#21k.cb", "dcb.k4332221k.bc",
+   "d.c..k33221k..c.", "..b...kkkkk...b.", "................", "................"},
+  {".......cb.......", "......dcb.......", ".....vdcbv......", "....kxwyxwk.....", ".....khcghk.....", "...dck4433kcb...",
+   "..dck443322kcb..", ".dc.k43322k..cb.", ".dc.k########kcb", ".dc.k4332221k.cb", "dcb.k43#3#21k.cb", "dcb.k4332221k.bc",
+   "d.c..k33221k..cb", "..b...kkkkk...b.", "................", "................"},
+};
 const char* const* sigHelmA(int people, int t) {
   const char* n = fp::row(people).name;
-  if (!std::strcmp(n, "highland")) return t >= 1 && t <= 4 ? kSigHelmHighland[t - 1] : nullptr;
-  if (!std::strcmp(n, "heartland")) return t == 1 ? kSigHelmChapel : nullptr;
+  if (!std::strcmp(n, "highland")) return t >= 1 && t <= 4 ? kSigHelmHighland[t - 1] : t <= 6 ? kSigHelmHighland56[t - 5] : nullptr;
+  if (!std::strcmp(n, "heartland")) return t == 1 ? kSigHelmChapel : t == 5 || t == 6 ? kSigHelmGreat56[t - 5] : nullptr;
   if (!std::strcmp(n, "fjordfolk") && t == 4) return kSigHelmSpectacle;
   if (!std::strcmp(n, "imperial") && t == 2) return kSigHelmTuftCap;
   if (!std::strcmp(n, "jade") && t == 2) return kSigHelmKasa;            // (fix r1)
@@ -974,6 +994,9 @@ bool sigIconPiece(Canvas& c, const IconLook& l, const Ramp& M) {
   switch (l.icon) {
     case Icon::Helmet: {
       const SigPal P{&M, &dom, si == 0 ? &kLacquer : &acc};
+      // (P5b2 area A) a relic metal's T5-T6 helm keeps its own (D83: the hero's road's gilt onion and starmetal crystal, a
+      // Mythic relic): the Heartland's great helm is the signed head of its other metals
+      if (si == 4 && t >= 5 && (l.dollMetal == 5 || l.dollMetal == 9 || l.dollMetal == 11)) return false;
       if (const char* const* a = sigHelmA(l.people, t)) { sigGrid(c, a, 16, P); return true; }   // (P5b area A)
       if (si > 2) return false;   // (P5b area A) a tier the people leaves to the classic painter (the hero's road, T5-T6)
       sigGrid(c, kSigHelm[si][band], 16, P);
