@@ -224,6 +224,15 @@ with mail aventail and a turban band, a long split kaftan, wide sleeves; gilt an
   (Plume, so B8's 48-colour budget never snaps it). Skirt none at T1 (the split stood 5 px outside T1's bare outline), split
   T2-T4; layer sash T1, scarf T2 and T4, half cape T3 (the T3 cape stood 4 px past the legs behind the split kaftan); lobed
   round shoulders and wide sleeves from T2; the small dhal with four brass bosses. T5-T6: these axes on the own heads.
+- As built (P5b production 2, area B; the owner's ruling 3 of 2026-11-06, the elite T5-T6; `tools/doll/p5b_sig_B2.py` on the
+  kulah's own part `veil`, `fp::SigTier::ownGrowth`, Sig::gilt): T5 the amir, the kulah grown: its needle spike and finial gilt
+  over the steel bowl, a fat cream turban (Cloth 3: the dye slots snap a large cream to the skin, B8) wound round its base and
+  crossed by the teal wrap (the plume), a gilt mirror plate with its gem at the front and the falcon plume (teal) rising from it,
+  the mail aventail round the face to the shoulders; T6 the sultan, still the kulah's family (2.5, one family T3-T6): the bowl
+  swells into the onion under a gilt crescent (the alem), the turban fuller and girt in gilt, the great jewel and its feather
+  tuft, the aventail longer, its hem gilt (the T6 living finish lights the gilt). Body T5-T6: split kaftan, round lobed
+  shoulders, the long teal cloak, wide sleeves. Not section 4's T6 "turban-wrapped onion" as a family change: the onion family
+  draws the Heartland's T5 gilt onion (D83) and would break 2.5's one family.
 
 **Steppe** (a tall point, horizontal lamellar rows, a fur roll at the neck). A rust riding coat with a cream fur collar,
 a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.
@@ -242,6 +251,13 @@ a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.
   helm's cheek and neck guards grown into lamellar flaps (the people's horizontal courses, in the helm's own metal). Skirt
   none T1-T2 (the herder's coat), strips T3 (lamellar), split T4; the fur mantle at T2, lamellar flaps (drop) from T3 (the
   scale shoulders stood 22 px at T3, its cap 20); the scarf from T3 in the dominant; the round shield, a black studded rim.
+- As built (P5b production 2, area B; `p5b_sig_B2.py` on the pointed helm's own part `plumed`): T5 the khan, the pointed helm
+  grown tall: a steel cone ribbed in gilt to a gilt cup and spire, the horsetail (the rust, the plume) bursting from the cup and
+  falling all round the cone to the brow, so the head is one tall point; a fur roll at the brow and at the neck (STYLE 5: "a fur
+  roll at the neck"), a gilt brow plate and its gem, lamellar cheek and neck flaps laced in sky silk; T6 the khan of khans: the
+  taller spire, the great three-row fur crown and collar, three gilt ribs, five-plate flaps whose laces glow in the living finish.
+  Body T5 drop flaps (flap.5), T6 the fur mantle (fur.6); the split coat, the rust cloak, wide sleeves. T3's shoulders fur.3
+  (20 px: flap.3 measured 22 against T3's 20, scale.3's `shoulder-scale` view 22 in the figure).
 
 **Marsh** (ragged, drooping, a long oval shield). Moss and bone: a fringed hide hood, a fringed skirt, bare arms, a long
 oval wooden shield; tasselled reed war hats, a heron plume and bone at the top.
@@ -263,6 +279,12 @@ oval wooden shield; tasselled reed war hats, a heron plume and bone at the top.
   views, keyed to the Marsh helm); T4 the wide war hat drooping, a moss wrap and a bulrush tuft. Skirt none at T1 (the strips
   stood 12 px outside T1's bare outline), strips T2-T4; hide flaps from T2; the reed half cape T3-T4; the oval in moss with
   three bone pales.
+- As built (P5b production 2, area B; `p5b_sig_B2.py` on the T3 reed hat's own part `kettle`, fam.kettle at T5-T6: the war hat's
+  part draws a generic T5 bevor over the face): T5 the bog king, the reed hats grown: a steel skullcap on bog hide, out of it a
+  crown of bulrushes (moss stalks, brown cattails, the outer two tipped in bone), the widest brim of any head drooping into ragged
+  grass beside the face, bone knotted to it, and the reed war-dress's grass collar strung with bone teeth; T6 crowned in bone: a
+  stag's antlers about the bulrushes, a bone brow (a jaw's teeth) under the brim, a skull at the collar. Body T5-T6 the hide
+  flaps (flap.5-6), the fringed strips, bare arms, the reed half cape (T5) and cloak (T6).
 
 **Jade** (flared, banded). Vermilion and black: a lacquered jingasa, then a kabuto with a flared neck guard, then gilt
 kuwagata; wide sode, a bell of laced kusazuri, wide sleeves, lacing in vermilion bands.

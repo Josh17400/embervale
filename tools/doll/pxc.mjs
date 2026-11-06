@@ -75,7 +75,7 @@ function defaultChannel(layer, side) {
   return 'rest';
 }
 const POOL_VERSION = 3;   // 2: views carry flags (replace), frames carry turn and at; 3 (P2c): clips carry a `when` condition
-const POOL_BUDGET = 2621440;   // (P2c envelope, D46) 2.5 MiB, no compression (D48): art::doll::kPoolBudget
+const POOL_BUDGET = 5242880;   // (the owner 2026-11-06: 5 MiB; P2c envelope D46 was 2.5 MiB) no compression (D48): art::doll::kPoolBudget
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
 const CACHE_VERSION = 8;  // bump when a parse or a check changes (old cache entries are dropped); 6: stamps and puts; 7: P2c tags; 8: forge tiles
 
