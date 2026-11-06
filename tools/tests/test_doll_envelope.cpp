@@ -2395,8 +2395,17 @@ int coverage(int argc, char** argv) {
   std::map<std::string, std::vector<std::string>> miss, vocab;
   // (P2c wave 2, DOLL-C) the envelope looks, source L (seeds 1..3) and the matrices M8-M12: the envelope's fallbacks, and the
   // production vocabulary's (contracts 3: sheaths, back items, library weapons, effects; DollRecipe::vocabMissing)
+  // (P5b fix r2, STYLE_P5B 9.3) the owner-signed slice's own T3 reads stand as signed, restated, never redrawn: the Jade and
+  // Imperial T3 sode and banded lames (`pauldron layered.3`, 22 px across against T3's 20) and the Jade kabuto at T3 (its
+  // signed T2-T4 views: no T3 view of its own), wherever a Jade or Imperial body or helm wears its signature (sigbody-, sighelm-)
+  auto sliceSigned = [](const std::string& m, const doll::DollRecipe& r) {
+    auto has = [&](const char* f) { return std::find(r.flags.begin(), r.flags.end(), std::string(f)) != r.flags.end(); };
+    if (m.rfind("pauldron layered.3 drawn", 0) == 0) return has("sigbody-jade") || has("sigbody-imperial");
+    if (m.rfind("helm fam.kabuto T3 view not drawn", 0) == 0) return has("sighelm-jade");
+    return false;
+  };
   for (const Built& b : buildLooks(std::string(kEnvelopeLooks) + sourceLText(1, 3) + dollArmsLooksText())) {
-    for (const std::string& m : b.r.envelopeMissing) miss[m].push_back(b.tag);
+    for (const std::string& m : b.r.envelopeMissing) if (!sliceSigned(m, b.r)) miss[m].push_back(b.tag);
     for (const std::string& m : b.r.vocabMissing) vocab[m].push_back(b.tag);
   }
   // a variant is drawn when the flag changes the head: the figure with and without `variant-<n>`

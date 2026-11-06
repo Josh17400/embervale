@@ -201,6 +201,13 @@ doll::Outline materialOutline(const cult::Culture& c, int base) {
   return doll::outlineOf(doll::resolve(L), true);
 }
 
+// (P5b fix r2, STYLE_P5B 4 and 9.3) a signed head drawn over the mask family's place (`sighelm-<people>` on H_MASK: the Sun
+// Temple's jaguar, "ears and jaws") shows the face between the jaws: an open head, so C17's visor band does not apply to it
+bool sigOpenMask(const doll::DollRecipe& r) {
+  if (r.shape[F::SX_HELM] != F::H_MASK) return false;
+  for (const std::string& f : r.flags) if (f.rfind("sighelm-", 0) == 0) return true;
+  return false;
+}
 // C16o's pair rule for two alloys of a culture: body OD 0.08 or more with no frame under 0.05, head OD 0.10 or more
 std::string cultureRule(const doll::OutlineOD& d) {
   if (d.body < 0.08 || d.bodyMin < 0.05 || d.head < 0.10) return fmt("body OD %.3f (0.08), smallest frame %.3f (0.05), head OD %.3f (0.10)", d.body, d.bodyMin, d.head);
@@ -422,7 +429,7 @@ int dollShapeGates(bool report, std::vector<std::string>& printed, const std::ve
       const double sh = noiseShare(p, &gp);
       if (gp >= 40 && sh > 0.03) no.bad(fmt("%s %c: 1 px features %.1f %% of %d gear px (3)", fl.first.c_str(), "DURL"[fc], sh * 100, gp)); else no.ok();
     }
-    if (r.shape[F::SX_HELM] && F::helmClosed(r.shape[F::SX_HELM])) {
+    if (r.shape[F::SX_HELM] && F::helmClosed(r.shape[F::SX_HELM]) && !sigOpenMask(r)) {
       std::string why;
       if (!visorBand(r, &why)) vi.bad(fl.first + ": " + why); else vi.ok();
     }
@@ -432,7 +439,7 @@ int dollShapeGates(bool report, std::vector<std::string>& printed, const std::ve
     const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
     for (int i = 0; i < (int)c.arms.alloys.size(); i++) {
       const doll::DollRecipe r = doll::resolve(gear::alloyKitLook(a3Base(0), c, i));
-      if (!r.shape[F::SX_HELM] || !F::helmClosed(r.shape[F::SX_HELM])) continue;
+      if (!r.shape[F::SX_HELM] || !F::helmClosed(r.shape[F::SX_HELM]) || sigOpenMask(r)) continue;
       std::string why;
       if (!visorBand(r, &why)) vi.bad(fmt("%s s%u %s (%s): %s", kPeople[bc.people], bc.seed, c.arms.alloys[(size_t)i].name.c_str(), F::shapeName(F::SX_HELM, r.shape[F::SX_HELM]), why.c_str()));
       else vi.ok();

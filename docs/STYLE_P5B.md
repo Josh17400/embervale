@@ -45,8 +45,21 @@ detail and the plumbing (section 8).
    plume, T5 the legend growth in gilt, T6 the living finish. Areas keep C12f's steps (T3 >= 1.20, T5 >= 1.55 x T1).
 5. **One signature family a people from T3 to T6, growing** (where the people has one). Identity comes from consistency:
    the Jade's kabuto at T3 gains its flare at T4 and gilt kuwagata at T5. Consecutive tiers still differ in outline at 1x.
-   Within a people, its alloys part by the family's variant and crest (D51); where the family has too few, the people's
-   secondary (section 4) serves its warriors' alloy.
+   **The alloys (fix r2 ruling, decision 8: reading 1 recommended; it is built once the owner signs it, fix r2 leaves the r1 looks).** The people's
+   signature at T4-T6 is its **kit alloy's**: the everyday alloy at T4 and the masterwork at T5-T6, of every kingdom of the
+   people (the ladder's kits, the slice and the production sheets the owner approved). **Every other alloy** (the warriors'
+   at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
+   "every alloy its own helmet"), drawn from the people's STYLE_P2 28.5 menu and dressed in the people's pair (crest, layer,
+   cape, cloak, shield field), and never a family the people's signature rules out below T5 (the Fjordfolk: no cone, the
+   owner's "overly pointy"; no horns below T5, decision 2): it takes the people's next free family. A material piece
+   (leather, bronze, iron, steel, the high metals) at T4-T6 keeps its hero's shape (2.6, D83). The P2c alloy gates (C16k,
+   C16o, C16m, C18a-b, C19) hold for every pair **except two kit alloys of one people at one tier**, which are one look by
+   design and are not parted by them. *Why not the plan's first text* ("alloys part by the family's variant and crest; the
+   secondary serves the warriors' alloy"): measured in fix r2, a variant or crest moves a head 0.00-0.05 OD (C16k wants 0.10),
+   section 5's one body per tier gives body OD 0 between a kingdom's alloys (C16o wants 0.08), the Fjordfolk secondary is the
+   rejected cone, and the slice's own T5 kits of seeds 1-3 (one masterwork each of three kingdoms, pixel-identical by the
+   signature, the slice gate's 567/567) are C18a twins of the board set by construction: the plan's text and the P2c gates
+   cannot both hold. Reading 2 and the measures are in section 10, decision 8.
 6. **Every metal keeps its helmet** (D83). Gilded steel keeps the onion, starmetal the crystal, obsidian the mask,
    emberforged the furnace helm: on those the people shows by its crest or plume colour, cloak, lining and motif.
 7. **Surfaces meet with intent** (28.2, 29.3): the layer (sash, plaid, tabard) sits over the armour with a dark seam, the
@@ -109,7 +122,7 @@ the people's colours, its band or rim in the item's leather or bronze).
 | T4 | spangenhelm T4, aventail (E spangen T4 + O) | kettle T4, fur band, feather (E furtrim; O if the T4 growth needs it) | open crested, fore-aft comb (E, hero T4) | crested, taller transverse crest, cheek guards (E crested T4 + crest T4) | kulah T4, turban band (E veil T4 + O) | plumed T4 (E) |
 | T5 | horned helm, gilt fittings (E horned_legend) | kettle legend, two eagle feathers (E + OL) | gilt onion (E, D83) | Attic crested legend, tall fore-aft crest (E crested_legend) | gilt kulah legend, turban, falcon plume (E veil_legend + OL) | plumed legend, fur lappets (E) |
 | T6 | horned legend T6 (E) | three eagle feathers, the chief's (E kettle_legend + OL) | crystal (E, D83) | + laurel wreath (E crested_legend + crown laurel or O) | turban-wrapped onion, aventail (E onion_legend + OL) | plumed legend T6 (E) |
-| secondary (alloys) | cone, its crests | snout | great helm (census knights) | the crested family's crests | onion (T4, T6) | plumed's variants |
+| secondary (alloys; fix r2: superseded by 2.5, each non-kit alloy its own helmet; the Fjordfolk never the cone) | cone, its crests | snout | great helm (census knights) | the crested family's crests | onion (T4, T6) | plumed's variants |
 
 | tier | Marsh | Jade | River | Sun Temple | Sylvan | Starspire |
 |---|---|---|---|---|---|---|
@@ -119,7 +132,7 @@ the people's colours, its band or rim in the item's leather or bronze).
 | T4 | wide reed war hat (O/N: warhat, Marsh reed variant) | kabuto, flare, small maedate (E kabuto T4) | morion (E morion T4) | jaguar mask, feather crest (E masked T4 + O) | winged T4 (E) | crown T4 (E) |
 | T5 | reed hat legend, heron plume (E warhat_legend + OL) | kabuto legend, gilt kuwagata (E kabuto_legend crest horns) | morion legend, plume (E) | mask legend, feather fan (E masked_legend + OL) | winged legend, gilt veins (E) | crown legend, star spires (E) |
 | T6 | + bone brow and antler tines (OL) | + crest crown (E) | morion legend T6 (E) | the full fan (E masked_legend + OL) | winged legend T6 (E) | crown legend T6, glowing slit (E) |
-| secondary (alloys) | warhat's variants | kabuto's variant and crests | sallet | plumed's feather-fan variant | winged's variants; antlers at T4 | crown's variants |
+| secondary (alloys; fix r2: superseded by 2.5) | warhat's variants | kabuto's variant and crests | sallet | plumed's feather-fan variant | winged's variants; antlers at T4 | crown's variants |
 
 **Pairs that share a family or a class at one tier** (each must pass the head measure, 9.3 S1, at production): T1
 Fjordfolk round cap / Imperial knob cap, Marsh fringed hood / Starspire pointed hood, Sun Temple feather band / Sylvan
@@ -432,6 +445,19 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
 
 ### 9.3 Done (each line checkable)
 
+- **R3a and the hero's road (fix r2 ruling, item 4).** R3a (the all-twelve greyscale nearest-neighbour read, idle, walk and no
+  shield, D and R, man and woman, seeds 1-3) does not take the **Heartland's T4 figures as subjects**: the Heartland's T4 is the
+  frozen hero's road (D54, D55, D83; its rows null from T2), whose T4 helm changes by seed (seed 2 draws another head than
+  seeds 1 and 3), so its own-people term compares two different heads and its misses (5 of 1728 at 9a41ab8, all Heartland T4
+  seed 2 facing R, nearest the Imperial or the Highland at 0.81-0.90) measure the frozen road, not a signature. They stay in
+  every other figure's field (as "other"), and S1, J1 and J2 keep them. Under the ruling R3a reads 0 of 1692.
+- **The slice's signed T3 reads (fix r2, restated, never redrawn).** The Jade and Imperial T3 sode and banded lames (`pauldron
+  layered.3`, 22 px across against T3's 20) and the Jade kabuto at T3 (its signed T2-T4 views, no T3 view of its own) are the
+  owner-signed slice: `--doll-coverage --scope envelope` does not list them where a Jade or Imperial body or helm wears its
+  signature. The production peoples' over-wide shoulders (pelt.4, feather.3-4, flap.3, leaf.3, slab.2-3) are drawn narrower,
+  not restated.
+- **C17's visor and the jaguar (fix r2).** A signed head drawn in the mask family's place (the Sun Temple's jaguar, "ears and
+  jaws", section 4) shows the face between the jaws: an open head, so C17's visor band (closed helms) does not apply to it.
 - **S1 silhouette, greyscale.** For every pair of the three peoples, at T1, T3 and T5, on the man and the woman, facing D
   and facing R (idle frame 0, aligned on the pivot, seeds 1-3): the figures' opaque masks differ by at least
   `max(12, smaller area / 25)` px; **without the shield** (the same kit, no shield) by at least `max(8, smaller area / 40)`;
@@ -488,6 +514,17 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    white and lapis; Sun Temple turquoise and yellow; Sylvan leaf and forest; Highland green and saffron; Marsh moss and bone).
 7. **One signature family a people from T3 to T6, growing** (section 2.5); 29.4's "every tier its own family" stays the
    Heartland hero's road's rule.
+8. **(fix r2) The kingdoms' kit alloys.** Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
+   everyday at T4, the masterwork at T5-T6) wears the people's one signature (the look the owner approved: "i really like
+   these"); every other alloy keeps its own helmet and cut (2026-10-24/25) in the people's colours; two kit alloys of one
+   people at one tier are not parted by the P2c alloy gates. Reading 2: each kingdom's kit carries a MARK on the signature
+   (its own crest and one body axis of the people's menu; the seed-1 kingdom plain), solved with the alloy shape table
+   (`rpg_test --forge-solve` given the signature's constraints: S1, R3a's own-people read, C18a no twins, C16o in a
+   kingdom), so every alloy differs; the slice's T5 kits of seeds 2-3 then change (the owner's seed-1 sheets keep). Measured
+   in fix r2 on prototypes (S1 misses / R3a / C18a twins / C16o / C16k): every kit alloy signed, others own: 0 / 7 (all the
+   Heartland's frozen T4) / 145 (same-people kit pairs) / 30 / 3; only the seed-1 kingdom signed: 14 / 241 / 0 / 2 / 1; marks
+   from the alloy's own axes, unsolved: 2 / 8 / 20 / 8 / 6; own heads on the signature body: 22 / 23 / 107 / 41 / 8. Reading
+   2 needs the solver round (engineer-high); reading 1 needs the owner's yes.
 
 ## 11. Don'ts
 
