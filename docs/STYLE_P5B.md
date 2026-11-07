@@ -590,6 +590,23 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    approved slice's T5 bodies change; slice_same falls). Until ruled the code keeps the exemption, exactly as above:
    a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
 
+### 10.1 Residuals that touch the approved slice (fix r3: FOR THE PLANNER'S RULING, not yet ruled)
+
+Each line below fails a gate only on frames of the approved slice (Fjordfolk, Imperial and Jade at T1/T3/T5, frozen as the
+owner signed them: slice_same 567/567), so no fix may move it. Fix r3 names them for the planner, who rules each (keep as a
+declared W4 move, or redraw and re-ask the owner); until then they stay red.
+- W4.doll.ladder_finish_L (C12b, `rpg_test --doll-ladder --finish --scope ladder --seeds 1..3`): fjordfolk sword man s1-s3
+  "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)", "lt3 R slot 0 (T3) trim 2.4 % (band 3-30 %)" and "lt5 R:
+  no glow pixel at T5"; fjordfolk sword woman s1-s3 "lt5 D slot 1 (T6) trim 9.9 %"; jade sword man s1 and woman s1 "lt5 R: no
+  glow pixel at T5".
+- W4.doll.arms_matrix (C3a): the 1 px pinhole between the Fjordfolk T5 pelt pauldron and the scale coat
+  (armour/shared/pauldron_pelt5_r, 109 frames on the fjordfolk:5 looks; drawn in the slice's woman D) and the skirt pinholes
+  of the Jade and Imperial T5 kits (armour/woman/skirt_strips 48, armour/man/skirt_bell 32): doll_paint's closeGearPockets
+  closes every other signed look's pinholes but leaves the slice kits' own.
+- W4.doll.arms_matrix (C3d): the Imperial T5 kit's strike and follow facing U, "the grip outside the fist" (64 frames): facing
+  U the raised fist is beyond the head and the crest is drawn before it, so part of the fist is hidden (the occlusion is right;
+  the check asks the grip inside the visible part).
+
 ## 11. Don'ts
 
 - Never trace, sample or import a FLUX concept or a reference photo; draw our own pixels.
