@@ -24,6 +24,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 #include "rpg/art.h"
@@ -90,13 +91,16 @@ namespace dollshapes {
 bool readFrozen(const char* path, uint32_t (*t)[36][3], int* cells);
 
 // ---------------------------------------------------------------- --forge-shapes
+art::HumanLook a3Base(int who);
+int kitTier(int alloyIndex);
 int shapesCmd(int argc, char** argv) {
   int s0 = 1, s1 = 3;
-  bool check = false;
+  bool check = false, drawn = false;
   std::set<int> peoples;
   for (int i = 2; i < argc; i++) {
     if (!std::strcmp(argv[i], "--seeds") && i + 1 < argc) range(argv[++i], s0, s1);
     else if (!std::strcmp(argv[i], "--check")) check = true;
+    else if (!std::strcmp(argv[i], "--drawn")) drawn = true;
     else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) { if (!loadPool(argv[++i])) return 1; }
     else if (!std::strcmp(argv[i], "--people") && i + 1 < argc) {
       std::string v = argv[++i];
@@ -123,6 +127,13 @@ int shapesCmd(int argc, char** argv) {
                     c.arms.alloys[(size_t)i].name.c_str(), gear::forgeSchool6(c), gear::shapeRank(i), gear::describeShape(s).c_str(),
                     st.shoulder ? F::valueName(F::AX_SHOULDER, st.shoulder) : "-", st.crest ? F::valueName(F::AX_CREST, st.crest) : "-",
                     st.collar ? F::valueName(F::AX_COLLAR, st.collar) : "-", smithLine(c, i).c_str());
+        if (drawn) {   // (P5b2 fix) the figure as the boards draw it (alloyKitLook at its kit tier): the resolved helm, variant and body
+          const doll::DollRecipe r = doll::resolve(gear::alloyKitLook(a3Base(0), c, i));
+          std::printf("    drawn T%d %s: helm %s v%d skirt %s mass %s layer %s\n", kitTier(i), gear::kitAlloy(c, i, kitTier(i)) ? "KIT" : "OWN",
+                      r.shape[F::SX_HELM] ? F::shapeName(F::SX_HELM, r.shape[F::SX_HELM]) : "-", (int)r.helmVariant,
+                      r.shape[F::SX_SKIRT] ? F::shapeName(F::SX_SKIRT, r.shape[F::SX_SKIRT]) : "-", r.shape[F::SX_MASS] ? F::shapeName(F::SX_MASS, r.shape[F::SX_MASS]) : "-",
+                      r.shape[F::SX_LAYER] ? F::shapeName(F::SX_LAYER, r.shape[F::SX_LAYER]) : "-");
+        }
       }
     }
   }
@@ -215,6 +226,13 @@ int kitTier(int alloyIndex) { return alloyIndex >= 2 ? 5 : 4; }
 // a tier apart, one body growing (section 5); under FIX_SIG only
 bool kitLadderPair(const cult::Culture& c, int i, int ti, int j, int tj) {
   return ti != tj && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) && gear::kitAlloy(c, i, ti) && gear::kitAlloy(c, j, tj);
+}
+// (P5b2 fix, diagnostics) an alloy's figure as alloyKitLook draws it at its kit tier: "T4 OWN kettle v0 split drop halfcape (idx 1/3, school 12)"
+std::string drawnDesc(const cult::Culture& c, int i) {
+  const doll::DollRecipe r = doll::resolve(gear::alloyKitLook(a3Base(0), c, i));
+  auto nm = [&](int ax) { return r.shape[ax] ? F::shapeName(ax, r.shape[ax]) : "-"; };
+  return fmt("T%d %s %s v%d %s %s %s (idx %d/%d, school %d)", kitTier(i), gear::kitAlloy(c, i, kitTier(i)) ? "KIT" : "OWN", nm(F::SX_HELM), (int)r.helmVariant,
+             nm(F::SX_SKIRT), nm(F::SX_MASS), nm(F::SX_LAYER), i, (int)c.arms.alloys.size(), gear::forgeSchool6(c));
 }
 // C16o's pair rule for two alloys of a culture: body OD 0.08 or more with no frame under 0.05, head OD 0.10 or more
 std::string cultureRule(const doll::OutlineOD& d) {
@@ -815,10 +833,12 @@ int forgeSilhouettes(int w0, int w1, bool report, bool selftest, std::vector<std
         if (gear::kitTwinPair(*x.c, x.idx, kitTier(x.idx), *y.c, y.idx, kitTier(y.idx))) { a.ok(); continue; }
         const bool ladder = same && kitLadderPair(*x.c, x.idx, kitTier(x.idx), y.idx, kitTier(y.idx));
         if (same && !ladder) {
-          if (d.body < 0.08) b.bad(fmt("%s: %s vs %s: body OD %.3f (0.08)", sc.name.c_str(), refName(x).c_str(), refName(y).c_str(), d.body)); else b.ok();
+          if (d.body < 0.08) b.bad(fmt("%s: %s vs %s: body OD %.3f (0.08)", sc.name.c_str(), refName(x).c_str(), refName(y).c_str(), d.body) +
+                                   (std::getenv("FORGE_DRAWN") ? " [" + drawnDesc(*x.c, x.idx) + " | " + drawnDesc(*y.c, y.idx) + "]" : std::string())); else b.ok();
         }
         if (!twin(d)) { a.ok(); continue; }
-        const std::string what = fmt("%s: %s vs %s: body %.3f head %.3f", sc.name.c_str(), refName(x).c_str(), refName(y).c_str(), d.body, d.head);
+        std::string what = fmt("%s: %s vs %s: body %.3f head %.3f", sc.name.c_str(), refName(x).c_str(), refName(y).c_str(), d.body, d.head);
+        if (std::getenv("FORGE_DRAWN")) what += " [" + drawnDesc(*x.c, x.idx) + " | " + drawnDesc(*y.c, y.idx) + fmt(" | dist %d]", dist);
         if (!sc.window || same || dist < 3) a.bad(what);
         else if (++windowTwins > 2) a.bad(what + " (a third pair in the world)");
         else { a.ok(); out += "  allowed: " + what + "\n"; }
@@ -1088,3 +1108,474 @@ int solveCmd(int argc, char** argv) {
 RPG_TEST_CMD("--forge-shapes", "P2c forge round 2: the shape table on the kit cultures [--people a,b] [--seeds A..B] [--check] [--pool f]",
              dollshapes::shapesCmd);
 RPG_TEST_CMD("--forge-solve", "P2c forge round 2: solve the shape table [--pool f] [--estimate] [--out FILE]", dollshapes::solveCmd);
+
+// ======================================================================== (P5b2 fix r1) --forge-own-solve: the own-look table
+// STYLE_P5B 2.5 (decision 8, reading 1): a non-kit alloy keeps its own helmet and cut; the rule frees a helm the people's
+// signature rules out (horns below T5, the Fjordfolk cone, the people's signed family) and moves a skirt a kit body wears. The rule
+// sees one culture, so two kingdoms' freed helms and moved skirts met (judge P5b2 r1 item 1). This solve picks each freed cell's
+// helm (family, variant) and each own body's skirt and motif on the REAL figures, against the gates that read them: C18a and C18b
+// (the board set, worlds 1..6's windows), C16o and C16m (every people's seeds 1..8), C16k (the owner's 37) and the board check
+// (the judge's alloys_apart: the head and greyscale of every same-tier pair on a people's board row with an OWN side). It writes
+// rpg/sim/gear_forge_own.inc (gear_forge.cpp's kOwnCells); the cells it never measured keep the rule.
+namespace dollshapes {
+namespace own {
+struct BoardFrames { bool ok = false; uint8_t m[2][44][22] = {}; uint8_t l[2][44][22] = {}; };
+// the figure as doll_gallery's alloys1x board draws it (gear::alloyKitLook, idle D and idle R): the black board's mask (grey,
+// nothing held) and the grey board's luma (grey ramps, held, 0.299 / 0.587 / 0.114), in the judge's 22 x 44 window on the pivot
+BoardFrames boardFrames(const art::HumanLook& L) {
+  BoardFrames b;
+  const doll::DollRecipe r = doll::resolve(L);
+  for (int pass = 0; pass < 2; pass++) {
+    doll::ComposeOpts op;
+    op.grey = true;
+    op.noHeld = pass == 0;
+    const art::RigSheet s = doll::compose(r, art::RigPart::Loco, &op);
+    for (int k = 0; k < 2; k++) {
+      const art::FrameRect* fr = s.frame(k == 0 ? 0 : 2, art::Clip::Idle, 0, 0);
+      if (!fr || fr->w <= 0) return b;
+      for (int y = 0; y < fr->h; y++)
+        for (int x = 0; x < fr->w; x++) {
+          const int X = x - fr->px + 11, Y = y - fr->py + 42;
+          if (X < 0 || X >= 22 || Y < 0 || Y >= 44) continue;
+          const uint32_t p = s.atlas.get(fr->x + x, fr->y + y);
+          if (pass == 0) b.m[k][Y][X] = (p >> 24) != 0;
+          else if (p >> 24) b.l[k][Y][X] = (uint8_t)(int)(0.299 * (p & 255) + 0.587 * (p >> 8 & 255) + 0.114 * (p >> 16 & 255));
+        }
+    }
+  }
+  b.ok = true;
+  return b;
+}
+// alloys_apart.py's pair verdict: HEAD (the top 11 rows' XOR >= max(6, smaller / 5) in one facing, >= 3 in the other) and GREY
+// (the masks' XOR plus the shared pixels 24 or more luma apart, over the union, >= 0.20 in each facing)
+bool boardApart(const BoardFrames& a, const BoardFrames& b, std::string* why = nullptr) {
+  if (!a.ok || !b.ok) return true;
+  bool headOk[2][2] = {}, greyOk = true;
+  for (int k = 0; k < 2; k++) {
+    auto top = [&](const BoardFrames& f) { for (int y = 0; y < 44; y++) for (int x = 0; x < 22; x++) if (f.m[k][y][x]) return y; return 44; };
+    const int ta = top(a), tb = top(b);
+    int hx = 0, ha = 0, hb = 0, xr = 0, uni = 0, dl = 0;
+    for (int y = 0; y < 44; y++)
+      for (int x = 0; x < 22; x++) {
+        const bool pa = a.m[k][y][x], pb = b.m[k][y][x];
+        const bool qa = pa && y >= ta && y < ta + 11, qb = pb && y >= tb && y < tb + 11;
+        ha += qa; hb += qb; hx += qa != qb;
+        xr += pa != pb; uni += pa || pb;
+        if (pa && pb && std::abs((int)a.l[k][y][x] - (int)b.l[k][y][x]) >= 24) dl++;
+      }
+    const double hn = std::max(6.0, std::min(ha, hb) / 5.0);
+    headOk[k][0] = hx >= hn;
+    headOk[k][1] = hx >= 3;
+    if (uni && (double)(xr + dl) / uni < 0.20) greyOk = false;
+    if (why) *why += fmt("%s head %d/%.0f grey %.2f; ", k ? "R" : "D", hx, hn, uni ? (double)(xr + dl) / uni : 0.0);
+  }
+  const bool hok = (headOk[0][0] && headOk[1][1]) || (headOk[1][0] && headOk[0][1]);
+  return hok && greyOk;
+}
+
+struct Ref {
+  const cult::Culture* c = nullptr;
+  int idx = 0, tier = 4, ci = 0, cj = 0;
+  bool own = false, board = false;
+  int helmCell = -1, bodyCell = -1;   // the cells (indexes into Solver::cells) its figure reads
+  doll::Outline ol;
+  MotifRead mr;
+  int motif = 0;
+  BoardFrames bf;
+};
+struct Cell {   // one variable: a helm at a tier (slot 0 T4, 2 T5) or a body (slot 4: skirt, 5: motif)
+  int p, s, r, slot;
+  std::vector<std::pair<uint8_t, uint8_t>> cand;   // (helm, variant) or (skirt, motif)
+  std::vector<double> cost;                        // soft cost of each candidate
+  int pick = 0;
+  std::vector<int> refs;
+  std::string name;
+};
+enum Kind { K_C18, K_C16O, K_C16K, K_BOARD };
+struct Scope { Kind kind; bool window = false; std::string name; std::vector<int> refs; std::vector<doll::OutlineOD> d; std::vector<int8_t> ba; int seed = 0; };
+
+struct Solver {
+  std::vector<Ref> refs;
+  std::vector<Cell> cells;
+  std::vector<Scope> scopes;
+  std::vector<std::unique_ptr<cult::Atlas>> atlases;
+  std::map<std::pair<const cult::Culture*, int>, int> refOf;
+  std::vector<std::vector<int>> scopesOf;            // ref -> scopes
+  std::map<std::pair<int, int>, doll::Outline> mats;   // (people, base) on its seed-1..3 kit: C16o's materials
+  std::vector<uint8_t> tab;
+  std::vector<std::string> lastFails;
+  int composes = 0;
+  bool seedCompiled = true;
+
+  uint8_t* entry(int p, int s, int r) { return &tab[(size_t)(((p * 36 + s) * 3 + r) * 6)]; }
+  int addRef(const cult::Culture* c, int idx, int ci, int cj) {
+    auto key = std::make_pair(c, idx);
+    auto it = refOf.find(key);
+    if (it != refOf.end()) return it->second;
+    Ref r;
+    r.c = c; r.idx = idx; r.ci = ci; r.cj = cj; r.tier = kitTier(idx);
+    r.own = art::doll::fixOn(art::doll::FIX_SIG) && !gear::kitAlloy(*c, idx, r.tier);
+    refs.push_back(r);
+    scopesOf.emplace_back();
+    return refOf[key] = (int)refs.size() - 1;
+  }
+  void measure(int i) {
+    Ref& r = refs[(size_t)i];
+    r.ol = alloyOutline(*r.c, r.idx);
+    art::HumanLook Lm = gear::alloyKitLook(a3Base(0), *r.c, r.idx);
+    if (r.board) r.bf = boardFrames(Lm);
+    Lm.shield = false; Lm.shieldStyle = 0; Lm.tier[art::HumanLook::TIER_SHIELD] = 0;
+    const doll::DollRecipe rr = doll::resolve(Lm);
+    r.mr = motifRead(rr);
+    r.motif = rr.shape[F::SX_MOTIF];
+    composes++;
+  }
+  void build(int w0, int w1) {
+    tab.assign((size_t)gear::ownLookTableSize(), 0);
+    gear::setOwnLookOverride(tab.data());   // (the rule: every cell 0 while the variables are read)
+    // the board set (C18 scope "board set"; its rows the board check's)
+    {
+      Scope sc{K_C18, false, "board set"};
+      for (const AlloyRef& a : boardAlloys()) sc.refs.push_back(addRef(a.c, a.idx, a.ci, a.cj));
+      scopes.push_back(sc);
+      for (int p = 0; p < 13; p++) {
+        Scope bs{K_BOARD, false, p < 12 ? fmt("board row %s", kPeople[p]) : std::string("board row jade s5")};
+        for (uint32_t sd = (p < 12 ? 1u : 5u); sd <= (p < 12 ? 3u : 5u); sd++) {
+          const cult::Culture& c = gear::kitCulture((cult::Archetype)(p < 12 ? p : 7), sd);
+          for (int i = 0; i < (int)c.arms.alloys.size(); i++) { const int k = addRef(&c, i, p, (int)sd); refs[(size_t)k].board = true; bs.refs.push_back(k); }
+        }
+        scopes.push_back(bs);
+      }
+      Scope k37{K_C16K, false, "the owner's 37"};
+      for (const gear::BoardCulture& bc : gear::forgeBoardSet()) {
+        if (!bc.owner) continue;
+        const cult::Culture& c = gear::kitCulture((cult::Archetype)bc.people, bc.seed);
+        for (int i = 0; i < (int)c.arms.alloys.size() && i < 3; i++) k37.refs.push_back(addRef(&c, i, bc.people, (int)bc.seed));
+      }
+      scopes.push_back(k37);
+    }
+    for (int w = w0; w <= w1; w++) {
+      atlases.push_back(std::make_unique<cult::Atlas>((uint64_t)w));
+      for (int o : {0, 3}) {
+        Scope sc{K_C18, true, fmt("world %d window %d", w, o)};
+        for (const AlloyRef& a : windowAlloys(*atlases.back(), o, o)) sc.refs.push_back(addRef(a.c, a.idx, a.ci, a.cj));
+        scopes.push_back(sc);
+      }
+    }
+    for (int pe = 0; pe < 12; pe++)
+      for (int sd = 1; sd <= 8; sd++) {
+        const cult::Culture& c = gear::kitCulture((cult::Archetype)pe, (uint32_t)sd);
+        Scope sc{K_C16O, false, fmt("%s s%d", kPeople[pe], sd)};
+        sc.seed = sd;   // (C16m and the materials: seeds 1..3, as dollShapeGates reads them)
+        for (int i = 0; i < (int)c.arms.alloys.size(); i++) sc.refs.push_back(addRef(&c, i, pe, sd));
+        scopes.push_back(sc);
+        if (sd <= 3)
+          for (int b = F::B_HOMESPUN; b < F::B_COUNT; b++) mats[{pe * 16 + sd, b}] = materialOutline(c, b);
+      }
+    for (size_t si = 0; si < scopes.size(); si++)
+      for (int k : scopes[si].refs) scopesOf[(size_t)k].push_back((int)si);
+    // the variables: every OWN figure's freed helm and moved skirt (the rule's), and its body's motif
+    for (size_t i = 0; i < refs.size(); i++) cellsFor((int)i, false);
+    for (Cell& c : cells) { c.pick = 0; for (size_t k = 1; k < c.cand.size(); k++) if (c.cost[k] < c.cost[(size_t)c.pick]) c.pick = (int)k; }
+    // (a re-solve starts from the compiled table: its cells' picks where they are candidates)
+    if (seedCompiled) {
+      std::vector<uint8_t> comp((size_t)gear::ownLookTableSize(), 0);
+      gear::ownLookCompiled(comp.data());
+      for (Cell& c : cells) {
+        const uint8_t* e = &comp[(size_t)(((c.p * 36 + c.s) * 3 + c.r) * 6)];
+        const std::pair<uint8_t, uint8_t> want = c.slot == 4 ? std::make_pair(e[4], e[5]) : std::make_pair(e[c.slot], e[c.slot] ? e[c.slot + 1] : (uint8_t)0);
+        for (size_t k = 0; k < c.cand.size(); k++) if (c.cand[k] == want) { c.pick = (int)k; break; }
+      }
+    }
+    for (Cell& c : cells) apply(c);
+    gear::setOwnLookOverride(tab.data());
+    for (size_t i = 0; i < refs.size(); i++) measure((int)i);
+    for (Scope& sc : scopes) fill(sc);
+  }
+  // a figure's cells: its helm (the rule frees it, or promote: its kept P5 helm may move, at a cost) and its body (a moved
+  // skirt among the people's free ones; promote: a kept skirt may move, at a cost; the motif: its own, the menu's, the kit's).
+  // A candidate 0 is the rule (no table entry)
+  std::map<std::tuple<int, int, int, int>, int> cellOf;
+  void addCand(Cell& c, uint8_t a, uint8_t b, double cost) {
+    for (size_t k = 0; k < c.cand.size(); k++) if (c.cand[k].first == a && c.cand[k].second == b) { c.cost[k] = std::min(c.cost[k], cost); return; }
+    c.cand.push_back({a, b});
+    c.cost.push_back(cost);
+  }
+  int cellAt(int p, int s, int rk, int slot, const Ref& r, const char* what) {
+    const auto key = std::make_tuple(p, s, rk, slot);
+    auto it = cellOf.find(key);
+    if (it != cellOf.end()) return it->second;
+    Cell c{p, s, rk, slot};
+    c.name = fmt("%s school %d rank %d %s (%s)", kPeople[p], s, rk, what, r.c->arms.alloys[(size_t)r.idx].name.c_str());
+    cells.push_back(c);
+    return cellOf[key] = (int)cells.size() - 1;
+  }
+  void cellsFor(int i, bool promote) {
+    Ref& r = refs[(size_t)i];
+    if (!r.own) return;
+    const int p = std::clamp((int)r.c->archetype, 0, 11), s = gear::forgeSchool6(*r.c), rk = gear::shapeRank(r.idx);
+    const gear::Shape sh = gear::alloyShape(*r.c, r.idx);
+    const bool freed = gear::ownAlloyHelmFreed(*r.c, r.idx, r.tier);
+    if (freed || promote) {
+      const int ci = cellAt(p, s, rk, r.tier == 4 ? 0 : 2, r, r.tier == 4 ? "T4 helm" : "T5 helm");
+      Cell& c = cells[(size_t)ci];
+      uint8_t* e = entry(p, s, rk);
+      const uint8_t saved[2] = {e[c.slot], e[c.slot + 1]};
+      e[c.slot] = 0;
+      int ruleV = -1;
+      const int ruleF = gear::ownAlloyHelm(*r.c, r.idx, r.tier, &ruleV);
+      e[c.slot] = saved[0]; e[c.slot + 1] = saved[1];
+      if (!freed) addCand(c, 0, 0, 0.0);   // (the kept P5 helm: the rule)
+      for (const auto& fo : gear::ownHelmChoices(*r.c, r.tier))
+        for (int v = 0; v <= F::helmVariantCount(fo.first); v++) {
+          const bool rulePick = freed && fo.first == ruleF && v == std::max(0, ruleV);
+          // soft: another people's signed family the last resort; the rule's pick first among equals; a kept helm moved 2
+          addCand(c, (uint8_t)fo.first, (uint8_t)v, (fo.second ? 3.0 : 0.0) + (freed ? 0.0 : 2.0) + (rulePick ? 0.0 : 0.01 + 0.001 * (double)c.cand.size()));
+        }
+      if (std::find(c.refs.begin(), c.refs.end(), i) == c.refs.end()) c.refs.push_back(i);
+      r.helmCell = ci;
+      if (c.cand.empty()) c.cand.push_back({0, 0}), c.cost.push_back(0.0);
+    }
+    {
+      const int ci = cellAt(p, s, rk, 4, r, "body");
+      Cell& c = cells[(size_t)ci];
+      const bool moved = gear::ownAlloySkirtMoved(*r.c, sh.skirt, sh.helm);
+      std::vector<std::pair<int, double>> sk;   // (0: the rule)
+      if (moved) {
+        uint8_t* e = entry(p, s, rk);
+        const uint8_t saved = e[4];
+        e[4] = 0;
+        const int ruleSk = gear::ownAlloySkirt(*r.c, r.idx, sh.skirt, sh.helm);
+        e[4] = saved;
+        for (int a : gear::ownSkirtChoices(*r.c)) sk.push_back({a, a == ruleSk ? 0.0 : 0.01});
+        if (sk.empty()) sk.push_back({0, 0.0});
+      } else {
+        sk.push_back({0, 0.0});
+        if (promote)
+          for (int a : gear::ownSkirtChoices(*r.c)) if (a != sh.skirt) sk.push_back({a, 2.0});
+      }
+      std::vector<std::pair<int, double>> mo{{0, 0.0}};
+      uint8_t mv[8];
+      const int nm = F::shapeMenu(p, F::SX_MOTIF, mv, nullptr, nullptr, 8);
+      for (int k = 0; k < nm; k++) if (mv[k] != sh.motif) mo.push_back({mv[k], 1.0});
+      // (C16m: two different motifs part by 10 luma; one motif on two cuts is not asked to) the kingdom's kit body's motif
+      if (r.c->arms.alloys.size() && gear::alloyShape(*r.c, 0).motif && gear::alloyShape(*r.c, 0).motif != sh.motif) mo.push_back({gear::alloyShape(*r.c, 0).motif, 1.0});
+      for (const auto& a : sk)
+        for (const auto& m : mo) addCand(c, (uint8_t)a.first, (uint8_t)m.first, a.second + m.second + 0.0001 * (double)c.cand.size());
+      if (std::find(c.refs.begin(), c.refs.end(), i) == c.refs.end()) c.refs.push_back(i);
+      r.bodyCell = ci;
+    }
+  }
+  void apply(const Cell& c) {
+    uint8_t* e = entry(c.p, c.s, c.r);
+    const auto& v = c.cand[(size_t)c.pick];
+    if (c.slot == 4) { e[4] = v.first; e[5] = v.second; }
+    else { e[c.slot] = v.first; e[c.slot + 1] = v.first ? v.second : 0; }
+  }
+  void fill(Scope& sc) {
+    const size_t n = sc.refs.size();
+    sc.d.assign(n * n, doll::OutlineOD{});
+    if (sc.kind == K_BOARD) sc.ba.assign(n * n, 1);
+    for (size_t i = 0; i < n; i++) row(sc, i);
+  }
+  void row(Scope& sc, size_t i) {
+    const size_t n = sc.refs.size();
+    const Ref& a = refs[(size_t)sc.refs[i]];
+    for (size_t j = 0; j < n; j++) {
+      if (j == i) continue;
+      const Ref& b = refs[(size_t)sc.refs[j]];
+      const doll::OutlineOD d = doll::outlineDistance(a.ol, b.ol);
+      sc.d[i * n + j] = sc.d[j * n + i] = d;
+      if (sc.kind == K_BOARD) sc.ba[i * n + j] = sc.ba[j * n + i] = (int8_t)boardApart(a.bf, b.bf);
+    }
+  }
+  // the failures of a scope, as its gate counts them (lines appended when log)
+  std::set<int>* badSink = nullptr;   // the figures in a failure (fails: phase 2's promotion)
+  int fails(const Scope& sc, std::vector<std::string>* log) {
+    const size_t n = sc.refs.size();
+    int f = 0, windowTwins = 0, curA = -1, curB = -1;
+    auto nm = [&](const Ref& r) { return std::string(cult::archetypeName(r.c->archetype)) + " " + r.c->arms.alloys[(size_t)r.idx].name; };
+    auto bad = [&](const std::string& w) {
+      f++;
+      if (log) log->push_back(sc.name + ": " + w);
+      if (badSink) { if (curA >= 0) badSink->insert(curA); if (curB >= 0) badSink->insert(curB); }
+    };
+    for (size_t i = 0; i < n; i++) {
+      const Ref& x = refs[(size_t)sc.refs[i]];
+      curA = sc.refs[i]; curB = -1;
+      if (sc.kind == K_C16O && sc.seed <= 3 && x.motif && x.motif != F::MO_PLAIN && x.mr.range < 40.0) bad(nm(x) + fmt(" motif luma range %.0f (40)", x.mr.range));
+      for (size_t j = i + 1; j < n; j++) {
+        const Ref& y = refs[(size_t)sc.refs[j]];
+        curB = sc.refs[j];
+        const doll::OutlineOD& d = sc.d[i * n + j];
+        if (gear::kitTwinPair(*x.c, x.idx, x.tier, *y.c, y.idx, y.tier)) continue;
+        const bool same = x.c == y.c;
+        const bool ladder = same && kitLadderPair(*x.c, x.idx, x.tier, y.idx, y.tier);
+        switch (sc.kind) {
+          case K_C18: {
+            if (same && !ladder && d.body < 0.08) bad(nm(x) + " vs " + nm(y) + fmt(" C18b body %.3f", d.body));
+            if (!(d.body < 0.05 && d.head < 0.10)) break;
+            const int dist = std::max(std::abs(x.ci - y.ci), std::abs(x.cj - y.cj));
+            if (!sc.window || same || dist < 3 || ++windowTwins > 2) bad(nm(x) + " vs " + nm(y) + fmt(" C18a body %.3f head %.3f", d.body, d.head));
+            break;
+          }
+          case K_C16O: {
+            if (ladder) { if (d.head < 0.10) bad(nm(x) + " vs " + nm(y) + fmt(" C16o ladder head %.3f", d.head)); }
+            else if (!cultureRule(d).empty()) bad(nm(x) + " vs " + nm(y) + " C16o " + cultureRule(d));
+            if (sc.seed <= 3 && x.motif && y.motif && x.motif != y.motif && !ladder && motifMad(x.mr, y.mr) < 10.0)
+              bad(nm(x) + " vs " + nm(y) + fmt(" C16m %.1f", motifMad(x.mr, y.mr)));
+            break;
+          }
+          case K_C16K:
+            if (d.head < doll::kHeadOdStep) bad(nm(x) + " vs " + nm(y) + fmt(" C16k head %.3f", d.head));
+            break;
+          case K_BOARD:
+            if (x.tier == y.tier && (x.own || y.own) && !sc.ba[i * n + j]) {
+              std::string why;
+              boardApart(x.bf, y.bf, &why);
+              bad(nm(x) + " vs " + nm(y) + " board " + why);
+            }
+            break;
+        }
+      }
+      curB = -1;
+      if (sc.kind == K_C16O && sc.seed <= 3 && x.own) {   // C16o's materials (the board set's kits, seeds 1..3)
+        auto it = mats.find({(int)x.c->archetype * 16 + x.cj, F::B_HOMESPUN});
+        if (it != mats.end())
+          for (int b = F::B_HOMESPUN; b < F::B_COUNT; b++) {
+            const std::string w = materialRule(doll::outlineDistance(x.ol, mats[{(int)x.c->archetype * 16 + x.cj, b}]));
+            if (!w.empty()) bad(nm(x) + " vs " + F::valueName(F::AX_BASE, b) + " " + w);
+          }
+      }
+    }
+    return f;
+  }
+  double soft() const { double s = 0; for (const Cell& c : cells) s += c.cost[(size_t)c.pick]; return s; }
+  double score(const std::vector<int>& sc) {
+    int f = 0;
+    for (int k : sc) f += fails(scopes[(size_t)k], nullptr);
+    return f * 1000.0;
+  }
+  int totalFails(std::vector<std::string>* log) { int f = 0; for (const Scope& sc : scopes) f += fails(sc, log); return f; }
+  // one cell: every candidate measured on the figures it draws; the best kept
+  bool improve(Cell& c) {
+    std::set<int> ss;
+    for (int k : c.refs) for (int s : scopesOf[(size_t)k]) ss.insert(s);
+    const std::vector<int> sv(ss.begin(), ss.end());
+    auto evalNow = [&]() { return score(sv) + c.cost[(size_t)c.pick]; };
+    const int was = c.pick;
+    double best = evalNow();
+    int bestK = was;
+    for (int k = 0; k < (int)c.cand.size(); k++) {
+      if (k == was) continue;
+      c.pick = k;
+      apply(c);
+      for (int r : c.refs) measure(r);
+      for (int s : sv) { Scope& sc = scopes[(size_t)s]; for (size_t i = 0; i < sc.refs.size(); i++) if (std::find(c.refs.begin(), c.refs.end(), sc.refs[i]) != c.refs.end()) row(sc, i); }
+      const double v = evalNow();
+      if (v < best - 1e-9) { best = v; bestK = k; }
+    }
+    c.pick = bestK;
+    apply(c);
+    for (int r : c.refs) measure(r);
+    for (int s : sv) { Scope& sc = scopes[(size_t)s]; for (size_t i = 0; i < sc.refs.size(); i++) if (std::find(c.refs.begin(), c.refs.end(), sc.refs[i]) != c.refs.end()) row(sc, i); }
+    return bestK != was;
+  }
+};
+
+int solveCmd(int argc, char** argv) {
+  std::string out = "rpg/sim/gear_forge_own.inc";
+  int rounds = 4, w1 = 6;
+  bool dry = false, fresh = false;
+  int phase0 = 1;   // (--phase 2: a re-solve seeded from the compiled table goes straight to the promotions)
+  for (int i = 2; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--out") && i + 1 < argc) out = argv[++i];
+    else if (!std::strcmp(argv[i], "--rounds") && i + 1 < argc) rounds = std::atoi(argv[++i]);
+    else if (!std::strcmp(argv[i], "--worlds") && i + 1 < argc) w1 = std::atoi(argv[++i]);
+    else if (!std::strcmp(argv[i], "--dry")) dry = true;
+    else if (!std::strcmp(argv[i], "--fresh")) fresh = true;
+    else if (!std::strcmp(argv[i], "--phase") && i + 1 < argc) phase0 = std::atoi(argv[++i]);
+  }
+  if (!art::doll::fixOn(art::doll::FIX_SIG)) { std::printf("forge-own-solve: FIX_SIG is off (nothing to solve)\n"); return 1; }
+  const int was = art::rigVersion();
+  art::setRigVersion(2);
+  Solver S;
+  S.seedCompiled = !fresh;
+  S.build(1, w1);
+  std::vector<std::string> log;
+  const int f0 = S.totalFails(&log);
+  std::printf("forge-own-solve: %zu figures, %zu cells, %zu scopes; the rule: %d failure(s)\n", S.refs.size(), S.cells.size(), S.scopes.size(), f0);
+  const size_t cap = std::getenv("FORGE_ALL") ? (size_t)-1 : 60;
+  for (size_t i = 0; i < log.size() && i < cap; i++) std::printf("    %s\n", log[i].c_str());
+  std::fflush(stdout);
+  // phase 1: the freed helms and moved skirts (the rule's variables); phase 2: a figure still in a failure may move its kept
+  // P5 helm or skirt too (at a cost: the own look stays P5's where it can), its cells added and the rounds run again
+  std::vector<int> active;
+  for (size_t k = 0; k < S.cells.size(); k++) active.push_back((int)k);
+  for (int phase = phase0; phase <= 2 && !dry; phase++) {
+    if (phase == 2) {
+      std::set<int> badRefs;
+      S.badSink = &badRefs;
+      S.totalFails(nullptr);
+      S.badSink = nullptr;
+      const size_t before = S.cells.size();
+      for (int i : badRefs) S.cellsFor(i, true);
+      for (size_t k = before; k < S.cells.size(); k++) {
+        Cell& c = S.cells[k];
+        c.pick = 0;
+        for (size_t q = 1; q < c.cand.size(); q++) if (c.cost[q] < c.cost[(size_t)c.pick]) c.pick = (int)q;
+      }
+      // (phase 2 works the cells of the figures still in a failure: the rest sat at their best in phase 1)
+      active.clear();
+      for (size_t k = 0; k < S.cells.size(); k++)
+        for (int r : S.cells[k].refs)
+          if (badRefs.count(r)) { active.push_back((int)k); break; }
+      std::printf("  phase 2: %zu figure(s) in a failure, %zu cell(s) added, %zu worked\n", badRefs.size(), S.cells.size() - before, active.size());
+      if (badRefs.empty()) break;
+    }
+    for (int round = 1; round <= rounds; round++) {
+      int moved = 0;
+      for (size_t q = 0; q < active.size(); q++) {
+        moved += S.improve(S.cells[(size_t)active[q]]) ? 1 : 0;
+        if (q % 50 == 49) { std::printf("    (phase %d round %d: %zu of %zu cells, %d moved)\n", phase, round, q + 1, active.size(), moved); std::fflush(stdout); }
+      }
+      log.clear();
+      const int f = S.totalFails(&log);
+      std::printf("  phase %d round %d: %d cell(s) moved, %d failure(s), soft %.2f, %d composes\n", phase, round, moved, f, S.soft(), S.composes);
+      std::fflush(stdout);
+      if (!moved || !f) break;
+    }
+  }
+  log.clear();
+  const int fN = S.totalFails(&log);
+  for (size_t i = 0; i < log.size() && i < 80; i++) std::printf("    left: %s\n", log[i].c_str());
+  std::string text =
+      "// GENERATED by rpg_test --forge-own-solve (tools/tests/test_doll_shapes.cpp; STYLE_P5B 2.5): the own-look table, the solved own\n"
+      "// look of a non-kit alloy under FIX_SIG per people, school and rank. NEVER hand-edit: re-solve.\n"
+      "// {people, school, rank, helm T4, variant T4, helm T5, variant T5, skirt, motif} (art::doll::forge SX_* values; 0 the rule)\n";
+  text += fmt("// measured: board set, worlds 1..%d windows, seeds 1..8 (C16o C16m), the owner's 37; %d failure(s) left (the rule: %d)\n", w1, fN, f0);
+  text += "static const OwnCell kOwnCells[] = {\n";
+  int nc = 0;
+  for (int p = 0; p < 12; p++)
+    for (int s = 0; s < 36; s++)
+      for (int r = 0; r < 3; r++) {
+        const uint8_t* e = S.entry(p, s, r);
+        if (!e[0] && !e[2] && !e[4] && !e[5]) continue;
+        text += fmt("    {%2d, %2d, %d, %2d, %d, %2d, %d, %d, %d},   // %s\n", p, s, r, e[0], e[1], e[2], e[3], e[4], e[5], kPeople[p]);
+        nc++;
+      }
+  if (!nc) text += "    {255, 0, 0, 0, 0, 0, 0, 0, 0},\n";
+  text += "};\nstatic const int kOwnCellCount = (int)(sizeof kOwnCells / sizeof kOwnCells[0]);\n";
+  gear::setOwnLookOverride(nullptr);
+  art::setRigVersion(was);
+  if (dry) return fN ? 1 : 0;
+  std::ofstream f(out, std::ios::binary);
+  if (!f) { std::printf("FAIL: cannot write %s\n", out.c_str()); return 1; }
+  f << text;
+  std::printf("forge-own-solve: wrote %s (%d cells); %d failure(s) left (the rule: %d)\n", out.c_str(), nc, fN, f0);
+  return fN ? 1 : 0;
+}
+}  // namespace own
+}  // namespace dollshapes
+RPG_TEST_CMD("--forge-own-solve", "P5b2 fix r1: solve the own-look table (decision 8's non-kit alloys) on the real figures [--rounds N] [--worlds W] [--dry] [--out f]",
+             dollshapes::own::solveCmd);

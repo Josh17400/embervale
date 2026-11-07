@@ -513,6 +513,32 @@ struct SigHold {
   }
 };
 static SigHold sigHoldOf(const HumanLook& L, const DollRamps& R);
+// (P5b2 fix r1, judge item 2a) a C14 parting's metal move keeps what C17 reads where the ramp had it: the round-2 read (out of
+// the skin box, a warm metal's lit plane toward the gold) and an antique bronze or brass's D52 body (step 1 at 45 or less, step
+// 2 at luma 95-125, step 3 at 175 or more). The people's cloth on the signed kits (the Jade's vermilion lacing, the Highland's
+// green) moved what the metal parts from, and the movers took PEAT BRONZE's body into the skin box and the Jade brass's antique
+// body to luma 65; the other side of the pair moves instead (C14's own order). FIX_SIG only: P5's ramps are unchanged
+static bool metalSkinBox(uint32_t c) {   // (doll_alloy's metalRead2 term: HSV hue 5-45, Lab chroma 25-60, luma 110-210)
+  const double r = (c & 255) / 255.0, g = (c >> 8 & 255) / 255.0, b = (c >> 16 & 255) / 255.0, mx = std::max({r, g, b}), mn = std::min({r, g, b});
+  double h = mx - mn < 1e-9 ? 0 : mx == r ? std::fmod((g - b) / (mx - mn), 6.0) : mx == g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+  h = h * 60.0 < 0 ? h * 60.0 + 360.0 : h * 60.0;
+  const Lab l = toLab(c);
+  const double C = std::hypot(l.a, l.b), y = luma(c);
+  return h >= 5.0 && h <= 45.0 && C >= 25.0 && C <= 60.0 && y >= 110.0 && y <= 210.0;
+}
+static bool metalKeepsRead(const HumanLook& L, const uint32_t* was, const uint32_t* t) {
+  if (!fixOn(FIX_SIG)) return true;
+  for (int st = 2; st <= 3; st++) if (!metalSkinBox(was[st]) && metalSkinBox(t[st])) return false;
+  const int fam = L.alloyFam ? L.alloyFam - 1 : alloyFamilyOf(L.armourTint, L.sheen);
+  const bool warm = alloyFamilyMetal(fam) <= 1, alloy = L.metalKind == 10;
+  auto d52 = [](const uint32_t* r) { return luma(r[1]) <= 45.0 && luma(r[2]) >= 95.0 && luma(r[2]) <= 125.0 && luma(r[3]) >= 175.0; };
+  if (alloy && L.sheen == 3 && warm && d52(was) && !d52(t)) return false;
+  // (and the sheens' tells C17 reads: the cold metals' blackened body under 90 luma, a pale alloy's whitened body at 150 or more)
+  if (alloy && L.sheen == 3 && !warm && luma(was[2]) <= 90.0 && luma(t[2]) > 90.0) return false;
+  if (alloy && L.sheen == 7 && luma(was[2]) >= 150.0 && luma(t[2]) < 150.0) return false;
+  return true;
+}
+
 DollRamps rampsOf(const HumanLook& L) {
   DollRamps R = a3Palette(L.body == 1 ? 1 : 0);
   // skin: the curated ramp from A3's four skins (elves a shade paler and cooler); the face's mouth, lip and blush with it
@@ -1223,6 +1249,7 @@ DollRamps rampsOf(const HumanLook& L) {
                   const float was = deltaE76(T[st], R.c[(int)o.first][st]);
                   if (deltaE76(t[st], R.c[(int)o.first][st]) < std::min(o.second, was)) return false;
                 }
+            if (who == S::Metal && !metalKeepsRead(L, T, t)) return false;   // (P5b2 fix r1: C17's round-2 read and D52)
             return luma(t[2]) - luma(T[0]) >= 40.0;
           };
           for (int k = 1; k <= 40; k++)
@@ -1704,9 +1731,46 @@ static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead
 // pink); each moved step keeps the lightness the parting chose and takes back its people's hue (sigRamp's per-step hue) at
 // the chroma the gamut allows there, so the contacts it parted stay parted and the cloth stays its people's colour
 static void sigRehue(DollRamps& R, const HumanLook& L, const DollRamps& was);
+// (P5b2 fix r1, judge item 2a; C17: "steps 2-3 off the leather and cloth, 15 dE") a styled figure's shirt, trousers and leather
+// that the partings left within 15 dE of its metal's body or lit plane (the Jade kit's INK IRON on its lavender trousers: the
+// signed cloth moved what the trousers part from, and rampsOf's dE-keeping moves all failed) climb whole (lighter first, steps
+// 1-4, hue kept) until 16 dE clear, every pair that was 18 luma apart kept so, the signed cloth inside its window. FIX_SIG only
+static bool clothOffMetal(DollRamps& R, const HumanLook& L) {
+  if (!fixOn(FIX_SIG) || !L.forge[HumanLook::TIER_BODY]) return false;
+  using S = Slot;
+  const uint32_t* M = R.c[(int)S::Metal];
+  const SigHold hold = sigHoldOf(L, R);
+  static const S kAll[] = {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin, S::Leather, S::Accent, S::Cloak, S::Field};
+  auto near = [&](const uint32_t* t) { for (int st = 2; st <= 3; st++) if (deltaE76(t[st], M[st]) < 15.5f) return true; return false; };
+  bool moved = false;
+  for (S who : {S::Cloth2, S::Cloth1, S::Leather}) {
+    uint32_t* T = R.c[(int)who];
+    if (!near(T)) continue;
+    std::vector<S> keep;
+    for (S o : kAll) if (o != who && std::fabs(luma(T[2]) - luma(R.c[(int)o][2])) >= 18.0) keep.push_back(o);
+    bool done = false;
+    for (int k = 1; k <= 60 && !done; k++)
+      for (double dir : {1.0, -1.0}) {
+        const double f = 1.0 + dir * 0.0125 * k;
+        uint32_t t[5];
+        t[0] = T[0];
+        for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+        if (luma(t[4]) > std::max(252.0, luma(T[4]) + 0.5) || luma(t[2]) - luma(t[0]) < 40.0 || !hold.ok(who, t)) continue;
+        bool ok = true;
+        for (int st = 2; st <= 3; st++) if (deltaE76(t[st], M[st]) < 16.0f) ok = false;
+        for (S o : keep) if (std::fabs(luma(t[2]) - luma(R.c[(int)o][2])) < 18.0) ok = false;
+        if (!ok) continue;
+        for (int q = 1; q < 5; q++) T[q] = t[q];
+        done = moved = true;
+        break;
+      }
+  }
+  return moved;
+}
 bool partByContact(DollRamps& R, const HumanLook& L, const ContactRead& cr, bool edgeOwn, bool dbg) {
   const DollRamps was = R;
-  const bool moved = partByContactRaw(R, L, cr, edgeOwn, dbg);
+  bool moved = partByContactRaw(R, L, cr, edgeOwn, dbg);
+  moved = clothOffMetal(R, L) || moved;
   if (moved) sigRehue(R, L, was);
   return moved;
 }
@@ -1742,6 +1806,7 @@ static bool partByContactRaw(DollRamps& R, const HumanLook& L, const ContactRead
         for (int st = 2; st <= 3; st++)
           for (const std::pair<S, float> o : {std::pair<S, float>{S::Skin, 20.0f}, {S::Leather, 15.0f}, {S::Cloth1, 15.0f}})
             if (deltaE76(t[st], R.c[(int)o.first][st]) < std::min(o.second, deltaE76(T[st], R.c[(int)o.first][st]))) return false;
+        if (!metalKeepsRead(L, T, t)) return false;   // (P5b2 fix r1: C17's round-2 read and D52's antique body)
       }
       return true;
     };

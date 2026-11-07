@@ -102,9 +102,22 @@ bool kitTwinPair(const cult::Culture& a, int ia, int ta, const cult::Culture& b,
 // a non-kit alloy body's skirt under FIX_SIG: its own, unless one of the kingdom's kit bodies (the people's signature at T4 or
 // T5) wears it, or the kit of another people whose signed head is this helm's family (helm: the piece's own family, 0 none),
 // then the people's next menu skirt none of those kits wears (C16o, C18a)
-int ownAlloySkirt(const cult::Culture& c, int skirt, int helm);
+// (P5b2 fix r1) the own-look table's cell for the alloy's people, school and rank goes first (rpg_test --forge-own-solve)
+int ownAlloySkirt(const cult::Culture& c, int alloyIndex, int skirt, int helm);
+bool ownAlloySkirtMoved(const cult::Culture& c, int skirt, int helm);   // the rule moves this skirt (the solver's variables)
+// a non-kit alloy body's motif: the own-look table's, else its own
+int ownAlloyMotif(const cult::Culture& c, int alloyIndex, int motif);
+std::vector<int> ownSkirtChoices(const cult::Culture& c);   // the people's skirts no kit body wears (T4, T5)
 // variant: set to the freed family's variant by the alloy's name (-1: the family is its own, keep the piece's variant)
 int ownAlloyHelm(const cult::Culture& c, int alloyIndex, int tier, int* variant = nullptr);
+bool ownAlloyHelmFreed(const cult::Culture& c, int alloyIndex, int tier);   // the rule frees this piece's helm (ruled out, signed, pinned)
+// the families an own helm may take at the tier; second: another people's signed family there (the solver's last resort)
+std::vector<std::pair<int, bool>> ownHelmChoices(const cult::Culture& c, int tier);
+// (test only) the own-look table override (uint8_t[12][36][3][6]: helm T4, variant T4, helm T5, variant T5, skirt, motif; 0 the
+// rule), its size and the compiled table's bytes
+void setOwnLookOverride(const uint8_t* table);
+int ownLookTableSize();
+void ownLookCompiled(uint8_t* out);
 // a worn piece's silhouette: a Mythic metal piece the MYTHIC's, an alloy its maker's alloyShape, else its material's
 // heroShape (cloth padded HOMESPUN); all 0 for a piece with no armour look
 Shape shapeOf(const Item& it, const cult::Culture* maker);

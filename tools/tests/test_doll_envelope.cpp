@@ -939,6 +939,17 @@ void rowBrass(Line& g, const std::vector<Built>& looks, const char* tag, int ite
     bool any = false;
     for (const auto& it : F.d.p.items) any |= it.has(Role::Pauldron) && it.side == side;
     if (!any) continue;
+    // (P5b2) a shoulder the people's half cape drapes (STYLE_P5B 5: the Steppe's rust half cape over the left shoulder) shows
+    // under a third of the plate the other shoulder shows: no plane there to read; the other shoulder, the helm and the torso
+    // carry the brass
+    auto shownOf = [&](int sd) {
+      int n = 0;
+      for (int k = 0; k < F.d.p.w * F.d.p.h; k++) { const auto* it = F.d.fig(k) ? F.d.it(k) : nullptr; n += it && it->has(Role::Pauldron) && it->side == sd; }
+      return n;
+    };
+    const int shown = shownOf(side), other = shownOf(3 - side);
+    if (std::getenv("ENV_DEBUG")) std::printf("      %s shoulder %d: %d px shown (the other %d)\n", id.c_str(), side, shown, other);
+    if (shown * 3 < other) continue;
     g.check(litPlane(F.d, [&](int k) { const auto* it = F.d.it(k); return it && it->has(Role::Pauldron) && it->side == side; }) >= 4,
             id + fmt(": no 4 px lit plane on the %s shoulder", side == 1 ? "right" : "left"));
   }
@@ -971,8 +982,10 @@ void rowBrass(Line& g, const std::vector<Built>& looks, const char* tag, int ite
       if (!F.r.fig(k) || back == (1 << 20)) continue;
       const auto* it = F.r.it(k);
       if (it && it->has(Role::Cloak) && b->L.alloyRank == 3) continue;
-      // (the body's back: the head, its hat's brim and the hair are the head's own outline, C3b's)
-      if (it && (it->has(Role::Helm) || it->has(Role::Headwear) || it->has(Role::Head) || it->has(Role::Hair))) continue;
+      // (the body's back: the head, its hat's brim and the hair are the head's own outline, C3b's; (P5b2) and the helm's crest,
+      // an overlay on the headwear layer: the Jade kabuto's fin sweeping past the nape at head height)
+      if (it && (it->has(Role::Helm) || it->has(Role::Headwear) || it->has(Role::Head) || it->has(Role::Hair) ||
+                 (it->has(Role::Overlay) && it->part.rfind("headwear/", 0) == 0))) continue;
       worst = std::max(worst, back - k % F.r.p.w);
       if (back - k % F.r.p.w > 3 && std::getenv("ENV_DEBUG"))
         std::printf("      behind %s (%d,%d) %d px part %s\n", id.c_str(), k % F.r.p.w - F.r.p.px, k / F.r.p.w - F.r.p.py, back - k % F.r.p.w, it ? it->part.c_str() : "-");
@@ -1416,7 +1429,10 @@ int adefectRows(const std::vector<Built>& looks, std::vector<Line>& lines) {
   if (const Built* u = find(looks, "a_uha"))
     if (const Built* j = find(looks, "a_jaon")) {
       const double od = doll::outlineDistance(doll::outlineOf(u->r), doll::outlineOf(j->r)).body;
-      lines[0].check(od >= 0.08, fmt("A1 a_uha: body OD to JAONBRASS %.3f (0.08)", od));
+      // (P5b2, STYLE_P5B 2.5, decision 8 reading 1) UHABRASS and JAONBRASS are two kingdoms' everyday alloys at T4: two kit alloys
+      // of the Jade at one tier, one look by design (the people's signature), not parted (gear::kitTwinPair)
+      const bool kitPair = gear::kitTwinPair(gear::kitCulture(cult::Archetype::Jade, 2), 0, 4, gear::kitCulture(cult::Archetype::Jade, 5), 0, 4);
+      lines[0].check(kitPair || od >= 0.08, fmt("A1 a_uha: body OD to JAONBRASS %.3f (0.08)", od));
     }
   if (const Built* j = find(looks, "a_jaon"))
     for (const char* t : {"a_papir", "a_crane"})

@@ -233,8 +233,10 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     if (L.floor >> H::TIER_BODY & 1) s = heroShape(art::doll::forge::B_HOMESPUN, nullptr);
     else if (g.armor && lookTier(*g.armor, maker(g.armor)).tier) {
       s = shapeOf(*g.armor, maker(g.armor));
-      if (own & art::doll::forge::SHAPE_OWN_BODY)   // (P5b2, C16o, C18a) beside the kit bodies (the body piece's own helm family)
-        s.skirt = (uint8_t)ownAlloySkirt(*maker(g.armor), s.skirt, alloyShape(*maker(g.armor), g.armor->alloy - 1).helm);
+      if (own & art::doll::forge::SHAPE_OWN_BODY) {   // (P5b2, C16o, C18a) beside the kit bodies (the body piece's own helm family)
+        s.skirt = (uint8_t)ownAlloySkirt(*maker(g.armor), g.armor->alloy - 1, s.skirt, alloyShape(*maker(g.armor), g.armor->alloy - 1).helm);
+        s.motif = (uint8_t)ownAlloyMotif(*maker(g.armor), g.armor->alloy - 1, s.motif);   // (fix r1, C16m) the solved motif
+      }
       // (wave-2 fix round 2, D84 restated: "at its T6's area or more by construction") a Mythic relic body (gilded, obsidian,
       // emberforged, starmetal steel) wears MYTHIC's black, gold and fire and its tells over its own metal's outline (the
       // resolver reads relicBody: STARFALL's split skirt, FURNACE's heavy arms), as its helm keeps its family (D83)
@@ -346,7 +348,8 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
         int v = -1;
         const int f = ownAlloyHelm(*realm, idx, L.tier[H::TIER_HELM] ? L.tier[H::TIER_HELM] : t, &v);
         if (v >= 0) { sh.helm = (uint8_t)f; sh.variant = (uint8_t)v; }
-        sh.skirt = (uint8_t)ownAlloySkirt(*realm, sh.skirt, alloyShape(*realm, idx).helm);
+        sh.skirt = (uint8_t)ownAlloySkirt(*realm, idx, sh.skirt, alloyShape(*realm, idx).helm);
+        sh.motif = (uint8_t)ownAlloyMotif(*realm, idx, sh.motif);
       }
       if (!L.tier[H::TIER_HELM]) sh.helm = 0;
       if (!L.tier[H::TIER_BODY]) { const uint8_t h = sh.helm; sh = Shape{}; sh.helm = h; }
@@ -882,7 +885,11 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
       if (!ok) addBad(kv.k);
       bool any = false;
       for (uint8_t x : sv) any |= x != 0;
-      L.forgeShape = any ? FG::packShapeAxes(sv) : 0u;
+      // (P5b2 fix r1, judge item 6) the forced silhouette keeps the pieces' own bits (SHAPE_OWN_BODY, SHAPE_OWN_HELM: set only
+      // under FIX_SIG): a non-kit alloy forced to a key still draws that key in its own cut, as the shape table's measure
+      // (tableCheck's bodyOf, headOf: alloy 2 at T4) and C18a's board figures read it, never the people's signature
+      const uint32_t ownBits = L.forgeShape & (FG::SHAPE_OWN_BODY | FG::SHAPE_OWN_HELM);
+      L.forgeShape = any ? FG::packShapeAxes(sv) | ownBits : 0u;
     } else if (!art::doll::applyLadderLookField(L, kv.k, kv.v)) {   // forgeShape, forgeBody..forgeBack: the one ladder setter
       addBad(kv.k);
     }
