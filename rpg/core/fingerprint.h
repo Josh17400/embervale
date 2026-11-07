@@ -85,7 +85,8 @@ inline constexpr Sig kSigJade{0xE8641C, 0x1C1A1E, "oval", 0, true, 0, {
     {"fam.kabuto", 0, "",      "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 0, "fin",   "bell",    "drop",   "layered", "sash",     "wide"},
     {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide", false, true},
-    {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide"}}};   // (P5b2 A) T5's kuwagata grown, the crest crown between
+    {"fam.kabuto", 1, "horns", "bell",    "drop",   "layered", "tabard",   "wide", false, true}}};   // (P5b2 A) T5's kuwagata grown, the crest crown between;
+    // (P5b2 fix r3, judge item 1: "Jade T6 is a teal block and has lost T5's gilt kuwagata") the grown kuwagata in the gilt as at T5
 // Imperial (rectangular, banded, the crest's arc): the bronze knob cap, then the crested helm with a transverse crimson crest,
 // the Attic crest at the top; banded shoulders, pteruges, the focale, the paludamentum, the scutum; crimson and gold
 inline constexpr Sig kSigImperial{0x7C082A, 0xE2B840, "tower", 0xB4243C, false, 0xCB9034, {
