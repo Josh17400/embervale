@@ -66,7 +66,7 @@ detail and the plumbing (section 8).
    takes the people's next menu skirt (`gear::ownAlloySkirt`; C16o, C18a). One pin (`kOwnHeads`): GWESTEEL's morion is the
    River's T4 signature, so it wears the snout (C16k). The gates: two kit alloys of one people at one tier are skipped
    (`gear::kitTwinPair`: C16k, C16o, C16m, C18a); a kingdom's kit pair at T4 and T5 (its signature a tier apart, the one body
-   growing) is parted by the head alone (C16o, C16m, C18b: head 0.10; pending the owner, decision 9). **(P5b2 fix r1)** The freed helm (family and variant), a moved skirt and an own body's motif come from the
+   growing) is parted by the head alone (C16o, C16m, C18b: head 0.10; decision 9, ruled 2026-11-07: reading 1). **(P5b2 fix r1)** The freed helm (family and variant), a moved skirt and an own body's motif come from the
    own-look table (`rpg/sim/gear_forge_own.inc`, solved by `rpg_test --forge-own-solve` on the real figures against C18a-b on
    the board set and worlds 1-6, C16o and C16m on seeds 1..8, C16k on the owner's 37 and the judge's board check: no same-tier
    pair with an OWN side a head or greyscale twin), as the shape table is by `--forge-solve`; cells it never measured keep the
@@ -574,14 +574,18 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    from the alloy's own axes, unsolved: 2 / 8 / 20 / 8 / 6; own heads on the signature body: 22 / 23 / 107 / 41 / 8. Reading
    2 needs the solver round (engineer-high); reading 1 needs the owner's yes.
 
-9. **(fix r1, pending the owner) A kingdom's kit pair a tier apart.** The owner's ruling (decision 8) exempts only two kit
+9. **(fix r1) A kingdom's kit pair a tier apart.** **Ruled 2026-11-07: reading 1** (the owner: "that is a clash. Let's do
+   your recommendation"): the exemption stays as the rule's text, and `kitLadderPair` (tools/tests/test_doll_shapes.cpp) is that
+   text in code. The owner's ruling (decision 8) exempts only two kit
    alloys of one people at ONE tier; the gates also part a kingdom's own everyday (T4) and masterwork (T5) by the head alone
    (`kitLadderPair`, tools/tests/test_doll_shapes.cpp: C16o, C16m, C18b), the people's signature a tier apart on its one body.
-   Gated like any other pair they add 228 failing lines (C18b 174 over the board set and worlds 1-6, C16o 51, C16m 3): the
+   Gated like any other pair they fail C16o 51, C16m 3 and C18b 40, 40, 58, 48, 41 and 42 in sil_w1-6 (the board set's 40
+   counted in each world; the judge's measure, P5b2 r2, with `kitLadderPair` returning false; fix r1's "174" was wrong): the
    signature's T4 and T5 bodies sit 0.041 (Sun Temple) to 0.079 (Steppe) body OD apart where C16o and C18b ask 0.08, the
    slice's approved T5 kits among them. Reading 1 (recommended): keep the exemption as the rule's text (two kit alloys of one
    kingdom at T4 and T5 parted by the head, 0.10). Reading 2: remove it and redraw every people's T5 body 0.08 off its T4 (the
-   approved slice's T5 bodies change; slice_same falls). Until the owner rules, the exemption stays in the code.
+   approved slice's T5 bodies change; slice_same falls). Under the ruling the code keeps the exemption, exactly as above:
+   a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
 
 ## 11. Don'ts
 

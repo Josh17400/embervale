@@ -223,7 +223,8 @@ bool sigOpenMask(const doll::DollRecipe& r) {
 // (P5b2) an alloy's tier on gear::alloyKitLook's figure (the boards, C16o, C16m, C18): the first two at T4, the rest T5
 int kitTier(int alloyIndex) { return alloyIndex >= 2 ? 5 : 4; }
 // (P5b2, STYLE_P5B 2.5) a kingdom's two kit alloys at two tiers (the everyday at T4, the masterwork at T5): the people's signature
-// a tier apart, one body growing (section 5); under FIX_SIG only
+// a tier apart, one body growing (section 5); under FIX_SIG only. STYLE_P5B 10 decision 9, ruled 2026-11-07 reading 1 (the
+// owner: "let's do your recommendation"): such a pair is parted by the head alone (C16o, C16m, C18b: head OD 0.10)
 bool kitLadderPair(const cult::Culture& c, int i, int ti, int j, int tj) {
   return ti != tj && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) && gear::kitAlloy(c, i, ti) && gear::kitAlloy(c, j, tj);
 }
