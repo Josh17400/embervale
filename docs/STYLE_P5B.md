@@ -66,7 +66,15 @@ detail and the plumbing (section 8).
    takes the people's next menu skirt (`gear::ownAlloySkirt`; C16o, C18a). One pin (`kOwnHeads`): GWESTEEL's morion is the
    River's T4 signature, so it wears the snout (C16k). The gates: two kit alloys of one people at one tier are skipped
    (`gear::kitTwinPair`: C16k, C16o, C16m, C18a); a kingdom's kit pair at T4 and T5 (its signature a tier apart, the one body
-   growing) is parted by the head alone (C16o, C16m, C18b: head 0.10). C16m reads the torso with the shield aside (the people's
+   growing) is parted by the head alone (C16o, C16m, C18b: head 0.10; pending the owner, decision 9). **(P5b2 fix r1)** The freed helm (family and variant), a moved skirt and an own body's motif come from the
+   own-look table (`rpg/sim/gear_forge_own.inc`, solved by `rpg_test --forge-own-solve` on the real figures against C18a-b on
+   the board set and worlds 1-6, C16o and C16m on seeds 1..8, C16k on the owner's 37 and the judge's board check: no same-tier
+   pair with an OWN side a head or greyscale twin), as the shape table is by `--forge-solve`; cells it never measured keep the
+   rule above. The rule's per-culture picks put two kingdoms' freed helms on one look (FROSTSTEEL's kettle on BARSTEEL's).
+   **Kings:** the king's helm never takes a ranked fighter's kit jitter (his masterwork at T5 is the kit alloy: the T5 head);
+   declared king variants: the Heartland king wears his masterwork alloy's own head (the Heartland row signs each helm with
+   its own, the hero's road's gilt onion is the material's, D83), the Sylvan and Starspire kings the T5 kit's family and crest
+   (their own hair and the king's band-4 crown helm move 20-23 % of the head's top 14 rows). C16m reads the torso with the shield aside (the people's
    round shield covered BARSTEEL's torso: 67 px of the box). *Why not the plan's first text* ("alloys part by the family's variant and crest; the
    secondary serves the warriors' alloy"): measured in fix r2, a variant or crest moves a head 0.00-0.05 OD (C16k wants 0.10),
    section 5's one body per tier gives body OD 0 between a kingdom's alloys (C16o wants 0.08), the Fjordfolk secondary is the
@@ -565,6 +573,15 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    Heartland's frozen T4) / 145 (same-people kit pairs) / 30 / 3; only the seed-1 kingdom signed: 14 / 241 / 0 / 2 / 1; marks
    from the alloy's own axes, unsolved: 2 / 8 / 20 / 8 / 6; own heads on the signature body: 22 / 23 / 107 / 41 / 8. Reading
    2 needs the solver round (engineer-high); reading 1 needs the owner's yes.
+
+9. **(fix r1, pending the owner) A kingdom's kit pair a tier apart.** The owner's ruling (decision 8) exempts only two kit
+   alloys of one people at ONE tier; the gates also part a kingdom's own everyday (T4) and masterwork (T5) by the head alone
+   (`kitLadderPair`, tools/tests/test_doll_shapes.cpp: C16o, C16m, C18b), the people's signature a tier apart on its one body.
+   Gated like any other pair they add 228 failing lines (C18b 174 over the board set and worlds 1-6, C16o 51, C16m 3): the
+   signature's T4 and T5 bodies sit 0.041 (Sun Temple) to 0.079 (Steppe) body OD apart where C16o and C18b ask 0.08, the
+   slice's approved T5 kits among them. Reading 1 (recommended): keep the exemption as the rule's text (two kit alloys of one
+   kingdom at T4 and T5 parted by the head, 0.10). Reading 2: remove it and redraw every people's T5 body 0.08 off its T4 (the
+   approved slice's T5 bodies change; slice_same falls). Until the owner rules, the exemption stays in the code.
 
 ## 11. Don'ts
 

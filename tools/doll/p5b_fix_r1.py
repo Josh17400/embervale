@@ -207,7 +207,66 @@ def apply_caps(path, report):
 # the River morion's boat brim and the Fjordfolk jarl's horns 3 columns, the Highland chief's brim and the Sun Temple and
 # Starspire shells 2 (T6) and 2 (T5); the most redundant column of the reach goes, the tip's own kept (as the rows above)
 COL_CAP = {'A2:fjordfolk-jarl6': 3, 'A2:highland-chief6': 2, 'C2:river-t5': 3, 'C2:river-t6': 3, 'C2:suntemple-t6-fan': 2,
-           'C2:starspire-t5': 2, 'C2:starspire-t6': 2}
+           'C2:starspire-t5': 2, 'C2:starspire-t6': 2,
+           # (C3b: a helm pixel 3 columns past the head box at T5-T6, every frame) the Sun Temple T5 fan, the Starspire T6 star
+           'C2:suntemple-t5-fan': 3, 'C2:starspire-t6-star': 3}
+
+
+SHIFT_BLOCKS = {'C2:starspire-t6-star'}
+
+
+def shift_outer(lines, v, rows, w, x0, x1, kl, kr):
+    """move the separate drawn pieces that reach past the cap (each wholly outside the head box) in by the excess; (0, 0)"""
+    i, head, g0, g1, r0, r1, blk = v
+    h = len(rows)
+    grid = [list(r) for r in rows]
+    reg = [list(lines[y][1:].rstrip('\r').ljust(w, '.')) for y in range(r0, r1)] if r0 is not None else None
+    seen = [[False] * w for _ in range(h)]
+    moved = False
+    for y0 in range(h):
+        for xs in range(w):
+            if seen[y0][xs] or grid[y0][xs] in '. -':
+                continue
+            comp = []
+            st = [(xs, y0)]
+            seen[y0][xs] = True
+            while st:
+                x, y = st.pop()
+                comp.append((x, y))
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < w and 0 <= ny < h and not seen[ny][nx] and grid[ny][nx] not in '. -':
+                            seen[ny][nx] = True
+                            st.append((nx, ny))
+            lo, hi = min(c[0] for c in comp), max(c[0] for c in comp)
+            if kl and hi < x0 and lo < x0 - COL_CAP[blk]:
+                d = kl
+            elif kr and lo > x1 and hi > x1 + COL_CAP[blk]:
+                d = -kr
+            else:
+                continue
+            cells = {(x, y): (grid[y][x], reg[y][x] if reg else '.') for x, y in comp}
+            for x, y in comp:
+                grid[y][x] = '.'
+                if reg:
+                    reg[y][x] = '.'
+            for (x, y), (c, r) in cells.items():
+                if 0 <= x + d < w:
+                    grid[y][x + d] = c
+                    if reg:
+                        reg[y][x + d] = r
+            moved = True
+    if not moved:
+        return None
+    for k, y in enumerate(range(g0, g1)):
+        eol = '\r' if lines[y].endswith('\r') else ''
+        lines[y] = '|' + ''.join(grid[k]) + eol
+    if reg:
+        for k, y in enumerate(range(r0, r1)):
+            eol = '\r' if lines[y].endswith('\r') else ''
+            lines[y] = '|' + ''.join(reg[k]) + eol
+    return 0, 0
 
 
 def cap_cols_view(lines, v):
@@ -232,15 +291,18 @@ def cap_cols_view(lines, v):
     kr = max(0, (drawn[-1] - x1) - cap)
     if not kl and not kr:
         return None
+    if blk in SHIFT_BLOCKS:   # (a ring of separate stars: the outer ones move in whole, never cut through)
+        return shift_outer(lines, v, rows, w, x0, x1, kl, kr)
     def col(x):
         return [r[x] not in '. -' for r in rows]
     def redundant(lo, hi, k):
         cand = []
         for x in range(lo, hi):
             a, b = col(x), col(x + 1)
-            cand.append((sum(1 for y in range(len(rows)) if a[y] != b[y]), x))
+            # (an empty column first: the Starspire aureole's stars move in whole; then the one most like its neighbour)
+            cand.append((sum(a), sum(1 for y in range(len(rows)) if a[y] != b[y]), x))
         cand.sort()
-        return [c[1] for c in cand[:k]]
+        return [c[2] for c in cand[:k]]
     cut = []
     if kl:
         cut += redundant(drawn[0] + 1, x0 - 1, kl)   # (between the reach's tip and the box)
@@ -286,7 +348,7 @@ def apply_col_caps(path):
                     m = re.match(r'^mark (\S+) (-?\d+) (-?\d+)(\r?)$', lines[j])
                     if m:
                         lines[j] = 'mark %s %d %s%s' % (m.group(1), int(m.group(2)) - left, m.group(3), m.group(4))
-                n += left + right
+                n += left + right if (left or right) else 1   # (a shift counts one)
                 done = False
                 break
         if done:
