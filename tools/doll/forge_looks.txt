@@ -79,3 +79,9 @@ g_cov5w  woman  kit=jade:4:1,alloy=1,palette=look,shieldForm=9,weapon=0,shape=sk
 g_cov6   man    kit=highland:2:1,forge=foundry,palette=look                                stay,walk,run,didle,hit1,hurt,fall,lying
 g_cov7   man    kit=highland:2:1,forge=parade,palette=look                                 stay,walk,run,didle,hit1,hurt,fall,lying
 g_cov8   man    kit=heartland:1:1,wpn=sword,backItem=2,palette=look                        stay,walk,run,didle,hit1,hurt,fall,lying
+# (P5b2 fix r2, judge item 3: B6's dead part headwear/helm/horned_legend) the Epic everyday at T5 (gear::lookTier: an Epic
+# piece a tier up; STYLE_P5B 2.5: a non-kit alloy keeps its own helmet and cut, horns allowed from T5): Sylvan seed 1's
+# STAGBRONZE, its own horned helm grown at T5 (horned_legend's fore-aft crest), as the hero wears an Epic STAGBRONZE helm. Under
+# FIX_SIG the kits' horned heads (the Fjordfolk T5-T6 jarl) grow themselves, and the king's helm no longer drops a tier into
+# its masterwork's own horned family at T4 (fix r1: no horns below T5), so no counted source drew the legend part
+g_cov9   man    kit=sylvan:5:1,alloy=1,palette=look                                        stay,walk,run,didle,hit1,hurt,fall,lying
