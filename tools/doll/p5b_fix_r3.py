@@ -10,8 +10,9 @@ no view drawn before this round changes a cell. Run it LAST, after p5b_fix_r2.py
 
 The blocks (C12 the ladder reads, source L; never the style slice's frames: Fjordfolk, Imperial and Jade at T1/T3/T5):
   dune-t3-tail    (C12c: lt2 -> lt3 facing R/L the figure shrank 542 -> 498 px: the T2 turban's wide cloth gone into the T3
-                  kulah's narrow bowl) the kulah's turban cloth wound on and its tail hanging down the back over the mail
-                  curtain, fringed at its end: the T3 head reads as the T2 turban grown into a helm, not lost
+                  kulah's narrow bowl) the kulah's turban cloth wound up the dome's back and a pixel proud at the brow, a stub of
+                  its tail at the nape (498 -> 508 px; a tail down the back covered the greatsword's raised fists, C3d, and closed
+                  a pocket at the neck, C3a: cut back; the rest of the lt2 -> lt3 step is left open)
   imperial-t2-edge (C12b step 4: the Imperial woman's lt1 -> lt2 D step-4 metal 7 -> 5) the T2 near shoulder's lit edge
                   polished down both lames (the woman's: one 3 px glint where two 1 px glints stood; A8 caps a figure at three glints; the man keeps his hinges)
   suntemple-t4-edge, marsh-t6-edge (C12b cloak trim: the Sun Temple man's T4 D 4.9 %, the Marsh woman's T6 D 9.4 %) the
