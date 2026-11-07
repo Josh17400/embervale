@@ -495,20 +495,21 @@ def heartland(tier):
 # a column further out and two rows higher, thicker at the root, the tips curling in; a boar-crested ridge along the dome
 # (the Sutton Hoo crest) and a garnet at the brow (the living finish's breath). Metal 2 (the T6 alloy's fittings: K L M N O
 # its steps 0-4). D: 26 columns (origin 5 6: the base's 24 and one each side), rows from base row -5
-FJ6_HORN_L = [   # the left horn facing D (columns 0-9), rows -5..8
-    '.....KK...',
+FJ6_HORN_L = [   # the left horn facing D (columns 0-9), rows -5..8; (P5b2 fix r1, judge item 4: C12f's cap, 3 columns past the
+    # head box, the head box from column 5) the sweep two columns in from the first drawing's, the tip curling in as before
+    '......KK..',
+    '.....KOMK.',
     '....KOMK..',
     '...KOMK...',
-    '..KOMK....',
-    '.KONK.....',
-    '.KONK.....',   # 0
-    'KONMK.....',
-    'KONMK.....',
-    'KONMLK....',
-    'KONMLK....',
-    '.KONMLK...',   # 5
-    '.KONMLLK..',
+    '...KONK...',
+    '..KONK....',   # 0
+    '..KONMK...',
+    '..KONMK...',
+    '..KONMLK..',
+    '..KONMLK..',
+    '..KONMLK..',   # 5
     '..KONMLLK.',
+    '...KONMLLK',
     '...KKMLLK.',   # 8 the root at the dome's side
 ]
 HORN_SHADE = {'O': 'L', 'L': 'O', 'N': 'M', 'M': 'N'}   # the right horn: its lit edge the inner one
@@ -551,30 +552,34 @@ def fjordfolk6():
     d = fj6_d()
     r = fj6_r()
     l = relight(r)
-    reg = {'K': 'R', 'L': 'R', 'M': 'R', 'N': 'R', 'O': 'R', 'G': 'G', 'H': 'G'}
+    # (P5b2 fix r1, judge item 5: the trim band 10-36 %) the horns' rim (their outline step) is the trim, their body the metal
+    reg = {'K': 'R', 'G': 'G', 'H': 'G'}
     return [('D', 'rest', d, regions_of(d, reg), (5, 6), None), ('U', 'rest', d, regions_of(d, reg), (5, 6), None),
             ('R', 'rest', r, regions_of(r, reg), (6, 6), None), ('L', 'rest', l, regions_of(l, reg), (5, 6), None),
             ('L', 'lie', l, regions_of(l, reg), (5, 6), None)]
 
 
 # ================================================================================================ the Imperial legate (T6)
-# headwear/helm/crested at T6 (an overlay on its T6 view, origin 3 7): the T5 Attic crest (the slice's, which the owner signed)
-# grown: the crimson horsehair (Plume: the people's crest crimson) fanned wide over the comb, four rows higher than the comb's
-# top; a laurel wreath (Metal 2: the helm's fittings) bound round the brow, its leaves rising at the temples past the bowl.
+# headwear/helm/crested at T6 (an overlay on its T6 view, origin 3 7): the legate's TRANSVERSE crest (P5b2 fix r1, judge item 4:
+# the grown Attic fan read as a red faceted gem facing D and rose 14 rows over the crown, the cap 10): the crimson horsehair
+# (Plume: the people's crest crimson) set ear to ear on the comb's gilt stalk, a broad low fan facing D and U (18 columns, its
+# strands lit from the top-left, its ends hanging past the bowl) and a brush edge-on facing R and L (the crista transversa of the
+# reliefs), two rows over the comb's top at most (10 over the crown); the comb's gilt shows under it (sighelmgilt from T5); a
+# laurel wreath (the people's gold, dye2) bound round the brow, its leaves rising at the temples past the bowl.
 # D: 22 columns (the T6 view's own), rows from base row -5 (origin 3 12)
 IM6_D = [
-    '......QQQQQQQQQQ......',   # -5 the crest's fan
-    '.....QUUTTTSSSRRQ.....',
-    '....QUTTTTSSSSRRRQ....',
-    '....QUTTTSSSSRRRRQ....',
-    '.....QUTTSSSSRRRQ.....',
-    '......QUTSSSSRRQ......',   # 0
-    '.......QUTSSRRQ.......',
-    '........QUTSRQ........',
-    '.........QTSQ.........',   # 3 into the comb
-    '.........QTSQ.........',
-    '......................',   # 5
+    '......................',   # -5
     '......................',
+    '......................',
+    '......................',
+    '......QQQQQQQQQQ......',   # -1 the fan's crown, 10 rows over the crown (C12f's T6 cap)
+    '....QQUUTTTSSSRRQQ....',   # 0
+    '...QUUTUTTSTSSRSRRQ...',   # 1 the strands, lit from the top-left
+    '..QUTUTTSTSSRSRSRRRQ..',
+    '..QUTTSTSSSRSRSRRRRQ..',
+    '..QTTSSSSSSRRRRRRRRQ..',   # 4 the root on the bowl (the comb inside it)
+    '..QQTSQQ......QQRRQQ..',   # 5 the ends hanging past the bowl, their roots closed on it (C3a: no pocket over the bowl)
+    '...QQQQ........QQQQ...',
     '......................',
     '......................',
     '....K............K....',   # 9 the laurel's leaves rising at the temples
@@ -584,17 +589,17 @@ IM6_D = [
     '...KNOMK......KMLMK...',   # 13 the brow band (the wreath bound round it)
 ]
 IM6_R = [
-    '.....QQQQQQQ.........',   # -5 the crest from the side: an arc from the nape to the brow
-    '...QQUUUTTTTSQQ......',
-    '..QUUTTTTSSSSSRQ.....',
-    '.QUTTTSSSSSSRRRRQ....',
-    '.QUTSSQQQQQQQRRRRQ...',
-    'QUTSQ........QRRRQ...',   # 0
-    'QTSQ..........QRRQ...',
-    'QSQ............QRQ...',
-    'QQ..............QQ...',
+    '.....................',   # -5 the crest edge-on: a brush standing on the bowl
     '.....................',
     '.....................',
+    '.....................',
+    '.....................',
+    '..........QQQ........',   # 0
+    '.........QUTSQ.......',
+    '.........QUTSQ.......',
+    '.........QUTSRQ......',
+    '........QUTSSRQ......',
+    '........QTSSRRQ......',   # 5 on the bowl's top
     '.....................',
     '.....................',
     '.....................',

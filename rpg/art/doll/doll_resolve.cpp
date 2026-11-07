@@ -932,8 +932,9 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
     // (fix r1, STYLE_P5B 2.4 "T5 the legend growth in gilt") a gilt people's T5 helm and shield: their fittings in the gilt
     // (doll_paint: the piece's Metal 2 in Device, the T5 device's gold), never the body's Metal 2 (an alloy's banded rows)
     // (P5b area C2) and its own T6 head (fp::SigTier::ownHead: the River captain's gilt comb and brim)
-    if (g_sig->helmP && fp::sig(g_sig->helmP)->gilt && (L.tier[HumanLook::TIER_HELM] == 5 ||
-        (L.tier[HumanLook::TIER_HELM] == 6 && fp::sigTier(g_sig->helmP, 6)->ownHead))) flag("sighelmgilt");
+    // (P5b2 fix r1, judge item 5: "several T6 heads drop T5's gilt, so T6 reads poorer than T5") every gilt people's signed T6
+    // head keeps T5's gilt fittings (the living finish lights them)
+    if (g_sig->helmP && fp::sig(g_sig->helmP)->gilt && L.tier[HumanLook::TIER_HELM] >= 5) flag("sighelmgilt");
     if (g_sig->shieldP && fp::sig(g_sig->shieldP)->gilt && L.tier[HumanLook::TIER_SHIELD] == 5) flag("sigshieldgilt");
     // the family's legend growth in the gilt (fp::SigTier::giltGrowth: the Jade T5 kuwagata), drawn by doll_paint
     if (g_sig->helmP) {
@@ -1553,7 +1554,7 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   // sets it above), the same gilt, so the helm's gold never hangs on the shield
   // (P5b area C2) and a gilt people's own T6 head (fp::SigTier::ownHead): its fittings gilt as at T5 (with a T6 shield carried
   // the device burns in the glow's light, doll_ramps: the T6 head's gilt with it)
-  const bool giltHead = u.helmP && fp::sig(u.helmP)->gilt && (th == 5 || (th == 6 && fp::sigTier(u.helmP, 6)->ownHead));
+  const bool giltHead = u.helmP && fp::sig(u.helmP)->gilt && th >= 5;   // (P5b2 fix r1: every signed T6 head, judge item 5)
   if (giltHead && !shieldOf(L)) E.shieldDevice = sigRgba(0xD8A32C);
   // the cloak (a worn cloak item, or the T3 cape)
   const int pc = L.makerAt(H::TIER_CLOAK);

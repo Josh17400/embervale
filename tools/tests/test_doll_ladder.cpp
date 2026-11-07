@@ -272,7 +272,9 @@ Richness richness(const Built& b, const Frame& f) {
     const int ts = doll::partTierSlot(f.p.items[(size_t)p.item].partIndex);
     if (ts < 0 || !isGear(f, p)) continue;
     R.px[ts]++;
-    if (p.region == (uint8_t)doll::Region::Trim && s == doll::Slot::Metal2) R.trim[ts]++;
+    // (P5b2 fix r1) a signed T5-T6 helm's trim is drawn in the gilt (Device: doll_resolve's fin, STYLE_P5B 2.4), the shield's
+    // rim at T5-T6 too: the trim all the same
+    if (p.region == (uint8_t)doll::Region::Trim && (s == doll::Slot::Metal2 || (s == doll::Slot::Device && (ts == 1 || ts == 2)))) R.trim[ts]++;
     if (p.region == (uint8_t)doll::Region::Wear) R.wear[ts]++;
   }
   R.colours = (int)cols.size();
@@ -599,7 +601,9 @@ void gateC12(Line& g, const std::vector<Built>& looks, bool flavourRow = true) {
         // (D99) a styled body: a culture alloy's, or any body drawn in a forge style (an alloy or a material's hero style:
         // PARADE, STARFALL, ...) at T4 or above; its glints come from its own drawn metal (C17)
         const HumanLook& U = line[t]->L;
-        const bool styled = line[t]->r.has("alloyshape") ||
+        // (P5b2 fix r1) a culture alloy's body is T4 or above (gear::lookTier); under FIX_SIG a people's signed T1-T3 kit carries
+        // the shape flag too (its signature's skirt, mass and layer), which is no alloy's styled body
+        const bool styled = (line[t]->r.has("alloyshape") && U.tier[HumanLook::TIER_BODY] >= 4) ||
                             (U.forge[HumanLook::TIER_BODY] && U.tier[HumanLook::TIER_BODY] >= 4);
         if (!step4Holds(rich[t - 1].step4, rich[t].step4, styled)) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
         else g.ok();
@@ -1478,8 +1482,12 @@ int runLadderScope(int a, int b, bool allWeapons, bool finish, bool self, std::v
           std::vector<Built> bl = buildAll(ls);
           Line one{"line"};
           const std::string id = fmt("%s %s %s s%d", kPeople[p], kWpn[w], who ? "woman" : "man", sd);
+          one.id = "line " + id;
           g_lineId = id;
+          const bool rep = g_report;
+          if (std::getenv("C12_ALL")) g_report = true;   // (diagnostics: every miss of the line)
           gateC12(one, bl, false);
+          g_report = rep;
           g_lineId.clear();
           lines++;
           if (one.fails) { linesBad++; c12.bad(id + ": " + one.first + (one.fails > 1 ? fmt(" (+%d)", one.fails - 1) : "")); }

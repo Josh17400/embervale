@@ -2331,7 +2331,76 @@ int armsCmd(int argc, char** argv) {
   return fails ? 1 : 0;
 }
 
+// (P5b2 fix r1, diagnostics) --doll-hole-cells --looks F --tag T: C3a's pockets on the look's idle frame 0 in each facing,
+// each pocket's pixels relative to every bordering part's anchor (the view cell = the view's origin + that offset)
+int holeCellsCmd(int argc, char** argv) {
+  const char* looksFile = nullptr;
+  std::string tag;
+  for (int i = 2; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--looks") && i + 1 < argc) looksFile = argv[++i];
+    else if (!std::strcmp(argv[i], "--tag") && i + 1 < argc) tag = argv[++i];
+  }
+  const int was = art::rigVersion();
+  art::setRigVersion(2);
+  for (const Look& l : readLooks(looksFile)) {
+    if (l.tag != tag) continue;
+    const Built b = build(l);
+    for (int fc = 0; fc < 4; fc++) {
+      const doll::FrameProbe p = doll::probeFrame(b.r, RigPart::Loco, fc, Clip::Idle, 0, 0, true);
+      if (!p.ok) continue;
+      std::vector<uint8_t> seen((size_t)p.w * p.h, 0);
+      std::vector<int> st;
+      for (int x = 0; x < p.w; x++) for (int y : {0, p.h - 1}) { const int k = y * p.w + x; if (!opaque(p, k)) { seen[(size_t)k] = 1; st.push_back(k); } }
+      for (int y = 0; y < p.h; y++) for (int x : {0, p.w - 1}) { const int k = y * p.w + x; if (!opaque(p, k) && !seen[(size_t)k]) { seen[(size_t)k] = 1; st.push_back(k); } }
+      while (!st.empty()) {
+        const int k = st.back(); st.pop_back();
+        const int x = k % p.w, y = k / p.w;
+        for (const auto& n : {std::pair<int, int>{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}}) {
+          const int q = p.at(n.first, n.second);
+          if (q < 0 || seen[(size_t)q] || opaque(p, q)) continue;
+          seen[(size_t)q] = 1; st.push_back(q);
+        }
+      }
+      for (int k = 0; k < p.w * p.h; k++) {
+        if (seen[(size_t)k] || opaque(p, k)) continue;
+        std::vector<int> pocket{k};
+        seen[(size_t)k] = 1;
+        for (size_t j = 0; j < pocket.size(); j++) {
+          const int x = pocket[j] % p.w, y = pocket[j] / p.w;
+          for (const auto& n : {std::pair<int, int>{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}}) {
+            const int q = p.at(n.first, n.second);
+            if (q < 0 || seen[(size_t)q] || opaque(p, q)) continue;
+            seen[(size_t)q] = 1; pocket.push_back(q);
+          }
+        }
+        std::set<int> its;
+        for (int q : pocket) {
+          const int x = q % p.w, y = q / p.w;
+          for (const auto& n : {std::pair<int, int>{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}}) {
+            const int m = p.at(n.first, n.second);
+            if (m >= 0 && opaque(p, m) && p.owner[(size_t)m] >= 0) its.insert(p.owner[(size_t)m]);
+          }
+        }
+        std::printf("%s %c pocket of %zu:", tag.c_str(), "DURL"[fc], pocket.size());
+        for (int q : pocket) std::printf(" (%d,%d)", q % p.w - p.px, q / p.w - p.py);
+        std::printf("\n");
+        for (int it : its) {
+          const doll::FrameProbe::It& I = p.items[(size_t)it];
+          std::printf("    %s key %s anchor (%d,%d): cells", I.part.c_str(), I.key.c_str(), I.ax - p.px, I.ay - p.py);
+          for (int q : pocket) std::printf(" (%+d,%+d)", q % p.w - I.ax, q / p.w - I.ay);
+          std::printf("\n");
+        }
+      }
+    }
+  }
+  art::setRigVersion(was);
+  return 0;
+}
+
 }  // namespace dollarms
+
+RPG_TEST_CMD("--doll-hole-cells", "P5b2 fix r1 diagnostics: C3a's pockets on a look's idle frames, by the bordering parts' anchors --looks f --tag t",
+             dollarms::holeCellsCmd);
 
 // (P2c wave 2) the matrices M8-M12 (test_doll_envelope.cpp's --doll-coverage --scope envelope reads them)
 std::string dollArmsLooksText() { return dollarms::kArmsLooks; }
