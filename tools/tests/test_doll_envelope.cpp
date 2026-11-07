@@ -1155,7 +1155,12 @@ void rowGlass(Line& g, const Built& b, int item) {
     g.check(rim >= 3, id + fmt(": the glass tell %d px on the %s shoulder (3)", rim, side == 1 ? "right" : "left"));
   }
   int sp = 0, bad = 0;
-  for (const auto& gr : groups(d, [&](int k) { return metalPx(d, k) && d.step(k) == 4; }, true)) { sp++; bad += gr.size() < 2 || gr.size() > 6; }
+  for (const auto& gr : groups(d, [&](int k) { return metalPx(d, k) && d.step(k) == 4; }, true)) {
+    sp++; bad += gr.size() < 2 || gr.size() > 6;
+    if (std::getenv("ENV_DEBUG"))   // (P5b2 fix r2) each specular: its size, first cell and part
+      std::printf("      %s specular %zu px at (%d,%d) part %s\n", id.c_str(), gr.size(), gr[0] % d.p.w - d.p.px, gr[0] / d.p.w - d.p.py,
+                  d.it(gr[0]) ? d.it(gr[0])->part.c_str() : "-");
+  }
   g.check(sp >= 2 && sp <= 4 && bad == 0, id + fmt(": %d speculars (2-4 of 2-6 px; %d off size)", sp, bad));
   int glow = 0;
   for (int k = 0; k < d.p.w * d.p.h; k++) glow += d.opaque(k) && d.slot(k) == doll::Slot::Glow;
