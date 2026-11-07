@@ -148,6 +148,7 @@ struct FramePaint {
     bool fp = false, fpR = false, fpN = false, fpThin = false, fpOuter = false, fpStitch = false, fpSparse = false, fpHemRow = false, fpEdge = false;
     bool fpBoss = false;   // (fix r1) a T1-T4 shield view with no P (the buckler: rim and boss): its boss (G) takes the dye band
     bool fpLining = false; // (fix r1) a T3-T5 body, helm or shield view with R but no N or D: the lining along the rim's inner edge
+    uint8_t hh = 0;        // (P5b2 fix r3) the hair-under-the-helm plane's class: 1 hair, 2 a helm's shell, 3 its crest or plume
   };
 
   // the frame (anchors() sets them)
@@ -174,6 +175,11 @@ struct FramePaint {
   uint8_t tileOn = 0;
   bool twoHand = false, hangArmour = false;
   std::vector<uint8_t> shieldPx;   // (wave-2 fix round, D82) the gripL shield's pixels
+  std::vector<uint8_t> hhPx;       // (P5b2 fix r3) the last painter's hair/helm class per pixel (ItemPaint::hh; 0 another part, erased)
+  bool hhOn = false;               // (P5b2 fix r3) a signed helm's look under FIX_SIG: hhPx kept, hairUnderRim run
+  void hairUnderRim();
+  bool pocketsOn = false;          // (P5b2 fix r3) a signed look under FIX_SIG: closeGearPockets run
+  void closeGearPockets();
   std::vector<uint8_t> shieldKeep, shieldKeepRg;
   std::vector<int16_t> shieldKeepOw;
   // one item's scratch

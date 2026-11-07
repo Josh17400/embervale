@@ -873,6 +873,25 @@ void FramePaint::paintBackToFront() {
   // hair, head and face but never the haft or head of a polearm passing behind the helm
   heldPx.assign((size_t)CW * CH, 0);
   shieldPx.assign((size_t)CW * CH, 0);
+  // (P5b2 fix r3, judge item 2: C3b "hair over the helm's rim", 2,176 frames, the m9 looks' forced hair under the signed T4-T6
+  // heads) a people's signed head is drawn over every hair style the census gives, and the drawn heads' erase cells clear only
+  // the hair they were drawn over: a long, loose or mohawk style stood above the rim at the back. The rule, not the cells: on a
+  // signed helm's look no hair pixel stays above the shell's top in a column the shell covers (hairUnderRim, after the paint)
+  hhOn = fixOn(FIX_SIG) && !r.flags.empty() && std::any_of(r.flags.begin(), r.flags.end(), [](const std::string& f) { return f.rfind("sighelm-", 0) == 0; });
+  if (hhOn) hhPx.assign((size_t)CW * CH, 0);
+  // (P5b2 fix r3, judge item 2: C3a, 1,953 one-pixel holes in the signed heads, shoulders and skirts) the signed pieces are
+  // drawn over every body, hair and stance the census gives; where two of them meet a cell or two of the canvas showed through,
+  // a pinhole no 32 px figure reads as a shape. closeGearPockets, after the paint: a pocket the flood from the canvas edge never
+  // reaches, walled by gear on every side (1-2 px; up to 8 where a head or shoulder piece walls it), takes its darkest neighbour (the line between the two pieces)
+  pocketsOn = fixOn(FIX_SIG) && std::any_of(r.flags.begin(), r.flags.end(), [](const std::string& f) { return f.rfind("sig", 0) == 0 && f.find('-') != std::string::npos; });
+  // (never on the approved slice's own kits, Fjordfolk, Imperial and Jade bodies at T1, T3 and T5: their frames are frozen as
+  // the owner signed them, STYLE_P5B 9, slice_same 567/567; the Fjordfolk T5 pelt's pinhole beside the scale coat is drawn
+  // there, a ruled residual of C3a)
+  if (pocketsOn)
+    for (const char* sp : {"sigbody-fjordfolk", "sigbody-imperial", "sigbody-jade"})
+      if (r.has(sp))
+        for (int t : {1, 3, 5})
+          if (r.has(("armour.t" + std::to_string(t)).c_str()) && !r.has(("armour.t" + std::to_string(t + 1)).c_str())) pocketsOn = false;
   // (wave-2 fix round 3, D82; SHIELDS' r2 proposal) the gripL shield's last pixel under each cell (code, region, item): a part
   // that paints over the shield and is then erased by a later part's `-` cell shows the shield again, never a hole through it
   shieldKeep.assign((size_t)CW * CH, 0);
@@ -890,6 +909,29 @@ void FramePaint::paintBackToFront() {
   g_probeGrip = gripFrom; g_probeGripL = gripLFrom;
   for (const Item& it : items) {
     paintItem(it, false);
+    // (P5b2 fix r3, judge item 2: C3d "no hand pixels on the gripping arm", 1,984 frames) a fist that holds a drawn weapon is
+    // before the body. Two of the signed kits' pieces are drawn after the arm and went over it: D41's near pauldron, lifted to
+    // layer head on a cloaked look (the Imperial T3/T5 kit facing D: the drawn stance, the follow-through), and the wide sleeve
+    // and the scarf facing D (the Dune T3 kit: the greatsword's windup brings the right fist to the left shoulder). After such a
+    // piece the gripping arm's hand (H) pixels are drawn again, as after the weapon it holds. Only with a weapon placed by angle
+    // (the drawn stance and the swings, never the carry at rest, whose hand hangs under the lifted shoulder as the approved slice
+    // draws it), never facing U (the fists before the chest, the back toward us), never a far arm; signed looks (FIX_SIG)
+    if (fixOn(FIX_SIG) && fp && fp->weapon != -32768 && facing != 1) {
+      const bool liftedPad = it.noErase && it.layer == (int)Layer::Head && partHasRoleCat(*it.part, Role::Pauldron);
+      const std::string& nm = P.s(it.part->name);
+      const bool cloth = facing == 0 && (nm.find("sleeve") != std::string::npos || partHasRoleCat(*it.part, Role::Neck));
+      if (liftedPad || cloth) {
+        auto fist = [&](int from) {
+          if (from < 0 || &items[(size_t)from] == &it) return;
+          const int side = items[(size_t)from].part->side;
+          const bool far = (side == 1 && facing == 3) || (side == 2 && facing == 2);
+          if (far || (liftedPad && side != it.part->side)) return;
+          paintItem(items[(size_t)from], true);
+        };
+        fist(gripFrom);
+        if (twoHand) fist(gripLFrom);
+      }
+    }
     // (P2c) the hand over the grip: after a library weapon on the grip, the main hand; on a two-handed weapon the off hand
     // too; after a library weapon on gripL (the bow), the bow hand
     if (!libraryHeld(P, *it.part)) continue;
@@ -898,6 +940,98 @@ void FramePaint::paintBackToFront() {
       if (twoHand && gripLFrom >= 0 && &items[(size_t)gripLFrom] != &it) paintItem(items[(size_t)gripLFrom], true);
     } else if (it.anchor == Anchor::GripL && gripLFrom >= 0 && &items[(size_t)gripLFrom] != &it) {
       paintItem(items[(size_t)gripLFrom], true);
+    }
+  }
+  if (hhOn) hairUnderRim();
+  if (pocketsOn) closeGearPockets();
+}
+
+void FramePaint::closeGearPockets() {
+  FrameOut& o = *op;
+  const int x0 = std::max(0, o.bx0 - 1), x1 = std::min(CW - 1, o.bx1 + 1), y0 = std::max(0, o.by0 - 1), y1 = std::min(CH - 1, o.by1 + 1);
+  if (x1 < x0 || y1 < y0) return;
+  const int W = x1 - x0 + 1, H = y1 - y0 + 1;
+  auto at = [&](int x, int y) { return (size_t)(y0 + y) * CW + (x0 + x); };
+  auto clear = [&](int x, int y) { return o.code[at(x, y)] < 2; };
+  std::vector<uint8_t> seen((size_t)W * H, 0);
+  std::vector<int> st;
+  for (int x = 0; x < W; x++) for (int y : {0, H - 1}) if (clear(x, y) && !seen[(size_t)y * W + x]) { seen[(size_t)y * W + x] = 1; st.push_back(y * W + x); }
+  for (int y = 0; y < H; y++) for (int x : {0, W - 1}) if (clear(x, y) && !seen[(size_t)y * W + x]) { seen[(size_t)y * W + x] = 1; st.push_back(y * W + x); }
+  while (!st.empty()) {
+    const int k = st.back(); st.pop_back();
+    const int x = k % W, y = k / W;
+    const int nb[4][2] = {{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}};
+    for (auto& n : nb) {
+      if (n[0] < 0 || n[1] < 0 || n[0] >= W || n[1] >= H) continue;
+      const int q = n[1] * W + n[0];
+      if (seen[(size_t)q] || !clear(n[0], n[1])) continue;
+      seen[(size_t)q] = 1; st.push_back(q);
+    }
+  }
+  auto gear = [&](size_t q) { return ((*bodyPxV)[q] & 2) || shieldPx[q]; };
+  for (int k0 = 0; k0 < W * H; k0++) {
+    if (seen[(size_t)k0] || !clear(k0 % W, k0 / W)) continue;
+    std::vector<int> pocket{k0};
+    seen[(size_t)k0] = 1;
+    bool walled = true, helm = false;
+    for (size_t j = 0; j < pocket.size(); j++) {
+      const int x = pocket[j] % W, y = pocket[j] / W;
+      const int nb[4][2] = {{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}};
+      for (auto& n : nb) {
+        const int q = n[1] * W + n[0];
+        if (clear(n[0], n[1])) { if (!seen[(size_t)q]) { seen[(size_t)q] = 1; pocket.push_back(q); } }
+        else if (!gear(at(n[0], n[1]))) walled = false;
+        else {
+          const uint8_t b = (*bodyPxV)[at(n[0], n[1])];
+          if ((b & 16) || ((b & 3) == 3 && !(b & 4))) helm = true;   // a helm's or a pauldron's pixel
+        }
+      }
+    }
+    // (up to 8 px where a head or shoulder piece walls it, a pinhole of 1-2 px among the body's plates and skirts; a larger
+    // pocket among them is that drawing's negative space and stays)
+    if (!walled || pocket.size() > (helm ? 8u : 2u)) continue;
+    // fill from the outside in: each cell takes its darkest drawn neighbour (cells filled earlier count)
+    for (int pass = 0; pass < 8; pass++) {
+      bool left = false;
+      for (int k : pocket) {
+        const int x = k % W, y = k / W;
+        const size_t q = at(x, y);
+        if (o.code[q] >= 2) continue;
+        size_t best = (size_t)-1;
+        for (const auto& n : {std::pair<int, int>{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}}) {
+          const size_t m = at(n.first, n.second);
+          if (o.code[m] < 2) continue;
+          if (best == (size_t)-1 || codeStep(o.code[m]) < codeStep(o.code[best])) best = m;
+        }
+        if (best == (size_t)-1) { left = true; continue; }
+        o.code[q] = o.code[best];
+        if (!g_fpUnder.empty() && g_fpUnder.size() == o.code.size()) g_fpUnder[q] = g_fpUnder[best];
+        (*bodyPxV)[q] = (*bodyPxV)[best]; (*depthPxV)[q] = (*depthPxV)[best]; (*heldPxV)[q] = (*heldPxV)[best]; shieldPx[q] = shieldPx[best];
+        if (hhOn) hhPx[q] = hhPx[best];
+        if (probeOwnerV) { (*probeOwnerV)[q] = (*probeOwnerV)[best]; (*probeRegionV)[q] = (*probeRegionV)[best]; }
+      }
+      if (!left) break;
+    }
+  }
+}
+
+// (P5b2 fix r3) the hair under the helm: in each column the helm's shell (not its crest or plume) covers, a hair pixel left above
+// the shell's top is cleared (C3b's rim, P2c envelope: the shell over the head box + 1 column; a turned frame keeps its own)
+void FramePaint::hairUnderRim() {
+  FrameOut& o = *op;
+  if (fp && fp->turn) return;
+  const int hx0 = CPX + base[(int)Anchor::Head].x - 3, hx1 = CPX + base[(int)Anchor::Head].x + 18;   // (the box + 1, and the bob of a walk or run: 2 more)
+  for (int X = std::max(0, hx0); X <= std::min(CW - 1, hx1); X++) {
+    int top = -1;
+    for (int Y = 0; Y < CH; Y++) if (hhPx[(size_t)Y * CW + X] == 2 && o.code[(size_t)Y * CW + X] >= 2) { top = Y; break; }
+    if (top < 0) continue;
+    for (int Y = 0; Y < top; Y++) {
+      const size_t q = (size_t)Y * CW + X;
+      if (hhPx[q] != 1 || o.code[q] < 2) continue;
+      o.code[q] = 0;
+      if (!g_fpUnder.empty() && g_fpUnder.size() == o.code.size()) g_fpUnder[q] = 0;
+      (*bodyPxV)[q] = 0; (*depthPxV)[q] = 0; hhPx[q] = 0;
+      if (probeOwnerV) { (*probeOwnerV)[q] = -1; (*probeRegionV)[q] = 0; }
     }
   }
 }
@@ -980,6 +1114,14 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   ip.v = vp;
   ip.bodyPiece = bodyPiece; ip.heldMark = heldMark; ip.shieldMark = shieldMark; ip.depthMark = depthMark;
   ip.helmErase = helmErase;
+  ip.hh = 0;
+  if (hhOn) {
+    if (partHasRoleCat(*it.part, Role::Hair)) ip.hh = 1;
+    else if (partHasRoleCat(*it.part, Role::Helm)) {
+      const std::string& nm = P.s(it.part->name);
+      ip.hh = (nm.find("helm/crest/") != std::string::npos || nm.find("_crest") != std::string::npos || nm.find("_plume") != std::string::npos) ? 3 : 2;
+    }
+  }
   ip.sway = sway; ip.swayFrom = swayFrom;
   ip.stretch = stretch; ip.hasReg = hasReg; ip.tiled = tiled;
   ip.ts = ts;
@@ -1562,6 +1704,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
           depthPx[q] = 1;
           heldPx[q] = 0;
           shieldPx[q] = 1;
+          if (hhOn) hhPx[q] = 0;
           if (probeOwner) { (*probeOwner)[q] = shieldKeepOw[q]; (*probeRegion)[q] = shieldKeepRg[q]; }
           continue;
         }
@@ -1569,6 +1712,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
         if constexpr (fpFrame) { g_fpUnder[(size_t)Y * CW + X] = 0; g_fpCuffOwn[(size_t)Y * CW + X] = 0; }
         bodyPx[(size_t)Y * CW + X] = 0;
         depthPx[(size_t)Y * CW + X] = 0;
+        if (hhOn) hhPx[(size_t)Y * CW + X] = 0;
         if (probeOwner) { (*probeOwner)[(size_t)Y * CW + X] = -1; (*probeRegion)[(size_t)Y * CW + X] = 0; }
         continue;
       }
@@ -1597,6 +1741,7 @@ DOLL_PIXEL_INLINE void FramePaint::stamp(const ItemPaint& ip, int x, uint8_t c, 
       depthPx[(size_t)Y * CW + X] = depthMark;
       heldPx[(size_t)Y * CW + X] = heldMark;
       shieldPx[(size_t)Y * CW + X] = shieldMark;
+      if (hhOn) hhPx[(size_t)Y * CW + X] = ip.hh == 2 && codeSlot(w) == Slot::Plume ? 3 : ip.hh;
       if (shieldMark) {
         const size_t q = (size_t)Y * CW + X;
         shieldKeep[q] = w;

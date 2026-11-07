@@ -32,30 +32,37 @@ TAG = '(P5b fix-r3)'
 BASE = 'bd1a4e4'
 
 DUNE3 = 'sighelm-dune,helm.t3,!helm.t4'
-# the tail, facing R (the back on the left: x 0-2 beside the mail curtain's back edge at x 2-3); plume 0-4 the turban's cloth
-TAIL_R = [(8, 1, '-', '0'), (8, 2, '-', '1'),
-          (9, 0, '.', '0'), (9, 1, '.', '2'), (9, 2, '-', '1'),
-          (10, 0, '.', '0'), (10, 1, '.', '3'), (11, 0, '.', '0'), (11, 1, '.', '3'), (12, 0, '.', '0'), (12, 1, '.', '2'),
-          (13, 0, '.', '0'), (13, 1, '.', '2'), (14, 0, '.', '0'), (14, 1, '.', '1'), (15, 0, '.', '0'), (15, 1, '.', '2'),
-          (16, 0, '.', '0'), (16, 1, '.', '1'), (17, 0, '.', '0'), (17, 1, '.', '0'), (17, 2, '.', '0')]
+# the tail, facing R (the back on the left): from the band down the back of the mail curtain to the neck, its end clear of
+# the neck's hollow (a tail down past it closed a pocket there, C3a); the wrap wound up the dome's back and a pixel proud at
+# the brow; plume 0-4 the
+# turban's cloth (veil.pxm's legend); inside C3b's T3 cap (3 columns past the head box)
+TAIL_R = [(8, 1, '-', '0'), (8, 2, '-', '1'), (9, 1, '.', '0'), (9, 2, '-', '0'),
+          (4, 7, '-', '0'), (5, 6, '-', '0'), (5, 7, 'v', '1'), (6, 4, '-', '0'), (6, 5, '-', '1'), (7, 3, '-', '0'), (7, 4, '-', '1'),
+          (6, 16, '-', '1'), (6, 17, '-', '0'), (7, 17, '-', '1'), (7, 18, '-', '0')]
 
 
 def draw(base, head, cells, cond, origin):
-    """an overlay of `cells` [(row, x, old, new), ...] on the view `head` (old checked against its grid; rows < 0 grow the
-    grid up, the origin moving down as many rows), keyed `cond`, at `origin` (the view's own, or the base's it defaults to)"""
+    """an overlay of `cells` [(row, x, old, new), ...] on the view `head` (old checked against its grid; a cell off the grid,
+    above or left of it, grows the grid, the origin moving with it; right or below, the grid grows), keyed `cond`, at
+    `origin` (the view's own, or the base's it defaults to)"""
     marks, grid, regs = r2.find_view(base, r2.find_head(base, head))
     rows = [r[1:] for r in grid]
     w = max(len(r) for r in rows)
     up = max([0] + [-c[0] for c in cells])
-    rows = ['.' * w] * up + rows
-    out = [['.'] * w for _ in rows]
+    left = max([0] + [-c[1] for c in cells])
+    w2 = left + max([w] + [c[1] + 1 for c in cells])
+    h2 = up + max([len(rows)] + [c[0] + 1 for c in cells])
+    src = [['.'] * w2 for _ in range(h2)]
+    for y, r in enumerate(rows):
+        for x, ch in enumerate(r):
+            src[y + up][x + left] = ch
+    out = [['.'] * w2 for _ in range(h2)]
     for y, x, old, new in cells:
-        y += up
-        have = rows[y][x] if x < len(rows[y]) else '.'
+        have = src[y + up][x + left]
         if have != old:
-            raise SystemExit(f'{head}: cell ({x},{y - up}) is {have!r}, expected {old!r}')
-        out[y][x] = new
-    return (f'view {head[0]} key {head.split()[2]} origin {origin[0]} {origin[1] + up} when {cond}', [],
+            raise SystemExit(f'{head}: cell ({x},{y}) is {have!r}, expected {old!r}')
+        out[y + up][x + left] = new
+    return (f'view {head[0]} key {head.split()[2]} origin {origin[0] + left} {origin[1] + up} when {cond}', [],
             ['|' + ''.join(r) for r in out], [])
 
 
@@ -127,6 +134,9 @@ BAND_SPECS = [
 ]
 
 DRAW_SPECS = [
+    (P('headwear', 'helm', 'veil.pxm'), 'dune-t3-tail', "the Dune T3 kulah's turban tail down the back (C12c lt2 -> lt3 R)",
+     [('R key rest origin 3 1', TAIL_R, DUNE3 + ',helm.t2', (3, 1)),
+      ('L key rest origin 2 1', mirror(TAIL_R, 21), DUNE3 + ',helm.t2', (2, 1))]),
     (P('headwear', 'helm', 'kettle.pxm'), 'marsh-t3-rushes', "the Marsh T3 war hat's two bulrushes (C12c lt2 -> lt3 R)",
      [('R key rest when ' + MARSH3 + ' replace', RUSH_R, MARSH3 + ',helm.t2', (3, 1)),
       ('L key rest when ' + MARSH3 + ' replace', mirror(RUSH_R, 21), MARSH3 + ',helm.t2', (2, 1)),
@@ -141,9 +151,6 @@ PIXEL_SPECS = [
     # lit edge polished down its two lames (the shadow cell between them lit): one glint of 3 px where two of 1 px stood
     (P('armour', 'shared', 'pauldron_layered2_r.pxm'), 'imperial-t2-edge', "the Imperial T2 near shoulder's lit edge polished down both lames (C12b step 4)",
      [('D key rest origin 2 2', [(2, 1, 'w', 'z')], '', IMP_T2 + ',woman')]),
-    (P('headwear', 'helm', 'veil.pxm'), 'dune-t3-tail', "the Dune T3 kulah's turban tail down the back (C12c lt2 -> lt3 R)",
-     [('R key rest origin 3 1', TAIL_R, '', DUNE3 + ',helm.t2'),
-      ('L key rest origin 2 1', mirror(TAIL_R, 21), '', DUNE3 + ',helm.t2')]),
 ]
 
 
