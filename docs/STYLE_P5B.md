@@ -574,17 +574,20 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    from the alloy's own axes, unsolved: 2 / 8 / 20 / 8 / 6; own heads on the signature body: 22 / 23 / 107 / 41 / 8. Reading
    2 needs the solver round (engineer-high); reading 1 needs the owner's yes.
 
-9. **(fix r1) A kingdom's kit pair a tier apart.** **Ruled 2026-11-07: reading 1** (the owner: "that is a clash. Let's do
-   your recommendation"): the exemption stays as the rule's text, and `kitLadderPair` (tools/tests/test_doll_shapes.cpp) is that
-   text in code. The owner's ruling (decision 8) exempts only two kit
+9. **(fix r1) A kingdom's kit pair a tier apart.** **NOT YET RULED (the owner's answer is needed; corrected in P5b2 fix r3).**
+   Fix r2 wrote "ruled 2026-11-07, reading 1" quoting "Ah yes that is a clash. Let's do your recommendation"; that message
+   (2026-11-06 15:28 UTC) answered DECISION 8 (the 08:09 UTC question "you have two rules that now clash"), and decision 9
+   was only written that evening, so it carries no owner answer yet. Until the owner answers this decision itself, the plan
+   proceeds on its first reading (this section's rule) and the code keeps `kitLadderPair`; when the owner answers, this
+   line quotes that answer with its date. The question: the owner's ruling (decision 8) exempts only two kit
    alloys of one people at ONE tier; the gates also part a kingdom's own everyday (T4) and masterwork (T5) by the head alone
    (`kitLadderPair`, tools/tests/test_doll_shapes.cpp: C16o, C16m, C18b), the people's signature a tier apart on its one body.
    Gated like any other pair they fail C16o 51, C16m 3 and C18b 40, 40, 58, 48, 41 and 42 in sil_w1-6 (the board set's 40
    counted in each world; the judge's measure, P5b2 r2, with `kitLadderPair` returning false; fix r1's "174" was wrong): the
    signature's T4 and T5 bodies sit 0.041 (Sun Temple) to 0.079 (Steppe) body OD apart where C16o and C18b ask 0.08, the
-   slice's approved T5 kits among them. Reading 1 (recommended): keep the exemption as the rule's text (two kit alloys of one
+   slice's approved T5 kits among them. Reading 1 (recommended): keep the exemption (two kit alloys of one
    kingdom at T4 and T5 parted by the head, 0.10). Reading 2: remove it and redraw every people's T5 body 0.08 off its T4 (the
-   approved slice's T5 bodies change; slice_same falls). Under the ruling the code keeps the exemption, exactly as above:
+   approved slice's T5 bodies change; slice_same falls). Until ruled the code keeps the exemption, exactly as above:
    a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
 
 ## 11. Don'ts
