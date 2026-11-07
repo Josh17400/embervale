@@ -1083,8 +1083,10 @@ HumanLook ladderLook(const HumanLook& L) {
     };
     // (P5b2 fix r1, judge item 3) never the king's helm: his crown helm is the kingdom's masterwork at his tier, the people's T5
     // signature (decision 8: the kit alloy at T5); a step down put the masterwork at T4, not a kit tier, so he wore its own P5
-    // helm (the Imperial king's crestless galea, the Sylvan's horned winged helm), a step up the T6 head
-    if (!(L.king && fixOn(FIX_SIG))) jit(HumanLook::TIER_HELM, 0);
+    // helm (the Imperial king's crestless galea, the Sylvan's horned winged helm), a step up the T6 head. (P5b2 fix r2, judge
+    // item 2) only a SIGNED king: his helm's maker a people with a signature (sigOn). A maker-less king (hash_looks' nking, a
+    // census king with no people) keeps the jitter, unchanged (STYLE_P5B 2.9: maker-less pieces unchanged; S5.rig2)
+    if (!(L.king && sigOn(L.makerAt(HumanLook::TIER_HELM)))) jit(HumanLook::TIER_HELM, 0);
     jit(HumanLook::TIER_SHIELD, 3);
     jit(HumanLook::TIER_GLOVES, 6);
     jit(HumanLook::TIER_BOOTS, 9);
