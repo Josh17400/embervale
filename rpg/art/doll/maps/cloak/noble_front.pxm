@@ -134,3 +134,30 @@ view L key rest origin 4 1 when mythic replace
 |......QSROQ.
 |.......QSOQ.
 |........QQ..
+
+# (P5b fix-r2) begin cloak-chain: the signed noble cloak's gilt clasps and chain, the trim they are (C12b)
+view D key rest origin 9 1 when sigcloak-marsh,cloak.t6
+|...................
+|.PTT...........RN..
+|.PTT.POOPONNOP.RRN.
+|.PTS...........SRN.
+|..P.............N..
+regions
+|...................
+|.RRR...........RR..
+|.RRR.RRRRRRRRR.RRR.
+|.RRR...........RRR.
+|..R.............R..
+view D key rest origin 9 1 when sigcloak-suntemple,cloak.t4,!cloak.t5
+|...................
+|.PTT...........RN..
+|.PTT.POOPONNOP.RRN.
+|.PTS...........SRN.
+|..P.............N..
+regions
+|...................
+|.RRR...........RR..
+|.RRR.RRRRRRRRR.RRR.
+|.RRR...........RRR.
+|..R.............R..
+# (P5b fix-r2) end cloak-chain

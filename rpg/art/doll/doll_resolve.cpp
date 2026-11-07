@@ -1616,6 +1616,13 @@ DollRecipe resolve(const HumanLook& L0) {
     r.finTiles[HumanLook::TIER_SHIELD] &= (uint8_t)~(FIN_TILE_ETCH | FIN_TILE_FILIGREE | FIN_TILE_RUNE | FIN_TILE_GLYPH);
   }
   r.ramps = rampsOf(L);
+  // (P5b2 fix r2, judge item 4: "T6 gilt is drawn in the lavender T6 metal") that gilt keeps its gold at T6: the T6 shield's
+  // device burn (doll_ramps: Device takes the Glow ramp, STYLE_P2 27.2) drew a signed T6 helm's trim in the masterwork's glow,
+  // so the T6 head read poorer than T5. With a signed T5-T6 helm the device stays the gilt it is at T5 (the living finish is
+  // the runes, the gems and the breath); every other T6 shield burns as before
+  if (g_sig && g_sig->helmP && L.tier[HumanLook::TIER_HELM] >= 5 && r.fin[HumanLook::TIER_HELM][0] == (uint8_t)Slot::Device &&
+      L.tier[HumanLook::TIER_SHIELD] >= 6 && L.shieldDevice)
+    rampA3(L.shieldDevice, Material::Metal, r.ramps.c[(int)Slot::Device]);
   // (P2c ladder) the held part's metal draws in Slot::Blade where its ramp differs from the armour's
   for (int i = 0; i < 5; i++) if (r.ramps.c[(int)Slot::Blade][i] != r.ramps.c[(int)Slot::Metal][i]) r.blade = true;
   const pool::Pool& P = pool::get();
