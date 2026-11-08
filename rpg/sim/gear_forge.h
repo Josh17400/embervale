@@ -89,12 +89,17 @@ uint32_t tableKey(int people, int school, int rank);
 // a culture alloy's silhouette: the table's key for its people (an isolated or hidden family its first archetype's row),
 // school and rank, plus the details' arm and motif
 Shape alloyShape(const cult::Culture& c, int alloyIndex);
-// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) a kingdom's KIT alloy at a look tier: the everyday (index 0) at T4 and the
-// masterwork (the culture's last alloy: the ladder kit's and the king's) at T5-T6. Under FIX_SIG a kit alloy wears its people's
-// signature; every other alloy piece (forgeShape's SHAPE_OWN_BODY and SHAPE_OWN_HELM) its own helmet and cut in the people's colours
+// (P5b4, STYLE_P5B 2.5, decision 8 as restated 2026-11-07) a look tier's kit band: 1 the EVERYDAY (T3-T4), 2 the MASTERWORK
+// (T5-T6), 0 none (T1-T2)
+int kitBand(int tier);
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1; P5b4) a kingdom's KIT alloy at a look tier: the everyday (index 0) at T3-T4 and
+// the masterwork (the culture's last alloy: the ladder kit's and the king's) at T5-T6. Under FIX_SIG a kit alloy wears its
+// people's signature; every other alloy piece (forgeShape's SHAPE_OWN_BODY and SHAPE_OWN_HELM) its own helmet and cut in the
+// people's colours
 bool kitAlloy(const cult::Culture& c, int alloyIndex, int tier);
-// two kit alloys of one people at one tier (each alloy at its look tier): one look by design (the people's signature), not parted
-// by the P2c alloy gates (C16k, C16o, C16m, C18a-b, C19; STYLE_P5B 2.5). Always false under !FIX_SIG (P5's gates hold whole)
+// two kit alloys of one people in one kit band (each alloy at its look tier: both everyday T3-T4, or both masterwork T5-T6):
+// one look by design (the people's signature), not parted by the P2c alloy gates (C16k, C16o, C16m, C18a-b, C19; STYLE_P5B
+// 2.5). A pair across the T4/T5 boundary is not one (the gates' head-only parting, kitLadderPair). Always false under !FIX_SIG
 bool kitTwinPair(const cult::Culture& a, int ia, int ta, const cult::Culture& b, int ib, int tb);
 // the helm family a non-kit alloy piece draws under FIX_SIG: its own (alloyShape), unless the people's signature rules it out at
 // the tier (horns below T5; the Fjordfolk's cone) or it is the people's signed family at that tier (the kit's head), then the

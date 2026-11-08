@@ -304,7 +304,7 @@ inline void unpackShapeAxes(uint32_t p, uint8_t v[SX_COUNT]) {
 //   kabuto 1 the crescent kabuto | onion 1 the kulah (tools/doll/rekey_variants.mjs re-keys the maps, crest placements too)
 // and new drawings the owner's board asks for (FORGE-HEAD): horned 1, crown 2-3, morion 1.
 // (P5b2, STYLE_P5B 2.5, decision 8 reading 1) bits 23-24: the body piece (23) and the helm piece (24) are culture alloys that
-// are not their kingdom's kit alloy at their tier (gear::kitAlloy: the everyday at T4, the masterwork at T5-T6). Under FIX_SIG
+// are not their kingdom's kit alloy at their tier (gear::kitAlloy: the everyday at T3-T4, the masterwork at T5-T6). Under FIX_SIG
 // such a piece keeps this silhouette (its own cut and helmet, P5's) in its people's colours, not the people's signature
 // (gear::fillLadder, rankTiers set them; only under FIX_SIG). Bits 25-30 stay free
 constexpr uint32_t SHAPE_OWN_BODY = 1u << 23, SHAPE_OWN_HELM = 1u << 24;

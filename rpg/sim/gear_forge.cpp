@@ -1049,16 +1049,21 @@ Shape alloyShape(const cult::Culture& c, int alloyIndex) {
   return s;
 }
 
-// (P5b2, STYLE_P5B 2.5, decision 8 reading 1) the kingdom's kit alloys: the ladder kit's (gear_ladder.cpp ladderKit: the first
-// alloy at T4, the last at T5-T6) and the king's (rankTiers: the last at T5)
+// (P5b2, STYLE_P5B 2.5, decision 8 reading 1; P5b4, the owner 2026-11-07: "t3-t4 is a better representaion of every day
+// armor") the kingdom's kit alloys: the EVERYDAY (the first alloy) at T3-T4 (the ladder kit's T4, the census's common soldiers
+// at T4: rankTiers' everyday), the MASTERWORK (the last) at T5-T6 (the ladder kit's, the king's). The everyday kit's T3 pieces
+// are its people's steel (ladderKit, the census's T3 ranks): material pieces, signed at T1-T3 by sigLookOf
+int kitBand(int tier) { return tier == 3 || tier == 4 ? 1 : tier == 5 || tier == 6 ? 2 : 0; }
 bool kitAlloy(const cult::Culture& c, int alloyIndex, int tier) {
   const int n = (int)c.arms.alloys.size();
   if (alloyIndex < 0 || alloyIndex >= n) return false;
-  return (alloyIndex == 0 && tier == 4) || (alloyIndex == n - 1 && tier >= 5);
+  return (alloyIndex == 0 && kitBand(tier) == 1) || (alloyIndex == n - 1 && kitBand(tier) == 2);
 }
 bool kitTwinPair(const cult::Culture& a, int ia, int ta, const cult::Culture& b, int ib, int tb) {
   using namespace art::doll;
-  if (!fixOn(FIX_SIG) || !fixOn(FIX_FP) || a.archetype != b.archetype || ta != tb || !fp::sig(peopleRow(a) + 1)) return false;
+  if (!fixOn(FIX_SIG) || !fixOn(FIX_FP) || a.archetype != b.archetype || !kitBand(ta) || kitBand(ta) != kitBand(tb) ||
+      !fp::sig(peopleRow(a) + 1))
+    return false;
   return kitAlloy(a, ia, ta) && kitAlloy(b, ib, tb);
 }
 // a family the people's signature rules out for a non-kit alloy at the tier: horns below T5 (decision 2: the saga tier's), the

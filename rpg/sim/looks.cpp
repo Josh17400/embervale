@@ -898,7 +898,8 @@ static void liftRank(const World& world, art::HumanLook& L, Role r, const census
   if (!lifts) return;
   const int t = census::rankTier(r, rank);
   if (t <= 0) return;
-  gear::rankTiers(L, std::min(6, t + 1), true, realm);
+  // (P5b4, STYLE_P5B 2.5) a lifted watchman or soldier is a common soldier: at T4 his realm's everyday alloy (the signature)
+  gear::rankTiers(L, std::min(6, t + 1), true, realm, true);
   census::rankSlots(L, r);
   gear::keepMakers(L);   // (P5) the arms people dress gave stays (the same slots: rankTiers keeps the set)
 }

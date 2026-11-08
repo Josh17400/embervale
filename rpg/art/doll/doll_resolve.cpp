@@ -1480,7 +1480,7 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
   const int pb = L.makerAt(H::TIER_BODY), tb = L.tier[H::TIER_BODY];
   // (P5b area A) a tier whose skirt is null leaves the body as the piece draws it (the Heartland hero's road, D54-D55; a new
   // people's T5-T6 until the owner's budget ruling): "" is a word (unset), nullptr no signature
-  // (P5b2, STYLE_P5B 2.5-2.6, decision 8 reading 1) from T4 the signature is the kingdom's KIT alloy's: a non-kit alloy piece
+  // (P5b2, STYLE_P5B 2.5-2.6, decision 8 reading 1; P5b4: the everyday T3-T4) the signature is the kingdom's KIT alloy's: a non-kit alloy piece
   // (forge::SHAPE_OWN_BODY, SHAPE_OWN_HELM) keeps its own cut and helmet (P5's forge look: the piece's own shape axes and family,
   // the helm family already freed of the people's ruled-out heads by gear::ownAlloyHelm), and a material piece at T4-T6
   // (leather, bronze, iron, steel, the high metals, the Mythic: its forge base not an alloy) keeps its hero's shape (D83); both

@@ -21,6 +21,8 @@ namespace census {
 struct Rank { bool royal = false, capital = false; };
 void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner, uint64_t seed,
            const Rank& rank);
+int rankTier(Role r, const Rank& rank);
+void rankSlots(art::HumanLook& L, Role r);
 }  // namespace census
 
 namespace gear {
@@ -284,7 +286,7 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
     }
 }
 
-void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* realm) {
+void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* realm, bool everyday) {
   using H = art::HumanLook;
   if (tier <= 0) return;
   const uint8_t t = (uint8_t)std::min(tier, 6);
@@ -328,7 +330,9 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
     bool helmOwn = false;
     if (realm && t >= 4 && !realm->arms.alloys.empty() && armour) {
       const int n = (int)realm->arms.alloys.size();
-      const int idx = t >= 5 ? n - 1 : (n >= 3 ? n - 2 : n - 1 >= 1 ? 1 : 0);
+      // (P5b4) a common soldier at T4 wears the everyday alloy (the kit alloy at T4: his people's signature, STYLE_P5B 2.5)
+      const bool ev = everyday && t == 4 && art::doll::fixOn(art::doll::FIX_SIG);
+      const int idx = t >= 5 ? n - 1 : ev ? 0 : (n >= 3 ? n - 2 : n - 1 >= 1 ? 1 : 0);
       st = alloyStyle(*realm, idx);
       if (art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t) && L.tier[H::TIER_HELM]) {   // (P5b2) as fillLadder
         ForgeStyle hs = st;
@@ -343,7 +347,7 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
       L.forgeGuise = 0;   // (forge round 2) retired: the silhouette below
       Shape sh = alloyShape(*realm, idx);
       // (P5b2, decision 8 reading 1) the T4 officers' alloy below the masterwork is not the kingdom's kit alloy (the everyday
-      // at T4): under FIX_SIG it keeps its own look, its helm freed of the people's ruled-out heads
+      // at T3-T4): under FIX_SIG it keeps its own look, its helm freed of the people's ruled-out heads
       if (art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t)) {
         int v = -1;
         const int f = ownAlloyHelm(*realm, idx, L.tier[H::TIER_HELM] ? L.tier[H::TIER_HELM] : t, &v);
@@ -762,6 +766,16 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
         default: break;
       }
       census::dress(N, name, role, female, C, C, (uint64_t)seed * 0x9E3779B97F4A7C15ull ^ 0xC3A5ull, rk);
+      // (P5b4) npc=<people>:<role>:<rank>:<seed>:lift: the census's band-4+ land lift (looks.cpp liftRank: the watch, soldiers
+      // and bandits one tier up; a lifted watchman or soldier a common soldier, at T4 his realm's everyday alloy)
+      if (f.size() >= 5 && f[4] == "lift" && (role == Role::Soldier || role == Role::Bandit || (role == Role::Guard && !rk.royal))) {
+        const int t = census::rankTier(role, rk);
+        if (t > 0) {
+          rankTiers(N, std::min(6, t + 1), true, &C, true);
+          census::rankSlots(N, role);
+          keepMakers(N);
+        }
+      } else if (f.size() >= 5) addBad("npc (the 5th field is lift)");
       L = N;
     }
   }

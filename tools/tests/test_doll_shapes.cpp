@@ -222,12 +222,14 @@ bool sigOpenMask(const doll::DollRecipe& r) {
 }
 // (P5b2) an alloy's tier on gear::alloyKitLook's figure (the boards, C16o, C16m, C18): the first two at T4, the rest T5
 int kitTier(int alloyIndex) { return alloyIndex >= 2 ? 5 : 4; }
-// (P5b2, STYLE_P5B 2.5) a kingdom's two kit alloys at two tiers (the everyday at T4, the masterwork at T5): the people's signature
-// a tier apart, one body growing (section 5); under FIX_SIG only. STYLE_P5B 10 decision 9: NOT YET RULED by the owner (the
-// 2026-11-06 "let's do your recommendation" answered decision 8); the plan proceeds on reading 1 until the owner answers:
-// such a pair is parted by the head alone (C16o, C16m, C18b: head OD 0.10)
+// (P5b2, STYLE_P5B 2.5; P5b4) a kingdom's two kit alloys across the T4/T5 boundary (its everyday at T3-T4, its masterwork at
+// T5-T6): the people's signature a tier apart, one body growing (section 5); under FIX_SIG only. STYLE_P5B 10 decision 9: NOT
+// YET RULED by the owner (the 2026-11-06 "let's do your recommendation" answered decision 8); the plan proceeds on reading 1
+// until the owner answers: such a pair is parted by the head alone (C16o, C16m, C18b: head OD 0.10). Two kit alloys in one
+// band are gear::kitTwinPair's (not parted at all)
 bool kitLadderPair(const cult::Culture& c, int i, int ti, int j, int tj) {
-  return ti != tj && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP) && gear::kitAlloy(c, i, ti) && gear::kitAlloy(c, j, tj);
+  return gear::kitBand(ti) && gear::kitBand(tj) && gear::kitBand(ti) != gear::kitBand(tj) && art::doll::fixOn(art::doll::FIX_SIG) &&
+         art::doll::fixOn(art::doll::FIX_FP) && gear::kitAlloy(c, i, ti) && gear::kitAlloy(c, j, tj);
 }
 // (P5b2 fix, diagnostics) an alloy's figure as alloyKitLook draws it at its kit tier: "T4 OWN kettle v0 split drop halfcape (idx 1/3, school 12)"
 std::string drawnDesc(const cult::Culture& c, int i) {

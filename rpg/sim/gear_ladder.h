@@ -43,7 +43,10 @@ void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultu
 // person: a census person (sets HumanLook::kitVar from the face: each fighter's own kit); false for the looks macros' tier=
 // (P2c forge, D29) realm: the culture whose kingdom the person serves: its T4 officers wear its best alloy below the
 // masterwork, its king (T5) the masterwork (alloyStyle); null: the rank's metal by baseStyle
-void rankTiers(art::HumanLook& L, int tier, bool person = true, const cult::Culture* realm = nullptr);
+// (P5b4, STYLE_P5B 2.5, the owner 2026-11-07: everyday armour is T3-T4) everyday: a common soldier lifted to T4 (census
+// liftRank: the watch and soldiers in band-4+ land), who wears the realm's EVERYDAY alloy (its first: the kit alloy at T4, the
+// people's signature) where an officer wears the best below the masterwork. Under FIX_SIG only (off: the officers' alloy, P5's)
+void rankTiers(art::HumanLook& L, int tier, bool person = true, const cult::Culture* realm = nullptr, bool everyday = false);
 
 // ---- the ladder kit (contracts 3b "The kit"): real Items for one people at one tier, from cult::Atlas::make(people,
 // seed); the Heartland's forms are Item::form picks (padded, leather, mail, plate; the leather cap, nasal, great helm; round,
