@@ -1,0 +1,65 @@
+# layers_allow.txt: the layer violations that exist at 119de74, so check_layers.sh can fail on any NEW one.
+# This file may only SHRINK: remove a line when a step fixes it (check_layers prints STALE lines to remove).
+# check_layers fails when a line is added that is not in tools/gates/baseline/119de74/checks/layers_allow.txt.
+# Format: <rule> <file> <target>   (mark-mix: one line per restatement; target MIX)
+# Wave 2 (narrow headers) is expected to clear most of these: world/records.h, sim/mark_tags.h, story/story_api.h.
+
+# --- foreign-internal
+foreign-internal rpg/art/art_fx.cpp rpg/art/rig/rig_internal.h
+foreign-internal rpg/main.cpp rpg/sim/game_internal.h
+foreign-internal rpg/sim/ai.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/banter.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/dungeon.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/game.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/life_game.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/party_talk.cpp rpg/story/story_internal.h
+foreign-internal rpg/sim/party_voice.cpp rpg/story/story_internal.h
+foreign-internal rpg/story/story.cpp rpg/sim/game_internal.h
+foreign-internal rpg/story/story_detail.h rpg/sim/game_internal.h
+foreign-internal rpg/view/scripts/homestead.cpp rpg/sim/game_internal.h
+foreign-internal rpg/view/scripts/party.cpp rpg/sim/game_internal.h
+foreign-internal rpg/view/scripts/party_view.cpp rpg/sim/game_internal.h
+foreign-internal rpg/view/scripts/saga.cpp rpg/sim/game_internal.h
+foreign-internal rpg/view/scripts/voice.cpp rpg/sim/game_internal.h
+foreign-internal tools/preview/doll_gallery.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/preview/rig_gallery.cpp rpg/art/rig/rig_internal.h
+foreign-internal tools/preview/rigarms_gallery.cpp rpg/art/rig/rig_internal.h
+foreign-internal tools/preview/rigdraft.cpp rpg/art/rig/rig_internal.h
+foreign-internal tools/preview/rigposes_gallery.cpp rpg/art/rig/rig_internal.h
+foreign-internal tools/save_test.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/metrics.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_campaigns.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_content_p1b.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_defence.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_dialogue.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_doll.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_doll_arms.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_envelope.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_forge.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_ladder.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_motion.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_shapes.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_doll_wear.cpp rpg/art/doll/doll_internal.h
+foreign-internal tools/tests/test_folk_sim.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_home.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_jobs.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_life_p1.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_life_p1.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_loot_sources.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_p1b_engine.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_p1b_engine.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_party.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_party_ways.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_powers.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_quests.cpp rpg/sim/game_internal.h
+foreign-internal tools/tests/test_rig.cpp rpg/art/art_internal.h
+foreign-internal tools/tests/test_sagas.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_story.cpp rpg/story/story_internal.h
+foreign-internal tools/tests/test_story_p1.cpp rpg/story/story_internal.h
+
+# --- mark-mix
+# (none left: cleared in SOLID wave 2)
+
+# --- sim-from-lower
+# (none left: cleared in SOLID wave 2)
