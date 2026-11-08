@@ -1,0 +1,15 @@
+  C12f ladder hero     area: T1 808 (1.00) T2 910 (1.13) T3 1050 (1.30) T4 1226 (1.52) T5 1382 (1.71) T6 1492 (1.85)
+  C12f ladder hero     heads: T2-T3 160->238 OD 0.207 T3-T4 238->254 OD 0.296 T4-T5 254->443 OD 0.183 T5-T6 443->568 OD 0.259
+  C12f ladder hero     T2 head budget: 160 px now, 226 or less (T3's 238 / 1.05)
+  C12f ladder heroine  area: T1 725 (1.00) T2 865 (1.19) T3 997 (1.38) T4 1186 (1.64) T5 1347 (1.86) T6 1459 (2.01)
+  C12f ladder heroine  heads: T2-T3 160->235 OD 0.209 T3-T4 235->254 OD 0.297 T4-T5 254->443 OD 0.176 T5-T6 443->534 OD 0.256
+  C12f ladder heroine  T2 head budget: 160 px now, 223 or less (T3's 235 / 1.05)
+  C12f guard eg3: area 1026 (1.27 of e1 808, 1.19 of eg0 859) shoulders 20 cape D 11 / 11 rows, back R 1
+ok    C12f envelope              62 checks,    0 failed
+ok    C3b helm by tier           60 checks,    0 failed
+ok    C12f ladder lines          20 checks,    0 failed
+ok    C13 drawn motion           26 checks,    0 failed
+ok    B10 by tier (env)         150 checks,    0 failed
+ok    D64 kit tags                7 checks,    0 failed
+ok    D97 one kit one look      432 checks,    0 failed
+doll-envelope: 0 failure(s)
