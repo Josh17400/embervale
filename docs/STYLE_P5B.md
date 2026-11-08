@@ -52,8 +52,9 @@ detail and the plumbing (section 8).
    **What "everyday = T3-T4" is in code (P5b4):** `gear::kitBand(tier)` is 1 (everyday) at T3-T4, 2 (masterwork) at T5-T6, 0
    at T1-T2; `gear::kitAlloy(c, i, t)` is the first alloy (i = 0) in band 1 and the culture's last alloy in band 2. The
    everyday kit's **T3 pieces are material pieces, not alloys**: the people's own **steel** (`ladderKit` at T3: mail, helm,
-   kite in steel made by the culture; the census's T3 ranks, the capital watch, heralds, envoys, warlords and soldiers lifted
-   in band-4+ land, `rankTiers` at T3 in the realm's steel). An alloy never draws at T3 while FIX_LINES holds (`lookTier`: a
+   kite in steel made by the culture). The census's T3 soldiers keep their **kingdom's livery metal** (see the table below:
+   `census::dress` gives the watch and the soldiers the kingdom's tint, `rankTiers` at T3 keeps it) and wear the **people's T3
+   signature** as the kit does. An alloy never draws at T3 while FIX_LINES holds (`lookTier`: a
    culture alloy draws T4 or more, D86), so the T3 everyday is signed as every T1-T3 piece is (`sigLookOf`: the people's T3
    row, its head, body axes and colours); were an alloy drawn at T3 (FIX_LINES off) the first is a kit piece there and every
    other alloy an own piece. The everyday kit's **T4 pieces** are the **first alloy**: the ladder kit's T4 and, new in P5b4,
@@ -62,6 +63,35 @@ detail and the plumbing (section 8).
    the signature; before P5b4 he wore the officers' alloy as an own piece and read as no people). The **officers** at T4
    (captains, jarls, the royal guard: D29) keep the realm's best alloy below the masterwork, an own piece, and the king the
    masterwork (kit). `npc=<people>:<role>:<rank>:<seed>:lift` draws the lifted figure (the looks macros, the sheets).
+   **The census's T3 soldiers (P5b5, as built; measured by the judge's `ev_recipe.py` over `rpg_test --doll-recipe`, 12
+   peoples x seeds 1-4 x man and woman).** The capital watch (T3 by rank) and the soldiers and village watch lifted to T3 in
+   band-4+ land wear the coat (`Outfit::Guard`) at T3. Where the coat's helm or body is made by a people **signed at T3** (its
+   T3 row's head or skirt set: 11 of the 12 peoples), it is the kingdom's everyday and draws the people's T3 as the kit does
+   (`doll_resolve everydayT3`: `sigLookOf`'s head, body axes, shoulders and shield form; the people's T3 cape by the people's
+   line rule); a signed coat with no helm (the Highland T2 soldier's bonnet) wears the people's T3 head at T3. The metal is
+   the kingdom's livery, not the kit's steel ("tint" below: metalKind 10, the kingdom's armourTint on the alloy ramp; "brass"
+   where the tint reads as brass):
+
+   | People | T3 kit head (steel) | capital watch T3 | soldier lifted T3 | village watch lifted T3 |
+   |---|---|---|---|---|
+   | Fjordfolk | spangen | spangen, steel | spangen, tint | spangen, iron |
+   | Highland | kettle | kettle, tint / brass | kettle (the bonnet gives way), tint / brass | kettle, tint / brass |
+   | Heartland | nasal, knife comb | **kettle (D57)**, tint / brass | **kettle (D57)**, tint | **kettle (D57)**, tint / brass |
+   | Imperial | crested | crested, brass | crested, brass | crested, brass |
+   | Dune | veil | veil, brass | veil, brass | veil, brass |
+   | Steppe | plumed | plumed, brass | plumed, brass | plumed, brass |
+   | Marsh | kettle | kettle, brass | kettle, brass | kettle, brass |
+   | Jade | kabuto | kabuto, tint | kabuto, brass | kabuto, tint |
+   | River | morion | morion, tint / brass | morion, tint / brass | morion, tint / brass |
+   | Sun Temple | masked | masked, brass | masked, brass | masked, brass |
+   | Sylvan | winged | winged, tint / brass | winged, tint | winged, tint / brass |
+   | Starspire | crown and hood | crown and hood, tint | crown and hood, tint / brass | crown and hood, tint |
+
+   **D57's fate** (docs/PLAN.md D57; P2C_CONTRACTS "The watch at T3": the kettle, the cop, the cape and the round shield the
+   owner saw on the Heartland watch): **retired for the 11 signed peoples** under FIX_SIG (their T3 watch and soldiers draw
+   the people's T3 above); **kept for the Heartland** (its T3 row is the hero's road, unsigned: D54-D55) until the owner
+   rules whether the Heartland's everyday T3 watch wears the kit's nasal with the knife comb instead. FIX_SIG off: D57 for
+   every people, as at f914d03.
    **Every other alloy** (the warriors' at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
    "every alloy its own helmet"), drawn from the people's STYLE_P2 28.5 menu and dressed in the people's pair (crest, layer,
    cape, cloak, shield field), and never a family the people's signature rules out below T5 (the Fjordfolk: no cone, the
@@ -592,7 +622,9 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    day armor": the everyday is the kingdom's T3 AND T4 gear (the T3 steel and the first alloy at T4, the census's common
    soldiers at T4 included), the masterwork stays T5-T6, every other alloy keeps its own helmet in the people's colours; the
    Heartland hero's road keeps its gilded onion (T5) and starmetal crystal (T6) relic helms (D83). Section 2.5 says what it is
-   in code (`gear::kitBand`, `kitAlloy`, `rankTiers(..., everyday)`). The text below is the 2026-11-06 ruling as asked. Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
+   in code (`gear::kitBand`, `kitAlloy`, `rankTiers(..., everyday)`) and, per people, what the census's T3 soldiers draw
+   (P5b5: the people's T3 head in the kingdom's livery metal; D57's watch kit retired for the 11 signed peoples, kept for the
+   Heartland until the owner rules: **open question for the owner**). The text below is the 2026-11-06 ruling as asked. Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
    everyday at T4, the masterwork at T5-T6) wears the people's one signature (the look the owner approved: "i really like
    these"); every other alloy keeps its own helmet and cut (2026-10-24/25) in the people's colours; two kit alloys of one
    people at one tier are not parted by the P2c alloy gates. Reading 2: each kingdom's kit carries a MARK on the signature
