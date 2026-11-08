@@ -1,0 +1,34 @@
+# Wave-0 record of the step gates (SOLID_PLAN 0.1), 2026-10-30. Tree f2b0eb8d4f6f00509388c4911479263b368bf4df +dirty(2 files): 119de74 game code + docs/SOLID_PLAN.md
+# + the untracked wave-0 tools. Fresh MSVC dir build-solid-gates2 (rm -rf first); S4 WSL copy ~/emb_solid_gates0
+# (incremental); S8 build-web-gates0 (incremental; emsdk 6.0.13 at C:/Users/joshu/emsdk-6.0.13). Command:
+#   tools/gates/step_gates.sh --all --bdir build-solid-gates2 --web-bdir build-web-gates0 --copy emb_solid_gates0 --out <dir>
+# A duration counts from the moment the tools/slot.sh slot was held; "(+Ns slot wait)" is the queue (the 5-slot cap was
+# shared with the 0.2/0.3 builders all run). S2 is the rerun after the chk_seeds fix (the run said FAIL from a check bug;
+# its output was already equal). S9 durations include up to 13 min waiting for Witness's machine budget (a peer's
+# witness_pack held WITNESS_MAX_PROCS=5). S10.view had no quick record yet at run time (SKIP).
+# Negative tests: --only S5 --expect ART_TOTAL_RIG2=0123456789abcdef -> exit 1, "S5.rig2 FAIL ... TOTAL 5e4a8a57bb4212f8,
+# expected 0123456789abcdef"; --expect ART_TOTAL_RIG1=0000000000000000 -> exit 1, S5.rig1 FAIL.
+S1.build PASS rc=0 206s | 36 exes, warnings 408 <= 408, [748/749] (+90s slot wait)
+S2.seeds PASS rc=0 341s | 20 passed, 0 failed; same as baseline (26 lines) (+139s slot wait)
+S3.fixtures PASS rc=0 1s | tests/fixtures identical to 119de74
+S3.save PASS rc=0 78s | same as baseline (20 lines) | save_test: ALL OK (+1126s slot wait)
+S3.savever PASS rc=0 0s | SAVE_VER 23
+S4.clang PASS rc=0 1857s | clang build rc=0 | ninja: no work to do., 68 commands, CLANG_FAILS=0 (+87s slot wait)
+S5.rig1 PASS rc=0 2s | TOTAL 317eef6efe4d8229; same as baseline (14 lines) (+350s slot wait)
+S5.rig2 PASS rc=0 6s | TOTAL 5e4a8a57bb4212f8; same as baseline (14 lines) (+72s slot wait)
+S6.freeze PASS rc=0 10s | freeze: 39152 frames checked, 0 changed, 0 gone, 0 new frames, 0 looks not in the manifest; same as baseline (3 lines) (+1165s slot wait)
+S6.freeze1 PASS rc=1 8s | known red at 119de74 (rc=1), same output: freeze: 39152 frames checked, 5466 changed, 0 gone, 0 new frames, 0 lo; same as baseline (77 lines) (+655s slot wait)
+S6.pool PASS rc=0 3s | (870 parts, 2570937 bytes of the 2621440 B budget, hash c8df3de9a5fc8245)
+S7.rig1 PASS rc=0 130s | village-art: 65 groups, 0 changed; same as baseline (1 lines) (+994s slot wait)
+S7.rig2 PASS rc=0 136s | village-art: 65 groups, 0 changed; same as baseline (1 lines) (+333s slot wait)
+S8.build PASS rc=0 1s | build_web: OK C:\Users\joshu\Documents\embervale\build-web-gates0\embervale.js C:\Users\joshu\Documents\embervale\build-web-gates0\embervale.wasm (+83s slot wait)
+S8.exports PASS rc=0 0s | exports ok (web.yml step, 4 lines): FS IDBFS addRunDependency removeRunDependency + indexedDB (172536 B js, 18222626 B wasm)
+S9.shot PASS rc=0 337s | ✔ expect ssim >= 0.999: got 1 >= 0.999
+S9.test PASS rc=0 2058s | witness_smoke: 4 passed, 0 failed of 4 files (2056s)
+S10.audio PASS rc=0 1104s | audio_pack PASS: 202 WAVs identical (205 lines), 1103 s
+S10.digest PASS rc=0 106s | sim-digest PASS: 260/260 checkpoints identical, 0 of 20 seeds differ, digest 8a2913fd17199e87
+S10.layers PASS rc=0 3s | check_layers: PASS violations=88 allowed=88 new=0 stale=0
+S10.move PASS rc=0 2s | 226 new lines (review them: <out>/sg_fresh2/logs/S10.move.log)
+S10.view SKIP rc=0 1s | SKIP (tool missing): no quick view record under /c/Users/joshu/Documents/embervale/tools/gates/baseline/119de74/probes
+TOTAL pass=21 fail=0 skip=1
+# fresh web build (rm -rf build-web-gates1; tools\gatesuild_web.bat build-web-gates1): rc 0, 536 s, 546 ninja steps; embervale.js/.wasm byte-identical to build-web-gates0

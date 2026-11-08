@@ -22,10 +22,13 @@ The roots, oldest first (each made from the one before it by `rebase_baseline.sh
   own band at the panel foot (F1-6b), the DANGEROUS GROUND banner in three lines (F1-6a, `p4_view_long_banner.png` new),
   the pin moved only by the player's own take (F1-2) and its QUEST STARTED banner (F1-QS): 52 view-quick and 279 view-all
   shots; every other record is `p4`'s.
-- `p5b3/` **CURRENT**: P5, P5b, P5b2 and P5b3 together (the signed peoples T1-T6, decision 8 reading 1; REV 9ab6bdc, the P5b3
+- `p5b3/` P5, P5b, P5b2 and P5b3 together (the signed peoples T1-T6, decision 8 reading 1; REV 9ab6bdc, the P5b3
   integration of GRIPS, DUNE and FINISH): 22,006 items from 109 moves, the union of `moves_p5/`, `moves_p5b/`, `moves_p5b2/` and
   `moves_p5b3/` (each file prefixed by its dir in REASONS.md). W6.perf was not re-recorded (perf stays `p4f1`'s: the machine's
   frame.shot_med was slow that night for a P4-era build too); `gates_parity` came from its alone rerun (B10 timing under load).
+- `p5b4/` **CURRENT**: the owner's 2026-11-07 ruling, everyday armour is T3-T4 (STYLE_P5B 2.5, decision 8; REV 7665547):
+  302 items from 31 moves of `moves_p5b4/T3T4.txt`, the view shots (271 view-all, 31 view-quick) where a capital watchman lifted
+  to T4 in band-4+ land now wears his realm's first alloy in his people's signature; every other record is `p5b3`'s.
 
 A root holds `gates/` (the step and doll records, `expect.txt`, `unstable.txt`), `probes/` (sim digests, PNG and WAV
 hashes, perf) and `checks/` (layer allowlist, size report); a moved root adds `REV` (its git revision) and
