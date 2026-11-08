@@ -1064,3 +1064,14 @@ view L key lie origin 2 1 when helm.t3,!helm.t4
 |.....................
 
 # (HELMS fix r2) end tier views
+
+# (P5b3 finish) begin fjordfolk-t2-cone: the Fjordfolk T2 cap's crown taken in to the spangen's low cone, facing D and U (S1 T2: the Heartland soft cap's twin)
+view D key rest origin -2 0 when sighelm-fjordfolk,helm.t2,!helm.t3,helm.t1
+|..-......-..
+|............
+|-g.........-
+view U key rest origin -2 0 when sighelm-fjordfolk,helm.t2,!helm.t3,helm.t1
+|..-......-..
+|............
+|-g.........-
+# (P5b3 finish) end fjordfolk-t2-cone

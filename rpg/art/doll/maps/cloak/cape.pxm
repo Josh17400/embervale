@@ -3988,3 +3988,17 @@ view L key breeze origin 5 1 when cloak.t5 replace
 |...QRRRRRRRSSSRSSSSQ
 |....QSSSSSSSSTTTTTTQ
 |.....QQQQQQQQQQQQQQQ
+
+# (P5b3 finish) begin marsh-t3-seams: the Marsh man's T3 moss cape's dark seam against the iron (C14)
+view D key rest origin 12 -1 when cloak.t3,!cloak.t5,sigbody-marsh,armour.t3,!armour.t4,!woman
+|..K
+|...
+|...
+|...
+|...
+|K..
+|...
+|K..
+view R key rest origin 6 -8 when cloak.t3,!cloak.t5,!walk,armour.t1,sigbody-marsh,armour.t3,!armour.t4,!woman
+|K
+# (P5b3 finish) end marsh-t3-seams

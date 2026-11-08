@@ -590,15 +590,23 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    approved slice's T5 bodies change; slice_same falls). Until ruled the code keeps the exemption, exactly as above:
    a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
 
-### 10.1 Residuals that touch the approved slice (fix r3: FOR THE PLANNER'S RULING, not yet ruled)
+### 10.1 Residuals that touch the approved slice (fix r3 named them; RULED for P5b round 3, below)
 
 Each line below fails a gate only on frames of the approved slice (Fjordfolk, Imperial and Jade at T1/T3/T5, frozen as the
-owner signed them: slice_same 567/567), so no fix may move it. Fix r3 names them for the planner, who rules each (keep as a
-declared W4 move, or redraw and re-ask the owner); until then they stay red.
-- W4.doll.ladder_finish_L (C12b, `rpg_test --doll-ladder --finish --scope ladder --seeds 1..3`): fjordfolk sword man s1-s3
-  "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)", "lt3 R slot 0 (T3) trim 2.4 % (band 3-30 %)" and "lt5 R:
-  no glow pixel at T5"; fjordfolk sword woman s1-s3 "lt5 D slot 1 (T6) trim 9.9 %"; jade sword man s1 and woman s1 "lt5 R: no
-  glow pixel at T5".
+owner signed them: slice_same 567/567), so no fix may move it. Fix r3 named them for the planner; **the main session ruled
+them for P5b round 3 (2026-11-07):**
+- **R1.** The approved slice's frames change ONLY to fix a real defect (a 1 px hole, a grip outside the fist), by the smallest
+  pixel change, each declared as a move with the frames it moves; slice_same is re-recorded for exactly those frames (listed in
+  the round's moves file); the look must not visibly change.
+- **R2.** The 8 approved-slice `ladder_finish_L` lines that are threshold-only (below) are ACCEPTED as approved looks: declared
+  as W4.doll.ladder_finish_L moves with this ruling as the reason (`tools/gates/baseline/moves_p5b3/FINISH.txt`); approved art
+  is never repainted for a threshold. Every other ladder line reaches the gate's rc 0 (P5b3 FINISH: Dune lt2 -> lt3 R, River
+  lt1 D colours, Sun Temple s3 lt1 -> lt2 R and Marsh lt3 C14 fixed by `tools/doll/p5b3_finish.py`; C12 72 lines, 8 failed, all
+  of them these; C13 and C14 0 failed).
+- W4.doll.ladder_finish_L (C12b, `rpg_test --doll-ladder --finish --scope ladder --seeds 1..3`), **ruled R2**: fjordfolk sword
+  man s1-s3 "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)", "lt3 R slot 0 (T3) trim 2.4 % (band 3-30 %)"
+  and "lt5 R: no glow pixel at T5"; fjordfolk sword woman s1-s3 "lt5 D slot 1 (T6) trim 9.9 %"; jade sword man s1 and woman
+  s1 "lt5 R: no glow pixel at T5".
 - W4.doll.arms_matrix (C3a): the 1 px pinhole between the Fjordfolk T5 pelt pauldron and the scale coat
   (armour/shared/pauldron_pelt5_r, 109 frames on the fjordfolk:5 looks; drawn in the slice's woman D) and the skirt pinholes
   of the Jade and Imperial T5 kits (armour/woman/skirt_strips 48, armour/man/skirt_bell 32): doll_paint's closeGearPockets

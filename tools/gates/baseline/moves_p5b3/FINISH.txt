@@ -1,0 +1,25 @@
+# tools/gates/baseline/moves_p5b3/FINISH.txt: P5b round 3, FINISH (the lead artist; judge P5b2 r4 items 1 and 3; the main
+# session's rulings R1 and R2, recorded in docs/STYLE_P5B.md 10.1). <gate> <item glob>[,...] <id> <reason>.
+# Measured on fix-p5b3-FINISH (from fc4afc6), build-solid, with tools/gates/step_gates.sh (default set) and
+# tools/gates/doll_gates.sh, each difference compared with the F3 integration wave (70fb050: the same maps and pool as fc4afc6).
+# The change: tools/doll/p5b3_finish.py (ADD only, --verify: 7 maps, every added line inside a (P5b3 finish) block), the pool
+# 2,666,992 -> 2,668,680 B (hash f8b7f4716e218030 -> 65d8e53c71e34a88) of 5,242,880. Every new view is keyed on a signed flag
+# (sighelm-*, sigbody-*), so EMB_FIX_RULES=8191 (FIX_SIG off) draws fc4afc6's pixels: fingerprint_gallery --slice, the twelve
+# peoples T1-T6 seeds 1-3, 4,572 of 4,572 PNGs identical between fc4afc6's pool and this one. The approved slice: slice_same
+# 567 of 567 (no R1 frame moved by this seat). The freeze manifests: 39,544 frames, 0 changed (no manifest look wears a
+# changed view: nothing re-signed).
+# The judge's measures after: rpg_test --doll-ladder --finish --scope ladder --seeds 1..3 --report: C12 72 lines, 8 failed (the
+# 8 R2 lines below, nothing else), C13 0, C14 0; judge_all12_t6.py: S1, J1, J2, R3a 0 at T1-T6 (T2 fjordfolk/heartland man
+# s1-s2 D figure XOR 21 -> 25 of 21.28), J4 39 and J5 50 as at fc4afc6 (no line added); the arms matrix on the touched kits
+# (85 looks) 55 C3 failures before and after, the same lines.
+
+# R2 (docs/STYLE_P5B.md 10.1): the approved slice's threshold-only ladder lines, accepted as the approved looks (never repainted
+# for a threshold). The gate's rc stays 1 on these 8 lines alone.
+W4.doll.ladder_finish_L rc,*line?fjordfolk?sword?man?s[123]:?b:?lt5?D?slot?1?(T6)?trim?9.9?%*,*line?fjordfolk?sword?man?s[123]:?b:?lt3?R?slot?0?(T3)?trim?2.4?%*,*line?fjordfolk?sword?man?s[123]:?b:?lt5?R:?no?glow?pixel?at?T5*,*line?fjordfolk?sword?woman?s[123]:?b:?lt5?D?slot?1?(T6)?trim?9.9?%*,*line?jade?sword*s1:?b:?lt5?R:?no?glow?pixel?at?T5*,*source?L:?72?lines?(seeds?1..3)??432?looks;?C12?misses?on?*?lines,doll-ladder:?*?failing?line(s) P5b3-FINISH-R2 ruling R2 (the main session, STYLE_P5B 10.1): the approved slice's 8 threshold-only lines (Fjordfolk man s1-s3 lt5 D T6-slot trim 9.9 % vs 10, lt3 R trim 2.4 % vs 3, lt5 R no glow; Fjordfolk woman s1-s3 lt5 D trim 9.9 %; Jade man and woman s1 lt5 R no glow) are approved looks, declared not repainted; the rc 0 -> 1 and the summary lines (C12 misses on 8 lines, 1 failing line) are theirs alone
+
+# The art (tools/doll/p5b3_finish.py), each line against the F3 wave (70fb050) as the differing items show them.
+S6.pool *pxc?--check:* P5b3-FINISH the 7 maps' (P5b3 finish) blocks (spangen the Fjordfolk T2 cone, veil the Dune T3 turban wrap, headscarf the River T1 chaperon plain, pauldron_feather2_r/_l the Sun Temple T2 mantle tips, cape and scarf the Marsh man's T3 seams): 2,666,992 -> 2,668,680 B (29,639 -> 29,669 views), hash 65d8e53c71e34a88, of 5,242,880
+W4.doll.gates_parity *pool:?873?parts*,*pool:?870?parts* P5b3-FINISH the pool line (as S6.pool); B10 0 failed when run alone (rpg_test --doll --gates --parity rc 0: the wave's B10 p95 bake 0.455 ms was the machine's load, two gate sets and another seat's)
+W4.doll.arms_matrix *pool:?873?parts*,*pool:?870?parts*,*C4?m11_* P5b3-FINISH the pool line (as S6.pool) and C4's armour-change report on the m11 looks (kit=dune:3:1: the kulah's turban wound higher, the aventail's hem); C3 315 failed before and after, the same lines
+W4.doll.env_ladder *ok?fjordfolk*ratios*,*ok?dune*ratios*,*|?Fjordfolk?|*,*|?Dune?|* P5b3-FINISH the source-L area, head and OD ratios of the Fjordfolk lines (the T2 cap's crown 4 px in: T2 1.19 -> 1.18, head 191 -> 187) and the Dune lines (the T3 wrap: T3 1.27 -> 1.29, head 294 -> 315); C12f caps and lines 0 failed
+S10.view m3_towns_tour/m3t_dune_town_a.png,town_day_night/m5_tdn_dune_*.png,m6_foes_boss/m6_foes_boss_[345]_*.png,p2c_menus/p2c_menus_*.png,p2c_menus_phone/p2c_menus_phone_*.png P5b3-FINISH the shots whose hash moved against the F3 wave's (14): the Dune town's T3 guards (the kulah's turban wrap) by day and night, and the menus' party and portraits and the boss scenes, whose figures wear the touched kits
