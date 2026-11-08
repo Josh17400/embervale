@@ -215,9 +215,22 @@ bool mythicAlloy(const HumanLook& L, int slot) {
 }
 // (envelope fix round, D57; the judge's round 3: eg3 measured shoulders 18, no cape, 1.05 of eg0) the village watch at T3 wears
 // the fair test's T3d kit (docs/ref/envelope f32_guard_t3d): a guard's coat (Outfit::Guard) at body tier 3 outside the forge kits
-bool watchT3(const HumanLook& L) {
+// (P5b5, the owner 2026-11-07: "t3-t4 is a better representaion of every day armor") the census's T3 watchman or soldier in
+// that coat whose helm or body is made by a people signed at T3 (its T3 row's head or skirt set: 11 of the 12; the Heartland's
+// T3 row is its hero's road, unsigned) is the kingdom's everyday armour: his people's T3 as the kit draws it (sigLookOf: the
+// head, the body's axes and shoulders, the shield's form; the T3 cape by the people's line rule in ladderLook), so D57's issue
+// (the kettle, the cop, the round shield) is the unsigned watch's only. FIX_SIG off: D57 as before
+bool watchT3Coat(const HumanLook& L) {
   return L.outfit == Outfit::Guard && L.tier[HumanLook::TIER_BODY] == 3 && !L.forge[HumanLook::TIER_BODY] && !L.civil;
 }
+bool signedAtT3(int people, bool helm) {
+  const fp::SigTier* t = fixOn(FIX_SIG) && fixOn(FIX_FP) && fp::sig(people) ? fp::sigTier(people, 3) : nullptr;
+  return t && (helm ? t->head != nullptr : t->skirt != nullptr);
+}
+bool everydayT3(const HumanLook& L) {
+  return watchT3Coat(L) && (signedAtT3(L.makerAt(HumanLook::TIER_HELM), true) || signedAtT3(L.makerAt(HumanLook::TIER_BODY), false));
+}
+bool watchT3(const HumanLook& L) { return watchT3Coat(L) && !everydayT3(L); }
 // (P2c wave 2, DOLL-C; D69) a tiered fighter's armour at T2 or T3: the envelope's T2-T3 lifts apply (small caps or the short
 // mantle at T2; medium plates or the people's cape at T3)
 // (wave 2 r4) a people's line only: the watch and the soldiers (the Guard uniform, a rank's issued kit: the signed-off guard,
@@ -1270,7 +1283,7 @@ HumanLook ladderLook(const HumanLook& L) {
   // (envelopeT2Mantle). A culture alloy's silhouette keeps its own mass (NONE: no shoulders, D38) and the D57 watch its kit.
   // (wave-2 fix round, D75: D69's "or" becomes "and") T3 wears its people's medium plates where its dial gives shoulders AND its
   // T3 cloak (the people's cape where no cloak item is worn); an alloy's over-layer stands in for the cape dial (D73)
-  if (envelopeLifts(E) && tb == 3 && !watchT3(L)) {
+  if ((envelopeLifts(E) || everydayT3(L)) && tb == 3 && !watchT3(L)) {   // (P5b5) the everyday T3 watch as the kit
     const ShapeUse su = shapeUseOf(L);
     const bool massNone = su.body && su.sx[forge::SX_MASS] == forge::MS_NONE;
     const bool layered = su.body && su.sx[forge::SX_LAYER];
@@ -1510,8 +1523,18 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
     shaped = true;
   }
   // the helm (a helmet worn: a band, a form or the legacy helmet)
-  const int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
-  const bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
+  int ph = L.makerAt(H::TIER_HELM), th = L.tier[H::TIER_HELM];
+  bool helmWorn = L.helmStyle || L.helmForm || L.helmet;
+  // (P5b5) the everyday T3 (a watchman's or soldier's coat at T3, its people signed there) is his people's helm: the T2 soldier's soft
+  // cap (the Highland clansman's bonnet, census::dress) gives way to his people's T3 head as the kit wears it, made by the coat's
+  // people. Ladder fields only (the rig 1 look keeps its bonnet: makers are rig 2's)
+  if (!helmWorn && !L.hood && L.outfit == Outfit::Guard && !L.civil && tb == 3 && signedAtT3(pb, true)) {
+    ph = pb; th = tb;
+    E.helmet = true; E.headwear = 0;
+    E.tier[H::TIER_HELM] = (uint8_t)tb;
+    E.setMaker(H::TIER_HELM, pb);
+    helmWorn = true;
+  }
   if (ownHelm && sigOn(ph) && th >= 1 && helmWorn) E.plumeColor = sigRgba(fp::sig(ph)->dom);
   // (P5b area A) a tier whose head is null leaves the helm as the piece draws it, its crest colour too (the Heartland's T5-T6, a
   // new people's T5-T6 until the owner's budget ruling); "" signs it with the piece's own head
