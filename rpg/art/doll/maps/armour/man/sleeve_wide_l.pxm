@@ -3630,3 +3630,51 @@ view U key st_blk origin -4 2
 |vyyv
 |vyv.
 |.v..
+
+# (P5b fix-dune3) begin dune3-guard-sleeves: the Dune T3 kit's wide sleeves in the drawn guard end at the kaftan's hem (B11 slivers, hip row)
+view R key gs_guard origin 3 -5 layer armNear when sigbody-dune,armour.t3,!armour.t4 replace
+|...vvv.....
+|..vxxxvvvvv
+|.vxxxxwwwv.
+|vyxxxxxwv..
+|vyyxxx.....
+|.vvvvv.....
+view R key bw_xlow origin -1 -4 layer armNear when sigbody-dune,armour.t3,!armour.t4 replace
+|..vvvv
+|.vxww.
+|vxxxx.
+|vxxxx.
+|vyxxx.
+|vyyyv.
+|vvvvv.
+view L key bw_xlow origin 7 -3 layer held when sigbody-dune,armour.t3,!armour.t4 replace
+|v......
+|.vvvv..
+|.yyyxv.
+|..xxxxv
+|..xxxxv
+|.vxxxwv
+|..vwwwv
+|..vvvvv
+# (P5b fix-dune3) end dune3-guard-sleeves
+
+# (P5b fix-dune3) begin dune3-bow-sleeves: the Dune T3 kit's far sleeve at the bow's full draw off the bow hand (C3d)
+view R key bw_full origin -10 3 when sigbody-dune,armour.t3,!armour.t4 replace
+|vv...
+|vx...
+|vx...
+|vx...
+|.v...
+|.vwwv
+|.vwwv
+|..vvv
+# (P5b fix-dune3) end dune3-bow-sleeves
+
+# (P5b fix-dune3) begin dune3-staff-carry: the Dune T3 kit's near bell cut at the wrist in the staff's run carry facing L (C3d), as the spear's
+view L key pM origin 6 -2 when staff,sigbody-dune,armour.t3,!armour.t4 replace
+|v......
+|vvvvvvv
+|vxxxxwv
+|vxxxwwv
+|v...vvv
+# (P5b fix-dune3) end dune3-staff-carry

@@ -6688,3 +6688,57 @@ regions
 |.....RR.
 |...RR.RR
 |.....RR.
+
+# (P5b fix-dune3) begin dune3-guard-sleeves: the Dune T3 kit's wide sleeves in the drawn guard end at the kaftan's hem (B11 slivers, hip row)
+view R key gs_guard origin 2 -4 layer held when sigbody-dune,armour.t3,!armour.t4 replace
+|....vvv
+|..vvwwv
+|.vxxxw.
+|vyxxxx.
+|vyyyxxx
+|.vyyyxv
+|..vvvvv
+view R key st_guard origin 0 -4 layer held when sigbody-dune,armour.t3,!armour.t4 replace
+|vvv....
+|.vyvv..
+|..xxxv.
+|..xxxwv
+|.xxxwwv
+|.vxwwv.
+|.vvvvv.
+view L key gs_guard origin 4 -4 layer armNear when sigbody-dune,armour.t3,!armour.t4 replace
+|vvv....
+|.vyvv..
+|..xxxv.
+|..xxxwv
+|.xxxwwv
+|.vxwwv.
+|.vvvvv.
+view L key st_guard origin 6 -4 layer armNear when sigbody-dune,armour.t3,!armour.t4 replace
+|....vvv
+|..vvwwv
+|.vxxxw.
+|vyxxxx.
+|vyyyxxx
+|.vyyyxv
+|..vvvvv
+# (P5b fix-dune3) end dune3-guard-sleeves
+
+# (P5b fix-dune3) begin dune3-bow-sleeves: the Dune T3 kit's near sleeve at the bow's low hold and full draw off the bow hand (C3d)
+view R key bw_low origin -1 -1 layer held when sigbody-dune,armour.t3,!armour.t4 replace
+|..vv.
+|..vy.
+|..vx.
+|.vyx.
+|vyxw.
+|vxwwv
+|.vvv.
+view R key bw_full origin 1 3 layer held when sigbody-dune,armour.t3,!armour.t4 replace
+|vv........vvv
+|vy..vvvvvvyxv
+|vx..xxxxxxxxv
+|vx..xxxxxxxxv
+|vw..vvvvwwwwv
+|vv......vvvvv
+|vv...........
+# (P5b fix-dune3) end dune3-bow-sleeves

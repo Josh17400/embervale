@@ -740,6 +740,10 @@ void FramePaint::gatherPart(int pi, const PartRec& p, const char* forceKey, uint
     Item ov = it;
     ov.view = &w;
     ov.sub = (int)(wi - p.firstView) + 1;
+    // (P5b round 3, DUNE) an overlay that names a layer of its own, other than its view's, draws on that layer (doll.h: "layer /
+    // anchor this view's own"): the Dune T3 kulah's turban tail on layer neck, under the near arm, so a fist raised behind the
+    // head stays before it. No overlay drawn before this round names a layer other than its base view's: they draw as before
+    if (w.layer != kNone8 && w.layer != v->layer) ov.layer = w.layer;
     items.push_back(ov);
   }
   // (P2c forge, contracts 3c) the key fallback: a forge `when` overlay drawn only for key rest serves every key of its

@@ -1,0 +1,15 @@
+# P5b round 3, area DUNE (fix-p5b3-DUNE from fc4afc6): the Dune T3 kit (judge P5b2 r4 items 1b and 2): tools/doll/p5b_fix_dune3.py
+# (ADD only, keyed on the T3 kit: the guard and bow sleeves, the staff's run carry, the man's kaftan slit in the run, the kulah's
+# turban tail and U collar), tools/doll/p5b_fix_r3.py's Dune wrap trimmed (3 cells over the windup fist), doll_paint.cpp (an overlay
+# naming a layer of its own draws there; no earlier overlay names one: a no-op elsewhere). Measured against the judge's r4 wave at
+# fc4afc6 (step and doll lines): only these lines differ; every other step and W4 line equals it (gates_parity's B10 wall clock
+# failed once under load and passes alone, rc 0, its pool line the only difference). FIX_SIG off (EMB_FIX_RULES=8191) against
+# f914d03's manifests: 39152 frames, 0 changed (rig 2 and rig 1). W2.view_all was not run (a wave line): its Dune shots move as S10.view's.
+S6.pool *pxc?--check:* P5b3-DUNE the Dune T3 kit's added views (armour/{man,woman}/sleeve_wide_{l,r}, armour/man/skirt_bell, headwear/helm/veil) and fix-r3's trimmed wrap: 2,666,992 -> 2,668,773 B (+1,781) of the 5,242,880 B budget, 29,639 -> 29,665 views, hash f8b7f4716e218030 -> d40bb29b46e131cc
+W4.doll.pxc_check *pxc?--check:* P5b3-DUNE the pool line, as S6.pool
+W4.doll.gates_parity *pool:* P5b3-DUNE the pool line, as S6.pool (B10's LOCO bake p95 failed once under the round's load, 0.417 ms; alone rc 0)
+S10.view town_day_night/m5_tdn_dune_02.png,town_day_night/m5_tdn_dune_06.png,town_day_night/m5_tdn_dune_20.png P5b3-DUNE the Dune town's T3 guards: the kulah's turban tail let down behind the aventail (each already moved against p4f1, moves_p5b2/E.txt)
+W4.doll.arms_matrix *C3*,*pool* P5b3-DUNE C3 gear 315 -> 260 failed: the Dune T3 kit's 55 C3d lines closed (the bows' cast, draw and drawn walk facing R, the staff's run carry facing L and windup facing U, the mace's windup facing R); the 260 left are the approved slice's (STYLE_P5B 10.1, the round's R1), unchanged line for line
+W4.doll.motion_arms *full?output*,*sha256* P5b3-DUNE B11 / B12 on the m11 looks' drawn walk and run 206 -> 0 failures (the guard sleeves end at the hem; the man's kaftan slit shows the staff run's heel whole): motion rc 0
+W4.doll.ladder_finish_L *C12*,*C13*,*C14*,*dune* P5b3-DUNE C12 lines 18 -> 12: the Dune man and woman s1-s3 lt2 -> lt3 facing R (542 -> 508, 526 -> 490 px) now 542 -> 527 and 526 -> 508 (the turban tail); C14 3540 -> 3538 checks, 0 new failures; every non-Dune line as at fc4afc6
+W4.doll.env_ladder *dune*,*Dune* P5b3-DUNE the Dune T3 area ratios 1.27 -> 1.29 (man), 1.24 -> 1.26 (woman), heads T3 294 -> 310-312 / 283-288 -> 301-304, OD T2-T3 0.19-0.21 -> 0.22-0.23; the per-people T3 cell 1.25 -> 1.27 (caps 0 failed)
