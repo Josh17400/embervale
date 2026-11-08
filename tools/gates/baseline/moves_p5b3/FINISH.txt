@@ -24,4 +24,5 @@ W4.doll.arms_matrix *pool:?873?parts*,*pool:?870?parts*,*C4?m11_* P5b3-FINISH th
 W4.doll.env_ladder *ok?fjordfolk*ratios*,*ok?dune*ratios*,*|?Fjordfolk?|*,*|?Dune?|* P5b3-FINISH the source-L area, head and OD ratios of the Fjordfolk lines (the T2 cap's crown 4 px in: T2 1.19 -> 1.18, head 191 -> 187) and the Dune lines (the T3 wrap: T3 1.27 -> 1.29, head 294 -> 315); C12f caps and lines 0 failed
 S10.view m3_towns_tour/m3t_dune_town_a.png,town_day_night/m5_tdn_dune_*.png,m6_foes_boss/m6_foes_boss_[345]_*.png,p2c_menus/p2c_menus_*.png,p2c_menus_phone/p2c_menus_phone_*.png P5b3-FINISH the shots whose hash moved against the F3 wave's (14): the Dune town's T3 guards (the kulah's turban wrap) by day and night, and the menus' party and portraits and the boss scenes, whose figures wear the touched kits
 
-# Integration (P5b3, on fix-p5b2-int): the dune-t3-wrap block was dropped (P5b3 DUNE fixes the same C12c line); the S6.pool, env_ladder and S10.view globs above still match the merged pool and shots, whose moves are re-declared in moves_p5b3/INT.txt.
+# Integration (P5b3, on fix-p5b2-int): the dune-t3-wrap block was dropped (P5b3 DUNE fixes the same C12c line); the reasons above
+# that name the wrap now stand for DUNE's turban tail (moves_p5b3/DUNE.txt), and their globs match the merged pool and shots.

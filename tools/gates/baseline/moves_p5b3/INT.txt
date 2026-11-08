@@ -1,0 +1,4 @@
+# tools/gates/baseline/moves_p5b3/INT.txt: P5b round 3, the integration seat (fix-p5b2-int: fix-p5b3-GRIPS, -DUNE and -FINISH
+# merged; FINISH's dune-t3-wrap dropped for DUNE's turban tail, one fix for the C12c Dune lt2 -> lt3 line). The differences of
+# the merged wave against p4f1 that no seat's file named. <gate> <item glob>[,...] <id> <reason>.
+W4.doll.motion_arms ?AREA?ok?legs?*,?HIPW?ok?hip?row?* P5b3-INT motion_arms's last 40 lines (the hashed line's tail: m12_mantle_t6_w_great's drawn run, L frames) as the P5b2 area B T5-T6 mantle draws it: the AREA and HIPW listing lines only (ok both sides; motion 802 looks, 0 failures)
