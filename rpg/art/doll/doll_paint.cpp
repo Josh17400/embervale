@@ -884,13 +884,15 @@ void FramePaint::paintBackToFront() {
   // a pinhole no 32 px figure reads as a shape. closeGearPockets, after the paint: a pocket the flood from the canvas edge never
   // reaches, walled by gear on every side (1-2 px; up to 8 where a head or shoulder piece walls it), takes its darkest neighbour (the line between the two pieces)
   pocketsOn = fixOn(FIX_SIG) && std::any_of(r.flags.begin(), r.flags.end(), [](const std::string& f) { return f.rfind("sig", 0) == 0 && f.find('-') != std::string::npos; });
-  // (never on the approved slice's own kits, Fjordfolk, Imperial and Jade bodies at T1, T3 and T5: their frames are frozen as
-  // the owner signed them, STYLE_P5B 9, slice_same 567/567; the Fjordfolk T5 pelt's pinhole beside the scale coat is drawn
-  // there, a ruled residual of C3a)
+  // (never on the approved slice's own kits at T1 and T3, Fjordfolk, Imperial and Jade bodies: their frames are frozen as the
+  // owner signed them, STYLE_P5B 9. At T5 the slice kits' pinholes are real defects, ruled R1 in STYLE_P5B 10.1: the
+  // Fjordfolk pelt beside the scale coat, the Imperial woman's skirt strips, the Jade man's bell skirt and sode close here too,
+  // one pixel each, and slice_same is re-recorded for exactly the frames 10.1 lists)
+  const bool sigLook = pocketsOn;   // (P5b3 GRIPS) a signed look under FIX_SIG, the slice kits included (the pad over the grip)
   if (pocketsOn)
     for (const char* sp : {"sigbody-fjordfolk", "sigbody-imperial", "sigbody-jade"})
       if (r.has(sp))
-        for (int t : {1, 3, 5})
+        for (int t : {1, 3})
           if (r.has(("armour.t" + std::to_string(t)).c_str()) && !r.has(("armour.t" + std::to_string(t + 1)).c_str())) pocketsOn = false;
   // (wave-2 fix round 3, D82; SHIELDS' r2 proposal) the gripL shield's last pixel under each cell (code, region, item): a part
   // that paints over the shield and is then erased by a later part's `-` cell shows the shield again, never a hole through it
@@ -907,7 +909,16 @@ void FramePaint::paintBackToFront() {
   if (g_bodyPiece.size() != (size_t)CW * CH) g_bodyPiece.assign((size_t)CW * CH, 0);
   else std::fill(g_bodyPiece.begin(), g_bodyPiece.end(), (uint8_t)0);
   g_probeGrip = gripFrom; g_probeGripL = gripLFrom;
+  // (P5b3 GRIPS) the grip mark's pixel (the arm's views placed it in gatherItems), for the pauldron over the grip facing U below
+  int gripQ = -1;
+  if (gripFrom >= 0 && P.ids.grip != 0xFFFF)
+    for (int i = 0; i < op->nMarks; i++)
+      if (op->markIds[i] == P.ids.grip && op->marks[i].on) {
+        const int X = CPX + op->marks[i].x, Y = CPY + op->marks[i].y;
+        if (X >= 0 && Y >= 0 && X < CW && Y < CH) gripQ = Y * CW + X;
+      }
   for (const Item& it : items) {
+    const uint8_t gripWas = gripQ >= 0 ? op->code[(size_t)gripQ] : 0;
     paintItem(it, false);
     // (P5b2 fix r3, judge item 2: C3d "no hand pixels on the gripping arm", 1,984 frames) a fist that holds a drawn weapon is
     // before the body. Two of the signed kits' pieces are drawn after the arm and went over it: D41's near pauldron, lifted to
@@ -916,8 +927,17 @@ void FramePaint::paintBackToFront() {
     // piece the gripping arm's hand (H) pixels are drawn again, as after the weapon it holds. Only with a weapon placed by angle
     // (the drawn stance and the swings, never the carry at rest, whose hand hangs under the lifted shoulder as the approved slice
     // draws it), never facing U (the fists before the chest, the back toward us), never a far arm; signed looks (FIX_SIG)
-    if (fixOn(FIX_SIG) && fp && fp->weapon != -32768 && facing != 1) {
-      const bool liftedPad = it.noErase && it.layer == (int)Layer::Head && partHasRoleCat(*it.part, Role::Pauldron);
+    // (P5b3 GRIPS, judge r4 item 2: C3d "the grip outside the fist", 64 frames, the Imperial T5 kit's axe and dagger strike
+    // and follow facing U) facing U too, but only where the same side's pauldron (at its own layer, not lifted) was drawn over
+    // the grip pixel itself: the strike raises the fist to the shoulder, and the layered sode drawn after the arm hid all of it
+    // but a 1 px sliver (the dagger), or hid it in
+    // the weaponless frame while the drawn one showed it only through the weapon's own hand pass (the axe). A fist the pad
+    // leaves the grip of (the drawn idle and walk) keeps the pad over it, as before; the cloth case stays facing D; signed
+    // looks only (an unsigned look's frames stay as p4f1 drew them: S5.rig2)
+    const bool padOverGripU = sigLook && facing == 1 && gripQ >= 0 && op->code[(size_t)gripQ] != gripWas;
+    if (fixOn(FIX_SIG) && fp && fp->weapon != -32768 && (facing != 1 || padOverGripU)) {
+      const bool liftedPad = (it.noErase && it.layer == (int)Layer::Head && partHasRoleCat(*it.part, Role::Pauldron)) ||
+                             (padOverGripU && partHasRoleCat(*it.part, Role::Pauldron));
       const std::string& nm = P.s(it.part->name);
       const bool cloth = facing == 0 && (nm.find("sleeve") != std::string::npos || partHasRoleCat(*it.part, Role::Neck));
       if (liftedPad || cloth) {

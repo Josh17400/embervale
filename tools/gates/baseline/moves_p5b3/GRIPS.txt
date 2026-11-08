@@ -1,0 +1,12 @@
+# P5b3 GRIPS (fix-p5b3-GRIPS from fc4afc6; judge P5b2 r4 item 2, its slice C3a holes and Imperial T5 C3d; rulings R1 and R2
+# of STYLE_P5B 10.1). doll_paint.cpp: closeGearPockets also on the slice kits at T5 (R1), and facing U the gripping hand
+# is drawn again after a signed look's same-side pauldron that covered the grip pixel. Measured against the judge's wave at
+# fc4afc6 (judge-p5b2-r4/out/wave): every other W4 doll line and every step gate is equal but for timing; motion_arms sha256
+# 9a9494...eb0f0 unchanged; S5.rig2 TOTAL 00feeb8220329152 unchanged; FIX_SIG off (8191) = f914d03 and FIX_FP off (4095) =
+# afedeba, 0 changed on both rigs. The freeze manifests (p2c_freeze.txt, p2c_freeze_rig1.txt) are re-signed: 69 of 39,544
+# frames each (66 ACTION facing U, 2 DEATH fall U of g_jd2w, 1 LOCO hurt L of a_jade3); S6.freeze's output is unchanged.
+# The approved slice: 9 of 567 PNGs move (R1, listed in 10.1: slice_fjordfolk_T5_w_s1-3 D, D_ns, D_walk, 3 px each, the
+# pelt pinhole); slice_same is 567/567 against the re-recorded reference (the approved a3f5a4c with those 9 replaced).
+W4.doll.arms_matrix *C3*,*C4?m9_cone_t5_w*,*C4?m9_snout_t5_w* P5b3-GRIPS C3 315 -> 55 failed (left: the Dune T3 m11 C3d, not this seat's): C3a 196 -> 0 (the slice kits' T5 pinholes closed, R1), the Imperial T5 C3d 64 -> 0 (the fist over the sode facing U); the Fjordfolk T5 woman's scale coat outline 223 -> 222 px (the pinhole filled)
+W4.doll.env_ladder *fjordfolk?woman?s3?T1* P5b3-GRIPS the Fjordfolk T5 woman's area ratio 1.74 -> 1.75 (the pelt pinhole filled, R1)
+W4.doll.ladder_finish_L *line?fjordfolk?sword?man?s?:?b:*,*(lines):?fjordfolk?sword?man?s?:?b:*,*line?fjordfolk?sword?woman?s?:?b:*,*(lines):?fjordfolk?sword?woman?s?:?b:*,*line?jade?sword?*?s1:?b:?lt5?R:?no?glow*,*(lines):?jade?sword?*?s1:?b:?lt5?R:?no?glow* P5b3-R2 the 8 approved-slice C12b lines accepted as approved looks by ruling R2 (STYLE_P5B 10.1): fjordfolk sword man s1-s3 (lt5 D T6-slot trim 9.9 % vs 10, lt3 R trim 2.4 % vs 3, no lt5 R glow), fjordfolk sword woman s1-s3 (lt5 D trim 9.9 %), jade sword man s1 and woman s1 (no lt5 R glow); approved art is not repainted for a threshold
