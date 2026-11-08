@@ -635,6 +635,10 @@ the owner signed them: slice_same 567/567). Fix r3 named them; the main session 
   - fjordfolk sword woman s1, s2 and s3: "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)".
   - jade sword man s1 and jade sword woman s1: "lt5 R: no glow pixel at T5 (gems, runes)".
   Every other ladder_finish_L line (C12 and C14) must reach rc 0.
+  Every other ladder line is fixed (P5b3 FINISH, `tools/doll/p5b3_finish.py`: River lt1 D colours, Sun Temple s3 lt1 -> lt2 R,
+  Marsh lt3 C14, the T2 Fjordfolk/Heartland twin parted by the cone cap; P5b3 DUNE, `tools/doll/p5b_fix_dune3.py`: the Dune
+  lt2 -> lt3 R shrink, by the kulah's turban tail. FINISH's own dune-t3-wrap for the same line was dropped at integration,
+  so one fix stands). Moves: `tools/gates/baseline/moves_p5b3/{GRIPS,DUNE,FINISH}.txt`.
 
 ## 11. Don'ts
 

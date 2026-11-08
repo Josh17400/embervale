@@ -302,3 +302,10 @@ view L key lie origin -5 0 layer head when layer-scarf replace
 |.onm
 |.om.
 |.m..
+
+# (P5b3 finish) begin marsh-t3-seams: the Marsh man's T3 moss scarf's dark seam against the iron (C14)
+view D key rest origin 0 -2 layer headwear when layer-scarf,!beard,sigbody-marsh,armour.t3,!armour.t4,!woman
+|m
+view R key rest origin 6 -2 layer headwear when layer-scarf,!beard,sigbody-marsh,armour.t3,!armour.t4,!woman
+|K
+# (P5b3 finish) end marsh-t3-seams
