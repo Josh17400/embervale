@@ -254,6 +254,14 @@ with mail aventail and a turban band, a long split kaftan, wide sleeves; gilt an
   tuft, the aventail longer, its hem gilt (the T6 living finish lights the gilt). Body T5-T6: split kaftan, round lobed
   shoulders, the long teal cloak, wide sleeves. Not section 4's T6 "turban-wrapped onion" as a family change: the onion family
   draws the Heartland's T5 gilt onion (D83) and would break 2.5's one family.
+- As built (P5b round 3, DUNE; judge P5b2 r4 items 1b and 2; `tools/doll/p5b_fix_dune3.py`, every view keyed on the T3 kit):
+  the T3 kulah's turban TAIL (the 'adhaba) hangs from the band's knot down behind the aventail to the shoulders (plume, 2 px,
+  lit fold and frayed end; layer hairBack, so a fist raised behind the head, near or far, stays before it: doll_paint draws an
+  overlay on the layer its view names), the mamluk read T2's scarf tail grows into (lt2 -> lt3 facing R 542 -> 527 man, 526 ->
+  508 woman); facing U the cloth wound up the dome reaches the spike's collar. The wide sleeves' bell ends at the kaftan's hem
+  in the drawn guard (greatsword, staff, crossbow) instead of hanging over the thighs; at the bow's low hold and full draw the
+  near sleeve rides the drawing forearm (FORGE-LIMBS had traced it down the bowstring) and both sleeves stop at the bow wrist;
+  in the man's run the bell opens in the kaftan's split at the back of the hem.
 
 **Steppe** (a tall point, horizontal lamellar rows, a fur roll at the neck). A rust riding coat with a cream fur collar,
 a pointed helm with a horsetail, black-lacquered lamellar, sky-blue silk.

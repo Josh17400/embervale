@@ -35,9 +35,10 @@ BASE = 'bd1a4e4'
 DUNE3 = 'sighelm-dune,helm.t3,!helm.t4'
 # the tail, facing R (the back on the left): from the band down the back of the mail curtain to the neck, its end clear of
 # the neck's hollow (a tail down past it closed a pocket there, C3a); the wrap wound up the dome's back and a pixel proud at
-# the brow; plume 0-4 the
+# the brow. (P5b round 3, DUNE: the wrap's last cells at (1,8), (1,9) and (2,9) lay over the mace's windup fist behind the head,
+# C3d, and are off; the tail itself hangs on layer hairBack, behind the body and both arms: tools/doll/p5b_fix_dune3.py) plume 0-4 the
 # turban's cloth (veil.pxm's legend); inside C3b's T3 cap (3 columns past the head box)
-TAIL_R = [(8, 1, '-', '0'), (8, 2, '-', '1'), (9, 1, '.', '0'), (9, 2, '-', '0'),
+TAIL_R = [(8, 2, '-', '1'),
           (4, 7, '-', '0'), (5, 6, '-', '0'), (5, 7, 'v', '1'), (6, 4, '-', '0'), (6, 5, '-', '1'), (7, 3, '-', '0'), (7, 4, '-', '1'),
           (6, 16, '-', '1'), (6, 17, '-', '0'), (7, 17, '-', '1'), (7, 18, '-', '0')]
 
