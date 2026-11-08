@@ -590,22 +590,43 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    approved slice's T5 bodies change; slice_same falls). Until ruled the code keeps the exemption, exactly as above:
    a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
 
-### 10.1 Residuals that touch the approved slice (fix r3: FOR THE PLANNER'S RULING, not yet ruled)
+### 10.1 Residuals that touch the approved slice (RULED 2026-11-07 by the main session as planner: R1 and R2)
 
-Each line below fails a gate only on frames of the approved slice (Fjordfolk, Imperial and Jade at T1/T3/T5, frozen as the
-owner signed them: slice_same 567/567), so no fix may move it. Fix r3 names them for the planner, who rules each (keep as a
-declared W4 move, or redraw and re-ask the owner); until then they stay red.
-- W4.doll.ladder_finish_L (C12b, `rpg_test --doll-ladder --finish --scope ladder --seeds 1..3`): fjordfolk sword man s1-s3
-  "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)", "lt3 R slot 0 (T3) trim 2.4 % (band 3-30 %)" and "lt5 R:
-  no glow pixel at T5"; fjordfolk sword woman s1-s3 "lt5 D slot 1 (T6) trim 9.9 %"; jade sword man s1 and woman s1 "lt5 R: no
-  glow pixel at T5".
-- W4.doll.arms_matrix (C3a): the 1 px pinhole between the Fjordfolk T5 pelt pauldron and the scale coat
-  (armour/shared/pauldron_pelt5_r, 109 frames on the fjordfolk:5 looks; drawn in the slice's woman D) and the skirt pinholes
-  of the Jade and Imperial T5 kits (armour/woman/skirt_strips 48, armour/man/skirt_bell 32): doll_paint's closeGearPockets
-  closes every other signed look's pinholes but leaves the slice kits' own.
-- W4.doll.arms_matrix (C3d): the Imperial T5 kit's strike and follow facing U, "the grip outside the fist" (64 frames): facing
-  U the raised fist is beyond the head and the crest is drawn before it, so part of the fist is hidden (the occlusion is right;
-  the check asks the grip inside the visible part).
+Each line below failed a gate only on looks of the approved slice kits (Fjordfolk, Imperial and Jade at T1/T3/T5, frozen as
+the owner signed them: slice_same 567/567). Fix r3 named them; the main session ruled them in P5b round 3:
+
+- **R1. The approved slice frames may change ONLY to fix real defects** (1 px holes, a grip outside the fist), with the
+  smallest pixel change, each declared as a move; slice_same is re-recorded for exactly the frames listed here and for no
+  other, and the look must not visibly change. Built in P5b3 GRIPS (doll_paint.cpp):
+  - W4.doll.arms_matrix C3a (196 frames at fc4afc6: armour/shared/pauldron_pelt5_r 109 on the fjordfolk:5 looks,
+    armour/woman/skirt_strips 48 on the Imperial T5 woman, armour/man/skirt_bell 32 and armour/shared/pauldron_layered5_r 8
+    on the Jade T5 man): closeGearPockets now runs on the slice kits at T5 too (T1 and T3 stay exempt: they have no
+    pinhole). Each pinhole takes its darkest drawn neighbour. C3a 0.
+  - W4.doll.arms_matrix C3d "the grip outside the fist" (64 frames: the Imperial T5 kit's axe strike v2 and dagger strike
+    and follow v0, facing U). The cause was the near layered sode, not the crest. Facing U it is drawn after the arm, at
+    its own layer (not lifted), and covered the grip. The dagger showed a 1 px sliver of fist. The axe showed its fist only
+    through the weapon's own hand pass, so the weaponless frame had none. The rule: on a signed look facing U, when the
+    same side's pauldron is drawn over the grip pixel itself, the gripping hand is drawn again after it, as after the
+    lifted pad facing D. Imperial C3d 0.
+  - The slice frames that move (re-recorded; every other slice PNG stays identical to a3f5a4c): 9 of 567, 3 px each, the
+    pelt pinhole beside the scale coat. In each, the black hole pixel takes the line colour, and the two pixels the hole
+    had lit as an edge take their unlit shade:
+    slice_fjordfolk_T5_w_s1_D, _s1_D_ns, _s1_D_walk, _s2_D, _s2_D_ns, _s2_D_walk, _s3_D, _s3_D_ns, _s3_D_walk (.png).
+    No Imperial or Jade slice frame moves (their pinholes and the facing-U grips are not in the slice's idle and walk D/R).
+  - Outside the slice, these frames move: 69 of 39,544 freeze frames per rig (66 ACTION facing U, where the fist now shows
+    on the grip: the strike, follow, block and cast of the signed kits; 2 DEATH fall facing U, g_jd2w; 1 LOCO hurt L,
+    a_jade3's pinhole). The manifests are re-signed, and the moves are declared in
+    tools/gates/baseline/moves_p5b3/GRIPS.txt. FIX_SIG off still equals f914d03 (0 changed on both rigs).
+- **R2. The 8 approved-slice ladder_finish lines that are threshold-only are ACCEPTED as approved looks**, declared as
+  W4.doll.ladder_finish_L moves with this ruling as the reason. Approved art is not repainted for a threshold.
+  The lines (C12b, `rpg_test --doll-ladder --finish --scope ladder --seeds 1..3`), each with the failures it names:
+  - fjordfolk sword man s1, s2 and s3:
+    - "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)";
+    - "lt3 R slot 0 (T3) trim 2.4 % (band 3-30 %; 3 of 125 gear px)";
+    - "lt5 R: no glow pixel at T5 (gems, runes)".
+  - fjordfolk sword woman s1, s2 and s3: "lt5 D slot 1 (T6) trim 9.9 % (band 10-36 %; 20 of 202 gear px)".
+  - jade sword man s1 and jade sword woman s1: "lt5 R: no glow pixel at T5 (gems, runes)".
+  Every other ladder_finish_L line (C12 and C14) must reach rc 0.
 
 ## 11. Don'ts
 
