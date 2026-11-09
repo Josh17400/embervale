@@ -1,0 +1,27 @@
+rpg_test --fingerprint: seeds 1..3; table in, dye slots in, makers in, FIX_FP bit 4096
+F1 table PASS primaries pairwise min dE 25.3 (heartland/steppe) >= 25
+F1 table PASS two-tone signatures min dE 33.6 (highland/suntemple) >= 25
+F1 table PASS primary vs 33 material steps min dE 20.3 (steppe/leather5.2) >= 20
+F1 table PASS dye2 vs its dye min dE 42.8 (marsh) >= 20
+F1 table PASS bands 1 <= run <= period <= 6
+F1 motifs PASS 12 motifs all different, each drawn in finish.mark and finish.filigree
+F4 leather PASS s1 body padded leather T1: mean hue 26..35 (15-45), sat drop <= 0.09 (sunt; <= 0.10)
+F4 leather PASS s1 body leather leather T1: mean hue 19..36 (15-45), sat drop <= 0.09 (fjord; <= 0.10)
+F4 leather PASS s1 helm own leather T2: mean hue 23..37 (15-45), sat drop <= 0.10 (fjord; <= 0.10)
+F4 leather PASS s2 body padded leather T1: mean hue 26..35 (15-45), sat drop <= 0.09 (sunt; <= 0.10)
+F4 leather PASS s2 body leather leather T1: mean hue 19..36 (15-45), sat drop <= 0.09 (fjord; <= 0.10)
+F4 leather PASS s2 helm own leather T2: mean hue 23..37 (15-45), sat drop <= 0.10 (fjord; <= 0.10)
+F4 leather PASS s3 body padded leather T1: mean hue 26..35 (15-45), sat drop <= 0.09 (sunt; <= 0.10)
+F4 leather PASS s3 body leather leather T1: mean hue 19..36 (15-45), sat drop <= 0.09 (fjord; <= 0.10)
+F4 leather PASS s3 helm own leather T2: mean hue 23..37 (15-45), sat drop <= 0.10 (fjord; <= 0.10)
+F2 worn PASS 354 columns x seeds: 0 twin pairs (four views, tol max(2, area/40))
+F2 worn PASS 0 T1-T3 columns over 25 % colour-only pairs
+F3 icons PASS 0 twin icon pairs (tol max(3, area/40))
+F4 shares PASS 0 worn and 0 icon dye shares over their caps
+F5 agreement PASS 0 of 4176 T1-T4 pieces short of their dye family (worn D >= 2 px, icon >= 3 px)
+F4 D117 PASS icons_gallery --check rc 0, 111 lines, 0 FAIL
+F6 additive PASS 26688 frames (+171 fp_looks lines x seeds): 384338 changed px, 0 mask px, 0 outside the dye slots and P
+F7 classic PASS 1816 maker-less frames: 0 px differ; 0 of 108 people-0 icons differ
+F8 census PASS 288 census lines x seeds, 1377 armour slots: 0 lines with a slot not the arms culture's
+F8 watch PASS 12 watch ranks x seeds: 0 twin pairs of peoples
+fingerprint: PASS (0 FAIL lines)
