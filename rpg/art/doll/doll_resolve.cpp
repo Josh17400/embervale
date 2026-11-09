@@ -1398,6 +1398,9 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
     r.finTiles[s] = tiles;
     used |= tiles;
   }
+  // (P5d) the royal guard's long cloak is drawn by its T5 views (`cloak.t5`, royalCloak): its resolved tier is T5 (the tier its
+  // views were picked by: the envelope's caps read it, D80), its finish stays the T4 piece's (no gem, no filigree)
+  if (royalCloak(L)) r.pieceTier[HumanLook::TIER_CLOAK] = 5;
   // the finish tiles the pool draws (a decoration, never a hole: a missing tile is no need)
   static const char* const kTile[6] = {"finish.wear", "finish.etch", "finish.filigree", "finish.rune", "finish.gem", "finish.glyph"};
   bool runeTile = false;
