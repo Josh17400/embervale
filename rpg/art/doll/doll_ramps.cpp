@@ -1610,6 +1610,14 @@ void dyeRamps(const HumanLook& L, DollRamps& R) {
     if (dye2) dyeRamp(hex(dye2), d2);
     else for (int i = 0; i < 5; i++) d2[i] = d1[i];
   }
+  // (P5d, the owner 2026-11-09) the royal guard's long cloak: its border (the cloak's dye band, R) in gilt thread, the gold trim
+  // ramp on both of the band's colours, so the people's dominant cloak wears a solid gold edge the captain's and the soldier's
+  // (the accent band) do not
+  if (royalCloak(L)) {
+    using H = HumanLook;
+    setHex(R.c[(int)dyeSlotOf(H::TIER_CLOAK, false)], kTrim[1]);
+    setHex(R.c[(int)dyeSlotOf(H::TIER_CLOAK, true)], kTrim[1]);
+  }
 }
 
 // (P5, FIX_BATCH_P5 4.3; C14 for the dye) a dye ramp touching a material on 3 or more contacts under 18 luma at step 2 climbs or

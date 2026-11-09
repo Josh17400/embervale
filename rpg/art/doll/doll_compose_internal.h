@@ -147,6 +147,7 @@ struct FramePaint {
     int helmDent[2] = {-1, -1};
     bool toGilt = false;      // (P5b fix r1) a gilt people's signed T5 helm or shield: its fittings (Metal 2) in the gilt (Device)
     bool toGiltGrowth = false;   // (P5b fix r1) a signed helm's legend growth part (the Jade kuwagata): its metal 1-4 in the gilt
+    bool cloakGilt = false;   // (P5d) the royal guard's long cloak (`royalguard`): its Metal 2 (trim, band, chain) in the gilt thread
     const ViewRec* bandView = nullptr;
     bool bandOn = false;
     // (P5) the fingerprint on this piece (DollRecipe::fpSlots): R / N in the dye band, N thinned, a cuff or hem row (fpEdge)

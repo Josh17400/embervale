@@ -420,6 +420,16 @@ struct SigUse {
 thread_local const SigUse* g_sig = nullptr;
 }  // namespace
 bool sigOn(int people) { return fixOn(FIX_SIG) && fixOn(FIX_FP) && fp::sig(people) != nullptr; }
+// (P5d, the owner 2026-11-09: "a cloak for the royal guard would be nice") P5c put the captains, the royal guard and the T4
+// common soldier in one kit alloy (D125 answer 3), so rank stopped showing. The royal guard (HumanLook::royalGuard: census::dress,
+// FIX_SIG) keeps his T4 everyday kit and wears the long noble cloak over it: cloak/noble's T5-T6 long views (`cloak.t5`, to the
+// ankles, 6-8 px behind) in his people's colour (the signed cloak ramp), its trim (R, the trim band, the chain: Metal 2 on the cloak's
+// parts) in gilt thread, the cloak's own dye slot (doll_paint cloakGilt; doll_ramps dyeRamps: the gold trim ramp), the cloak's tier and every other piece left at T4 (no T5 finish, no breeze). It replaces the alloy's half-cape or cape
+// (one Cloak-slot piece a figure); a tabard, sash or scarf stays on the front. The king keeps his cape. FIX_SIG off: never
+bool royalCloak(const HumanLook& L) {
+  return fixOn(FIX_SIG) && L.royalGuard && !L.king && L.tier[HumanLook::TIER_BODY] == 4 && L.tier[HumanLook::TIER_CLOAK] >= 1 &&
+         L.tier[HumanLook::TIER_CLOAK] <= 4 && (L.cloak || L.cape);
+}
 namespace {
 ShapeUse shapeUseOf(const HumanLook& L) {
   ShapeUse u;
@@ -674,6 +684,7 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
       const int ly = su.sx[forge::SX_LAYER], mo = su.sx[forge::SX_MOTIF];
       if (ly == forge::LY_TABARD) want(Role::Overlay, "tabard", forge::SX_LAYER, ly);
       else if (ly == forge::LY_SASH) want(Role::Overlay, "sash", forge::SX_LAYER, ly);
+      else if (ly == forge::LY_HALFCAPE && royalCloak(L)) r.shape[forge::SX_LAYER] = (uint8_t)forge::LY_CAPE;   // (P5d) the long cloak
       else if (ly == forge::LY_HALFCAPE) want(Role::Cloak, "halfcape", forge::SX_LAYER, ly);
       else if (ly) r.shape[forge::SX_LAYER] = (uint8_t)ly;   // none; cape (ladderLook's noble cloak); scarf (ladderLook's neck scarf)
       if (mo == forge::MO_PLAIN) r.shape[forge::SX_MOTIF] = (uint8_t)mo;   // PLAIN: the armour's own planes, no part
@@ -1273,6 +1284,8 @@ HumanLook ladderLook(const HumanLook& L) {
       }
     }
   }
+  // (P5d) the royal guard's long cloak (royalCloak): the noble cloak, in place of the alloy's half-cape or cape
+  if (royalCloak(L)) { E.cloak = 3; E.cape = false; }
   // (wave-2 fix round 4, D96) a king's cape is his realm's colour, deep: the cloak colour he was dressed in (makeLook: the
   // kingdom's; the census: its own), else his tabard's, darkened to the owner's crimson's depth (e25ea41's nking cape, mid
   // step at luma 91) when it is lighter; census::rankSlots gave him the long cloak at his tier. doll_ramps passes it by D88's
@@ -1428,6 +1441,7 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
     if (L.tier[s] && (L.rare >> s & 1)) flagS(std::string(kSlotFlag[s]) + ".r");
   }
   for (int t = 1; t <= L.topTier() && t <= 6; t++) flagS("tier" + std::to_string(t));
+  if (royalCloak(L)) { flagS("cloak.t5"); flagS("royalguard"); }   // (P5d) the long cloak's views, the rest at T4
   if (L.tier[HumanLook::TIER_CLOAK] >= 5 || (L.tier[HumanLook::TIER_HELM] >= 5 && (L.crest >= 2 || (L.armsOrnament & 1u)))) flagS("breeze");
   static const char* const kMetal[12] = {"", "leather", "bronze", "iron", "steel", "gilded", "jade", "obsidian", "ember", "starmetal", "alloy", "mythic"};
   if (L.metalKind >= 1 && L.metalKind <= 11) flagS(std::string("metal-") + kMetal[L.metalKind]);

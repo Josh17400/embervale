@@ -826,6 +826,11 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
   //      ladder's own fields only, no draw (rig 1 never reads them).
   gear::rankTiers(L, rankTier(r, rank), true, &owner);   // (P2c forge, D29) the realm: its officers' alloy
   rankSlots(L, r);
+  // (P5d, the owner 2026-11-09: "a cloak for the royal guard would be nice") P5c dressed the captains, the royal guard and the
+  // T4 common soldier in one kit alloy, so rank no longer shows: the royal guard (the palace and its barracks) is marked for the
+  // doll's long noble cloak in the people's colour with its gilt hem (doll_resolve royalCloak). Ladder fields only, no draw;
+  // FIX_SIG off: unset (f914d03's look)
+  if (r == Role::Guard && rank.royal && (L.cloak || L.cape) && art::doll::fixOn(art::doll::FIX_SIG)) L.royalGuard = 1;
   // (P5, FIX_BATCH_P5 4.4) the maker on every worn piece: the arms the look wears (the roles' A / Al split above): the
   // local people's for bandits, pirates and warlords, the owner kingdom's for the watch, soldiers, captains, heralds, envoys,
   // jarls and kings. Ladder fields only, no draw (the sim digest holds)

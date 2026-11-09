@@ -59,6 +59,7 @@ const Field kFields[] = {
     LKA(forge, 0), LKA(forge, 1), LKA(forge, 2), LKA(forge, 3), LKA(forge, 4), LKA(forge, 5), LKA(forge, 6), LKA(forge, 7),
     LK(forgeKit), LK(alloyRank), LK(forgeGuise), LK(forgeShape), LK(makerPeople), LK(relicHelm), LK(relicBody), LK(king),
     LK(makers),   // (P5) the maker people per worn piece
+    LK(royalGuard),   // (P5d) the royal guard's long cloak
 };
 #undef LK
 #undef LKA

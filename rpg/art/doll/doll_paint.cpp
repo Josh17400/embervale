@@ -1153,8 +1153,10 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   // (P5b fix r1, STYLE_P5B 2.4) a gilt people's signed T5 helm (`sighelmgilt`) or shield (`sigshieldgilt`): the piece's fittings
   // (Metal 2: the trim band, the brow band, the cheek guards, a rim, the horns' gilt) in the gilt, the piece's own steel and the
   // body's Metal 2 bands kept
-  bool toGilt = false, toGiltGrowth = false;
+  bool toGilt = false, toGiltGrowth = false, cloakGilt = false;
   for (const RoleRec& rr : it.part->roles) {
+    // (P5d) the royal guard's long cloak: its trim, band and chain (Metal 2) in the cloak's gilt thread (DyeT<cloak>: gold)
+    if (rr.cat == (uint8_t)Role::Cloak && r.has("royalguard")) cloakGilt = true;
     if (rr.cat == (uint8_t)Role::Helm && r.has("sighelmgilt")) toGilt = true;
     if (rr.cat == (uint8_t)Role::Shield && r.has("sigshieldgilt")) toGilt = true;
     // (the legend growth in the gilt: `sighelmgrowthgilt`, the helm family's `headwear/helm/<family>_legend` part, its metal
@@ -1182,7 +1184,7 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   ip.sway = sway; ip.swayFrom = swayFrom;
   ip.stretch = stretch; ip.hasReg = hasReg; ip.tiled = tiled;
   ip.ts = ts;
-  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather; ip.helmLeather = helmLeather; ip.toGilt = toGilt; ip.toGiltGrowth = toGiltGrowth;
+  ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather; ip.helmLeather = helmLeather; ip.toGilt = toGilt; ip.toGiltGrowth = toGiltGrowth; ip.cloakGilt = cloakGilt;
   ip.helmDull = helmDull; ip.helmPlain = helmPlain; ip.helmDent[0] = helmDent[0]; ip.helmDent[1] = helmDent[1];
   paintPixels(ip);
 }
@@ -1622,6 +1624,7 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   if (ip.toLeather && c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2)) c = code(Slot::Leather, codeStep(c));
   if (ip.helmLeather && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Leather, codeStep(c));
   if (ip.toGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Device, codeStep(c));   // (P5b fix r1) the legend's gilt
+  if (ip.cloakGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(dyeSlotOf(HumanLook::TIER_CLOAK, false), codeStep(c));   // (P5d)
   if (ip.toGiltGrowth && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 1) c = code(Slot::Device, codeStep(c));
   // (P5c) the fighter's own helm wear: fittings plain, the polish gone, the dents (STYLE_P5B 2.5, "the guards' variety")
   if (ip.helmPlain && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Metal, codeStep(c));

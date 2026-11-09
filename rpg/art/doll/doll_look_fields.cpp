@@ -173,6 +173,7 @@ bool applyLadderLookField(HumanLook& L, const std::string& k, const std::string&
   else if (k == "alloyRank") L.alloyRank = (uint8_t)n;
   else if (k == "forgeGuise") L.forgeGuise = (uint16_t)n;
   else if (k == "king") L.king = (uint8_t)n;   // (D96)
+  else if (k == "royalGuard") L.royalGuard = (uint8_t)n;   // (P5d)
   else if (k == "forgeShape") L.forgeShape = (uint32_t)std::strtoul(v.c_str(), nullptr, 0);
   else if (k == "gemColor") {
     const uint32_t rgb = (uint32_t)std::strtoul(v.c_str() + (!v.empty() && v[0] == '#' ? 1 : 0), nullptr, 16);

@@ -131,6 +131,8 @@ std::vector<const ClipRec*> postureClips(const std::string& bodyKey, int family,
 const char* postureProp(Posture p, uint8_t variant);
 // (P5b, STYLE_P5B 8) a people's signature is drawn: FIX_SIG and FIX_FP on and the people has a signature row (fp::Sig)
 bool sigOn(int people);
+// (P5d) a royal guard's long noble cloak over his T4 kit (HumanLook::royalGuard under FIX_SIG; doll_resolve.cpp)
+bool royalCloak(const HumanLook& L);
 // the recipe with the posture's prop added (its need and the parts serving it)
 DollRecipe withPosture(const DollRecipe& r, Posture p, uint8_t variant);
 }  // namespace doll

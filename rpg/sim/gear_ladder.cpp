@@ -692,7 +692,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
     else if (k == "rarity") { rarity = rarityOf(v); if (rarity < 0) addBad(k); }
     else if (k == "mat" || k == "forge" || k == "style" || k == "alloyStyle" || k == "shape" || k == "alloyShape" ||
              (k.rfind("forge", 0) == 0 && k.size() > 5 && k != "forgeKit" && k != "forgeGuise")) forges.push_back(KV{k, v});
-    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam" || k == "forgeKit" || k == "alloyRank" || k == "forgeGuise" || k == "king")
+    else if (k == "tier" || k.rfind("tier", 0) == 0 || k == "rare" || k == "metalKind" || k == "bladeKind" || k == "gemColor" || k == "mythic" || k == "motif" || k == "kitVar" || k == "floor" || k == "alloyFam" || k == "forgeKit" || k == "alloyRank" || k == "forgeGuise" || k == "king" || k == "royalGuard")
       tiers.push_back(KV{k, v});
     else plain.push_back(KV{k, v});
   }

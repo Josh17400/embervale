@@ -109,6 +109,19 @@ detail and the plumbing (section 8).
    every census T3 and T4 soldier and officer wears the kit's whole head at its tier (crest, mask and legend parts
    included): 96 of 96 for each of the capital watch, the lifted soldier and village watch, the T4 common soldier, the
    captain and the royal guard.
+   **The royal guard's cloak (P5d, the owner 2026-11-09: "a cloak for the royal guard would be nice"; the helmet dents stay
+   as they are).** With the captain, the royal guard and the T4 common soldier in one kit alloy, rank showed only by the
+   captain's travel cloak. Under FIX_SIG the royal guard (the census's palace and barracks guard, man and woman, every people:
+   `HumanLook::royalGuard`, set by census::dress) keeps his T4 everyday kit and wears the **long noble cloak** over it: the
+   existing `cloak/noble` T5-T6 long views (`cloak.t5`: to the ankles, framing the legs facing D, swept 6-8 px behind facing
+   R / L) in **his people's dominant** (the signed cloak ramp; the Heartland's in the kingdom's colour), its **trim in gilt
+   thread** (every Metal 2 cell of the cloak's parts and its R band in the gold trim ramp, the cloak's own dye slot, so the
+   harness's trim is untouched). The cloak alone is lifted: the cloak's tier and every other piece stay T4 (no T5 finish,
+   no breeze), and it replaces his alloy's half-cape or cape (one Cloak-slot piece a figure); a tabard, sash or scarf stays on
+   the front. Facing D the gilt edges and the cloak's sides to the ankles part him from the captain (the travel cloak, 4 px
+   behind) and the soldier (the people's cape or half-cape); facing U and R / L the long gilt-hemmed cloak. No view was drawn
+   (every people's dominant reads against its signature). Captains, common soldiers and the king are unchanged; FIX_SIG off
+   draws f914d03's look (`doll_resolve royalCloak`).
    **Every other alloy** (the warriors' at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
    "every alloy its own helmet"), drawn from the people's STYLE_P2 28.5 menu and dressed in the people's pair (crest, layer,
    cape, cloak, shield field), and never a family the people's signature rules out below T5 (the Fjordfolk: no cone, the
@@ -675,6 +688,9 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    its people's family at its own tier, its crest or mask kept, and varies only its dents, metal and trim: "Yeah probably
    should keep the crest". (3) The T4 officers (captains, jarls, the royal guard) count as everyday armour and wear the
    people's signature, the king keeps the masterwork: "Sure". FIX_SIG off still draws f914d03's look.
+11. **(P5d) The royal guard's cloak. Asked by the owner 2026-11-09 ("a cloak for the royal guard would be nice"; the helmet
+   dents stay), built in P5d (section 2.5; PLAN D126).** The royal guard wears the long noble cloak in his people's dominant
+   with a gilt trim over his T4 everyday kit, so rank shows at a glance; captains, common soldiers and the king unchanged.
 
 ### 10.1 Residuals that touch the approved slice (RULED 2026-11-07 by the main session as planner: R1 and R2)
 

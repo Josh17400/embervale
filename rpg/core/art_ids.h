@@ -470,6 +470,12 @@ struct HumanLook {
                             //   veil, circlet, conical hat, headscarf; colour = headColor
   uint32_t headColor = 0;   // 0 = topColor
   uint8_t pattern = 0;      // cloth pattern on the garment: cult::Pattern (0 plain); colour = patternColor
+  // (P5d, the owner 2026-11-09: "a cloak for the royal guard would be nice") 1: a royal guard (Role::Guard of the palace and
+  // its barracks, census::Rank::royal; census::dress sets it under FIX_SIG only): the doll's `royalguard` flag, the long noble
+  // cloak in the people's colour with its gilt hem over his T4 everyday kit (doll_resolve royalCloak). Derived, never saved;
+  // key() at rig 2 only when set. (Here, in pattern's padding, so sizeof stays 232; it belongs
+  // with the ladder's derived fields below)
+  uint8_t royalGuard = 0;
   uint32_t patternColor = 0;
   uint8_t facePaint = 0;    // 0 none, 1..4 (stripes, dots, mask band, sun mark)
   uint8_t jewellery = 0;    // 0 none, 1 earrings, 2 torc / necklace, 3 both
