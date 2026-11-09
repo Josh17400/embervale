@@ -792,7 +792,7 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
           census::rankSlots(N, role);
           keepMakers(N);
         }
-      } else if (f.size() >= 5) addBad("npc (the 5th field is lift)");
+      } else if (f.size() >= 5 && f[4] != "-") addBad("npc (the 5th field is lift or -)");
       L = N;
     }
   }
