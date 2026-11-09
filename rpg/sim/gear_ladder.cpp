@@ -326,12 +326,23 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
     const cult::BodyArm form = L.bodyForm ? (cult::BodyArm)std::min<int>(L.bodyForm - 1, 7)
                                           : (L.outfit == O::Leather ? cult::BodyArm::Leather : L.outfit == O::Chain || L.outfit == O::Guard ? cult::BodyArm::Mail
                                                                                                                                          : cult::BodyArm::Plate);
-    ForgeStyle st, helmStyleOwn;
+    ForgeStyle st, helmStyleOwn, stHelm;
     bool helmOwn = false;
+    // (P5c, the owner 2026-11-08: "That's fine") the Heartland's census T3 watch and soldiers (the coat, Outfit::Guard, at T3
+    // in the kingdom's livery metal: the capital watch, the lifted soldier and village watch) wear the Heartland's T3 kit as
+    // every other people's do (STYLE_P5B 2.5): its hero's road at T3, the steel's ARMOURER style (the knife comb, the flared
+    // shoulders, the cusped edge, the gorget) on the coat's form, the helm and shield as the kit's; the metal stays the
+    // livery's (metalKind 10). The resolver (doll_resolve everydayT3) gives him the kit's nasal. Under FIX_SIG and FIX_FP only:
+    // off, D57's kettle, cop and round shield as at f914d03
+    const bool heartlandT3 = person && t == 3 && realm && realm->archetype == cult::Archetype::Heartland && L.outfit == O::Guard &&
+                             L.metalKind == 10 && armour && art::doll::fixOn(art::doll::FIX_SIG) && art::doll::fixOn(art::doll::FIX_FP);
     if (realm && t >= 4 && !realm->arms.alloys.empty() && armour) {
       const int n = (int)realm->arms.alloys.size();
       // (P5b4) a common soldier at T4 wears the everyday alloy (the kit alloy at T4: his people's signature, STYLE_P5B 2.5)
-      const bool ev = everyday && t == 4 && art::doll::fixOn(art::doll::FIX_SIG);
+      // (P5c, the owner 2026-11-08: "Sure") and so do the T4 officers (captains, jarls, the royal guard: census::dress's
+      // person at T4): everyday armour is T3-T4, so D29's officers' alloy (the best below the masterwork, an own piece) is
+      // FIX_SIG off only; the king (T5) keeps the masterwork
+      const bool ev = (everyday || person) && t == 4 && art::doll::fixOn(art::doll::FIX_SIG);
       const int idx = t >= 5 ? n - 1 : ev ? 0 : (n >= 3 ? n - 2 : n - 1 >= 1 ? 1 : 0);
       st = alloyStyle(*realm, idx);
       if (art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t) && L.tier[H::TIER_HELM]) {   // (P5b2) as fillLadder
@@ -360,6 +371,9 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
       L.forgeShape = packShape(sh);
       if (L.forgeShape && art::doll::fixOn(art::doll::FIX_SIG) && !kitAlloy(*realm, idx, t))
         L.forgeShape |= (L.tier[H::TIER_BODY] ? art::doll::forge::SHAPE_OWN_BODY : 0u) | (L.tier[H::TIER_HELM] ? art::doll::forge::SHAPE_OWN_HELM : 0u);
+    } else if (heartlandT3) {
+      st = baseStyle(4, form);                           // the kit's T3 steel body (ARMOURER on the coat's form)
+      stHelm = baseStyle(4, cult::BodyArm::Plate);       // its helm and shield as forgeOf draws a steel helmet or shield
     } else if (L.metalKind && L.metalKind != 10) {
       st = baseStyle(L.metalKind, L.metalKind == 1 && form != cult::BodyArm::Padded ? cult::BodyArm::Leather : form);
     } else if (armour && (form == cult::BodyArm::Padded || L.outfit == O::Tunic)) {
@@ -375,8 +389,8 @@ void rankTiers(art::HumanLook& L, int tier, bool person, const cult::Culture* re
     }
     if (pk) {
       if (L.tier[H::TIER_BODY]) L.forge[H::TIER_BODY] = pk;
-      if (L.tier[H::TIER_HELM]) L.forge[H::TIER_HELM] = helmOwn ? packForge(helmStyleOwn) : pk;
-      if (L.tier[H::TIER_SHIELD]) L.forge[H::TIER_SHIELD] = pk;
+      if (L.tier[H::TIER_HELM]) L.forge[H::TIER_HELM] = heartlandT3 ? packForge(stHelm) : helmOwn ? packForge(helmStyleOwn) : pk;
+      if (L.tier[H::TIER_SHIELD]) L.forge[H::TIER_SHIELD] = heartlandT3 ? packForge(stHelm) : pk;
       if (L.tier[H::TIER_GLOVES]) L.forge[H::TIER_GLOVES] = pk;
       if (L.tier[H::TIER_BOOTS]) L.forge[H::TIER_BOOTS] = pk;
     }
@@ -765,7 +779,10 @@ void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, 
         case Role::Jarl: N.outfit = O::Plate; N.cape = true; break;
         default: break;
       }
-      census::dress(N, name, role, female, C, C, (uint64_t)seed * 0x9E3779B97F4A7C15ull ^ 0xC3A5ull, rk);
+      // (P5c) npc=<people>:<role>:<rank>:<seed>:<lift|->:<man>: the man'th person of that kingdom's rank (his own face, so his
+      // own kit: kitVar), the sheets' row of six guards; no <man> (or 0): the person every older spec drew
+      const uint64_t man = f.size() >= 6 ? std::strtoull(f[5].c_str(), nullptr, 10) : 0ull;
+      census::dress(N, name, role, female, C, C, ((uint64_t)seed * 0x9E3779B97F4A7C15ull ^ 0xC3A5ull) + man * 0x632BE59BD9B4E019ull, rk);
       // (P5b4) npc=<people>:<role>:<rank>:<seed>:lift: the census's band-4+ land lift (looks.cpp liftRank: the watch, soldiers
       // and bandits one tier up; a lifted watchman or soldier a common soldier, at T4 his realm's everyday alloy)
       if (f.size() >= 5 && f[4] == "lift" && (role == Role::Soldier || role == Role::Bandit || (role == Role::Guard && !rk.royal))) {

@@ -3192,6 +3192,9 @@ The forge re-plan (2026-10-24) adds:
 - **D29. Officers wear their realm's alloy style**: captains, the royal guard, jarls and story knights (T4) the realm's
   best alloy below the masterwork, kings (T5) the masterwork. census::dress passes the realm to rankTiers (no draw, no
   rule).
+  **(P5c, the owner 2026-11-08: "Sure")** Under FIX_SIG the T4 officers (captains, jarls, the royal guard) count as everyday
+  armour and wear the realm's first alloy, the kit alloy at T4 (the people's T4 signature, STYLE_P5B 2.5); the officers' alloy
+  above is FIX_SIG off only. Kings keep the masterwork (T5).
 - **D30. Blades keep their own metal**: every held weapon draws its metal in Slot::Blade from its own item (A3's sword map
   included), so a gilded body never gilds the sword.
 - **D31. Each piece wears its own style**: a bronze helm on steel plate shows FOUNDRY's comb. The alternative (the body's
@@ -3334,6 +3337,11 @@ The envelope's round-3 judge (2026-10-27; .tmp/judge/env_r3, harness .tmp/judge/
   more of eg0 (the envelope's T2-to-T3 step, 1.20 / 1.10); shoulders 20; the cape 1 px or more beside each arm on 6 rows
   or more facing D and 1 column or more behind the back facing R. Round 3's "1.20 of eg0" took the caption's reference
   for the guard's own; these two replace it. No gate number moves.
+  **(P5c, the owner 2026-11-08: "That's fine")** Under FIX_SIG and FIX_FP D57's kit is retired for every people, the
+  Heartland included: the Heartland's census T3 watch (the capital watch, the lifted soldier, the lifted village watch) wears
+  the Heartland T3 kit (the nasal with the knife comb, the flared shoulders, the tower shield, the people's cape) in the
+  kingdom's livery metal (STYLE_P5B 2.5, D125). eg3 is eg0 lifted (npc=heartland:guard:0:7:lift); its C12f terms hold
+  with the shoulders read against the hero's T3 kit (e3: 18) under FIX_SIG and D57's 20 off it. FIX_SIG off: D57 as built.
 - **D58. A3 ENKHOBRASS wears brass, not blue cloth** (the packager: the torso is still blue cloth and only the helm brass):
   its torso is a brass lamellar coat: rows of small plates, each row a 2 px band (a hard gold lit top row over a dark
   row), black lacing gaps every 3-4 px; the BIB motif a brass plate with a gold lit plane and a near-white glint; the
@@ -4012,6 +4020,21 @@ the plaid's filigree views ADDed; region planes re-cut, never a pixel), rig 1 un
   on their visible row; a brass rim with no seam takes a lining inside it; a bare view takes the hem; the buckler's boss its
   band; no lone dye pixel survives; from T3 the laces take the dye alone (no checker); Highland's plaid is an open check
   (mark) and a gilt lattice with its gem (filigree); the shield icon's lashing every 8 px. Images: scratchpad/p5-pack/play.
+- **D125. The guards (P5c, the owner's answers 2026-11-08; STYLE_P5B 2.5 and decision 10).** Three answers, built under FIX_SIG
+  (FIX_SIG off draws f914d03's look): (1) "That's fine": the Heartland's census T3 watch wears the Heartland T3 kit like
+  every other people's (gear::rankTiers gives the Guard coat at T3 in a Heartland realm the steel's ARMOURER style in the
+  livery metal; doll_resolve heartlandT3Coat gives it the kit's nasal; D57 retired). (2) "Yeah probably should keep the
+  crest": a ranked fighter's own kit (polish i1's kitVar) never moves a signed helm's tier, so the helm stays its people's
+  family at its own tier with its crest or mask; the wear varies instead (doll_resolve helmWearOf, doll_paint: the polish
+  gone one in three, plain fittings one in three, one or two dents); the shield, gloves, boots, shoulders, skirt, cloak, dye
+  lots and hose keep varying as in i1-i3; maker-less helms keep the step. (3) "Sure": the T4 officers wear the everyday kit
+  alloy (D29 restated); the king keeps the masterwork. Measured (rpg_test --doll-recipe over the judge's ev_looks, 12 peoples
+  x seeds 1-4 x man and woman): census T3 watch / soldier / village watch and T4 common soldier / captain / royal guard 96 of
+  96 each the kit's whole head (crest, mask and legend parts included) with the helm at the body's tier. The officers' kit
+  put the Heartland T4 kit's heavy sleeve on a royal guard woman, whose sleeve had no shield-roll or cast views
+  (armour/woman/sleeve_heavy_r rlshcrouch, csshrelease; C1 source F): the man's views, copied, drawn under FIX_SIG only
+  (the pool's `when fix.sig`, over an empty base view), which also fills the Heartland T4 heroine's roll. Moves:
+  tools/gates/baseline/moves_p5c/GUARDS.txt; root p5c.
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It
@@ -4741,7 +4764,7 @@ figures_side_by_side_6x.png and phone_32_NEAR.png).
 |---|---|---|---|
 | e1 .. e6, e6m | man, the A3 hero | the Heartland kit (seed 7) at T1-T6 and the Mythic: the size study's lt lines | six figures from slim to bulky, T6 over T5, a helm per tier |
 | e1w .. e6w | woman, the A3 heroine | the same; e6w with the runed spear | the envelope on her |
-| eg0, eg3 | man | the Heartland village watch (npc=heartland:guard:0:7) at its own tier (T2) and at T3 in the fair test's T3d gear (D57) | the T3 guard the owner saw |
+| eg0, eg3 | man | the Heartland village watch (npc=heartland:guard:0:7) at its own tier (T2) and lifted to T3 (`:lift`): the Heartland T3 kit under FIX_SIG (D125), the fair test's T3d gear (D57) off it | the T3 guard the owner saw |
 | ecapt, eking | man | a Heartland captain (T4) and the king (T5) | rank by size; a T6 beside a king |
 | a_uha, a_jaon, a_enkho | man | UHABRASS (jade:2:1), JAONBRASS (jade:5:1), ENKHOBRASS (steppe:1:1) on their peoples' T4 kits | A1-A3 |
 | a_thaer, a_thorn, a_ilsil | man | THAERGLASS (sylvan:1:3), THORNSTEEL (highland:1:3), ILSILVER (fjordfolk:1:3) at T5 | A7, A8 |

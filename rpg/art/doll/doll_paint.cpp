@@ -1117,6 +1117,39 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   bool helmLeather = false;
   if (r.has("sighelmleather"))
     for (const RoleRec& rr : it.part->roles) if (rr.cat == (uint8_t)Role::Helm) helmLeather = true;
+  // (P5c) the ranked fighter's own helm wear (doll_resolve helmWearFlags): Role::Helm parts only; the dents on the helm's own
+  // bowl (not a crest, plume or legend growth part), at lit Metal cells (step 3-4) with a lit Metal cell under them, picked by
+  // the flag's number among the view's candidates in reading order (so a dent rides with the helm frame to frame)
+  bool helmDull = false, helmPlain = false;
+  int helmDent[2] = {-1, -1};
+  if (partHasRoleCat(*it.part, Role::Helm)) {
+    helmDull = r.has("helmdull");
+    helmPlain = r.has("helmplain");
+    int dentSeed = 0, dents = 0;
+    for (const std::string& f : r.flags)
+      if (f.rfind("helmdent", 0) == 0 && f.size() > 10 && f[9] == '-') { dents = f[8] - '0'; dentSeed = std::atoi(f.c_str() + 10); }
+    const std::string& nm = P.s(it.part->name);
+    const bool bowl = nm.find("/crest/") == std::string::npos && nm.find("_crest") == std::string::npos &&
+                      nm.find("_plume") == std::string::npos && nm.find("_legend") == std::string::npos;
+    if (dents > 0 && bowl && v.w > 0 && v.h > 2) {
+      std::vector<int> cand;
+      for (int y = 1; y + 1 < (int)v.h; y++)
+        for (int x = 1; x + 1 < (int)v.w; x++) {
+          const uint8_t c = v.cells[(size_t)y * v.w + x], b = v.cells[(size_t)(y + 1) * v.w + x];
+          const uint8_t l = v.cells[(size_t)y * v.w + x - 1], rr = v.cells[(size_t)y * v.w + x + 1];
+          auto metalAt = [](uint8_t q, int lo) { return q >= 2 && codeSlot(q) == Slot::Metal && codeStep(q) >= lo; };
+          if (metalAt(c, 3) && metalAt(b, 2) && metalAt(l, 2) && metalAt(rr, 2)) cand.push_back(y * (int)v.w + x);
+        }
+      if (!cand.empty()) {
+        uint32_t hh = (uint32_t)dentSeed * 0x9E3779B1u; hh ^= hh >> 13;
+        helmDent[0] = cand[hh % cand.size()];
+        if (dents >= 2 && cand.size() >= 4) {
+          const int alt = cand[(hh / 7u + cand.size() / 2) % cand.size()];
+          if (std::abs(alt % (int)v.w - helmDent[0] % (int)v.w) + std::abs(alt / (int)v.w - helmDent[0] / (int)v.w) >= 3) helmDent[1] = alt;
+        }
+      }
+    }
+  }
   // (P5b fix r1, STYLE_P5B 2.4) a gilt people's signed T5 helm (`sighelmgilt`) or shield (`sigshieldgilt`): the piece's fittings
   // (Metal 2: the trim band, the brow band, the cheek guards, a rim, the horns' gilt) in the gilt, the piece's own steel and the
   // body's Metal 2 bands kept
@@ -1150,6 +1183,7 @@ void FramePaint::paintItem(const Item& it, bool handOnly) {
   ip.stretch = stretch; ip.hasReg = hasReg; ip.tiled = tiled;
   ip.ts = ts;
   ip.toBlade = toBlade; ip.toMetal = toMetal; ip.brassBody = brassBody; ip.toLeather = toLeather; ip.helmLeather = helmLeather; ip.toGilt = toGilt; ip.toGiltGrowth = toGiltGrowth;
+  ip.helmDull = helmDull; ip.helmPlain = helmPlain; ip.helmDent[0] = helmDent[0]; ip.helmDent[1] = helmDent[1];
   paintPixels(ip);
 }
 
@@ -1589,6 +1623,13 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   if (ip.helmLeather && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Leather, codeStep(c));
   if (ip.toGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Device, codeStep(c));   // (P5b fix r1) the legend's gilt
   if (ip.toGiltGrowth && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 1) c = code(Slot::Device, codeStep(c));
+  // (P5c) the fighter's own helm wear: fittings plain, the polish gone, the dents (STYLE_P5B 2.5, "the guards' variety")
+  if (ip.helmPlain && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Metal, codeStep(c));
+  if (ip.helmDull && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 3) c = code(Slot::Metal, codeStep(c) - 1);
+  if (ip.helmDent[0] >= 0 && c >= 2 && codeSlot(c) == Slot::Metal) {
+    const int k = y * (int)v.w + x;
+    if (k == ip.helmDent[0] || k == ip.helmDent[1]) c = code(Slot::Metal, 1);
+  }
   // (INTEGRATE silhouettes i1) the glints (step 4) stay in the body's Metal: the sheen's spark reads on both bands
   if (it.iris && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= (it.irisRows ? 0 : 1) && codeStep(c) <= (it.irisRows ? 4 : 3) && irisBand[(size_t)y]) c = code(Slot::Metal2, codeStep(c));   // (silhouettes i2: the body's bands take the plate's rim and glint too, so the second hue reads as a plate, C17 20 %)
   if ((toMetal || brassBody) && c >= 2) {

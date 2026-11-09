@@ -442,6 +442,7 @@ view L key runB origin 0 0
 |.
 
 # >>> FORGE-LIMBS envelope r1: the keys round 2 cut for the pool (sp_ bw_ fling lap; the pool has room under its 2.5 MiB budget): traced by gen_sleeves_body.py.
+
 view D key lap origin 2 -4
 |.vvv.
 |.vxv.
@@ -955,6 +956,7 @@ regions
 
 # (ARMOUR-W wave 2 r3, add_sleeves.py) the keys board's arm keys her sleeve lacked (action families, roll / cast, postures),
 # traced from each arm view by the LIMBS tracer; a key whose forearm is hidden draws nothing.
+
 view L key oh_g origin 9 3 layer armNear
 |.vvv
 |.vxv
@@ -5091,6 +5093,16 @@ view R key rlcrouch origin -1 -3
 |vwwwwwvv..
 |vv........
 
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view R key rlshcrouch origin 0 0
+|.
+view R key rlshcrouch origin -1 -3 when fix.sig replace
+|vvvvv.....
+|vxxxxvvv..
+|vxxxwwxxvv
+|vwwwwwvv..
+|vv........
+
 view R key rlrise origin 0 -2
 |....vvvv
 |vvvvwxxv
@@ -5123,6 +5135,20 @@ view R key csrelease origin 0 1
 |....vwv..
 |.....v...
 
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view R key csshrelease origin 0 0
+|.
+view R key csshrelease origin 0 1 when fix.sig replace
+|........v
+|.......vv
+|...vvvvxv
+|vvvxxwwx.
+|vxxxxwww.
+|.vxxxww..
+|..vvwwv..
+|....vwv..
+|.....v...
+
 view L key rltuck origin 0 0
 |.
 
@@ -5132,6 +5158,16 @@ view L key rlover origin 0 0
 view L key rlcrouch origin 0 0
 |.
 
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view L key rlshcrouch origin 0 0
+|.
+view L key rlshcrouch origin -4 -2 when fix.sig replace
+|..vvv
+|.vvv.
+|vvv..
+|vy...
+|vv...
+
 view L key rlrise origin 0 0
 |.
 
@@ -5140,6 +5176,20 @@ view L key csgather origin 0 0
 
 view L key csrelease origin 0 0
 |.
+
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view L key csshrelease origin 0 0
+|.
+view L key csshrelease origin 8 1 when fix.sig replace
+|vvvv.....
+|vyxvv....
+|vyvvvv...
+|.yyyxxvvv
+|.yyyxxxxv
+|..yyxxxv.
+|..vyyvv..
+|..vxv....
+|...v.....
 
 view D key rlcrouch origin 0 -3
 |vvv.
@@ -5153,6 +5203,14 @@ regions
 |..R.
 |.R..
 |....
+
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view D key rlshcrouch origin 0 0
+|.
+view D key rlshcrouch origin 5 -1 when fix.sig replace
+|v....
+|.vv..
+|..vvv
 
 view D key rlrise origin 0 -3
 |vvv.
@@ -5197,7 +5255,33 @@ regions
 |..R..
 |.....
 
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view D key csshrelease origin 0 0
+|.
+view D key csshrelease origin 1 -3 when fix.sig replace
+|.vvv
+|.vyv
+|vv..
+|v...
+regions
+|....
+|..R.
+|....
+|....
+
 view U key rlcrouch origin 0 -3
+|vvv...
+|vxxv..
+|vyyvvv
+regions
+|......
+|......
+|.RR...
+
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view U key rlshcrouch origin 0 0
+|.
+view U key rlshcrouch origin 0 -3 when fix.sig replace
 |vvv...
 |vxxv..
 |vyyvvv
@@ -5234,6 +5318,14 @@ regions
 |..RR..
 |......
 |......
+
+# (P5c) copied from armour/man/sleeve_heavy_r (the roll and cast arm is one adult drawing; the woman's rl/cs sleeves equal the man's): the royal guard woman's shield roll and cast; FIX_SIG only (`fix.sig`), so FIX_SIG off keeps f914d03's frames
+view U key csshrelease origin 0 0
+|.
+view U key csshrelease origin -1 -1 when fix.sig replace
+|.....v
+|..vvv.
+|vvv...
 
 view D key hold origin 0 0
 |.

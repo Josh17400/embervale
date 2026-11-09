@@ -61,14 +61,20 @@ detail and the plumbing (section 8).
    the census's **common soldiers at T4** (`census liftRank`: a watchman of the capital lifted to T4 in band-4+ land; it calls
    `rankTiers(..., everyday = true)`, which under FIX_SIG dresses him in the realm's first alloy, a kit alloy, so he wears
    the signature; before P5b4 he wore the officers' alloy as an own piece and read as no people). The **officers** at T4
-   (captains, jarls, the royal guard: D29) keep the realm's best alloy below the masterwork, an own piece, and the king the
+   (captains, jarls, the royal guard: D29) **count as everyday armour too (P5c, the owner 2026-11-08: "Sure")**: under
+   FIX_SIG `rankTiers` dresses every census person at T4 in the realm's first alloy, the kit alloy, so they wear the
+   people's T4 signature (D29's best alloy below the masterwork, an own piece, is FIX_SIG off only); the king keeps the
    masterwork (kit). `npc=<people>:<role>:<rank>:<seed>:lift` draws the lifted figure (the looks macros, the sheets).
    **The census's T3 soldiers (P5b5, as built; measured by the judge's `ev_recipe.py` over `rpg_test --doll-recipe`, 12
    peoples x seeds 1-4 x man and woman).** The capital watch (T3 by rank) and the soldiers and village watch lifted to T3 in
    band-4+ land wear the coat (`Outfit::Guard`) at T3. Where the coat's helm or body is made by a people **signed at T3** (its
    T3 row's head or skirt set: 11 of the 12 peoples), it is the kingdom's everyday and draws the people's T3 as the kit does
    (`doll_resolve everydayT3`: `sigLookOf`'s head, body axes, shoulders and shield form; the people's T3 cape by the people's
-   line rule); a signed coat with no helm (the Highland T2 soldier's bonnet) wears the people's T3 head at T3. The metal is
+   line rule). **The Heartland (P5c, the owner 2026-11-08: "That's fine")**: its T3 row is its hero's road (unsigned), so
+   `rankTiers` gives a Heartland realm's census T3 coat the kit's own T3 style (the steel's ARMOURER: the knife comb, the
+   flared shoulders, the cusped edge, the gorget, the tower shield; `forgeKit`) in the livery metal, and `doll_resolve
+   heartlandT3Coat` gives it the kit's nasal: it draws the Heartland T3 kit as the other eleven draw theirs. A signed coat
+   with no helm (the Highland T2 soldier's bonnet) wears the people's T3 head at T3. The metal is
    the kingdom's livery, not the kit's steel ("tint" below: metalKind 10, the kingdom's armourTint on the alloy ramp; "brass"
    where the tint reads as brass):
 
@@ -76,7 +82,7 @@ detail and the plumbing (section 8).
    |---|---|---|---|---|
    | Fjordfolk | spangen | spangen, steel | spangen, tint | spangen, iron |
    | Highland | kettle | kettle, tint / brass | kettle (the bonnet gives way), tint / brass | kettle, tint / brass |
-   | Heartland | nasal, knife comb | **kettle (D57)**, tint / brass | **kettle (D57)**, tint | **kettle (D57)**, tint / brass |
+   | Heartland | nasal, knife comb | nasal, knife comb, tint / brass | nasal, knife comb, tint | nasal, knife comb, tint / brass |
    | Imperial | crested | crested, brass | crested, brass | crested, brass |
    | Dune | veil | veil, brass | veil, brass | veil, brass |
    | Steppe | plumed | plumed, brass | plumed, brass | plumed, brass |
@@ -88,10 +94,21 @@ detail and the plumbing (section 8).
    | Starspire | crown and hood | crown and hood, tint | crown and hood, tint / brass | crown and hood, tint |
 
    **D57's fate** (docs/PLAN.md D57; P2C_CONTRACTS "The watch at T3": the kettle, the cop, the cape and the round shield the
-   owner saw on the Heartland watch): **retired for the 11 signed peoples** under FIX_SIG (their T3 watch and soldiers draw
-   the people's T3 above); **kept for the Heartland** (its T3 row is the hero's road, unsigned: D54-D55) until the owner
-   rules whether the Heartland's everyday T3 watch wears the kit's nasal with the knife comb instead. FIX_SIG off: D57 for
-   every people, as at f914d03.
+   owner saw on the Heartland watch): **retired for every people** under FIX_SIG (the 11 signed peoples in P5b5; the
+   Heartland in P5c, the owner 2026-11-08: "That's fine": its watch wears the kit's nasal with the knife comb). FIX_SIG off:
+   D57 for every people, as at f914d03. (The table above is measured at P5c: 96 of 96 each.)
+   **The guards' variety (P5c, the owner 2026-11-08: "Yeah probably should keep the crest").** Polish i1's own kit
+   (`HumanLook::kitVar`, "six identical guards in a row") moved a ranked fighter's helm a tier up or down, so a T3 or T4
+   soldier lost his people's crest or mask (a step down) or wore the next tier's head (a step up). Under FIX_SIG a helm made
+   by a signed people (the Heartland included) **keeps its family at its own tier, its crest or mask kept**; it varies only
+   its wear (`doll_resolve helmWearOf`, painted by `doll_paint` on the helm's own parts): the polish gone (its lit metal a
+   step down, one in three), the fittings plain (Metal 2 in the bowl's metal, one in three), one or two dents (a lit bowl
+   pixel at the darkest metal step, three in eight and one in four). The rest of i1-i3 stands (the shield, gloves and boots
+   a step either way, the shoulder and skirt dials, the bare-handed third, the sergeant's travel cloak, the dye lots, the hose;
+   the T2 village watch's one in eight bare-headed). Maker-less helms keep the step (2.9). Measured (`ev_recipe`'s figures):
+   every census T3 and T4 soldier and officer wears the kit's whole head at its tier (crest, mask and legend parts
+   included): 96 of 96 for each of the capital watch, the lifted soldier and village watch, the T4 common soldier, the
+   captain and the royal guard.
    **Every other alloy** (the warriors' at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
    "every alloy its own helmet"), drawn from the people's STYLE_P2 28.5 menu and dressed in the people's pair (crest, layer,
    cape, cloak, shield field), and never a family the people's signature rules out below T5 (the Fjordfolk: no cone, the
@@ -623,8 +640,8 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    soldiers at T4 included), the masterwork stays T5-T6, every other alloy keeps its own helmet in the people's colours; the
    Heartland hero's road keeps its gilded onion (T5) and starmetal crystal (T6) relic helms (D83). Section 2.5 says what it is
    in code (`gear::kitBand`, `kitAlloy`, `rankTiers(..., everyday)`) and, per people, what the census's T3 soldiers draw
-   (P5b5: the people's T3 head in the kingdom's livery metal; D57's watch kit retired for the 11 signed peoples, kept for the
-   Heartland until the owner rules: **open question for the owner**). The text below is the 2026-11-06 ruling as asked. Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
+   (P5b5: the people's T3 head in the kingdom's livery metal; D57's watch kit retired for the 11 signed peoples; P5c: for the
+   Heartland too, the owner 2026-11-08, decision 10). The text below is the 2026-11-06 ruling as asked. Reading 1 (the planner's recommendation; built on the owner's yes): every kingdom's kit alloy of a people (the
    everyday at T4, the masterwork at T5-T6) wears the people's one signature (the look the owner approved: "i really like
    these"); every other alloy keeps its own helmet and cut (2026-10-24/25) in the people's colours; two kit alloys of one
    people at one tier are not parted by the P2c alloy gates. Reading 2: each kingdom's kit carries a MARK on the signature
@@ -651,6 +668,13 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
    kingdom at T4 and T5 parted by the head, 0.10). Reading 2: remove it and redraw every people's T5 body 0.08 off its T4 (the
    approved slice's T5 bodies change; slice_same falls). Until ruled the code keeps the exemption, exactly as above:
    a kingdom's kit alloys at T4 and T5, FIX_SIG and FIX_FP on, parted by the head (0.10) alone.
+
+10. **(P5c) The guards. Answered by the owner 2026-11-08, built in P5c (section 2.5; PLAN D125, D29 and D57 restated).**
+   (1) The Heartland census T3 watch (the capital watch, the lifted soldier, the lifted village watch) leaves D57's kettle,
+   cop and round shield for the Heartland's T3 kit like every other people: "That's fine". (2) A varied soldier's helm keeps
+   its people's family at its own tier, its crest or mask kept, and varies only its dents, metal and trim: "Yeah probably
+   should keep the crest". (3) The T4 officers (captains, jarls, the royal guard) count as everyday armour and wear the
+   people's signature, the king keeps the masterwork: "Sure". FIX_SIG off still draws f914d03's look.
 
 ### 10.1 Residuals that touch the approved slice (RULED 2026-11-07 by the main session as planner: R1 and R2)
 

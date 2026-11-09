@@ -89,7 +89,10 @@ const char* kEnvelopeLooks =   // (P2c envelope) tools/doll/envelope_looks.txt (
     "e5w      woman  heroine=1,kit=heartland:5:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
     "e6w      woman  heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
     "eg0      man    npc=heartland:guard:0:7,palette=look  stay,walk,run,didle,hit1,fall,lying\n"
-    "eg3      man    npc=heartland:guard:0:7,tier=3,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    // (P5c) eg3 is eg0 lifted to T3 (census liftRank: the village watch in band-4+ land), the T3 watch the game draws: under
+    // FIX_SIG the Heartland T3 kit (the owner 2026-11-08), off it D57's kettle, cop and cape. The tier=3 spec drew D57 at every
+    // mask, and eg0 measured a T2 watch whose helm the kit jitter dropped to T1 (P5c: a signed helm keeps its tier)
+    "eg3      man    npc=heartland:guard:0:7:lift,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
     "ecapt    man    npc=heartland:captain:1:7,palette=look  stay,walk,run\n"
     "eking    man    npc=heartland:king:0:7,palette=look  stay,walk,run\n"
     "a_uha    man    kit=jade:4:2,alloy=1,palette=look  stay,walk,run\n"
@@ -468,12 +471,14 @@ void capeSides(const Fig& f, int& left, int& right) {
 }
 // D57's terms: eg3's area 1.20 of e1 and 1.10 of eg0 (C12f's measure), its shoulders 20, its cape beside each arm on 6 rows or
 // more facing D and 1 column or more behind the body facing R
-std::vector<std::string> guardRule(int a3, int a1, int a0, int shoulders, int capeL, int capeR, int back) {
+// (P5c) wantShoulders: D57's 20 (the cop at medium); under FIX_SIG the watch wears the Heartland T3 kit, whose shoulders are the
+// hero's T3 kit's (e3: the flared pauldrons at 18), so the term is the kit's
+std::vector<std::string> guardRule(int a3, int a1, int a0, int shoulders, int capeL, int capeR, int back, int wantShoulders = doll::kGuardShoulders) {
   std::vector<std::string> out;
   if (a1 <= 0 || a0 <= 0) { out.push_back("no e1 or eg0 area"); return out; }
   if (a3 * 100 < a1 * doll::kGuardOverHeroT1) out.push_back(fmt("area %d %.2f of e1's %d (%.2f)", a3, (double)a3 / a1, a1, doll::kGuardOverHeroT1 / 100.0));
   if (a3 * 100 < a0 * doll::kGuardOverOwnTier) out.push_back(fmt("area %d %.2f of eg0's %d (%.2f)", a3, (double)a3 / a0, a0, doll::kGuardOverOwnTier / 100.0));
-  if (shoulders < doll::kGuardShoulders) out.push_back(fmt("shoulders %d (%d)", shoulders, doll::kGuardShoulders));
+  if (shoulders < wantShoulders) out.push_back(fmt("shoulders %d (%d)", shoulders, wantShoulders));
   if (capeL < doll::kGuardCapeRowsD || capeR < doll::kGuardCapeRowsD)
     out.push_back(fmt("cape beside the arms facing D on %d (left) and %d (right) rows (%d each)", capeL, capeR, doll::kGuardCapeRowsD));
   if (back < doll::kGuardCapeBackR) out.push_back(fmt("cape %d columns behind facing R (%d)", back, doll::kGuardCapeBackR));
@@ -591,7 +596,10 @@ int envelopeLooksGate(const std::vector<Built>& looks, Line& g, Line& c3b, Line&
       const int back = cloakBackOf(probe(*g3, RigPart::Loco, 2, Clip::Idle, 0, 0), 2);
       lad.notes.push_back(fmt("  C12f guard eg3: area %d (%.2f of e1 %d, %.2f of eg0 %d) shoulders %d cape D %d / %d rows, back R %d", m3.area,
                               (double)m3.area / std::max(1, m1.area), m1.area, (double)m3.area / std::max(1, m0.area), m0.area, m3.shoulders, cl, cr, back));
-      const std::vector<std::string> w = guardRule(m3.area, m1.area, m0.area, m3.shoulders, cl, cr, back);
+      const Built* e3 = find(looks, "e3");
+      const bool kitWatch = doll::fixOn(doll::FIX_SIG) && doll::fixOn(doll::FIX_FP) && e3 && e3->bad.empty();   // (P5c)
+      const int wantSh = kitWatch ? std::min(doll::kGuardShoulders, measure(*e3).shoulders) : doll::kGuardShoulders;
+      const std::vector<std::string> w = guardRule(m3.area, m1.area, m0.area, m3.shoulders, cl, cr, back, wantSh);
       for (const std::string& x : w) lad.bad("eg3 (D57): " + x);
       if (w.empty()) lad.ok();
     }

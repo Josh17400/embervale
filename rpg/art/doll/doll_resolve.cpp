@@ -227,8 +227,18 @@ bool signedAtT3(int people, bool helm) {
   const fp::SigTier* t = fixOn(FIX_SIG) && fixOn(FIX_FP) && fp::sig(people) ? fp::sigTier(people, 3) : nullptr;
   return t && (helm ? t->head != nullptr : t->skirt != nullptr);
 }
+// (P5c, the owner 2026-11-08: "That's fine") the Heartland's census T3 coat: gear::rankTiers gave it the Heartland T3 kit's
+// steel style (ARMOURER, the Heartland's own kit: forgeKit) in the livery metal, so it is no longer the unsigned watch: it
+// draws the kit's T3 (the nasal with the knife comb, the flared shoulders, the tower shield, the people's T3 cape) as the 11
+// signed peoples' watch draws theirs. FIX_SIG and FIX_FP only (rankTiers sets the style only then)
+bool heartlandT3Coat(const HumanLook& L) {
+  return fixOn(FIX_SIG) && fixOn(FIX_FP) && L.outfit == Outfit::Guard && L.tier[HumanLook::TIER_BODY] == 3 && !L.civil && L.forgeKit &&
+         L.metalKind == 10 && (L.forge[HumanLook::TIER_BODY] & 0xFF) == forge::B_ARMOURER &&
+         (L.makerAt(HumanLook::TIER_BODY) == 3 || L.makerAt(HumanLook::TIER_HELM) == 3);   // makerPeople 3: the Heartland
+}
 bool everydayT3(const HumanLook& L) {
-  return watchT3Coat(L) && (signedAtT3(L.makerAt(HumanLook::TIER_HELM), true) || signedAtT3(L.makerAt(HumanLook::TIER_BODY), false));
+  return (watchT3Coat(L) && (signedAtT3(L.makerAt(HumanLook::TIER_HELM), true) || signedAtT3(L.makerAt(HumanLook::TIER_BODY), false))) ||
+         heartlandT3Coat(L);
 }
 bool watchT3(const HumanLook& L) { return watchT3Coat(L) && !everydayT3(L); }
 // (P2c wave 2, DOLL-C; D69) a tiered fighter's armour at T2 or T3: the envelope's T2-T3 lifts apply (small caps or the short
@@ -885,6 +895,20 @@ void regionsOf(const HumanLook& L, const std::string& g, DollRecipe& r) {
   }
 }
 
+// (P5c, the owner 2026-11-08) a ranked fighter's own signed helm (kitVar, its maker signed, a metal helm worn, never the king's
+// masterwork): its wear by a third hash of kitVar (the jitter's bits are spent): bit 0 the polish gone (one in three), bit 1
+// the fittings plain (one in three), bits 2-3 the dents (none three in eight, one three in eight, two in four), bits 8-15 the
+// dents' seed. 0: as issued
+static uint32_t helmWearOf(const HumanLook& L) {
+  if (!L.kitVar || L.king || !sigOn(L.makerAt(HumanLook::TIER_HELM)) || !L.tier[HumanLook::TIER_HELM]) return 0;
+  if (!(L.helmet || L.helmStyle || L.helmForm)) return 0;
+  uint32_t h = L.kitVar * 0x7FEB352Du + 0x165667B1u;
+  h ^= h >> 15; h *= 0x846CA68Bu; h ^= h >> 16; h *= 0x2C1B3C6Du; h ^= h >> 13;
+  const uint32_t dull = h % 3u == 0, plain = (h >> 4) % 3u == 1, d = h >> 9 & 7u;
+  const uint32_t dents = d < 3 ? 0 : d < 6 ? 1 : 2;
+  return dull | plain << 1 | dents << 2 | (dents ? (1u + (h >> 16) % 255u) << 8 : 0);
+}
+
 void flagsOf(const HumanLook& L, DollRecipe& r) {
   auto flag = [&](const char* f) { r.flags.push_back(f); };
   flag(bodySetName(r.body));
@@ -954,6 +978,11 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
       const fp::SigTier* st = fp::sigTier(g_sig->helmP, L.tier[HumanLook::TIER_HELM]);
       if (st && st->giltGrowth) flag("sighelmgrowthgilt");
     }
+  }
+  if (const uint32_t w = fixOn(FIX_SIG) ? helmWearOf(L) : 0) {   // (P5c) the fighter's own helm's wear (doll_paint)
+    if (w & 1) flag("helmdull");
+    if (w & 2) flag("helmplain");
+    if (w >> 2 & 3) flagS("helmdent" + std::to_string(w >> 2 & 3) + "-" + std::to_string(w >> 8 & 255));
   }
   if (L.skirt >= 1 && L.skirt <= 4) flagS("skirt" + std::to_string(L.skirt));
   if (L.crest >= 1 && L.crest <= 4) flagS("crest" + std::to_string(L.crest));
@@ -1099,7 +1128,11 @@ HumanLook ladderLook(const HumanLook& L) {
     // helm (the Imperial king's crestless galea, the Sylvan's horned winged helm), a step up the T6 head. (P5b2 fix r2, judge
     // item 2) only a SIGNED king: his helm's maker a people with a signature (sigOn). A maker-less king (hash_looks' nking, a
     // census king with no people) keeps the jitter, unchanged (STYLE_P5B 2.9: maker-less pieces unchanged; S5.rig2)
-    if (!(L.king && sigOn(L.makerAt(HumanLook::TIER_HELM)))) jit(HumanLook::TIER_HELM, 0);
+    // (P5c, the owner 2026-11-08: "Yeah probably should keep the crest") and never a signed helm: a ranked fighter's helm made
+    // by a signed people stays its people's family at its own tier, its crest or mask kept (a step down took the T4 crest or
+    // the T3 mask away, a step up the next tier's head); its wear varies instead (helmWearOf: the dents, the metal's polish,
+    // the trim). The king is one of them. Maker-less helms keep the jitter (STYLE_P5B 2.9)
+    if (!sigOn(L.makerAt(HumanLook::TIER_HELM))) jit(HumanLook::TIER_HELM, 0);
     jit(HumanLook::TIER_SHIELD, 3);
     jit(HumanLook::TIER_GLOVES, 6);
     jit(HumanLook::TIER_BOOTS, 9);
@@ -1533,6 +1566,16 @@ static HumanLook sigLookOf(const HumanLook& L, SigUse& u) {
     E.helmet = true; E.headwear = 0;
     E.tier[H::TIER_HELM] = (uint8_t)tb;
     E.setMaker(H::TIER_HELM, pb);
+    helmWorn = true;
+  }
+  // (P5c, the owner 2026-11-08) the Heartland's everyday T3 coat (heartlandT3Coat: the kit's steel style in the livery) wears
+  // the kit's T3 head: the nasal (HelmForm::Nasal + 1), its crest the style's knife comb (crest dial 1: no crest part over it)
+  if (heartlandT3Coat(L) && !L.hood) {
+    E.helmet = true; E.headwear = 0; E.helmForm = 1;
+    if (!E.helmStyle) E.helmStyle = 3;
+    E.crest = 1;
+    if (!L.tier[H::TIER_HELM]) { E.tier[H::TIER_HELM] = (uint8_t)tb; E.setMaker(H::TIER_HELM, 3); }
+    if (!E.forge[H::TIER_HELM]) E.forge[H::TIER_HELM] = L.forge[H::TIER_SHIELD] ? L.forge[H::TIER_SHIELD] : L.forge[H::TIER_BODY];
     helmWorn = true;
   }
   if (ownHelm && sigOn(ph) && th >= 1 && helmWorn) E.plumeColor = sigRgba(fp::sig(ph)->dom);

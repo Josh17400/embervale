@@ -140,6 +140,11 @@ struct FramePaint {
     bool toBlade = false, toMetal = false, brassBody = false;
     bool toLeather = false;   // (P5b) a signed leather body's styled skirt and sleeves: their metal in the leather
     bool helmLeather = false;   // (P5b fix r2) a signed T2 leather helm: its Metal in the leather, its Metal 2 fittings kept
+    // (P5c, the owner 2026-11-08: "keep the crest") a ranked fighter's own signed helm (resolver flags helmdull, helmplain,
+    // helmdent-<n>): its family, tier and crest kept, its wear varied: the polish gone (Metal 3-4 a step down), the fittings
+    // plain (Metal 2 in the bowl's Metal), a dent or two (a lit bowl pixel at step 1, chosen by the view's own lit cells)
+    bool helmDull = false, helmPlain = false;
+    int helmDent[2] = {-1, -1};
     bool toGilt = false;      // (P5b fix r1) a gilt people's signed T5 helm or shield: its fittings (Metal 2) in the gilt (Device)
     bool toGiltGrowth = false;   // (P5b fix r1) a signed helm's legend growth part (the Jade kuwagata): its metal 1-4 in the gilt
     const ViewRec* bandView = nullptr;

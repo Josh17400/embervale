@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include "rpg/art/doll/doll_envelope.h"
 #include "rpg/art/doll/doll_internal.h"
 
 namespace art {
@@ -287,7 +288,9 @@ bool condHolds(const DollRecipe& r, const std::string& cond) {
     const bool neg = !t.empty() && t[0] == '!';
     if (neg) t = t.substr(1);
     // (r.flags read directly: rpg_doll links without the resolver's DollRecipe::has)
-    const bool has = std::find(r.flags.begin(), r.flags.end(), t) != r.flags.end();
+    // (P5c) `fix.sig`: the FIX_SIG switch itself, not a flag (a view drawn for the signed looks only, so FIX_SIG off draws
+    // f914d03's pixels; no recipe carries it)
+    const bool has = t == "fix.sig" ? fixOn(FIX_SIG) : std::find(r.flags.begin(), r.flags.end(), t) != r.flags.end();
     if (!t.empty() && has == neg) return false;
     a = b + 1;
   }

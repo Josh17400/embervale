@@ -74,7 +74,7 @@ const cult::Culture& kitCulture(cult::Archetype people, uint32_t seed);
 
 // ---- the looks macros (contracts 3b), installed as art::doll's LookSpecHook so every looks reader (rpg_test --limbs,
 // the gates' matrices, doll_gallery --look, script_p2c) takes them: hero=1 heroine=1 kit=<people>:<tier>[:<seed>] wpn=
-// rarity= npc=<people>:<role>[:<rank>][:<seed>] tier=<n> tierBody= tierHelm= tierShield= tierWeapon= tierGloves=
+// rarity= npc=<people>:<role>[:<rank>][:<seed>][:lift|-][:<man>] tier=<n> tierBody= tierHelm= tierShield= tierWeapon= tierGloves=
 // tierBoots= tierCloak= tierBack= rare=<bits>. Order: hero / heroine, then the kit or the npc (with wpn and rarity), then
 // the plain fields in the order written, then the tiers.
 void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad);
