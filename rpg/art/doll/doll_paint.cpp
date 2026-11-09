@@ -1624,7 +1624,17 @@ DOLL_PIXEL_INLINE uint8_t FramePaint::recolour(const ItemPaint& ip, int x, int y
   if (ip.toLeather && c >= 2 && (codeSlot(c) == Slot::Metal || codeSlot(c) == Slot::Metal2)) c = code(Slot::Leather, codeStep(c));
   if (ip.helmLeather && c >= 2 && codeSlot(c) == Slot::Metal) c = code(Slot::Leather, codeStep(c));
   if (ip.toGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Device, codeStep(c));   // (P5b fix r1) the legend's gilt
-  if (ip.cloakGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(dyeSlotOf(HumanLook::TIER_CLOAK, false), codeStep(c));   // (P5d)
+  // (P5d) the royal guard's long cloak: its trim (Metal 2) in the gilt thread, and a gilt border inside its outline (a cloth
+  // pixel beside the outline ring or the view's edge), so the cloak reads gilt-edged from every side; its lit steps kept
+  if (ip.cloakGilt && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(dyeSlotOf(HumanLook::TIER_CLOAK, false), codeStep(c));
+  if (ip.cloakGilt && c >= 2 && codeSlot(c) == Slot::Cloak && codeStep(c) >= 1) {
+    auto out = [&](int qx, int qy) {
+      if (qx < 0 || qy < 0 || qx >= v.w || qy >= v.h) return true;
+      const uint8_t q = v.cells[(size_t)qy * v.w + qx];
+      return q < 2 || codeStep(q) == 0;
+    };
+    if (out(x - 1, y) || out(x + 1, y) || out(x, y + 1)) c = code(dyeSlotOf(HumanLook::TIER_CLOAK, false), codeStep(c));
+  }
   if (ip.toGiltGrowth && c >= 2 && codeSlot(c) == Slot::Metal && codeStep(c) >= 1) c = code(Slot::Device, codeStep(c));
   // (P5c) the fighter's own helm wear: fittings plain, the polish gone, the dents (STYLE_P5B 2.5, "the guards' variety")
   if (ip.helmPlain && c >= 2 && codeSlot(c) == Slot::Metal2) c = code(Slot::Metal, codeStep(c));
