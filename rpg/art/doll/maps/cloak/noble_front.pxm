@@ -25,6 +25,25 @@ legend W linen 1
 legend X linen 2
 legend Z linen 3
 
+
+# (P5e royalcloak) begin royal-clasp: the royal guard's gilt clasps and chain at the collar (P5e)
+view D key rest origin 5 0 layer head when royalguard replace
+|.QQ....QQ.
+|QPON..NPOQ
+|QONQONQONQ
+|.QQ....QQ.
+view R key rest origin -1 0 when royalguard replace
+|..QQ.
+|.QPOQ
+|.QONQ
+|..QQ.
+view L key rest origin 6 0 when royalguard replace
+|.QQ..
+|QOPQ.
+|QNOQ.
+|.QQ..
+# (P5e royalcloak) end royal-clasp
+
 view U key rest origin 9 0 layer head
 |..QQQQ......QQQQ..
 |.QTTSQ......QSSRQ.

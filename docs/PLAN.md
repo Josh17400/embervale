@@ -4042,6 +4042,15 @@ the plaid's filigree views ADDed; region planes re-cut, never a pixel), rig 1 un
   inside its outline in gilt thread (the cloak's dye slot in the gold trim ramp), over his T4 everyday kit, in place of his alloy's half-cape or cape; the cloak's tier and every other
   piece stay T4. Captains, common soldiers and the king unchanged (D125 answer 3 stands); FIX_SIG off draws f914d03's look.
   Moves: tools/gates/baseline/moves_p5d/ROYALCLOAK.txt; root p5d.
+  **P5e (the owner 2026-11-10: "some of the front models don't quite match what's going on in the back. They are really far
+  spread out, and looks like wings not a cape").** The T5 views stood 3-6 px past a T4 body's arms facing D (wings) and as a slab
+  facing R / L. Facing D, R and L the royal guard wears his own cape views fitted to the T4 body (cloak/noble `when royalguard
+  replace`, ADDED by tools/doll/p5e_royalcloak.py, `--verify`): facing D a narrow band behind the shoulders and beside the legs,
+  never past the shoulder tips, one drawing per skirt; facing R / L hung behind the back, 2-3 px behind it, the walk's kick and the
+  run's streaming flare; facing U the approved T5 back. cloak/noble_front `royalguard`: a gilt clasp at each collarbone and a short
+  chain between (the front read of the rank). The views do not fit T4's caps (2 px past a leg facing D, up to 6 behind facing R / L):
+  the resolved tier stays T5. The T5-T6 kit cloaks, every other look and the slice (567/567) unchanged; FIX_SIG off draws f914d03's
+  look. STYLE_P5B 2.5 and decision 11. Moves: tools/gates/baseline/moves_p5e/ROYALCLOAK2.txt; root p5e.
 ### The style slice (wave 1; the owner signs it off before any production map)
 
 The slice locks how steel, leather, cloth over mail, a shield, a spear and a bow look and move on the shipped doll. It

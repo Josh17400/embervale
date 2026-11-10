@@ -426,6 +426,10 @@ bool sigOn(int people) { return fixOn(FIX_SIG) && fixOn(FIX_FP) && fp::sig(peopl
 // ankles, 6-8 px behind) in his people's colour (the signed cloak ramp), its trim (R, the trim band, the chain: Metal 2 on the cloak's
 // parts) in gilt thread, the cloak's own dye slot (doll_paint cloakGilt; doll_ramps dyeRamps: the gold trim ramp), the cloak's tier and every other piece left at T4 (no T5 finish, no breeze). It replaces the alloy's half-cape or cape
 // (one Cloak-slot piece a figure); a tabard, sash or scarf stays on the front. The king keeps his cape. FIX_SIG off: never
+// (P5e, the owner 2026-11-10: the T5 views stood out like wings facing D) facing D, R and L the royal guard draws his own cape
+// views, fitted to the T4 body (cloak/noble's `when royalguard replace` views and noble_front's clasps and chain, ADDED by
+// tools/doll/p5e_royalcloak.py): facing D a narrow band behind the shoulders and beside the legs, never past the arms; facing
+// R / L hung behind the back; facing U the T5 back (`cloak.t5`) as approved.
 bool royalCloak(const HumanLook& L) {
   return fixOn(FIX_SIG) && L.royalGuard && !L.king && L.tier[HumanLook::TIER_BODY] == 4 && L.tier[HumanLook::TIER_CLOAK] >= 1 &&
          L.tier[HumanLook::TIER_CLOAK] <= 4 && (L.cloak || L.cape);
@@ -1400,6 +1404,8 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
   }
   // (P5d) the royal guard's long cloak is drawn by its T5 views (`cloak.t5`, royalCloak): its resolved tier is T5 (the tier its
   // views were picked by: the envelope's caps read it, D80), its finish stays the T4 piece's (no gem, no filigree)
+  // (P5e) its own views (p5e_royalcloak.py) are judged at T5 still: facing D the band beside the legs stands 2 px past them
+  // (T4's cap 0, T5's 2) and facing R / L the cape hangs up to 6 columns behind the body's box (T4's cap 4, T5's 8)
   if (royalCloak(L)) r.pieceTier[HumanLook::TIER_CLOAK] = 5;
   // the finish tiles the pool draws (a decoration, never a hole: a missing tile is no need)
   static const char* const kTile[6] = {"finish.wear", "finish.etch", "finish.filigree", "finish.rune", "finish.gem", "finish.glyph"};
@@ -1444,7 +1450,7 @@ void ladderOf(const HumanLook& L, DollRecipe& r) {
     if (L.tier[s] && (L.rare >> s & 1)) flagS(std::string(kSlotFlag[s]) + ".r");
   }
   for (int t = 1; t <= L.topTier() && t <= 6; t++) flagS("tier" + std::to_string(t));
-  if (royalCloak(L)) { flagS("cloak.t5"); flagS("royalguard"); }   // (P5d) the long cloak's views, the rest at T4
+  if (royalCloak(L)) { flagS("cloak.t5"); flagS("royalguard"); }   // (P5d) the long cloak's views (P5e: `royalguard` D/R/L), the rest at T4
   if (L.tier[HumanLook::TIER_CLOAK] >= 5 || (L.tier[HumanLook::TIER_HELM] >= 5 && (L.crest >= 2 || (L.armsOrnament & 1u)))) flagS("breeze");
   static const char* const kMetal[12] = {"", "leather", "bronze", "iron", "steel", "gilded", "jade", "obsidian", "ember", "starmetal", "alloy", "mythic"};
   if (L.metalKind >= 1 && L.metalKind <= 11) flagS(std::string("metal-") + kMetal[L.metalKind]);

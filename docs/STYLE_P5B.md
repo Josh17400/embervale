@@ -122,6 +122,26 @@ detail and the plumbing (section 8).
    behind) and the soldier (the people's cape or half-cape); facing U and R / L the long gilt-hemmed cloak. No view was drawn
    (every people's dominant reads against its signature). Captains, common soldiers and the king are unchanged; FIX_SIG off
    draws f914d03's look (`doll_resolve royalCloak`).
+   **The cape fitted to the T4 body (P5e, the owner 2026-11-10: "some of the front models don't quite match what's going on in
+   the back. They are really far spread out, and looks like wings not a cape").** The T5 views were cut for the T5 plate's great
+   pauldrons: on the T4 body their shoulder mantle stood 3-6 px past the arms facing D from the collar to the waist and stopped
+   there (wings), and facing R / L a 6 px slab ran from the chest to the ground. Facing D, R and L the royal guard now wears his
+   **own cape views**, hand-placed and ADDED (`tools/doll/p5e_royalcloak.py`, `when royalguard replace` at the top of cloak/noble's
+   views; `--verify`: every other view of the map is P5d's): **facing D** one cape hung behind the shoulders, its sides never past
+   the shoulder tips (x -11 / 10 from the neck; -10 / 9 behind the upper arms) and, on the rows the legs show, within 2 px of the
+   legs, so only a narrow band shows, behind the shoulders and down beside the legs (one drawing per skirt: strips and bell to the
+   shoulder tips' line below the hands, hauberk and tassets from row 12, split skirts and the rest from row 10, the tall mass at
+   -9 / 8 throughout), the hem just above the boots and two folds from the waist; the run's flare narrower, its hem lifted. **Facing R /
+   L** it hangs from behind the neck down the back, 2-3 px behind the shoulder blades and 3 behind the waist, the hem over the
+   calves (the walk's wide key kicks it a pixel back, the run streams it back from the shoulders in two tails, folds along its
+   length); L is R relit from the top left. **Facing U** the approved T5 back is unchanged. The people's colour, the gilt trim and
+   the gilt border inside the outline are the compositor's as in P5d. **The rank read from the front**: a small gilt clasp at each
+   collarbone and a short chain between them sagging a row at the breastbone (cloak/noble_front, `royalguard`; under the face, the
+   beard and the pauldrons, so a beard may hide its middle); facing R / L the near clasp at the chest's front. The views do not
+   fit T4's caps (the band beside the legs stands 2 px past them facing D, cap 0; the cape hangs up to 6 columns behind the body's
+   box facing R / L, cap 4), so the cloak's resolved tier stays T5 (D80): every royal guard 2 or less past a leg and 6 or less
+   behind. Its kneel, sit, floor, ride and lie keys keep the noble cloak's base views (within the shoulder line). The captain's
+   travel cloak and the T4 soldier's cape or half-cape, which also stand beside the arms facing D, are unchanged (not asked).
    **Every other alloy** (the warriors' at T4, a masterwork worked at T4, an Epic everyday at T5) keeps **its own helmet and cut** (D51; the owner, 2026-10-24/25:
    "every alloy its own helmet"), drawn from the people's STYLE_P2 28.5 menu and dressed in the people's pair (crest, layer,
    cape, cloak, shield field), and never a family the people's signature rules out below T5 (the Fjordfolk: no cone, the
@@ -691,6 +711,9 @@ hardest T1 pair of the plan (Imperial's knob cap against Fjordfolk's round cap, 
 11. **(P5d) The royal guard's cloak. Asked by the owner 2026-11-09 ("a cloak for the royal guard would be nice"; the helmet
    dents stay), built in P5d (section 2.5; PLAN D126).** The royal guard wears the long noble cloak in his people's dominant
    with a gilt trim over his T4 everyday kit, so rank shows at a glance; captains, common soldiers and the king unchanged.
+   **P5e (the owner 2026-11-10: "looks like wings not a cape"):** facing D, R and L the cape is redrawn on the T4 body (one
+   cape hung from the shoulders: a narrow band facing D, behind the back facing R / L, the approved back facing U), with a gilt
+   clasp and chain at the collar for the front read of the rank (the owner was offered it); its resolved tier stays T5.
 
 ### 10.1 Residuals that touch the approved slice (RULED 2026-11-07 by the main session as planner: R1 and R2)
 
