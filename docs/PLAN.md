@@ -4038,8 +4038,8 @@ the plaid's filigree views ADDed; region planes re-cut, never a pixel), rig 1 un
 - **D126. The royal guard's cloak (P5d, the owner 2026-11-09: "a cloak for the royal guard would be nice"; STYLE_P5B 2.5 and
   decision 11).** Under FIX_SIG every census royal guard (Role::Guard of a palace or barracks, man and woman, every people;
   `HumanLook::royalGuard`, derived, never saved, key() at rig 2 only when set) wears the long noble cloak (cloak/noble's
-  `cloak.t5` views, reused: no view drawn) in his people's dominant with its trim in gilt thread (the cloak's dye slot in the
-  gold trim ramp), over his T4 everyday kit, in place of his alloy's half-cape or cape; the cloak's tier and every other
+  `cloak.t5` views, reused: no view drawn; its resolved tier T5) in his people's dominant with its trim and a 1 px border
+  inside its outline in gilt thread (the cloak's dye slot in the gold trim ramp), over his T4 everyday kit, in place of his alloy's half-cape or cape; the cloak's tier and every other
   piece stay T4. Captains, common soldiers and the king unchanged (D125 answer 3 stands); FIX_SIG off draws f914d03's look.
   Moves: tools/gates/baseline/moves_p5d/ROYALCLOAK.txt; root p5d.
 ### The style slice (wave 1; the owner signs it off before any production map)

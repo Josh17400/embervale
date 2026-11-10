@@ -115,9 +115,9 @@ detail and the plumbing (section 8).
    `HumanLook::royalGuard`, set by census::dress) keeps his T4 everyday kit and wears the **long noble cloak** over it: the
    existing `cloak/noble` T5-T6 long views (`cloak.t5`: to the ankles, framing the legs facing D, swept 6-8 px behind facing
    R / L) in **his people's dominant** (the signed cloak ramp; the Heartland's in the kingdom's colour), its **trim in gilt
-   thread** (every Metal 2 cell of the cloak's parts and its R band in the gold trim ramp, the cloak's own dye slot, so the
-   harness's trim is untouched). The cloak alone is lifted: the cloak's tier and every other piece stay T4 (no T5 finish,
-   no breeze), and it replaces his alloy's half-cape or cape (one Cloak-slot piece a figure); a tabard, sash or scarf stays on
+   thread** (every Metal 2 cell of the cloak's parts, its R band and a 1 px border inside its outline in the gold trim ramp,
+   the cloak's own dye slot, so the harness's trim is untouched). The cloak alone is lifted: its views and its resolved tier
+   are T5 (the envelope reads its T5 caps, D80), its finish and every other piece stay T4 (no gem, no filigree, no breeze), and it replaces his alloy's half-cape or cape (one Cloak-slot piece a figure); a tabard, sash or scarf stays on
    the front. Facing D the gilt edges and the cloak's sides to the ankles part him from the captain (the travel cloak, 4 px
    behind) and the soldier (the people's cape or half-cape); facing U and R / L the long gilt-hemmed cloak. No view was drawn
    (every people's dominant reads against its signature). Captains, common soldiers and the king are unchanged; FIX_SIG off
