@@ -1,0 +1,7 @@
+witness_pack: 418 scripts (all), 404 PASS, 0 FAIL, 5 XFAIL, 9 SKIP, 5130 PNGs, 1115.8 s wall, jobs 5
+per script: avg 13.52 s (pool 0, scripted 12, fresh 397)
+instance launches: 409, 0.84 s each to hello
+v1draws rig2: 30 (pool runs, drawn frames only)
+exe: C:\Users\joshu\Documents\embervale\build-witness-gates\embervale.exe
+skipped (not runnable under Witness): creator inn m2_ui_screens m3_people_creator_phone p2c_flip_look p2c_flip_look_phone p2c_menus_creator p2c_menus_creator_phone sim_inn
+re-recorded 2026-10-31 (fix round 2): m9_magic_alteration now runs on the game's own engine (witness_pack/scripted.txt): PASS, its 8 PNG hashes from that run (A/A identical over 3 runs); XFAIL 5 -> 4

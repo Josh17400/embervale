@@ -1,0 +1,2 @@
+A1 v1 frame pick at rig 1: 21630 samples, identical (56fb08be96b73a1a)
+anim: 0 failures

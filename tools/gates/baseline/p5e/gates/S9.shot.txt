@@ -1,0 +1,4 @@
+✔ f120 (2s) → C:\Users\joshu\AppData\Local\Temp\claude\C--Users-joshu\1979ea42-238a-4969-bda8-d76ab6bf2de5\scratchpad\sg_fresh2\witness\shots\village_start_now.png
+  diff vs C:/Users/joshu/Documents/embervale/witness/refs/village_start.png: identical · SSIM 1
+    → C:\Users\joshu\AppData\Local\Temp\claude\C--Users-joshu\1979ea42-238a-4969-bda8-d76ab6bf2de5\scratchpad\sg_fresh2\witness\shots\village_start_now-diff.png  (A │ B │ changes: green appeared, red gone, blue moved, yellow changed)
+✔ expect ssim >= 0.999: got 1 >= 0.999

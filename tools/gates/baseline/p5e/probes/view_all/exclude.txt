@@ -1,0 +1,7 @@
+# tools/gates/baseline/119de74/probes/view_all/exclude.txt - "<script>[/<png>]  # cause" left out of witness_pack --check.
+# Each differed between runs at 119de74 on fresh instances (A/A, 2026-10-30). All four come from scripted runs (a title-world
+# script on `--witness --script`): something in that path is not deterministic (game-side, reported).
+m0b_ext_towns/m0b_ext_city_night.png          # scripted (--witness --script) run: two fresh runs gave two hashes (847736dd / aa77c7cb)
+m3b_forts_gates/f_pave_starspire.png          # scripted run: 1 of 4 fresh runs differed (8276c691 vs 24fdc974)
+m3_arch_tour/m3_river_night.png               # scripted run: two fresh runs gave two hashes (2a39cb6c / 21f3808d)
+m3_arch_tour/m3_marsh_night.png               # scripted run: 17f80fb3 in 2 runs, a2dc8079 in 3 (every run a fresh --script instance)
